@@ -1,24 +1,38 @@
 import { MathUtils, Vector3 } from "three";
 
-// First-person walk controller for the 3D editor (W key). While active it
-// owns the camera: camera-controls is disabled AND its update loop suspended
-// (update() rewrites the camera pose every call, even when disabled — see
-// ControlsManager.setSuspended). Pointer-locked mouse looks around, arrow
-// keys move, holding Space sprays (onFireStart on press, onFireStop on
-// release / blur / exit), R clears the paint splats (onClearSplats),
-// B cycles the nozzle shape (onCycleJetMode), P/M widen/narrow the nozzle
-// aperture (onSprayWiden/onSprayNarrow, key-repeat sweeps the angle).
+// First-person walk controller for the 3D editor (P key, see
+// walkModeToggle). While active it owns the camera: camera-controls is
+// disabled AND its update loop suspended (update() rewrites the camera pose
+// every call, even when disabled — see ControlsManager.setSuspended).
+//
+// Inputs (letters matched on e.key so the printed key works on AZERTY):
+// - pointer-locked mouse looks around; Q / S also turn the gaze left / right
+//   while held;
+// - arrows move (Up/Down forward/back, Left/Right strafe); Z / W move the
+//   eye up / down while held and the reached altitude persists (gravity then
+//   glides back to THAT altitude, not to the walking eye height);
+// - R held = run (movement x RUN_MULTIPLIER);
+// - Space = primary action of the current tool (onPrimaryStart on press,
+//   onPrimaryStop on release / blur / exit): the lance streams while held,
+//   the measure tool shoots on press;
+// - O switches the tool (onSwitchTool), Backspace / Delete clears the
+//   current tool's traces (onClear);
+// - B cycles the nozzle shape (onCycleJetMode), + / - widen / narrow the
+//   nozzle aperture (onSprayWiden / onSprayNarrow, key-repeat sweeps).
 //
 // Movement model (user-validated):
-// - eye at groundY + EYE_HEIGHT above the selected baseMap plane;
-// - Up/Down arrows = forward/back, Left/Right = horizontal strafe;
+// - eye at groundY + EYE_HEIGHT (+ the Z/W altitude offset) above the
+//   selected baseMap plane;
 // - |pitch| > CLIMB_PITCH: forward/back follow the full look vector (climb
 //   when looking up, descend when looking down);
 // - |pitch| <= CLIMB_PITCH: movement is horizontal and gravity glides the
-//   eye back to its walking height.
+//   eye back to its reference height.
 
 const EYE_HEIGHT = 1.7; // m above the baseMap plane
 const SPEED = 4; // m/s
+const RUN_MULTIPLIER = 3; // R held
+const TURN_SPEED = MathUtils.degToRad(90); // rad/s, Q / S held
+const VERTICAL_SPEED = 2; // m/s, Z / W held
 const SENSITIVITY = 0.0025; // rad per px of pointer-locked mouse move
 const PITCH_LIMIT = MathUtils.degToRad(89);
 const CLIMB_PITCH = MathUtils.degToRad(45);
@@ -38,6 +52,28 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+const emptyKeys = () => ({
+  fwd: false,
+  back: false,
+  left: false,
+  right: false,
+  turnLeft: false,
+  turnRight: false,
+  up: false,
+  down: false,
+  run: false,
+});
+
+// Held-key letters (e.key, lower-cased). AZERTY-friendly: Q/S sit under the
+// left hand, Z (top row) goes up, W (bottom row) goes down.
+const LETTER_KEYS = {
+  q: "turnLeft",
+  s: "turnRight",
+  z: "up",
+  w: "down",
+  r: "run",
+};
+
 const _dir = new Vector3();
 
 export default class WalkModeController {
@@ -45,9 +81,10 @@ export default class WalkModeController {
     sceneManager,
     groundY = 0,
     onRequestExit,
-    onFireStart,
-    onFireStop,
-    onClearSplats,
+    onPrimaryStart,
+    onPrimaryStop,
+    onSwitchTool,
+    onClear,
     onCycleJetMode,
     onSprayWiden,
     onSprayNarrow,
@@ -55,9 +92,10 @@ export default class WalkModeController {
     this.sceneManager = sceneManager;
     this.groundY = groundY;
     this.onRequestExit = onRequestExit;
-    this.onFireStart = onFireStart;
-    this.onFireStop = onFireStop;
-    this.onClearSplats = onClearSplats;
+    this.onPrimaryStart = onPrimaryStart;
+    this.onPrimaryStop = onPrimaryStop;
+    this.onSwitchTool = onSwitchTool;
+    this.onClear = onClear;
     this.onCycleJetMode = onCycleJetMode;
     this.onSprayWiden = onSprayWiden;
     this.onSprayNarrow = onSprayNarrow;
@@ -65,7 +103,10 @@ export default class WalkModeController {
     this._yaw = 0;
     this._pitch = 0;
     this._lookDirty = false;
-    this._keys = { fwd: false, back: false, left: false, right: false };
+    this._keys = emptyKeys();
+    // Altitude gained with Z / W, in meters above the walking eye height.
+    // Gravity targets groundY + EYE_HEIGHT + this offset (see _refEyeY).
+    this._altitudeOffset = 0;
     this._locked = false;
     this._hasLockedOnce = false;
     this._rafId = null;
@@ -106,7 +147,9 @@ export default class WalkModeController {
 
     // Land onto the ground plane (keep x/z): animate the descent to walking
     // eye height while the gaze levels out to the horizon.
-    const eyeY = this.groundY + EYE_HEIGHT;
+    this._keys = emptyKeys();
+    this._altitudeOffset = 0;
+    const eyeY = this._refEyeY();
     this._landingFromY = camera.position.y;
     this._landingFromPitch = this._pitch;
     this._landingMs = MathUtils.clamp(
@@ -132,9 +175,9 @@ export default class WalkModeController {
     window.addEventListener("keydown", this._onKeyDown, true);
     window.addEventListener("keyup", this._onKeyUp, true);
     window.addEventListener("blur", this._onBlur);
-    // Fallback: the initial requestPointerLock (issued by the W-keydown
-    // handler) may fail or the user may Escape out of the lock — a click on
-    // the canvas re-acquires it.
+    // Fallback: the initial requestPointerLock (issued by the toggle
+    // keydown / click handler, see walkModeToggle) may fail or the user may
+    // Escape out of the lock — a click on the canvas re-acquires it.
     dom.addEventListener("click", this._onCanvasClick);
 
     this._lastT = performance.now();
@@ -143,7 +186,7 @@ export default class WalkModeController {
   };
 
   exit = () => {
-    this.onFireStop?.(); // never leave a stream running past the mode
+    this.onPrimaryStop?.(); // never leave a stream running past the mode
     if (this._rafId != null) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
@@ -230,8 +273,16 @@ export default class WalkModeController {
     this.sceneManager.camera.rotation.set(this._pitch, this._yaw, 0);
   };
 
+  // Reference eye height gravity glides back to: walking height plus the
+  // altitude gained with Z / W.
+  _refEyeY = () => this.groundY + EYE_HEIGHT + this._altitudeOffset;
+
   // ----- keyboard ----------------------------------------------------------
 
+  // Held keys: arrows (movement) + letters (turn / altitude / run). Letters
+  // only ARM on a bare keypress (modifier chords such as Cmd+S / Ctrl+Z stay
+  // untouched) but always RELEASE, so a modifier pressed mid-hold cannot
+  // leave a key stuck.
   _setKeyFromEvent = (e, down) => {
     switch (e.key) {
       case "ArrowUp":
@@ -246,8 +297,13 @@ export default class WalkModeController {
       case "ArrowRight":
         this._keys.right = down;
         return true;
-      default:
-        return false;
+      default: {
+        const name = LETTER_KEYS[e.key?.toLowerCase?.()];
+        if (!name) return false;
+        if (down && (e.ctrlKey || e.metaKey || e.altKey)) return false;
+        this._keys[name] = down;
+        return true;
+      }
     }
   };
 
@@ -258,41 +314,49 @@ export default class WalkModeController {
       return;
     }
     if (e.code === "Space") {
-      // Held key = continuous jet; released in _onKeyUp.
-      if (!e.repeat) this.onFireStart?.();
+      // Primary action: held key = continuous jet (lance), single press =
+      // shot (measure); released in _onKeyUp.
+      if (!e.repeat) this.onPrimaryStart?.();
       // Space would scroll the page or "click" a focused button.
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
     }
-    if (e.key.toLowerCase() === "r") {
-      // Wipe the paint splats off the walls.
-      if (!e.repeat) this.onClearSplats?.();
+    if (e.key === "Backspace" || e.key === "Delete") {
+      // Wipe the current tool's traces (paint splats / measures).
+      if (!e.repeat) this.onClear?.();
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
     }
-    // Nozzle tuning: B cycles the jet shape, P/M widen/narrow the aperture
-    // (repeat allowed: holding the key sweeps the angle). e.key (not e.code)
-    // so the printed key matches on AZERTY layouts; modifier chords
-    // (Cmd+P print...) stay untouched.
+    // Single-press letters. e.key (not e.code) so the printed key matches on
+    // AZERTY layouts; modifier chords (Cmd+B bold, Cmd+- zoom...) stay
+    // untouched.
     if (!e.ctrlKey && !e.metaKey && !e.altKey) {
       const key = e.key.toLowerCase();
+      if (key === "o") {
+        if (!e.repeat) this.onSwitchTool?.();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       if (key === "b") {
         if (!e.repeat) this.onCycleJetMode?.();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
       }
-      if (key === "p" || key === "m") {
-        (key === "p" ? this.onSprayWiden : this.onSprayNarrow)?.();
+      // Nozzle aperture: repeat allowed, holding the key sweeps the angle.
+      // "=" is the unshifted "+" key on most layouts.
+      if (key === "+" || key === "=" || key === "-") {
+        (key === "-" ? this.onSprayNarrow : this.onSprayWiden)?.();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
       }
     }
     if (this._setKeyFromEvent(e, true)) {
-      // Arrows must not scroll the page nor reach other shortcuts.
+      // Held keys must not scroll the page nor reach other shortcuts.
       e.preventDefault();
       e.stopImmediatePropagation();
     }
@@ -300,7 +364,7 @@ export default class WalkModeController {
 
   _onKeyUp = (e) => {
     if (e.code === "Space") {
-      this.onFireStop?.();
+      this.onPrimaryStop?.();
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
@@ -314,8 +378,8 @@ export default class WalkModeController {
   _onBlur = () => {
     // Focus loss eats the keyup events — don't keep walking (or spraying)
     // forever.
-    this._keys = { fwd: false, back: false, left: false, right: false };
-    this.onFireStop?.();
+    this._keys = emptyKeys();
+    this.onPrimaryStop?.();
   };
 
   // ----- movement loop -------------------------------------------------------
@@ -334,7 +398,7 @@ export default class WalkModeController {
       // gaze leveling out to the horizon. Movement keys wait for touchdown.
       const p = Math.min((now - this._landingT0) / this._landingMs, 1);
       const eased = easeInOutCubic(p);
-      const eyeY = this.groundY + EYE_HEIGHT;
+      const eyeY = this._refEyeY();
       camera.position.y = MathUtils.lerp(this._landingFromY, eyeY, eased);
       this._pitch = MathUtils.lerp(this._landingFromPitch, 0, eased);
       this._applyLook();
@@ -344,9 +408,20 @@ export default class WalkModeController {
       return;
     }
 
-    const fwdSign = (this._keys.fwd ? 1 : 0) - (this._keys.back ? 1 : 0);
-    const strafeSign = (this._keys.right ? 1 : 0) - (this._keys.left ? 1 : 0);
+    const keys = this._keys;
+    const runMul = keys.run ? RUN_MULTIPLIER : 1;
+    const speed = SPEED * runMul;
+    const fwdSign = (keys.fwd ? 1 : 0) - (keys.back ? 1 : 0);
+    const strafeSign = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    const turnSign = (keys.turnLeft ? 1 : 0) - (keys.turnRight ? 1 : 0);
+    const vertSign = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
     const climbing = Math.abs(this._pitch) > CLIMB_PITCH;
+
+    if (turnSign) {
+      // Same sign convention as the mouse: yaw grows when turning left.
+      this._yaw += turnSign * TURN_SPEED * dt;
+      this._lookDirty = true;
+    }
 
     if (fwdSign) {
       if (climbing) {
@@ -359,20 +434,33 @@ export default class WalkModeController {
       } else {
         _dir.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
       }
-      camera.position.addScaledVector(_dir, fwdSign * SPEED * dt);
+      camera.position.addScaledVector(_dir, fwdSign * speed * dt);
       moved = true;
     }
 
     if (strafeSign) {
       // Lateral strafe is always horizontal.
-      camera.position.x += Math.cos(this._yaw) * strafeSign * SPEED * dt;
-      camera.position.z += -Math.sin(this._yaw) * strafeSign * SPEED * dt;
+      camera.position.x += Math.cos(this._yaw) * strafeSign * speed * dt;
+      camera.position.z += -Math.sin(this._yaw) * strafeSign * speed * dt;
       moved = true;
     }
 
-    const eyeY = this.groundY + EYE_HEIGHT;
-    if (!climbing && Math.abs(camera.position.y - eyeY) > 1e-4) {
-      // Gravity: frame-rate-independent exponential glide back to eye height.
+    if (vertSign) {
+      // Z / W: vertical flight; the reached altitude becomes the new
+      // reference height gravity glides back to.
+      camera.position.y += vertSign * VERTICAL_SPEED * runMul * dt;
+      camera.position.y = Math.max(
+        camera.position.y,
+        this.groundY + MIN_HEAD_CLEARANCE
+      );
+      this._altitudeOffset = camera.position.y - (this.groundY + EYE_HEIGHT);
+      moved = true;
+    }
+
+    const eyeY = this._refEyeY();
+    if (!climbing && !vertSign && Math.abs(camera.position.y - eyeY) > 1e-4) {
+      // Gravity: frame-rate-independent exponential glide back to the
+      // reference height.
       camera.position.y +=
         (eyeY - camera.position.y) * (1 - Math.exp(-GRAVITY_RATE * dt));
       moved = true;

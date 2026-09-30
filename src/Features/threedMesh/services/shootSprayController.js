@@ -35,7 +35,7 @@ const MAX_FLIGHT_S = 0.6;
 // flat fan spread along the camera-right axis, flat fan in the vertical
 // plane of the aim.
 export const JET_MODES = ["CONE", "FLAT_H", "FLAT_V"];
-const SPREAD_MIN_DEG = 0.3; // half-angle clamp (P/M tuning)
+const SPREAD_MIN_DEG = 0.3; // half-angle clamp (+ / - tuning)
 const SPREAD_MAX_DEG = 25; // half-angle clamp -> 50 deg full aperture
 const FLAT_THICKNESS = 0.1; // flat-jet ribbon thickness, fraction of fan half-width
 const SPLAT_SCALE_MAX = 3; // coverage-compensation cap for landed splats
@@ -66,7 +66,7 @@ const DEFAULT_OPTIONS = {
 export function createShootSprayController({ editor, sceneManager, options }) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // Live nozzle state (B / P / M in walk mode): shape + half-angle, mutable
+  // Live nozzle state (B / + / - in walk mode): shape + half-angle, mutable
   // while a stream runs — read at emission time, so in-flight droplets keep
   // their velocities and the jet morphs from the nozzle out.
   const baseSpreadDeg = opts.spreadDeg; // splat-scale reference
@@ -362,7 +362,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     editor.renderScene?.();
   }
 
-  // ----- nozzle tuning (B / P / M) -----------------------------------------
+  // ----- nozzle tuning (B / + / -) -----------------------------------------
 
   function getJetState() {
     return { jetMode, spreadDeg };

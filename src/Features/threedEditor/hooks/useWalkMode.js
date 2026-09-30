@@ -10,7 +10,10 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
-import { emitShoot } from "Features/threedMesh/services/shootAimStore";
+import {
+  emitShoot,
+  resetShoot,
+} from "Features/threedMesh/services/shootAimStore";
 import {
   pickWorldHitAtNdc,
   getMuzzleOrigin,
@@ -19,14 +22,16 @@ import { createShootSprayController } from "Features/threedMesh/services/shootSp
 import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 
 import WalkModeController from "../js/WalkModeController";
+import { createWalkMeasureController } from "../services/walkMeasureController";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
+import { WALK_MODE_TOGGLE_KEY, toggleWalkMode } from "../utils/walkModeToggle";
 
-// P/M nozzle-aperture step, per keydown (incl. OS key-repeat while held).
+// + / - nozzle-aperture step, per keydown (incl. OS key-repeat while held).
 // Multiplicative: the clamp range spans two orders of magnitude, a single
 // tap gives a visible ±20% and holding ~1.3 s sweeps the whole range.
 const SPREAD_STEP_FACTOR = 1.2;
 // HUD crosshair-to-target distance refresh (same center raycast as the
-// spray aim; 10 Hz is plenty for a readout).
+// spray aim and the measure preview; 10 Hz is plenty for a readout).
 const TARGET_DIST_POLL_MS = 100;
 
 const isEditableTarget = (el) => {
@@ -40,10 +45,12 @@ const isEditableTarget = (el) => {
   );
 };
 
-// First-person walk mode (W in the 3D viewer). Bridges Redux to the
-// imperative WalkModeController: W toggles walkMode.active, the controller
-// owns the camera while active, Space fires the concrete lance toward the
-// screen center (crosshair in ShootLanceOverlayThreed).
+// First-person walk mode (P in the 3D viewer, see walkModeToggle). Bridges
+// Redux to the imperative WalkModeController: P toggles walkMode.active, the
+// controller owns the camera while active, Space is the primary action of
+// the current walk tool (O switches): the concrete lance streams toward the
+// screen center (crosshair in ShootLanceOverlayThreed), the measure tool
+// shoots two points and draws an ephemeral dimension between them.
 export default function useWalkMode() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -78,7 +85,9 @@ export default function useWalkMode() {
   const groundYRef = useRef(groundY);
   groundYRef.current = groundY;
 
-  // W hotkey — only while a 3D-family viewer is effectively displayed.
+  // P hotkey — only while a 3D-family viewer is effectively displayed.
+  // Registered at mount, i.e. BEFORE the controller's capture listeners: P
+  // reaches this toggle first and exits the mode too.
   useEffect(() => {
     if (!isThreedViewer) return;
 
@@ -86,17 +95,14 @@ export default function useWalkMode() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
-      if (e.key.toLowerCase() !== "w") return;
+      if (e.key.toLowerCase() !== WALK_MODE_TOGGLE_KEY) return;
+      const s = store.getState();
       // The PDF editor layer covers the 3D editor: no pointer lock under it.
-      if (selectPdfEditorOpen(store.getState())) return;
+      if (selectPdfEditorOpen(s)) return;
+      // A live 3D draw owns its letters.
+      if (s.mapEditor.enabledDrawingMode) return;
 
-      const active = store.getState().threedEditor.walkMode.active;
-      if (!active) {
-        // Pointer lock needs the user gesture: request it synchronously in
-        // the keydown handler, not from the controller-mount effect.
-        getActiveThreedEditor()?.sceneManager?.renderer?.domElement?.requestPointerLock?.();
-      }
-      dispatch(setWalkModeActive(!active));
+      toggleWalkMode({ store, dispatch });
       e.preventDefault();
       e.stopImmediatePropagation();
     };
@@ -144,9 +150,28 @@ export default function useWalkMode() {
         splatSize: 0.06,
       },
     });
-    // Seed the HUD nozzle readout (ShootLanceOverlayThreed) before any
-    // B/P/M press.
-    emitShoot(spray.getJetState());
+    const measure = createWalkMeasureController({ sceneManager, editor });
+
+    // Walk tool, walk-local (resets to the lance on every entry). Mirrored
+    // into the shootAimStore for the HUD / weapon image.
+    let tool = "LANCE";
+
+    // Seed the HUD (ShootLanceOverlayThreed) before any key press.
+    resetShoot();
+    emitShoot({ ...spray.getJetState(), tool });
+
+    // Point under the screen-center crosshair (real surface or void).
+    const centerPick = () =>
+      pickWorldHitAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
+
+    const emitMeasureState = () => {
+      const st = measure.getState();
+      emitShoot({
+        measureHasStart: !!st.startPoint,
+        measureCount: st.measures.length,
+      });
+    };
+
     // Live aim of the stream, re-read every frame while Space is held.
     // Origin: with the RPG image displayed, the jet exits its nozzle —
     // measure the on-screen image rect (robust to resize and to the CSS
@@ -155,11 +180,7 @@ export default function useWalkMode() {
     // top-left). Fallback: the bottom-center muzzle of the SVG lance.
     // Target: the point under the screen-center crosshair.
     const getStreamAim = () => {
-      const { point: target, isHit } = pickWorldHitAtNdc({
-        sceneManager,
-        ndcX: 0,
-        ndcY: 0,
-      });
+      const { point: target, isHit } = centerPick();
       if (!target) return null;
       const walkConfig = store.getState().appConfig.value?.features?.walkMode;
       const weaponEl = document.querySelector('[data-walk-rpg-weapon="true"]');
@@ -187,23 +208,49 @@ export default function useWalkMode() {
       sceneManager,
       groundY: groundYRef.current,
       onRequestExit: () => dispatch(setWalkModeActive(false)),
-      // Space held = continuous jet; the recoil/shake animation of the
-      // weapon overlay runs for the whole hold (firingUntil far ahead,
-      // reset on release).
-      onFireStart: () => {
+      // Space pressed. Lance: continuous jet while held, the recoil/shake
+      // animation of the weapon overlay runs for the whole hold (firingUntil
+      // far ahead, reset on release). Measure: one shot = one point, only
+      // on a real surface (the void is not measurable).
+      onPrimaryStart: () => {
+        if (tool === "MEASURE") {
+          const { point, isHit } = centerPick();
+          if (!isHit) return;
+          measure.shoot(point);
+          emitShoot({ measureLiveM: null });
+          emitMeasureState();
+          return;
+        }
         spray.startStream(getStreamAim);
         emitShoot({ firingUntil: Date.now() + 3600 * 1000 });
       },
-      onFireStop: () => {
+      onPrimaryStop: () => {
+        if (tool === "MEASURE") return;
         spray.stopStream();
         emitShoot({ firingUntil: 0 });
       },
-      // R wipes the in-memory graffiti off the walls.
-      onClearSplats: () => {
+      // O: lance <-> measure. A running jet stops, a pending first point is
+      // dropped; committed measures and paint splats both survive.
+      onSwitchTool: () => {
+        spray.stopStream();
+        measure.cancelStart();
+        tool = tool === "LANCE" ? "MEASURE" : "LANCE";
+        emitShoot({ tool, firingUntil: 0, measureLiveM: null });
+        emitMeasureState();
+      },
+      // Backspace / Delete: wipe the current tool's traces — the in-memory
+      // graffiti off the walls, or every measure.
+      onClear: () => {
+        if (tool === "MEASURE") {
+          measure.clearAll();
+          emitShoot({ measureLiveM: null });
+          emitMeasureState();
+          return;
+        }
         getSplatLayer(sceneManager)?.clear();
         editor.renderScene?.();
       },
-      // B / P / M nozzle tuning — mutators return the fresh {jetMode,
+      // B / + / - nozzle tuning — mutators return the fresh {jetMode,
       // spreadDeg} which feeds the HUD readout.
       onCycleJetMode: () => emitShoot(spray.cycleJetMode()),
       onSprayWiden: () => emitShoot(spray.scaleSpread(SPREAD_STEP_FACTOR)),
@@ -212,19 +259,18 @@ export default function useWalkMode() {
     controller.enter();
     controllerRef.current = controller;
 
-    // Live crosshair-to-target distance for the HUD (null = the void).
+    // Live crosshair-to-target distance for the HUD (null = the void) and,
+    // with the measure tool armed, the dashed preview + live length.
     const distIntervalId = setInterval(() => {
-      const { point, isHit } = pickWorldHitAtNdc({
-        sceneManager,
-        ndcX: 0,
-        ndcY: 0,
-      });
-      emitShoot({
-        targetDistM:
-          isHit && point
-            ? sceneManager.camera.position.distanceTo(point)
-            : null,
-      });
+      const { point, isHit } = centerPick();
+      const targetDistM =
+        isHit && point ? sceneManager.camera.position.distanceTo(point) : null;
+      if (tool === "MEASURE") {
+        const measureLiveM = measure.updatePreview(isHit ? point : null);
+        emitShoot({ targetDistM, measureLiveM });
+      } else {
+        emitShoot({ targetDistM });
+      }
     }, TARGET_DIST_POLL_MS);
 
     return () => {
@@ -232,7 +278,8 @@ export default function useWalkMode() {
       clearInterval(distIntervalId);
       controller.exit();
       spray.dispose();
-      emitShoot({ firingUntil: 0, targetDistM: null });
+      measure.dispose();
+      resetShoot();
     };
   }, [walkActive, dispatch, store]);
 

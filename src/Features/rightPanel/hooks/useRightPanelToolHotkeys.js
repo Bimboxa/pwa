@@ -67,7 +67,7 @@ export default function useRightPanelToolHotkeys() {
       if (!targetKey) return;
 
       const s = store.getState();
-      // Walk mode owns the keyboard (arrows, Space, W to exit).
+      // Walk mode owns the keyboard (arrows, Space, letters, P to exit).
       if (s.threedEditor.walkMode.active) return;
       // A draw / paste / subtract owns its own letters (e.g. "B" = STRIP).
       if (s.mapEditor.enabledDrawingMode) return;

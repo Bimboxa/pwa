@@ -4,10 +4,14 @@ import { useSelector } from "react-redux";
 
 import { Box, alpha } from "@mui/material";
 
-import { getShootState, subscribeShoot } from "../services/shootAimStore";
+import {
+  WALK_TOOLS,
+  getShootState,
+  subscribeShoot,
+} from "../services/shootAimStore";
 import { JET_MODES } from "../services/shootSprayController";
 
-// Base placement of the RPG image: centered, pushed right by 3/4 of its
+// Base placement of the weapon image: centered, pushed right by 3/4 of its
 // width, and tilted back (top away from the viewer) so the gun reads as
 // aimed at the crosshair. Keyframes must repeat the full chain (a keyframe
 // transform replaces the base one), hence this helper.
@@ -25,24 +29,40 @@ const JET_MODE_LABELS = {
   FLAT_V: "Plat vertical",
 };
 
+const TOOL_LABELS = {
+  LANCE: "Lance",
+  MEASURE: "Mesure",
+};
+
 // Walk-mode weapon overlay shown at the bottom of the 3D view: the
-// org-configured RPG image (features.walkMode.rpgImageUrl, resolved from
-// Data/<orga>/ by resolveAppConfig) bottom-center, plus a crosshair marking
-// the screen-center fire target with a game-style HUD under it (distance to
-// the aimed surface + nozzle shape/aperture, tuned with B/P/M). Without a
-// resolved image, only the crosshair and HUD are displayed. Idle-sways,
-// recoils while spraying (firingUntil from the shootAimStore). Pure DOM,
-// pointer-transparent.
+// org-configured weapon image of the current tool (features.walkMode
+// .rpgImageUrl for the lance, .measureImageUrl for the laser meter, both
+// resolved from Data/<orga>/ by resolveAppConfig) bottom-center, plus a
+// crosshair marking the screen-center target with a game-style HUD under it
+// (active tool, distance to the aimed surface, then per tool: nozzle
+// shape/aperture tuned with B / + / -, or the measure progress; a key
+// legend closes the panel). Without a resolved image, only the crosshair
+// and HUD are displayed. Idle-sways, recoils while spraying (firingUntil
+// from the shootAimStore). Pure DOM, pointer-transparent.
 export default function ShootLanceOverlayThreed() {
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
   const rpgImageUrl = useSelector(
     (s) => s.appConfig.value?.features?.walkMode?.rpgImageUrl
   );
-
-  const { firingUntil, jetMode, spreadDeg, targetDistM } = useSyncExternalStore(
-    subscribeShoot,
-    getShootState
+  const measureImageUrl = useSelector(
+    (s) => s.appConfig.value?.features?.walkMode?.measureImageUrl
   );
+
+  const {
+    tool,
+    firingUntil,
+    jetMode,
+    spreadDeg,
+    targetDistM,
+    measureHasStart,
+    measureLiveM,
+    measureCount,
+  } = useSyncExternalStore(subscribeShoot, getShootState);
 
   // Firing flag re-derived when the spray ends (recoil animation stops).
   const [firing, setFiring] = useState(false);
@@ -58,6 +78,8 @@ export default function ShootLanceOverlayThreed() {
   }, [firingUntil]);
 
   if (!walkActive) return null;
+
+  const weaponUrl = tool === "MEASURE" ? measureImageUrl : rpgImageUrl;
 
   return (
     <Box
@@ -82,26 +104,47 @@ export default function ShootLanceOverlayThreed() {
         },
       }}
     >
-      {rpgImageUrl && <RpgWeapon url={rpgImageUrl} firing={firing} />}
+      {/* Remount on tool switch so the sway restarts with the new image. */}
+      {weaponUrl && (
+        <WeaponImage
+          key={tool}
+          url={weaponUrl}
+          firing={tool === "LANCE" && firing}
+        />
+      )}
       <Crosshair />
       {/* jetMode is seeded by useWalkMode right after the spray controller
           is built — the guard covers the first render before that. */}
       {jetMode && (
-        <JetHud
+        <WalkHud
+          tool={tool}
+          targetDistM={targetDistM}
           jetMode={jetMode}
           spreadDeg={spreadDeg}
-          targetDistM={targetDistM}
+          measureHasStart={measureHasStart}
+          measureLiveM={measureLiveM}
+          measureCount={measureCount}
         />
       )}
     </Box>
   );
 }
 
-// Game-style readout under the crosshair: live distance to the aimed
-// surface, the three nozzle shapes with the active one highlighted (footprint
-// glyphs: round patch / horizontal stripe / vertical stripe), the full
-// nozzle aperture (2 x the physics half-angle) and the tuning keys.
-function JetHud({ jetMode, spreadDeg, targetDistM }) {
+const formatM = (m, decimals = 1) =>
+  m == null ? "--- m" : `${m.toFixed(decimals)} m`;
+
+// Game-style readout under the crosshair: the two tools with the active one
+// highlighted, the live distance to the aimed surface, the tool body (nozzle
+// tuning / measure progress) and the walk key legend.
+function WalkHud({
+  tool,
+  targetDistM,
+  jetMode,
+  spreadDeg,
+  measureHasStart,
+  measureLiveM,
+  measureCount,
+}) {
   return (
     <Box
       sx={{
@@ -123,22 +166,58 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
           `1px solid ${alpha(theme.palette.secondary.main, 0.35)}`,
         boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
         fontFamily: "'Roboto Mono', 'Courier New', monospace",
+        color: "secondary.main",
+        whiteSpace: "nowrap",
         "@keyframes hudPop": {
           from: { transform: "scale(1.4)" },
           to: { transform: "scale(1)" },
         },
       }}
     >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+        {WALK_TOOLS.map((key) => (
+          <ToolChip
+            // Remount the chip that just became active so its pop
+            // animation replays on every tool switch.
+            key={key === tool ? `${key}-active` : key}
+            label={TOOL_LABELS[key]}
+            active={key === tool}
+          />
+        ))}
+      </Box>
       <Box
         sx={{
           fontSize: 14,
           letterSpacing: 1,
-          color: "secondary.main",
           opacity: targetDistM == null ? 0.4 : 1,
         }}
       >
-        {targetDistM == null ? "--- m" : `${targetDistM.toFixed(1)} m`}
+        {formatM(targetDistM)}
       </Box>
+      {tool === "MEASURE" ? (
+        <MeasureHudBody
+          targetDistM={targetDistM}
+          measureHasStart={measureHasStart}
+          measureLiveM={measureLiveM}
+          measureCount={measureCount}
+        />
+      ) : (
+        <JetHudBody jetMode={jetMode} spreadDeg={spreadDeg} />
+      )}
+      <Box sx={{ fontSize: 10, opacity: 0.75 }}>
+        [Q]/[S] regard · [Z]/[W] monter/descendre · [R] course · [O] outil · [P]
+        quitter · [⌫] effacer
+      </Box>
+    </Box>
+  );
+}
+
+// Lance: the three nozzle shapes with the active one highlighted (footprint
+// glyphs: round patch / horizontal stripe / vertical stripe), the full
+// nozzle aperture (2 x the physics half-angle) and the tuning keys.
+function JetHudBody({ jetMode, spreadDeg }) {
+  return (
+    <>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         {JET_MODES.map((mode) => (
           <JetModeChip
@@ -149,20 +228,63 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
             active={mode === jetMode}
           />
         ))}
-        <Box
-          sx={{
-            fontSize: 12,
-            minWidth: 42,
-            textAlign: "right",
-            color: "secondary.main",
-          }}
-        >
+        <Box sx={{ fontSize: 12, minWidth: 42, textAlign: "right" }}>
           {(2 * spreadDeg).toFixed(1)}°
         </Box>
       </Box>
-      <Box sx={{ fontSize: 10, color: "secondary.main", opacity: 0.75 }}>
-        [B] buse · [P]/[M] ouverture
+      <Box sx={{ fontSize: 10, opacity: 0.75 }}>
+        [Espace] projeter · [B] buse · [+]/[-] ouverture
       </Box>
+    </>
+  );
+}
+
+// Measure: the next expected shot, the live length from the armed first
+// point to the crosshair, and the number of measures kept in the scene.
+function MeasureHudBody({
+  targetDistM,
+  measureHasStart,
+  measureLiveM,
+  measureCount,
+}) {
+  return (
+    <>
+      {measureHasStart ? (
+        <Box sx={{ fontSize: 12, opacity: measureLiveM == null ? 0.4 : 1 }}>
+          P1 → viseur : {formatM(measureLiveM, 2)}
+        </Box>
+      ) : null}
+      <Box sx={{ fontSize: 10, opacity: targetDistM == null ? 0.4 : 0.75 }}>
+        [Espace] {measureHasStart ? "point 2" : "point 1"}
+        {measureCount > 0
+          ? ` · ${measureCount} mesure${measureCount > 1 ? "s" : ""}`
+          : ""}
+      </Box>
+    </>
+  );
+}
+
+function ToolChip({ label, active }) {
+  return (
+    <Box
+      sx={{
+        px: 0.75,
+        height: 20,
+        display: "flex",
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: active ? 700 : 400,
+        letterSpacing: 0.5,
+        borderRadius: 0.75,
+        border: (theme) =>
+          `1px solid ${active ? theme.palette.secondary.main : "transparent"}`,
+        bgcolor: (theme) =>
+          active ? alpha(theme.palette.secondary.main, 0.15) : "transparent",
+        opacity: active ? 1 : 0.5,
+        animation: active ? "hudPop 160ms ease-out" : "none",
+      }}
+    >
+      {label}
     </Box>
   );
 }
@@ -234,7 +356,8 @@ function JetModeGlyph({ mode, active }) {
   );
 }
 
-function RpgWeapon({ url, firing }) {
+// Weapon image of the current tool (RPG lance / laser meter).
+function WeaponImage({ url, firing }) {
   return (
     <Box
       component="img"

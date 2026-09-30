@@ -29,7 +29,7 @@ const isEditableTarget = (el) => {
 //
 // Scoped to "Dessin module + 3D editor active". useRightPanelToolHotkeys
 // yields "E" (Élévation) in that exact context so listener order never
-// decides; "M" and "R" have no other owner in 3D ("R" belongs to walk mode
+// decides; "M" and "R" have no other owner in 3D ("R" = run in walk mode
 // and OBJECT_3D placement, both of which make this hook inert). Inert while
 // a draw is armed (a draw owns its own letters) and in walk mode. Mounted
 // from MainThreedEditor — NOT from BottomToolbarThreed, which unmounts as
@@ -51,7 +51,7 @@ export default function useDessinToolHotkeysThreed() {
       const s = store.getState();
       if (s.viewers.selectedViewerKey !== "MAP") return;
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(s))) return;
-      // Walk mode owns the keyboard (arrows, Space, W to exit).
+      // Walk mode owns the keyboard (arrows, Space, letters, P to exit).
       if (s.threedEditor.walkMode.active) return;
       // A draw owns its own letters.
       if (s.mapEditor.enabledDrawingMode) return;

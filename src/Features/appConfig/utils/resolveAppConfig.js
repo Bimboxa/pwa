@@ -678,27 +678,33 @@ export default async function resolveAppConfig(appConfig) {
     }
   }
 
-  // walk mode - RPG-style weapon image shown bottom-center of the 3D view
-  // instead of the built-in concrete lance (no image = no weapon overlay).
-  // Source: features.walkMode.rpgImagePath (relative to Data/<orga>/).
-  // Output: features.walkMode.rpgImageUrl (full URL).
-  if (orgaCode && newAppConfig.features?.walkMode?.rpgImagePath) {
-    const relPath = newAppConfig.features.walkMode.rpgImagePath;
+  // walk mode - weapon images shown bottom-center of the 3D view: the
+  // RPG-style lance (no image = no weapon overlay) and the laser meter of
+  // the measure tool. Sources: features.walkMode.{rpgImagePath,
+  // measureImagePath} (relative to Data/<orga>/). Outputs:
+  // features.walkMode.{rpgImageUrl, measureImageUrl} (full URLs).
+  const walkImages = [
+    ["rpgImagePath", "rpgImageUrl"],
+    ["measureImagePath", "measureImageUrl"],
+  ];
+  for (const [pathKey, urlKey] of walkImages) {
+    const relPath = newAppConfig.features?.walkMode?.[pathKey];
+    if (!orgaCode || !relPath) continue;
     const fullPath = `../../../Data/${orgaCode}/${relPath}`;
     const loader =
       DATA_IMAGE_URL_LOADERS[fullPath] || DATA_SVG_URL_LOADERS[fullPath];
     if (loader) {
       try {
-        newAppConfig.features.walkMode.rpgImageUrl = await loader();
+        newAppConfig.features.walkMode[urlKey] = await loader();
       } catch (error) {
         console.error(
-          `[resolveAppConfig] Error loading walkMode rpgImage:`,
+          `[resolveAppConfig] Error loading walkMode ${pathKey}:`,
           error
         );
       }
     } else {
       console.warn(
-        `[resolveAppConfig] walkMode rpgImage not found at ${fullPath}`
+        `[resolveAppConfig] walkMode ${pathKey} not found at ${fullPath}`
       );
     }
   }
