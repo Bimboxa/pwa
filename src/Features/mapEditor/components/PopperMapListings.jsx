@@ -450,7 +450,14 @@ function AnnotationTemplateRow({
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
   const showProcedureChip = hasProcedure && !isViewerModuleRow;
+  // Read-only legend (Viewer module or shared ?mode=viewer lock): the label
+  // wraps on several lines instead of being truncated behind a tooltip.
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  const wrapLabel = isViewerModuleRow || Boolean(viewerMode);
   const interactionMode = forceDrawMode ? "DRAW" : effectiveInteractionMode;
+  // With a wrapping label, the right column must keep the quantity's width on
+  // hover (eye overlaid) — otherwise the label reflows and the row jumps.
+  const keepQtySlot = wrapLabel && interactionMode === "SELECT";
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
@@ -790,7 +797,7 @@ function AnnotationTemplateRow({
             />
           ) : (
             <Tooltip
-              title={annotationTemplate.label ?? ""}
+              title={wrapLabel ? "" : (annotationTemplate.label ?? "")}
               placement="top-start"
               enterDelay={600}
             >
@@ -799,10 +806,18 @@ function AnnotationTemplateRow({
                 color={isHidden ? "text.disabled" : "panel.textPrimary"}
                 sx={{
                   lineHeight: 1.3,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
                   userSelect: "none",
+                  ...(wrapLabel
+                    ? {
+                        whiteSpace: "normal",
+                        overflowWrap: "anywhere",
+                        minWidth: 0,
+                      }
+                    : {
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }),
                 }}
               >
                 {annotationTemplate.label}
@@ -877,6 +892,7 @@ function AnnotationTemplateRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
+            position: "relative",
             gap: 0.5,
             ml: 1,
             minWidth: 56,
@@ -906,7 +922,7 @@ function AnnotationTemplateRow({
                 <Close fontSize="inherit" sx={{ fontSize: 16 }} />
               </IconButton>
             </>
-          ) : isHovered ? (
+          ) : isHovered && !keepQtySlot ? (
             interactionMode === "EDIT" ? (
               /* EDIT mode — reassign-template (paint bucket) + visibility */
               <>
@@ -1050,25 +1066,64 @@ function AnnotationTemplateRow({
               </>
             )
           ) : (
-            <Typography
-              align="right"
-              noWrap
-              sx={{
-                fontSize: "10px",
-                minWidth: "40px",
-                fontFamily: "monospace",
-                fontWeight: 500,
-              }}
-              color={
-                isHidden
-                  ? "text.disabled"
-                  : count > 0
-                    ? "secondary.main"
-                    : "panel.countEmpty"
-              }
-            >
-              {qtyLabel}
-            </Typography>
+            <>
+              <Typography
+                align="right"
+                noWrap
+                sx={{
+                  fontSize: "10px",
+                  minWidth: "40px",
+                  fontFamily: "monospace",
+                  fontWeight: 500,
+                  // keepQtySlot: still in the layout on hover, under the eye.
+                  visibility: isHovered ? "hidden" : "visible",
+                }}
+                color={
+                  isHidden
+                    ? "text.disabled"
+                    : count > 0
+                      ? "secondary.main"
+                      : "panel.countEmpty"
+                }
+              >
+                {qtyLabel}
+              </Typography>
+              {isHovered && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                  }}
+                >
+                  <Tooltip
+                    title={isHidden ? "Afficher" : "Masquer"}
+                    arrow
+                    placement="right"
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={handleToggleHidden}
+                      sx={{
+                        p: 0.5,
+                        color: isHidden ? "secondary.main" : "panel.iconMuted",
+                      }}
+                    >
+                      {isHidden ? (
+                        <VisibilityOff
+                          fontSize="inherit"
+                          sx={{ fontSize: 16 }}
+                        />
+                      ) : (
+                        <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
+            </>
           )}
         </Box>
       </ListItemButton>

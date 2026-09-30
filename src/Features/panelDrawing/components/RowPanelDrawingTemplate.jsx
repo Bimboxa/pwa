@@ -125,6 +125,25 @@ export default function RowPanelDrawingTemplate({
 
   // render
 
+  const visibilityButton = (
+    <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
+      <IconButton
+        size="small"
+        onClick={handleToggleHidden}
+        sx={{
+          p: 0.5,
+          color: isHidden ? "secondary.main" : "panel.iconMuted",
+        }}
+      >
+        {isHidden ? (
+          <VisibilityOff sx={{ fontSize: 16 }} />
+        ) : (
+          <Visibility sx={{ fontSize: 16 }} />
+        )}
+      </IconButton>
+    </Tooltip>
+  );
+
   return (
     <Box
       ref={sortableRef}
@@ -190,11 +209,16 @@ export default function RowPanelDrawingTemplate({
         {/* Label + quantities */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {/* readOnly (Viewer): the label wraps instead of being truncated */}
             <Typography
               variant="body2"
-              noWrap
+              noWrap={!readOnly}
               color={isHidden ? "text.disabled" : "text.primary"}
-              sx={{ fontWeight: 600, userSelect: "none" }}
+              sx={{
+                fontWeight: 600,
+                userSelect: "none",
+                ...(readOnly && { overflowWrap: "anywhere", minWidth: 0 }),
+              }}
             >
               {annotationTemplate.label}
               {annotationTemplate.height != null && (
@@ -277,46 +301,55 @@ export default function RowPanelDrawingTemplate({
         )}
 
         {/* Visibility toggle — in readOnly (Viewer) mode the slot shows the
-            main quantity and swaps to the eye on hover, like the popper. */}
-        {readOnly && !isHovered ? (
-          <Typography
-            align="right"
-            noWrap
+            main quantity and swaps to the eye on hover, like the popper. The
+            quantity stays in the layout (hidden) under the eye so the slot
+            width — and the wrapped label — does not move on hover. */}
+        {readOnly ? (
+          <Box
             sx={{
-              minWidth: 40,
-              px: 0.5,
-              fontSize: "10px",
-              fontFamily: "monospace",
-              fontWeight: 500,
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
               flexShrink: 0,
             }}
-            color={
-              isHidden
-                ? "text.disabled"
-                : (qties?.count ?? 0) > 0
-                  ? "secondary.main"
-                  : "panel.countEmpty"
-            }
           >
-            {qties?.mainQtyLabel ?? ""}
-          </Typography>
-        ) : (
-          <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
-            <IconButton
-              size="small"
-              onClick={handleToggleHidden}
+            <Typography
+              align="right"
+              noWrap
               sx={{
-                p: 0.5,
-                color: isHidden ? "secondary.main" : "panel.iconMuted",
+                minWidth: 40,
+                px: 0.5,
+                fontSize: "10px",
+                fontFamily: "monospace",
+                fontWeight: 500,
+                visibility: isHovered ? "hidden" : "visible",
               }}
+              color={
+                isHidden
+                  ? "text.disabled"
+                  : (qties?.count ?? 0) > 0
+                    ? "secondary.main"
+                    : "panel.countEmpty"
+              }
             >
-              {isHidden ? (
-                <VisibilityOff sx={{ fontSize: 16 }} />
-              ) : (
-                <Visibility sx={{ fontSize: 16 }} />
-              )}
-            </IconButton>
-          </Tooltip>
+              {qties?.mainQtyLabel ?? ""}
+            </Typography>
+            {isHovered && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                }}
+              >
+                {visibilityButton}
+              </Box>
+            )}
+          </Box>
+        ) : (
+          visibilityButton
         )}
 
         {/* Chevron — opens the template detail view (row click) */}
