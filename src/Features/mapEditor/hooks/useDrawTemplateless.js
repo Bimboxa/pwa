@@ -4,6 +4,8 @@ import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSli
 import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import { selectHiddenAnnotationTemplateIds } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import startTemplatelessDraw from "Features/mapEditor/utils/startTemplatelessDraw";
 import {
@@ -29,6 +31,10 @@ export default function useDrawTemplateless() {
     (s) => s.annotations.soloAnnotationTemplateId
   );
   const hiddenIds = useSelector(selectHiddenAnnotationTemplateIds);
+  // 3D editor: the tool draws lines on the faces of the annotation meshes.
+  const isThreedEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
 
   // helpers
 
@@ -43,7 +49,9 @@ export default function useDrawTemplateless() {
   // handlers
 
   const startDraw = () => {
-    startTemplatelessDraw(dispatch, store.getState(), activeShape?.key);
+    startTemplatelessDraw(dispatch, store.getState(), activeShape?.key, {
+      mesh3d: isThreedEditor,
+    });
   };
 
   const selectShapeAndDraw = (shape) => {
@@ -63,6 +71,7 @@ export default function useDrawTemplateless() {
   return {
     shapes,
     activeShape,
+    isThreedEditor,
     startDraw,
     selectShapeAndDraw,
     isSolo,

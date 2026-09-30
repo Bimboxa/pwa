@@ -97,8 +97,14 @@ function snapToInProgress(
 //   8. fall back to a free position on the plane through the last vertex
 //      perpendicular to the camera
 //
-// Returns { position, kind, meshKey?, axis?, baseMapId?, axisA?, axisB?,
-// alignFrom? } or null when no candidate is available.
+// The plane hit may also be a FACE of an annotation (mesh drawing mode, see
+// intersectAnnotationFace — `planeHit.isFace`): same cascade, the snap then
+// reads "FACE", carries the hit annotation (`nodeId`, `faceNormal`) and the
+// world-axis lock is skipped (it would pull the point off the face; the
+// in-plane ortho lock already covers the face's own axes).
+//
+// Returns { position, kind, meshKey?, nodeId?, axis?, baseMapId?, axisA?,
+// axisB?, alignFrom?, faceNormal? } or null when no candidate is available.
 export default function computeSnapTarget({
   mouseNdc,
   camera,
@@ -109,7 +115,22 @@ export default function computeSnapTarget({
   findNearestEdge = null,
   intersectPlane = null,
   alignAdjacency = null,
+  attachFaceToPointSnaps = false,
 }) {
+  // Mesh drawing mode: a vertex / edge snap also reports the face under the
+  // cursor (its normal), so a rectangle anchored on a corner knows its plane.
+  const withFaceUnderCursor = (snap) => {
+    if (!attachFaceToPointSnaps) return snap;
+    const hit = intersectPlane?.(mouseNdc);
+    if (!hit?.isFace) return snap;
+    return {
+      ...snap,
+      nodeId: snap.nodeId ?? hit.nodeId,
+      faceNormal: hit.normal,
+      baseMapId: hit.baseMapId,
+    };
+  };
+
   const inProgressSnap = snapToInProgress(
     mouseNdc,
     camera,
@@ -126,19 +147,29 @@ export default function computeSnapTarget({
 
   const vertexSnap = findNearestVertex(mouseNdc, camera, canvasSize);
   if (vertexSnap?.position) {
-    return {
+    return withFaceUnderCursor({
       position: vertexSnap.position,
       meshKey: vertexSnap.meshKey,
+      nodeId: vertexSnap.nodeId,
       kind: "VERTEX",
-    };
+    });
   }
 
   const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize);
   if (edgeSnap?.position) {
-    return { position: edgeSnap.position, kind: "EDGE" };
+    return withFaceUnderCursor({
+      position: edgeSnap.position,
+      kind: "EDGE",
+      nodeId: edgeSnap.nodeId,
+    });
   }
 
   const planeHit = intersectPlane?.(mouseNdc) ?? null;
+  // Snaps derived from a face hit keep pointing at the hit annotation.
+  const withFace = (snap) =>
+    snap && planeHit?.isFace
+      ? { ...snap, nodeId: planeHit.nodeId, faceNormal: planeHit.normal }
+      : snap;
   const refinePlaneHit = () => {
     const aligned = alignAdjacency
       ? alignPlaneHitToVertices({
@@ -149,14 +180,14 @@ export default function computeSnapTarget({
           canvasSize,
         })
       : null;
-    if (aligned) return aligned;
-    return {
+    if (aligned) return withFace(aligned);
+    return withFace({
       position: planeHit.position,
-      kind: "PLANE",
+      kind: planeHit.isFace ? "FACE" : "PLANE",
       baseMapId: planeHit.baseMapId,
       axisA: planeHit.axisA,
       axisB: planeHit.axisB,
-    };
+    });
   };
 
   if (!lastVertex) return planeHit ? refinePlaneHit() : null;
@@ -169,7 +200,7 @@ export default function computeSnapTarget({
       camera,
       canvasSize,
     });
-    if (ortho) return ortho;
+    if (ortho) return withFace(ortho);
   }
 
   const lastVec = new Vector3(lastVertex.x, lastVertex.y, lastVertex.z);
@@ -178,7 +209,7 @@ export default function computeSnapTarget({
   let bestAxis = null;
   let bestDist = AXIS_THRESHOLD_PX;
   let bestPosition = null;
-  for (const ax of AXES) {
+  for (const ax of planeHit?.isFace ? [] : AXES) {
     const pt = closestPointOnAxis(camera.position, cursorDir, lastVec, ax.vec);
     if (!pt) continue;
     const { distance, behind } = ndcDistance(pt, mouseNdc, camera, canvasSize);

@@ -13,12 +13,16 @@ import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingTools — collapsible "OUTILS DE DESSIN" section listing
 // the shortcut tools (Dessin D, Ouverture O, Retirer un segment X, Couper un
-// segment C).
+// segment C). `templatelessOnly` (3D editor) keeps the "Dessin" row alone —
+// the other tools are 2D drawing modes.
 // ---------------------------------------------------------------------------
 
 const SHORTCUT_TOOLS = TOOL_ITEMS.filter((t) => t.shortcut);
 
-export default function SectionPanelDrawingTools({ templatelessCount }) {
+export default function SectionPanelDrawingTools({
+  templatelessCount,
+  templatelessOnly = false,
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -28,6 +32,12 @@ export default function SectionPanelDrawingTools({ templatelessCount }) {
   // data
 
   const collapsed = useSelector((s) => s.panelDrawing.toolsSectionCollapsed);
+
+  // helpers
+
+  const tools = templatelessOnly
+    ? SHORTCUT_TOOLS.filter((t) => t.isTemplatelessDraw)
+    : SHORTCUT_TOOLS;
 
   // render
 
@@ -72,7 +82,7 @@ export default function SectionPanelDrawingTools({ templatelessCount }) {
 
       {!collapsed && (
         <List dense disablePadding>
-          {SHORTCUT_TOOLS.map((tool) =>
+          {tools.map((tool) =>
             tool.isTemplatelessDraw ? (
               <RowTemplatelessDraw
                 key={tool.type}

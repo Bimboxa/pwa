@@ -304,10 +304,12 @@ export default function PanelDrawing() {
             )}
           </Box>
 
-          {/* Cut / split tools — 2D drawing modes only */}
-          {!isThreedEditor && (
-            <SectionPanelDrawingTools templatelessCount={templatelessCount} />
-          )}
+          {/* Cut / split tools are 2D drawing modes; the 3D editor only
+              keeps "Dessin" (mesh drawing). */}
+          <SectionPanelDrawingTools
+            templatelessCount={templatelessCount}
+            templatelessOnly={isThreedEditor}
+          />
         </>
       )}
     </Box>
