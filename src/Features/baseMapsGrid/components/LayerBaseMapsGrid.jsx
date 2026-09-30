@@ -48,13 +48,8 @@ import SelectorBaseMapsGridImageMode from "./SelectorBaseMapsGridImageMode";
 import { BASE_MAPS_GRID_HOTKEY } from "../hooks/useOpenBaseMapsGridHotkey";
 import isEditableTarget from "../utils/isEditableTarget";
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
-import getBaseMapSheet from "../utils/getBaseMapSheet";
-import getBaseMapsGridAutoLayout, {
-  BASE_MAPS_GRID_GAP,
-} from "../utils/getBaseMapsGridAutoLayout";
-import getAlignedSheetsLayout, {
-  getSheetsRows,
-} from "../utils/getAlignedSheetsLayout";
+import composeBaseMapsGridSheets from "../utils/composeBaseMapsGridSheets";
+import getAlignedSheetsLayout from "../utils/getAlignedSheetsLayout";
 import flyCameraMatrix from "../utils/flyCameraMatrix";
 import {
   editorToGridCamera,
@@ -65,7 +60,6 @@ import {
 
 import {
   ADD_SHEET_ID,
-  ADD_SHEET_SIZE,
   BASE_MAPS_GRID_IMAGE_MODE,
   BASE_MAPS_GRID_PHASE,
   FADED_IMAGE_OPACITY,
@@ -185,42 +179,10 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   // helpers - sheets of the displayed listing
 
-  const { items, addSheet } = useMemo(() => {
-    const listingBaseMaps =
-      baseMaps?.filter((baseMap) => baseMap.listingId === listingId) ?? [];
-    const sized = listingBaseMaps
-      .map((baseMap) => ({ baseMap, sheet: getBaseMapSheet({ baseMap }) }))
-      .filter((item) => item.sheet);
-    // The "+" frame takes the slot after the last sheet (bottom-right of
-    // the grid).
-    const autoPositions = getBaseMapsGridAutoLayout({
-      sheets: [
-        ...sized.map((item) => item.sheet),
-        { id: ADD_SHEET_ID, ...ADD_SHEET_SIZE },
-      ],
-    });
-    const items = sized.map(({ baseMap, sheet }) => {
-      const position = positions[baseMap.id] ?? autoPositions[baseMap.id];
-      return { baseMap, sheet: { ...sheet, x: position.x, y: position.y } };
-    });
-
-    // Hand-made arrangement: the default slot could lie under a moved
-    // sheet, the frame goes at the end of the last row instead.
-    let addPosition = autoPositions[ADD_SHEET_ID];
-    if (sized.some(({ baseMap }) => positions[baseMap.id])) {
-      const lastRow = getSheetsRows(items.map((item) => item.sheet)).at(-1);
-      addPosition = {
-        x:
-          Math.max(...lastRow.map((s) => s.x + s.width)) + BASE_MAPS_GRID_GAP,
-        y: Math.min(...lastRow.map((s) => s.y)),
-      };
-    }
-
-    return {
-      items,
-      addSheet: { id: ADD_SHEET_ID, ...ADD_SHEET_SIZE, ...addPosition },
-    };
-  }, [baseMaps, listingId, positions]);
+  const { items, addSheet } = useMemo(
+    () => composeBaseMapsGridSheets({ baseMaps, listingId, positions }),
+    [baseMaps, listingId, positions]
+  );
 
   const sheetById = useMemo(() => {
     const map = {};

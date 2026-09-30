@@ -1,7 +1,9 @@
 import createImageObject, {
   attachBaseMapMesh,
   buildBaseMapPlaneGeometry,
+  createBaseMapGroup,
 } from "./utilsImagesManager/createImageObject";
+import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
 
 import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 
@@ -113,6 +115,8 @@ export default class ImagesManager {
       group.userData.meshWrap.visible = imageVisible;
     }
     this.scene.add(group);
+    // Base maps grid open: a group created meanwhile joins its sheet pose.
+    this.sceneManager.baseMapsGridManager?.onGroupCreated(image.id, group);
     // Re-render once the texture is in. The group is already in the scene
     // graph so any annotations attached in the meantime are rendered too.
     ready
@@ -127,6 +131,46 @@ export default class ImagesManager {
         group.userData.textureStatus = "failed";
         console.warn("[ImagesManager] texture load failed", e);
       });
+  }
+
+  // Texture-less basemap group (3D base maps grid): the posed group, its mesh
+  // wrapper and stashes, but NO mesh and NO texture load. Status "none" falls
+  // through every lazy-load guard (hasTexturedImageObject /
+  // hasCurrentImageObject), so the regular ensureBaseMapLoaded →
+  // ensureImageTexture path attaches the mesh in place when the base map is
+  // shown. No-op (returns the group) when it already exists.
+  ensureBaseMapGroup(baseMap) {
+    if (!baseMap?.id || baseMap.isPhoto) return null;
+    const existing = this.imagesMap[baseMap.id];
+    if (existing) return existing;
+    const image = getEditorImageFromBaseMap(baseMap);
+    const group = createBaseMapGroup(image);
+    group.userData.textureStatus = "none";
+    group.userData.planeSignature = null;
+    this.imagesMap[baseMap.id] = group;
+    this.baseMapsMap[baseMap.id] = baseMap;
+    const groupVisible = this.groupVisibleByBaseMapId[baseMap.id];
+    if (groupVisible !== undefined) group.visible = groupVisible;
+    const imageVisible = this.imageVisibleByBaseMapId[baseMap.id];
+    if (imageVisible !== undefined) {
+      group.userData.meshWrap.visible = imageVisible;
+    }
+    this.scene.add(group);
+    return group;
+  }
+
+  // Drop a group that never got a mesh (grid placeholder) — it would
+  // otherwise inflate the scene boxes read by the clipping / shadow managers.
+  // Groups carrying a mesh or annotation objects are left alone.
+  removeUntexturedGroup(baseMapId) {
+    const group = this.imagesMap[baseMapId];
+    if (!group || group.userData.textureStatus !== "none") return false;
+    const meshWrap = group.userData.meshWrap;
+    if (group.children.some((child) => child !== meshWrap)) return false;
+    this.scene.remove(group);
+    delete this.imagesMap[baseMapId];
+    delete this.baseMapsMap[baseMapId];
+    return true;
   }
 
   // (Re)attach the basemap mesh of an existing group when its texture load
@@ -204,6 +248,9 @@ export default class ImagesManager {
   // addImageObject applies it at creation.
   setBaseMapVisible(baseMapId, visible) {
     this.groupVisibleByBaseMapId[baseMapId] = visible;
+    // Base maps grid open: every sheet stays displayed (placeholder outline
+    // when hidden). The recorded state is restored when the grid closes.
+    if (this.sceneManager.baseMapsGridManager?.isSheet(baseMapId)) return;
     const group = this.imagesMap[baseMapId];
     if (group) group.visible = visible;
   }
@@ -267,9 +314,29 @@ export default class ImagesManager {
     });
   }
 
+  // Same as updateBaseMapGeometry, but also accepts a missing / invalid scale
+  // (0-sized plane, as built for a base map created without a scale). Used
+  // by the 3D base maps grid, which lends a scale to the scale-less sheets
+  // while they lie on the table and gives the real one back afterwards.
+  setBaseMapPlaneScale(baseMapId, meterByPx) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return;
+    group.userData.meterByPx = meterByPx;
+    const planePx = group.userData.planePx;
+    if (!planePx) return;
+    group.traverse?.((child) => {
+      if (child.userData?.isBasemap) {
+        child.geometry?.dispose?.();
+        child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
+      }
+    });
+  }
+
   deleteAllImagesObjects() {
     try {
       console.log("[ImagesManager] deleteAllImagesObjects");
+      // The grid decorations are children of the groups dropped below.
+      this.sceneManager.baseMapsGridManager?.onGroupsDeleted();
       Object.values(this.imagesMap).forEach((group) => {
         // The group can carry annotations as siblings of the mesh wrapper;
         // dispose only the basemap's own mesh resources, not the

@@ -66,6 +66,8 @@ import {
   setFaceHoverClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
+import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
+import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
@@ -368,6 +370,17 @@ export default function MainThreedEditor() {
   useEffect(() => {
     moveBaseMapActiveRef.current = moveBaseMapActive;
   }, [moveBaseMapActive]);
+
+  // Same pattern for the base maps grid ("table à plans", G) —
+  // useBaseMapsGrid3dPointer owns the hover / click / double-click while the
+  // sheets lie on the table.
+  const baseMapsGridActive = useSelector(
+    (s) => s.threedEditor.baseMapsGridMode.active
+  );
+  const baseMapsGridActiveRef = useRef(baseMapsGridActive);
+  useEffect(() => {
+    baseMapsGridActiveRef.current = baseMapsGridActive;
+  }, [baseMapsGridActive]);
 
   // Same pattern for the "Tourner" (rotate base map) mode —
   // useRotateBaseMapPointerHandlers owns the pointer while active.
@@ -684,6 +697,8 @@ export default function MainThreedEditor() {
       // Same for the annotation move / rotate modes.
       if (moveAnnotationActiveRef.current) return;
       if (rotateAnnotationActiveRef.current) return;
+      // Base maps grid: useBaseMapsGrid3dPointer handles the clicks.
+      if (baseMapsGridActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -1077,6 +1092,7 @@ export default function MainThreedEditor() {
       if (rotateBaseMapActiveRef.current) return;
       if (moveAnnotationActiveRef.current) return;
       if (rotateAnnotationActiveRef.current) return;
+      if (baseMapsGridActiveRef.current) return;
       // Shift stays reserved for the multi-selection / lasso.
       if (event.shiftKey) return;
 
@@ -1472,6 +1488,10 @@ export default function MainThreedEditor() {
         );
       }
 
+      // Base maps grid: no lasso over the table (the orbit point above still
+      // follows the cursor).
+      if (baseMapsGridActiveRef.current) return;
+
       // Shift+left button starts a lasso. Disable OrbitControls during the drag
       // so the camera doesn't rotate, and remember its previous state so we can
       // restore it on release. Skipped in BASEMAP_POSITION (gizmo owns the
@@ -1575,7 +1595,8 @@ export default function MainThreedEditor() {
       moveBaseMapActiveRef.current ||
       rotateBaseMapActiveRef.current ||
       moveAnnotationActiveRef.current ||
-      rotateAnnotationActiveRef.current
+      rotateAnnotationActiveRef.current ||
+      baseMapsGridActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -2118,6 +2139,28 @@ export default function MainThreedEditor() {
         />
       )}
       {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
+      {isThreedViewer && rendererIsReady && (
+        <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
+      )}
+      {/* Top-right group, mirror of the 2D editors' (UILayerDesktop): the
+          base maps grid button. Not in the Maillage module (meshing-only). */}
+      {isThreedViewer && !captureFramingActive && !isMeshesViewer && (
+        <Box
+          data-capture-hide
+          sx={{
+            position: "absolute",
+            right: rightPanelOpen ? `${rightPanelWidth + 16}px` : "16px",
+            top: "7px",
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            transition: "right 0.2s ease",
+          }}
+        >
+          <ButtonOpenBaseMapsGrid3d />
+        </Box>
+      )}
       {/* No 3D toolbars in the POV viewer nor under the capture tool — their
           save bars sit there. */}
       {isThreedViewer &&

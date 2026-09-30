@@ -60,6 +60,7 @@ export function buildIndex(scene, options = {}) {
   scene.traverse((obj) => {
     if (!obj.isMesh || !obj.visible) return;
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
+    if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
     let isSnappable = false;
     let parent = obj;
     while (parent) {

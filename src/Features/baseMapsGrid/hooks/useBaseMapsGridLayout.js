@@ -7,7 +7,9 @@ import { useSelector } from "react-redux";
 // fall back to the auto layout.
 const STORAGE_KEY_PREFIX = "baseMapsGrid:";
 
-function readPositions(projectId) {
+// Exported for the 3D base maps grid, which reads the arrangement each time
+// it opens (no React state of its own).
+export function readBaseMapsGridPositions(projectId) {
   if (!projectId) return {};
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${projectId}`);
@@ -46,10 +48,12 @@ export default function useBaseMapsGridLayout() {
 
   // state
 
-  const [positions, setPositions] = useState(() => readPositions(projectId));
+  const [positions, setPositions] = useState(() =>
+    readBaseMapsGridPositions(projectId)
+  );
 
   useEffect(() => {
-    setPositions(readPositions(projectId));
+    setPositions(readBaseMapsGridPositions(projectId));
   }, [projectId]);
 
   // handlers

@@ -40,6 +40,7 @@ export default class ThreedEditor {
   dispose = () => {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();
+    this.sceneManager?.baseMapsGridManager?.dispose?.();
     this.sceneManager?.renderModeManager?.dispose?.();
   };
 
@@ -113,10 +114,17 @@ export default class ThreedEditor {
 
     const t = getBaseMapTransform(baseMap);
     const euler = getBaseMapEuler(t);
-    // Rotation order BEFORE values (same discipline as createImageObject).
-    group.rotation.order = BASE_MAP_ROTATION_ORDER;
-    group.position.set(t.position.x, t.position.y, t.position.z);
-    group.rotation.set(euler.x, euler.y, euler.z);
+    const grid = this.sceneManager.baseMapsGridManager;
+    if (grid?.isSheet(baseMap.id)) {
+      // Base maps grid open: the group lies on the table. The placement
+      // becomes the pose it flies back to, the group itself is not moved.
+      grid.setHomePose(baseMap.id, { position: t.position, euler });
+    } else {
+      // Rotation order BEFORE values (same discipline as createImageObject).
+      group.rotation.order = BASE_MAP_ROTATION_ORDER;
+      group.position.set(t.position.x, t.position.y, t.position.z);
+      group.rotation.set(euler.x, euler.y, euler.z);
+    }
 
     // Scale change (e.g. 2-target Recaler, or set-scale after a scale-less
     // creation): rebuild the plane geometry from the pixel-space placement
