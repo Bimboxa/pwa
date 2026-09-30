@@ -3,6 +3,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
+import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
 
 /**
  * Commit a wrapper transform (move/resize/rotate) to the database.
@@ -253,6 +254,17 @@ export default async function commitWrapperTransform({
       ops.push(
         db.annotations.update(annId, {
           mesh3d: applyAffineToMesh3d(ann.mesh3d, affine, imageSize),
+          // The snapshot of the original geometry follows too: a reset
+          // restores it where the mesh now stands.
+          ...(ann.mesh3dSource
+            ? {
+                mesh3dSource: applyAffineToMesh3dSource(
+                  ann.mesh3dSource,
+                  affine,
+                  imageSize
+                ),
+              }
+            : {}),
         })
       );
     }

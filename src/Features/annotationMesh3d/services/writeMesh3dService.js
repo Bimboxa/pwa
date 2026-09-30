@@ -8,6 +8,7 @@ import { clearItemPartSelection } from "Features/selection/selectionSlice";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
 import { localToNormalized, mesh3dFromLocal } from "../utils/mesh3dFrame";
+import { buildMesh3dSource } from "../utils/mesh3dSource";
 import projectMesh3dToRings from "../utils/projectMesh3dToRings";
 
 // Geometry fields of the row a mesh replaces: once an annotation is a mesh,
@@ -76,6 +77,10 @@ export function buildMesh3dStorage({
 // polygon from it. The annotation keeps its id, template and listing; its
 // type becomes POLYGON.
 //
+// The FIRST write of a regular annotation (its conversion) also snapshots its
+// original 2D geometry in `mesh3dSource`, which resetMesh3dAnnotationService
+// restores.
+//
 // Undo: the point rows are written outside the undo stack and the replaced
 // ones are left in place (orphans, reclaimed by the purge), so ONE undo step
 // — the annotation row — restores the previous geometry, references
@@ -136,6 +141,23 @@ export default async function writeMesh3dService({
     if (annotation.fillOpacity == null && strokeOpacity != null) {
       patch.fillOpacity = strokeOpacity;
     }
+  }
+
+  // Conversion: keep what the mesh replaces, to be able to revert it.
+  if (!annotation.isMesh3d) {
+    const ids = [
+      ...(annotation.points || []),
+      ...(annotation.cuts || []).flatMap((cut) => cut?.points || []),
+      ...(annotation.innerPoints || []),
+    ]
+      .map((ref) => ref?.id)
+      .filter(Boolean);
+    const rows = ids.length ? await db.points.bulkGet(ids) : [];
+    const pointsById = new Map();
+    for (const row of rows) {
+      if (row) pointsById.set(row.id, { x: row.x, y: row.y });
+    }
+    patch.mesh3dSource = buildMesh3dSource({ annotation, patch, pointsById });
   }
 
   await withoutUndo(() => db.points.bulkAdd(pointRows));

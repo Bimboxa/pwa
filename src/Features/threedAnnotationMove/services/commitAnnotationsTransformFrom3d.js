@@ -114,6 +114,15 @@ export default async function commitAnnotationsTransformFrom3d({
         db.annotations.update(ann.id, {
           // 0.1 mm: a snapped drop carries float noise the toolbar would show.
           offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
+          // isMesh3d: the snapshot of the original geometry climbs with the
+          // mesh (dotted key path: only that field of the snapshot).
+          ...(ann.mesh3dSource?.fields
+            ? {
+                "mesh3dSource.fields.offsetZ": roundOffsetZ(
+                  (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
+                ),
+              }
+            : {}),
         })
       )
     );

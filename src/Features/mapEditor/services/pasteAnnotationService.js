@@ -8,6 +8,7 @@ import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationP
 import db from "App/db/db";
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
+import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
@@ -270,6 +271,14 @@ export default async function pasteAnnotationService({
             sourceImageSize,
             imageSize
           );
+          if (sourceAnnotation.mesh3dSource) {
+            clonedAnnotation.mesh3dSource = applyAffineToMesh3dSource(
+              sourceAnnotation.mesh3dSource,
+              affine,
+              sourceImageSize,
+              imageSize
+            );
+          }
         }
       }
 

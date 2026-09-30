@@ -21,6 +21,7 @@ import buildFrameTransform, {
 } from "Features/baseMaps/utils/baseMapFrameTransform";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
+import { mapMesh3dSourcePoints } from "Features/annotationMesh3d/utils/mesh3dSource";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 
@@ -320,6 +321,12 @@ export default async function regenerateBaseMapFromPdfPageService({
           return [np.x, np.y, v[2]];
         }),
       };
+      changed = true;
+    }
+    // …and the snapshot of their original 2D geometry (inline normalized
+    // points, see mesh3dSource).
+    if (next.mesh3dSource) {
+      next.mesh3dSource = mapMesh3dSourcePoints(next.mesh3dSource, N);
       changed = true;
     }
     // POLYGON mesh lines are normalized; POLYLINE ones are {u, z} (invariant)
