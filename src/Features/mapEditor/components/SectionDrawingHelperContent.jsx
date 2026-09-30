@@ -153,15 +153,13 @@ export default function SectionDrawingHelperContent() {
   // two-click cote, or (default) the line / face drawing.
   const isObject3DPlacement = useSelector(selectIsObject3DPlacementActive);
   const isThreedCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
-  // Polylines and cotes can land their points on a SCENE_3D scan: show the
+  // Lines and cotes can land their points on a SCENE_3D scan: show the
   // status of its picking data (being prepared / ready).
-  const canDrawOnScan = useSelector((s) => {
-    const na = s.annotations.newAnnotation;
-    return (
-      (na?.type === "POLYLINE" && !na?.isMesh3d) ||
+  const canDrawOnScan = useSelector(
+    (s) =>
+      s.annotations.newAnnotation?.type === "POLYLINE" ||
       selectIsTemplateCoteDrawActive(s)
-    );
-  });
+  );
   const threedMessage = isObject3DPlacement
     ? "Cliquez sur le plan pour poser l'objet 3D"
     : isThreedCoteDraw

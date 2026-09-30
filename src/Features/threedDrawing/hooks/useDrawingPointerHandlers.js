@@ -146,6 +146,42 @@ export default function useDrawingPointerHandlers() {
       return isMesh3dDraft(newAnnotationRef.current);
     }
 
+    // "Dessin" tool, line type, with a point picked on a SCENE_3D scan: the
+    // path is not a cut of an annotation mesh — it becomes a templateless
+    // POLYLINE annotation lying on the scan (straight segments between the
+    // picked points).
+    function isScanPath(vertices) {
+      return (
+        newAnnotationRef.current?.type === "POLYLINE" &&
+        vertices.some((v) => v.snapKind === "SCAN")
+      );
+    }
+
+    async function commitScanPath(vertices) {
+      if (vertices.length < 2) return false;
+      try {
+        const created = await commitDrawnPolylineService({
+          verticesInOrder: vertices,
+          baseMaps: baseMaps || [],
+          projectId,
+          scopeId,
+          templateProps: newAnnotationRef.current,
+          layerId: activeLayerIdRef.current ?? null,
+          createAnnotationFn: createAnnotation,
+        });
+        if (!created) return false;
+        console.log(
+          `[threedDrawing] scan polyline created: ${created.id} on baseMap ${created.baseMapId}`
+        );
+        warnIfOffMainBaseMap(created);
+        finishCommit();
+        return true;
+      } catch (err) {
+        console.error("[threedDrawing] scan polyline commit failed", err);
+        return false;
+      }
+    }
+
     // Mesh drawing commit of the drawn points, chained with the traits they
     // connect to: true when the chain split a face or created a sheet (path
     // and traits are consumed), false to keep drawing.
@@ -257,6 +293,17 @@ export default function useDrawingPointerHandlers() {
 
       if (inProgressPolyline.length === 0) {
         dispatch(pushDrawingVertex(newVertex));
+        return;
+      }
+
+      // Line on a SCENE_3D scan: "Segment (2 clics)" commits on the second
+      // click, "Polyligne clic" keeps adding points until Enter.
+      if (isScanPath([...inProgressPolyline, newVertex])) {
+        if (behavior === "SEGMENT") {
+          await commitScanPath([...inProgressPolyline, newVertex]);
+        } else {
+          dispatch(pushDrawingVertex(newVertex));
+        }
         return;
       }
 
@@ -531,6 +578,11 @@ export default function useDrawingPointerHandlers() {
       if (isMeshDraw()) {
         if (e.key === "Enter") {
           if (behavior === "RECTANGLE" || inProgressPolyline.length < 2) return;
+          // Line on a SCENE_3D scan: Enter ends the polyline there.
+          if (isScanPath(inProgressPolyline)) {
+            await commitScanPath(inProgressPolyline);
+            return;
+          }
           // Enter closes the contour (like a click back on the first point)…
           const committed =
             inProgressPolyline.length >= 3 &&

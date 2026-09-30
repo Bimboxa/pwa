@@ -146,9 +146,12 @@ through their own data, see below).
 
 ## Drawing on the scan
 
-POLYLINE templates and cotes can land their points on the scan surface in the
-3D editor (a straight segment between two picked points — not draped on the
-relief). Nothing new is stored: the existing commits
+Lines and cotes can land their points on the scan surface in the 3D editor (a
+straight segment between two picked points — not draped on the relief): a
+POLYLINE template, a COTE template, or the template-less "Dessin" tool on its
+line type. With the "Dessin" tool a path holding a scan point is not a mesh
+cut: it becomes a templateless POLYLINE annotation ("Segment (2 clics)"
+commits on the second click, "Polyligne clic" on Enter). Nothing new is stored: the existing commits
 (`commitDrawnPolylineService`, `commitDrawnCoteService`) turn the 3D vertices
 into a regular annotation on the scan's base map, with per-vertex heights
 (`offsetZ` + `offsetBottom`). The drawing is NOT attached to the scan: moving
@@ -177,8 +180,8 @@ or rotating the scan afterwards leaves it in place.
   a toast marks the end. A scan hit is drawn as a high-contrast screen-space
   reticle (`Scene3dPickReticle` — the thin snap circle is lost on an aerial
   texture), and every placed point gets a dot (`buildDrawingVertexMarkers`).
-- Not supported: polygons (a face needs coplanar points), rectangles, mesh
-  drawing, snapping to the scan's own vertices.
+- Not supported: polygons (a face needs coplanar points), rectangles,
+  snapping to the scan's own vertices.
 
 The camera range follows the scans: "Distance de vue max" (Configuration >
 Éditeur 3D, `constants/viewDistances.js`) defaults to `AUTO`, which widens the

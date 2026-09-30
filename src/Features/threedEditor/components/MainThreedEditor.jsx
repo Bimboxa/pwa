@@ -331,6 +331,14 @@ export default function MainThreedEditor() {
   // short-circuit without re-creating their callbacks (which would reset the
   // drag tracking mid-stream).
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
+  // A drawing is armed: the drawing toolbar (ToolbarDrawingDraft, above the
+  // bottom bar) takes the bottom-centre spot — the 3D tools toolbar would sit
+  // half hidden behind it.
+  const drawingDraftToolbarShown = useSelector(
+    (s) =>
+      Boolean(s.mapEditor.enabledDrawingMode) &&
+      s.mapEditor.enabledDrawingMode !== "MEASURE"
+  );
   const drawingActiveRef = useRef(drawingActive);
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
@@ -2421,7 +2429,7 @@ export default function MainThreedEditor() {
           <RotateAnnotationToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
-        ) : (
+        ) : drawingDraftToolbarShown ? null : (
           <BottomToolbarThreed />
         ))}
       {/* Bottom-right group (zoom out + 2D/3D toggle) sits outside the swap

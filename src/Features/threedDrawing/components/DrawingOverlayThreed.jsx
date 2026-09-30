@@ -178,14 +178,11 @@ export default function DrawingOverlayThreed() {
   const mainBaseMapId = useMainBaseMap()?.id;
 
   const { findNearestSnap } = useVertexSnap({ active });
-  // POLYLINE templates can land their points on the SCENE_3D scans (a
-  // straight segment between two scan points). Not the polygons — a face
-  // needs coplanar points — nor mesh drawing (its lines split annotation
-  // faces).
+  // Lines (a POLYLINE template, or the "Dessin" tool on its line type) can
+  // land their points on the SCENE_3D scans: straight segments between the
+  // picked points. Not the polygons — a face needs coplanar points.
   const canDrawOnScan = useSelector(
-    (s) =>
-      s.annotations.newAnnotation?.type === "POLYLINE" &&
-      !isMesh3dDraft(s.annotations.newAnnotation)
+    (s) => s.annotations.newAnnotation?.type === "POLYLINE"
   );
   usePrepareScene3dPicking(active && canDrawOnScan);
 
@@ -367,26 +364,28 @@ export default function DrawingOverlayThreed() {
           ? { onlyBaseMapId: anchor.baseMapId }
           : { preferredBaseMapId: mainBaseMapId }
       );
-      // Polyline drawing: a SCENE_3D scan in front of the plan takes the
-      // point (on its surface). Not for rectangles (they live on a plane).
+      // The nearest surface under the cursor wins.
+      let best = planHit;
+      let bestDistance = planHit
+        ? camera.position.distanceTo(planHit.position)
+        : Infinity;
+      // Mesh drawing: an annotation face in front of the plan. A sheet
+      // lying on the plan is in front of it by its 1 mm lift only.
+      if (isMeshDraw && !anchor) {
+        const faceHit = intersectAnnotationFace(editor, mNdc, camera);
+        if (faceHit && faceHit.distance <= bestDistance + 2e-3) {
+          best = faceHit;
+          bestDistance = faceHit.distance;
+        }
+      }
+      // Line drawing: a SCENE_3D scan in front takes the point (on its
+      // surface). Not for rectangles (they live on a plane).
       if (canDrawOnScan && behavior !== "RECTANGLE") {
         const scanHit = intersectScene3d(editor, mNdc, camera);
         if (scanHit?.isPending) return scanHit;
-        if (scanHit) {
-          const planDistance = planHit
-            ? camera.position.distanceTo(planHit.position)
-            : Infinity;
-          if (scanHit.distance <= planDistance) return scanHit;
-        }
+        if (scanHit && scanHit.distance < bestDistance) best = scanHit;
       }
-      if (!isMeshDraw || anchor) return planHit;
-      // Mesh drawing: the nearest of the annotation face and the plan. A
-      // sheet lying on the plan is in front of it by its 1 mm lift only.
-      const faceHit = intersectAnnotationFace(editor, mNdc, camera);
-      if (!faceHit) return planHit;
-      if (!planHit) return faceHit;
-      const planDistance = camera.position.distanceTo(planHit.position);
-      return faceHit.distance <= planDistance + 2e-3 ? faceHit : planHit;
+      return best;
     }
 
     function toScreen(worldPos, rect) {
