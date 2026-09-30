@@ -36,6 +36,7 @@ import matchScene3dFiles, {
   sortScene3dFiles,
 } from "../utils/matchScene3dFiles";
 import formatScene3dBytes from "../utils/formatScene3dBytes";
+import readDroppedEntries from "Features/promptIaProject/utils/readDroppedEntries";
 import getScene3dBaseMapDescriptor, {
   getScene3dBboxPolygon,
 } from "../utils/getScene3dBaseMapDescriptor";
@@ -117,6 +118,7 @@ export default function DialogCreateBaseMapFromScene3d({
     "Sélectionnez le maillage (.ply) et ses textures (.jpg), ou le dossier qui les contient.";
   const reloadHelperS =
     "Les données du scan ne sont pas sur cet appareil : rechargez les mêmes fichiers. La zone, l'échelle et l'altitude du fond de plan sont conservées.";
+  const dropS = "Glisser-déposer les fichiers ou le dossier du scan ici";
   const pickFilesS = "Choisir les fichiers";
   const pickFolderS = "Choisir un dossier";
   const imageSizeS = "Résolution de l'image";
@@ -138,6 +140,7 @@ export default function DialogCreateBaseMapFromScene3d({
 
   const [step, setStep] = useState("FILES");
   const [selection, setSelection] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const [imageSizeKey, setImageSizeKey] = useState("STANDARD");
   const [importProgress, setImportProgress] = useState(null);
   const [finalizeProgress, setFinalizeProgress] = useState(null);
@@ -213,9 +216,40 @@ export default function DialogCreateBaseMapFromScene3d({
 
   // handlers
 
-  async function handleFilesChange(event) {
+  function handleFilesChange(event) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    handleFiles(files);
+  }
+
+  // Drop of files and / or folders (the folder tree is walked through the
+  // entries API — must run synchronously from the drop event).
+  function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOver(false);
+    if (isImporting) return;
+    readDroppedEntries(event.dataTransfer)
+      .then((entries) => handleFiles(entries.map((entry) => entry.file)))
+      .catch((error) => {
+        console.error("[scene3d] drop failed", error);
+        setErrorMessage(error?.message ?? "Le dépôt a échoué.");
+      });
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!dragOver && !isImporting) setDragOver(true);
+  }
+
+  function handleDragLeave(event) {
+    // leaving for a child of the zone is not leaving the zone
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    setDragOver(false);
+  }
+
+  async function handleFiles(files) {
     if (files.length === 0) return;
     setErrorMessage(null);
 
@@ -413,21 +447,50 @@ export default function DialogCreateBaseMapFromScene3d({
         {isReload ? reloadHelperS : helperS}
       </Typography>
 
-      <Box sx={{ display: "flex", gap: 1 }}>
-        <ButtonGeneric
-          label={pickFilesS}
-          variant="outlined"
-          size="small"
-          disabled={isImporting}
-          onClick={() => filesInputRef.current?.click()}
-        />
-        <ButtonGeneric
-          label={pickFolderS}
-          variant="outlined"
-          size="small"
-          disabled={isImporting}
-          onClick={() => folderInputRef.current?.click()}
-        />
+      <Box
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 1.5,
+          p: 2,
+          borderRadius: "12px",
+          border: "2px dashed",
+          borderColor: dragOver ? "secondary.main" : "divider",
+          bgcolor: dragOver ? "action.hover" : "transparent",
+          transition: "all 0.2s ease",
+          pointerEvents: isImporting ? "none" : "auto",
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            textAlign: "center",
+            color: dragOver ? "secondary.main" : "text.disabled",
+          }}
+        >
+          {dropS}
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <ButtonGeneric
+            label={pickFilesS}
+            variant="outlined"
+            size="small"
+            disabled={isImporting}
+            onClick={() => filesInputRef.current?.click()}
+          />
+          <ButtonGeneric
+            label={pickFolderS}
+            variant="outlined"
+            size="small"
+            disabled={isImporting}
+            onClick={() => folderInputRef.current?.click()}
+          />
+        </Box>
         <input
           ref={filesInputRef}
           type="file"
