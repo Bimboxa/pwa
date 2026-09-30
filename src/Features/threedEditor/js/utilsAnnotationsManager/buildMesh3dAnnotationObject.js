@@ -94,6 +94,7 @@ export default function buildMesh3dAnnotationObject(
   if (!group.children.length) return null;
 
   const segments = [];
+  const edgeVertices = []; // [a, b] vertex indices, one per drawn segment
   const seen = new Set();
   for (const face of mesh.faces) {
     for (const loop of getFaceLoops(face)) {
@@ -106,6 +107,7 @@ export default function buildMesh3dAnnotationObject(
         const p = mesh.vertices[a];
         const q = mesh.vertices[b];
         segments.push(p.x, p.y, p.z + lift, q.x, q.y, q.z + lift);
+        edgeVertices.push([a, b]);
       }
     }
   }
@@ -118,7 +120,13 @@ export default function buildMesh3dAnnotationObject(
     edgesGeometry,
     new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
   );
-  edges.userData = { isGridEdge: true, gridEdgeKind: "MESH3D" };
+  // mesh3dEdges: lets the edge pick / highlight map a drawn segment back to
+  // the mesh edge (see pickMesh3dPart).
+  edges.userData = {
+    isGridEdge: true,
+    gridEdgeKind: "MESH3D",
+    mesh3dEdges: edgeVertices,
+  };
   edges.raycast = () => {};
   group.add(edges);
 

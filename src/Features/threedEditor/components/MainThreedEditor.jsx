@@ -119,6 +119,14 @@ import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dL
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
 import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
+import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
+import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
+import pickMesh3dEdge from "Features/annotationMesh3d/services/pickMesh3dEdge";
+import selectMesh3dPart from "Features/annotationMesh3d/services/selectMesh3dPart";
+import {
+  getMesh3dEdgePartId,
+  getMesh3dFacePartId,
+} from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
 import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
 import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
@@ -464,6 +472,9 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
+  // Mesh annotations: Delete on the selected faces / edges (before the
+  // annotation delete shortcut). Their highlight is Mesh3dPartsHighlightThreed.
+  useDeleteMesh3dPartsOnKeyboard();
   useMoveBaseMapPointerHandlers();
   useRotateBaseMapPointerHandlers();
   useWalkMode();
@@ -819,6 +830,28 @@ export default function MainThreedEditor() {
       if (soloId) {
         const annoObject =
           sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
+        // Mesh annotation: an edge under the cursor becomes a selection PART
+        // of the annotation (its faces are handled by the raycast below).
+        // Shift toggles it in the multi selection.
+        if (annoObject?.userData?.isAnnotationMesh3d) {
+          const edge = pickMesh3dEdge(
+            annoObject,
+            { x: event.clientX, y: event.clientY },
+            camera,
+            rect,
+            8,
+            clippingPlane
+          );
+          if (edge) {
+            selectMesh3dPart({
+              dispatch,
+              getState: store.getState,
+              partId: getMesh3dEdgePartId(soloId, edge.a, edge.b),
+              additive: event.shiftKey,
+            });
+            return;
+          }
+        }
         if (annoObject?.userData?.vertexRefs?.length) {
           const cursor = { x: event.clientX, y: event.clientY };
           const vertexHit = findClosestVertexToCursor(
@@ -982,6 +1015,24 @@ export default function MainThreedEditor() {
                 );
               });
               // Stay in the mode; only Escape exits it.
+              return;
+            }
+
+            // Click on a face of the ALREADY selected mesh annotation: the
+            // face becomes a selection part of it (shift toggles it in the
+            // multi selection). The first click selects the annotation.
+            const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
+            if (
+              faceIndex !== undefined &&
+              object.userData.isAnnotationMesh3d &&
+              nodeId === soloId
+            ) {
+              selectMesh3dPart({
+                dispatch,
+                getState: store.getState,
+                partId: getMesh3dFacePartId(nodeId, faceIndex),
+                additive: event.shiftKey,
+              });
               return;
             }
 
@@ -2206,6 +2257,7 @@ export default function MainThreedEditor() {
         </Box>
       )}
       {isThreedViewer && <DrawingOverlayThreed />}
+      <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
       )}

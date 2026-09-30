@@ -259,6 +259,16 @@ export const selectionSlice = createSlice({
       }
       reconcilePartRepresentative(state, wasInArray);
     },
+    // Drops the part sub-selection (single + multi) of ONE item, when it is
+    // the primary selected one — for edits that renumber the parts of that
+    // item (payload: item id). Another item's sub-selection is left alone.
+    clearItemPartSelection: (state, action) => {
+      const item = state.selectedItems[0];
+      if (!item || item.id !== action.payload) return;
+      item.partId = null;
+      item.partType = null;
+      state.selectedPartIds = [];
+    },
     clearSelectedPartIds: (state) => {
       const item = state.selectedItems[0];
       const wasInArray =
@@ -320,6 +330,7 @@ export const {
   clearSelectedPointIds,
   setSelectedPartIds,
   toggleSelectedPartId,
+  clearItemPartSelection,
   clearSelectedPartIds,
 } = selectionSlice.actions;
 

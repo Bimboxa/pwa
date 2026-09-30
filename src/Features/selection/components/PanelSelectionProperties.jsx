@@ -38,6 +38,8 @@ import PanelBusinessObjectListingProperties from "Features/businessObjects/compo
 import PanelWorkPackageProperties from "Features/businessObjects/components/PanelWorkPackageProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import PanelPropertiesDrawing from "Features/panelDrawing/components/PanelPropertiesDrawing";
+import PanelPropertiesMesh3dParts from "Features/annotationMesh3d/components/PanelPropertiesMesh3dParts";
+import { getSelectedMesh3dParts } from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PanelSelectionProperties() {
@@ -85,6 +87,11 @@ export default function PanelSelectionProperties() {
   if (isPovViewer) {
     // POV viewer: either the selected POV, or the frame settings by default.
     type = selectedItem?.type === "POV" ? "POV" : "POV_FRAME";
+  } else if (getSelectedMesh3dParts(selectedItem, selectedPartIds).length > 0) {
+    // Faces / edges of a mesh annotation sub-selected in the 3D editor: their
+    // own panel (measures, deletion). Viewer-agnostic — the Dessin module
+    // toggled to 3D keeps the "MAP" module key.
+    type = "MESH3D_PARTS";
   } else if (selectedItem?.type === "PHOTO") {
     // Photo selected from a photos grid (popper / panel) or its map node.
     type = "PHOTO";
@@ -302,6 +309,8 @@ export default function PanelSelectionProperties() {
       {type === "ENTITY" && <PanelEntityProperties />}
 
       {type === "ANNOTATION" && <PanelAnnotationProperties />}
+
+      {type === "MESH3D_PARTS" && <PanelPropertiesMesh3dParts />}
 
       {type === "ANNOTATION_LABEL" && <PanelAnnotationLabelProperties />}
 

@@ -4,6 +4,7 @@ import db from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import { clearItemPartSelection } from "Features/selection/selectionSlice";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
 import { localToNormalized, mesh3dFromLocal } from "../utils/mesh3dFrame";
@@ -142,5 +143,8 @@ export default async function writeMesh3dService({
 
   dispatch?.(triggerAnnotationsUpdate());
   dispatch?.(bumpSnapIndexEpoch());
+  // Faces and vertices were renumbered: a face / edge selection made on the
+  // previous mesh would now point at other parts.
+  dispatch?.(clearItemPartSelection(annotation.id));
   return { ...annotation, ...patch };
 }
