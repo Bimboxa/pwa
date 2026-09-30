@@ -27,10 +27,15 @@ import intersectAnnotationFace, {
 import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
+import Scene3dPickReticle from "Features/scene3d/components/Scene3dPickReticle";
+import updateScene3dPickReticle from "Features/scene3d/utils/updateScene3dPickReticle";
+import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
 const COLOR_PLANE = 0x1565c0;
+// Point on a SCENE_3D scan: a vivid color that stands out on aerial textures.
+const COLOR_SCAN = 0xff6d00;
 // In-plane ortho / vertex-alignment lock — the 2D axis-snap active red.
 const COLOR_LOCK = 0xff1744;
 const COLOR_AXIS_X = 0xff3b30;
@@ -61,8 +66,9 @@ function colorForKind(kind) {
       return COLOR_EDGE;
     case "PLANE":
     case "FACE":
-    case "SCAN":
       return COLOR_PLANE;
+    case "SCAN":
+      return COLOR_SCAN;
     case "PLANE_ORTHO":
     case "PLANE_ALIGN":
       return COLOR_LOCK;
@@ -96,14 +102,28 @@ function getCanvasResolution(editor) {
   return new Vector2(dom.clientWidth, dom.clientHeight);
 }
 
-function makeLineMaterial({ color, linewidth, dashed, resolution }) {
+// Dash length (world metres) of a preview line seen from `distance` metres:
+// 5 cm up close, growing with the distance so the dashes stay readable when
+// drawing at the scale of a site (e.g. on a SCENE_3D scan) — a fixed 5 cm
+// dash is sub-pixel there and the line fades out.
+function getDashSize(distance) {
+  return Math.max(0.05, (distance || 0) * 0.008);
+}
+
+function makeLineMaterial({
+  color,
+  linewidth,
+  dashed,
+  resolution,
+  dashSize = 0.05,
+}) {
   return new LineMaterial({
     color,
     linewidth,
     resolution,
     dashed: !!dashed,
-    dashSize: 0.05,
-    gapSize: 0.05,
+    dashSize,
+    gapSize: dashSize,
     worldUnits: false,
     transparent: true,
     depthTest: false,
@@ -172,8 +192,10 @@ export default function DrawingOverlayThreed() {
   const rootRef = useRef(null);
   const traitLinesRef = useRef(null);
   const inProgressLinesRef = useRef(null);
+  const inProgressMarkersRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
+  const scanReticleRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
   const alignLineRef = useRef(null);
@@ -197,6 +219,7 @@ export default function DrawingOverlayThreed() {
       rootRef.current = null;
       traitLinesRef.current = null;
       inProgressLinesRef.current = null;
+      inProgressMarkersRef.current = null;
       previewLineRef.current = null;
       editor.sceneManager.renderScene?.();
     };
@@ -228,7 +251,9 @@ export default function DrawingOverlayThreed() {
     getActiveThreedEditor()?.sceneManager?.renderScene?.();
   }, [trait3DSegments, active]);
 
-  // sync in-progress polyline (committed segments only)
+  // sync in-progress polyline (committed segments only) + a dot on every
+  // placed point — the feedback of a click (a lone first point has no
+  // segment yet)
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -236,6 +261,20 @@ export default function DrawingOverlayThreed() {
       root.remove(inProgressLinesRef.current);
       disposeObject(inProgressLinesRef.current);
       inProgressLinesRef.current = null;
+    }
+    if (inProgressMarkersRef.current) {
+      root.remove(inProgressMarkersRef.current);
+      disposeObject(inProgressMarkersRef.current);
+      inProgressMarkersRef.current = null;
+    }
+    const markers = buildDrawingVertexMarkers(
+      inProgressPolyline,
+      COLOR_IN_PROGRESS
+    );
+    if (markers) {
+      markers.renderOrder = 1001;
+      root.add(markers);
+      inProgressMarkersRef.current = markers;
     }
     if (inProgressPolyline.length >= 2) {
       const editor = getActiveThreedEditor();
@@ -363,7 +402,11 @@ export default function DrawingOverlayThreed() {
       const circle = snapCircleRef.current;
       if (!circle) return;
       const screen = snap?.position ? toScreen(snap.position, rect) : null;
-      if (!screen) {
+      // A point on a SCENE_3D scan gets the high-contrast reticle instead of
+      // the thin circle (lost on an aerial texture).
+      const onScan = snap?.kind === "SCAN";
+      updateScene3dPickReticle(scanReticleRef.current, onScan ? screen : null);
+      if (!screen || onScan) {
         circle.style.display = "none";
         return;
       }
@@ -442,6 +485,7 @@ export default function DrawingOverlayThreed() {
         color: colorForKind(snap.kind),
         linewidth: LINEWIDTH_PREVIEW,
         dashed: true,
+        dashSize: getDashSize(camera.position.distanceTo(snapPos)),
         resolution: getCanvasResolution(editor),
       });
       const line = buildSegments(
@@ -517,6 +561,7 @@ export default function DrawingOverlayThreed() {
     function onPointerLeave() {
       setLastSnap(null);
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+      updateScene3dPickReticle(scanReticleRef.current, null);
       if (crossARef.current) crossARef.current.style.display = "none";
       if (crossBRef.current) crossBRef.current.style.display = "none";
       if (alignLineRef.current) alignLineRef.current.style.display = "none";
@@ -582,6 +627,7 @@ export default function DrawingOverlayThreed() {
         fill="none"
         style={{ display: "none" }}
       />
+      <Scene3dPickReticle ref={scanReticleRef} color={colorHex(COLOR_SCAN)} />
     </svg>
   );
 }

@@ -19,6 +19,9 @@ import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
+import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScene3dPickingStatus";
+import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
+import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = [
@@ -36,6 +39,15 @@ const THREED_PLACEMENT_SHORTCUTS = [
   { key: "R", label: "Réinitialiser la rotation" },
   { key: "Esc", label: "Quitter le mode dessin" },
 ];
+
+// Shortcuts of the 3D line / face drawing (useDrawingPointerHandlers).
+const THREED_DRAWING_SHORTCUTS = [
+  { key: "Entrée", label: "Terminer le dessin" },
+  { key: "Esc", label: "Terminer / Quitter le dessin" },
+];
+
+// Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
+const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
 
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
@@ -131,12 +143,35 @@ export default function SectionDrawingHelperContent() {
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
-  // Dessin module toggled to its 3D editor: the drawing state drives the 3D
-  // OBJECT_3D placement mode. The 2D-only helpers (loupe, 2D shortcuts) must
+  // Dessin module toggled to its 3D editor: the drawing state drives a 3D
+  // mode. The 2D-only helpers (loupe, 2D shortcuts, image detection) must
   // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Which 3D mode the drawing state drives: OBJECT_3D placement, the
+  // two-click cote, or (default) the line / face drawing.
+  const isObject3DPlacement = useSelector(selectIsObject3DPlacementActive);
+  const isThreedCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
+  // Polylines and cotes can land their points on a SCENE_3D scan: show the
+  // status of its picking data (being prepared / ready).
+  const canDrawOnScan = useSelector((s) => {
+    const na = s.annotations.newAnnotation;
+    return (
+      (na?.type === "POLYLINE" && !na?.isMesh3d) ||
+      selectIsTemplateCoteDrawActive(s)
+    );
+  });
+  const threedMessage = isObject3DPlacement
+    ? "Cliquez sur le plan pour poser l'objet 3D"
+    : isThreedCoteDraw
+      ? "Cliquez deux points pour poser la cote"
+      : "Cliquez pour poser les points du tracé";
+  const threedShortcuts = isObject3DPlacement
+    ? THREED_PLACEMENT_SHORTCUTS
+    : isThreedCoteDraw
+      ? THREED_COTE_SHORTCUTS
+      : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit
@@ -206,8 +241,11 @@ export default function SectionDrawingHelperContent() {
             textAlign: "center",
           }}
         >
-          {"Cliquez sur le plan pour poser l'objet 3D"}
+          {threedMessage}
         </Box>
+      )}
+      {isThreedToggledEditor && canDrawOnScan && (
+        <SectionScene3dPickingStatus />
       )}
       {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
       {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
@@ -313,7 +351,8 @@ export default function SectionDrawingHelperContent() {
           {"Dessinez un rectangle autour de la zone à réparer (2 clics)"}
         </Box>
       )}
-      {showSmartDetectCard && <CardSmartDetect />}
+      {/* 2D image detection: meaningless in the 3D editor */}
+      {showSmartDetectCard && !isThreedToggledEditor && <CardSmartDetect />}
       {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
       {showAutoMerge && (
         <Paper
@@ -444,9 +483,7 @@ export default function SectionDrawingHelperContent() {
         </Paper>
       )}
       <SectionShortcutHelpers
-        shortcuts={
-          isThreedToggledEditor ? THREED_PLACEMENT_SHORTCUTS : undefined
-        }
+        shortcuts={isThreedToggledEditor ? threedShortcuts : undefined}
       />
     </Box>
   );

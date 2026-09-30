@@ -79,7 +79,7 @@ export default function intersectScene3d(editor, ndc, camera) {
       firstOnly: !clippingPlane,
     });
     if (hits === null) {
-      if (ensureScene3dPickData(sceneId) !== "MISSING") pending = true;
+      if (ensureScene3dPickData(sceneId) === "LOADING") pending = true;
       continue;
     }
 

@@ -29,6 +29,45 @@ const IDLE_CHECK_MS = 15000;
 
 const entries = new Map();
 
+// --- status, for the UI (useScene3dPickingStatus): one summary of every
+// scan being prepared / ready, replaced (new reference) on each change.
+
+const listeners = new Set();
+let summary = null;
+
+function computeSummary() {
+  const all = [...entries.values()];
+  if (all.length === 0) return null;
+  const loading = all.filter((entry) => entry.status === "LOADING");
+  if (loading.length > 0) {
+    return {
+      status: "LOADING",
+      done: all.reduce((sum, entry) => sum + entry.done, 0),
+      total: all.reduce((sum, entry) => sum + entry.total, 0),
+    };
+  }
+  if (all.some((entry) => entry.status === "READY")) return { status: "READY" };
+  const failed = all.find((entry) => entry.status === "ERROR");
+  if (failed) return { status: "ERROR", error: failed.error };
+  return { status: "MISSING" };
+}
+
+function notifyStatus() {
+  summary = computeSummary();
+  listeners.forEach((listener) => listener());
+}
+
+export function subscribeScene3dPickStatus(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+// → null (no scan involved) | {status: "LOADING", done, total} |
+//   {status: "READY"} | {status: "MISSING"} | {status: "ERROR", error}
+export function getScene3dPickStatus() {
+  return summary;
+}
+
 const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function disposeEntry(entry) {
@@ -36,6 +75,7 @@ function disposeEntry(entry) {
   clearInterval(entry.idleTimer);
   entry.bvhs = [];
   if (entries.get(entry.sceneId) === entry) entries.delete(entry.sceneId);
+  notifyStatus();
 }
 
 async function loadEntry(entry) {
@@ -48,8 +88,12 @@ async function loadEntry(entry) {
   );
   if (geometryKeys.length === 0) {
     entry.status = "MISSING";
+    notifyStatus();
     return;
   }
+  entry.total = geometryKeys.length;
+  notifyStatus();
+  const startedAt = Date.now();
 
   for (const key of geometryKeys) {
     if (entry.disposed) return;
@@ -63,34 +107,47 @@ async function loadEntry(entry) {
     // The BVH reorders the index in place: this copy is the pick data's own.
     geometry.setIndex(new BufferAttribute(row.index, 1));
     entry.bvhs.push(new MeshBVH(geometry));
+    entry.done += 1;
+    notifyStatus();
     // one chunk (~20 ms) per task: the UI stays responsive
     await nextTick();
   }
   if (entry.disposed) return;
   entry.status = "READY";
   entry.lastUsed = Date.now();
+  console.log(
+    `[scene3dPickStore] scan ${entry.sceneId} ready for picking: ${entry.bvhs.length} chunks in ${Date.now() - startedAt} ms`
+  );
+  notifyStatus();
   entry.idleTimer = setInterval(() => {
     if (Date.now() - entry.lastUsed > IDLE_EVICTION_MS) disposeEntry(entry);
   }, IDLE_CHECK_MS);
 }
 
 // Starts building the picking data of a scan (no-op when already there).
-// → "LOADING" | "READY" | "MISSING"
+// → "LOADING" | "READY" | "MISSING" (no scan data on this device) | "ERROR"
 export function ensureScene3dPickData(sceneId) {
   let entry = entries.get(sceneId);
   if (!entry) {
     entry = {
       sceneId,
       status: "LOADING",
+      done: 0,
+      total: 0,
+      error: null,
       bvhs: [],
       lastUsed: Date.now(),
       idleTimer: null,
       disposed: false,
     };
     entries.set(sceneId, entry);
+    notifyStatus();
     loadEntry(entry).catch((error) => {
       console.error("[scene3dPickStore] load failed", error);
-      if (!entry.disposed) entry.status = "MISSING";
+      if (entry.disposed) return;
+      entry.status = "ERROR";
+      entry.error = error?.message ?? String(error);
+      notifyStatus();
     });
   }
   return entry.status;

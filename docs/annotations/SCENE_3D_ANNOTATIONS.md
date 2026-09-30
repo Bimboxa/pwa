@@ -172,6 +172,11 @@ or rotating the scan afterwards leaves it in place.
   no in-plane ortho, vertex alignment nor world-axis lock (they would pull the
   point off a surface that is not a plane). Vertices / edges hidden behind the
   scan are skipped. Cotes: last fallback of `computeDimensionSnap`.
+- **Feedback**: the preparation progress then "ready" is shown in the drawing
+  helper (`SectionScene3dPickingStatus`, fed by `useScene3dPickingStatus`) and
+  a toast marks the end. A scan hit is drawn as a high-contrast screen-space
+  reticle (`Scene3dPickReticle` — the thin snap circle is lost on an aerial
+  texture), and every placed point gets a dot (`buildDrawingVertexMarkers`).
 - Not supported: polygons (a face needs coplanar points), rectangles, mesh
   drawing, snapping to the scan's own vertices.
 

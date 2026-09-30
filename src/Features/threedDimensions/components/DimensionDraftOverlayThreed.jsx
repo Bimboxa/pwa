@@ -10,6 +10,9 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
+import Scene3dPickReticle from "Features/scene3d/components/Scene3dPickReticle";
+import updateScene3dPickReticle from "Features/scene3d/utils/updateScene3dPickReticle";
+import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawingVertexMarkers";
 
 import { setLastDimensionSnap } from "../services/lastDimensionSnapStore";
 import computeDimensionSnap from "../utils/computeDimensionSnap";
@@ -60,6 +63,8 @@ export default function DimensionDraftOverlayThreed() {
   const rootRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
+  const scanReticleRef = useRef(null);
+  const startMarkerRef = useRef(null);
   const lengthLabelRef = useRef(null);
 
   // mount / unmount root group
@@ -80,9 +85,30 @@ export default function DimensionDraftOverlayThreed() {
       disposeObject(root);
       rootRef.current = null;
       previewLineRef.current = null;
+      startMarkerRef.current = null;
       editor.sceneManager.renderScene?.();
     };
   }, [active]);
+
+  // dot on the placed start point — the feedback of the first click
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (startMarkerRef.current) {
+      root.remove(startMarkerRef.current);
+      disposeObject(startMarkerRef.current);
+      startMarkerRef.current = null;
+    }
+    const marker = startPoint
+      ? buildDrawingVertexMarkers([startPoint], COLOR_PREVIEW)
+      : null;
+    if (marker) {
+      marker.renderOrder = 1003;
+      root.add(marker);
+      startMarkerRef.current = marker;
+    }
+    getActiveThreedEditor()?.sceneManager?.renderScene?.();
+  }, [startPoint, active]);
 
   // pointer-move: snap detection + hover marker + preview segment + readout
   useEffect(() => {
@@ -99,15 +125,25 @@ export default function DimensionDraftOverlayThreed() {
       if (!circle) return;
       if (!snap?.position) {
         circle.style.display = "none";
+        updateScene3dPickReticle(scanReticleRef.current, null);
         return;
       }
       const projected = snap.position.clone().project(camera);
       if (projected.z < -1 || projected.z > 1) {
         circle.style.display = "none";
+        updateScene3dPickReticle(scanReticleRef.current, null);
         return;
       }
       const sx = ((projected.x + 1) / 2) * rect.width;
       const sy = ((1 - projected.y) / 2) * rect.height;
+      // A point on a SCENE_3D scan gets the high-contrast reticle instead of
+      // the thin circle (lost on an aerial texture).
+      if (snap.kind === "SCAN") {
+        circle.style.display = "none";
+        updateScene3dPickReticle(scanReticleRef.current, { sx, sy });
+        return { sx, sy };
+      }
+      updateScene3dPickReticle(scanReticleRef.current, null);
       circle.setAttribute("cx", sx);
       circle.setAttribute("cy", sy);
       circle.style.stroke = colorForKind(snap.kind);
@@ -141,13 +177,19 @@ export default function DimensionDraftOverlayThreed() {
       const snapPos = snap?.position;
       if (!snapPos || !startPoint) return;
 
+      // Dashes grow with the viewing distance (5 cm up close): a fixed 5 cm
+      // dash is sub-pixel at the scale of a site (e.g. on a SCENE_3D scan).
+      const dashSize = Math.max(
+        0.05,
+        camera.position.distanceTo(snapPos) * 0.008
+      );
       const mat = new LineMaterial({
         color: COLOR_PREVIEW,
         linewidth: LINEWIDTH_PREVIEW,
         resolution: getCanvasResolution(editor),
         dashed: true,
-        dashSize: 0.05,
-        gapSize: 0.05,
+        dashSize,
+        gapSize: dashSize,
         worldUnits: false,
         transparent: true,
         depthTest: false,
@@ -190,6 +232,7 @@ export default function DimensionDraftOverlayThreed() {
     function onPointerLeave() {
       setLastDimensionSnap(null);
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+      updateScene3dPickReticle(scanReticleRef.current, null);
       if (lengthLabelRef.current) lengthLabelRef.current.style.display = "none";
       if (previewLineRef.current) {
         rootRef.current?.remove(previewLineRef.current);
@@ -226,6 +269,7 @@ export default function DimensionDraftOverlayThreed() {
         fill="none"
         style={{ display: "none" }}
       />
+      <Scene3dPickReticle ref={scanReticleRef} />
       <text
         ref={lengthLabelRef}
         fontSize="13"
