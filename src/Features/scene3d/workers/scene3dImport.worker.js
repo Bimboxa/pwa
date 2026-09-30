@@ -1,12 +1,21 @@
 // Import worker of the SCENE_3D annotations: everything CPU-heavy of a scan
 // import runs here, off the main thread.
-//   PARSE          {file}                  → CHUNK* / PROGRESS* / PARSED
-//   ENCODE_TEXTURE {id, bitmap, maxSize}   → TEXTURE
+//   PARSE            {file}                  → CHUNK* / PROGRESS* / PARSED
+//                    (the result carries the height map of the scan, see
+//                    rasterizeScene3dHeightMap — built chunk by chunk here)
+//   ENCODE_TEXTURE   {id, bitmap, maxSize}   → TEXTURE
+//   HEIGHT_MAP_INIT  {id, bbox}              (rebuild of the height map of a
+//   HEIGHT_MAP_CHUNK {id, chunk}              scan imported before the height
+//   HEIGHT_MAP_FINISH{id}                    → HEIGHT_MAP   maps existed)
 // Errors: {type: "ERROR", id?, code, message}.
 // Relative imports only (bundled as a separate worker chunk).
 
 import parseScenePly from "../utils/parseScenePly.js";
 import encodeBc1 from "../utils/encodeBc1.js";
+import {
+  createHeightMapRaster,
+  rasterizeChunk,
+} from "../utils/rasterizeScene3dHeightMap.js";
 
 function floorPowerOfTwo(value) {
   return Math.max(4, 2 ** Math.floor(Math.log2(Math.max(1, value))));
@@ -18,8 +27,14 @@ async function handleParse(file) {
     read: (start, end) => file.slice(start, end).arrayBuffer(),
   };
   let lastProgress = 0;
+  let heightMap = null;
   const result = await parseScenePly(source, {
+    onBbox: (bbox) => {
+      heightMap = createHeightMapRaster({ bbox });
+    },
     onChunk: (chunk) => {
+      // before the transfer (the buffers are unusable afterwards)
+      if (heightMap) rasterizeChunk(heightMap, chunk);
       const transfer = [chunk.positions.buffer, chunk.index.buffer];
       if (chunk.uvs) transfer.push(chunk.uvs.buffer);
       self.postMessage({ type: "CHUNK", chunk }, transfer);
@@ -31,7 +46,32 @@ async function handleParse(file) {
       self.postMessage({ type: "PROGRESS", progress });
     },
   });
-  self.postMessage({ type: "PARSED", result });
+  self.postMessage(
+    { type: "PARSED", result: { ...result, heightMap } },
+    heightMap ? [heightMap.data.buffer] : []
+  );
+}
+
+// --- height map rebuild (scan imported before the height maps existed)
+
+const heightMapJobs = new Map();
+
+function handleHeightMapInit({ id, bbox }) {
+  heightMapJobs.set(id, createHeightMapRaster({ bbox }));
+}
+
+function handleHeightMapChunk({ id, chunk }) {
+  const raster = heightMapJobs.get(id);
+  if (raster) rasterizeChunk(raster, chunk);
+}
+
+function handleHeightMapFinish({ id }) {
+  const heightMap = heightMapJobs.get(id) ?? null;
+  heightMapJobs.delete(id);
+  self.postMessage(
+    { type: "HEIGHT_MAP", id, heightMap },
+    heightMap ? [heightMap.data.buffer] : []
+  );
 }
 
 // Display texture of one atlas: power-of-two size (S3TC needs multiples of 4
@@ -72,6 +112,10 @@ self.onmessage = async (event) => {
   try {
     if (message.type === "PARSE") await handleParse(message.file);
     else if (message.type === "ENCODE_TEXTURE") handleEncodeTexture(message);
+    else if (message.type === "HEIGHT_MAP_INIT") handleHeightMapInit(message);
+    else if (message.type === "HEIGHT_MAP_CHUNK") handleHeightMapChunk(message);
+    else if (message.type === "HEIGHT_MAP_FINISH")
+      handleHeightMapFinish(message);
   } catch (error) {
     self.postMessage({
       type: "ERROR",

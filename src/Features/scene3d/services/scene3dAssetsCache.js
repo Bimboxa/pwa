@@ -107,7 +107,8 @@ async function loadEntry(entry, supportsBc1) {
   const byAtlas = new Map();
   for (const key of keys) {
     const parsed = parseScene3dAssetId(key);
-    if (!parsed) continue;
+    // the height map row (2D altimetry) belongs to no atlas
+    if (!parsed || parsed.kind === "HEIGHT") continue;
     const atlas = byAtlas.get(parsed.atlasIndex) ?? {
       textureKey: null,
       geometryKeys: [],

@@ -121,6 +121,12 @@ import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDelt
 import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
+import CursorAltitudeBadge from 'Features/mapEditorGeneric/components/CursorAltitudeBadge';
+import getBaseMapTransform from 'Features/baseMaps/js/getBaseMapTransform';
+import getAnnotationHeightAtPoint from 'Features/annotations/utils/getAnnotationHeightAtPoint';
+import getScene3dHeightAtPx, { getScene3dScanPointFromPx } from 'Features/scene3d/utils/getScene3dHeightAtPx';
+import { getScene3dDisplay2d } from 'Features/scene3d/constants/scene3dConstants';
+import { ensureScene3dHeightMap, getScene3dHeightMap, getScene3dHeightMapEntryStatus } from 'Features/scene3d/services/scene3dHeightMapStore';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
@@ -2514,6 +2520,34 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     imageModeEnabledRef.current = imageModeEnabled;
   }, [imageModeEnabled]);
+
+  // --- Altimetry under the cursor (CursorAltitudeBadge) ---
+  // Everything the per-move update needs is kept in refs: the flag, the
+  // badge, an index of the annotations (by id + the SCENE_3D scans of the
+  // base map) and the base map altitude. The badge is driven imperatively
+  // from handleWorldMouseMove — no React state per pointer move.
+  const cursorAltitudeEnabled = useSelector(
+    (s) => s.mapEditor.cursorAltitudeEnabled
+  );
+  const cursorAltitudeEnabledRef = useRef(cursorAltitudeEnabled);
+  useEffect(() => {
+    cursorAltitudeEnabledRef.current = cursorAltitudeEnabled;
+  }, [cursorAltitudeEnabled]);
+  const cursorAltitudeBadgeRef = useRef(null);
+  const cursorAltitudeIndex = useMemo(() => {
+    const byId = new Map();
+    const scans = [];
+    (annotations || []).forEach((a) => {
+      if (!a?.id) return;
+      byId.set(a.id, a);
+      if (a.type === "SCENE_3D" && getScene3dDisplay2d(a) !== "HIDDEN") {
+        scans.push(a);
+      }
+    });
+    return { byId, scans };
+  }, [annotations]);
+  const cursorAltitudeIndexRef = useRef(cursorAltitudeIndex);
+  cursorAltitudeIndexRef.current = cursorAltitudeIndex;
 
   const imageModeLegendSelected = useSelector(
     (s) => s.mapEditor.imageModeLegendSelected
@@ -6257,6 +6291,94 @@ const InteractionLayer = forwardRef(({
     }
   };
 
+  // --- ALTIMÉTRIE SOUS LE CURSEUR ---
+  // Absolute altitude (base map Z + height above the plan) of what lies
+  // under the pointer: the hovered annotation (DOM hit, valid in every
+  // mode — drawing, pan, drag) else the SCENE_3D scan under the pointer
+  // (height map). Called on every pointer move when the mode is on.
+  const formatAltitude = (value) => `${value.toFixed(2)} m`;
+
+  const updateCursorAltitude = ({ worldPos, viewportPos, event }) => {
+    const badge = cursorAltitudeBadgeRef.current;
+    if (!badge) return;
+    const baseMap = calibrationBaseMapRef.current;
+    const transform = baseMap ? getBaseMapTransform(baseMap) : null;
+    if (!transform || transform.orientation === "VERTICAL") {
+      badge.hide();
+      return;
+    }
+    const baseMapZ = transform.position.y || 0;
+    const { byId, scans } = cursorAltitudeIndexRef.current;
+    const localPos = toLocalCoords(worldPos);
+
+    // 1. hovered annotation (not a scan: its body is a backdrop)
+    const nativeTarget = event?.nativeEvent?.target || event?.target;
+    const hitId = nativeTarget?.closest?.("[data-node-type='ANNOTATION']")
+      ?.dataset?.nodeId;
+    const hovered = hitId ? byId.get(hitId) : null;
+    if (hovered && hovered.type !== "SCENE_3D") {
+      const heights = getAnnotationHeightAtPoint({
+        annotation: hovered,
+        point: localPos,
+        meterByPx: meterByPxRef.current || 0,
+      });
+      if (heights) {
+        badge.update({
+          x: viewportPos.x,
+          y: viewportPos.y,
+          main: `Z ${formatAltitude(baseMapZ + heights.bottom)}`,
+          secondary:
+            heights.top != null
+              ? `haut ${formatAltitude(baseMapZ + heights.top)}`
+              : "",
+        });
+        return;
+      }
+    }
+
+    // 2. scan under the pointer (last drawn = on top)
+    let pending = false;
+    for (let i = scans.length - 1; i >= 0; i--) {
+      const scan = scans[i];
+      const sceneId = scan.scene3d?.sceneId;
+      if (!sceneId) continue;
+      const heightMap = getScene3dHeightMap(sceneId);
+      if (!heightMap) {
+        const status =
+          getScene3dHeightMapEntryStatus(sceneId) ??
+          ensureScene3dHeightMap(sceneId, {
+            bbox: scan.scene3d?.bbox,
+            projectId: scan.projectId,
+          });
+        // loading: only matters when the pointer is over the footprint
+        if (status === "LOADING" && getScene3dScanPointFromPx(scan, localPos)) {
+          pending = true;
+        }
+        continue;
+      }
+      const height = getScene3dHeightAtPx(scan, localPos, heightMap);
+      if (height === null) continue;
+      badge.update({
+        x: viewportPos.x,
+        y: viewportPos.y,
+        main: `Z ${formatAltitude(baseMapZ + height)}`,
+        secondary: "",
+      });
+      return;
+    }
+
+    if (pending) {
+      badge.update({
+        x: viewportPos.x,
+        y: viewportPos.y,
+        main: "Z …",
+        secondary: "relief en préparation",
+      });
+      return;
+    }
+    badge.hide();
+  };
+
   // --- GESTION DU MOUVEMENT (Feedback visuel) ---
   const handleWorldMouseMove = ({ worldPos, viewportPos, event, isPanning }) => {
 
@@ -6268,6 +6390,7 @@ const InteractionLayer = forwardRef(({
         screenPos: { x: event.clientX, y: event.clientY },
         viewportPos,
       };
+      cursorAltitudeBadgeRef.current?.hide();
       return;
     }
 
@@ -6275,6 +6398,11 @@ const InteractionLayer = forwardRef(({
       screenPos: { x: event.clientX, y: event.clientY },
       viewportPos: viewportPos
     };
+
+    // Altimetry badge: every mode (drawing, pan, drag included).
+    if (cursorAltitudeEnabledRef.current) {
+      updateCursorAltitude({ worldPos, viewportPos, event });
+    }
 
     // Paste ghost follows the cursor in local image-pixel space.
     if (pasteClipboardRef.current) {
@@ -8001,6 +8129,7 @@ const InteractionLayer = forwardRef(({
 
   const handleMouseLeave = () => {
     setTooltipData(null);
+    cursorAltitudeBadgeRef.current?.hide();
   };
 
 
@@ -8242,6 +8371,10 @@ const InteractionLayer = forwardRef(({
                 initialWorldK={1}
               />
             </Box>
+            {/* Altimetry under the cursor (imperative, see updateCursorAltitude) */}
+            {cursorAltitudeEnabled && (
+              <CursorAltitudeBadge ref={cursorAltitudeBadgeRef} />
+            )}
             {/* Render conditionally based on Data State */}
             {tooltipData && (
               <MapTooltip

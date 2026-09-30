@@ -153,6 +153,7 @@ function createBuilder(atlasIndex, stamp) {
 }
 
 // source: {size, read(start, end) → Promise<ArrayBuffer>}
+// options.onBbox({min, max}): once the vertices are read (bbox final).
 // options.onChunk(chunk): may be async (awaited — back-pressure).
 //   chunk = {atlasIndex, chunkIndex, positions: Uint16Array (xyz),
 //            uvs: Uint16Array | Float32Array | null, index: Uint16Array,
@@ -164,7 +165,7 @@ function createBuilder(atlasIndex, stamp) {
 //   triangleCount, chunkCount}]} — bbox in the file units, relative to
 //   `origin` (non-zero only for double coordinates, e.g. georeferenced).
 export default async function parseScenePly(source, options = {}) {
-  const { onChunk, onProgress } = options;
+  const { onChunk, onProgress, onBbox } = options;
   const sliceBytes = options.sliceBytes ?? DEFAULT_SLICE_BYTES;
 
   const header = await readScenePlyHeader(source);
@@ -303,6 +304,9 @@ export default async function parseScenePly(source, options = {}) {
   if (!min.every(Number.isFinite) || !max.every(Number.isFinite)) {
     throw createPlyError("PLY_INVALID", "PLY vertices hold invalid values.");
   }
+  // The bbox (= the quantization grid of every chunk) is final here, before
+  // the first chunk is emitted: a consumer can allocate per-scan buffers.
+  onBbox?.({ min: [...min], max: [...max] });
 
   // One quantization grid for the whole scene.
   const quantized = new Uint16Array(vertexCount * 3);

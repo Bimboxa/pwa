@@ -155,6 +155,7 @@ import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotat
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import getScene3dRectanglePointsFromOnePoint from "Features/scene3d/utils/getScene3dRectanglePointsFromOnePoint";
+import usePrepareScene3dHeightMaps from "Features/scene3d/hooks/usePrepareScene3dHeightMaps";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
@@ -537,6 +538,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 return { ...a, strokeColor: shaded, fillColor: shaded };
             });
     }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
+
+    // Altimetry under the cursor: have the height maps of the scans of this
+    // base map ready before the first pointer move (see InteractionLayer).
+    const cursorAltitudeEnabled = useSelector((s) => s.mapEditor.cursorAltitudeEnabled);
+    const scene3dAnnotations = useMemo(
+        () => (annotations || []).filter((a) => a?.type === "SCENE_3D"),
+        [annotations]
+    );
+    usePrepareScene3dHeightMaps(cursorAltitudeEnabled, scene3dAnnotations);
 
     // Layer STRIPs (isLayer): DISPLAY-ONLY stacked geometry (offset by the
     // accumulated thickness of the layers beneath, 45° ramps at their edges).

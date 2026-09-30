@@ -13,6 +13,7 @@ import matchScene3dFiles from "../utils/matchScene3dFiles";
 import {
   getScene3dGeometryId,
   getScene3dGeometryIdRange,
+  getScene3dHeightId,
   getScene3dTextureId,
 } from "../utils/scene3dAssetIds";
 import {
@@ -53,7 +54,8 @@ async function decodeAtlasBitmap(file, maxSize) {
 // form of a SCENE_3D annotation, in a streaming way (see
 // docs/annotations/SCENE_3D_ANNOTATIONS.md):
 //   1. worker: PLY → geometry chunks, written to db.scene3dAssets as they
-//      arrive (the mesh is never held whole in memory);
+//      arrive (the mesh is never held whole in memory) + the height map of
+//      the scan (HEIGHT row, rasterized chunk by chunk in the worker);
 //   2. atlas by atlas: decode the image → draw its chunks in the top view →
 //      BC1 mip chain (worker) → TEXTURE row;
 //   3. the top view is returned as a Blob (persisted by the caller with the
@@ -125,6 +127,24 @@ export default async function importScene3dFilesService({
     await writeQueue;
     if (writeError) throw writeError;
     throwIfAborted();
+
+    // 1b. height map (2D altimetry under the cursor), rasterized by the
+    // worker while the chunks went by
+    if (parsed.heightMap) {
+      const { cols, rows, cellSize, bbox, data } = parsed.heightMap;
+      storedBytes += data.byteLength;
+      await db.scene3dAssets.put({
+        id: getScene3dHeightId(sceneId),
+        sceneId,
+        projectId,
+        kind: "HEIGHT",
+        cols,
+        rows,
+        cellSize,
+        bbox,
+        data,
+      });
+    }
 
     // 2. atlases: top view + display textures
     const { textureFiles, missingNames } = matchScene3dFiles(

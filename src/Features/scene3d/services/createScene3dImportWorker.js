@@ -16,6 +16,8 @@ export default function createScene3dImportWorker() {
   let parseJob = null;
   let nextTextureId = 0;
   const textureJobs = new Map();
+  let nextHeightMapId = 0;
+  const heightMapJobs = new Map();
 
   worker.onmessage = (event) => {
     const message = event.data;
@@ -28,10 +30,16 @@ export default function createScene3dImportWorker() {
     } else if (message.type === "TEXTURE") {
       textureJobs.get(message.id)?.resolve(message);
       textureJobs.delete(message.id);
+    } else if (message.type === "HEIGHT_MAP") {
+      heightMapJobs.get(message.id)?.resolve(message.heightMap);
+      heightMapJobs.delete(message.id);
     } else if (message.type === "ERROR") {
       if (message.id != null && textureJobs.has(message.id)) {
         textureJobs.get(message.id).reject(toError(message));
         textureJobs.delete(message.id);
+      } else if (message.id != null && heightMapJobs.has(message.id)) {
+        heightMapJobs.get(message.id).reject(toError(message));
+        heightMapJobs.delete(message.id);
       } else {
         parseJob?.reject(toError(message));
         parseJob = null;
@@ -44,10 +52,13 @@ export default function createScene3dImportWorker() {
     parseJob = null;
     textureJobs.forEach((job) => job.reject(error));
     textureJobs.clear();
+    heightMapJobs.forEach((job) => job.reject(error));
+    heightMapJobs.clear();
   };
 
   return {
-    // → parse result (see parseScenePly); chunks arrive through onChunk.
+    // → parse result (see parseScenePly) + `heightMap` (see
+    //   rasterizeScene3dHeightMap); chunks arrive through onChunk.
     parse(file, { onChunk, onProgress } = {}) {
       return new Promise((resolve, reject) => {
         parseJob = { resolve, reject, onChunk, onProgress };
@@ -63,6 +74,24 @@ export default function createScene3dImportWorker() {
         worker.postMessage({ type: "ENCODE_TEXTURE", id, bitmap, maxSize }, [
           bitmap,
         ]);
+      });
+    },
+    // Rebuilds the height map of a scan from its stored GEOMETRY rows (an
+    // async iterable — read one by one, the buffers are transferred).
+    // → heightMap (see rasterizeScene3dHeightMap)
+    async buildHeightMap(bbox, rows) {
+      const id = nextHeightMapId++;
+      worker.postMessage({ type: "HEIGHT_MAP_INIT", id, bbox });
+      for await (const row of rows) {
+        const chunk = { positions: row.positions, index: row.index };
+        worker.postMessage({ type: "HEIGHT_MAP_CHUNK", id, chunk }, [
+          chunk.positions.buffer,
+          chunk.index.buffer,
+        ]);
+      }
+      return new Promise((resolve, reject) => {
+        heightMapJobs.set(id, { resolve, reject });
+        worker.postMessage({ type: "HEIGHT_MAP_FINISH", id });
       });
     },
     terminate() {
