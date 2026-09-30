@@ -94,7 +94,7 @@ export default function useDimensionPointerHandlers() {
         x: snap.position.x,
         y: snap.position.y,
         z: snap.position.z,
-        // A point picked on a SCENE_3D scan carries the scan's base map: it
+        // A point picked on a scan base map carries the scan's base map: it
         // hosts the cote (see commitDrawnCoteService).
         ...(snap.baseMapId ? { baseMapId: snap.baseMapId } : {}),
       };

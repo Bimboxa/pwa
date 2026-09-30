@@ -6,7 +6,7 @@ import {
   parseScene3dAssetId,
 } from "../utils/scene3dAssetIds";
 
-// Height maps of the SCENE_3D scans (see rasterizeScene3dHeightMap): what
+// Height maps of the scan base maps (see rasterizeScene3dHeightMap): what
 // gives the 2D editor the altitude of the scan under the cursor.
 //
 // Nominal path: the map was rasterized at import and sits in

@@ -437,11 +437,11 @@ db.version(40).stores({
 });
 
 db.version(41).stores({
-  // Heavy data of the SCENE_3D annotations (3D scans), converted at import
-  // into GPU-ready pieces (see docs/annotations/SCENE_3D_ANNOTATIONS.md).
+  // Heavy data of the scan base maps (« Scène 3D », 3D scans), converted at
+  // import into GPU-ready pieces (see docs/baseMaps/SCENE_3D_BASE_MAPS.md).
   // LOCAL ONLY: the table is skipped by every db.export (Krto zip, project
   // export, base map share) — a save never reads these rows. Not audited,
-  // no soft delete, no undo: rows are hard-deleted with their annotation.
+  // no soft delete, no undo: rows are hard-deleted with their base map.
   //   GEOMETRY row: {id, sceneId, projectId, kind, atlasIndex, chunkIndex,
   //     positions (Uint16 xyz, quantized on the scan bbox), uvs (Uint16 |
   //     Float32 | null), index (Uint16), boundsMin, boundsMax (normalized),

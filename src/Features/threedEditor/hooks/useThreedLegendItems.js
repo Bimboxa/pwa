@@ -97,7 +97,7 @@ export default function useThreedLegendItems(annotations) {
     const listingOrder = [];
 
     annotations
-      .filter((a) => a.type !== "IMAGE" && a.type !== "SCENE_3D")
+      .filter((a) => a.type !== "IMAGE")
       .forEach((annotation) => {
         const templateId = annotation.annotationTemplateId;
         if (!templateId || seen[templateId]) return;

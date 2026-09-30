@@ -1,50 +1,30 @@
 import sampleScene3dHeightMap from "./sampleScene3dHeightMap.js";
+import { baseMapPxToScan, scanToZoneLocal } from "./scene3dZoneTransform.js";
 
-// Height of a SCENE_3D scan above its base map plane (metres) under a point
-// of the 2D editor, or null (outside the scan footprint / no surface there).
+// Height of the scan surface above the plane of its base map (metres) under
+// a point of the 2D editor, or null (outside the zone / no surface there).
 //
-// annotation: RESOLVED (useAnnotationsV2) — `bbox` in px is "stored centre +
-// metric footprint", `rotation` in degrees (SVG clockwise about the bbox
-// centre), `scene3d.bbox` in metres (scan frame), `offsetZ` the altitude of
-// the scan's lowest point above the plan (see createScene3dAnnotation).
-// point: {x, y} in the same px space as annotation.bbox.
-export default function getScene3dHeightAtPx(annotation, point, heightMap) {
+// baseMap: {scene3d, imageSize (reference px), meterByPx} — the plane of the
+// base map sits at `scene3d.zone.zMin` (lowest point of the clipped scan).
+// point: {x, y} in reference image px.
+export default function getScene3dHeightAtPx(baseMap, point, heightMap) {
   if (!heightMap) return null;
-  const scanPoint = getScene3dScanPointFromPx(annotation, point);
+  const scanPoint = getScene3dScanPointFromPx(baseMap, point);
   if (!scanPoint) return null;
-  const z = sampleScene3dHeightMap(heightMap, scanPoint.sx, scanPoint.sy);
+  const z = sampleScene3dHeightMap(heightMap, scanPoint[0], scanPoint[1]);
   if (z === null) return null;
-  return (
-    (Number(annotation.offsetZ) || 0) + (z - annotation.scene3d.bbox.min[2])
-  );
+  return z - (baseMap.scene3d.zone.zMin ?? baseMap.scene3d.bbox.min[2]);
 }
 
-// Point of the 2D editor → point of the scan frame ({sx, sy}, metres), or
-// null when outside the scan footprint.
-export function getScene3dScanPointFromPx(annotation, point) {
-  const bbox = annotation?.bbox;
-  const sceneBbox = annotation?.scene3d?.bbox;
-  if (!bbox?.width || !bbox?.height || !sceneBbox?.min || !sceneBbox?.max)
+// Point of the 2D editor → point of the scan frame ([x, y], metres), or
+// null when outside the zone rectangle of the base map.
+export function getScene3dScanPointFromPx(baseMap, point) {
+  const scanPoint = baseMapPxToScan(baseMap, point);
+  if (!scanPoint) return null;
+  const zone = baseMap.scene3d.zone;
+  const [qx, qy] = scanToZoneLocal(zone, scanPoint);
+  if (Math.abs(qx) > zone.width / 2 || Math.abs(qy) > zone.height / 2) {
     return null;
-
-  const cx = bbox.x + bbox.width / 2;
-  const cy = bbox.y + bbox.height / 2;
-  const dx = point.x - cx;
-  const dy = point.y - cy;
-  // undo the SVG rotate(rotation) about the centre
-  const theta = ((annotation.rotation || 0) * Math.PI) / 180;
-  const cos = Math.cos(theta);
-  const sin = Math.sin(theta);
-  const lx = dx * cos + dy * sin;
-  const ly = -dx * sin + dy * cos;
-
-  const u = lx / bbox.width + 0.5;
-  const v = ly / bbox.height + 0.5;
-  if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-
-  // image top = scan +Y
-  return {
-    sx: sceneBbox.min[0] + u * (sceneBbox.max[0] - sceneBbox.min[0]),
-    sy: sceneBbox.max[1] - v * (sceneBbox.max[1] - sceneBbox.min[1]),
-  };
+  }
+  return scanPoint;
 }

@@ -19,7 +19,7 @@ import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
 import attachFatLineRaycast from "./attachFatLineRaycast.js";
 
 // Screen-space thickness (px) of a polyline without any vertical extent — a
-// plain line in space (e.g. drawn between two points of a SCENE_3D scan). A
+// plain line in space (e.g. drawn between two points of a scan base map). A
 // 1 px WebGL line is hardly visible on a textured background.
 const FLAT_POLYLINE_LINEWIDTH_PX = 3;
 

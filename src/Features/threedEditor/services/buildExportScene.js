@@ -64,7 +64,7 @@ export default function buildExportScene(
       obj.userData?.isSectionMarker ||
       // 3D base maps grid decorations (sheet outline, label, eye button).
       obj.userData?.isGridPlaceholder ||
-      // SCENE_3D scans: their geometry lives on the GPU only (no CPU copy
+      // scan base maps: their geometry lives on the GPU only (no CPU copy
       // to export).
       obj.userData?.isDecor
     ) {

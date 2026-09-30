@@ -12,13 +12,13 @@ const READY_MESSAGE =
 const ERROR_MESSAGE = "Le relief du scan n'a pas pu être préparé.";
 
 // The cursor altimetry of the 2D editor reads the scan height maps
-// (scene3dHeightMapStore). While the mode is on, make the maps of the scans
-// of the current base map available right away — not on the first pointer
+// (scene3dHeightMapStore). While the mode is on, make the map of the
+// displayed scan base map available right away — not on the first pointer
 // move — and tell the user when a rebuild (scan imported before the height
 // maps existed) is done.
 //
-// active: the mode is on; scans: the SCENE_3D annotations (resolved) of the
-// current base map.
+// active: the mode is on; scans: the scan base maps (records or BaseMap
+// instances carrying `scene3d`) displayed in the editor.
 export default function usePrepareScene3dHeightMaps(active, scans) {
   const dispatch = useDispatch();
 
@@ -26,20 +26,21 @@ export default function usePrepareScene3dHeightMaps(active, scans) {
 
   const status = useScene3dHeightMapStatus()?.status ?? null;
 
-  // A new scan (import, Krto load) is prepared too: key on the scene ids.
+  // A new scan (creation, reload, Krto load) is prepared too: key on the
+  // scene ids.
   const sceneIdsKey = (scans ?? [])
-    .map((a) => a?.scene3d?.sceneId)
+    .map((b) => b?.scene3d?.sceneId)
     .filter(Boolean)
     .join("|");
 
   useEffect(() => {
     if (!active || !sceneIdsKey) return;
-    (scans ?? []).forEach((annotation) => {
-      const scene3d = annotation?.scene3d;
+    (scans ?? []).forEach((baseMap) => {
+      const scene3d = baseMap?.scene3d;
       if (!scene3d?.sceneId) return;
       ensureScene3dHeightMap(scene3d.sceneId, {
         bbox: scene3d.bbox,
-        projectId: annotation.projectId,
+        projectId: baseMap.projectId,
       });
     });
   }, [active, sceneIdsKey]);

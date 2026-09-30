@@ -8,8 +8,9 @@ import deleteScene3dAssetsService from "./deleteScene3dAssetsService";
 import {
   markScene3dImporting,
   unmarkScene3dImporting,
-} from "./scene3dPendingStore";
+} from "./scene3dImportingGuard";
 import matchScene3dFiles from "../utils/matchScene3dFiles";
+import decodeAtlasBitmap from "../utils/decodeAtlasBitmap";
 import {
   getScene3dGeometryId,
   getScene3dGeometryIdRange,
@@ -18,74 +19,53 @@ import {
 } from "../utils/scene3dAssetIds";
 import {
   SCENE_3D_DISPLAY_TEXTURE_MAX_SIZE,
+  SCENE_3D_PREVIEW_MAX_PX,
   SCENE_3D_TOP_VIEW_SIZES,
 } from "../constants/scene3dConstants";
 
-function createAbortError() {
+export function createScene3dAbortError() {
   const error = new Error("Scene import cancelled.");
   error.code = "SCENE_3D_IMPORT_CANCELLED";
   return error;
 }
 
-// Decodes one atlas at the size the bake needs (never the full 8192² on the
-// GPU). The full-size decode is transient and closed right away; atlases are
-// processed one at a time.
-async function decodeAtlasBitmap(file, maxSize) {
-  const full = await createImageBitmap(file, {
-    premultiplyAlpha: "none",
-    colorSpaceConversion: "none",
-  });
-  const scale = Math.min(1, maxSize / Math.max(full.width, full.height));
-  if (scale === 1) return full;
-  try {
-    return await createImageBitmap(full, {
-      resizeWidth: Math.max(1, Math.round(full.width * scale)),
-      resizeHeight: Math.max(1, Math.round(full.height * scale)),
-      resizeQuality: "high",
-      premultiplyAlpha: "none",
-      colorSpaceConversion: "none",
-    });
-  } finally {
-    full.close();
-  }
-}
-
 // Converts a scan (PLY mesh + texture atlases) into the local, GPU-ready
-// form of a SCENE_3D annotation, in a streaming way (see
-// docs/annotations/SCENE_3D_ANNOTATIONS.md):
+// form of a scan base map, in a streaming way (see
+// docs/baseMaps/SCENE_3D_BASE_MAPS.md):
 //   1. worker: PLY → geometry chunks, written to db.scene3dAssets as they
 //      arrive (the mesh is never held whole in memory) + the height map of
 //      the scan (HEIGHT row, rasterized chunk by chunk in the worker);
-//   2. atlas by atlas: decode the image → draw its chunks in the top view →
-//      BC1 mip chain (worker) → TEXTURE row;
-//   3. the top view is returned as a Blob (persisted by the caller with the
-//      annotation: it is the only part that travels in the Krto zip).
-// Nothing references the rows until the annotation is created: a cancelled
+//   2. atlas by atlas: decode the image → draw its chunks in the whole-scan
+//      preview → BC1 mip chain (worker) → TEXTURE row;
+//   3. the preview is returned as a Blob: it is the picture the zone of
+//      interest is drawn on (never persisted — the base map image is baked
+//      afterwards from the clipped scan, bakeScene3dZoneImageService).
+// Nothing references the rows until the base map is created: a cancelled
 // or failed import deletes them. On success the scan stays marked as
 // "importing" (orphan-purge protection): the caller unmarks it once the scan
 // is handed over (unmarkScene3dImporting).
 //
 // onProgress({step: "MESH" | "TEXTURES" | "TOP_VIEW", ratio})
-// → {descriptor (annotation.scene3d, without topView), topView: {blob,
+// → {descriptor: {sceneId, srcFileName, bbox, origin, vertexCount, faceCount,
+//    atlasCount, textureBytes}, atlases, textureNames, preview: {blob,
 //    fileMime, width, height, pxPerMeter}, missingTextureNames}
 export default async function importScene3dFilesService({
   plyFile,
   imageFiles,
   projectId,
-  topViewSizeKey = "STANDARD",
   onProgress,
   signal,
 }) {
   const sceneId = nanoid();
   // Protected from the orphan purge until the caller hands the scan over
-  // (pending placement or annotation reload) and unmarks it.
+  // (base map created or reloaded) and unmarks it.
   markScene3dImporting(sceneId);
   const worker = createScene3dImportWorker();
   let baker = null;
-  let storedBytes = 0;
+  let textureBytes = 0;
 
   const throwIfAborted = () => {
-    if (signal?.aborted) throw createAbortError();
+    if (signal?.aborted) throw createScene3dAbortError();
   };
   const onAbort = () => worker.terminate();
   signal?.addEventListener("abort", onAbort);
@@ -103,10 +83,6 @@ export default async function importScene3dFilesService({
           kind: "GEOMETRY",
           ...chunk,
         };
-        storedBytes +=
-          chunk.positions.byteLength +
-          (chunk.uvs?.byteLength ?? 0) +
-          chunk.index.byteLength;
         writeQueue = writeQueue
           .then(() => db.scene3dAssets.put(row))
           .catch((error) => {
@@ -121,7 +97,9 @@ export default async function importScene3dFilesService({
     const parsed = await Promise.race([
       parsePromise,
       new Promise((_, reject) =>
-        signal?.addEventListener("abort", () => reject(createAbortError()))
+        signal?.addEventListener("abort", () =>
+          reject(createScene3dAbortError())
+        )
       ),
     ]);
     await writeQueue;
@@ -129,10 +107,10 @@ export default async function importScene3dFilesService({
     throwIfAborted();
 
     // 1b. height map (2D altimetry under the cursor), rasterized by the
-    // worker while the chunks went by
+    // worker while the chunks went by — replaced by the clipped one when the
+    // zone is validated
     if (parsed.heightMap) {
       const { cols, rows, cellSize, bbox, data } = parsed.heightMap;
-      storedBytes += data.byteLength;
       await db.scene3dAssets.put({
         id: getScene3dHeightId(sceneId),
         sceneId,
@@ -146,17 +124,14 @@ export default async function importScene3dFilesService({
       });
     }
 
-    // 2. atlases: top view + display textures
+    // 2. atlases: preview + display textures
     const { textureFiles, missingNames } = matchScene3dFiles(
       parsed.textureNames,
       imageFiles
     );
-    const topViewSize =
-      SCENE_3D_TOP_VIEW_SIZES[topViewSizeKey] ??
-      SCENE_3D_TOP_VIEW_SIZES.STANDARD;
     baker = createScene3dTopViewBaker({
       bbox: parsed.bbox,
-      maxPx: topViewSize.maxPx,
+      maxPx: SCENE_3D_PREVIEW_MAX_PX,
     });
 
     for (let i = 0; i < parsed.atlases.length; i++) {
@@ -164,7 +139,10 @@ export default async function importScene3dFilesService({
       const { atlasIndex } = parsed.atlases[i];
       const file = textureFiles[atlasIndex] ?? null;
       const bitmap = file
-        ? await decodeAtlasBitmap(file, topViewSize.textureMaxSize)
+        ? await decodeAtlasBitmap(
+            file,
+            SCENE_3D_TOP_VIEW_SIZES.STANDARD.textureMaxSize
+          )
         : null;
 
       const [lower, upper] = getScene3dGeometryIdRange(sceneId, atlasIndex);
@@ -179,7 +157,7 @@ export default async function importScene3dFilesService({
           bitmap,
           SCENE_3D_DISPLAY_TEXTURE_MAX_SIZE
         );
-        storedBytes += texture.mipmaps.reduce(
+        textureBytes += texture.mipmaps.reduce(
           (sum, mipmap) => sum + mipmap.data.byteLength,
           0
         );
@@ -202,7 +180,7 @@ export default async function importScene3dFilesService({
     }
     throwIfAborted();
 
-    // 3. top view
+    // 3. preview
     onProgress?.({ step: "TOP_VIEW", ratio: 0 });
     const { blob, fileMime } = await baker.toBlob();
     onProgress?.({ step: "TOP_VIEW", ratio: 1 });
@@ -216,9 +194,11 @@ export default async function importScene3dFilesService({
         vertexCount: parsed.vertexCount,
         faceCount: parsed.triangleCount,
         atlasCount: parsed.atlases.length,
-        storedBytes,
+        textureBytes,
       },
-      topView: {
+      atlases: parsed.atlases,
+      textureNames: parsed.textureNames,
+      preview: {
         blob,
         fileMime,
         width: baker.width,
@@ -230,7 +210,7 @@ export default async function importScene3dFilesService({
   } catch (error) {
     await deleteScene3dAssetsService(sceneId).catch(() => {});
     unmarkScene3dImporting(sceneId);
-    throw signal?.aborted ? createAbortError() : error;
+    throw signal?.aborted ? createScene3dAbortError() : error;
   } finally {
     signal?.removeEventListener("abort", onAbort);
     baker?.dispose();

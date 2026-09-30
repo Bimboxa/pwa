@@ -61,6 +61,10 @@ export default class BaseMap {
     // Short reference displayed in the DETAIL annotation bubbles linked to
     // this baseMap (e.g. "1", "A"). Editable on any baseMap.
     detailRef,
+    // Scan base map (« Scène 3D »): the image is the top-down projection of
+    // a photogrammetry scan whose mesh + height map live in the local-only
+    // db.scene3dAssets — see docs/baseMaps/SCENE_3D_BASE_MAPS.md.
+    scene3d,
     // Print zone (« Zone d'impression »): { format, orientation, scale, x, y,
     // width, height } — sheet rect in REFERENCE image px, see
     // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
@@ -96,6 +100,7 @@ export default class BaseMap {
     this.createdFrom = createdFrom;
     this.detailRef = detailRef ?? null;
     this.printZone = printZone ?? null;
+    this.scene3d = scene3d ?? null;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;
@@ -459,6 +464,7 @@ export default class BaseMap {
       mainAngleInDeg: this.mainAngleInDeg,
       rotation2D: this.rotation2D,
       printZone: this.printZone ?? null,
+      scene3d: this.scene3d ?? null,
     };
 
     if (this.versions?.length > 0) {

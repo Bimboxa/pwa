@@ -1328,32 +1328,6 @@ export default function useAnnotationsV2(options) {
             };
           }
 
-          // --- SCENE_3D (3D scan): the stored bbox gives the CENTRE; the
-          // size is always the metric footprint of the scan at the base map
-          // scale (never resized, and still right after a rescale of the
-          // base map — the 3D mesh is in true metres).
-          else if (annotation.type === "SCENE_3D") {
-            const stored = {
-              x: (annotation.bbox?.x ?? 0.25) * width,
-              y: (annotation.bbox?.y ?? 0.25) * height,
-              width: (annotation.bbox?.width ?? 0.5) * width,
-              height: (annotation.bbox?.height ?? 0.5) * height,
-            };
-            const sceneBbox = annotation.scene3d?.bbox;
-            if (sceneBbox?.min && sceneBbox?.max && meterByPx > 0) {
-              const w = (sceneBbox.max[0] - sceneBbox.min[0]) / meterByPx;
-              const h = (sceneBbox.max[1] - sceneBbox.min[1]) / meterByPx;
-              _annotation.bbox = {
-                x: stored.x + stored.width / 2 - w / 2,
-                y: stored.y + stored.height / 2 - h / 2,
-                width: w,
-                height: h,
-              };
-            } else {
-              _annotation.bbox = stored;
-            }
-          }
-
           // --- OTHER CASES
           else {
             _annotation.points = _splitResolved(

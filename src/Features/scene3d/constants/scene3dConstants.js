@@ -3,7 +3,10 @@
 // ~2.7 MB on the GPU (an 8192² RGBA original: ~360 MB).
 export const SCENE_3D_DISPLAY_TEXTURE_MAX_SIZE = 2048;
 
-// Resolution of the top-down projection baked at import.
+// Finest useful resolution of a top-down bake (small zones: 5 mm / px).
+export const SCENE_3D_MAX_PX_PER_METER = 200;
+
+// Resolution of the base map image baked from the zone of interest.
 //   maxPx: longest side of the image;
 //   textureMaxSize: size the atlases are decoded at for the bake.
 export const SCENE_3D_TOP_VIEW_SIZES = {
@@ -11,10 +14,8 @@ export const SCENE_3D_TOP_VIEW_SIZES = {
   HIGH: { maxPx: 8192, textureMaxSize: 4096 },
 };
 
-export const SCENE_3D_DISPLAY_2D = {
-  PROJECTION: "PROJECTION",
-  HIDDEN: "HIDDEN",
-};
+// Longest side of the whole-scan preview the zone is drawn on.
+export const SCENE_3D_PREVIEW_MAX_PX = 2048;
 
 export const SCENE_3D_DISPLAY_3D = {
   MESH: "MESH",
@@ -22,10 +23,11 @@ export const SCENE_3D_DISPLAY_3D = {
   HIDDEN: "HIDDEN",
 };
 
-export function getScene3dDisplay2d(annotation) {
-  return annotation?.sceneDisplay2d ?? SCENE_3D_DISPLAY_2D.PROJECTION;
-}
-
-export function getScene3dDisplay3d(annotation) {
-  return annotation?.sceneDisplay3d ?? SCENE_3D_DISPLAY_3D.MESH;
+// 3D display of a scan base map (record or BaseMap instance).
+//   MESH        the textured mesh over the base map plane (default);
+//   PROJECTION  the base map plane only (also the fallback when the scan
+//               data is not on this device);
+//   HIDDEN      no mesh either.
+export function getScene3dDisplay3d(baseMap) {
+  return baseMap?.scene3d?.display3d ?? SCENE_3D_DISPLAY_3D.MESH;
 }

@@ -22,7 +22,7 @@ import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMap from "../hooks/useBaseMap";
 import useListingById from "Features/listings/hooks/useListingById";
-import useDeleteEntity from "Features/entities/hooks/useDeleteEntity";
+import useDeleteBaseMap from "../hooks/useDeleteBaseMap";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import downloadBlob from "Features/files/utils/downloadBlob";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
@@ -57,6 +57,7 @@ import CardBaseMapPrintZone from "./CardBaseMapPrintZone";
 import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
+import SectionBaseMapScene3d from "Features/scene3d/components/SectionBaseMapScene3d";
 import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
 import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseMapOpacityIn3d";
 
@@ -96,7 +97,7 @@ export default function PanelBaseMapProperties() {
   // In the Dessin module with the 3D editor toggled on (T), the module key is
   // still "MAP", which made this panel fall back to its 2D branch in 3D.
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
-  const deleteEntity = useDeleteEntity();
+  const deleteBaseMap = useDeleteBaseMap();
   const updateEntity = useUpdateEntity();
 
   const activeVersion = baseMap?.getActiveVersion?.();
@@ -304,6 +305,8 @@ export default function PanelBaseMapProperties() {
           )}
         </WhiteSectionGeneric>
 
+        {baseMap?.scene3d && <SectionBaseMapScene3d baseMap={baseMap} />}
+
         <WhiteSectionGeneric>
           <ButtonBase
             onClick={() => setView("position3d")}
@@ -333,12 +336,8 @@ export default function PanelBaseMapProperties() {
         open={openDelete}
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={async () => {
-          await deleteEntity({
-            id: baseMap.id,
-            // The 3D selection payload has no listingId — fall back to the
-            // listing of the displayed baseMap.
-            listingId: selectedItem?.listingId ?? baseMapListing?.id,
-          });
+          // Full cascade (versions, annotations, points, scan data).
+          await deleteBaseMap({ id: baseMap.id });
           dispatch(setSelectedItem({}));
           dispatch(setSelectedBaseMapId(null));
           // Only reset the main baseMap when it is the one being deleted —

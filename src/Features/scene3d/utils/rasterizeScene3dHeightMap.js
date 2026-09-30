@@ -1,4 +1,4 @@
-// Height map of a SCENE_3D scan: a top-down grid holding, per cell, the
+// Height map of a scan base map: a top-down grid holding, per cell, the
 // HIGHEST surface of the mesh ("Z max seen from above") — what the 2D
 // projection shows. Built once, at import, from the geometry chunks
 // (positions quantized to Uint16 on the scan bbox, see parseScenePly).

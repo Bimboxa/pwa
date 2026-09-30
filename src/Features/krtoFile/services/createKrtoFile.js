@@ -19,7 +19,7 @@ export default async function createKrtoFile(projectId, options) {
 
   const blob = await db.export({
     // prettyJson: true, // optional (bigger file, human-readable)
-    // SCENE_3D heavy data is local only: never read by a save.
+    // Scan base map heavy data is local only: never read by a save.
     skipTables: ["scene3dAssets"],
     filter: (table, value) => {
       if (getAnnotationTemplatesFromListingId) {

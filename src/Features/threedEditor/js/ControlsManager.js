@@ -382,7 +382,7 @@ export default class ControlsManager {
 
   // Sets the REGULAR zoom-out range (dolly limit + camera far plane at twice
   // the distance): the "Distance de vue max" setting, or its AUTO value
-  // derived from the loaded SCENE_3D scans. A boost in progress (base maps
+  // derived from the loaded scan base maps. A boost in progress (base maps
   // grid) is re-applied on top of the new range; a limit parked in the stash
   // (ortho-like fov of the 3D → 2D switch) is updated there.
   setRegularMaxDistance = (distance) => {

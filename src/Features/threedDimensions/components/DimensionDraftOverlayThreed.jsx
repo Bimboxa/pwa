@@ -165,7 +165,7 @@ export default function DimensionDraftOverlayThreed() {
       if (!snapPos || !startPoint) return;
 
       // Dashes grow with the viewing distance (5 cm up close): a fixed 5 cm
-      // dash is sub-pixel at the scale of a site (e.g. on a SCENE_3D scan).
+      // dash is sub-pixel at the scale of a site (e.g. on a scan base map).
       const dashSize = Math.max(
         0.05,
         camera.position.distanceTo(snapPos) * 0.008

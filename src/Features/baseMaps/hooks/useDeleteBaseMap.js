@@ -5,6 +5,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 
 import db, { withSystemWrite } from "App/db/db";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
+import deleteScene3dBaseMapsDataService from "Features/scene3d/services/deleteScene3dBaseMapsDataService";
 
 export async function countBaseMapAnnotations(baseMapId) {
   return db.annotations
@@ -16,12 +17,16 @@ export async function countBaseMapAnnotations(baseMapId) {
 
 /**
  * Deletes a baseMap with a full cascade: versions, annotations and points
- * drawn on it (all soft-deleted, so recoverable via the purge flow).
+ * drawn on it (all soft-deleted, so recoverable via the purge flow). The
+ * scan data of a scan base map (db.scene3dAssets, local only) is hard-
+ * deleted.
  */
 export default function useDeleteBaseMap() {
   const dispatch = useDispatch();
 
   return async (baseMap) => {
+    const record = await db.baseMaps.get(baseMap.id);
+
     // BASE_MAP_LINK marks hosted by this base map: their clones (drawn on
     // other base maps) die with their source.
     const hostedLinks = await db.annotations
@@ -60,6 +65,8 @@ export default function useDeleteBaseMap() {
         });
       }
     );
+
+    if (record?.scene3d) await deleteScene3dBaseMapsDataService([record]);
 
     dispatch(triggerEntitiesTableUpdate("baseMaps"));
     dispatch(triggerAnnotationsUpdate());

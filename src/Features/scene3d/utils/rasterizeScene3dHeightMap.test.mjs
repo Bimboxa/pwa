@@ -77,26 +77,32 @@ test("overlapping surfaces keep the highest one; holes stay empty", () => {
   assert.equal(sampleScene3dHeightMap(raster, 0.2, 0.9), null);
 });
 
-test("getScene3dHeightAtPx: rotated bbox, image top = scan +Y", () => {
+test("getScene3dHeightAtPx: scan base map, zone rotated 90°", () => {
   const raster = createHeightMapRaster({ bbox, maxCells: 100 });
   rasterizeChunk(raster, buildChunk());
-  // base map at 0.01 m / px: footprint 200 × 100 px, centre (300, 200),
-  // rotated 90° clockwise → scan +X now points DOWN on screen
-  const annotation = {
-    bbox: { x: 200, y: 150, width: 200, height: 100 },
-    rotation: 90,
-    offsetZ: 3,
-    scene3d: { bbox },
+  // Zone = the whole scan, θ = 90° (zone +X = scan +Y): the image is 1 m
+  // wide (scan Y) × 2 m high (scan X), 0.01 m / px → 100 × 200 px, centred
+  // on the scan centre (1, 0.5); plane at zMin = 0.
+  const baseMap = {
+    scene3d: {
+      bbox,
+      zone: {
+        rotationDeg: 90,
+        center: [1, 0.5],
+        width: 1,
+        height: 2,
+        zMin: 0,
+        zMax: 1,
+      },
+    },
+    imageSize: { width: 100, height: 200 },
+    meterByPx: 0.01,
   };
-  // unrotated: scan point (1.5, 0.5) → u = 0.75, v = 0.5 → px (350, 200)
-  // after rotate(90) about (300, 200): (300 + 0, 200 + 50) = (300, 250)
-  near(getScene3dHeightAtPx(annotation, { x: 300, y: 250 }, raster), 3.5, 2e-2);
-  // left flat quad: scan (0.5, 0.5) → px (250, 200) → rotated (300, 150)
-  near(
-    getScene3dHeightAtPx(annotation, { x: 300, y: 150 }, raster),
-    3.25,
-    1e-2
-  );
-  // outside the footprint
-  assert.equal(getScene3dHeightAtPx(annotation, { x: 0, y: 0 }, raster), null);
+  // image top = zone +Y = scan −X → the ramp's high end (scan x = 1.9) is
+  // near the image bottom: q = R(−90°)·(0.9, 0.4) = (0.4, −0.9) → px (90, 190)
+  near(getScene3dHeightAtPx(baseMap, { x: 90, y: 190 }, raster), 0.9, 2e-2);
+  // left flat quad: scan (0.5, 0.5) → q = (0, 0.5) → px (50, 50)
+  near(getScene3dHeightAtPx(baseMap, { x: 50, y: 50 }, raster), 0.25, 1e-2);
+  // outside the zone
+  assert.equal(getScene3dHeightAtPx(baseMap, { x: -10, y: 0 }, raster), null);
 });

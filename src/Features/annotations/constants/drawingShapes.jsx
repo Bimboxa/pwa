@@ -402,29 +402,6 @@ const DRAWING_SHAPES = [
       </SvgIcon>
     ),
   },
-  {
-    key: "SCENE_3D",
-    label: "Scène 3D",
-    icon: (
-      <SvgIcon fontSize="small" viewBox="0 0 20 20">
-        {/* relief surface: a triangulated terrain seen in perspective */}
-        <path
-          d="M2 15 L7 6 L11 11 L14 7 L18 15 Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M7 6 L8 15 M11 11 L8 15 M11 11 L13 15 M14 7 L13 15"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeLinejoin="round"
-        />
-      </SvgIcon>
-    ),
-  },
 ];
 
 export function resolveShapeCategory(shape) {

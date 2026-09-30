@@ -37,6 +37,11 @@ const BASE_MAP_SOURCE_CATALOG = [
     label: "Image satellite",
     caption: "Extrait géoréférencé",
   },
+  {
+    key: "SCENE_3D",
+    label: "Scène 3D",
+    caption: "Scan 3D (PLY + textures)",
+  },
 ];
 
 export default BASE_MAP_SOURCE_CATALOG;

@@ -19,7 +19,7 @@ export default function getAnnotationEditionPanelAnchor(annotation) {
 
     else if (
         annotation.bbox &&
-        (annotation.type === "OBJECT_3D" || annotation.type === "SCENE_3D")
+        annotation.type === "OBJECT_3D"
     ) {
         return { x: annotation.bbox.x, y: annotation.bbox.y }
     }

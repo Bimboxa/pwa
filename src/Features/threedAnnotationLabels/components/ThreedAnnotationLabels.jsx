@@ -52,7 +52,6 @@ const TYPES_WITHOUT_LABEL = [
   "FREE_TEXT",
   "DETAIL",
   "BASE_MAP_LINK",
-  "SCENE_3D",
 ];
 
 function disposeObject(obj) {

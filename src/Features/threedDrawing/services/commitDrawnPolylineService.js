@@ -52,7 +52,7 @@ function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
 // centroid heuristic for host resolution.
 //
 // Templateless draft ("Dessin" tool, `templateProps.isTemplateless` without
-// annotationTemplateId — a line drawn on a SCENE_3D scan): the annotation
+// annotationTemplateId — a line drawn on a scan base map): the annotation
 // belongs to the base map + `scopeId` only, no template nor listing, like a
 // templateless annotation drawn in 2D.
 //

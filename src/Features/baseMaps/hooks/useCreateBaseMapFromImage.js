@@ -14,8 +14,10 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, orientation?, printZone?, source?, selectOnCreate? }) => entity
+ * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, scene3d?, orientation?, printZone?, source?, selectOnCreate? }) => entity
  *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
+ *   scene3d: scan base map descriptor (see docs/baseMaps/SCENE_3D_BASE_MAPS.md);
+ *   stored verbatim on the record
  *   orientation: 3D plane orientation ("HORIZONTAL" | "VERTICAL"); wins over
  *   the listing's verticalBaseMaps default
  *   selectOnCreate: pass false to keep the current main base map (e.g. a
@@ -36,6 +38,7 @@ export default function useCreateBaseMapFromImage() {
     meterByPx,
     latLng,
     geo,
+    scene3d,
     orientation,
     printZone,
     source = "image",
@@ -50,6 +53,7 @@ export default function useCreateBaseMapFromImage() {
       meterByPx,
       ...(latLng && { latLng }),
       ...(geo && { geo }),
+      ...(scene3d && { scene3d }),
       // Print zone seeded by the creator (blank pages); resolved at read
       // time otherwise.
       ...(printZone && { printZone }),

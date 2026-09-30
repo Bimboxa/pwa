@@ -387,9 +387,6 @@ export default function getAnnotationQties({
     // FREE_TEXT is a pure text box: it describes the drawing, no quantities.
     if (annotation.type === "FREE_TEXT") return { enabled: false };
 
-    // SCENE_3D is a 3D scan used as a backdrop: no quantities.
-    if (annotation.type === "SCENE_3D") return { enabled: false };
-
     if (annotation.type === "POINT") {
       // REVOLUTION: the point sweeps a circle around the referenced axis
       // (radius = its horizontal distance to it, resolved by useAnnotationsV2).

@@ -34,6 +34,10 @@ const threedEditorInitialState = {
   // fresh page load landing directly on 3D, their first run happens BEFORE
   // the parent loader hooks create the groups, and nothing else re-runs them.
   annotationsLoadTick: 0,
+  // Bumped after each base map (re)load / repair pass (loadMaps,
+  // ensureBaseMapLoaded). Consumed by what depends on the base map groups
+  // alone — the picking data of the scan base maps (usePrepareScene3dPicking).
+  baseMapsLoadTick: 0,
   // When true, CM-width POLYLINE footprints are contracted by 10 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
@@ -67,7 +71,7 @@ const threedEditorInitialState = {
   // MainThreedEditor → ControlsManager.setNavigationPreset.
   navigationPreset: loadNavigationPreset(),
   // Regular zoom-out range of the camera: "AUTO" (default range, widened to
-  // the loaded SCENE_3D scans) or a distance in metres (see
+  // the loaded scan base maps) or a distance in metres (see
   // constants/viewDistances). Device preference like navigationPreset;
   // synced by MainThreedEditor → ControlsManager.setRegularMaxDistance.
   maxViewDistance: loadMaxViewDistance(),
@@ -468,6 +472,9 @@ export const threedEditorSlice = createSlice({
     },
     bumpAnnotationsLoadTick: (state) => {
       state.annotationsLoadTick += 1;
+    },
+    bumpBaseMapsLoadTick: (state) => {
+      state.baseMapsLoadTick += 1;
     },
     setSubSelection: (state, action) => {
       const p = action.payload || {};
@@ -1031,6 +1038,7 @@ export const {
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
   bumpAnnotationsLoadTick,
+  bumpBaseMapsLoadTick,
   setSubSelection,
   clearSubSelection,
   setRevolutionSectionSide,

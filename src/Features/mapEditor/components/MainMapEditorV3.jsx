@@ -154,7 +154,6 @@ import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
-import getScene3dRectanglePointsFromOnePoint from "Features/scene3d/utils/getScene3dRectanglePointsFromOnePoint";
 import usePrepareScene3dHeightMaps from "Features/scene3d/hooks/usePrepareScene3dHeightMaps";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
@@ -539,14 +538,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             });
     }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
 
-    // Altimetry under the cursor: have the height maps of the scans of this
-    // base map ready before the first pointer move (see InteractionLayer).
+    // Altimetry under the cursor: have the height map of a scan base map
+    // ready before the first pointer move (see InteractionLayer).
     const cursorAltitudeEnabled = useSelector((s) => s.mapEditor.cursorAltitudeEnabled);
-    const scene3dAnnotations = useMemo(
-        () => (annotations || []).filter((a) => a?.type === "SCENE_3D"),
-        [annotations]
+    const scene3dBaseMaps = useMemo(
+        () => (baseMap?.scene3d ? [baseMap] : []),
+        [baseMap]
     );
-    usePrepareScene3dHeightMaps(cursorAltitudeEnabled, scene3dAnnotations);
+    usePrepareScene3dHeightMaps(cursorAltitudeEnabled, scene3dBaseMaps);
 
     // Layer STRIPs (isLayer): DISPLAY-ONLY stacked geometry (offset by the
     // accumulated thickness of the layers beneath, 45° ramps at their edges).
@@ -819,24 +818,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             options = { ...options ?? {}, drawRectangle: true }
         }
 
-        // SCENE_3D: the click is the origin of the scan frame; the bbox is
-        // the scan footprint around it.
-        if (rawPoints.length === 1 && type === "SCENE_3D") {
-            const points = getScene3dRectanglePointsFromOnePoint({
-                annotation: newAnnotation,
-                baseMapMeterByPx: baseMap?.getMeterByPx(),
-                point: rawPoints[0],
-            })
-            if (!points) {
-                dispatch(setToaster({
-                    message: "Le fond de plan n'a pas d'échelle : impossible de placer la scène 3D.",
-                    isError: true,
-                }));
-                return;
-            }
-            rawPoints = points;
-            options = { ...options ?? {}, drawRectangle: true }
-        }
         deferredCommit.commit(rawPoints, options)
     }
 
@@ -2041,11 +2022,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 await db.annotations.update(annotation.id, updates);
             }
 
-            // --- OBJECT_3D / SCENE_3D : move + rotate only (no resize) ---
-            else if (
-                annotation.type === "OBJECT_3D" ||
-                annotation.type === "SCENE_3D"
-            ) {
+            // --- OBJECT_3D : move + rotate only (no resize) ---
+            else if (annotation.type === "OBJECT_3D") {
                 const bgW = imageSize.width;
                 const bgH = imageSize.height;
 

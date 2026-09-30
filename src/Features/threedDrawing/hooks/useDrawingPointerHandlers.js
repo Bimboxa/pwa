@@ -146,7 +146,7 @@ export default function useDrawingPointerHandlers() {
       return isMesh3dDraft(newAnnotationRef.current);
     }
 
-    // "Dessin" tool, line type, with a point picked on a SCENE_3D scan: the
+    // "Dessin" tool, line type, with a point picked on a scan base map: the
     // path is not a cut of an annotation mesh — it becomes a templateless
     // POLYLINE annotation lying on the scan (straight segments between the
     // picked points).
@@ -296,7 +296,7 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
-      // Line on a SCENE_3D scan: "Segment (2 clics)" commits on the second
+      // Line on a scan base map: "Segment (2 clics)" commits on the second
       // click, "Polyligne clic" keeps adding points until Enter.
       if (isScanPath([...inProgressPolyline, newVertex])) {
         if (behavior === "SEGMENT") {
@@ -578,7 +578,7 @@ export default function useDrawingPointerHandlers() {
       if (isMeshDraw()) {
         if (e.key === "Enter") {
           if (behavior === "RECTANGLE" || inProgressPolyline.length < 2) return;
-          // Line on a SCENE_3D scan: Enter ends the polyline there.
+          // Line on a scan base map: Enter ends the polyline there.
           if (isScanPath(inProgressPolyline)) {
             await commitScanPath(inProgressPolyline);
             return;

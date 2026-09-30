@@ -271,7 +271,7 @@ export function applySketchEdges(root, { resolution }) {
       !child.isLine2 &&
       !child.isLineSegments2 &&
       !child.userData?.isHoverOverlay &&
-      // SCENE_3D scans: no ink edges over millions of triangles.
+      // scan base maps: no ink edges over millions of triangles.
       !child.userData?.isDecor &&
       child.geometry
     ) {

@@ -30,8 +30,7 @@ export default function FieldAnnotationRotation({ annotation, inline }) {
   const isBboxAnnotation =
     annotation?.type === "IMAGE" ||
     annotation?.type === "RECTANGLE" ||
-    annotation?.type === "OBJECT_3D" ||
-    annotation?.type === "SCENE_3D";
+    annotation?.type === "OBJECT_3D";
 
   // handlers
 

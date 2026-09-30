@@ -17,20 +17,12 @@ export default function DialogDeleteSelectedAnnotation() {
 
   // strings
 
-  const scene3dMessageS =
-    "La scène 3D et ses données (maillage, textures, projection) seront supprimées définitivement de cet appareil. Cette suppression ne peut pas être annulée.";
-
   // data
 
   const open = useSelector((s) => s.annotations.openDialogDeleteSelectedAnnotation);
   const selectedItems = useSelector(selectSelectedItems);
 
   // helpers
-
-  // SCENE_3D (3D scans): their heavy local data goes with them, no undo.
-  const hasScene3d = selectedItems.some(
-    (item) => item.annotationType === "SCENE_3D"
-  );
 
   // handlers
 
@@ -70,7 +62,6 @@ export default function DialogDeleteSelectedAnnotation() {
       open={open}
       onConfirmAsync={handleDelete}
       onClose={handleClose}
-      message={hasScene3d ? scene3dMessageS : undefined}
     />
   );
 }

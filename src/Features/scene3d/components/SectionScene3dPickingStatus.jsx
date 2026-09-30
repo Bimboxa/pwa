@@ -3,7 +3,7 @@ import { Box, LinearProgress, Typography } from "@mui/material";
 import useScene3dPickingStatus from "../hooks/useScene3dPickingStatus";
 
 // Status line of the scan picking data, shown in the drawing helper while a
-// 3D tool can draw on a SCENE_3D scan: progress of the preparation, then
+// 3D tool can draw on a scan base map: progress of the preparation, then
 // "ready". Renders nothing when no scan is involved.
 export default function SectionScene3dPickingStatus() {
   // strings

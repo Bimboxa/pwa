@@ -12,7 +12,6 @@ const TEMPLATELESS_DRAWING_SHAPE_KEYS = [
   "FREE_TEXT",
   "DETAIL",
   "IMAGE",
-  "SCENE_3D",
   "COTE",
   "RULER",
 ];

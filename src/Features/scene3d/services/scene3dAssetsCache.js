@@ -6,7 +6,6 @@ import {
   RGBAFormat,
   RGB_S3TC_DXT1_Format,
   SRGBColorSpace,
-  Texture,
   UnsignedByteType,
 } from "three";
 
@@ -16,14 +15,14 @@ import buildScene3dChunkGeometry from "../js/buildScene3dChunkGeometry";
 import decodeBc1 from "../utils/decodeBc1";
 import { parseScene3dAssetId } from "../utils/scene3dAssetIds";
 
-// GPU resources of the SCENE_3D annotations (geometries + textures), shared
+// GPU resources of the scan base maps (geometries + textures), shared
 // by every 3D object showing the same scan and kept across rebuilds.
 //
-// Why a cache: a render-mode change (or any edit of the annotation row)
-// rebuilds the annotation objects — ThreedEditor.loadAnnotations disposes the
-// old object BEFORE creating the new one. Entries are ref-counted and their
-// eviction is delayed, so the rebuild finds the scan still on the GPU instead
-// of reading it again from IndexedDB.
+// Why a cache: a base map reload (main base map switch, display toggle)
+// rebuilds the base map groups — the old scan wrap is disposed BEFORE the
+// new one is attached. Entries are ref-counted and their eviction is
+// delayed, so the rebuild finds the scan still on the GPU instead of reading
+// it again from IndexedDB.
 //
 // Memory: the scan is loaded ATLAS BY ATLAS (one texture row + its geometry
 // rows at a time) and every CPU copy is dropped once uploaded — the steady
@@ -221,70 +220,4 @@ export function acquireScene3dAssets(sceneId, { supportsBc1, onEvent }) {
 export function evictScene3dAssets(sceneId) {
   const entry = entries.get(sceneId);
   if (entry) disposeEntry(entry);
-}
-
-// --- top view texture (3D "projection" mode): same ref-count + delayed
-// eviction, keyed by the db.files fileName.
-
-const topViewEntries = new Map();
-
-async function loadTopViewTexture(fileName) {
-  const record = await db.files.get(fileName);
-  if (!record?.fileArrayBuffer) return null;
-  const blob = new Blob([record.fileArrayBuffer], { type: record.fileMime });
-  // Flipped at decode time: three.js ignores `flipY` for an ImageBitmap, and
-  // the plane uvs expect the image bottom on the first row.
-  const bitmap = await createImageBitmap(blob, { imageOrientation: "flipY" });
-  const texture = new Texture(bitmap);
-  texture.colorSpace = SRGBColorSpace;
-  texture.minFilter = LinearMipmapLinearFilter;
-  texture.magFilter = LinearFilter;
-  texture.anisotropy = ANISOTROPY;
-  texture.needsUpdate = true;
-  texture.onUpdate = () => {
-    bitmap.close();
-    texture.onUpdate = null;
-  };
-  return texture;
-}
-
-// → {promise: Promise<Texture | null>, release}
-export function acquireScene3dTopViewTexture(fileName) {
-  let entry = topViewEntries.get(fileName);
-  if (!entry) {
-    entry = { refCount: 0, evictTimer: null, promise: null };
-    entry.promise = loadTopViewTexture(fileName).catch((error) => {
-      console.error("[scene3dAssetsCache] top view load failed", error);
-      return null;
-    });
-    topViewEntries.set(fileName, entry);
-  }
-  clearTimeout(entry.evictTimer);
-  entry.refCount += 1;
-
-  let released = false;
-  return {
-    promise: entry.promise,
-    release() {
-      if (released) return;
-      released = true;
-      entry.refCount -= 1;
-      if (entry.refCount > 0) return;
-      entry.evictTimer = setTimeout(() => {
-        if (entry.refCount > 0) return;
-        if (topViewEntries.get(fileName) === entry) {
-          topViewEntries.delete(fileName);
-        }
-        entry.promise.then((texture) => texture?.dispose());
-      }, EVICTION_DELAY_MS);
-    },
-  };
-}
-
-export function evictScene3dTopViewTexture(fileName) {
-  const entry = topViewEntries.get(fileName);
-  if (!entry) return;
-  clearTimeout(entry.evictTimer);
-  topViewEntries.delete(fileName);
-  entry.promise.then((texture) => texture?.dispose());
 }

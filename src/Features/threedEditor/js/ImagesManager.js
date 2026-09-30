@@ -4,6 +4,10 @@ import createImageObject, {
   createBaseMapGroup,
 } from "./utilsImagesManager/createImageObject";
 import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
+import attachScene3dToBaseMapGroup, {
+  getScene3dGroupKey,
+} from "./utilsImagesManager/attachScene3dToBaseMapGroup";
+import getRendererSupportsS3tc from "./utils/getRendererSupportsS3tc";
 
 import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 
@@ -58,6 +62,14 @@ export default class ImagesManager {
     if (!group) return;
     const opacity = getBaseMapOpacityIn3d(this.opacityState, baseMapId);
     group.traverse?.((child) => {
+      // The scan of a scan base map follows the base map opacity too.
+      if (child.userData?.isScene3dScan && child.material) {
+        child.material.opacity = opacity;
+        child.material.transparent = opacity < 1;
+        child.material.depthWrite = opacity >= 1;
+        child.material.needsUpdate = true;
+        return;
+      }
       if (child.userData?.isBasemap && child.material) {
         // Never touch `transparent` — the mesh is created with
         // `transparent: true` once and stays in that queue, so dragging
@@ -99,6 +111,7 @@ export default class ImagesManager {
     if (baseMap) this.baseMapsMap[baseMap.id] = baseMap;
     if (this.imagesMap[image.id]) {
       this.ensureImageTexture(image);
+      this.syncScene3d(image.id);
       return;
     }
     const { group, ready } = createImageObject(image);
@@ -115,6 +128,10 @@ export default class ImagesManager {
       group.userData.meshWrap.visible = imageVisible;
     }
     this.scene.add(group);
+    this.syncScene3d(image.id);
+    if (imageVisible !== undefined && group.userData.scanWrap) {
+      group.userData.scanWrap.visible = imageVisible;
+    }
     // Base maps grid open: a group created meanwhile joins its sheet pose.
     this.sceneManager.baseMapsGridManager?.onGroupCreated(image.id, group);
     // Re-render once the texture is in. The group is already in the scene
@@ -159,6 +176,31 @@ export default class ImagesManager {
     return group;
   }
 
+  // Scan base map (« Scène 3D »): (re)attach the scan mesh to the group when
+  // the base map's scan content changed (first load, reload of the scan
+  // data, display toggle) — no-op otherwise. The registry (baseMapsMap)
+  // must hold the base map first.
+  syncScene3d(baseMapId) {
+    const group = this.imagesMap[baseMapId];
+    const baseMap = this.baseMapsMap[baseMapId];
+    if (!group) return;
+    const key = getScene3dGroupKey(baseMap);
+    if (group.userData.scene3dKey === key) return;
+    group.userData.disposeScene3d?.();
+    delete group.userData.disposeScene3d;
+    group.userData.scene3dKey = key;
+    if (!key) return;
+    const dispose = attachScene3dToBaseMapGroup(group, baseMap, {
+      supportsS3tc: getRendererSupportsS3tc(this.sceneManager.renderer),
+      opacity: getBaseMapOpacityIn3d(this.opacityState, baseMapId),
+      onLoaded: () => {
+        this.sceneManager.clippingManager?.reapply?.();
+        this.sceneManager.renderScene();
+      },
+    });
+    if (dispose) group.userData.disposeScene3d = dispose;
+  }
+
   // Drop a group that never got a mesh (grid placeholder) — it would
   // otherwise inflate the scene boxes read by the clipping / shadow managers.
   // Groups carrying a mesh or annotation objects are left alone.
@@ -166,7 +208,10 @@ export default class ImagesManager {
     const group = this.imagesMap[baseMapId];
     if (!group || group.userData.textureStatus !== "none") return false;
     const meshWrap = group.userData.meshWrap;
-    if (group.children.some((child) => child !== meshWrap)) return false;
+    const scanWrap = group.userData.scanWrap;
+    if (group.children.some((child) => child !== meshWrap && child !== scanWrap))
+      return false;
+    group.userData.disposeScene3d?.();
     this.scene.remove(group);
     delete this.imagesMap[baseMapId];
     delete this.baseMapsMap[baseMapId];
@@ -261,8 +306,12 @@ export default class ImagesManager {
   // Same record-before-creation contract as setBaseMapVisible.
   setBaseMapImageVisible(baseMapId, visible) {
     this.imageVisibleByBaseMapId[baseMapId] = visible;
-    const meshWrap = this.imagesMap[baseMapId]?.userData?.meshWrap;
+    const group = this.imagesMap[baseMapId];
+    const meshWrap = group?.userData?.meshWrap;
     if (meshWrap) meshWrap.visible = visible;
+    // the scan of a scan base map is part of its "image"
+    const scanWrap = group?.userData?.scanWrap;
+    if (scanWrap) scanWrap.visible = visible;
   }
 
   // Batch apply — one call per visibility pass. Records every desired state
@@ -342,6 +391,7 @@ export default class ImagesManager {
         // dispose only the basemap's own mesh resources, not the
         // annotations' (AnnotationsManager owns those). Walk into the
         // meshWrap to find the basemap mesh.
+        group.userData.disposeScene3d?.();
         this.scene.remove(group);
         group.traverse?.((child) => {
           if (child.userData?.isBasemap) {

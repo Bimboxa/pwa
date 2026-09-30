@@ -1,5 +1,5 @@
-// Import worker of the SCENE_3D annotations: everything CPU-heavy of a scan
-// import runs here, off the main thread.
+// Import worker of the scan base maps (SCENE_3D): everything CPU-heavy of a
+// scan import runs here, off the main thread.
 //   PARSE            {file}                  → CHUNK* / PROGRESS* / PARSED
 //                    (the result carries the height map of the scan, see
 //                    rasterizeScene3dHeightMap — built chunk by chunk here)
@@ -7,11 +7,21 @@
 //   HEIGHT_MAP_INIT  {id, bbox}              (rebuild of the height map of a
 //   HEIGHT_MAP_CHUNK {id, chunk}              scan imported before the height
 //   HEIGHT_MAP_FINISH{id}                    → HEIGHT_MAP   maps existed)
+//   CLIP_INIT        {id, bbox, polygon}     (clip of the stored chunks to
+//   CLIP_CHUNK       {id, key, chunk}         the zone of interest — each
+//                                            chunk is answered by
+//                                            CLIPPED_CHUNK {id, key, chunk |
+//                                            null}; the height map of the
+//                                            clipped scan is built meanwhile)
+//   CLIP_FINISH      {id}                    → CLIPPED {id, heightMap, zMin,
+//                                              zMax, vertexCount,
+//                                              triangleCount}
 // Errors: {type: "ERROR", id?, code, message}.
 // Relative imports only (bundled as a separate worker chunk).
 
 import parseScenePly from "../utils/parseScenePly.js";
 import encodeBc1 from "../utils/encodeBc1.js";
+import clipScene3dChunk from "../utils/clipScene3dChunk.js";
 import {
   createHeightMapRaster,
   rasterizeChunk,
@@ -74,6 +84,68 @@ function handleHeightMapFinish({ id }) {
   );
 }
 
+// --- clip to the zone of interest (see clipScene3dChunk)
+
+const clipJobs = new Map();
+
+function handleClipInit({ id, bbox, polygon }) {
+  clipJobs.set(id, {
+    bbox,
+    polygon,
+    raster: createHeightMapRaster({ bbox }),
+    zMin: Infinity,
+    zMax: -Infinity,
+    vertexCount: 0,
+    triangleCount: 0,
+  });
+}
+
+function handleClipChunk({ id, key, chunk }) {
+  const job = clipJobs.get(id);
+  if (!job) return;
+  const clipped = clipScene3dChunk(chunk, job.bbox, job.polygon);
+  if (!clipped) {
+    self.postMessage({ type: "CLIPPED_CHUNK", id, key, chunk: null });
+    return;
+  }
+  rasterizeChunk(job.raster, clipped);
+  job.zMin = Math.min(job.zMin, clipped.zMin);
+  job.zMax = Math.max(job.zMax, clipped.zMax);
+  job.vertexCount += clipped.vertexCount;
+  job.triangleCount += clipped.triangleCount;
+  const row = {
+    positions: clipped.positions,
+    uvs: clipped.uvs,
+    index: clipped.index,
+    boundsMin: clipped.boundsMin,
+    boundsMax: clipped.boundsMax,
+    vertexCount: clipped.vertexCount,
+    triangleCount: clipped.triangleCount,
+  };
+  const transfer = [row.positions.buffer, row.index.buffer];
+  if (row.uvs) transfer.push(row.uvs.buffer);
+  self.postMessage({ type: "CLIPPED_CHUNK", id, key, chunk: row }, transfer);
+}
+
+function handleClipFinish({ id }) {
+  const job = clipJobs.get(id);
+  clipJobs.delete(id);
+  if (!job) return;
+  const hasContent = job.triangleCount > 0;
+  self.postMessage(
+    {
+      type: "CLIPPED",
+      id,
+      heightMap: job.raster,
+      zMin: hasContent ? job.zMin : job.bbox.min[2],
+      zMax: hasContent ? job.zMax : job.bbox.max[2],
+      vertexCount: job.vertexCount,
+      triangleCount: job.triangleCount,
+    },
+    [job.raster.data.buffer]
+  );
+}
+
 // Display texture of one atlas: power-of-two size (S3TC needs multiples of 4
 // on every mip level; the uvs are normalized, so the stretch is harmless),
 // full mip chain down to 1x1, each level BC1-encoded.
@@ -116,6 +188,9 @@ self.onmessage = async (event) => {
     else if (message.type === "HEIGHT_MAP_CHUNK") handleHeightMapChunk(message);
     else if (message.type === "HEIGHT_MAP_FINISH")
       handleHeightMapFinish(message);
+    else if (message.type === "CLIP_INIT") handleClipInit(message);
+    else if (message.type === "CLIP_CHUNK") handleClipChunk(message);
+    else if (message.type === "CLIP_FINISH") handleClipFinish(message);
   } catch (error) {
     self.postMessage({
       type: "ERROR",

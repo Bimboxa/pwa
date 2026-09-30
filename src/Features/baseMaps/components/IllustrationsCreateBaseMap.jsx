@@ -119,3 +119,31 @@ export function IllustrationSatellite() {
     </SvgFrame>
   );
 }
+
+export function IllustrationScene3d() {
+  return (
+    <SvgFrame bgcolor="#d9d4cf">
+      {/* textured mesh seen from above: a roof + ground facets */}
+      <g stroke="#8b8794" strokeWidth="1" fill="#e8e2dc">
+        <polygon points="20,90 60,70 100,88 62,104" />
+        <polygon points="60,70 100,52 140,70 100,88" />
+        <polygon points="100,88 140,70 160,84 118,100" />
+      </g>
+      <g stroke="#6f6a78" strokeWidth="1.5">
+        <polygon points="52,40 94,22 124,40 84,58" fill="#b8aea5" />
+        <polygon points="52,40 84,58 84,76 52,58" fill="#9c918a" />
+        <polygon points="84,58 124,40 124,58 84,76" fill="#aca29a" />
+      </g>
+      <rect
+        x="36"
+        y="14"
+        width="104"
+        height="74"
+        fill="none"
+        stroke="#3a3542"
+        strokeWidth="2"
+        strokeDasharray="6 4"
+      />
+    </SvgFrame>
+  );
+}
