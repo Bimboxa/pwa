@@ -215,6 +215,18 @@ const REVOLUTION_AXIS_DRAWING_MODES = [
   "REPOSITION_REVOLUTION_PLACEMENT",
 ];
 
+// Multi-point drawing modes (one point per click). With Shift held, their
+// angle snap also offers 0° / 90° relative to the last drawn segment.
+const MULTI_POINT_DRAWING_MODES = [
+  "CLICK",
+  "POLYLINE_CLICK",
+  "POLYGON_CLICK",
+  "CUT_CLICK",
+  "SPLIT_CLICK",
+  "STRIP",
+  "COMPLETE_ANNOTATION",
+];
+
 // OPENING_SEGMENT: max cursor↔wall distance (meters on the plan) below which
 // the opening segment glues to the host polyline; beyond it, free placement.
 const OPENING_HOVER_THRESHOLD_M = 0.10;
@@ -5344,7 +5356,7 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "COMPLETE_ANNOTATION"].includes(enabledDrawingMode)) {
+    if (MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)) {
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
       // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
@@ -5354,8 +5366,9 @@ const InteractionLayer = forwardRef(({
         // Apply shift-snap (ortho/45°) before adding the point
         if ((event.shiftKey || event.evt?.shiftKey) && drawingPointsRef.current.length > 0) {
           const lastPoint = drawingPointsRef.current[drawingPointsRef.current.length - 1];
+          const prevPoint = drawingPointsRef.current[drawingPointsRef.current.length - 2];
           const offset = orthoSnapAngleOffsetRef.current;
-          localPos = snapToAngle(localPos, lastPoint, offset);
+          localPos = snapToAngle(localPos, lastPoint, offset, 45, prevPoint);
         }
 
         // Add click point to drawing points so DrawingLayer renders the polyline in progress
@@ -5422,8 +5435,9 @@ const InteractionLayer = forwardRef(({
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && placedPoints.length > 0) {
         const lastPoint = placedPoints[placedPoints.length - 1];
+        const prevPoint = placedPoints[placedPoints.length - 2];
         const offset = orthoSnapAngleOffsetRef.current;
-        finalPos = snapToAngle(finalPos, lastPoint, offset);
+        finalPos = snapToAngle(finalPos, lastPoint, offset, 45, prevPoint);
       }
       // Apply fixed length constraint
       if (fixedLengthRef.current && placedPoints.length > 0) {
@@ -6785,8 +6799,12 @@ const InteractionLayer = forwardRef(({
       const currentDrawingPts = drawingPointsRef.current;
       if ((event.shiftKey || event.evt?.shiftKey) && currentDrawingPts.length > 0) {
         const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
+        // Last-segment candidates only in multi-point modes, to match the click path
+        const prevPoint = MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)
+          ? currentDrawingPts[currentDrawingPts.length - 2]
+          : null;
         const offset = orthoSnapAngleOffsetRef.current;
-        previewPos = snapToAngle(localPos, lastPoint, offset);
+        previewPos = snapToAngle(localPos, lastPoint, offset, 45, prevPoint);
       }
 
       // F. CLOSING DETECTION (screen-distance based, zoom-independent)
@@ -7045,10 +7063,15 @@ const InteractionLayer = forwardRef(({
       if (orthoActive) {
         const lastPoint =
           drawingPointsRef.current[drawingPointsRef.current.length - 1];
+        const prevPoint = MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)
+          ? drawingPointsRef.current[drawingPointsRef.current.length - 2]
+          : null;
         const projected = snapToAngle(
           { x: snap.x, y: snap.y },
           lastPoint,
-          orthoSnapAngleOffsetRef.current
+          orthoSnapAngleOffsetRef.current,
+          45,
+          prevPoint
         );
         pointToAdd = { x: projected.x, y: projected.y, type: "square" };
       } else {
