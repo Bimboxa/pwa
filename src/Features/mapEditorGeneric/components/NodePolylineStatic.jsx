@@ -669,8 +669,9 @@ function NodePolylineStatic({
   const renderSegments = (segmentsList, basePartType, contextIndex = 0) => {
     // For POLYGON, per-segment hit-areas only render when the annotation
     // itself is selected — outside selection, clicks pass through to the
-    // fill (which selects the whole polygon / whole cut).
-    if (type === "POLYGON" && !selected) return null;
+    // fill (which selects the whole polygon / whole cut). Same when vertex
+    // editing is disabled: a segment part would be draggable on its own.
+    if (type === "POLYGON" && (!selected || disableVertexEditing)) return null;
 
     const isMainPath = segmentsList === segmentMap;
     const hiddenList = isMainPath

@@ -36,6 +36,10 @@ export default function EditAnnotationTools({
   accentColor,
   isClosedShape,
 }) {
+  // isMesh3d: the 2D polygon is the plan projection of a stored 3D mesh —
+  // every tool below edits the 2D geometry, which would break that link.
+  if (selectedAnnotation?.isMesh3d) return null;
+
   return (
     <>
       {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (

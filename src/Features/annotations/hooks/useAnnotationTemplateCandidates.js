@@ -6,6 +6,7 @@ import { resolveShapeCategory } from "Features/annotations/constants/drawingShap
 import {
     resolveDrawingShape,
     resolveDrawingShapeFromType,
+    getAnnotationType,
     getGeometryKindFromShape,
     getGeometryKindFromType,
 } from "Features/annotations/constants/drawingShapeConfig";
@@ -64,6 +65,11 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
         // A template is a style preset: it cannot rebuild the geometry, so a
         // candidate of another geometry family is never offered.
         if (annotationKind && getGeometryKindFromShape(candidateShape) !== annotationKind) {
+            return false;
+        }
+        // isMesh3d: the 2D geometry is the plan projection of a stored mesh and
+        // must stay a POLYGON — a line / strip model would re-type the row.
+        if (annotation?.isMesh3d && getAnnotationType(candidateShape) !== "POLYGON") {
             return false;
         }
         if (variant === "sameType") {

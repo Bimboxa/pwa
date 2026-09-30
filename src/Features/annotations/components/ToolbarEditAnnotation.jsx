@@ -689,6 +689,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 disabled={isLocked("width")}
               />
             ) : (
+              // isMesh3d: the solid is the stored mesh (push/pull in 3D), the
+              // extrusion heights do not drive it.
+              !selectedAnnotation?.isMesh3d &&
               selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
               selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
                 <FieldAnnotationHeight
@@ -698,7 +701,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 />
               )
             )}
-            {selectedAnnotation?.type === "POLYGON" && (
+            {selectedAnnotation?.type === "POLYGON" &&
+              !selectedAnnotation?.isMesh3d && (
               <FieldAnnotationHeight
                 annotation={selectedAnnotation}
                 onChange={handleEdgeHeightChange}

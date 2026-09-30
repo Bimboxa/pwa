@@ -6,7 +6,10 @@ import { nanoid } from "@reduxjs/toolkit";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
 
 import db from "App/db/db";
+import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
+import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
+import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 
 /**
@@ -132,6 +135,26 @@ export default async function pasteAnnotationService({
     });
   }
 
+  // Reference image size of the map an annotation was copied from (the
+  // active one most of the time; read from the raw records otherwise).
+  const imageSizeByBaseMapId = new Map([[baseMap.id, imageSize]]);
+  async function getSourceImageSize(baseMapId) {
+    if (!imageSizeByBaseMapId.has(baseMapId)) {
+      const record = await db.baseMaps.get(baseMapId);
+      const versions = record
+        ? await db.baseMapVersions
+            .where("baseMapId")
+            .equals(baseMapId)
+            .toArray()
+        : [];
+      imageSizeByBaseMapId.set(
+        baseMapId,
+        getBaseMapImageSizeFromRecord(record, versions)
+      );
+    }
+    return imageSizeByBaseMapId.get(baseMapId);
+  }
+
   const imageFiles = [];
   for (const item of pasteClipboard.items) {
     const sourceAnnotation = item.annotation;
@@ -228,6 +251,26 @@ export default async function pasteAnnotationService({
         });
       } else if (type === "POLYGON") {
         clonedAnnotation.cuts = [];
+      }
+
+      // isMesh3d: the points are the plan projection of the stored mesh —
+      // send the mesh through the same map (fitted on the contour), from the
+      // source image frame to the active one.
+      if (sourceAnnotation.isMesh3d && sourceAnnotation.mesh3d?.vertices) {
+        const affine = fitAffine2d(
+          item.basePoints.map((from, i) => ({ from, to: transformed[i] }))
+        );
+        const sourceImageSize = await getSourceImageSize(
+          sourceAnnotation.baseMapId
+        );
+        if (affine && sourceImageSize) {
+          clonedAnnotation.mesh3d = applyAffineToMesh3d(
+            sourceAnnotation.mesh3d,
+            affine,
+            sourceImageSize,
+            imageSize
+          );
+        }
       }
 
       // Imported openings become independent editable annotations and relations.

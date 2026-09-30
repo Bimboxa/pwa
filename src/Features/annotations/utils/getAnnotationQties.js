@@ -26,6 +26,8 @@ import {
   getEffectiveShellMode,
   getShape3DKey,
 } from "Features/annotations/constants/shape3DConfig";
+import getMesh3dQties from "Features/annotationMesh3d/utils/getMesh3dQties";
+import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
 // on the SAME arc-expanded rings as the rendered geometry:
@@ -361,6 +363,9 @@ export default function getAnnotationQties({
   annotation,
   meterByPx,
   profileLengthMeters,
+  // Reference image size of the base map ({width, height}) — only needed by
+  // isMesh3d annotations, whose mesh is stored normalized.
+  imageSize,
 }) {
   try {
     if (!annotation) return null;
@@ -716,6 +721,27 @@ export default function getAnnotationQties({
       length: totalLengthPx * meterByPx,
       surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx),
     };
+
+    // isMesh3d: length / surface above describe the plan projection (the 2D
+    // polygon). The developed surface and the volume come from the stored
+    // mesh itself.
+    if (
+      annotation.isMesh3d &&
+      annotation.mesh3d?.faces?.length &&
+      imageSize?.width &&
+      imageSize?.height
+    ) {
+      const meshQties = getMesh3dQties(
+        mesh3dToLocal(annotation.mesh3d, {
+          imageWidth: imageSize.width,
+          imageHeight: imageSize.height,
+          meterByPx,
+        })
+      );
+      result.surfaceDeveloped = meshQties.surface;
+      if (meshQties.volume > 0) result.volume = meshQties.volume;
+      return result;
+    }
 
     // Stairs guideLine: developed surface = treads (planar footprint, cuts
     // already subtracted) + risers (Σ nosing length × riser height), and

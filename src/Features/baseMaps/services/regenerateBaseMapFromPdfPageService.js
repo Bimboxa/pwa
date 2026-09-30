@@ -310,6 +310,18 @@ export default async function regenerateBaseMapFromPdfPageService({
       };
       changed = true;
     }
+    // isMesh3d annotations: mesh vertices are [x, y, z] with x, y normalized
+    // like db.points (z in meters, frame-invariant).
+    if (Array.isArray(next.mesh3d?.vertices)) {
+      next.mesh3d = {
+        ...next.mesh3d,
+        vertices: next.mesh3d.vertices.map((v) => {
+          const np = N({ x: v[0], y: v[1] });
+          return [np.x, np.y, v[2]];
+        }),
+      };
+      changed = true;
+    }
     // POLYGON mesh lines are normalized; POLYLINE ones are {u, z} (invariant)
     const mapMeshLines = (lines) =>
       Array.isArray(lines)
