@@ -88,6 +88,8 @@ import {
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
+import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
+import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
@@ -251,7 +253,8 @@ export default function MainThreedEditor() {
   // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
   // BaseMap module in 3D: no drawing listings panel (the module edits the
-  // isForBaseMaps annotations from its 2D editor only).
+  // isForBaseMaps annotations from its 2D editor only) — with the left panel
+  // folded, the popper shows as a read-only legend + base maps list.
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
@@ -277,6 +280,8 @@ export default function MainThreedEditor() {
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
   const viewerPanelSlidedIn =
     isViewerModule && !leftPanelDocked && leftDrawerHovered;
+  const baseMapsPanelSlidedIn =
+    isBaseMapsModule && !leftPanelDocked && leftDrawerHovered;
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -2381,24 +2386,27 @@ export default function MainThreedEditor() {
       {/* The helper REPLACES the listings panel while the mode is armed, same
           as the 2D chain in PopperMapListings (which is 2D-only). */}
       {isThreedViewer &&
-        !isBaseMapsModule &&
+        (!isBaseMapsModule || !leftPanelDocked) &&
         !dessinPanelDocked &&
         !viewerPanelDocked &&
         !captureFramingActive &&
         !subtractPickActive && (
-          /* display:none (not unmount) while the drawer slides over the
-             editor, so the popper keeps its state; "contents" keeps the
-             wrapper out of the absolute positioning. */
-          <Box
-            sx={{
-              display:
-                dessinPanelSlidedIn || viewerPanelSlidedIn || walkActive
-                  ? "none"
-                  : "contents",
-            }}
+          /* Rendered in the layout-level host (over the top bar, under the
+             sliding panels). Hidden (not unmounted) while the drawer slides
+             over the editor or in walk mode, so the poppers keep their
+             state. */
+          <PortalEditorFloatingPanels
+            hidden={
+              dessinPanelSlidedIn ||
+              viewerPanelSlidedIn ||
+              baseMapsPanelSlidedIn ||
+              walkActive
+            }
           >
             <PopperMapListings />
-          </Box>
+            {/* Base maps list detached from the popper above. */}
+            <PopperBaseMapsList />
+          </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}

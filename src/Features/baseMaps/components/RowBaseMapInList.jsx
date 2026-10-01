@@ -1,12 +1,19 @@
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 import { Box, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
-// image eye | name (+ version chip) | "3D" scan button | annotations badge.
+// drag handle | name (+ version chip) | "3D" scan button | annotations badge
+// | image eye. The handle (shown on hover, `canDrag`) reorders the row inside
+// its listing — the row must live in a dnd-kit SortableContext. The name
+// wraps on several lines rather than being truncated.
 // Presentational: SectionBaseMapsList resolves the states (main / 2D / 3D)
 // and hands the toggles over. `imageEye` / `annotationsBadge` are null when
 // the control does not apply (an empty slot keeps the columns aligned).
@@ -15,7 +22,9 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 const SLOT_SIZE = 22;
 
 export default function RowBaseMapInList({
+  id,
   name,
+  canDrag = false,
   isMain,
   imageEye, // null | { on, onToggle }
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
@@ -35,6 +44,17 @@ export default function RowBaseMapInList({
   const scanOffS = "Scan non affiché (Affichage 3D : projection / masqué)";
   const versionS = "Changer de version";
 
+  // data
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: !canDrag });
+
   // helpers
 
   const badgeOn = Boolean(annotationsBadge?.on);
@@ -51,13 +71,22 @@ export default function RowBaseMapInList({
 
   return (
     <Box
+      ref={setNodeRef}
+      {...attributes}
       onClick={isMain ? undefined : onSelect}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 0.75,
-        px: 1,
+        pl: 0.25,
+        pr: 1,
         py: 0.5,
+        "&:hover .drag-handle": { opacity: canDrag ? 1 : 0 },
         borderBottom: "1px solid",
         borderColor: "panel.border",
         cursor: isMain ? "default" : "pointer",
@@ -66,51 +95,34 @@ export default function RowBaseMapInList({
         "&:hover": { bgcolor: isMain ? undefined : "panel.headerBg" },
       }}
     >
-      {/* Image eye */}
+      {/* Drag handle — far left, on hover (reorder inside the listing) */}
       <Box
+        className="drag-handle"
+        {...(canDrag ? listeners : {})}
+        onClick={(e) => e.stopPropagation()}
         sx={{
-          width: SLOT_SIZE,
-          height: SLOT_SIZE,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
           flexShrink: 0,
+          cursor: canDrag ? "grab" : "default",
+          opacity: 0,
+          transition: "opacity 0.15s",
+          touchAction: "none",
         }}
       >
-        {imageEye && (
-          <Tooltip
-            title={imageEye.on ? hideImageS : showImageS}
-            disableInteractive
-          >
-            <Box
-              role="button"
-              onClick={(e) => stop(e, imageEye.onToggle)}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                cursor: "pointer",
-                color: imageEye.on ? "panel.iconMuted" : "panel.textLight",
-                "&:hover": { color: "panel.textPrimary" },
-              }}
-            >
-              {imageEye.on ? (
-                <Visibility sx={{ fontSize: 18 }} />
-              ) : (
-                <VisibilityOff sx={{ fontSize: 18 }} />
-              )}
-            </Box>
-          </Tooltip>
-        )}
+        <DragIndicatorIcon sx={{ fontSize: 16, color: "panel.textLight" }} />
       </Box>
 
       {/* Name */}
       <Tooltip title={isMain ? "" : selectS} disableInteractive>
         <Typography
           variant="body2"
-          noWrap
           sx={{
             flex: 1,
             minWidth: 0,
+            // several lines rather than an ellipsis
+            overflowWrap: "anywhere",
+            lineHeight: 1.25,
             fontWeight: isMain ? 700 : 400,
             color: isMain ? "primary.main" : "panel.textPrimary",
           }}
@@ -154,7 +166,7 @@ export default function RowBaseMapInList({
         </Tooltip>
       )}
 
-      {/* "3D" scan button */}
+      {/* "3D" scan button — scan base maps only, left of the badge */}
       {scanButton && (
         <Tooltip
           title={
@@ -260,6 +272,43 @@ export default function RowBaseMapInList({
           </Box>
         </Tooltip>
       )}
+
+      {/* Image eye — far right slot (empty when it does not apply) */}
+      <Box
+        sx={{
+          width: SLOT_SIZE,
+          height: SLOT_SIZE,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {imageEye && (
+          <Tooltip
+            title={imageEye.on ? hideImageS : showImageS}
+            disableInteractive
+          >
+            <Box
+              role="button"
+              onClick={(e) => stop(e, imageEye.onToggle)}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                color: imageEye.on ? "panel.iconMuted" : "panel.textLight",
+                "&:hover": { color: "panel.textPrimary" },
+              }}
+            >
+              {imageEye.on ? (
+                <Visibility sx={{ fontSize: 18 }} />
+              ) : (
+                <VisibilityOff sx={{ fontSize: 18 }} />
+              )}
+            </Box>
+          </Tooltip>
+        )}
+      </Box>
     </Box>
   );
 }

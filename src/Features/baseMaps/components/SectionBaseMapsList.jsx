@@ -2,6 +2,18 @@ import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
+import {
   toggleBaseMapVisibleIn3d,
   toggleScene3dHiddenIn3d,
   setBaseMapAnnotationsModeIn3d,
@@ -20,14 +32,18 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
+import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import reorderBaseMapInListing from "../utils/reorderBaseMapInListing";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
 
 // ---------------------------------------------------------------------------
 // SectionBaseMapsList — "Fonds de plan" side of the popper / PanelDrawing /
 // PanelViewer: the scope's base maps grouped by listing, one row each with
-// the image eye, the name, the "3D" scan button and the annotations badge.
+// the name, the "3D" scan button, the annotations badge and the image eye.
 // Row click selects the base map as main (same as the top bar selector).
+// The left handle drags a row to reorder the base maps INSIDE its listing
+// (fractional sortIndex, same order as the BaseMaps module tree).
 //
 // Controls per row (replaces the removed TopBaseMapChipsThreed band):
 // - main base map: eye + badge drive the DISPLAYED editor's state through
@@ -57,6 +73,7 @@ export default function SectionBaseMapsList() {
   const { disabledListingIds } = useDisabledBaseMapListingIds();
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
+  const updateEntity = useUpdateEntity();
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
   const {
     isThreedDisplayed,
@@ -84,14 +101,18 @@ export default function SectionBaseMapsList() {
   // state
 
   const [versionsAnchorEl, setVersionsAnchorEl] = useState(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   // helpers
 
   const isViewerModule = viewerKey === "THREED";
-  // BaseMaps module: the image is edited there (no eye, same as the top
-  // bar), and the drawing annotations are loaded only with the panel switch.
+  // BaseMaps module: the image is edited in its 2D editor (no eye there,
+  // same as the top bar — the 3D editor keeps the eyes), and the drawing
+  // annotations are loaded only with the panel switch.
   const isBaseMapsModule = viewerKey === "BASE_MAPS";
-  const showImageEye = !isBaseMapsModule;
+  const showImageEye = !isBaseMapsModule || isThreedDisplayed;
   const hideAnnotationsBadge = isBaseMapsModule && !showAnnotationsInBaseMaps;
 
   // Per-scope disabled listings leave the list — except the current main
@@ -121,13 +142,15 @@ export default function SectionBaseMapsList() {
         ordered.push({
           id: listing.id,
           name: listing.name,
+          listing,
           baseMaps: byListing.get(listing.id),
         });
         byListing.delete(listing.id);
       }
     }
     for (const [key, bms] of byListing) {
-      ordered.push({ id: key, name: othersS, baseMaps: bms });
+      // leftover group (no / unknown listing): not sortable
+      ordered.push({ id: key, name: othersS, listing: null, baseMaps: bms });
     }
     return ordered;
   }, [
@@ -207,6 +230,23 @@ export default function SectionBaseMapsList() {
 
   // handlers
 
+  // Reorder inside the listing. The new sortIndex is computed against EVERY
+  // base map of the listing, not the (possibly filtered) displayed rows.
+  async function handleDragEnd(event, group) {
+    const { active, over } = event;
+    if (!group.listing || !over || active.id === over.id) return;
+    const fullGroup = baseMaps.filter((bm) => bm.listingId === group.id);
+    const baseMap = fullGroup.find((bm) => bm.id === active.id);
+    if (!baseMap) return;
+    await reorderBaseMapInListing({
+      baseMap,
+      overBaseMapId: over.id,
+      group: fullGroup,
+      listing: group.listing,
+      updateEntity,
+    });
+  }
+
   function handleSelect(map) {
     selectMainBaseMap(map.id);
     // Keep the listing selection in sync: baseMap creation & url params
@@ -263,14 +303,27 @@ export default function SectionBaseMapsList() {
               </Typography>
             </Box>
           )}
-          {group.baseMaps.map((map) => (
-            <RowBaseMapInList
-              key={map.id}
-              name={map.name}
-              onSelect={() => handleSelect(map)}
-              {...getRowProps(map)}
-            />
-          ))}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => handleDragEnd(event, group)}
+          >
+            <SortableContext
+              items={group.baseMaps.map((map) => map.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {group.baseMaps.map((map) => (
+                <RowBaseMapInList
+                  key={map.id}
+                  id={map.id}
+                  name={map.name}
+                  canDrag={Boolean(group.listing)}
+                  onSelect={() => handleSelect(map)}
+                  {...getRowProps(map)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </Box>
       ))}
       {isViewerModule && (

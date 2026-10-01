@@ -1,5 +1,6 @@
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import selectIsBaseMapsLegendPopper from "./selectIsBaseMapsLegendPopper";
 
 // Effective interaction mode of the PopperMapListings panel (and its rows):
 // the raw popperMapListings.interactionMode overridden by the module / display
@@ -8,7 +9,8 @@ import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/busin
 //
 // - "SELECT" (read-only legend): "Maillage" toggle, 3D family viewers, the
 //   shared ?mode=viewer lock, the ZONES module (drawing goes through the
-//   dedicated "Nouvelle zone" section).
+//   dedicated "Nouvelle zone" section), the BaseMaps module legend
+//   (selectIsBaseMapsLegendPopper).
 // - "EDIT": business-objects module WITHOUT an active object — template rows
 //   edit the template instead of drawing (a new annotation could not be
 //   attached to any object); the cut / opening tools stay available.
@@ -19,7 +21,8 @@ export default function selectEffectiveInteractionMode(state) {
     state.annotations.showMeshCells ||
     isThreedFamilyViewerKey(viewerKey) ||
     state.urlParams.viewerMode ||
-    viewerKey === "ZONES"
+    viewerKey === "ZONES" ||
+    selectIsBaseMapsLegendPopper(state)
   )
     return "SELECT";
   if (

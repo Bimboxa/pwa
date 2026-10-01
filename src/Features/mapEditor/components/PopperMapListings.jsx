@@ -73,9 +73,13 @@ import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
   setCollapsed,
+  setViewerContentMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
+import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
+import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
+import ButtonToggleBaseMapsListDetached from "Features/popperMapListings/components/ButtonToggleBaseMapsListDetached";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -83,6 +87,7 @@ import {
   setSelectedToolKeyForTemplate,
 } from "Features/mapEditor/mapEditorSlice";
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
+import selectIsBaseMapsLegendPopper from "Features/popperMapListings/utils/selectIsBaseMapsLegendPopper";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
@@ -443,10 +448,13 @@ function AnnotationTemplateRow({
   // business-objects module without an active object → EDIT) → use the
   // effective mode for all behavior gating in this row.
   const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
-  // Viewer module (read-only legend): procedures can't be launched there, so
-  // the "Auto" chip (and its procedure popper) is hidden.
+  // Viewer module / BaseMaps module legend (read-only legend): procedures
+  // can't be launched there, so the "Auto" chip (and its procedure popper)
+  // is hidden.
   const isViewerModuleRow = useSelector(
-    (s) => s.viewers.selectedViewerKey === "THREED"
+    (s) =>
+      s.viewers.selectedViewerKey === "THREED" ||
+      selectIsBaseMapsLegendPopper(s)
   );
   const showProcedureChip = hasProcedure && !isViewerModuleRow;
   // Read-only legend (Viewer module or shared ?mode=viewer lock): the label
@@ -1805,6 +1813,7 @@ export default function PopperMapListings() {
   // eslint-disable-next-line no-unused-vars
   const addListS = "+ Liste";
   const soloS = "Solo :";
+  const showAnnotationsS = "Afficher les annotations";
   const exitSoloS = "Quitter le solo";
 
   // data
@@ -1855,7 +1864,28 @@ export default function PopperMapListings() {
   const isViewer2d = useSelector(
     (s) => viewerKey === "THREED" && selectEffectiveViewerKey(s) === "MAP"
   );
-  const mirrors3dFilters = (isThreedViewer && !isViewer2d) || isPovThreed;
+  // BaseMaps module with the left panel folded: same read-only legend as
+  // the Viewer module, over what the module's editor displays — the
+  // isForBaseMaps drawings, plus the scope annotations when the panel's
+  // "Afficher les annotations" switch loads them (isBaseMapsLegendAll).
+  const isBaseMapsLegend = useSelector(selectIsBaseMapsLegendPopper);
+  const isBaseMapsLegendAll = useSelector(
+    (s) => isBaseMapsLegend && s.baseMapEditor.showAnnotations
+  );
+  const isBaseMapsLegendThreed = useSelector(
+    (s) =>
+      isBaseMapsLegend && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+  const isLegendPopper = isViewerModule || isBaseMapsLegend;
+  // BaseMaps module legend with the "Afficher les annotations" switch OFF:
+  // there is no annotations side — the popper is the base maps list only
+  // (plain title, no toggle, attached whatever the detach flag).
+  const isBaseMapsListOnly = isBaseMapsLegend && !isBaseMapsLegendAll;
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
+  const mirrors3dFilters =
+    (isThreedViewer && !isViewer2d) || isPovThreed || isBaseMapsLegendThreed;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   // Raw popperMapListings.interactionMode overridden by the module / display
   // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
@@ -1940,7 +1970,8 @@ export default function PopperMapListings() {
     hideBaseMapAnnotations: true,
     withQties: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+    onlyIsForBaseMapsListings:
+      viewerKey === "BASE_MAPS" && !isBaseMapsLegendAll,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     ...(mirrors3dFilters
@@ -2031,9 +2062,11 @@ export default function PopperMapListings() {
   const titleS =
     isBusinessObjectsModule && activeBusinessObject
       ? activeBusinessObject.label
-      : isBaseMapsViewer
-        ? "Dessins sur fond de plan"
-        : "Annotations";
+      : isBaseMapsListOnly
+        ? "Fonds de plan"
+        : isBaseMapsViewer && !isBaseMapsLegend
+          ? "Dessins sur fond de plan"
+          : "Annotations";
 
   // Header toggle "Annotations | Fonds de plan" (ToggleContentMode) — plus a
   // "Photos" side in the Viewer module when the project has photos, which
@@ -2050,18 +2083,33 @@ export default function PopperMapListings() {
   const listingSelectorMode = useSelector(
     (s) => s.popperMapListings.listingSelectorMode
   );
-  const showContentToggle = !isLocateBusinessObjectMode;
+  // "Détacher la liste": the base maps list lives in its own popper
+  // (PopperBaseMapsList, mounted next to this one by the editors) — this one
+  // loses its "Fonds de plan" side, and its toggle altogether when no
+  // "Photos" side remains.
+  const baseMapsListDetached = useSelector(
+    (s) => s.popperMapListings.baseMapsListDetached
+  );
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
+  const showContentToggle =
+    !isLocateBusinessObjectMode &&
+    !isBaseMapsListOnly &&
+    (!baseMapsListDetached || showPhotosToggle);
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
   const showBaseMapsBody =
-    showContentToggle && popperContentMode === "BASE_MAPS";
+    isBaseMapsListOnly ||
+    (showContentToggle &&
+      !baseMapsListDetached &&
+      popperContentMode === "BASE_MAPS");
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    ...(isBaseMapsViewer
-      ? { filterByIsForBaseMaps: true }
-      : { excludeIsForBaseMaps: true }),
+    ...(isBaseMapsLegendAll
+      ? {}
+      : isBaseMapsViewer
+        ? { filterByIsForBaseMaps: true }
+        : { excludeIsForBaseMaps: true }),
   });
 
   const createVersion = useCreateBaseMapVersion();
@@ -2092,7 +2140,8 @@ export default function PopperMapListings() {
   // where free annotations don't apply. It stays pinned first only while it
   // has no rank — a drag reorder (FieldActiveListing) ranks every listing,
   // and the selector's rank order then wins.
-  const excludeSystemListings = isBaseMapsViewer || isZonesViewer;
+  const excludeSystemListings =
+    (isBaseMapsViewer && !isBaseMapsLegendAll) || isZonesViewer;
   const pinnedSystemListings = excludeSystemListings
     ? []
     : (listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
@@ -2292,19 +2341,24 @@ export default function PopperMapListings() {
 
   // render
 
-  if (!isThreedViewer && pasteClipboard) {
+  // 2D-only helper chain (the 3D editor has its own): the BaseMaps module
+  // displaying its 3D editor counts as 3D here.
+  const helpersEnabled = !isThreedViewer && !isBaseMapsLegendThreed;
+
+  if (helpersEnabled && pasteClipboard) {
     return <PopperPasteHelper />;
   }
 
-  if (!isThreedViewer && subtractPickAnnotationId) {
+  if (helpersEnabled && subtractPickAnnotationId) {
     return <PopperSubtractHelper />;
   }
 
-  if (!isThreedViewer && Boolean(enabledDrawingMode)) {
+  if (helpersEnabled && Boolean(enabledDrawingMode)) {
     return <PopperDrawingHelper />;
   }
 
-  // in BASE_MAPS viewer, mounting is gated by popperMapListings.showInBaseMapsViewer (see MainMapEditorV3)
+  // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend)
+  // or popperMapListings.showInBaseMapsViewer (see MainMapEditorV3)
 
   return (
     <Paper
@@ -2355,7 +2409,10 @@ export default function PopperMapListings() {
         {showContentToggle ? (
           <ToggleContentMode
             showPhotos={showPhotosToggle}
-            annotationsLabel={isBaseMapsViewer ? "Dessins" : "Annotations"}
+            showBaseMaps={!baseMapsListDetached}
+            annotationsLabel={
+              isBaseMapsViewer && !isBaseMapsLegend ? "Dessins" : "Annotations"
+            }
           />
         ) : (
           <Typography
@@ -2413,9 +2470,35 @@ export default function PopperMapListings() {
         </Tooltip>
       </Box>
 
+      {/* BaseMaps module: "Afficher les annotations" switch (same state as
+          the left panel's), right under the header on both sides. Turning it
+          on from the list-only popper keeps the user on the base maps list. */}
+      {!collapsed && isBaseMapsViewer && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            px: 1,
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "panel.border",
+          }}
+        >
+          <SwitchGeneric
+            label={showAnnotationsS}
+            checked={showAnnotationsInBaseMaps}
+            onChange={(checked) => {
+              if (checked && isBaseMapsListOnly && !baseMapsListDetached)
+                dispatch(setViewerContentMode("BASE_MAPS"));
+              dispatch(setShowAnnotations(checked));
+            }}
+          />
+        </Box>
+      )}
+
       {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
+          {!isBaseMapsListOnly && <ButtonToggleBaseMapsListDetached />}
           <SectionBaseMapsList />
         </Box>
       )}
@@ -2426,7 +2509,7 @@ export default function PopperMapListings() {
               only; hidden in 3D and viewer mode (read-only) */}
           {/* Standard body (layers / listings / cut tools) */}
           {/* Warning: base map has no scale */}
-          {baseMap && !baseMap.meterByPx && !isViewerModule && (
+          {baseMap && !baseMap.meterByPx && !isLegendPopper && (
             <WarningBaseMapNotToScale />
           )}
 
@@ -2472,8 +2555,9 @@ export default function PopperMapListings() {
             Same "LISTE ACTIVE" field as the Dessin left panel (counts chips,
             visibility eyes, "Visibilité auto" option). Shown whenever there
             are listings, or when a new one can be created (empty-state CTA).
-            Hidden in the Viewer module, where every listing is shown at once. */}
-            {!isViewerModule &&
+            Hidden in the legend poppers (Viewer module, BaseMaps module),
+            where every listing is shown at once. */}
+            {!isLegendPopper &&
               !isLocateBusinessObjectMode &&
               (displayedListings?.length > 0 || canAddListing) && (
                 <Box
@@ -2530,16 +2614,18 @@ export default function PopperMapListings() {
 
             {/* Viewer 2D: the legend is scoped to the current baseMap — make
                 the empty case explicit instead of a blank panel. */}
-            {!showPhotosBody && isViewer2d && hasNoListing && (
-              <Box sx={{ px: 1.5, py: 1.5 }}>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "panel.textMuted", fontStyle: "italic" }}
-                >
-                  Aucune annotation pour ce fond de plan
-                </Typography>
-              </Box>
-            )}
+            {!showPhotosBody &&
+              (isViewer2d || isBaseMapsLegend) &&
+              hasNoListing && (
+                <Box sx={{ px: 1.5, py: 1.5 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "panel.textMuted", fontStyle: "italic" }}
+                  >
+                    Aucune annotation pour ce fond de plan
+                  </Typography>
+                </Box>
+              )}
 
             <>
               {/* Viewer module: full legend — every listing at once (no chips
@@ -2559,7 +2645,7 @@ export default function PopperMapListings() {
               )}
               {isLocateBusinessObjectMode
                 ? null
-                : isViewerModule
+                : isLegendPopper
                   ? !showPhotosBody &&
                     displayedListings?.map((listing) => (
                       <ListingRow

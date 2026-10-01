@@ -7,6 +7,10 @@ import BoxFlexV from "./BoxFlexV";
 import TopBarDesktop from "./TopBarDesktop";
 import SectionViewer from "./SectionViewer";
 import BottomBarDesktop from "./BottomBarDesktop";
+import {
+  EDITOR_FLOATING_PANELS_HOST_ID,
+  EDITOR_FLOATING_PANELS_Z_INDEX,
+} from "../constants/editorFloatingPanelsHost";
 import LeftPanel from "Features/leftPanel/components/LeftPanel";
 
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
@@ -48,7 +52,15 @@ export default function LayoutDesktop() {
   return (
     <BoxFlexV sx={{ position: "relative" }}>
       {!isFullScreen && <TopBarDesktop />}
-      <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0, position: "relative" }}>
+      <Box
+        sx={{
+          display: "flex",
+          width: 1,
+          flexGrow: 1,
+          minHeight: 0,
+          position: "relative",
+        }}
+      >
         {!isFullScreen && <VerticalMenuViewers />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
@@ -59,6 +71,17 @@ export default function LayoutDesktop() {
         </Box>
       </Box>
       <BottomBarDesktop />
+      {/* Host of the editors' floating panels (PortalEditorFloatingPanels):
+          above the top bar, under the panels sliding over the editors. */}
+      <Box
+        id={EDITOR_FLOATING_PANELS_HOST_ID}
+        sx={{
+          position: "absolute",
+          inset: 0,
+          zIndex: EDITOR_FLOATING_PANELS_Z_INDEX,
+          pointerEvents: "none",
+        }}
+      />
     </BoxFlexV>
   );
 }

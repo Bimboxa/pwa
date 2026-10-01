@@ -28,6 +28,10 @@ const popperMapListingsSlice = createSlice({
     // base maps without annotations — except the main one and those whose
     // image / annotations are currently shown in 3D.
     hideEmptyBaseMapsInList: false,
+    // "Détacher la liste": the base maps list lives in its own popper
+    // (PopperBaseMapsList) instead of the "Fonds de plan" side of the
+    // annotations popper, which then has no such side.
+    baseMapsListDetached: false,
   },
   reducers: {
     setShowLayers(state, action) {
@@ -46,6 +50,17 @@ const popperMapListingsSlice = createSlice({
       state.viewerContentMode = CONTENT_MODES.includes(action.payload)
         ? action.payload
         : "ANNOTATIONS";
+    },
+    // Detach: the annotations popper falls back to its annotations side.
+    // Attach: it lands on the "Fonds de plan" side, where the list returns.
+    setBaseMapsListDetached(state, action) {
+      const detached = Boolean(action.payload);
+      state.baseMapsListDetached = detached;
+      if (detached && state.viewerContentMode === "BASE_MAPS") {
+        state.viewerContentMode = "ANNOTATIONS";
+      } else if (!detached) {
+        state.viewerContentMode = "BASE_MAPS";
+      }
     },
     setHideEmptyBaseMapsInList(state, action) {
       state.hideEmptyBaseMapsInList = Boolean(action.payload);
@@ -68,6 +83,7 @@ export const {
   setViewerContentMode,
   setListingSelectorMode,
   setHideEmptyBaseMapsInList,
+  setBaseMapsListDetached,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

@@ -21,6 +21,8 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeModuleLabel from "Features/listingViewer/hooks/useScopeModuleLabel";
 
 import { Box, Button, Divider } from "@mui/material";
+
+import { TOP_BAR_Z_INDEX } from "../constants/editorFloatingPanelsHost";
 import { ArrowBack } from "@mui/icons-material";
 
 import BoxFlexH from "Features/layout/components/BoxFlexH";
@@ -191,7 +193,8 @@ export default function TopBarDesktop() {
         display: "flex",
         alignItems: "center",
         bgcolor: "white",
-        zIndex: 1000,
+        // Under the editors' floating panels (draggable over the top bar).
+        zIndex: TOP_BAR_Z_INDEX,
         pr: 2,
         pl: 0.5,
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,

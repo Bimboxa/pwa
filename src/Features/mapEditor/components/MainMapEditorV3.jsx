@@ -106,6 +106,8 @@ import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/u
 import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
+import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
+import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
 import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
@@ -324,6 +326,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const viewerPanelDocked = isViewerModule && leftPanelDocked;
     const viewerPanelSlidedIn =
         isViewerModule && !leftPanelDocked && leftDrawerHovered;
+    // BaseMaps module: with the left panel (PanelBaseMaps) folded, the popper
+    // shows as a read-only legend + base maps list (see
+    // selectIsBaseMapsLegendPopper); hidden while the drawer slides over.
+    const baseMapsPanelSlidedIn =
+        forViewerKey === "BASE_MAPS" && !leftPanelDocked && leftDrawerHovered;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2511,20 +2518,24 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 !dessinPanelDocked &&
                 !viewerPanelDocked &&
                 !isPhotosModule &&
-                (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
-                    /* display:none (not unmount) while the drawer slides over
-                       the map, so the popper keeps its state; "contents" keeps
-                       the wrapper out of the absolute positioning. */
-                    <Box
-                        sx={{
-                            display:
-                                dessinPanelSlidedIn || viewerPanelSlidedIn
-                                    ? "none"
-                                    : "contents",
-                        }}
+                (forViewerKey !== "BASE_MAPS" ||
+                    showDrawingToolsInBaseMaps ||
+                    !leftPanelDocked) && (
+                    /* Rendered in the layout-level host (over the top bar,
+                       under the sliding panels). Hidden (not unmounted)
+                       while the drawer slides over the map, so the poppers
+                       keep their state. */
+                    <PortalEditorFloatingPanels
+                        hidden={
+                            dessinPanelSlidedIn ||
+                            viewerPanelSlidedIn ||
+                            baseMapsPanelSlidedIn
+                        }
                     >
                         <PopperMapListings />
-                    </Box>
+                        {/* Base maps list detached from the popper above. */}
+                        <PopperBaseMapsList />
+                    </PortalEditorFloatingPanels>
                 )}
 
             {/* Dessin module with the docked panel: floating paste / subtract

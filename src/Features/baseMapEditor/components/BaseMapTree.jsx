@@ -39,6 +39,7 @@ import useMoveBaseMapToListing from "Features/baseMaps/hooks/useMoveBaseMapToLis
 
 import db, { withSystemWrite } from "App/db/db";
 import ensureBaseMapSortIndexes from "Features/baseMaps/utils/ensureBaseMapSortIndexes";
+import reorderBaseMapInListingUtil from "Features/baseMaps/utils/reorderBaseMapInListing";
 
 import BaseMapTreeItem from "./BaseMapTreeItem";
 
@@ -238,30 +239,13 @@ export default function BaseMapTree() {
   }
 
   async function reorderBaseMapInListing(baseMap, overBaseMapId, listing) {
-    const group = baseMapsByListingId[listing.id] || [];
-    const ids = group.map((bm) => bm.id);
-    const oldIndex = ids.indexOf(baseMap.id);
-    const newIndex = ids.indexOf(overBaseMapId);
-    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-    const sortIndices = await ensureBaseMapSortIndexes(
-      group,
+    await reorderBaseMapInListingUtil({
+      baseMap,
+      overBaseMapId,
+      group: baseMapsByListingId[listing.id] || [],
       listing,
-      updateEntity
-    );
-
-    let newSortIndex;
-    if (oldIndex < newIndex) {
-      const b = sortIndices[newIndex];
-      const a = newIndex + 1 < group.length ? sortIndices[newIndex + 1] : null;
-      newSortIndex = generateKeyBetween(b, a);
-    } else {
-      const b = newIndex > 0 ? sortIndices[newIndex - 1] : null;
-      const a = sortIndices[newIndex];
-      newSortIndex = generateKeyBetween(b, a);
-    }
-
-    await updateEntity(baseMap.id, { sortIndex: newSortIndex }, { listing });
+      updateEntity,
+    });
   }
 
   async function moveBaseMapAcrossListings(
