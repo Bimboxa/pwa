@@ -1,5 +1,12 @@
 # DXF base maps
 
+DXF is disabled by default. Enable **Fichier DXF** under **Configuration >
+Fonds de plan > Sources de fonds de plan** to expose the source card and accept
+DXF file drops. Explicit per-scope source settings take precedence over defaults.
+The creation section lazy-loads the import dialog only when DXF is enabled and
+a DXF file is selected or dropped. Disabling the source closes the dialog and
+clears the pending file; the dialog cleans up its parsing worker on unmount.
+
 The DXF source card and file-drop entry open a preparation dialog. Parsing is
 performed in a worker; no records are created until the user confirms.
 

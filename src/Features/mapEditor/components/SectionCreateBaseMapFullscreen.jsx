@@ -137,6 +137,7 @@ export default function SectionCreateBaseMapFullscreen({
   // helpers
 
   const isSourceEnabled = (key) => !disabledSourceKeys.includes(key);
+  const isDxfEnabled = isSourceEnabled("DXF");
   const enabledSources = BASE_MAP_SOURCE_CATALOG.filter((source) =>
     isSourceEnabled(source.key)
   );
@@ -182,6 +183,10 @@ export default function SectionCreateBaseMapFullscreen({
   }
 
   // effects
+
+  useEffect(() => {
+    if (!isDxfEnabled) setDxfFile(null);
+  }, [isDxfEnabled]);
 
   useEffect(() => {
     if (imageFile && !name) {
@@ -235,7 +240,7 @@ export default function SectionCreateBaseMapFullscreen({
     const file = files?.[0];
     if (!file) return;
     if (/\.dxf$/i.test(file.name)) {
-      if (!isSourceEnabled("DXF")) {
+      if (!isDxfEnabled) {
         dispatch(setToaster({ message: sourceDisabledS, severity: "warning" }));
         return;
       }
@@ -449,7 +454,7 @@ export default function SectionCreateBaseMapFullscreen({
                 maxWidth: 1000,
               }}
             >
-              {isSourceEnabled("DXF") && (
+              {isDxfEnabled && (
                 <CardCreateBaseMapOption
                   title="Fichier DXF"
                   subtitle="Calques et annotations 2D"
@@ -597,17 +602,19 @@ export default function SectionCreateBaseMapFullscreen({
 
         {/* Hidden per-card file inputs */}
 
-        <input
-          ref={dxfInputRef}
-          type="file"
-          accept=".dxf"
-          style={{ display: "none" }}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) setDxfFile(file);
-          }}
-        />
+        {isDxfEnabled && (
+          <input
+            ref={dxfInputRef}
+            type="file"
+            accept=".dxf"
+            style={{ display: "none" }}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file && isDxfEnabled) setDxfFile(file);
+            }}
+          />
+        )}
 
         <input
           ref={pdfInputRef}
@@ -625,9 +632,8 @@ export default function SectionCreateBaseMapFullscreen({
         />
       </Box>
 
-      {/* Naming dialog (image flow) */}
-
-      {dxfFile && (
+      {/* Load the DXF import module only for an enabled, requested import. */}
+      {isDxfEnabled && dxfFile && (
         <Suspense fallback={null}>
           <DialogCreateBaseMapFromDxf
             file={dxfFile}
@@ -642,6 +648,7 @@ export default function SectionCreateBaseMapFullscreen({
         </Suspense>
       )}
 
+      {/* Naming dialog (image flow) */}
       <DialogGeneric
         width={400}
         open={Boolean(imageFile)}

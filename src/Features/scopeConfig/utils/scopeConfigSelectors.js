@@ -81,8 +81,9 @@ export const DEFAULT_DISABLED_TOOL_KEYS = [
 ];
 
 // BaseMap creation sources (keys of baseMaps/data/baseMapSourceCatalog.js)
-// hidden by default from the creation section: DWG import is not shipped yet.
-export const DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS = ["DWG"];
+// hidden by default from the creation section: DXF is opt-in, and DWG import
+// is not shipped yet. Explicit per-scope source settings take precedence.
+export const DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS = ["DXF", "DWG"];
 
 const EMPTY_OBJ = {};
 
