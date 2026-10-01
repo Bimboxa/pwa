@@ -53,6 +53,7 @@ export default function getInitScopeVisibility(scopeId) {
         parsed.hiddenAnnotationTemplateIds
       ),
       hiddenListingsIds: toIdArray(parsed.hiddenListingsIds),
+      hiddenLayerIds: toIdArray(parsed.hiddenLayerIds),
       viewer2d: toViewer2d(parsed.viewer2d),
       threed: toThreed(parsed.threed),
     };

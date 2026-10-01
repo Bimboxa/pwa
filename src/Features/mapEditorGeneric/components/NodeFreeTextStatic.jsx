@@ -72,6 +72,8 @@ export default function NodeFreeTextStatic({
     targetPoint: dbTargetPoint = { x: 0, y: 0 },
     labelPoint: dbLabelPoint = { x: 0, y: 0 },
     width: fixedWidth,
+    // Imported CAD text can be narrower than the interactive text-box minimum.
+    minWidth = MIN_WIDTH,
     textContent: dbTextContent,
     placeholder = "Texte",
     fillColor = "#ffffff",
@@ -572,7 +574,7 @@ export default function NodeFreeTextStatic({
                 width: effectiveFixedWidth
                   ? `${effectiveFixedWidth}px`
                   : "max-content",
-                minWidth: `${MIN_WIDTH}px`,
+                minWidth: `${minWidth}px`,
                 height: "auto",
                 backgroundColor: hasBackground ? fillColor : "transparent",
                 border,
@@ -610,7 +612,7 @@ export default function NodeFreeTextStatic({
                     height: "auto",
                     display: "block",
                     minHeight: "1.2em",
-                    minWidth: `${MIN_WIDTH}px`,
+                    minWidth: `${minWidth}px`,
                   }}
                 >
                   {(selected
@@ -642,7 +644,7 @@ export default function NodeFreeTextStatic({
                       margin: 0,
                       overflow: "hidden",
                       cursor: "text",
-                      minWidth: `${MIN_WIDTH}px`,
+                      minWidth: `${minWidth}px`,
                     }}
                   />
                 )}

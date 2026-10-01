@@ -1,4 +1,5 @@
 import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
+import isDxfAnnotationVisible from "Features/dxf/utils/isDxfAnnotationVisible";
 import { useMemo, useRef, useSyncExternalStore } from "react";
 import Dexie from "dexie";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -873,6 +874,7 @@ export default function useAnnotationsV2(options) {
       const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
 
       // layer visibility filter
+      _annotations = _annotations.filter((a) => isDxfAnnotationVisible(a, baseMapById[a.baseMapId]));
       if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
         _annotations = _annotations.filter((a) => {
           if (a.isBaseMapAnnotation || isRevolutionHelper(a)) return true;

@@ -4,6 +4,14 @@
 // `fileBased` sources feed the drop zone (accepted extensions + formats line).
 const BASE_MAP_SOURCE_CATALOG = [
   {
+    key: "DXF",
+    label: "Fichier DXF",
+    caption: "Calques et annotations 2D",
+    fileBased: true,
+    extensions: [".dxf"],
+    formats: ["DXF"],
+  },
+  {
     key: "DWG",
     label: "Fichier DWG",
     caption: "Calques et échelle conservés",

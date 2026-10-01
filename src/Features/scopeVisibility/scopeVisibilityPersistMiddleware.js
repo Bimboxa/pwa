@@ -49,6 +49,9 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   if (!scopeId) return result;
 
   const patch = {};
+  if (prev.layers?.hiddenLayerIds !== state.layers?.hiddenLayerIds) {
+    patch.hiddenLayerIds = state.layers?.hiddenLayerIds ?? [];
+  }
   if (
     prev.scopeVisibility?.hiddenAnnotationTemplateIds !==
     state.scopeVisibility?.hiddenAnnotationTemplateIds

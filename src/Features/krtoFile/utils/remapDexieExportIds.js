@@ -35,6 +35,7 @@ export default function remapDexieExportIds(jsonData, opts) {
     // an unknown id passes through unchanged (its scope is not in the zip).
     sourceScopeId: "scopes",
     baseMapId: "baseMaps",
+    dxfBaseMapId: "baseMaps",
     // Photo <-> flattened baseMap pairing (photoPlans feature).
     flattenedBaseMapId: "baseMaps",
     sourcePhotoBaseMapId: "baseMaps",
@@ -286,6 +287,15 @@ export default function remapDexieExportIds(jsonData, opts) {
       // unknown id, so a still-old id known to globalLayers is remapped here.
       if (row.layerId && idMap.globalLayers?.[row.layerId]) {
         row.layerId = idMap.globalLayers[row.layerId];
+      }
+      if (tableName === "baseMaps" && row.dxf) {
+        row.dxf.listingId = remapId("listings", row.dxf.listingId);
+        row.dxf.annotationsVersionId = remapId("baseMapVersions", row.dxf.annotationsVersionId);
+        row.dxf.referenceVersionId = remapId("baseMapVersions", row.dxf.referenceVersionId);
+        row.dxf.layers = (row.dxf.layers ?? []).map((layer) => ({
+          ...layer,
+          layerId: idMap.globalLayers?.[layer.layerId] ?? remapId("layers", layer.layerId),
+        }));
       }
 
       // POV view metadata (nested baseMap / version / template refs used to

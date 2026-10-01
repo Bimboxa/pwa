@@ -65,6 +65,8 @@ export default class BaseMap {
     // a photogrammetry scan whose mesh + height map live in the local-only
     // db.scene3dAssets — see docs/baseMaps/SCENE_3D_BASE_MAPS.md.
     scene3d,
+    fromDXF,
+    dxf,
     // Print zone (« Zone d'impression »): { format, orientation, scale, x, y,
     // width, height } — sheet rect in REFERENCE image px, see
     // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
@@ -101,6 +103,8 @@ export default class BaseMap {
     this.detailRef = detailRef ?? null;
     this.printZone = printZone ?? null;
     this.scene3d = scene3d ?? null;
+    this.fromDXF = Boolean(fromDXF);
+    this.dxf = dxf ?? null;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;
@@ -465,6 +469,8 @@ export default class BaseMap {
       rotation2D: this.rotation2D,
       printZone: this.printZone ?? null,
       scene3d: this.scene3d ?? null,
+      fromDXF: this.fromDXF,
+      dxf: this.dxf ?? null,
     };
 
     if (this.versions?.length > 0) {

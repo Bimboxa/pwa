@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedBaseMapsListingId } from "../mapEditorSlice";
@@ -54,6 +54,10 @@ import testIsDwg from "Features/files/utils/testIsDwg";
 import createBlankImageFile from "Features/images/utils/createBlankImageFile";
 import getBlankBaseMapGeometry from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 
+const DialogCreateBaseMapFromDxf = lazy(
+  () => import("Features/dxf/components/DialogCreateBaseMapFromDxf")
+);
+
 export default function SectionCreateBaseMapFullscreen({
   onClose,
   showClose,
@@ -105,11 +109,13 @@ export default function SectionCreateBaseMapFullscreen({
 
   const pdfInputRef = useRef();
   const imageInputRef = useRef();
+  const dxfInputRef = useRef();
   const syncedListingPropRef = useRef(false);
 
   // state
 
   const [imageFile, setImageFile] = useState(null);
+  const [dxfFile, setDxfFile] = useState(null);
   const [name, setName] = useState("");
   const [openBlank, setOpenBlank] = useState(false);
   const [openSatellite, setOpenSatellite] = useState(false);
@@ -228,7 +234,13 @@ export default function SectionCreateBaseMapFullscreen({
   function handleDropZoneFiles(files) {
     const file = files?.[0];
     if (!file) return;
-    if (testIsPdf(file)) {
+    if (/\.dxf$/i.test(file.name)) {
+      if (!isSourceEnabled("DXF")) {
+        dispatch(setToaster({ message: sourceDisabledS, severity: "warning" }));
+        return;
+      }
+      setDxfFile(file);
+    } else if (testIsPdf(file)) {
       if (!isSourceEnabled("PDF")) {
         dispatch(setToaster({ message: sourceDisabledS, severity: "warning" }));
         return;
@@ -437,6 +449,23 @@ export default function SectionCreateBaseMapFullscreen({
                 maxWidth: 1000,
               }}
             >
+              {isSourceEnabled("DXF") && (
+                <CardCreateBaseMapOption
+                  title="Fichier DXF"
+                  subtitle="Calques et annotations 2D"
+                  illustration={<IllustrationDwg />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={() => dxfInputRef.current?.click()}
+                    >
+                      {computerS}
+                    </Button>
+                  }
+                />
+              )}
               {isSourceEnabled("DWG") && (
                 <CardCreateBaseMapOption
                   title={dwgTitleS}
@@ -569,6 +598,18 @@ export default function SectionCreateBaseMapFullscreen({
         {/* Hidden per-card file inputs */}
 
         <input
+          ref={dxfInputRef}
+          type="file"
+          accept=".dxf"
+          style={{ display: "none" }}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) setDxfFile(file);
+          }}
+        />
+
+        <input
           ref={pdfInputRef}
           type="file"
           accept=".pdf"
@@ -585,6 +626,21 @@ export default function SectionCreateBaseMapFullscreen({
       </Box>
 
       {/* Naming dialog (image flow) */}
+
+      {dxfFile && (
+        <Suspense fallback={null}>
+          <DialogCreateBaseMapFromDxf
+            file={dxfFile}
+            listing={listing}
+            onClose={() => setDxfFile(null)}
+            onCreated={(entity) => {
+              setDxfFile(null);
+              onCreated?.(entity);
+              onClose?.();
+            }}
+          />
+        </Suspense>
+      )}
 
       <DialogGeneric
         width={400}
