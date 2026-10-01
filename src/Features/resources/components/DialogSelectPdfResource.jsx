@@ -7,22 +7,32 @@ import ListResources from "./ListResources";
 
 import useResources from "../hooks/useResources";
 
+const isPdfResource = (resource) => resource.fileType === "PDF";
+
 // Picker of the project's PDF resources (full PDFs and extracted PDF_PAGE
 // rows alike). onSelect(resource) returns true when the caller consumed the
 // resource, false when its file is missing: the dialog then stays open and
-// shows a hint.
-export default function DialogSelectPdfResource({ open, onClose, onSelect }) {
+// shows a hint. `filter` widens the list to other resources (Prompt IA: DXF,
+// IFC…), with its own `title` / `emptyLabel`.
+export default function DialogSelectPdfResource({
+  open,
+  onClose,
+  onSelect,
+  filter = isPdfResource,
+  title,
+  emptyLabel,
+}) {
   // strings
 
-  const titleS = "Choisir un PDF des ressources";
-  const noPdfS = "Aucune ressource PDF dans le projet.";
+  const titleS = title ?? "Choisir un PDF des ressources";
+  const noPdfS = emptyLabel ?? "Aucune ressource PDF dans le projet.";
   const fileMissingS =
     "Fichier introuvable : réattachez la ressource depuis le panneau Ressources.";
 
   // data
 
   const resources = useResources();
-  const pdfResources = resources.filter((r) => r.fileType === "PDF");
+  const pdfResources = resources.filter(filter);
 
   // state
 

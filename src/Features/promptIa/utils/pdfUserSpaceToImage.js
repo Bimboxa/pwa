@@ -65,17 +65,19 @@ function inFrame(p) {
 }
 
 /**
- * Brings an inline payload authored in `pdf_user_space` into the image frame.
- * Converts `points`, `cuts`, `openings`, `guideLines`, `labelPoint`,
- * `targetPoint` and the single `point` of a DETAIL; drops the annotations
- * that end up outside the crop. `baseMaps[].source.bboxInRatio` is never
- * converted: it is a fraction of the attached PDF page, not of this plan.
+ * Brings the geometry of an inline payload into the image frame with
+ * `project` (author point → normalized image point). Converts `points`,
+ * `cuts`, `openings`, `guideLines`, `labelPoint`, `targetPoint` and the
+ * single `point` of a DETAIL; drops the annotations that end up outside the
+ * image.
  *
+ * @param {Object} payload
+ * @param {(p: {x:number, y:number}) => {x:number, y:number}} project
  * @returns {{data: Object, dropped: string[]}}
  */
-export function convertPayloadToImageSpace(payload, frame, page) {
+export function mapPayloadPoints(payload, project) {
   const toImage = (p) => {
-    const q = userToImage(p, frame, page);
+    const q = project(p);
     return { ...p, x: clampNormalized(q.x), y: clampNormalized(q.y) };
   };
   const dropped = [];
@@ -90,7 +92,10 @@ export function convertPayloadToImageSpace(payload, frame, page) {
     };
     if (Array.isArray(a.points)) next.points = mapPoints(a.points);
     if (Array.isArray(a.cuts))
-      next.cuts = a.cuts.map((c) => ({ ...c, points: mapPoints(c.points ?? []) }));
+      next.cuts = a.cuts.map((c) => ({
+        ...c,
+        points: mapPoints(c.points ?? []),
+      }));
     if (Array.isArray(a.openings))
       next.openings = a.openings.map((o) => ({
         ...o,
@@ -117,4 +122,15 @@ export function convertPayloadToImageSpace(payload, frame, page) {
     else dropped.push(a.id);
   }
   return { data: { ...payload, annotations }, dropped };
+}
+
+/**
+ * Brings an inline payload authored in `pdf_user_space` into the image frame
+ * (see mapPayloadPoints). `baseMaps[].source.bboxInRatio` is never converted:
+ * it is a fraction of the attached PDF page, not of this plan.
+ *
+ * @returns {{data: Object, dropped: string[]}}
+ */
+export function convertPayloadToImageSpace(payload, frame, page) {
+  return mapPayloadPoints(payload, (p) => userToImage(p, frame, page));
 }

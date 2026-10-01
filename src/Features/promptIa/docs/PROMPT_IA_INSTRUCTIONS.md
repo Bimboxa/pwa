@@ -21,9 +21,12 @@ Fichiers du zip :
   carte des hauteurs au-dessus du plan, pixel pour pixel avec `plan.png`
   (`plan.heightMap` dans `contexte.json`, section « Relief et hauteurs (3D) »).
 - `pieces-jointes/…` — les fichiers joints par l'utilisateur (carnet de
-  détails en PDF, documents de référence), listés dans
-  `contexte.json.attachments` avec leur identifiant `id`, leur chemin `file`
-  et, pour un PDF, la taille et la rotation de chaque page.
+  détails en PDF, documents de référence, plans DXF, maquettes IFC), listés
+  dans `contexte.json.attachments` avec leur identifiant `id`, leur chemin
+  `file`, leur nature `kind` (`PDF`, `IMAGE`, `DXF`, `IFC`, `OTHER`) et, pour
+  un PDF, la taille et la rotation de chaque page. Une pièce `DXF` ou `IFC`
+  est une **source** à exploiter : sections « Sources CAO / BIM » et
+  suivantes.
 
 ## Deux voies au choix
 
@@ -96,6 +99,11 @@ nouveaux templates pour ce que la description demande en plus.
 **Carnet de détails** (`mode.details`) : voir la section « Carnet de
 détails ». Ce mode peut être demandé seul (tu ne dessines alors que des
 pastilles et ne crées que des fonds de détail) ou avec une détection.
+
+**Sources CAO / BIM** (une pièce jointe `DXF` ou `IFC`, quel que soit le
+mode) : la détection porte sur ces fichiers. Tu crées un fond de plan et une
+liste par source, puis un rapport d'écarts — sections « Sources CAO / BIM »,
+« Fonds de plan créés », « Une liste par source », « Points d'attention ».
 
 ## Règles géométriques
 
@@ -479,14 +487,276 @@ Exemple (une pastille, un fond) :
 }
 ```
 
+## Sources CAO / BIM
+
+À appliquer quand `attachments` contient une pièce de `kind` `DXF` ou `IFC`.
+Le but : pour **chaque source**, un fond de plan créé à partir du fichier et
+une liste d'annotations extraites du fichier ; puis, entre les sources, un
+**rapport d'écarts** sous forme de points d'attention. Les clés racine
+`annotationTemplates` / `annotations` (fond affiché `plan.png`, liste
+courante) ne servent alors que si la demande vise aussi le plan affiché ;
+sinon laisse-les vides.
+
+`attachments[].cad` résume chaque source : lis-le avant d'ouvrir le fichier.
+
+**DXF.** `cad.unit` (unité et sa longueur en mètres), `cad.extents`,
+`cad.layers` (entités par type et par calque), `cad.insertedBlocks`.
+
+- Lis le fichier avec `ezdxf` si tu l'as, sinon avec un petit parseur de
+  codes de groupe (paires de lignes code / valeur ; UTF-8 à partir de la
+  version AC1021, sinon Windows-1252).
+- N'exploite que l'espace objet (section `ENTITIES`). Déplie les blocs
+  `INSERT` (point d'insertion, échelles, rotation) quand leur géométrie est
+  utile.
+- Le sens métier est porté par les calques, les noms de blocs et les textes
+  (`TEXT`, `MTEXT`, attributs) : relie chaque étiquette à l'ouvrage qu'elle
+  désigne (proximité, ligne de rappel).
+
+**IFC.** `cad.schema`, `cad.lengthUnit`, `cad.storeys` (nom, altitude, nombre
+d'éléments), `cad.elementsByClass`, `cad.site` (origine et axe X du modèle
+dans les coordonnées partagées).
+
+- Utilise `ifcopenshell` si tu l'as (`ifcopenshell.geom`, réglage
+  `USE_WORLD_COORDS`). Sinon lis le texte STEP toi-même : chaîne des
+  `IfcLocalPlacement` jusqu'au site, emprise des `IfcExtrudedAreaSolid`
+  (profil, position, direction et hauteur d'extrusion), enveloppe en plan
+  des `IfcTriangulatedFaceSet` et des `IfcMappedItem`.
+- Garde pour chaque élément : classe, `Name`, `ObjectType`, `Tag`, niveau,
+  emprise en plan, altitudes basse et haute.
+- Le niveau à traiter se déduit de la demande (par exemple une toiture : le
+  dernier niveau et les éléments posés sur la dalle haute). Écris dans `note`
+  le niveau et les filtres retenus.
+
+**Repère.** Travaille dans le **repère du fichier** (coordonnées et unité
+d'origine), sans recentrer ni arrondir. Quand deux sources partagent le même
+repère (coordonnées partagées, géoréférencement), conserve-le : c'est ce qui
+permet de les comparer et de superposer leurs fonds. Si leurs repères
+diffèrent, ramène une source dans le repère de l'autre à partir d'éléments
+communs (files, angles du bâtiment) et dis-le dans `note`.
+
+## Fonds de plan créés
+
+Un fond par source : clé racine `baseMaps`, éléments de `kind: "plan"` (à
+côté des éventuels fonds de détail, `kind: "detail"`).
+
+- `id` : court et unique (`bm_dxf`, `bm_ifc`…). `name` : lisible, en
+  français, par exemple « Coffrage toiture (DXF) ».
+- `source.file` : chemin du fichier **dans ton zip de réponse**, sous
+  `fonds/`. Un PDF vectoriel d'une page (recommandé : net à tout zoom) ou un
+  PNG (4000 px au moins sur le grand côté). `source.pageNumber` : `1`.
+- `sourceAttachmentId` : l'`id` de la pièce jointe dont le fond est tiré.
+- `world` : le repère du fichier sur la page.
+  - `unit` : `m`, `cm` ou `mm` (l'unité des coordonnées du fichier).
+  - `corners` : coordonnées **fichier** des coins `topLeft`, `topRight` et
+    `bottomLeft` de la **page entière**, marges comprises.
+  - `altitude` : altitude du plan du fond, dans l'unité du fichier (le
+    niveau de référence de la vue, `0` si tu ne le connais pas). La même
+    référence altimétrique pour tous les fonds.
+
+L'application calcule l'échelle, l'orientation et la position du fond à
+partir de `world.corners` — tu ne donnes aucune échelle. La page ne doit
+être ni étirée (même échelle en x et en y) ni en miroir, sinon le fond est
+refusé.
+
+Rendu :
+
+- **DXF** : la géométrie de l'espace objet telle quelle (traits fins,
+  hachures légères, textes lisibles), sans cartouche ni titre ajouté.
+- **IFC** : une **vue de dessus** — projection en plan des éléments (contour
+  de l'emprise, remplissage léger, une couleur par classe), tracés du bas
+  vers le haut pour que les éléments hauts recouvrent les bas.
+- Même orientation pour tous les fonds. Aligne l'axe x de la page sur l'axe
+  principal du bâtiment (`cad.site.xAxis` d'un IFC, direction dominante des
+  files ou des murs d'un DXF) plutôt que sur le nord : le plan se lit droit
+  à l'écran. Marge de 2 à 5 % autour du dessin.
+- Calcule `world.corners` avec la transformation qui a servi au rendu
+  (matplotlib : `ax.transData.inverted()` appliqué aux coins de la figure,
+  en pixels), puis **vérifie** : un point connu du fichier, converti avec
+  ces coins, retombe au bon endroit de l'image.
+
+## Une liste par source
+
+Clé racine `listings` : une liste d'annotations par source.
+
+- `name` : par exemple « DXF — Coffrage toiture », « IFC — Maquette ».
+  `sourceAttachmentId` : l'`id` de la pièce jointe.
+- `coordinateSpace` : `"world"` (recommandé) — les coordonnées **du
+  fichier**, dans l'unité `world.unit` du fond visé, que l'application
+  convertit elle-même ; ou `"image"` — coordonnées normalisées `[0, 1]` sur
+  l'image du fond, origine en haut à gauche, `y` vers le bas. Un seul espace
+  par liste.
+- `annotationTemplates` : les `id` sont locaux à la liste. Un modèle par
+  famille d'ouvrage (calque DXF, classe ou type IFC), avec un `label` métier
+  en français. Pour un même ouvrage, **même `label` et même couleur dans
+  toutes les listes** : la comparaison se lit d'un coup d'œil.
+- `annotations` : les champs du « Schéma de sortie », plus `baseMapId`
+  (l'`id` d'un fond `kind: "plan"` de ce résultat). Types autorisés :
+  `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`. Les `id` sont uniques
+  dans **tout** le résultat (`d1`, `d2`… pour le DXF, `i1`, `i2`… pour
+  l'IFC). `label` : le repère de l'ouvrage dans la source (étiquette, `Tag`,
+  identifiant).
+- Ouvrage surfacique (dalle, massif, trémie, réservation) : `POLYGON` par
+  son contour réel. Mur, voile, poutre, acrotère : `STRIP` ou `POLYLINE` par
+  l'axe, avec l'épaisseur réelle (`strokeWidth` en `CM`). Les « Règles
+  géométriques » s'appliquent.
+- 3D, quand la source la donne : `height` (hauteur de l'ouvrage, en mètres)
+  et `offsetZ` (altitude du dessous de l'ouvrage **au-dessus du plan du
+  fond**, en mètres ; le plan du fond est à `world.altitude`).
+- N'annote que les ouvrages visés par la demande : ni cotations, ni
+  cartouche, ni symboles de coupe, ni files.
+
+## Points d'attention
+
+Clé racine `issues` : ce que l'utilisateur doit vérifier ou arbitrer.
+L'application les range dans la liste « Points d'attention » du scope,
+chacun ouvert jusqu'à ce que l'utilisateur le clôture, relié aux annotations
+et aux fichiers concernés. Cette clé est acceptée dans tous les modes.
+
+- `label` : court et précis (« Massif F 20 07 : 12 cm d'écart en plan »).
+- `description` : le constat chiffré — valeur dans chaque source, écart,
+  hypothèse retenue.
+- `annotationIds` : les `id` des annotations concernées, toutes listes
+  confondues.
+- `documentLinks` : `[{ "attachmentId": "…" }]`, les pièces jointes en cause.
+
+**Rapport d'écarts.** Dès que plusieurs sources décrivent les mêmes
+ouvrages, compare-les :
+
+1. Apparie les ouvrages : par identifiant commun (`Tag` d'un IFC et suffixe
+   numérique des noms de blocs d'un DXF exportés du même modèle), par
+   étiquette, puis par position et dimensions.
+2. Crée un point d'attention par écart : ouvrage présent dans une source et
+   absent de l'autre, position en plan (plus de 2 cm), dimensions (plus de
+   1 cm), altitude (plus de 1 cm), désignation différente. La demande peut
+   fixer d'autres tolérances.
+3. Relie chaque point aux annotations des **deux** listes (une seule quand
+   l'ouvrage manque dans l'autre source).
+
+Regroupe en un seul point les écarts identiques qui ont la même cause (un
+décalage général, une famille entière absente) en listant les ouvrages. Pas
+de point pour ce qui concorde. Aucun écart : `issues` vide, et dis-le dans
+`note`.
+
+Tout doute d'interprétation (calque ambigu, élément non projeté, niveau
+incertain) donne aussi un point d'attention ; `note` ne garde que le résumé.
+
+Exemple (un massif dans chaque source, un écart) :
+
+```json
+{
+  "version": "1.0",
+  "note": "Toiture, niveau + 13.50. 1 écart sur 1 massif comparé.",
+  "annotationTemplates": [],
+  "annotations": [],
+  "baseMaps": [
+    {
+      "id": "bm_dxf",
+      "kind": "plan",
+      "name": "Coffrage toiture (DXF)",
+      "sourceAttachmentId": "k3J9…",
+      "source": { "file": "fonds/coffrage-toiture-dxf.pdf", "pageNumber": 1 },
+      "world": {
+        "unit": "m",
+        "altitude": 13.5,
+        "corners": {
+          "topLeft": { "x": 1040915.2, "y": 6295262.7 },
+          "topRight": { "x": 1040941.8, "y": 6295338.1 },
+          "bottomLeft": { "x": 1040966.1, "y": 6295244.7 }
+        }
+      }
+    },
+    {
+      "id": "bm_ifc",
+      "kind": "plan",
+      "name": "Maquette — vue de dessus (IFC)",
+      "sourceAttachmentId": "p7Qz…",
+      "source": { "file": "fonds/maquette-ifc.pdf", "pageNumber": 1 },
+      "world": {
+        "unit": "m",
+        "altitude": 13.5,
+        "corners": {
+          "topLeft": { "x": 1040915.2, "y": 6295262.7 },
+          "topRight": { "x": 1040941.8, "y": 6295338.1 },
+          "bottomLeft": { "x": 1040966.1, "y": 6295244.7 }
+        }
+      }
+    }
+  ],
+  "listings": [
+    {
+      "name": "DXF — Coffrage toiture",
+      "sourceAttachmentId": "k3J9…",
+      "coordinateSpace": "world",
+      "annotationTemplates": [
+        { "id": "tpl_massif", "label": "Massif", "type": "POLYGON", "fillColor": "#8d6e63", "fillOpacity": 0.5, "strokeColor": "#4e342e", "strokeWidth": 2, "strokeWidthUnit": "PX" }
+      ],
+      "annotations": [
+        {
+          "id": "d1",
+          "type": "POLYGON",
+          "annotationTemplateId": "tpl_massif",
+          "baseMapId": "bm_dxf",
+          "label": "F 20 07",
+          "closeLine": true,
+          "height": 0.75,
+          "offsetZ": 0,
+          "points": [
+            { "x": 1040938.41, "y": 6295270.12 },
+            { "x": 1040938.81, "y": 6295271.25 },
+            { "x": 1040939.47, "y": 6295271.02 },
+            { "x": 1040939.07, "y": 6295269.89 }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IFC — Maquette",
+      "sourceAttachmentId": "p7Qz…",
+      "coordinateSpace": "world",
+      "annotationTemplates": [
+        { "id": "tpl_massif", "label": "Massif", "type": "POLYGON", "fillColor": "#8d6e63", "fillOpacity": 0.5, "strokeColor": "#4e342e", "strokeWidth": 2, "strokeWidthUnit": "PX" }
+      ],
+      "annotations": [
+        {
+          "id": "i1",
+          "type": "POLYGON",
+          "annotationTemplateId": "tpl_massif",
+          "baseMapId": "bm_ifc",
+          "label": "5424224",
+          "closeLine": true,
+          "height": 0.75,
+          "offsetZ": 0,
+          "points": [
+            { "x": 1040938.52, "y": 6295270.08 },
+            { "x": 1040938.92, "y": 6295271.21 },
+            { "x": 1040939.58, "y": 6295270.98 },
+            { "x": 1040939.18, "y": 6295269.85 }
+          ]
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "label": "Massif F 20 07 : 12 cm d'écart en plan",
+      "description": "Centre du massif : DXF (1040938.94, 6295270.57), IFC (1040939.05, 6295270.53). Écart 12 cm. Dimensions identiques (1.20 × 0.70 m).",
+      "annotationIds": ["d1", "i1"],
+      "documentLinks": [{ "attachmentId": "k3J9…" }, { "attachmentId": "p7Qz…" }]
+    }
+  ]
+}
+```
+
 ## Schéma de sortie
 
 Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`,
 `DETAIL`.
 Clés racine autorisées : `version`, `coordinateSpace`, `image`,
-`annotationTemplates`, `annotations`, `baseMaps`, `note`. Quand le résultat ne
-contient que des fonds de détail, `annotationTemplates` et `annotations` sont
-des tableaux vides. `image.width` / `image.height`
+`annotationTemplates`, `annotations`, `baseMaps`, `listings`, `issues`,
+`note`. Quand le résultat ne contient que des fonds de détail, ou que des
+fonds et des listes tirés de sources CAO / BIM, `annotationTemplates` et
+`annotations` sont des tableaux vides (`image` et `coordinateSpace` sont
+alors facultatifs). `image.width` / `image.height`
 = `plan.image.width` / `plan.image.height` ; `image.widthMeters` =
 `plan.widthMeters`. Chaque `annotationTemplateId` doit exister dans
 `annotationTemplates`. Les `id` sont courts et uniques. Champs 3D autorisés
@@ -619,6 +889,18 @@ est un poteau de 20 × 85 cm tracé par l'axe de son grand côté :
 ```
 
 ## Forme de la réponse
+
+**Avec des fonds de plan créés** (sources CAO / BIM) : la réponse est un
+fichier **`resultat.zip`** à télécharger, qui contient `resultat.json` (le
+JSON complet, clés ci-dessus) et les fichiers des fonds sous `fonds/`.
+Génère-le par code, relis-le avant de le livrer (chaque `source.file`
+existe dans le zip, chaque `baseMapId` et chaque `annotationTemplateId` est
+connu, chaque `id` de `annotationIds` existe, coordonnées finies) et
+accompagne-le du court résumé du point 1. Sans environnement d'exécution
+pour produire des fichiers, dis-le : ce travail ne peut pas être rendu en
+texte.
+
+**Sinon** :
 
 1. Un court résumé (3 lignes maximum) : page ou image traitée, voie utilisée,
    nombre de templates et d'annotations, doutes marqués « À vérifier », et
