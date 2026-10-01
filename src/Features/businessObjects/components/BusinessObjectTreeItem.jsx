@@ -181,6 +181,30 @@ export default function BusinessObjectTreeItem({
     ? { textDecoration: "line-through", color: "text.disabled" }
     : {};
   const statusS = isClosed ? "Rouvrir" : "Fermer";
+
+  // Action buttons (bottom right of the row): the solo button only shows when
+  // there are annotations to isolate (own + descendants') — or to leave the
+  // solo —, the documents button when the object links to a resource.
+  const showSolo =
+    isSolo || soloAnnotations?.length > 0 || mainAnnotations?.length > 0;
+  const showDocuments = documentRels?.length > 0;
+  const hasActions = showSolo || showDocuments || !readOnly;
+  const soloS = isSolo
+    ? "Tout afficher"
+    : `Afficher uniquement « ${businessObject.label} »`;
+  const documentsS = !showDocuments
+    ? ""
+    : documentRels.every(isWholeResourceRel)
+      ? documentRels.length === 1
+        ? "Voir le document lié"
+        : `Voir les ${documentRels.length} documents liés`
+      : documentRels.length === 1
+        ? "Voir le passage lié dans le document"
+        : `Voir les ${documentRels.length} passages liés dans les documents`;
+  const linkingS = isLinking
+    ? "Quitter le mode liaison"
+    : "Lier des annotations au clic sur la carte";
+  const menuS = "Plus d'actions";
   const qtyLabel =
     hasQuantities && linkedCount > 0
       ? getBusinessObjectQtyLabel(
@@ -364,77 +388,61 @@ export default function BusinessObjectTreeItem({
     </Box>
   ) : null;
 
-  const actions = (
+  const actions = hasActions ? (
     <Box
-      className="business-object-actions"
       sx={{
-        // out of the flow, over the end of the row: the quantity column
-        // stays flush right when the actions are hidden
-        position: "absolute",
-        top: 2,
-        right: 4,
-        visibility: isLinking || isSolo ? "visible" : "hidden",
+        // own line under the row content, flush bottom right: always
+        // visible, never over the label or the quantity column
+        flexBasis: "100%",
         display: "flex",
         alignItems: "center",
-        bgcolor: "background.paper",
-        borderRadius: 1,
-        boxShadow: 1,
+        justifyContent: "flex-end",
+        mr: -0.5,
+        mb: -0.5,
       }}
     >
-      <IconButton
-        size="small"
-        onClick={handleSoloClick}
-        title={
-          isSolo
-            ? "Tout afficher"
-            : `Afficher uniquement « ${businessObject.label} »`
-        }
-        color={isSolo ? "primary" : "default"}
-      >
-        {isSolo ? (
-          <FilterAlt sx={{ fontSize: 16 }} />
-        ) : (
-          <FilterAltOutlined sx={{ fontSize: 16 }} />
-        )}
-      </IconButton>
-      {documentRels?.length > 0 && (
-        <IconButton
-          size="small"
-          onClick={handleDocumentsClick}
-          title={
-            documentRels.every(isWholeResourceRel)
-              ? documentRels.length === 1
-                ? "Voir le document lié"
-                : `Voir les ${documentRels.length} documents liés`
-              : documentRels.length === 1
-                ? "Voir le passage lié dans le document"
-                : `Voir les ${documentRels.length} passages liés dans les documents`
-          }
-        >
-          <DescriptionOutlined sx={{ fontSize: 16 }} />
-        </IconButton>
+      {showSolo && (
+        <Tooltip title={soloS}>
+          <IconButton
+            size="small"
+            onClick={handleSoloClick}
+            color={isSolo ? "primary" : "default"}
+          >
+            {isSolo ? (
+              <FilterAlt sx={{ fontSize: 16 }} />
+            ) : (
+              <FilterAltOutlined sx={{ fontSize: 16 }} />
+            )}
+          </IconButton>
+        </Tooltip>
+      )}
+      {showDocuments && (
+        <Tooltip title={documentsS}>
+          <IconButton size="small" onClick={handleDocumentsClick}>
+            <DescriptionOutlined sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {!readOnly && (
-        <IconButton
-          size="small"
-          onClick={handleLinkingClick}
-          title={
-            isLinking
-              ? "Quitter le mode liaison"
-              : "Lier des annotations au clic sur la carte"
-          }
-          color={isLinking ? "primary" : "default"}
-        >
-          <AddLink sx={{ fontSize: 16 }} />
-        </IconButton>
+        <Tooltip title={linkingS}>
+          <IconButton
+            size="small"
+            onClick={handleLinkingClick}
+            color={isLinking ? "primary" : "default"}
+          >
+            <AddLink sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
       )}
       {!readOnly && (
-        <IconButton size="small" onClick={handleMenuClick}>
-          <MoreHoriz sx={{ fontSize: 16 }} />
-        </IconButton>
+        <Tooltip title={menuS}>
+          <IconButton size="small" onClick={handleMenuClick}>
+            <MoreHoriz sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
       )}
     </Box>
-  );
+  ) : null;
 
   return (
     <>
@@ -443,6 +451,7 @@ export default function BusinessObjectTreeItem({
         {...attributes}
         {...listeners}
         component="div"
+        divider
         selected={isSelected || (!readOnly && isActive)}
         onClick={handleClick}
         sx={{
@@ -451,9 +460,10 @@ export default function BusinessObjectTreeItem({
           pl: showCodes ? 1.5 : 2 + depth * 2,
           pr: 1.5,
           alignItems: "flex-start",
+          // the actions line (100% wide) wraps under the row content
+          flexWrap: "wrap",
           bgcolor: rowBgcolor,
           ...sortableStyle,
-          "&:hover .business-object-actions": { visibility: "visible" },
           "&:hover .row-drag-handle": { opacity: 1 },
         }}
       >
