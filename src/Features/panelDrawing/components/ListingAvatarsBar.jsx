@@ -25,9 +25,9 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // mode switch).
 // Click = select the listing (unhides it, the other listings are untouched),
 // double click = select the listing and hide all the others.
-// Hover = two indicators above the avatar: a visibility toggle (left) and
-// the annotations count (right, "+99" above 99), plus a bottom tooltip with
-// the listing name.
+// The annotations count stays visible above the avatar (top right, "+99"
+// above 99, nothing when 0). Hover = a visibility toggle (top left) plus a
+// bottom tooltip with the listing name.
 // ---------------------------------------------------------------------------
 
 const MAX_BADGE_COUNT = 99;
@@ -240,35 +240,36 @@ export default function ListingAvatarsBar({
                   )}
                 </Box>
 
-                {/* Hover indicator (top right): annotations count */}
-                <Box
-                  className="listingAvatarIndicator"
-                  sx={{
-                    position: "absolute",
-                    top: -INDICATOR_SIZE / 2,
-                    right: -INDICATOR_SIZE / 2,
-                    height: INDICATOR_SIZE + 2,
-                    minWidth: INDICATOR_SIZE + 2,
-                    px: 0.5,
-                    boxSizing: "border-box",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: 999,
-                    border: "1.5px solid",
-                    borderColor: "background.paper",
-                    bgcolor: hidden ? "panel.iconMuted" : "secondary.main",
-                    color: "secondary.contrastText",
-                    fontSize: "0.6rem",
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    zIndex: 1,
-                    // Display only: clicks go through to the avatar.
-                    pointerEvents: "none",
-                  }}
-                >
-                  {getBadgeContent(count)}
-                </Box>
+                {/* Permanent indicator (top right): annotations count */}
+                {count > 0 && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: -INDICATOR_SIZE / 2,
+                      right: -INDICATOR_SIZE / 2,
+                      height: INDICATOR_SIZE + 2,
+                      minWidth: INDICATOR_SIZE + 2,
+                      px: 0.5,
+                      boxSizing: "border-box",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 999,
+                      border: "1.5px solid",
+                      borderColor: "background.paper",
+                      bgcolor: hidden ? "panel.iconMuted" : "secondary.main",
+                      color: "secondary.contrastText",
+                      fontSize: "0.6rem",
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      zIndex: 1,
+                      // Display only: clicks go through to the avatar.
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {getBadgeContent(count)}
+                  </Box>
+                )}
               </Box>
             );
           })}
