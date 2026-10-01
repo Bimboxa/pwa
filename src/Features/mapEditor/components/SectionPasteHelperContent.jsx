@@ -5,7 +5,6 @@ import { alpha } from "@mui/material/styles";
 import { keyframes } from "@emotion/react";
 
 import { setPasteDetectionMode } from "Features/mapEditor/mapEditorSlice";
-import { isPasteAdjustEligible } from "Features/smartDetect/utils/adjustPasteCandidate";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 // ---------------------------------------------------------------------------
@@ -57,8 +56,6 @@ export default function SectionPasteHelperContent() {
   const copiedCount = pasteClipboard?.items?.length ?? 0;
   // Pattern detection is single-template only.
   const isSingle = copiedCount === 1;
-  // "Ajuster" (J) only applies to POLYGON / 2-pt POLYLINE / 2-pt STRIP.
-  const isAdjustEligible = isPasteAdjustEligible(pasteClipboard);
 
   // render
 
@@ -86,7 +83,7 @@ export default function SectionPasteHelperContent() {
 
           <Box sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" sx={{ flex: 1 }}>
-              Détection au survol
+              Détection auto au survol
             </Typography>
             <Switch
               size="small"
@@ -97,24 +94,6 @@ export default function SectionPasteHelperContent() {
             />
             <ShortcutBadge>S</ShortcutBadge>
           </Box>
-
-          {isAdjustEligible && (
-            <Box
-              sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                Ajuster
-              </Typography>
-              <Switch
-                size="small"
-                checked={pasteDetectionMode === "ADJUST"}
-                onChange={(_e, checked) =>
-                  dispatch(setPasteDetectionMode(checked ? "ADJUST" : null))
-                }
-              />
-              <ShortcutBadge>J</ShortcutBadge>
-            </Box>
-          )}
 
           {pasteDetectionMode && (
             <Box

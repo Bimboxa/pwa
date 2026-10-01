@@ -295,7 +295,7 @@ const mapEditorInitialState = {
   //     stripOrientation — STRIP only
   pasteClipboard: null,
   pasteTransform: { rotationDeg: 0, flipX: false },
-  // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER" | "ADJUST"
+  // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER"
   pasteDetectionMode: null,
 
   // Chat « Réparation »: rectangle { x, y, width, height } in base-map
@@ -855,7 +855,9 @@ export const mapEditorSlice = createSlice({
       state.pasteDetectionMode = null;
     },
     setPasteDetectionMode: (state, action) => {
-      state.pasteDetectionMode = action.payload;
+      // Normalize the former adjust mode to the unified local detector.
+      state.pasteDetectionMode =
+        action.payload === "ADJUST" ? "HOVER" : action.payload;
     },
 
     // chat « Réparation » zone

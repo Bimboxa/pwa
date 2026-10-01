@@ -138,6 +138,7 @@ import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnot
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
+import detectWallHoverCandidate from 'Features/smartDetect/utils/detectWallHoverCandidate';
 import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
 import repairOrthoJunctions, { buildJunctionNeighbors } from 'Features/smartDetect/utils/repairOrthoJunctions';
 import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
@@ -519,6 +520,7 @@ const InteractionLayer = forwardRef(({
   const repairSelectionRef = useRef(null); // { rect, concerned } — kept for recompute
   const repairProposalRef = useRef(null); // { plan } — committed on Space
   const pasteDetectImageDataRef = useRef(null); // full source-image ImageData
+  const pasteDetectSourceImageRef = useRef(null);
   const patternPatchRef = useRef(null); // { clipboard, patch } cache
   // Uint8 mask (source-image px) of visible annotations — rebuilt after each
   // commit so committed copies progressively screen further detection.
@@ -1537,7 +1539,7 @@ const InteractionLayer = forwardRef(({
       patternPatchRef.current = null;
       return;
     }
-    if (pasteDetectImageDataRef.current) return;
+    if (pasteDetectImageDataRef.current && pasteDetectSourceImageRef.current === sourceImageEl) return;
     let cancelled = false;
     const build = () => {
       if (cancelled) return;
@@ -1552,6 +1554,7 @@ const InteractionLayer = forwardRef(({
         ctx.drawImage(sourceImageEl, 0, 0);
         if (cancelled) return;
         pasteDetectImageDataRef.current = ctx.getImageData(0, 0, w, h);
+        pasteDetectSourceImageRef.current = sourceImageEl;
       } catch (err) {
         console.error("[patternDetection] failed to build ImageData:", err);
       }
@@ -2601,22 +2604,24 @@ const InteractionLayer = forwardRef(({
     const sImg = sourceImageElRef.current;
     if (!clipboard || !sImg) return null;
     const cached = patternPatchRef.current;
-    if (cached && cached.clipboard === clipboard) return cached.patch;
+    if (cached && cached.clipboard === clipboard && cached.image === sImg &&
+      cached.scale === baseMapImageScaleRef.current && cached.offset === baseMapImageOffsetRef.current) return cached.patch;
     const patch = extractAnnotationImagePatch({
       clipboard,
       sourceImageEl: sImg,
       imageScale: baseMapImageScaleRef.current || 1,
       imageOffset: baseMapImageOffsetRef.current || { x: 0, y: 0 },
     });
-    patternPatchRef.current = { clipboard, patch };
+    patternPatchRef.current = { clipboard, patch, image: sImg,
+      scale: baseMapImageScaleRef.current, offset: baseMapImageOffsetRef.current };
     return patch;
   }, []);
 
   // Full source-image ImageData — built lazily & cached so the very first
   // GLOBAL scan (synchronous keypress) doesn't race the warm-up effect.
   const ensureFullImageData = useCallback(() => {
-    if (pasteDetectImageDataRef.current) return pasteDetectImageDataRef.current;
     const sImg = sourceImageElRef.current;
+    if (pasteDetectImageDataRef.current && pasteDetectSourceImageRef.current === sImg) return pasteDetectImageDataRef.current;
     if (!sImg) return null;
     try {
       const w = sImg.naturalWidth || sImg.width;
@@ -2628,6 +2633,7 @@ const InteractionLayer = forwardRef(({
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(sImg, 0, 0);
       pasteDetectImageDataRef.current = ctx.getImageData(0, 0, w, h);
+      pasteDetectSourceImageRef.current = sImg;
       return pasteDetectImageDataRef.current;
     } catch (err) {
       console.error("[patternDetection] failed to build ImageData:", err);
@@ -2661,7 +2667,6 @@ const InteractionLayer = forwardRef(({
         baseMapImageOffsetRef.current || { x: 0, y: 0 },
         meterByPxRef.current ?? 0,
         {
-          sourceAnnotationId: clipboard.items?.[0]?.annotation?.id ?? null,
           pointRadiusImgPx,
         },
       );
@@ -2696,71 +2701,130 @@ const InteractionLayer = forwardRef(({
     ensureExclusionMask,
   ]);
 
-  const runPatternDetect = useCallback(async ({ mode, cursorImgPx }) => {
-    const clipboard = pasteClipboardRef.current;
-    if (!clipboard) return;
-    const fullImageData = ensureFullImageData();
-    if (!fullImageData) return;
-    const patch = computePatternPatch();
-    if (!patch?.patternData) return;
+  const lastPasteLocalPosRef = useRef(null);
+  const patternRequestRef = useRef(0);
+  const pasteDetectionCommitPendingRef = useRef(false);
 
-    // Search for the motif at the orientation/mirroring the user picked
-    // (R / I) — cv.matchTemplate is rigid, so transform the template.
-    const patternData = transformImageData(
-      patch.patternData,
-      pasteTransformRef.current,
-    );
+  const runPatternDetect = useCallback(
+    async ({ mode, cursorImgPx }) => {
+      const clipboard = pasteClipboardRef.current;
+      if (
+        !clipboard ||
+        pasteDetectionModeRef.current !== mode ||
+        pasteDetectionCommitPendingRef.current
+      )
+        return;
+      const requestId = ++patternRequestRef.current;
+      const transform = pasteTransformRef.current;
+      const sourceImage = sourceImageElRef.current;
+      const fullImageData = ensureFullImageData();
+      if (!fullImageData) return;
+      const imageScale = baseMapImageScaleRef.current || 1;
+      const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+      const exclusionMask = ensureExclusionMask();
+      let result = null;
+      let wallReferenceSupported = false;
 
-    let win = null;
-    if (mode === "HOVER") {
-      if (!cursorImgPx) return;
-      const side =
-        (2 * Math.max(patternData.width, patternData.height)) /
-        (smartZoomRef.current || 1);
-      win = {
-        x: cursorImgPx.x - side / 2,
-        y: cursorImgPx.y - side / 2,
-        width: side,
-        height: side,
-      };
-    }
+      try {
+        if (mode === "HOVER") {
+          if (!cursorImgPx) return;
+          // Learn the actual wall footprint before extracting a rigid patch:
+          // an axis-aligned two-point annotation has a zero-area point bbox.
+          result = detectWallHoverCandidate({
+            clipboard,
+            imageData: fullImageData,
+            cursorImgPx,
+            exclusionMask,
+            imageScale,
+            imageOffset,
+            meterByPx: meterByPxRef.current ?? 0,
+            smartZoom: smartZoomRef.current || 1,
+            pasteTransform: transform,
+            baseMapId: calibrationBaseMapRef.current?.id,
+          });
+          wallReferenceSupported = result !== null;
+        }
 
-    let result;
-    try {
-      result = await runPatternDetection({
-        patternData,
-        fullImageData,
-        window: win,
-        clipboard,
-        pasteTransform: pasteTransformRef.current,
-        imageScale: baseMapImageScaleRef.current || 1,
-        imageOffset: baseMapImageOffsetRef.current || { x: 0, y: 0 },
-        sourceImgBox: patch.bboxImgPx,
-        exclusionMask: ensureExclusionMask(),
-        maskWidth: fullImageData.width,
-        maskHeight: fullImageData.height,
-      });
-    } catch (err) {
-      console.warn("[patternDetection] failed", err);
-      return;
-    }
+        if (result === null) {
+          const patch = computePatternPatch();
+          if (patch?.patternData) {
+            const patternData = transformImageData(
+              patch.patternData,
+              transform,
+            );
+            const side =
+              (2 * Math.max(patternData.width, patternData.height)) /
+              (smartZoomRef.current || 1);
+            result = await runPatternDetection({
+              patternData,
+              fullImageData,
+              window:
+                mode === "HOVER"
+                  ? {
+                      x: cursorImgPx.x - side / 2,
+                      y: cursorImgPx.y - side / 2,
+                      width: side,
+                      height: side,
+                    }
+                  : null,
+              clipboard,
+              pasteTransform: transform,
+              imageScale,
+              imageOffset,
+              sourceImgBox: patch.bboxImgPx,
+              exclusionMask,
+              maskWidth: fullImageData.width,
+              maskHeight: fullImageData.height,
+            });
+          }
+        }
+        if (
+          mode === "HOVER" &&
+          !wallReferenceSupported &&
+          !result?.matches?.length &&
+          isPasteAdjustEligible(clipboard)
+        ) {
+          const match = adjustPasteCandidate({
+            clipboard,
+            pasteTransform: transform,
+            cursorRef: {
+              x: cursorImgPx.x * imageScale + imageOffset.x,
+              y: cursorImgPx.y * imageScale + imageOffset.y,
+            },
+            imageData: fullImageData,
+            exclusionMask,
+            imageScale,
+            imageOffset,
+            meterByPx: meterByPxRef.current ?? 0,
+            smartZoom: smartZoomRef.current || 1,
+            sourceBboxImgPx: computePatternPatch()?.bboxImgPx ?? null,
+          });
+          if (match) result = { matches: [match] };
+        }
+      } catch (err) {
+        console.warn("[patternDetection] failed", err);
+      }
 
-    // Stale guard: clipboard cleared or sub-mode changed while awaiting.
-    if (
-      pasteClipboardRef.current !== clipboard ||
-      pasteDetectionModeRef.current !== mode
-    ) {
-      return;
-    }
-
-    const matches = result?.matches || [];
-    detectedPatternMatchesRef.current = matches.length
-      ? { matches, clipboard }
-      : null;
-    transientDetectedPatternRef.current?.updateMatches(matches);
-    syncSmartDetectionPresent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [computePatternPatch, ensureFullImageData, ensureExclusionMask]);
+      // An older asynchronous patch match must never replace a newer hover,
+      // a rotated candidate, or a detection already validated with Space.
+      if (
+        patternRequestRef.current !== requestId ||
+        pasteClipboardRef.current !== clipboard ||
+        pasteTransformRef.current !== transform ||
+        sourceImageElRef.current !== sourceImage ||
+        pasteDetectionModeRef.current !== mode
+      )
+        return;
+      const matches = result?.matches || [];
+      detectedPatternMatchesRef.current = matches.length
+        ? { matches, clipboard }
+        : null;
+      transientDetectedPatternRef.current?.updateMatches(matches);
+      syncSmartDetectionPresent();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [computePatternPatch, ensureFullImageData, ensureExclusionMask],
+  );
 
   const runPatternDetectHover = useMemo(
     () =>
@@ -2771,68 +2835,13 @@ const InteractionLayer = forwardRef(({
   );
 
   const clearPatternDetection = useCallback(() => {
+    patternRequestRef.current++;
     detectedPatternMatchesRef.current = null;
     patternPatchRef.current = null;
     transientDetectedPatternRef.current?.clear();
     syncSmartDetectionPresent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Last cursor position (REFERENCE space) while a paste is active — lets the
-  // ADJUST mode recompute on J activation / R / I without waiting for a
-  // mousemove.
-  const lastPasteLocalPosRef = useRef(null);
-
-  // ADJUST (J) paste sub-mode: place the copy at the cursor and locally
-  // optimize its position to maximize dark pixels under the shape (polygon
-  // surface / segment band). Synchronous, single candidate — stored in the
-  // same detectedPatternMatchesRef so the Space handler works unchanged.
-  const runAdjustDetect = useCallback((localPos) => {
-    const clipboard = pasteClipboardRef.current;
-    if (
-      !clipboard ||
-      !isPasteAdjustEligible(clipboard) ||
-      pasteDetectionModeRef.current !== "ADJUST" ||
-      !localPos
-    ) {
-      return;
-    }
-    const imageData = ensureFullImageData();
-    if (!imageData) return;
-
-    let match = null;
-    try {
-      match = adjustPasteCandidate({
-        clipboard,
-        pasteTransform: pasteTransformRef.current,
-        cursorRef: localPos,
-        imageData,
-        exclusionMask: ensureExclusionMask(),
-        imageScale: baseMapImageScaleRef.current || 1,
-        imageOffset: baseMapImageOffsetRef.current || { x: 0, y: 0 },
-        meterByPx: meterByPxRef.current ?? 0,
-        smartZoom: smartZoomRef.current || 1,
-        sourceBboxImgPx: computePatternPatch()?.bboxImgPx ?? null,
-      });
-    } catch (err) {
-      console.warn("[pasteAdjust] failed", err);
-    }
-
-    detectedPatternMatchesRef.current = match
-      ? { matches: [match], clipboard }
-      : null;
-    transientDetectedPatternRef.current?.updateMatches(match ? [match] : []);
-    syncSmartDetectionPresent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [computePatternPatch, ensureFullImageData, ensureExclusionMask]);
-
-  const runAdjustDetectThrottled = useMemo(
-    () =>
-      throttle((localPos) => {
-        runAdjustDetect(localPos);
-      }, 250),
-    [runAdjustDetect],
-  );
 
   useEffect(() => {
     sourceImageElRef.current = sourceImageEl;
@@ -2841,26 +2850,23 @@ const InteractionLayer = forwardRef(({
     calibrationBaseMapRef.current = calibrationBaseMap;
   }, [calibrationBaseMap]);
 
-  // Single source of truth for triggering pattern detection: reacts to the
-  // sub-mode (keyboard A/S/J or panel switches) and to rotate/flip
-  // (pasteTransform). GLOBAL scans once; ADJUST recomputes at the last known
-  // cursor position; HOVER is cleared here and repopulated on mouse move;
-  // null/no-clipboard clears.
+  // Panel and keyboard share one local mode, recomputed on rotation/flip.
   useEffect(() => {
-    if (
-      pasteClipboard?.items?.length === 1 &&
-      pasteDetectionMode === "GLOBAL"
-    ) {
+    clearPatternDetection();
+    if (pasteClipboard?.items?.length !== 1) return;
+    if (pasteDetectionMode === "GLOBAL") {
       runPatternDetect({ mode: "GLOBAL" });
-    } else if (
-      pasteClipboard?.items?.length === 1 &&
-      pasteDetectionMode === "ADJUST"
-    ) {
-      clearPatternDetection();
-      if (lastPasteLocalPosRef.current)
-        runAdjustDetect(lastPasteLocalPosRef.current);
-    } else {
-      clearPatternDetection();
+    } else if (pasteDetectionMode === "HOVER" && lastPasteLocalPosRef.current) {
+      const scale = baseMapImageScaleRef.current || 1;
+      const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+      const p = lastPasteLocalPosRef.current;
+      runPatternDetect({
+        mode: "HOVER",
+        cursorImgPx: {
+          x: (p.x - offset.x) / scale,
+          y: (p.y - offset.y) / scale,
+        },
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pasteClipboard, pasteDetectionMode, pasteTransform]);
@@ -3800,8 +3806,7 @@ const InteractionLayer = forwardRef(({
           );
           return;
         }
-        // J — "Ajuster": snap the copy to the dark pixels around the cursor.
-        // Only for shapes with a well-defined dark-coverage score.
+        // Keep J as an alias for the unified hover option.
         if (
           (e.key === "j" || e.key === "J") &&
           isPasteAdjustEligible(pasteClipboardRef.current)
@@ -3809,7 +3814,7 @@ const InteractionLayer = forwardRef(({
           e.preventDefault();
           dispatch(
             setPasteDetectionMode(
-              pasteDetectionModeRef.current === "ADJUST" ? null : "ADJUST",
+              pasteDetectionModeRef.current === "HOVER" ? null : "HOVER",
             ),
           );
           return;
@@ -4213,6 +4218,8 @@ const InteractionLayer = forwardRef(({
           // --- Copy/paste pattern detection: bulk-create at all matches ---
           if (detectedPatternMatchesRef.current?.matches?.length) {
             e.preventDefault();
+            patternRequestRef.current++;
+            pasteDetectionCommitPendingRef.current = true;
             const { matches, clipboard } = detectedPatternMatchesRef.current;
             createAnnotationsFromDetectedMatchesRef
               .current?.({
@@ -4230,6 +4237,10 @@ const InteractionLayer = forwardRef(({
                     severity: "error",
                   }),
                 );
+              })
+              .finally(() => {
+                pasteDetectionCommitPendingRef.current = false;
+                patternExclusionMaskRef.current = null;
               });
             detectedPatternMatchesRef.current = null;
             transientDetectedPatternRef.current?.clear();
@@ -6413,6 +6424,10 @@ const InteractionLayer = forwardRef(({
       lastPasteLocalPosRef.current = localPos;
       pastePreviewLayerRef.current?.updatePreview(localPos);
 
+      // Invalidate an asynchronous result as soon as the cursor moves, even
+      // if the next scan is still waiting for the throttle.
+      if (pasteDetectionModeRef.current === "HOVER") patternRequestRef.current++;
+
       // HOVER pattern detection: scan a window around the cursor.
       if (
         pasteDetectionModeRef.current === "HOVER" &&
@@ -6424,12 +6439,6 @@ const InteractionLayer = forwardRef(({
           x: (localPos.x - offset.x) / scale,
           y: (localPos.y - offset.y) / scale,
         });
-      } else if (
-        pasteDetectionModeRef.current === "ADJUST" &&
-        pasteDetectImageDataRef.current
-      ) {
-        // ADJUST: re-optimize the candidate around the cursor.
-        runAdjustDetectThrottled(localPos);
       }
     }
 
