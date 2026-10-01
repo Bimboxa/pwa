@@ -8,7 +8,6 @@ import { setSelectedProjectKeyInDashboard } from "Features/dashboard/dashboardSl
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import {
   triggerBusinessObjectsUpdate,
@@ -25,20 +24,20 @@ import useCreateProjectWithDefaultListings from "Features/projects/hooks/useCrea
 import useCreateBaseMaps from "Features/baseMapCreator/hooks/useCreateBaseMaps";
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 
-import ensurePdfPageResources from "Features/resources/services/ensurePdfPageResourcesService";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
-import importAnnotationsInlineJsonService from "Features/importAnnotations/services/importAnnotationsInlineJsonService";
-import resolveImportTemplatesService from "Features/importAnnotations/services/resolveImportTemplatesService";
 import fetchIgnStaticImage from "Features/satelliteMap/services/fetchIgnStaticImage";
 import createResourcesFromFilesService from "Features/resources/services/createResourcesFromFilesService";
+import createPdfBaseMapsFromPromptIaService from "../services/createPdfBaseMapsFromPromptIaService";
 import createScopeBusinessObjectsFromPromptIaService from "../services/createScopeBusinessObjectsFromPromptIaService";
+import {
+  createPromptIaListingTemplatesService,
+  importPromptIaListingAnnotationsService,
+} from "../services/importPromptIaListingService";
 
-import renderTempBaseMapImage from "Features/baseMapCreator/utils/renderTempBaseMapImage";
 import resolveConfigurationScopeConfig from "Features/scopeCreator/utils/resolveConfigurationScopeConfig";
 import EMPTY_SCOPE_CONFIGURATION from "Features/scopeCreator/data/emptyScopeConfiguration";
 import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
-import parseImportAnnotationsJson from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 import {
   convertPayloadToImageSpace,
   userToImage,
@@ -168,7 +167,6 @@ export default function useCreateProjectFromPromptIa() {
     tick,
     errors,
   }) {
-    const created = new Map();
     const listingByKind = await getBaseMapListingsByKind(project.id);
     const { listings } = listingByKind;
 
@@ -178,136 +176,17 @@ export default function useCreateProjectFromPromptIa() {
       trigram: userProfile?.trigram ?? debugAuth?.trigram ?? null,
     };
 
-    const prepared = [];
-    for (const [path, baseMaps] of groupBy(
-      data.baseMaps,
-      (b) => b.source.file
-    )) {
-      const pdfFile = pdfFilesByPath.get(path);
-      let pdfDocument = null;
-      try {
-        pdfDocument = await getDocument({
-          data: await pdfFile.arrayBuffer(),
-          ...PDFJS_DOC_PARAMS,
-        }).promise;
-      } catch (e) {
-        errors.push(`PDF « ${path} » illisible : ${errorMessage(e)}`);
-        baseMaps.forEach((b) => tick(`Fond de plan « ${b.name} » ignoré`));
-        continue;
-      }
-
-      try {
-        const rendered = [];
-        for (const baseMap of baseMaps) {
-          tick(`Fond de plan « ${baseMap.name} »`);
-          const { pageNumber, bboxInRatio } = baseMap.source;
-          try {
-            if (pageNumber > pdfDocument.numPages)
-              throw new Error(
-                `page ${pageNumber} absente (${pdfDocument.numPages} page(s))`
-              );
-            const pdfPage = await pdfDocument.getPage(pageNumber);
-            // absolute rotation: the page's own /Rotate unless overridden
-            const rotate = baseMap.source.rotation ?? pdfPage.rotate ?? 0;
-            const { imageFile, meterByPx, dpi } = await renderTempBaseMapImage({
-              pdfFile,
-              pdfDocument,
-              page: pageNumber,
-              bboxInRatio,
-              rotate,
-              blueprintScale: baseMap.blueprintScale,
-              resolution: null, // AUTO
-            });
-            rendered.push({
-              baseMap,
-              imageFile,
-              meterByPx,
-              dpi,
-              rotate,
-              page: { view: pdfPage.view.map(Number) },
-            });
-          } catch (e) {
-            errors.push(
-              `Fond de plan « ${baseMap.name} » non créé : ${errorMessage(e)}`
-            );
-          }
-        }
-
-        const failures = [];
-        const pageResources = await ensurePdfPageResources({
-          pdfFile,
-          pdfDocument,
-          pageNumbers: rendered.map((r) => r.baseMap.source.pageNumber),
-          projectId: project.id,
-          createdBy,
-          failures,
-        });
-        if (failures.length > 0)
-          errors.push(
-            `PDF « ${path} » non conservé : la régénération depuis le PDF ne sera pas disponible.`
-          );
-
-        for (const item of rendered) {
-          const { pageNumber, bboxInRatio } = item.baseMap.source;
-          const resource = pageResources.get(pageNumber) ?? null;
-          prepared.push({
-            ...item,
-            createdFrom: {
-              type: "PDF_PAGE",
-              pdfFileName: resource?.name ?? pdfFile.name ?? null,
-              resourceId: resource?.id ?? null,
-              pageNumber: resource
-                ? (resource.pageInResource ?? 1)
-                : pageNumber,
-              sourcePageNumber: pageNumber,
-              rotation: item.rotate,
-              bboxInRatio: bboxInRatio ?? null,
-              dpi: item.dpi ?? null,
-              blueprintScale: item.baseMap.blueprintScale || null,
-            },
-          });
-        }
-      } finally {
-        pdfDocument.destroy();
-      }
-    }
-
-    // One call per base map, in the order of the json: a record always maps
-    // to its payload entry, even when a neighbour fails.
-    for (const item of prepared) {
-      const listing =
-        listingByKind[item.baseMap.listing] ??
-        listingByKind.PLAN ??
-        listings[0];
-      if (!listing) {
-        errors.push("Aucune liste de fonds de plan dans le projet.");
-        break;
-      }
-      const [record] = await createBaseMaps(
-        [
-          {
-            name: item.baseMap.name,
-            imageFile: item.imageFile,
-            meterByPx: item.meterByPx,
-            createdFrom: item.createdFrom,
-          },
-        ],
-        { listing }
-      );
-      if (!record) {
-        errors.push(`Fond de plan « ${item.baseMap.name} » non créé.`);
-        continue;
-      }
-      created.set(item.baseMap.id, {
-        record,
-        frame: {
-          rotation: item.rotate,
-          bboxInRatio: item.baseMap.source.bboxInRatio,
-        },
-        page: item.page,
-      });
-    }
-    return created;
+    return createPdfBaseMapsFromPromptIaService({
+      baseMaps: data.baseMaps,
+      pdfFilesByPath,
+      projectId: project.id,
+      createBaseMaps,
+      createdBy,
+      getListing: (baseMap) =>
+        listingByKind[baseMap.listing] ?? listingByKind.PLAN ?? listings[0],
+      tick,
+      errors,
+    });
   }
 
   // helpers - placements
@@ -549,31 +428,15 @@ export default function useCreateProjectFromPromptIa() {
   // helpers - scopes
 
   async function createListingTemplates({ listing, projectId }) {
-    if (!listing.annotationTemplates.length) return 0;
-    // Same validation as the import, on a templates-only payload.
-    const parsed = parseImportAnnotationsJson(
-      JSON.stringify({
-        version: "1.0",
-        image: { width: 1, height: 1 },
-        annotationTemplates: listing.annotationTemplates,
-        annotations: [],
-      })
-    );
-    if (!parsed.ok) throw new Error(parsed.error ?? "Modèles invalides.");
-    const { templateRecords } = await resolveImportTemplatesService({
-      templates: parsed.data.annotationTemplates,
+    const ids = await createPromptIaListingTemplatesService({
+      listing,
       projectId,
-      listingId: listing.id,
-      preserveIds: true,
+      dispatch,
     });
-    if (templateRecords.length) {
-      await db.annotationTemplates.bulkAdd(templateRecords);
-      dispatch(triggerAnnotationTemplatesUpdate());
-    }
-    return templateRecords.length;
+    return ids.length;
   }
 
-  async function importListingAnnotations({
+  function importListingAnnotations({
     listing,
     annotations,
     target,
@@ -581,51 +444,20 @@ export default function useCreateProjectFromPromptIa() {
     projectId,
     placedAnnotationById,
   }) {
-    const annotationIdMapOut = new Map();
     const { record, frame, page } = target;
-    const imageSize = getRecordImageSize(record);
-    let payload = {
-      version: "1.0",
-      image: { width: imageSize.width, height: imageSize.height },
-      annotationTemplates: listing.annotationTemplates,
-      annotations: annotations.map(({ baseMapId, ...annotation }) => {
-        void baseMapId;
-        return annotation;
-      }),
-    };
-    let dropped = 0;
-    if (coordinateSpace === "pdf_user_space") {
-      const converted = convertPayloadToImageSpace(payload, frame, page);
-      payload = converted.data;
-      dropped = converted.dropped.length;
-    }
-    if (!payload.annotations.length) return { placed: 0, dropped };
-
-    const parsed = parseImportAnnotationsJson(JSON.stringify(payload));
-    if (!parsed.ok) throw new Error(parsed.error ?? "JSON invalide.");
-
-    const imported = await importAnnotationsInlineJsonService({
-      data: parsed.data,
+    return importPromptIaListingAnnotationsService({
+      listing,
+      annotations,
+      record,
+      convertPayload:
+        coordinateSpace === "pdf_user_space"
+          ? (payload) => convertPayloadToImageSpace(payload, frame, page)
+          : null,
       projectId,
-      listingId: listing.id,
-      // plain record: the import only needs the image size and the scale
-      mainBaseMap: {
-        ...record,
-        getImageSize: () => imageSize,
-        getMeterByPx: () => record.meterByPx ?? null,
-      },
-      relativeToBaseMap: true,
-      // the templates were created just before, with these very ids
-      preserveIds: true,
+      placedAnnotationById,
       createdBy: userEmail ?? null,
-      annotationIdMapOut,
       dispatch,
     });
-    // parsed id → row written, for the links of the business objects
-    const rowById = new Map((imported.placed ?? []).map((a) => [a.id, a]));
-    for (const [parsedId, id] of annotationIdMapOut)
-      if (rowById.has(id)) placedAnnotationById.set(parsedId, rowById.get(id));
-    return { placed: imported.placed?.length ?? 0, dropped };
   }
 
   async function createProjectScope({

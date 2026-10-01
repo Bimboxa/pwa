@@ -270,7 +270,9 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
   return { ok: true, baseMaps, idMap };
 }
 
-function parseListing(
+// Also used by the chat Prompt IA (promptIa/utils/parsePromptIaResult), whose
+// result zip adds listings to the current scope.
+export function parseListing(
   listing,
   where,
   { baseMapIdMap, newId, annotationIdMap, warnings }
@@ -459,7 +461,7 @@ function parseBusinessObjectListing(listing, where, options) {
   return { ok: true, listing: { id: newId(), name, type, items } };
 }
 
-function parseIssues(rawIssues, where, options) {
+export function parseIssues(rawIssues, where, options) {
   if (rawIssues != null && !Array.isArray(rawIssues))
     return fail(`${where} doit être un tableau.`);
   const { businessObjectIdMap, missing, warnings } = options;

@@ -3,8 +3,6 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import db from "App/db/db";
 
-import { isChatImageFile } from "Features/chat/utils/prepareChatImage";
-import testIsPdf from "Features/pdf/utils/testIsPdf";
 import {
   describeTooLarge,
   isResourceFileTooLarge,
@@ -12,11 +10,14 @@ import {
 import useCreateResourcesFromFiles from "Features/resources/hooks/useCreateResourcesFromFiles";
 import useResources from "Features/resources/hooks/useResources";
 
+import { getPromptIaAttachmentRejection } from "../utils/promptIaAttachmentTypes";
+
 /**
  * Files attached to the Prompt IA zip. An attachment IS a project resource
  * (db.resources + db.files) flagged `isPromptIaAttachment`: it survives
  * reloads, shows up in the Resources panel and is what a detail baseMap is
- * rendered from. Detaching only clears the flag.
+ * rendered from. Detaching only clears the flag. Accepted formats:
+ * utils/promptIaAttachmentTypes (PDF, pictures, DXF, IFC, a few documents).
  *
  * `hasFile` is false after a Krto import (the row ships, the file does not):
  * such an attachment is listed but left out of the zip.
@@ -55,10 +56,9 @@ export default function usePromptIaAttachments() {
       const errors = [];
       const kept = [];
       for (const file of Array.from(files ?? [])) {
-        if (!testIsPdf(file) && !isChatImageFile(file)) {
-          errors.push(
-            `« ${file.name} » : seuls les PDF et les images sont acceptés.`
-          );
+        const rejection = getPromptIaAttachmentRejection(file);
+        if (rejection) {
+          errors.push(rejection);
         } else if (isResourceFileTooLarge(file)) {
           errors.push(describeTooLarge(file));
         } else {

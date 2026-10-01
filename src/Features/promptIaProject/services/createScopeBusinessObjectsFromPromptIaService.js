@@ -3,15 +3,17 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
+import createIssuesFromPromptIaService, {
+  ISSUES_LISTING_NAME,
+} from "Features/businessObjects/services/createIssuesFromPromptIaService";
 import findTextInPdfDocumentService from "Features/resources/services/findTextInPdfDocumentService";
 import getAnnotationsWithQtiesService from "./getAnnotationsWithQtiesService";
 
 import buildPromptIaBusinessObjectRows from "Features/businessObjects/utils/buildPromptIaBusinessObjectRows";
 import buildQtyGapIssues from "Features/businessObjects/utils/buildQtyGapIssues";
 import computeBusinessObjectQties from "Features/businessObjects/utils/computeBusinessObjectQties";
-import { BUSINESS_OBJECT_STATUS } from "Features/businessObjects/utils/getBusinessObjectStatus";
 
-export const ISSUES_LISTING_NAME = "Points d'attention";
+export { ISSUES_LISTING_NAME };
 
 const getName = ({ code, label }) => [code, label].filter(Boolean).join(" ");
 
@@ -221,19 +223,12 @@ export default async function createScopeBusinessObjectsFromPromptIaService({
 
   if (issueItems.length) {
     try {
-      const listing = await createBusinessObjectListingService({
+      const { rows } = await createIssuesFromPromptIaService({
         projectId,
         scopeId: scope.id,
-        name: ISSUES_LISTING_NAME,
-        typeKey: "ISSUE",
         appConfig,
-      });
-      const rows = buildPromptIaBusinessObjectRows({
-        listing,
         items: issueItems,
-        newId: nanoid,
-      }).map((row) => ({ ...row, status: BUSINESS_OBJECT_STATUS.OPEN }));
-      await db.businessObjects.bulkAdd(rows);
+      });
       counts.issues = rows.length;
       counts.qtyGapIssues = qtyGapIssues.length;
 

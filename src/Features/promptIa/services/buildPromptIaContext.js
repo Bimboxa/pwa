@@ -186,7 +186,7 @@ export function pickExamples(existing, max = MAX_EXAMPLES) {
  * @param {Object[]} p.annotations - useAnnotationsV2 rows (reference pixels)
  * @param {{fromTemplates:boolean, free:boolean, details:boolean, description:string}} p.mode
  * @param {Object[]} [p.attachments] - files of the zip: {id, name, file,
- *   mime, byteSize, pageCount, pages}
+ *   kind, mime, byteSize, pageCount, pages, cad}
  * @param {Object[]} [p.detailBaseMaps] - raw detail baseMap records of the
  *   project (useDetailBaseMaps), offered for reuse
  * @param {Object|null} [p.heightMap] - height map picture of a scan base map
@@ -276,10 +276,14 @@ export default function buildPromptIaContext({
       id: a.id,
       name: a.name,
       file: a.file,
+      // PDF | IMAGE | DXF | IFC | OTHER
+      kind: a.kind ?? null,
       mime: a.mime ?? null,
       byteSize: a.byteSize ?? null,
       pageCount: a.pageCount ?? null,
       pages: a.pages ?? [],
+      // digest of a DXF / IFC source (summarizeDxf / summarizeIfc)
+      ...(a.cad ? { cad: a.cad } : {}),
     })),
     detailTemplate: DETAIL_TEMPLATE,
     existingDetailBaseMaps: summarizeDetailBaseMaps(
@@ -304,7 +308,13 @@ export default function buildPromptIaContext({
         "annotationTemplates",
         "annotations",
         "baseMaps",
+        "listings",
+        "issues",
       ],
+      // file-based answer, required as soon as a base map is created
+      resultFile: "resultat.zip",
+      resultJson: "resultat.json",
+      listingCoordinateSpaces: ["world", "image"],
       singleLine: true,
     },
   };

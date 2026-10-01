@@ -8,8 +8,17 @@ import buildPromptIaContext from "./buildPromptIaContext";
 import buildPromptIaHeightMapImages from "./buildPromptIaHeightMapImages";
 import loadSourcePdf from "./loadSourcePdf";
 import readPdfPageFrame, { readPdfPageFrames } from "./readPdfPageFrame";
+import {
+  getFileExtension,
+  getPromptIaAttachmentKind,
+  isCompressibleAttachment,
+} from "../utils/promptIaAttachmentTypes";
+import summarizeDxf from "../utils/summarizeDxf";
+import summarizeIfc from "../utils/summarizeIfc";
 
 const ATTACHMENTS_DIR = "pieces-jointes";
+export const RESULT_ZIP_FILE = "resultat.zip";
+export const RESULT_JSON_FILE = "resultat.json";
 export const HEIGHT_MAP_FILE = "hauteurs.png";
 export const HEIGHT_MAP_PREVIEW_FILE = "hauteurs-apercu.png";
 
@@ -42,6 +51,27 @@ export function attachmentEntryName(name, taken) {
     candidate = `${stem}-${n}${ext}`;
   taken.add(candidate.toLowerCase());
   return candidate;
+}
+
+// Digest of a CAD / BIM attachment for contexte.json (`attachments[].cad`).
+// Never fatal: the model reads the file itself anyway.
+async function summarizeCadAttachment({ name, kind, file }) {
+  try {
+    if (kind === "DXF") return summarizeDxf(await file.arrayBuffer());
+    if (kind === "IFC" && getFileExtension(name) === "ifc")
+      return summarizeIfc(await file.text());
+  } catch (err) {
+    console.warn("[promptIa] CAD summary failed", name, err);
+  }
+  return null;
+}
+
+function describeCad(cad) {
+  if (cad?.format === "DXF")
+    return `, DXF ${cad.unit?.name ?? ""} — ${cad.layerCount} calque(s), ${cad.entityCount} entité(s)`;
+  if (cad?.format === "IFC")
+    return `, ${cad.schema ?? "IFC"} — ${cad.storeys.length} niveau(x), ${cad.elementCount} élément(s)`;
+  return "";
 }
 
 const CARNET_MODE =
@@ -80,14 +110,17 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
       (a) =>
         `- \`${a.file}\` — pièce jointe \`${a.id}\`${
           a.pageCount ? `, ${a.pageCount} page(s)` : ""
-        }`
+        }${describeCad(a.cad)}`
     ),
   ];
+  const cadSources = context.attachments.filter(
+    (a) => a.kind === "DXF" || a.kind === "IFC"
+  );
   const lines = [
     `# Détection d'annotations — ${context.plan.name ?? "fond de plan"}`,
     "",
-    "> Suis ces instructions jusqu'au bout, puis renvoie le JSON demandé dans",
-    "> la section « Forme de la réponse ».",
+    "> Suis ces instructions jusqu'au bout, puis renvoie le résultat demandé",
+    "> dans la section « Forme de la réponse ».",
     "",
     "## Demande",
     "",
@@ -117,6 +150,16 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
           "",
         ]
       : []),
+    ...(cadSources.length
+      ? [
+          `**Sources CAO / BIM** : ${cadSources
+            .map((a) => `\`${a.file}\` (${a.kind})`)
+            .join(
+              ", "
+            )}. Crée un fond de plan et une liste d'annotations par source, puis compare les sources entre elles (sections « Sources CAO / BIM », « Fonds de plan créés », « Une liste par source », « Points d'attention »). La réponse est alors le zip \`${RESULT_ZIP_FILE}\`.`,
+          "",
+        ]
+      : []),
     "**Fichiers**",
     "",
     ...files,
@@ -132,7 +175,8 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
 /**
  * Builds and downloads `prompt-ia-<plan>.zip`: INSTRUCTIONS.md, plan.png
  * (reference frame), plan.pdf when the source PDF is available locally,
- * contexte.json and the attached files under `pieces-jointes/`.
+ * contexte.json and the attached files under `pieces-jointes/` (PDF,
+ * pictures, DXF / IFC sources with their digest in contexte.json).
  *
  * `attachments` = [{ resource, file }] (file: File/Blob read from db.files).
  *
@@ -206,9 +250,12 @@ export default async function buildPromptIaZip({
         );
       }
     }
+    const kind = getPromptIaAttachmentKind(resource.name);
     attached.push({
       id: resource.id,
       name: resource.name,
+      kind,
+      cad: await summarizeCadAttachment({ name: resource.name, kind, file }),
       file: entry,
       mime: resource.fileMime || file.type || null,
       byteSize: file.size ?? resource.fileSize ?? null,
@@ -257,7 +304,11 @@ export default async function buildPromptIaZip({
       compression: "STORE",
     });
   }
-  for (const a of attached) zip.file(a.file, a.blob, { compression: "STORE" });
+  // DXF / IFC are plain text: deflated (÷ 5 to 10), unlike PDF / pictures.
+  for (const a of attached)
+    zip.file(a.file, a.blob, {
+      compression: isCompressibleAttachment(a.name) ? "DEFLATE" : "STORE",
+    });
 
   const blob = await zip.generateAsync({
     type: "blob",

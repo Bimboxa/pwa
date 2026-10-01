@@ -31,10 +31,21 @@ import StepperPromptIa from "./StepperPromptIa";
 import useApplyPromptIaOutput from "../hooks/useApplyPromptIaOutput";
 import usePromptIaAttachments from "../hooks/usePromptIaAttachments";
 import buildPromptIaZip from "../services/buildPromptIaZip";
+import {
+  getPromptIaAttachmentKind,
+  getPromptIaAttachmentRejection,
+  PROMPT_IA_ATTACH_ACCEPT,
+} from "../utils/promptIaAttachmentTypes";
 
 const PREPARE_DEBOUNCE_MS = 300;
 const DESCRIPTION_MAX_LENGTH = 4000;
-const ATTACH_ACCEPT = "application/pdf,image/png,image/jpeg,image/webp";
+
+// Project resources the zip may carry (same rule as the dropped files).
+const isAttachableResource = (resource) =>
+  getPromptIaAttachmentRejection({
+    name: resource.name,
+    type: resource.fileMime,
+  }) === null;
 
 function plural(n, one, many) {
   return `${n} ${n > 1 ? many : one}`;
@@ -42,9 +53,10 @@ function plural(n, one, many) {
 
 /**
  * « Prompt IA »: prepares a self-contained zip (instructions + plan) for an
- * external AI chat, and applies the JSON the chat gives back. No relay.
- * Three steps: context (what to detect, attachments), zip, result (the JSON
- * is previewed, then imported on confirmation).
+ * external AI chat, and applies the result the chat gives back. No relay.
+ * Three steps: context (what to detect, attachments — PDF, pictures, DXF /
+ * IFC sources), zip, result (the pasted JSON or the returned zip is
+ * previewed, then imported on confirmation).
  */
 export default function ChatPromptIaButton({ disabled }) {
   const baseMap = useMainBaseMap();
@@ -78,6 +90,7 @@ export default function ChatPromptIaButton({ disabled }) {
   const [buildError, setBuildError] = useState(null);
   const [built, setBuilt] = useState(null);
   const [pasted, setPasted] = useState("");
+  const [resultFile, setResultFile] = useState(null);
   const [preparing, setPreparing] = useState(false);
   const [prepared, setPrepared] = useState(null);
   const [dropWarning, setDropWarning] = useState(null);
@@ -90,6 +103,12 @@ export default function ChatPromptIaButton({ disabled }) {
     usePromptIaAttachments();
   const detailBaseMaps = useDetailBaseMaps();
   const hasPdfAttachment = attachments.some((a) => a.isPdf && a.hasFile);
+  // DXF / IFC sources: the model creates a base map and a listing per source
+  const hasCadAttachment = attachments.some(
+    (a) =>
+      a.hasFile &&
+      ["DXF", "IFC"].includes(getPromptIaAttachmentKind(a.resource.name))
+  );
 
   // Default the templates box to what the list offers, once known.
   useEffect(() => {
@@ -170,8 +189,35 @@ export default function ChatPromptIaButton({ disabled }) {
               ),
             ]
           : []),
+        ...(preview.newPlanBaseMaps.length > 0
+          ? [
+              plural(
+                preview.newPlanBaseMaps.length,
+                "fond de plan à créer",
+                "fonds de plan à créer"
+              ),
+            ]
+          : []),
+        ...(preview.newListings.length > 0
+          ? [
+              plural(
+                preview.newListings.length,
+                "liste à créer",
+                "listes à créer"
+              ),
+            ]
+          : []),
+        ...(preview.issues > 0
+          ? [plural(preview.issues, "point d’attention", "points d’attention")]
+          : []),
       ]
     : [];
+  const hasExtendedPreview = Boolean(
+    preview &&
+    (preview.newPlanBaseMaps.length ||
+      preview.newListings.length ||
+      preview.issues)
+  );
 
   function handleModeChange(setter) {
     return (e) => {
@@ -254,26 +300,38 @@ export default function ChatPromptIaButton({ disabled }) {
     }
   }
 
-  // The pasted / dropped JSON is only read here: nothing is written before
-  // the user confirms the preview.
-  function handleResultChange(text) {
-    setPasted(text);
+  // The pasted JSON / dropped file is only read here: nothing is written
+  // before the user confirms the preview. `source` = text, or a File (.json,
+  // .txt, or the zip the model returned).
+  function readResult(source, delay) {
     setPrepared(null);
     if (error) clearError();
     clearTimeout(timerRef.current);
     const request = ++requestRef.current;
-    if (!text.trim()) {
+    const empty = typeof source === "string" ? !source.trim() : !source;
+    if (empty) {
       setPreparing(false);
       return;
     }
     setPreparing(true);
     timerRef.current = setTimeout(async () => {
-      const outcome = await prepare(text);
+      const outcome = await prepare(source);
       // a newer input took over
       if (request !== requestRef.current) return;
       setPreparing(false);
       setPrepared(outcome.ok ? outcome.prepared : null);
-    }, PREPARE_DEBOUNCE_MS);
+    }, delay);
+  }
+
+  function handleResultChange(text) {
+    setPasted(text);
+    readResult(text, PREPARE_DEBOUNCE_MS);
+  }
+
+  function handleResultFile(file) {
+    setResultFile(file);
+    setPasted("");
+    readResult(file, 0);
   }
 
   async function handleCreate() {
@@ -282,10 +340,11 @@ export default function ChatPromptIaButton({ disabled }) {
     if (!outcome.ok) return;
     requestRef.current += 1;
     setPasted("");
+    setResultFile(null);
     setPrepared(null);
     setDropWarning(
-      outcome.result.droppedIds.length
-        ? `${plural(outcome.result.droppedIds.length, "annotation écartée", "annotations écartées")} (hors du cadre du fond).`
+      outcome.result.droppedCount
+        ? `${plural(outcome.result.droppedCount, "annotation écartée", "annotations écartées")} (hors du cadre du fond).`
         : null
     );
   }
@@ -302,8 +361,37 @@ export default function ChatPromptIaButton({ disabled }) {
         lastResult.reusedTemplateIds.length
           ? ` (${lastResult.reusedTemplateIds.length} existant${lastResult.reusedTemplateIds.length > 1 ? "s" : ""})`
           : ""
-      } dans « ${listing?.name ?? "la liste courante"} »`
+      }${
+        lastResult.createdListingIds.length
+          ? ""
+          : ` dans « ${listing?.name ?? "la liste courante"} »`
+      }`
     : null;
+  const extendedSummary = lastResult
+    ? [
+        lastResult.createdPlanBaseMapIds.length &&
+          plural(
+            lastResult.createdPlanBaseMapIds.length,
+            "fond de plan créé",
+            "fonds de plan créés"
+          ),
+        lastResult.createdListingIds.length &&
+          plural(
+            lastResult.createdListingIds.length,
+            "liste créée",
+            "listes créées"
+          ),
+        lastResult.createdIssueIds.length &&
+          `${plural(
+            lastResult.createdIssueIds.length,
+            "point d’attention",
+            "points d’attention"
+          )} dans « Points d'attention »`,
+      ]
+        .filter(Boolean)
+        .map((part) => ` ${part}.`)
+        .join("")
+    : "";
   const createdBaseMaps = lastResult?.createdBaseMapIds?.length ?? 0;
   const reusedBaseMaps = lastResult?.reusedBaseMapIds?.length ?? 0;
   const baseMapsSummary =
@@ -424,7 +512,7 @@ export default function ChatPromptIaButton({ disabled }) {
                   onChange={handleDescriptionChange}
                   placeholder={descriptionPlaceholder}
                   maxLength={DESCRIPTION_MAX_LENGTH}
-                  accept={ATTACH_ACCEPT}
+                  accept={PROMPT_IA_ATTACH_ACCEPT}
                   onFiles={handleAttachFiles}
                   extraAttachActions={[
                     {
@@ -432,7 +520,7 @@ export default function ChatPromptIaButton({ disabled }) {
                       onClick: () => setOpenResources(true),
                     },
                   ]}
-                  hint="Glissez-déposez un PDF ou une image"
+                  hint="Glissez-déposez un PDF, une image, un DXF ou un IFC"
                   loading={attaching}
                 >
                   <ListPromptIaFiles
@@ -441,10 +529,19 @@ export default function ChatPromptIaButton({ disabled }) {
                   />
                 </FieldPromptIaContext>
                 <Typography variant="caption" color="text.secondary">
-                  Joignez le PDF du carnet de détails ou tout document utile à
-                  l’IA : 50 Mo au plus par fichier. Les fichiers joints sont
-                  enregistrés dans les ressources du projet.
+                  Joignez le PDF du carnet de détails, un plan DXF, une maquette
+                  IFC ou tout document utile à l’IA : 50 Mo au plus par fichier.
+                  Les fichiers joints sont enregistrés dans les ressources du
+                  projet.
                 </Typography>
+                {hasCadAttachment && (
+                  <Typography variant="caption" color="text.secondary">
+                    Sources DXF / IFC : l’IA crée un fond de plan et une liste
+                    d’annotations par source, puis un point d’attention par
+                    écart entre les sources. Elle renvoie alors un zip, à
+                    déposer à l’étape « Résultat ».
+                  </Typography>
+                )}
                 {isScan && (
                   <Typography variant="caption" color="text.secondary">
                     Relief du scan : la carte des hauteurs sera jointe au zip
@@ -525,7 +622,8 @@ export default function ChatPromptIaButton({ disabled }) {
                 </SectionPromptIaZipDownload>
                 <Typography variant="caption" color="text.secondary">
                   Le zip contient les consignes, le plan en image, le PDF source
-                  s’il existe, les modèles de la liste et les pièces jointes.
+                  s’il existe, les modèles de la liste et les pièces jointes
+                  (PDF, DXF, IFC…).
                 </Typography>
               </>
             )}
@@ -535,6 +633,8 @@ export default function ChatPromptIaButton({ disabled }) {
                 <FieldPromptIaResultJson
                   value={pasted}
                   onChange={handleResultChange}
+                  file={resultFile}
+                  onFile={handleResultFile}
                   placeholder='{"version":"1.0","coordinateSpace":"image",…}'
                   disabled={busy || !baseMap?.id || !listingId}
                 />
@@ -549,8 +649,8 @@ export default function ChatPromptIaButton({ disabled }) {
                 {error && <Alert severity="error">{error}</Alert>}
                 {previewStale && (
                   <Alert severity="warning">
-                    Le fond de plan ou la liste a changé : collez à nouveau le
-                    résultat.
+                    Le fond de plan ou la liste a changé : collez ou déposez à
+                    nouveau le résultat.
                   </Alert>
                 )}
                 {preview && (
@@ -616,24 +716,44 @@ export default function ChatPromptIaButton({ disabled }) {
                         (hors du cadre du fond).
                       </Alert>
                     )}
+                    {preview.warnings.map((message) => (
+                      <Alert key={message} severity="warning">
+                        {message}
+                      </Alert>
+                    ))}
                     {preview.note && (
                       <Alert severity="info">
                         Note de l’IA : {preview.note}
                       </Alert>
                     )}
-                    <Typography variant="caption" color="text.secondary">
-                      Les annotations seront créées dans «{" "}
-                      {listing?.name ?? "la liste courante"} », sur le fond
-                      affiché. Les modèles déjà présents dans le projet sont
-                      réutilisés, les autres créés.
-                    </Typography>
+                    {preview.newPlanBaseMaps.length > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        Fonds de plan créés à partir des sources :{" "}
+                        {preview.newPlanBaseMaps.join(", ")}. Leur échelle et
+                        leur position viennent du repère des fichiers.
+                      </Typography>
+                    )}
+                    {preview.newListings.length > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        Listes créées dans le scope courant :{" "}
+                        {preview.newListings.join(", ")}.
+                      </Typography>
+                    )}
+                    {preview.hasLegacy && (
+                      <Typography variant="caption" color="text.secondary">
+                        Les annotations seront créées dans «{" "}
+                        {listing?.name ?? "la liste courante"} », sur le fond
+                        affiché. Les modèles déjà présents dans le projet sont
+                        réutilisés, les autres créés.
+                      </Typography>
+                    )}
                   </>
                 )}
                 {busy && (
                   <Stack direction="row" spacing={1} alignItems="center">
                     <CircularProgress size={14} />
                     <Typography variant="caption" color="text.secondary">
-                      Création des annotations…
+                      Création en cours…
                     </Typography>
                   </Stack>
                 )}
@@ -652,11 +772,17 @@ export default function ChatPromptIaButton({ disabled }) {
                     }
                   >
                     {created} créés.{baseMapsSummary}
+                    {extendedSummary}
                     {lastResult.note
                       ? ` Note de l’IA : ${lastResult.note}`
                       : ""}
                   </Alert>
                 )}
+                {(lastResult?.errors ?? []).map((message) => (
+                  <Alert key={message} severity="warning">
+                    {message}
+                  </Alert>
+                ))}
                 {dropWarning && <Alert severity="warning">{dropWarning}</Alert>}
               </>
             )}
@@ -682,7 +808,7 @@ export default function ChatPromptIaButton({ disabled }) {
                   busy ? <CircularProgress size={14} color="inherit" /> : null
                 }
               >
-                Créer les annotations
+                {hasExtendedPreview ? "Créer" : "Créer les annotations"}
               </Button>
             }
           />
@@ -690,6 +816,9 @@ export default function ChatPromptIaButton({ disabled }) {
             open={openResources}
             onClose={() => setOpenResources(false)}
             onSelect={handleSelectResource}
+            filter={isAttachableResource}
+            title="Choisir une ressource"
+            emptyLabel="Aucune ressource à joindre dans le projet."
           />
         </Box>
       )}
