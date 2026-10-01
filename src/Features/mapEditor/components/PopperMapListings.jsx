@@ -457,10 +457,9 @@ function AnnotationTemplateRow({
       selectIsBaseMapsLegendPopper(s)
   );
   const showProcedureChip = hasProcedure && !isViewerModuleRow;
-  // Read-only legend (Viewer module or shared ?mode=viewer lock): the label
-  // wraps on several lines instead of being truncated behind a tooltip.
-  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
-  const wrapLabel = isViewerModuleRow || Boolean(viewerMode);
+  // The label wraps on several lines instead of being truncated behind a
+  // tooltip (Dessin popper as well as the read-only Viewer legend).
+  const wrapLabel = true;
   const interactionMode = forceDrawMode ? "DRAW" : effectiveInteractionMode;
   // With a wrapping label, the right column must keep the quantity's width on
   // hover (eye overlaid) — otherwise the label reflows and the row jumps.
