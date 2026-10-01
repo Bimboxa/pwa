@@ -4,16 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearSelection } from "Features/selection/selectionSlice";
 import { setVisibleAreaOnly } from "Features/smartDetect/smartDetectSlice";
 
-import {
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
+import { Box, Typography, IconButton, Button } from "@mui/material";
 import { ArrowBack as Back, DeleteOutline } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -21,7 +12,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldCheck from "Features/form/components/FieldCheck";
 import SectionDuplicates from "Features/popperMapListings/components/SectionDuplicates";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useDeleteUnusedAnnotationTemplates from "Features/annotations/hooks/useDeleteUnusedAnnotationTemplates";
+import DialogDeleteUnusedAnnotationTemplates from "Features/annotations/components/DialogDeleteUnusedAnnotationTemplates";
 
 export default function PanelPropertiesPopperMapListings() {
   const dispatch = useDispatch();
@@ -30,37 +21,19 @@ export default function PanelPropertiesPopperMapListings() {
 
   const { value: scope } = useSelectedScope();
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
-  const { computeUnused, deleteUnused } = useDeleteUnusedAnnotationTemplates();
 
   // state
 
   const [openConfirm, setOpenConfirm] = useState(false);
-  const [candidates, setCandidates] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
   // helpers
 
   const scopeName = scope?.name ?? "-?-";
-  const templateCount = candidates?.templateCount ?? 0;
-  const listingCount = candidates?.listingCount ?? 0;
-  const hasUnused = templateCount > 0 || listingCount > 0;
 
   // handlers
 
-  async function handleOpenConfirm() {
-    const result = await computeUnused();
-    setCandidates(result);
+  function handleOpenConfirm() {
     setOpenConfirm(true);
-  }
-
-  async function handleConfirmDelete() {
-    setDeleting(true);
-    try {
-      await deleteUnused(candidates);
-    } finally {
-      setDeleting(false);
-      setOpenConfirm(false);
-    }
   }
 
   // render
@@ -165,30 +138,10 @@ export default function PanelPropertiesPopperMapListings() {
       </BoxFlexVStretch>
 
       {/* Confirm delete dialog */}
-      <Dialog open={openConfirm} onClose={() => setOpenConfirm(false)}>
-        <DialogTitle>Supprimer les modèles non utilisés</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            {hasUnused
-              ? `${templateCount} modèle${templateCount > 1 ? "s" : ""} et ${listingCount} liste${listingCount > 1 ? "s" : ""} non utilisés seront supprimés.`
-              : "Aucun modèle non utilisé dans ce scope."}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenConfirm(false)} variant="outlined">
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-            disabled={!hasUnused || deleting}
-            autoFocus
-          >
-            Supprimer
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogDeleteUnusedAnnotationTemplates
+        open={openConfirm}
+        onClose={() => setOpenConfirm(false)}
+      />
     </BoxFlexVStretch>
   );
 }

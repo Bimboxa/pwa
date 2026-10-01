@@ -9,11 +9,15 @@ import db from "App/db/db";
 import { OwnershipError } from "App/db/ownership";
 
 /**
- * Cleanup helper for the listings properties panel.
+ * Cleanup helper for the listings properties panel and the active-listing
+ * "..." menu.
  *
  * `computeUnused()` (non-reactive, direct DB) returns the annotationTemplates in
  * the current scope that are referenced by 0 annotation, plus the LOCATED_ENTITY
  * listings that would end up with no template once those are removed.
+ *
+ * `computeUnused({ listingId })` narrows the search to that single listing; the
+ * listing itself is always kept (no empty-listing candidate).
  *
  * `deleteUnused(candidates)` soft-deletes the templates then the now-empty
  * listings. Listings the current user cannot edit (ownership) are skipped
@@ -28,11 +32,12 @@ export default function useDeleteUnusedAnnotationTemplates() {
   });
   const deleteListing = useDeleteListing();
 
-  async function computeUnused() {
-    const listings = (scopeListings ?? []).filter(
-      (l) => !l.isFreeAnnotationsListing
-    );
-    const scopeListingIds = listings.map((l) => l.id);
+  async function computeUnused({ listingId } = {}) {
+    // single-listing mode: no listing is ever a deletion candidate
+    const listings = listingId
+      ? []
+      : (scopeListings ?? []).filter((l) => !l.isFreeAnnotationsListing);
+    const scopeListingIds = listingId ? [listingId] : listings.map((l) => l.id);
     if (scopeListingIds.length === 0) {
       return {
         unusedTemplateIds: [],

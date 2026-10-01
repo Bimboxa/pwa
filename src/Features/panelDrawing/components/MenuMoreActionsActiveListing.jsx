@@ -19,10 +19,12 @@ import Star from "@mui/icons-material/Star";
 import StarBorder from "@mui/icons-material/StarBorder";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import DeleteSweep from "@mui/icons-material/DeleteSweep";
 import LinkOff from "@mui/icons-material/LinkOff";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogRenameListing from "Features/listings/components/DialogRenameListing";
+import DialogDeleteUnusedAnnotationTemplates from "Features/annotations/components/DialogDeleteUnusedAnnotationTemplates";
 import useDeleteListing from "Features/listings/hooks/useDeleteListing";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useFavoriteListings from "Features/listings/hooks/useFavoriteListings";
@@ -35,7 +37,8 @@ import { OwnershipError } from "App/db/ownership";
 
 // ---------------------------------------------------------------------------
 // MenuMoreActionsActiveListing — "..." menu of the active-listing field:
-// rename (dialog), favorites toggle, duplicate, delete. Duplicate / delete
+// rename (dialog), favorites toggle, duplicate, delete unused templates (of
+// this listing only, the listing is kept), delete. Duplicate / delete
 // mirror IconButtonMoreActionsListing. With `showModeSwitch`, a
 // "Sélecteur / Avatars" switch at the top picks how the popper shows the
 // listings (LISTE ACTIVE field vs avatars band).
@@ -57,6 +60,7 @@ export default function MenuMoreActionsActiveListing({
   const addFavoriteS = "Ajouter aux favoris";
   const removeFavoriteS = "Retirer des favoris";
   const duplicateS = "Dupliquer";
+  const deleteUnusedTemplatesS = "Supprimer les modèles non utilisés";
   const deleteS = "Supprimer la liste";
 
   // data
@@ -89,6 +93,7 @@ export default function MenuMoreActionsActiveListing({
 
   const [openRename, setOpenRename] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openDeleteUnused, setOpenDeleteUnused] = useState(false);
 
   // helpers
 
@@ -126,6 +131,12 @@ export default function MenuMoreActionsActiveListing({
     if (created?.[0]?.id) {
       dispatch(setSelectedListingId(created[0].id));
     }
+  };
+
+  const handleDeleteUnusedTemplates = () => {
+    onClose();
+    if (!guardEditRecord(listing)) return;
+    setOpenDeleteUnused(true);
   };
 
   const handleDelete = () => {
@@ -282,6 +293,19 @@ export default function MenuMoreActionsActiveListing({
             </MenuItem>,
             <Divider key="divider" />,
             <MenuItem
+              key="deleteUnusedTemplates"
+              onClick={handleDeleteUnusedTemplates}
+              disabled={!canEditRecord(listing)}
+              sx={{ gap: 1, py: 0.75 }}
+            >
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <DeleteSweep sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                {deleteUnusedTemplatesS}
+              </ListItemText>
+            </MenuItem>,
+            <MenuItem
               key="delete"
               onClick={handleDelete}
               disabled={!canEditRecord(listing)}
@@ -303,6 +327,14 @@ export default function MenuMoreActionsActiveListing({
           open={openRename}
           onClose={() => setOpenRename(false)}
           listing={listing}
+        />
+      )}
+
+      {openDeleteUnused && (
+        <DialogDeleteUnusedAnnotationTemplates
+          open={openDeleteUnused}
+          onClose={() => setOpenDeleteUnused(false)}
+          listingId={listing?.id}
         />
       )}
 
