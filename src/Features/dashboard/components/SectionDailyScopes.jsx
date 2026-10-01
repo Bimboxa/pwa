@@ -8,12 +8,25 @@ import {
   IconButton,
   CircularProgress,
   Tooltip,
+  Popover,
+  Chip,
 } from "@mui/material";
-import { EventAvailable, EventNote, Refresh } from "@mui/icons-material";
+import {
+  EventAvailable,
+  EventNote,
+  Refresh,
+  CalendarMonth,
+} from "@mui/icons-material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
+import dayjs from "dayjs";
+import "dayjs/locale/fr";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
+import getLocalDateString from "Features/dailyScopes/utils/getLocalDateString";
 
 import CardEmptySection from "./CardEmptySection";
 import ListItemDailyScope from "./ListItemDailyScope";
@@ -27,11 +40,18 @@ export default function SectionDailyScopes() {
   // data
 
   const appConfig = useAppConfig();
-  const { dailyScopes, fetchDailyScopes } = useDailyScopes();
+  const { dailyScopes, dailyScopesDate, fetchDailyScopes } = useDailyScopes();
 
   // state
 
   const [refreshing, setRefreshing] = useState(false);
+  const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
+
+  // date
+
+  const todayS = getLocalDateString();
+  const dateS = dailyScopesDate ?? todayS;
+  const isToday = dateS === todayS;
 
   // items — most recent first
 
@@ -46,33 +66,56 @@ export default function SectionDailyScopes() {
   // strings
 
   const titleS = appConfig?.strings?.scope?.dailyScope ?? "Repérages du jour";
-  const emptyTitleS =
-    appConfig?.strings?.scope?.dailyScopeEmptyTitle ?? "Rien pour aujourd'hui";
-  const emptyHintS =
-    appConfig?.strings?.scope?.dailyScopeEmptyHint ??
-    "Les repérages que vous ouvrez ou modifiez aujourd'hui apparaîtront ici pour un suivi rapide.";
+  const emptyTitleS = isToday
+    ? (appConfig?.strings?.scope?.dailyScopeEmptyTitle ??
+      "Rien pour aujourd'hui")
+    : (appConfig?.strings?.scope?.dailyScopeEmptyTitleOtherDay ??
+      "Rien ce jour-là");
+  const emptyHintS = isToday
+    ? (appConfig?.strings?.scope?.dailyScopeEmptyHint ??
+      "Les repérages que vous ouvrez ou modifiez aujourd'hui apparaîtront ici pour un suivi rapide.")
+    : (appConfig?.strings?.scope?.dailyScopeEmptyHintOtherDay ??
+      "Aucun repérage ouvert ou modifié ce jour-là.");
   const refreshS = "Mettre à jour la liste";
+  const pickDayS = "Choisir un jour";
+  const backToTodayS = "Revenir à aujourd'hui";
 
   // helpers
 
   const accentColor = theme.palette.secondary.main;
 
-  const dateS = new Date().toLocaleDateString("fr-FR", {
+  const date = dayjs(dateS);
+  const dateLabelS = date.toDate().toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
+    ...(date.year() !== dayjs().year() && { year: "numeric" }),
   });
-  const dateLabel = dateS.charAt(0).toUpperCase() + dateS.slice(1);
+  const dateLabel = dateLabelS.charAt(0).toUpperCase() + dateLabelS.slice(1);
 
-  // handlers
-
-  async function handleRefresh() {
+  async function loadDay(dayS) {
     setRefreshing(true);
     try {
-      await fetchDailyScopes();
+      await fetchDailyScopes(dayS);
     } finally {
       setRefreshing(false);
     }
+  }
+
+  // handlers
+
+  function handleRefresh() {
+    loadDay(dateS);
+  }
+
+  function handleCalendarChange(value) {
+    setCalendarAnchorEl(null);
+    if (!value?.isValid()) return;
+    loadDay(getLocalDateString(value.toDate()));
+  }
+
+  function handleBackToToday() {
+    loadDay(todayS);
   }
 
   function handleOpen(item) {
@@ -113,11 +156,51 @@ export default function SectionDailyScopes() {
               </IconButton>
             </span>
           </Tooltip>
+          <Tooltip title={pickDayS}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={(e) => setCalendarAnchorEl(e.currentTarget)}
+                disabled={refreshing}
+              >
+                <CalendarMonth sx={{ color: "text.secondary", fontSize: 18 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
         </Box>
-        <Typography variant="body2" sx={{ color: TEXT_FAINT }}>
-          {dateLabel}
-        </Typography>
+        {isToday ? (
+          <Typography variant="body2" sx={{ color: TEXT_FAINT }}>
+            {dateLabel}
+          </Typography>
+        ) : (
+          <Tooltip title={backToTodayS}>
+            <Chip
+              size="small"
+              label={dateLabel}
+              onDelete={handleBackToToday}
+              sx={{ color: accentColor, borderColor: accentColor }}
+              variant="outlined"
+            />
+          </Tooltip>
+        )}
       </Box>
+
+      {/* day picker */}
+      <Popover
+        open={Boolean(calendarAnchorEl)}
+        anchorEl={calendarAnchorEl}
+        onClose={() => setCalendarAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="fr">
+          <DateCalendar
+            value={date}
+            onChange={handleCalendarChange}
+            disableFuture
+          />
+        </LocalizationProvider>
+      </Popover>
 
       {/* content */}
       <Box sx={{ mt: 2.5 }}>

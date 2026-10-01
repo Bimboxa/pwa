@@ -16,6 +16,7 @@ export default function useDailyScopes() {
   const appConfig = useAppConfig();
   const jwt = useSelector((s) => s.auth.jwt);
   const dailyScopes = useSelector((s) => s.dailyScopes.items);
+  const dailyScopesDate = useSelector((s) => s.dailyScopes.date);
 
   // config
 
@@ -51,7 +52,7 @@ export default function useDailyScopes() {
       const _dailyScopes = mapping
         ? items.map((item) => transformObject(item, mapping))
         : items;
-      dispatch(setDailyScopes(_dailyScopes));
+      dispatch(setDailyScopes({ items: _dailyScopes, date: dateS }));
       return _dailyScopes;
     } catch (error) {
       // endpoint may not be live yet — degrade silently, keep local state
@@ -60,5 +61,5 @@ export default function useDailyScopes() {
     }
   };
 
-  return { dailyScopes, fetchDailyScopes };
+  return { dailyScopes, dailyScopesDate, fetchDailyScopes };
 }

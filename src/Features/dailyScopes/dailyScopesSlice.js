@@ -4,6 +4,7 @@ const dailyScopesInitialState = {
   // [{scopeId, scopeName, projectName, projectClientRef, projectType,
   //   lastConfigurationAt, createdBy: {idMaster, trigram}}]
   items: [],
+  date: null, // "YYYY-MM-DD" civil day of the fetched items
   fetchedAt: null,
 };
 
@@ -12,7 +13,9 @@ export const dailyScopesSlice = createSlice({
   initialState: dailyScopesInitialState,
   reducers: {
     setDailyScopes: (state, action) => {
-      state.items = action.payload ?? [];
+      const { items, date } = action.payload ?? {};
+      state.items = items ?? [];
+      state.date = date ?? null;
       state.fetchedAt = Date.now();
     },
   },
