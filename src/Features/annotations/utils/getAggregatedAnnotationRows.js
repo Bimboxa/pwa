@@ -12,18 +12,28 @@
  * Mesh cells (isMeshCell) are skipped: their parent annotation already carries
  * the quantities (avoid double-count).
  *
+ * Painted parts (« Pinceau » 3D, resolvePaintedParts output) are processed
+ * AFTER the annotations: in global mode a counted part joins its painting
+ * template's row (or creates it from the template), adding its length /
+ * surface and `paintedCount` without touching `unit` or the heights; in split
+ * mode the parts of a template × layer × baseMap get their own row
+ * (`…|PAINT`, unit 0, no height). Uncounted parts (orphans, conflicts) are
+ * skipped. Every row carries `paintedCount`.
+ *
  * @param {Object} params
  * @param {Array} params.annotations - enriched annotations (listingName, baseMapName, layerName, height, qties…)
+ * @param {Array} [params.paintedParts] - painted parts (template, listingName, baseMapName, layerName, isCounted, length, surface…)
  * @param {boolean} params.splitByContext - false = global aggregation, true = split by layer/baseMap/height
  * @param {Map<string, number>} params.templateRankById - template order (see useTemplateRankById)
  * @returns {Array} rows
  */
 export default function getAggregatedAnnotationRows({
   annotations,
+  paintedParts = [],
   splitByContext,
   templateRankById,
 }) {
-  if (!annotations) return [];
+  if (!annotations && !paintedParts?.length) return [];
 
   const getHeightKey = (height) =>
     height === null || height === undefined
@@ -32,7 +42,7 @@ export default function getAggregatedAnnotationRows({
 
   const grouped = {};
 
-  for (const annotation of annotations) {
+  for (const annotation of annotations ?? []) {
     const templateId = annotation.annotationTemplateId;
     if (!templateId) continue;
     if (annotation.isMeshCell) continue;
@@ -58,6 +68,7 @@ export default function getAggregatedAnnotationRows({
         unit: 0,
         length: 0,
         surface: 0,
+        paintedCount: 0,
         // Template visual props (from first annotation in group)
         type: annotation.type,
         fillColor: annotation.fillColor,
@@ -83,6 +94,57 @@ export default function getAggregatedAnnotationRows({
         row.length += annotation.qties.length;
       if (Number.isFinite(annotation.qties.surface))
         row.surface += annotation.qties.surface;
+    }
+  }
+
+  // painted parts — after the annotations, so a template drawn AND painted
+  // keeps the visual props / heights of its annotations
+  for (const part of paintedParts ?? []) {
+    const templateId = part?.annotationTemplateId;
+    if (!templateId || !part.isCounted) continue;
+
+    const groupKey = splitByContext
+      ? `${templateId}|${part.layerId ?? "null"}|${part.baseMapId ?? "null"}|PAINT`
+      : templateId;
+
+    if (!grouped[groupKey]) {
+      const template = part.template ?? {};
+      grouped[groupKey] = {
+        id: groupKey,
+        templateId,
+        templateLabel: template.label || "Sans Label",
+        listingNames: new Set(),
+        baseMapNames: new Set(),
+        layerNames: new Set(),
+        heightKeys: new Set(),
+        height: null,
+        unit: 0,
+        length: 0,
+        surface: 0,
+        paintedCount: 0,
+        // Template visual props (no annotation in the group); drawingShape:
+        // a drawingShape-only template has no `type` (icon resolver).
+        type: template.type,
+        drawingShape: template.drawingShape,
+        fillColor: template.fillColor,
+        strokeColor: template.strokeColor,
+        fillOpacity: template.fillOpacity,
+        strokeOpacity: template.strokeOpacity,
+        fillType: template.fillType,
+        variant: template.variant,
+        iconKey: template.iconKey,
+        image: template.image,
+      };
+    }
+
+    const row = grouped[groupKey];
+    row.paintedCount += 1;
+    if (part.listingName) row.listingNames.add(part.listingName);
+    if (part.baseMapName) row.baseMapNames.add(part.baseMapName);
+    if (part.layerName) row.layerNames.add(part.layerName);
+    if (part.qtiesEnabled !== false) {
+      if (Number.isFinite(part.length)) row.length += part.length;
+      if (Number.isFinite(part.surface)) row.surface += part.surface;
     }
   }
 

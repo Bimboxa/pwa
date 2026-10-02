@@ -84,6 +84,7 @@ import scopeVisibilityReducer from "Features/scopeVisibility/scopeVisibilitySlic
 import baseMapsGridReducer from "Features/baseMapsGrid/baseMapsGridSlice";
 import pdfEditorReducer from "Features/pdfEditor/pdfEditorSlice";
 import scene3dReducer from "Features/scene3d/scene3dSlice";
+import meshPaintReducer from "Features/meshPaint/meshPaintSlice";
 import scopeVisibilityPersistMiddleware from "Features/scopeVisibility/scopeVisibilityPersistMiddleware";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
@@ -132,6 +133,7 @@ const store = configureStore({
     bgImage: bgImageReducer,
     threedEditor: threedEditorReducer,
     scene3d: scene3dReducer,
+    meshPaint: meshPaintReducer,
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
     reports: reportsReducer,

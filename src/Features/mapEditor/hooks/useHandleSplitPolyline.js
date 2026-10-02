@@ -8,8 +8,11 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import splitPolylineBetweenPoints from "Features/mapEditor/utils/splitPolylineBetweenPoints";
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
 import { setToaster } from "Features/layout/layoutSlice";
+import { copyMeshPaintsForSplit } from "Features/meshPaint/services/copyMeshPaintsService";
+import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
 
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 
 /**
  * Normalize a snap result into a consistent format with annotationId.
@@ -39,6 +42,34 @@ export default function useHandleSplitPolyline() {
   const updateAnnotation = useUpdateAnnotation();
 
   const firstClickRef = useRef(null);
+
+  /**
+   * Second piece of a split: created, then the painted parts (« Pinceau »
+   * 3D) of the original are distributed over the two pieces (kept,
+   * re-hosted or spread — copyMeshPaintsForSplit). Inside the caller's undo
+   * group.
+   */
+  async function createSecondPiece(annotation, points) {
+    const hostProps = { ...annotation };
+    delete hostProps.id;
+    delete hostProps.entityId;
+    delete hostProps.cuts;
+    const pieceId = nanoid();
+    await createAnnotation({
+      ...hostProps,
+      id: pieceId,
+      points,
+      closeLine: false,
+    });
+    await copyMeshPaintsForSplit({
+      sourceHostId: annotation.id,
+      newHostIds: [pieceId],
+      metrics:
+        annotation.baseMapId === baseMap?.id
+          ? getMeshPaintMetrics(baseMap)
+          : null,
+    });
+  }
 
   /**
    * Convert a normalized snap to the info format expected by splitPolylineBetweenPoints.
@@ -152,42 +183,34 @@ export default function useHandleSplitPolyline() {
       return { status: "error" };
     }
 
-    // Save new projection points to DB
-    if (result.newPoints.length > 0) {
-      await db.points.bulkAdd(
-        result.newPoints.map((p) => ({
-          id: p.id,
-          x: p.x,
-          y: p.y,
-          baseMapId,
-          projectId,
-          listingId,
-        }))
-      );
-    }
+    // One Ctrl+Z undoes the whole split (painted parts included).
+    await withUndoGroup(async () => {
+      // Save new projection points to DB
+      if (result.newPoints.length > 0) {
+        await db.points.bulkAdd(
+          result.newPoints.map((p) => ({
+            id: p.id,
+            x: p.x,
+            y: p.y,
+            baseMapId,
+            projectId,
+            listingId,
+          }))
+        );
+      }
 
-    // Update original annotation with piece1
-    await updateAnnotation({
-      ...annotation,
-      points: result.piece1,
-      closeLine: false,
-    });
-
-    // Create new annotation for piece2 if it exists
-    if (result.piece2) {
-      const {
-        id: _id,
-        entityId: _eid,
-        cuts: _cuts,
-        ...hostProps
-      } = annotation;
-      await createAnnotation({
-        ...hostProps,
-        id: nanoid(),
-        points: result.piece2,
+      // Update original annotation with piece1
+      await updateAnnotation({
+        ...annotation,
+        points: result.piece1,
         closeLine: false,
       });
-    }
+
+      // Create new annotation for piece2 if it exists
+      if (result.piece2) {
+        await createSecondPiece(annotation, result.piece2);
+      }
+    });
 
     firstClickRef.current = null;
     dispatch(
@@ -252,45 +275,21 @@ export default function useHandleSplitPolyline() {
         return { status: "error" };
       }
 
-      if (result.piece2) {
+      await withUndoGroup(async () => {
         await updateAnnotation({
           ...annotation,
           points: result.piece1,
           closeLine: false,
         });
-        const {
-          id: _id,
-          entityId: _eid,
-          cuts: _cuts,
-          ...hostProps
-        } = annotation;
-        await createAnnotation({
-          ...hostProps,
-          id: nanoid(),
-          points: result.piece2,
-          closeLine: false,
-        });
-      } else {
-        await updateAnnotation({
-          ...annotation,
-          points: result.piece1,
-          closeLine: false,
-        });
-      }
+        if (result.piece2) {
+          await createSecondPiece(annotation, result.piece2);
+        }
+      });
     } else {
       // PROJECTION: insert a new point at the projection position, then split there
       const newPointId = nanoid();
       const normalizedX = first.x / imageSize.width;
       const normalizedY = first.y / imageSize.height;
-
-      await db.points.add({
-        id: newPointId,
-        x: normalizedX,
-        y: normalizedY,
-        baseMapId,
-        projectId,
-        listingId,
-      });
 
       const insertAfter = first.segmentIndex;
       const newPoints = [
@@ -316,31 +315,24 @@ export default function useHandleSplitPolyline() {
         return { status: "error" };
       }
 
-      if (result.piece2) {
+      await withUndoGroup(async () => {
+        await db.points.add({
+          id: newPointId,
+          x: normalizedX,
+          y: normalizedY,
+          baseMapId,
+          projectId,
+          listingId,
+        });
         await updateAnnotation({
           ...annotation,
           points: result.piece1,
           closeLine: false,
         });
-        const {
-          id: _id,
-          entityId: _eid,
-          cuts: _cuts,
-          ...hostProps
-        } = annotation;
-        await createAnnotation({
-          ...hostProps,
-          id: nanoid(),
-          points: result.piece2,
-          closeLine: false,
-        });
-      } else {
-        await updateAnnotation({
-          ...annotation,
-          points: result.piece1,
-          closeLine: false,
-        });
-      }
+        if (result.piece2) {
+          await createSecondPiece(annotation, result.piece2);
+        }
+      });
     }
 
     firstClickRef.current = null;

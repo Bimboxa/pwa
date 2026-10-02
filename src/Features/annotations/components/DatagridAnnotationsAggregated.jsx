@@ -19,7 +19,13 @@ const formatNumber = (value, unit) => {
   return `${value.toFixed(2)} ${unit}`;
 };
 
-export default function DatagridAnnotationsAggregated({ annotations }) {
+// `paintedParts`: « Pinceau » 3D parts (resolvePaintedParts, with
+// listingName / baseMapName / layerName) — joined to their painting
+// template's row by getAggregatedAnnotationRows.
+export default function DatagridAnnotationsAggregated({
+  annotations,
+  paintedParts,
+}) {
   // strings
 
   const globalAggregationS = "Agrégation globale";
@@ -38,10 +44,11 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
     () =>
       getAggregatedAnnotationRows({
         annotations,
+        paintedParts,
         splitByContext: !globalAggregation,
         templateRankById,
       }),
-    [annotations, globalAggregation, templateRankById]
+    [annotations, paintedParts, globalAggregation, templateRankById]
   );
 
   // columns
@@ -124,6 +131,12 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
         width: 120,
         type: "number",
         valueFormatter: (value) => formatNumber(value, "m²"),
+      },
+      {
+        field: "paintedCount",
+        headerName: "Parties peintes",
+        width: 130,
+        type: "number",
       },
     ],
     [spriteImage]

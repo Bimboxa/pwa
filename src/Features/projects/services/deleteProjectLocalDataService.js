@@ -97,6 +97,7 @@ export default async function deleteProjectLocalDataService(projectId) {
           db.relAnnotationSubtractions,
           db.relAnnotationMeshCells,
           db.relAnnotationOpenings,
+          db.meshPaints,
           db.portfolioPages,
           db.portfolioBaseMapContainers,
           db.scopeConfigs,

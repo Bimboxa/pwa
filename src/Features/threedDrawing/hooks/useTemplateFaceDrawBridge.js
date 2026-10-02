@@ -10,12 +10,24 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
+import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
 
 import {
   selectIsFaceCutDrawActive,
   selectIsTemplateFaceDrawActive,
   selectIsThreedTemplatelessDrawActive,
 } from "../utils/templateFaceDrawSelectors";
+
+// Drawing modes that only exist in the 3D editor ("Coupe face", « Pinceau »):
+// leaving the 3D editor (or the Dessin module) disarms them — the hidden 2D
+// InteractionLayer has no use for their mode.
+function isThreedOnlyDrawingMode(enabledDrawingMode) {
+  return (
+    isFaceCutDrawingMode(enabledDrawingMode) ||
+    isMeshBrushDrawingMode(enabledDrawingMode)
+  );
+}
 
 // Bridges the template-driven face-draw request (derived from the regular 2D
 // drawing state set by the template row click in PopperMapListings) into the
@@ -29,6 +41,13 @@ import {
 // selectIsThreedTemplatelessDrawActive) and the "Coupe face" tool
 // (selectIsFaceCutDrawActive) ride the same bridge: same machinery,
 // different commit.
+//
+// The « Pinceau » (selectIsMeshBrushActive) rides it too, for the
+// `drawingMode.active` guards only (no selection / lasso / hover tooltip
+// clicks, hidden 2D InteractionLayer keys, delete hotkeys, label drags,
+// mutual exclusion with the other 3D modes): the vertex-drawing machinery
+// (useDrawingPointerHandlers, DrawingOverlayThreed) stays inert in that mode,
+// the brush has its own pointer handlers.
 export default function useTemplateFaceDrawBridge() {
   const dispatch = useDispatch();
 
@@ -36,12 +55,16 @@ export default function useTemplateFaceDrawBridge() {
     (s) =>
       selectIsTemplateFaceDrawActive(s) ||
       selectIsThreedTemplatelessDrawActive(s) ||
-      selectIsFaceCutDrawActive(s)
+      selectIsFaceCutDrawActive(s) ||
+      selectIsMeshBrushActive(s)
   );
-  // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the 2D
-  // editor has no use for its drawing mode).
-  const isFaceCutMode = useSelector((s) =>
-    isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
+  // "Coupe face" and « Pinceau » are 3D-only tools: leaving the 3D editor
+  // disarms them (the 2D editor has no use for their drawing mode).
+  const isThreedOnlyMode = useSelector((s) =>
+    isThreedOnlyDrawingMode(s.mapEditor.enabledDrawingMode)
+  );
+  const isMeshBrushMode = useSelector((s) =>
+    isMeshBrushDrawingMode(s.mapEditor.enabledDrawingMode)
   );
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const templateId = useSelector(
@@ -60,12 +83,12 @@ export default function useTemplateFaceDrawBridge() {
       dispatch(setDrawingModeActive(true));
     } else if (!derivedActive && prev) {
       dispatch(setDrawingModeActive(false));
-      if (isFaceCutMode) {
+      if (isThreedOnlyMode) {
         dispatch(setEnabledDrawingMode(null));
         dispatch(setNewAnnotation({}));
       }
     }
-  }, [derivedActive, isFaceCutMode, dispatch]);
+  }, [derivedActive, isThreedOnlyMode, dispatch]);
 
   // Machinery flag dropped while the request is still on (another 3D mode's
   // reducer takeover): clear the 2D drawing state so the derived request
@@ -80,6 +103,18 @@ export default function useTemplateFaceDrawBridge() {
       dispatch(setNewAnnotation({}));
     }
   }, [drawingActive, derivedActive, dispatch]);
+
+  // Switch to the brush mid-draw (Tab, drawing toolbar): the path in progress
+  // of the previous tool is dropped — the brush draws no vertex, and the path
+  // would otherwise come back when switching to a drawing tool again.
+  const prevMeshBrushModeRef = useRef(isMeshBrushMode);
+  useEffect(() => {
+    const prev = prevMeshBrushModeRef.current;
+    prevMeshBrushModeRef.current = isMeshBrushMode;
+    if (isMeshBrushMode && !prev && drawingActive) {
+      dispatch(cancelInProgressPolyline());
+    }
+  }, [isMeshBrushMode, drawingActive, dispatch]);
 
   // Template switch mid-draw: keep the mode active but drop the in-progress
   // polyline — the next face belongs to the new template.

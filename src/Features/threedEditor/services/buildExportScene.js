@@ -15,12 +15,23 @@ import { getActiveThreedEditor } from "./threedEditorRegistry";
 function collectRoots(sceneManager, { excludeBaseMaps = false } = {}) {
   const annots = sceneManager.annotationsManager?.annotationsObjectsMap || {};
   const roots = [...Object.values(annots)];
+  const images = sceneManager.imagesManager?.imagesMap || {};
   // Textured photoPlan planes count as basemap-like content.
   if (!excludeBaseMaps) {
-    const images = sceneManager.imagesManager?.imagesMap || {};
     roots.unshift(...Object.values(images));
     const photoPlans = sceneManager.photoPlansManager?.objectsMap || {};
     roots.push(...Object.values(photoPlans));
+  } else {
+    // Painted parts (Pinceau) are annotation content living in a layer
+    // under each basemap group (ThreedMeshPaints): keep them without the
+    // basemap planes. The group itself is skipped, so its own visibility
+    // (basemap eye) is honored here.
+    Object.values(images).forEach((group) => {
+      if (!group || group.visible === false) return;
+      group.children.forEach((child) => {
+        if (child.userData?.isPaintLayer) roots.push(child);
+      });
+    });
   }
   return roots.filter(Boolean);
 }

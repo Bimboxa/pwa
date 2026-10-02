@@ -15,6 +15,7 @@ import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBas
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
@@ -171,7 +172,13 @@ function buildSegments(segments, mat) {
 //   - a fixed-pixel-size SVG snap circle overlaid on the canvas (mirrors
 //     the 2D SnappingLayer pattern)
 export default function DrawingOverlayThreed() {
-  const active = useSelector((s) => s.threedEditor.drawingMode.active);
+  // « Pinceau »: the drawing mode is on (bridge guards) but nothing is drawn
+  // — no overlay, no vertex snap index, no scan picking preparation.
+  const active = useSelector(
+    (s) =>
+      s.threedEditor.drawingMode.active &&
+      !isMeshBrushDrawingMode(s.mapEditor.enabledDrawingMode)
+  );
   const inProgressPolyline = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline
   );

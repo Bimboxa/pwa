@@ -1,3 +1,7 @@
+import { useSelector } from "react-redux";
+
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
+
 import {
   Box,
   Typography,
@@ -14,7 +18,10 @@ import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTool
 import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToolHotkeys";
 
 // ---------------------------------------------------------------------------
-// ToolPickerMenu — menu to select a drawing tool for an annotation template
+// ToolPickerMenu — menu to select a drawing tool for an annotation template.
+// `tools`: the template's tool list as resolved by useDrawFromTemplate (same
+// list as its active tool); without it, the shape group of the editor shown
+// (3D-only tools such as the « Pinceau » in the Dessin module's 3D editor).
 // ---------------------------------------------------------------------------
 
 export default function ToolPickerMenu({
@@ -22,13 +29,19 @@ export default function ToolPickerMenu({
   open,
   onClose,
   annotationTemplate,
+  tools: toolsProp,
   onSelectTool,
   onEdit,
 }) {
+  // data
+
+  const toolsEditor = useSelector(selectDrawingToolsEditor);
+
   // helpers
 
   const drawingShape = resolveDrawingShape(annotationTemplate);
-  const tools = getDrawingToolsByShape(drawingShape);
+  const tools =
+    toolsProp ?? getDrawingToolsByShape(drawingShape, { editor: toolsEditor });
 
   // render
 

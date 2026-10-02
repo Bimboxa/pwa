@@ -10,11 +10,10 @@ import {
 
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
-import {
-  getDrawingToolsByShape,
-  getDrawingToolByKey,
-} from "Features/mapEditor/constants/drawingTools.jsx";
+import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
+import { pickDrawingTool } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
@@ -54,6 +53,9 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // "3D" in the Dessin module's 3D editor: the tool lists then offer the
+  // 3D-only tools (« Pinceau »).
+  const toolsEditor = useSelector(selectDrawingToolsEditor);
   // Ouvrages module: drawing with a location template (the business-objects
   // listing's own templates) while an object is ACTIVE LOCATES it — the
   // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor. The ACTIVE
@@ -88,13 +90,15 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   // helpers
 
   const drawingShape = resolveDrawingShape(annotationTemplate);
-  const tools = getDrawingToolsByShape(drawingShape);
-  const fallbackTool = annotationTemplate?.defaultTool
-    ? (getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0])
-    : tools[0];
-  const activeTool = selectedToolKey
-    ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
-    : fallbackTool;
+  const tools = getDrawingToolsByShape(drawingShape, { editor: toolsEditor });
+  // Per-template selected tool → template.defaultTool → first tool, each
+  // only if it belongs to the editor's list: a brush remembered from the 3D
+  // editor (selectedToolKeyByTemplateId is shared) falls back in 2D, and is
+  // picked again back in 3D.
+  const activeTool = pickDrawingTool(tools, [
+    selectedToolKey,
+    annotationTemplate?.defaultTool,
+  ]);
   // REVOLUTION_AXIS: single fixed tool (circle by centre + radius) — the tool
   // button stays as a visual cue but never opens the picker.
   const hasFixedTool = drawingShape === "REVOLUTION_AXIS";

@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import useAnnotationTemplates from "./useAnnotationTemplates";
 import useAnnotationsV2 from "./useAnnotationsV2";
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
+import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
@@ -28,6 +30,19 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
   }
   const annotationTemplates = useAnnotationTemplates();
   const baseMap = useBaseMap({ id: baseMapId });
+  // Parts painted in 3D (« Pinceau ») on this base map: same scope (selected
+  // scope, view box, disabled templates / host layers, hidden painting
+  // templates dropped), added to their painting template's totals.
+  const painted = usePaintedPartsQties({
+    enabled: Boolean(baseMapId),
+    filterByBaseMapId: baseMapId,
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
+    viewBox,
+    disabledAnnotationTemplates,
+    disabledLayerIds,
+    annotationTemplates,
+  });
 
   // helpers
 
@@ -88,6 +103,10 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
       stats.mainQtyLabel = getAnnotationTemplateMainQtyLabel(template, stats);
     });
 
-    return qtiesById;
-  }, [annotations, baseMap, annotationTemplateById]);
+    return mergePaintedQtiesIntoTemplateQties(
+      qtiesById,
+      painted.qtiesByTemplateId,
+      annotationTemplateById
+    );
+  }, [annotations, baseMap, annotationTemplateById, painted]);
 }

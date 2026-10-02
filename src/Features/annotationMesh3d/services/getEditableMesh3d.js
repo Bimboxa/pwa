@@ -4,6 +4,7 @@ import db from "App/db/db";
 
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
+import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 
 import isAnnotationConvertibleToMesh3d from "../utils/isAnnotationConvertibleToMesh3d";
 import { mesh3dToLocal } from "../utils/mesh3dFrame";
@@ -18,12 +19,28 @@ import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
 //     metrics,       // base map render metrics (normalized <-> local)
 //     baseMapGroup,  // three.js group of the base map (local <-> world)
 //     isConversion,  // true when the annotation is not an isMesh3d one YET
+//     isShrunk,      // the conversion read a SHRUNK object (unshrink: false)
 //   }
 //
 // An isMesh3d annotation returns its stored mesh. A regular annotation is
 // converted IN MEMORY from its live 3D object — nothing is written until the
 // tool commits through writeMesh3dService. Null when not editable.
-export default async function getEditableMesh3d({ editor, annotationId }) {
+//
+// unshrink (default true): the conversion reads the FINAL, un-shrunk object
+// (ensureUnshrunkHostObject: the « Réduire le crénelage » inset must never
+// be baked into a written mesh): a shrunk host is exempted for the session
+// and rebuilt first, so the converted faces may sit up to 10 mm away from a
+// point picked on the displayed object — callers locate faces from such
+// points with locateFaceNearHit, not locatePathOnMesh3d. Only the path that
+// really writes asks for it; a probe (which face, is there a dig sheet,
+// which candidate the path cuts) passes false and reads the displayed
+// object as is (`isShrunk`), so a host the tool never touches keeps its
+// shrink.
+export default async function getEditableMesh3d({
+  editor,
+  annotationId,
+  unshrink = true,
+}) {
   const sceneManager = editor?.sceneManager;
   const annotation = await db.annotations.get(annotationId);
   if (!sceneManager || !annotation || annotation.deletedAt) return null;
@@ -46,10 +63,16 @@ export default async function getEditableMesh3d({ editor, annotationId }) {
       metrics,
       baseMapGroup,
       isConversion: false,
+      isShrunk: false,
     };
   }
 
   if (!isAnnotationConvertibleToMesh3d(annotation)) return null;
+  const ready = await ensureUnshrunkHostObject({
+    editor,
+    annotationId,
+    exempt: unshrink,
+  });
   const object =
     sceneManager.annotationsManager?.annotationsObjectsMap?.[annotationId];
   const mesh = convertObject3DToMesh3d(object, baseMapGroup);
@@ -61,6 +84,7 @@ export default async function getEditableMesh3d({ editor, annotationId }) {
     metrics,
     baseMapGroup,
     isConversion: true,
+    isShrunk: Boolean(ready?.shrunk),
   };
 }
 

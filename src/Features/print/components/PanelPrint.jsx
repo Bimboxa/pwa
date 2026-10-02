@@ -29,6 +29,7 @@ import DatagridAnnotations from "Features/annotations/components/DatagridAnnotat
 import DatagridAnnotationsAggregated from "Features/annotations/components/DatagridAnnotationsAggregated";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useTemplateRankById from "Features/annotations/hooks/useTemplateRankById";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import useDownladPdfReport from "Features/pdfReport/hooks/useDownladPdfReport";
 import usePdfReportName from "Features/pdfReport/hooks/usePdfReportName";
 import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
@@ -75,6 +76,15 @@ export default function PanelPrint() {
     keepHiddenTemplates: true,
   });
 
+  // Parts painted in 3D (« Pinceau »): same scope (all base maps of the
+  // scope, hidden painting templates kept) — joined to their painting
+  // template's row in the aggregated export.
+  const painted = usePaintedPartsQties({
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
+    keepHiddenTemplates: true,
+  });
+
   const templateRankById = useTemplateRankById();
 
   const layers = useLiveQuery(
@@ -91,6 +101,16 @@ export default function PanelPrint() {
       layerName: a.layerId ? layerById[a.layerId]?.name || "-" : "-",
     }));
   }, [annotations, layerById]);
+
+  // Host layer name (painted parts follow their host's layer).
+  const paintedParts = useMemo(
+    () =>
+      painted.parts.map((p) => ({
+        ...p,
+        layerName: p.layerId ? layerById[p.layerId]?.name || "-" : "-",
+      })),
+    [painted, layerById]
+  );
 
   const totalAnnotations = enrichedAnnotations.length;
 
@@ -129,6 +149,7 @@ export default function PanelPrint() {
     const workbook = new Excel.Workbook();
     createSheetAnnotationsAggregated(workbook, enrichedAnnotations, {
       templateRankById,
+      paintedParts,
     });
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
@@ -272,7 +293,10 @@ export default function PanelPrint() {
         vh="80"
       >
         <BoxFlexVStretch>
-          <DatagridAnnotationsAggregated annotations={enrichedAnnotations} />
+          <DatagridAnnotationsAggregated
+            annotations={enrichedAnnotations}
+            paintedParts={paintedParts}
+          />
         </BoxFlexVStretch>
       </DialogGeneric>
     </BoxFlexVStretch>

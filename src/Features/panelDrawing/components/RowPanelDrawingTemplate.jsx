@@ -23,17 +23,19 @@ import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
+import {
+  formatTemplateQtiesLine,
+  formatTemplateQtiesTooltip,
+} from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 
 // ---------------------------------------------------------------------------
 // RowPanelDrawingTemplate — one template row of the Dessin panel: hover drag
 // handle, icon + label, quantities line, split draw button, eye toggle and a
 // chevron. Clicking the row opens the template detail view (its annotations
-// list, #311).
+// list, #311). `qties` may carry the parts painted in 3D with the template
+// (mergePaintedQtiesIntoTemplateQties): they add to the totals, the line
+// counts them ("· 3 faces") and its tooltip splits the two sources.
 // ---------------------------------------------------------------------------
-
-function formatQty(value, decimals = 2) {
-  return Number.isFinite(value) && value !== 0 ? value.toFixed(decimals) : "0";
-}
 
 export default function RowPanelDrawingTemplate({
   annotationTemplate,
@@ -75,15 +77,15 @@ export default function RowPanelDrawingTemplate({
 
   const isHidden = Boolean(annotationTemplate?.hidden);
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
-  // No annotation yet: a plain "0 annot" line, dimmed to light grey.
-  const hasQties = Boolean(qties?.unit || qties?.length || qties?.surface);
-  const annotationsCount = qties?.count ?? 0;
-  const qtyLine =
-    annotationsCount > 0
-      ? `${formatQty(qties?.unit ?? 0, 0)} u · ${formatQty(
-          qties?.length ?? 0
-        )} ml · ${formatQty(qties?.surface ?? 0)} m²`
-      : "0 annot.";
+  // No annotation nor painted part yet: a plain "0 annot" line, dimmed to
+  // light grey.
+  const hasQties = Boolean(
+    qties?.unit || qties?.length || qties?.surface || qties?.paintedListedCount
+  );
+  const qtyLine = formatTemplateQtiesLine(qties);
+  const qtyTooltip = formatTemplateQtiesTooltip(qties) ?? "";
+  // Something counted (annotations or painted parts): colored main quantity.
+  const hasCounted = (qties?.count ?? 0) + (qties?.paintedCount ?? 0) > 0;
 
   // handlers
 
@@ -253,18 +255,21 @@ export default function RowPanelDrawingTemplate({
               />
             )}
           </Box>
-          <Typography
-            variant="caption"
-            noWrap
-            sx={{
-              display: "block",
-              fontFamily: "monospace",
-              fontWeight: 500,
-              color: isHidden || !hasQties ? "text.disabled" : "text.secondary",
-            }}
-          >
-            {qtyLine}
-          </Typography>
+          <Tooltip title={qtyTooltip} placement="bottom-start">
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                display: "block",
+                fontFamily: "monospace",
+                fontWeight: 500,
+                color:
+                  isHidden || !hasQties ? "text.disabled" : "text.secondary",
+              }}
+            >
+              {qtyLine}
+            </Typography>
+          </Tooltip>
         </Box>
 
         {hasProcedure && (
@@ -327,7 +332,7 @@ export default function RowPanelDrawingTemplate({
               color={
                 isHidden
                   ? "text.disabled"
-                  : (qties?.count ?? 0) > 0
+                  : hasCounted
                     ? "secondary.main"
                     : "panel.countEmpty"
               }

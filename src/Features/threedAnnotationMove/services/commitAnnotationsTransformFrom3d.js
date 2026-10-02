@@ -1,4 +1,5 @@
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
@@ -9,6 +10,7 @@ import commitWrapperTransform from "Features/mapEditor/services/commitWrapperTra
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import { touchMeshPaintsSyncedAt } from "Features/meshPaint/services/applyMeshPaintsResyncService";
 
 // Write-back of a 3D annotation move/rotate into the 2D storage: the new
 // point positions land in db.points (normalized) through the same machinery
@@ -31,6 +33,11 @@ import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
 //
 // Known 2D-move parity: POLYGON meshLines (stored in absolute normalized
 // coords) are not translated — the 2D wrapper move leaves them behind too.
+//
+// Painted mesh parts (db.meshPaints) of the carried hosts follow the plan
+// transform AND the vertical component (commitWrapperTransform paintDeltaZ).
+// The whole commit — points, offsetZ, paints, glued openings — is ONE undo
+// step.
 export default async function commitAnnotationsTransformFrom3d({
   editor,
   annotationIds,
@@ -93,54 +100,64 @@ export default async function commitAnnotationsTransformFrom3d({
 
   if (!pointUpdates?.size) return;
 
-  await commitWrapperTransform({
-    selectedAnnotationIds: annotationIds,
-    allAnnotations,
-    pointUpdates,
-    imageSize,
-    rotationDelta: null,
-    wrapperBbox: null,
-    moveDelta,
-    clearRotation,
-  });
-
   // Vertical component of a snapped MOVE: the whole carried group climbs or
   // sinks as one block so the grabbed point lands exactly on the drop point,
   // altitude included.
   const deltaZ = transform.kind === "MOVE" ? transform.deltaLocal.z || 0 : 0;
-  if (Math.abs(deltaZ) > 1e-9) {
-    await Promise.all(
-      carried.map((ann) =>
-        db.annotations.update(ann.id, {
-          // 0.1 mm: a snapped drop carries float noise the toolbar would show.
-          offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
-          // isMesh3d: the snapshot of the original geometry climbs with the
-          // mesh (dotted key path: only that field of the snapshot).
-          ...(ann.mesh3dSource?.fields
-            ? {
-                "mesh3dSource.fields.offsetZ": roundOffsetZ(
-                  (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
-                ),
-              }
-            : {}),
-        })
-      )
-    );
-  }
+  const hasDeltaZ = Math.abs(deltaZ) > 1e-9;
 
-  // Openings glued on the moved walls follow their host — same as the 2D
-  // wrapper commit.
-  try {
-    await reflowOpeningsForHost({
-      hostIds: annotationIds,
-      movedPointIds: [],
-      projectId,
+  await withUndoGroup(async () => {
+    const { refreshedMeshPaintIds } = await commitWrapperTransform({
+      selectedAnnotationIds: annotationIds,
+      allAnnotations,
+      pointUpdates,
       imageSize,
-      meterByPx,
+      rotationDelta: null,
+      wrapperBbox: null,
+      moveDelta,
+      clearRotation,
+      paintDeltaZ: hasDeltaZ ? deltaZ : 0,
     });
-  } catch (err) {
-    console.error("[threedAnnotationMove] openings reflow failed", err);
-  }
+
+    if (hasDeltaZ) {
+      await Promise.all(
+        carried.map((ann) =>
+          db.annotations.update(ann.id, {
+            // 0.1 mm: a snapped drop carries float noise the toolbar would show.
+            offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
+            // isMesh3d: the snapshot of the original geometry climbs with the
+            // mesh (dotted key path: only that field of the snapshot).
+            ...(ann.mesh3dSource?.fields
+              ? {
+                  "mesh3dSource.fields.offsetZ": roundOffsetZ(
+                    (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
+                  ),
+                }
+              : {}),
+          })
+        )
+      );
+      // The offsetZ write re-stamped the hosts after their paints were
+      // synced: keep the moved paints out of « à vérifier » (derived write).
+      if (refreshedMeshPaintIds?.length) {
+        await touchMeshPaintsSyncedAt({ ids: refreshedMeshPaintIds });
+      }
+    }
+
+    // Openings glued on the moved walls follow their host — same as the 2D
+    // wrapper commit.
+    try {
+      await reflowOpeningsForHost({
+        hostIds: annotationIds,
+        movedPointIds: [],
+        projectId,
+        imageSize,
+        meterByPx,
+      });
+    } catch (err) {
+      console.error("[threedAnnotationMove] openings reflow failed", err);
+    }
+  });
 
   dispatch(triggerAnnotationsUpdate());
   // Refresh the snap index with the moved geometry so the next grab snaps at

@@ -11,11 +11,19 @@ import {
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
-import { Box, Button, IconButton, Typography, Link } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Typography,
+  Link,
+  Tooltip,
+} from "@mui/material";
 import ChevronLeft from "@mui/icons-material/ChevronLeft";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import RowTemplateAnnotation from "./RowTemplateAnnotation";
+import SectionTemplatePaintedParts from "./SectionTemplatePaintedParts";
 import ChipsViewerScope from "./ChipsViewerScope";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useIsolateAnnotationTemplate from "Features/panelDrawing/hooks/useIsolateAnnotationTemplate";
@@ -23,17 +31,19 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import {
+  formatTemplateQtiesLine,
+  formatTemplateQtiesTooltip,
+} from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 
 // ---------------------------------------------------------------------------
 // PanelTemplateAnnotations — annotations list subview of the Dessin panel
 // (#311): the annotations of one annotation template, sorted by draw order,
 // with the template header actions (Isoler / Tout sél.). Reached from the
-// "N annotations" card of PanelTemplateProperties; back goes there.
+// "N annotations" card of PanelTemplateProperties; back goes there. Below
+// the annotations: the parts painted with the template in 3D (« Parties
+// peintes », SectionTemplatePaintedParts).
 // ---------------------------------------------------------------------------
-
-function formatQty(value, decimals = 2) {
-  return Number.isFinite(value) && value !== 0 ? value.toFixed(decimals) : "0";
-}
 
 export default function PanelTemplateAnnotations({
   template,
@@ -41,6 +51,12 @@ export default function PanelTemplateAnnotations({
   annotations,
   templateQties,
   spriteImage,
+  // « Pinceau » 3D: parts painted with this template (resolvePaintedParts,
+  // same scope as `annotations`) + their hosts' display labels.
+  paintedParts,
+  hostLabelById,
+  // Viewer module: no paint deletion.
+  readOnly,
 }) {
   const dispatch = useDispatch();
 
@@ -82,15 +98,14 @@ export default function PanelTemplateAnnotations({
   );
 
   const count = sortedAnnotations.length;
+  const paintedCount = paintedParts?.length ?? 0;
   const listingNameS = listing?.name ?? listing?.label ?? "Liste";
 
-  // No annotation yet: a plain "0 annot." line instead of the zero units.
-  const qtyLine =
-    count > 0
-      ? `${formatQty(templateQties?.unit ?? 0, 0)} u · ${formatQty(
-          templateQties?.length ?? 0
-        )} ml · ${formatQty(templateQties?.surface ?? 0)} m²`
-      : "0 annot.";
+  // No annotation nor painted part yet: a plain "0 annot." line instead of
+  // the zero units. Painted parts add to the totals ("· 3 faces"); the
+  // tooltip splits annotations / painted parts.
+  const qtyLine = formatTemplateQtiesLine(templateQties, count);
+  const qtyTooltip = formatTemplateQtiesTooltip(templateQties) ?? "";
 
   // "Tous" scope: one group per base map (first-appearance order in the
   // draw-ordered list; global indices keep the derived labels and the
@@ -267,6 +282,7 @@ export default function PanelTemplateAnnotations({
         </Button>
         <Button
           onClick={handleSelectAll}
+          disabled={count === 0}
           sx={{
             flex: 1,
             bgcolor: "background.paper",
@@ -290,18 +306,21 @@ export default function PanelTemplateAnnotations({
 
       {/* Summary line */}
       <Box sx={{ px: 2, pb: 1 }}>
-        <Typography
-          variant="caption"
-          noWrap
-          sx={{ fontFamily: "monospace", fontWeight: 500 }}
-        >
-          {qtyLine}
-        </Typography>
+        <Tooltip title={qtyTooltip} placement="bottom-start">
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{ fontFamily: "monospace", fontWeight: 500 }}
+          >
+            {qtyLine}
+          </Typography>
+        </Tooltip>
       </Box>
 
-      {/* Annotations list — grouped by base map in "Tous" scope */}
+      {/* Annotations list — grouped by base map in "Tous" scope — then the
+          painted parts */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        {count === 0 ? (
+        {count === 0 && paintedCount === 0 ? (
           <Box
             sx={{
               display: "flex",
@@ -319,7 +338,7 @@ export default function PanelTemplateAnnotations({
               {emptyListS}
             </Typography>
           </Box>
-        ) : isAllScope ? (
+        ) : count === 0 ? null : isAllScope ? (
           baseMapGroups?.map(({ key, baseMap, items }) => (
             <Box key={key}>
               <Box
@@ -392,6 +411,15 @@ export default function PanelTemplateAnnotations({
               />
             ))}
           </Box>
+        )}
+        {paintedCount > 0 && (
+          <SectionTemplatePaintedParts
+            parts={paintedParts}
+            hostLabelById={hostLabelById}
+            color={templateColor}
+            readOnly={readOnly}
+            isAllScope={isAllScope}
+          />
         )}
       </Box>
     </Box>

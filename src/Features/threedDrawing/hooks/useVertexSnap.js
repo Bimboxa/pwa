@@ -62,6 +62,7 @@ export function buildIndex(scene, options = {}) {
   scene.traverse((obj) => {
     if (!obj.isMesh || !obj.visible) return;
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
+    if (obj.userData?.isPaintOverlay) return; // painted part (Pinceau) skin
     if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
     if (obj.userData?.isDecor) return; // scan base maps (no CPU geometry)
     let isSnappable = false;

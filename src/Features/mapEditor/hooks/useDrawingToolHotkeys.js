@@ -13,6 +13,7 @@ import {
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
 import {
   getDrawingToolsByShape,
@@ -71,7 +72,13 @@ export default function useDrawingToolHotkeys() {
           setSelectedToolKeyForTemplate({ templateId, toolKey: tool.key })
         );
       }
-      dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults)));
+      // A tool without annotation type (« Pinceau ») keeps the draft as is —
+      // the template's type; ToolbarDrawingDraft.handleToolChange parity.
+      if (tool.annotationType) {
+        dispatch(
+          setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults))
+        );
+      }
       dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
       // Start the new tool from a clean geometry (no-op before the first point,
       // needed when cycling mid-shape via Tab).
@@ -152,7 +159,13 @@ export default function useDrawingToolHotkeys() {
 
       const drawingShape = s.annotations.newAnnotation?.drawingShape;
       if (!drawingShape) return;
-      const tools = getDrawingToolsByShape(drawingShape);
+      // The group of the editor shown (the 3D-only « Pinceau » in the Dessin
+      // module's 3D editor — this hook stays mounted under it), minus the
+      // tools needing a template for a template-less draft.
+      const tools = getDrawingToolsByShape(drawingShape, {
+        editor: selectDrawingToolsEditor(s),
+        templateless: !s.annotations.newAnnotation?.annotationTemplateId,
+      });
       if (tools.length === 0) return;
 
       // Tab / Shift+Tab — cycle through the group.

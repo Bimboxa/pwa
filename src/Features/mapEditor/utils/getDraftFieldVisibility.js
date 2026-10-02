@@ -1,4 +1,5 @@
 import { getDrawingToolTypeByKey } from "../constants/drawingTools.jsx";
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 // Which draft fields (thickness / offset / height / width) the drawing toolbar
 // exposes for the current draft + active tool. Extracted from ToolbarDrawingDraft
@@ -33,6 +34,11 @@ export default function getDraftFieldVisibility(
   // hides the generic height / offset / thickness fields.
   const isRampTool = enabledDrawingMode === "RAMP";
 
+  // The « Pinceau » (3D) paints existing parts with the template itself: no
+  // drawn geometry, so no draft field (nor colour — the paint takes the
+  // template's) applies.
+  const isMeshBrushTool = isMeshBrushDrawingMode(enabledDrawingMode);
+
   // Purely annotative shapes (callout bubble, free text) have no 3D body:
   // the Offset / height fields would be meaningless noise for them.
   const isAnnotativeShape =
@@ -46,6 +52,7 @@ export default function getDraftFieldVisibility(
 
   const showThickness =
     !isRampTool &&
+    !isMeshBrushTool &&
     !isFieldOverridden("strokeWidth") &&
     ((!isToolGroup &&
       (drawingShape === "POLYLINE" ||
@@ -56,24 +63,31 @@ export default function getDraftFieldVisibility(
   const showOffset =
     !isToolGroup &&
     !isRampTool &&
+    !isMeshBrushTool &&
     !isAnnotativeShape &&
     !isFieldOverridden("offsetZ");
   const showHeight =
     !isToolGroup &&
     !isRampTool &&
+    !isMeshBrushTool &&
     !isAnnotativeShape &&
     !isFieldOverridden("height");
   const showWidth =
+    !isMeshBrushTool &&
     (drawingShape === "OPENING" || drawingShape === "LINEAR_LAYOUT") &&
     !isFieldOverridden("width");
   // "Couche" (material layer) toggle: plain STRIP drafts only (opening bands
   // are part of isToolGroup and excluded with the other generic fields).
   const showIsLayer =
-    !isToolGroup && !isRampTool && newAnnotation?.type === "STRIP";
+    !isToolGroup &&
+    !isRampTool &&
+    !isMeshBrushTool &&
+    newAnnotation?.type === "STRIP";
 
   // Text size (page pt) of a free text draft.
   const showFontSize =
     !isToolGroup &&
+    !isMeshBrushTool &&
     drawingShape === "FREE_TEXT" &&
     !isFieldOverridden("fontSize");
 
@@ -83,6 +97,7 @@ export default function getDraftFieldVisibility(
     isToolGroup,
     toolGroupType,
     isRampTool,
+    isMeshBrushTool,
     isFieldOverridden,
     showThickness,
     showOffset,

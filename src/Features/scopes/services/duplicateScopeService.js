@@ -12,6 +12,10 @@ import {
 import remapNotesAppListingRefs, {
   remapNotesAppStateModelIds,
 } from "Features/notesApp/utils/remapNotesAppListingRefs";
+import {
+  buildMeshPaintCopiesForDuplicate,
+  getLiveMeshPaintsByHostIds,
+} from "Features/meshPaint/services/copyMeshPaintsService";
 
 export const NO_LAYER_ID = "__no_layer__";
 export const NO_TEMPLATE_KEY_PREFIX = "__no_template__:";
@@ -79,8 +83,9 @@ function copyNotesAppConfig(notesApp, listingIdMap) {
 
 /**
  * Duplicate a scope: new ids for every record (scope, listings, templates,
- * layers, entities, annotations, points, rels, baseMapViews, dimensions3d),
- * single bulk transaction, ownership reassigned to the current user.
+ * layers, entities, annotations, points, rels, baseMapViews, dimensions3d,
+ * painted mesh parts), single bulk transaction, ownership reassigned to the
+ * current user.
  *
  * Filters (disabled = unchecked in the dialog, empty array = keep everything):
  * - disabledBaseMapIds: annotations of these baseMaps are skipped.
@@ -248,6 +253,7 @@ export default async function duplicateScopeService({
     subtractionRels,
     openingRels,
     mappingRels,
+    meshPaints,
     entityGroups,
   ] = await Promise.all([
     pointIds.size > 0
@@ -281,6 +287,9 @@ export default async function duplicateScopeService({
           .toArray()
           .then((rows) => rows.filter(notDeleted))
       : [],
+    // Painted mesh parts hosted by the kept annotations (copied below only
+    // when their painting template is copied too).
+    getLiveMeshPaintsByHostIds(keptAnnotationIds),
     Promise.all(
       Object.entries(entityIdsByTable).map(async ([table, ids]) => ({
         table,
@@ -447,6 +456,11 @@ export default async function duplicateScopeService({
         : r.carve,
     }));
 
+  // Painted mesh parts: built inside the write transaction (their syncedAt
+  // must follow the host copies' audit stamp) — only the source hosts here.
+  const sourceHostById = {};
+  keptAnnotations.forEach((a) => (sourceHostById[a.id] = a));
+
   const newMappingRels = mappingRels
     .filter((r) => annotationIdMap[r.annotationId])
     .map((r) => ({
@@ -509,6 +523,7 @@ export default async function duplicateScopeService({
           db.relAnnotationSubtractions,
           db.relAnnotationOpenings,
           db.relAnnotationMappingCategory,
+          db.meshPaints,
           db.baseMapViews,
           db.dimensions3d,
           db.scopeConfigs,
@@ -534,6 +549,19 @@ export default async function duplicateScopeService({
             await db.relAnnotationOpenings.bulkAdd(newOpeningRels);
           if (newMappingRels.length > 0)
             await db.relAnnotationMappingCategory.bulkAdd(newMappingRels);
+          // Painted parts: synced AFTER the host copies were stamped by the
+          // audit hook, so a fresh copy is not flagged « à vérifier ».
+          const newMeshPaints = buildMeshPaintCopiesForDuplicate({
+            rows: meshPaints,
+            annotationIdMap,
+            templateIdMap,
+            listingIdMap,
+            sourceHostById,
+            scopeId: newScopeId,
+            syncedAt: new Date().toISOString(),
+          });
+          if (newMeshPaints.length > 0)
+            await db.meshPaints.bulkAdd(newMeshPaints);
           if (newBaseMapViews.length > 0)
             await db.baseMapViews.bulkAdd(newBaseMapViews);
           if (newDimensions3d.length > 0)

@@ -1,15 +1,19 @@
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Tool keys whose drawing state can be fulfilled by the 3D face-drawing mode.
 // Openings (OPENING_SEGMENT, CUT_*) and STRIP drafts have their own tool keys
-// and are excluded on purpose — their commit semantics are 2D-only.
-const FACE_DRAW_TOOL_KEYS = new Set([
-  ...getToolsForShape("POLYGON"),
-  ...getToolsForShape("POLYLINE"),
-]);
+// and are excluded on purpose — their commit semantics are 2D-only. The
+// « Pinceau » (MESH_BRUSH) is excluded too: it rides the same bridge
+// (selectIsMeshBrushActive) but paints parts instead of drawing vertices.
+const FACE_DRAW_TOOL_KEYS = new Set(
+  [...getToolsForShape("POLYGON"), ...getToolsForShape("POLYLINE")].filter(
+    (key) => key !== MESH_BRUSH_TOOL_KEY
+  )
+);
 
 // Template-driven 3D face drawing is fully derived state: the template row
 // click in PopperMapListings dispatches the regular 2D drawing state

@@ -9,8 +9,11 @@ import splitPolygonByPolyline from "Features/geometry/utils/splitPolygonByPolyli
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
 
 import { setToaster } from "Features/layout/layoutSlice";
+import { copyMeshPaintsForSplit } from "Features/meshPaint/services/copyMeshPaintsService";
+import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
 
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 
 export default function useHandleSplitCommit() {
 
@@ -27,6 +30,26 @@ export default function useHandleSplitCommit() {
     const updateAnnotation = useUpdateAnnotation();
 
     // helpers
+
+    /**
+     * Second piece of a split: created, then the painted parts (« Pinceau »
+     * 3D) of the original are distributed over the two pieces (kept,
+     * re-hosted or spread — copyMeshPaintsForSplit). Inside the caller's
+     * undo group.
+     */
+    async function createSecondPiece(annotation, props) {
+        const hostProps = { ...annotation };
+        delete hostProps.id;
+        delete hostProps.entityId;
+        delete hostProps.cuts;
+        const pieceId = nanoid();
+        await createAnnotation({ ...hostProps, id: pieceId, ...props });
+        await copyMeshPaintsForSplit({
+            sourceHostId: annotation.id,
+            newHostIds: [pieceId],
+            metrics: annotation.baseMapId === baseMap?.id ? getMeshPaintMetrics(baseMap) : null,
+        });
+    }
 
     /**
      * Fetch annotation points from DB and return them as [{id, x, y}, ...].
@@ -86,10 +109,7 @@ export default function useHandleSplitCommit() {
         });
 
         // Create new entity + annotation for piece2
-        const { id: _discardId, entityId: _discardEntityId, cuts: _discardCuts, ...hostProps } = annotation;
-        await createAnnotation({
-            ...hostProps,
-            id: nanoid(),
+        await createSecondPiece(annotation, {
             points: piece2.map(p => ({ id: p.id })),
         });
 
@@ -127,11 +147,14 @@ export default function useHandleSplitCommit() {
         const sharedPointsRegistry = new Map();
         const savedPointIds = new Set();
 
+        // One Ctrl+Z undoes the whole split (painted parts included).
         let splitCount = 0;
-        for (const annotation of allAnnotations) {
-            const wasSplit = await splitOneAnnotation(annotation, cuttingPoints, sharedPointsRegistry, savedPointIds);
-            if (wasSplit) splitCount++;
-        }
+        await withUndoGroup(async () => {
+            for (const annotation of allAnnotations) {
+                const wasSplit = await splitOneAnnotation(annotation, cuttingPoints, sharedPointsRegistry, savedPointIds);
+                if (wasSplit) splitCount++;
+            }
+        });
 
         // 4. User feedback
         if (splitCount === 0) {
@@ -166,19 +189,17 @@ export default function useHandleSplitCommit() {
         }
 
         if (result.piece2) {
-            // Open split → two pieces
-            await updateAnnotation({
-                ...annotation,
-                points: result.piece1,
-                closeLine: false,
-            });
-
-            const { id: _id, entityId: _eid, cuts: _cuts, ...hostProps } = annotation;
-            await createAnnotation({
-                ...hostProps,
-                id: nanoid(),
-                points: result.piece2,
-                closeLine: false,
+            // Open split → two pieces (one Ctrl+Z, painted parts included)
+            await withUndoGroup(async () => {
+                await updateAnnotation({
+                    ...annotation,
+                    points: result.piece1,
+                    closeLine: false,
+                });
+                await createSecondPiece(annotation, {
+                    points: result.piece2,
+                    closeLine: false,
+                });
             });
         } else {
             // Closed → open (single reordered piece)

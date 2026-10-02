@@ -8,6 +8,7 @@ import {
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { WALK_MODE_TOGGLE_KEY } from "Features/threedEditor/utils/walkModeToggle";
 import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
 import useFreeAnnotationTemplates from "./useFreeAnnotationTemplates";
 import startDrawFromTemplate, {
@@ -107,9 +108,12 @@ export default function useFreeAnnotationHotkeys() {
 
       const selectedToolKey =
         store.getState().mapEditor.selectedToolKeyByTemplateId[template.id];
+      // Tools of the displayed editor: a remembered « Pinceau » re-arms in
+      // the Dessin 3D editor, falls back to a drawing tool elsewhere.
       const activeTool = resolveActiveToolForTemplate(
         template,
-        selectedToolKey
+        selectedToolKey,
+        { editor: selectDrawingToolsEditor(store.getState()) }
       );
       if (!activeTool) return;
 

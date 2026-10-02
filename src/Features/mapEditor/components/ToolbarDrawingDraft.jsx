@@ -35,6 +35,8 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlice";
 import { REMEMBERABLE_DRAFT_KEYS } from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
+
 import {
   getDrawingToolByKey,
   getDrawingToolsByShape,
@@ -75,6 +77,8 @@ export default function ToolbarDrawingDraft() {
 
   const shapeMenuTitleS = "Type d'annotation";
   const changeShapeS = "Changer de type d'annotation";
+  const drawS = "Dessiner";
+  const paintS = "Peindre avec";
 
   // state
 
@@ -101,6 +105,9 @@ export default function ToolbarDrawingDraft() {
   // Template-driven 3D cote keeps the 2D drawing state armed while the 3D
   // dimension mode runs — CoteToolbarThreed owns the bottom UI there.
   const isTemplateCoteDraw3d = useSelector(selectIsTemplateCoteDrawActive);
+  // "3D" in the Dessin module's 3D editor: the tool toggle then offers the
+  // 3D-only tools (« Pinceau ») — same list as the template row's picker.
+  const toolsEditor = useSelector(selectDrawingToolsEditor);
   // Drawn template ("Dessiner …" block) — mirrors ToolbarStartDrawTemplate so
   // arming a draw from it doesn't shift the toolbar. Absent for tool groups
   // (openings / splits), which carry no template.
@@ -146,6 +153,7 @@ export default function ToolbarDrawingDraft() {
     isToolGroup,
     toolGroupType,
     isRampTool,
+    isMeshBrushTool,
     isOpeningBand,
     isFieldOverridden,
     showThickness,
@@ -156,7 +164,10 @@ export default function ToolbarDrawingDraft() {
     showFontSize,
   } = getDraftFieldVisibility(newAnnotation, enabledDrawingMode);
 
-  const showColor = !isToolGroup && !isFieldOverridden(colorField);
+  // « Pinceau »: the paint takes the template's own colour, the draft colour
+  // would be a dead control.
+  const showColor =
+    !isToolGroup && !isMeshBrushTool && !isFieldOverridden(colorField);
   const showAnyField =
     showThickness ||
     showOffset ||
@@ -166,10 +177,15 @@ export default function ToolbarDrawingDraft() {
     showFontSize ||
     isRampTool;
 
+  // Shape groups: the tools of the editor shown, minus those needing a
+  // template for a template-less draft ("Dessin" tool).
   const tools = toolGroupType
     ? getDrawingToolsByType(toolGroupType)
     : drawingShape
-      ? getDrawingToolsByShape(drawingShape)
+      ? getDrawingToolsByShape(drawingShape, {
+          editor: toolsEditor,
+          templateless: !newAnnotation?.annotationTemplateId,
+        })
       : [];
   const options = tools.map((tool) => {
     const { key, label, Icon } = tool;
@@ -383,7 +399,7 @@ export default function ToolbarDrawingDraft() {
                   fontSize: "0.65rem",
                 }}
               >
-                Dessiner
+                {isMeshBrushTool ? paintS : drawS}
               </Typography>
               <Typography
                 variant="body2"

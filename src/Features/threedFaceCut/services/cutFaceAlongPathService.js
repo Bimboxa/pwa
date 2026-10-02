@@ -23,11 +23,13 @@ import {
 } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import { splitMesh3dFaceDetailed } from "Features/annotationMesh3d/utils/splitMesh3dFace";
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
+import { copyMeshPaintsForSplit } from "Features/meshPaint/services/copyMeshPaintsService";
 import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import { projectPointTo2d } from "Features/threedMesh/utils/planeProjection";
 
 import fitPlanarValue from "../utils/fitPlanarValue";
 import locatePlanPointOnPolyline from "../utils/locatePlanPointOnPolyline";
+import snapPathOntoMesh3dFace from "../utils/snapPathOntoMesh3dFace";
 import splitRing2dByPath, {
   locateInnerLoopInRing,
 } from "../utils/splitRing2dByPath";
@@ -83,7 +85,15 @@ export default async function cutFaceAlongPathService({
     }
   };
   for (const annotationId of getCandidateAnnotationIds(editor, vertices)) {
-    const ctx = await getEditableMesh3d({ editor, annotationId });
+    // First pass on the DISPLAYED object (unshrink: false): a candidate the
+    // path does not cut — or one split in plan — keeps its anti-aliasing
+    // shrink. Only the mesh split below reads (and exempts) the un-shrunk
+    // object it writes.
+    let ctx = await getEditableMesh3d({
+      editor,
+      annotationId,
+      unshrink: false,
+    });
     if (!ctx) {
       console.warn(
         `[threedFaceCut] ${annotationId}: no editable faces (not convertible to a mesh: carved, generated shape...)`
@@ -91,8 +101,8 @@ export default async function cutFaceAlongPathService({
       keepReason("NOT_EDITABLE");
       continue;
     }
-    const local = vertices.map((v) => worldToMesh3dLocal(v, ctx));
-    const split = splitMesh3dFaceDetailed(ctx.mesh, local, { closed });
+    const camera = editor.sceneManager?.camera;
+    let { local, split } = splitPathOnMesh3d(ctx, vertices, closed, camera);
     if (!split) {
       const why = explainNoSplit(ctx.mesh, local, closed);
       console.warn(`[threedFaceCut] ${annotationId}: no cut`, why);
@@ -130,6 +140,23 @@ export default async function cutFaceAlongPathService({
       }
     }
 
+    // The mesh is written: split the un-shrunk object.
+    if (ctx.isShrunk) {
+      const unshrunk = await getEditableMesh3d({ editor, annotationId });
+      const resplit = unshrunk
+        ? splitPathOnMesh3d(unshrunk, vertices, closed, camera)
+        : null;
+      if (!resplit?.split) {
+        console.warn(
+          `[threedFaceCut] ${annotationId}: no cut on the un-shrunk object`
+        );
+        keepReason("NOT_ON_ONE_FACE");
+        continue;
+      }
+      ctx = unshrunk;
+      ({ local, split } = resplit);
+    }
+
     const annotation = await writeMesh3dService({
       annotation: ctx.annotation,
       mesh: split.mesh,
@@ -142,6 +169,47 @@ export default async function cutFaceAlongPathService({
       : { kind: "FAILED" };
   }
   return { kind: "NONE", reason };
+}
+
+// The path (world points) split on an editable mesh: { local, split }
+// (split null when it cuts no face). A conversion may read an object up to
+// 10 mm away from the one the path was drawn on (anti-aliasing shrink, either
+// way): the face is then re-detected near the path and the path moved onto
+// it.
+function splitPathOnMesh3d(ctx, vertices, closed, camera) {
+  let local = vertices.map((v) => worldToMesh3dLocal(v, ctx));
+  let split = splitMesh3dFaceDetailed(ctx.mesh, local, { closed });
+  if (!split && ctx.isConversion) {
+    const snapped = snapPathOntoMesh3dFace(ctx.mesh, local, {
+      closed,
+      rayDir: getViewRayLocal(ctx, vertices, camera),
+    });
+    if (snapped) {
+      const resplit = splitMesh3dFaceDetailed(ctx.mesh, snapped.points, {
+        closed,
+        faceIndices: [snapped.faceIndex],
+      });
+      if (resplit) {
+        local = snapped.points;
+        split = resplit;
+      }
+    }
+  }
+  return { local, split };
+}
+
+// View ray (camera → path centroid) in the editable mesh's local frame.
+function getViewRayLocal(ctx, vertices, camera) {
+  if (!camera || !vertices?.length) return null;
+  const centroid = new Vector3();
+  vertices.forEach((v) => centroid.add(new Vector3(v.x, v.y, v.z)));
+  centroid.divideScalar(vertices.length);
+  const origin = camera.isOrthographicCamera
+    ? centroid.clone().sub(camera.getWorldDirection(new Vector3()))
+    : camera.getWorldPosition(new Vector3());
+  const a = worldToMesh3dLocal(origin, ctx);
+  const b = worldToMesh3dLocal(centroid, ctx);
+  return { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
 }
 
 const REASON_RANK = [
@@ -247,6 +315,18 @@ async function resolveRefs(refs, metrics) {
       : null
   );
   return resolved.every(Boolean) ? resolved : null;
+}
+
+// Painted parts (« Pinceau ») of the cut host are distributed over the two
+// pieces from their plan projection: kept, re-hosted on the new piece (its
+// end cap...), or spread with provisional copies — skipped when the piece
+// does not exist (the create hook does not throw on a refused write).
+async function copyPaintsToPiece(sourceHostId, pieceId, metrics) {
+  await copyMeshPaintsForSplit({
+    sourceHostId,
+    newHostIds: [pieceId],
+    metrics,
+  });
 }
 
 // Fields of the original annotation the second piece copies.
@@ -410,7 +490,10 @@ async function splitPolygonIn2d({
       pieceA.area >= pieceB.area ? [pieceA, pieceB] : [pieceB, pieceA];
   }
 
-  // One Ctrl+Z undoes the whole cut.
+  // One Ctrl+Z undoes the whole cut — painted parts included: the source's
+  // paints are kept, re-hosted on the new piece or spread over both
+  // (provisional copies the re-sync trims), see copyMeshPaintsForSplit.
+  const pieceId = nanoid();
   await withUndoGroup(async () => {
     await db.points.bulkAdd(pointRows);
     await updateAnnotationFn({
@@ -420,10 +503,11 @@ async function splitPolygonIn2d({
     });
     await createAnnotationFn({
       ...getPieceProps(annotation),
-      id: nanoid(),
+      id: pieceId,
       points: other.points,
       cuts: other.cuts,
     });
+    await copyPaintsToPiece(annotation.id, pieceId, metrics);
   });
   return true;
 }
@@ -479,7 +563,8 @@ async function splitWallIn2d({
   const pieces = splitPolylineAtVertex(refs, vertexIndex, closeLine);
   if (!pieces) return false;
 
-  // One Ctrl+Z undoes the whole cut.
+  // One Ctrl+Z undoes the whole cut — painted parts included (distributed
+  // over the pieces, see splitPolygonIn2d).
   await withUndoGroup(async () => {
     if (pointRow) await db.points.add(pointRow);
     await updateAnnotationFn({
@@ -488,12 +573,14 @@ async function splitWallIn2d({
       closeLine: false,
     });
     if (pieces.piece2) {
+      const pieceId = nanoid();
       await createAnnotationFn({
         ...getPieceProps(annotation),
-        id: nanoid(),
+        id: pieceId,
         points: pieces.piece2,
         closeLine: false,
       });
+      await copyPaintsToPiece(annotation.id, pieceId, metrics);
     }
   });
   return true;

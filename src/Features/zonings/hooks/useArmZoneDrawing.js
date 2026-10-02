@@ -9,6 +9,7 @@ import { setInteractionMode } from "Features/popperMapListings/popperMapListings
 
 import db from "App/db/db";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
+import { isDrawingToolAvailable } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 export default function useArmZoneDrawing() {
@@ -42,8 +43,12 @@ export default function useArmZoneDrawing() {
       selectedToolKeyByTemplateId?.[template.id] ??
       template.defaultTool ??
       "POLYGON_CLICK";
-    const tool =
-      getDrawingToolByKey(toolKey) ?? getDrawingToolByKey("POLYGON_CLICK");
+    // The remembered tool is shared with the Dessin module: a 3D-only one
+    // (the « Pinceau ») cannot draw a zone.
+    const remembered = getDrawingToolByKey(toolKey);
+    const tool = isDrawingToolAvailable(remembered)
+      ? remembered
+      : getDrawingToolByKey("POLYGON_CLICK");
     if (!tool) return;
 
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);

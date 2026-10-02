@@ -4,9 +4,11 @@ import { useSelector } from "react-redux";
 import useAnnotationTemplates from "./useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useAnnotationsV2 from "./useAnnotationsV2";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
+import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 
 // Assurez-vous que le chemin est correct vers votre nouveau fichier utilitaire
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -18,6 +20,13 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } =
     useBaseMaps({ filterByProjectId: projectId, includeDetails: true }) ?? {};
+  // Parts painted in 3D (« Pinceau »): same scope (whole project, hidden
+  // painting templates dropped), added to their painting template's totals.
+  const painted = usePaintedPartsQties({
+    filterByBaseMapId,
+    annotationTemplates,
+    baseMaps,
+  });
 
   // --- HELPERS (Lookups) ---
   const baseMapById = useMemo(
@@ -91,6 +100,10 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       stats.mainQtyLabel = getAnnotationTemplateMainQtyLabel(template, stats);
     });
 
-    return qtiesById;
-  }, [annotations, baseMapById, annotationTemplateById, filterByBaseMapId]);
+    return mergePaintedQtiesIntoTemplateQties(
+      qtiesById,
+      painted.qtiesByTemplateId,
+      annotationTemplateById
+    );
+  }, [annotations, baseMapById, annotationTemplateById, filterByBaseMapId, painted]);
 }
