@@ -93,6 +93,7 @@ import EditedLegendLayer from "./EditedLegendLayer";
 import CompareVersionSlider from "./CompareVersionSlider";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
+import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperImageScale from "./PopperImageScale";
@@ -2509,6 +2510,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <MenuLinkBaseMapOutlet />
             <PopperContextMenu />
 
+            {/* Active instance only (this editor is mounted for MAP and
+                BASE_MAPS): the redux-driven "Evider" dialog must render once */}
+            {isActiveViewer && <DialogHollowOutAnnotationOutlet />}
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />

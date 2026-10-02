@@ -77,7 +77,12 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
       }}
     >
       <Box sx={{ pointerEvents: "auto" }}>
-        <ToolbarEditAnnotation onDragStart={handleDragStart} />
+        {/* The 3D editor has no quick-action row above the annotation: the
+            toolbar keeps "Dupliquer" and the edit tools there. */}
+        <ToolbarEditAnnotation
+          onDragStart={handleDragStart}
+          hasOverlayRow={viewerKey !== "THREED"}
+        />
       </Box>
     </Box>
   );

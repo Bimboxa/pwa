@@ -27,9 +27,12 @@ import IconButtonAddIsoHeightLine from "./IconButtonAddIsoHeightLine";
 import IconButtonAddProfileLine from "./IconButtonAddProfileLine";
 import IconButtonAutoSlope from "./IconButtonAutoSlope";
 
-// Tool row of the single-annotation toolbar (ToolbarEditAnnotation). Rendered
-// twice: inline in the actions row, and inside IconButtonMoreAnnotationTools
-// where ToolbarToolsContext turns every tool into a MenuItem (icon + label).
+// Edit tools of a single annotation. Rendered inside
+// IconButtonMoreAnnotationTools ("Plus d'outils" of the quick-action row above
+// the annotation), where ToolbarToolsContext turns every tool into a MenuItem
+// (icon + label), and inline in the ToolbarEditAnnotation actions row as a
+// fallback when the annotation has no such row (see
+// getAnnotationHasOverlayActions, 3D editor).
 // Keep the order here: it is both the row order and the menu order.
 export default function EditAnnotationTools({
   selectedAnnotation,

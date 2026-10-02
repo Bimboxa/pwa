@@ -5,10 +5,7 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useVisibleAnnotations from "Features/mapEditor/hooks/useVisibleAnnotations";
 
-import avoidVisibleAnnotationsService from "../services/avoidVisibleAnnotationsService";
-import getAnnotationBBox from "../utils/getAnnotationBbox";
 import {
   SEGMENT_FLAG_FIELDS,
   getRingSegmentFlagPointIds,
@@ -18,80 +15,48 @@ import {
 
 import db from "App/db/db";
 
-// "Evider": carve the given POLYGON by the footprints of every visible
-// annotation, as if each footprint punched through it. Same boolean pipeline
-// as the draw-time "Eviter les annotations visibles" option, but applied on
-// demand to an existing annotation — and without the different-templateId
-// restriction: every visible annotation cuts.
+// "Evider": write step of the carve of a POLYGON by the footprints of the
+// visible annotations, as if each footprint punched through it. The geometry
+// is computed upstream by DialogHollowOutAnnotation (candidates from
+// getHollowOutCandidates, minus the templates switched off by the user, then
+// avoidVisibleAnnotationsService — same boolean pipeline as the draw-time
+// "Eviter les annotations visibles" option, without its different-templateId
+// restriction) so the user previews the result before it is committed here.
 // When the carving splits the polygon into disjoint pieces, the largest piece
 // keeps the original annotation and each extra piece becomes a new annotation
 // cloned from it.
 //
-// Shared by the ToolbarEditAnnotation button (IconButtonHollowOutAnnotation)
-// and the "E" keyboard shortcut (InteractionLayer).
-export default function useHollowOutAnnotation() {
+// `annotation` is the pixel-resolved POLYGON (useAnnotationsV2), `carved` the
+// service result ({points, cuts, pieces, consumed}, pixel space).
+export default function useCommitHollowOut() {
   const dispatch = useDispatch();
 
   // data
 
   const baseMap = useMainBaseMap();
-  const visibleAnnotations = useVisibleAnnotations();
 
-  // Async carve does DB transactions — ignore re-triggers while one is running.
+  // Async commit does DB transactions — ignore re-triggers while one is running.
   const runningRef = useRef(false);
 
-  async function hollowOutAnnotation(annotation) {
+  async function commitHollowOut(annotation, carved) {
     if (runningRef.current) return;
     runningRef.current = true;
     try {
-      await carve(annotation);
+      await commit(annotation, carved);
     } finally {
       runningRef.current = false;
     }
   }
 
-  async function carve(annotation) {
+  async function commit(annotation, carved) {
     if (!annotation?.points || annotation.points.length < 3) return;
 
     const imageSize = baseMap?.getImageSize?.();
     if (!imageSize?.width || !imageSize?.height) return;
     const { width, height } = imageSize;
 
-    const candidates = (visibleAnnotations ?? []).filter(
-      (a) =>
-        a &&
-        a.id !== annotation.id &&
-        a.baseMapId === annotation.baseMapId &&
-        ["POLYGON", "POLYLINE", "STRIP"].includes(a.type)
-    );
-    if (candidates.length === 0) return;
-
-    // annotation.points / cuts are already pixel-resolved (useAnnotationsV2)
-    const shape = { points: annotation.points, cuts: annotation.cuts ?? [] };
-    const shapeBbox = getAnnotationBBox(shape);
-    if (!shapeBbox) return;
-
-    const TOL = 2;
-    const overlapping = candidates.filter((a) => {
-      const bb = getAnnotationBBox(a);
-      if (!bb) return false;
-      return (
-        bb.x + bb.width >= shapeBbox.x - TOL &&
-        bb.x <= shapeBbox.x + shapeBbox.width + TOL &&
-        bb.y + bb.height >= shapeBbox.y - TOL &&
-        bb.y <= shapeBbox.y + shapeBbox.height + TOL
-      );
-    });
-    if (overlapping.length === 0) return;
-
-    const carved = avoidVisibleAnnotationsService({
-      drawnShape: shape,
-      candidates: overlapping,
-      baseMap,
-    });
-
     // Fully consumed → keep the original geometry untouched.
-    if (carved.consumed) return;
+    if (!carved || carved.consumed) return;
     if (!carved.points || carved.points.length < 3) return;
 
     // Reads up-front — writes are batched in a single transaction below so
@@ -266,5 +231,5 @@ export default function useHollowOutAnnotation() {
     dispatch(triggerAnnotationsUpdate());
   }
 
-  return hollowOutAnnotation;
+  return commitHollowOut;
 }

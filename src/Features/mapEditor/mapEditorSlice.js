@@ -250,6 +250,14 @@ const mapEditorInitialState = {
   showSegmentCotes: false, // show the per-segment cotes (EDIT always shows them)
   segmentDragEnabled: false, // hovering a segment drags it (EDIT-like) instead of offering add-vertex
 
+  // "Evider" confirmation dialog (DialogHollowOutAnnotation): the POLYGON
+  // being carved (null = closed), opened by the overlay button and the "E"
+  // shortcut. Excluded template ids are remembered for the session
+  // (transient, not persisted); TEMPLATELESS_TEMPLATE_ID stands for the
+  // template-less annotations.
+  hollowOutDialogAnnotationId: null,
+  hollowOutExcludedTemplateIds: [],
+
   // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
   // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
   clippingPlanEnabled: false,
@@ -784,6 +792,12 @@ export const mapEditorSlice = createSlice({
     setSegmentDragEnabled: (state, action) => {
       state.segmentDragEnabled = Boolean(action.payload);
     },
+    setHollowOutDialogAnnotationId: (state, action) => {
+      state.hollowOutDialogAnnotationId = action.payload ?? null;
+    },
+    setHollowOutExcludedTemplateIds: (state, action) => {
+      state.hollowOutExcludedTemplateIds = action.payload ?? [];
+    },
 
     // clipping plane (2D-defined cut plane)
     setClippingPlanEnabled: (state, action) => {
@@ -1055,6 +1069,8 @@ export const {
   setCursorAltitudeEnabled,
   setAnglesLocked,
   setShowSegmentCotes,
+  setHollowOutDialogAnnotationId,
+  setHollowOutExcludedTemplateIds,
   setSegmentDragEnabled,
 
   // clipping plane

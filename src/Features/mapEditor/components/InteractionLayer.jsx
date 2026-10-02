@@ -15,6 +15,7 @@ import { isPhotoNodeId, getPhotoIdFromNodeId } from 'Features/photos/constants/p
 import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
+import { setHollowOutDialogAnnotationId } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
 import { selectPdfEditorOpen } from 'Features/pdfEditor/pdfEditorSlice';
 import {
@@ -158,7 +159,6 @@ import getStripePolygons from 'Features/geometry/utils/getStripePolygons';
 import throttle from 'Features/misc/utils/throttle';
 import CalibrationLayer from './CalibrationLayer';
 import useMainBaseMap from 'Features/mapEditor/hooks/useMainBaseMap';
-import useHollowOutAnnotation from 'Features/annotations/hooks/useHollowOutAnnotation';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 
 
@@ -3116,14 +3116,6 @@ const InteractionLayer = forwardRef(({
     onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
   }, [onCommitSplitAtVertex]);
 
-  // "Evider" carve, shared with the ToolbarEditAnnotation button. Mirrored in
-  // a ref so the once-bound keydown closure ("E" shortcut) reads the live one.
-  const hollowOutAnnotation = useHollowOutAnnotation();
-  const hollowOutAnnotationRef = useRef(hollowOutAnnotation);
-  useEffect(() => {
-    hollowOutAnnotationRef.current = hollowOutAnnotation;
-  }, [hollowOutAnnotation]);
-
   const onSplitPolylineClickRef = useRef(onSplitPolylineClick);
   useEffect(() => {
     onSplitPolylineClickRef.current = onSplitPolylineClick;
@@ -4725,9 +4717,10 @@ const InteractionLayer = forwardRef(({
           }
           break;
 
-        // "Evider": carve the selected POLYGON by the visible annotations —
-        // same action as the ToolbarEditAnnotation button, so the guards
-        // mirror its visibility (single selected POLYGON annotation node).
+        // "Evider": open the carve dialog (preview + per-template switches,
+        // DialogHollowOutAnnotation) for the selected POLYGON — same action as
+        // the overlay button above the annotation, so the guards mirror its
+        // visibility (single selected POLYGON annotation node).
         case "e":
         case "E": {
           if (!isActiveViewerRef.current) break;
@@ -4737,10 +4730,10 @@ const InteractionLayer = forwardRef(({
           if (selectedNode?.nodeType !== "ANNOTATION") break;
           if (selectedAnnotationsForCopyRef.current?.length !== 1) break;
           const annToCarve = selectedAnnotationRef.current;
-          if (annToCarve?.type !== "POLYGON") break;
+          if (annToCarve?.type !== "POLYGON" || annToCarve.isMesh3d) break;
           if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
           e.preventDefault();
-          hollowOutAnnotationRef.current?.(annToCarve);
+          dispatch(setHollowOutDialogAnnotationId(annToCarve.id));
           break;
         }
 
@@ -8705,7 +8698,6 @@ const InteractionLayer = forwardRef(({
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}
-              pagePxPerPt={pagePxPerPt}
               points={drawingPoints}
               newAnnotation={newAnnotation}
               enabledDrawingMode={enabledDrawingMode}
@@ -8713,6 +8705,7 @@ const InteractionLayer = forwardRef(({
               meterByPx={baseMapMeterByPx}
               baseMapImageSize={baseMapImageSize}
               baseMapImageScale={baseMapImageScale}
+              pagePxPerPt={pagePxPerPt}
               isForBaseMaps={newAnnotation?.isForBaseMaps}
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}

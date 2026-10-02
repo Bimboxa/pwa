@@ -19,8 +19,12 @@ import {
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
 import { typeOf } from "Features/geometry/utils/arcSampling";
+import ButtonCloneAnnotation from "Features/annotations/components/ButtonCloneAnnotation";
+import OverlayButtonHollowOutAnnotation from "Features/annotations/components/OverlayButtonHollowOutAnnotation";
 import OverlayButtonMoreAnnotationTools from "Features/annotations/components/OverlayButtonMoreAnnotationTools";
+import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import getAnnotationHasEditTools from "Features/annotations/utils/getAnnotationHasEditTools";
+import getAnnotationHasOverlayActions from "Features/annotations/utils/getAnnotationHasOverlayActions";
 
 // Inline length editor footprint, screen px. A <foreignObject> hit-tests only
 // within its own box, so it must comfortably contain input + padlock.
@@ -429,11 +433,21 @@ export default function NodeSegmentLengthsStatic({
   //   a menu (icon + label); single selection only, like the move button.
   const showMoreButton =
     !simple && !hasMultiSelection && getAnnotationHasEditTools(annotation);
+  // - "Dupliquer" / "Evider" (POLYGON, hotkey E): the two actions pulled out
+  //   of the "Plus d'outils" menu, right before it. ToolbarEditAnnotation
+  //   drops its own copies for these annotations
+  //   (getAnnotationHasOverlayActions).
+  const showCloneButton =
+    !simple && !hasMultiSelection && getAnnotationHasOverlayActions(annotation);
+  const showHollowOutButton =
+    showCloneButton && annotation?.type === "POLYGON";
   const overlayButtonCount =
     Number(showMoveButton) +
     Number(showCotesButton) +
     Number(showSegmentDragButton) +
     Number(showAnglesButton) +
+    Number(showCloneButton) +
+    Number(showHollowOutButton) +
     Number(showMoreButton) +
     (extraButtons ? extraButtonCount : 0);
   const overlayWidth =
@@ -776,6 +790,20 @@ export default function NodeSegmentLengthsStatic({
                     )}
                   </IconButton>
                 </Tooltip>
+                )}
+                {showCloneButton && (
+                  <ButtonCloneAnnotation
+                    key={annotationId}
+                    variant="overlay"
+                    accentColor={getAnnotationColor(annotation) || "#6366F1"}
+                    overlayColor={ACCENT_COLOR}
+                  />
+                )}
+                {showHollowOutButton && (
+                  <OverlayButtonHollowOutAnnotation
+                    annotation={annotation}
+                    overlayColor={ACCENT_COLOR}
+                  />
                 )}
                 {showMoreButton && (
                   <OverlayButtonMoreAnnotationTools

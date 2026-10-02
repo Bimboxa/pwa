@@ -74,7 +74,7 @@ const remapSegField = (fieldIdx, srcSegIdx) => {
 // annotation lying inside it to the zone (relsZoneAnnotation), splitting the
 // POLYGON / POLYLINE / STRIP annotations crossed by the zone perimeter so that
 // only the inner part gets linked. Same boolean pipeline as "évider"
-// (useHollowOutAnnotation) for polygons; centerline chain-split for
+// (useCommitHollowOut) for polygons; centerline chain-split for
 // polylines/strips.
 export default function useAssignZoneToAnnotations() {
   const dispatch = useDispatch();
@@ -275,7 +275,7 @@ export default function useAssignZoneToAnnotations() {
       };
       // Split pieces are cloned from the RAW db record (the resolved
       // annotation carries template-enriched / display-only fields that must
-      // not be persisted) — same rule as useHollowOutAnnotation.
+      // not be persisted) — same rule as useCommitHollowOut.
       let rawRecord = null;
       const getRaw = async () => {
         if (!rawRecord) rawRecord = await db.annotations.get(annotation.id);

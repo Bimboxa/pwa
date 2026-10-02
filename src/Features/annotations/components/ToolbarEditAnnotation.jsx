@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import db from "App/db/db";
 
@@ -23,7 +23,6 @@ import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
-import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useChangeAnnotationTemplate from "../hooks/useChangeAnnotationTemplate";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
@@ -33,8 +32,6 @@ import useNavigateThreedCameraToAnnotation from "Features/threedEditor/hooks/use
 import {
   Box,
   ButtonBase,
-  Checkbox,
-  FormControlLabel,
   IconButton,
   Menu,
   Paper,
@@ -49,8 +46,6 @@ import {
   BugReport as BugReportIcon,
   RestartAlt as ResetIcon,
   Close as CloseIcon,
-  VerticalAlignTop as TopIcon,
-  VerticalAlignBottom as BottomIcon,
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
@@ -58,6 +53,7 @@ import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
 import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import ButtonCloneAnnotation from "./ButtonCloneAnnotation";
 import EditAnnotationTools from "./EditAnnotationTools";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
@@ -73,20 +69,18 @@ import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
-import DialogDuplicateContourSegments from "./DialogDuplicateContourSegments";
-
-import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
-import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
-import {
-  resolveDrawingShape,
-  resolveDrawingShapeFromType,
-  getAnnotationType,
-} from "../constants/drawingShapeConfig";
-import getCloneTypeOptions from "../utils/getCloneTypeOptions";
+import getAnnotationHasOverlayActions from "../utils/getAnnotationHasOverlayActions";
+import getCloneAnnotationPartState from "../utils/getCloneAnnotationPartState";
 
-export default function ToolbarEditAnnotation({ onDragStart }) {
+// `hasOverlayRow`: the host editor renders the quick-action row above the
+// selected annotation (2D map editor — NodeSegmentLengthsStatic). False in the
+// 3D editor, where the toolbar is the only place for these actions.
+export default function ToolbarEditAnnotation({
+  onDragStart,
+  hasOverlayRow = true,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -95,76 +89,50 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const part = useSelectedAnnotationPart();
   const hasPart = part && part.kind && part.kind !== "NONE";
   const deleteAnnotation = useDeleteAnnotation();
-  const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const updateAnnotation = useUpdateAnnotation();
   const changeAnnotationTemplate = useChangeAnnotationTemplate();
   const hasThreedPeer = useHasThreedViewerPeer();
   const navigateThreedCamera = useNavigateThreedCameraToAnnotation();
 
-  // Template candidates: same type for the dropdown, compatible for clone
+  // Template candidates: same type for the dropdown (the clone candidates
+  // live in CloneAnnotationFlow)
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
     useAnnotationTemplateCandidates(selectedAnnotation, {
       variant: "sameType",
     }) ?? {};
-  const { candidates: cloneCandidates, listings: cloneListings } =
-    useAnnotationTemplateCandidates(selectedAnnotation) ?? {};
 
+  // Same raw mode as NodeSegmentLengthsStatic: its overlay row only exists
+  // in EDIT and in "no mode".
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings?.interactionMode
+  );
 
   // state
 
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
-  const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
-  const [wallChooserOpen, setWallChooserOpen] = useState(false);
-  const [selectedCloneType, setSelectedCloneType] = useState(
-    selectedAnnotation?.type
-  );
-  const [stripElevation, setStripElevation] = useState("TOP");
-  const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
 
   // helpers
 
-  const showStripElevation =
-    selectedCloneType === "STRIP" && selectedAnnotation?.type === "POLYLINE";
-
-  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part);
   const isMixedPart = hasPart && part.kind === "MIXED";
-  const segmentsHasChains =
-    hasPart &&
-    part.kind === "SEGMENTS" &&
-    Array.isArray(part.chains) &&
-    part.chains.length > 0;
-  const cloneDisabled =
-    isMixedPart ||
-    (hasPart &&
-      !isMixedPart &&
-      part.kind !== "SEGMENTS" &&
-      (!part.pointRefs || part.pointRefs.length < 2)) ||
-    (hasPart && part.kind === "SEGMENTS" && !segmentsHasChains);
 
-  // A sloped POLYGON with contour segments selected: "Dupliquer" offers the
-  // wall-generation chooser (mur droit / hauteur fixe / hauteur max) so the user
-  // can create bouts de parois — see DialogDuplicateContourSegments.
-  const isSlopedPolygon =
-    selectedAnnotation?.type === "POLYGON" &&
-    selectedAnnotation?.guideLines?.some(
-      (g) => g?.points?.length >= 2 && g?.slopePct
-    );
-  const offersWallChooser =
-    isSlopedPolygon &&
-    hasPart &&
-    (part.kind === "SEGMENTS" || part.kind === "SEGMENT");
-
-  // Filter clone candidates based on selected clone type
-  const filteredCloneCandidates = (() => {
-    if (!cloneCandidates || !selectedCloneType) return cloneCandidates;
-    // STRIP shows all compatible templates (polyline + polygon)
-    if (selectedCloneType === "STRIP") return cloneCandidates;
-    const targetDrawingShape = resolveDrawingShapeFromType(selectedCloneType);
-    if (!targetDrawingShape) return cloneCandidates;
-    return cloneCandidates.filter(
-      (t) => resolveDrawingShape(t) === targetDrawingShape
-    );
-  })();
+  // "Dupliquer" + the edit tools live in the quick-action row above the
+  // annotation when it has one (overlay "Dupliquer" / "Evider" / "Plus
+  // d'outils"); the toolbar keeps them only as a fallback: annotation types
+  // without that row, interaction modes that hide it, 3D editor.
+  const hasOverlayActions =
+    hasOverlayRow &&
+    getAnnotationHasOverlayActions(selectedAnnotation) &&
+    (interactionMode == null || interactionMode === "EDIT");
+  const { disabled: cloneDisabled, tooltip: cloneTooltip } =
+    getCloneAnnotationPartState(part);
+  const showCloneInToolbar =
+    !hasOverlayActions && !(hasPart && part.kind === "POINT");
+  const showArcifySelectedPoints =
+    isMixedPart && ["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type);
+  // Whole annotation: layer chip + delete at least. Sub-selection: only the
+  // part actions, none of which may remain once "Dupliquer" is on the overlay.
+  const showActionsRow =
+    !hasPart || showCloneInToolbar || showArcifySelectedPoints;
 
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
 
@@ -234,21 +202,6 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     handleTemplateDropdownClose();
   }
 
-  function handleCloneClick(event) {
-    if (cloneDisabled) return;
-    // Sloped polygon + segment selection → open the wall-piece chooser instead
-    // of the plain clone template menu (the chooser keeps "Copie simple" too).
-    if (offersWallChooser) {
-      setWallChooserOpen(true);
-      return;
-    }
-    const defaultCloneType = hasPart
-      ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
-      : selectedAnnotation?.type;
-    setSelectedCloneType(defaultCloneType);
-    setCloneAnchorEl(event.currentTarget);
-  }
-
   function handleClearSubSelection() {
     dispatch(setSubSelection({ partId: null, partType: null, pointId: null }));
     dispatch(clearSelectedPartIds());
@@ -273,36 +226,6 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       dispatch(setSelectedPartIds(next));
       return;
     }
-  }
-
-  function handleCloneClose() {
-    setCloneAnchorEl(null);
-  }
-
-  async function handleCloneTemplateChange(annotationTemplateId) {
-    const template = filteredCloneCandidates?.find(
-      (t) => t.id === annotationTemplateId
-    );
-    const newAnnotation = {
-      ...getAnnotationTemplateProps(template),
-      annotationTemplateId: template?.id,
-      label: template?.label,
-      listingId: template?.listingId,
-    };
-    const resolvedShape = resolveDrawingShape(template);
-    const resolvedType = getAnnotationType(resolvedShape);
-    if (resolvedType) newAnnotation.type = resolvedType;
-
-    // Override type if user selected a different one
-    if (selectedCloneType) newAnnotation.type = selectedCloneType;
-
-    await cloneAnnotationAndEntity(selectedAnnotation, {
-      newAnnotation,
-      part: hasPart ? part : undefined,
-      ...(showStripElevation ? { stripElevation } : {}),
-      keepOriginalPoints,
-    });
-    handleCloneClose();
   }
 
   async function handleDeleteClick() {
@@ -796,51 +719,54 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
         {!hasPart && <RowProcedureActionAuto annotation={selectedAnnotation} />}
 
         {/* Row 4 - Actions row */}
-        <ToolbarAnnotationActions
-          accentColor={accentColor}
-          onClone={handleCloneClick}
-          cloneDisabled={cloneDisabled}
-          cloneTooltip={
-            hasPart && part.kind === "MIXED"
-              ? "Sélectionnez une seule catégorie (segments, ouverture ou guide) pour dupliquer"
-              : hasPart && part.kind === "SEGMENTS" && part.chains?.length > 1
-                ? `Dupliquer (${part.chains.length} polylines créées)`
-                : undefined
-          }
-          hideClone={hasPart && part.kind === "POINT"}
-          hideResize
-          onDelete={handleDeleteClick}
-          hideDelete={hasPart}
-          extraActions={
-            hasPart ? (
-              isMixedPart &&
-              ["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) ? (
-                <IconButtonArcifySelectedPoints
-                  annotation={selectedAnnotation}
-                  pointIds={part.pointIds}
-                  accentColor={accentColor}
+        {showActionsRow && (
+          <ToolbarAnnotationActions
+            accentColor={accentColor}
+            hideClone
+            hideResize
+            onDelete={handleDeleteClick}
+            hideDelete={hasPart}
+            extraActions={
+              <>
+                {showCloneInToolbar && (
+                  <ButtonCloneAnnotation
+                    key={selectedAnnotation?.id}
+                    variant="toolbar"
+                    accentColor={accentColor}
+                    disabled={cloneDisabled}
+                    tooltip={cloneTooltip}
+                  />
+                )}
+                {hasPart ? (
+                  showArcifySelectedPoints ? (
+                    <IconButtonArcifySelectedPoints
+                      annotation={selectedAnnotation}
+                      pointIds={part.pointIds}
+                      accentColor={accentColor}
+                    />
+                  ) : null
+                ) : !hasOverlayActions ? (
+                  <EditAnnotationTools
+                    selectedAnnotation={selectedAnnotation}
+                    accentColor={accentColor}
+                    isClosedShape={isClosedShape}
+                  />
+                ) : null}
+              </>
+            }
+            layerChip={
+              !hasPart &&
+              selectedAnnotation &&
+              !selectedAnnotation.isBaseMapAnnotation ? (
+                <ChipLayerSelector
+                  annotationIds={[selectedAnnotation.id]}
+                  annotations={[selectedAnnotation]}
+                  baseMapId={selectedAnnotation.baseMapId}
                 />
               ) : null
-            ) : (
-              <EditAnnotationTools
-                selectedAnnotation={selectedAnnotation}
-                accentColor={accentColor}
-                isClosedShape={isClosedShape}
-              />
-            )
-          }
-          layerChip={
-            !hasPart &&
-            selectedAnnotation &&
-            !selectedAnnotation.isBaseMapAnnotation ? (
-              <ChipLayerSelector
-                annotationIds={[selectedAnnotation.id]}
-                annotations={[selectedAnnotation]}
-                baseMapId={selectedAnnotation.baseMapId}
-              />
-            ) : null
-          }
-        />
+            }
+          />
+        )}
 
         {/* Row 5 - Zones band (ZONES module): link the selection to zones */}
         {!hasPart && selectedAnnotation && (
@@ -865,80 +791,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           />
         </Menu>
 
-        {/* Clone template selector menu (compatible types) */}
-        <Menu
-          open={Boolean(cloneAnchorEl)}
-          anchorEl={cloneAnchorEl}
-          onClose={handleCloneClose}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          {cloneTypeOptions && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                Type de l'annotation dupliquée
-              </Typography>
-              <ToggleSingleSelectorGeneric
-                selectedKey={selectedCloneType}
-                options={cloneTypeOptions}
-                onChange={(v) =>
-                  setSelectedCloneType(v ?? selectedAnnotation?.type)
-                }
-              />
-            </Box>
-          )}
-          {showStripElevation && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                Position de la bande
-              </Typography>
-              <ToggleSingleSelectorGeneric
-                selectedKey={stripElevation}
-                options={[
-                  { key: "TOP", label: "Haut", icon: <TopIcon /> },
-                  { key: "BOTTOM", label: "Bas", icon: <BottomIcon /> },
-                ]}
-                onChange={(v) => setStripElevation(v ?? "TOP")}
-              />
-            </Box>
-          )}
-          <Box sx={{ px: 2, py: 0.5 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={keepOriginalPoints}
-                  onChange={(e) => setKeepOriginalPoints(e.target.checked)}
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Conserver les points d'origine
-                </Typography>
-              }
-            />
-          </Box>
-          <SelectorAnnotationTemplateVariantDense
-            selectedAnnotationTemplateId={
-              selectedAnnotation?.annotationTemplateId
-            }
-            onChange={handleCloneTemplateChange}
-            annotationTemplates={filteredCloneCandidates}
-            listings={cloneListings}
-          />
-        </Menu>
       </Paper>
 
-      {/* Wall-piece chooser (sloped polygon + segments selected) */}
-      {wallChooserOpen && (
-        <DialogDuplicateContourSegments
-          open={wallChooserOpen}
-          onClose={() => setWallChooserOpen(false)}
-          annotation={selectedAnnotation}
-          part={part}
-          accentColor={accentColor}
-        />
-      )}
     </Box>
   );
 }

@@ -7,6 +7,8 @@ import {
   DeleteOutline as DeleteIcon,
 } from "@mui/icons-material";
 
+import ToolbarHotkeyBadge from "Features/threedDrawing/components/ToolbarHotkeyBadge";
+
 export default function ToolbarAnnotationActions({
   accentColor,
   onClone,
@@ -104,7 +106,11 @@ export default function ToolbarAnnotationActions({
         <>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          <Tooltip title={deleteConfirm ? "Confirmer la suppression" : "Supprimer"}>
+          <Tooltip
+            title={
+              deleteConfirm ? "Confirmer la suppression" : "Supprimer (⌫)"
+            }
+          >
             <IconButton
               size="small"
               onClick={handleDeleteClick}
@@ -120,6 +126,8 @@ export default function ToolbarAnnotationActions({
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          {/* Backspace / Delete removes the selection (map editor hotkey) */}
+          <ToolbarHotkeyBadge hotkey="⌫" />
         </>
       )}
     </Box>
