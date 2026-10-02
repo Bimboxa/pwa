@@ -6,6 +6,8 @@ const modelCache = new WeakMap();
 const PROFILE_BINS = 17;
 const MATERIAL_CORE_RATIO = 0.6;
 const AXIAL_SAMPLES = 31;
+// Thinnest band, in bitmap pixels, whose interior can describe a material.
+export const MATERIAL_MIN_WIDTH = 5;
 const GRADIENT_OFFSETS = [
   [2, 0],
   [0, 2],
@@ -16,7 +18,7 @@ const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const median = (values) =>
   values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
-function readPixel(image, x, y) {
+export function readPixel(image, x, y) {
   x = Math.floor(x);
   y = Math.floor(y);
   if (x < 0 || y < 0 || x >= image.width || y >= image.height) return null;
@@ -33,7 +35,7 @@ function readPixel(image, x, y) {
   };
 }
 
-function sameColor(a, b) {
+export function sameColor(a, b) {
   return a && b && Math.max(...a.map((v, i) => Math.abs(v - b[i]))) < 0.25;
 }
 
@@ -71,7 +73,7 @@ function learnMaterialColor(image, wall) {
     : null;
 }
 
-function getWallGeometry(item, toImage, meterByPx, scale) {
+function getWallGeometry(item, toImage, meterByPx, scale, minWidth) {
   const points = item.basePoints?.map(toImage);
   if (
     !points?.length ||
@@ -127,7 +129,7 @@ function getWallGeometry(item, toImage, meterByPx, scale) {
   // Only rectangles need an aspect-ratio guard to identify a wall-like axis.
   if (
     !Number.isFinite(width) ||
-    width < 5 ||
+    width < minWidth ||
     length < 3 ||
     (type === "POLYGON" && length < 3 * width)
   )
@@ -151,7 +153,7 @@ function getWallGeometry(item, toImage, meterByPx, scale) {
   };
 }
 
-function measureAppearance(sample, center, u, width, length) {
+export function measureAppearance(sample, center, u, width, length) {
   const n = { x: -u.y, y: u.x };
   let sum = 0,
     squares = 0,
@@ -218,14 +220,17 @@ function measureAppearance(sample, center, u, width, length) {
   };
 }
 
-function learnModel(image, clipboard, scale, offset, meterByPx) {
+function learnModel(image, clipboard, scale, offset, meterByPx, minWidth) {
   const wall = getWallGeometry(
     clipboard.items[0],
     (p) => ({ x: (p.x - offset.x) / scale, y: (p.y - offset.y) / scale }),
     meterByPx,
-    scale
+    scale,
+    minWidth
   );
   if (!wall) return null;
+  // Too few pixels across to describe a material: geometry only.
+  if (wall.width < MATERIAL_MIN_WIDTH) return { ...wall, appearance: null };
   const materialColor = learnMaterialColor(image, wall);
   const sample = (x, y) => readGray(image, x, y, materialColor);
   if (materialColor)
@@ -265,7 +270,7 @@ function learnModel(image, clipboard, scale, offset, meterByPx) {
   return { ...wall, appearance, sampleLength, materialColor };
 }
 
-function similarity(observed, expected) {
+export function similarity(observed, expected) {
   if (
     expected.colorFraction > 0.5 &&
     Math.abs(observed.colorFraction - expected.colorFraction) > 0.3
@@ -333,7 +338,14 @@ function boundaryScore(sample, center, u, width, length, mean) {
   return Math.min(...scores);
 }
 
-function scanAxis(sample, cursor, angle, model, radius, preferClosest = false) {
+export function scanAxis(
+  sample,
+  cursor,
+  angle,
+  model,
+  radius,
+  preferClosest = false
+) {
   const u = { x: Math.cos(angle), y: Math.sin(angle) },
     n = { x: -u.y, y: u.x };
   let best = null;
@@ -407,9 +419,11 @@ function scanAxis(sample, cursor, angle, model, radius, preferClosest = false) {
   return best;
 }
 
-function extendCandidate(sample, candidate, model, image) {
-  const { width, appearance } = model;
-  const sectionMatches = (a) => {
+// Classify one transverse scanline of a candidate band against a material
+// description: true (material), false (blank / other), "ink" (darker line),
+// "occluded" (foreign color) or null (mask, source footprint, image border).
+export function createSectionClassifier(sample, candidate, width, appearance) {
+  return (a) => {
     let sum = 0,
       squares = 0,
       count = 0,
@@ -456,6 +470,16 @@ function extendCandidate(sample, candidate, model, image) {
     if (mean < appearance.mean - 0.12) return "ink";
     return false;
   };
+}
+
+function extendCandidate(sample, candidate, model, image) {
+  const { width, appearance } = model;
+  const sectionMatches = createSectionClassifier(
+    sample,
+    candidate,
+    width,
+    appearance
+  );
   let seed = null;
   for (let d = 0; d <= Math.min(width / 2, 8); d++) {
     if (sectionMatches(d) === true) {
@@ -554,26 +578,21 @@ function extendCandidate(sample, candidate, model, image) {
   };
 }
 
-/** null means unsupported reference; {matches: []} means no similar wall. */
-export default function detectWallHoverCandidate({
+// Learned reference for one copied wall, cached by bitmap, clipboard and
+// coordinate conversion. null means unsupported reference; `appearance: null`
+// means a recognized wall whose pixels cannot describe a material.
+export function getReferenceModel({
   clipboard,
   imageData,
-  cursorImgPx,
-  exclusionMask,
   imageScale = 1,
   imageOffset = { x: 0, y: 0 },
   meterByPx = 0,
-  smartZoom = 1,
   pasteTransform,
   baseMapId,
-  searchRadiusImgPx,
+  // Thinnest band, in bitmap pixels, accepted as a reference.
+  minWidth = MATERIAL_MIN_WIDTH,
 }) {
-  if (
-    clipboard?.items?.length !== 1 ||
-    !imageData ||
-    !cursorImgPx ||
-    imageScale <= 0
-  )
+  if (clipboard?.items?.length !== 1 || !imageData || imageScale <= 0)
     return null;
   const item = clipboard.items[0];
   if (
@@ -588,7 +607,13 @@ export default function detectWallHoverCandidate({
     cache = new WeakMap();
     modelCache.set(imageData, cache);
   }
-  const key = [imageScale, imageOffset.x, imageOffset.y, meterByPx].join(",");
+  const key = [
+    imageScale,
+    imageOffset.x,
+    imageOffset.y,
+    meterByPx,
+    minWidth,
+  ].join(",");
   let entry = cache.get(clipboard);
   if (entry?.key !== key) {
     entry = {
@@ -598,23 +623,26 @@ export default function detectWallHoverCandidate({
         clipboard,
         imageScale,
         imageOffset,
-        meterByPx
+        meterByPx,
+        minWidth
       ),
     };
     cache.set(clipboard, entry);
   }
   const learned = entry.model;
-  if (!learned) return null;
-  if (!learned.appearance) return { matches: [] };
-  const model = pasteTransform?.flipX
-    ? {
-        ...learned,
-        appearance: {
-          ...learned.appearance,
-          profile: [...learned.appearance.profile].reverse(),
-        },
-      }
-    : learned;
+  if (!learned?.appearance || !pasteTransform?.flipX) return learned;
+  return {
+    ...learned,
+    appearance: {
+      ...learned.appearance,
+      profile: [...learned.appearance.profile].reverse(),
+    },
+  };
+}
+
+// Gray sampler shared by the detectors: null outside the image, under the
+// exclusion mask or inside the source footprint; NaN on a foreign color.
+export function createSampler(imageData, exclusionMask, model) {
   const sample = (x, y) => {
     const px = Math.floor(x),
       py = Math.floor(y);
@@ -639,15 +667,45 @@ export default function detectWallHoverCandidate({
   if (model.materialColor)
     sample.isMaterialColor = (x, y) =>
       sameColor(readPixel(imageData, x, y)?.color, model.materialColor);
+  return sample;
+}
+
+/** null means unsupported reference; {matches: []} means no similar wall. */
+export default function detectWallHoverCandidate({
+  clipboard,
+  imageData,
+  cursorImgPx,
+  exclusionMask,
+  imageScale = 1,
+  imageOffset = { x: 0, y: 0 },
+  meterByPx = 0,
+  smartZoom = 1,
+  pasteTransform,
+  baseMapId,
+}) {
+  if (!cursorImgPx) return null;
+  const model = getReferenceModel({
+    clipboard,
+    imageData,
+    imageScale,
+    imageOffset,
+    meterByPx,
+    pasteTransform,
+    baseMapId,
+  });
+  if (!model) return null;
+  if (!model.appearance) return { matches: [] };
+  const item = clipboard.items[0];
+  const sample = createSampler(imageData, exclusionMask, model);
   const rotation = ((pasteTransform?.rotationDeg ?? 0) * Math.PI) / 180;
   const baseAngle =
     Math.atan2(model.u.y, model.u.x * (pasteTransform?.flipX ? -1 : 1)) +
     rotation;
-  const explicitSearch =
-    Number.isFinite(searchRadiusImgPx) && searchRadiusImgPx > 0;
-  const radius = explicitSearch
-    ? Math.min(searchRadiusImgPx, Math.hypot(imageData.width, imageData.height))
-    : clamp(45 / Math.max(0.1, smartZoom), 6, Math.max(12, model.width * 2));
+  const radius = clamp(
+    45 / Math.max(0.1, smartZoom),
+    6,
+    Math.max(12, model.width * 2)
+  );
   // Orientation is a constraint supplied by the copied geometry and R/I.
   // Never rotate the candidate automatically to chase a nearby dark region.
   // Phase 1: acquire a clean seed near the cursor. The cursor can be on a
@@ -657,32 +715,12 @@ export default function detectWallHoverCandidate({
   let best = null;
   const u = { x: Math.cos(baseAngle), y: Math.sin(baseAngle) };
   const seedStep = model.sampleLength * 0.75;
-  const shifts = explicitSearch
-    ? [0]
-    : [0, -seedStep, seedStep, -2 * seedStep, 2 * seedStep];
-  if (explicitSearch) {
-    for (let shift = seedStep; shift < radius; shift += seedStep)
-      shifts.push(-shift, shift);
-    shifts.push(-radius, radius);
-  }
-  let bestDistance = Infinity;
-  for (const shift of shifts) {
+  for (const shift of [0, -seedStep, seedStep, -2 * seedStep, 2 * seedStep]) {
     const probe = {
       x: cursorImgPx.x + shift * u.x,
       y: cursorImgPx.y + shift * u.y,
     };
-    const transverseRadius = explicitSearch
-      ? Math.sqrt(Math.max(0, radius * radius - shift * shift)) +
-        model.width / 2
-      : radius;
-    const seed = scanAxis(
-      sample,
-      probe,
-      baseAngle,
-      model,
-      transverseRadius,
-      explicitSearch
-    );
+    const seed = scanAxis(sample, probe, baseAngle, model, radius);
     if (!seed) continue;
     const candidate = extendCandidate(sample, seed, model, imageData);
     if (!candidate) continue;
@@ -691,26 +729,10 @@ export default function detectWallHoverCandidate({
       (cursorImgPx.y - candidate.center.y) * u.y;
     // Do not jump across an opening to an unrelated seed farther along the
     // same axis. A small endpoint allowance supports hovering near a wall end.
-    if (
-      !explicitSearch &&
-      (cursorAlong < candidate.lo - 2 || cursorAlong > candidate.hi + 2)
-    )
+    if (cursorAlong < candidate.lo - 2 || cursorAlong > candidate.hi + 2)
       continue;
-    const nearestAlong = clamp(cursorAlong, candidate.lo, candidate.hi);
-    const across = Math.abs(
-      (cursorImgPx.x - candidate.center.x) * candidate.n.x +
-        (cursorImgPx.y - candidate.center.y) * candidate.n.y
-    );
-    const distance = Math.hypot(
-      cursorAlong - nearestAlong,
-      Math.max(0, across - model.width / 2)
-    );
-    if (explicitSearch && distance > radius) continue;
-    if (distance < bestDistance) {
-      best = candidate;
-      bestDistance = distance;
-    }
-    if (!explicitSearch || bestDistance === 0) break;
+    best = candidate;
+    break;
   }
   if (!best) return { matches: [] };
   const point = (along, across) => ({

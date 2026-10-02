@@ -1,4 +1,6 @@
-import detectWallHoverCandidate from "./detectWallHoverCandidate.js";
+import detectCopiedSegmentAtCursor from "./detectCopiedSegmentAtCursor.js";
+import detectExactCopyAtCursor from "./detectExactCopyAtCursor.js";
+import { computeMergesForAnnotation } from "../../annotations/utils/computeJoinAnnotationEnds.js";
 import repairOrthoJunctions, {
   buildJunctionNeighbors,
 } from "./repairOrthoJunctions.js";
@@ -49,6 +51,9 @@ export function joinCopiedSegment({
   const maxGapPx = meterByPx > 0 ? 0.14 / meterByPx : Math.min(12, width * 0.7);
   const overlapPx =
     meterByPx > 0 ? 0.01 / meterByPx : Math.min(1, width * 0.05);
+  // Two collinear segments are the same wall when their axes are within
+  // 1 cm, never less than the raster resolves.
+  const alignPx = Math.max(0.75, meterByPx > 0 ? 0.01 / meterByPx : 0);
   const [q1, q2] = match.placedPoints;
   const repaired = repairOrthoJunctions({
     q1,
@@ -92,7 +97,7 @@ export function joinCopiedSegment({
         (nb.p1.y - q1.y) * n.y +
         otherMid * dot -
         candidateMid;
-      if (Math.abs(centerOffset) > 0.75) continue;
+      if (Math.abs(centerOffset) > alignPx) continue;
       const along = [nb.p1, nb.p2].map(
         (p) => sign * ((p.x - original.x) * u.x + (p.y - original.y) * u.y)
       );
@@ -142,26 +147,91 @@ export function joinCopiedSegment({
   };
 }
 
-// The detector acquires a band, instantiates a segment draft and extends it.
+// How far from an end of the new segment the end of another wall may be for
+// the two to be fused: the junction gap (14 cm) plus the corner of two bands.
+export function getSegmentMergeReachPx(annotation, meterByPx) {
+  if (!(meterByPx > 0)) return 0;
+  return (
+    0.14 / meterByPx +
+    1.5 * Math.abs(getAnnotationStrokeWidthPx(annotation, meterByPx))
+  );
+}
+
+// Walls the detected segment would be fused with (« Fusionner »): same
+// template and width, one end in contact. Only editable walls qualify.
+function findMergePartnerIds({
+  match,
+  annotation,
+  annotations,
+  meterByPx,
+  canEditAnnotation = () => false,
+}) {
+  const id = "__segment__";
+  return computeMergesForAnnotation({
+    annotation: {
+      ...annotation,
+      id,
+      points: match.placedPoints.map((p, i) => ({ ...p, id: `${id}:${i}` })),
+    },
+    annotations: annotations.filter(
+      (ann) => !ann.deletedAt && canEditAnnotation(ann.id)
+    ),
+    meterByPx,
+    reachPx: getSegmentMergeReachPx(annotation, meterByPx),
+  }).map((merge) => (merge.keepId === id ? merge.dropId : merge.keepId));
+}
+
+// The detector acquires a band, centers it and extends it from the cursor —
+// or, with `exactCopy`, places the copy unchanged on its pixel signature.
 // Join the completed draft before any persistent write, so failure is atomic.
+// With `merge`, the walls the segment will be fused with are left out of the
+// junction repair: the fusion places their common vertex.
+// Returns { match, junctionEdits, mergePartnerIds } or { match: null, reason }.
 export default function prepareCopiedSegmentCreation({
   annotations = [],
   canEditAnnotation,
+  exactCopy = false,
+  merge = false,
   ...options
 }) {
-  if (!isCopiedSegment(options.clipboard)) return null;
+  if (!isCopiedSegment(options.clipboard))
+    return { match: null, reason: "UNSUPPORTED_REFERENCE" };
   const annotation = options.clipboard.items[0].annotation;
   const searchRadiusImgPx =
     (2 * Math.abs(getAnnotationStrokeWidthPx(annotation, options.meterByPx))) /
     (options.imageScale || 1);
-  const match = detectWallHoverCandidate({ ...options, searchRadiusImgPx })
-    ?.matches?.[0];
-  if (!match) return null;
-  return joinCopiedSegment({
-    match,
-    annotation: options.clipboard.items[0].annotation,
-    annotations,
-    meterByPx: options.meterByPx,
-    canEditAnnotation,
-  });
+  const detection = (
+    exactCopy ? detectExactCopyAtCursor : detectCopiedSegmentAtCursor
+  )({ ...options, searchRadiusImgPx });
+  if (!detection.match) return detection;
+  const mergePartnerIds = merge
+    ? findMergePartnerIds({
+        match: detection.match,
+        annotation,
+        annotations,
+        meterByPx: options.meterByPx,
+        canEditAnnotation,
+      })
+    : [];
+  // An exact copy keeps its length: no endpoint slides to a neighbor.
+  if (exactCopy)
+    return {
+      match: detection.match,
+      junctionEdits: [],
+      mergePartnerIds,
+      trace: detection.trace,
+    };
+  return {
+    ...joinCopiedSegment({
+      match: detection.match,
+      annotation,
+      annotations: annotations.filter(
+        (ann) => !mergePartnerIds.includes(ann.id)
+      ),
+      meterByPx: options.meterByPx,
+      canEditAnnotation,
+    }),
+    mergePartnerIds,
+    trace: detection.trace,
+  };
 }

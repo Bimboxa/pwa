@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import computeJoinAnnotationEnds from "./computeJoinAnnotationEnds.js";
+import computeJoinAnnotationEnds, {
+  computeMergesForAnnotation,
+} from "./computeJoinAnnotationEnds.js";
 
 // meterByPx = 0.01 → 1 cm = 1 px, strokeWidth 40 cm = 40 px.
 const MBP = 0.01;
@@ -809,4 +811,141 @@ test("merge: merged ends are consumed, leftover end T-joins the survivor", () =>
   assert.equal(merges.length, 1);
   assert.equal(moves.length, 1);
   assert.equal(moves[0].annotationId, "C");
+});
+
+// computeMergesForAnnotation (« Segment similaire » + « Fusionner »)
+
+const templated = (id, pts, extra = {}) =>
+  wall(id, pts, { annotationTemplateId: "t1", ...extra });
+
+test("new segment: a collinear wall of the same template absorbs it", () => {
+  const created = templated("new", [
+    [100, 100],
+    [100, 300],
+  ]);
+  const [merge, ...rest] = computeMergesForAnnotation({
+    annotation: created,
+    annotations: [
+      templated("old", [
+        [100, 310],
+        [100, 500],
+      ]),
+    ],
+    meterByPx: MBP,
+    reachPx: 74,
+  });
+  assert.equal(rest.length, 0);
+  // The existing wall survives; the new segment is the absorbed one.
+  assert.equal(merge.keepId, "old");
+  assert.equal(merge.dropId, "new");
+  assert.equal(merge.keepEndPointId, "old_0");
+  assert.equal(merge.dropEndPointId, "new_1");
+  near(merge.junction, 100, 305);
+});
+
+test("new segment: a corner is fused at the intersection of the two axes", () => {
+  const [merge] = computeMergesForAnnotation({
+    annotation: templated("new", [
+      [100, 100],
+      [100, 290],
+    ]),
+    annotations: [
+      templated("old", [
+        [120, 300],
+        [400, 300],
+      ]),
+    ],
+    meterByPx: MBP,
+    reachPx: 74,
+  });
+  assert.equal(merge.keepId, "old");
+  near(merge.junction, 100, 300);
+});
+
+test("new segment: both ends fuse with two different walls, one merge each", () => {
+  const merges = computeMergesForAnnotation({
+    annotation: templated("new", [
+      [100, 100],
+      [100, 300],
+    ]),
+    annotations: [
+      templated("above", [
+        [100, 0],
+        [100, 95],
+      ]),
+      templated("below", [
+        [100, 305],
+        [100, 500],
+      ]),
+    ],
+    meterByPx: MBP,
+    reachPx: 74,
+  });
+  assert.deepEqual(merges.map((m) => m.keepId).sort(), ["above", "below"]);
+  // Restricted to one end of the new segment.
+  const one = computeMergesForAnnotation({
+    annotation: templated("new", [
+      [100, 100],
+      [100, 300],
+    ]),
+    annotations: [
+      templated("above", [
+        [100, 0],
+        [100, 95],
+      ]),
+      templated("below", [
+        [100, 305],
+        [100, 500],
+      ]),
+    ],
+    meterByPx: MBP,
+    reachPx: 74,
+    endPointIds: new Set(["new_1"]),
+  });
+  assert.deepEqual(
+    one.map((m) => m.keepId),
+    ["below"]
+  );
+});
+
+test("new segment: no fusion with another template, width, a T contact or beyond reach", () => {
+  const created = templated("new", [
+    [100, 100],
+    [100, 300],
+  ]);
+  const none = (others, reachPx = 74) =>
+    assert.deepEqual(
+      computeMergesForAnnotation({
+        annotation: created,
+        annotations: others,
+        meterByPx: MBP,
+        reachPx,
+      }),
+      []
+    );
+  const below = [
+    [100, 310],
+    [100, 500],
+  ];
+  none([templated("old", below, { annotationTemplateId: "t2" })]);
+  none([templated("old", below, { strokeWidth: 30 })]);
+  none([wall("old", below)]);
+  none([templated("old", below)], 5);
+  // T contact: the new end meets the body of the wall, not one of its ends.
+  none([
+    templated("old", [
+      [-200, 320],
+      [400, 320],
+    ]),
+  ]);
+  // Uncalibrated plan.
+  assert.deepEqual(
+    computeMergesForAnnotation({
+      annotation: created,
+      annotations: [templated("old", below)],
+      meterByPx: 0,
+      reachPx: 74,
+    }),
+    []
+  );
 });

@@ -139,7 +139,8 @@ import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairSho
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
-import prepareCopiedSegmentCreation, { isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
+import prepareCopiedSegmentCreation, { getSegmentMergeReachPx, isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
+import mergeCreatedSegmentService from 'Features/annotations/services/mergeCreatedSegmentService';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
 import detectWallHoverCandidate from 'Features/smartDetect/utils/detectWallHoverCandidate';
 import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
@@ -150,6 +151,7 @@ import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/
 import detectPolygonFromAnnotations from 'Features/smartDetect/utils/detectPolygonFromAnnotations';
 import detectStripFromLoupe from 'Features/smartDetect/utils/detectStripFromLoupe';
 import buildExclusionMask from 'Features/smartDetect/utils/buildExclusionMask';
+import { buildSegmentPasteDebugCase } from 'Features/smartDetect/utils/segmentPasteDebugCase';
 import {
   DEFAULT_WALL_CANDIDATES_CM,
   scoreSegmentAtWidth,
@@ -611,6 +613,7 @@ const InteractionLayer = forwardRef(({
   // Copy/paste clipboard state
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
+  const pasteSegmentOptions = useSelector((s) => s.mapEditor.pasteSegmentOptions);
   const pasteDetectionMode = useSelector((s) => s.mapEditor.pasteDetectionMode);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   // paste: templateless annotations land in the selected scope
@@ -2567,6 +2570,8 @@ const InteractionLayer = forwardRef(({
   }, [pasteClipboard]);
 
   const pasteTransformRef = useRef(pasteTransform);
+  const pasteSegmentOptionsRef = useRef(pasteSegmentOptions);
+  pasteSegmentOptionsRef.current = pasteSegmentOptions;
   useEffect(() => {
     pasteTransformRef.current = pasteTransform;
   }, [pasteTransform]);
@@ -3803,20 +3808,47 @@ const InteractionLayer = forwardRef(({
           try {
             // Rebuild from the current visible annotations, including writes
             // whose live-query refresh has not reached the renderer yet.
-            patternExclusionMaskRef.current = null;
-            const plan = prepareCopiedSegmentCreation({
+            // Only bands (segments already drawn) hide pixels: a surface
+            // polygon along or over the wall must not blind the search.
+            const baseMapAnnotations = [...(annotationsRef.current || []), ...recentPasteAnnotationsRef.current.values()]
+              .filter((ann) => ann.baseMapId === baseMap.id);
+            const debug = localStorage.getItem("debugSegmentPaste") === "1";
+            const options = {
               clipboard, pasteTransform, imageData, imageScale, imageOffset,
               baseMapId: baseMap.id,
               meterByPx: meterByPxRef.current ?? 0,
               cursorImgPx: { x: (position.x - imageOffset.x) / imageScale,
                 y: (position.y - imageOffset.y) / imageScale },
-              exclusionMask: ensureExclusionMask(),
-              annotations: [...(annotationsRef.current || []), ...recentPasteAnnotationsRef.current.values()]
-                .filter((ann) => ann.baseMapId === baseMap.id),
-              canEditAnnotation: (id) => permissions.canEditAnnotation(id, { silent: true }),
+              exclusionMask: buildExclusionMask(
+                baseMapAnnotations.filter((ann) => ann.type === "STRIP" || ann.type === "POLYLINE"),
+                { width: imageData.width, height: imageData.height },
+                imageScale, imageOffset, meterByPxRef.current ?? 0,
+              ),
+              debug,
+            };
+            const { merge, exactCopy } = pasteSegmentOptionsRef.current || {};
+            const canEditAnnotation = (id) => permissions.canEditAnnotation(id, { silent: true });
+            const plan = prepareCopiedSegmentCreation({
+              ...options,
+              exactCopy,
+              merge,
+              annotations: baseMapAnnotations,
+              canEditAnnotation,
             });
-            if (!plan) {
-              dispatch(setToaster({ message: "Aucune bande similaire trouvée autour de la souris.", severity: "info" }));
+            if (debug) {
+              // Replayable under node: copy(JSON.stringify(window.__lastSegmentPasteCase))
+              window.__lastSegmentPasteCase = buildSegmentPasteDebugCase(options, plan);
+              console.info("[segmentPaste]", plan.reason ?? "created", plan.trace);
+            }
+            if (!plan.match) {
+              const message = plan.reason === "UNSUPPORTED_REFERENCE"
+                ? "Cette copie ne peut pas servir de référence ici (bande de moins de 2 px sur ce fond de plan, ou copiée depuis un autre fond de plan)."
+                : plan.reason === "TOO_SHORT"
+                  ? "Tronçon trop court à cet endroit pour créer un segment."
+                  : plan.reason === "NO_SIGNATURE"
+                    ? "Aucun dessin identique à la copie autour de la souris (R pour pivoter la copie)."
+                  : "Aucune bande de cette largeur et de cette orientation autour de la souris (R pour pivoter la copie).";
+              dispatch(setToaster({ message, severity: "info" }));
               return;
             }
             const created = await createAnnotationsFromDetectedMatchesRef.current({
@@ -3826,6 +3858,28 @@ const InteractionLayer = forwardRef(({
             for (const ann of created) recentPasteAnnotationsRef.current.set(ann.id, {
               ...ann, points: plan.match.placedPoints.map((p, i) => ({ ...p, id: ann.points[i].id })),
             });
+            // « Fusionner »: the new segment is absorbed by the walls of the
+            // same template and width whose end it touches.
+            if (merge && created.length && plan.mergePartnerIds?.length) {
+              const [ann] = created;
+              const meterByPx = meterByPxRef.current ?? 0;
+              const { survivor } = await mergeCreatedSegmentService({
+                created: {
+                  ...clipboard.items[0].annotation,
+                  ...ann,
+                  points: plan.match.placedPoints.map((p, i) => ({ ...ann.points[i], x: p.x, y: p.y })),
+                },
+                annotations: baseMapAnnotations.filter((other) => canEditAnnotation(other.id)),
+                imageSize: baseMap.getImageSize(),
+                meterByPx,
+                reachPx: getSegmentMergeReachPx(clipboard.items[0].annotation, meterByPx),
+                dispatch,
+              });
+              if (survivor) {
+                recentPasteAnnotationsRef.current.delete(ann.id);
+                recentPasteAnnotationsRef.current.set(survivor.id, survivor);
+              }
+            }
           } catch (error) {
             console.warn("[segmentPaste] creation failed", error);
             dispatch(setToaster({ message: "Le segment n’a pas pu être créé.", severity: "error" }));

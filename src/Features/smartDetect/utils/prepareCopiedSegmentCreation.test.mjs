@@ -13,13 +13,14 @@ for (const fill of ["hatch", "gray", "black"]) {
       ...f,
       cursorImgPx: { x: 295, y: 310 },
     });
-    assert.ok(plan);
+    assert.ok(plan.match);
     const [a, b] = plan.match.placedPoints;
     assert.ok(Math.abs(a.x - 260) < 2);
     assert.ok(Math.abs(Math.abs(a.y - b.y) - 180) < 3);
     // A square window would include this target, but the search circle cannot.
     assert.equal(
-      prepareCopiedSegmentCreation({ ...f, cursorImgPx: { x: 306, y: 325 } }),
+      prepareCopiedSegmentCreation({ ...f, cursorImgPx: { x: 306, y: 325 } })
+        .match,
       null
     );
   });
@@ -38,14 +39,14 @@ test("search radius follows band width and bitmap scale, independently of length
           ...f,
           smartZoom,
           cursorImgPx: { x: 295, y: 210 },
-        })
+        }).match
       );
       assert.equal(
         prepareCopiedSegmentCreation({
           ...f,
           smartZoom,
           cursorImgPx: { x: 320, y: 210 },
-        }),
+        }).match,
         null
       );
     }
@@ -60,9 +61,11 @@ test("search radius follows band width and bitmap scale, independently of length
   });
   assert.ok(
     prepareCopiedSegmentCreation({ ...f, cursorImgPx: { x: 295, y: 210 } })
+      .match
   );
   assert.equal(
-    prepareCopiedSegmentCreation({ ...f, cursorImgPx: { x: 320, y: 210 } }),
+    prepareCopiedSegmentCreation({ ...f, cursorImgPx: { x: 320, y: 210 } })
+      .match,
     null
   );
 });
@@ -201,7 +204,7 @@ test("only a single straight copied segment uses this workflow", () => {
   assert.ok(isCopiedSegment(f.clipboard));
   f.clipboard.items[0].basePoints[0].type = "circle";
   assert.equal(isCopiedSegment(f.clipboard), false);
-  assert.equal(prepareCopiedSegmentCreation(f), null);
+  assert.equal(prepareCopiedSegmentCreation(f).match, null);
 });
 
 for (const type of ["POLYLINE", "STRIP"]) {
@@ -225,7 +228,7 @@ for (const type of ["POLYLINE", "STRIP"]) {
           exclusionMask: mask,
           cursorImgPx: { x: 50, y: 95 },
         });
-        assert.ok(plan, `${type} ${fill}: length ${length}, width 20`);
+        assert.ok(plan.match, `${type} ${fill}: length ${length}, width 20`);
         const [a, b] = plan.match.placedPoints;
         assert.ok(Math.abs(a.y - 40) < 2);
         assert.ok(
@@ -285,7 +288,7 @@ function columnFixture(color = [80, 165, 225], targetColor = color) {
 
 test("a square gray column is accepted as a short candidate", () => {
   const result = prepareCopiedSegmentCreation(columnFixture([155, 155, 155]));
-  assert.ok(result);
+  assert.ok(result.match);
   const [a, b] = result.match.placedPoints;
   assert.ok(Math.abs(a.x - 160) <= 2);
   assert.ok(Math.abs(a.y - 188) <= 3);
@@ -295,21 +298,27 @@ test("a square gray column is accepted as a short candidate", () => {
 test("a blue column reference learns its fill instead of discarding it as dimension ink", () => {
   const f = columnFixture();
   const result = prepareCopiedSegmentCreation(f);
-  assert.ok(result);
+  assert.ok(result.match);
   const [a, b] = result.match.placedPoints;
   assert.ok(Math.abs(a.x - 160) <= 2);
   assert.ok(Math.abs(a.y - 188) <= 3);
   assert.ok(Math.abs(b.y - 212) <= 3);
-  assert.equal(
-    prepareCopiedSegmentCreation(columnFixture([80, 165, 225], [225, 80, 100])),
-    null
-  );
-  assert.equal(
-    prepareCopiedSegmentCreation(
-      columnFixture([80, 165, 225], [146, 146, 146])
-    ),
-    null
-  );
+});
+
+test("geometry decides: a column of another hue or a neutral fill is still created", () => {
+  for (const target of [
+    [225, 80, 100],
+    [146, 146, 146],
+  ]) {
+    const result = prepareCopiedSegmentCreation(
+      columnFixture([80, 165, 225], target)
+    );
+    assert.ok(result.match, `${target}`);
+    const [a, b] = result.match.placedPoints;
+    assert.ok(Math.abs(a.x - 160) <= 2);
+    assert.ok(Math.abs(a.y - 188) <= 3, `${target}: ${a.y}`);
+    assert.ok(Math.abs(b.y - 212) <= 3, `${target}: ${b.y}`);
+  }
 });
 
 test("colored columns work with calibrated strips on either side and nearby blue shades", () => {
@@ -326,11 +335,62 @@ test("colored columns work with calibrated strips on either side and nearby blue
       p.x += stripOrientation * 12;
     });
     const result = prepareCopiedSegmentCreation({ ...f, meterByPx: 0.2 / 24 });
-    assert.ok(result);
+    assert.ok(result.match);
     assert.ok(
       Math.abs(
         result.match.placedPoints[0].x - (160 + stripOrientation * 12)
       ) <= 2
     );
   }
+});
+
+test("« Fusionner » names the walls to fuse with and leaves them out of the junction repair", () => {
+  // Target wall: x 250..270, y 120..300 at 1 cm per pixel.
+  const f = fixture("gray", 90);
+  f.meterByPx = 0.01;
+  f.clipboard.items[0].annotation = {
+    type: "POLYLINE",
+    strokeWidth: 20,
+    strokeWidthUnit: "CM",
+    annotationTemplateId: "t1",
+    baseMapId: "plan",
+  };
+  const neighbor = (extra = {}) => ({
+    id: "wall",
+    type: "POLYLINE",
+    strokeWidth: 20,
+    strokeWidthUnit: "CM",
+    annotationTemplateId: "t1",
+    points: [
+      { id: "a", x: 260, y: 304 },
+      { id: "b", x: 260, y: 370 },
+    ],
+    ...extra,
+  });
+  const prepare = (annotations, options) =>
+    prepareCopiedSegmentCreation({
+      ...f,
+      annotations,
+      canEditAnnotation: () => true,
+      ...options,
+    });
+  const fused = prepare([neighbor()], { merge: true });
+  assert.deepEqual(fused.mergePartnerIds, ["wall"]);
+  // The detected end is left where the wall stops: the fusion joins it.
+  assert.ok(Math.abs(fused.match.placedPoints[1].y - 300) <= 2);
+  assert.deepEqual(fused.junctionEdits, []);
+  // Without the option the collinear gap is closed by the junction repair.
+  const joined = prepare([neighbor()]);
+  assert.deepEqual(joined.mergePartnerIds, []);
+  assert.equal(joined.match.placedPoints[1].y, 304);
+  for (const other of [
+    neighbor({ annotationTemplateId: "t2" }),
+    neighbor({ strokeWidth: 25 }),
+  ])
+    assert.deepEqual(prepare([other], { merge: true }).mergePartnerIds, []);
+  assert.deepEqual(
+    prepare([neighbor()], { merge: true, canEditAnnotation: () => false })
+      .mergePartnerIds,
+    []
+  );
 });

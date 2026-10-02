@@ -349,6 +349,110 @@ const joinT = (end, host, overlapPx) => {
   return enterBand(end, host, I, overlapPx);
 };
 
+// Open POLYLINE / STRIP walls with a physical (CM) width.
+const getEligibleWalls = (annotations, meterByPx, skipped = []) => {
+  const walls = [];
+  for (const a of annotations) {
+    if (!a || (a.type !== "POLYLINE" && a.type !== "STRIP")) continue;
+    if (a.closeLine || isOpening(a)) continue;
+    const points = (a.points || []).filter(isFinitePoint);
+    if (points.length < 2) continue;
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (a.type === "STRIP" && dist(first, last) < EPS) continue;
+    const band = getPathBand(a, meterByPx);
+    if (!band) {
+      skipped.push({ annotationId: a.id, reason: "PX_WIDTH" });
+      continue;
+    }
+    walls.push({ id: a.id, ann: a, points, band });
+  }
+  return walls;
+};
+
+// The two ends (first / last vertex) of a wall, each with the direction of
+// its end segment pointing outwards.
+const getWallEnds = (wall) => {
+  const { points } = wall;
+  const n = points.length;
+  const first = points[0];
+  const last = points[n - 1];
+  const ends = [];
+  if (first.id) {
+    const dir = unit(points[1], first);
+    if (dir)
+      ends.push({
+        wallId: wall.id,
+        ann: wall.ann,
+        pointId: first.id,
+        point: first,
+        dir,
+        band: mirrorBand(wall.band),
+        segmentKey: `${wall.id}::0`,
+        endIndex: "FIRST",
+        segmentLength: dist(points[1], first),
+        pointCount: n,
+      });
+  }
+  if (last.id) {
+    const dir = unit(points[n - 2], last);
+    if (dir)
+      ends.push({
+        wallId: wall.id,
+        ann: wall.ann,
+        pointId: last.id,
+        point: last,
+        dir,
+        band: wall.band,
+        segmentKey: `${wall.id}::${n - 2}`,
+        endIndex: "LAST",
+        segmentLength: dist(points[n - 2], last),
+        pointCount: n,
+      });
+  }
+  return ends;
+};
+
+// Merges between the ends of ONE annotation and the nearest mergeable end of
+// another wall within `reachPx` (same merge rule as « Fusionner si possible »).
+// Used when a freshly created segment touches an existing wall of the same
+// template and width. `endPointIds` restricts which ends of `annotation` may
+// merge. The other wall is listed first, so at equal point counts it is the
+// survivor and `annotation` is absorbed. At most one merge per end.
+export function computeMergesForAnnotation({
+  annotation,
+  annotations,
+  meterByPx,
+  reachPx,
+  endPointIds = null,
+}) {
+  if (!(meterByPx > 0) || !annotation) return [];
+  const collinearTolPx = JOIN_MERGE_COLLINEAR_TOL_M / meterByPx;
+  const [own] = getEligibleWalls([annotation], meterByPx);
+  if (!own) return [];
+  const otherEnds = getEligibleWalls(
+    (annotations || []).filter((a) => a?.id !== annotation.id),
+    meterByPx
+  ).flatMap(getWallEnds);
+  const merges = [];
+  const usedWalls = new Set();
+  for (const end of getWallEnds(own)) {
+    if (endPointIds && !endPointIds.has(end.pointId)) continue;
+    let best = null;
+    for (const other of otherEnds) {
+      if (usedWalls.has(other.wallId)) continue;
+      const d = dist(end.point, other.point);
+      if (d > reachPx || (best && d >= best.d)) continue;
+      const merge = getMergeJunction(other, end, collinearTolPx);
+      if (merge) best = { d, merge, wallId: other.wallId };
+    }
+    if (!best) continue;
+    usedWalls.add(best.wallId);
+    merges.push(best.merge);
+  }
+  return merges;
+}
+
 // main
 
 export default function computeJoinAnnotationEnds({
@@ -370,63 +474,10 @@ export default function computeJoinAnnotationEnds({
   const segmentCrossesRect = makeSegmentCrossesRect(rect);
 
   // 1. Eligible walls.
-  const walls = [];
-  for (const a of annotations) {
-    if (!a || (a.type !== "POLYLINE" && a.type !== "STRIP")) continue;
-    if (a.closeLine || isOpening(a)) continue;
-    const points = (a.points || []).filter(isFinitePoint);
-    if (points.length < 2) continue;
-    const first = points[0];
-    const last = points[points.length - 1];
-    if (a.type === "STRIP" && dist(first, last) < EPS) continue;
-    const band = getPathBand(a, meterByPx);
-    if (!band) {
-      skipped.push({ annotationId: a.id, reason: "PX_WIDTH" });
-      continue;
-    }
-    walls.push({ id: a.id, ann: a, points, band });
-  }
+  const walls = getEligibleWalls(annotations, meterByPx, skipped);
 
   // 2. Ends inside the rectangle.
-  const ends = [];
-  for (const wall of walls) {
-    const { points } = wall;
-    const n = points.length;
-    const first = points[0];
-    const last = points[n - 1];
-    if (first.id && inRect(first)) {
-      const dir = unit(points[1], first);
-      if (dir)
-        ends.push({
-          wallId: wall.id,
-          ann: wall.ann,
-          pointId: first.id,
-          point: first,
-          dir,
-          band: mirrorBand(wall.band),
-          segmentKey: `${wall.id}::0`,
-          endIndex: "FIRST",
-          segmentLength: dist(points[1], first),
-          pointCount: n,
-        });
-    }
-    if (last.id && inRect(last)) {
-      const dir = unit(points[n - 2], last);
-      if (dir)
-        ends.push({
-          wallId: wall.id,
-          ann: wall.ann,
-          pointId: last.id,
-          point: last,
-          dir,
-          band: wall.band,
-          segmentKey: `${wall.id}::${n - 2}`,
-          endIndex: "LAST",
-          segmentLength: dist(points[n - 2], last),
-          pointCount: n,
-        });
-    }
-  }
+  const ends = walls.flatMap(getWallEnds).filter((end) => inRect(end.point));
   if (ends.length === 0)
     return { moves: [], merges, skipped, reason: "NO_END" };
 
