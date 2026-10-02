@@ -309,3 +309,45 @@ test("equivalent parallel wall remains stable as the cursor moves across it", ()
     assert.ok(Math.abs(Math.abs(a.y - b.y) - 180) <= 3);
   }
 });
+
+test("acquires a clean seed beside a dimension label and extends through it", () => {
+  for (const fill of ["hatch", "black", "gray"]) {
+    for (const cursorX of [248, 260, 270]) {
+      const f = fixture(fill);
+      // A blue dimension label occludes a span longer than the old 8px limit.
+      for (let y = 198; y < 222; y++)
+        for (let x = 247; x < 275; x++) {
+          const i = (y * f.imageData.width + x) * 4;
+          f.imageData.data[i] = 20;
+          f.imageData.data[i + 1] = 30;
+          f.imageData.data[i + 2] = 230;
+        }
+      const result = detectWallHoverCandidate({
+        ...f,
+        cursorImgPx: { x: cursorX, y: 210 },
+      });
+      assert.equal(result?.matches.length, 1, `${fill}, cursor ${cursorX}`);
+      const [a, b] = result.matches[0].placedPoints;
+      assert.ok(
+        Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - 180) < 5,
+        `${fill}: ${JSON.stringify([a, b])}`
+      );
+    }
+  }
+});
+
+test("extension crosses thin black drafting lines but stops at real openings", () => {
+  const f = fixture("hatch");
+  for (let y = 198; y < 222; y++)
+    for (let x = 290; x < 294; x++) {
+      const i = (y * f.imageData.width + x) * 4;
+      f.imageData.data[i] =
+        f.imageData.data[i + 1] =
+        f.imageData.data[i + 2] =
+          0;
+    }
+  const result = detectWallHoverCandidate(f);
+  assert.equal(result?.matches.length, 1);
+  const [a, b] = result.matches[0].placedPoints;
+  assert.ok(Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - 180) < 5);
+});

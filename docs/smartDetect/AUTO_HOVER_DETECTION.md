@@ -40,8 +40,19 @@ reject isolated lines, incompatible fills, wrong widths and broad filled
 regions. Only the transverse placement and wall length are recovered from the
 image. Three additional signature checks validate the recovered span.
 
-The candidate grows in both directions until its interior no longer matches.
-A short interruption by colored dimension ink is tolerated. Image boundaries,
+Detection has two distinct phases. First, try a seed window at the cursor,
+then neighboring windows along the same axis (up to 1.5 sample lengths away).
+This lets a cursor on a dimension label or near an endpoint acquire a clean
+piece of wall. Second, extend that seed independently in both directions.
+Only accept a recovered span containing the cursor, with a two-pixel endpoint
+allowance, so seed search cannot jump across an opening.
+
+Colored dimension ink may interrupt up to two wall widths (capped at 128 bitmap
+pixels). A thin darker drafting line may interrupt up to 0.3 wall widths
+(capped at 12 pixels). Neither updates the endpoint until matching material
+resumes, and neither allowance applies to blank openings. Final signature
+checks seek clean neighboring windows instead of rejecting a whole wall
+because one confirmation window lands on a dimension label. Image boundaries,
 the source footprint and annotation exclusion masks stop extension. Real
 openings longer than two bitmap scanlines split the wall. Each candidate is
 one straight segment; it does not turn corners or trace a complete network.
@@ -76,5 +87,15 @@ The regression suite also rejects diagonal/perpendicular targets unless the
 copy is explicitly rotated, rejects equal-density ink in different transverse
 layers, and checks stability while the cursor moves across a parallel wall.
 
-Screenshot checks exercise the bitmap algorithm only. They do not replace an
-end-to-end browser/IndexedDB validation on the user's project.
+## Real-plan regression
+
+The original `1.2 SS - hachures.pdf` was rendered at the published reference size
+5952 x 3009. A 20 cm source wall at x=2494, y=736..991 (0.0151190476190476 m/px)
+was used to detect the parallel walls at x=2309 and x=2838 from seven cursor
+positions each, including the dimension crossing. The former detector missed
+those crossings and split the right wall at y=837/846. The two-phase detector
+recovers approximately y=723..1000 and y=647..990 respectively at all tested
+positions, with less than one pixel of endpoint variation.
+
+The PDF and its rendered images remain outside the repository. This validates
+the bitmap algorithm on the actual plan, not the browser/IndexedDB commit flow.

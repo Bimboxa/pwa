@@ -335,10 +335,15 @@ function extendCandidate(sample, candidate, model, image) {
     if (count < samples * 0.7) return "occluded";
     const mean = sum / count;
     const deviation = Math.sqrt(Math.max(0, squares / count - mean * mean));
-    return (
+    if (
       Math.abs(mean - appearance.mean) < 0.25 &&
       Math.abs(deviation - appearance.deviation) < 0.25
-    );
+    )
+      return true;
+    // Thin black drafting lines can temporarily replace the fill. Blank
+    // scanlines remain gaps, so this allowance cannot bridge a white opening.
+    if (mean < appearance.mean - 0.12) return "ink";
+    return false;
   };
   let seed = null;
   for (let d = 0; d <= Math.min(width / 2, 8); d++) {
@@ -355,7 +360,8 @@ function extendCandidate(sample, candidate, model, image) {
   const walk = (sign) => {
     let last = seed,
       gap = 0,
-      occlusion = 0;
+      occlusion = 0,
+      ink = 0;
     const max = Math.ceil(Math.hypot(image.width, image.height));
     for (let i = 1; i <= max; i++) {
       const a = seed + i * sign;
@@ -364,11 +370,14 @@ function extendCandidate(sample, candidate, model, image) {
       // antialiasing or hatch whitespace, but an opening must split the wall.
       if (valid === null) break;
       if (valid === "occluded") {
-        if (++occlusion > Math.max(3, Math.min(8, width / 4))) break;
+        if (++occlusion > Math.max(6, Math.min(128, width * 2))) break;
+      } else if (valid === "ink") {
+        if (++ink > Math.max(2, Math.min(12, width * 0.3))) break;
       } else if (valid) {
         last = a;
         gap = 0;
         occlusion = 0;
+        ink = 0;
       } else if (++gap > 2) break;
     }
     return last + sign * 0.5;
@@ -397,17 +406,31 @@ function extendCandidate(sample, candidate, model, image) {
   const checkLength = Math.min(model.sampleLength, (hi - lo) / 3);
   for (const fraction of [0.2, 0.5, 0.8]) {
     const along = lo + fraction * (hi - lo);
-    const observed = measureAppearance(
-      sample,
-      {
-        x: candidate.center.x + along * candidate.u.x,
-        y: candidate.center.y + along * candidate.u.y,
-      },
-      candidate.u,
-      width,
-      checkLength
-    );
-    if (similarity(observed, appearance) < 0.65) return null;
+    let confirmed = false;
+    // A dimension label must not veto the complete wall a second time during
+    // validation. Seek a clean nearby window, still inside the recovered span.
+    for (const shift of [0, -checkLength, checkLength]) {
+      const a = clamp(
+        along + shift,
+        lo + checkLength / 2,
+        hi - checkLength / 2
+      );
+      const observed = measureAppearance(
+        sample,
+        {
+          x: candidate.center.x + a * candidate.u.x,
+          y: candidate.center.y + a * candidate.u.y,
+        },
+        candidate.u,
+        width,
+        checkLength
+      );
+      if (similarity(observed, appearance) >= 0.65) {
+        confirmed = true;
+        break;
+      }
+    }
+    if (!confirmed) return null;
   }
   return {
     ...candidate,
@@ -509,9 +532,32 @@ export default function detectWallHoverCandidate({
   );
   // Orientation is a constraint supplied by the copied geometry and R/I.
   // Never rotate the candidate automatically to chase a nearby dark region.
-  const candidate = scanAxis(sample, cursorImgPx, baseAngle, model, radius);
-  const best =
-    candidate && extendCandidate(sample, candidate, model, imageData);
+  // Phase 1: acquire a clean seed near the cursor. The cursor can be on a
+  // dimension, hatch whitespace or an endpoint rather than a scorable patch.
+  // Phase 2: extend that seed independently in both directions. Return the
+  // first complete candidate reaching the cursor, not just the local patch.
+  let best = null;
+  const u = { x: Math.cos(baseAngle), y: Math.sin(baseAngle) };
+  const seedStep = model.sampleLength * 0.75;
+  for (const shift of [0, -seedStep, seedStep, -2 * seedStep, 2 * seedStep]) {
+    const probe = {
+      x: cursorImgPx.x + shift * u.x,
+      y: cursorImgPx.y + shift * u.y,
+    };
+    const seed = scanAxis(sample, probe, baseAngle, model, radius);
+    if (!seed) continue;
+    const candidate = extendCandidate(sample, seed, model, imageData);
+    if (!candidate) continue;
+    const cursorAlong =
+      (cursorImgPx.x - candidate.center.x) * u.x +
+      (cursorImgPx.y - candidate.center.y) * u.y;
+    // Do not jump across an opening to an unrelated seed farther along the
+    // same axis. A small endpoint allowance supports hovering near a wall end.
+    if (cursorAlong < candidate.lo - 2 || cursorAlong > candidate.hi + 2)
+      continue;
+    best = candidate;
+    break;
+  }
   if (!best) return { matches: [] };
   const point = (along, across) => ({
     x:
