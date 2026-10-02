@@ -41,6 +41,13 @@ const COLOR_FREE = 0x000000;
 const COLOR_IN_PROGRESS = 0xff2d8d;
 const COLOR_TRAIT = 0x8a8a8a;
 const COLOR_CROSS = "#90a4ae";
+// Marker of an aligned vertex — the active marker of the 2D AxisSnapLayer.
+const ALIGN_MARKER_FILL = "rgba(255,23,68,0.45)";
+// A lock on each arm of the cross at most.
+const ALIGN_MARKERS_COUNT = 2;
+// Under this distance (m) to the hovered plane, an aligned vertex sits on its
+// own footprint: no leader line.
+const ALIGN_LEADER_EPS_M = 5e-3;
 
 const LINEWIDTH_PREVIEW = 3;
 const LINEWIDTH_IN_PROGRESS = 4;
@@ -73,6 +80,13 @@ function colorForKind(kind) {
     default:
       return COLOR_VERTEX;
   }
+}
+
+// Preview line color: the lock color as soon as an arm of the cross is
+// locked (e.g. an edge snap stopped on the ortho from the last vertex).
+function colorForSnap(snap) {
+  if (snap?.lockedAxes?.A || snap?.lockedAxes?.B) return COLOR_LOCK;
+  return colorForKind(snap?.kind);
 }
 
 function colorHex(c) {
@@ -189,7 +203,8 @@ export default function DrawingOverlayThreed() {
   const snapCircleRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
-  const alignLineRef = useRef(null);
+  const alignMarkerRefs = useRef([]);
+  const alignLeaderRefs = useRef([]);
 
   // mount / unmount root group
   useEffect(() => {
@@ -285,7 +300,7 @@ export default function DrawingOverlayThreed() {
   }, [inProgressPolyline, active]);
 
   // pointer-move: snap detection + hover marker + plane cross + alignment
-  // line (SVG, screen-space) + dashed preview segment or rectangle loop
+  // markers (SVG, screen-space) + dashed preview segment or rectangle loop
   // (Line2 with thick LineMaterial)
   useEffect(() => {
     if (!active) return;
@@ -421,8 +436,9 @@ export default function DrawingOverlayThreed() {
 
     // Cross helper of a plane hit: the two dashed lines through the point,
     // parallel to the plane's edges, ending on its borders (mirrors
-    // MoveBaseMapOverlayThreed). The locked axis of a PLANE_ORTHO snap is
-    // drawn solid in the lock color.
+    // MoveBaseMapOverlayThreed). A locked arm (in-plane ortho lock, or arm
+    // running through an aligned vertex) is drawn solid in the lock color —
+    // like the snapped branch of the 2D cursor.
     function updateCross(snap, rect) {
       const show = Boolean(snap?.axisA && snap?.axisB);
       [
@@ -441,7 +457,7 @@ export default function DrawingOverlayThreed() {
         el.setAttribute("y1", a.sy);
         el.setAttribute("x2", b.sx);
         el.setAttribute("y2", b.sy);
-        const locked = snap.kind === "PLANE_ORTHO" && snap.axis === key;
+        const locked = Boolean(snap.lockedAxes?.[key]);
         el.style.stroke = locked ? colorHex(COLOR_LOCK) : COLOR_CROSS;
         if (locked) el.removeAttribute("stroke-dasharray");
         else el.setAttribute("stroke-dasharray", "5 4");
@@ -449,23 +465,36 @@ export default function DrawingOverlayThreed() {
       });
     }
 
-    function updateAlignLine(snap, rect) {
-      const el = alignLineRef.current;
-      if (!el) return;
-      const from =
-        snap?.kind === "PLANE_ALIGN" && snap.alignFrom
-          ? toScreen(snap.alignFrom, rect)
-          : null;
-      const to = from ? toScreen(snap.position, rect) : null;
-      if (!from || !to) {
-        el.style.display = "none";
-        return;
+    // Vertices the cross is aligned with: a marker on each of them, plus a
+    // dashed leader down to its footprint when it is off the hovered plane
+    // (e.g. a wall-top vertex) — the locked arm runs through the footprint.
+    function updateAlignMarkers(snap, rect) {
+      const vertices = snap?.alignFrom ?? [];
+      for (let i = 0; i < ALIGN_MARKERS_COUNT; i++) {
+        const marker = alignMarkerRefs.current[i];
+        const leader = alignLeaderRefs.current[i];
+        const vertex = vertices[i];
+        const at = vertex ? toScreen(vertex.position, rect) : null;
+        if (marker) {
+          if (at) {
+            marker.setAttribute("cx", at.sx);
+            marker.setAttribute("cy", at.sy);
+          }
+          marker.style.display = at ? "block" : "none";
+        }
+        if (!leader) continue;
+        const isOffPlane =
+          at &&
+          vertex.position.distanceTo(vertex.footprint) > ALIGN_LEADER_EPS_M;
+        const foot = isOffPlane ? toScreen(vertex.footprint, rect) : null;
+        if (foot) {
+          leader.setAttribute("x1", at.sx);
+          leader.setAttribute("y1", at.sy);
+          leader.setAttribute("x2", foot.sx);
+          leader.setAttribute("y2", foot.sy);
+        }
+        leader.style.display = foot ? "block" : "none";
       }
-      el.setAttribute("x1", from.sx);
-      el.setAttribute("y1", from.sy);
-      el.setAttribute("x2", to.sx);
-      el.setAttribute("y2", to.sy);
-      el.style.display = "block";
     }
 
     function clearPreviewLine() {
@@ -485,7 +514,7 @@ export default function DrawingOverlayThreed() {
       if (!snapPos || !last) return;
 
       const mat = makeLineMaterial({
-        color: colorForKind(snap.kind),
+        color: colorForSnap(snap),
         linewidth: LINEWIDTH_PREVIEW,
         dashed: true,
         dashSize: getDashSize(camera.position.distanceTo(snapPos)),
@@ -510,7 +539,7 @@ export default function DrawingOverlayThreed() {
       const corners = getRectangleCorners(snap.position);
       if (!corners) return;
       const mat = makeLineMaterial({
-        color: colorForKind(snap.kind),
+        color: colorForSnap(snap),
         linewidth: LINEWIDTH_PREVIEW,
         dashed: true,
         resolution: getCanvasResolution(editor),
@@ -545,9 +574,17 @@ export default function DrawingOverlayThreed() {
           : isMeshDraw
             ? [...traitPoints, ...inProgressPolyline]
             : inProgressPolyline,
-        findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
-        findNearestEdge: (mNdc, cam, sz) =>
-          findNearestEdgeSnap(getMeshAdjacency(), mNdc, cam, sz),
+        findNearestVertex: (mNdc, cam, sz, options) =>
+          findNearestSnap(mNdc, cam, sz, undefined, options),
+        findNearestEdge: (mNdc, cam, sz, options) =>
+          findNearestEdgeSnap(
+            getMeshAdjacency(),
+            mNdc,
+            cam,
+            sz,
+            undefined,
+            options
+          ),
         intersectPlane,
         alignAdjacency: getMeshAdjacency(),
         attachFaceToPointSnaps: isMeshDraw && !anchor,
@@ -555,7 +592,7 @@ export default function DrawingOverlayThreed() {
       setLastSnap(snap);
       updateSnapCircle(snap, rect);
       updateCross(snap, rect);
-      updateAlignLine(snap, rect);
+      updateAlignMarkers(snap, rect);
       if (anchor) updateRectanglePreview(snap);
       else updatePreviewLine(snap);
       editor.sceneManager.renderScene?.();
@@ -566,7 +603,9 @@ export default function DrawingOverlayThreed() {
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
       if (crossARef.current) crossARef.current.style.display = "none";
       if (crossBRef.current) crossBRef.current.style.display = "none";
-      if (alignLineRef.current) alignLineRef.current.style.display = "none";
+      [...alignMarkerRefs.current, ...alignLeaderRefs.current].forEach((el) => {
+        if (el) el.style.display = "none";
+      });
       clearPreviewLine();
       editor.sceneManager.renderScene?.();
     }
@@ -615,13 +654,27 @@ export default function DrawingOverlayThreed() {
         strokeDasharray="5 4"
         style={{ display: "none" }}
       />
-      <line
-        ref={alignLineRef}
-        stroke={colorHex(COLOR_LOCK)}
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        style={{ display: "none" }}
-      />
+      {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+        <line
+          key={`leader-${i}`}
+          ref={(el) => (alignLeaderRefs.current[i] = el)}
+          stroke={colorHex(COLOR_LOCK)}
+          strokeWidth="1.5"
+          strokeDasharray="5 4"
+          style={{ display: "none" }}
+        />
+      ))}
+      {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+        <circle
+          key={`marker-${i}`}
+          ref={(el) => (alignMarkerRefs.current[i] = el)}
+          r={SNAP_CIRCLE_RADIUS_PX}
+          stroke={colorHex(COLOR_LOCK)}
+          strokeWidth="1.5"
+          fill={ALIGN_MARKER_FILL}
+          style={{ display: "none" }}
+        />
+      ))}
       <circle
         ref={snapCircleRef}
         r={SNAP_CIRCLE_RADIUS_PX}

@@ -1,11 +1,18 @@
 import { Vector3 } from "three";
 
 import alignPlaneHitToVertices from "./alignPlaneHitToVertices";
+import getEdgeSnapFrame, { getPlaneHitNormal } from "./getEdgeSnapFrame";
 import inPlaneOrthoSnap from "./inPlaneOrthoSnap";
+import lockEdgeSnapToAxes from "./lockEdgeSnapToAxes";
 
 // Pixel threshold under which the cursor is considered "on" an axis line
 // projected through the last committed vertex.
 const AXIS_THRESHOLD_PX = 20;
+
+// A vertex / edge further than this (m) behind the plane under the cursor is
+// hidden by it — absorbs the 1 mm z-fight lift of the annotation faces
+// (matches inPlaneOrthoSnap's COPLANAR_EPS_M).
+const OCCLUSION_EPS_M = 5e-3;
 
 const AXES = [
   { key: "X", vec: new Vector3(1, 0, 0) },
@@ -85,19 +92,32 @@ function snapToInProgress(
 //   1. snap to a vertex of the in-progress polyline (lets the user close
 //      back to the first vertex without redrawing)
 //   2. snap to nearest existing mesh vertex (within pixel threshold)
-//   3. snap to the nearest mesh edge (optional `findNearestEdge` callback)
+//   3. snap to the nearest mesh edge (optional `findNearestEdge` callback),
+//      with the cross helper of the drawing plane (getEdgeSnapFrame) and the
+//      axis snap ALONG the edge (lockEdgeSnapToAxes: ortho from the last
+//      vertex, alignment with another vertex) — kind stays "EDGE"
 //   3b. a point on a scan base map under the cursor (`planeHit.isScan`,
 //      kind "SCAN") — taken as is, no lock
 //   4. with no last vertex: a base map plane hit (optional `intersectPlane`
 //      callback), refined by vertex alignment — this is how the FIRST point
 //      of a drawing lands on a bare plan
 //   5. in-plane ortho lock along the hovered plane's axes through the last
-//      vertex (beats the world axes on rotated / vertical base maps)
+//      vertex (beats the world axes on rotated / vertical base maps),
+//      refined by vertex alignment ALONG the locked line (both arms lock)
 //   6. snap to the world axis line (X / Y / Z) closest to the cursor
 //      ray, anchored at the last committed vertex
 //   7. the base map plane hit (refined by vertex alignment)
 //   8. fall back to a free position on the plane through the last vertex
 //      perpendicular to the camera
+//
+// Vertex alignment (alignPlaneHitToVertices, the 2D axis snap in the hovered
+// plane) reads the scene vertices (`alignAdjacency`) and the points of the
+// drawing in progress (`inProgressPolyline`).
+//
+// Vertices / edges hidden behind the surface under the cursor (the plan or
+// face being drawn on, a scan) are not snap targets (`findNearestVertex` /
+// `findNearestEdge` receive an `{ accept }` filter): the bottom edges of a
+// solid must not steal the point placed on its top face.
 //
 // The plane hit may also be a FACE of an annotation (mesh drawing mode, see
 // intersectAnnotationFace — `planeHit.isFace`): same cascade, the snap then
@@ -105,8 +125,9 @@ function snapToInProgress(
 // world-axis lock is skipped (it would pull the point off the face; the
 // in-plane ortho lock already covers the face's own axes).
 //
-// Returns { position, kind, meshKey?, nodeId?, axis?, baseMapId?, axisA?,
-// axisB?, alignFrom?, faceNormal? } or null when no candidate is available.
+// Returns { position, kind, meshKey?, nodeId?, axis?, lockedAxes?, baseMapId?,
+// axisA?, axisB?, alignFrom?, faceNormal? } or null when no candidate is
+// available.
 export default function computeSnapTarget({
   mouseNdc,
   camera,
@@ -156,18 +177,48 @@ export default function computeSnapTarget({
     };
   }
 
-  // A vertex / edge of an annotation lying BEHIND a scan base map (e.g. on
-  // the plan under it) is hidden by the scan: it must not steal the point
-  // the user is placing on the scan surface. Tolerance: the snap sits up to
-  // a few px away from the cursor ray, on a surface seen at an angle.
-  const isHiddenByScan = (position) => {
+  // A vertex / edge lying BEHIND the surface under the cursor is hidden by
+  // it: it must not steal the point the user is placing on that surface.
+  //   - scan: the snap sits up to a few px away from the cursor ray, on a
+  //     surface seen at an angle — camera distance with a tolerance;
+  //   - plane (base map, annotation face, rectangle anchor plane): the side
+  //     of the plane seen from the camera.
+  let cachedOccluder;
+  const getOccluderPlane = () => {
+    if (cachedOccluder !== undefined) return cachedOccluder;
+    cachedOccluder = null;
     const hit = getPlaneHit();
-    if (!hit?.isScan) return false;
-    return camera.position.distanceTo(position) > hit.distance * 1.02 + 0.1;
+    if (!hit?.position || hit.isScan) return cachedOccluder;
+    const normal = getPlaneHitNormal(hit);
+    if (!normal) return cachedOccluder;
+    // Oriented towards the camera.
+    if (normal.dot(camera.position.clone().sub(hit.position)) < 0) {
+      normal.negate();
+    }
+    cachedOccluder = { point: hit.position, normal };
+    return cachedOccluder;
   };
+  const toCandidate = new Vector3();
+  const isHiddenBySurface = (position) => {
+    const hit = getPlaneHit();
+    if (!hit) return false;
+    if (hit.isScan) {
+      return camera.position.distanceTo(position) > hit.distance * 1.02 + 0.1;
+    }
+    const plane = getOccluderPlane();
+    if (!plane) return false;
+    toCandidate.copy(position).sub(plane.point);
+    return toCandidate.dot(plane.normal) < -OCCLUSION_EPS_M;
+  };
+  const snapFilter = { accept: (position) => !isHiddenBySurface(position) };
 
-  const vertexSnap = findNearestVertex(mouseNdc, camera, canvasSize);
-  if (vertexSnap?.position && !isHiddenByScan(vertexSnap.position)) {
+  const vertexSnap = findNearestVertex(
+    mouseNdc,
+    camera,
+    canvasSize,
+    snapFilter
+  );
+  if (vertexSnap?.position) {
     return withFaceUnderCursor({
       position: vertexSnap.position,
       meshKey: vertexSnap.meshKey,
@@ -176,13 +227,36 @@ export default function computeSnapTarget({
     });
   }
 
-  const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize);
-  if (edgeSnap?.position && !isHiddenByScan(edgeSnap.position)) {
-    return withFaceUnderCursor({
+  const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize, snapFilter);
+  if (edgeSnap?.position) {
+    const snap = {
       position: edgeSnap.position,
       kind: "EDGE",
       nodeId: edgeSnap.nodeId,
+    };
+    // The cross helper stays visible on the edge (the cursor), and the
+    // point stops where an arm runs through the last vertex (ortho) or
+    // another vertex (alignment) — where to stop while sliding along it.
+    const frame = getEdgeSnapFrame({
+      planeHit: getPlaneHit(),
+      edge: edgeSnap.edge,
+      position: edgeSnap.position,
+      lastVertex,
     });
+    const locked = frame
+      ? lockEdgeSnapToAxes({
+          edge: edgeSnap.edge,
+          position: edgeSnap.position,
+          axisA: frame.axisA,
+          axisB: frame.axisB,
+          lastVertex,
+          adjacency: alignAdjacency,
+          extraPoints: inProgressPolyline,
+          camera,
+          canvasSize,
+        })
+      : null;
+    return withFaceUnderCursor({ ...snap, ...frame, ...locked });
   }
 
   const planeHit = getPlaneHit();
@@ -209,15 +283,13 @@ export default function computeSnapTarget({
       ? { ...snap, nodeId: planeHit.nodeId, faceNormal: planeHit.normal }
       : snap;
   const refinePlaneHit = () => {
-    const aligned = alignAdjacency
-      ? alignPlaneHitToVertices({
-          planeHit,
-          adjacency: alignAdjacency,
-          mouseNdc,
-          camera,
-          canvasSize,
-        })
-      : null;
+    const aligned = alignPlaneHitToVertices({
+      planeHit,
+      adjacency: alignAdjacency,
+      extraPoints: inProgressPolyline,
+      camera,
+      canvasSize,
+    });
     if (aligned) return withFace(aligned);
     return withFace({
       position: planeHit.position,
@@ -238,7 +310,33 @@ export default function computeSnapTarget({
       camera,
       canvasSize,
     });
-    if (ortho) return withFace(ortho);
+    if (ortho) {
+      // The point stays on the locked line and slides along it onto the
+      // coordinate of another vertex: ortho from the last point AND aligned
+      // with e.g. the first one (closing a rectangle).
+      const aligned = alignPlaneHitToVertices({
+        planeHit: {
+          ...planeHit,
+          position: ortho.position,
+          axisA: ortho.axisA,
+          axisB: ortho.axisB,
+        },
+        adjacency: alignAdjacency,
+        extraPoints: inProgressPolyline,
+        slideAxes: [ortho.axis],
+        camera,
+        canvasSize,
+      });
+      if (!aligned) return withFace(ortho);
+      return withFace({
+        ...ortho,
+        position: aligned.position,
+        lockedAxes: { A: true, B: true },
+        axisA: aligned.axisA,
+        axisB: aligned.axisB,
+        alignFrom: aligned.alignFrom,
+      });
+    }
   }
 
   const lastVec = new Vector3(lastVertex.x, lastVertex.y, lastVertex.z);

@@ -1,23 +1,46 @@
-import { Vector3 } from "three";
+import { Vector3, Vector4 } from "three";
+
+const _clip = new Vector4();
+
+// Clip-space w of a world point: the perspective divisor (1 for an
+// orthographic camera).
+function getClipW(position, camera) {
+  _clip
+    .set(position.x, position.y, position.z, 1)
+    .applyMatrix4(camera.matrixWorldInverse)
+    .applyMatrix4(camera.projectionMatrix);
+  return _clip.w;
+}
 
 // Find the closest point lying ON a mesh edge (segment) to the cursor, in
 // screen space. Reuses the vertex-adjacency map published in `meshGraphStore`
 // by useVertexSnap (shape: Map<key, { position: Vector3, neighbors: Set<key> }>).
 //
 // Each unique edge (A-B) is projected to pixels; the closest point on the 2D
-// segment to the cursor is found via the clamped projection parameter `t`, and
-// the world-space snap point is reconstructed as A.lerp(B, t). Returns
-// `{ position: Vector3, kind: "EDGE", nodeId? }` or null when no edge is
-// within `pixelThreshold` — `nodeId` is the annotation owning the edge (both
-// ends), when there is one.
+// segment to the cursor is found via the clamped projection parameter `t`.
+// `t` is a SCREEN parameter: under a perspective camera the world point is
+// A + s (B - A) with s = t wA / ((1 - t) wB + t wA) (w = clip-space w of
+// each end) — a plain A.lerp(B, t) drifts towards the far end of an edge
+// running away from the camera, off the cursor.
+//
+// options.accept(position): a candidate point is kept only when it returns
+// true (e.g. not hidden behind the surface under the cursor) — the next
+// closest edge then takes over.
+//
+// Returns `{ position: Vector3, kind: "EDGE", edge: [Vector3, Vector3],
+// nodeId? }` or null when no edge is within `pixelThreshold` — `edge` is the
+// snapped segment (world), `nodeId` the annotation owning it (both ends),
+// when there is one.
 export default function findNearestEdgeSnap(
   adjacency,
   mouseNdc,
   camera,
   canvasSize,
-  pixelThreshold = 12
+  pixelThreshold = 12,
+  options = {}
 ) {
   if (!adjacency || adjacency.size === 0 || !camera || !canvasSize) return null;
+  const accept = options.accept ?? null;
 
   const halfW = canvasSize.width / 2;
   const halfH = canvasSize.height / 2;
@@ -60,11 +83,18 @@ export default function findNearestEdgeSnap(
       const ddx = projX - mouseX;
       const ddy = projY - mouseY;
       const d2 = ddx * ddx + ddy * ddy;
-      if (d2 < bestSq) {
-        bestSq = d2;
-        best = nodeA.position.clone().lerp(nodeB.position, t);
-        bestNodes = [nodeA, nodeB];
-      }
+      if (d2 >= bestSq) continue;
+
+      const wA = getClipW(nodeA.position, camera);
+      const wB = getClipW(nodeB.position, camera);
+      const denom = (1 - t) * wB + t * wA;
+      const s = Math.abs(denom) > 1e-12 ? (t * wA) / denom : t;
+      const position = nodeA.position.clone().lerp(nodeB.position, s);
+      if (accept && !accept(position)) continue;
+
+      bestSq = d2;
+      best = position;
+      bestNodes = [nodeA, nodeB];
     }
   }
 
@@ -76,5 +106,10 @@ export default function findNearestEdgeSnap(
       break;
     }
   }
-  return { position: best, kind: "EDGE", nodeId };
+  return {
+    position: best,
+    kind: "EDGE",
+    edge: [bestNodes[0].position.clone(), bestNodes[1].position.clone()],
+    nodeId,
+  };
 }

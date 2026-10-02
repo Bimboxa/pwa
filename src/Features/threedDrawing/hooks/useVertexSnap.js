@@ -222,7 +222,9 @@ export function buildIndex(scene, options = {}) {
 // React hook returning a `findNearestSnap` function that, given a mouse
 // position in NDC, the active camera, and the canvas size, returns the
 // closest snappable vertex in screen-space as `{position, meshKey, nodeId?}`, or null
-// if none is within `pixelThreshold`. Also publishes the mesh-edge
+// if none is within `pixelThreshold`. `options.accept(position)` filters the
+// candidates (e.g. drops the vertices hidden behind the surface under the
+// cursor — the next closest one then wins). Also publishes the mesh-edge
 // adjacency to `meshGraphStore` so face detection can reuse it.
 export default function useVertexSnap({ active }) {
   const indexRef = useRef([]);
@@ -248,9 +250,10 @@ export default function useVertexSnap({ active }) {
   }, [active, snapIndexEpoch]);
 
   const findNearestSnap = useCallback(
-    (mouseNdc, camera, canvasSize, pixelThreshold = 12) => {
+    (mouseNdc, camera, canvasSize, pixelThreshold = 12, options = {}) => {
       const verts = indexRef.current;
       if (!verts.length || !camera || !canvasSize) return null;
+      const accept = options.accept ?? null;
 
       const halfW = canvasSize.width / 2;
       const halfH = canvasSize.height / 2;
@@ -268,10 +271,10 @@ export default function useVertexSnap({ active }) {
         const dx = sx - mouseX;
         const dy = sy - mouseY;
         const d2 = dx * dx + dy * dy;
-        if (d2 < bestSq) {
-          bestSq = d2;
-          best = v;
-        }
+        if (d2 >= bestSq) continue;
+        if (accept && !accept(v.position)) continue;
+        bestSq = d2;
+        best = v;
       }
       if (!best) return null;
       return {

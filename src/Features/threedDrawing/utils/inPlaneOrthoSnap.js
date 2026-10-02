@@ -5,7 +5,7 @@ import { Vector3 } from "three";
 const COPLANAR_EPS_M = 5e-3;
 
 // Pixel corridor matching computeSnapTarget's world-axis threshold.
-const ORTHO_THRESHOLD_PX = 20;
+export const ORTHO_THRESHOLD_PX = 20;
 
 function screenDistance(world, mouseNdc, camera, canvasSize) {
   const v = world.clone().project(camera);
@@ -25,8 +25,9 @@ function translateAxis(axis, delta) {
 // the dashed cross helper draws). Pure 3D test — works for rotated and
 // vertical base maps, where the world X/Y/Z axes are NOT in-plane.
 //
-// Returns { position, kind: "PLANE_ORTHO", axis: "A"|"B", baseMapId, axisA,
-// axisB } (cross axes translated to pass through the snapped point) or null.
+// Returns { position, kind: "PLANE_ORTHO", axis: "A"|"B", lockedAxes: {A, B},
+// baseMapId, axisA, axisB } (cross axes translated to pass through the
+// snapped point, `lockedAxes` flagging the locked arm) or null.
 export default function inPlaneOrthoSnap({
   planeHit,
   lastVertex,
@@ -73,6 +74,7 @@ export default function inPlaneOrthoSnap({
     position: best.candidate,
     kind: "PLANE_ORTHO",
     axis: best.axis,
+    lockedAxes: { A: best.axis === "A", B: best.axis === "B" },
     baseMapId: planeHit.baseMapId,
     axisA: translateAxis(planeHit.axisA, delta),
     axisB: translateAxis(planeHit.axisB, delta),
