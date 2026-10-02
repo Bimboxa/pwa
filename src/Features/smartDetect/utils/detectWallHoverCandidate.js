@@ -270,13 +270,45 @@ function boundaryScore(sample, center, u, width, length, mean) {
   return Math.min(...scores);
 }
 
-function scanAxis(sample, cursor, angle, model, radius) {
+function scanAxis(sample, cursor, angle, model, radius, preferClosest = false) {
   const u = { x: Math.cos(angle), y: Math.sin(angle) },
     n = { x: -u.y, y: u.x };
   let best = null;
+  const choices = [];
+  const selectBest = () => {
+    const closest =
+      preferClosest &&
+      choices.reduce(
+        (nearest, candidate) =>
+          !nearest || Math.abs(candidate.t) < Math.abs(nearest.t)
+            ? candidate
+            : nearest,
+        null
+      );
+    best = choices.reduce((winner, candidate) => {
+      // Choose the nearest band, then its best-centered axis. Choosing the
+      // nearest passing pixel would bias every draft toward the near edge.
+      if (closest && Math.abs(candidate.t - closest.t) > model.width / 2)
+        return winner;
+      return !winner || candidate.score > winner.score ? candidate : winner;
+    }, null);
+  };
   const scoreAt = (t) => {
     if (Math.abs(t) > radius) return;
     const center = { x: cursor.x + t * n.x, y: cursor.y + t * n.y };
+    // Most probes are blank; reject unsupported boundaries before sampling
+    // the more expensive material descriptor in the Space search circle.
+    if (
+      boundaryScore(
+        sample,
+        center,
+        u,
+        model.width,
+        model.sampleLength,
+        model.appearance.mean
+      ) < 0.12
+    )
+      return;
     const appearance = measureAppearance(
       sample,
       center,
@@ -295,18 +327,20 @@ function scanAxis(sample, cursor, angle, model, radius) {
       appearance.mean
     );
     if (boundary < 0.12) return;
-    const score = match + boundary * 0.45 - (Math.abs(t) / radius) * 0.12;
-    if (!best || score > best.score)
-      best = { center, u, n, t, angle, score, match };
+    const score =
+      match + boundary * 0.45 - (Math.abs(t) / Math.max(1, radius)) * 0.12;
+    choices.push({ center, u, n, t, angle, score, match });
   };
   // Thin outlines can occupy one pixel: a coarse step can skip the only
   // aligned profile entirely when both boundaries are required.
   const step = 1;
   scoreAt(0);
   for (let t = -radius; t <= radius; t += step) scoreAt(t);
+  selectBest();
   if (!best) return null;
   const coarse = best.t;
   for (let t = coarse - step; t <= coarse + step; t += 0.5) scoreAt(t);
+  selectBest();
   return best;
 }
 
@@ -460,6 +494,7 @@ export default function detectWallHoverCandidate({
   smartZoom = 1,
   pasteTransform,
   baseMapId,
+  searchRadiusImgPx,
 }) {
   if (
     clipboard?.items?.length !== 1 ||
@@ -533,11 +568,11 @@ export default function detectWallHoverCandidate({
   const baseAngle =
     Math.atan2(model.u.y, model.u.x * (pasteTransform?.flipX ? -1 : 1)) +
     rotation;
-  const radius = clamp(
-    45 / Math.max(0.1, smartZoom),
-    6,
-    Math.max(12, model.width * 2)
-  );
+  const explicitSearch =
+    Number.isFinite(searchRadiusImgPx) && searchRadiusImgPx > 0;
+  const radius = explicitSearch
+    ? Math.min(searchRadiusImgPx, Math.hypot(imageData.width, imageData.height))
+    : clamp(45 / Math.max(0.1, smartZoom), 6, Math.max(12, model.width * 2));
   // Orientation is a constraint supplied by the copied geometry and R/I.
   // Never rotate the candidate automatically to chase a nearby dark region.
   // Phase 1: acquire a clean seed near the cursor. The cursor can be on a
@@ -547,12 +582,32 @@ export default function detectWallHoverCandidate({
   let best = null;
   const u = { x: Math.cos(baseAngle), y: Math.sin(baseAngle) };
   const seedStep = model.sampleLength * 0.75;
-  for (const shift of [0, -seedStep, seedStep, -2 * seedStep, 2 * seedStep]) {
+  const shifts = explicitSearch
+    ? [0]
+    : [0, -seedStep, seedStep, -2 * seedStep, 2 * seedStep];
+  if (explicitSearch) {
+    for (let shift = seedStep; shift < radius; shift += seedStep)
+      shifts.push(-shift, shift);
+    shifts.push(-radius, radius);
+  }
+  let bestDistance = Infinity;
+  for (const shift of shifts) {
     const probe = {
       x: cursorImgPx.x + shift * u.x,
       y: cursorImgPx.y + shift * u.y,
     };
-    const seed = scanAxis(sample, probe, baseAngle, model, radius);
+    const transverseRadius = explicitSearch
+      ? Math.sqrt(Math.max(0, radius * radius - shift * shift)) +
+        model.width / 2
+      : radius;
+    const seed = scanAxis(
+      sample,
+      probe,
+      baseAngle,
+      model,
+      transverseRadius,
+      explicitSearch
+    );
     if (!seed) continue;
     const candidate = extendCandidate(sample, seed, model, imageData);
     if (!candidate) continue;
@@ -561,10 +616,26 @@ export default function detectWallHoverCandidate({
       (cursorImgPx.y - candidate.center.y) * u.y;
     // Do not jump across an opening to an unrelated seed farther along the
     // same axis. A small endpoint allowance supports hovering near a wall end.
-    if (cursorAlong < candidate.lo - 2 || cursorAlong > candidate.hi + 2)
+    if (
+      !explicitSearch &&
+      (cursorAlong < candidate.lo - 2 || cursorAlong > candidate.hi + 2)
+    )
       continue;
-    best = candidate;
-    break;
+    const nearestAlong = clamp(cursorAlong, candidate.lo, candidate.hi);
+    const across = Math.abs(
+      (cursorImgPx.x - candidate.center.x) * candidate.n.x +
+        (cursorImgPx.y - candidate.center.y) * candidate.n.y
+    );
+    const distance = Math.hypot(
+      cursorAlong - nearestAlong,
+      Math.max(0, across - model.width / 2)
+    );
+    if (explicitSearch && distance > radius) continue;
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+    if (!explicitSearch || bestDistance === 0) break;
   }
   if (!best) return { matches: [] };
   const point = (along, across) => ({

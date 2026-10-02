@@ -1,7 +1,28 @@
 # Automatic hover detection
 
-Copy one annotation and enable **Détection auto au survol** (`S`). Hover near
-another wall and press Space to commit the proposed geometry. The former
+Copy one straight two-point POLYLINE or STRIP and press **Space** near another
+wall. This works with hover detection disabled. Each press freezes the current
+mouse position, searches a circle with radius **twice the copied band width**,
+acquires a similar band with the copied orientation, builds and extends a segment
+draft, then joins it to nearby existing segments. Physical widths and bitmap
+scaling are respected; the radius does not depend on zoom or copied length.
+Compatible candidates are ranked by distance from the cursor to their footprint.
+No suitable band means no write and an informational message.
+
+The reference detector performs acquisition and draft extension; junction repair
+then snaps endpoints along their own axes. L/T joints use the existing repair
+algorithm (14 cm gap, 1 cm overlap when calibrated). Nearly collinear segments
+with equivalent thickness close small end-to-end gaps without merging records.
+Uncalibrated plans use bounded pixel tolerances. Only editable neighbor endpoints
+can move. Those points receive fresh normalized IDs, so other annotations sharing
+the old IDs are unaffected. Creation, category copies and neighbor updates share
+one transaction; changed/deleted neighbors abort it. Repeated keydown events and
+concurrent commits are ignored, and newly created footprints are masked before
+the live-query refresh to prevent duplicate creation.
+
+Optional **Détection auto au survol** (`S`) still shows hover proposals. For copied
+segments, Space always runs a fresh search at the keypress position. Other shapes
+retain proposal validation; global mode (`A`) retains bulk Space validation. The former
 `Ajuster` switch is folded into this option; `J` remains a compatibility alias.
 Global detection (`A`) retains its existing image-template search.
 
@@ -84,7 +105,7 @@ Bitmap caches are refreshed when the source image changes.
 Run:
 
 ```sh
-node --test src/Features/smartDetect/utils/detectWallHoverCandidate.test.mjs
+node --test src/Features/smartDetect/utils/detectWallHoverCandidate.test.mjs src/Features/smartDetect/utils/prepareCopiedSegmentCreation.test.mjs src/Features/annotations/services/persistDetectedJunctionEdits.test.mjs
 npm run build
 ```
 
@@ -116,3 +137,10 @@ each target wall and assert the complete recovered endpoints.
 
 The PDF and its rendered images remain outside the repository. This validates
 the bitmap algorithm on the actual plan, not the browser/IndexedDB commit flow.
+
+The Space workflow was additionally checked at 42 cursor positions on the same
+PDF (two walls, seven heights including blue dimensions, and transverse offsets
+of -20, 0 and 20 pixels). The radius is 26.46 bitmap pixels for this 20 cm band.
+All recovered endpoints remain within one pixel of the expected full spans.
+These checks exercise the preparation pipeline; browser keypress and commit UI
+remain a manual verification step.

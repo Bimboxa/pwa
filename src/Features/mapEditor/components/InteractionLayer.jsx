@@ -138,6 +138,7 @@ import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairSho
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
+import prepareCopiedSegmentCreation, { isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
 import detectWallHoverCandidate from 'Features/smartDetect/utils/detectWallHoverCandidate';
 import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
@@ -1454,6 +1455,10 @@ const InteractionLayer = forwardRef(({
   // committed annotations.
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
+  // Bridge the Dexie live-query refresh after Space so a second press cannot
+  // create the same wall again before the new annotation becomes visible.
+  const recentPasteAnnotationsRef = useRef(new Map());
+  for (const annotation of annotations || []) recentPasteAnnotationsRef.current.delete(annotation.id);
 
   // Use annotationsUpdatedAt (Redux) as the rebuild trigger. The effect
   // schedules buildCaches via setTimeout(0), which runs AFTER the current
@@ -2662,7 +2667,8 @@ const InteractionLayer = forwardRef(({
         ? Math.max(patch.patternData.width, patch.patternData.height) / 2
         : 0;
       patternExclusionMaskRef.current = buildExclusionMask(
-        annotationsRef.current || [],
+        [...(annotationsRef.current || []), ...recentPasteAnnotationsRef.current.values()]
+          .filter((ann) => ann.baseMapId === calibrationBaseMapRef.current?.id),
         { width: w, height: h },
         baseMapImageScaleRef.current || 1,
         baseMapImageOffsetRef.current || { x: 0, y: 0 },
@@ -3521,7 +3527,7 @@ const InteractionLayer = forwardRef(({
       // letters...) must not act on the hidden map.
       if (selectPdfEditorOpen(store.getState())) return;
       // Ignorer si l'utilisateur écrit dans un input texte
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) {
         console.log("Action: Key Pressed while typing");
         return;
       }
@@ -3775,6 +3781,63 @@ const InteractionLayer = forwardRef(({
         !e.metaKey &&
         !e.altKey
       ) {
+        // Space acquires a fresh segment at the keypress position, independent
+        // of hover throttling. Global A mode keeps its bulk-validation shortcut.
+        if (e.key === " " && isCopiedSegment(pasteClipboardRef.current) &&
+          pasteDetectionModeRef.current !== "GLOBAL") {
+          e.preventDefault();
+          if (pasteDetectionCommitPendingRef.current) return;
+          const clipboard = pasteClipboardRef.current;
+          const pasteTransform = { ...pasteTransformRef.current };
+          const baseMap = calibrationBaseMapRef.current;
+          const screen = lastMouseScreenPosRef.current?.screenPos;
+          const world = screen && viewportRef.current?.screenToWorld(screen.x, screen.y);
+          const position = world ? toLocalCoords(world) : lastPasteLocalPosRef.current;
+          if (!position || !baseMap) return;
+          const imageScale = baseMapImageScaleRef.current || 1;
+          const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+          const imageData = ensureFullImageData();
+          if (!imageData) return;
+          pasteDetectionCommitPendingRef.current = true;
+          patternRequestRef.current++;
+          detectedPatternMatchesRef.current = null;
+          transientDetectedPatternRef.current?.clear();
+          syncSmartDetectionPresent();
+          try {
+            // Rebuild from the current visible annotations, including writes
+            // whose live-query refresh has not reached the renderer yet.
+            patternExclusionMaskRef.current = null;
+            const plan = prepareCopiedSegmentCreation({
+              clipboard, pasteTransform, imageData, imageScale, imageOffset,
+              baseMapId: baseMap.id,
+              meterByPx: meterByPxRef.current ?? 0,
+              cursorImgPx: { x: (position.x - imageOffset.x) / imageScale,
+                y: (position.y - imageOffset.y) / imageScale },
+              exclusionMask: ensureExclusionMask(),
+              annotations: [...(annotationsRef.current || []), ...recentPasteAnnotationsRef.current.values()]
+                .filter((ann) => ann.baseMapId === baseMap.id),
+              canEditAnnotation: (id) => permissions.canEditAnnotation(id, { silent: true }),
+            });
+            if (!plan) {
+              dispatch(setToaster({ message: "Aucune bande similaire trouvée autour de la souris.", severity: "info" }));
+              return;
+            }
+            const created = await createAnnotationsFromDetectedMatchesRef.current({
+              matches: [plan.match], junctionEdits: plan.junctionEdits,
+              clipboard, pasteTransform, baseMap, activeLayerId: activeLayerIdRef.current,
+            });
+            for (const ann of created) recentPasteAnnotationsRef.current.set(ann.id, {
+              ...ann, points: plan.match.placedPoints.map((p, i) => ({ ...p, id: ann.points[i].id })),
+            });
+          } catch (error) {
+            console.warn("[segmentPaste] creation failed", error);
+            dispatch(setToaster({ message: "Le segment n’a pas pu être créé.", severity: "error" }));
+          } finally {
+            pasteDetectionCommitPendingRef.current = false;
+            patternExclusionMaskRef.current = null;
+          }
+          return;
+        }
         if (e.key === "i" || e.key === "I") {
           e.preventDefault();
           dispatch(flipPasteClipboardX());

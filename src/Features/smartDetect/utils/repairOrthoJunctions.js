@@ -1,3 +1,5 @@
+import getAnnotationStrokeWidthPx from "../../geometry/utils/getAnnotationStrokeWidthPx.js";
+
 /**
  * L / T junction repair between a freshly detected 2-pt segment and nearby
  * near-orthogonal 2-pt POLYLINE / STRIP annotations, thickness-aware.
@@ -55,14 +57,7 @@ export function buildJunctionNeighbors(annotations, meterByPx) {
       if (!(w > 0)) continue;
       band = { lo: -w / 2, hi: w / 2 };
     } else if (ann.type === "STRIP") {
-      // Committed STRIPs carry strokeWidth/strokeWidthUnit (full band
-      // width), not stripWidthPx/width — fall back to it.
-      const sw = ann.strokeWidth ?? 0;
-      const fromStroke =
-        ann.strokeWidthUnit === "CM" && meterByPx > 0
-          ? Math.abs((sw * 0.01) / meterByPx)
-          : Math.abs(sw);
-      const w = Math.abs(ann.stripWidthPx ?? ann.width ?? 0) || fromStroke;
+      const w = Math.abs(getAnnotationStrokeWidthPx(ann, meterByPx));
       if (!(w > 0)) continue;
       const o = ann.stripOrientation ?? 1;
       band = { lo: Math.min(0, o * w), hi: Math.max(0, o * w) };
@@ -183,6 +178,7 @@ export default function repairOrthoJunctions({
       // not to the displacement.
       if (distToRange(sCur, bandS.lo, bandS.hi) <= maxGapPx) {
         out.neighborEdits.push({
+          annotationId: nb.id,
           pointId: nb.pointIds[isEnd1 ? 0 : 1],
           x: nb.p1.x + sTarget * v.x,
           y: nb.p1.y + sTarget * v.y,

@@ -5,6 +5,7 @@ import { alpha } from "@mui/material/styles";
 import { keyframes } from "@emotion/react";
 
 import { setPasteDetectionMode } from "Features/mapEditor/mapEditorSlice";
+import { isCopiedSegment } from "Features/smartDetect/utils/prepareCopiedSegmentCreation";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,8 @@ export default function SectionPasteHelperContent() {
   const copiedCount = pasteClipboard?.items?.length ?? 0;
   // Pattern detection is single-template only.
   const isSingle = copiedCount === 1;
+  const isSegmentCreation =
+    isCopiedSegment(pasteClipboard) && pasteDetectionMode !== "GLOBAL";
 
   // render
 
@@ -95,12 +98,14 @@ export default function SectionPasteHelperContent() {
             <ShortcutBadge>S</ShortcutBadge>
           </Box>
 
-          {pasteDetectionMode && (
+          {(pasteDetectionMode || isSegmentCreation) && (
             <Box
               sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
             >
               <Typography variant="body2" sx={{ flex: 1 }}>
-                Valider la détection
+                {isSegmentCreation
+                  ? "Créer un segment similaire"
+                  : "Valider la détection"}
               </Typography>
               <Box
                 component="span"
@@ -133,6 +138,15 @@ export default function SectionPasteHelperContent() {
                 Espace
               </Box>
             </Box>
+          )}
+          {isSegmentCreation && (
+            <Typography
+              variant="caption"
+              sx={{ display: "block", mt: 1, color: "text.secondary" }}
+            >
+              Espace : rechercher, créer, prolonger et raccorder. Rayon de
+              recherche : 2 × l’épaisseur de la bande.
+            </Typography>
           )}
         </Paper>
       )}

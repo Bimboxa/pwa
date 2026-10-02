@@ -6,6 +6,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 
 import db from "App/db/db";
+import persistDetectedJunctionEdits from "../services/persistDetectedJunctionEdits";
 
 /**
  * Bulk-paste the copied annotation at every detected pattern match.
@@ -32,6 +33,7 @@ export default function useCreateAnnotationsFromDetectedMatches() {
     pasteTransform,
     baseMap,
     activeLayerId,
+    junctionEdits = [],
   }) => {
     if (!matches?.length || !clipboard || !baseMap) return [];
 
@@ -113,11 +115,11 @@ export default function useCreateAnnotationsFromDetectedMatches() {
             templateItem.basePoints,
             sourceCenter,
             targetCenter,
-            pasteTransform,
+            pasteTransform
           );
         clonedAnnotation.points = refsFrom(
           transformed,
-          sourceAnnotation.points,
+          sourceAnnotation.points
         );
 
         if (type === "POLYGON") {
@@ -128,8 +130,8 @@ export default function useCreateAnnotationsFromDetectedMatches() {
                   cut.points,
                   sourceCenter,
                   targetCenter,
-                  pasteTransform,
-                ),
+                  pasteTransform
+                )
               );
           clonedAnnotation.cuts = cutsPoints.map((pts, ci) => ({
             id: nanoid(),
@@ -142,7 +144,7 @@ export default function useCreateAnnotationsFromDetectedMatches() {
           [templateItem.basePoint],
           sourceCenter,
           targetCenter,
-          pasteTransform,
+          pasteTransform
         );
         clonedAnnotation.point = { id: normalize(transformed) };
       } else {
@@ -166,11 +168,18 @@ export default function useCreateAnnotationsFromDetectedMatches() {
       "rw",
       [db.points, db.annotations, db.relAnnotationMappingCategory],
       async () => {
+        await persistDetectedJunctionEdits({
+          db,
+          edits: junctionEdits,
+          baseMapId: baseMap.id,
+          imageSize,
+          createId: nanoid,
+        });
         if (allPoints.length) await db.points.bulkAdd(allPoints);
         await db.annotations.bulkAdd(allAnnotations);
         if (allMappingRels.length)
           await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
-      },
+      }
     );
 
     dispatch(triggerAnnotationsUpdate());
