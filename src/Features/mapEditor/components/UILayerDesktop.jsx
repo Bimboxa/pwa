@@ -98,8 +98,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                     gap: 1,
                 }}
             >
-                <SelectorOrthoSnap />
                 <ButtonToggleCursorAltitude />
+                <SelectorOrthoSnap />
                 <ButtonEditScaleVariantFirst size="small" />
             </Box>}
 
