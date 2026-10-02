@@ -57,8 +57,7 @@ export default function SectionPasteHelperContent() {
   const copiedCount = pasteClipboard?.items?.length ?? 0;
   // Pattern detection is single-template only.
   const isSingle = copiedCount === 1;
-  const isSegmentCreation =
-    isCopiedSegment(pasteClipboard) && pasteDetectionMode !== "GLOBAL";
+  const isSegmentCreation = isCopiedSegment(pasteClipboard);
 
   // render
 
@@ -103,7 +102,7 @@ export default function SectionPasteHelperContent() {
               sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
             >
               <Typography variant="body2" sx={{ flex: 1 }}>
-                {isSegmentCreation
+                {isSegmentCreation && !smartDetectionPresent
                   ? "Créer un segment similaire"
                   : "Valider la détection"}
               </Typography>
@@ -144,8 +143,9 @@ export default function SectionPasteHelperContent() {
               variant="caption"
               sx={{ display: "block", mt: 1, color: "text.secondary" }}
             >
-              Espace : rechercher, créer, prolonger et raccorder. Rayon de
-              recherche : 2 × l’épaisseur de la bande.
+              Espace : valider le candidat affiché. Sans candidat : rechercher,
+              créer, prolonger et raccorder. Rayon : 2 × l’épaisseur de la
+              bande.
             </Typography>
           )}
         </Paper>

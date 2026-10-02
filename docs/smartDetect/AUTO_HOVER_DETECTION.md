@@ -1,8 +1,8 @@
 # Automatic hover detection
 
 Copy one straight two-point POLYLINE or STRIP and press **Space** near another
-wall. This works with hover detection disabled. Each press freezes the current
-mouse position, searches a circle with radius **twice the copied band width**,
+wall. This works with hover detection disabled. When no candidate is already
+available, Space freezes the current mouse position and searches a circle with radius **twice the copied band width**,
 acquires a similar band with the copied orientation, builds and extends a segment
 draft, then joins it to nearby existing segments. Physical widths and bitmap
 scaling are respected; the radius does not depend on zoom or copied length.
@@ -21,8 +21,10 @@ concurrent commits are ignored, and newly created footprints are masked before
 the live-query refresh to prevent duplicate creation.
 
 Optional **Détection auto au survol** (`S`) still shows hover proposals. For copied
-segments, Space always runs a fresh search at the keypress position. Other shapes
-retain proposal validation; global mode (`A`) retains bulk Space validation. The former
+segments, Space validates an existing candidate first, including hover and global
+results. It starts a fresh local search only when there is no candidate, including
+an empty global result. Other shapes retain proposal validation. A pending commit
+blocks both paths so a second press cannot start a competing creation. The former
 `Ajuster` switch is folded into this option; `J` remains a compatibility alias.
 Global detection (`A`) retains its existing image-template search.
 

@@ -3781,12 +3781,17 @@ const InteractionLayer = forwardRef(({
         !e.metaKey &&
         !e.altKey
       ) {
-        // Space acquires a fresh segment at the keypress position, independent
-        // of hover throttling. Global A mode keeps its bulk-validation shortcut.
-        if (e.key === " " && isCopiedSegment(pasteClipboardRef.current) &&
-          pasteDetectionModeRef.current !== "GLOBAL") {
+        if (e.key === " " && pasteDetectionCommitPendingRef.current) {
           e.preventDefault();
-          if (pasteDetectionCommitPendingRef.current) return;
+          return;
+        }
+        // Existing candidates take priority and reach the validation handlers
+        // below. Only an empty result falls back to a fresh local search,
+        // including when GLOBAL detection has not found a candidate.
+        if (e.key === " " && isCopiedSegment(pasteClipboardRef.current) &&
+          !detectedPatternMatchesRef.current?.matches?.length &&
+          !detectedSimilarStripsRef.current?.strips?.length) {
+          e.preventDefault();
           const clipboard = pasteClipboardRef.current;
           const pasteTransform = { ...pasteTransformRef.current };
           const baseMap = calibrationBaseMapRef.current;
