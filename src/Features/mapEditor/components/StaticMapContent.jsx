@@ -23,6 +23,7 @@ import { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import NodeClippingPlanStatic from "Features/mapEditorGeneric/components/NodeClippingPlanStatic";
 import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionHighlight";
+import OverlayBaseMapsLayer from "Features/baseMapOverlays/components/OverlayBaseMapsLayer";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 
@@ -56,6 +57,8 @@ function StaticMapContent({
   // version compare
   versionCompareEnabled = false,
   versionCompareId,
+  // other base maps overlaid (greyed) on this one — see useBaseMapOverlays
+  baseMapOverlays,
 }) {
   // data
 
@@ -393,6 +396,16 @@ function StaticMapContent({
               />
             )
           ))}
+
+        {/* --- OVERLAID BASE MAPS (greyed, read-only) ---
+            Above the main image, under the main annotations. */}
+        <OverlayBaseMapsLayer
+          overlays={baseMapOverlays}
+          hostContainerK={basePose.k}
+          visibleViewBox={visibleViewBox}
+          spriteImage={spriteImage}
+          sizeVariant={sizeVariant}
+        />
 
         {visibleBaseMapAnnotations?.map((annotation) => {
           // A. Caché par le Drag topology (segment split) — toujours via hiddenAnnotationIds

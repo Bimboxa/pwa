@@ -8,6 +8,8 @@ import setInitScopeVisibility from "Features/init/services/setInitScopeVisibilit
 const pick2d = (state) => ({
   hideBaseMapImageInViewer: Boolean(state.viewers?.hideBaseMapImageInViewer),
   hideAnnotationsInViewer: Boolean(state.viewers?.hideAnnotationsInViewer),
+  visibleBaseMapIdsIn2d: state.viewers?.visibleBaseMapIdsIn2d ?? [],
+  annotationsBaseMapIdsIn2d: state.viewers?.annotationsBaseMapIdsIn2d ?? [],
 });
 
 const pick3d = (state) => {
@@ -26,7 +28,10 @@ const changed2d = (prev, next) =>
   prev.viewers?.hideBaseMapImageInViewer !==
     next.viewers?.hideBaseMapImageInViewer ||
   prev.viewers?.hideAnnotationsInViewer !==
-    next.viewers?.hideAnnotationsInViewer;
+    next.viewers?.hideAnnotationsInViewer ||
+  prev.viewers?.visibleBaseMapIdsIn2d !== next.viewers?.visibleBaseMapIdsIn2d ||
+  prev.viewers?.annotationsBaseMapIdsIn2d !==
+    next.viewers?.annotationsBaseMapIdsIn2d;
 
 const changed3d = (prev, next) =>
   prev.threedEditor?.visibleBaseMapIdsIn3d !==

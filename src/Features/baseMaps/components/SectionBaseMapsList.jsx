@@ -19,6 +19,10 @@ import {
   setBaseMapAnnotationsModeIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
+import {
+  toggleBaseMapVisibleIn2d,
+  toggleBaseMapAnnotationsIn2d,
+} from "Features/viewers/viewersSlice";
 
 import { Box, Typography } from "@mui/material";
 
@@ -34,6 +38,7 @@ import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabl
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import reorderBaseMapInListing from "../utils/reorderBaseMapInListing";
+import areBaseMapsParallel from "../js/areBaseMapsParallel";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
 
@@ -51,8 +56,14 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   `threedEditor.hideMain*In3d`);
 // - other base maps, 3D displayed: eye = visibleBaseMapIdsIn3d, badge =
 //   annotationsModeByBaseMapIdIn3d (NONE ⇄ NORMAL);
-// - other base maps, 2D displayed: no eye, plain count (only the main base
-//   map is on screen).
+// - other base maps, 2D displayed: only the base maps PARALLEL to the main
+//   one are listed (the levels of a building, not its sections); eye =
+//   viewers.visibleBaseMapIdsIn2d, badge = viewers.annotationsBaseMapIdsIn2d
+//   — the image / annotations overlaid, greyed, on the main base map (see
+//   Features/baseMapOverlays). An uncalibrated base map (no meterByPx)
+//   cannot be placed: no eye, plain count.
+// - BaseMaps module, 2D displayed: every base map, no eye, plain count (its
+//   editor only shows the edited base map).
 // - "3D" button (scan base maps only): hiddenScene3dBaseMapIdsIn3d, a 3D
 //   state toggled from either editor.
 // ---------------------------------------------------------------------------
@@ -90,6 +101,10 @@ export default function SectionBaseMapsList() {
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
   );
+  const visibleIdsIn2d = useSelector((s) => s.viewers.visibleBaseMapIdsIn2d);
+  const annotationsIdsIn2d = useSelector(
+    (s) => s.viewers.annotationsBaseMapIdsIn2d
+  );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const showAnnotationsInBaseMaps = useSelector(
     (s) => s.baseMapEditor.showAnnotations
@@ -114,21 +129,33 @@ export default function SectionBaseMapsList() {
   const isBaseMapsModule = viewerKey === "BASE_MAPS";
   const showImageEye = !isBaseMapsModule || isThreedDisplayed;
   const hideAnnotationsBadge = isBaseMapsModule && !showAnnotationsInBaseMaps;
+  // 2D editors (BaseMaps module aside): the other base maps can be overlaid
+  // on the main one — only the ones parallel to it.
+  const overlaysIn2d = !isThreedDisplayed && !isBaseMapsModule;
+  const mainMeterByPx = mainBaseMap?.getMeterByPx?.();
 
   // Per-scope disabled listings leave the list — except the current main
   // base map, whose row hosts the eye / badge and must stay reachable. The
   // "hide empty" list option (properties panel) also drops the annotation-
-  // less base maps, unless they are shown in 3D (image or annotations).
+  // less base maps, unless they are shown in 3D (image or annotations) or
+  // overlaid in 2D.
   const groups = useMemo(() => {
     const enabled = baseMaps.filter(
       (bm) =>
         (!disabledListingIds.includes(bm.listingId) ||
           bm.id === mainBaseMap?.id) &&
+        (!overlaysIn2d ||
+          !mainBaseMap ||
+          bm.id === mainBaseMap.id ||
+          areBaseMapsParallel(bm, mainBaseMap)) &&
         (!hideEmpty ||
           bm.id === mainBaseMap?.id ||
           (annotationsCountByBaseMapId[bm.id] ?? 0) > 0 ||
-          visibleIds.includes(bm.id) ||
-          Boolean(annotationsModeByBaseMapId?.[bm.id]))
+          (overlaysIn2d
+            ? visibleIdsIn2d.includes(bm.id) ||
+              annotationsIdsIn2d.includes(bm.id)
+            : visibleIds.includes(bm.id) ||
+              Boolean(annotationsModeByBaseMapId?.[bm.id])))
     );
     const byListing = new Map();
     for (const bm of enabled) {
@@ -157,12 +184,15 @@ export default function SectionBaseMapsList() {
     baseMaps,
     disabledListingIds,
     listings,
-    mainBaseMap?.id,
+    mainBaseMap,
     othersS,
     hideEmpty,
     annotationsCountByBaseMapId,
     visibleIds,
     annotationsModeByBaseMapId,
+    overlaysIn2d,
+    visibleIdsIn2d,
+    annotationsIdsIn2d,
   ]);
 
   const mainVersions = mainBaseMap?.versions ?? [];
@@ -171,6 +201,9 @@ export default function SectionBaseMapsList() {
 
   function getRowProps(map) {
     const isMain = map.id === mainBaseMap?.id;
+    // Overlay on the main base map (2D): both scales are needed to place it.
+    const canOverlayIn2d =
+      overlaysIn2d && mainMeterByPx > 0 && map.getMeterByPx?.() > 0;
 
     const imageEye = !showImageEye
       ? null
@@ -181,7 +214,12 @@ export default function SectionBaseMapsList() {
               on: visibleIds.includes(map.id),
               onToggle: () => dispatch(toggleBaseMapVisibleIn3d(map.id)),
             }
-          : null;
+          : canOverlayIn2d
+            ? {
+                on: visibleIdsIn2d.includes(map.id),
+                onToggle: () => dispatch(toggleBaseMapVisibleIn2d(map.id)),
+              }
+            : null;
 
     const count = annotationsCountByBaseMapId[map.id] ?? 0;
     const annotationsMode =
@@ -206,7 +244,13 @@ export default function SectionBaseMapsList() {
                   })
                 ),
             }
-          : { count, on: false, onToggle: null };
+          : canOverlayIn2d
+            ? {
+                count,
+                on: annotationsIdsIn2d.includes(map.id),
+                onToggle: () => dispatch(toggleBaseMapAnnotationsIn2d(map.id)),
+              }
+            : { count, on: false, onToggle: null };
 
     const scanButton = map.scene3d
       ? {

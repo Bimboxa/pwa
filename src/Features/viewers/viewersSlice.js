@@ -35,6 +35,14 @@ const viewersInitialState = {
   // badge of the top-bar baseMap selector / Viewer 2D selected chip).
   // Per-scope local state, same lifecycle as hideBaseMapImageInViewer.
   hideAnnotationsInViewer: false,
+  // 2D map editors: OTHER base maps overlaid (greyed) on the main one — the
+  // ids whose image / annotations are shown (eye / badge of the base maps
+  // list). Only the base maps parallel to the main one are actually drawn
+  // (see useBaseMapOverlays). Per-scope local state, same lifecycle as
+  // hideBaseMapImageInViewer; kept apart from the 3D eyes
+  // (threedEditor.visibleBaseMapIdsIn3d).
+  visibleBaseMapIdsIn2d: [],
+  annotationsBaseMapIdsIn2d: [],
   // Global display of the base map images (hidden / light grey / as is),
   // layered over the eyes and opacities above: read by the 2D map editors,
   // the base maps grid and the 3D scene. Per-scope local state, same
@@ -73,6 +81,19 @@ export const viewersSlice = createSlice({
     setHideAnnotationsInViewer: (state, action) => {
       state.hideAnnotationsInViewer = Boolean(action.payload);
     },
+    toggleBaseMapVisibleIn2d: (state, action) => {
+      const id = action.payload;
+      state.visibleBaseMapIdsIn2d = state.visibleBaseMapIdsIn2d.includes(id)
+        ? state.visibleBaseMapIdsIn2d.filter((i) => i !== id)
+        : [...state.visibleBaseMapIdsIn2d, id];
+    },
+    toggleBaseMapAnnotationsIn2d: (state, action) => {
+      const id = action.payload;
+      state.annotationsBaseMapIdsIn2d =
+        state.annotationsBaseMapIdsIn2d.includes(id)
+          ? state.annotationsBaseMapIdsIn2d.filter((i) => i !== id)
+          : [...state.annotationsBaseMapIdsIn2d, id];
+    },
     setBaseMapsImageMode: (state, action) => {
       state.baseMapsImageMode = isBaseMapsImageMode(action.payload)
         ? action.payload
@@ -93,6 +114,8 @@ export const viewersSlice = createSlice({
       const saved = visibility?.viewer2d;
       state.hideBaseMapImageInViewer = Boolean(saved?.hideBaseMapImageInViewer);
       state.hideAnnotationsInViewer = Boolean(saved?.hideAnnotationsInViewer);
+      state.visibleBaseMapIdsIn2d = saved?.visibleBaseMapIdsIn2d ?? [];
+      state.annotationsBaseMapIdsIn2d = saved?.annotationsBaseMapIdsIn2d ?? [];
       state.baseMapsImageMode =
         visibility?.baseMapsImageMode ?? BASE_MAPS_IMAGE_MODE.FULL;
     });
@@ -105,6 +128,8 @@ export const {
   setViewerReturnContext,
   setHideBaseMapImageInViewer,
   setHideAnnotationsInViewer,
+  toggleBaseMapVisibleIn2d,
+  toggleBaseMapAnnotationsIn2d,
   setBaseMapsImageMode,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,

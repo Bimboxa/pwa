@@ -19,6 +19,8 @@ const toViewer2d = (value) =>
     ? {
         hideBaseMapImageInViewer: Boolean(value.hideBaseMapImageInViewer),
         hideAnnotationsInViewer: Boolean(value.hideAnnotationsInViewer),
+        visibleBaseMapIdsIn2d: toIdArray(value.visibleBaseMapIdsIn2d),
+        annotationsBaseMapIdsIn2d: toIdArray(value.annotationsBaseMapIdsIn2d),
       }
     : null;
 

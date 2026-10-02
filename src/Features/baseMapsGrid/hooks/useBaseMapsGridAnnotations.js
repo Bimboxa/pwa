@@ -11,9 +11,12 @@ const EMPTY = {};
 // useAnnotationsV2 call of MainMapEditorV3: hidden listings, scope, baseMaps
 // viewer split, "Maillage" toggle, annotations eye) — only the main-base-map
 // filter is swapped for the ids of the sheets, loaded in ONE query.
+// `ignoreHideAnnotations`: the annotations eye belongs to the MAIN base map —
+// the base maps overlaid on it in the 2D editor have their own toggles.
 export default function useBaseMapsGridAnnotations({
   baseMapIds,
   forViewerKey,
+  ignoreHideAnnotations = false,
 }) {
   // data
 
@@ -23,7 +26,10 @@ export default function useBaseMapsGridAnnotations({
     (s) => s.baseMapEditor.showAnnotations
   );
   const hideAnnotations = useSelector(
-    (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideAnnotationsInViewer
+    (s) =>
+      !ignoreHideAnnotations &&
+      forViewerKey !== "BASE_MAPS" &&
+      s.viewers.hideAnnotationsInViewer
   );
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();

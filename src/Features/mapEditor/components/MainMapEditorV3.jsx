@@ -11,7 +11,7 @@ import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems, setSelectedItem, clearSelection } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-import { setPropertiesRequestedView } from "Features/baseMaps/baseMapsSlice";
+import { setPropertiesRequestedView, triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLocalizingPhotoId } from "Features/photos/photosSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -83,6 +83,9 @@ import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
 import PrintZoneLayer from "./PrintZoneLayer";
+import OverlayBaseMapsTransformLayer from "Features/baseMapOverlays/components/OverlayBaseMapsTransformLayer";
+import useBaseMapOverlays from "Features/baseMapOverlays/hooks/useBaseMapOverlays";
+import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
@@ -652,6 +655,45 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handlePrintZoneCommit = (printZone) => {
         if (!baseMap?.id) return;
         updateBaseMapPrintZone(baseMap.id, printZone);
+    };
+
+    // Other base maps overlaid (greyed) on the main one: the parallel base
+    // maps switched on in the base maps list (eye = image, badge =
+    // annotations), placed through both 3D poses. MAP instance only — the
+    // BaseMaps module's editor shows the edited base map alone. Their name
+    // (OverlayBaseMapsTransformLayer, Dessin module) selects one as a
+    // BASE_MAP item; the selected one is moved / turned imperatively and its
+    // 3D pose written once on release.
+    const baseMapOverlays = useBaseMapOverlays({
+        baseMap,
+        baseMaps,
+        enabled:
+            isActiveViewer && forViewerKey === "MAP" && !showBgImage && !versionCompareEnabled,
+        forViewerKey,
+    });
+    const { isReadOnly: isReadOnlyScope } = useReadOnlyScope();
+    const selectedOverlayBaseMapId =
+        selectedItems?.[0]?.type === "BASE_MAP" && selectedItems[0].id !== baseMap?.id
+            ? selectedItems[0].id
+            : null;
+    const handleOverlayBaseMapSelect = (baseMapId) => {
+        const overlay = baseMapOverlays.find((o) => o.baseMap.id === baseMapId);
+        if (!overlay) return;
+        dispatch(setSelectedItem({ id: baseMapId, type: "BASE_MAP", listingId: overlay.baseMap.listingId }));
+        dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+        dispatch(setPropertiesRequestedView("main"));
+    };
+    // Same contract as the 3D move / rotate tools: the 3D scene follows
+    // through baseMapsUpdatedAt.
+    const handleOverlayBaseMapCommit = async (baseMapId, patch) => {
+        try {
+            await db.baseMaps.update(baseMapId, patch);
+            dispatch(triggerBaseMapsUpdate());
+            return true;
+        } catch (err) {
+            console.error("[baseMapOverlays] pose persist failed", err);
+            return false;
+        }
     };
 
     // image mode — Export rapide is MAP-only; the POV viewer and the global
@@ -2374,6 +2416,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             isEditingVersion={viewerKey === "BASE_MAPS" && !!selectedVersionId && showBgImage}
                             versionCompareEnabled={versionCompareEnabled}
                             versionCompareId={versionCompareId}
+                            baseMapOverlays={baseMapOverlays}
                         />
                     </g>
                     {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
@@ -2421,6 +2464,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
                         baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                     />}
+
+                    {/* Overlaid base maps: names (select) + frame / move /
+                        rotate of the selected one. Dessin module only. */}
+                    {baseMapOverlays.length > 0 && isDessinModule && !imageModeActive && (
+                        <OverlayBaseMapsTransformLayer
+                            overlays={baseMapOverlays}
+                            hostBaseMap={baseMap}
+                            basePose={basePose}
+                            selectedBaseMapId={selectedOverlayBaseMapId}
+                            interactive={!enabledDrawingMode && !isReadOnlyScope}
+                            onSelect={handleOverlayBaseMapSelect}
+                            onDeselect={handlePrintZoneDeselect}
+                            onCommit={handleOverlayBaseMapCommit}
+                        />
+                    )}
 
                     {/* PhotoPlan focus mask (photo baseMaps): blurs everything
                         outside the selected plan's zone. Display-only. */}
