@@ -22,6 +22,11 @@ export const COLLINEAR_SIN = 1e-6;
 // Pushing a face inward always leaves at least this much material.
 export const MIN_THICKNESS_M = 0.01;
 
+// A lone face moved DOWN (local -z) digs an open basin instead of making a
+// closed prism. "Down" = the move is within 60° of -z, the mirror of the
+// extrude tool's top-face tolerance (TOP_FACE_MIN_DOT).
+export const DIG_MIN_DOT = 0.5;
+
 // A mesh whose plan projection has no area (a single face perpendicular to
 // the base map) is stored as a thin quad of this width, so the 2D annotation
 // stays a valid POLYGON.

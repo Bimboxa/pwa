@@ -14,9 +14,11 @@ import {
   getFaceLoops,
   getFaceNormal,
   getLoopAreaVector,
+  reverseFace,
 } from "./mesh3dTopology.js";
 import projectMesh3dToRings from "./projectMesh3dToRings.js";
 import pushPullMesh3dFace from "./pushPullMesh3dFace.js";
+import resolvePushPull, { resolvePushPullValue } from "./resolvePushPull.js";
 import splitMesh3dFace from "./splitMesh3dFace.js";
 
 const near = (actual, expected, eps = 1e-9) =>
@@ -79,6 +81,35 @@ const faceAtZ = (mesh, z) =>
       n.z > 0.99 &&
       face.loop.every((vi) => Math.abs(mesh.vertices[vi].z - z) < 1e-9)
   );
+
+// Open basin: no cap at the rim, one floor facing up, walls facing the hollow.
+function assertBasin(mesh, { floorZ, rimZ }) {
+  assert.ok(!isMesh3dClosed(mesh));
+  assert.equal(mesh.vertices.length, 8);
+  assert.equal(mesh.faces.length, 5);
+  assert.ok(faceAtZ(mesh, floorZ) >= 0, "floor faces up");
+  assert.equal(
+    findFace(mesh, (n) => Math.abs(n.z) > 0.99 && n.z < 0),
+    -1
+  );
+  assert.equal(faceAtZ(mesh, rimZ), -1, "no cap");
+  const center = mesh.vertices.reduce(
+    (sum, p) => ({ x: sum.x + p.x / 8, y: sum.y + p.y / 8 }),
+    { x: 0, y: 0 }
+  );
+  for (const face of mesh.faces) {
+    const n = getFaceNormal(mesh.vertices, face);
+    if (Math.abs(n.z) > 0.5) continue;
+    const p = mesh.vertices[face.loop[0]];
+    assert.ok(
+      n.x * (center.x - p.x) + n.y * (center.y - p.y) > 0,
+      "walls face the hollow"
+    );
+  }
+  const zs = mesh.vertices.map((p) => p.z);
+  near(Math.min(...zs), floorZ);
+  near(Math.max(...zs), rimZ);
+}
 
 // Triangle soup of a prism extruded from a CCW 2D outline already cut in
 // triangles (corner indices), like ExtrudeGeometry: caps + side quads.
@@ -154,7 +185,7 @@ test("push range of a box face stops short of the opposite face", () => {
   assert.equal(range.max, Infinity);
 });
 
-test("a flat drawn face becomes a closed prism, both ways", () => {
+test("a flat drawn face: pulled up is a closed prism, pushed down a basin", () => {
   const flat = buildFlatMesh3d([
     v(0, 0, 1),
     v(2, 0, 1),
@@ -166,16 +197,124 @@ test("a flat drawn face becomes a closed prism, both ways", () => {
   assert.deepEqual(getPushPullRange(flat, 0), {
     min: -Infinity,
     max: Infinity,
+    through: null,
   });
 
+  const prism = pushPullMesh3dFace(flat, 0, 0.5);
+  assert.ok(isMesh3dClosed(prism));
+  assert.equal(prism.vertices.length, 8);
+  assert.equal(prism.faces.length, 6);
+  near(getMesh3dQties(prism).volume, 1);
+  assert.ok(signedVolume(prism) > 0);
+
+  // Floor + 4 walls, no cap: the faces look into the hollow.
+  const basin = pushPullMesh3dFace(flat, 0, -0.5);
+  assertBasin(basin, { floorZ: 0.5, rimZ: 1 });
+  near(getMesh3dQties(basin).surface, 2 + 2 * (2 + 1) * 0.5);
+
+  // Same basin whichever way the sheet was wound.
+  const flipped = {
+    vertices: flat.vertices,
+    faces: [reverseFace(flat.faces[0])],
+  };
+  assertBasin(pushPullMesh3dFace(flipped, 0, 0.5), { floorZ: 0.5, rimZ: 1 });
+  assert.ok(isMesh3dClosed(pushPullMesh3dFace(flipped, 0, -0.5)));
+
+  // The 2D annotation of a basin is the outline of its floor.
+  const rings = projectMesh3dToRings(basin);
+  assert.equal(rings.contour.length, 4);
+  assert.equal(rings.holes.length, 0);
+});
+
+test("a vertical lone face becomes a closed prism, both ways", () => {
+  const wall = buildFlatMesh3d([
+    v(0, 0, 0),
+    v(2, 0, 0),
+    v(2, 0, 1),
+    v(0, 0, 1),
+  ]);
   for (const d of [0.5, -0.5]) {
-    const prism = pushPullMesh3dFace(flat, 0, d);
+    const prism = pushPullMesh3dFace(wall, 0, d);
     assert.ok(isMesh3dClosed(prism), `closed for d=${d}`);
-    assert.equal(prism.vertices.length, 8);
     assert.equal(prism.faces.length, 6);
     near(getMesh3dQties(prism).volume, 1);
     assert.ok(signedVolume(prism) > 0, `outward for d=${d}`);
   }
+});
+
+test("a prism face pushed past the opposite cap goes on from there", () => {
+  const box = makeBox(); // 4 × 2 × 3
+  const top = getPushPullRange(box, 1);
+  near(top.through.depth, 3);
+  near(top.min, -(3 - 0.01));
+
+  // Within the material: plain push, the box stays a solid.
+  const pushed = resolvePushPull(box, 1, -1, top);
+  assert.equal(pushed.applied, -1);
+  near(getMesh3dQties(pushed.mesh).volume, 4 * 2 * 2);
+
+  // Top pushed 5 m down: a 2 m deep basin under the old base.
+  const dug = resolvePushPull(box, 1, -5, top);
+  assert.equal(dug.applied, -5);
+  assertBasin(dug.mesh, { floorZ: -2, rimZ: 0 });
+
+  // Around the opposite cap the thinnest slab sticks (no sliver).
+  for (const d of [-2.995, -3, -3.005]) {
+    const stuck = resolvePushPullValue(d, top);
+    near(stuck.applied, top.min);
+    assert.equal(stuck.remaining, null);
+  }
+  near(getMesh3dQties(resolvePushPull(box, 1, -3, top).mesh).volume, 0.08);
+
+  // Bottom pushed up through the top: not a dig, a closed prism above.
+  const bottom = getPushPullRange(box, 0);
+  near(bottom.through.depth, 3);
+  const raised = resolvePushPull(box, 0, -4, bottom);
+  assert.ok(isMesh3dClosed(raised.mesh));
+  assert.ok(signedVolume(raised.mesh) > 0);
+  near(getMesh3dQties(raised.mesh).volume, 4 * 2 * 1);
+  const zs = raised.mesh.vertices.map((p) => p.z);
+  near(Math.min(...zs), 3);
+  near(Math.max(...zs), 4);
+
+  // A lateral face through the box: closed prism on the other side.
+  const side = getPushPullRange(box, 3); // x = w
+  near(side.through.depth, 4);
+  const beyond = resolvePushPull(box, 3, -5, side);
+  assert.ok(isMesh3dClosed(beyond.mesh));
+  near(getMesh3dQties(beyond.mesh).volume, 1 * 2 * 3);
+});
+
+test("only plain prisms go through", () => {
+  // L-shaped wall: the far wall face has several faces behind it.
+  const wall = buildMesh3dFromTriangles({
+    positions: extrudeSoup(L_OUTLINE, L_TRIS, 2),
+  });
+  const top = findFace(wall, (n) => n.z > 0.99);
+  near(getPushPullRange(wall, top).through.depth, 2);
+  const inner = findFace(
+    wall,
+    (n, face) =>
+      n.y > 0.99 &&
+      face.loop.every((vi) => Math.abs(wall.vertices[vi].y - 1) < 1e-9)
+  );
+  const range = getPushPullRange(wall, inner);
+  assert.equal(range.through, null);
+  near(resolvePushPull(wall, inner, -9, range).applied, range.min);
+
+  // Pocket floor in a flat sheet: coplanar siblings, never a prism.
+  const flat = buildFlatMesh3d([
+    v(0, 0, 0),
+    v(4, 0, 0),
+    v(4, 4, 0),
+    v(0, 4, 0),
+  ]);
+  const framed = splitMesh3dFace(
+    flat,
+    [v(1, 1, 0), v(3, 1, 0), v(3, 3, 0), v(1, 3, 0)],
+    { closed: true }
+  );
+  assert.equal(getPushPullRange(framed, 1).through, null);
 });
 
 test("buildFlatMesh3d rejects non-planar contours and honors the hint", () => {

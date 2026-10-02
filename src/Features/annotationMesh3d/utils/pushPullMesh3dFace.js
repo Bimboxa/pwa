@@ -1,6 +1,6 @@
 import { add, dot, scale } from "../../threedMesh/utils/vec3Utils.js";
 
-import { PARALLEL_DOT } from "./mesh3dConstants.js";
+import { DIG_MIN_DOT, PARALLEL_DOT } from "./mesh3dConstants.js";
 import {
   buildEdgeMap,
   cleanupMesh3d,
@@ -24,7 +24,9 @@ import {
 //   and the moved face, whatever the sign of the distance.
 //
 // A lone face (no neighbor on any edge) also keeps its original position as
-// the opposite cap, so a flat drawn sheet becomes a closed prism.
+// the opposite cap, so a flat drawn sheet becomes a closed prism — unless it
+// is moved DOWN (local -z, see DIG_MIN_DOT): it then digs an open basin, the
+// floor and the walls without the cap.
 //
 // Vertices left collinear everywhere (the old corners of stretched faces)
 // are removed by cleanupMesh3d. Pure: returns a new mesh.
@@ -89,9 +91,13 @@ export default function pushPullMesh3dFace(mesh, faceIndex, distance) {
   faces.push(...sideFaces);
 
   if (!hasNeighbor) {
-    faces.push(reverseFace(original));
-    // Pulled "backwards": the prism is built inside out — flip it.
-    if (distance < 0) {
+    const digging = -Math.sign(distance) * normal.z > DIG_MIN_DOT;
+    if (!digging) faces.push(reverseFace(original));
+    // As built, the faces look outward when the face is pulled along its
+    // normal and inward when it is pulled "backwards". A prism wants them
+    // outward, a basin inward (floor up, walls toward the hollow).
+    const flip = digging ? distance > 0 : distance < 0;
+    if (flip) {
       return cleanupMesh3d({ vertices, faces: faces.map(reverseFace) });
     }
   }

@@ -86,6 +86,15 @@ export default class AnnotationsManager {
     });
   }
 
+  // The resolved annotation the current object of `id` was built from (null
+  // when none is built). Its reference changes exactly when the annotation's
+  // resolved content does (see diffAnnotations), so a tool holding a ghost
+  // over a pending write can tell the rebuild carrying that write from the
+  // unrelated ones (render mode switch, async carve).
+  getAnnotationSource(id) {
+    return this._buildStateById.get(id)?.sourceRef ?? null;
+  }
+
   // Subscribe to "annotation ready" notifications. The callback receives the
   // ready ids as an ARRAY: the whole batch for a bulk createAnnotationsObjects
   // pass, a single id for async completions (GLB load, CSG carve) — so

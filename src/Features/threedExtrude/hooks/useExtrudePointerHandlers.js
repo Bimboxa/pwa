@@ -28,11 +28,13 @@ import {
   buildTransientFaceMesh,
   loadAnnotationSnapshot,
 } from "Features/threedDrawing/services/buildTransientFaceMesh";
+import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import getBaseMapNormalWorld from "Features/threedDrawing/utils/getBaseMapNormalWorld";
 import {
   deepHide,
   deepShow,
 } from "Features/threedDrawing/utils/deepVisibility";
+import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
 import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
 import getEditableMesh3d, {
   worldToMesh3dLocal,
@@ -41,9 +43,14 @@ import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dSe
 import getPushPullRange from "Features/annotationMesh3d/utils/getPushPullRange";
 import isAnnotationConvertibleToMesh3d from "Features/annotationMesh3d/utils/isAnnotationConvertibleToMesh3d";
 import locatePathOnMesh3d from "Features/annotationMesh3d/utils/locatePathOnMesh3d";
+import { MIN_THICKNESS_M } from "Features/annotationMesh3d/utils/mesh3dConstants";
 import { mesh3dFromLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import { getFaceNormal } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import pushPullMesh3dFace from "Features/annotationMesh3d/utils/pushPullMesh3dFace";
+import resolvePushPull, {
+  getMesh3dFaceSheet,
+  resolvePushPullValue,
+} from "Features/annotationMesh3d/utils/resolvePushPull";
 
 import {
   setExtrudeOverlay,
@@ -74,8 +81,19 @@ const isEditableTarget = (el) => {
   );
 };
 
+// Screen distance under which the armed face snaps on a scene vertex — the
+// vertex snap of the 3D drawing tools.
+const SNAP_THRESHOLD_PX = 12;
+// A base sheet must be this parallel to the base map to dig along its axis.
+const DIG_SHEET_MIN_DOT = 0.999;
+
 function roundCm(value) {
   return Math.round(value * 100) / 100;
+}
+
+// Snapped values are kept exact, to the precision offsetZ is stored with.
+function roundTenthMm(value) {
+  return Math.round(value * 1e4) / 1e4;
 }
 
 function disposeObject(obj) {
@@ -99,21 +117,26 @@ function disposeObject(obj) {
 //   · HEIGHT — a face pointing along the extrusion axis (the baseMap normal)
 //     of a regular annotation: the value drives `annotation.height`.
 //     Template-locked heights and REVOLUTION / EXTRUSION_PROFILE shapes are
-//     silently ignored.
+//     silently ignored. Pushed BELOW its base, a plain prism digs an open
+//     basin instead of stopping flat: the annotation is then stored as a
+//     face mesh, like MESH3D.
 //   · MESH3D — any face of an isMesh3d annotation, or a lateral / bottom
 //     face of a convertible regular annotation: the face moves along its own
 //     normal and the annotation is stored as a face mesh (converted on
-//     commit, see annotationMesh3d).
+//     commit, see annotationMesh3d). A prism face may go through the
+//     opposite one (see resolvePushPull).
 // - click 1: arms the annotation owning the face. Its real mesh is hidden and
 //   replaced by a transient ghost rebuilt at every value change.
 // - mouse move: the value follows the cursor along the axis (toolbar field +
-//   ghost + cursor chip).
+//   ghost + cursor chip). Near a scene vertex, the face snaps on it.
 // - typing digits: captured straight from the keyboard into
 //   `extrudeMode.valueBuffer` — no focused field, exactly like the 2D drawing
 //   constraint buffer. A non-empty buffer wins over the mouse; Backspace
 //   erases it character by character.
-// - click 2 / Enter: commits `height = max(0, height + value)`. Escape cancels
-//   the armed state, or leaves the mode when nothing is armed.
+// - click 2 / Enter: commits. The ghost stays in place of the real mesh until
+//   the AnnotationsManager has rebuilt it from the written data, so the
+//   previous geometry never flashes back. Escape cancels the armed state, or
+//   leaves the mode when nothing is armed.
 export default function useExtrudePointerHandlers() {
   const dispatch = useDispatch();
 
@@ -170,11 +193,19 @@ export default function useExtrudePointerHandlers() {
     // Coplanar-face hover state.
     const hover = { overlay: null, key: null };
 
+    const annotationsManager = sceneManager.annotationsManager;
+
     // Armed annotation (null until the first click):
-    //   { annotationId, snapshot, baseHeight, axis, anchor, object, parent,
-    //     ghost, downPos, tracking }
+    //   { kind, annotationId, axis, anchor, object, parent, ghost, downPos,
+    //     tracking, snapVerts, snap,
+    //     HEIGHT: snapshot, baseHeight, dig — MESH3D: ctx, faceIndex, range }
     let armed = null;
     let arming = false;
+
+    // Committed annotations whose ghost still stands for the real object:
+    // annotationId -> { ghost, object, source }. `source` is the resolved
+    // annotation the hidden object was built from at commit time.
+    const pending = new Map();
 
     // Per-annotation extrudability, resolved asynchronously (db reads) and
     // cached for the whole activation. Values: "PENDING" | { height, mesh,
@@ -305,6 +336,7 @@ export default function useExtrudePointerHandlers() {
     // null (not extrudable / eligibility still resolving).
     function getPickKind(pick) {
       if (!pick?.nodeId) return null;
+      if (pending.has(pick.nodeId)) return null; // commit still landing
       const el = getEligibility(pick.nodeId);
       if (el === "PENDING") return null;
       if (pick.isMesh3dObject) return el.isMesh3d ? "MESH3D" : null;
@@ -312,11 +344,31 @@ export default function useExtrudePointerHandlers() {
       return el.mesh ? "MESH3D" : null;
     }
 
-    // MESH3D: the value is limited by the material behind the face.
-    function clampArmedValue(v) {
+    // The value really applied for a requested one: a MESH3D face is limited
+    // by the material behind it, unless it can go through.
+    function getAppliedValue(v) {
       if (armed?.kind !== "MESH3D") return v;
-      const { min, max } = armed.range;
-      return Math.min(max, Math.max(min, v));
+      return resolvePushPullValue(v, armed.range).applied;
+    }
+
+    // What the armed annotation becomes for a value:
+    //   { applied, ctx, mesh } — a face mesh (written by writeMesh3dService);
+    //   { applied, height } — a regular annotation of that height.
+    function resolveArmed(v) {
+      if (armed.kind === "MESH3D") {
+        const { ctx, faceIndex, range } = armed;
+        return { ctx, ...resolvePushPull(ctx.mesh, faceIndex, v, range) };
+      }
+      const total = armed.baseHeight + v;
+      const { dig } = armed;
+      if (dig && total <= -MIN_THICKNESS_M) {
+        return {
+          applied: v,
+          ctx: dig.ctx,
+          mesh: pushPullMesh3dFace(dig.sheet, 0, total * dig.sign),
+        };
+      }
+      return { applied: v, height: Math.max(0, total) };
     }
 
     function disposeGhost() {
@@ -326,17 +378,15 @@ export default function useExtrudePointerHandlers() {
       armed.ghost = null;
     }
 
-    function rebuildGhost(v) {
-      if (!armed) return;
-      disposeGhost();
-      if (armed.kind === "MESH3D") {
-        const { ctx, faceIndex } = armed;
+    function buildGhost(result) {
+      if (result.mesh) {
+        const { ctx } = result;
         const { mesh3d, offsetZ } = mesh3dFromLocal(
-          pushPullMesh3dFace(ctx.mesh, faceIndex, clampArmedValue(v)),
+          result.mesh,
           ctx.metrics,
           ctx.baseOffsetZ
         );
-        const ghost = createAnnotationObject3D(
+        return createAnnotationObject3D(
           {
             ...ctx.annotation,
             type: "POLYGON",
@@ -346,24 +396,23 @@ export default function useExtrudePointerHandlers() {
           },
           ctx.metrics
         );
-        if (ghost && armed.parent) {
-          armed.parent.add(ghost);
-          armed.ghost = ghost;
-        }
-        sceneManager.renderScene?.();
-        return;
       }
-      const height = Math.max(0, armed.baseHeight + v);
       const snapshot = {
         ...armed.snapshot,
-        annotation: { ...armed.snapshot.annotation, height },
+        annotation: { ...armed.snapshot.annotation, height: result.height },
       };
-      const ghost = buildTransientFaceMesh({
+      return buildTransientFaceMesh({
         snapshot,
         sharedIds: new Set(),
         deltaLocal: { x: 0, y: 0, z: 0 },
         mode: "WHOLE",
       });
+    }
+
+    function rebuildGhost(v) {
+      if (!armed) return;
+      disposeGhost();
+      const ghost = buildGhost(resolveArmed(v));
       if (ghost && armed.parent) {
         armed.parent.add(ghost);
         armed.ghost = ghost;
@@ -380,6 +429,80 @@ export default function useExtrudePointerHandlers() {
       armed = null;
       dispatch(setExtrudeTargetAnnotationId(null));
       sceneManager.renderScene?.();
+    }
+
+    // Commit: the ghost keeps standing for the annotation, whose real object
+    // stays hidden, until the AnnotationsManager has rebuilt it from the
+    // written data (see the annotation-ready subscription below). Showing the
+    // real object back right away would flash its previous geometry.
+    function holdGhostUntilRebuilt() {
+      const { annotationId, ghost, object } = armed;
+      pending.set(annotationId, {
+        ghost,
+        object,
+        source: annotationsManager.getAnnotationSource(annotationId),
+      });
+      armed = null;
+      dispatch(setExtrudeTargetAnnotationId(null));
+    }
+
+    // Drops the ghost of a committed annotation. restore: the write did not
+    // land — show the (unchanged) real object back.
+    function releasePending(annotationId, { restore = false } = {}) {
+      const entry = pending.get(annotationId);
+      if (!entry) return;
+      pending.delete(annotationId);
+      entry.ghost.parent?.remove(entry.ghost);
+      disposeObject(entry.ghost);
+      if (restore) {
+        deepShow(
+          annotationsManager?.annotationsObjectsMap?.[annotationId] ??
+            entry.object
+        );
+      }
+      sceneManager.renderScene?.();
+    }
+
+    // HEIGHT arm: what the annotation digs from once its top goes below its
+    // base — the base outline as a lone sheet, pushed down into a basin (see
+    // resolveArmed). Null when the solid is not a plain prism (sloped top,
+    // not convertible...): the height then just stops at 0.
+    async function loadDig(pick) {
+      if (!eligibility.get(pick.nodeId)?.mesh) return null;
+      try {
+        const ctx = await getEditableMesh3d({
+          editor,
+          annotationId: pick.nodeId,
+        });
+        if (!ctx) return null;
+        let sheet = null;
+        if (ctx.mesh.faces.length === 1) {
+          sheet = ctx.mesh; // flat polygon
+        } else {
+          const faceIndex = locatePathOnMesh3d(ctx.mesh, [
+            worldToMesh3dLocal(pick.intersect.point, ctx),
+          ]);
+          const { through } = getPushPullRange(ctx.mesh, faceIndex);
+          if (through) {
+            sheet = getMesh3dFaceSheet(ctx.mesh, faceIndex, -through.depth);
+          }
+        }
+        if (!sheet) return null;
+        // The value runs along the base map normal (local +z), a push/pull
+        // distance along the face normal.
+        const nz = getFaceNormal(sheet.vertices, sheet.faces[0]).z;
+        if (Math.abs(nz) < DIG_SHEET_MIN_DOT) return null;
+        return { ctx, sheet, sign: Math.sign(nz) };
+      } catch (err) {
+        console.error("[threedExtrude] dig context failed", err);
+        return null;
+      }
+    }
+
+    // Snap targets of an arm: every scene vertex, the armed annotation's own
+    // included — read BEFORE it is hidden and before any ghost exists.
+    function buildSnapVerts() {
+      return buildIndex(sceneManager.scene).verts;
     }
 
     // MESH3D arm: the face moves along its own normal. A regular annotation
@@ -429,6 +552,8 @@ export default function useExtrudePointerHandlers() {
         ghost: null,
         downPos: { x: e.clientX, y: e.clientY },
         tracking: false,
+        snapVerts: buildSnapVerts(),
+        snap: null,
       };
       deepHide(object);
       rebuildGhost(valueRef.current);
@@ -446,6 +571,7 @@ export default function useExtrudePointerHandlers() {
         const annotationId = pick.nodeId;
         const snapshot = await loadAnnotationSnapshot(annotationId);
         if (!snapshot) return;
+        const dig = await loadDig(pick);
         const object =
           sceneManager.annotationsManager?.annotationsObjectsMap?.[
             annotationId
@@ -458,6 +584,7 @@ export default function useExtrudePointerHandlers() {
           annotationId,
           snapshot,
           baseHeight: Number(snapshot.annotation.height) || 0,
+          dig,
           axis: pick.axis.clone(),
           anchor: pick.intersect.point.clone(),
           object,
@@ -465,6 +592,8 @@ export default function useExtrudePointerHandlers() {
           ghost: null,
           downPos: { x: e.clientX, y: e.clientY },
           tracking: false,
+          snapVerts: buildSnapVerts(),
+          snap: null,
         };
         deepHide(object);
         rebuildGhost(valueRef.current);
@@ -478,53 +607,57 @@ export default function useExtrudePointerHandlers() {
 
     async function commit() {
       if (!armed) return;
-      if (armed.kind === "MESH3D") {
-        const { ctx, faceIndex } = armed;
-        const applied = clampArmedValue(valueRef.current || 0);
-        cancelArm();
-        if (valueBufferRef.current !== "") {
-          dispatch(setExtrudeValue(applied));
-          dispatch(clearExtrudeValueBuffer());
-        }
-        // A zero push changes nothing — in particular it must not convert a
-        // regular annotation into a mesh.
-        if (!applied) return;
-        try {
-          await writeMesh3dService({
+      const { annotationId, kind, baseHeight } = armed;
+      const result = resolveArmed(valueRef.current || 0);
+      // A zero push changes nothing — in particular it must not convert a
+      // regular annotation into a mesh.
+      const unchanged = result.mesh
+        ? result.mesh === result.ctx.mesh
+        : kind === "HEIGHT" && result.height === baseHeight;
+
+      if (unchanged || !armed.ghost || !annotationsManager) cancelArm();
+      else holdGhostUntilRebuilt();
+      // The typed value is consumed by the commit (same as the 2D constraint
+      // buffer), but stays displayed so the next face can reuse it.
+      if (valueBufferRef.current !== "") {
+        dispatch(setExtrudeValue(result.applied));
+        dispatch(clearExtrudeValueBuffer());
+      }
+      if (unchanged) return;
+
+      // The annotation may have just become a mesh: its faces are picked
+      // another way from now on.
+      eligibility.delete(annotationId);
+      try {
+        if (result.mesh) {
+          const { ctx } = result;
+          const written = await writeMesh3dService({
             annotation: ctx.annotation,
-            mesh: pushPullMesh3dFace(ctx.mesh, faceIndex, applied),
+            mesh: result.mesh,
             baseOffsetZ: ctx.baseOffsetZ,
             metrics: ctx.metrics,
             dispatch,
           });
-        } catch (err) {
-          console.error("[threedExtrude] mesh commit failed", err);
+          if (!written) throw new Error("mesh not writable");
+        } else {
+          await updateAnnotationRef.current({
+            id: annotationId,
+            height: result.height,
+          });
         }
-        return;
-      }
-      const { annotationId, baseHeight } = armed;
-      const applied = valueRef.current || 0;
-      const height = Math.max(0, baseHeight + applied);
-      // Restore the real mesh first: the AnnotationsManager rebuilds it from
-      // the new record as soon as the write propagates.
-      cancelArm();
-      // The typed value is consumed by the commit (same as the 2D constraint
-      // buffer), but stays displayed so the next face can reuse it.
-      if (valueBufferRef.current !== "") {
-        dispatch(setExtrudeValue(applied));
-        dispatch(clearExtrudeValueBuffer());
-      }
-      try {
-        await updateAnnotationRef.current({ id: annotationId, height });
       } catch (err) {
         console.error("[threedExtrude] commit failed", err);
+        releasePending(annotationId, { restore: true });
       }
     }
 
     // Armed: the value follows the cursor along the extrusion axis — unless
     // the user typed one, which wins until they hand control back.
     function updateArmedValue(e) {
-      if (valueBufferRef.current !== "") return;
+      if (valueBufferRef.current !== "") {
+        armed.snap = null;
+        return;
+      }
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       if (!armed.tracking) {
@@ -535,18 +668,50 @@ export default function useExtrudePointerHandlers() {
       }
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, sceneManager.camera);
-      const raw = getAxisDragValue({
-        ray: raycaster.ray,
-        anchor: armed.anchor,
-        axis: armed.axis,
-      });
-      if (raw == null) return; // axis-aligned view: keep the last value
-      const next = clampArmedValue(roundCm(raw));
+
+      // A scene vertex near the cursor wins: the face moves to its level.
+      let requested;
+      const vertex = findNearestVertexInVerts(
+        armed.snapVerts,
+        mouse,
+        sceneManager.camera,
+        { width: rect.width, height: rect.height },
+        SNAP_THRESHOLD_PX
+      );
+      if (vertex) {
+        requested = roundTenthMm(
+          vertex.position.clone().sub(armed.anchor).dot(armed.axis)
+        );
+        armed.snap = { position: vertex.position, value: requested };
+      } else {
+        armed.snap = null;
+        raycaster.setFromCamera(mouse, sceneManager.camera);
+        const raw = getAxisDragValue({
+          ray: raycaster.ray,
+          anchor: armed.anchor,
+          axis: armed.axis,
+        });
+        if (raw == null) return; // axis-aligned view: keep the last value
+        requested = roundCm(raw);
+      }
+
+      const next = getAppliedValue(requested);
       if (next === valueRef.current) return;
       valueRef.current = next;
       dispatch(setExtrudeValue(next));
       rebuildGhost(next);
+    }
+
+    // Canvas position of the snapped vertex — only while the face really
+    // sits on it (not when the value is held back by the material limit).
+    function getSnapMarker(applied, rect) {
+      const snap = armed.snap;
+      if (!snap || Math.abs(applied - snap.value) > 1e-6) return null;
+      const p = snap.position.clone().project(sceneManager.camera);
+      return {
+        x: ((p.x + 1) / 2) * rect.width,
+        y: ((1 - p.y) / 2) * rect.height,
+      };
     }
 
     function runHover() {
@@ -559,13 +724,15 @@ export default function useExtrudePointerHandlers() {
         const rect = dom.getBoundingClientRect();
         // A typed value beyond the mesh range is applied clamped — show what
         // will really be committed.
-        const shown = roundCm(clampArmedValue(valueRef.current || 0));
+        const applied = getAppliedValue(valueRef.current || 0);
+        const shown = roundCm(applied);
         setExtrudeOverlay({
           cursor: {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
             label: `${shown > 0 ? "+" : ""}${shown} m`,
           },
+          snap: getSnapMarker(applied, rect),
         });
         return;
       }
@@ -581,6 +748,7 @@ export default function useExtrudePointerHandlers() {
             y: e.clientY - pick.rect.top,
             label: "Extruder",
           },
+          snap: null,
         });
         dom.style.cursor = "crosshair";
       } else {
@@ -673,22 +841,37 @@ export default function useExtrudePointerHandlers() {
       }
     }
 
-    // The AnnotationsManager may recreate the armed annotation while it is
-    // hidden (loadAnnotations re-fires on any useAnnotationsV2 recompute) —
-    // the fresh object is visible by default and would overlay the ghost.
-    const unsubReady =
-      sceneManager.annotationsManager?.subscribeAnnotationReady?.((ids) => {
-        if (!armed || !ids.includes(armed.annotationId)) return;
-        const live =
-          sceneManager.annotationsManager?.annotationsObjectsMap?.[
-            armed.annotationId
-          ];
-        if (!live) return;
-        armed.object = live;
-        armed.parent = live.parent || armed.parent;
-        deepHide(live);
-        rebuildGhost(valueRef.current);
-      });
+    // The AnnotationsManager rebuilds an annotation object whenever its
+    // resolved data, the build options or the base map metrics change.
+    const unsubReady = annotationsManager?.subscribeAnnotationReady?.((ids) => {
+      const objects = annotationsManager.annotationsObjectsMap;
+
+      // Committed annotations: the rebuild made from NEW resolved data is the
+      // write landing — the ghost hands over to the fresh object in this very
+      // pass, before anything is drawn. Any other rebuild (same data) still
+      // shows the previous geometry: keep it hidden behind the ghost.
+      for (const id of ids) {
+        const entry = pending.get(id);
+        if (!entry) continue;
+        if (annotationsManager.getAnnotationSource(id) !== entry.source) {
+          releasePending(id);
+        } else if (objects?.[id]) {
+          entry.object = objects[id];
+          deepHide(entry.object);
+        }
+      }
+
+      // Armed annotation recreated while hidden (loadAnnotations re-fires on
+      // any useAnnotationsV2 recompute): the fresh object is visible by
+      // default and would overlay the ghost.
+      if (!armed || !ids.includes(armed.annotationId)) return;
+      const live = objects?.[armed.annotationId];
+      if (!live) return;
+      armed.object = live;
+      armed.parent = live.parent || armed.parent;
+      deepHide(live);
+      rebuildGhost(valueRef.current);
+    });
 
     dom.addEventListener("pointerdown", onPointerDown);
     dom.addEventListener("pointermove", onPointerMove);
@@ -711,6 +894,9 @@ export default function useExtrudePointerHandlers() {
       rebuildGhostRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       cancelArm();
+      for (const id of [...pending.keys()]) {
+        releasePending(id, { restore: true });
+      }
       clearStipple();
       clearExtrudeOverlay();
       dom.style.cursor = "";
