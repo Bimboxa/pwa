@@ -3,6 +3,7 @@ import IconCutLine from "Features/icons/IconCutLine";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import IconCutSurface from "Features/icons/IconCutSurface";
 
 // TODO: clean up the code behind the drawing tools removed from this UI list
 // (SPLIT_SURFACE "Couper des surfaces", TECHNICAL_RETURN "Retour 1m",
@@ -37,6 +38,13 @@ const TOOL_ITEMS = [
     label: "Couper un segment",
     Icon: IconSplitPolylineClick,
     shortcut: "C",
+    editor: "2D",
+  },
+  {
+    type: "SURFACE_CUT",
+    label: "Couper une surface",
+    Icon: IconCutSurface,
+    shortcut: "F",
     editor: "2D",
   },
   {

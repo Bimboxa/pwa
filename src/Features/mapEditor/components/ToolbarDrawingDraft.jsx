@@ -67,6 +67,7 @@ import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
+import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
 
 import theme from "Styles/theme";
 
@@ -94,6 +95,9 @@ export default function ToolbarDrawingDraft() {
   const rampDeltaHM = useSelector((s) => s.mapEditor.rampDeltaHM);
   const selectedCutToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId?.CUT
+  );
+  const selectedSurfaceCutToolKey = useSelector(
+    (s) => s.mapEditor.selectedToolKeyByTemplateId?.[SURFACE_CUT_TOOL_TYPE]
   );
   const openingStrokeWidth = useSelector((s) => s.mapEditor.openingStrokeWidth);
   const openingStrokeWidthUnit = useSelector(
@@ -237,9 +241,12 @@ export default function ToolbarDrawingDraft() {
   // Highlight the active variant: for centerline opening tools the enabled mode
   // is POLYLINE_CLICK / STRIP / … so the toggle tracks the persisted CUT tool
   // key instead.
+  // Same for the surface cut tools (POLYLINE_SEGMENT / POLYLINE_CLICK).
   const selectedToolKey = isOpeningBand
     ? (selectedCutToolKey ?? enabledDrawingMode)
-    : enabledDrawingMode;
+    : toolGroupType === SURFACE_CUT_TOOL_TYPE
+      ? (selectedSurfaceCutToolKey ?? tools[0]?.key)
+      : enabledDrawingMode;
 
   const colorPopoverTitle = isFreeText
     ? "Couleur du texte"

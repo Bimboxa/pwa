@@ -45,6 +45,8 @@ import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import useDeleteProfileLine from "Features/annotations/hooks/useDeleteProfileLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
+import useHandleSurfaceCutCommit from "Features/surfaceCut/hooks/useHandleSurfaceCutCommit";
+import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
@@ -226,6 +228,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("x", "SPLIT_LINE");
     // hotkeys — start polyline cut (C = Couper un segment) when not drawing
     useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
+    // hotkeys — start a surface cut (F = Couper une surface) when not drawing
+    useToolGroupHotkey("f", "SURFACE_CUT");
     // hotkeys — start wall-ends join (J = Joindre) when not drawing
     useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
     // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
@@ -824,6 +828,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     });
     const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
+    const handleSurfaceCutCommit = useHandleSurfaceCutCommit({ annotations, selectedNodes });
     const handleCutSegment = useHandleCutSegment();
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations });
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
@@ -2291,6 +2296,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         // COMPLETE_ANNOTATION: extend existing annotation
                         if (options?.completeAnnotationId) {
                             return handleCompleteAnnotationCommit(points, options);
+                        }
+                        // Couper une surface: the trace cuts surfaces, it is
+                        // never stored (must run before the generic commit).
+                        if (type === SURFACE_CUT_TOOL_TYPE) {
+                            return handleSurfaceCutCommit(points);
                         }
                         if (type === "SPLIT") {
                             return handleSplitCommit(points);

@@ -16,6 +16,7 @@ import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts
 import { selectMeshBrushPartType } from "Features/meshPaint/utils/meshBrushSelectors";
 import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
+import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
@@ -48,6 +49,13 @@ const THREED_PLACEMENT_SHORTCUTS = [
 const THREED_DRAWING_SHORTCUTS = [
   { key: "Entrée", label: "Terminer le dessin" },
   { key: "Esc", label: "Terminer / Quitter le dessin" },
+];
+
+// Shortcuts of « Couper une surface » (2D): the segment cuts at its 2nd click.
+const SURFACE_CUT_SHORTCUTS = [
+  { key: "Entrée", label: "Couper (polyligne)" },
+  { key: "Tab", label: "Segment / Polyligne" },
+  { key: "Esc", label: "Annuler le trait / Quitter" },
 ];
 
 // Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
@@ -153,6 +161,8 @@ export default function SectionDrawingHelperContent() {
 
   const meshBrushHiddenS =
     "Le modèle actif est masqué : les parties peintes ne seront pas visibles.";
+  const surfaceCutS =
+    "Tracez un trait à travers la surface : elle est coupée en autant d'annotations que de morceaux";
 
   // data
 
@@ -222,8 +232,13 @@ export default function SectionDrawingHelperContent() {
     (s) => s.mapEditor.joinMergeIfPossible
   );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
+  // « Couper une surface »: a POLYLINE_* mode drawing a trace, not an
+  // annotation — no image detection, no offset.
+  const isSurfaceCut = useSelector((s) =>
+    isSurfaceCutDraft(s.annotations.newAnnotation)
+  );
   const showSmartDetectCard =
-    SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
+    !isSurfaceCut && SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK";
@@ -238,6 +253,7 @@ export default function SectionDrawingHelperContent() {
   const showDefaultOffset =
     !isThreedToggledEditor &&
     !isSegmentSelectMode &&
+    !isSurfaceCut &&
     Boolean(enabledDrawingMode) &&
     ![
       "REASSIGN_TEMPLATE",
@@ -304,6 +320,22 @@ export default function SectionDrawingHelperContent() {
           }}
         >
           Cliquez sur une annotation pour modifier son modèle
+        </Box>
+      )}
+      {isSurfaceCut && !isThreedToggledEditor && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {surfaceCutS}
         </Box>
       )}
       {enabledDrawingMode === "CUT_SEGMENT" && (
@@ -525,7 +557,13 @@ export default function SectionDrawingHelperContent() {
         </Paper>
       )}
       <SectionShortcutHelpers
-        shortcuts={isThreedToggledEditor ? threedShortcuts : undefined}
+        shortcuts={
+          isThreedToggledEditor
+            ? threedShortcuts
+            : isSurfaceCut
+              ? SURFACE_CUT_SHORTCUTS
+              : undefined
+        }
       />
     </Box>
   );

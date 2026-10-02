@@ -1,7 +1,12 @@
+import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
+
 import { getDrawingToolTypeByKey } from "../constants/drawingTools.jsx";
 
 // Opening (ouverture) draft colour — openings are drawn in red @ 0.8 opacity.
 export const OPENING_COLOR = "#ff0000";
+
+// « Couper une surface » trace colour.
+export const SURFACE_CUT_COLOR = "#e65100";
 
 // Build the next `newAnnotation` draft when (re)selecting a cut / split tool.
 //
@@ -24,6 +29,17 @@ export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
     base.strokeWidthUnit = openingDefaults?.strokeWidthUnit ?? "CM";
   } else {
     delete base.isOpening;
+  }
+  // Surface cut trace: a thin solid line, with no drawing shape left over
+  // from a previous draw (the toolbar / letter hotkeys would offer its tools).
+  if (tool.annotationType === SURFACE_CUT_TOOL_TYPE) {
+    base.strokeColor = SURFACE_CUT_COLOR;
+    base.fillColor = SURFACE_CUT_COLOR;
+    base.strokeWidth = 2;
+    base.strokeWidthUnit = "PX";
+    base.strokeOpacity = 1;
+    delete base.strokeType;
+    delete base.drawingShape;
   }
   return base;
 }

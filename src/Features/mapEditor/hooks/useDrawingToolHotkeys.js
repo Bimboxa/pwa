@@ -25,6 +25,10 @@ import {
 } from "../constants/drawingToolHotkeys";
 import buildToolDraft from "../utils/buildToolDraft";
 import { getDraftSessionKey } from "Features/annotations/utils/templatelessAnnotations";
+import {
+  SURFACE_CUT_TOOL_TYPE,
+  isSurfaceCutDraft,
+} from "Features/surfaceCut/utils/surfaceCutTools";
 
 // Keyboard shortcuts to switch the active drawing tool without leaving the
 // drawing flow:
@@ -56,7 +60,7 @@ export default function useDrawingToolHotkeys() {
       );
     };
 
-    const switchTool = (tool, { isOpening } = {}) => {
+    const switchTool = (tool, { isOpening, groupType } = {}) => {
       const s = store.getState();
       const newAnnotation = s.annotations.newAnnotation ?? {};
       const openingDefaults = {
@@ -66,7 +70,9 @@ export default function useDrawingToolHotkeys() {
       // Opening tools live in the "CUT" tool group; persist the active variant
       // under that group id so the toolbar highlight tracks it.
       // Templateless drafts ("Dessin" tool) are keyed per annotation type.
-      const templateId = isOpening ? "CUT" : getDraftSessionKey(newAnnotation);
+      // Other tool groups pass their own id (groupType).
+      const templateId =
+        groupType ?? (isOpening ? "CUT" : getDraftSessionKey(newAnnotation));
       if (templateId) {
         dispatch(
           setSelectedToolKeyForTemplate({ templateId, toolKey: tool.key })
@@ -152,6 +158,30 @@ export default function useDrawingToolHotkeys() {
         if (!openingTool) return;
         if (openingTool.key !== currentKey)
           switchTool(openingTool, { isOpening: true });
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // « Couper une surface » group (segment / polyline): Tab alternates
+      // them; no letter (the draft has no drawing shape).
+      if (isSurfaceCutDraft(newAnnotation)) {
+        if (e.key !== "Tab") return;
+        const cutTools = getDrawingToolsByType(SURFACE_CUT_TOOL_TYPE);
+        const currentKey =
+          s.mapEditor.selectedToolKeyByTemplateId?.[SURFACE_CUT_TOOL_TYPE] ??
+          cutTools[0]?.key;
+        const idx = Math.max(
+          0,
+          cutTools.findIndex((t) => t.key === currentKey)
+        );
+        const next =
+          cutTools[
+            (idx + (e.shiftKey ? -1 : 1) + cutTools.length) % cutTools.length
+          ];
+        if (next && next.key !== currentKey) {
+          switchTool(next, { groupType: SURFACE_CUT_TOOL_TYPE });
+        }
         e.preventDefault();
         e.stopImmediatePropagation();
         return;

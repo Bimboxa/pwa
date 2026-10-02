@@ -276,6 +276,26 @@ const DRAWING_TOOLS = [
     annotationType: "FACE_CUT",
     behavior: "CLICK",
   },
+  // SURFACE_CUT tools (Couper une surface — 2D editor): the trace cuts the
+  // surfaces it runs across into one annotation per piece (surfaceCut). They
+  // draw like a POLYLINE segment / polyline (interaction borrowed through
+  // `drawingMode`) while the draft keeps the SURFACE_CUT type.
+  {
+    key: "SURFACE_CUT_SEGMENT",
+    label: "Segment (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "SURFACE_CUT",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
+  {
+    key: "SURFACE_CUT_POLYLINE",
+    label: "Polyligne clic",
+    Icon: IconPolylineClick,
+    annotationType: "SURFACE_CUT",
+    behavior: "CLICK",
+    drawingMode: "POLYLINE_CLICK",
+  },
   // SPLIT_POLYLINE tool (Couper polyligne — two clicks)
   {
     key: "SPLIT_POLYLINE",
@@ -508,6 +528,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   SPLIT_LINE: ["CUT_SEGMENT"],
   SPLIT_POLYLINE_CLICK: ["SPLIT_POLYLINE_CLICK"],
   FACE_CUT: ["FACE_CUT_SEGMENT", "FACE_CUT_POLYLINE"],
+  SURFACE_CUT: ["SURFACE_CUT_SEGMENT", "SURFACE_CUT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],

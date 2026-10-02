@@ -46,6 +46,7 @@ import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice'
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, patchNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import getDraftFieldVisibility from 'Features/mapEditor/utils/getDraftFieldVisibility';
 import isOpeningAnnotation, { getOpeningType } from 'Features/annotations/utils/isOpeningAnnotation';
+import { isSurfaceCutDraft } from 'Features/surfaceCut/utils/surfaceCutTools';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -4249,7 +4250,10 @@ const InteractionLayer = forwardRef(({
               enabledDrawingModeRef.current === "BRUSH" &&
               brushPathRef.current?.length > 0;
             if (enabledDrawingMode && (drawingPointsRef.current?.length > 0 || isBrushing)) {
-              const committed = commitInProgressDrawing();
+              // A surface cut trace is dropped, never cut (Enter cuts).
+              const committed =
+                !isSurfaceCutDraft(newAnnotationRef.current) &&
+                commitInProgressDrawing();
               if (!committed) {
                 setDrawingPoints([]);
                 drawingPointsRef.current = [];
@@ -4840,7 +4844,9 @@ const InteractionLayer = forwardRef(({
               "CUT_CLICK",
               "ADD_GUIDE_LINE",
               "RAMP",
-            ].includes(mode)
+            ].includes(mode) &&
+            // A surface cut trace is a straight polyline (no arcs).
+            !isSurfaceCutDraft(newAnnotationRef.current)
           ) {
             const pts = drawingPointsRef.current || [];
             if (pts.length === 0) break;

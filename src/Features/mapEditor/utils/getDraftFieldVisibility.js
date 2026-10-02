@@ -1,5 +1,9 @@
 import { getDrawingToolTypeByKey } from "../constants/drawingTools.jsx";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
+import {
+  SURFACE_CUT_TOOL_TYPE,
+  isSurfaceCutDraft,
+} from "Features/surfaceCut/utils/surfaceCutTools";
 
 // Which draft fields (thickness / offset / height / width) the drawing toolbar
 // exposes for the current draft + active tool. Extracted from ToolbarDrawingDraft
@@ -27,8 +31,18 @@ export default function getDraftFieldVisibility(
     drawingShape !== "OPENING" &&
     (newAnnotation?.type === "POLYLINE" || newAnnotation?.type === "STRIP");
 
-  const isToolGroup = isCuttingTool || isOpeningBand;
-  const toolGroupType = isCuttingTool ? toolType : isOpeningBand ? "CUT" : null;
+  // « Couper une surface » tools reuse the POLYLINE_SEGMENT / POLYLINE_CLICK
+  // modes too: recognized via the draft type.
+  const isSurfaceCut = isSurfaceCutDraft(newAnnotation);
+
+  const isToolGroup = isCuttingTool || isOpeningBand || isSurfaceCut;
+  const toolGroupType = isCuttingTool
+    ? toolType
+    : isOpeningBand
+      ? "CUT"
+      : isSurfaceCut
+        ? SURFACE_CUT_TOOL_TYPE
+        : null;
 
   // The Rampe tool drives its own geometry from two transient meter fields and
   // hides the generic height / offset / thickness fields.
