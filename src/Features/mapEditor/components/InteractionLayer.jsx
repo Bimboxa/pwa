@@ -88,6 +88,7 @@ import useVersionDrag from 'Features/mapEditor/hooks/useVersionDrag';
 import useCalibrationDrag from 'Features/mapEditor/hooks/useCalibrationDrag';
 import useLegendDrag from 'Features/mapEditor/hooks/useLegendDrag';
 
+import getAnnotationStrokeWidthPx from "Features/geometry/utils/getAnnotationStrokeWidthPx";
 import findPolygonContaining from 'Features/geometry/utils/findPolygonContaining';
 import createInnerPointService from 'Features/points/services/createInnerPointService';
 
@@ -315,7 +316,7 @@ function pickSegmentAdjustAxis(candidates, preferred) {
 
 // Snapshot one annotation's geometry (pixel-image space) into a paste-clipboard
 // item. Pure — used by the Ctrl+C handler for both single and multi selection.
-function buildClipboardItem(ann) {
+function buildClipboardItem(ann, meterByPx) {
   const type = ann?.type;
   const item = { annotation: ann };
   if (
@@ -340,7 +341,7 @@ function buildClipboardItem(ann) {
       }));
     }
     if (type === "STRIP") {
-      item.stripWidthPx = ann.stripWidthPx ?? ann.width ?? null;
+      item.stripWidthPx = Math.abs(getAnnotationStrokeWidthPx(ann, meterByPx));
       item.stripOrientation = ann.stripOrientation ?? 1;
     }
     // Guide lines (slope/stairs ramp axes): snapshot resolved pixel geometry
@@ -3675,7 +3676,9 @@ const InteractionLayer = forwardRef(({
         }
         e.preventDefault();
 
-        const items = supportedAnns.map(buildClipboardItem).filter(Boolean);
+        const items = supportedAnns
+          .map((ann) => buildClipboardItem(ann, meterByPxRef.current))
+          .filter(Boolean);
         if (!items.length) return;
 
         // Group center = center of the union bbox of every item's px points.

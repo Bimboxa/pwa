@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import getAnnotationStrokeWidthPx from "Features/geometry/utils/getAnnotationStrokeWidthPx";
+
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 const POINT_GHOST_RADIUS_PX = 8;
-const STRIP_DEFAULT_WIDTH_PX = 20;
 
 function pointsToAttr(points) {
   return points.map((p) => `${p.x},${p.y}`).join(" ");
@@ -182,8 +183,9 @@ function renderItem(item, key, meterByPx) {
   }
 
   if (type === "STRIP" && item.basePoints?.length) {
-    const width = item.stripWidthPx ?? STRIP_DEFAULT_WIDTH_PX;
-    const orientation = item.stripOrientation ?? 1;
+    const width =
+      item.stripWidthPx ?? Math.abs(getAnnotationStrokeWidthPx(ann, meterByPx));
+    const orientation = item.stripOrientation ?? ann.stripOrientation ?? 1;
     const d = stripPathD(item.basePoints, orientation * width);
     return (
       <g key={key}>

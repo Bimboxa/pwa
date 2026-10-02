@@ -13,13 +13,21 @@ open two-point POLYLINE or STRIP, or a four-corner rectangular POLYGON without
 cuts. The source needs at least five bitmap pixels of thickness and a length
 of at least three times its thickness.
 
-Three patches under the original annotation provide a 17-bin transverse pixel
-signature: each bin stores mean luminance and contrast along the wall. Median
-statistics across patches reduce noise from dimensions. Four directional
-contrast statistics additionally characterize texture. This covers solid black, gray and
-hatched fills. Statistics compare material appearance independently of the
-hatch phase and wall length. Hatch directions are measured in bitmap space:
-rotating a wall does not rotate the hatch pattern printed on the plan.
+Three patches under the original annotation describe the material in the central
+60% of the wall width. The inset keeps black outlines and adjacent whitespace
+out of the learned fill when the annotation is slightly misplaced. Each patch
+provides mean luminance, contrast, four directional texture statistics and a
+17-bin transverse interior profile. Median statistics across patches reduce
+noise from dimensions. Both pixels of a directional texture measurement stay
+inside the core. This covers solid black, gray and hatched fills independently
+of hatch phase and wall length, while preserving differences between interior
+layers. Hatch directions are measured in bitmap space: rotating a wall does not
+rotate the hatch pattern printed on the plan.
+
+Material appearance and boundary evidence are separate checks. Width comes from
+the same `strokeWidth` / `strokeWidthUnit` conversion as the canonical renderer,
+including CM strips. The clipboard snapshot and paste preview use this width as
+well; a 20 cm strip must not silently become a 20 pixel learning region.
 
 The reference is cached by bitmap identity, clipboard identity and image
 coordinate conversion. Unsupported shapes and cross-map references use the
@@ -49,7 +57,9 @@ allowance, so seed search cannot jump across an opening.
 
 Colored dimension ink may interrupt up to two wall widths (capped at 128 bitmap
 pixels). A thin darker drafting line may interrupt up to 0.3 wall widths
-(capped at 12 pixels). Neither updates the endpoint until matching material
+(capped at 12 pixels). The allowable scanline brightness variation depends on the learned material
+contrast. An explicit near-white/no-texture check stops pale hatching at blank
+openings. Neither updates the endpoint until matching material
 resumes, and neither allowance applies to blank openings. Final signature
 checks seek clean neighboring windows instead of rejecting a whole wall
 because one confirmation window lands on a dimension label. Image boundaries,
@@ -81,7 +91,9 @@ npm run build
 The synthetic fixtures cover black, gray and hatch fills; horizontal, vertical
 and oblique walls; variable length; source/mask exclusion; openings; colored
 dimensions; phase changes; incompatible textures/thicknesses; physical unit
-conversion; STRIP orientation; and rectangular polygon output.
+conversion; canonical CM strips without legacy width fields; STRIP orientation;
+slightly misplaced references; pale hatching beside solid gray/white regions;
+and rectangular polygon output.
 
 The regression suite also rejects diagonal/perpendicular targets unless the
 copy is explicitly rotated, rejects equal-density ink in different transverse
@@ -96,6 +108,11 @@ positions each, including the dimension crossing. The former detector missed
 those crossings and split the right wall at y=837/846. The two-phase detector
 recovers approximately y=723..1000 and y=647..990 respectively at all tested
 positions, with less than one pixel of endpoint variation.
+
+The material-core update also checks source offsets of -2, -1, 0, 1 and 2 pixels
+for POLYLINE and both STRIP sides. Before this update, even a one-pixel source
+offset could reject every target. These tests use the same seven positions on
+each target wall and assert the complete recovered endpoints.
 
 The PDF and its rendered images remain outside the repository. This validates
 the bitmap algorithm on the actual plan, not the browser/IndexedDB commit flow.

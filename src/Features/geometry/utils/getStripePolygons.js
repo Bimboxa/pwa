@@ -3,6 +3,7 @@ import polygonClipping from "polygon-clipping";
 import { offsetPolylineAsPolygons } from "Features/geometry/utils/offsetPolylineAsPolygon";
 import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
+import getAnnotationStrokeWidthPx from "./getAnnotationStrokeWidthPx";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 // Tessellation count for square→circle→square arcs before offsetting the band.
@@ -83,19 +84,10 @@ function getClosedStripPolygon(points, distance, cuts, applyCutsMath) {
  * @returns {number}
  */
 export function getStripDistancePx(annotation, baseMapMeterByPx) {
-    const {
-        strokeWidth = 20,
-        strokeWidthUnit = "PX",
-        stripOrientation = 1,
-    } = annotation || {};
-
-    const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-    if (isCmUnit) {
-        // CM -> meters -> pixels, then orientation sign.
-        return ((strokeWidth * 0.01) / baseMapMeterByPx) * stripOrientation;
-    }
-    // Raw pixels.
-    return strokeWidth * stripOrientation;
+    return getAnnotationStrokeWidthPx(
+        { ...annotation, type: "STRIP" },
+        baseMapMeterByPx
+    ) * (annotation?.stripOrientation ?? 1);
 }
 
 /**

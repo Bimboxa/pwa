@@ -22,20 +22,27 @@ function fixture(fill = "hatch", angle = 0, targetFill = fill, options = {}) {
           continue;
         let value = material === "black" ? 0 : material === "gray" ? 155 : 255;
         if (material === "hatch")
-          value = (x + y + (options.phase ?? 0)) % 8 < 2 ? 40 : 255;
+          value =
+            (x + y + (options.phase ?? 0)) % 8 < 2
+              ? (options.hatchInk ?? 40)
+              : 255;
         if (material === "grid") value = x % 8 < 2 || y % 8 < 2 ? 40 : 255;
         if (material !== "blank" && Math.abs(across) > width / 2 - 1) value = 0;
         const i = (y * image.width + x) * 4;
         image.data[i] = image.data[i + 1] = image.data[i + 2] = value;
       }
   };
-  draw(50, 120, 160, 20, 90, fill);
+  draw(50, 120, 160, options.sourceWidth ?? 20, 90, fill);
   draw(260, 210, options.length ?? 180, options.width ?? 20, angle, targetFill);
   const clipboard = {
     sourceCenter: { x: 50, y: 120 },
     items: [
       {
-        annotation: { type: "POLYLINE", strokeWidth: 20, baseMapId: "plan" },
+        annotation: {
+          type: "POLYLINE",
+          strokeWidth: options.sourceWidth ?? 20,
+          baseMapId: "plan",
+        },
         basePoints: [
           { x: 50, y: 40, type: "square" },
           { x: 50, y: 200, type: "square" },
@@ -350,4 +357,71 @@ test("extension crosses thin black drafting lines but stops at real openings", (
   assert.equal(result?.matches.length, 1);
   const [a, b] = result.matches[0].placedPoints;
   assert.ok(Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - 180) < 5);
+});
+
+test("canonical CM strips use the rendered width without legacy clipboard fields", () => {
+  for (const stripOrientation of [-1, 1]) {
+    const f = fixture("hatch", 90);
+    f.imageScale = 2;
+    f.imageOffset = { x: 17, y: 23 };
+    f.meterByPx = 0.005;
+    const item = f.clipboard.items[0];
+    item.annotation = {
+      type: "STRIP",
+      strokeWidth: 20,
+      strokeWidthUnit: "CM",
+      stripOrientation,
+    };
+    item.basePoints = item.basePoints.map((p) => ({
+      x: (p.x + stripOrientation * 10) * 2 + 17,
+      y: p.y * 2 + 23,
+    }));
+    const match = detectWallHoverCandidate(f)?.matches[0];
+    assert.ok(match, `orientation ${stripOrientation}`);
+    const [a, b] = match.placedPoints;
+    assert.ok(Math.abs(a.x - (260 + stripOrientation * 10) * 2 - 17) < 3);
+    assert.ok(Math.abs(Math.abs(a.y - b.y) - 360) < 5);
+  }
+});
+
+test("material description tolerates a slightly misplaced source annotation", () => {
+  for (const fill of ["hatch", "gray", "black"]) {
+    for (const dx of [-2, -1, 1, 2]) {
+      const f = fixture(fill, 90);
+      f.clipboard.items[0].basePoints.forEach((p) => {
+        p.x += dx;
+      });
+      const match = detectWallHoverCandidate(f)?.matches[0];
+      assert.ok(match, `${fill}, source offset ${dx}`);
+      const [a, b] = match.placedPoints;
+      assert.ok(Math.abs(a.x - 260) <= 1);
+      assert.ok(Math.abs(Math.abs(a.y - b.y) - 180) <= 3);
+    }
+  }
+});
+
+test("a pale narrow hatched region ends at a solid gray surface or white opening", () => {
+  for (const sourceOffset of [-2, -1, 0, 1, 2]) {
+    const f = fixture("hatch", 90, "hatch", {
+      sourceWidth: 13,
+      width: 13,
+      hatchInk: 160,
+    });
+    f.clipboard.items[0].basePoints.forEach((p) => {
+      p.x += sourceOffset;
+    });
+    for (let y = 0; y < 120; y++)
+      for (let x = 230; x < 290; x++) {
+        const i = (y * f.imageData.width + x) * 4;
+        f.imageData.data[i] =
+          f.imageData.data[i + 1] =
+          f.imageData.data[i + 2] =
+            172;
+      }
+    const match = detectWallHoverCandidate(f)?.matches[0];
+    assert.ok(match, `source offset ${sourceOffset}`);
+    const ys = match.placedPoints.map((p) => p.y);
+    assert.ok(Math.abs(Math.min(...ys) - 120) < 2, `start ${ys}`);
+    assert.ok(Math.abs(Math.max(...ys) - 300) < 2, `end ${ys}`);
+  }
 });

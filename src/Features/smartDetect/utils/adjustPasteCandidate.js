@@ -1,3 +1,4 @@
+import getAnnotationStrokeWidthPx from "../../geometry/utils/getAnnotationStrokeWidthPx.js";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 import { getBrightness } from "./stripDetectionHelpers";
 
@@ -26,7 +27,6 @@ const MAX_CENTERING_SAMPLES = 100000;
 const MAX_AXIAL_SAMPLES = 500;
 const MAX_CROSS_SAMPLES = 30;
 const RECENTER_SCANLINES = 15;
-const STRIP_DEFAULT_WIDTH_PX = 20;
 
 // The J option only applies to single-item clipboards whose shape has a
 // well-defined "dark pixels under it" score.
@@ -364,9 +364,11 @@ function getSegmentBandImgPx(item, type, meterByPx, imageScale) {
   if (type === "STRIP") {
     const w = Math.max(
       3,
-      Math.abs(item.stripWidthPx ?? STRIP_DEFAULT_WIDTH_PX) / imageScale
+      Math.abs(getAnnotationStrokeWidthPx(item.annotation, meterByPx)) /
+        imageScale
     );
-    const orientation = item.stripOrientation ?? 1;
+    const orientation =
+      item.stripOrientation ?? item.annotation.stripOrientation ?? 1;
     // STRIP band is one-sided: it spans [0, orientation * w] along the normal.
     return {
       w,

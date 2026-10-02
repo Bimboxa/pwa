@@ -1,7 +1,10 @@
+import getAnnotationStrokeWidthPx from "../../geometry/utils/getAnnotationStrokeWidthPx.js";
+
 // Reference-guided local wall detection. All internal coordinates are bitmap
 // pixels; only published geometry is converted back to reference coordinates.
 const modelCache = new WeakMap();
 const PROFILE_BINS = 17;
+const MATERIAL_CORE_RATIO = 0.6;
 const AXIAL_SAMPLES = 31;
 const GRADIENT_OFFSETS = [
   [2, 0],
@@ -45,15 +48,7 @@ function getWallGeometry(item, toImage, meterByPx, scale) {
     points.length === 2 &&
     !ann.closeLine
   ) {
-    width =
-      type === "STRIP"
-        ? Math.abs(item.stripWidthPx ?? ann.stripWidthPx ?? ann.width ?? 20) /
-          scale
-        : Math.abs(
-            ann.strokeWidthUnit === "CM" && meterByPx > 0
-              ? ((ann.strokeWidth ?? 1) * 0.01) / meterByPx / scale
-              : (ann.strokeWidth ?? 1) / scale
-          );
+    width = Math.abs(getAnnotationStrokeWidthPx(ann, meterByPx)) / scale;
   } else if (
     type === "POLYGON" &&
     points.length === 4 &&
@@ -114,9 +109,11 @@ function measureAppearance(sample, center, u, width, length) {
     count = 0;
   const gradients = [0, 0, 0, 0],
     pairs = [0, 0, 0, 0];
-  // Preserve WHERE the ink sits across the wall, not just its global mean.
-  // Averaging along the axis removes hatch phase while retaining the two
-  // outlines, interior fill and any layers within the copied wall footprint.
+  // Describe the material inside the wall separately from its outlines.
+  // The inset avoids learning a black edge or neighboring whitespace when
+  // the source annotation is a couple of pixels off. Axial statistics remove
+  // hatch phase; transverse bins retain evidence of different interior layers.
+  const coreWidth = width * MATERIAL_CORE_RATIO;
   const profile = Array.from({ length: PROFILE_BINS }, () => ({
     sum: 0,
     squares: 0,
@@ -125,7 +122,7 @@ function measureAppearance(sample, center, u, width, length) {
   for (let a = 0; a < AXIAL_SAMPLES; a++) {
     for (let c = 0; c < PROFILE_BINS; c++) {
       const along = ((a + 0.5) / AXIAL_SAMPLES - 0.5) * length;
-      const across = ((c + 0.5) / PROFILE_BINS - 0.5) * width;
+      const across = ((c + 0.5) / PROFILE_BINS - 0.5) * coreWidth;
       const x = center.x + along * u.x + across * n.x;
       const y = center.y + along * u.y + across * n.y;
       const value = sample(x, y);
@@ -138,6 +135,8 @@ function measureAppearance(sample, center, u, width, length) {
       profile[c].count++;
       for (let i = 0; i < GRADIENT_OFFSETS.length; i++) {
         const [dx, dy] = GRADIENT_OFFSETS[i];
+        // Keep both pixels of a texture measurement inside the material core.
+        if (Math.abs(across + dx * n.x + dy * n.y) > coreWidth / 2) continue;
         const next = sample(x + dx, y + dy);
         if (Number.isFinite(next)) {
           gradients[i] += Math.abs(next - value);
@@ -320,7 +319,7 @@ function extendCandidate(sample, candidate, model, image) {
       unavailable = 0;
     const samples = Math.max(7, Math.min(40, Math.ceil(width)));
     for (let i = 0; i < samples; i++) {
-      const c = ((i + 0.5) / samples - 0.5) * width * 0.75;
+      const c = ((i + 0.5) / samples - 0.5) * width * MATERIAL_CORE_RATIO;
       const value = sample(
         candidate.center.x + a * candidate.u.x + c * candidate.n.x,
         candidate.center.y + a * candidate.u.y + c * candidate.n.y
@@ -335,8 +334,17 @@ function extendCandidate(sample, candidate, model, image) {
     if (count < samples * 0.7) return "occluded";
     const mean = sum / count;
     const deviation = Math.sqrt(Math.max(0, squares / count - mean * mean));
+    // Pale hatching can average almost white. Require some of the learned
+    // ink/contrast so an empty opening cannot count as matching material.
     if (
-      Math.abs(mean - appearance.mean) < 0.25 &&
+      mean > 1 - (1 - appearance.mean) * 0.3 &&
+      deviation < appearance.deviation * 0.35 + 0.01
+    )
+      return false;
+    // Dense hatch scanlines vary more than a flat fill or pale hatching.
+    const meanTolerance = clamp(appearance.deviation * 0.75, 0.15, 0.25);
+    if (
+      Math.abs(mean - appearance.mean) < meanTolerance &&
       Math.abs(deviation - appearance.deviation) < 0.25
     )
       return true;
