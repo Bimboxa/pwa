@@ -48,12 +48,13 @@ function fixture(fill = "hatch", angle = 0, targetFill = fill, options = {}) {
     clipboard,
     cursorImgPx: { x: 261, y: 211 },
     baseMapId: "plan",
+    pasteTransform: { rotationDeg: angle - 90 },
   };
 }
 
 for (const fill of ["hatch", "black", "gray"]) {
   for (const angle of [0, 90, 33]) {
-    test(`${fill} wall at ${angle} degrees adapts length and orientation`, () => {
+    test(`${fill} wall at ${angle} degrees follows the explicitly rotated source and adapts length`, () => {
       const f = fixture(fill, angle);
       const result = detectWallHoverCandidate(f);
       assert.equal(result?.matches.length, 1);
@@ -181,7 +182,7 @@ test("rectangular polygons publish a resized closed footprint", () => {
 });
 
 test("unsupported references and cross-map pastes retain general detection", () => {
-  assert.equal(detectWallHoverCandidate(fixture("blank")), null);
+  assert.equal(detectWallHoverCandidate(fixture("blank")).matches.length, 0);
   assert.equal(
     detectWallHoverCandidate({ ...fixture(), baseMapId: "other" }),
     null
@@ -236,4 +237,75 @@ test("different hatch phase is accepted but a grid fill is rejected", () => {
     detectWallHoverCandidate(fixture("hatch", 0, "grid")).matches.length,
     0
   );
+});
+
+test("unrotated copy only detects parallel walls, never a diagonal or perpendicular wall", () => {
+  for (const fill of ["hatch", "black", "gray"]) {
+    for (const angle of [0, 45, 75, 81, 99, 105, 135]) {
+      const f = fixture(fill, angle);
+      f.pasteTransform = { rotationDeg: 0 };
+      assert.equal(
+        detectWallHoverCandidate(f).matches.length,
+        0,
+        `${fill} ${angle}`
+      );
+    }
+    const f = fixture(fill, 90);
+    f.pasteTransform = { rotationDeg: 0 };
+    const [a, b] = detectWallHoverCandidate(f).matches[0].placedPoints;
+    assert.ok(Math.abs(a.x - b.x) < 1e-9);
+  }
+});
+
+test("R allows a perpendicular wall without enabling arbitrary orientations", () => {
+  const f = fixture("hatch", 0);
+  assert.equal(
+    detectWallHoverCandidate({ ...f, pasteTransform: { rotationDeg: 0 } })
+      .matches.length,
+    0
+  );
+  const [a, b] = detectWallHoverCandidate({
+    ...f,
+    pasteTransform: { rotationDeg: 90 },
+  }).matches[0].placedPoints;
+  assert.ok(Math.abs(a.y - b.y) < 1e-9);
+});
+
+test("transverse signatures reject equal-density ink arranged in different layers", () => {
+  const f = fixture("black");
+  for (let y = 40; y < 200; y++)
+    for (let x = 40; x < 60; x++) {
+      const value = x < 45 || x >= 55 ? 0 : 255;
+      const i = (y * f.imageData.width + x) * 4;
+      f.imageData.data[i] =
+        f.imageData.data[i + 1] =
+        f.imageData.data[i + 2] =
+          value;
+    }
+  for (let y = 200; y < 220; y++)
+    for (let x = 170; x < 350; x++) {
+      const value = y === 200 || y === 219 || (y >= 206 && y < 214) ? 0 : 255;
+      const i = (y * f.imageData.width + x) * 4;
+      f.imageData.data[i] =
+        f.imageData.data[i + 1] =
+        f.imageData.data[i + 2] =
+          value;
+    }
+  assert.equal(detectWallHoverCandidate(f).matches.length, 0);
+});
+
+test("equivalent parallel wall remains stable as the cursor moves across it", () => {
+  const f = fixture("hatch", 90);
+  f.pasteTransform = { rotationDeg: 0 };
+  for (const x of [255, 258, 261, 264, 268]) {
+    const result = detectWallHoverCandidate({
+      ...f,
+      cursorImgPx: { x, y: 210 },
+    });
+    assert.equal(result.matches.length, 1, `${x}`);
+    const [a, b] = result.matches[0].placedPoints;
+    assert.ok(Math.abs(a.x - b.x) < 1e-9);
+    assert.ok(Math.abs(a.x - 260) <= 1);
+    assert.ok(Math.abs(Math.abs(a.y - b.y) - 180) <= 3);
+  }
 });

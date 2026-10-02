@@ -1,6 +1,8 @@
 // Reference-guided local wall detection. All internal coordinates are bitmap
 // pixels; only published geometry is converted back to reference coordinates.
 const modelCache = new WeakMap();
+const PROFILE_BINS = 17;
+const AXIAL_SAMPLES = 31;
 const GRADIENT_OFFSETS = [
   [2, 0],
   [0, 2],
@@ -112,10 +114,18 @@ function measureAppearance(sample, center, u, width, length) {
     count = 0;
   const gradients = [0, 0, 0, 0],
     pairs = [0, 0, 0, 0];
-  for (let a = 0; a < 23; a++) {
-    for (let c = 0; c < 9; c++) {
-      const along = ((a + 0.5) / 23 - 0.5) * length;
-      const across = ((c + 0.5) / 9 - 0.5) * width * 0.65;
+  // Preserve WHERE the ink sits across the wall, not just its global mean.
+  // Averaging along the axis removes hatch phase while retaining the two
+  // outlines, interior fill and any layers within the copied wall footprint.
+  const profile = Array.from({ length: PROFILE_BINS }, () => ({
+    sum: 0,
+    squares: 0,
+    count: 0,
+  }));
+  for (let a = 0; a < AXIAL_SAMPLES; a++) {
+    for (let c = 0; c < PROFILE_BINS; c++) {
+      const along = ((a + 0.5) / AXIAL_SAMPLES - 0.5) * length;
+      const across = ((c + 0.5) / PROFILE_BINS - 0.5) * width;
       const x = center.x + along * u.x + across * n.x;
       const y = center.y + along * u.y + across * n.y;
       const value = sample(x, y);
@@ -123,6 +133,9 @@ function measureAppearance(sample, center, u, width, length) {
       sum += value;
       squares += value * value;
       count++;
+      profile[c].sum += value;
+      profile[c].squares += value * value;
+      profile[c].count++;
       for (let i = 0; i < GRADIENT_OFFSETS.length; i++) {
         const [dx, dy] = GRADIENT_OFFSETS[i];
         const next = sample(x + dx, y + dy);
@@ -140,7 +153,17 @@ function measureAppearance(sample, center, u, width, length) {
       Math.max(0, squares / Math.max(1, count) - mean * mean)
     ),
     gradients: gradients.map((g, i) => g / Math.max(1, pairs[i])),
-    coverage: count / 207,
+    profile: profile.map((bin) => {
+      const mean = bin.count ? bin.sum / bin.count : 1;
+      return {
+        mean,
+        deviation: Math.sqrt(
+          Math.max(0, bin.squares / Math.max(1, bin.count) - mean * mean)
+        ),
+        coverage: bin.count / AXIAL_SAMPLES,
+      };
+    }),
+    coverage: count / (AXIAL_SAMPLES * PROFILE_BINS),
   };
 }
 
@@ -167,22 +190,39 @@ function learnModel(image, clipboard, scale, offset, meterByPx) {
       )
     )
     .filter((p) => p.coverage >= 0.8);
-  if (patches.length < 2) return null;
+  if (patches.length < 2) return { ...wall, appearance: null };
   const appearance = {
     mean: median(patches.map((p) => p.mean)),
     deviation: median(patches.map((p) => p.deviation)),
     gradients: GRADIENT_OFFSETS.map((_, i) =>
       median(patches.map((p) => p.gradients[i]))
     ),
+    profile: Array.from({ length: PROFILE_BINS }, (_, i) => ({
+      mean: median(patches.map((p) => p.profile[i].mean)),
+      deviation: median(patches.map((p) => p.profile[i].deviation)),
+    })),
   };
-  // An empty interior carries no material evidence. General symbols and
-  // unsupported shapes retain the existing image-template search.
-  if (appearance.mean > 0.96) return null;
+  // A recognized wall with insufficient reference pixels must not fall back
+  // to generic dark-pixel adjustment and manufacture an unrelated candidate.
+  if (appearance.mean > 0.96) return { ...wall, appearance: null };
   return { ...wall, appearance, sampleLength };
 }
 
 function similarity(observed, expected) {
-  if (observed.coverage < 0.8) return 0;
+  if (
+    observed.coverage < 0.8 ||
+    observed.profile.some((bin) => bin.coverage < 0.65)
+  )
+    return 0;
+  const profileError =
+    observed.profile.reduce(
+      (sum, bin, i) =>
+        sum +
+        Math.abs(bin.mean - expected.profile[i].mean) +
+        0.5 * Math.abs(bin.deviation - expected.profile[i].deviation),
+      0
+    ) / PROFILE_BINS;
+  if (profileError > 0.16) return 0;
   const meanError = Math.abs(observed.mean - expected.mean);
   const deviationError = Math.abs(observed.deviation - expected.deviation);
   const gradientError =
@@ -191,7 +231,10 @@ function similarity(observed, expected) {
       0
     ) / 4;
   if (meanError > 0.22 || deviationError > 0.2 || gradientError > 0.2) return 0;
-  return Math.max(0, 1 - 1.5 * meanError - deviationError - gradientError);
+  return Math.max(
+    0,
+    1 - meanError - deviationError - gradientError - profileError
+  );
 }
 
 function boundaryScore(sample, center, u, width, length, mean) {
@@ -200,7 +243,8 @@ function boundaryScore(sample, center, u, width, length, mean) {
   for (const sign of [-1, 1]) {
     let outside = 0,
       edge = 0,
-      count = 0;
+      count = 0,
+      supported = 0;
     for (let k = 0; k < 23; k++) {
       const a = ((k + 0.5) / 23 - 0.5) * length;
       const at = (c) =>
@@ -208,15 +252,16 @@ function boundaryScore(sample, center, u, width, length, mean) {
           center.x + a * u.x + sign * c * n.x,
           center.y + a * u.y + sign * c * n.y
         );
-      const out = at(width / 2 + Math.max(2, width * 0.15));
+      const out = at(width / 2 + Math.max(1.5, width * 0.06));
       const e1 = at(width / 2 - 0.5),
         e2 = at(width / 2 - 1.5);
       if (![out, e1, e2].every(Number.isFinite)) continue;
       outside += out;
       edge += Math.min(e1, e2);
+      if (out - Math.min(e1, e2) > 0.12) supported++;
       count++;
     }
-    if (count < 16) return 0;
+    if (count < 16 || supported / count < 0.65) return 0;
     // Solid fills need an exterior contrast; gray and hatched fills may
     // additionally have a darker outline. Both sides must support the band.
     scores.push(
@@ -255,7 +300,9 @@ function scanAxis(sample, cursor, angle, model, radius) {
     if (!best || score > best.score)
       best = { center, u, n, t, angle, score, match };
   };
-  const step = Math.max(1, Math.floor(model.width / 5));
+  // Thin outlines can occupy one pixel: a coarse step can skip the only
+  // aligned profile entirely when both boundaries are required.
+  const step = 1;
   scoreAt(0);
   for (let t = -radius; t <= radius; t += step) scoreAt(t);
   if (!best) return null;
@@ -344,6 +391,24 @@ function extendCandidate(sample, candidate, model, image) {
     appearance.mean
   );
   if (boundary < 0.12) return null;
+  // The full candidate must retain the learned cross-wall structure. Checking
+  // several windows prevents extension through a different fill with the same
+  // overall gray level and contrast.
+  const checkLength = Math.min(model.sampleLength, (hi - lo) / 3);
+  for (const fraction of [0.2, 0.5, 0.8]) {
+    const along = lo + fraction * (hi - lo);
+    const observed = measureAppearance(
+      sample,
+      {
+        x: candidate.center.x + along * candidate.u.x,
+        y: candidate.center.y + along * candidate.u.y,
+      },
+      candidate.u,
+      width,
+      checkLength
+    );
+    if (similarity(observed, appearance) < 0.65) return null;
+  }
   return {
     ...candidate,
     lo,
@@ -400,8 +465,18 @@ export default function detectWallHoverCandidate({
     };
     cache.set(clipboard, entry);
   }
-  const model = entry.model;
-  if (!model) return null;
+  const learned = entry.model;
+  if (!learned) return null;
+  if (!learned.appearance) return { matches: [] };
+  const model = pasteTransform?.flipX
+    ? {
+        ...learned,
+        appearance: {
+          ...learned.appearance,
+          profile: [...learned.appearance.profile].reverse(),
+        },
+      }
+    : learned;
   const sample = (x, y) => {
     const px = Math.floor(x),
       py = Math.floor(y);
@@ -432,52 +507,11 @@ export default function detectWallHoverCandidate({
     6,
     Math.max(12, model.width * 2)
   );
-  const coarse = [];
-  for (let i = 0; i < 12; i++) {
-    const candidate = scanAxis(
-      sample,
-      cursorImgPx,
-      baseAngle + (i * Math.PI) / 12,
-      model,
-      radius
-    );
-    if (candidate) coarse.push(candidate);
-  }
-  coarse.sort((a, b) => b.score - a.score);
-  const refined = coarse.slice(0, 3);
-  for (const c of coarse.slice(0, 2)) {
-    for (const degrees of [-6, -3, 3, 6]) {
-      const next = scanAxis(
-        sample,
-        cursorImgPx,
-        c.angle + (degrees * Math.PI) / 180,
-        model,
-        radius
-      );
-      if (next) refined.push(next);
-    }
-  }
-  const candidates = refined
-    .map((c) => extendCandidate(sample, c, model, imageData))
-    .filter(Boolean);
-  candidates.sort((a, b) => b.score - a.score);
-  // Resolve shallow drawing rotations too: a one-degree error can truncate a
-  // long thin wall even though the short patch near the cursor looks correct.
-  for (const c of candidates.slice(0, 2)) {
-    for (const degrees of [-1.5, -1, -0.5, 0.5, 1, 1.5]) {
-      const local = scanAxis(
-        sample,
-        cursorImgPx,
-        c.angle + (degrees * Math.PI) / 180,
-        model,
-        radius
-      );
-      const next = local && extendCandidate(sample, local, model, imageData);
-      if (next) candidates.push(next);
-    }
-  }
-  candidates.sort((a, b) => b.score - a.score);
-  const best = candidates[0];
+  // Orientation is a constraint supplied by the copied geometry and R/I.
+  // Never rotate the candidate automatically to chase a nearby dark region.
+  const candidate = scanAxis(sample, cursorImgPx, baseAngle, model, radius);
+  const best =
+    candidate && extendCandidate(sample, candidate, model, imageData);
   if (!best) return { matches: [] };
   const point = (along, across) => ({
     x:
