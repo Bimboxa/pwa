@@ -203,3 +203,36 @@ test("only a single straight copied segment uses this workflow", () => {
   assert.equal(isCopiedSegment(f.clipboard), false);
   assert.equal(prepareCopiedSegmentCreation(f), null);
 });
+
+for (const type of ["POLYLINE", "STRIP"]) {
+  for (const fill of ["hatch", "gray", "black"]) {
+    test(`a short copied ${type} learns ${fill} and detects its unannotated continuation`, () => {
+      for (const length of [20, 30, 40, 50]) {
+        const f = fixture(fill, 90);
+        const item = f.clipboard.items[0];
+        item.annotation.type = type;
+        item.annotation.stripOrientation = 1;
+        const x = type === "STRIP" ? 60 : 50;
+        item.basePoints = [
+          { x, y: 130 },
+          { x, y: 130 + length },
+        ];
+        const mask = new Uint8Array(f.imageData.width * f.imageData.height);
+        for (let y = 130; y < 130 + length; y++)
+          for (let x = 40; x < 60; x++) mask[y * f.imageData.width + x] = 1;
+        const plan = prepareCopiedSegmentCreation({
+          ...f,
+          exclusionMask: mask,
+          cursorImgPx: { x: 50, y: 95 },
+        });
+        assert.ok(plan, `${type} ${fill}: length ${length}, width 20`);
+        const [a, b] = plan.match.placedPoints;
+        assert.ok(Math.abs(a.y - 40) < 2);
+        assert.ok(
+          Math.abs(b.y - 130) < 2,
+          `must stop at the copied footprint: ${b.y}`
+        );
+      }
+    });
+  }
+}

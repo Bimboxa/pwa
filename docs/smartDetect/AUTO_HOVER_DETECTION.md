@@ -31,8 +31,10 @@ Global detection (`A`) retains its existing image-template search.
 `detectWallHoverCandidate.js` learns from the original bitmap inside the copied
 annotation, without annotation overlays. Supported geometry is a straight,
 open two-point POLYLINE or STRIP, or a four-corner rectangular POLYGON without
-cuts. The source needs at least five bitmap pixels of thickness and a length
-of at least three times its thickness.
+cuts. The source needs at least five bitmap pixels of thickness. Two-point
+segments need only three bitmap pixels of length: their explicit endpoints
+already define the direction, so a short sample is valid. Rectangular polygons
+still require a length of at least three times their thickness.
 
 Three patches under the original annotation describe the material in the central
 60% of the wall width. The inset keeps black outlines and adjacent whitespace
@@ -144,3 +146,9 @@ of -20, 0 and 20 pixels). The radius is 26.46 bitmap pixels for this 20 cm band.
 All recovered endpoints remain within one pixel of the expected full spans.
 These checks exercise the preparation pipeline; browser keypress and commit UI
 remain a manual verification step.
+
+Short-source regressions cover POLYLINE and STRIP samples from one to 2.5 band
+widths long, with hatch/gray/black fill and a mask over the copied footprint.
+The candidate follows the uncovered continuation and stops at the source. On
+the real PDF, 12 short samples (three locations, four length/width ratios)
+recovered the complete upper continuation without overlapping the copy.

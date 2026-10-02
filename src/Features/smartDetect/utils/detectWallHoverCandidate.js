@@ -82,7 +82,15 @@ function getWallGeometry(item, toImage, meterByPx, scale) {
     };
   } else return null;
   const length = Math.hypot(b.x - a.x, b.y - a.y);
-  if (!Number.isFinite(width) || width < 5 || length < 3 * width) return null;
+  // Two explicit points already define the direction, even on a short sample.
+  // Only rectangles need an aspect-ratio guard to identify a wall-like axis.
+  if (
+    !Number.isFinite(width) ||
+    width < 5 ||
+    length < 3 ||
+    (type === "POLYGON" && length < 3 * width)
+  )
+    return null;
   const u = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
   const n = { x: -u.y, y: u.x };
   const shift =
