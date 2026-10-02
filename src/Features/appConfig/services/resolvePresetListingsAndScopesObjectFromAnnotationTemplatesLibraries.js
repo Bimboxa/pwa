@@ -14,6 +14,7 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             annotationTemplatesLibrary: library.templates,
             keywords: library.keywords,
             articlesNomenclaturesKeys: library.articlesNomenclaturesKeys,
+            ...(library.avatarString && { avatarString: library.avatarString }),
             ...(library.isForBaseMaps && { isForBaseMaps: true }),
         }
 
