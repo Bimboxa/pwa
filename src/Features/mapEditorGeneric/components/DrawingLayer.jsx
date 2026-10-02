@@ -105,6 +105,7 @@ const DrawingLayer = forwardRef(
       meterByPx,
       baseMapImageSize,
       baseMapImageScale = 1,
+      pagePxPerPt,
       isForBaseMaps = false,
       orthoSnapAngleOffset = 0,
       rampWidthM = 1,
@@ -518,7 +519,9 @@ const DrawingLayer = forwardRef(
                 angleDeg += 180;
                 textFlip = true;
               }
-              const k = containerK || 1;
+              // Page-pt → image-px scale (print zone): the value is sized in
+              // page points, fixed vs the base map — see getCotePageScale.
+              const pageScale = pagePxPerPt > 0 ? pagePxPerPt : 1;
               const textNormalSign =
                 (textFlip ? -1 : 1) * (offPx >= 0 ? 1 : -1);
               const fs = Number(na.fontSize) || 18;
@@ -527,9 +530,12 @@ const DrawingLayer = forwardRef(
                 "transform",
                 `translate(${mid.x} ${mid.y}) rotate(${angleDeg})`
               );
-              // Inner group: counter-scale via CSS (supports var(--map-zoom)).
-              // Mirrors the NodeCoteStatic final render so preview size matches.
-              previewCoteLabelInnerRef.current.style.transform = `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
+              // Inner group: page scale. Mirrors the NodeCoteStatic final
+              // render so preview size matches.
+              previewCoteLabelInnerRef.current.setAttribute(
+                "transform",
+                `scale(${pageScale})`
+              );
               previewCoteTextRef.current.textContent = valueText;
               previewCoteTextRef.current.setAttribute("font-size", fs);
               previewCoteTextRef.current.setAttribute(

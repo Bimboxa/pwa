@@ -417,7 +417,7 @@ export default function FieldAnnotationTemplateCote({
                 onChange={(e) => handleFontSizeChange(e.target.value)}
                 endAdornment={
                   <Typography variant="caption" color="text.secondary">
-                    px
+                    pt
                   </Typography>
                 }
                 sx={numberInputSx}

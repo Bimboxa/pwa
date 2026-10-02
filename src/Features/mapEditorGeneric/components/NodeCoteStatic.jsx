@@ -2,11 +2,17 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { darken } from "@mui/material/styles";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
-// Default screen-px placement of a degenerate (vertical) cote's value label
+// Default page-pt placement of a degenerate (vertical) cote's value label
 // relative to its marker, when the user hasn't dragged it yet.
 const DEGENERATE_LABEL_DEFAULT_OFFSET = { x: 12, y: -12 };
+
+// Sizes of the cote "ink", in page points of the base map's print zone.
+const TEXT_OFFSET_PT = 4;
+const TEXT_HALO_PT = 3;
+const DASH_PT = 3;
 
 export default function NodeCoteStatic({
   annotation,
@@ -65,12 +71,21 @@ export default function NodeCoteStatic({
 
   const hasScale = Number.isFinite(baseMapMeterByPx) && baseMapMeterByPx > 0;
 
+  // Page-pt → image-px scale: the cote ink (text, halo, PX strokes, dashes) is
+  // sized in points of the print zone, hence FIXED relative to the base map —
+  // same rule as FREE_TEXT. Selection affordances stay screen-constant.
+  const pageScale = getCotePageScale(merged);
+  const pageScaleTransform = `scale(${pageScale})`;
+
+  // A PX stroke width reads as page points.
   const computedStrokeWidth = useMemo(() => {
     if (strokeWidthUnit === "CM" && hasScale) {
       return (strokeWidth * 0.01) / baseMapMeterByPx;
     }
-    return strokeWidth;
-  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, hasScale]);
+    return strokeWidth * pageScale;
+  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, hasScale, pageScale]);
+
+  const dashArray = `${DASH_PT * pageScale} ${DASH_PT * pageScale}`;
 
   // signed offset in image-pixel space — controls where the dimension line
   // sits relative to the click points (perpendicular distance).
@@ -84,7 +99,7 @@ export default function NodeCoteStatic({
   const effectiveOffsetPx =
     dragOffsetPx !== null ? dragOffsetPx : baseExtensionOffsetPx;
 
-  // Counter-scale the text so it renders at a constant on-page size.
+  // Counter-scale of the selection affordances (constant SCREEN size).
   // In MAP mode, `--map-zoom` reflects the live camera zoom; in PORTFOLIO,
   // it falls back to 1 (CSS default) and `containerK` is the print scale —
   // the same expression handles both cases.
@@ -197,11 +212,13 @@ export default function NodeCoteStatic({
 
   // ---- degenerate (vertical) cote label drag ----
   // The label of a degenerate cote has no perpendicular direction to slide
-  // along; instead it carries a free 2D placement offset in SCREEN px
-  // (`annotation.labelOffset`), consistent with the label's constant
-  // on-screen size — 1 dragged client px = 1 offset px.
+  // along; instead it carries a free 2D placement offset in PAGE pt
+  // (`annotation.labelOffset`), consistent with the label's page-pt size.
+  // The client-px drag delta is converted with the screen scale of the
+  // page-scaled group (its CTM), captured at pointer down.
 
   const storedLabelOffset = merged?.labelOffset;
+  const degenerateGRef = useRef(null);
   const degenerateDragRef = useRef(null);
   const [dragLabelOffset, setDragLabelOffset] = useState(null);
 
@@ -210,9 +227,12 @@ export default function NodeCoteStatic({
       if (printMode || isTransient) return;
       if (e.button !== undefined && e.button !== 0) return;
       const initial = storedLabelOffset ?? DEGENERATE_LABEL_DEFAULT_OFFSET;
+      const ctm = degenerateGRef.current?.getScreenCTM?.();
+      const clientPxPerPt = ctm ? Math.hypot(ctm.a, ctm.b) : 0;
       degenerateDragRef.current = {
         startClient: { x: e.clientX, y: e.clientY },
         initialOffset: { x: initial.x, y: initial.y },
+        clientPxPerPt: clientPxPerPt > 0 ? clientPxPerPt : 1,
       };
       try {
         e.target.setPointerCapture?.(e.pointerId);
@@ -229,8 +249,12 @@ export default function NodeCoteStatic({
     const drag = degenerateDragRef.current;
     if (!drag) return;
     setDragLabelOffset({
-      x: drag.initialOffset.x + (e.clientX - drag.startClient.x),
-      y: drag.initialOffset.y + (e.clientY - drag.startClient.y),
+      x:
+        drag.initialOffset.x +
+        (e.clientX - drag.startClient.x) / drag.clientPxPerPt,
+      y:
+        drag.initialOffset.y +
+        (e.clientY - drag.startClient.y) / drag.clientPxPerPt,
     });
     e.stopPropagation();
   }, []);
@@ -293,7 +317,7 @@ export default function NodeCoteStatic({
   // Degenerate cote: both endpoints project to (nearly) the same plan
   // position — e.g. a vertical cote drawn in 3D. Render a small marker, a
   // dashed leader line and the value ("ht: …"); the label is draggable and
-  // its free screen-px placement is stored in `annotation.labelOffset`.
+  // its free page-pt placement is stored in `annotation.labelOffset`.
   if (length < 0.5) {
     const labelOffset =
       dragLabelOffset ?? storedLabelOffset ?? DEGENERATE_LABEL_DEFAULT_OFFSET;
@@ -302,6 +326,7 @@ export default function NodeCoteStatic({
     return (
       <g {...dataProps} ref={rootGRef}>
         <g transform={`translate(${p1.x}, ${p1.y})`}>
+          {/* click target — constant screen size */}
           <g
             style={
               counterScaleTransform
@@ -314,6 +339,9 @@ export default function NodeCoteStatic({
               fill="transparent"
               style={{ cursor: "pointer", pointerEvents: "all" }}
             />
+          </g>
+          {/* marker + leader + value — page points */}
+          <g ref={degenerateGRef} transform={pageScaleTransform}>
             <circle
               r={3}
               fill={displayStrokeColor}
@@ -331,7 +359,7 @@ export default function NodeCoteStatic({
               stroke={displayStrokeColor}
               strokeOpacity={strokeOpacity}
               strokeWidth={1}
-              strokeDasharray="3 3"
+              strokeDasharray={`${DASH_PT} ${DASH_PT}`}
               pointerEvents="none"
             />
             <text
@@ -353,7 +381,7 @@ export default function NodeCoteStatic({
                 pointerEvents: "auto",
                 paintOrder: "stroke",
                 stroke: "white",
-                strokeWidth: 3,
+                strokeWidth: TEXT_HALO_PT,
                 strokeLinejoin: "round",
                 touchAction: "none",
               }}
@@ -393,12 +421,11 @@ export default function NodeCoteStatic({
     textFlip = true;
   }
 
-  // Text offset perpendicular to the dimension line, in screen px.
+  // Text offset perpendicular to the dimension line (TEXT_OFFSET_PT).
   // Place the text on the OPPOSITE side of the dimension line from the click
   // points: with offset > 0 the dim line sits along +n, the click points are
   // at −n, so text goes at +n (away from the clicks). The textFlip case
   // (angle > 90°) inverts the local Y axis, so we negate accordingly.
-  const TEXT_OFFSET_PX = 4;
   const offsetSign = effectiveOffsetPx >= 0 ? 1 : -1;
   const flipSign = textFlip ? -1 : 1;
   const textNormalSign = flipSign * offsetSign;
@@ -414,9 +441,6 @@ export default function NodeCoteStatic({
         stroke={displayStrokeColor}
         strokeWidth={computedStrokeWidth}
         strokeOpacity={strokeOpacity}
-        vectorEffect={
-          strokeWidthUnit === "PX" ? "non-scaling-stroke" : undefined
-        }
         pointerEvents="stroke"
         style={{ cursor: "pointer" }}
       />
@@ -432,10 +456,7 @@ export default function NodeCoteStatic({
             stroke={displayStrokeColor}
             strokeWidth={computedStrokeWidth}
             strokeOpacity={strokeOpacity}
-            strokeDasharray="3 3"
-            vectorEffect={
-              strokeWidthUnit === "PX" ? "non-scaling-stroke" : undefined
-            }
+            strokeDasharray={dashArray}
             pointerEvents="none"
           />
           <line
@@ -446,28 +467,20 @@ export default function NodeCoteStatic({
             stroke={displayStrokeColor}
             strokeWidth={computedStrokeWidth}
             strokeOpacity={strokeOpacity}
-            strokeDasharray="3 3"
-            vectorEffect={
-              strokeWidthUnit === "PX" ? "non-scaling-stroke" : undefined
-            }
+            strokeDasharray={dashArray}
             pointerEvents="none"
           />
         </>
       )}
 
-      {/* value label — centred on dimension line midpoint, rotated, fixed
-          screen size in MAP mode, draggable to change extensionOffset */}
+      {/* value label — centred on dimension line midpoint, rotated, sized in
+          page points (fixed vs the base map), draggable to change
+          extensionOffset */}
       <g transform={`translate(${mid.x}, ${mid.y}) rotate(${angleDeg})`}>
-        <g
-          style={
-            counterScaleTransform
-              ? { transform: counterScaleTransform }
-              : undefined
-          }
-        >
+        <g transform={pageScaleTransform}>
           <text
             x={0}
-            y={textNormalSign * TEXT_OFFSET_PX}
+            y={textNormalSign * TEXT_OFFSET_PT}
             textAnchor="middle"
             dominantBaseline={textNormalSign < 0 ? "alphabetic" : "hanging"}
             fontSize={fontSize}
@@ -484,7 +497,7 @@ export default function NodeCoteStatic({
               pointerEvents: "auto",
               paintOrder: "stroke",
               stroke: "white",
-              strokeWidth: 3,
+              strokeWidth: TEXT_HALO_PT,
               strokeLinejoin: "round",
               touchAction: "none",
             }}

@@ -8705,6 +8705,7 @@ const InteractionLayer = forwardRef(({
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}
+              pagePxPerPt={pagePxPerPt}
               points={drawingPoints}
               newAnnotation={newAnnotation}
               enabledDrawingMode={enabledDrawingMode}

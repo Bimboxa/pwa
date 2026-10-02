@@ -8,10 +8,12 @@
 // clean right- (or left-) aligned column, which is the whole point.
 //
 // `P1/P2` are the segment's measured points, `D1/D2` its counterparts on the
-// alignment line. All in image-pixel space; the returned x/y are SCREEN px, to
-// be applied inside the counter-scaled group.
+// alignment line. All in image-pixel space; the returned x/y are in the unit of
+// `pad` — PAGE pt for the value (applied inside the page-scaled group).
 
-// Gap between the alignment line and the value sitting against it, screen px.
+// Gap between the alignment line and the value sitting against it, page pt
+// (screen px for the inline length field, which lives in a counter-scaled
+// group).
 const LABEL_PAD_PX = 6;
 
 // Unit vector pointing from the drawn polyline towards the alignment line.
@@ -58,7 +60,7 @@ export default function getRulerLabelPlacement({
   };
 }
 
-// Footprint of the inline length editor, screen px — the field replaces the
+// Footprint of the inline length editor, SCREEN px — the field replaces the
 // value in place, so it follows the same outward placement (a right-aligned
 // value puts its field to the left).
 export function getRulerFieldPlacement({ ox, oy, horizontal }, width, height, pad = LABEL_PAD_PX) {

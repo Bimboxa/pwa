@@ -8,6 +8,7 @@ import {
 } from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
+import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getRulerLabelPlacement, {
   getRulerFieldPlacement,
@@ -16,14 +17,22 @@ import offsetPolylineParallel from "Features/geometry/utils/offsetPolylineParall
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyRulerSegmentLengthService from "Features/annotations/services/applyRulerSegmentLengthService";
 
-// Screen-px gap pushing the (optional) total value beyond the segment values.
-const TOTAL_LINE_GAP_PX = 28;
+// The ruler "ink" (values, ticks, PX strokes) is sized in PAGE POINTS of the
+// base map's print zone — fixed relative to the plan, like a FREE_TEXT — while
+// the editing affordances (vertices, length field, guide) keep a constant
+// screen size.
 
-// Half-length of the graduation ticks drawn ON the polyline, in screen px.
+// Page-pt gap pushing the (optional) total value beyond the segment values.
+const TOTAL_LINE_GAP_PT = 28;
+
+// Half-length of the graduation ticks drawn ON the polyline, in page pt.
 // Chain extremities get the long tick, interior joints the short one — those
 // ticks are what separates one segment from the next.
-const TICK_HALF_END_PX = 9;
-const TICK_HALF_INNER_PX = 5;
+const TICK_HALF_END_PT = 9;
+const TICK_HALF_INNER_PT = 5;
+const TICK_STROKE_PT = 1.5;
+
+const TEXT_HALO_PT = 3;
 
 const VERTEX_HALF_SIZE_PX = 4;
 
@@ -70,7 +79,6 @@ export default function NodeRulerStatic({
   selected,
   selectedPointId,
   baseMapMeterByPx,
-  baseMapImageScale = 1,
   containerK = 1,
   printMode,
   isTransient,
@@ -147,32 +155,26 @@ export default function NodeRulerStatic({
 
   const strokeOpacity = selected ? 1 : rawStrokeOpacity;
 
+  // Page-pt → image-px scale of the ruler ink (print zone of the base map).
+  const pageScale = getCotePageScale(merged);
+  const pageScaleTransform = `scale(${pageScale})`;
+
+  // A PX stroke width reads as page points.
   const computedStrokeWidth = useMemo(() => {
     if (strokeWidthUnit === "CM" && hasScale) {
       return (strokeWidth * 0.01) / baseMapMeterByPx;
     }
-    return strokeWidth * (baseMapImageScale || 1);
-  }, [
-    strokeWidth,
-    strokeWidthUnit,
-    baseMapMeterByPx,
-    baseMapImageScale,
-    hasScale,
-  ]);
+    return strokeWidth * pageScale;
+  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, hasScale, pageScale]);
 
   // Hit-area stroke width for pointer detection — always resolved in SCREEN
   // pixels so the trigger distance is zoom-independent (same model as
-  // NodePolylineStatic). A CM stroke grows with zoom, so the band is the
-  // visible width plus the padding; a PX stroke is already fixed on screen via
-  // vectorEffect, so the padding alone is enough.
-  const scalesWithZoom = strokeWidthUnit === "CM" && hasScale;
+  // NodePolylineStatic). The stroke is map-fixed (CM or page pt), so it grows
+  // with zoom: the band is the visible width plus the padding.
   const hitStrokeWidthCss = useMemo(() => {
-    if (scalesWithZoom) {
-      const k = containerK || 1;
-      return `calc((${computedStrokeWidth} * var(--map-zoom, 1) * ${k} + ${HIT_STROKE_PADDING_SCREEN_PX}) * 1px)`;
-    }
-    return `${HIT_STROKE_PADDING_SCREEN_PX}px`;
-  }, [computedStrokeWidth, scalesWithZoom, containerK]);
+    const k = containerK || 1;
+    return `calc((${computedStrokeWidth} * var(--map-zoom, 1) * ${k} + ${HIT_STROKE_PADDING_SCREEN_PX}) * 1px)`;
+  }, [computedStrokeWidth, containerK]);
 
   // Signed offset in image-pixel space: where the alignment line sits relative
   // to the drawn polyline.
@@ -185,9 +187,10 @@ export default function NodeRulerStatic({
 
   const effectiveOffsetPx = dragOffsetPx !== null ? dragOffsetPx : baseOffsetPx;
 
-  // Counter-scale so text / ticks / fields keep a constant on-page size. In MAP
-  // mode `--map-zoom` is the live camera zoom; in PORTFOLIO it falls back to 1
-  // and containerK is the print scale — one expression handles both.
+  // Counter-scale so the editing affordances (vertices, length field) keep a
+  // constant SCREEN size. In MAP mode `--map-zoom` is the live camera zoom; in
+  // PORTFOLIO it falls back to 1 and containerK is the print scale — one
+  // expression handles both.
   const counterScaleTransform = useMemo(() => {
     const k = containerK || 1;
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
@@ -203,21 +206,15 @@ export default function NodeRulerStatic({
         showUnitLabel,
         offsetPx: effectiveOffsetPx,
       }),
-    [
-      points,
-      baseMapMeterByPx,
-      unit,
-      decimals,
-      showUnitLabel,
-      effectiveOffsetPx,
-    ]
+    [points, baseMapMeterByPx, unit, decimals, showUnitLabel, effectiveOffsetPx]
   );
 
   // Optional total line: pushed further out on the same side. `|| 1` keeps it
   // outside even when the segment line sits exactly on the polyline. Only the
   // offset chain is needed — the value is the already-computed totalText.
   const totalOffsetPx =
-    effectiveOffsetPx + Math.sign(effectiveOffsetPx || 1) * TOTAL_LINE_GAP_PX;
+    effectiveOffsetPx +
+    Math.sign(effectiveOffsetPx || 1) * TOTAL_LINE_GAP_PT * pageScale;
   const totalPoints = useMemo(() => {
     if (!showTotalCote) return null;
     return offsetPolylineParallel(points, totalOffsetPx);
@@ -420,8 +417,6 @@ export default function NodeRulerStatic({
     .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
     .join(" ");
 
-  const nonScaling =
-    strokeWidthUnit === "PX" ? "non-scaling-stroke" : undefined;
   const grabCursor = isEditable ? "grab" : "default";
   const canDragValues = Boolean(selected) && isEditable;
 
@@ -484,22 +479,21 @@ export default function NodeRulerStatic({
         strokeWidth={computedStrokeWidth}
         strokeOpacity={strokeOpacity}
         strokeLinejoin="round"
-        vectorEffect={nonScaling}
         pointerEvents="none"
       />
 
       {/* Graduation ticks ON the drawn line — they are what separates one
-          segment from the next. Constant screen size, pointing towards the
+          segment from the next. Sized in page points, pointing towards the
           alignment line; chain extremities get the long tick. */}
       {points.map((p, i) => {
         const half =
           i === 0 || i === points.length - 1
-            ? TICK_HALF_END_PX
-            : TICK_HALF_INNER_PX;
+            ? TICK_HALF_END_PT
+            : TICK_HALF_INNER_PT;
         const dir = tickDirAt(i);
         return (
           <g key={`tick-${p.id ?? i}`} transform={`translate(${p.x}, ${p.y})`}>
-            <g style={{ transform: counterScaleTransform }}>
+            <g transform={pageScaleTransform}>
               <line
                 x1={-dir.x * half}
                 y1={-dir.y * half}
@@ -507,7 +501,7 @@ export default function NodeRulerStatic({
                 y2={dir.y * half}
                 stroke={displayStrokeColor}
                 strokeOpacity={strokeOpacity}
-                strokeWidth={1.5}
+                strokeWidth={TICK_STROKE_PT}
                 pointerEvents="none"
               />
             </g>
@@ -569,8 +563,8 @@ export default function NodeRulerStatic({
             key={`label-${seg.startPointId ?? seg.index}`}
             transform={`translate(${seg.mid.x}, ${seg.mid.y})`}
           >
-            <g style={{ transform: counterScaleTransform }}>
-              {isEditing && isEditable ? (
+            {isEditing && isEditable ? (
+              <g style={{ transform: counterScaleTransform }}>
                 <foreignObject
                   x={field.x}
                   y={field.y}
@@ -664,7 +658,9 @@ export default function NodeRulerStatic({
                     </IconButton>
                   </div>
                 </foreignObject>
-              ) : (
+              </g>
+            ) : (
+              <g transform={pageScaleTransform}>
                 <text
                   x={place.x}
                   y={place.y}
@@ -692,7 +688,7 @@ export default function NodeRulerStatic({
                     pointerEvents: canDragValues ? "auto" : "none",
                     paintOrder: "stroke",
                     stroke: "white",
-                    strokeWidth: 3,
+                    strokeWidth: TEXT_HALO_PT,
                     strokeLinejoin: "round",
                     touchAction: "none",
                   }}
@@ -706,8 +702,8 @@ export default function NodeRulerStatic({
                     seg.text
                   )}
                 </text>
-              )}
-            </g>
+              </g>
+            )}
           </g>
         );
       })}
@@ -728,10 +724,8 @@ export default function NodeRulerStatic({
             D2: b,
           });
           return (
-            <g
-              transform={`translate(${(a.x + b.x) / 2}, ${(a.y + b.y) / 2})`}
-            >
-              <g style={{ transform: counterScaleTransform }}>
+            <g transform={`translate(${(a.x + b.x) / 2}, ${(a.y + b.y) / 2})`}>
+              <g transform={pageScaleTransform}>
                 <text
                   x={place.x}
                   y={place.y}
@@ -745,7 +739,7 @@ export default function NodeRulerStatic({
                     pointerEvents: "none",
                     paintOrder: "stroke",
                     stroke: "white",
-                    strokeWidth: 3,
+                    strokeWidth: TEXT_HALO_PT,
                     strokeLinejoin: "round",
                   }}
                 >
