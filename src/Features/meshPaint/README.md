@@ -1,130 +1,211 @@
-# meshPaint — « Pinceau » 3D (MESH_BRUSH)
+# meshPaint — « Pinceau » 3D (`MESH_BRUSH`)
 
-Paint the facets and edges of annotation 3D objects with an annotation template, in the 3D editor of the Dessin module.
+Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec un modèle d'annotation (`annotationTemplate`). Il est disponible dans l'éditeur 3D du module Dessin.
 
-- A **Surface** template (POLYGON) paints **facets**. The quantity is in m², counted per painted side.
-- A **Ligne** template (POLYLINE) paints **edges**. The quantity is in ml.
-- A painted part takes the template colour in 3D, and its quantity is added to the template totals.
+- Un modèle **Surface** (`drawingShape: "POLYGON"`) peint des **facettes** (`partType: "FACE"`). La quantité est en m², comptée par côté peint.
+- Un modèle **Ligne** (`drawingShape: "POLYLINE"`) peint des **arêtes** (`partType: "EDGE"`). La quantité est en ml.
+- Une partie peinte prend la couleur du modèle en 3D, et sa quantité s'ajoute aux totaux de ce modèle.
 
-## User rules (V1)
+## Vocabulaire (français → code)
 
-**Hosts**
+| Terme employé ici                                                      | Nom dans le code                                                                                               |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Pinceau (l'outil)                                                      | clé d'outil `MESH_BRUSH` (`MESH_BRUSH_TOOL_KEY`). À ne pas confondre avec l'outil 2D `"BRUSH"` (masque raster) |
+| Partie peinte, peinture                                                | une ligne de la table Dexie `db.meshPaints` (« paint »)                                                        |
+| Modèle                                                                 | `annotationTemplate` ; le modèle qui peint est `annotationTemplateId`                                          |
+| Liste                                                                  | `listing` ; la liste du modèle qui peint est `listingId`                                                       |
+| Hôte (l'annotation peinte)                                             | `hostAnnotationId`                                                                                             |
+| Facette                                                                | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                   |
+| Arête                                                                  | `partType: "EDGE"` : une arête vive droite (`chain`)                                                           |
+| Côté peint                                                             | le signe de `geometry.normal`, qui pointe vers le côté peint                                                   |
+| Fond de plan                                                           | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                       |
+| Calque                                                                 | `layer` (`host.layerId`)                                                                                       |
+| Orpheline                                                              | `sync.state: "ORPHAN"`                                                                                         |
+| En conflit                                                             | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                           |
+| « À vérifier »                                                         | `isStale`                                                                                                      |
+| Rétrécissement anti-crénelage (« Réduire le crénelage des parements ») | réglage `threedEditor.antiAliasingShrink` ; exemption par annotation : `_noAntiAliasingShrink`                 |
+| Recalage                                                               | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                         |
 
-- Every annotation 3D object can be painted: extruded slabs, thick or thin walls, strips, ramps, isMesh3d meshes…
-- Refused hosts:
-  - mailles, base maps, scans;
-  - OBJECT_3D, REVOLUTION / EXTRUSION_PROFILE (curved);
-  - mesh cells, photo plans;
-  - the armed template's own annotations.
+## Règles fonctionnelles (V1)
 
-**Facets and edges**
+**Hôtes**
 
-- A facet is the planar connected region under the cursor. An edge is a straight feature edge, with collinear pieces merged.
+- Tout objet 3D d'annotation peut être peint : dalles extrudées, murs épais ou minces, bandes, rampes, meshes `isMesh3d`…
+- Sont refusés (`utils/getPaintHostRefusal.js`) :
+  - les mailles (`db.meshes3d`), les fonds de plan et les scans ;
+  - `OBJECT_3D` et les formes courbes `REVOLUTION` / `EXTRUSION_PROFILE` ;
+  - les cellules de maillage (`isMeshCell`) et les photo-plans ;
+  - les annotations du modèle armé lui-même, pour éviter de compter deux fois.
 
-**One template per part**
+**Facettes et arêtes**
 
-- An edge, or one side of a facet, carries at most one template.
-- Clicking again with the same template removes the paint; clicking with another template replaces it.
-- The two sides of a thin face (thin wall, vertical band, sheet) can carry different templates.
-- The inner side of a closed solid is refused: the two faces of a thick wall are two distinct facets.
+- Une facette est la région plane connexe sous le curseur.
+- Une arête est une arête vive droite ; ses morceaux colinéaires sont fusionnés.
 
-**Visibility**
+**Un seul modèle par partie**
 
-- A paint is visible iff its own template and its own listing are visible.
-- The host's template and listing are ignored: hiding a host keeps the paints of other templates visible.
-- The host's layer is followed: hiding a level hides its paints.
+- Une arête, ou un côté de facette, porte au plus un modèle.
+- Re-cliquer avec le même modèle retire la peinture ; cliquer avec un autre modèle la remplace (`utils/planPaintToggle.js`).
+- Les deux côtés d'une face mince (voile mince, bande verticale, feuille) peuvent porter deux modèles différents.
+- Le côté intérieur d'un solide fermé est refusé (`INNER_FACE`). Les deux parements d'un mur épais sont deux facettes distinctes.
+- Correspondance entre parties (`utils/findMeshPaintMatches.js`) :
+  - elle est faite par fond de plan, tous hôtes confondus : l'arête d'angle commune à deux murs n'est qu'une seule arête ;
+  - facettes : même côté, écart de plan ≤ 3 mm, recouvrement ≥ 50 % ;
+  - arêtes : colinéaires, écart ≤ 3 mm, recouvrement ≥ 50 %.
 
-**Anti-aliasing shrink** (« Réduire le crénelage des parements »)
+**Visibilité**
 
-- The shrink is removed from every painted host, and from every annotation converted to a mesh.
-- The picked part is then re-detected on the true geometry.
+- Une partie peinte est visible si et seulement si son **propre** modèle et sa **propre** liste sont visibles.
+- Le modèle et la liste de l'hôte sont ignorés : masquer l'hôte laisse visibles les peintures des autres modèles.
+- Le **calque de l'hôte** est suivi : masquer un niveau masque ses peintures.
+- Règle complète : `utils/getMeshPaintVisibility.js` → `HIDDEN` | `DIMMED` | `VISIBLE`.
 
-**When the host changes**
+**Rétrécissement anti-crénelage**
 
-- Paints are re-synced automatically.
-- If the face disappears, the paint becomes **orphan**: it stays listed but is not counted.
-- An « À vérifier » badge flags a host edited while the 3D editor was closed.
+- Il est supprimé pour tout hôte peint et pour toute annotation convertie en mesh.
+- La partie visée est alors redétectée « à la volée » sur la géométrie réelle (`services/ensureUnshrunkHostObject.js` puis `matchPaintPartToIndex`).
 
-## Data — `db.meshPaints` (Dexie v42)
+**Quand l'hôte change**
 
-One row per painted part.
+- Les peintures sont recalées automatiquement.
+- Si la face disparaît, la peinture devient **orpheline** : elle reste listée mais n'est plus comptée.
+- Un badge « À vérifier » signale un hôte modifié pendant que l'éditeur 3D était fermé : le recalage n'a lieu que lorsque l'hôte est construit en 3D.
+
+## Données : `db.meshPaints` (Dexie v42)
+
+Une ligne par partie peinte.
 
 ```
 { id, projectId, scopeId,
-  listingId, annotationTemplateId,      // PAINTING template + its listing
-  hostAnnotationId, baseMapId,          // host + frame of the geometry
+  listingId, annotationTemplateId,      // modèle QUI PEINT + sa liste
+  hostAnnotationId, baseMapId,          // hôte + repère de la géométrie
   partType: "FACE" | "EDGE",
   geometry: FACE { polygons: [{contour, holes}], normal: [x, y, z] }
           | EDGE { points: [p0, p1], sides?: [[x, y, z], …] },
-  paintedAt,                            // user actions only (conflict arbitration)
+  paintedAt,                            // actions utilisateur uniquement (arbitrage des conflits)
   sync: { state: "OK" | "ORPHAN", geomHash, syncedAt, provisional?, nearOnly? } }
 ```
 
-**Geometry conventions**
+**Conventions géométriques** (conversions dans `utils/meshPaintFrame.js`)
 
-- A point is `[nx, ny, z]`:
-  - `nx`, `ny` are normalized against the base map reference image, like `db.points`;
-  - `z` is the ABSOLUTE local z in meters, in the frame of `imagesManager.getGroup(baseMapId)`.
-- The FACE normal is in local meters and points TOWARD the painted side; it encodes the side.
-- A facet split by a cut stays one row (multi-polygon).
-- Conversions live in `utils/meshPaintFrame.js`.
+- Un point est `[nx, ny, z]` :
+  - `nx` et `ny` sont normalisés sur l'image de référence du fond de plan, comme `db.points` ;
+  - `z` est le z local en mètres, **absolu**, dans le repère de `imagesManager.getGroup(baseMapId)`. À la différence de `mesh3d`, `offsetZ` y est déjà inclus.
+- La normale d'une FACE est en mètres locaux et pointe **vers le côté peint** : c'est elle qui encode le côté.
+- Une facette coupée reste une seule ligne (multi-polygone).
+- `sides` (EDGE) contient les normales des facettes bordées par l'arête. Le recalage s'en sert pour ne pas confondre deux arêtes parallèles.
 
-**Registrations**
+**Enregistrements dans `App/db/db.js`**
 
-- `AUDIT_TABLES`, `OWNERSHIP_EXEMPT_TABLES`, `SOFT_DELETE_TABLES`, `UNDO_TABLES`.
-- The linked-listing guard checks `listingId`.
+- La table est dans `AUDIT_TABLES`, `OWNERSHIP_EXEMPT_TABLES`, `SOFT_DELETE_TABLES` et `UNDO_TABLES`.
+- La garde des listes liées vérifie `listingId` : on ne peut pas peindre avec un modèle d'une liste liée, mais on peut peindre un hôte issu d'une liste liée.
 
-**Derived writes (re-sync)**
+**Écritures dérivées (recalage)**
 
-- They run in a `tx.derivedWrite` transaction: no audit stamp, no undo entry, no dirty flag.
-- A derived delete must be written as `update({deletedAt})`, because the soft-delete middleware pushes undo entries.
+- Elles s'exécutent dans une transaction `tx.derivedWrite` : pas de tampon d'audit (`updatedAt`), pas d'entrée d'undo, pas de « scope modifié ».
+- Une suppression dérivée s'écrit `update({deletedAt})`, jamais `delete()` : le middleware de soft-delete pousserait sinon une entrée d'undo.
 
-**Undo hook**
+**Hook d'undo**
 
-- The undo hook (`undoManager.registerUndoHooks`) stores the FULL new row as `after`.
-- Reason: Dexie hands nested changes to the updating hooks as dotted-key diffs.
+- `undoManager.registerUndoHooks` enregistre la ligne COMPLÈTE après modification comme `after`.
+- Raison : Dexie transmet les modifications imbriquées aux hooks `updating` sous forme de clés pointées (`"geometry.polygons"`). L'ancien `{...obj, ...modifications}` cassait le redo des mises à jour imbriquées, y compris `mesh3d`.
 
-## Main pieces
+## Organisation du code
 
-| Area                 | Files                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| State                | `meshPaintSlice.js` (highlight / focus, session shrink exemptions), `hooks/useMeshPaints.js` (live rows + RAW hosts / listings — never `useAnnotationsV2`, which drops hidden hosts)                                                                                                                                                                                                       |
-| Tool                 | `MESH_BRUSH` in `mapEditor/constants/drawingTools.jsx` (`editor: "3D"`, `requiresTemplate`); editor-aware lists via `mapEditor/utils/filterDrawingToolsForEditor.js`; `utils/meshBrushTools.js`, `utils/meshBrushSelectors.js`; activation rides `threedDrawing/hooks/useTemplateFaceDrawBridge.js` (`drawingMode.active`), the face-drawing machinery stays inert                         |
-| Picking / commit     | `services/meshBrushPick.js`, `hooks/useMeshBrushPointerHandlers.js` (rAF hover, a press that moves less than 4 px commits, Escape exits), `components/MeshBrushThreed.jsx` + `MeshBrushOverlayThreed.jsx` (cursor label), `services/commitMeshBrushTargetService.js` → `services/paintMeshPartService.js` (toggle / replace in one undo group); refusals in `utils/getPaintHostRefusal.js` |
-| Host geometry        | `js/buildHostPartIndexFromObject.js` (SOLID triangles in base-map-local meters) → `utils/buildHostPartIndex.js` (planar islands with outward normals on closed hosts, feature-edge chains, hash)                                                                                                                                                                                           |
-| Shrink exemption     | `services/ensureUnshrunkHostObject.js`; `createAnnotationObject3D.js` honours `_noAntiAliasingShrink`; `useAutoLoadAnnotationsInThreedEditor.js` tags painted hosts and session exemptions; `AnnotationsManager.isCarvePending(id)`; `getEditableMesh3d` un-shrinks before converting to a mesh                                                                                            |
-| Rendering            | `components/ThreedMeshPaints.jsx`: one layer per base map under its image group, FrontSide face skins lifted 1 mm, thick edge lines, `userData.isPaintOverlay`; `utils/getMeshPaintVisibility.js`; `js/meshPaintObjectsStore.js`; `services/focusMeshPaintInThreed.js`                                                                                                                     |
-| Re-sync              | `components/MeshPaintsResyncThreed.jsx` + `hooks/useMeshPaintsResync.js` (host ready / load tick, 300 ms debounce, hash compare) → `utils/planPaintResync.js` (Stage 1 near ≤ 20 mm; Stage 2 parallel far, unambiguous; Stage 3 in-plane slide) → `services/applyMeshPaintsResyncService.js`                                                                                               |
-| Read-time resolution | `utils/resolveMeshPaints.js`: drops invalid rows, gives each row a status (OK / ORPHAN / CONFLICT, newest `paintedAt` wins) and the stale flag; `utils/findMeshPaintMatches.js`: one matcher per base map, across hosts                                                                                                                                                                    |
-| Quantities / panels  | `hooks/usePaintedPartsQties.js` (same option names as `useAnnotationsV2`) + `annotations/utils/mergePaintedQtiesIntoTemplateQties.js`                                                                                                                                                                                                                                                      |
-| Lifecycle            | `services/copyMeshPaintsService.js` + `utils/classifyMeshPaintsForSplit.js` (2D splits re-host / copy), `utils/applyAffineToPaintGeometry.js`, `utils/mapPaintGeometryXY.js`, `services/meshPaintWriteGuard.js`, `services/syncMeshPaintsAfterUndoService.js`                                                                                                                              |
+**État et données**
 
-**Quantity consumers wired**
+- `meshPaintSlice.js` : surbrillance / cadrage depuis le panneau (`highlightedPaintId`, `focusNonce`) et exemptions de rétrécissement de la session (`shrinkExemptAnnotationIds`).
+- `hooks/useMeshPaints.js` : lignes vivantes plus hôtes et listes BRUTS. Ne jamais passer par `useAnnotationsV2`, qui écarte les hôtes masqués.
+- `utils/resolveMeshPaints.js` : à la lecture, écarte les lignes invalides et attribue un statut `OK` / `ORPHAN` / `CONFLICT` (le `paintedAt` le plus récent gagne) ainsi que `isStale`.
 
-- Dessin panel: rows, listing counters, and the « Parties peintes » detail list (`panelDrawing/components/SectionTemplatePaintedParts.jsx`, `RowTemplatePaintedPart.jsx`).
-- Viewer panel.
+**Outil**
+
+- Entrée `MESH_BRUSH` dans `mapEditor/constants/drawingTools.jsx` (`editor: "3D"`, `requiresTemplate: true`), ajoutée en fin des `tools` POLYGON / POLYLINE de `annotations/constants/drawingShapeConfig.js`.
+- Les listes d'outils dépendent de l'éditeur (`mapEditor/utils/filterDrawingToolsForEditor.js`) : le pinceau n'apparaît que dans le module Dessin en 3D. Il ne peut devenir ni `defaultTool` ni un outil du Dessin sans modèle.
+- `utils/meshBrushTools.js` et `utils/meshBrushSelectors.js` (`selectIsMeshBrushActive`).
+- Activation : le pinceau s'appuie sur `threedDrawing/hooks/useTemplateFaceDrawBridge.js` (`drawingMode.active`). La machinerie de dessin de faces (`useDrawingPointerHandlers`, `DrawingOverlayThreed`) reste inerte. Quitter la 3D désarme l'outil.
+
+**Sélection de la cible et validation du clic**
+
+- `services/meshBrushPick.js` choisit la cible. Les peintures existantes sont prioritaires, ce qui permet d'en retirer une même si son hôte est masqué.
+- `hooks/useMeshBrushPointerHandlers.js` :
+  - survol en rAF ;
+  - un appui qui bouge de moins de 4 px vaut un clic, sinon c'est une rotation de caméra ;
+  - Échap quitte le pinceau.
+- `components/MeshBrushThreed.jsx` et `MeshBrushOverlayThreed.jsx` affichent le libellé du curseur : « Peindre », « Retirer », « Remplacer « X » » ou le motif de refus.
+- `services/commitMeshBrushTargetService.js` appelle `services/paintMeshPartService.js` (bascule / remplacement en une seule étape d'undo).
+- `services/deleteMeshPaintsService.js` supprime des peintures.
+
+**Géométrie de l'hôte**
+
+- `js/buildHostPartIndexFromObject.js` extrait les triangles `SOLID` en mètres locaux du fond de plan.
+- `utils/buildHostPartIndex.js` en tire :
+  - les îlots plans, avec normales sortantes sur les hôtes fermés ;
+  - les chaînes d'arêtes vives ;
+  - un hash.
+
+**Exemption de rétrécissement**
+
+- `services/ensureUnshrunkHostObject.js`.
+- `createAnnotationObject3D.js` respecte `_noAntiAliasingShrink`.
+- `useAutoLoadAnnotationsInThreedEditor.js` marque les hôtes peints et les exemptions de session.
+- `AnnotationsManager.isCarvePending(id)`.
+- `getEditableMesh3d` dé-rétrécit avant la conversion en mesh.
+
+**Rendu 3D**
+
+- `components/ThreedMeshPaints.jsx` :
+  - une couche par fond de plan, sous son groupe d'image ;
+  - facettes en peau `FrontSide` décollée de 1 mm ;
+  - arêtes en lignes épaisses ;
+  - `userData.isPaintOverlay`.
+- Avec `js/meshPaintObjectsStore.js` et `services/focusMeshPaintInThreed.js`.
+
+**Recalage**
+
+- `components/MeshPaintsResyncThreed.jsx` et `hooks/useMeshPaintsResync.js` : déclenché quand un hôte est prêt ou que les annotations se rechargent, avec un debounce de 300 ms et une comparaison de hash.
+- `utils/planPaintResync.js`, en trois étapes :
+  - Stage 1 : plan ou ligne parallèle proche, ≤ 20 mm ;
+  - Stage 2 : plan parallèle éloigné, sans ambiguïté ;
+  - Stage 3 : glissement dans le même plan.
+- `services/applyMeshPaintsResyncService.js` écrit le résultat.
+
+**Quantités et panneaux**
+
+- `hooks/usePaintedPartsQties.js` prend les mêmes noms d'options que `useAnnotationsV2`.
+- `annotations/utils/mergePaintedQtiesIntoTemplateQties.js` fusionne les quantités peintes dans celles des modèles.
+
+**Cycle de vie**
+
+- `services/copyMeshPaintsService.js` et `utils/classifyMeshPaintsForSplit.js` : après une coupe 2D, chaque peinture est rattachée au morceau qui la porte, ou copiée sur les morceaux qu'elle chevauche.
+- `utils/applyAffineToPaintGeometry.js`, `utils/mapPaintGeometryXY.js`, `services/meshPaintWriteGuard.js`, `services/syncMeshPaintsAfterUndoService.js`.
+
+**Consommateurs des quantités branchés**
+
+- Panneau Dessin : lignes de modèles, compteurs de liste, et liste « Parties peintes » de la vue détail (`panelDrawing/components/SectionTemplatePaintedParts.jsx`, `RowTemplatePaintedPart.jsx`).
+- Panneau Viewer (`PanelViewerAnnotations`).
 - `PopperMapListings`.
-- 3D legend, including a row for templates that are only painted.
-- `useAnnotationTemplateQtiesById(ForBaseMap)`, which feeds the 2D / portfolio legend totals and the listing properties.
-- Aggregated export: `getAggregatedAnnotationRows`, plus a « Parties peintes » column in the Excel sheet and the datagrid.
+- Légende 3D (`useThreedLegendItems`), y compris une ligne pour les modèles uniquement peints.
+- `useAnnotationTemplateQtiesById` et `useAnnotationTemplateQtiesByIdForBaseMap`, qui alimentent les totaux des légendes 2D / portfolio et les propriétés de liste.
+- Export agrégé (`getAggregatedAnnotationRows`), avec une colonne « Parties peintes » dans la feuille Excel et dans `DatagridAnnotationsAggregated`.
 
-**Lifecycle wired**
+**Cycle de vie branché**
 
-- Krto zip, plus the `hostAnnotationId` remap.
-- Project export and wipe.
-- Scope clear and scope duplicate.
-- Annotation delete, template delete and unused templates.
-- Purge (tombstones and purged hosts only).
-- 2D / 3D move and rotate (`commitWrapperTransform`, `commitAnnotationsTransformFrom3d`).
-- « Régénérer depuis le PDF ».
-- 2D splits and Coupe face.
+- Zip Krto, avec remap de `hostAnnotationId` (`remapDexieExportIds`).
+- Export et purge locale du projet.
+- Vidage et duplication de scope.
+- Suppression d'annotations, suppression de modèle, modèles inutilisés (une peinture compte comme usage).
+- Purge : tombstones et hôtes purgés uniquement, jamais une peinture vivante dont l'hôte n'est pas chargé.
+- Déplacement / rotation 2D et 3D (`commitWrapperTransform`, `commitAnnotationsTransformFrom3d`).
+- « Régénérer depuis le PDF » (`regenerateBaseMapFromPdfPageService`).
+- Coupes 2D (`useHandleSplitPolyline`, `useHandleSplitCommit`) et Coupe face (`cutFaceAlongPathService`).
 
-## Traps
+## Pièges
 
-- **Coordinate-rewriting services.** Any NEW service that rewrites coordinates in a base map frame must handle `db.meshPaints` too, the same way it handles `mesh3d`.
-- **Overlay flag.** Paint objects carry `isPaintOverlay`, not `isHoverOverlay`. The pickers, the snap index, the section contours and the sketch edges skip `isPaintOverlay`; the export keeps it.
-- **Overlay parenting.** Never parent a paint under its host root: a hidden host is not built at all.
-- **Row immutability.** The local forms are cached per row object (WeakMap), so never mutate Dexie rows in place.
+- **Nouveau service qui réécrit des coordonnées** dans le repère d'un fond de plan : il doit aussi traiter `db.meshPaints`, comme il traite `mesh3d`.
+- **Drapeau des overlays** : les objets de peinture portent `isPaintOverlay`, pas `isHoverOverlay`. Picking, index de snap (`useVertexSnap`), contours de coupe et traits « aquarelle » l'ignorent ; l'export 3D le garde.
+- **Parent des overlays** : ne jamais placer une peinture sous la racine de son hôte, car un hôte masqué n'est pas construit du tout.
+- **Immutabilité des lignes** : les formes locales sont mises en cache par objet ligne (WeakMap). Ne jamais modifier une ligne Dexie en place.
 
 ## Tests
 
@@ -132,38 +213,39 @@ One row per painted part.
 node --test src/Features/meshPaint/utils/*.test.mjs
 ```
 
-The pure utils use relative `.js` imports only.
+Les utils purs n'utilisent que des imports relatifs en `.js`, sans alias.
 
-## V2 — remaining work
+## V2 : reste à faire
 
 **Copies**
 
-- Copy paints on paste / duplicate of an annotation, on layer duplicate, and on wall join (`applyJoinAnnotationMergesService`). Today the paints of the dropped piece become orphans.
+- Copier les peintures au coller / dupliquer d'une annotation, à la duplication de calque et à la jointure de murs (`applyJoinAnnotationMergesService`). Aujourd'hui, les peintures de la pièce supprimée deviennent orphelines.
 
-**Business objects / planning**
+**Objets métier / planning**
 
-- Painted quantities are not linked to business objects or work packages. Those quantities flow through annotation rels, so this needs a paint → object link or a template mapping.
+- Les quantités peintes ne remontent pas dans les objets métier ni dans les lots de travaux. Ces quantités passent par des liens annotation → objet : il faudrait un lien peinture → objet, ou une correspondance par modèle.
 
-**Legends and recaps**
+**Légendes et récapitulatifs**
 
-- Rows in the 2D and portfolio legends for templates that are ONLY painted (`useLegendItems`, `useLegendItemsByBaseMapId`).
-- The SCOPE recap (`SectionAnnotationTemplateQties`) and the `SectionDrawingListings` counts.
+- Lignes des légendes 2D et portfolio pour les modèles UNIQUEMENT peints (`useLegendItems`, `useLegendItemsByBaseMapId`).
+- Récap SCOPE (`SectionAnnotationTemplateQties`) et compteurs de `SectionDrawingListings`.
 
 **Export**
 
-- A per-part Excel sheet « Parties peintes » and the per-annotation datagrid.
+- Feuille Excel « Parties peintes » détaillée par partie.
+- Datagrid par annotation.
 
-**Geometry**
+**Géométrie**
 
-- Curved and warped surfaces painted as one region; V1 paints them facet by facet.
-- Curved edge chains.
-- An exact, shrink-free reference geometry that does not depend on the display.
+- Surfaces courbes et gauches peintes comme une seule région ; en V1, elles se peignent facette par facette.
+- Chaînes d'arêtes courbes.
+- Géométrie de référence exacte, indépendante de l'affichage.
 
-**Re-sync**
+**Recalage**
 
-- Headless re-sync of hosts that are not built in 3D (hidden host or 3D closed). V1 shows the « À vérifier » badge instead.
+- Recalage sans affichage des hôtes non construits en 3D (hôte masqué, ou 3D fermée). En V1, c'est le badge « À vérifier » qui le signale.
 
 **Performance**
 
-- Batched rendering per template beyond about 1000 paints.
-- One shared resolution of the parts for all quantity consumers.
+- Rendu groupé par modèle au-delà d'environ 1000 peintures.
+- Une seule résolution des parties partagée par tous les consommateurs de quantités.
