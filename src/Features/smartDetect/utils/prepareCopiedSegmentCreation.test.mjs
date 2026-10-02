@@ -236,3 +236,101 @@ for (const type of ["POLYLINE", "STRIP"]) {
     });
   }
 }
+
+function columnFixture(color = [80, 165, 225], targetColor = color) {
+  const width = 240,
+    height = 280,
+    bandWidth = 24;
+  const imageData = {
+    width,
+    height,
+    data: new Uint8ClampedArray(width * height * 4),
+  };
+  const paint = (x, y, rgb) =>
+    imageData.data.set([...rgb, 255], (y * width + x) * 4);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) paint(x, y, [233, 244, 255]);
+  for (const [cx, cy, rgb] of [
+    [50, 70, color],
+    [160, 200, targetColor],
+  ]) {
+    for (let y = cy - 12; y < cy + 12; y++)
+      for (let x = cx - 12; x < cx + 12; x++) {
+        const outline =
+          x < cx - 10 || x >= cx + 10 || y < cy - 10 || y >= cy + 10;
+        paint(x, y, outline || x === cx || y === cy ? [0, 0, 0] : rgb);
+      }
+    for (let t = -38; t < 39; t++)
+      if (Math.abs(t) > 12) {
+        paint(cx, cy + t, [60, 60, 60]);
+        paint(cx + t, cy, [60, 60, 60]);
+      }
+  }
+  return {
+    imageData,
+    cursorImgPx: { x: 164, y: 197 },
+    clipboard: {
+      items: [
+        {
+          annotation: { type: "POLYLINE", strokeWidth: bandWidth },
+          basePoints: [
+            { x: 50, y: 58 },
+            { x: 50, y: 82 },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+test("a square gray column is accepted as a short candidate", () => {
+  const result = prepareCopiedSegmentCreation(columnFixture([155, 155, 155]));
+  assert.ok(result);
+  const [a, b] = result.match.placedPoints;
+  assert.ok(Math.abs(a.x - 160) <= 2);
+  assert.ok(Math.abs(a.y - 188) <= 3);
+  assert.ok(Math.abs(b.y - 212) <= 3);
+});
+
+test("a blue column reference learns its fill instead of discarding it as dimension ink", () => {
+  const f = columnFixture();
+  const result = prepareCopiedSegmentCreation(f);
+  assert.ok(result);
+  const [a, b] = result.match.placedPoints;
+  assert.ok(Math.abs(a.x - 160) <= 2);
+  assert.ok(Math.abs(a.y - 188) <= 3);
+  assert.ok(Math.abs(b.y - 212) <= 3);
+  assert.equal(
+    prepareCopiedSegmentCreation(columnFixture([80, 165, 225], [225, 80, 100])),
+    null
+  );
+  assert.equal(
+    prepareCopiedSegmentCreation(
+      columnFixture([80, 165, 225], [146, 146, 146])
+    ),
+    null
+  );
+});
+
+test("colored columns work with calibrated strips on either side and nearby blue shades", () => {
+  for (const stripOrientation of [-1, 1]) {
+    const f = columnFixture([80, 165, 225], [70, 145, 220]);
+    const item = f.clipboard.items[0];
+    item.annotation = {
+      type: "STRIP",
+      strokeWidth: 20,
+      strokeWidthUnit: "CM",
+      stripOrientation,
+    };
+    item.basePoints.forEach((p) => {
+      p.x += stripOrientation * 12;
+    });
+    const result = prepareCopiedSegmentCreation({ ...f, meterByPx: 0.2 / 24 });
+    assert.ok(result);
+    assert.ok(
+      Math.abs(
+        result.match.placedPoints[0].x - (160 + stripOrientation * 12)
+      ) <= 2
+    );
+  }
+});

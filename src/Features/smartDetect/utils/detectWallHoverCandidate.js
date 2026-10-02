@@ -16,18 +16,59 @@ const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const median = (values) =>
   values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
-function readGray(image, x, y) {
+function readPixel(image, x, y) {
   x = Math.floor(x);
   y = Math.floor(y);
   if (x < 0 || y < 0 || x >= image.width || y >= image.height) return null;
   const i = (y * image.width + x) * 4;
-  const r = image.data[i],
-    g = image.data[i + 1],
-    b = image.data[i + 2];
-  // Ignore colored dimensions instead of interpreting blue/red ink as a wall.
-  if (Math.max(r, g, b) - Math.min(r, g, b) > 50) return NaN;
   const alpha = image.data[i + 3] / 255;
-  return ((r * 0.299 + g * 0.587 + b * 0.114) / 255) * alpha + 1 - alpha;
+  const rgb = [0, 1, 2].map(
+    (channel) => image.data[i + channel] * alpha + 255 * (1 - alpha)
+  );
+  const low = Math.min(...rgb),
+    chroma = Math.max(...rgb) - low;
+  return {
+    gray: (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) / 255,
+    color: chroma > 50 ? rgb.map((v) => (v - low) / chroma) : null,
+  };
+}
+
+function sameColor(a, b) {
+  return a && b && Math.max(...a.map((v, i) => Math.abs(v - b[i]))) < 0.25;
+}
+
+function readGray(image, x, y, materialColor = null) {
+  const pixel = readPixel(image, x, y);
+  if (!pixel) return null;
+  // Colored dimensions remain occlusions unless the copied core establishes
+  // that this color is the material itself (for example a blue column).
+  if (pixel.color && !sameColor(pixel.color, materialColor)) return NaN;
+  return pixel.gray;
+}
+
+function learnMaterialColor(image, wall) {
+  const colors = [];
+  let valid = 0;
+  for (let a = 0; a < AXIAL_SAMPLES; a++)
+    for (let c = 0; c < PROFILE_BINS; c++) {
+      const along = ((a + 0.5) / AXIAL_SAMPLES - 0.5) * wall.length * 0.85;
+      const across =
+        ((c + 0.5) / PROFILE_BINS - 0.5) * wall.width * MATERIAL_CORE_RATIO;
+      const pixel = readPixel(
+        image,
+        wall.center.x + along * wall.u.x + across * wall.n.x,
+        wall.center.y + along * wall.u.y + across * wall.n.y
+      );
+      if (!pixel) continue;
+      valid++;
+      if (pixel.color) colors.push(pixel.color);
+    }
+  if (!valid || colors.length / valid < 0.5) return null;
+  const color = [0, 1, 2].map((i) => median(colors.map((c) => c[i])));
+  return colors.filter((c) => sameColor(c, color)).length / colors.length >=
+    0.75
+    ? color
+    : null;
 }
 
 function getWallGeometry(item, toImage, meterByPx, scale) {
@@ -114,7 +155,8 @@ function measureAppearance(sample, center, u, width, length) {
   const n = { x: -u.y, y: u.x };
   let sum = 0,
     squares = 0,
-    count = 0;
+    count = 0,
+    colored = 0;
   const gradients = [0, 0, 0, 0],
     pairs = [0, 0, 0, 0];
   // Describe the material inside the wall separately from its outlines.
@@ -138,6 +180,7 @@ function measureAppearance(sample, center, u, width, length) {
       sum += value;
       squares += value * value;
       count++;
+      if (sample.isMaterialColor?.(x, y)) colored++;
       profile[c].sum += value;
       profile[c].squares += value * value;
       profile[c].count++;
@@ -171,6 +214,7 @@ function measureAppearance(sample, center, u, width, length) {
       };
     }),
     coverage: count / (AXIAL_SAMPLES * PROFILE_BINS),
+    colorFraction: colored / Math.max(1, count),
   };
 }
 
@@ -182,11 +226,16 @@ function learnModel(image, clipboard, scale, offset, meterByPx) {
     scale
   );
   if (!wall) return null;
+  const materialColor = learnMaterialColor(image, wall);
+  const sample = (x, y) => readGray(image, x, y, materialColor);
+  if (materialColor)
+    sample.isMaterialColor = (x, y) =>
+      sameColor(readPixel(image, x, y)?.color, materialColor);
   const sampleLength = Math.min(wall.length / 3, Math.max(24, wall.width * 2));
   const patches = [-0.28, 0, 0.28]
     .map((t) =>
       measureAppearance(
-        (x, y) => readGray(image, x, y),
+        sample,
         {
           x: wall.center.x + t * wall.length * wall.u.x,
           y: wall.center.y + t * wall.length * wall.u.y,
@@ -199,6 +248,7 @@ function learnModel(image, clipboard, scale, offset, meterByPx) {
     .filter((p) => p.coverage >= 0.8);
   if (patches.length < 2) return { ...wall, appearance: null };
   const appearance = {
+    colorFraction: median(patches.map((p) => p.colorFraction)),
     mean: median(patches.map((p) => p.mean)),
     deviation: median(patches.map((p) => p.deviation)),
     gradients: GRADIENT_OFFSETS.map((_, i) =>
@@ -212,10 +262,15 @@ function learnModel(image, clipboard, scale, offset, meterByPx) {
   // A recognized wall with insufficient reference pixels must not fall back
   // to generic dark-pixel adjustment and manufacture an unrelated candidate.
   if (appearance.mean > 0.96) return { ...wall, appearance: null };
-  return { ...wall, appearance, sampleLength };
+  return { ...wall, appearance, sampleLength, materialColor };
 }
 
 function similarity(observed, expected) {
+  if (
+    expected.colorFraction > 0.5 &&
+    Math.abs(observed.colorFraction - expected.colorFraction) > 0.3
+  )
+    return 0;
   if (
     observed.coverage < 0.8 ||
     observed.profile.some((bin) => bin.coverage < 0.65)
@@ -358,24 +413,30 @@ function extendCandidate(sample, candidate, model, image) {
     let sum = 0,
       squares = 0,
       count = 0,
+      colored = 0,
       unavailable = 0;
     const samples = Math.max(7, Math.min(40, Math.ceil(width)));
     for (let i = 0; i < samples; i++) {
       const c = ((i + 0.5) / samples - 0.5) * width * MATERIAL_CORE_RATIO;
-      const value = sample(
-        candidate.center.x + a * candidate.u.x + c * candidate.n.x,
-        candidate.center.y + a * candidate.u.y + c * candidate.n.y
-      );
+      const x = candidate.center.x + a * candidate.u.x + c * candidate.n.x;
+      const y = candidate.center.y + a * candidate.u.y + c * candidate.n.y;
+      const value = sample(x, y);
       if (value === null) unavailable++;
       if (!Number.isFinite(value)) continue;
       sum += value;
       squares += value * value;
       count++;
+      if (sample.isMaterialColor?.(x, y)) colored++;
     }
     if (unavailable > samples * 0.3) return null;
     if (count < samples * 0.7) return "occluded";
     const mean = sum / count;
     const deviation = Math.sqrt(Math.max(0, squares / count - mean * mean));
+    if (
+      appearance.colorFraction > 0.5 &&
+      colored / count < appearance.colorFraction * 0.5
+    )
+      return mean < appearance.mean - 0.12 ? "ink" : false;
     // Pale hatching can average almost white. Require some of the learned
     // ink/contrast so an empty opening cannot count as matching material.
     if (
@@ -434,7 +495,10 @@ function extendCandidate(sample, candidate, model, image) {
   };
   const lo = walk(-1),
     hi = walk(1);
-  if (hi - lo < Math.max(12, width * 2.5)) return null;
+  // A square reference must be able to produce a square column. Long-wall
+  // references keep their noise guard; short references set a shorter minimum.
+  if (hi - lo < Math.max(3, Math.min(width * 2.5, model.length * 0.6)))
+    return null;
   // Check the recovered span again: a locally plausible axis may drift out
   // of an oblique wall, or follow an unrelated surface beyond a junction.
   const center = {
@@ -570,8 +634,11 @@ export default function detectWallHoverCandidate({
       Math.abs(dx * model.n.x + dy * model.n.y) <= model.width / 2
     )
       return null;
-    return readGray(imageData, x, y);
+    return readGray(imageData, x, y, model.materialColor);
   };
+  if (model.materialColor)
+    sample.isMaterialColor = (x, y) =>
+      sameColor(readPixel(imageData, x, y)?.color, model.materialColor);
   const rotation = ((pasteTransform?.rotationDeg ?? 0) * Math.PI) / 180;
   const baseAngle =
     Math.atan2(model.u.y, model.u.x * (pasteTransform?.flipX ? -1 : 1)) +

@@ -78,6 +78,15 @@ piece of wall. Second, extend that seed independently in both directions.
 Only accept a recovered span containing the cursor, with a two-pixel endpoint
 allowance, so seed search cannot jump across an opening.
 
+The copied core also establishes whether saturated color is the material: at
+least half of its samples must be colored, with a consistent dominant hue.
+Matching colored pixels then participate in luminance/texture measurements.
+Their fraction is checked separately so a gray fill of equal brightness cannot
+replace a blue column. Unrelated colors remain occlusions. A neutral reference
+continues to ignore colored dimensions. Square/short references also lower the
+minimum recovered candidate length, so a column is not rejected by the long-wall
+aspect-ratio guard.
+
 Colored dimension ink may interrupt up to two wall widths (capped at 128 bitmap
 pixels). A thin darker drafting line may interrupt up to 0.3 wall widths
 (capped at 12 pixels). The allowable scanline brightness variation depends on the learned material
@@ -152,3 +161,8 @@ widths long, with hatch/gray/black fill and a mask over the copied footprint.
 The candidate follows the uncovered continuation and stops at the source. On
 the real PDF, 12 short samples (three locations, four length/width ratios)
 recovered the complete upper continuation without overlapping the copy.
+
+Column regressions cover square gray/blue fills crossed by drafting axes, blue
+shade tolerance, canonical CM strips on either side, and rejection of different
+hues or equal-luminance neutral fills. They are synthetic bitmap tests; the
+user's actual column plan and browser commit flow have not been replayed.
