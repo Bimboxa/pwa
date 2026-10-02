@@ -10,6 +10,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { getDrawingToolsByType } from "../constants/drawingTools.jsx";
 import buildToolDraft from "../utils/buildToolDraft";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 const isEditableTarget = (el) => {
@@ -33,7 +34,15 @@ const isEditableTarget = (el) => {
 // the two systems are disjoint. Mounted once per binding in the live map editor
 // (MainMapEditorV3): "o" → CUT (openings), "x" → SPLIT_LINE (Retirer un
 // segment), "c" → SPLIT_POLYLINE_CLICK (Couper un segment).
-export default function useToolGroupHotkey(hotkey, templateId) {
+//
+// options.threed: the group is a tool of the Dessin module's 3D editor (the
+// same letter may arm a 2D group in the plan editor): "c" → FACE_CUT (Coupe
+// face).
+export default function useToolGroupHotkey(
+  hotkey,
+  templateId,
+  { threed = false } = {}
+) {
   const dispatch = useDispatch();
   const store = useStore();
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -53,13 +62,21 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
-      // Only start a draw while the Dessin module displays the 2D editor.
-      // The editor is kept mounted under every module, so without this guard
-      // a keypress in another module (or in Dessin's 3D editor) would start
-      // an invisible draw. (Module switching lives on Ctrl+<letter> —
+      // Only start a draw while the Dessin module displays the group's editor
+      // (the 2D one, or its 3D one for a `threed` group). The editor is kept
+      // mounted under every module, so without this guard a keypress in
+      // another module (or in the other editor) would start an invisible
+      // draw. (Module switching lives on Ctrl+<letter> —
       // useViewerSwitchHotkeys — so plain letters stay with the editor.)
       if (s.viewers.selectedViewerKey !== "MAP") return;
-      if (selectEffectiveViewerKey(s) !== "MAP") return;
+      const editorKey = selectEffectiveViewerKey(s);
+      if (threed) {
+        if (!isThreedFamilyViewerKey(editorKey)) return;
+        // Walk mode owns the keyboard.
+        if (s.threedEditor.walkMode.active) return;
+      } else if (editorKey !== "MAP") {
+        return;
+      }
 
       // The O / X / C rows live in the panel's ROOT view (and in the popper).
       // While the docked panel shows a template detail view they are not on
@@ -98,5 +115,5 @@ export default function useToolGroupHotkey(hotkey, templateId) {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabledDrawingMode, dispatch, store, hotkey, templateId]);
+  }, [enabledDrawingMode, dispatch, store, hotkey, templateId, threed]);
 }

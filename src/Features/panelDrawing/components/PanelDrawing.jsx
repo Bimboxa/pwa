@@ -326,7 +326,7 @@ export default function PanelDrawing() {
               keeps "Dessin" (mesh drawing). */}
           <SectionPanelDrawingTools
             templatelessCount={templatelessCount}
-            templatelessOnly={isThreedEditor}
+            isThreedEditor={isThreedEditor}
           />
         </>
       )}

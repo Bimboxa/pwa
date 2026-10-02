@@ -8,6 +8,8 @@ const MAX_UNDO = 50;
 let undoStack = [];
 let redoStack = [];
 let _skipUndo = false;
+// Entries collected by withUndoGroup (null: no group open).
+let _group = null;
 
 export { UNDO_TABLES, _skipUndo };
 
@@ -18,8 +20,27 @@ export function withoutUndo(fn) {
   });
 }
 
+// Runs `fn` as ONE undo step: the writes it makes are undone / redone
+// together (a nested group joins the outer one).
+export async function withUndoGroup(fn) {
+  if (_group) return await fn();
+  _group = [];
+  try {
+    return await fn();
+  } finally {
+    const entries = _group;
+    _group = null;
+    if (entries.length === 1) pushUndo(entries[0]);
+    else if (entries.length > 1) pushUndo({ type: "group", entries });
+  }
+}
+
 export function pushUndo(entry) {
   if (_skipUndo) return;
+  if (_group) {
+    _group.push(entry);
+    return;
+  }
   undoStack.push(entry);
   if (undoStack.length > MAX_UNDO) {
     undoStack.shift();
@@ -45,31 +66,62 @@ async function getDb() {
   return db;
 }
 
+async function applyUndo(db, entry) {
+  switch (entry.type) {
+    case "group":
+      // Last write first.
+      for (const child of [...entry.entries].reverse()) {
+        await applyUndo(db, child);
+      }
+      break;
+    case "annotation_batch":
+      await restoreBatch(db, entry, "undo");
+      break;
+    case "create":
+      // Record didn't exist before → hard delete it
+      await db[entry.table].delete(entry.key);
+      break;
+    case "update":
+      // Restore the previous snapshot
+      await db[entry.table].put(entry.before);
+      break;
+    case "delete":
+      // Record was soft-deleted → restore it
+      await db[entry.table].put(entry.before);
+      break;
+  }
+}
+
+async function applyRedo(db, entry) {
+  switch (entry.type) {
+    case "group":
+      for (const child of entry.entries) await applyRedo(db, child);
+      break;
+    case "annotation_batch":
+      await restoreBatch(db, entry, "redo");
+      break;
+    case "create":
+      // Re-create the record
+      await db[entry.table].put(entry.after);
+      break;
+    case "update":
+      // Re-apply the modification
+      await db[entry.table].put(entry.after);
+      break;
+    case "delete":
+      // Re-apply the soft delete
+      await db[entry.table].put(entry.after);
+      break;
+  }
+}
+
 export async function undo() {
   const entry = undoStack.pop();
   if (!entry) return;
 
   const db = await getDb();
 
-  await withoutUndo(async () => {
-    switch (entry.type) {
-      case "annotation_batch":
-        await restoreBatch(db, entry, "undo");
-        break;
-      case "create":
-        // Record didn't exist before → hard delete it
-        await db[entry.table].delete(entry.key);
-        break;
-      case "update":
-        // Restore the previous snapshot
-        await db[entry.table].put(entry.before);
-        break;
-      case "delete":
-        // Record was soft-deleted → restore it
-        await db[entry.table].put(entry.before);
-        break;
-    }
-  }).catch((error) => {
+  await withoutUndo(() => applyUndo(db, entry)).catch((error) => {
     undoStack.push(entry);
     throw error;
   });
@@ -83,25 +135,7 @@ export async function redo() {
 
   const db = await getDb();
 
-  await withoutUndo(async () => {
-    switch (entry.type) {
-      case "annotation_batch":
-        await restoreBatch(db, entry, "redo");
-        break;
-      case "create":
-        // Re-create the record
-        await db[entry.table].put(entry.after);
-        break;
-      case "update":
-        // Re-apply the modification
-        await db[entry.table].put(entry.after);
-        break;
-      case "delete":
-        // Re-apply the soft delete
-        await db[entry.table].put(entry.after);
-        break;
-    }
-  }).catch((error) => {
+  await withoutUndo(() => applyRedo(db, entry)).catch((error) => {
     redoStack.push(entry);
     throw error;
   });

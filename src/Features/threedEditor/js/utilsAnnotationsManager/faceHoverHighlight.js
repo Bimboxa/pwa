@@ -5,7 +5,8 @@
 // triangle reachable across shared edges whose DIHEDRAL angle stays below the
 // current threshold. The face is drawn by a transient overlay Mesh (child of
 // the hit mesh) whose material renders a screen-space pattern of small blue
-// dots over the original material.
+// dots over the original material. The same stipple, in another style, marks
+// the selected faces of a mesh annotation (buildFaceStippleOverlay).
 //
 // The angle is checked between ADJACENT triangles (not against the seed), so a
 // tessellated curved surface — a revolution lathe, a profile swept along a
@@ -345,13 +346,16 @@ function getPlaneRegion(geometry, faceIndex, cache) {
 }
 
 // ---------------------------------------------------------------------------
-// Stipple material (screen-space blue dots)
+// Stipple material (screen-space dots)
 // ---------------------------------------------------------------------------
 
 // Active clipping planes for overlay materials — same pattern as
 // applyAnnotationMaterialState.setHighlightClippingPlanes. The array is the
 // shared clippingManager.planes reference, so plane drags apply live; only
-// enable/disable needs the setter.
+// enable/disable needs the setter. The setter syncs the live HOVER overlay;
+// the other stipple overlays (selected faces) live in an annotation tree and
+// follow ClippingManager's own traversals — they only read the planes here
+// when created.
 let _clippingPlanes = null;
 let _liveOverlayMaterial = null;
 
@@ -371,33 +375,60 @@ export function setFaceHoverClippingPlanes(planes) {
   syncMaterialClipping(_liveOverlayMaterial);
 }
 
+// Look of the hover stipple: small blue dots over a faint blue wash, on a
+// 6 px screen grid. Other overlays (a selected face) pass their own style.
+// gridOffsetPx shifts the grid: 3 (half a cell) puts the dots between those
+// of an unshifted stipple, so two overlays on one face interleave.
+export const FACE_HOVER_STIPPLE = Object.freeze({
+  color: 0x2196f3,
+  baseAlpha: 0.1,
+  dotAlpha: 0.85,
+  gridOffsetPx: 0,
+  toneMapped: true,
+  renderOrder: 998, // under the 999 sub-selection helpers
+});
+
+const toGlslFloat = (value) => Number(value).toFixed(3);
+
 // Fresh material per overlay (a shared singleton could get dispose()d by the
 // AnnotationsManager cleanup traverse since the overlay lives inside the
 // annotation object tree). The compiled program is still shared across
-// overlays via customProgramCacheKey.
-function createStippleMaterial() {
+// overlays of the same style via customProgramCacheKey.
+function createStippleMaterial(style) {
+  const { color, baseAlpha, dotAlpha, gridOffsetPx, toneMapped } = {
+    ...FACE_HOVER_STIPPLE,
+    ...style,
+  };
   const mat = new MeshBasicMaterial({
-    color: 0x2196f3,
+    color,
     transparent: true,
     depthWrite: false,
     depthTest: true,
     side: DoubleSide,
+    toneMapped,
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
   syncMaterialClipping(mat);
+  const base = toGlslFloat(baseAlpha);
+  const dot = toGlslFloat(dotAlpha);
+  const offset = toGlslFloat(gridOffsetPx);
   mat.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <dithering_fragment>",
       `#include <dithering_fragment>
-       vec2 stippleCell = mod(gl_FragCoord.xy, 6.0);
+       vec2 stippleCell = mod(gl_FragCoord.xy + ${offset}, 6.0);
        float stippleDist = length(stippleCell - 3.0);
        float stippleDot = 1.0 - smoothstep(0.9, 2.1, stippleDist);
-       gl_FragColor.a = mix(0.10, 0.85, stippleDot);`
+       gl_FragColor.a = mix(${base}, ${dot}, stippleDot);`
     );
   };
-  mat.customProgramCacheKey = () => "faceHoverStipple";
+  // three shares ONE compiled program per cache key and never compares the
+  // onBeforeCompile output: the key must carry every value baked above (the
+  // color is a uniform, toneMapped is part of three's own key).
+  const programKey = `faceStipple:${base}:${dot}:${offset}`;
+  mat.customProgramCacheKey = () => programKey;
   return mat;
 }
 
@@ -405,22 +436,26 @@ function createStippleMaterial() {
 // Overlay mesh
 // ---------------------------------------------------------------------------
 
-// Builds the overlay Mesh for the given triangle subset, in mesh-LOCAL
-// coordinates. The caller adds it as a child of `mesh` (identity transform →
-// inherits all parent transforms; AnnotationsManager rebuild/dispose
-// traversals remove it automatically with the annotation).
-export function buildFaceHoverOverlay(mesh, tris) {
+// Builds a stipple overlay Mesh for the given triangle subset (null: every
+// triangle of `mesh`), in mesh-LOCAL coordinates. The caller adds it as a
+// child of `mesh` (identity transform → inherits all parent transforms;
+// AnnotationsManager rebuild/dispose traversals remove it automatically with
+// the annotation).
+export function buildFaceStippleOverlay(mesh, tris, style = FACE_HOVER_STIPPLE) {
   const geometry = mesh?.geometry;
   const position = geometry?.getAttribute("position");
-  if (!position || !tris?.length) return null;
+  if (!position) return null;
   const index = geometry.getIndex();
+  const triCount = (index ? index.count : position.count) / 3;
+  const triIndices = tris ?? Array.from({ length: triCount }, (_, t) => t);
+  if (!triIndices.length) return null;
   const vertIndex = index
     ? (t, c) => index.getX(3 * t + c)
     : (t, c) => 3 * t + c;
 
-  const positions = new Float32Array(9 * tris.length);
+  const positions = new Float32Array(9 * triIndices.length);
   let offset = 0;
-  for (const t of tris) {
+  for (const t of triIndices) {
     for (let c = 0; c < 3; c++) {
       const vi = vertIndex(t, c);
       positions[offset++] = position.getX(vi);
@@ -432,15 +467,20 @@ export function buildFaceHoverOverlay(mesh, tris) {
   const overlayGeometry = new BufferGeometry();
   overlayGeometry.setAttribute("position", new BufferAttribute(positions, 3));
 
-  const material = createStippleMaterial();
-  _liveOverlayMaterial = material;
-
-  const overlay = new Mesh(overlayGeometry, material);
+  const overlay = new Mesh(overlayGeometry, createStippleMaterial(style));
   overlay.userData.isHoverOverlay = true;
   // Invisible to raycasts — polygonOffset doesn't move geometry, so without
   // this the coplanar overlay would shadow the source mesh on the next hit.
   overlay.raycast = () => {};
-  overlay.renderOrder = 998; // under the 999 sub-selection helpers
+  overlay.renderOrder = style?.renderOrder ?? FACE_HOVER_STIPPLE.renderOrder;
+  return overlay;
+}
+
+// The hover overlay (blue dots) of the triangle subset `tris` of `mesh`.
+export function buildFaceHoverOverlay(mesh, tris) {
+  if (!tris?.length) return null;
+  const overlay = buildFaceStippleOverlay(mesh, tris, FACE_HOVER_STIPPLE);
+  if (overlay) _liveOverlayMaterial = overlay.material;
   return overlay;
 }
 

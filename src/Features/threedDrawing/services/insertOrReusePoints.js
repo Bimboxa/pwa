@@ -12,17 +12,34 @@ export const POINT_REUSE_EPS = 5e-4;
 // instead of a new one being created — so two faces that share a corner
 // also share the underlying db.points and stay connected when the user
 // later moves either one.
+//
+// The points of a mesh annotation (isMesh3d) are never reused: they are only
+// the plan projection of its mesh, locked in 2D (usePointDrag) — sharing one
+// would lock the new annotation's vertex too.
 export default async function insertOrReusePoints({
   projectedPoints,
   baseMap,
   projectId,
   listingId,
 }) {
-  const existing = await db.points
-    .where("baseMapId")
-    .equals(baseMap.id)
-    .toArray();
-  const liveExisting = existing.filter((p) => !p.deletedAt);
+  const [existing, hostAnnotations] = await Promise.all([
+    db.points.where("baseMapId").equals(baseMap.id).toArray(),
+    db.annotations.where("baseMapId").equals(baseMap.id).toArray(),
+  ]);
+  const meshPointIds = new Set();
+  for (const annotation of hostAnnotations) {
+    if (!annotation.isMesh3d || annotation.deletedAt) continue;
+    const refs = [
+      ...(annotation.points ?? []),
+      ...(annotation.cuts ?? []).flatMap((cut) => cut?.points ?? []),
+    ];
+    for (const ref of refs) {
+      if (ref?.id) meshPointIds.add(ref.id);
+    }
+  }
+  const liveExisting = existing.filter(
+    (p) => !p.deletedAt && !meshPointIds.has(p.id)
+  );
 
   const pointRefs = [];
   await db.transaction("rw", db.points, async () => {

@@ -14,6 +14,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 
 import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
@@ -24,7 +25,7 @@ import computeSnapTarget from "../utils/computeSnapTarget";
 import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
-import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
+import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
 import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
@@ -178,9 +179,12 @@ export default function DrawingOverlayThreed() {
     (s) => s.threedEditor.drawingMode.trait3DSegments
   );
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  // Mesh drawing ("Dessin" tool in 3D): points also land on annotation faces.
-  const isMeshDraw = useSelector((s) =>
-    isMesh3dDraft(s.annotations.newAnnotation)
+  // Template-less drawing ("Dessin" tool in 3D) and "Coupe face": points
+  // also land on annotation faces.
+  const isMeshDraw = useSelector(
+    (s) =>
+      isTemplatelessDraft(s.annotations.newAnnotation) ||
+      isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
   );
 
   const baseMaps = useBaseMaps()?.value;
@@ -378,7 +382,7 @@ export default function DrawingOverlayThreed() {
       let bestDistance = planHit
         ? camera.position.distanceTo(planHit.position)
         : Infinity;
-      // Mesh drawing: an annotation face in front of the plan. A sheet
+      // Template-less drawing: an annotation face in front of the plan. A sheet
       // lying on the plan is in front of it by its 1 mm lift only.
       if (isMeshDraw && !anchor) {
         const faceHit = intersectAnnotationFace(editor, mNdc, camera);
@@ -567,8 +571,8 @@ export default function DrawingOverlayThreed() {
         lastVertex: anchor
           ? undefined
           : inProgressPolyline[inProgressPolyline.length - 1],
-        // Mesh drawing: the ends of the traits already drawn are snap
-        // targets too — the next segment chains with them.
+        // Template-less drawing / face cut: the ends of the traits already
+        // drawn are snap targets too.
         inProgressPolyline: anchor
           ? []
           : isMeshDraw

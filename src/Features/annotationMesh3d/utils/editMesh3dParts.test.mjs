@@ -9,13 +9,15 @@ import {
 } from "./editMesh3dParts.js";
 import getMesh3dQties from "./getMesh3dQties.js";
 import isMesh3dClosed from "./isMesh3dClosed.js";
+import { getFaceArea } from "./mesh3dTopology.js";
 import {
   getMesh3dEdgePartId,
   getMesh3dFacePartId,
   getSelectedMesh3dParts,
+  isMesh3dFaceSelected,
   parseMesh3dPartId,
 } from "./mesh3dPartIds.js";
-import splitMesh3dFace from "./splitMesh3dFace.js";
+import splitMesh3dFace, { splitMesh3dFaceDetailed } from "./splitMesh3dFace.js";
 
 const v = (x, y, z) => ({ x, y, z });
 
@@ -74,6 +76,26 @@ test("part ids round trip and ignore foreign ids", () => {
       "ann::SEG::1",
     ]).length,
     1
+  );
+});
+
+test("a face is selected through the single part or the multi array", () => {
+  const item = { type: "NODE", nodeId: "ann", partId: "ann::MESH3D_FACE::1" };
+  assert.equal(isMesh3dFaceSelected(item, [], "ann", 1), true);
+  assert.equal(isMesh3dFaceSelected(item, [], "ann", 2), false);
+  assert.equal(isMesh3dFaceSelected(item, [], "other", 1), false);
+  // The multi array wins over the single part.
+  assert.equal(
+    isMesh3dFaceSelected(item, ["ann::MESH3D_FACE::3"], "ann", 1),
+    false
+  );
+  assert.equal(
+    isMesh3dFaceSelected(item, ["ann::MESH3D_FACE::3"], "ann", 3),
+    true
+  );
+  assert.equal(
+    isMesh3dFaceSelected({ type: "NODE", nodeId: "ann" }, [], "ann", 1),
+    false
   );
 });
 
@@ -138,4 +160,53 @@ test("dissolving an edge of an inner loop fills the hole back", () => {
   assert.equal(merged.vertices.length, 8);
   assert.ok(merged.faces.every((face) => face.holes.length === 0));
   assert.ok(isMesh3dClosed(merged));
+});
+
+test("the detailed split names the face it cut", () => {
+  const box = makeBox();
+  const path = [v(2, 0, 3), v(2, 2, 3)];
+  const split = splitMesh3dFaceDetailed(box, path);
+  assert.equal(split.faceIndex, 1);
+  assert.equal(split.mesh.faces.length, 7);
+  assert.equal(splitMesh3dFaceDetailed(box, path, { faceIndices: [0] }), null);
+
+  // Two runs: both cut pieces of the top face, never a neighbor.
+  const zigzag = splitMesh3dFaceDetailed(box, [
+    v(1, 0, 3),
+    v(1, 2, 3),
+    v(3, 0, 3),
+  ]);
+  assert.equal(zigzag.faceIndex, 1);
+  assert.equal(zigzag.mesh.faces.length, 8);
+});
+
+test("a line to a hole keeps the face whole, a second one cuts it", () => {
+  // A 4 x 4 wall sheet (z = 0 plane) with a 1 x 1 window.
+  const sheet = {
+    vertices: [
+      v(0, 0, 0),
+      v(4, 0, 0),
+      v(4, 4, 0),
+      v(0, 4, 0),
+      v(1.5, 1.5, 0),
+      v(1.5, 2.5, 0),
+      v(2.5, 2.5, 0),
+      v(2.5, 1.5, 0),
+    ],
+    faces: [{ loop: [0, 1, 2, 3], holes: [[4, 5, 6, 7]] }],
+  };
+  // Left edge -> window jamb: one face, no hole, the line as an edge.
+  const bridged = splitMesh3dFaceDetailed(sheet, [v(0, 2, 0), v(1.5, 2, 0)]);
+  assert.equal(bridged.mesh.faces.length, 1);
+  assert.equal(bridged.mesh.faces[0].holes.length, 0);
+  assert.equal(bridged.mesh.faces[0].loop.length, 4 + 1 + 4 + 1 + 2);
+
+  // Other jamb -> right edge: the wall is cut in a top and a bottom piece.
+  const cut = splitMesh3dFaceDetailed(bridged.mesh, [v(2.5, 2, 0), v(4, 2, 0)]);
+  assert.equal(cut.mesh.faces.length, 2);
+  const areas = cut.mesh.faces
+    .map((face) => getFaceArea(cut.mesh.vertices, face))
+    .sort((a, b) => a - b);
+  assert.ok(Math.abs(areas[0] - 7.5) < 1e-9, `got ${areas}`);
+  assert.ok(Math.abs(areas[1] - 7.5) < 1e-9, `got ${areas}`);
 });

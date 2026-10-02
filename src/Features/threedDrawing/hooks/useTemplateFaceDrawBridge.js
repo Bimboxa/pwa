@@ -9,9 +9,12 @@ import {
   setDrawingModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 
+import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+
 import {
-  selectIsMesh3dDrawActive,
+  selectIsFaceCutDrawActive,
   selectIsTemplateFaceDrawActive,
+  selectIsThreedTemplatelessDrawActive,
 } from "../utils/templateFaceDrawSelectors";
 
 // Bridges the template-driven face-draw request (derived from the regular 2D
@@ -22,13 +25,23 @@ import {
 // reducers — is keyed on `threedEditor.drawingMode.active`, which reducers
 // cannot derive; this hook syncs the derived flag into it.
 //
-// The template-less mesh draw ("Dessin" tool in 3D, selectIsMesh3dDrawActive)
-// rides the same bridge: same machinery, different commit.
+// The template-less draw ("Dessin" tool in 3D,
+// selectIsThreedTemplatelessDrawActive) and the "Coupe face" tool
+// (selectIsFaceCutDrawActive) ride the same bridge: same machinery,
+// different commit.
 export default function useTemplateFaceDrawBridge() {
   const dispatch = useDispatch();
 
   const derivedActive = useSelector(
-    (s) => selectIsTemplateFaceDrawActive(s) || selectIsMesh3dDrawActive(s)
+    (s) =>
+      selectIsTemplateFaceDrawActive(s) ||
+      selectIsThreedTemplatelessDrawActive(s) ||
+      selectIsFaceCutDrawActive(s)
+  );
+  // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the 2D
+  // editor has no use for its drawing mode).
+  const isFaceCutMode = useSelector((s) =>
+    isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
   );
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const templateId = useSelector(
@@ -47,8 +60,12 @@ export default function useTemplateFaceDrawBridge() {
       dispatch(setDrawingModeActive(true));
     } else if (!derivedActive && prev) {
       dispatch(setDrawingModeActive(false));
+      if (isFaceCutMode) {
+        dispatch(setEnabledDrawingMode(null));
+        dispatch(setNewAnnotation({}));
+      }
     }
-  }, [derivedActive, dispatch]);
+  }, [derivedActive, isFaceCutMode, dispatch]);
 
   // Machinery flag dropped while the request is still on (another 3D mode's
   // reducer takeover): clear the 2D drawing state so the derived request

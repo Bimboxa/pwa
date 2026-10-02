@@ -51,13 +51,23 @@ function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
 // {x, y, z, baseMapId?} — a unanimous carried baseMapId wins over the
 // centroid heuristic for host resolution.
 //
-// Templateless draft ("Dessin" tool, `templateProps.isTemplateless` without
-// annotationTemplateId — a line drawn on a scan base map): the annotation
-// belongs to the base map + `scopeId` only, no template nor listing, like a
-// templateless annotation drawn in 2D.
+// Templateless draft (3D "Dessin" tool, `templateProps.isTemplateless`
+// without annotationTemplateId): the annotation belongs to the base map +
+// `scopeId` only, no template nor listing, like a templateless annotation
+// drawn in 2D.
 //
 // Returns the created annotation record, or null on failure.
-export default async function commitDrawnPolylineService({
+export default async function commitDrawnPolylineService(args) {
+  return (await commitDrawnPolyline(args)).annotation;
+}
+
+// Same commit, with the reason of a failure: { annotation } or
+// { annotation: null, reason }. reason POLYLINE_COMMIT_NO_2D_ENCODING (template-
+// less line only): two consecutive vertices stand at the same plan position
+// at different heights — a vertical stretch the plan points cannot hold.
+export const POLYLINE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
+
+export async function commitDrawnPolyline({
   verticesInOrder,
   baseMaps,
   projectId,
@@ -68,11 +78,11 @@ export default async function commitDrawnPolylineService({
   closeLine = false,
   scopeId = null,
 }) {
-  // Aborted commits are silent for the caller (null return) — say why in the
-  // console so a "nothing happened" report is diagnosable.
-  const abort = (reason) => {
-    console.warn(`[threedDrawing] polyline commit aborted: ${reason}`);
-    return null;
+  // Aborted commits are silent for the caller (null annotation) — say why in
+  // the console so a "nothing happened" report is diagnosable.
+  const abort = (message, reason = "ABORTED") => {
+    console.warn(`[threedDrawing] polyline commit aborted: ${message}`);
+    return { annotation: null, reason };
   };
 
   if (!verticesInOrder?.length || verticesInOrder.length < 2)
@@ -101,6 +111,26 @@ export default async function commitDrawnPolylineService({
   );
   if (projected.some((p) => !p))
     return abort(`projection on base map ${host.id} failed`);
+
+  // Template-less line: a vertical stretch would silently collapse in the
+  // dedupe below — refuse it instead of committing another line.
+  if (isTemplateless) {
+    const count = closeLine ? projected.length : projected.length - 1;
+    for (let i = 0; i < count; i++) {
+      const p = projected[i];
+      const q = projected[(i + 1) % projected.length];
+      if (
+        Math.abs(p.x - q.x) < POINT_DEDUPE_EPS &&
+        Math.abs(p.y - q.y) < POINT_DEDUPE_EPS &&
+        Math.abs(p.offset - q.offset) > OFFSET_EPS_M
+      ) {
+        return abort(
+          "vertical stretch, no plan encoding",
+          POLYLINE_COMMIT_NO_2D_ENCODING
+        );
+      }
+    }
+  }
 
   const offsets = projected.map((p) => p.offset);
   const minO = Math.min(...offsets);
@@ -172,10 +202,7 @@ export default async function commitDrawnPolylineService({
     updatedAt: new Date().toISOString(),
     ...annotationFields,
   };
-  // The draft of the 3D "Dessin" tool is tagged for mesh drawing; a plain
-  // polyline is not a mesh annotation.
-  delete annotation.isMesh3d;
 
   const create = createAnnotationFn ?? createAnnotationService;
-  return await create(annotation);
+  return { annotation: await create(annotation) };
 }

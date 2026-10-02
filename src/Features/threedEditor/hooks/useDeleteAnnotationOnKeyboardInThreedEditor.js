@@ -31,6 +31,8 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
       // Effective key, not the raw module key: the shortcut follows the
       // editor actually displayed (e.g. the Dessin module toggled to 3D).
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;
+      // While drawing, the selected annotation is where the line is cut into.
+      if (state.threedEditor.drawingMode.active) return;
 
       // Selected label: Delete hides the label (never deletes the parent
       // annotation), then the selection falls back on the annotation.

@@ -44,6 +44,13 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
       // in walk mode Backspace / Delete clear the walk tool's traces.
       if (state.threedEditor.extrudeMode.active) return;
       if (state.threedEditor.walkMode.active) return;
+      // While drawing, the selected face is where the line is cut into:
+      // swallow the key (nor the parts nor the annotation get deleted).
+      if (state.threedEditor.drawingMode.active) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
 
       const selectedItem = state.selection.selectedItems[0];
       const parts = getSelectedMesh3dParts(

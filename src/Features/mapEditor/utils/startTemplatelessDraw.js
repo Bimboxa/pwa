@@ -15,8 +15,8 @@ import {
   getTemplatelessDraftKey,
 } from "Features/annotations/utils/templatelessAnnotations";
 
-// Annotation types the "Dessin" tool offers in the 3D editor (mesh drawing).
-export const MESH3D_DRAWING_SHAPES = ["POLYGON", "POLYLINE"];
+// Annotation types the "Dessin" tool offers in the 3D editor.
+export const THREED_DRAWING_SHAPES = ["POLYGON", "POLYLINE"];
 
 // Active drawing tool of a templateless shape: last used one → first tool of
 // the shape group.
@@ -43,10 +43,10 @@ export function getTemplatelessDraft(drawingShape, rememberedProps) {
 // "Dessin" tool (hotkey D): start a draw WITHOUT annotation template nor
 // listing. Twin of startDrawFromTemplate, reading the mapEditor state.
 //
-// options.mesh3d: the tool is started from the 3D editor — lines are drawn on
-// the faces of the annotation meshes (draft tagged `isMesh3d`). Only the line
-// and surface types make sense there (MESH3D_DRAWING_SHAPES): another
-// remembered type falls back to POLYGON without being overwritten.
+// options.threed: the tool is started from the 3D editor — only the line and
+// surface types make sense there (THREED_DRAWING_SHAPES): another remembered
+// type falls back to POLYGON without being overwritten. The draft itself is
+// the same as in 2D.
 export default function startTemplatelessDraw(
   dispatch,
   state,
@@ -58,7 +58,7 @@ export default function startTemplatelessDraw(
     state.mapEditor.templatelessDrawingShape ??
     DEFAULT_TEMPLATELESS_DRAWING_SHAPE;
   const shape =
-    options.mesh3d && !MESH3D_DRAWING_SHAPES.includes(requested)
+    options.threed && !THREED_DRAWING_SHAPES.includes(requested)
       ? "POLYGON"
       : requested;
   const key = getTemplatelessDraftKey(shape);
@@ -73,7 +73,6 @@ export default function startTemplatelessDraw(
     state.mapEditor.draftPropsByTemplateId?.[key]
   );
 
-  if (options.mesh3d) draft.isMesh3d = true;
   if (shape === requested) dispatch(setTemplatelessDrawingShape(shape));
   dispatch(
     setNewAnnotation(

@@ -166,6 +166,8 @@ export default class SectionContourManager {
         if (child.userData?.isSectionMarker) return;
         // scan base maps: their geometry lives on the GPU only.
         if (child.userData?.isDecor) return;
+        // Face stipples (hover, selected faces): copies of a face's triangles.
+        if (child.userData?.isHoverOverlay) return;
         if (child.isMesh && child.geometry) meshes.push(child);
       });
     });

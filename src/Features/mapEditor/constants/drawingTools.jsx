@@ -257,6 +257,22 @@ const DRAWING_TOOLS = [
     annotationType: "SPLIT_POLYLINE_CLICK",
     behavior: "SPLIT_POLYLINE_CLICK",
   },
+  // FACE_CUT tools (Coupe face — 3D editor): the path drawn on a face cuts
+  // it in two (threedFaceCut).
+  {
+    key: "FACE_CUT_SEGMENT",
+    label: "Segment (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "FACE_CUT",
+    behavior: "SEGMENT",
+  },
+  {
+    key: "FACE_CUT_POLYLINE",
+    label: "Polyligne clic",
+    Icon: IconPolylineClick,
+    annotationType: "FACE_CUT",
+    behavior: "CLICK",
+  },
   // SPLIT_POLYLINE tool (Couper polyligne — two clicks)
   {
     key: "SPLIT_POLYLINE",
@@ -470,6 +486,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ],
   SPLIT_LINE: ["CUT_SEGMENT"],
   SPLIT_POLYLINE_CLICK: ["SPLIT_POLYLINE_CLICK"],
+  FACE_CUT: ["FACE_CUT_SEGMENT", "FACE_CUT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],

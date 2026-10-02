@@ -3177,6 +3177,9 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.setPoints?.([]);
     };
     const onKey = (e) => {
+      // Hidden instance (another viewer, e.g. the 3D editor drawing the
+      // same tool): its keys are not ours.
+      if (!isActiveViewerRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
         const pts = drawingPointsRef.current || [];
@@ -3204,6 +3207,9 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.setPoints?.([]);
     };
     const onKey = (e) => {
+      // Hidden instance (another viewer, e.g. the 3D editor drawing the
+      // same tool): its keys are not ours.
+      if (!isActiveViewerRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
         const pts = drawingPointsRef.current || [];
@@ -3231,6 +3237,9 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.setPoints?.([]);
     };
     const onKey = (e) => {
+      // Hidden instance (another viewer, e.g. the 3D editor drawing the
+      // same tool): its keys are not ours.
+      if (!isActiveViewerRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
         const pts = drawingPointsRef.current || [];
@@ -3259,6 +3268,9 @@ const InteractionLayer = forwardRef(({
       drawingLayerRef.current?.setPoints?.([]);
     };
     const onKey = (e) => {
+      // Hidden instance (another viewer, e.g. the 3D editor drawing the
+      // same tool): its keys are not ours.
+      if (!isActiveViewerRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
         const pts = drawingPointsRef.current || [];
@@ -3523,6 +3535,14 @@ const InteractionLayer = forwardRef(({
       // The PDF editor layer covers the editor: its keys (arrows, Delete,
       // letters...) must not act on the hidden map.
       if (selectPdfEditorOpen(store.getState())) return;
+      // Hidden under the 3D editor while it draws: the 3D drawing owns the
+      // keys (Escape would otherwise clear the selected face the line is cut
+      // into, or leave the tool and clear the selection).
+      if (
+        !isActiveViewerRef.current &&
+        store.getState().threedEditor.drawingMode.active
+      )
+        return;
       // Ignorer si l'utilisateur écrit dans un input texte
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) {
         console.log("Action: Key Pressed while typing");

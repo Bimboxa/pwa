@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSelector, useDispatch, useStore } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 
 import {
   Paper,
@@ -32,6 +32,7 @@ import {
   setRectHasFirstPoint,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlice";
 import { REMEMBERABLE_DRAFT_KEYS } from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 import {
@@ -53,7 +54,6 @@ import TEMPLATELESS_DRAWING_SHAPES from "Features/annotations/constants/template
 import { FREE_TEXT_DEFAULT_TEXT_COLOR } from "Features/annotations/constants/freeTextConstants";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
-import startTemplatelessDraw from "Features/mapEditor/utils/startTemplatelessDraw";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -64,12 +64,12 @@ import FieldCheck from "Features/form/components/FieldCheck";
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 
 import theme from "Styles/theme";
 
 export default function ToolbarDrawingDraft() {
   const dispatch = useDispatch();
-  const store = useStore();
 
   // strings
 
@@ -109,7 +109,11 @@ export default function ToolbarDrawingDraft() {
     (t) => t.id === newAnnotation?.annotationTemplateId
   );
 
-  // Templateless draw ("Dessin" tool): the block shows the annotation type.
+  // Templateless draw ("Dessin" tool): the block shows the annotation type;
+  // the menu lists the types of the displayed editor (lines and surfaces in
+  // 3D).
+  const { shapes: templatelessShapes, selectShapeAndDraw } =
+    useDrawTemplateless();
   const templatelessShape =
     !drawnTemplate && isTemplatelessAnnotation(newAnnotation)
       ? TEMPLATELESS_DRAWING_SHAPES.find((shape) => shape.key === drawingShape)
@@ -300,7 +304,9 @@ export default function ToolbarDrawingDraft() {
     dispatch(clearRectDims());
     dispatch(clearConstraintBuffer());
     dispatch(setRectHasFirstPoint(false));
-    startTemplatelessDraw(dispatch, store.getState(), shape.key);
+    // 3D drawing: its in-progress path belongs to the previous type too.
+    dispatch(cancelInProgressPolyline());
+    selectShapeAndDraw(shape);
   }
 
   function handleFieldChange(next) {
@@ -472,7 +478,7 @@ export default function ToolbarDrawingDraft() {
                 {shapeMenuTitleS}
               </Typography>
             </Box>
-            {TEMPLATELESS_DRAWING_SHAPES.map((shape) => (
+            {templatelessShapes.map((shape) => (
               <MenuItem
                 key={shape.key}
                 selected={shape.key === drawingShape}

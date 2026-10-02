@@ -30,8 +30,8 @@ const isEditableTarget = (el) => {
 //
 // One shortcut for both editors of the Dessin module: MainMapEditorV3 (which
 // mounts this hook) stays mounted while the module shows its 3D editor, and
-// there the same letter starts the mesh drawing (lines on the faces of the
-// annotation meshes).
+// there the same letter starts the 3D drawing (lines and shapes on the plans
+// and the faces, or cuts of the selected face).
 export default function useTemplatelessDrawHotkey() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -72,7 +72,7 @@ export default function useTemplatelessDrawHotkey() {
         return;
 
       startTemplatelessDraw(dispatch, s, undefined, {
-        mesh3d: isThreedEditor,
+        threed: isThreedEditor,
       });
       e.preventDefault();
       e.stopImmediatePropagation();

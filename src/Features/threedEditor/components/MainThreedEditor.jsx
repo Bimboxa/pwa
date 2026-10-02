@@ -33,6 +33,8 @@ import {
   setSelectedItems,
   toggleItemSelection,
   setShowAnnotationsProperties,
+  selectSelectedItem,
+  selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -144,6 +146,7 @@ import selectMesh3dPart, {
 import {
   getMesh3dEdgePartId,
   getMesh3dFacePartId,
+  isMesh3dFaceSelected,
 } from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
 import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
@@ -1140,6 +1143,10 @@ export default function MainThreedEditor() {
               meshPartId = edge
                 ? getMesh3dEdgePartId(nodeId, edge.a, edge.b)
                 : getMesh3dFacePartId(nodeId, faceIndex);
+              // The clicked face becomes (or stops being) a selected part:
+              // drop its blue hover stipple now — the next hover tick rebuilds
+              // it only when the face is not selected.
+              clearFaceStipple();
               if (nodeId === soloId) {
                 selectMesh3dPart({
                   dispatch,
@@ -1238,6 +1245,7 @@ export default function MainThreedEditor() {
       isThreedViewer,
       getSoloSelectedAnnotationId,
       store,
+      clearFaceStipple,
     ]
   );
 
@@ -1986,6 +1994,7 @@ export default function MainThreedEditor() {
       } else if (faceIndex !== undefined) {
         meshPart = {
           key: `F${faceIndex}`,
+          faceIndex,
           qties: hitIntersect.object.userData.mesh3dFaceInfo ?? null,
         };
       }
@@ -2085,9 +2094,24 @@ export default function MainThreedEditor() {
     // stamped in the adjacency cache), so nothing is rebuilt. Maille faces get
     // the same stipple as annotation faces.
     // A hovered mesh edge replaces the face stipple.
+    // Selection wins over hover (as for the annotation recolor): a selected
+    // face keeps its fluo-green dots (useMesh3dPartsHighlight) — the blue ones
+    // would cover them, e.g. while drawing over it with the 3D Dessin tool.
+    // Read from the store: no re-render on selection changes.
+    const selectionState = store.getState();
+    const isSelectedMeshFace =
+      meshPart?.faceIndex !== undefined &&
+      isMesh3dFaceSelected(
+        selectSelectedItem(selectionState),
+        selectSelectedPartIds(selectionState),
+        hitId,
+        meshPart.faceIndex
+      );
     const overlayIntersect =
       mesh3dIntersect ||
-      (hit && !isLineHit && !meshPart?.edge ? hitIntersect : null);
+      (hit && !isLineHit && !meshPart?.edge && !isSelectedMeshFace
+        ? hitIntersect
+        : null);
     if (!overlayIntersect) {
       clearFaceStipple();
     } else {

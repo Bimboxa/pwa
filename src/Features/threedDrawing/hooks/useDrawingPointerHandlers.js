@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
@@ -14,22 +15,30 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 
-import commitDrawnMesh3dPathService from "Features/annotationMesh3d/services/commitDrawnMesh3dPathService";
+import createFlatMesh3dAnnotationService from "Features/annotationMesh3d/services/createFlatMesh3dAnnotationService";
+import cutFaceAlongPathService from "Features/threedFaceCut/services/cutFaceAlongPathService";
+import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 
-import commitDrawnFaceService from "../services/commitDrawnFaceService";
-import commitDrawnPolylineService from "../services/commitDrawnPolylineService";
+import commitDrawnFaceService, {
+  FACE_COMMIT_NO_2D_ENCODING,
+  commitDrawnFace,
+} from "../services/commitDrawnFaceService";
+import commitDrawnPolylineService, {
+  POLYLINE_COMMIT_NO_2D_ENCODING,
+  commitDrawnPolyline,
+} from "../services/commitDrawnPolylineService";
 import { getLastSnap } from "../services/lastSnapStore";
-import chainDrawnPath from "../utils/chainDrawnPath";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import detectClosedFace from "../utils/detectClosedFace";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
-import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
+import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 
 // Pointer movement (in CSS px) above which a press-release pair is treated as
 // a camera drag and NOT as a vertex commit. Mirrors the threshold used by
@@ -38,6 +47,9 @@ const DRAG_THRESHOLD_PX = 4;
 
 // Two drawn points closer than this (m) are the same point.
 const SAME_POINT_EPS_M = 1e-4;
+
+// Two clicks on one point within this delay (ms) are a double click.
+const DOUBLE_CLICK_MS = 500;
 
 // Wires click + key handlers for the 3D drawing mode. A vertex is committed
 // on pointerup only when the pointer hasn't moved past `DRAG_THRESHOLD_PX`
@@ -54,17 +66,40 @@ const SAME_POINT_EPS_M = 1e-4;
 // RECTANGLE-behavior tools get their own two-click flow: first click anchors
 // on a base map plane, second click commits the axis-aligned rectangle.
 //
-// Mesh drawing (template-less "Dessin" tool, isMesh3dDraft): the drawn path
-// does not become an annotation of its own. As soon as it cuts the face it
-// lies on — boundary to boundary, or back on its first point — that face is
-// split inside the annotation's mesh (commitDrawnMesh3dPathService); a closed
-// contour away from any face creates a flat mesh annotation. Both line tools
-// work: "Polyligne clic" chains the points, "Segment (2 clics)" draws one
-// segment at a time. A segment (or a path ended with Enter) that cuts nothing
-// yet stays on screen as a trait and is chained with the next ones
-// (chainDrawnPath). Escape cancels the path instead of committing it.
+// Template-less "Dessin" tool (isTemplatelessDraft) — like the 2D tool, the
+// drawn shape becomes a template-less annotation of the scope: a POLYLINE
+// (Enter, double click, Escape, the 2nd click of "Segment (2 clics)"; closed
+// when clicked back on its first point) or a POLYGON (back on its first
+// point, Enter, double click), encoded on its plan like a template face
+// (commitDrawnFace) — a flat mesh sheet only when it has no plan encoding.
+// It never cuts the faces it is drawn on.
+//
+// "Coupe face" tool (FACE_CUT group): the path drawn on a face — ended by the
+// 2nd click of the segment tool, or Enter / double click / back on its first
+// point for the polyline tool — cuts that face in two
+// (cutFaceAlongPathService). The tool stays armed for the next cut.
+//
+// Template-less and face-cut clicks and keys run one at a time, in order (a
+// commit awaits the db): each step reads the live drawing state from the
+// store.
 export default function useDrawingPointerHandlers() {
   const dispatch = useDispatch();
+  const store = useStore();
+
+  // strings
+
+  const noPlanEncodingS =
+    "Trait non enregistré : un tronçon vertical ne peut pas être porté par le plan.";
+  const noFaceCutByReasonS = {
+    NO_ANNOTATION: "Aucune face coupée : le tracé n'est sur aucune annotation.",
+    NOT_EDITABLE:
+      "Aucune face coupée : cette annotation ne peut pas être découpée (ouvertures, soustractions, forme générée…).",
+    NOT_ON_ONE_FACE:
+      "Aucune face coupée : le tracé doit rester sur une seule face.",
+    NOT_EDGE_TO_EDGE:
+      "Aucune face coupée : le tracé doit aller d'un bord à l'autre de la face (ou y faire une boucle).",
+  };
+  const faceCutFailedS = "La coupe de la face n'a pas pu être enregistrée.";
 
   const active = useSelector((s) => s.threedEditor.drawingMode.active);
   const inProgressPolyline = useSelector(
@@ -85,6 +120,7 @@ export default function useDrawingPointerHandlers() {
   // Template-driven mode (see useTemplateFaceDrawBridge): the committed face
   // carries the armed template + layer instead of isPendingTemplate.
   const createAnnotation = useCreateAnnotation();
+  const updateAnnotation = useUpdateAnnotation();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
@@ -99,7 +135,11 @@ export default function useDrawingPointerHandlers() {
 
   const downPosRef = useRef(null);
   const isDraggingRef = useRef(false);
-  const meshBusyRef = useRef(false);
+  // Serialized template-less / face-cut steps (clicks and keys).
+  const queueRef = useRef(Promise.resolve());
+  // Last click that ended the path in progress (commit or cut): the second
+  // click of a double click on it must not start a new path.
+  const lastPathEndRef = useRef(null);
 
   useEffect(() => {
     if (!active) return;
@@ -142,17 +182,69 @@ export default function useDrawingPointerHandlers() {
       });
     }
 
-    function isMeshDraw() {
-      return isMesh3dDraft(newAnnotationRef.current);
+    function isTemplatelessDraw() {
+      return isTemplatelessDraft(newAnnotationRef.current);
+    }
+
+    function isFaceCutDraw() {
+      return isFaceCutDrawingMode(enabledDrawingMode);
+    }
+
+    // One step at a time, in order: a click landing while the previous
+    // commit is still resolving runs after it, on the state it left.
+    function enqueue(task) {
+      queueRef.current = queueRef.current
+        .then(() => {
+          if (!store.getState().threedEditor.drawingMode.active) return;
+          return task();
+        })
+        .catch((err) =>
+          console.error("[threedDrawing] drawing step failed", err)
+        );
+      return queueRef.current;
+    }
+
+    function getLiveDrawing() {
+      const s = store.getState();
+      return {
+        inProgress: s.threedEditor.drawingMode.inProgressPolyline,
+        draft: s.annotations.newAnnotation,
+      };
+    }
+
+    const isSamePoint = (p, q) =>
+      Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) < SAME_POINT_EPS_M;
+
+    // A click step, queued. A click that ended the path in progress is
+    // remembered: the second click of a double click on it is dropped
+    // instead of starting a new path there.
+    function enqueueClick(handler, snap, clickTime) {
+      return enqueue(async () => {
+        const before = getLiveDrawing().inProgress.length;
+        const lastEnd = lastPathEndRef.current;
+        if (
+          before === 0 &&
+          lastEnd &&
+          clickTime - lastEnd.time < DOUBLE_CLICK_MS &&
+          isSamePoint(lastEnd.position, snap.position)
+        ) {
+          lastPathEndRef.current = null;
+          return;
+        }
+        await handler(snap);
+        if (before > 0 && getLiveDrawing().inProgress.length === 0) {
+          const { x, y, z } = snap.position;
+          lastPathEndRef.current = { position: { x, y, z }, time: clickTime };
+        }
+      });
     }
 
     // "Dessin" tool, line type, with a point picked on a scan base map: the
-    // path is not a cut of an annotation mesh — it becomes a templateless
-    // POLYLINE annotation lying on the scan (straight segments between the
-    // picked points).
+    // path becomes a templateless POLYLINE annotation lying on the scan
+    // (straight segments between the picked points).
     function isScanPath(vertices) {
       return (
-        newAnnotationRef.current?.type === "POLYLINE" &&
+        getLiveDrawing().draft?.type === "POLYLINE" &&
         vertices.some((v) => v.snapKind === "SCAN")
       );
     }
@@ -160,16 +252,23 @@ export default function useDrawingPointerHandlers() {
     async function commitScanPath(vertices) {
       if (vertices.length < 2) return false;
       try {
-        const created = await commitDrawnPolylineService({
+        const { annotation: created, reason } = await commitDrawnPolyline({
           verticesInOrder: vertices,
           baseMaps: baseMaps || [],
           projectId,
           scopeId,
-          templateProps: newAnnotationRef.current,
+          templateProps: getLiveDrawing().draft,
           layerId: activeLayerIdRef.current ?? null,
           createAnnotationFn: createAnnotation,
         });
-        if (!created) return false;
+        if (!created) {
+          if (reason === POLYLINE_COMMIT_NO_2D_ENCODING) {
+            dispatch(
+              setToaster({ message: noPlanEncodingS, severity: "warning" })
+            );
+          }
+          return false;
+        }
         console.log(
           `[threedDrawing] scan polyline created: ${created.id} on baseMap ${created.baseMapId}`
         );
@@ -182,40 +281,76 @@ export default function useDrawingPointerHandlers() {
       }
     }
 
-    // Mesh drawing commit of the drawn points, chained with the traits they
-    // connect to: true when the chain split a face or created a sheet (path
-    // and traits are consumed), false to keep drawing.
-    async function commitMeshPath(drawn) {
-      const { vertices, closed, usedTraits } = chainDrawnPath(
-        drawn,
-        trait3DSegments
-      );
-      if (vertices.length < 2) return false;
+    // The drawn shape as a template-less annotation (2D Dessin parity), by
+    // the draft type: a POLYGON (3+ points) encoded on its plan — a flat mesh
+    // sheet only when it has none —, else a POLYLINE (2+ points, closed with
+    // `closed`). True when committed.
+    async function commitTemplateless(points, { closed = false } = {}) {
+      const draft = getLiveDrawing().draft;
+      const common = {
+        baseMaps: baseMaps || [],
+        projectId,
+        scopeId,
+        templateProps: draft,
+        layerId: activeLayerIdRef.current ?? null,
+        createAnnotationFn: createAnnotation,
+      };
+      let created = null;
       try {
-        const result = await commitDrawnMesh3dPathService({
-          editor,
-          vertices,
-          closed,
-          baseMaps: baseMaps || [],
-          projectId,
-          scopeId,
-          draftProps: newAnnotationRef.current,
-          layerId: activeLayerIdRef.current ?? null,
-          createAnnotationFn: createAnnotation,
-          dispatch,
-        });
-        if (!result) return false;
-        console.log(
-          `[threedDrawing] mesh path committed: ${result.kind} ${result.annotation.id}`
-        );
-        // Drops the chained traits AND the in-progress path.
-        dispatch(consumeFaceSegments(usedTraits));
-        setTimeout(() => dispatch(bumpSnapIndexEpoch()), 350);
-        return true;
+        if (draft?.type === "POLYGON") {
+          if (points.length < 3) return false;
+          const { annotation, reason } = await commitDrawnFace({
+            ...common,
+            cornersInOrder: points,
+          });
+          created = annotation;
+          if (!created && reason === FACE_COMMIT_NO_2D_ENCODING) {
+            created = await createFlatMesh3dAnnotationService({
+              editor,
+              vertices: points,
+              baseMaps: common.baseMaps,
+              projectId,
+              scopeId,
+              draftProps: draft,
+              layerId: common.layerId,
+              createAnnotationFn: createAnnotation,
+            });
+          }
+        } else {
+          if (points.length < 2) return false;
+          const { annotation, reason } = await commitDrawnPolyline({
+            ...common,
+            verticesInOrder: points,
+            closeLine: closed,
+          });
+          created = annotation;
+          if (!created && reason === POLYLINE_COMMIT_NO_2D_ENCODING) {
+            dispatch(
+              setToaster({ message: noPlanEncodingS, severity: "warning" })
+            );
+          }
+        }
       } catch (err) {
-        console.error("[threedDrawing] mesh path commit failed", err);
+        console.error("[threedDrawing] template-less commit failed", err);
         return false;
       }
+      if (!created) return false;
+      console.log(
+        `[threedDrawing] template-less ${created.type} created: ${created.id} on baseMap ${created.baseMapId}${created.isMesh3d ? " (mesh sheet)" : ""}`
+      );
+      warnIfOffMainBaseMap(created);
+      finishCommit();
+      return true;
+    }
+
+    // End of a click-drawn template-less path (Enter, double click, Escape,
+    // back on its first point). A POLYGON closes by nature, a POLYLINE only
+    // back on its first point. True when committed.
+    async function endPath(points, { closed = false } = {}) {
+      if (isScanPath(points)) return await commitScanPath(points);
+      const closes = closed || getLiveDrawing().draft?.type === "POLYGON";
+      if (closes && points.length < 3) return false;
+      return await commitTemplateless(points, { closed: closes });
     }
 
     function toDrawingVertex(snap, extra = {}) {
@@ -233,9 +368,11 @@ export default function useDrawingPointerHandlers() {
       };
     }
 
-    async function onMeshClick(snap) {
+    async function onTemplatelessClick(snap) {
+      const { inProgress } = getLiveDrawing();
+
       if (behavior === "RECTANGLE") {
-        if (inProgressPolyline.length === 0) {
+        if (inProgress.length === 0) {
           // The anchor needs a plane: the face under the cursor, else the
           // base map plane it sits on.
           let baseMapId = snap.baseMapId ?? null;
@@ -257,7 +394,7 @@ export default function useDrawingPointerHandlers() {
           );
           return;
         }
-        const anchor = inProgressPolyline[0];
+        const anchor = inProgress[0];
         const host = (baseMaps || []).find((b) => b.id === anchor.baseMapId);
         const corners = anchor.faceNormal
           ? computeRectangleCornersOnPlane(
@@ -277,54 +414,120 @@ export default function useDrawingPointerHandlers() {
           ...(anchor.nodeId ? { nodeId: anchor.nodeId } : {}),
           ...(anchor.baseMapId ? { baseMapId: anchor.baseMapId } : {}),
         }));
-        const committed = await commitMeshPath([...vertices, vertices[0]]);
-        if (!committed) {
-          console.warn("[threedDrawing] rectangle split nothing: cancelled");
+        if (!(await commitTemplateless(vertices, { closed: true }))) {
+          console.warn(
+            "[threedDrawing] rectangle committed nothing: cancelled"
+          );
           dispatch(cancelInProgressPolyline());
         }
         return;
       }
 
       const newVertex = toDrawingVertex(snap);
-      const isSame = (p, q) =>
-        Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) < SAME_POINT_EPS_M;
-      const last = inProgressPolyline[inProgressPolyline.length - 1];
-      if (last && isSame(last, newVertex)) return; // double click
+      const last = inProgress[inProgress.length - 1];
+      if (last && isSamePoint(last, newVertex)) {
+        // Double click: ends a click-drawn path.
+        if (behavior !== "SEGMENT" && inProgress.length >= 2) {
+          await endPath(inProgress);
+        }
+        return;
+      }
 
-      if (inProgressPolyline.length === 0) {
+      if (inProgress.length === 0) {
         dispatch(pushDrawingVertex(newVertex));
         return;
       }
 
+      const drawn = [...inProgress, newVertex];
       // Line on a scan base map: "Segment (2 clics)" commits on the second
       // click, "Polyligne clic" keeps adding points until Enter.
-      if (isScanPath([...inProgressPolyline, newVertex])) {
+      if (isScanPath(drawn)) {
         if (behavior === "SEGMENT") {
-          await commitScanPath([...inProgressPolyline, newVertex]);
+          await commitScanPath(drawn);
         } else {
           dispatch(pushDrawingVertex(newVertex));
         }
         return;
       }
 
-      // A click back on the first point closes the contour (chainDrawnPath
-      // reads the repeated point as the closure).
-      const closes =
-        inProgressPolyline.length >= 3 &&
-        isSame(inProgressPolyline[0], newVertex);
-      const committed = await commitMeshPath([
-        ...inProgressPolyline,
-        newVertex,
-      ]);
-      if (committed) return;
-      // A closed contour that commits nothing stays as drawn (Escape
-      // discards it).
-      if (closes) return;
+      // Back on the first point: the contour is closed. One that commits
+      // nothing stays as drawn (Escape discards it).
+      if (inProgress.length >= 3 && isSamePoint(inProgress[0], newVertex)) {
+        await endPath(inProgress, { closed: true });
+        return;
+      }
 
+      // "Segment (2 clics)": the segment ends here.
+      if (behavior === "SEGMENT") {
+        if (!(await commitTemplateless(drawn))) {
+          dispatch(cancelInProgressPolyline());
+        }
+        return;
+      }
       dispatch(pushDrawingVertex(newVertex));
-      // "Segment (2 clics)": the segment ends here. It cut nothing yet — keep
-      // it as a trait, the next segments chain with it.
-      if (behavior === "SEGMENT") dispatch(flushInProgressAsTrait3D());
+    }
+
+    // "Coupe face": cut of the face the path lies on, whatever the outcome
+    // the path is consumed and the tool stays armed.
+    async function cutFace(points, { closed = false } = {}) {
+      try {
+        const result = await cutFaceAlongPathService({
+          editor,
+          vertices: points,
+          closed,
+          projectId,
+          dispatch,
+          createAnnotationFn: createAnnotation,
+          updateAnnotationFn: updateAnnotation,
+        });
+        console.log(
+          `[threedDrawing] face cut: ${result.kind}${result.annotationId ? ` ${result.annotationId}` : ""}`
+        );
+        if (result.kind === "NONE") {
+          const message =
+            noFaceCutByReasonS[result.reason] ??
+            noFaceCutByReasonS.NOT_EDGE_TO_EDGE;
+          dispatch(setToaster({ message, severity: "warning" }));
+        } else if (result.kind === "FAILED") {
+          dispatch(setToaster({ message: faceCutFailedS, severity: "error" }));
+        }
+      } catch (err) {
+        console.error("[threedDrawing] face cut failed", err);
+        dispatch(
+          setToaster({
+            message: err?.message || faceCutFailedS,
+            severity: "error",
+          })
+        );
+      }
+      finishCommit();
+    }
+
+    async function onFaceCutClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      const newVertex = toDrawingVertex(snap);
+      const last = inProgress[inProgress.length - 1];
+      if (last && isSamePoint(last, newVertex)) {
+        // Double click: ends the polyline there.
+        if (behavior !== "SEGMENT" && inProgress.length >= 2) {
+          await cutFace(inProgress);
+        }
+        return;
+      }
+      if (inProgress.length === 0) {
+        dispatch(pushDrawingVertex(newVertex));
+        return;
+      }
+      if (behavior === "SEGMENT") {
+        await cutFace([...inProgress, newVertex]);
+        return;
+      }
+      // Back on the first point: a loop, cut out of the face.
+      if (inProgress.length >= 3 && isSamePoint(inProgress[0], newVertex)) {
+        await cutFace(inProgress, { closed: true });
+        return;
+      }
+      dispatch(pushDrawingVertex(newVertex));
     }
 
     function warnIfOffMainBaseMap(created) {
@@ -405,6 +608,7 @@ export default function useDrawingPointerHandlers() {
       isDraggingRef.current = false;
       if (wasDrag) return;
 
+      const clickTime = performance.now();
       const snap = getLastSnap();
       // One decision line per click so a "nothing happened" report pinpoints
       // the exit taken (temporary diagnostics while the feature stabilizes).
@@ -423,16 +627,12 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
-      if (isMeshDraw()) {
-        // One commit attempt at a time: a click landing while the previous
-        // one is still resolving would replay the same path.
-        if (meshBusyRef.current) return;
-        meshBusyRef.current = true;
-        try {
-          await onMeshClick(snap);
-        } finally {
-          meshBusyRef.current = false;
-        }
+      if (isFaceCutDraw()) {
+        await enqueueClick(onFaceCutClick, snap, clickTime);
+        return;
+      }
+      if (isTemplatelessDraw()) {
+        await enqueueClick(onTemplatelessClick, snap, clickTime);
         return;
       }
 
@@ -575,30 +775,51 @@ export default function useDrawingPointerHandlers() {
 
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
-      if (isMeshDraw()) {
+      if (isFaceCutDraw()) {
         if (e.key === "Enter") {
-          if (behavior === "RECTANGLE" || inProgressPolyline.length < 2) return;
-          // Line on a scan base map: Enter ends the polyline there.
-          if (isScanPath(inProgressPolyline)) {
-            await commitScanPath(inProgressPolyline);
-            return;
-          }
-          // Enter closes the contour (like a click back on the first point)…
-          const committed =
-            inProgressPolyline.length >= 3 &&
-            (await commitMeshPath([
-              ...inProgressPolyline,
-              inProgressPolyline[0],
-            ]));
-          // …else ends the path there: kept as traits, to be chained.
-          if (!committed) dispatch(flushInProgressAsTrait3D());
+          if (behavior === "SEGMENT") return;
+          await enqueue(async () => {
+            const { inProgress } = getLiveDrawing();
+            if (inProgress.length >= 2) await cutFace(inProgress);
+          });
         } else if (e.key === "Escape") {
+          // A cut is never made on Escape: the path is dropped, then the
+          // tool is left.
           if (inProgressPolyline.length > 0) {
             dispatch(cancelInProgressPolyline());
           } else {
             dispatch(setEnabledDrawingMode(null));
             dispatch(setNewAnnotation({}));
           }
+        }
+        return;
+      }
+      if (isTemplatelessDraw()) {
+        if (e.key === "Enter") {
+          if (behavior === "RECTANGLE") return;
+          await enqueue(async () => {
+            const { inProgress } = getLiveDrawing();
+            if (inProgress.length >= 2) await endPath(inProgress);
+          });
+        } else if (e.key === "Escape") {
+          if (inProgressPolyline.length === 0) {
+            dispatch(setEnabledDrawingMode(null));
+            dispatch(setNewAnnotation({}));
+            return;
+          }
+          // 2D parity: Escape mid-drawing ends a click-drawn path like Enter;
+          // a segment / rectangle in progress, or a path that commits
+          // nothing, is discarded.
+          await enqueue(async () => {
+            const { inProgress } = getLiveDrawing();
+            if (!inProgress.length) return;
+            const committed =
+              behavior !== "SEGMENT" &&
+              behavior !== "RECTANGLE" &&
+              inProgress.length >= 2 &&
+              (await endPath(inProgress));
+            if (!committed) dispatch(cancelInProgressPolyline());
+          });
         }
         return;
       }

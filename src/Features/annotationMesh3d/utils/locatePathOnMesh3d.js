@@ -11,10 +11,11 @@ import { getDistanceToFacePlane, getFaceNormal } from "./mesh3dTopology.js";
 // inside — a path running along an edge belongs to no face in particular.
 //
 // points: [{x, y, z}] local meters. closed: also test the closing segment.
+// faceIndices: the only faces that may carry the path (null: any face).
 export default function locatePathOnMesh3d(
   mesh,
   points,
-  { closed = false } = {}
+  { closed = false, faceIndices = null } = {}
 ) {
   if (!mesh?.faces?.length || !points?.length) return -1;
   const { vertices, faces } = mesh;
@@ -31,8 +32,11 @@ export default function locatePathOnMesh3d(
     });
   }
 
-  for (let faceIndex = 0; faceIndex < faces.length; faceIndex++) {
+  const candidates =
+    faceIndices ?? Array.from({ length: faces.length }, (_, i) => i);
+  for (const faceIndex of candidates) {
     const face = faces[faceIndex];
+    if (!face) continue;
     const normal = getFaceNormal(vertices, face);
     if (
       probes.some(

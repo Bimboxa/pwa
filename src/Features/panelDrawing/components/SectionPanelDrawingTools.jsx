@@ -8,20 +8,18 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import RowPanelDrawingTool from "./RowPanelDrawingTool";
 import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
-import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
+import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingTools — collapsible "OUTILS DE DESSIN" section listing
 // the shortcut tools (Dessin D, Ouverture O, Retirer un segment X, Couper un
-// segment C). `templatelessOnly` (3D editor) keeps the "Dessin" row alone —
-// the other tools are 2D drawing modes.
+// segment C, Joindre J). In the 3D editor (`isThreedEditor`): the "Dessin" row
+// and the 3D tools (Coupe face C) only — the others are 2D drawing modes.
 // ---------------------------------------------------------------------------
-
-const SHORTCUT_TOOLS = TOOL_ITEMS.filter((t) => t.shortcut);
 
 export default function SectionPanelDrawingTools({
   templatelessCount,
-  templatelessOnly = false,
+  isThreedEditor = false,
 }) {
   const dispatch = useDispatch();
 
@@ -35,9 +33,9 @@ export default function SectionPanelDrawingTools({
 
   // helpers
 
-  const tools = templatelessOnly
-    ? SHORTCUT_TOOLS.filter((t) => t.isTemplatelessDraw)
-    : SHORTCUT_TOOLS;
+  const tools = getToolItemsForEditor({ isThreedEditor }).filter(
+    (t) => t.shortcut && (!isThreedEditor || t.isTemplatelessDraw || t.editor)
+  );
 
   // render
 

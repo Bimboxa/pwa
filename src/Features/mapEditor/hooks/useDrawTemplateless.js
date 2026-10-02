@@ -8,7 +8,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import startTemplatelessDraw, {
-  MESH3D_DRAWING_SHAPES,
+  THREED_DRAWING_SHAPES,
 } from "Features/mapEditor/utils/startTemplatelessDraw";
 import {
   DEFAULT_TEMPLATELESS_DRAWING_SHAPE,
@@ -33,17 +33,17 @@ export default function useDrawTemplateless() {
     (s) => s.annotations.soloAnnotationTemplateId
   );
   const hiddenIds = useSelector(selectHiddenAnnotationTemplateIds);
-  // 3D editor: the tool draws lines on the faces of the annotation meshes.
+  // 3D editor: the tool draws in the 3D scene (on the plans and the faces).
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
 
   // helpers
 
-  // 3D editor: lines and surfaces only (drawn on the mesh faces).
+  // 3D editor: lines and surfaces only.
   const shapes = isThreedEditor
     ? TEMPLATELESS_DRAWING_SHAPES.filter((shape) =>
-        MESH3D_DRAWING_SHAPES.includes(shape.key)
+        THREED_DRAWING_SHAPES.includes(shape.key)
       )
     : TEMPLATELESS_DRAWING_SHAPES;
   const activeShape =
@@ -57,13 +57,13 @@ export default function useDrawTemplateless() {
 
   const startDraw = () => {
     startTemplatelessDraw(dispatch, store.getState(), activeShape?.key, {
-      mesh3d: isThreedEditor,
+      threed: isThreedEditor,
     });
   };
 
   const selectShapeAndDraw = (shape) => {
     startTemplatelessDraw(dispatch, store.getState(), shape.key, {
-      mesh3d: isThreedEditor,
+      threed: isThreedEditor,
     });
   };
 

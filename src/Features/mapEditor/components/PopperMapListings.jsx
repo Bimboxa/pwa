@@ -106,7 +106,7 @@ import {
   setAnnotationTemplatesHidden,
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
-import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
+import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
 import {
   isTemplatelessAnnotationInScope,
@@ -1852,6 +1852,11 @@ export default function PopperMapListings() {
   // annotation filters must be mirrored exactly like in the 3D module —
   // isThreedViewer stays module-key based on purpose (Dessin-3D DRAW mode).
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
+  // Displayed editor (the Dessin module toggled to 3D): picks the drawing
+  // tools offered (Coupe face in 3D, the plan cut / join tools in 2D).
+  const isThreedEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
@@ -2741,7 +2746,7 @@ export default function PopperMapListings() {
                       </Typography>
                     </Box>
                     <List dense disablePadding>
-                      {TOOL_ITEMS.map((tool) =>
+                      {getToolItemsForEditor({ isThreedEditor }).map((tool) =>
                         tool.isTemplatelessDraw ? (
                           // templateless annotations belong to a scope, not
                           // to the ZONES / business-objects flows

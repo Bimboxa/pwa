@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 
 import { useSelector } from "react-redux";
-import { DoubleSide, Group, Mesh, MeshBasicMaterial } from "three";
+import { Group } from "three";
 
 import {
   selectSelectedItem,
   selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 
+import { buildFaceStippleOverlay } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import {
   MESH3D_EDGE_SELECTED_WIDTH_PX,
+  MESH3D_FACE_SELECTED_STIPPLE,
   MESH3D_PART_SELECTED_COLOR,
 } from "../constants/mesh3dPartColors";
 import {
@@ -32,12 +34,17 @@ function disposeObject(object) {
 }
 
 // Highlights the selected faces / edges of a mesh annotation in the 3D scene,
-// in the "selected part" color of the 2D editor: a translucent skin over each
-// selected face, a thick line over each selected edge. Both are depth-tested,
-// so the surrounding geometry hides them like the mesh itself. Built in world
+// in the "selected part" color of the 2D editor: fluo-green dots over each
+// selected face (the face keeps its own color), a thick line over each
+// selected edge. Both are depth-tested, so the surrounding geometry hides
+// them like the mesh itself. Rebuilt when the selection changes or the
+// annotation object is rebuilt.
+//
+// The dots are a child of the face mesh (local coordinates): they follow the
+// clipping plane, the visibility and the moves of the annotation, and an
+// annotation rebuild disposes them with it. The edge lines are built in world
 // coordinates and added to the scene (like the vertex / edge sub-selection
-// helper), rebuilt when the selection changes or the annotation object is
-// rebuilt.
+// helper).
 //
 // The helpers are invisible to raycasts and to the snap index
 // (userData.isHoverOverlay).
@@ -80,30 +87,25 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
       else selectedEdges.add(token.slice(1));
     }
 
+    const faceMeshes = [];
+    annoObject.traverse((child) => {
+      if (child.isMesh && selectedFaces.has(child.userData?.mesh3dFaceIndex))
+        faceMeshes.push(child);
+    });
+    const faceOverlays = [];
+    for (const faceMesh of faceMeshes) {
+      const overlay = buildFaceStippleOverlay(
+        faceMesh,
+        null,
+        MESH3D_FACE_SELECTED_STIPPLE
+      );
+      if (!overlay) continue;
+      faceMesh.add(overlay);
+      faceOverlays.push(overlay);
+    }
+
     const group = new Group();
     group.name = "Mesh3dPartsHighlight";
-
-    annoObject.traverse((child) => {
-      if (!child.isMesh || !selectedFaces.has(child.userData?.mesh3dFaceIndex))
-        return;
-      child.updateWorldMatrix(true, false);
-      const overlay = new Mesh(
-        child.geometry.clone().applyMatrix4(child.matrixWorld),
-        new MeshBasicMaterial({
-          color: MESH3D_PART_SELECTED_COLOR,
-          transparent: true,
-          opacity: 0.45,
-          side: DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: -4,
-          polygonOffsetUnits: -4,
-        })
-      );
-      overlay.renderOrder = 998;
-      overlay.raycast = () => {};
-      overlay.userData.isHoverOverlay = true;
-      group.add(overlay);
-    });
 
     const positions = [];
     for (const edge of getMesh3dEdgesWorld(annoObject)) {
@@ -131,6 +133,7 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
     scene.add(group);
     sceneManager.renderScene?.();
     return () => {
+      faceOverlays.forEach(disposeObject);
       disposeObject(group);
       sceneManager.renderScene?.();
     };

@@ -9,7 +9,8 @@
 // selectedPartIds for a multi selection).
 //
 // Indices address the stored mesh AS IT IS: every mesh write renumbers faces
-// and vertices, so the part selection is cleared after each edit.
+// and vertices, so the part selection is cleared after each edit (a line
+// drawn on a selected face re-selects one of the pieces it split it into).
 
 export const MESH3D_FACE_PART = "MESH3D_FACE";
 export const MESH3D_EDGE_PART = "MESH3D_EDGE";
@@ -59,4 +60,19 @@ export function getSelectedMesh3dParts(selectedItem, selectedPartIds) {
   return ids
     .map(parseMesh3dPartId)
     .filter((part) => part && part.annotationId === selectedItem.nodeId);
+}
+
+// True when face `faceIndex` of annotation `annotationId` is a selected part.
+export function isMesh3dFaceSelected(
+  selectedItem,
+  selectedPartIds,
+  annotationId,
+  faceIndex
+) {
+  return getSelectedMesh3dParts(selectedItem, selectedPartIds).some(
+    (part) =>
+      part.partType === MESH3D_FACE_PART &&
+      part.annotationId === annotationId &&
+      part.faceIndex === faceIndex
+  );
 }

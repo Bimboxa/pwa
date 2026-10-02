@@ -33,6 +33,11 @@ export const NON_TEMPLATE_KEYS = new Set([
   "createdAt",
   "updatedAt",
   "deletedAt",
+  // A mesh annotation's geometry never rides a draft: a face drawn in 3D is
+  // a regular annotation (mesh sheets set their own mesh fields).
+  "isMesh3d",
+  "mesh3d",
+  "mesh3dSource",
 ]);
 
 // Pure merge of the annotation style fields for a face drawn in 3D:

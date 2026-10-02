@@ -5,6 +5,7 @@ import createAnnotationService from "Features/annotations/services/createAnnotat
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
 import buildVerticalBandPoints from "../utils/buildVerticalBandPoints";
 import classifyFaceVsBaseMap from "../utils/classifyFaceVsBaseMap";
+import isVerticalBandExact from "../utils/isVerticalBandExact";
 import pickHostBaseMap from "../utils/pickHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
@@ -31,14 +32,21 @@ function dedupeAdjacent(points, eps = POINT_DEDUPE_EPS) {
   return out;
 }
 
+// Reason of a face commit that found no plan encoding for the face (see
+// commitDrawnFace): the caller may fall back to a mesh sheet.
+export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
+
 // Orchestrator: 3D coplanar face → host baseMap → 2D annotation.
 //
 // Inputs:
 //   - cornersInOrder: ordered 3D vertices of the face (length >= 3)
 //   - baseMaps: array of resolved BaseMap instances to choose host from
 //   - projectId, listingId: ownership for the new annotation/points
-//   - templateProps: the template-armed newAnnotation — required, since the
-//     only entry point is the template row click in PopperMapListings
+//   - templateProps: the armed newAnnotation — a template draft (template
+//     row click in PopperMapListings), or the template-less draft of the
+//     "Dessin" tool (`isTemplateless` without annotationTemplateId): the
+//     annotation then belongs to the base map + `scopeId` only, no template
+//     nor listing, like a template-less annotation drawn in 2D
 //   - layerId: layer carried by the created annotation
 //   - createAnnotationFn: useCreateAnnotation's fn — routes the commit
 //     through mapping-category rels + update triggers; falls back to the
@@ -46,26 +54,38 @@ function dedupeAdjacent(points, eps = POINT_DEDUPE_EPS) {
 //
 // Returns the created annotation record, or null on failure (no template, no
 // host baseMap, degenerate geometry, etc.).
-export default async function commitDrawnFaceService({
+export default async function commitDrawnFaceService(args) {
+  return (await commitDrawnFace(args)).annotation;
+}
+
+// Same commit, with the reason of a failure: { annotation } or
+// { annotation: null, reason }. reason FACE_COMMIT_NO_2D_ENCODING: the face
+// has no plan encoding — a template-less vertical face the band cannot
+// reproduce (an L, a U...: isVerticalBandExact).
+export async function commitDrawnFace({
   cornersInOrder,
   baseMaps,
   projectId,
   listingId,
+  scopeId = null,
   templateProps,
   layerId = null,
   createAnnotationFn = null,
 }) {
-  // Aborted commits are silent for the caller (null return) — say why in the
-  // console so a "nothing happened" report is diagnosable.
-  const abort = (reason) => {
-    console.warn(`[threedDrawing] face commit aborted: ${reason}`);
-    return null;
+  // Aborted commits are silent for the caller (null annotation) — say why in
+  // the console so a "nothing happened" report is diagnosable.
+  const abort = (message, reason = "ABORTED") => {
+    console.warn(`[threedDrawing] face commit aborted: ${message}`);
+    return { annotation: null, reason };
   };
 
   if (!cornersInOrder?.length || cornersInOrder.length < 3)
     return abort(`needs 3+ corners (got ${cornersInOrder?.length ?? 0})`);
   if (!baseMaps?.length) return abort("no base maps available");
-  if (!templateProps?.annotationTemplateId)
+  const isTemplateless =
+    Boolean(templateProps?.isTemplateless) &&
+    !templateProps?.annotationTemplateId;
+  if (!isTemplateless && !templateProps?.annotationTemplateId)
     return abort("no armed template (annotationTemplateId missing)");
 
   // Host resolution: a unanimous baseMapId carried by the drawn vertices
@@ -126,6 +146,13 @@ export default async function commitDrawnFaceService({
       // and drew the full bounding rectangle).
       const band = buildVerticalBandPoints(classification.projected);
       if (!band) return abort("degenerate PERPENDICULAR band");
+      // A template-less face has a fallback (a mesh sheet): never commit a
+      // band that would fill another shape.
+      if (isTemplateless && !isVerticalBandExact(classification.projected))
+        return abort(
+          "vertical face not encodable as a band",
+          FACE_COMMIT_NO_2D_ENCODING
+        );
       projectedPoints = band.points;
       annotationFields = buildFaceAnnotationFields({
         classifiedShape: "POLYLINE",
@@ -177,15 +204,19 @@ export default async function commitDrawnFaceService({
     projectedPoints,
     baseMap: host,
     projectId,
-    listingId,
+    listingId: isTemplateless ? undefined : listingId,
   });
 
   const annotation = {
     id: nanoid(),
     projectId,
-    listingId,
+    ...(isTemplateless
+      ? { scopeId: scopeId ?? null, listingId: null }
+      : {
+          listingId,
+          annotationTemplateId: templateProps.annotationTemplateId,
+        }),
     baseMapId: host.id,
-    annotationTemplateId: templateProps.annotationTemplateId,
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),
@@ -194,5 +225,5 @@ export default async function commitDrawnFaceService({
   };
 
   const create = createAnnotationFn ?? createAnnotationService;
-  return await create(annotation);
+  return { annotation: await create(annotation) };
 }

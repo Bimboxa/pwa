@@ -228,6 +228,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
     // hotkeys — start wall-ends join (J = Joindre) when not drawing
     useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
+    // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
+    // drawing (this editor stays mounted under the 3D one)
+    useToolGroupHotkey("c", "FACE_CUT", { threed: true });
     // hotkeys — start a templateless draw (D = Dessin) when not drawing
     useTemplatelessDrawHotkey();
 

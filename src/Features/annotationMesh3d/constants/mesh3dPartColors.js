@@ -19,3 +19,17 @@ export const MESH3D_PART_HOVER_COLOR = "#76ff03";
 // Screen-space widths (px) of the edge lines.
 export const MESH3D_EDGE_SELECTED_WIDTH_PX = 5;
 export const MESH3D_EDGE_HOVER_WIDTH_PX = 3;
+
+// Selected face: the hover stipple (faceHoverHighlight) in the selected
+// color, without the wash between the dots — the face keeps its own color.
+// The grid is shifted by half a cell so a blue hover stipple on the same face
+// (push/pull, meshing) interleaves with it; not tone mapped (the realistic
+// modes' ACES would dull the fluo green); drawn under the hover stipple.
+export const MESH3D_FACE_SELECTED_STIPPLE = {
+  color: MESH3D_PART_SELECTED_COLOR,
+  baseAlpha: 0,
+  dotAlpha: 0.85,
+  gridOffsetPx: 3,
+  toneMapped: false,
+  renderOrder: 997,
+};
