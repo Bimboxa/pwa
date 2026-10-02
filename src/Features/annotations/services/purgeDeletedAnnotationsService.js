@@ -13,6 +13,8 @@ import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/temp
 //   2. Orphan points — point rows no *live* annotation references. Points are
 //      never deleted when a POLYLINE/POLYGON is redrawn or removed, so they
 //      pile up as live-but-unreferenced rows.
+//   3. Painted mesh parts (« Pinceau » 3D, db.meshPaints) of the scope that
+//      are tombstones, or whose host is purged here.
 //
 // SCOPE: restricted to the CURRENT scope. Annotations/points have no scopeId,
 // so — like createKrtoZip — the scope's listings are those with
@@ -55,9 +57,10 @@ export default async function purgeDeletedAnnotationsService({
       .map((l) => l.id)
   );
 
-  const [allAnnotations, allPoints] = await Promise.all([
+  const [allAnnotations, allPoints, allMeshPaints] = await Promise.all([
     db.annotations.where("projectId").equals(projectId).toArray(),
     db.points.where("projectId").equals(projectId).toArray(),
+    db.meshPaints.where("projectId").equals(projectId).toArray(),
   ]);
 
   // Referenced set = every live annotation of the WHOLE project (all scopes),
@@ -99,6 +102,21 @@ export default async function purgeDeletedAnnotationsService({
     .filter((p) => isInScope(p) && !referencedPointIds.has(p.id))
     .map((p) => p.id);
 
+  // Painted mesh parts of the scope (own scopeId, or the painting
+  // template's listing): tombstones, and paints whose host is purged right
+  // now. A live paint whose host is merely ABSENT locally is kept: the host
+  // may belong to a linked listing whose source scope is not loaded on this
+  // device (the row cannot tell), and resolveMeshPaints already drops paints
+  // of a host that is really gone.
+  const purgedAnnotationIdSet = new Set(deletedAnnotationIds);
+  const meshPaintIdsToPurge = allMeshPaints
+    .filter(
+      (r) =>
+        (r.scopeId === scopeId || scopeListingIds.has(r.listingId)) &&
+        (r.deletedAt || purgedAnnotationIdSet.has(r.hostAnnotationId))
+    )
+    .map((r) => r.id);
+
   // HEAL: points still referenced by a live annotation but carrying a
   // soft-delete tombstone (e.g. their annotation was deleted then restored
   // from a snapshot that didn't contain the point rows). The read path
@@ -125,6 +143,8 @@ export default async function purgeDeletedAnnotationsService({
           await db.annotations.bulkDelete(deletedAnnotationIds);
         if (orphanPointIds.length > 0)
           await db.points.bulkDelete(orphanPointIds);
+        if (meshPaintIdsToPurge.length > 0)
+          await db.meshPaints.bulkDelete(meshPaintIdsToPurge);
       });
     })
   );
@@ -133,5 +153,6 @@ export default async function purgeDeletedAnnotationsService({
     purgedAnnotations: deletedAnnotationIds.length,
     purgedPoints: orphanPointIds.length,
     healedPoints: healPointIds.length,
+    purgedMeshPaints: meshPaintIdsToPurge.length,
   };
 }

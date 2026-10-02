@@ -11,6 +11,8 @@ const columnsDef = [
   { key: "unit", label: "Unité", width: 10 },
   { key: "length", label: "Longueur", width: 15 },
   { key: "surface", label: "Surface", width: 15 },
+  // « Pinceau » 3D: painted faces / edges counted in length / surface
+  { key: "paintedCount", label: "Parties peintes", width: 15 },
 ];
 
 function addSheet(workbook, sheetName, rows) {
@@ -23,6 +25,7 @@ function addSheet(workbook, sheetName, rows) {
     unit: row.unit,
     length: row.length,
     surface: row.surface,
+    paintedCount: row.paintedCount ?? 0,
   }));
 
   const sheet = workbook.addWorksheet(sheetName);
@@ -54,10 +57,11 @@ function addSheet(workbook, sheetName, rows) {
 export default function createSheetAnnotationsAggregated(
   workbook,
   annotations,
-  { templateRankById } = {}
+  { templateRankById, paintedParts } = {}
 ) {
   const globalRows = getAggregatedAnnotationRows({
     annotations,
+    paintedParts,
     splitByContext: false,
     templateRankById,
   });
@@ -65,6 +69,7 @@ export default function createSheetAnnotationsAggregated(
 
   const splitRows = getAggregatedAnnotationRows({
     annotations,
+    paintedParts,
     splitByContext: true,
     templateRankById,
   });

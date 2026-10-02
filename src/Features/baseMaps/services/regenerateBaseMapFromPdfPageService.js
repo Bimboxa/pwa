@@ -24,6 +24,9 @@ import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationP
 import { mapMesh3dSourcePoints } from "Features/annotationMesh3d/utils/mesh3dSource";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
+import { attachMeshPaintPointsUpdatedAt } from "Features/meshPaint/services/copyMeshPaintsService";
+import mapPaintGeometryXY from "Features/meshPaint/utils/mapPaintGeometryXY";
+import { isMeshPaintStale } from "Features/meshPaint/utils/resolveMeshPaints";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -464,6 +467,45 @@ export default async function regenerateBaseMapFromPdfPageService({
     };
   });
 
+  // painted mesh parts (« Pinceau » 3D): stored points [nx, ny, z] are
+  // normalized like db.points. The frame change is a translation + a uniform
+  // scale compensated by meterByPx, so z, FACE normals and EDGE sides are
+  // invariant. Tombstones included (like points).
+  const meshPaints = await db.meshPaints
+    .where("baseMapId")
+    .equals(baseMapId)
+    .toArray();
+  const paintedHostIds = new Set(meshPaints.map((r) => r.hostAnnotationId));
+  const hostById = new Map(
+    (
+      await attachMeshPaintPointsUpdatedAt(
+        annotations.filter((a) => paintedHostIds.has(a.id))
+      )
+    ).map((a) => [a.id, a])
+  );
+  const buildMeshPaintsToPut = (syncedAt) =>
+    meshPaints.map((row) => {
+      // A paint in sync with its host stays in sync (its host rows are
+      // re-stamped by this write); a stale one stays « à vérifier ».
+      const keepInSync =
+        !row.deletedAt &&
+        row.sync &&
+        !isMeshPaintStale(row, hostById.get(row.hostAnnotationId));
+      return {
+        ...row,
+        geometry: mapPaintGeometryXY(row.partType, row.geometry, N),
+        ...(row.sync
+          ? {
+              sync: {
+                ...row.sync,
+                geomHash: null,
+                ...(keepInSync ? { syncedAt } : {}),
+              },
+            }
+          : {}),
+      };
+    });
+
   // 3D placement: the image plane centre moves with the crop centre
   const baseMapChanges = {
     refWidth: newSize.width,
@@ -521,6 +563,7 @@ export default async function regenerateBaseMapFromPdfPageService({
           db.photoPlans,
           db.povs,
           db.portfolioBaseMapContainers,
+          db.meshPaints,
         ],
         async () => {
           await db.files.put(newFileRecord);
@@ -546,6 +589,13 @@ export default async function regenerateBaseMapFromPdfPageService({
           if (povUpdates.length > 0) await db.povs.bulkUpdate(povUpdates);
           if (containerUpdates.length > 0) {
             await db.portfolioBaseMapContainers.bulkUpdate(containerUpdates);
+          }
+          if (meshPaints.length > 0) {
+            // After the host writes: their new updatedAt must not flag the
+            // paints that were in sync.
+            await db.meshPaints.bulkPut(
+              buildMeshPaintsToPut(new Date().toISOString())
+            );
           }
         }
       )
@@ -573,6 +623,7 @@ export default async function regenerateBaseMapFromPdfPageService({
       photoPlans: photoPlanUpdates.length,
       povs: povUpdates.length,
       containers: containerUpdates.length,
+      meshPaints: meshPaints.length,
     },
   };
 }

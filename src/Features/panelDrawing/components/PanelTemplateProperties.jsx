@@ -20,13 +20,17 @@ import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnn
 // (#311): opened by clicking a template row. Breadcrumb (Annotations /
 // <template>), header with the template identity + "..." actions, an
 // "N annotations · voir la liste" card navigating to the annotations
-// subview, and the existing template form (Principal / Avancé tabs,
+// subview (which also lists the parts painted in 3D, counted on the card),
+// and the existing template form (Principal / Avancé tabs,
 // FormAnnotationTemplateVariantBlock).
 // ---------------------------------------------------------------------------
 
 export default function PanelTemplateProperties({
   template,
   annotationsCount,
+  // « Pinceau » 3D: parts painted with this template (listed in the
+  // annotations subview).
+  paintedPartsCount = 0,
 }) {
   const dispatch = useDispatch();
 
@@ -35,6 +39,9 @@ export default function PanelTemplateProperties({
   const breadcrumbRootS = "Annotations";
   const subtitleS = "Modèle d'annotation";
   const seeListS = "voir la liste";
+  const paintedPartsS = `+ ${paintedPartsCount} partie${
+    paintedPartsCount > 1 ? "s" : ""
+  } peinte${paintedPartsCount > 1 ? "s" : ""}`;
   const hintS =
     `Les propriétés du modèle s'appliquent aux ${annotationsCount} ` +
     "annotations de ce type. Les cadenas verrouillent une valeur pour " +
@@ -179,9 +186,19 @@ export default function PanelTemplateProperties({
             "&:hover": { bgcolor: "action.hover" },
           }}
         >
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {`${annotationsCount} annotation${annotationsCount > 1 ? "s" : ""}`}
-          </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+              {`${annotationsCount} annotation${annotationsCount > 1 ? "s" : ""}`}
+            </Typography>
+            {paintedPartsCount > 0 && (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {paintedPartsS}
+              </Typography>
+            )}
+          </Box>
           <Box
             sx={{
               display: "flex",

@@ -63,6 +63,8 @@ export default function intersectAnnotationFace(editor, ndc, camera) {
   scene.traverse((obj) => {
     if (!obj.isMesh || obj.isLine2 || obj.isLineSegments2) return;
     if (obj.userData?.isBasemap || obj.userData?.isHoverOverlay) return;
+    // Painted parts (Pinceau): skins over their host's faces, never a target.
+    if (obj.userData?.isPaintOverlay) return;
     targets.push(obj);
   });
   if (!targets.length) return null;

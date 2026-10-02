@@ -36,6 +36,18 @@ export default class AnnotationsManager {
     // runs thanks to stabilizeAnnotationsIdentity), epochKey (build options),
     // baseMapKey (registry metrics the geometry was projected with) }.
     this._buildStateById = new Map();
+    // Annotations whose async CSG carve (subtractions / glued openings) is
+    // still running: id -> token of the build that started it. Their object
+    // is notified "ready" twice — uncarved right away, carved later — and
+    // geometry readers (painted parts re-sync, un-shrink wait) must wait
+    // for the second one.
+    this._carveTokens = new Map();
+  }
+
+  // True while the object of `id` still awaits its CSG carve (see
+  // _carveTokens): its displayed geometry is not the final one yet.
+  isCarvePending(id) {
+    return this._carveTokens.has(id);
   }
 
   // Live sync of the "Wireframe" 3D view settings (see PanelThreedProperties):
@@ -298,7 +310,20 @@ export default class AnnotationsManager {
         ...(annotation.subtractionTargets || []),
         ...openingSolids,
       ];
+      // A carve started by a previous build of this id no longer stands
+      // for the object built here.
+      this._carveTokens.delete(annotation.id);
       if (subtractionTargets.length > 0) {
+        const carveToken = {};
+        this._carveTokens.set(annotation.id, carveToken);
+        // Ends the pending state of THIS build's carve (false when a newer
+        // build or a removal took the id over meanwhile).
+        const endCarve = () => {
+          if (this._carveTokens.get(annotation.id) !== carveToken) return false;
+          this._carveTokens.delete(annotation.id);
+          return true;
+        };
+        let carveNotified = false;
         (async () => {
           try {
             // Each target keeps its own basemap metrics: reusing the source's
@@ -325,13 +350,20 @@ export default class AnnotationsManager {
               }
             );
 
+            // The operands take the host's shrink state: an un-shrunk host
+            // (painted / converted, `_noAntiAliasingShrink`) carved by
+            // shrunk operands would no longer be pierced by the openings of
+            // a thin wall (operand half-width 0.6·W − 10 mm < 0.5·W).
+            const operandOptions = annotation._noAntiAliasingShrink
+              ? { ...options, antiAliasingShrink: false }
+              : options;
             const targetObjects = (
               await Promise.all(
                 targetsWithBaseMap.map(async (t) => {
                   const objects = await buildAnnotationSolidObjectsAsync(
                     t.annotation,
                     t.forRender,
-                    options
+                    operandOptions
                   );
                   // Carry the owning basemap so each solid can be attached to
                   // its own group below.
@@ -457,9 +489,23 @@ export default class AnnotationsManager {
             // The carve may have swapped in a freshly-built source object.
             finishRoot(this.annotationsObjectsMap[annotation.id]);
             this.sceneManager.requestRender();
+            // Not pending any more BEFORE the listeners run: they read the
+            // final geometry.
+            endCarve();
+            carveNotified = true;
             this._notifyAnnotationReady(annotation.id);
           } catch (e) {
             console.error("[AnnotationsManager] subtraction carve failed", e);
+          } finally {
+            // Early exit (no operand built) or failure: the object stays
+            // as displayed — tell the waiting readers it is final.
+            if (
+              endCarve() &&
+              !carveNotified &&
+              this.annotationsObjectsMap[annotation.id]
+            ) {
+              this._notifyAnnotationReady(annotation.id);
+            }
           }
         })();
       }
@@ -518,11 +564,13 @@ export default class AnnotationsManager {
       this._disposeAnnotationObject(this.annotationsObjectsMap[id]);
       delete this.annotationsObjectsMap[id];
       this._buildStateById.delete(id);
+      this._carveTokens.delete(id);
     });
   }
 
   deleteAllAnnotationsObjects() {
     this.deleteAnnotationsObjects(Object.keys(this.annotationsObjectsMap));
     this._buildStateById.clear();
+    this._carveTokens.clear();
   }
 }

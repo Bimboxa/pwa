@@ -3,9 +3,11 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import softDeleteOrphanPoints from "Features/annotations/services/softDeleteOrphanPoints";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
+import { getLiveMeshPaintIdsByHostIds } from "Features/meshPaint/services/deleteMeshPaintsService";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -138,6 +140,14 @@ export default function useDeleteAnnotations() {
       ...new Set(workPackageRels.filter((r) => !r.deletedAt).map((r) => r.id)),
     ];
 
+    // 1f. Cascade: painted mesh parts hosted by a deleted annotation
+    // (« Pinceau » 3D) — restored by the same undo step as their host.
+    // Paints of a scope linking this one's listings are left to that scope
+    // (their host being deleted, they are dropped at read time there).
+    const meshPaintIds = await getLiveMeshPaintIdsByHostIds(idsToDelete, {
+      writableOnly: true,
+    });
+
     // 2. Determine which annotations are cutHosts (batch template lookup)
     const uniqueTemplateIds = [
       ...new Set(
@@ -241,6 +251,7 @@ export default function useDeleteAnnotations() {
         db.relAnnotationOpenings,
         db.relsBusinessObjectAnnotation,
         db.relsWorkPackageAnnotation,
+        db.meshPaints,
       ],
       async () => {
         // Cascade soft-delete subtraction relations
@@ -270,6 +281,11 @@ export default function useDeleteAnnotations() {
           await db.relsWorkPackageAnnotation.bulkDelete(workPackageRelIds);
         }
 
+        // Cascade soft-delete painted mesh parts
+        if (meshPaintIds.length > 0) {
+          await db.meshPaints.bulkDelete(meshPaintIds);
+        }
+
         // Batch cuts-cleanup updates
         if (cutUpdates.length > 0) {
           await Promise.all(
@@ -292,24 +308,30 @@ export default function useDeleteAnnotations() {
         await db.annotations.bulkDelete(idsToDelete);
       }
     );
-    await runWrites();
+    // One undo step for the whole deletion: the annotations, their cascaded
+    // rows (painted mesh parts included) and the orphan points come back
+    // together.
+    await withUndoGroup(async () => {
+      await runWrites();
 
-    // 5b. Best-effort cascade: soft-delete points orphaned by this deletion —
-    // those referenced by the just-deleted annotations that no surviving live
-    // annotation still uses. Kept OUTSIDE the transaction above so an edge
-    // failure here (e.g. ownership on a point) can never roll back the
-    // annotation deletion; "Purger les suppressions" is the backstop.
-    try {
-      const candidatePointIds = collectReferencedPointIds(validAnnotations);
-      if (candidatePointIds.size > 0) {
-        await softDeleteOrphanPoints({
-          baseMapIds: validAnnotations.map((a) => a.baseMapId),
-          candidatePointIds,
-        });
+      // 5b. Best-effort cascade: soft-delete points orphaned by this
+      // deletion — those referenced by the just-deleted annotations that no
+      // surviving live annotation still uses. Kept OUTSIDE the transaction
+      // above so an edge failure here (e.g. ownership on a point) can never
+      // roll back the annotation deletion; "Purger les suppressions" is the
+      // backstop.
+      try {
+        const candidatePointIds = collectReferencedPointIds(validAnnotations);
+        if (candidatePointIds.size > 0) {
+          await softDeleteOrphanPoints({
+            baseMapIds: validAnnotations.map((a) => a.baseMapId),
+            candidatePointIds,
+          });
+        }
+      } catch (e) {
+        console.error("[useDeleteAnnotations] orphan point cleanup failed", e);
       }
-    } catch (e) {
-      console.error("[useDeleteAnnotations] orphan point cleanup failed", e);
-    }
+    });
 
     // 6. Single Redux dispatch
     dispatch(triggerAnnotationsUpdate());

@@ -1,9 +1,24 @@
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 import { nanoid } from "@reduxjs/toolkit";
 
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
 import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
+import {
+  attachMeshPaintPointsUpdatedAt,
+  getLiveMeshPaintsByHostIds,
+  isMeshPaintStaleForHost,
+} from "Features/meshPaint/services/copyMeshPaintsService";
+import { filterMeshPaintsWritableHere } from "Features/meshPaint/services/meshPaintWriteGuard";
+import applyAffineToPaintGeometry from "Features/meshPaint/utils/applyAffineToPaintGeometry";
+
+// A host's paints follow its transform only when the fitted pixel affine
+// reproduces every moved point (wrapper move / rotate / resize); a looser
+// fit means the host was deformed, and the re-sync re-fits its paints.
+const AFFINE_FIT_TOL_PX = 0.5;
+
+const EMPTY_RESULT = { movedMeshPaintIds: [], refreshedMeshPaintIds: [] };
 
 /**
  * Commit a wrapper transform (move/resize/rotate) to the database.
@@ -19,6 +34,12 @@ import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3
  * place every wrapper transform goes through — 2D move / resize / rotate and
  * the 3D move / rotate tools (commitAnnotationsTransformFrom3d).
  *
+ * Painted mesh parts (« Pinceau » 3D, db.meshPaints) of every transformed
+ * host follow it the same way: the host's pixel affine (the mesh one for an
+ * isMesh3d host, else fitted on ALL its points — skipped when only some of
+ * them move, i.e. a deformation the re-sync handles) is applied to the paint
+ * geometry, plus `paintDeltaZ`. All the writes are ONE undo step.
+ *
  * @param {Object} params
  * @param {string[]} params.selectedAnnotationIds - IDs of annotations in the wrapper
  * @param {Array} params.allAnnotations - All annotations currently loaded (with resolved points in pixel coords)
@@ -30,8 +51,18 @@ import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3
  * @param {boolean} [params.clearRotation] - True when the transform invalidates the
  *   single-center rotation model (e.g. rotation around an arbitrary pivot from the
  *   3D tool) — same semantics as isResize: rotation metadata is reset.
+ * @param {number} [params.paintDeltaZ] - Vertical shift (m) of the painted mesh
+ *   parts of the transformed hosts — the 3D move's offsetZ delta, which the
+ *   caller writes on the annotations itself.
+ * @returns {Promise<{movedMeshPaintIds: string[], refreshedMeshPaintIds: string[]}>}
+ *   painted parts moved with their host; `refreshed` = those whose
+ *   sync.syncedAt was bumped (they were not « à vérifier » before).
  */
-export default async function commitWrapperTransform({
+export default async function commitWrapperTransform(params) {
+  return withUndoGroup(() => commitWrapperTransformWrites(params));
+}
+
+async function commitWrapperTransformWrites({
   selectedAnnotationIds,
   allAnnotations,
   pointUpdates,
@@ -41,8 +72,10 @@ export default async function commitWrapperTransform({
   moveDelta,
   isResize,
   clearRotation,
+  paintDeltaZ = 0,
 }) {
-  if (!selectedAnnotationIds?.length || !allAnnotations?.length || !imageSize) return;
+  if (!selectedAnnotationIds?.length || !allAnnotations?.length || !imageSize)
+    return EMPTY_RESULT;
 
   const selectedSet = new Set(selectedAnnotationIds);
 
@@ -114,10 +147,42 @@ export default async function commitWrapperTransform({
     }
   }
 
+  // 3b. isMesh3d annotations: the affine map their projection went through
+  //     (the mesh follows it in 4c').
+  const meshAffineById = new Map();
+  for (const annId of selectedAnnotationIds) {
+    const ann = allAnnotations.find((a) => a.id === annId);
+    if (!ann?.isMesh3d || !ann.mesh3d?.vertices?.length) continue;
+    const pairs = [];
+    const collect = (pt) => {
+      const to = pointUpdates.get(pt?.id);
+      if (to && pt.x != null && pt.y != null) {
+        pairs.push({ from: { x: pt.x, y: pt.y }, to });
+      }
+    };
+    for (const pt of ann.points ?? []) collect(pt);
+    for (const cut of ann.cuts ?? []) {
+      for (const pt of cut.points ?? []) collect(pt);
+    }
+    const affine = fitAffine2d(pairs);
+    if (affine) meshAffineById.set(annId, affine);
+  }
+
+  // 3c. Painted mesh parts of the transformed hosts.
+  const paintMoves = await planMeshPaintMoves({
+    selectedAnnotationIds,
+    allAnnotations,
+    pointUpdates,
+    imageSize,
+    meshAffineById,
+    paintDeltaZ,
+  });
+
   // 4. Execute ALL updates in a single transaction so useLiveQuery
   //    never observes an intermediate state (e.g. rotated points
   //    without the updated rotation/rotationCenter on the annotation).
-  await db.transaction("rw", db.points, db.annotations, async () => {
+  const tables = [db.points, db.annotations, db.meshPaints];
+  await db.transaction("rw", tables, async () => {
     const ops = [];
 
     // 4a. Exclusive points: direct update
@@ -235,22 +300,8 @@ export default async function commitWrapperTransform({
     }
 
     // 4c'. isMesh3d annotations: carry the mesh along with its projection.
-    for (const annId of selectedAnnotationIds) {
+    for (const [annId, affine] of meshAffineById) {
       const ann = allAnnotations.find((a) => a.id === annId);
-      if (!ann?.isMesh3d || !ann.mesh3d?.vertices?.length) continue;
-      const pairs = [];
-      const collect = (pt) => {
-        const to = pointUpdates.get(pt?.id);
-        if (to && pt.x != null && pt.y != null) {
-          pairs.push({ from: { x: pt.x, y: pt.y }, to });
-        }
-      };
-      for (const pt of ann.points ?? []) collect(pt);
-      for (const cut of ann.cuts ?? []) {
-        for (const pt of cut.points ?? []) collect(pt);
-      }
-      const affine = fitAffine2d(pairs);
-      if (!affine) continue;
       ops.push(
         db.annotations.update(annId, {
           mesh3d: applyAffineToMesh3d(ann.mesh3d, affine, imageSize),
@@ -327,5 +378,147 @@ export default async function commitWrapperTransform({
     }
 
     await Promise.all(ops);
+
+    // 4g. Painted mesh parts follow their host. Written last: a fresh
+    // syncedAt must not precede the host's audit stamp of this transaction
+    // (« à vérifier » = host.updatedAt > sync.syncedAt).
+    if (paintMoves.length > 0) {
+      const syncedAt = new Date().toISOString();
+      await Promise.all(
+        paintMoves.map(({ row, geometry, refreshSyncedAt }) =>
+          db.meshPaints.update(row.id, {
+            geometry,
+            ...(refreshSyncedAt
+              ? { sync: { ...(row.sync ?? {}), syncedAt } }
+              : {}),
+          })
+        )
+      );
+    }
   });
+
+  return {
+    movedMeshPaintIds: paintMoves.map((m) => m.row.id),
+    refreshedMeshPaintIds: paintMoves
+      .filter((m) => m.refreshSyncedAt)
+      .map((m) => m.row.id),
+  };
+}
+
+// Point refs a wrapper transform carries (same sets as
+// applyWrapperTransformToPoints), as {id, x, y} in pixels.
+function getTransformedPointRefs(ann) {
+  const refs = [];
+  const add = (id, pt) => refs.push({ id, x: pt?.x, y: pt?.y });
+  for (const pt of ann.points ?? []) add(pt?.id, pt);
+  for (const cut of ann.cuts ?? []) {
+    for (const pt of cut.points ?? []) add(pt?.id, pt);
+  }
+  for (const pt of ann.innerPoints ?? []) add(pt?.id, pt);
+  for (const line of [
+    ...(ann.guideLines ?? []),
+    ...(ann.isoHeightLines ?? []),
+    ...(ann.profileLines ?? []),
+  ]) {
+    for (const pt of line?.points ?? []) add(pt?.pointId ?? pt?.id, pt);
+  }
+  return refs.filter((ref) => ref.id != null);
+}
+
+// Pixel affine of an annotation transformed AS A WHOLE: every point it
+// references is carried by the transform and one affine map reproduces them
+// all. null otherwise (some points left behind = the host is deformed).
+function fitWholeAnnotationAffine(ann, pointUpdates) {
+  const pairs = [];
+  for (const ref of getTransformedPointRefs(ann)) {
+    const to = pointUpdates.get(ref.id);
+    if (!to || ref.x == null || ref.y == null) return null;
+    pairs.push({ from: { x: ref.x, y: ref.y }, to });
+  }
+  const affine = fitAffine2d(pairs);
+  if (!affine) return null;
+  const { a, b, c, d, e, f } = affine;
+  for (const { from, to } of pairs) {
+    const x = a * from.x + b * from.y + c;
+    const y = d * from.x + e * from.y + f;
+    if (Math.hypot(x - to.x, y - to.y) > AFFINE_FIT_TOL_PX) return null;
+  }
+  return affine;
+}
+
+// New geometry of every live paint hosted by a transformed annotation.
+// refreshSyncedAt: the paint moved exactly with its host, so it stays in
+// sync — unless it was already « à vérifier » (host changed elsewhere).
+async function planMeshPaintMoves({
+  selectedAnnotationIds,
+  allAnnotations,
+  pointUpdates,
+  imageSize,
+  meshAffineById,
+  paintDeltaZ,
+}) {
+  // Paints of a scope linking this one's listings are left to that scope
+  // (its re-sync re-attaches them): writing them here would abort the move.
+  const rows = filterMeshPaintsWritableHere(
+    await getLiveMeshPaintsByHostIds(selectedAnnotationIds)
+  );
+  if (rows.length === 0) return [];
+
+  const hostIds = [...new Set(rows.map((r) => r.hostAnnotationId))];
+  const baseMapIds = [...new Set(rows.map((r) => r.baseMapId).filter(Boolean))];
+  const [hostRows, baseMaps] = await Promise.all([
+    db.annotations.bulkGet(hostIds).then(attachMeshPaintPointsUpdatedAt),
+    db.baseMaps.bulkGet(baseMapIds),
+  ]);
+  const hostRowById = new Map(hostRows.filter(Boolean).map((h) => [h.id, h]));
+  const meterByPxByBaseMapId = new Map(
+    baseMaps
+      .filter(Boolean)
+      .map((bm) => [
+        bm.id,
+        Number(bm.meterByPx) > 0 ? Number(bm.meterByPx) : 0.01,
+      ])
+  );
+
+  const dz = Number(paintDeltaZ) || 0;
+  const affineByHostId = new Map();
+  for (const hostId of hostIds) {
+    const ann = allAnnotations.find((a) => a.id === hostId);
+    if (!ann) continue;
+    const affine =
+      meshAffineById.get(hostId) ?? fitWholeAnnotationAffine(ann, pointUpdates);
+    if (affine)
+      affineByHostId.set(hostId, { affine, baseMapId: ann.baseMapId });
+  }
+
+  const moves = [];
+  for (const row of rows) {
+    const host = affineByHostId.get(row.hostAnnotationId);
+    if (!host) continue;
+    // The pixel affine lives in the host's base map frame.
+    if (host.baseMapId && row.baseMapId !== host.baseMapId) continue;
+    const metrics = {
+      imageWidth: imageSize.width,
+      imageHeight: imageSize.height,
+      meterByPx: meterByPxByBaseMapId.get(row.baseMapId) ?? 0.01,
+    };
+    const geometry = applyAffineToPaintGeometry({
+      partType: row.partType,
+      geometry: row.geometry,
+      affine: host.affine,
+      imageSize,
+      dz,
+      metrics,
+    });
+    if (!geometry) continue;
+    moves.push({
+      row,
+      geometry,
+      refreshSyncedAt: !isMeshPaintStaleForHost(
+        row,
+        hostRowById.get(row.hostAnnotationId)
+      ),
+    });
+  }
+  return moves;
 }

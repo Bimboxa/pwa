@@ -1,5 +1,7 @@
 import theme from "Styles/theme";
 
+import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
+
 const secondary = theme.palette.secondary.main;
 
 // ---------------------------------------------------------------------------
@@ -143,6 +145,9 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_ARC",
       "STRIP",
       "STRIP_SEGMENT",
+      // 3D-only « Pinceau » (paints edges): kept last so tools[0] — the
+      // default tool of new templates — never changes.
+      MESH_BRUSH_TOOL_KEY,
     ],
     configurableProps: [
       "strokeColor",
@@ -179,6 +184,9 @@ const DRAWING_SHAPE_CONFIG = {
       "STRIP",
       "STRIP_SEGMENT",
       "RAMP",
+      // 3D-only « Pinceau » (paints facets): kept last so tools[0] — the
+      // default tool of new templates — never changes.
+      MESH_BRUSH_TOOL_KEY,
     ],
     configurableProps: [
       "fillColor",

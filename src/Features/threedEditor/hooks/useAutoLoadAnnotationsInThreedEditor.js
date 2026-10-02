@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import {
   bumpSnapIndexEpoch,
@@ -14,6 +17,20 @@ import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+
+// Annotations built WITHOUT the anti-aliasing shrink (« Pinceau »): copies
+// tagged `_noAntiAliasingShrink`, memoized per source row so the copy keeps
+// its identity across emissions — diffAnnotationsForBuild then rebuilds
+// exactly the hosts whose exemption changed.
+const shrinkExemptCopies = new WeakMap();
+function getShrinkExemptCopy(annotation) {
+  let copy = shrinkExemptCopies.get(annotation);
+  if (!copy) {
+    copy = { ...annotation, _noAntiAliasingShrink: true };
+    shrinkExemptCopies.set(annotation, copy);
+  }
+  return copy;
+}
 
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
@@ -118,6 +135,42 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   }
   prevActiveRef.current = isActiveViewer;
 
+  // Anti-aliasing shrink exemption: hosts of live painted parts (persistent
+  // in effect: derived from db.meshPaints) ∪ the session exemptions (a host
+  // about to be painted or converted to a mesh — ensureUnshrunkHostObject).
+  // The liveQuery returns a string key: an unchanged set never re-renders.
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const paintedHostIdsKey = useLiveQuery(
+    async () => {
+      if (!projectId || !db.meshPaints) return "";
+      const rows = await db.meshPaints
+        .where("projectId")
+        .equals(projectId)
+        .toArray();
+      return [
+        ...new Set(
+          rows.filter((r) => !r.deletedAt).map((r) => r.hostAnnotationId)
+        ),
+      ]
+        .filter(Boolean)
+        .sort()
+        .join(",");
+    },
+    [projectId],
+    ""
+  );
+  const sessionShrinkExemptIds = useSelector(
+    (s) => s.meshPaint.shrinkExemptAnnotationIds
+  );
+  const shrinkExemptIds = useMemo(() => {
+    const ids = new Set(sessionShrinkExemptIds || []);
+    (paintedHostIdsKey || "")
+      .split(",")
+      .filter(Boolean)
+      .forEach((id) => ids.add(id));
+    return ids;
+  }, [paintedHostIdsKey, sessionShrinkExemptIds]);
+
   // "Afficher les mailles": ON → replace parents that have mesh cells by their
   // cells (hide the parent, keep the cells); OFF → hide mesh cells, show parents.
   const annotationsForThreed = useMemo(() => {
@@ -127,6 +180,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     }
     return annotations.filter((a) => !a.isMeshCell);
   }, [annotations, showMeshCells, parentIdSet]);
+
+  // What the scene is built from: the shrink-exempt hosts swapped for their
+  // tagged copies (the hook still returns the plain resolved annotations).
+  const annotationsForBuild = useMemo(() => {
+    if (!annotationsForThreed || shrinkExemptIds.size === 0) {
+      return annotationsForThreed;
+    }
+    return annotationsForThreed.map((a) =>
+      shrinkExemptIds.has(a.id) ? getShrinkExemptCopy(a) : a
+    );
+  }, [annotationsForThreed, shrinkExemptIds]);
 
   // { baseMapId: 1 | -1 }, only while the "Révolution partielle" switch is ON,
   // restricted to the vertical base maps that host a REVOLUTION element
@@ -196,7 +260,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
         }
       });
     }
-    threedEditor.loadAnnotations(annotationsForThreed || [], {
+    threedEditor.loadAnnotations(annotationsForBuild || [], {
       disableOpacity,
       antiAliasingShrink,
       realisticShading,
@@ -222,6 +286,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     isActiveViewer,
     annotations,
     annotationsForThreed,
+    annotationsForBuild,
     threedEditor,
     disableOpacity,
     antiAliasingShrink,

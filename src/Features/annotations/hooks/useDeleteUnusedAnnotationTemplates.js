@@ -13,8 +13,9 @@ import { OwnershipError } from "App/db/ownership";
  * "..." menu.
  *
  * `computeUnused()` (non-reactive, direct DB) returns the annotationTemplates in
- * the current scope that are referenced by 0 annotation, plus the LOCATED_ENTITY
- * listings that would end up with no template once those are removed.
+ * the current scope that are referenced by 0 annotation and paint 0 mesh part
+ * (« Pinceau » 3D), plus the LOCATED_ENTITY listings that would end up with
+ * no template once those are removed.
  *
  * `computeUnused({ listingId })` narrows the search to that single listing; the
  * listing itself is always kept (no empty-listing candidate).
@@ -63,6 +64,27 @@ export default function useDeleteUnusedAnnotationTemplates() {
       .anyOf(scopeListingIds)
       .filter((t) => !t.deletedAt)
       .toArray();
+
+    // painted mesh parts count as usage (a template used only to paint
+    // faces / edges in 3D has no annotation) — when their host is live.
+    const paints = templates.length
+      ? await db.meshPaints
+          .where("annotationTemplateId")
+          .anyOf(templates.map((t) => t.id))
+          .filter((r) => !r.deletedAt)
+          .toArray()
+      : [];
+    if (paints.length > 0) {
+      const hostIds = [...new Set(paints.map((r) => r.hostAnnotationId))];
+      const liveHostIds = new Set(
+        (await db.annotations.bulkGet(hostIds))
+          .filter((h) => h && !h.deletedAt)
+          .map((h) => h.id)
+      );
+      paints
+        .filter((r) => liveHostIds.has(r.hostAnnotationId))
+        .forEach((r) => usedTemplateIds.add(r.annotationTemplateId));
+    }
 
     const unusedTemplateIds = templates
       .filter((t) => !usedTemplateIds.has(t.id))

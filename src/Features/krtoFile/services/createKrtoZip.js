@@ -95,6 +95,10 @@ export default async function createKrtoZip(scopeId, options) {
         // inline on the row (no db.points involvement).
         "photos",
         "photoPlans",
+        // Painted mesh parts (« Pinceau » 3D): listingId = the PAINTING
+        // template's listing (scope content); the host is remapped through
+        // hostAnnotationId on duplicate (remapDexieExportIds SIMPLE_FK).
+        "meshPaints",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's

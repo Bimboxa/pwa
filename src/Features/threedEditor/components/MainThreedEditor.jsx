@@ -123,6 +123,10 @@ import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarT
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
 import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
 import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
+import ThreedMeshPaints from "Features/meshPaint/components/ThreedMeshPaints";
+import MeshBrushThreed from "Features/meshPaint/components/MeshBrushThreed";
+import MeshPaintsResyncThreed from "Features/meshPaint/components/MeshPaintsResyncThreed";
+import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
@@ -1802,10 +1806,11 @@ export default function MainThreedEditor() {
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
     // Hover highlight is always on — except in BASEMAP_POSITION (pointer
-    // reserved for the transform gizmo), in meshing and extrude modes, which
-    // run their own hover (stipple + cursor helper) in their pointer-handler
-    // hooks, and in walk mode (pointer locked: client coords are frozen, the
-    // camera moves).
+    // reserved for the transform gizmo), in meshing and extrude modes and
+    // with the « Pinceau » armed, which run their own hover (stipple / line +
+    // cursor helper) in their pointer-handler hooks, and in walk mode
+    // (pointer locked: client coords are frozen, the camera moves). The
+    // brush is read from the store: no re-render of this component.
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
@@ -1816,7 +1821,8 @@ export default function MainThreedEditor() {
       rotateBaseMapActiveRef.current ||
       moveAnnotationActiveRef.current ||
       rotateAnnotationActiveRef.current ||
-      baseMapsGridActiveRef.current
+      baseMapsGridActiveRef.current ||
+      selectIsMeshBrushActive(store.getState())
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -2542,6 +2548,11 @@ export default function MainThreedEditor() {
       {isThreedViewer && <MoveAnnotationOverlayThreed />}
       {isThreedViewer && <RotateAnnotationOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
+      {/* Painted parts (« Pinceau »): layer, re-sync on host changes, brush
+          pointer + cursor helper (mounted only while armed). */}
+      {isThreedViewer && rendererIsReady && <ThreedMeshPaints />}
+      {isThreedViewer && rendererIsReady && <MeshPaintsResyncThreed />}
+      {isThreedViewer && rendererIsReady && <MeshBrushThreed />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}

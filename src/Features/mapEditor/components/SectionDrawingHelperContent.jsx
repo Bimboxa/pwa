@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { Box, Paper, Typography, Switch } from "@mui/material";
+import { Alert, Box, Paper, Typography, Switch } from "@mui/material";
 
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -13,6 +13,9 @@ import {
   setRepairMode,
 } from "Features/mapEditor/mapEditorSlice";
 import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
+import { selectMeshBrushPartType } from "Features/meshPaint/utils/meshBrushSelectors";
+import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
@@ -20,6 +23,7 @@ import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSu
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
 import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScene3dPickingStatus";
+import SectionMeshBrushPaintedTotal from "Features/meshPaint/components/SectionMeshBrushPaintedTotal";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
@@ -48,6 +52,12 @@ const THREED_DRAWING_SHORTCUTS = [
 
 // Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
 const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
+
+// Shortcuts of the « Pinceau » (useMeshBrushPointerHandlers).
+const THREED_MESH_BRUSH_SHORTCUTS = [
+  { key: "Clic", label: "Peindre / retirer la peinture" },
+  { key: "Esc", label: "Quitter le pinceau" },
+];
 
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
@@ -139,6 +149,11 @@ function SectionRepairModes() {
 export default function SectionDrawingHelperContent() {
   const dispatch = useDispatch();
 
+  // strings
+
+  const meshBrushHiddenS =
+    "Le modèle actif est masqué : les parties peintes ne seront pas visibles.";
+
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -153,8 +168,25 @@ export default function SectionDrawingHelperContent() {
   // two-click cote, or (default) the line / face drawing.
   const isObject3DPlacement = useSelector(selectIsObject3DPlacementActive);
   const isThreedCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
+  // « Pinceau »: "FACE" (Surface template) / "EDGE" (Ligne template), null
+  // when the brush is not armed.
+  const meshBrushPartType = useSelector(selectMeshBrushPartType);
+  const isMeshBrush = Boolean(meshBrushPartType);
+  // A paint is shown only when its own template and listing are visible:
+  // warn when the armed template (or its listing) is hidden.
+  const isMeshBrushTemplateHidden = useSelector((s) => {
+    if (!selectMeshBrushPartType(s)) return false;
+    const na = s.annotations.newAnnotation;
+    return (
+      selectHiddenAnnotationTemplateIdSet(s).has(na.annotationTemplateId) ||
+      Boolean(
+        na.listingId && s.listings.hiddenListingsIds?.includes(na.listingId)
+      )
+    );
+  });
   // Lines and cotes can land their points on a scan base map: show the
-  // status of its picking data (being prepared / ready).
+  // status of its picking data (being prepared / ready). Not the brush: it
+  // paints annotation parts only.
   const canDrawOnScan = useSelector(
     (s) =>
       s.annotations.newAnnotation?.type === "POLYLINE" ||
@@ -164,12 +196,18 @@ export default function SectionDrawingHelperContent() {
     ? "Cliquez sur le plan pour poser l'objet 3D"
     : isThreedCoteDraw
       ? "Cliquez deux points pour poser la cote"
-      : "Cliquez pour poser les points du tracé";
+      : isMeshBrush
+        ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
+          ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
+          : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
+        : "Cliquez pour poser les points du tracé";
   const threedShortcuts = isObject3DPlacement
     ? THREED_PLACEMENT_SHORTCUTS
     : isThreedCoteDraw
       ? THREED_COTE_SHORTCUTS
-      : THREED_DRAWING_SHORTCUTS;
+      : isMeshBrush
+        ? THREED_MESH_BRUSH_SHORTCUTS
+        : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit
@@ -242,7 +280,13 @@ export default function SectionDrawingHelperContent() {
           {threedMessage}
         </Box>
       )}
-      {isThreedToggledEditor && canDrawOnScan && (
+      {isThreedToggledEditor && isMeshBrush && isMeshBrushTemplateHidden && (
+        <Alert severity="warning" sx={{ py: 0, fontSize: "0.8125rem" }}>
+          {meshBrushHiddenS}
+        </Alert>
+      )}
+      {isThreedToggledEditor && isMeshBrush && <SectionMeshBrushPaintedTotal />}
+      {isThreedToggledEditor && canDrawOnScan && !isMeshBrush && (
         <SectionScene3dPickingStatus />
       )}
       {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}

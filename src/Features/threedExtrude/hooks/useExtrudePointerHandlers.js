@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Raycaster, Vector2, Vector3 } from "three";
+import { Matrix4, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
+import store from "App/store";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   appendToExtrudeValueBuffer,
@@ -35,17 +36,24 @@ import {
   deepShow,
 } from "Features/threedDrawing/utils/deepVisibility";
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
-import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
+import createAnnotationObject3D, {
+  getShrunkHeight,
+} from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
 import getEditableMesh3d, {
+  mesh3dLocalToWorld,
   worldToMesh3dLocal,
 } from "Features/annotationMesh3d/services/getEditableMesh3d";
+import { isDisplayedShrunk } from "Features/meshPaint/services/ensureUnshrunkHostObject";
 import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dService";
 import getPushPullRange from "Features/annotationMesh3d/utils/getPushPullRange";
 import isAnnotationConvertibleToMesh3d from "Features/annotationMesh3d/utils/isAnnotationConvertibleToMesh3d";
-import locatePathOnMesh3d from "Features/annotationMesh3d/utils/locatePathOnMesh3d";
+import locateFaceNearHit from "Features/annotationMesh3d/utils/locateFaceNearHit";
 import { MIN_THICKNESS_M } from "Features/annotationMesh3d/utils/mesh3dConstants";
 import { mesh3dFromLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
-import { getFaceNormal } from "Features/annotationMesh3d/utils/mesh3dTopology";
+import {
+  getDistanceToFacePlane,
+  getFaceNormal,
+} from "Features/annotationMesh3d/utils/mesh3dTopology";
 import pushPullMesh3dFace from "Features/annotationMesh3d/utils/pushPullMesh3dFace";
 import resolvePushPull, {
   getMesh3dFaceSheet,
@@ -86,6 +94,57 @@ const isEditableTarget = (el) => {
 const SNAP_THRESHOLD_PX = 12;
 // A base sheet must be this parallel to the base map to dig along its axis.
 const DIG_SHEET_MIN_DOT = 0.999;
+
+// Face of an editable mesh under a hit taken on the DISPLAYED object. A
+// conversion reads the un-shrunk object (getEditableMesh3d), whose faces may
+// sit up to 10 mm away from a shrunk display (5 mm for the top): the face is
+// re-detected as the parallel one within 20 mm whose outline holds the point
+// (locateFaceNearHit), not by an exact 2 mm on-face test. The view ray
+// (camera → hit) keeps a thin band's shrunk top on the top face.
+function locateHitFaceOnMesh3d(ctx, intersect, camera) {
+  const point = worldToMesh3dLocal(intersect.point, ctx);
+  let rayDir = null;
+  if (camera) {
+    const origin = camera.isOrthographicCamera
+      ? intersect.point.clone().sub(camera.getWorldDirection(new Vector3()))
+      : camera.getWorldPosition(new Vector3());
+    const from = worldToMesh3dLocal(origin, ctx);
+    rayDir = {
+      x: point.x - from.x,
+      y: point.y - from.y,
+      z: point.z - from.z,
+    };
+  }
+  let normal = null;
+  if (intersect.face?.normal && intersect.object) {
+    // The hit object's matrixWorld as picked: the object may since have been
+    // replaced (un-shrunk rebuild) and detached — never recompute it.
+    ctx.baseMapGroup.updateWorldMatrix(true, false);
+    const local = intersect.face.normal
+      .clone()
+      .transformDirection(intersect.object.matrixWorld)
+      .transformDirection(
+        new Matrix4().copy(ctx.baseMapGroup.matrixWorld).invert()
+      );
+    normal = { x: local.x, y: local.y, z: local.z };
+  }
+  return locateFaceNearHit(ctx.mesh, point, normal, undefined, { rayDir });
+}
+
+// Anchor of a push / pull picked on the DISPLAYED object, moved onto the
+// plane of the editable face: a conversion reads the un-shrunk object, whose
+// face sits up to 10 mm from the shrunk display — a snap (vertex − anchor)
+// would otherwise land that far past its target.
+function anchorOnMesh3dFace(ctx, faceIndex, point) {
+  const face = ctx.mesh.faces[faceIndex];
+  const p = worldToMesh3dLocal(point, ctx);
+  const n = getFaceNormal(ctx.mesh.vertices, face);
+  const d = getDistanceToFacePlane(ctx.mesh.vertices, face, p, n);
+  return mesh3dLocalToWorld(
+    { x: p.x - n.x * d, y: p.y - n.y * d, z: p.z - n.z * d },
+    ctx
+  );
+}
 
 function roundCm(value) {
   return Math.round(value * 100) / 100;
@@ -201,6 +260,10 @@ export default function useExtrudePointerHandlers() {
     //     HEIGHT: snapshot, baseHeight, dig — MESH3D: ctx, faceIndex, range }
     let armed = null;
     let arming = false;
+    // Set by the cleanup: an arm / commit resuming after an await (the
+    // un-shrink rebuild, a carve: up to seconds) must not touch the scene
+    // once the tool is off.
+    let disposed = false;
 
     // Committed annotations whose ghost still stands for the real object:
     // annotationId -> { ghost, object, source }. `source` is the resolved
@@ -467,21 +530,28 @@ export default function useExtrudePointerHandlers() {
     // base — the base outline as a lone sheet, pushed down into a basin (see
     // resolveArmed). Null when the solid is not a plain prism (sloped top,
     // not convertible...): the height then just stops at 0.
-    async function loadDig(pick) {
+    // unshrink: false = a probe of the displayed object (the arm: the host
+    // keeps its anti-aliasing shrink unless the dig is really committed —
+    // then the commit re-probes with unshrink: true, see commit()).
+    async function loadDig(pick, { unshrink = false } = {}) {
       if (!eligibility.get(pick.nodeId)?.mesh) return null;
       try {
         const ctx = await getEditableMesh3d({
           editor,
           annotationId: pick.nodeId,
+          unshrink,
         });
         if (!ctx) return null;
         let sheet = null;
         if (ctx.mesh.faces.length === 1) {
           sheet = ctx.mesh; // flat polygon
         } else {
-          const faceIndex = locatePathOnMesh3d(ctx.mesh, [
-            worldToMesh3dLocal(pick.intersect.point, ctx),
-          ]);
+          const faceIndex = locateHitFaceOnMesh3d(
+            ctx,
+            pick.intersect,
+            sceneManager.camera
+          );
+          if (faceIndex < 0) return null;
           const { through } = getPushPullRange(ctx.mesh, faceIndex);
           if (through) {
             sheet = getMesh3dFaceSheet(ctx.mesh, faceIndex, -through.depth);
@@ -492,7 +562,7 @@ export default function useExtrudePointerHandlers() {
         // distance along the face normal.
         const nz = getFaceNormal(sheet.vertices, sheet.faces[0]).z;
         if (Math.abs(nz) < DIG_SHEET_MIN_DOT) return null;
-        return { ctx, sheet, sign: Math.sign(nz) };
+        return { ctx, sheet, sign: Math.sign(nz), pick };
       } catch (err) {
         console.error("[threedExtrude] dig context failed", err);
         return null;
@@ -510,6 +580,7 @@ export default function useExtrudePointerHandlers() {
     async function armMesh3d(e, pick) {
       const annotationId = pick.nodeId;
       const ctx = await getEditableMesh3d({ editor, annotationId });
+      if (disposed) return;
       if (!ctx) {
         console.warn(
           `[threedExtrude] annotation ${annotationId} cannot be edited as a mesh`
@@ -517,9 +588,7 @@ export default function useExtrudePointerHandlers() {
         return;
       }
       const faceIndex = ctx.isConversion
-        ? locatePathOnMesh3d(ctx.mesh, [
-            worldToMesh3dLocal(pick.intersect.point, ctx),
-          ])
+        ? locateHitFaceOnMesh3d(ctx, pick.intersect, sceneManager.camera)
         : (pick.hitObject.userData?.mesh3dFaceIndex ?? -1);
       if (!ctx.mesh.faces[faceIndex]) return;
 
@@ -546,7 +615,9 @@ export default function useExtrudePointerHandlers() {
         faceIndex,
         range: getPushPullRange(ctx.mesh, faceIndex),
         axis,
-        anchor: pick.intersect.point.clone(),
+        anchor: ctx.isConversion
+          ? anchorOnMesh3dFace(ctx, faceIndex, pick.intersect.point)
+          : pick.intersect.point.clone(),
         object,
         parent: object.parent,
         ghost: null,
@@ -570,23 +641,39 @@ export default function useExtrudePointerHandlers() {
         }
         const annotationId = pick.nodeId;
         const snapshot = await loadAnnotationSnapshot(annotationId);
-        if (!snapshot) return;
+        if (disposed || !snapshot) return;
         const dig = await loadDig(pick);
+        if (disposed) return;
         const object =
           sceneManager.annotationsManager?.annotationsObjectsMap?.[
             annotationId
           ] ?? pick.annotationObject;
         if (!object?.parent) return;
 
+        // A top picked on a shrunk display sits up to 5 mm below the real
+        // top: the anchor goes back up to it, so a snapped height is exact.
+        const baseHeight = Number(snapshot.annotation.height) || 0;
+        const anchor = pick.intersect.point.clone();
+        const source = annotationsManager?.getAnnotationSource?.(annotationId);
+        const shrinkOn = Boolean(
+          store.getState().threedEditor?.antiAliasingShrink
+        );
+        if (isDisplayedShrunk(source, shrinkOn) && baseHeight > 0) {
+          const topShrink =
+            baseHeight -
+            getShrunkHeight(baseHeight, { antiAliasingShrink: true }, source);
+          if (topShrink > 0) anchor.addScaledVector(pick.axis, topShrink);
+        }
+
         clearStipple();
         armed = {
           kind: "HEIGHT",
           annotationId,
           snapshot,
-          baseHeight: Number(snapshot.annotation.height) || 0,
+          baseHeight,
           dig,
           axis: pick.axis.clone(),
-          anchor: pick.intersect.point.clone(),
+          anchor,
           object,
           parent: object.parent,
           ghost: null,
@@ -607,6 +694,19 @@ export default function useExtrudePointerHandlers() {
 
     async function commit() {
       if (!armed) return;
+      // A dig probed on the displayed (shrunk) object: re-probed on the
+      // un-shrunk one before writing, so the anti-aliasing inset never
+      // reaches the stored basin. Only a real dig exempts the host.
+      if (
+        armed.kind === "HEIGHT" &&
+        armed.dig?.ctx?.isShrunk &&
+        resolveArmed(valueRef.current || 0).mesh
+      ) {
+        const target = armed;
+        const dig = await loadDig(target.dig.pick, { unshrink: true });
+        if (disposed || armed !== target) return;
+        if (dig) armed.dig = dig;
+      }
       const { annotationId, kind, baseHeight } = armed;
       const result = resolveArmed(valueRef.current || 0);
       // A zero push changes nothing — in particular it must not convert a
@@ -884,6 +984,7 @@ export default function useExtrudePointerHandlers() {
     window.addEventListener("keydown", onKeyDown, true);
 
     return () => {
+      disposed = true;
       dom.removeEventListener("pointerdown", onPointerDown);
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerup", onPointerUp);

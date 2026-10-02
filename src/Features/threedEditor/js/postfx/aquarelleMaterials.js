@@ -271,6 +271,8 @@ export function applySketchEdges(root, { resolution }) {
       !child.isLine2 &&
       !child.isLineSegments2 &&
       !child.userData?.isHoverOverlay &&
+      // painted parts (Pinceau): skins over a face already inked by its host.
+      !child.userData?.isPaintOverlay &&
       // scan base maps: no ink edges over millions of triangles.
       !child.userData?.isDecor &&
       child.geometry

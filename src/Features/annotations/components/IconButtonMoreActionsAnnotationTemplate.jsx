@@ -29,7 +29,7 @@ export default function IconButtonMoreActionsAnnotationTemplate({
 
   // data
 
-  const { deleteAnnotationTemplate, getAnnotationCount } =
+  const { deleteAnnotationTemplate, getAnnotationCount, getMeshPaintCount } =
     useDeleteAnnotationTemplate();
   const createAnnotationTemplate = useCreateAnnotationTemplate();
 
@@ -39,6 +39,8 @@ export default function IconButtonMoreActionsAnnotationTemplate({
   const open = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
   const [annotationCount, setAnnotationCount] = useState(0);
+  // Parts painted with the template (« Pinceau »): deleted with it.
+  const [meshPaintCount, setMeshPaintCount] = useState(0);
 
   // handlers
 
@@ -65,8 +67,12 @@ export default function IconButtonMoreActionsAnnotationTemplate({
 
   const handleDelete = async () => {
     setAnchorEl(null);
-    const count = await getAnnotationCount(annotationTemplate.id);
+    const [count, paintCount] = await Promise.all([
+      getAnnotationCount(annotationTemplate.id),
+      getMeshPaintCount(annotationTemplate.id),
+    ]);
     setAnnotationCount(count);
+    setMeshPaintCount(paintCount);
     setOpenDelete(true);
   };
 
@@ -98,6 +104,11 @@ export default function IconButtonMoreActionsAnnotationTemplate({
               ? `${annotationCount} annotation${annotationCount > 1 ? "s" : ""} associée${annotationCount > 1 ? "s" : ""} à ce modèle seront également supprimées.`
               : "Aucune annotation associée à ce modèle."}
           </Typography>
+          {meshPaintCount > 0 && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              {`${meshPaintCount} partie${meshPaintCount > 1 ? "s" : ""} peinte${meshPaintCount > 1 ? "s" : ""} avec ce modèle ${meshPaintCount > 1 ? "seront" : "sera"} également supprimée${meshPaintCount > 1 ? "s" : ""}.`}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDelete(false)} variant="outlined">

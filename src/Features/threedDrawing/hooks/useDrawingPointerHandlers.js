@@ -24,6 +24,7 @@ import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import createFlatMesh3dAnnotationService from "Features/annotationMesh3d/services/createFlatMesh3dAnnotationService";
 import cutFaceAlongPathService from "Features/threedFaceCut/services/cutFaceAlongPathService";
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 import commitDrawnFaceService, {
   FACE_COMMIT_NO_2D_ENCODING,
@@ -143,6 +144,10 @@ export default function useDrawingPointerHandlers() {
 
   useEffect(() => {
     if (!active) return;
+    // « Pinceau »: it rides the drawing bridge for its guards only — no
+    // vertex drawing, no keys (useMeshBrushPointerHandlers owns its clicks
+    // and Escape).
+    if (isMeshBrushDrawingMode(enabledDrawingMode)) return;
     const editor = getActiveThreedEditor();
     const dom = editor?.sceneManager?.renderer?.domElement;
     if (!dom) return;

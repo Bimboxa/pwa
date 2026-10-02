@@ -135,9 +135,11 @@ import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorder
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 import useDrawToolOfType from "Features/mapEditor/hooks/useDrawToolOfType";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
@@ -438,6 +440,7 @@ function AnnotationTemplateRow({
   // Tool resolution + start-draw dispatches (shared with the Dessin panel).
   const {
     drawingShape,
+    tools,
     activeTool,
     hasFixedTool,
     nextDraftProps,
@@ -1143,6 +1146,7 @@ function AnnotationTemplateRow({
           setIsHovered(false);
         }}
         annotationTemplate={annotationTemplate}
+        tools={tools}
         onSelectTool={handleSelectTool}
         onEdit={handleEditTemplate}
       />
@@ -1158,6 +1162,9 @@ function AnnotationTemplatesForListing({
   listingId,
   annotations,
   annotationTemplateById,
+  // Painted m² / ml of the templates (« Pinceau » 3D), merged into the
+  // annotation quantities of the rows.
+  paintedQtiesByTemplateId,
   visibleTemplateIds,
   // "Nouveau modèle" draft defaults (e.g. the isBusinessObjectAnnotation
   // flag of a business-objects listing's location templates).
@@ -1201,8 +1208,13 @@ function AnnotationTemplatesForListing({
   const isDrawInteraction =
     effectiveInteractionMode === "DRAW" || effectiveInteractionMode == null;
   const qtiesById = useMemo(
-    () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
-    [annotations, annotationTemplateById]
+    () =>
+      mergePaintedQtiesIntoTemplateQties(
+        computeAnnotationTemplateQties(annotations, annotationTemplateById),
+        paintedQtiesByTemplateId,
+        annotationTemplateById
+      ),
+    [annotations, annotationTemplateById, paintedQtiesByTemplateId]
   );
 
   // helpers - grouped templates (with group headers inserted)
@@ -1391,6 +1403,7 @@ function ListingRow({
   annotationCount,
   annotations,
   annotationTemplateById,
+  paintedQtiesByTemplateId,
   visibleTemplateIds,
   extraAction,
   // "band" mode: the single selected listing shown below the chips bar — always
@@ -1469,6 +1482,7 @@ function ListingRow({
         listingId={listing.id}
         annotations={annotations}
         annotationTemplateById={annotationTemplateById}
+        paintedQtiesByTemplateId={paintedQtiesByTemplateId}
         visibleTemplateIds={visibleTemplateIds}
         readOnly={isLinked}
       />
@@ -1629,6 +1643,7 @@ function ListingRow({
           listingId={listing.id}
           annotations={annotations}
           annotationTemplateById={annotationTemplateById}
+          paintedQtiesByTemplateId={paintedQtiesByTemplateId}
           visibleTemplateIds={visibleTemplateIds}
           readOnly={isLinked}
         />
@@ -2178,6 +2193,55 @@ export default function PopperMapListings() {
     hideMainAnnotationsIn3d,
     baseMap?.id,
   ]);
+
+  // Parts painted in 3D (« Pinceau ») — same scope as the annotations above
+  // (painting template / listing tested, host layer followed). Eye-hidden
+  // templates are kept for the legend sets, like allAnnotationsInclHidden.
+  const painted = usePaintedPartsQties({
+    enabled:
+      viewerKey === "MAP" ||
+      viewerKey === "BASE_MAPS" ||
+      viewerKey === "ZONES" ||
+      isBusinessObjectsModuleKey(viewerKey) ||
+      isPovViewer ||
+      isThreedViewer,
+    filterByMainBaseMap: true,
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
+    onlyIsForBaseMapsListings:
+      viewerKey === "BASE_MAPS" && !isBaseMapsLegendAll,
+    keepHiddenTemplates: true,
+    annotationTemplates,
+    ...(mirrors3dFilters
+      ? {
+          extraBaseMapIds,
+          excludeProfileTemplates: true,
+          excludeListingsIds: hiddenListingsIds,
+          excludeBaseMapIds:
+            hideMainAnnotationsIn3d && baseMap?.id ? [baseMap.id] : null,
+        }
+      : {}),
+  });
+
+  // Quantities of the rows: visible templates only, like allAnnotations.
+  const paintedQtiesByTemplateId = useMemo(() => {
+    const entries = Object.entries(painted.qtiesByTemplateId ?? {}).filter(
+      ([templateId]) => !annotationTemplateById?.[templateId]?.hidden
+    );
+    return entries.length ? Object.fromEntries(entries) : null;
+  }, [painted, annotationTemplateById]);
+
+  // Listing counters: annotations + counted painted parts.
+  const listingCountsById = useMemo(() => {
+    const paintedCounts = Object.entries(painted.countsByListingId ?? {});
+    if (!paintedCounts.length) return annotationCountByListingId;
+    const counts = { ...annotationCountByListingId };
+    paintedCounts.forEach(([listingId, n]) => {
+      counts[listingId] = (counts[listingId] ?? 0) + n;
+    });
+    return counts;
+  }, [annotationCountByListingId, painted]);
+
   const isSelectFilter = effectiveInteractionMode === "SELECT";
   // Maillage module: COTE templates are drawing entries there (see the
   // forceDrawMode rows), so they escape the legend filter — their row must be
@@ -2200,9 +2264,10 @@ export default function PopperMapListings() {
               .filter((a) => a.annotationTemplateId)
               .map((a) => a.annotationTemplateId),
             ...coteTemplates.map((t) => t.id),
+            ...painted.templateIds,
           ])
         : null,
-    [isSelectFilter, legendAnnotations, coteTemplates]
+    [isSelectFilter, legendAnnotations, coteTemplates, painted]
   );
   const visibleListingIds = useMemo(
     () =>
@@ -2210,9 +2275,10 @@ export default function PopperMapListings() {
         ? new Set([
             ...legendAnnotations.map((a) => a.listingId).filter(Boolean),
             ...coteTemplates.map((t) => t.listingId).filter(Boolean),
+            ...painted.listingIds,
           ])
         : null,
-    [isSelectFilter, legendAnnotations, coteTemplates]
+    [isSelectFilter, legendAnnotations, coteTemplates, painted]
   );
 
   const scopedListings = visibleListingIds
@@ -2578,14 +2644,14 @@ export default function PopperMapListings() {
                     <ListingAvatarsBar
                       listings={displayedListings}
                       activeListing={activeListing}
-                      countsByListingId={annotationCountByListingId}
+                      countsByListingId={listingCountsById}
                       showAddListing={canAddListing}
                     />
                   ) : (
                     <FieldActiveListing
                       listings={displayedListings}
                       activeListing={activeListing}
-                      countsByListingId={annotationCountByListingId}
+                      countsByListingId={listingCountsById}
                       showAddListing={canAddListing}
                       showModeSwitch
                     />
@@ -2643,6 +2709,7 @@ export default function PopperMapListings() {
                       annotationsByListingId?.[activeBusinessObject.listingId]
                     }
                     annotationTemplateById={annotationTemplateById}
+                    paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                     templateDefaults={{ isBusinessObjectAnnotation: true }}
                   />
                 </Box>
@@ -2658,11 +2725,10 @@ export default function PopperMapListings() {
                         isExpanded
                         alwaysExpanded
                         hideCaret
-                        annotationCount={
-                          annotationCountByListingId?.[listing.id] || 0
-                        }
+                        annotationCount={listingCountsById?.[listing.id] || 0}
                         annotations={annotationsByListingId?.[listing.id]}
                         annotationTemplateById={annotationTemplateById}
+                        paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
                       />
                     ))
@@ -2680,11 +2746,11 @@ export default function PopperMapListings() {
                           isBaseMapsViewer
                             ? annotationsByListingId?.[activeListing.id]
                                 ?.length || 0
-                            : annotationCountByListingId?.[activeListing.id] ||
-                              0
+                            : listingCountsById?.[activeListing.id] || 0
                         }
                         annotations={annotationsByListingId?.[activeListing.id]}
                         annotationTemplateById={annotationTemplateById}
+                        paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
                         extraAction={
                           isBaseMapsViewer ? (

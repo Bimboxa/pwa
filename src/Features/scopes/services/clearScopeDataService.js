@@ -26,6 +26,9 @@ export default async function clearScopeDataService(scopeId) {
         // scope's listings into other scopes (source side, now dangling).
         await db.relsScopeListing.where("scopeId").equals(scopeId).delete();
         await db.relsScopeListing.where("sourceScopeId").equals(scopeId).delete();
+        // Painted mesh parts made in this scope (the painting template's
+        // listing is cascaded below too: a host may live in another listing).
+        await db.meshPaints.where("scopeId").equals(scopeId).delete();
 
         // SCOPE-scoped resources (dropped in the panel with "Cette scope"):
         // their main file goes too unless another live resource shares it
@@ -75,6 +78,7 @@ export default async function clearScopeDataService(scopeId) {
             await db.annotations.where("listingId").anyOf(listingIds).delete();
             await db.annotationTemplates.where("listingId").anyOf(listingIds).delete();
             await db.photoPlans.where("listingId").anyOf(listingIds).delete();
+            await db.meshPaints.where("listingId").anyOf(listingIds).delete();
         }
 
         // Templateless annotations ("Dessin" tool): no listing, scoped by

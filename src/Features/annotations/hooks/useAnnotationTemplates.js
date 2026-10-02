@@ -12,6 +12,9 @@ export default function useAnnotationTemplates(options) {
 
   const filterByListingId = options?.filterByListingId;
   const sortByLabel = options?.sortByLabel;
+  // skip: no query at all (a consumer that already holds the templates or
+  // does not need them yet) — returns undefined.
+  const skip = Boolean(options?.skip);
 
   // data
 
@@ -31,6 +34,7 @@ export default function useAnnotationTemplates(options) {
   const hiddenIdsKey = hiddenIds.join(",");
 
   const rawAnnotationTemplates = useLiveQuery(async () => {
+    if (skip) return undefined;
     let templates = [];
     if (filterByListingId) {
       templates = (
@@ -58,7 +62,7 @@ export default function useAnnotationTemplates(options) {
     }
 
     return templates;
-  }, [filterByListingId, annotationTemplatesUpdatedAt, projectId]);
+  }, [filterByListingId, annotationTemplatesUpdatedAt, projectId, skip]);
 
   // Memoized on the rows + the hidden key: useAnnotationsV2 recomputes its
   // whole stage B on the identity of this array.

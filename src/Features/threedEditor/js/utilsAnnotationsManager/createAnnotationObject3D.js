@@ -123,9 +123,18 @@ const ANTI_ALIASING_SHRINK_MM = 10;
 // shrinks partially instead of collapsing / inverting.
 const SHRINK_MIN_HALF_WIDTH_RATIO = 0.15;
 
+// Hosts of painted parts (« Pinceau ») and annotations being converted to a
+// mesh are built WITHOUT the shrink: their faces are measured and kept as is
+// (useAutoLoadAnnotationsInThreedEditor tags them `_noAntiAliasingShrink`).
+function isShrinkEnabled(options, annotation) {
+  return Boolean(
+    options?.antiAliasingShrink && !annotation?._noAntiAliasingShrink
+  );
+}
+
 // Convert the mm setting to pixels for a given baseMap scale (0 when off).
-function getAntiAliasingShrinkPx(options, meterByPx) {
-  return options?.antiAliasingShrink && meterByPx > 0
+function getAntiAliasingShrinkPx(options, meterByPx, annotation) {
+  return isShrinkEnabled(options, annotation) && meterByPx > 0
     ? ANTI_ALIASING_SHRINK_MM / 1000 / meterByPx
     : 0;
 }
@@ -139,8 +148,9 @@ const ANTI_ALIASING_SHRINK_TOP_MM = 5;
 
 // Height (m) to extrude after removing the top shrink (0 change when off).
 // Clamped like the lateral shrink so a very low element never collapses.
-function getShrunkHeight(height, options) {
-  if (!options?.antiAliasingShrink || !(height > 0)) return height;
+// Exported for the tools that pick a displayed (shrunk) top (Extruder).
+export function getShrunkHeight(height, options, annotation) {
+  if (!isShrinkEnabled(options, annotation) || !(height > 0)) return height;
   const shrinkM = ANTI_ALIASING_SHRINK_TOP_MM / 1000;
   return Math.max(height - shrinkM, height * SHRINK_MIN_HALF_WIDTH_RATIO);
 }
@@ -300,7 +310,11 @@ function buildSlopedStripGroup(
   if (!ribbons.length) return null;
 
   const distance = getStripDistancePx(annotation, baseMap.meterByPx);
-  const shrinkPx = getAntiAliasingShrinkPx(options, baseMap.meterByPx);
+  const shrinkPx = getAntiAliasingShrinkPx(
+    options,
+    baseMap.meterByPx,
+    annotation
+  );
 
   const group = new Group();
   const foldSegments = [];
@@ -495,7 +509,11 @@ function extrudeStripPolygons(
   // Same anti-aliasing shrink as the wall path, applied to the resolved
   // footprint: uniform inset on every edge (lateral faces AND end caps),
   // clamped by the band width so a thin band never collapses.
-  const shrinkPx = getAntiAliasingShrinkPx(options, baseMap.meterByPx);
+  const shrinkPx = getAntiAliasingShrinkPx(
+    options,
+    baseMap.meterByPx,
+    annotation
+  );
   const distancePx = Math.abs(
     getStripDistancePx(annotation, baseMap.meterByPx)
   );
@@ -505,7 +523,7 @@ function extrudeStripPolygons(
       : shrinkPx;
   const shaped =
     effShrink > 0 ? polys.map((p) => insetStripPolygon(p, effShrink)) : polys;
-  const effHeight = getShrunkHeight(height, options);
+  const effHeight = getShrunkHeight(height, options, annotation);
 
   const group = new Group();
   shaped.forEach((poly) => {
@@ -574,14 +592,14 @@ function extrudeWallPolygon(
   // `shrinkPx` (half-width reduction, symmetric about the centerline) and, for
   // open polylines, trim the two end caps inward by the same amount. Clamped
   // so a thin wall still shrinks partially but never collapses / inverts.
-  const shrinkPx = getAntiAliasingShrinkPx(options, meterByPx);
+  const shrinkPx = getAntiAliasingShrinkPx(options, meterByPx, annotation);
   const effHalfWidth = Math.max(
     halfWidth - shrinkPx,
     halfWidth * SHRINK_MIN_HALF_WIDTH_RATIO
   );
   const applyShrink = shrinkPx > 0;
   // Same idea vertically: lower the top face by a few mm (bottom unchanged).
-  const effHeight = getShrunkHeight(height, options);
+  const effHeight = getShrunkHeight(height, options, annotation);
 
   // Closed centerline → hollow ring (outer contour + inner contour as a hole),
   // so the wall renders as a closed loop instead of a U. Per-vertex offsets are

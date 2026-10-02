@@ -16,7 +16,10 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
+import { getPaintedPartHostLabelById } from "Features/meshPaint/utils/resolvePaintedParts";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -90,6 +93,26 @@ export default function PanelViewerAnnotations({ header }) {
       : {}),
   });
 
+  // Parts painted in 3D (« Pinceau ») — same scope as the annotations above
+  // (painting template / listing tested, host layer followed), plus the
+  // main base map dropped when its annotations are hidden in 3D (mirrors
+  // scopedAnnotations below).
+  const painted = usePaintedPartsQties({
+    filterByMainBaseMap: !isAllScope,
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
+    keepHiddenTemplates: true,
+    ...(isThreedEditor && !isAllScope
+      ? {
+          extraBaseMapIds,
+          excludeProfileTemplates: true,
+          excludeListingsIds: hiddenListingsIds,
+          excludeBaseMapIds:
+            hideMainAnnotationsIn3d && baseMap?.id ? [baseMap.id] : null,
+        }
+      : {}),
+  });
+
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
@@ -116,26 +139,42 @@ export default function PanelViewerAnnotations({ header }) {
     [annotationTemplates]
   );
 
-  const qtiesById = useMemo(
+  const annotationQtiesById = useMemo(
     () =>
       computeAnnotationTemplateQties(scopedAnnotations, annotationTemplateById),
     [scopedAnnotations, annotationTemplateById]
   );
 
-  // Legend scope: only templates with an annotation on the displayed base
-  // maps (same rule as PanelAnnotationsRecap).
+  // + painted m² / ml of the painting templates (count / unit untouched).
+  const qtiesById = useMemo(
+    () =>
+      mergePaintedQtiesIntoTemplateQties(
+        annotationQtiesById,
+        painted.qtiesByTemplateId,
+        annotationTemplateById
+      ),
+    [annotationQtiesById, painted, annotationTemplateById]
+  );
+
+  // Legend scope: only templates with an annotation — or a painted part — on
+  // the displayed base maps (same rule as PanelAnnotationsRecap).
   const visibleTemplateIds = useMemo(
     () =>
-      new Set(
-        scopedAnnotations
+      new Set([
+        ...scopedAnnotations
           .filter((a) => a.annotationTemplateId)
-          .map((a) => a.annotationTemplateId)
-      ),
-    [scopedAnnotations]
+          .map((a) => a.annotationTemplateId),
+        ...painted.templateIds,
+      ]),
+    [scopedAnnotations, painted]
   );
   const visibleListingIds = useMemo(
-    () => new Set(scopedAnnotations.map((a) => a.listingId).filter(Boolean)),
-    [scopedAnnotations]
+    () =>
+      new Set([
+        ...scopedAnnotations.map((a) => a.listingId).filter(Boolean),
+        ...painted.listingIds,
+      ]),
+    [scopedAnnotations, painted]
   );
 
   const displayedListings = useMemo(
@@ -166,6 +205,20 @@ export default function PanelViewerAnnotations({ header }) {
   const detailAnnotationIndex = detailAnnotationId
     ? detailAnnotations.findIndex((a) => a.id === detailAnnotationId)
     : -1;
+  // Parts painted with the detail template + their hosts' labels (numbered
+  // like the annotations lists).
+  const detailPaintedParts = detailTemplate
+    ? (painted.partsByTemplateId[detailTemplate.id] ?? EMPTY_PARTS)
+    : EMPTY_PARTS;
+  const detailHostLabelById = useMemo(
+    () =>
+      getPaintedPartHostLabelById({
+        parts: detailPaintedParts,
+        annotations: scopedAnnotations,
+        templateById: annotationTemplateById,
+      }),
+    [detailPaintedParts, scopedAnnotations, annotationTemplateById]
+  );
 
   // render
 
@@ -193,6 +246,7 @@ export default function PanelViewerAnnotations({ header }) {
         <PanelTemplateProperties
           template={detailTemplate}
           annotationsCount={detailAnnotations.length}
+          paintedPartsCount={detailPaintedParts.length}
         />
       ) : detailTemplate ? (
         <PanelTemplateAnnotations
@@ -201,6 +255,9 @@ export default function PanelViewerAnnotations({ header }) {
           annotations={detailAnnotations}
           templateQties={qtiesById?.[detailTemplate.id]}
           spriteImage={spriteImage}
+          paintedParts={detailPaintedParts}
+          hostLabelById={detailHostLabelById}
+          readOnly
         />
       ) : (
         <>
@@ -237,3 +294,5 @@ export default function PanelViewerAnnotations({ header }) {
     </Box>
   );
 }
+
+const EMPTY_PARTS = [];

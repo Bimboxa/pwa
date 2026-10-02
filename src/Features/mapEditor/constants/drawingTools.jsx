@@ -37,6 +37,9 @@ import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
+
+import filterDrawingToolsForEditor from "../utils/filterDrawingToolsForEditor";
 
 const DRAWING_TOOLS = [
   {
@@ -472,6 +475,24 @@ const DRAWING_TOOLS = [
     behavior: "ONE_CLICK",
     drawingMode: "REVOLUTION_AXIS_PLACEMENT",
   },
+  // MESH_BRUSH tool (« Pinceau », Dessin module 3D editor only): a click on a
+  // 3D annotation object paints the clicked facet side (Surface template) or
+  // edge (Ligne template) with the armed template — db.meshPaints, see
+  // Features/meshPaint. 3D-only (`editor`), so the editor-filtered lists
+  // never offer it in 2D nor as a template's defaultTool; never offered to a
+  // template-less draft (`requiresTemplate`). The draft keeps the template's
+  // type (annotationType null). Distinct from the 2D "BRUSH" key, which the
+  // hidden 2D InteractionLayer reacts to (raster mask → polygons). Kept last
+  // so it shows at the end of the POLYGON / POLYLINE tool lists.
+  {
+    key: MESH_BRUSH_TOOL_KEY,
+    label: "Pinceau",
+    Icon: Brush,
+    annotationType: null,
+    behavior: "MESH_BRUSH",
+    editor: "3D",
+    requiresTemplate: true,
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -499,9 +520,19 @@ export const DRAWING_TOOLS_BY_TYPE = {
   CHAT_REPAIR: ["CHAT_REPAIR"],
 };
 
-export function getDrawingToolsByShape(drawingShape) {
+// Tools of a drawing shape (DRAWING_TOOLS order), filtered for the editor
+// that offers them (filterDrawingToolsForEditor): options.editor "2D"
+// (default) | "3D" — see selectDrawingToolsEditor — and options.templateless
+// (draft without annotation template).
+export function getDrawingToolsByShape(
+  drawingShape,
+  { editor = "2D", templateless = false } = {}
+) {
   const keys = getToolsForShape(drawingShape);
-  return DRAWING_TOOLS.filter((tool) => keys.includes(tool.key));
+  return filterDrawingToolsForEditor(
+    DRAWING_TOOLS.filter((tool) => keys.includes(tool.key)),
+    { editor, templateless }
+  );
 }
 
 export function getDrawingToolByKey(key) {

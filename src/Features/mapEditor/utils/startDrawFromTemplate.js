@@ -5,23 +5,23 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
-import {
-  getDrawingToolsByShape,
-  getDrawingToolByKey,
-} from "Features/mapEditor/constants/drawingTools.jsx";
+import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
+import { pickDrawingTool } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 
 // Resolve the active drawing tool for a template, mirroring the rule used by the
-// template rows: per-template selected tool → template.defaultTool → first tool
-// of the shape group.
-export function resolveActiveToolForTemplate(template, selectedToolKey) {
+// template rows (useDrawFromTemplate): per-template selected tool →
+// template.defaultTool → first tool of the shape group, each only if it
+// belongs to the shape group offered in `options.editor` ("2D" by default —
+// pass selectDrawingToolsEditor(state) to offer the 3D-only tools in the
+// Dessin module's 3D editor).
+export function resolveActiveToolForTemplate(
+  template,
+  selectedToolKey,
+  { editor = "2D" } = {}
+) {
   const drawingShape = resolveDrawingShape(template);
-  const tools = getDrawingToolsByShape(drawingShape);
-  const fallbackTool = template?.defaultTool
-    ? (getDrawingToolByKey(template.defaultTool) ?? tools[0])
-    : tools[0];
-  return selectedToolKey
-    ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
-    : fallbackTool;
+  const tools = getDrawingToolsByShape(drawingShape, { editor });
+  return pickDrawingTool(tools, [selectedToolKey, template?.defaultTool]);
 }
 
 // Single source of truth for the "start drawing from a template" dispatch

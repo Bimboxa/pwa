@@ -464,8 +464,27 @@ export function buildFaceStippleOverlay(mesh, tris, style = FACE_HOVER_STIPPLE) 
     }
   }
 
+  return buildStippleOverlayFromPositions(positions, style);
+}
+
+// Builds a stipple overlay Mesh from a flat triangle soup
+// [ax, ay, az, bx, by, bz, cx, cy, cz, …] (9 numbers per triangle, a
+// Float32Array is used as is — not copied), in the coordinates of the parent
+// the caller adds it to. Used for faces that are not a triangle subset of an
+// existing mesh (the brush preview of a face to paint, a painted face). Same
+// tags as buildFaceStippleOverlay: invisible to raycasts, snap, export.
+export function buildStippleOverlayFromPositions(
+  positions,
+  style = FACE_HOVER_STIPPLE
+) {
+  if (!positions || positions.length < 9) return null;
+  const array =
+    positions instanceof Float32Array
+      ? positions
+      : Float32Array.from(positions);
+
   const overlayGeometry = new BufferGeometry();
-  overlayGeometry.setAttribute("position", new BufferAttribute(positions, 3));
+  overlayGeometry.setAttribute("position", new BufferAttribute(array, 3));
 
   const overlay = new Mesh(overlayGeometry, createStippleMaterial(style));
   overlay.userData.isHoverOverlay = true;

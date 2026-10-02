@@ -24,7 +24,10 @@ import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapI
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
+import { getPaintedPartHostLabelById } from "Features/meshPaint/utils/resolvePaintedParts";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -111,6 +114,26 @@ export default function PanelDrawing() {
       : {}),
   });
 
+  // Parts painted in 3D (« Pinceau ») — same scope as the annotations above
+  // (painting template / listing tested, host layer followed), plus the
+  // main base map dropped when its annotations are hidden in 3D (mirrors
+  // scopedAnnotations below).
+  const painted = usePaintedPartsQties({
+    filterByMainBaseMap: !isAllScope,
+    filterBySelectedScope: true,
+    excludeIsForBaseMapsListings: true,
+    keepHiddenTemplates: true,
+    ...(isThreedEditor && !isAllScope
+      ? {
+          extraBaseMapIds,
+          excludeProfileTemplates: true,
+          excludeListingsIds: hiddenListingsIds,
+          excludeBaseMapIds:
+            hideMainAnnotationsIn3d && baseMap?.id ? [baseMap.id] : null,
+        }
+      : {}),
+  });
+
   // "Dessin" tool row counter (annotations drawn without template).
   const templatelessCount = useMemo(
     () =>
@@ -188,22 +211,37 @@ export default function PanelDrawing() {
     [annotationTemplates]
   );
 
-  const qtiesById = useMemo(
+  const annotationQtiesById = useMemo(
     () =>
       computeAnnotationTemplateQties(scopedAnnotations, annotationTemplateById),
     [scopedAnnotations, annotationTemplateById]
   );
 
+  // + painted m² / ml of the painting templates (count / unit untouched).
+  const qtiesById = useMemo(
+    () =>
+      mergePaintedQtiesIntoTemplateQties(
+        annotationQtiesById,
+        painted.qtiesByTemplateId,
+        annotationTemplateById
+      ),
+    [annotationQtiesById, painted, annotationTemplateById]
+  );
+
   // Annotations count per listing for the selector chips — same scope as the
-  // panel quantities (mesh cells excluded, like computeAnnotationTemplateQties).
+  // panel quantities (mesh cells excluded, like computeAnnotationTemplateQties)
+  // — plus the counted painted parts of the listing's templates.
   const countsByListingId = useMemo(() => {
     const counts = {};
     for (const a of scopedAnnotations) {
       if (a.isMeshCell || !a.listingId) continue;
       counts[a.listingId] = (counts[a.listingId] ?? 0) + 1;
     }
+    Object.entries(painted.countsByListingId).forEach(([listingId, n]) => {
+      counts[listingId] = (counts[listingId] ?? 0) + n;
+    });
     return counts;
-  }, [scopedAnnotations]);
+  }, [scopedAnnotations, painted]);
 
   // helpers - detail view (#311). A stale id (deleted template, scope
   // change) simply resolves to nothing and the main list renders.
@@ -230,6 +268,20 @@ export default function PanelDrawing() {
   const detailAnnotationIndex = detailAnnotationId
     ? detailAnnotations.findIndex((a) => a.id === detailAnnotationId)
     : -1;
+  // Parts painted with the detail template + their hosts' labels (numbered
+  // like the annotations lists).
+  const detailPaintedParts = detailTemplate
+    ? (painted.partsByTemplateId[detailTemplate.id] ?? EMPTY_PARTS)
+    : EMPTY_PARTS;
+  const detailHostLabelById = useMemo(
+    () =>
+      getPaintedPartHostLabelById({
+        parts: detailPaintedParts,
+        annotations: scopedAnnotations,
+        templateById: annotationTemplateById,
+      }),
+    [detailPaintedParts, scopedAnnotations, annotationTemplateById]
+  );
 
   // render
 
@@ -267,6 +319,7 @@ export default function PanelDrawing() {
         <PanelTemplateProperties
           template={detailTemplate}
           annotationsCount={detailAnnotations.length}
+          paintedPartsCount={detailPaintedParts.length}
         />
       ) : detailTemplate ? (
         <PanelTemplateAnnotations
@@ -275,6 +328,8 @@ export default function PanelDrawing() {
           annotations={detailAnnotations}
           templateQties={qtiesById?.[detailTemplate.id]}
           spriteImage={spriteImage}
+          paintedParts={detailPaintedParts}
+          hostLabelById={detailHostLabelById}
         />
       ) : showBaseMaps ? (
         <>
@@ -333,3 +388,5 @@ export default function PanelDrawing() {
     </Box>
   );
 }
+
+const EMPTY_PARTS = [];

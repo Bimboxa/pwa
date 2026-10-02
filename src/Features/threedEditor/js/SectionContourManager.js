@@ -168,6 +168,8 @@ export default class SectionContourManager {
         if (child.userData?.isDecor) return;
         // Face stipples (hover, selected faces): copies of a face's triangles.
         if (child.userData?.isHoverOverlay) return;
+        // Painted parts (Pinceau): skins over a face, not a solid.
+        if (child.userData?.isPaintOverlay) return;
         if (child.isMesh && child.geometry) meshes.push(child);
       });
     });

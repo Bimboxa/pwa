@@ -3,7 +3,12 @@ import "dexie-export-import";
 import { nanoid } from "@reduxjs/toolkit";
 
 import store from "App/store";
-import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
+import {
+  UNDO_TABLES,
+  onUndoRedoApplied,
+  pushUndo,
+  registerUndoHooks,
+} from "./undoManager";
 import {
   canEditRecord,
   getEffectiveOwner,
@@ -19,6 +24,7 @@ import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeR
 import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
 import getUserTrigram from "Features/auth/utils/getUserTrigram";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
+import syncMeshPaintsAfterUndoService from "Features/meshPaint/services/syncMeshPaintsAfterUndoService";
 
 function getCurrentUserIdMaster() {
   const state = store.getState();
@@ -451,6 +457,29 @@ db.version(41).stores({
   scene3dAssets: "id,sceneId,projectId",
 });
 
+db.version(42).stores({
+  // Painted mesh parts (« Pinceau » of the 3D editor, Features/meshPaint):
+  // one row = one facet SIDE or one edge of an annotation's 3D object linked
+  // to the annotation template that painted it.
+  // {id, projectId, scopeId, listingId (of the PAINTING template),
+  //  annotationTemplateId (painting template), hostAnnotationId, baseMapId
+  //  (the host's base map = frame of the geometry),
+  //  partType: "FACE" | "EDGE",
+  //  geometry: FACE {polygons: [{contour, holes}], normal: [x, y, z]}
+  //          | EDGE {points: [p0, p1]}
+  //    points [nx, ny, z]: x, y normalized like db.points, z in meters,
+  //    absolute in the base-map-local frame (see meshPaintFrame.js); the FACE
+  //    normal is in local meters and points TOWARD the painted side,
+  //  paintedAt (ISO, user actions only — conflict arbitration),
+  //  sync: {state: "OK" | "ORPHAN", geomHash, syncedAt, provisional?}}
+  // Re-sync writes are derived writes (tx.derivedWrite): no audit stamp, no
+  // local-change notification, no undo entry.
+  // Base-map-frame coordinate holder (like db.points / mesh3d): any service
+  // re-framing a base map (regenerateBaseMapFromPdfPageService) must remap it.
+  meshPaints:
+    "id,projectId,scopeId,listingId,annotationTemplateId,hostAnnotationId,baseMapId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -502,6 +531,7 @@ const AUDIT_TABLES = [
   "planningResources",
   "planningSlots",
   "relsScopeListing",
+  "meshPaints",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -544,6 +574,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // Scope ↔ listing links are shared structure: anyone can unlink a listing
   // from the host scope (the private-scope read-only guard still applies).
   "relsScopeListing",
+  // Painted mesh parts: the one-template-per-part replace rule must be able to
+  // soft-delete a paint made by another user.
+  "meshPaints",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -638,7 +671,9 @@ function assertScopeSelected(tableName, obj) {
 // writes bypass.
 function assertNotLinkedListingContent(tableName, obj) {
   if (_skipOwnershipGuard) return;
-  if (tableName !== "annotations") return;
+  // meshPaints: listingId is the PAINTING template's listing — painting with a
+  // template of a linked listing is refused (painting a linked HOST is fine).
+  if (tableName !== "annotations" && tableName !== "meshPaints") return;
   if (obj?.isBaseMapAnnotation || obj?.isScaleSegment) return;
   const listingId = obj?.listingId;
   if (!listingId) return;
@@ -668,10 +703,14 @@ AUDIT_TABLES.forEach((tableName) => {
     if (!_skipOwnershipGuard) notifyLocalChange();
   });
 
-  db[tableName].hook("updating", function (modifications, primKey, obj) {
+  db[tableName].hook("updating", function (modifications, primKey, obj, tx) {
     assertNotReadOnlyScope(tableName, obj);
     assertScopeSelected(tableName, obj);
     assertNotLinkedListingContent(tableName, obj);
+    // Derived write (meshPaint re-sync): a refresh computed from other rows,
+    // not a user edit — no audit stamp (a background refresh must never win
+    // a Krto "newest wins" merge over a user edit) and no dirty flag.
+    if (tx?.derivedWrite) return modifications;
     if (!_skipOwnershipGuard) notifyLocalChange();
 
     if (_skipOwnershipGuard) {
@@ -746,35 +785,10 @@ db.points.hook("creating", function (primKey, obj) {
 
 // --- UNDO HOOKS ---
 
-UNDO_TABLES.forEach((tableName) => {
-  db[tableName].hook("creating", function (primKey, obj, tx) {
-    if (_skipUndo || tx?.annotationBatch) return;
-    const snapshot = { ...obj };
-    this.onsuccess = (key) => {
-      pushUndo({
-        table: tableName,
-        type: "create",
-        key,
-        before: null,
-        after: { ...snapshot, id: key },
-      });
-    };
-  });
-
-  db[tableName].hook("updating", function (modifications, primKey, obj, tx) {
-    if (_skipUndo || tx?.annotationBatch) return;
-    const before = { ...obj };
-    this.onsuccess = () => {
-      pushUndo({
-        table: tableName,
-        type: "update",
-        key: primKey,
-        before,
-        after: { ...obj, ...modifications },
-      });
-    };
-  });
-});
+registerUndoHooks(db);
+// Undo / redo re-stamp the restored annotations / points (undoManager): a
+// painted part restored with its host keeps its « à vérifier » state.
+onUndoRedoApplied(syncMeshPaintsAfterUndoService);
 
 // --- SOFT DELETE MIDDLEWARE ---
 
@@ -822,6 +836,7 @@ const SOFT_DELETE_TABLES = new Set([
   "planningResources",
   "planningSlots",
   "relsScopeListing",
+  "meshPaints",
 ]);
 
 let _skipSoftDelete = false;

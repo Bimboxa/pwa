@@ -64,6 +64,10 @@ export default function remapDexieExportIds(jsonData, opts) {
     targetAnnotationId: "annotations",
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
+    // Painted mesh parts (meshPaints) -> host annotation; also the host /
+    // opening ends of relAnnotationOpenings (shipped by the project export).
+    hostAnnotationId: "annotations",
+    openingAnnotationId: "annotations",
     businessObjectId: "businessObjects",
     // relsBusinessObjectResource -> highlighted PDF resource.
     resourceId: "resources",

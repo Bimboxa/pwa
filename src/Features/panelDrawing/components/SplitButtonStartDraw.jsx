@@ -12,6 +12,8 @@ import ArrowDropDown from "@mui/icons-material/ArrowDropDown";
 import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
+
 // ---------------------------------------------------------------------------
 // SplitButtonStartDraw — split button of a template row, tinted with the
 // template color (same scheme as the popper's tool button: alpha background +
@@ -40,6 +42,7 @@ export default function SplitButtonStartDraw({
   // data
 
   const {
+    tools,
     activeTool,
     hasFixedTool,
     canDrawInCurrentEditor,
@@ -55,6 +58,10 @@ export default function SplitButtonStartDraw({
 
   const ActiveToolIcon = activeTool?.Icon;
   const disabled = !canDrawInCurrentEditor;
+  // « Pinceau » (3D): the row paints parts instead of drawing.
+  const actionLabel = isMeshBrushDrawingMode(activeTool?.key)
+    ? "Peindre"
+    : "Dessiner";
   const templateColor =
     annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999";
   const menuOpen = Boolean(toolMenuAnchor);
@@ -105,7 +112,7 @@ export default function SplitButtonStartDraw({
           title={
             disabled
               ? "Indisponible dans l'éditeur 3D"
-              : `Dessiner — ${activeTool?.label ?? ""}`
+              : `${actionLabel} — ${activeTool?.label ?? ""}`
           }
           arrow
         >
@@ -155,6 +162,7 @@ export default function SplitButtonStartDraw({
         open={menuOpen}
         onClose={() => setToolMenuAnchor(null)}
         annotationTemplate={annotationTemplate}
+        tools={tools}
         onSelectTool={selectToolAndDraw}
         onEdit={handleEditTemplate}
       />
