@@ -1,10 +1,20 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { Box, Paper, Typography, Switch } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  Paper,
+  Switch,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { keyframes } from "@emotion/react";
 
-import { setPasteDetectionMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  setPasteDetectionMode,
+  setPasteSegmentOptions,
+} from "Features/mapEditor/mapEditorSlice";
 import { isCopiedSegment } from "Features/smartDetect/utils/prepareCopiedSegmentCreation";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
@@ -21,6 +31,66 @@ const detectionPulse = keyframes`
   50%  { background-color: #00ff0066; box-shadow: 0 0 10px #00ff00; }
   100% { background-color: #00ff00; box-shadow: 0 0 4px #00ff00; }
 `;
+
+const sectionTitleSx = {
+  fontWeight: 600,
+  color: "text.secondary",
+  textTransform: "uppercase",
+  letterSpacing: 1,
+  fontSize: "0.75rem",
+};
+
+// "Espace" key — flashes while a detection waits for validation.
+function SpaceBadge({ active = false }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 56,
+        height: 22,
+        px: 0.5,
+        borderRadius: "6px",
+        border: "1px solid",
+        borderColor: active ? "#00aa00" : "text.disabled",
+        backgroundColor: active
+          ? undefined
+          : (theme) => theme.palette.action.hover,
+        borderBottomWidth: "3px",
+        color: active ? "#000" : "text.primary",
+        fontFamily: "monospace",
+        fontWeight: "bold",
+        fontSize: "0.7rem",
+        lineHeight: 1,
+        animation: active
+          ? `${detectionPulse} 0.8s ease-in-out infinite`
+          : "none",
+      }}
+    >
+      Espace
+    </Box>
+  );
+}
+
+function SegmentOption({ label, checked, onChange }) {
+  return (
+    <FormControlLabel
+      label={label}
+      sx={{ m: 0, gap: 0.5 }}
+      slotProps={{ typography: { variant: "body2" } }}
+      control={
+        <Checkbox
+          size="small"
+          sx={{ p: 0.25 }}
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+      }
+    />
+  );
+}
 
 function PasteShortcutRow({ label, children }) {
   return (
@@ -53,6 +123,7 @@ export default function SectionPasteHelperContent() {
     (s) => s.mapEditor.smartDetectionPresent
   );
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  const segmentOptions = useSelector((s) => s.mapEditor.pasteSegmentOptions);
 
   const copiedCount = pasteClipboard?.items?.length ?? 0;
   // Pattern detection is single-template only.
@@ -97,57 +168,48 @@ export default function SectionPasteHelperContent() {
             <ShortcutBadge>S</ShortcutBadge>
           </Box>
 
-          {(pasteDetectionMode || isSegmentCreation) && (
+          {pasteDetectionMode && (
             <Box
               sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
             >
               <Typography variant="body2" sx={{ flex: 1 }}>
-                {isSegmentCreation && !smartDetectionPresent
-                  ? "Créer un segment similaire"
-                  : "Valider la détection"}
+                Valider la détection
               </Typography>
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: 56,
-                  height: 22,
-                  px: 0.5,
-                  borderRadius: "6px",
-                  border: "1px solid",
-                  borderColor: smartDetectionPresent
-                    ? "#00aa00"
-                    : "text.disabled",
-                  backgroundColor: smartDetectionPresent
-                    ? undefined
-                    : (theme) => theme.palette.action.hover,
-                  borderBottomWidth: "3px",
-                  color: smartDetectionPresent ? "#000" : "text.primary",
-                  fontFamily: "monospace",
-                  fontWeight: "bold",
-                  fontSize: "0.7rem",
-                  lineHeight: 1,
-                  animation: smartDetectionPresent
-                    ? `${detectionPulse} 0.8s ease-in-out infinite`
-                    : "none",
-                }}
-              >
-                Espace
-              </Box>
+              <SpaceBadge active={smartDetectionPresent} />
             </Box>
           )}
-          {isSegmentCreation && (
-            <Typography
-              variant="caption"
-              sx={{ display: "block", mt: 1, color: "text.secondary" }}
-            >
-              Espace : valider le candidat affiché. Sans candidat : rechercher,
-              créer, prolonger et raccorder. Rayon : 2 × l’épaisseur de la
-              bande.
+        </Paper>
+      )}
+
+      {/* Similar segment card — Space on a copied two-point segment. */}
+      {isSegmentCreation && (
+        <Paper
+          variant="outlined"
+          sx={{ p: 1, borderRadius: 1, bgcolor: "background.paper" }}
+        >
+          <Typography variant="subtitle2" sx={{ ...sectionTitleSx, mb: 1 }}>
+            Segment similaire
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" sx={{ flex: 1 }}>
+              Dessiner un segment de même largeur et orientation
             </Typography>
-          )}
+            <SpaceBadge />
+          </Box>
+          <Box sx={{ mt: 1, display: "flex", flexDirection: "column" }}>
+            <SegmentOption
+              label="Fusionner"
+              checked={Boolean(segmentOptions?.merge)}
+              onChange={(merge) => dispatch(setPasteSegmentOptions({ merge }))}
+            />
+            <SegmentOption
+              label="Copie exacte"
+              checked={Boolean(segmentOptions?.exactCopy)}
+              onChange={(exactCopy) =>
+                dispatch(setPasteSegmentOptions({ exactCopy }))
+              }
+            />
+          </Box>
         </Paper>
       )}
 
@@ -163,17 +225,7 @@ export default function SectionPasteHelperContent() {
           p: 2,
         }}
       >
-        <Typography
-          variant="subtitle2"
-          sx={{
-            mb: 2,
-            fontWeight: 600,
-            color: "text.secondary",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            fontSize: "0.75rem",
-          }}
-        >
+        <Typography variant="subtitle2" sx={{ ...sectionTitleSx, mb: 2 }}>
           Raccourcis Clavier
         </Typography>
 

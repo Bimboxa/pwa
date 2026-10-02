@@ -305,6 +305,12 @@ const mapEditorInitialState = {
   pasteTransform: { rotationDeg: 0, flipX: false },
   // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER"
   pasteDetectionMode: null,
+  // « Segment similaire » (Space on a copied two-point segment):
+  //   merge     — fuse the new segment with a wall of the same template and
+  //               width whose end it touches (rule of « Fusionner si possible »)
+  //   exactCopy — keep the copied length and place it on the pixel signature
+  //               of the copy, instead of extending along the wall
+  pasteSegmentOptions: { merge: false, exactCopy: false },
 
   // Chat « Réparation »: rectangle { x, y, width, height } in base-map
   // reference pixels picked with the CHAT_REPAIR drawing mode (2 clicks). It
@@ -873,6 +879,12 @@ export const mapEditorSlice = createSlice({
       state.pasteDetectionMode =
         action.payload === "ADJUST" ? "HOVER" : action.payload;
     },
+    setPasteSegmentOptions: (state, action) => {
+      state.pasteSegmentOptions = {
+        ...state.pasteSegmentOptions,
+        ...action.payload,
+      };
+    },
 
     // chat « Réparation » zone
     setChatRepairZone: (state, action) => {
@@ -1102,6 +1114,7 @@ export const {
   rotatePasteClipboard,
   flipPasteClipboardX,
   setPasteDetectionMode,
+  setPasteSegmentOptions,
 
   // chat « Réparation » zone
   setChatRepairZone,
