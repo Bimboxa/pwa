@@ -246,7 +246,9 @@ export default async function resolveAppConfig(appConfig) {
   //       enabledModuleKeys,        // non-core modules to enable (keys of
   //                                 // useViewers.jsx; Fonds de plan + Dessin
   //                                 // always on; [] => core only)
-  //       disabledToolKeys,         // root-disabled tools (persisted form)
+  //       disabledCoreModuleKeys,   // optional core modules to disable
+  //                                 // (["SCOPE"]; enabled when absent)
+  //       disabledToolKeys,        // root-disabled tools (persisted form)
   //       disabledToolKeysByModule } }
   // Named export `configurationKeywordFamilies` = [{ key, label }].
   // Yaml side: features.krtoConfigurations.simpleModeKeys (optional list of

@@ -29,6 +29,13 @@ export const CONFIGURABLE_MODULE_KEYS = [
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 
+// Core modules a scope may still disable (enabled by default): never part of
+// CONFIGURABLE_MODULE_KEYS, so no default list, enabled-form conversion or
+// knownModuleKeys stamp ever disables them — they are disabled only when a
+// row's disabledModuleKeys lists them (configuration
+// scopeConfig.disabledCoreModuleKeys, or the Configuration dialog toggle).
+export const OPTIONAL_CORE_MODULE_KEYS = ["SCOPE"];
+
 // Hardcoded default: only the core modules stay enabled.
 export const DEFAULT_DISABLED_MODULE_KEYS = [...CONFIGURABLE_MODULE_KEYS];
 

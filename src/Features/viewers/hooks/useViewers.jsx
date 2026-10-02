@@ -30,9 +30,11 @@ import {
 import theme from "Styles/theme";
 
 // Modules that can never be disabled from the Configuration dialog: the app
-// always keeps the scope overview and its two core modules. Also shields
-// against imported scopeConfig rows that would list them as disabled.
-export const LOCKED_MODULE_KEYS = new Set(["SCOPE", "BASE_MAPS", "MAP"]);
+// always keeps its two core modules. Also shields against imported
+// scopeConfig rows that would list them as disabled. The SCOPE overview is
+// an OPTIONAL core module (OPTIONAL_CORE_MODULE_KEYS): enabled by default,
+// disabled only when the row lists it.
+export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
 
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
@@ -68,7 +70,8 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       icon: <IconAnnotatedPlan />,
       bgcolor: theme.palette.viewers.scope,
       // Overview of the scope: the listings on the left, the base maps and
-      // their quantities in the editor. Locked (LOCKED_MODULE_KEYS) and
+      // their quantities in the editor. Optional core module (enabled unless the
+      // scopeConfig row disables it, OPTIONAL_CORE_MODULE_KEYS) and
       // pinned first (PINNED_TOP_MODULE_KEYS) — the entry point of a scope.
       // No hotkey: Ctrl+S is the browser save dialog, not reliably cancelable.
       // 2D-only: the module hosts its own viewer, no map editor.
