@@ -2,7 +2,10 @@ import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  clearSelection,
+  setSelectedItem,
+} from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 import {
@@ -65,7 +68,10 @@ import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesA
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
 import BUSINESS_OBJECT_TYPES from "../data/businessObjectTypesCatalog";
-import { getBusinessObjectsModuleKey } from "../utils/businessObjectModuleKeys";
+import {
+  getBusinessObjectsModuleKey,
+  isBusinessObjectsModuleKey,
+} from "../utils/businessObjectModuleKeys";
 
 const LISTING_TYPES = BUSINESS_OBJECT_TYPES.filter((type) =>
   ["STANDARD", "NOMENCLATURE", "PINNED_OBJECTS", "LOCATIONS"].includes(type.key)
@@ -116,7 +122,12 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
   // data
 
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  // In a business-objects module this panel IS the module's default (the
+  // empty selection re-arms the listing): no back arrow there. It only shows
+  // where the listing was drilled into (scope module).
+  const isModuleRoot = useSelector((s) =>
+    isBusinessObjectsModuleKey(s.viewers.selectedViewerKey)
+  );
   const { value: businessObjects } = useBusinessObjects({
     listingId: listing?.id,
   });
@@ -188,9 +199,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   // handlers
 
   function handleBack() {
-    // Back from the listing properties returns to the scope panel, like the
-    // baseMap group properties panel.
-    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    // Back from the listing properties empties the selection: the module's
+    // default panel, like the baseMap group properties panel.
+    dispatch(clearSelection());
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
@@ -311,9 +322,11 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
           pl: 1,
         }}
       >
-        <IconButton onClick={handleBack}>
-          <Back />
-        </IconButton>
+        {!isModuleRoot && (
+          <IconButton onClick={handleBack}>
+            <Back />
+          </IconButton>
+        )}
         <Box sx={{ ml: 1, flexGrow: 1, minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary">
             {titleS}

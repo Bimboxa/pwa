@@ -22,7 +22,8 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 // SectionBaseMapOverview — "Fond de plan" card of the module default panels
 // (scope panel, Dessin panel): preview of the MAIN base map, version caption,
 // opacity slider and a "Voir le détail" button opening the base map in the
-// BASE_MAPS module. `returnFromViewer` is the module the detail comes back to.
+// BASE_MAPS module. `returnFromViewer` is the module the detail comes back to
+// ("BASE_MAPS" = already there: the base map is only selected, in place).
 // ---------------------------------------------------------------------------
 
 export default function SectionBaseMapOverview({ returnFromViewer = "MAP" }) {
@@ -71,6 +72,7 @@ export default function SectionBaseMapOverview({ returnFromViewer = "MAP" }) {
       })
     );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    if (returnFromViewer === "BASE_MAPS") return;
     dispatch(setSelectedViewerKey("BASE_MAPS"));
     dispatch(setViewerReturnContext({ fromViewer: returnFromViewer }));
   }

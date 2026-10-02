@@ -12,6 +12,7 @@ import { readBaseMapsGridPositions } from "Features/baseMapsGrid/hooks/useBaseMa
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import buildBaseMapsGrid3dSheets from "../utils/buildBaseMapsGrid3dSheets";
 import { isBaseMapImageOnIn3d } from "../utils/baseMapImageEyeIn3d";
+import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideBaseMapImagesIn3d";
 
 function getManager() {
   return getActiveThreedEditor()?.sceneManager?.baseMapsGridManager ?? null;
@@ -41,7 +42,8 @@ export default function useBaseMapsGrid3d() {
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
-  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
+  // 3D "Masquer les fonds de plan" switch OR global image mode NONE
+  const hideBaseMaps = useSelector(selectHideBaseMapImagesIn3d);
 
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
@@ -123,7 +125,7 @@ export default function useBaseMapsGrid3d() {
       sheets,
       anchorBaseMapId: mainBaseMapId,
       imageOnById: getImageOnById(sheets.map((s) => s.id)),
-      hideBaseMaps: store.getState().threedEditor.hideBaseMaps,
+      hideBaseMaps: selectHideBaseMapImagesIn3d(store.getState()),
     });
     if (!result) {
       // nothing to lay on the table

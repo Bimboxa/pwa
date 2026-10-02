@@ -1,12 +1,14 @@
 import { useDispatch, useSelector } from "react-redux";
 import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
 
-import { Box, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import RowSwitchConfig from "Features/scopeConfig/components/RowSwitchConfig";
 import SectionBaseMapOverview from "Features/baseMaps/components/SectionBaseMapOverview";
+import HeaderPanelPropertiesModule from "Features/viewers/components/HeaderPanelPropertiesModule";
+import SectionModuleDescription from "Features/viewers/components/SectionModuleDescription";
 import SectionDrawingListings from "./SectionDrawingListings";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -20,7 +22,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 export default function PanelPropertiesDrawing() {
   // strings
 
-  const moduleS = "Dessin";
   const layersTitleS = "Calques";
   const layersLabelS = "Travailler avec des calques";
   const layersCaptionS =
@@ -46,24 +47,11 @@ export default function PanelPropertiesDrawing() {
 
   return (
     <BoxFlexVStretch sx={{ height: "100%" }}>
-      {/* Header */}
-      <Box sx={{ p: 0.5, pl: 2, minWidth: 0 }}>
-        <Typography
-          variant="subtitle2"
-          color="text.secondary"
-          sx={{
-            fontStyle: "italic",
-            fontSize: (theme) => theme.typography.caption.fontSize,
-          }}
-        >
-          {moduleS}
-        </Typography>
-        <Typography noWrap variant="body2" sx={{ fontWeight: "bold" }}>
-          {titleS}
-        </Typography>
-      </Box>
+      <HeaderPanelPropertiesModule moduleKey="MAP" title={titleS} />
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
+        <SectionModuleDescription moduleKey="MAP" />
+
         <SectionBaseMapOverview returnFromViewer="MAP" />
 
         <SectionDrawingListings />

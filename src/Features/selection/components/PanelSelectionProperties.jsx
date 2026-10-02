@@ -39,9 +39,12 @@ import PanelBusinessObjectListingProperties from "Features/businessObjects/compo
 import PanelWorkPackageProperties from "Features/businessObjects/components/PanelWorkPackageProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import PanelPropertiesDrawing from "Features/panelDrawing/components/PanelPropertiesDrawing";
+import PanelPropertiesBaseMapsModule from "Features/baseMapEditor/components/PanelPropertiesBaseMapsModule";
+import PanelPropertiesModuleDefault from "Features/viewers/components/PanelPropertiesModuleDefault";
 import PanelPropertiesMesh3dParts from "Features/annotationMesh3d/components/PanelPropertiesMesh3dParts";
 import { getSelectedMesh3dParts } from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import getModuleRootPanelType from "../utils/getModuleRootPanelType";
 
 export default function PanelSelectionProperties() {
   // data
@@ -83,6 +86,11 @@ export default function PanelSelectionProperties() {
   // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
   // node / point / segment / guideline selections resolve the same way in both.
   const isCanvasViewer = isMapViewer || isBaseMapsViewer;
+
+  // Root of the selection: nothing selected. Each module then shows its own
+  // default panel (getModuleRootPanelType). A typeless item (`{}` left by
+  // some delete flows) or a legacy SCOPE item count as an empty selection.
+  const isRoot = !selectedItem?.type || selectedItem.type === "SCOPE";
 
   let type = "LISTING";
   if (isPovViewer) {
@@ -131,20 +139,14 @@ export default function PanelSelectionProperties() {
     if (entityModelType === "BUSINESS_OBJECT") type = "BUSINESS_OBJECT_LISTING";
     else if (entityModelType === "BASE_MAP") type = "BASE_MAP_LISTING";
     else type = "LISTING";
-  } else if (isScopeViewer && selectedItem?.type === "SCOPE") {
-    // Back arrow of the listing panels lands on the scope panel, same chain as
-    // the baseMap module.
-    type = "SCOPE";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
-    (selectedItem?.type === "LISTING" || !selectedItem)
+    selectedItem?.type === "LISTING"
   ) {
-    // Back arrow of the object properties panel (LISTING selection), and the
-    // module's default: the listing properties (name + "Numérotation" display
-    // option) — the BASE_MAP_LISTING pattern. The `!selectedItem` arm covers
-    // the frame before useDefaultSelectionInBusinessObjectsModule poses the
-    // LISTING selection (without it `type` would fall back to the generic
-    // LISTING branch, showing the Dessin module's listing).
+    // Back arrow of the object properties panel (LISTING selection): the
+    // listing properties (name + "Numérotation" display option) — the
+    // BASE_MAP_LISTING pattern. Also the module's default panel, through the
+    // root branch below.
     type = "BUSINESS_OBJECT_LISTING";
   } else if (
     isCanvasViewer &&
@@ -187,10 +189,12 @@ export default function PanelSelectionProperties() {
     // The guideLine (ramp axis) is sub-selected: show its dedicated panel
     // exposing the slope (%) and a "..." menu with Supprimer.
     type = "GUIDE";
-  } else if (isMapViewer && !selectedItem) {
-    // Dessin module default: the module's own panel (base map overview,
-    // listings visibility, layers toggle).
-    type = "DRAWING_MODULE";
+  } else if (isRoot) {
+    // Nothing selected: the module's own default panel (Dessin, Fonds de
+    // plan, scope, portfolio header, business-objects listing, or the generic
+    // module panel). Before the showAnnotationsProperties branch: a stale
+    // flag must not hide the module panel.
+    type = getModuleRootPanelType(selectedViewerKey);
   } else if (
     isCanvasViewer &&
     selectedItems.length > 1 &&
@@ -222,25 +226,19 @@ export default function PanelSelectionProperties() {
     // fallbacks, which would map it to the base map panel.
     type = "BASE_MAP_VERSION";
   } else if (
-    (isMapViewer || isThreedViewer) &&
+    (isMapViewer || isThreedViewer || isBaseMapsViewer) &&
     selectedItem?.type === "BASE_MAP"
   ) {
     // 3D viewer: clicking a baseMap plane selects it as a BASE_MAP item
     // (MainThreedEditor.handleClick) — show the same panel as the 2D editor.
+    // BASE_MAPS module: a base map picked in the left tree, or through the
+    // "Voir le détail" of a module panel.
     type = "BASE_MAP";
   } else if (isBaseMapsViewer && selectedItem?.type === "LISTING") {
     // A baseMap group is selected in the left tree. Without this branch, the
     // isBaseMapsViewer safety fallback below mapped it to BASE_MAP and showed
     // the baseMap properties instead.
     type = "BASE_MAP_LISTING";
-  } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
-    // Allow navigating back to the scope panel from the baseMap properties.
-    type = "SCOPE";
-  } else if (isBaseMapsViewer && !selectedItem) {
-    // Empty selection (e.g. after Escape): show the baseMap properties
-    // (transform operations). A selected drawing instead falls through to the
-    // viewer-agnostic branches below (ENTITY / ANNOTATION / ...), mirroring MAP.
-    type = "BASE_MAP";
   } else if (isPortfolioViewer) {
     if (selectedItem?.type === "LEGEND_BLOCK") {
       type = "LEGEND_BLOCK";
@@ -255,16 +253,9 @@ export default function PanelSelectionProperties() {
       // the folio detail reference element opens its dedicated panel
       type = "PORTFOLIO_DETAIL_REF";
     } else {
-      // PORTFOLIO_HEADER, PORTFOLIO, or no selection
+      // PORTFOLIO_HEADER, PORTFOLIO
       type = "PORTFOLIO_HEADER";
     }
-  } else if (!selectedItem) {
-    // Empty selection in a module without a dedicated default panel (SCOPE,
-    // THREED, MESHES, PHOTOS, ZONES): the scope panel. Modules with their own
-    // default (MAP, BASE_MAPS, POINT_OF_VIEW, PORTFOLIO, business objects)
-    // are caught above. Before the showAnnotationsProperties branch: a stale
-    // flag must not hide the module panel.
-    type = "SCOPE";
   } else if (selectedItem?.type === "ZONE") {
     // Zone selected in the zonings drawer (ZONES module): legend of the
     // annotations linked to the zone.
@@ -275,8 +266,6 @@ export default function PanelSelectionProperties() {
     type = "ANNOTATION_TEMPLATE";
   } else if (selectedItem?.type === "LAYER") {
     type = "LAYER";
-  } else if (selectedItem?.type === "SCOPE") {
-    type = "SCOPE";
   } else if (selectedItem?.type === "POPPER_MAP_LISTINGS") {
     type = "POPPER_MAP_LISTINGS";
   } else if (selectedItem?.type === "POPPER_BASE_MAPS") {
@@ -293,9 +282,9 @@ export default function PanelSelectionProperties() {
     type = "ANNOTATION";
   } else if (isBaseMapsViewer) {
     // Safety fallback in the BASE_MAPS viewer: a persisted selection of a type
-    // not handled above (e.g. a LISTING left over from another viewer) still
-    // shows the baseMap properties rather than the default LISTING panel.
-    type = "BASE_MAP";
+    // not handled above still shows the module panel rather than the default
+    // LISTING panel.
+    type = "BASE_MAPS_MODULE";
   }
 
   // render
@@ -303,6 +292,12 @@ export default function PanelSelectionProperties() {
   return (
     <BoxFlexVStretch>
       {type === "DRAWING_MODULE" && <PanelPropertiesDrawing />}
+
+      {type === "BASE_MAPS_MODULE" && <PanelPropertiesBaseMapsModule />}
+
+      {type === "MODULE_DEFAULT" && (
+        <PanelPropertiesModuleDefault moduleKey={selectedViewerKey} />
+      )}
 
       {/* THREED uses the V2 panel too so the back chain ends listing → scope,
           matching the 2D editor. */}

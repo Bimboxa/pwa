@@ -1,6 +1,7 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { setSelectedViewerKey, setModuleEditorKey } from "../viewersSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 import { setPovViewerMode } from "Features/pov/povSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -19,8 +20,16 @@ import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 // displayed editor does change family, the MAP <-> 3D camera sync keeps the
 // baseMap image at the same on-screen place/size. Editor toggles WITHIN a
 // module go through useToggleModuleEditor instead.
+//
+// A module change also drops the selection inherited from the module we
+// leave (a base map, a listing, a portfolio page…) so the target module opens
+// on its own default properties panel. Annotation selections (NODE items) are
+// kept: Dessin <-> Viewer must keep theirs. Programmatic jumps that carry a
+// selection on purpose ("Voir le détail"…) dispatch setSelectedViewerKey
+// directly and are not concerned.
 export default function useSwitchViewer() {
   const dispatch = useDispatch();
+  const store = useStore();
 
   const viewers = useViewers();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
@@ -34,6 +43,11 @@ export default function useSwitchViewer() {
 
   return function switchViewer(viewerKey) {
     if (viewerKey === selectedViewerKey) return;
+
+    // Synchronous (not in `commit`, which can run after a camera animation):
+    // a selection the caller poses right after switchViewer() must survive.
+    const selectedItem = store.getState().selection.selectedItems[0];
+    if (selectedItem && selectedItem.type !== "NODE") dispatch(clearSelection());
 
     const targetModule = viewers.find((v) => v.key === viewerKey);
     const editors = targetModule?.editors ?? [viewerKey];

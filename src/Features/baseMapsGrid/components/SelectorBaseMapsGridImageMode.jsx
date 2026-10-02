@@ -1,44 +1,21 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setBaseMapsGridImageMode } from "../baseMapsGridSlice";
+import { setBaseMapsImageMode } from "Features/viewers/viewersSlice";
 
 import { Box, IconButton, Paper, Tooltip } from "@mui/material";
-import {
-  HideImageOutlined,
-  Image as ImageIcon,
-  ImageOutlined,
-} from "@mui/icons-material";
 
-import { BASE_MAPS_GRID_IMAGE_MODE } from "../constants/baseMapsGridConstants";
+import { BASE_MAPS_IMAGE_MODE_OPTIONS } from "Features/baseMaps/constants/baseMapsImageMode";
 
 // How the base map images show on the sheets of the grid: hidden
 // (annotations only), faded (light grey, the annotations stand out) or as is.
+// Same global state as the "Fonds de plan" module panel
+// (SectionBaseMapsImageMode): the editors underneath follow it too.
 export default function SelectorBaseMapsGridImageMode() {
   const dispatch = useDispatch();
 
-  // strings
-
-  const options = [
-    {
-      key: BASE_MAPS_GRID_IMAGE_MODE.NONE,
-      label: "Sans image",
-      icon: <HideImageOutlined fontSize="small" />,
-    },
-    {
-      key: BASE_MAPS_GRID_IMAGE_MODE.FADED,
-      label: "Image en gris clair",
-      icon: <ImageOutlined fontSize="small" />,
-    },
-    {
-      key: BASE_MAPS_GRID_IMAGE_MODE.FULL,
-      label: "Image",
-      icon: <ImageIcon fontSize="small" />,
-    },
-  ];
-
   // data
 
-  const imageMode = useSelector((s) => s.baseMapsGrid.imageMode);
+  const imageMode = useSelector((s) => s.viewers.baseMapsImageMode);
 
   // render
 
@@ -47,10 +24,10 @@ export default function SelectorBaseMapsGridImageMode() {
       elevation={3}
       sx={{ borderRadius: "10px", display: "flex", overflow: "hidden" }}
     >
-      {options.map((option) => {
-        const selected = option.key === imageMode;
+      {BASE_MAPS_IMAGE_MODE_OPTIONS.map(({ key, tooltip, Icon }) => {
+        const selected = key === imageMode;
         return (
-          <Tooltip key={option.key} title={option.label}>
+          <Tooltip key={key} title={tooltip}>
             <Box
               sx={{
                 display: "flex",
@@ -63,9 +40,9 @@ export default function SelectorBaseMapsGridImageMode() {
               <IconButton
                 size="small"
                 color="inherit"
-                onClick={() => dispatch(setBaseMapsGridImageMode(option.key))}
+                onClick={() => dispatch(setBaseMapsImageMode(key))}
               >
-                {option.icon}
+                <Icon fontSize="small" />
               </IconButton>
             </Box>
           </Tooltip>

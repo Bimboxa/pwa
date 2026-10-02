@@ -1,9 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-import {
-  BASE_MAPS_GRID_IMAGE_MODE,
-  BASE_MAPS_GRID_PHASE,
-} from "./constants/baseMapsGridConstants";
+import { BASE_MAPS_GRID_PHASE } from "./constants/baseMapsGridConstants";
 
 const initialState = {
   // transition state machine, see BASE_MAPS_GRID_PHASE
@@ -12,8 +9,6 @@ const initialState = {
   selectedListingId: null,
   // sheet selected on the table
   selectedBaseMapId: null,
-  // display of the base map images on the sheets (kept across openings)
-  imageMode: BASE_MAPS_GRID_IMAGE_MODE.FULL,
 };
 
 const closeGrid = (state) => {
@@ -37,9 +32,6 @@ export const baseMapsGridSlice = createSlice({
     setBaseMapsGridSelectedBaseMapId: (state, action) => {
       state.selectedBaseMapId = action.payload;
     },
-    setBaseMapsGridImageMode: (state, action) => {
-      state.imageMode = action.payload;
-    },
   },
   extraReducers: (builder) => {
     // The table belongs to the displayed project / scope / module.
@@ -54,7 +46,6 @@ export const {
   setBaseMapsGridPhase,
   setBaseMapsGridListingId,
   setBaseMapsGridSelectedBaseMapId,
-  setBaseMapsGridImageMode,
 } = baseMapsGridSlice.actions;
 
 export const selectBaseMapsGridOpen = (s) =>

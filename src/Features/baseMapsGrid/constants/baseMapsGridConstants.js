@@ -25,13 +25,6 @@ export const OPENED_SHEET_PADDING = 32;
 
 export const TABS_HEIGHT = 44;
 
-// Display of the base map images on the sheets
-export const BASE_MAPS_GRID_IMAGE_MODE = {
-  NONE: "NONE", // annotations only
-  FADED: "FADED", // light grey image, the annotations stand out
-  FULL: "FULL", // as displayed in the map editor
-};
-export const FADED_IMAGE_OPACITY = 0.35;
 // The table keeps the editor background (theme background.default); the
 // tabs band and the unselected tabs are darker shades of it.
 export const TABS_BAND_DARKEN = 0.1;

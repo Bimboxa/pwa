@@ -87,6 +87,7 @@ import {
   clearActiveThreedEditor,
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
+import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
@@ -2410,6 +2411,9 @@ export default function MainThreedEditor() {
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {/* "Evider" dialog requested from the toolbar above (the 2D editors
+          host their own outlet while they are the active viewer) */}
+      {isThreedViewer && <DialogHollowOutAnnotationOutlet />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}

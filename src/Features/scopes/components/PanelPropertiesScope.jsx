@@ -9,6 +9,7 @@ import { PlaylistAddCheck, BugReport, TableChart } from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionBaseMapOverview from "Features/baseMaps/components/SectionBaseMapOverview";
+import SectionModuleDescription from "Features/viewers/components/SectionModuleDescription";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldSortableListings from "Features/popperMapListings/components/FieldSortableListings";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -149,6 +150,8 @@ export default function PanelPropertiesScope() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
+        <SectionModuleDescription moduleKey="SCOPE" />
+
         {/* Scope name — editable by the creator only (the db guard on the
             scopes table would reject anyone else anyway) */}
         {selectedScope && isCreator && (

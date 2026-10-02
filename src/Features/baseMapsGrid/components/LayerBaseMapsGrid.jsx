@@ -49,6 +49,7 @@ import { BASE_MAPS_GRID_HOTKEY } from "../hooks/useOpenBaseMapsGridHotkey";
 import isEditableTarget from "../utils/isEditableTarget";
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
 import composeBaseMapsGridSheets from "../utils/composeBaseMapsGridSheets";
+import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
 import getAlignedSheetsLayout from "../utils/getAlignedSheetsLayout";
 import flyCameraMatrix from "../utils/flyCameraMatrix";
 import {
@@ -60,9 +61,7 @@ import {
 
 import {
   ADD_SHEET_ID,
-  BASE_MAPS_GRID_IMAGE_MODE,
   BASE_MAPS_GRID_PHASE,
-  FADED_IMAGE_OPACITY,
   FADE_DURATION_MS,
   FIT_DURATION_MS,
   OPENED_SHEET_PADDING,
@@ -110,7 +109,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   );
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  const imageMode = useSelector((s) => s.baseMapsGrid.imageMode);
+  const imageMode = useSelector((s) => s.viewers.baseMapsImageMode);
   const hideImageInViewer = useSelector(
     (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideBaseMapImageInViewer
   );
@@ -157,12 +156,17 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   const isOpen = phase === BASE_MAPS_GRID_PHASE.OPEN;
 
-  // image display: FULL = as in the editor underneath
-  const isFaded = imageMode === BASE_MAPS_GRID_IMAGE_MODE.FADED;
-  const hideImage =
-    hideImageInViewer || imageMode === BASE_MAPS_GRID_IMAGE_MODE.NONE;
-  const imageOpacity = isFaded ? FADED_IMAGE_OPACITY : editorImageOpacity;
-  const grayScale = isFaded || editorGrayScale;
+  // image display: same global mode as the editor underneath (FULL = as is)
+  const {
+    hideImage,
+    opacity: imageOpacity,
+    grayScale,
+  } = resolveBaseMapImageDisplay({
+    imageMode,
+    hideImage: hideImageInViewer,
+    opacity: editorImageOpacity,
+    grayScale: editorGrayScale,
+  });
   const rightOffset = panelKey ? panelWidth + 16 : 16;
 
   const listingId = listings?.some((l) => l.id === selectedListingId)

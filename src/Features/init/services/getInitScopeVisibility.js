@@ -3,6 +3,8 @@
 // editors). Stored in localStorage only: never in Dexie, never exported in a
 // Krto zip, never subject to the private-scope read-only guard. See
 // Features/scopeVisibility.
+import { isBaseMapsImageMode } from "Features/baseMaps/constants/baseMapsImageMode";
+
 const STORAGE_KEY_PREFIX = "scopeVisibility:";
 
 export function getScopeVisibilityStorageKey(scopeId) {
@@ -56,6 +58,10 @@ export default function getInitScopeVisibility(scopeId) {
       hiddenLayerIds: toIdArray(parsed.hiddenLayerIds),
       viewer2d: toViewer2d(parsed.viewer2d),
       threed: toThreed(parsed.threed),
+      // global base map images display (null = never saved, default applies)
+      baseMapsImageMode: isBaseMapsImageMode(parsed.baseMapsImageMode)
+        ? parsed.baseMapsImageMode
+        : null,
     };
   } catch {
     return null;

@@ -2,6 +2,10 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import {
+  BASE_MAPS_IMAGE_MODE,
+  FADED_IMAGE_OPACITY,
+} from "Features/baseMaps/constants/baseMapsImageMode";
 
 // Mirrors the 3D basemap opacity to the scene: the global
 // `state.threedEditor.baseMapOpacityIn3d` plus the per-baseMap
@@ -24,15 +28,28 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 export default function useApplyBaseMapOpacityIn3d({ rendererIsReady } = {}) {
   const opacity = useSelector((s) => s.threedEditor.baseMapOpacityIn3d);
   const opacityById = useSelector((s) => s.threedEditor.opacityByBaseMapIdIn3d);
+  // Global image mode FADED ("Fonds de plan" module panel): every base map
+  // goes to the faded opacity, whatever its own slider says (no gray scale
+  // in 3D). The sliders keep their values and apply again once back to FULL.
+  const isFaded = useSelector(
+    (s) => s.viewers.baseMapsImageMode === BASE_MAPS_IMAGE_MODE.FADED
+  );
 
   useEffect(() => {
     const editor = getActiveThreedEditor();
     const imagesManager = editor?.sceneManager?.imagesManager;
     if (!imagesManager) return;
-    imagesManager.setBaseMapOpacities({
-      baseMapOpacityIn3d: opacity,
-      opacityByBaseMapIdIn3d: opacityById,
-    });
+    imagesManager.setBaseMapOpacities(
+      isFaded
+        ? {
+            baseMapOpacityIn3d: FADED_IMAGE_OPACITY,
+            opacityByBaseMapIdIn3d: {},
+          }
+        : {
+            baseMapOpacityIn3d: opacity,
+            opacityByBaseMapIdIn3d: opacityById,
+          }
+    );
     editor.renderScene?.();
-  }, [rendererIsReady, opacity, opacityById]);
+  }, [rendererIsReady, opacity, opacityById, isFaded]);
 }

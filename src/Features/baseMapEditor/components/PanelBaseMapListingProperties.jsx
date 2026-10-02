@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -26,7 +26,6 @@ export default function PanelBaseMapListingProperties({ listing }) {
 
   // data
 
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const { value: baseMaps } = useBaseMaps({ filterByListingId: listing?.id });
   const { guardEditRecord } = useCanEditRecord();
 
@@ -45,9 +44,9 @@ export default function PanelBaseMapListingProperties({ listing }) {
   // handlers
 
   function handleBack() {
-    // Back from the group properties returns to the scope panel, like the
-    // baseMap properties panel.
-    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    // Back from the group properties empties the selection: the module's
+    // default panel, like the baseMap properties panel.
+    dispatch(clearSelection());
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 

@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import {
   selectSelectedItems,
-  setSelectedItem,
+  clearSelection,
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import {
@@ -89,7 +89,6 @@ export default function PanelBaseMapProperties() {
     if (!baseMapListingRaw) return undefined;
     return { ...baseMapListingRaw, table: "baseMaps" };
   }, [baseMapListingRaw]);
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   // The effective EDITOR key, NOT the module key: both consumers below gate on
   // what is actually DISPLAYED — the opacity slider (3D scene state vs
@@ -132,9 +131,10 @@ export default function PanelBaseMapProperties() {
   // handlers
 
   function handleBack() {
-    // Back from baseMap properties returns to the scope panel. If we drilled in
-    // from another viewer (e.g. "Voir le détail"), also restore that viewer.
-    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    // Back from baseMap properties empties the selection: the module's
+    // default panel. If we drilled in from another viewer (e.g. "Voir le
+    // détail"), also restore that viewer — and land on ITS default panel.
+    dispatch(clearSelection());
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     if (viewerReturnContext?.fromViewer) {
       dispatch(setSelectedViewerKey(viewerReturnContext.fromViewer));
@@ -338,7 +338,7 @@ export default function PanelBaseMapProperties() {
         onConfirmAsync={async () => {
           // Full cascade (versions, annotations, points, scan data).
           await deleteBaseMap({ id: baseMap.id });
-          dispatch(setSelectedItem({}));
+          dispatch(clearSelection());
           dispatch(setSelectedBaseMapId(null));
           // Only reset the main baseMap when it is the one being deleted —
           // deleting another baseMap must not reload the scene.

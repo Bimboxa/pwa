@@ -87,13 +87,14 @@ import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGri
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
 import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
+import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
 import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
 
 import CompareVersionSlider from "./CompareVersionSlider";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
-import PopperEditAnnotation from "./PopperEditAnnotation";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
+import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperImageScale from "./PopperImageScale";
@@ -288,9 +289,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // Selected chip / top-bar eye: hide the baseMap image entirely
     // (annotations only). Every 2D map editor honors the flag except the
     // BaseMaps module, whose editor IS the image.
-    const hideBaseMapImage = useSelector(
+    const hideBaseMapImageInViewer = useSelector(
         (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideBaseMapImageInViewer
     );
+    // Global display of the base map images (hidden / light grey / as is),
+    // layered over the eye above and the editor opacity / gray scale. Every
+    // 2D map editor honors it, the BaseMaps module included (its own panel
+    // hosts the setting).
+    const baseMapsImageMode = useSelector((s) => s.viewers.baseMapsImageMode);
     // Count badge of the same controls: hide the annotations entirely
     // (display AND interaction — nothing to snap on or select).
     const hideAnnotations = useSelector(
@@ -377,8 +383,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const baseMap = useMainBaseMap();
     track("baseMap", baseMap?.id);
 
-    const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
-    const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+    const editorBaseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
+    const editorBaseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
+    const {
+        hideImage: hideBaseMapImage,
+        opacity: baseMapOpacity,
+        grayScale: baseMapGrayScale,
+    } = resolveBaseMapImageDisplay({
+        imageMode: baseMapsImageMode,
+        hideImage: hideBaseMapImageInViewer,
+        opacity: editorBaseMapOpacity,
+        grayScale: editorBaseMapGrayScale,
+    });
     const showPrintableMap = useSelector((s) => s.mapEditor.showPrintableMap);
 
     // Whether to run the CLEAN-SEGMENTS PASS on strip-detection commit.
@@ -2494,6 +2510,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             )}
 
             <DialogDeleteSelectedAnnotation />
+            {/* Active instance only (this editor is mounted for MAP and
+                BASE_MAPS): the redux-driven "Evider" dialog must render once */}
+            {isActiveViewer && <DialogHollowOutAnnotationOutlet />}
             <DeferredCommitDialogOutlet
                 pending={deferredCommit.pending}
                 onResume={deferredCommit.resumeCommit}
@@ -2510,9 +2529,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <MenuLinkBaseMapOutlet />
             <PopperContextMenu />
 
-            {/* Active instance only (this editor is mounted for MAP and
-                BASE_MAPS): the redux-driven "Evider" dialog must render once */}
-            {isActiveViewer && <DialogHollowOutAnnotationOutlet />}
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />

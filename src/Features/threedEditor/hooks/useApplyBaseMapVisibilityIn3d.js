@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideBaseMapImagesIn3d";
 
 // Mirrors `state.threedEditor.visibleBaseMapIdsIn3d` (image-eye toggle),
 // `state.threedEditor.annotationsModeByBaseMapIdIn3d` (per-basemap annotation
@@ -37,7 +38,9 @@ export default function useApplyBaseMapVisibilityIn3d({
   );
   // Global "Masquer les fonds de plan" switch: hides every basemap image
   // while keeping the groups (and their annotations) rendered.
-  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
+  // The global image mode NONE (viewers.baseMapsImageMode, "Fonds de plan"
+  // module panel) hides them the same way.
+  const hideBaseMaps = useSelector(selectHideBaseMapImagesIn3d);
   // Opt-out image eye of the main basemap (base maps list / top bar selector).
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d

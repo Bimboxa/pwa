@@ -62,6 +62,9 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   if (prev.listings?.hiddenListingsIds !== state.listings?.hiddenListingsIds) {
     patch.hiddenListingsIds = state.listings?.hiddenListingsIds ?? [];
   }
+  if (prev.viewers?.baseMapsImageMode !== state.viewers?.baseMapsImageMode) {
+    patch.baseMapsImageMode = state.viewers?.baseMapsImageMode ?? null;
+  }
   if (changed2d(prev, state)) patch.viewer2d = pick2d(state);
   if (changed3d(prev, state)) patch.threed = pick3d(state);
 
