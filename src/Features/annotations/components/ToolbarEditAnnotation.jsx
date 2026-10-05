@@ -75,8 +75,9 @@ import getAnnotationHasOverlayActions from "../utils/getAnnotationHasOverlayActi
 import getCloneAnnotationPartState from "../utils/getCloneAnnotationPartState";
 
 // `hasOverlayRow`: the host editor renders the quick-action row above the
-// selected annotation (2D map editor — NodeSegmentLengthsStatic). False in the
-// 3D editor, where the toolbar is the only place for these actions.
+// selected annotation (2D map editor — NodeSegmentLengthsStatic, 3D editor —
+// ThreedAnnotationOverlayActions). Pass false in a host without that row: the
+// toolbar is then the only place for these actions.
 export default function ToolbarEditAnnotation({
   onDragStart,
   hasOverlayRow = true,
@@ -118,7 +119,7 @@ export default function ToolbarEditAnnotation({
   // "Dupliquer" + the edit tools live in the quick-action row above the
   // annotation when it has one (overlay "Dupliquer" / "Evider" / "Plus
   // d'outils"); the toolbar keeps them only as a fallback: annotation types
-  // without that row, interaction modes that hide it, 3D editor.
+  // without that row, interaction modes that hide it.
   const hasOverlayActions =
     hasOverlayRow &&
     getAnnotationHasOverlayActions(selectedAnnotation) &&

@@ -13,7 +13,10 @@ import ContextMenuPolylinePoint from "Features/annotations/components/ContextMen
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
-export default function PopupContextMenu() {
+// `viewerKey="THREED"`: instance of the 3D editor. The 2D and 3D editors can
+// be mounted together and share the redux anchor — each instance only opens
+// for the right-clicks of its own editor (clickedNode.viewerKey).
+export default function PopupContextMenu({ viewerKey = null }) {
   // data
 
   const dispatch = useDispatch();
@@ -28,7 +31,10 @@ export default function PopupContextMenu() {
 
   // helpers
 
-  const open = Boolean(anchorPosition) && !captureFramingActive;
+  const isThreed = viewerKey === "THREED";
+  const isOwnNode = (node?.viewerKey === "THREED") === isThreed;
+
+  const open = Boolean(anchorPosition) && !captureFramingActive && isOwnNode;
 
   // helpers - mode
 

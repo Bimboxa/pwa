@@ -79,6 +79,7 @@ import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMap
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
+import ThreedAnnotationOverlayActions from "./ThreedAnnotationOverlayActions";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
@@ -90,6 +91,11 @@ import {
   clearActiveThreedEditor,
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
+import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
+import {
+  setAnchorPosition,
+  setClickedNode,
+} from "Features/contextMenu/contextMenuSlice";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
@@ -1159,7 +1165,10 @@ export default function MainThreedEditor() {
             // - mesh annotation: the face mesh carries its index;
             // - regular annotation: the face is located on the in-memory
             //   conversion of the displayed object (getDisplayedMesh3d).
-            if (nodeId === soloId) {
+            // A right click never picks a part: it opens the template menu
+            // of the whole annotation (below).
+            const isRightClick = event.button === 2;
+            if (nodeId === soloId && !isRightClick) {
               let meshPartId = null;
               if (object.userData.isAnnotationMesh3d) {
                 const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
@@ -1241,6 +1250,22 @@ export default function MainThreedEditor() {
             // exactly one item is selected, the plural when 2+ are selected.
             dispatch(setAnnotationToolbarPosition(position));
             dispatch(setAnnotationsToolbarPosition(position));
+
+            // Right click: select (above), then open the "change template"
+            // menu at the cursor — same menu as the 2D editor
+            // (PopperContextMenu, tagged THREED so only our instance opens).
+            if (isRightClick && !event.shiftKey && nodeType === "ANNOTATION") {
+              dispatch(
+                setClickedNode({
+                  id: nodeId,
+                  nodeListingId: listingId,
+                  nodeType,
+                  annotationType,
+                  viewerKey: "THREED",
+                })
+              );
+              dispatch(setAnchorPosition(position));
+            }
 
             return; // Stop after finding the first annotation
           }
@@ -2545,6 +2570,11 @@ export default function MainThreedEditor() {
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* "Evider" dialog requested from the toolbar above (the 2D editors
           host their own outlet while they are the active viewer) */}
+      {/* Quick-action row above the selected annotation (Dupliquer / Evider /
+          Plus d'outils), like the 2D editor */}
+      {isThreedViewer && <ThreedAnnotationOverlayActions />}
+      {/* Right click on an annotation: "change template" menu */}
+      {isThreedViewer && <PopperContextMenu viewerKey="THREED" />}
       {isThreedViewer && <DialogHollowOutAnnotationOutlet />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}

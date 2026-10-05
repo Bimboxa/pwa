@@ -9,10 +9,12 @@ import IconHollowOut from "./IconHollowOut";
 // "Evider" button of the quick-action row rendered above the selected POLYGON
 // (NodeSegmentLengthsStatic overlay, before "Plus d'outils"). Opens the carve
 // dialog (DialogHollowOutAnnotation) — same action as the "E" shortcut, hence
-// the hotkey badge on the top-right corner.
+// the hotkey badge on the top-right corner. `showHotkey={false}` in the 3D
+// editor, where "E" belongs to other tools (Extruder / Élévation).
 export default function OverlayButtonHollowOutAnnotation({
   annotation,
   overlayColor = "#2196f3",
+  showHotkey = true,
 }) {
   const dispatch = useDispatch();
 
@@ -44,6 +46,7 @@ export default function OverlayButtonHollowOutAnnotation({
         }}
       >
         <IconHollowOut sx={{ fontSize: 18 }} />
+        {showHotkey && (
         <Box
           component="span"
           sx={{
@@ -68,6 +71,7 @@ export default function OverlayButtonHollowOutAnnotation({
         >
           E
         </Box>
+        )}
       </IconButton>
     </Tooltip>
   );
