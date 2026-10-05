@@ -8,6 +8,7 @@ import {
 
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
+import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
 
 import AnnotationMeasurements from "./AnnotationMeasurements";
 
@@ -21,6 +22,11 @@ export default function SectionAnnotationPartPropertiesContent({
     indeterminate: intIndeterminate,
     toggle: intToggle,
   } = useSegmentsIntEdge();
+  const {
+    checked: notchChecked,
+    indeterminate: notchIndeterminate,
+    toggle: notchToggle,
+  } = useSegmentsNotch();
 
   if (!part || part.kind === "NONE") return null;
 
@@ -107,6 +113,21 @@ export default function SectionAnnotationPartPropertiesContent({
                 />
               }
               label={<Typography variant="body2">Segment intérieur</Typography>}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={notchChecked}
+                  indeterminate={notchIndeterminate}
+                  onChange={notchToggle}
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  {"Bord d'ouverture (suit la pente)"}
+                </Typography>
+              }
             />
           </Stack>
         )}

@@ -9,6 +9,7 @@ import prepareShellProfiles from "./prepareShellProfiles";
 import delaunayTriangulate from "./delaunayTriangulate";
 import expandShellProfileArcs from "./expandShellProfileArcs";
 import drapeHoleRingsOnContour from "./drapeHoleRingsOnContour";
+import carveHolesInTopMesh from "./carveHolesInTopMesh";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -56,7 +57,9 @@ function shellBuildSignature(contour, holes, shellProfiles, mode, isoChords) {
 // Hole rings (cuts) without authored offsets are first draped onto the
 // surfaces of the contour alone (drapeHoleRingsOnContour), so a sloped
 // polygon keeps its sheet and the cuts read as vertical cliffs in it instead
-// of pulling the sheet down to the base height (crater).
+// of pulling the sheet down to the base height (crater). With explicit iso
+// chords (isoHeightLines) the cuts are instead punched through the folded
+// surface built without holes (carveHolesInTopMesh).
 //
 // Inputs are 2D in caller-consistent units (pixels for quantity callers, local
 // world units for 3D callers). `unitScale` (= meters per input-unit, e.g.
@@ -264,11 +267,41 @@ export default function triangulateAnnotationGeometry({
   }
 
   if (isoPartition?.isoChords?.length) {
-    const part = partitionPolygonByIsoLines({
-      contour,
-      holes: validHoles,
-      isoChords: isoPartition.isoChords,
-    });
+    // With cuts: build the folded surface WITHOUT holes, then punch the holes
+    // through it (carveHolesInTopMesh) — the sloped faces are kept and the
+    // opening projects exactly on the drawn cut, whatever strips it spans.
+    // The rims always follow the sheet here (cut offsets are ignored).
+    let part = null;
+    if (validHoles.length > 0) {
+      const solid = partitionPolygonByIsoLines({
+        contour,
+        holes: [],
+        isoChords: isoPartition.isoChords,
+      });
+      const carved =
+        solid &&
+        carveHolesInTopMesh({
+          contour: solid.augContour,
+          extraPoints: solid.extraPoints,
+          tris: solid.tris,
+          holes: validHoles,
+        });
+      if (carved) {
+        part = {
+          augContour: solid.augContour,
+          augHoles: carved.augHoles,
+          extraPoints: carved.extraPoints,
+          tris: carved.tris,
+        };
+      }
+    }
+    if (!part) {
+      part = partitionPolygonByIsoLines({
+        contour,
+        holes: validHoles,
+        isoChords: isoPartition.isoChords,
+      });
+    }
     if (part) {
       contour = part.augContour;
       validHoles = part.augHoles;

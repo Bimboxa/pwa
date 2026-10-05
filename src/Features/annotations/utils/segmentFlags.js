@@ -29,6 +29,7 @@ export const SEGMENT_FLAG_FIELDS = [
   { idxField: "isoHeightSegmentsIdx", idField: "isoHeightSegmentsPointIds" },
   { idxField: "isExtEdgeSegmentsIdx", idField: "isExtEdgeSegmentsPointIds" },
   { idxField: "isIntEdgeSegmentsIdx", idField: "isIntEdgeSegmentsPointIds" },
+  { idxField: "isNotchSegmentsIdx", idField: "isNotchSegmentsPointIds" },
 ];
 
 export const SEGMENT_FLAG_ID_FIELD_BY_IDX_FIELD = Object.fromEntries(

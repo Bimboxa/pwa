@@ -1,4 +1,5 @@
 import partitionPolygonByChords from "./partitionPolygonByChords";
+import clipChordsToContour from "./clipChordsToContour";
 
 // Historical iso-height entry point, now a thin adapter over the generalized
 // chord partition (partitionPolygonByChords). An iso chord is a chord whose
@@ -35,5 +36,11 @@ export default function partitionPolygonByIsoLines({
     .filter((c) => c.polyline.length >= 2);
   if (chords.length === 0) return null;
 
-  return partitionPolygonByChords({ contour, holes, chords });
+  // A contour notched after the lines were drawn ("Evider") may leave a chord
+  // running through the notch: keep the sub-chords still inside the polygon.
+  return partitionPolygonByChords({
+    contour,
+    holes,
+    chords: clipChordsToContour({ contour, chords }),
+  });
 }

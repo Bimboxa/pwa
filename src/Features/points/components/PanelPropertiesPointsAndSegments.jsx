@@ -33,6 +33,7 @@ import useSelectedPointsData from "Features/points/hooks/useSelectedPointsData";
 import useUpdateSelectedPoints from "Features/points/hooks/useUpdateSelectedPoints";
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
+import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
 import useToggleSegmentsIsoHeight from "Features/points/hooks/useToggleSegmentsIsoHeight";
 
 // Combined panel shown when a lasso (or successive shift+clicks) selects BOTH
@@ -58,6 +59,11 @@ export default function PanelPropertiesPointsAndSegments() {
     indeterminate: intEdgeMixed,
     toggle: toggleIntEdge,
   } = useSegmentsIntEdge();
+  const {
+    checked: isNotch,
+    indeterminate: notchMixed,
+    toggle: toggleNotch,
+  } = useSegmentsNotch();
   const {
     checked: isIso,
     indeterminate: isoMixed,
@@ -272,6 +278,21 @@ export default function PanelPropertiesPointsAndSegments() {
                 }
                 label={
                   <Typography variant="body2">Segment intérieur</Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!isNotch}
+                    indeterminate={!!notchMixed}
+                    onChange={toggleNotch}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {"Bord d'ouverture (suit la pente)"}
+                  </Typography>
                 }
               />
             </Box>

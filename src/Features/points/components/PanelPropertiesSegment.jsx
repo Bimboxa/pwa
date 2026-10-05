@@ -20,6 +20,7 @@ import useToggleSegmentIsoHeight from "Features/points/hooks/useToggleSegmentIso
 import setIsoContourSegmentHeightService from "Features/points/services/setIsoContourSegmentHeightService";
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
+import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
 
 function ReadOnlyOffset({ label, value }) {
   return (
@@ -77,6 +78,7 @@ export default function PanelPropertiesSegment() {
   const toggleIsoHeight = useToggleSegmentIsoHeight();
   const { checked: isExtEdge, toggle: toggleExtEdge } = useSegmentsExtEdge();
   const { checked: isIntEdge, toggle: toggleIntEdge } = useSegmentsIntEdge();
+  const { checked: isNotch, toggle: toggleNotch } = useSegmentsNotch();
 
   // handlers
 
@@ -172,6 +174,22 @@ export default function PanelPropertiesSegment() {
             }
             label={<Typography variant="body2">Segment intérieur</Typography>}
           />
+          {cutIdx == null && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!isNotch}
+                  onChange={() => toggleNotch()}
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  {"Bord d'ouverture (suit la pente)"}
+                </Typography>
+              }
+            />
+          )}
         </Box>
 
         <Box>

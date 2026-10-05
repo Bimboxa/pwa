@@ -12,6 +12,7 @@ import {
   segmentIdxToPointIds,
   filterSegmentPointIds,
 } from "../utils/segmentFlags";
+import getIsoSurfaceOffsetsSampler from "../utils/getIsoSurfaceOffsetsSampler";
 
 import db from "App/db/db";
 
@@ -90,12 +91,50 @@ export default function useCommitHollowOut() {
       }
     }
 
+    // Heights live on the refs (offsetBottom / offsetTop): a vertex kept by
+    // the carve keeps the offsets of its original ref.
+    const offsetsByKey = new Map();
+    const rawRefById = new Map();
+    for (const r of raw.points ?? []) if (r?.id) rawRefById.set(r.id, r);
+    for (const c of raw.cuts ?? []) {
+      for (const r of c?.points ?? []) if (r?.id) rawRefById.set(r.id, r);
+    }
+    const pickOffsets = (source) => {
+      const offsets = {};
+      if (source?.offsetBottom) offsets.offsetBottom = source.offsetBottom;
+      if (source?.offsetTop) offsets.offsetTop = source.offsetTop;
+      return offsets;
+    };
+    for (const [k, id] of pxLookup) {
+      offsetsByKey.set(k, pickOffsets(rawRefById.get(id)));
+    }
+
+    // isoHeightLines: a vertex created on the contour (notch) takes the
+    // height of the folded surface at its position, so the sloped faces are
+    // kept around the notch. Cut vertices need nothing: their rim is draped
+    // on the surface at build time (carveHolesInTopMesh).
+    const sampleSurface = getIsoSurfaceOffsetsSampler(annotation);
+    const round = (v) => Math.round(v * 1e6) / 1e6;
+    const offsetsOf = (px, { onContour }) => {
+      const kept = offsetsByKey.get(keyOf(px.x, px.y));
+      if (kept) return kept;
+      if (!onContour || !sampleSurface) return {};
+      const sampled = sampleSurface(px);
+      return pickOffsets({
+        offsetBottom: round(sampled?.offsetBottom ?? 0),
+        offsetTop: round(sampled?.offsetTop ?? 0),
+      });
+    };
+
     // Refs keep `type: "circle"` so recovered S-C-S arcs stay arcs.
-    const asRef = (id, px) =>
-      px.type === "circle" ? { id, type: "circle" } : { id };
+    const asRef = (id, px, options) => ({
+      id,
+      ...(px.type === "circle" && { type: "circle" }),
+      ...offsetsOf(px, options),
+    });
 
     const pointsToSave = [];
-    const mint = (px) => {
+    const mint = (px, options) => {
       const newId = nanoid();
       pointsToSave.push({
         id: newId,
@@ -103,20 +142,25 @@ export default function useCommitHollowOut() {
         y: px.y / height,
         ...pointScope,
       });
-      return asRef(newId, px);
+      return asRef(newId, px, options);
     };
-    const findOrMint = (px) => {
+    const findOrMint = (px, options) => {
       const k = keyOf(px.x, px.y);
       const existing = pxLookup.get(k);
-      if (existing) return asRef(existing, px);
-      const ref = mint(px);
+      if (existing) return asRef(existing, px, options);
+      const ref = mint(px, options);
       pxLookup.set(k, ref.id);
       return ref;
     };
+    const ON_CONTOUR = { onContour: true };
+    const ON_CUT = { onContour: false };
 
-    const newPointsRefs = carved.points.map(findOrMint);
+    const newPointsRefs = carved.points.map((px) => findOrMint(px, ON_CONTOUR));
     const newCutsRefs = (carved.cuts ?? []).map((c) => {
-      const ref = { id: c.id, points: (c.points ?? []).map(findOrMint) };
+      const ref = {
+        id: c.id,
+        points: (c.points ?? []).map((px) => findOrMint(px, ON_CUT)),
+      };
       if (c.label != null) ref.label = c.label;
       if (c.type != null) ref.type = c.type;
       // Positional carry (reconcileCuts on the resolved cuts' effective
@@ -167,11 +211,11 @@ export default function useCommitHollowOut() {
       newAnnotationRows.push({
         ...clonedProps,
         id: nanoid(),
-        points: piece.points.map(mint),
+        points: piece.points.map((px) => mint(px, ON_CONTOUR)),
         cuts: (piece.cuts ?? []).map((c) => ({
           id: nanoid(),
           ...(c.label != null && { label: c.label }),
-          points: (c.points ?? []).map(mint),
+          points: (c.points ?? []).map((px) => mint(px, ON_CUT)),
         })),
       });
     }

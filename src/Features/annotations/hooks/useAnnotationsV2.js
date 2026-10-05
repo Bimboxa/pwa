@@ -355,6 +355,7 @@ import {
   segmentPointIdsToIdx,
   hasAnySegmentFlagField,
 } from "Features/annotations/utils/segmentFlags";
+import applyNotchSegmentsToRing from "Features/annotations/utils/applyNotchSegmentsToRing";
 import applyIsoHeightLinesToRings from "Features/annotations/utils/applyIsoHeightLinesToRings";
 import applyProfileEndpointContinuity from "Features/annotations/utils/applyProfileEndpointContinuity";
 
@@ -1531,6 +1532,18 @@ export default function useAnnotationsV2(options) {
               _annotation.points = isoed.points;
               _annotation.cuts = isoed.cuts;
               _annotation.innerPoints = isoed.innerPoints;
+
+              // "Bord d'ouverture" segments: the vertices of a notch biting
+              // the contour follow the surface of the polygon built without
+              // the notch (AFTER the iso pinning, which they override).
+              if (_annotation.isNotchSegmentsIdx?.length) {
+                _annotation.points = applyNotchSegmentsToRing({
+                  points: _annotation.points,
+                  notchSegmentsIdx: _annotation.isNotchSegmentsIdx,
+                  isoHeightLines: _annotation.isoHeightLines,
+                  profileLines: _annotation.profileLines,
+                });
+              }
             }
 
             // profileLines never pin ring vertices — continuity goes the
