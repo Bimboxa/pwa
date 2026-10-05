@@ -75,6 +75,8 @@ export default function buildExportScene(
       obj.userData?.isSectionMarker ||
       // 3D base maps grid decorations (sheet outline, label, eye button).
       obj.userData?.isGridPlaceholder ||
+      // Hatched fill band / lines: the full surface is exported instead.
+      obj.userData?.isHatchFill ||
       // scan base maps: their geometry lives on the GPU only (no CPU copy
       // to export).
       obj.userData?.isDecor
@@ -103,7 +105,11 @@ export default function buildExportScene(
       cloned.matrixAutoUpdate = true;
       exportScene.add(cloned);
     } else if (obj.isMesh) {
-      const cloned = new Mesh(obj.geometry, makeMaterial(obj.material));
+      // Hatched fills hide their full surface behind an invisible material.
+      const cloned = new Mesh(
+        obj.geometry,
+        makeMaterial(obj.userData?.hatchOriginalMaterial ?? obj.material)
+      );
       cloned.matrix.copy(obj.matrixWorld);
       cloned.matrix.decompose(cloned.position, cloned.quaternion, cloned.scale);
       cloned.matrixAutoUpdate = true;

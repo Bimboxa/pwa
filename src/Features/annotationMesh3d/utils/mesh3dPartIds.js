@@ -9,8 +9,11 @@
 // selectedPartIds for a multi selection).
 //
 // Indices address the stored mesh AS IT IS: every mesh write renumbers faces
-// and vertices, so the part selection is cleared after each edit (a line
-// drawn on a selected face re-selects one of the pieces it split it into).
+// and vertices, so the part selection is cleared after each edit.
+//
+// A REGULAR annotation (a plain extrusion, not a mesh yet) uses the same ids:
+// its indices address the in-memory conversion of its DISPLAYED 3D object
+// (getDisplayedMesh3d), and are dropped as soon as that geometry changes.
 
 export const MESH3D_FACE_PART = "MESH3D_FACE";
 export const MESH3D_EDGE_PART = "MESH3D_EDGE";

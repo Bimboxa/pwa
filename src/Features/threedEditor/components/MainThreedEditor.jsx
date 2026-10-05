@@ -29,6 +29,7 @@ import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import addAnnotationSubtraction from "Features/annotations/services/addAnnotationSubtraction";
 import {
+  clearItemPartSelection,
   setSelectedItem,
   setSelectedItems,
   toggleItemSelection,
@@ -148,11 +149,16 @@ import pickMesh3dEdge, {
 import selectMesh3dPart, {
   selectMesh3dFaceWithEdges,
 } from "Features/annotationMesh3d/services/selectMesh3dPart";
+import getDisplayedMesh3d from "Features/annotationMesh3d/services/getDisplayedMesh3d";
+import locateHitFaceOnMesh3d from "Features/annotationMesh3d/services/locateHitFaceOnMesh3d";
 import {
+  MESH3D_FACE_PART,
   getMesh3dEdgePartId,
   getMesh3dFacePartId,
+  getSelectedMesh3dParts,
   isMesh3dFaceSelected,
 } from "Features/annotationMesh3d/utils/mesh3dPartIds";
+import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
 import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
 import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
@@ -171,6 +177,7 @@ import {
   getMesh3dFaceMeshes,
 } from "Features/threedMesh/services/mesh3dObjectsStore";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import { filterIntersectionsByHatchGaps } from "Features/threedEditor/js/utilsAnnotationsManager/hatchPick";
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
 import ThreedInitialFitOnLanding from "./ThreedInitialFitOnLanding";
 
@@ -992,6 +999,8 @@ export default function MainThreedEditor() {
                 8,
                 clippingPlane
               );
+          // A vertex / edge replaces a face selected on this annotation.
+          if (vertexHit || edgeHit) dispatch(clearItemPartSelection(soloId));
           if (vertexHit) {
             const ref = annoObject.userData.vertexRefs[vertexHit.index];
             dispatch(
@@ -1034,7 +1043,7 @@ export default function MainThreedEditor() {
       // so the black edge outlines added by extrudeClosedShape /
       // extrudePolylineWall would otherwise trigger selection well before
       // the cursor reaches the actual surface.
-      const intersects = filterIntersectionsByVisibility(
+      let intersects = filterIntersectionsByVisibility(
         filterIntersectionsByClipping(
           raycasterRef.current
             .intersectObjects(scene.children, true)
@@ -1042,6 +1051,18 @@ export default function MainThreedEditor() {
           clippingPlane
         )
       );
+      // Hatched fills: a selection click goes through the gaps between the
+      // lines. The subtraction pick keeps the full surface, like every tool.
+      if (
+        !subtractSourceAnnotationIdRef.current &&
+        !subtractTargetAnnotationIdRef.current
+      ) {
+        intersects = filterIntersectionsByHatchGaps(
+          intersects,
+          camera,
+          rect.height
+        );
+      }
 
       // Find the first annotation object (check userData). Basemap image hits
       // are remembered but only acted on if NO annotation is hit along the
@@ -1138,37 +1159,53 @@ export default function MainThreedEditor() {
               return;
             }
 
-            // Mesh annotation: the click selects the face (or the edge) under
-            // the cursor DIRECTLY, as a part of the annotation — the
-            // annotation and its part are selected in one go. On the already
-            // selected annotation, shift toggles the part in the multi
-            // selection. (The whole annotation is reached with the back
-            // arrow of the part panel.)
-            let meshPartId = null;
-            const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
-            if (faceIndex !== undefined && object.userData.isAnnotationMesh3d) {
-              const edge = pickMesh3dEdge(
-                object,
-                { x: event.clientX, y: event.clientY },
-                camera,
-                rect,
-                8,
-                clippingPlane
-              );
-              meshPartId = edge
-                ? getMesh3dEdgePartId(nodeId, edge.a, edge.b)
-                : getMesh3dFacePartId(nodeId, faceIndex);
-              // The clicked face becomes (or stops being) a selected part:
-              // drop its blue hover stipple now — the next hover tick rebuilds
-              // it only when the face is not selected.
-              clearFaceStipple();
-              if (nodeId === soloId) {
+            // Annotation first, face second: a click on an annotation that is
+            // not the selected one selects the whole annotation (below). On
+            // the already selected annotation, it selects the face (or the
+            // mesh edge) under the cursor as a PART of it; shift toggles the
+            // part in the multi selection. (The whole annotation is reached
+            // again with the back arrow of the part panel.)
+            // - mesh annotation: the face mesh carries its index;
+            // - regular annotation: the face is located on the in-memory
+            //   conversion of the displayed object (getDisplayedMesh3d).
+            if (nodeId === soloId) {
+              let meshPartId = null;
+              if (object.userData.isAnnotationMesh3d) {
+                const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
+                if (faceIndex !== undefined) {
+                  const edge = pickMesh3dEdge(
+                    object,
+                    { x: event.clientX, y: event.clientY },
+                    camera,
+                    rect,
+                    8,
+                    clippingPlane
+                  );
+                  meshPartId = edge
+                    ? getMesh3dEdgePartId(nodeId, edge.a, edge.b)
+                    : getMesh3dFacePartId(nodeId, faceIndex);
+                }
+              } else {
+                const displayed = getDisplayedMesh3d(threedEditor, nodeId);
+                const faceIndex = displayed
+                  ? locateHitFaceOnMesh3d(displayed, intersect, camera)
+                  : -1;
+                if (faceIndex >= 0) {
+                  meshPartId = getMesh3dFacePartId(nodeId, faceIndex);
+                }
+              }
+              if (meshPartId) {
+                // The clicked face becomes (or stops being) a selected part:
+                // drop its blue hover stipple now — the next hover tick
+                // rebuilds it only when the face is not selected.
+                clearFaceStipple();
                 selectMesh3dPart({
                   dispatch,
                   getState: store.getState,
                   partId: meshPartId,
                   additive: event.shiftKey,
                 });
+                dispatch(clearSubSelection());
                 return;
               }
             }
@@ -1181,11 +1218,6 @@ export default function MainThreedEditor() {
               annotationType,
               listingId,
               annotationTemplateId,
-              // Shift+click on another annotation keeps the plain annotation
-              // multi selection.
-              ...(meshPartId && !event.shiftKey
-                ? { partId: meshPartId, partType: meshPartId.split("::")[1] }
-                : {}),
             };
             const position = { x: event.clientX, y: event.clientY };
 
@@ -1306,26 +1338,47 @@ export default function MainThreedEditor() {
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-      const intersects = filterIntersectionsByVisibility(
-        filterIntersectionsByClipping(
-          raycasterRef.current
-            .intersectObjects(scene.children, true)
-            .filter((i) => i.object?.isMesh),
-          getActiveClippingPlane(sceneManager)
-        )
+      const intersects = filterIntersectionsByHatchGaps(
+        filterIntersectionsByVisibility(
+          filterIntersectionsByClipping(
+            raycasterRef.current
+              .intersectObjects(scene.children, true)
+              .filter((i) => i.object?.isMesh),
+            getActiveClippingPlane(sceneManager)
+          )
+        ),
+        camera,
+        rect.height
       );
 
-      // Double-click on a face of a mesh annotation: selects the face WITH
-      // all its edges (no camera move). The two clicks of the gesture already
-      // selected the annotation and that face.
+      // Double-click on a face of an annotation: selects the face WITH all
+      // its edges (no camera move). The two clicks of the gesture already
+      // selected the annotation, then that face. A mesh annotation reads the
+      // face from the hit mesh, a regular one from the conversion of its
+      // displayed object (flat sheets have none: they keep the plan gesture).
       const firstHit = intersects[0];
-      const faceIndex = firstHit?.object?.userData?.mesh3dFaceIndex;
-      if (faceIndex !== undefined) {
-        let owner = firstHit.object;
-        while (owner && !owner.userData?.nodeId) owner = owner.parent;
-        if (owner?.userData?.isAnnotationMesh3d) {
-          const { nodeId, nodeType, annotationType, listingId } =
-            owner.userData;
+      let owner = firstHit?.object ?? null;
+      while (owner && !owner.userData?.nodeId) owner = owner.parent;
+      if (owner) {
+        const { nodeId, nodeType, annotationType, listingId } = owner.userData;
+        let faceIndex = -1;
+        let edges = null;
+        if (owner.userData.isAnnotationMesh3d) {
+          faceIndex = firstHit.object.userData?.mesh3dFaceIndex ?? -1;
+          edges = firstHit.object.userData?.mesh3dFaceEdges;
+        } else {
+          const displayed = getDisplayedMesh3d(threedEditor, nodeId);
+          if (displayed) {
+            faceIndex = locateHitFaceOnMesh3d(displayed, firstHit, camera);
+            const face = displayed.mesh.faces[faceIndex];
+            edges = face
+              ? getFaceLoops(face).flatMap((loop) =>
+                  loop.map((vi, i) => [vi, loop[(i + 1) % loop.length]])
+                )
+              : null;
+          }
+        }
+        if (faceIndex >= 0) {
           const selected = store.getState().selection.selectedItems;
           if (selected.length !== 1 || selected[0].id !== nodeId) {
             dispatch(
@@ -1341,12 +1394,14 @@ export default function MainThreedEditor() {
             );
             dispatch(setShowAnnotationsProperties(true));
           }
+          clearFaceStipple();
           selectMesh3dFaceWithEdges({
             dispatch,
             annotationId: nodeId,
             faceIndex,
-            edges: firstHit.object.userData.mesh3dFaceEdges,
+            edges,
           });
+          dispatch(clearSubSelection());
           return;
         }
       }
@@ -1377,7 +1432,14 @@ export default function MainThreedEditor() {
       selectMainBaseMap(baseMapId);
       if (frame) threedEditor.fitToBox3Facing(frame.box, frame.normal);
     },
-    [rendererIsReady, isThreedViewer, selectMainBaseMap, dispatch, store]
+    [
+      rendererIsReady,
+      isThreedViewer,
+      selectMainBaseMap,
+      dispatch,
+      store,
+      clearFaceStipple,
+    ]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
@@ -1956,7 +2018,7 @@ export default function MainThreedEditor() {
     // hidden by the active clipping plane (so the cursor never picks clipped-away
     // geometry, and a clipped front face doesn't shadow the object behind it),
     // and hits on hidden objects (Masquer les annotations).
-    const intersects = filterIntersectionsByVisibility(
+    let intersects = filterIntersectionsByVisibility(
       filterIntersectionsByClipping(
         raycasterRef.current
           .intersectObjects(scene.children, true)
@@ -1964,6 +2026,22 @@ export default function MainThreedEditor() {
         clippingPlane
       )
     );
+    // Hatched fills: the hover goes through the gaps between the lines, but
+    // only when nothing is being drawn / picked (this hover keeps running
+    // while a drawing or a dimension is in progress, where the full surface
+    // is the support).
+    if (
+      !drawingActiveRef.current &&
+      !dimensionActiveRef.current &&
+      !subtractSourceAnnotationIdRef.current &&
+      !subtractTargetAnnotationIdRef.current
+    ) {
+      intersects = filterIntersectionsByHatchGaps(
+        intersects,
+        camera,
+        rect.height
+      );
+    }
 
     let hit = null;
     let hitIntersect = null;
@@ -2116,13 +2194,35 @@ export default function MainThreedEditor() {
     // would cover them, e.g. while drawing over it with the 3D Dessin tool.
     // Read from the store: no re-render on selection changes.
     const selectionState = store.getState();
+    const selectedItem = selectSelectedItem(selectionState);
+    const selectedPartIds = selectSelectedPartIds(selectionState);
+    // Face under the cursor: carried by the hit mesh on a mesh annotation,
+    // located on the displayed conversion for a regular one — only looked up
+    // when that annotation has selected faces.
+    let hoveredFaceIndex = meshPart?.faceIndex;
+    if (
+      hoveredFaceIndex === undefined &&
+      hit &&
+      hitIntersect &&
+      !hit.userData?.isAnnotationMesh3d &&
+      selectedItem?.nodeId === hitId &&
+      getSelectedMesh3dParts(selectedItem, selectedPartIds).some(
+        (part) => part.partType === MESH3D_FACE_PART
+      )
+    ) {
+      const displayed = getDisplayedMesh3d(threedEditor, hitId);
+      const located = displayed
+        ? locateHitFaceOnMesh3d(displayed, hitIntersect, camera)
+        : -1;
+      if (located >= 0) hoveredFaceIndex = located;
+    }
     const isSelectedMeshFace =
-      meshPart?.faceIndex !== undefined &&
+      hoveredFaceIndex !== undefined &&
       isMesh3dFaceSelected(
-        selectSelectedItem(selectionState),
-        selectSelectedPartIds(selectionState),
+        selectedItem,
+        selectedPartIds,
         hitId,
-        meshPart.faceIndex
+        hoveredFaceIndex
       );
     const overlayIntersect =
       mesh3dIntersect ||

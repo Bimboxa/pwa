@@ -42,7 +42,7 @@ function getFacePerimeter(vertices, face) {
 // One planar face -> BufferGeometry, triangulated in the face plane and
 // wound counter-clockwise around the outward normal (the annotation material
 // darkens back faces).
-function buildFaceGeometry(vertices, face, lift) {
+export function buildMesh3dFaceGeometry(vertices, face, lift) {
   const face2d = getFace2d(vertices, face);
   const [contour2d, ...holes2d] = face2d.loops.map((loop) =>
     loop.map((p) => new Vector2(p.x, p.y))
@@ -99,7 +99,7 @@ export default function buildMesh3dAnnotationObject(
 
   mesh.faces.forEach((face, faceIndex) => {
     if (face.loop.length < 3) return;
-    const geometry = buildFaceGeometry(mesh.vertices, face, lift);
+    const geometry = buildMesh3dFaceGeometry(mesh.vertices, face, lift);
     if (!geometry) return;
     const faceMesh = new Mesh(geometry, material);
     // mesh3dFaceInfo: measures of the face (m², m), shown by the hover

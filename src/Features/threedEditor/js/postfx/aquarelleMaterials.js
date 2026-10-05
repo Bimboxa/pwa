@@ -275,6 +275,9 @@ export function applySketchEdges(root, { resolution }) {
       !child.userData?.isPaintOverlay &&
       // scan base maps: no ink edges over millions of triangles.
       !child.userData?.isDecor &&
+      // hatched fills: neither the invisible surface nor its band is inked.
+      !child.userData?.isHatchPickSurface &&
+      !child.userData?.isHatchFill &&
       child.geometry
     ) {
       meshes.push(child);

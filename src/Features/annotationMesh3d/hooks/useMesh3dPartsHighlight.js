@@ -1,14 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Group } from "three";
 
 import {
+  clearItemPartSelection,
   selectSelectedItem,
   selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 
-import { buildFaceStippleOverlay } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
+import {
+  MESH3D_Z_FIGHT_OFFSET,
+  buildMesh3dFaceGeometry,
+} from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
+import {
+  buildFaceStippleOverlay,
+  buildStippleOverlayFromPositions,
+} from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import {
@@ -16,6 +24,10 @@ import {
   MESH3D_FACE_SELECTED_STIPPLE,
   MESH3D_PART_SELECTED_COLOR,
 } from "../constants/mesh3dPartColors";
+import getDisplayedMesh3d, {
+  getMesh3dSignature,
+} from "../services/getDisplayedMesh3d";
+import { mesh3dLocalToWorld } from "../services/getEditableMesh3d";
 import {
   buildMesh3dEdgeLines,
   getMesh3dEdgesWorld,
@@ -46,9 +58,19 @@ function disposeObject(object) {
 // coordinates and added to the scene (like the vertex / edge sub-selection
 // helper).
 //
+// A REGULAR annotation (not a mesh yet) has no face mesh: its selected parts
+// address the conversion of its displayed object (getDisplayedMesh3d). The
+// dots are then built from that face and added to the base map group, the
+// edge lines from its vertices. Those indices only hold for that geometry:
+// when the object is rebuilt with another one, the part selection is dropped.
+//
 // The helpers are invisible to raycasts and to the snap index
 // (userData.isHoverOverlay).
 export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
+  const dispatch = useDispatch();
+  // Signature of the displayed mesh the current parts were selected on.
+  const signatureRef = useRef(null);
+
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
 
@@ -73,8 +95,12 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
   }, [enabled, annotationId]);
 
   useEffect(() => {
-    if (!enabled || !annotationId || !partsKey) return undefined;
-    const sceneManager = getActiveThreedEditor()?.sceneManager;
+    if (!enabled || !annotationId || !partsKey) {
+      signatureRef.current = null;
+      return undefined;
+    }
+    const editor = getActiveThreedEditor();
+    const sceneManager = editor?.sceneManager;
     const scene = sceneManager?.scene;
     const annoObject =
       sceneManager?.annotationsManager?.annotationsObjectsMap?.[annotationId];
@@ -87,39 +113,88 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
       else selectedEdges.add(token.slice(1));
     }
 
-    const faceMeshes = [];
-    annoObject.traverse((child) => {
-      if (child.isMesh && selectedFaces.has(child.userData?.mesh3dFaceIndex))
-        faceMeshes.push(child);
-    });
+    const isMeshObject = Boolean(annoObject.userData?.isAnnotationMesh3d);
+    const displayed = isMeshObject
+      ? null
+      : getDisplayedMesh3d(editor, annotationId);
+    if (!isMeshObject) {
+      const key = `${annotationId}|${getMesh3dSignature(displayed?.mesh)}`;
+      const previous = signatureRef.current;
+      signatureRef.current = key;
+      const isStale =
+        !displayed ||
+        (previous?.startsWith(`${annotationId}|`) && previous !== key);
+      if (isStale) {
+        signatureRef.current = null;
+        dispatch(clearItemPartSelection(annotationId));
+        return undefined;
+      }
+    } else {
+      signatureRef.current = null;
+    }
+
     const faceOverlays = [];
-    for (const faceMesh of faceMeshes) {
-      const overlay = buildFaceStippleOverlay(
-        faceMesh,
-        null,
-        MESH3D_FACE_SELECTED_STIPPLE
-      );
-      if (!overlay) continue;
-      faceMesh.add(overlay);
-      faceOverlays.push(overlay);
+    const positions = [];
+    if (isMeshObject) {
+      const faceMeshes = [];
+      annoObject.traverse((child) => {
+        if (child.isMesh && selectedFaces.has(child.userData?.mesh3dFaceIndex))
+          faceMeshes.push(child);
+      });
+      for (const faceMesh of faceMeshes) {
+        const overlay = buildFaceStippleOverlay(
+          faceMesh,
+          null,
+          MESH3D_FACE_SELECTED_STIPPLE
+        );
+        if (!overlay) continue;
+        faceMesh.add(overlay);
+        faceOverlays.push(overlay);
+      }
+      for (const edge of getMesh3dEdgesWorld(annoObject)) {
+        const [lo, hi] = edge.a < edge.b ? [edge.a, edge.b] : [edge.b, edge.a];
+        if (!selectedEdges.has(`${lo}_${hi}`)) continue;
+        positions.push(
+          edge.pa.x,
+          edge.pa.y,
+          edge.pa.z,
+          edge.pb.x,
+          edge.pb.y,
+          edge.pb.z
+        );
+      }
+    } else {
+      const { mesh, baseMapGroup } = displayed;
+      for (const faceIndex of selectedFaces) {
+        const face = mesh.faces[faceIndex];
+        const geometry = face
+          ? buildMesh3dFaceGeometry(mesh.vertices, face, MESH3D_Z_FIGHT_OFFSET)
+          : null;
+        if (!geometry) continue;
+        const overlay = buildStippleOverlayFromPositions(
+          geometry.getAttribute("position").array,
+          MESH3D_FACE_SELECTED_STIPPLE
+        );
+        geometry.dispose();
+        if (!overlay) continue;
+        baseMapGroup.add(overlay);
+        faceOverlays.push(overlay);
+      }
+      baseMapGroup.updateWorldMatrix(true, false);
+      for (const token of selectedEdges) {
+        const [a, b] = token.split("_").map(Number);
+        const pa = mesh.vertices[a];
+        const pb = mesh.vertices[b];
+        if (!pa || !pb) continue;
+        const wa = mesh3dLocalToWorld(pa, displayed);
+        const wb = mesh3dLocalToWorld(pb, displayed);
+        positions.push(wa.x, wa.y, wa.z, wb.x, wb.y, wb.z);
+      }
     }
 
     const group = new Group();
     group.name = "Mesh3dPartsHighlight";
 
-    const positions = [];
-    for (const edge of getMesh3dEdgesWorld(annoObject)) {
-      const [lo, hi] = edge.a < edge.b ? [edge.a, edge.b] : [edge.b, edge.a];
-      if (!selectedEdges.has(`${lo}_${hi}`)) continue;
-      positions.push(
-        edge.pa.x,
-        edge.pa.y,
-        edge.pa.z,
-        edge.pb.x,
-        edge.pb.y,
-        edge.pb.z
-      );
-    }
     if (positions.length) {
       group.add(
         buildMesh3dEdgeLines(positions, {
@@ -137,5 +212,5 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
       disposeObject(group);
       sceneManager.renderScene?.();
     };
-  }, [enabled, annotationId, partsKey, objectTick]);
+  }, [enabled, annotationId, partsKey, objectTick, dispatch]);
 }

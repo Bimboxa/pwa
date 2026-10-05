@@ -13,6 +13,7 @@ import {
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import useSelectedMesh3dParts from "../hooks/useSelectedMesh3dParts";
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
@@ -114,6 +115,7 @@ export default function PanelPropertiesMesh3dParts() {
         annotationId,
         parts,
         dispatch,
+        editor: getActiveThreedEditor(),
       });
       const message = getMesh3dPartsDeleteMessage(result);
       if (message) dispatch(setToaster({ message, severity: "warning" }));

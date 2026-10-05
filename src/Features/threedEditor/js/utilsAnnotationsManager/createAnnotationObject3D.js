@@ -1212,5 +1212,17 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     vertexRefs,
   };
 
+  // Hatched fill: planar sheets only (no height) — see applyHatchFill, run by
+  // the finishing pass of AnnotationsManager.
+  const hatchDirection = { HATCHING: 1, HATCHING_LEFT: -1 }[
+    annotation.fillType
+  ];
+  const isSheet =
+    (annotation.type === "POLYGON" && annotation.isMesh3d) ||
+    (["POLYGON", "RECTANGLE"].includes(annotation.type) && height <= 0);
+  if (hatchDirection && isSheet) {
+    object.userData.hatchFill = { direction: hatchDirection };
+  }
+
   return object;
 }

@@ -14,6 +14,7 @@ import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
 import applyWireframeSettings from "./utilsAnnotationsManager/applyWireframeSettings";
+import applyHatchFill from "./utilsAnnotationsManager/applyHatchFill";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
@@ -208,7 +209,10 @@ export default class AnnotationsManager {
     // AQUARELLE ink edges follow the same per-root finishing lifecycle as the
     // shadow flags: rebuilt from the CURRENT geometry on async loads and
     // after a CSG carve, so the lines always match the displayed mesh.
+    // Hatched fills (band + lines) are derived from the CURRENT solid
+    // geometry too, and come first: the passes below must see their meshes.
     const finishRoot = (root) => {
+      applyHatchFill(root, { resolution });
       applyShadowFlags(root);
       if (options?.aquarelleShading) applySketchEdges(root, { resolution });
       applyWireframeSettings(root, this.wireframeSettings);

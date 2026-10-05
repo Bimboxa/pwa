@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Matrix4, Raycaster, Vector2, Vector3 } from "three";
+import { Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import store from "App/store";
@@ -45,9 +45,9 @@ import getEditableMesh3d, {
 } from "Features/annotationMesh3d/services/getEditableMesh3d";
 import { isDisplayedShrunk } from "Features/meshPaint/services/ensureUnshrunkHostObject";
 import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dService";
+import locateHitFaceOnMesh3d from "Features/annotationMesh3d/services/locateHitFaceOnMesh3d";
 import getPushPullRange from "Features/annotationMesh3d/utils/getPushPullRange";
 import isAnnotationConvertibleToMesh3d from "Features/annotationMesh3d/utils/isAnnotationConvertibleToMesh3d";
-import locateFaceNearHit from "Features/annotationMesh3d/utils/locateFaceNearHit";
 import { MIN_THICKNESS_M } from "Features/annotationMesh3d/utils/mesh3dConstants";
 import { mesh3dFromLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import {
@@ -94,42 +94,6 @@ const isEditableTarget = (el) => {
 const SNAP_THRESHOLD_PX = 12;
 // A base sheet must be this parallel to the base map to dig along its axis.
 const DIG_SHEET_MIN_DOT = 0.999;
-
-// Face of an editable mesh under a hit taken on the DISPLAYED object. A
-// conversion reads the un-shrunk object (getEditableMesh3d), whose faces may
-// sit up to 10 mm away from a shrunk display (5 mm for the top): the face is
-// re-detected as the parallel one within 20 mm whose outline holds the point
-// (locateFaceNearHit), not by an exact 2 mm on-face test. The view ray
-// (camera → hit) keeps a thin band's shrunk top on the top face.
-function locateHitFaceOnMesh3d(ctx, intersect, camera) {
-  const point = worldToMesh3dLocal(intersect.point, ctx);
-  let rayDir = null;
-  if (camera) {
-    const origin = camera.isOrthographicCamera
-      ? intersect.point.clone().sub(camera.getWorldDirection(new Vector3()))
-      : camera.getWorldPosition(new Vector3());
-    const from = worldToMesh3dLocal(origin, ctx);
-    rayDir = {
-      x: point.x - from.x,
-      y: point.y - from.y,
-      z: point.z - from.z,
-    };
-  }
-  let normal = null;
-  if (intersect.face?.normal && intersect.object) {
-    // The hit object's matrixWorld as picked: the object may since have been
-    // replaced (un-shrunk rebuild) and detached — never recompute it.
-    ctx.baseMapGroup.updateWorldMatrix(true, false);
-    const local = intersect.face.normal
-      .clone()
-      .transformDirection(intersect.object.matrixWorld)
-      .transformDirection(
-        new Matrix4().copy(ctx.baseMapGroup.matrixWorld).invert()
-      );
-    normal = { x: local.x, y: local.y, z: local.z };
-  }
-  return locateFaceNearHit(ctx.mesh, point, normal, undefined, { rayDir });
-}
 
 // Anchor of a push / pull picked on the DISPLAYED object, moved onto the
 // plane of the editable face: a conversion reads the un-shrunk object, whose

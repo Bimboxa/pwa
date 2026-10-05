@@ -3,6 +3,9 @@ import {
   mergeMesh3dFacesAtEdge,
 } from "../utils/editMesh3dParts";
 import { MESH3D_EDGE_PART, MESH3D_FACE_PART } from "../utils/mesh3dPartIds";
+import remapMesh3dParts from "../utils/remapMesh3dParts";
+import getDisplayedMesh3d from "./getDisplayedMesh3d";
+import getEditableMesh3d from "./getEditableMesh3d";
 import loadStoredMesh3d from "./loadStoredMesh3d";
 import writeMesh3dService from "./writeMesh3dService";
 
@@ -13,6 +16,11 @@ import writeMesh3dService from "./writeMesh3dService";
 //   faces it separates become one again — the reverse of a drawn line. An
 //   edge between two planes holds the solid together and is left alone.
 //
+// A REGULAR annotation (parts selected on its displayed object, see
+// getDisplayedMesh3d) is converted first: the parts are re-located on the
+// un-shrunk conversion, and the annotation is stored as a mesh. `editor` (the
+// active 3D editor) is only needed for that case.
+//
 // parts: parsed part ids (parseMesh3dPartId). Returns
 //   { ok: true } | { ok: false, reason: "LAST_FACE" | "EDGE_NOT_MERGEABLE" |
 //   "NOT_FOUND" }.
@@ -22,8 +30,20 @@ export default async function deleteMesh3dPartsService({
   annotationId,
   parts,
   dispatch,
+  editor,
 }) {
-  const ctx = await loadStoredMesh3d(annotationId);
+  let ctx = await loadStoredMesh3d(annotationId);
+  if (!ctx && editor && parts?.length) {
+    // Read the displayed mesh BEFORE getEditableMesh3d rebuilds the object.
+    const displayed = getDisplayedMesh3d(editor, annotationId);
+    const editable = displayed
+      ? await getEditableMesh3d({ editor, annotationId })
+      : null;
+    if (editable?.isConversion) {
+      ctx = editable;
+      parts = remapMesh3dParts(displayed.mesh, editable.mesh, parts);
+    }
+  }
   if (!ctx || !parts?.length) return { ok: false, reason: "NOT_FOUND" };
 
   const faceIndices = parts

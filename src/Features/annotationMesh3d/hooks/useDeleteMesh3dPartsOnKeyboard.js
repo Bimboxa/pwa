@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useDispatch, useStore } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
+import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -65,6 +66,7 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
         annotationId: selectedItem.nodeId,
         parts,
         dispatch,
+        editor: getActiveThreedEditor(),
       })
         .then((result) => {
           const message = getMesh3dPartsDeleteMessage(result);
