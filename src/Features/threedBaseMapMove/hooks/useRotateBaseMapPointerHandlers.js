@@ -16,6 +16,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
 import findBaseMapGroupsAtVertex from "../utils/findBaseMapGroupsAtVertex";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 import applyRotateBaseMapPose, {
   parseRotateAngleBuffer,
 } from "../utils/applyRotateBaseMapPose";
@@ -187,6 +188,11 @@ export default function useRotateBaseMapPointerHandlers() {
       try {
         await db.baseMaps.update(grab.baseMapId, { angleDeg, position });
         dispatch(triggerBaseMapsUpdate());
+        // A rotated elevation drags its revolution axes along on the plan.
+        await syncRevolutionAxesFromVerticalBaseMapService({
+          baseMapId: grab.baseMapId,
+          dispatch,
+        });
       } catch (err) {
         console.error("[threedBaseMapMove] rotate persist failed", err);
       }

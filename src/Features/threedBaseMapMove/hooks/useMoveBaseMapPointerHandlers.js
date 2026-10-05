@@ -14,6 +14,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
 import findBaseMapGroupsAtVertex from "../utils/findBaseMapGroupsAtVertex";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 import db from "App/db/db";
 
 import {
@@ -160,6 +161,11 @@ export default function useMoveBaseMapPointerHandlers() {
       try {
         await db.baseMaps.update(grab.baseMapId, { position });
         dispatch(triggerBaseMapsUpdate());
+        // A moved elevation drags its revolution axes along on the plan.
+        await syncRevolutionAxesFromVerticalBaseMapService({
+          baseMapId: grab.baseMapId,
+          dispatch,
+        });
       } catch (err) {
         console.error("[threedBaseMapMove] persist failed", err);
       }

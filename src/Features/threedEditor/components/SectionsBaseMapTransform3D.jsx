@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import db from "App/db/db";
 
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 import getBaseMapTransform, {
   DEFAULT_ANGLE_DEG,
   DEFAULT_ORIENTATION,
@@ -241,9 +242,13 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
           y: group.position.y,
           z: group.position.z,
         };
-        db.baseMaps
-          .update(baseMapId, { angleDeg: ang, position })
-          .then(() => dispatch(triggerBaseMapsUpdate()));
+        db.baseMaps.update(baseMapId, { angleDeg: ang, position }).then(() => {
+          dispatch(triggerBaseMapsUpdate());
+          return syncRevolutionAxesFromVerticalBaseMapService({
+            baseMapId,
+            dispatch,
+          });
+        });
       });
     } else if (gizmoMode === "offset") {
       const meshWrap =
@@ -312,9 +317,13 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
     const a = parseFloatSafe(raw ?? angleDeg);
     setAngleDegStr(roundFmt(a, 1));
     applyTransformToGroup({ angleDegOverride: a });
-    db.baseMaps
-      .update(baseMapId, { angleDeg: a })
-      .then(() => dispatch(triggerBaseMapsUpdate()));
+    db.baseMaps.update(baseMapId, { angleDeg: a }).then(() => {
+      dispatch(triggerBaseMapsUpdate());
+      return syncRevolutionAxesFromVerticalBaseMapService({
+        baseMapId,
+        dispatch,
+      });
+    });
   }
 
   function commitPosition() {
@@ -325,9 +334,13 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
       z: parseFloatSafe(posUser.z),
     });
     applyTransformToGroup({ positionOverride: p });
-    db.baseMaps
-      .update(baseMapId, { position: p })
-      .then(() => dispatch(triggerBaseMapsUpdate()));
+    db.baseMaps.update(baseMapId, { position: p }).then(() => {
+      dispatch(triggerBaseMapsUpdate());
+      return syncRevolutionAxesFromVerticalBaseMapService({
+        baseMapId,
+        dispatch,
+      });
+    });
   }
 
   function setPosField(axis, value) {
@@ -358,7 +371,13 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
     applyTransformToGroup({ positionOverride: { ...DEFAULT_POSITION } });
     db.baseMaps
       .update(baseMapId, { position: { ...DEFAULT_POSITION } })
-      .then(() => dispatch(triggerBaseMapsUpdate()));
+      .then(() => {
+        dispatch(triggerBaseMapsUpdate());
+        return syncRevolutionAxesFromVerticalBaseMapService({
+          baseMapId,
+          dispatch,
+        });
+      });
   }
 
   function resetOffset() {

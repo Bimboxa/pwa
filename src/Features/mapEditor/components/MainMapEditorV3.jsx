@@ -31,6 +31,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
 import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 import useRevolutionAxisHotkey from "Features/revolutionAxes/hooks/useRevolutionAxisHotkey";
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
@@ -706,6 +707,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         try {
             await db.baseMaps.update(baseMapId, patch);
             dispatch(triggerBaseMapsUpdate());
+            await syncRevolutionAxesFromVerticalBaseMapService({ baseMapId, dispatch });
             return true;
         } catch (err) {
             console.error("[baseMapOverlays] pose persist failed", err);

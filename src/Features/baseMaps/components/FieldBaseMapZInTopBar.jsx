@@ -5,6 +5,7 @@ import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 
@@ -30,6 +31,10 @@ export default function FieldBaseMapZInTopBar() {
       position: { ...t.position, y },
     });
     dispatch(triggerBaseMapsUpdate());
+    await syncRevolutionAxesFromVerticalBaseMapService({
+      baseMapId: baseMap.id,
+      dispatch,
+    });
   }
 
   // render

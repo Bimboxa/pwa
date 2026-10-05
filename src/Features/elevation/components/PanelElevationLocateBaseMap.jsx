@@ -21,6 +21,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import db from "App/db/db";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
@@ -175,6 +176,10 @@ export default function PanelElevationLocateBaseMap() {
       position: placement.position,
     });
     dispatch(triggerBaseMapsUpdate());
+    await syncRevolutionAxesFromVerticalBaseMapService({
+      baseMapId: selectedBaseMapId,
+      dispatch,
+    });
     dispatch(setToaster({ message: "Élévation positionnée" }));
   }
 

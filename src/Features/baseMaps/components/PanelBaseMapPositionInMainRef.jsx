@@ -15,6 +15,7 @@ import getBaseMapTransform, {
   DEFAULT_ORIENTATION,
 } from "Features/baseMaps/js/getBaseMapTransform";
 import computeRecalageTransform from "Features/baseMaps/js/computeRecalageTransform";
+import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
 import {
   DEFAULT_RED,
   DEFAULT_GREEN,
@@ -115,6 +116,10 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
       position: { ...t.position, y },
     });
     dispatch(triggerBaseMapsUpdate());
+    await syncRevolutionAxesFromVerticalBaseMapService({
+      baseMapId: baseMap.id,
+      dispatch,
+    });
   }
 
   async function handleRecaler() {
@@ -159,6 +164,10 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
 
     await db.baseMaps.update(baseMap.id, update);
     dispatch(triggerBaseMapsUpdate());
+    await syncRevolutionAxesFromVerticalBaseMapService({
+      baseMapId: baseMap.id,
+      dispatch,
+    });
 
     dispatch(
       setToaster({
