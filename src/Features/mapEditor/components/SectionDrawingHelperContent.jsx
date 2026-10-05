@@ -27,6 +27,10 @@ import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScen
 import SectionMeshBrushPaintedTotal from "Features/meshPaint/components/SectionMeshBrushPaintedTotal";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
+import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
+import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
+import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
+import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = [
@@ -167,6 +171,9 @@ export default function SectionDrawingHelperContent() {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // threedEditor tool armed from « Outils de dessin » (Extruder / Déplacer /
+  // Tourner in the 3D editor): its own helper body, no drawing state.
+  const activeThreedTool = useSelector(selectActiveThreedTool);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   // Dessin module toggled to its 3D editor: the drawing state drives a 3D
   // mode. The 2D-only helpers (loupe, 2D shortcuts, image detection) must
@@ -271,6 +278,23 @@ export default function SectionDrawingHelperContent() {
   void effectiveDetection;
 
   // render
+
+  if (activeThreedTool) {
+    return <SectionThreedToolHelperContent tool={activeThreedTool} />;
+  }
+
+  // 2D « Déplacer » / « Tourner »: the loupe (to aim at the points) + the
+  // tool's own helper body.
+  if (!isThreedToggledEditor && isTransformToolMode(enabledDrawingMode)) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column" }}>
+        <Box sx={{ p: 1, pb: 0 }}>
+          <CardLoupe />
+        </Box>
+        <SectionTransformToolHelper2d mode={enabledDrawingMode} />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>

@@ -6,6 +6,7 @@ import SectionDrawingHelperContent from "Features/mapEditor/components/SectionDr
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
 
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingHelper — drawing-mode content of the Dessin panel
@@ -26,9 +27,12 @@ export default function SectionPanelDrawingHelper() {
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Extruder / Déplacer / Tourner: the helper is titled after the tool.
+  const transformToolTitle = useSelector(selectTransformToolTitle);
+
   // strings
 
-  const titleS = "Mode dessin";
+  const titleS = transformToolTitle ?? "Mode dessin";
   const quitS = "Terminer / Quitter";
 
   // render

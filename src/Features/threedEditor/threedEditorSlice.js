@@ -168,11 +168,6 @@ const threedEditorInitialState = {
   // the image reads as a section plane).
   // Session-only, display-only — quantities stay full-rotation.
   revolutionSectionSideByBaseMapId: {},
-  // "Révolution partielle" switch (3D view settings): ON = 180° half-view of
-  // revolutions (camera-side driven); OFF = full 360° revolutions. Explicit
-  // per-axis sectors (`revolutionPhi`) apply either way.
-  // Display-only, session-only. ON by default.
-  forceRevolutionSectionIn3d: true,
   // "Pochage des coupes" switch (3D view settings): fill the section of
   // partial revolutions with a flat dark face when the profile is a closed
   // contour. The ink boundary lines are always shown on partial revolutions;
@@ -558,9 +553,6 @@ export const threedEditorSlice = createSlice({
       } else {
         state.revolutionSectionSideByBaseMapId[baseMapId] = side;
       }
-    },
-    setForceRevolutionSectionIn3d: (state, action) => {
-      state.forceRevolutionSectionIn3d = Boolean(action.payload);
     },
     setRevolutionSectionFillIn3d: (state, action) => {
       state.revolutionSectionFillIn3d = Boolean(action.payload);
@@ -1063,7 +1055,6 @@ export const {
   setSubSelection,
   clearSubSelection,
   setRevolutionSectionSide,
-  setForceRevolutionSectionIn3d,
   setRevolutionSectionFillIn3d,
   setClippingPlaneEnabled,
   setClippingPlaneEditing,

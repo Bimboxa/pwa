@@ -32,6 +32,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 
 // ---------------------------------------------------------------------------
 // PanelDrawing — interactive left panel of the Dessin module (#310): listing
@@ -51,6 +52,9 @@ export default function PanelDrawing() {
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // threedEditor tool armed from « Outils de dessin » (3D editor): same
+  // helper swap as an armed draw.
+  const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // Helper swaps (paste / drawing) only in DOCKED mode: in drawer mode the
   // popper is the visible surface and shows its own floating helpers
@@ -302,7 +306,7 @@ export default function PanelDrawing() {
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelPasteHelper />
         </>
-      ) : enabledDrawingMode && leftPanelDocked ? (
+      ) : (enabledDrawingMode || activeThreedTool) && leftPanelDocked ? (
         <>
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelDrawingHelper />

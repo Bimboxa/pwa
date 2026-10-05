@@ -178,6 +178,7 @@ import useSyncLinkBusinessObjectDraft from "Features/businessObjects/hooks/useSy
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
 import useTemplatelessDrawHotkey from "../hooks/useTemplatelessDrawHotkey";
 import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
+import useAnnotationTransformTool from "Features/annotationTransform/hooks/useAnnotationTransformTool";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -232,6 +233,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("f", "SURFACE_CUT");
     // hotkeys — start wall-ends join (J = Joindre) when not drawing
     useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
+    // hotkeys — start a move / rotate of an annotation from one of its points
+    // (M = Déplacer, R = Tourner) when not drawing; Shift+M stays the quick
+    // point editing toggle
+    useToolGroupHotkey("m", "MOVE_ANNOTATION", { plainOnly: true });
+    useToolGroupHotkey("r", "ROTATE_ANNOTATION", { plainOnly: true });
     // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
     // drawing (this editor stays mounted under the 3D one)
     useToolGroupHotkey("c", "FACE_CUT", { threed: true });
@@ -834,6 +840,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
     const { handleJoinAnnotationsRect } = useHandleJoinAnnotationsRect({ annotations });
+    const { onTransformToolClick, onTransformToolMove } = useAnnotationTransformTool({ annotations, baseMap, projectId });
     const handleCommitGuideLine = useHandleCommitGuideLine();
     const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
     const handleCommitProfileLine = useHandleCommitProfileLine();
@@ -1134,6 +1141,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 directionDeg,
             },
         });
+        // One-shot tool ("Axe de révolution" drawing tool row): an axis is
+        // then managed from its row of the revolution axes section.
+        dispatch(setEnabledDrawingMode(null));
     }
 
     // handlers - photo pose (Photos module)
@@ -2381,6 +2391,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onJoinAnnotationsRect={handleJoinAnnotationsRect}
+                    onTransformToolClick={onTransformToolClick}
+                    onTransformToolMove={onTransformToolMove}
                     onChatRepairRect={(rect) => dispatch(setChatRepairZone(rect))}
                     onCommitGuideLine={handleCommitGuideLine}
                     onCommitIsoHeightLine={handleCommitIsoHeightLine}

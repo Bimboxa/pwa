@@ -17,6 +17,10 @@ const initialSaved = getInitScopeVisibility(getInitScopeId());
 
 const scopeVisibilityInitialState = {
   hiddenAnnotationTemplateIds: initialSaved?.hiddenAnnotationTemplateIds ?? [],
+  // Eye of the revolution axis rows (SectionRevolutionAxes): hides the axis
+  // and everything linked to it (placements, revolved profiles / circles,
+  // paints on those surfaces). Same local, per-scope contract.
+  hiddenRevolutionAxisIds: initialSaved?.hiddenRevolutionAxisIds ?? [],
   // True when the selected scope had saved 3D base map toggles on this
   // device: the Viewer module then skips its scope-open seeding (images off,
   // every annotated base map's annotations on) and keeps the restored state.
@@ -62,12 +66,23 @@ export const scopeVisibilitySlice = createSlice({
         hidden
       );
     },
+    toggleRevolutionAxisHidden: (state, action) => {
+      const id = action.payload;
+      if (!id) return;
+      const hidden = !state.hiddenRevolutionAxisIds.includes(id);
+      state.hiddenRevolutionAxisIds = withIds(
+        state.hiddenRevolutionAxisIds,
+        [id],
+        hidden
+      );
+    },
   },
   extraReducers: (builder) => {
     builder.addCase(setSelectedScopeId, (state, action) => {
       const saved = getInitScopeVisibility(action.payload);
       state.hiddenAnnotationTemplateIds =
         saved?.hiddenAnnotationTemplateIds ?? [];
+      state.hiddenRevolutionAxisIds = saved?.hiddenRevolutionAxisIds ?? [];
       state.hasSavedThreedState = Boolean(saved?.threed);
     });
   },
@@ -77,6 +92,7 @@ export const {
   setHiddenAnnotationTemplateIds,
   setAnnotationTemplatesHidden,
   toggleAnnotationTemplateHidden,
+  toggleRevolutionAxisHidden,
 } = scopeVisibilitySlice.actions;
 
 export default scopeVisibilitySlice.reducer;

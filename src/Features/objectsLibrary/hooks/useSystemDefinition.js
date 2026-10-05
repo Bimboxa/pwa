@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import matchAnnotationTemplate from "Features/annotationsAuto/utils/matchAnnotationTemplate";
+import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
 // Dynamic loader for all annotationTemplatesLibraries files under Data/*/ — same
 // pattern as useAnnotationTemplatesFromLibrary, but here we keep the raw library
@@ -86,10 +87,29 @@ export default function useSystemDefinition(object) {
     ) ?? null;
 
   // Source template: the one whose procedureKeys trigger this procedure (e.g. Sol).
-  const mainTemplate = procedureKey
+  // A procedure sourced by a REVOLUTION_AXIS has no source template (an axis
+  // belongs to its base map + scope, registry `sourceAnnotationTypes`): a
+  // display-only stand-in describes the axis to draw — flagged
+  // isScopeBoundSource so usePlaceSystemFromLibrary arms the axis tool
+  // instead of creating a template row.
+  const linkedTemplate = procedureKey
     ? (templates.find((t) => (t.procedureKeys ?? []).includes(procedureKey)) ??
       null)
     : null;
+  const isAxisSourced = (procedure?.sourceAnnotationTypes ?? []).includes(
+    "REVOLUTION_AXIS"
+  );
+  const mainTemplate =
+    linkedTemplate ??
+    (isAxisSourced
+      ? {
+          ...getDefaultsForShape("REVOLUTION_AXIS"),
+          label: "Axe de révolution",
+          drawingShape: "REVOLUTION_AXIS",
+          defaultTool: "REVOLUTION_AXIS_PLAN",
+          isScopeBoundSource: true,
+        }
+      : null);
 
   // Generated templates: one per created category, in the procedure's order.
   const generatedTemplates = (procedure?.createdMappingCategories ?? [])

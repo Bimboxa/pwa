@@ -23,7 +23,6 @@ import {
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
-  setForceRevolutionSectionIn3d,
   setRevolutionSectionFillIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -49,9 +48,6 @@ export default function PanelThreedProperties() {
   const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
   const wireframeAngleDeg = useSelector(
     (s) => s.threedEditor.wireframeAngleDeg
-  );
-  const forceRevolutionSection = useSelector(
-    (s) => s.threedEditor.forceRevolutionSectionIn3d
   );
   const revolutionSectionFill = useSelector(
     (s) => s.threedEditor.revolutionSectionFillIn3d
@@ -85,23 +81,6 @@ export default function PanelThreedProperties() {
             }
             label={
               <Typography variant="body2">Masquer les fonds de plan</Typography>
-            }
-          />
-          {/* Display-only 180° half-view of profile revolutions (quantities
-              stay full-rotation). OFF = full 360° revolutions; explicit
-              per-axis sectors apply either way. */}
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={forceRevolutionSection}
-                onChange={(e) =>
-                  dispatch(setForceRevolutionSectionIn3d(e.target.checked))
-                }
-              />
-            }
-            label={
-              <Typography variant="body2">Révolution partielle</Typography>
             }
           />
           {/* Fill the cut section of partial revolutions with a flat dark

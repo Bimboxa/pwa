@@ -4,7 +4,7 @@ import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
-import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
+import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import {
   remapPointIds,
   remapAnnotationIds,
@@ -119,7 +119,7 @@ export default async function duplicateScopeService({
   // own scopeId (not indexed). Always copied, base map / layer filters apart.
   const sourceTemplatelessAnnotations = (
     await db.annotations.where("projectId").equals(scope.projectId).toArray()
-  ).filter((a) => notDeleted(a) && isTemplatelessAnnotationInScope(a, scope.id));
+  ).filter((a) => notDeleted(a) && isScopeBoundAnnotationInScope(a, scope.id));
 
   const [
     sourceTemplates,
@@ -380,7 +380,7 @@ export default async function duplicateScopeService({
     const newAnn = {
       ...prepareCopy(a, createdBy),
       id: annotationIdMap[a.id],
-      ...(isTemplatelessAnnotationInScope(a, scope.id)
+      ...(isScopeBoundAnnotationInScope(a, scope.id)
         ? { listingId: null, scopeId: newScopeId }
         : { listingId: listingIdMap[a.listingId] }),
       annotationTemplateId: a.annotationTemplateId

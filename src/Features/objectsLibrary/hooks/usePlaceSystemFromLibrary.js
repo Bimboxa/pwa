@@ -7,6 +7,11 @@ import startDrawFromTemplate, {
   resolveActiveToolForTemplate,
 } from "Features/mapEditor/utils/startDrawFromTemplate";
 
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
+import { buildRevolutionAxisDraft } from "Features/revolutionAxes/utils/buildRevolutionAxisDrafts";
+
 import findObjectTemplateInListing from "../services/findObjectTemplateInListing";
 
 // Deterministic library-model id for a système template, so re-running "Dessiner"
@@ -36,6 +41,44 @@ export default function usePlaceSystemFromLibrary() {
     if (!object || !listingId || !mainTemplate) return;
 
     const projectId = selectedProjectId;
+
+    // Revolution-axis source (useSystemDefinition stand-in, e.g. Château
+    // d'eau): an axis belongs to its base map + scope — no source template.
+    // Create the generated templates only, then arm the axis tool; the draft
+    // carries the procedure to open once the axis is drawn
+    // (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet).
+    if (mainTemplate.isScopeBoundSource) {
+      const toCreate = [];
+      for (const t of generatedTemplates ?? []) {
+        const template = {
+          ...t,
+          modelIdMaster: getSystemTemplateModelId(object, t),
+        };
+        const existing = await findObjectTemplateInListing(
+          listingId,
+          template.modelIdMaster
+        );
+        if (!existing) toCreate.push(template);
+      }
+      if (toCreate.length > 0) {
+        await createTemplatesFromLibrary(toCreate, { listingId, projectId });
+      }
+      const tool = getDrawingToolByKey("REVOLUTION_AXIS_PLAN");
+      if (!tool) return;
+      dispatch(
+        setNewAnnotation({
+          ...buildRevolutionAxisDraft(),
+          ...(mainTemplate.strokeColor
+            ? { strokeColor: mainTemplate.strokeColor }
+            : {}),
+          ...(object.procedureKey
+            ? { launchProcedureKeyOnCreated: object.procedureKey }
+            : {}),
+        })
+      );
+      dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
+      return;
+    }
 
     // Tag each template (source + generated) with a deterministic modelIdMaster.
     const sourceTemplate = {

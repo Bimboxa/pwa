@@ -357,8 +357,10 @@ const DRAWING_SHAPE_CONFIG = {
     shapeCategory: "polyline",
   },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
-  // (REVOLUTION). REVOLUTION_AXIS is a template-drivable shape: axes are drawn
-  // from an annotationTemplate row of the listings panel.
+  // (REVOLUTION). NOT template shapes (absent from DRAWING_SHAPES): an axis
+  // belongs to its base map + scope and is drawn from the "Axe de révolution"
+  // drawing tool (Features/revolutionAxes). The config stays here for the
+  // draft defaults, the type → shape mapping and the icon.
   //
   // REVOLUTION_AXIS is authored on a HORIZONTAL base map (vue en plan) with two
   // clicks: the centre, then a point giving the radius AND the diameter
@@ -384,6 +386,9 @@ const DRAWING_SHAPE_CONFIG = {
       invertHalf: false,
       // Partial revolution (sector) shared by every arc bound to this axis.
       partialRevolution: false,
+      // 3D half-view (display-only 180° cut on the side opposite the camera)
+      // of every arc bound to this axis. On unless explicitly switched off.
+      halfViewIn3d: true,
       // Absolute world Z of the axis centre, and the axis height as drawn on
       // the elevation view.
       offsetZ: 0,
@@ -395,7 +400,8 @@ const DRAWING_SHAPE_CONFIG = {
   // where the axis centre sits in that elevation image — placing it re-poses
   // the base map in 3D (see computeVerticalBaseMapPlacementFromAxis). Never a
   // user-creatable template shape (empty tools, absent from DRAWING_SHAPES):
-  // placements are armed from the axis template row on a vertical base map.
+  // placements are armed from the axis row / the "Axe de révolution" tool row
+  // on a vertical base map.
   REVOLUTION_AXIS_PLACEMENT: {
     label: "Position de l'axe",
     annotationType: "REVOLUTION_AXIS_PLACEMENT",
@@ -486,14 +492,15 @@ const DRAWING_SHAPE_CONFIG = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Revolution helpers, template-linked since the REVOLUTION_AXIS shape became
-// template-drivable, are normal listing annotations (listingId +
-// annotationTemplateId + layerId) — with residual special cases: single-point
-// storage, no entity, record-level `hidden`. Rows created by the pre-template
-// model (no annotationTemplateId) keep the historical exemptions: scopeId
-// instead of listingId, and a bypass of the listing / layer / scope visibility
-// filters. Kept here (rather than re-listed in each consumer) because the same
-// predicates are needed by useAnnotationsV2, SectionLayers and the commit path.
+// Revolution helpers (axis + placements) belong to a base map + a scope: no
+// listing, no template (scopeId instead of listingId, bypass of the listing /
+// layer / scope visibility filters), single-point storage, no entity,
+// record-level `hidden`. Rows written while the axis was a template shape
+// still carry a listingId + annotationTemplateId until the init migration
+// detaches them (migrateRevolutionAxesToScopeService) — the predicates below
+// keep both forms readable. Kept here (rather than re-listed in each
+// consumer) because the same predicates are needed by useAnnotationsV2,
+// SectionLayers and the commit path.
 export const REVOLUTION_HELPER_TYPES = [
   "REVOLUTION_AXIS",
   "REVOLUTION_AXIS_PLACEMENT",
@@ -503,9 +510,11 @@ export function isRevolutionHelperType(type) {
   return REVOLUTION_HELPER_TYPES.includes(type);
 }
 
-// Pre-template axis / placement rows: they carry no annotationTemplateId, so
-// they cannot flow through the template-driven listing / layer / scope filters
-// and keep the historical global-visibility bypass (soft compat, no migration).
+// Scope-bound axis / placement rows — THE current model (name kept from the
+// time template-driven rows were the norm): no annotationTemplateId, no
+// listing, `scopeId` instead. They cannot flow through the template-driven
+// listing / layer / scope filters and bypass them. Rows still linked to a
+// template are detached at init (migrateRevolutionAxesToScopeService).
 export function isLegacyStyleRevolutionHelper(annotation) {
   return (
     isRevolutionHelperType(annotation?.type) && !annotation.annotationTemplateId

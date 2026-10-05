@@ -9,8 +9,6 @@ import ButtonExtrudeThreed from "Features/threedExtrude/components/ButtonExtrude
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 import ButtonMoveBaseMapThreed from "Features/threedBaseMapMove/components/ButtonMoveBaseMapThreed";
 import ButtonRotateBaseMapThreed from "Features/threedBaseMapMove/components/ButtonRotateBaseMapThreed";
-import ButtonMoveAnnotationThreed from "Features/threedAnnotationMove/components/ButtonMoveAnnotationThreed";
-import ButtonRotateAnnotationThreed from "Features/threedAnnotationMove/components/ButtonRotateAnnotationThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Its content does not depend
 // on the current selection: the extrude ("push/pull") entry point + the meshing
@@ -21,10 +19,9 @@ import ButtonRotateAnnotationThreed from "Features/threedAnnotationMove/componen
 // "Mailler") are hidden — only "Coupe" remains.
 // Fond de plan module (BASE_MAPS): base-map placement only — "Déplacer" /
 // "Tourner" (base map), no "Extruder" nor "Coupe".
-// Dessin module (MAP): "Déplacer" / "Tourner" act on the selected
-// ANNOTATIONS (threedAnnotationMove) — the base-map versions stay in the
-// other modules. No "Coupe" there either, and the tools carry the E / M / R
-// hotkey badges (bound by useDessinToolHotkeysThreed in MainThreedEditor).
+// Dessin module (MAP): no toolbar — "Extruder" / "Déplacer" / "Tourner"
+// (annotations) are rows of « Outils de dessin » (RowThreedTool, hotkeys
+// E / M / R bound by useDessinToolHotkeysThreed in MainThreedEditor).
 // The zoom out lives outside the toolbar (ButtonZoomOutThreed, bottom-right
 // of the editor).
 export default function BottomToolbarThreed() {
@@ -46,6 +43,8 @@ export default function BottomToolbarThreed() {
     (s) => s.threedEditor.clippingPlane.editing
   );
 
+  if (isMapModule) return null;
+
   return (
     <Paper
       elevation={3}
@@ -63,22 +62,18 @@ export default function BottomToolbarThreed() {
       <Stack direction="row" spacing={1} alignItems="center">
         {!isViewerModule && (
           <>
-            {!isBaseMapsModule && (
-              <ButtonExtrudeThreed hotkey={isMapModule ? "E" : undefined} />
-            )}
+            {!isBaseMapsModule && <ButtonExtrudeThreed />}
             {isMeshesViewer && <ButtonMeshThreed />}
-            {!isMapModule && <ButtonMoveBaseMapThreed />}
-            {!isMapModule && <ButtonRotateBaseMapThreed />}
-            {isMapModule && <ButtonMoveAnnotationThreed hotkey="M" />}
-            {isMapModule && <ButtonRotateAnnotationThreed hotkey="R" />}
+            <ButtonMoveBaseMapThreed />
+            <ButtonRotateBaseMapThreed />
             {/* No leading divider when nothing precedes "Coupe" (Viewer
-                module) and no trailing one when "Coupe" is hidden (Dessin). */}
-            {!isBaseMapsModule && !isMapModule && (
+                module) and no trailing one when "Coupe" is hidden. */}
+            {!isBaseMapsModule && (
               <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
             )}
           </>
         )}
-        {!isBaseMapsModule && !isMapModule && (
+        {!isBaseMapsModule && (
           <Tooltip title="Plan de coupe">
             <Button
               size="small"

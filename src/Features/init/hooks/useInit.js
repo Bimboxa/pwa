@@ -28,6 +28,7 @@ import useInitCheckRemoteScopeConfiguration from "Features/remoteScopeConfigurat
 import useInitAppLog from "Features/appLog/hooks/useInitAppLog";
 import useInitNotesAppSession from "Features/notesApp/hooks/useInitNotesAppSession";
 import useInitMigrateWorkZones from "Features/businessObjects/hooks/useInitMigrateWorkZones";
+import useInitMigrateRevolutionAxes from "Features/revolutionAxes/hooks/useInitMigrateRevolutionAxes";
 
 //import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 //import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
@@ -46,6 +47,7 @@ export default function useInit() {
   useInitAppLog();
   useInitNotesAppSession();
   useInitMigrateWorkZones();
+  useInitMigrateRevolutionAxes();
 
   useEffect(() => {
     setupSWUpdateListener();

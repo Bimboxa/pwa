@@ -1,6 +1,7 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
+import getProceduresForAnnotation from "../utils/getProceduresForAnnotation";
 
 import { Box } from "@mui/material";
 import { lighten } from "@mui/material/styles";
@@ -10,7 +11,8 @@ import SectionProcedureParams from "./SectionProcedureParams";
 
 /**
  * Toolbar rows (between quantities and actions) for an annotation whose template
- * is linked to one or several ANNOTATIONS_CREATOR procedures. One band per
+ * is linked to one or several ANNOTATIONS_CREATOR procedures, or whose type is
+ * a template-less source of one (getProceduresForAnnotation). One band per
  * procedure: an optional parameters row (lighter tint of the launch band, so it
  * reads as attached to it) on top of the launch band itself — left = procedure
  * name, right = play / reset / refresh applied to this single annotation as
@@ -22,9 +24,7 @@ export default function RowProcedureActionAuto({ annotation }) {
   const appConfig = useAppConfig();
   const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
 
-  const linkedProcedures = (annotation?.annotationTemplate?.procedureKeys ?? [])
-    .map((key) => procedures.find((p) => p.key === key))
-    .filter((p) => p?.type === "ANNOTATIONS_CREATOR");
+  const linkedProcedures = getProceduresForAnnotation(annotation, procedures);
 
   // render
 

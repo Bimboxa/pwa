@@ -205,6 +205,9 @@ import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFix
 import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
 import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
+import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
+import { TRANSFORM_TOOL_MODES, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
+import { getSnapExcludedAnnotationIds, useTransformSession } from "Features/annotationTransform/services/transformSessionStore";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 // constants
@@ -473,6 +476,8 @@ const InteractionLayer = forwardRef(({
   onSplitPolylineReset,
   onSplitPolylineClickPoint,
   onJoinAnnotationsRect,
+  onTransformToolClick,
+  onTransformToolMove,
   onChatRepairRect,
   onProjectionSnapInsert,
   snappingEnabled = true,
@@ -1659,6 +1664,11 @@ const InteractionLayer = forwardRef(({
     selectedAnnotationsForCopyRef.current = selectedAnnotationsForCopy;
   }, [selectedAnnotationsForCopy]);
 
+  // « Déplacer » / « Tourner »: carried annotations left out of the snap
+  const transformSnapExcludedIds = getSnapExcludedAnnotationIds(
+    useTransformSession()
+  );
+
   // annotations for Snap
   // When in point-editing mode, allow snapping to all annotations
   // Only restrict to selected annotation when actively drawing or moving the whole annotation
@@ -1672,6 +1682,16 @@ const InteractionLayer = forwardRef(({
     annotationsForSnap = (annotations ?? []).filter(
       (a) => a.id !== selectedAnnotation?.id
     );
+  } else if (isTransformToolMode(enabledDrawingMode)) {
+    // « Déplacer » / « Tourner »: any annotation offers its points to the
+    // grab — the grab selects it, and the restriction below would then
+    // reduce the destination candidates to the carried annotation itself.
+    // Once carried, the annotations stop being targets.
+    annotationsForSnap = transformSnapExcludedIds.length
+      ? (annotations ?? []).filter(
+          (a) => !transformSnapExcludedIds.includes(a.id)
+        )
+      : annotations;
   } else if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
     annotationsForSnap = [selectedAnnotation];
   }
@@ -1995,7 +2015,7 @@ const InteractionLayer = forwardRef(({
   // Drawing modes whose action is a single click on existing geometry — show a
   // pointer cursor and hide the ScreenCursor crosshair.
   const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", ...TRANSFORM_TOOL_MODES];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -3141,6 +3161,14 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onSplitPolylineClickPointRef.current = onSplitPolylineClickPoint;
   }, [onSplitPolylineClickPoint]);
+
+  // « Déplacer » / « Tourner » tools (Features/annotationTransform)
+  const onTransformToolClickRef = useRef(onTransformToolClick);
+  const onTransformToolMoveRef = useRef(onTransformToolMove);
+  useEffect(() => {
+    onTransformToolClickRef.current = onTransformToolClick;
+    onTransformToolMoveRef.current = onTransformToolMove;
+  }, [onTransformToolClick, onTransformToolMove]);
 
   const onJoinAnnotationsRectRef = useRef(onJoinAnnotationsRect);
   useEffect(() => {
@@ -5534,6 +5562,17 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    // --- MOVE_ANNOTATION / ROTATE_ANNOTATION: grab a point of an annotation,
+    // then move / rotate relative to it (useAnnotationTransformTool) ---
+    if (isTransformToolMode(enabledDrawingMode)) {
+      onTransformToolClickRef.current?.({
+        mode: enabledDrawingMode,
+        localPos: toLocalCoords(worldPos),
+        snap: currentSnapRef.current,
+      });
+      return;
+    }
+
     // --- SPLIT_POLYLINE_CLICK: single-click split at snap point ---
     if (enabledDrawingMode === "SPLIT_POLYLINE_CLICK") {
       const snap = currentSnapRef.current;
@@ -7142,6 +7181,16 @@ const InteractionLayer = forwardRef(({
       if (isOpeningSelected || isCotesEditSelection || isFreeTextPlacement) currentSnapRef.current = null;
     }
 
+    // MOVE_ANNOTATION / ROTATE_ANNOTATION: the carried annotations follow the
+    // (snapped) cursor.
+    if (isTransformToolMode(enabledDrawingMode)) {
+      onTransformToolMoveRef.current?.({
+        localPos: toLocalCoords(worldPos),
+        snap: snapResult ?? null,
+        shiftKey: Boolean(event.shiftKey || event.evt?.shiftKey),
+      });
+    }
+
     // D'. OPENING_SEGMENT PREVIEW — fixed-length segment glued to the nearest
     // wall edge (or free placement when no wall is within 10cm).
     if (enabledDrawingMode === "OPENING_SEGMENT") {
@@ -7386,6 +7435,16 @@ const InteractionLayer = forwardRef(({
         onCommitSplitAtVertexRef.current?.(snap.annotationId, snap.id);
         setDrawingPoints([]);
         drawingPointsRef.current = [];
+        return;
+      }
+
+      // MOVE_ANNOTATION / ROTATE_ANNOTATION: the click landed on the snap marker
+      if (isTransformToolMode(enabledDrawingMode)) {
+        onTransformToolClickRef.current?.({
+          mode: enabledDrawingMode,
+          localPos: { x: snap.x, y: snap.y },
+          snap,
+        });
         return;
       }
 
@@ -8640,6 +8699,13 @@ const InteractionLayer = forwardRef(({
             </g>
           )}
 
+
+        {/* « Déplacer » / « Tourner »: carried annotations at their live pose + guides */}
+        <TransformToolPreviewLayer
+          annotations={annotations}
+          basePose={targetPose}
+          baseMapMeterByPx={baseMapMeterByPx}
+        />
 
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
         {(() => {

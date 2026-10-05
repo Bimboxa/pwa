@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 
+import { triggerAnnotationsUpdate } from "../annotationsSlice";
+
 import {
   Box,
   IconButton,
@@ -16,6 +18,7 @@ import {
   Flip as FlipIcon,
   DonutLarge as PartialIcon,
   Lens as TotalIcon,
+  Contrast as HalfViewIcon,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -26,12 +29,13 @@ import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
+import setRevolutionAxisHalfViewService from "Features/revolutionAxes/services/setRevolutionAxisHalfViewService";
 
 // Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
 // geometry model (centre + scalars), so the template-centric
-// ToolbarEditAnnotation does not apply. When the axis template carries
-// procedureKeys (CHATEAU_EAU_V1), the procedure launcher rows appear like in
-// the standard toolbar.
+// ToolbarEditAnnotation does not apply. The procedures an axis can source
+// (CHATEAU_EAU_V1 — registry sourceAnnotationTypes) show their launcher rows
+// like in the standard toolbar.
 //
 // `invertHalf` and `offsetZ` both change the pose of every vertical base map
 // this axis places, so they run the resync service after writing.
@@ -57,6 +61,8 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
   const accentColor =
     selectedAnnotation.strokeColor || theme.palette.secondary.main;
   const isPartial = Boolean(selectedAnnotation.partialRevolution);
+  // 3D half-view: display-only, on unless explicitly switched off.
+  const isHalfView = selectedAnnotation.halfViewIn3d !== false;
 
   // handlers
 
@@ -85,6 +91,12 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
       updates.revolutionAngleEndDeg = DEFAULT_ANGLE_END_DEG;
     }
     await updateAnnotation(updates);
+  }
+
+  async function handleToggleHalfView() {
+    // View setting: open to anyone (not gated by the axis ownership).
+    await setRevolutionAxisHalfViewService(selectedAnnotation.id, !isHalfView);
+    dispatch(triggerAnnotationsUpdate());
   }
 
   // FieldAnnotationHeight echoes back the WHOLE annotation with one field
@@ -289,10 +301,31 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
               )}
             </IconButton>
           </Tooltip>
+
+          <Tooltip
+            title={
+              isHalfView
+                ? "Demi-vue 3D (coupe) : activée"
+                : "Demi-vue 3D (coupe) : désactivée"
+            }
+            arrow
+          >
+            <IconButton
+              size="small"
+              onClick={handleToggleHalfView}
+              sx={{
+                color: isHalfView ? accentColor : "text.disabled",
+                bgcolor: isHalfView ? accentColor + "18" : "transparent",
+                "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
+              }}
+            >
+              <HalfViewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
-        {/* Procedure launcher rows (template procedureKeys, e.g.
-            CHATEAU_EAU_V1) — same bands as the standard toolbar. */}
+        {/* Procedure launcher rows (e.g. CHATEAU_EAU_V1) — same bands as
+            the standard toolbar. */}
         <RowProcedureActionAuto annotation={selectedAnnotation} />
       </Paper>
     </Box>

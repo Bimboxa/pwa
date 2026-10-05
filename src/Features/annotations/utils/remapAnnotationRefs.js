@@ -97,4 +97,19 @@ export function remapAnnotationIds(annotation, annotationIdMap) {
         : cut
     );
   }
+  // Revolution: placement -> its plan axis, REVOLUTION shape3D -> its axis
+  // (an axis left out of the copy keeps its original id).
+  if (
+    annotation.revolutionAxisId &&
+    annotationIdMap[annotation.revolutionAxisId]
+  ) {
+    annotation.revolutionAxisId = annotationIdMap[annotation.revolutionAxisId];
+  }
+  const axisAnnotationId = annotation.shape3D?.axisAnnotationId;
+  if (axisAnnotationId && annotationIdMap[axisAnnotationId]) {
+    annotation.shape3D = {
+      ...annotation.shape3D,
+      axisAnnotationId: annotationIdMap[axisAnnotationId],
+    };
+  }
 }

@@ -84,7 +84,7 @@ export default function useRightPanelToolHotkeys() {
         s.mapEditor.selectedNode?.annotationType === "POLYGON"
       )
         return;
-      // "E" belongs to the 3D bottom toolbar (Extruder) while the Dessin
+      // "E" belongs to the 3D « Extruder » tool while the Dessin
       // module shows its 3D editor — yield without consuming
       // (useDessinToolHotkeysThreed fires instead).
       if (

@@ -22,7 +22,8 @@ export default function applyMoveAnnotationsPose(
   const delta = {
     x: local.x - grab.startLocal.x,
     y: local.y - grab.startLocal.y,
-    z: options.includeZ ? local.z - grab.startLocal.z : 0,
+    // grab.planOnly (revolution axis): the move never leaves the plane.
+    z: options.includeZ && !grab.planOnly ? local.z - grab.startLocal.z : 0,
   };
   const annotationsObjectsMap =
     editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};

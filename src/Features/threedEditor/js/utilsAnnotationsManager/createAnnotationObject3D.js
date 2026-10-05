@@ -93,6 +93,10 @@ const REVOLUTION_AXIS_GAP_M = 0.2;
 // option (full lathe), and the analytic surface is always full-turn.
 function getRevolutionPartialPhi(annotation, baseMap, options) {
   if (annotation.revolutionPhi) return annotation.revolutionPhi;
+  // The half-view is a property of the revolution AXIS (halfViewIn3d,
+  // resolved per arc by useAnnotationsV2): two axes posed on the same base
+  // map may differ.
+  if (!annotation.revolutionHalfView) return {};
   const sectionSide = options?.revolutionSection?.[annotation.baseMapId];
   if (sectionSide && baseMap.orientation === "VERTICAL") {
     return {
@@ -1124,6 +1128,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       line.userData.exportLine = {
         positions: [local.x, local.y, z0, local.x, local.y, z1],
       };
+      // The same positions feed the 3D vertex snap (useVertexSnap buildIndex):
+      // a Line2 is never indexed from its instanced geometry, so without this
+      // tag the two ends of the axis could not be snapped onto.
+      line.userData.isSnapLine = true;
       object = line;
       break;
     }

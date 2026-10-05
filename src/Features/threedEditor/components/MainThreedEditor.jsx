@@ -100,6 +100,7 @@ import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
+import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
@@ -160,10 +161,8 @@ import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/Ro
 import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
 import useMoveAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useMoveAnnotationPointerHandlers";
 import MoveAnnotationOverlayThreed from "Features/threedAnnotationMove/components/MoveAnnotationOverlayThreed";
-import MoveAnnotationToolbarThreed from "Features/threedAnnotationMove/components/MoveAnnotationToolbarThreed";
 import useRotateAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useRotateAnnotationPointerHandlers";
 import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/components/RotateAnnotationOverlayThreed";
-import RotateAnnotationToolbarThreed from "Features/threedAnnotationMove/components/RotateAnnotationToolbarThreed";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -352,6 +351,12 @@ export default function MainThreedEditor() {
   // A drawing is armed: the drawing toolbar (ToolbarDrawingDraft, above the
   // bottom bar) takes the bottom-centre spot — the 3D tools toolbar would sit
   // half hidden behind it.
+  // Dessin module: Extruder / Déplacer / Tourner are armed from « Outils de
+  // dessin » and show their help in the drawing helper (popper / Dessin
+  // panel) — no bottom toolbar for them.
+  const dessinToolHelperShown = useSelector(
+    (s) => selectActiveThreedTool(s) != null
+  );
   const drawingDraftToolbarShown = useSelector(
     (s) =>
       Boolean(s.mapEditor.enabledDrawingMode) &&
@@ -2499,7 +2504,7 @@ export default function MainThreedEditor() {
         !walkActive &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
-        ) : extrudeActive ? (
+        ) : dessinToolHelperShown ? null : extrudeActive ? (
           <ExtrudeToolbarThreed />
         ) : dimensionActive ? (
           <CoteToolbarThreed />
@@ -2507,10 +2512,6 @@ export default function MainThreedEditor() {
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
           <RotateBaseMapToolbarThreed />
-        ) : moveAnnotationActive ? (
-          <MoveAnnotationToolbarThreed />
-        ) : rotateAnnotationActive ? (
-          <RotateAnnotationToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : drawingDraftToolbarShown ? null : (

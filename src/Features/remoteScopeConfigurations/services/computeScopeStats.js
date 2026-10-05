@@ -1,7 +1,7 @@
 import db from "App/db/db";
 
 import getScopeRelevantListings from "Features/krtoFile/utils/getScopeRelevantListings";
-import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
+import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 
 // Key content indicators of a scope, sent as metadata with a saved
 // configuration (Push body) and displayed as badges on dashboard scope rows.
@@ -48,7 +48,7 @@ export default async function computeScopeStats(scopeId) {
     (a) =>
       !a.deletedAt &&
       (listingIds.has(a.listingId) ||
-        isTemplatelessAnnotationInScope(a, scopeId)) &&
+        isScopeBoundAnnotationInScope(a, scopeId)) &&
       !forBaseMapsListingIds.has(a.listingId) &&
       !a.isBaseMapAnnotation &&
       !profileTemplateIds.has(a.annotationTemplateId)

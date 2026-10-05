@@ -28,7 +28,7 @@ import db from "App/db/db";
 
 // One row of the "Coupes / élévations liées" section of PopperMapListings,
 // shown on a VERTICAL base map for each BASE_MAP_LINK section mark that
-// targets it. Modelled on AnnotationTemplateRowRevolutionAxisVertical.
+// targets it.
 //
 // States:
 //   - no clone yet: the row is a DRAW entry — click arms the 2-click segment

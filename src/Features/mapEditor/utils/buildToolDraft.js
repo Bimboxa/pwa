@@ -1,5 +1,7 @@
 import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
 
+import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
+
 import { getDrawingToolTypeByKey } from "../constants/drawingTools.jsx";
 
 // Opening (ouverture) draft colour — openings are drawn in red @ 0.8 opacity.
@@ -41,5 +43,8 @@ export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
     delete base.strokeType;
     delete base.drawingShape;
   }
+  // « Déplacer » / « Tourner » draw nothing: no drawing shape left over from
+  // a previous draw (its letter hotkeys would switch tools).
+  if (isTransformToolMode(tool.annotationType)) delete base.drawingShape;
   return base;
 }

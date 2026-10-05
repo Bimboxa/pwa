@@ -4,7 +4,7 @@ import sanitizeName from "Features/misc/utils/sanitizeName";
 import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
 import getScopeRelevantListings from "Features/krtoFile/utils/getScopeRelevantListings";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
-import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
+import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import upsertCurrentUserInDirectory from "Features/usersDirectory/services/upsertCurrentUserInDirectory";
 import JSZip from "jszip";
 
@@ -116,7 +116,7 @@ export default async function createKrtoZip(scopeId, options) {
             listingIds.has(a.listingId) ||
             // templateless annotations ("Dessin" tool): no listing, scoped
             // by their own scopeId
-            isTemplatelessAnnotationInScope(a, scopeId)
+            isScopeBoundAnnotationInScope(a, scopeId)
     );
     const referencedPointIds = collectReferencedPointIds(exportedAnnotations);
 
@@ -124,7 +124,7 @@ export default async function createKrtoZip(scopeId, options) {
     // listingId, whitelisted like the POV thumbnails below.
     const templatelessImageFileNames = new Set(
         exportedAnnotations
-            .filter((a) => !a.deletedAt && isTemplatelessAnnotationInScope(a, scopeId))
+            .filter((a) => !a.deletedAt && isScopeBoundAnnotationInScope(a, scopeId))
             .map((a) => a.image?.fileName)
             .filter(Boolean)
     );
@@ -264,7 +264,7 @@ export default async function createKrtoZip(scopeId, options) {
             // Templateless annotations ("Dessin" tool): no listing
             if (
                 table === "annotations" &&
-                isTemplatelessAnnotationInScope(value, scopeId)
+                isScopeBoundAnnotationInScope(value, scopeId)
             ) {
                 return value.projectId === projectId;
             }

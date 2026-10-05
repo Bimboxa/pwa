@@ -1,5 +1,5 @@
 import db, { withHardDelete } from "App/db/db";
-import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
+import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 
 export default async function clearScopeDataService(scopeId) {
     if (!scopeId) throw new Error("scopeId manquant");
@@ -84,7 +84,7 @@ export default async function clearScopeDataService(scopeId) {
         // Templateless annotations ("Dessin" tool): no listing, scoped by
         // their own scopeId (not indexed).
         await db.annotations
-            .filter((a) => isTemplatelessAnnotationInScope(a, scopeId))
+            .filter((a) => isScopeBoundAnnotationInScope(a, scopeId))
             .delete();
 
         // Points : filtrés d'abord par leur propre scopeId (stampé à la

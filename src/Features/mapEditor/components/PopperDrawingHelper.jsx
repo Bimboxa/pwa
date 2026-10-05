@@ -11,6 +11,7 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
 import selectLocatingBusinessObjectId from "Features/businessObjects/utils/selectLocatingBusinessObjectId";
 import selectLinkBusinessObjectDraftId from "Features/businessObjects/utils/selectLinkBusinessObjectDraftId";
+import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
 
 // ---------------------------------------------------------------------------
 // PopperDrawingHelper — floating panel shown while drawing
@@ -48,11 +49,14 @@ export default function PopperDrawingHelper() {
     (r) => r.isMain && r.baseMapId === selectedBaseMapId
   );
 
+  // Extruder / Déplacer / Tourner: the helper is titled after the tool.
+  const transformToolTitle = useSelector(selectTransformToolTitle);
+
   const titleS = draftBusinessObject
     ? locatingBusinessObjectId
       ? `Localiser — ${draftBusinessObject.label}`
       : `Ouvrage — ${draftBusinessObject.label}`
-    : drawS;
+    : (transformToolTitle ?? drawS);
 
   // state
 

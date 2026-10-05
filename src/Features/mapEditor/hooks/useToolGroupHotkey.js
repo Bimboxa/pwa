@@ -38,10 +38,12 @@ const isEditableTarget = (el) => {
 // options.threed: the group is a tool of the Dessin module's 3D editor (the
 // same letter may arm a 2D group in the plan editor): "c" → FACE_CUT (Coupe
 // face).
+// options.plainOnly: ignore the letter while Shift is held (Shift+M toggles
+// the quick point editing — "m" → MOVE_ANNOTATION must not fire with it).
 export default function useToolGroupHotkey(
   hotkey,
   templateId,
-  { threed = false } = {}
+  { threed = false, plainOnly = false } = {}
 ) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -53,6 +55,7 @@ export default function useToolGroupHotkey(
 
     const handleKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (plainOnly && e.shiftKey) return;
       if (isEditableTarget(e.target)) return;
       if (e.key.toLowerCase() !== hotkey.toLowerCase()) return;
 
@@ -115,5 +118,13 @@ export default function useToolGroupHotkey(
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabledDrawingMode, dispatch, store, hotkey, templateId, threed]);
+  }, [
+    enabledDrawingMode,
+    dispatch,
+    store,
+    hotkey,
+    templateId,
+    threed,
+    plainOnly,
+  ]);
 }

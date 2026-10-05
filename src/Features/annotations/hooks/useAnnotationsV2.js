@@ -367,7 +367,11 @@ import {
   isTemplatelessAnnotation,
   TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
-import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import {
+  selectHiddenAnnotationTemplateIdSet,
+  selectHiddenRevolutionAxisIdSet,
+} from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import getRevolutionAxisIdOfAnnotation from "Features/revolutionAxes/utils/getRevolutionAxisIdOfAnnotation";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
@@ -629,6 +633,16 @@ export default function useAnnotationsV2(options) {
     // semantics, keyed on the annotation id.
     const soloAnnotationId = useSelector(
       (s) => s.annotations?.soloAnnotationId ?? null
+    );
+    // Revolution-axis eye / focus (SectionRevolutionAxes rows): the axis and
+    // everything linked to it (getRevolutionAxisIdOfAnnotation). Same
+    // keepHiddenTemplates / ignoreSolo / keepSoloDimmed semantics as the
+    // template eye and solo.
+    const hiddenRevolutionAxisIdSet = useSelector(
+      selectHiddenRevolutionAxisIdSet
+    );
+    const soloRevolutionAxisId = useSelector(
+      (s) => s.annotations?.soloRevolutionAxisId ?? null
     );
 
     const { targetIdsBySource: subtractionTargetIdsBySource } =
@@ -1771,6 +1785,10 @@ export default function useAnnotationsV2(options) {
               { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
             ];
             arc.revolutionPhi = getRevolutionPhiForAxis(axis);
+            // 3D half-view ("Demi-vue 3D"): display-only 180° cut on the
+            // side opposite the camera, a property of the AXIS (on unless
+            // explicitly switched off). An explicit sector above wins.
+            arc.revolutionHalfView = axis.halfViewIn3d !== false;
           }
         }
       }
@@ -2585,6 +2603,14 @@ export default function useAnnotationsV2(options) {
       // filter out annotations whose template is hidden
       if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
+      // filter out the hidden revolution axes and what is linked to them
+      if (!keepHiddenTemplates && hiddenRevolutionAxisIdSet.size > 0) {
+        result = result.filter(
+          (a) =>
+            !hiddenRevolutionAxisIdSet.has(getRevolutionAxisIdOfAnnotation(a))
+        );
+      }
+
       // Planning "Play" mode (PLANNING module): every annotation is styled by
       // the status of its work package at the play step — done = light grey,
       // in progress = its colours (drawn last, on top), to do / no package =
@@ -2700,6 +2726,22 @@ export default function useAnnotationsV2(options) {
           );
         } else {
           result = result.filter(isInAnnotationSolo);
+        }
+      }
+
+      // revolution-axis focus (SectionRevolutionAxes row icon): keep only the
+      // axis, its placements and the annotations revolved around it.
+      // Base-map (background) annotations are always kept.
+      if (!ignoreSolo && soloRevolutionAxisId) {
+        const isInRevolutionAxisSolo = (a) =>
+          a.isBaseMapAnnotation ||
+          getRevolutionAxisIdOfAnnotation(a) === soloRevolutionAxisId;
+        if (keepSoloDimmed) {
+          result = result.map((a) =>
+            isInRevolutionAxisSolo(a) ? a : { ...a, _soloDimmed: true }
+          );
+        } else {
+          result = result.filter(isInRevolutionAxisSolo);
         }
       }
 
@@ -2870,6 +2912,8 @@ export default function useAnnotationsV2(options) {
       hideTemplateless,
       soloTemplateId,
       soloAnnotationId,
+      soloRevolutionAxisId,
+      hiddenRevolutionAxisIdSet,
       keepSoloDimmed,
       ignoreSolo,
       keepHiddenTemplates,

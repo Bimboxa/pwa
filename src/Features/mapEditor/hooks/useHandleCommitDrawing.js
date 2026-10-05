@@ -153,7 +153,15 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // only (its points carry no listingId either).
         const isTemplateless = isTemplatelessAnnotation(newAnnotation)
             && !newAnnotation?.annotationTemplateId;
-        const listingId = isTemplateless ? undefined : selectedListingId;
+        // Revolution axes / placements drawn from the "Axe de révolution"
+        // tool carry no template: they belong to the base map + the scope
+        // too, never to the selected listing.
+        const isScopeBoundRevolutionHelper =
+            isRevolutionHelperType(newAnnotation?.type)
+            && !newAnnotation?.annotationTemplateId;
+        const listingId = isTemplateless || isScopeBoundRevolutionHelper
+            ? undefined
+            : selectedListingId;
 
         // IMAGE one-click placement: the click is the image centre; the two
         // corners feed the bbox commit below. Done here (not in the editor)
@@ -746,7 +754,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 ...(isTemplateless
                     ? { scopeId: selectedScopeId ?? null, listingId: null }
                     : isRevolutionHelper && !newAnnotation.annotationTemplateId
-                        ? { scopeId: selectedScopeId ?? null }
+                        ? { scopeId: selectedScopeId ?? null, listingId: null }
                         : { listingId }),
                 ...(activeLayerId && !isBaseMapAnnotation
                     ? { layerId: activeLayerId }
@@ -754,6 +762,10 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
                 // ... props de style
             };
+
+            // Draft-only instruction (see the procedure auto-launch below):
+            // never persisted on the row.
+            delete _newAnnotation.launchProcedureKeyOnCreated;
 
             // OPENING dropped on a POLYLINE / STRIP wall: its thickness is the
             // wall's, not the template's.
@@ -1181,6 +1193,9 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     dispatch,
                 });
                 dispatch(triggerAnnotationsUpdate());
+                // One placement per axis and base map: the tool is a one-shot
+                // entry (armed from the axis row / the drawing tool row).
+                dispatch(setEnabledDrawingMode(null));
             } catch (e) {
                 console.error(
                     "[useHandleCommitDrawing] revolution axis placement failed",
@@ -1280,6 +1295,31 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             }
         }
 
+
+        // Same auto-open for a template-less source: a revolution axis armed
+        // by a "Système" of the library (usePlaceSystemFromLibrary) carries
+        // the procedure to launch on its draft.
+        if (
+            !_updatedAnnotation &&
+            _newAnnotation?.id &&
+            _newAnnotation.type === "REVOLUTION_AXIS" &&
+            newAnnotation?.launchProcedureKeyOnCreated
+        ) {
+            const entry = (appConfig?.automatedAnnotationsProcedures ?? []).find(
+                (p) =>
+                    p.key === newAnnotation.launchProcedureKeyOnCreated &&
+                    p.paramsDialog
+            );
+            if (entry) {
+                dispatch(setEnabledDrawingMode(null));
+                dispatch(
+                    setPendingProcedureLaunch({
+                        procedureKey: entry.key,
+                        sourceAnnotationId: _newAnnotation.id,
+                    })
+                );
+            }
+        }
 
         // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE, the
         // point-by-point CLICK, or the CIRCLE tools, try to absorb overlapping

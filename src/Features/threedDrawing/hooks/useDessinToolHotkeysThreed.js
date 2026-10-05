@@ -20,21 +20,22 @@ const isEditableTarget = (el) => {
   );
 };
 
-// Plain-letter shortcuts of the Dessin (MAP) module's 3D bottom toolbar:
-// E = Extruder, M = Déplacer (annotation), R = Tourner (annotation) — the
-// letters shown as badges in the toolbar buttons. "D" is the "Dessin" tool,
-// in 3D like in 2D (useTemplatelessDrawHotkey). Toggle semantics, exact
-// parity with the buttons (the threedEditorSlice reducers own the mode
-// mutual exclusion).
+// Plain-letter shortcuts of the threedEditor tools of the Dessin (MAP)
+// module's 3D editor: E = Extruder, M = Déplacer (annotation), R = Tourner
+// (annotation) — the letters shown as badges on their « Outils de dessin »
+// rows (RowThreedTool). "D" is the "Dessin" tool, in 3D like in 2D
+// (useTemplatelessDrawHotkey). Toggle semantics: the letter also disarms
+// (the threedEditorSlice reducers own the mode mutual exclusion). In the 2D
+// editor M / R arm the 2D tool groups instead (useToolGroupHotkey).
 //
 // Scoped to "Dessin module + 3D editor active". useRightPanelToolHotkeys
 // yields "E" (Élévation) in that exact context so listener order never
 // decides; "M" and "R" have no other owner in 3D ("R" = run in walk mode
 // and OBJECT_3D placement, both of which make this hook inert). Inert while
 // a draw is armed (a draw owns its own letters) and in walk mode. Mounted
-// from MainThreedEditor — NOT from BottomToolbarThreed, which unmounts as
-// soon as a mode's own toolbar swaps in (the letters must keep toggling the
-// active mode off).
+// from MainThreedEditor — NOT from the tool rows, which unmount as soon as
+// the drawing helper swaps in (the letters must keep toggling the active
+// mode off).
 export default function useDessinToolHotkeysThreed() {
   const dispatch = useDispatch();
   const store = useStore();

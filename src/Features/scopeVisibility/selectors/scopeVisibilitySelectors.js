@@ -12,5 +12,13 @@ export const selectHiddenAnnotationTemplateIdSet = createSelector(
   (ids) => new Set(ids)
 );
 
+export const selectHiddenRevolutionAxisIds = (state) =>
+  state.scopeVisibility?.hiddenRevolutionAxisIds ?? EMPTY;
+
+export const selectHiddenRevolutionAxisIdSet = createSelector(
+  [selectHiddenRevolutionAxisIds],
+  (ids) => new Set(ids)
+);
+
 export const selectHasSavedThreedVisibility = (state) =>
   Boolean(state.scopeVisibility?.hasSavedThreedState);

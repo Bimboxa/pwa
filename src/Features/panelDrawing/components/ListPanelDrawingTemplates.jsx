@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from "react";
-import { useSelector } from "react-redux";
 
 import {
   DndContext,
@@ -26,16 +25,11 @@ import {
 import Add from "@mui/icons-material/Add";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
-import AnnotationTemplateRowRevolutionAxisVertical from "Features/mapEditor/components/AnnotationTemplateRowRevolutionAxisVertical";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
-import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 // ---------------------------------------------------------------------------
 // ListPanelDrawingTemplates — template rows of the active listing (grouped by
@@ -81,13 +75,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   });
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
-  // REVOLUTION_AXIS templates on a VERTICAL base map swap to the dedicated row
-  // that DROPS an existing plan axis instead of drawing a new one (2D only).
-  const baseMap = useMainBaseMap();
-  const isVerticalBaseMap = baseMap?.orientation === "VERTICAL";
-  const isThreedEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
 
   // state
 
@@ -198,10 +185,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
           );
         }
         if (item?.isDivider) return null;
-        const isVerticalAxisRow =
-          !isThreedEditor &&
-          isVerticalBaseMap &&
-          resolveDrawingShape(item) === "REVOLUTION_AXIS";
         const rowProps = {
           annotationTemplate: item,
           listingId,
@@ -209,26 +192,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
           spriteImage,
           dndEnabled,
         };
-        if (isVerticalAxisRow) {
-          // Popper-styled row kept for the axis-drop flow (count feeds its
-          // qty label slot).
-          return dndEnabled ? (
-            <SortableRow
-              key={item.id}
-              RowComponent={AnnotationTemplateRowRevolutionAxisVertical}
-              {...rowProps}
-              count={qtiesById?.[item.id]?.count || 0}
-              qtyLabel={qtiesById?.[item.id]?.mainQtyLabel}
-            />
-          ) : (
-            <AnnotationTemplateRowRevolutionAxisVertical
-              key={item.id}
-              {...rowProps}
-              count={qtiesById?.[item.id]?.count || 0}
-              qtyLabel={qtiesById?.[item.id]?.mainQtyLabel}
-            />
-          );
-        }
         return dndEnabled ? (
           <SortableRow key={item.id} {...rowProps} />
         ) : (

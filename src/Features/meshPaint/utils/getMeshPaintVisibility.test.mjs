@@ -348,3 +348,51 @@ test("solos dim what they leave out", () => {
     VISIBLE
   );
 });
+
+test("revolution axis eye / solo follow the HOST's axis", () => {
+  const revolved = makeItem({
+    host: { shape3D: { key: "REVOLUTION", axisAnnotationId: "axis1" } },
+  });
+  // eye: the paints of a hidden axis's surfaces are hidden
+  assert.equal(
+    getMeshPaintVisibility(
+      revolved,
+      makeCtx({ hiddenRevolutionAxisIds: new Set(["axis1"]) })
+    ),
+    HIDDEN
+  );
+  assert.equal(
+    getMeshPaintVisibility(
+      revolved,
+      makeCtx({ hiddenRevolutionAxisIds: ["axis2"] })
+    ),
+    VISIBLE
+  );
+  // a host that is not revolved is never concerned by the eye
+  assert.equal(
+    getMeshPaintVisibility(
+      makeItem(),
+      makeCtx({ hiddenRevolutionAxisIds: ["axis1"] })
+    ),
+    VISIBLE
+  );
+  // solo: dims everything that is not built on the soloed axis
+  assert.equal(
+    getMeshPaintVisibility(
+      revolved,
+      makeCtx({ soloRevolutionAxisId: "axis1" })
+    ),
+    VISIBLE
+  );
+  assert.equal(
+    getMeshPaintVisibility(
+      revolved,
+      makeCtx({ soloRevolutionAxisId: "axis2" })
+    ),
+    DIMMED
+  );
+  assert.equal(
+    getMeshPaintVisibility(makeItem(), makeCtx({ soloRevolutionAxisId: "axis1" })),
+    DIMMED
+  );
+});

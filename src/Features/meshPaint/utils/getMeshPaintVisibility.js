@@ -8,7 +8,10 @@
 // finish of its own template: it stays visible when its host's template or
 // listing is hidden (and the host itself is not built), and disappears when
 // its OWN template / listing is hidden. The host's LAYER is followed (hiding
-// a level hides its finishes), like its base map.
+// a level hides its finishes), like its base map — and like the REVOLUTION
+// AXIS the host is revolved around: the eye / solo of an axis row covers
+// everything built on the axis, the paints of its surfaces included.
+import getRevolutionAxisIdOfAnnotation from "../../revolutionAxes/utils/getRevolutionAxisIdOfAnnotation.js";
 import {
   MESH_PAINT_STATUS,
   MESH_PAINT_SYNC_STATES,
@@ -84,6 +87,8 @@ function isAfterPovFreeze(createdAt, freeze) {
  *   - povFreezeCreatedBefore: ISO string | null
  *   - showMeshCells: boolean; meshCellParentIds: Set | Array (useMeshCellRelations)
  *   - soloAnnotationTemplateId, soloAnnotationId: ids | null
+ *   - hiddenRevolutionAxisIds: Set | Array (scopeVisibility slice);
+ *     soloRevolutionAxisId: id | null — both read the HOST's axis
  *   - soloZone: {templateId} | null; zoneSoloAnnotationIds: Set | Array
  *   - soloWorkPackageId: id | null (pass null in planning Play mode);
  *     workPackageSoloAnnotationIds: Set | Array
@@ -127,6 +132,8 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
   // --- host: structural filters only (no template / listing) ---
   if (host.isBaseMapAnnotation) return HIDDEN;
   if (!isHostLayerVisible(host, ctx)) return HIDDEN;
+  const hostAxisId = getRevolutionAxisIdOfAnnotation(host);
+  if (hostAxisId && has(ctx.hiddenRevolutionAxisIds, hostAxisId)) return HIDDEN;
   if (ctx.showMeshCells) {
     // The parent is replaced by its mesh cells.
     if (has(ctx.meshCellParentIds, host.id)) return HIDDEN;
@@ -169,6 +176,8 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
   )
     return DIMMED;
   if (ctx.soloAnnotationId && host.id !== ctx.soloAnnotationId) return DIMMED;
+  if (ctx.soloRevolutionAxisId && hostAxisId !== ctx.soloRevolutionAxisId)
+    return DIMMED;
 
   return VISIBLE;
 }

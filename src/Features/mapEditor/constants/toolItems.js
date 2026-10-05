@@ -1,4 +1,11 @@
-import { Draw, StopCircle } from "@mui/icons-material";
+import {
+  Adjust,
+  Draw,
+  Height,
+  OpenWith,
+  RotateRight,
+  StopCircle,
+} from "@mui/icons-material";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
@@ -17,6 +24,15 @@ import IconCutSurface from "Features/icons/IconCutSurface";
 //
 // editor: the only editor of the Dessin module the row is offered in ("2D":
 // the plan, "3D": its 3D editor) — no editor: both. getToolItemsForEditor.
+//
+// isRevolutionAxis: "Axe de révolution" row — draws a revolution axis on a
+// plan / drops one on a vertical base map (RowRevolutionAxisTool); the axis
+// belongs to the base map + the scope, not to a listing. No hotkey.
+//
+// threedTool: in the 3D editor the row arms a threedEditor mode (Extruder /
+// Déplacer / Tourner — RowThreedTool, selectActiveThreedTool) instead of a
+// DRAWING_TOOLS group. In 2D, "Déplacer" / "Tourner" are regular tool groups
+// (Features/annotationTransform).
 const TOOL_ITEMS = [
   {
     type: "DRAW",
@@ -55,11 +71,40 @@ const TOOL_ITEMS = [
     editor: "2D",
   },
   {
+    type: "REVOLUTION_AXIS",
+    label: "Axe de révolution",
+    Icon: Adjust,
+    editor: "2D",
+    isRevolutionAxis: true,
+  },
+  {
     type: "FACE_CUT",
     label: "Coupe face",
     Icon: IconSplitPolygon,
     shortcut: "C",
     editor: "3D",
+  },
+  {
+    type: "EXTRUDE",
+    label: "Extruder",
+    Icon: Height,
+    shortcut: "E",
+    editor: "3D",
+    threedTool: "EXTRUDE",
+  },
+  {
+    type: "MOVE_ANNOTATION",
+    label: "Déplacer",
+    Icon: OpenWith,
+    shortcut: "M",
+    threedTool: "MOVE_ANNOTATION",
+  },
+  {
+    type: "ROTATE_ANNOTATION",
+    label: "Tourner",
+    Icon: RotateRight,
+    shortcut: "R",
+    threedTool: "ROTATE_ANNOTATION",
   },
 ];
 

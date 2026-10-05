@@ -30,6 +30,9 @@ import IconPolygonCircleRadius from "Features/icons/IconPolygonCircleRadius";
 import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import OpenWithIcon from "@mui/icons-material/OpenWith";
+import RotateRightIcon from "@mui/icons-material/RotateRight";
+
 import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
@@ -460,6 +463,24 @@ const DRAWING_TOOLS = [
     annotationType: "JOIN_ANNOTATIONS",
     behavior: "JOIN_ANNOTATIONS",
   },
+  // MOVE_ANNOTATION / ROTATE_ANNOTATION tools (Déplacer / Tourner) — click a
+  // point of an annotation, then move / rotate it relative to that point
+  // (Features/annotationTransform). The 3D editor has its own modes
+  // (threedAnnotationMove).
+  {
+    key: "MOVE_ANNOTATION",
+    label: "Déplacer",
+    Icon: OpenWithIcon,
+    annotationType: "MOVE_ANNOTATION",
+    behavior: "MOVE_ANNOTATION",
+  },
+  {
+    key: "ROTATE_ANNOTATION",
+    label: "Tourner",
+    Icon: RotateRightIcon,
+    annotationType: "ROTATE_ANNOTATION",
+    behavior: "ROTATE_ANNOTATION",
+  },
   // CHAT_REPAIR (chat « Réparation ») — same 2-click selection rectangle; the
   // zone is stored in mapEditor.chatRepairZone and the mode exits at once. The
   // chat panel then sends the zone to the relay for a deterministic repair.
@@ -471,13 +492,14 @@ const DRAWING_TOOLS = [
     behavior: "CHAT_REPAIR",
   },
   // REVOLUTION axis helpers — the geometry that defines a REVOLUTION shape3D.
-  // Both tools are armed from a REVOLUTION_AXIS template row of the listings
-  // panel: the axis is authored on the PLAN with 2 clicks (centre → radius +
-  // orientation, reusing the CIRCLE_RADIUS interaction but NOT its commit,
-  // which polygonizes into a ring); on a VERTICAL base map the template row
-  // instead drops an existing axis with a single click
-  // (AnnotationTemplateRowRevolutionAxisVertical), which re-poses that base
-  // map in 3D. Both keep their own annotation `type` through the commit (see
+  // Both tools are armed from the "Axe de révolution" drawing tool row and
+  // the revolution axes section (Features/revolutionAxes — the drafts carry
+  // no template, an axis belongs to its base map + scope): the axis is
+  // authored on the PLAN with 2 clicks (centre → radius + orientation,
+  // reusing the CIRCLE_RADIUS interaction but NOT its commit, which
+  // polygonizes into a ring); on a VERTICAL base map an existing axis is
+  // dropped with a single click, which re-poses that base map in 3D. Both
+  // keep their own annotation `type` through the commit (see
   // useHandleCommitDrawing) and are NOT openings.
   {
     key: "REVOLUTION_AXIS_PLAN",
@@ -538,6 +560,8 @@ export const DRAWING_TOOLS_BY_TYPE = {
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
   JOIN_ANNOTATIONS: ["JOIN_ANNOTATIONS"],
+  MOVE_ANNOTATION: ["MOVE_ANNOTATION"],
+  ROTATE_ANNOTATION: ["ROTATE_ANNOTATION"],
   CHAT_REPAIR: ["CHAT_REPAIR"],
 };
 

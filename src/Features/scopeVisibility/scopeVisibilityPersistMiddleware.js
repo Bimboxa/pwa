@@ -64,6 +64,13 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
     patch.hiddenAnnotationTemplateIds =
       state.scopeVisibility?.hiddenAnnotationTemplateIds ?? [];
   }
+  if (
+    prev.scopeVisibility?.hiddenRevolutionAxisIds !==
+    state.scopeVisibility?.hiddenRevolutionAxisIds
+  ) {
+    patch.hiddenRevolutionAxisIds =
+      state.scopeVisibility?.hiddenRevolutionAxisIds ?? [];
+  }
   if (prev.listings?.hiddenListingsIds !== state.listings?.hiddenListingsIds) {
     patch.hiddenListingsIds = state.listings?.hiddenListingsIds ?? [];
   }

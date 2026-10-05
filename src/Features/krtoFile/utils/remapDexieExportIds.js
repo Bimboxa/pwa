@@ -45,6 +45,8 @@ export default function remapDexieExportIds(jsonData, opts) {
     // source mark.
     linkedBaseMapId: "baseMaps",
     sourceLinkAnnotationId: "annotations",
+    // REVOLUTION_AXIS_PLACEMENT -> its plan axis.
+    revolutionAxisId: "annotations",
     povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",
@@ -239,6 +241,17 @@ export default function remapDexieExportIds(jsonData, opts) {
           ...row.baseMapsSettings,
           disabledListingIds: row.baseMapsSettings.disabledListingIds.map(
             (id) => remapId("listings", id)
+          ),
+        };
+      }
+
+      // REVOLUTION shape3D: nested ref to the plan axis annotation.
+      if (tableName === "annotations" && row.shape3D?.axisAnnotationId) {
+        row.shape3D = {
+          ...row.shape3D,
+          axisAnnotationId: remapId(
+            "annotations",
+            row.shape3D.axisAnnotationId
           ),
         };
       }

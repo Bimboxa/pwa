@@ -8,13 +8,18 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import RowPanelDrawingTool from "./RowPanelDrawingTool";
 import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
+import RowThreedTool from "Features/threedDrawing/components/RowThreedTool";
+import RowRevolutionAxisTool from "Features/revolutionAxes/components/RowRevolutionAxisTool";
 import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingTools — collapsible "OUTILS DE DESSIN" section listing
 // the shortcut tools (Dessin D, Ouverture O, Retirer un segment X, Couper un
-// segment C, Joindre J). In the 3D editor (`isThreedEditor`): the "Dessin" row
-// and the 3D tools (Coupe face C) only — the others are 2D drawing modes.
+// segment C, Joindre J, Déplacer M, Tourner R) and the hotkey-less "Axe de
+// révolution" row (RowRevolutionAxisTool). In the 3D editor
+// (`isThreedEditor`): the "Dessin" row and the 3D tools only (Coupe face C,
+// and the threedEditor tools Extruder E / Déplacer M / Tourner R —
+// RowThreedTool) — the others are 2D drawing modes.
 // ---------------------------------------------------------------------------
 
 export default function SectionPanelDrawingTools({
@@ -34,7 +39,9 @@ export default function SectionPanelDrawingTools({
   // helpers
 
   const tools = getToolItemsForEditor({ isThreedEditor }).filter(
-    (t) => t.shortcut && (!isThreedEditor || t.isTemplatelessDraw || t.editor)
+    (t) =>
+      (t.shortcut || t.isRevolutionAxis) &&
+      (!isThreedEditor || t.isTemplatelessDraw || t.editor || t.threedTool)
   );
 
   // render
@@ -88,6 +95,22 @@ export default function SectionPanelDrawingTools({
                 Icon={tool.Icon}
                 shortcut={tool.shortcut}
                 count={templatelessCount}
+                variant="panel"
+              />
+            ) : tool.isRevolutionAxis ? (
+              <RowRevolutionAxisTool
+                key={tool.type}
+                label={tool.label}
+                Icon={tool.Icon}
+                variant="panel"
+              />
+            ) : isThreedEditor && tool.threedTool ? (
+              <RowThreedTool
+                key={tool.type}
+                threedTool={tool.threedTool}
+                label={tool.label}
+                Icon={tool.Icon}
+                shortcut={tool.shortcut}
                 variant="panel"
               />
             ) : (

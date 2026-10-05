@@ -38,6 +38,9 @@ export default function DialogCreateBlankBaseMap({
   onClose,
   listing,
   onCreated,
+  // preselected 3D plane orientation (e.g. "VERTICAL" when the page is
+  // created to draw revolution profiles)
+  defaultOrientation = "HORIZONTAL",
 }) {
   // strings
 
@@ -60,7 +63,7 @@ export default function DialogCreateBlankBaseMap({
   const [size, setSize] = useState("A3");
   const [scale, setScale] = useState(50);
   // 3D plane orientation (floor / wall)
-  const [orientation, setOrientation] = useState("HORIZONTAL");
+  const [orientation, setOrientation] = useState(defaultOrientation);
 
   // handlers
 
@@ -116,7 +119,7 @@ export default function DialogCreateBlankBaseMap({
     setFormat("paysage");
     setSize("A3");
     setScale(50);
-    setOrientation("HORIZONTAL");
+    setOrientation(defaultOrientation);
     if (onClose) onClose();
   }
 

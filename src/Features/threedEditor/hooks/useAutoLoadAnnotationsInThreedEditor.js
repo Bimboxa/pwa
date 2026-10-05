@@ -78,11 +78,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const revolutionSectionSideByBaseMapId = useSelector(
     (s) => s.threedEditor.revolutionSectionSideByBaseMapId
   );
-  // "Révolution partielle" switch: ON = 180° half-view, OFF = full 360°
-  // revolutions (explicit per-axis sectors still apply either way).
-  const forceRevolutionSection = useSelector(
-    (s) => s.threedEditor.forceRevolutionSectionIn3d
-  );
   // "Pochage des coupes" switch: fill closed-profile sections of partial
   // revolutions with a flat dark face (ink boundary lines are always on).
   const revolutionSectionFill = useSelector(
@@ -192,23 +187,24 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     );
   }, [annotationsForThreed, shrinkExemptIds]);
 
-  // { baseMapId: 1 | -1 }, only while the "Révolution partielle" switch is ON,
-  // restricted to the vertical base maps that host a REVOLUTION element
-  // without an explicit partial sector — a POLYLINE arc (lathe surface) or a
-  // POINT (circle line). The sector now lives on the plan AXIS and is resolved
+  // { baseMapId: 1 | -1 }, restricted to the vertical base maps that host a
+  // REVOLUTION element in half-view (its AXIS's "Demi-vue 3D" toggle,
+  // resolved per arc into `revolutionHalfView`) without an explicit partial
+  // sector — a POLYLINE arc (lathe surface) or a POINT (circle line). The
+  // sector lives on the plan AXIS too and is resolved
   // per-arc by useAnnotationsV2 into `revolutionPhi`; when it is set, those
   // explicit angles win over the auto half-view (same precedence as
   // getRevolutionPartialPhi in createAnnotationObject3D). Restricting the map
   // keeps the build epoch stable — a camera side flip on an unrelated base map
   // must not rebuild the scene.
   const revolutionSection = useMemo(() => {
-    if (!forceRevolutionSection) return null;
     const revBaseMapIds = new Set(
       (annotationsForThreed || [])
         .filter(
           (a) =>
             (a.type === "POLYLINE" || a.type === "POINT") &&
             a.shape3D?.key === "REVOLUTION" &&
+            a.revolutionHalfView &&
             !a.revolutionPhi
         )
         .map((a) => a.baseMapId)
@@ -225,7 +221,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     annotationsForThreed,
     baseMaps,
     revolutionSectionSideByBaseMapId,
-    forceRevolutionSection,
   ]);
   // Serialized form for the build epoch (see getBuildEpochKey).
   const revolutionSectionKey = revolutionSection

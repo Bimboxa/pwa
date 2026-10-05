@@ -37,6 +37,30 @@ export function isTemplatelessAnnotationInScope(annotation, scopeId) {
   );
 }
 
+// Revolution axes and their placements belong to a base map + a scope too
+// (no listing, no template — see isLegacyStyleRevolutionHelper; the types are
+// inlined to keep this file import-free).
+function isScopeBoundRevolutionHelper(annotation) {
+  return (
+    (annotation?.type === "REVOLUTION_AXIS" ||
+      annotation?.type === "REVOLUTION_AXIS_PLACEMENT") &&
+    !annotation.annotationTemplateId
+  );
+}
+
+// Every listing-less annotation of a scope (templateless draws + revolution
+// axes / placements), among rows read straight from Dexie: what the scope
+// level services (Krto zip, duplicate, clear, purge) must carry along with
+// the listings' annotations.
+export function isScopeBoundAnnotationInScope(annotation, scopeId) {
+  return (
+    Boolean(scopeId) &&
+    annotation?.scopeId === scopeId &&
+    (isTemplatelessAnnotation(annotation) ||
+      isScopeBoundRevolutionHelper(annotation))
+  );
+}
+
 // Key of the per-template session maps (selectedToolKeyByTemplateId,
 // draftPropsByTemplateId) for a templateless draft.
 export function getTemplatelessDraftKey(drawingShape) {

@@ -47,6 +47,9 @@ const annotationsInitialState = {
   // Single-annotation FOCUS (panel annotation detail "Isoler"): same
   // semantics, keyed on the annotation id.
   soloAnnotationId: null,
+  // Revolution-axis FOCUS (SectionRevolutionAxes row icon): same semantics,
+  // keeps the axis and everything linked to it (getRevolutionAxisIdOfAnnotation).
+  soloRevolutionAxisId: null,
 };
 
 export const annotationsSlice = createSlice({
@@ -124,6 +127,9 @@ export const annotationsSlice = createSlice({
     setSoloAnnotationId: (state, action) => {
       state.soloAnnotationId = action.payload ?? null;
     },
+    setSoloRevolutionAxisId: (state, action) => {
+      state.soloRevolutionAxisId = action.payload ?? null;
+    },
   },
   extraReducers: (builder) => {
     // Leaving the recap-panel modules (Dessin, Viewer) clears the template
@@ -135,6 +141,7 @@ export const annotationsSlice = createSlice({
       if (!RECAP_PANEL_MODULE_KEYS.includes(action.payload)) {
         state.soloAnnotationTemplateId = null;
         state.soloAnnotationId = null;
+        state.soloRevolutionAxisId = null;
       }
     });
     // Scope switch: the focused template belongs to the previous scope — a
@@ -144,6 +151,7 @@ export const annotationsSlice = createSlice({
     builder.addCase(setSelectedScopeId, (state) => {
       state.soloAnnotationTemplateId = null;
       state.soloAnnotationId = null;
+      state.soloRevolutionAxisId = null;
     });
   },
 });
@@ -172,6 +180,7 @@ export const {
   //
   setSoloAnnotationTemplateId,
   setSoloAnnotationId,
+  setSoloRevolutionAxisId,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;

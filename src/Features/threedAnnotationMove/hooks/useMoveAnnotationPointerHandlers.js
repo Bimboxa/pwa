@@ -14,6 +14,7 @@ import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPerm
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
+import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMoveFrom3d";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
 import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
 import applyMoveAnnotationsPose from "../utils/applyMoveAnnotationsPose";
@@ -114,7 +115,13 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         );
         return;
       }
-      if (!isPointBasedAnnotationType(resolved.annotationType)) {
+      // A revolution axis is moved alone and in its plan only: the move
+      // re-positions it on its origin base map (commitRevolutionAxisMoveFrom3d).
+      const isRevolutionAxis = resolved.annotationType === "REVOLUTION_AXIS";
+      if (
+        !isRevolutionAxis &&
+        !isPointBasedAnnotationType(resolved.annotationType)
+      ) {
         dispatch(
           setToaster({
             message:
@@ -125,12 +132,14 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         return;
       }
 
-      const annotationIds = getCarriedAnnotationIdsFromSelection({
-        grabbed: resolved,
-        selectedItems: store.getState().selection.selectedItems,
-        allAnnotations: annotationsRef.current,
-        dispatch,
-      });
+      const annotationIds = isRevolutionAxis
+        ? [resolved.annotationId]
+        : getCarriedAnnotationIdsFromSelection({
+            grabbed: resolved,
+            selectedItems: store.getState().selection.selectedItems,
+            allAnnotations: annotationsRef.current,
+            dispatch,
+          });
       if (!annotationIds.length) return;
 
       // Ownership: every carried annotation must be editable (the check
@@ -177,6 +186,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         annotationIds: carriedIds,
         startWorld: snap.position.clone(),
         startLocal: { x: startLocal.x, y: startLocal.y, z: startLocal.z },
+        planOnly: isRevolutionAxis,
         rootStartPoses,
         targetVerts,
         targetAdjacency,
@@ -197,6 +207,16 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       dispatch(setMoveAnnotationCarriedIds([]));
       if (!delta) return;
       try {
+        if (grab.planOnly) {
+          await commitRevolutionAxisMoveFrom3d({
+            editor,
+            axisId: grab.annotationIds[0],
+            baseMapId: grab.baseMapId,
+            deltaLocal: delta,
+            dispatch,
+          });
+          return;
+        }
         await commitAnnotationsTransformFrom3d({
           editor,
           annotationIds: grab.annotationIds,

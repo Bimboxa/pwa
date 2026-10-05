@@ -53,7 +53,6 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import AnnotationTemplateRowRevolutionAxisVertical from "./AnnotationTemplateRowRevolutionAxisVertical";
 import SectionBaseMapLinkClones from "Features/baseMapLinks/components/SectionBaseMapLinkClones";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -101,12 +100,17 @@ import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/But
 import {
   setNewAnnotation,
   setSoloAnnotationTemplateId,
+  setSoloRevolutionAxisId,
 } from "Features/annotations/annotationsSlice";
 import {
   setAnnotationTemplatesHidden,
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
 import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
+import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
+import RowRevolutionAxisTool from "Features/revolutionAxes/components/RowRevolutionAxisTool";
+import RowThreedTool from "Features/threedDrawing/components/RowThreedTool";
+import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
 import {
   isTemplatelessAnnotationInScope,
@@ -1198,15 +1202,8 @@ function AnnotationTemplatesForListing({
   const isMeshesModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
   );
-  // REVOLUTION_AXIS templates on a VERTICAL base map swap to a dedicated row
-  // that DROPS an existing plan axis instead of drawing a new one — only while
-  // the panel effectively is a DRAW panel (same overrides as the row's own
-  // effective interaction mode).
   const baseMap = useMainBaseMap();
   const isVerticalBaseMap = baseMap?.orientation === "VERTICAL";
-  const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
-  const isDrawInteraction =
-    effectiveInteractionMode === "DRAW" || effectiveInteractionMode == null;
   const qtiesById = useMemo(
     () =>
       mergePaintedQtiesIntoTemplateQties(
@@ -1311,18 +1308,9 @@ function AnnotationTemplatesForListing({
                 (templateQties?.count || 0) +
                 (templateQties?.paintedCount || 0);
               const qtyLabel = templateQties?.mainQtyLabel;
-              const isVerticalAxisRow =
-                isDrawInteraction &&
-                isVerticalBaseMap &&
-                resolveDrawingShape(item) === "REVOLUTION_AXIS";
               return (
                 <SortableAnnotationTemplateRow
                   key={item.id}
-                  RowComponent={
-                    isVerticalAxisRow
-                      ? AnnotationTemplateRowRevolutionAxisVertical
-                      : undefined
-                  }
                   annotationTemplate={item}
                   count={count}
                   qtyLabel={qtyLabel}
@@ -1851,8 +1839,18 @@ export default function PopperMapListings() {
           : null,
     [soloTemplateId]
   );
+  // Revolution-axis SOLO (toggled from an axis row icon): same band.
+  const soloRevolutionAxisId = useSelector(
+    (s) => s.annotations.soloRevolutionAxisId
+  );
+  const soloRevolutionAxis = useLiveQuery(
+    () =>
+      soloRevolutionAxisId ? db.annotations.get(soloRevolutionAxisId) : null,
+    [soloRevolutionAxisId]
+  );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // truthy in either subtraction pick direction (see utils/subtractPickMode)
   const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
@@ -2330,6 +2328,7 @@ export default function PopperMapListings() {
 
   const handleExitSolo = () => {
     dispatch(setSoloAnnotationTemplateId(null));
+    dispatch(setSoloRevolutionAxisId(null));
   };
 
   // A chip click just sets the current listing (persisted via setInitListingId
@@ -2415,8 +2414,9 @@ export default function PopperMapListings() {
 
   // render
 
-  // 2D-only helper chain (the 3D editor has its own): the BaseMaps module
-  // displaying its 3D editor counts as 3D here.
+  // Helper chain of the drawing modules (Dessin in 2D and in its 3D editor):
+  // off in the 3D-family modules (Viewer, Maillage) and in the BaseMaps
+  // module displaying its 3D editor.
   const helpersEnabled = !isThreedViewer && !isBaseMapsLegendThreed;
 
   if (helpersEnabled && pasteClipboard) {
@@ -2427,7 +2427,9 @@ export default function PopperMapListings() {
     return <PopperSubtractHelper />;
   }
 
-  if (helpersEnabled && Boolean(enabledDrawingMode)) {
+  // An armed draw, or a threedEditor tool armed from « Outils de dessin »
+  // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor).
+  if (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) {
     return <PopperDrawingHelper />;
   }
 
@@ -2591,6 +2593,18 @@ export default function PopperMapListings() {
           <Box sx={{ overflow: "auto", flex: 1 }}>
             {viewerKey === "MAP" && showLayers && (
               <SectionLayers baseMapId={baseMap?.id} />
+            )}
+
+            {/* Axes de révolution — as soon as the base map carries one
+              (drawn on this plan / placed on this vertical base map): one
+              row per axis, with the navigation to the perpendicular base
+              map, the eye / solo of everything linked to it and its 3D
+              half-view. */}
+            {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
+              <SectionRevolutionAxes
+                baseMap={baseMap}
+                spriteImage={spriteImage}
+              />
             )}
 
             {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
@@ -2829,6 +2843,24 @@ export default function PopperMapListings() {
                               count={templatelessCount}
                             />
                           )
+                        ) : tool.isRevolutionAxis ? (
+                          // revolution axes belong to a scope, like the
+                          // templateless annotations
+                          viewerKey === "MAP" && (
+                            <RowRevolutionAxisTool
+                              key={tool.type}
+                              label={tool.label}
+                              Icon={tool.Icon}
+                            />
+                          )
+                        ) : isThreedEditor && tool.threedTool ? (
+                          <RowThreedTool
+                            key={tool.type}
+                            threedTool={tool.threedTool}
+                            label={tool.label}
+                            Icon={tool.Icon}
+                            shortcut={tool.shortcut}
+                          />
                         ) : (
                           <ToolRow
                             key={tool.type}
@@ -2849,7 +2881,7 @@ export default function PopperMapListings() {
 
       {/* Template SOLO band — outside the scrollable body, so it stays visible
           at the bottom (collapsed panel included). */}
-      {soloTemplateId && !showBaseMapsBody && (
+      {(soloTemplateId || soloRevolutionAxisId) && !showBaseMapsBody && (
         <Box
           sx={{
             display: "flex",
@@ -2864,7 +2896,10 @@ export default function PopperMapListings() {
           }}
         >
           <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
-            <b>{soloS}</b> {soloTemplate?.label}
+            <b>{soloS}</b>{" "}
+            {[soloTemplate?.label, soloRevolutionAxis?.label]
+              .filter(Boolean)
+              .join(" · ")}
           </Typography>
           <Tooltip title={exitSoloS} arrow placement="top">
             <IconButton

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useDispatch, useStore } from "react-redux";
 
 import { setRevolutionSectionSide } from "Features/threedEditor/threedEditorSlice";
 
@@ -15,11 +15,11 @@ const SIDE_HYSTERESIS_M = 0.05;
 // Tracks which side of each VERTICAL base map plane the camera is on, and
 // mirrors it to `state.threedEditor.revolutionSectionSideByBaseMapId`
 // (1 = +normal / image-facing side, -1 = behind). Consumed by the REVOLUTION
-// half-view ("Révolution partielle" switch ON): revolutions built from a
-// profile on that base map render only the 180° half opposite the camera, so
-// the image reads as a section plane. Switch OFF disables the half-view
-// (full 360° revolutions), so no tracking is needed; stale sides are ignored
-// downstream.
+// half-view (the revolution axis's "Demi-vue 3D" toggle): revolutions built
+// from a profile on that base map render only the 180° half opposite the
+// camera, so the image reads as a section plane. Always tracked — which base
+// maps actually host a half-viewed revolution is decided downstream
+// (useAutoLoadAnnotationsInThreedEditor), where unused sides are ignored.
 //
 // Dispatches ONLY on a side flip (rare — the camera crossing the plane).
 // Mounted once from MainThreedEditor, same pattern as
@@ -28,9 +28,6 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
-  const forceRevolutionSection = useSelector(
-    (s) => s.threedEditor.forceRevolutionSectionIn3d
-  );
   const { value: baseMaps = [] } = useBaseMaps();
 
   // Placement key: a moved/rotated vertical base map must recompute sides.
@@ -43,7 +40,6 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     .join("|");
 
   useEffect(() => {
-    if (!forceRevolutionSection) return;
     const editor = getActiveThreedEditor();
     const camera = editor?.sceneManager?.camera;
     if (!camera) return;
@@ -83,5 +79,5 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     return () => {
       cameraControls?.removeEventListener("update", computeSides);
     };
-  }, [rendererIsReady, placementKey, forceRevolutionSection, baseMaps]);
+  }, [rendererIsReady, placementKey, baseMaps]);
 }
