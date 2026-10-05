@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setHiddenListingsIds } from "Features/listings/listingsSlice";
+import {
+  setHiddenListingsIds,
+  setSelectedListingId,
+} from "Features/listings/listingsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { Box, Tooltip, Typography } from "@mui/material";
 import Add from "@mui/icons-material/Add";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
+import Tune from "@mui/icons-material/Tune";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
@@ -20,9 +26,10 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // ListingAvatarsBar — compact alternative to the LISTE ACTIVE field: one
 // avatar per listing (selected in intense secondary, visible listings with
 // annotations on the current base map in light secondary, hidden or empty
-// listings in grey), a "+" avatar to create a listing and, at the far right,
-// the "..." menu of the active listing (which hosts the Sélecteur / Avatars
-// mode switch).
+// listings in grey) and a "+" avatar to create a listing. Below, the active
+// listing band: "Liste active" title + full name, the listing properties
+// button and the "..." menu of the active listing (which hosts the
+// Sélecteur / Avatars mode switch).
 // Click = select the listing (unhides it, the other listings are untouched),
 // double click = select the listing and hide all the others.
 // The annotations count stays visible above the avatar (top right, "+99"
@@ -33,6 +40,22 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 const MAX_BADGE_COUNT = 99;
 const INDICATOR_SIZE = 16;
 const AVATAR_SIZE = 32;
+
+const bandButtonSx = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 28,
+  height: 28,
+  p: 0,
+  border: "none",
+  borderRadius: 2,
+  flexShrink: 0,
+  cursor: "pointer",
+  color: "text.secondary",
+  bgcolor: "action.hover",
+  "&:hover": { bgcolor: "action.selected" },
+};
 
 export default function ListingAvatarsBar({
   listings,
@@ -46,6 +69,7 @@ export default function ListingAvatarsBar({
 
   const labelS = "Liste active";
   const addListingS = "Nouvelle liste";
+  const propertiesS = "Propriétés de la liste";
   const moreS = "Actions sur la liste active";
 
   // data
@@ -103,60 +127,18 @@ export default function ListingAvatarsBar({
     toggleVisibility(listingId);
   };
 
+  const handleOpenProperties = () => {
+    dispatch(setSelectedListingId(activeListing.id));
+    dispatch(setSelectedItem({ id: activeListing.id, type: "LISTING" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  };
+
   // render
 
   return (
     <Box>
-      <Box sx={{ px: 2, pt: 1, pb: 1.5 }}>
-        {/* Title row: "LISTE ACTIVE" label + "..." menu of the active listing */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-            mb: 1,
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.secondary",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              fontSize: "0.65rem",
-            }}
-          >
-            {labelS}
-          </Typography>
-
-          {activeListing && (
-            <Tooltip title={moreS} arrow placement="top">
-              <Box
-                component="button"
-                onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 28,
-                  height: 28,
-                  p: 0,
-                  border: "none",
-                  borderRadius: 2,
-                  flexShrink: 0,
-                  cursor: "pointer",
-                  color: "text.secondary",
-                  bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
-                  "&:hover": { bgcolor: "action.selected" },
-                }}
-              >
-                <MoreHoriz sx={{ fontSize: 18 }} />
-              </Box>
-            </Tooltip>
-          )}
-        </Box>
-
+      {/* Top padding leaves room for the count / visibility indicators. */}
+      <Box sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
         {/* Avatars row */}
         <Box
           sx={{
@@ -306,32 +288,74 @@ export default function ListingAvatarsBar({
         </Box>
       </Box>
 
-      {/* Full name of the active listing, right above its templates — same
-          section band as "Outils de dessin" below. */}
+      {/* Active listing band, right above its templates (same section band
+          as "Outils de dessin" below): "Liste active" title over the full
+          name, then the listing properties and "..." menu buttons. */}
       {activeListing && (
         <Box
           sx={{
-            px: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            pl: 1,
+            pr: 2,
             py: 0.5,
             bgcolor: "panel.sectionBg",
             borderTop: "1px solid",
             borderColor: "panel.border",
           }}
         >
-          <Typography
-            variant="caption"
-            noWrap
-            sx={{
-              display: "block",
-              color: "panel.textMuted",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {activeListing.name ?? activeListing.label ?? "Liste"}
-          </Typography>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                display: "block",
+                color: "text.secondary",
+                fontSize: "0.65rem",
+                lineHeight: 1.3,
+              }}
+            >
+              {labelS}
+            </Typography>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                display: "block",
+                color: "panel.textMuted",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontSize: "11px",
+              }}
+            >
+              {activeListing.name ?? activeListing.label ?? "Liste"}
+            </Typography>
+          </Box>
+
+          <Tooltip title={propertiesS} arrow placement="top">
+            <Box
+              component="button"
+              onClick={handleOpenProperties}
+              sx={bandButtonSx}
+            >
+              <Tune sx={{ fontSize: 18 }} />
+            </Box>
+          </Tooltip>
+
+          <Tooltip title={moreS} arrow placement="top">
+            <Box
+              component="button"
+              onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
+              sx={{
+                ...bandButtonSx,
+                bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
+              }}
+            >
+              <MoreHoriz sx={{ fontSize: 18 }} />
+            </Box>
+          </Tooltip>
         </Box>
       )}
 

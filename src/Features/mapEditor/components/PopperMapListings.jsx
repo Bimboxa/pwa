@@ -1995,6 +1995,10 @@ export default function PopperMapListings() {
     }, {});
   }, [allAnnotations]);
 
+  const annotationsSideS = "Annotations";
+  const baseMapsSideS = "Fonds de plan";
+  const propertiesS = "Propriétés";
+
   const titleS =
     isBusinessObjectsModule && activeBusinessObject
       ? activeBusinessObject.label
@@ -2414,33 +2418,6 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Properties button — always visible; opens the properties of the
-            displayed side (annotations / base maps list). Hidden in the
-            Viewer module (read-only legend, no popper properties there) */}
-        {!isBaseMapsViewer && !isViewerModule && (
-          <Tooltip title="Propriétés">
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                dispatch(
-                  setSelectedItem({
-                    id: selectedScopeId,
-                    type: showBaseMapsBody
-                      ? "POPPER_BASE_MAPS"
-                      : "POPPER_MAP_LISTINGS",
-                  })
-                );
-                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-              }}
-              sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
-            >
-              <Tune sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-
         {/* Collapse / expand body */}
         <Tooltip title={collapsed ? "Déplier" : "Replier"}>
           <IconButton
@@ -2460,6 +2437,73 @@ export default function PopperMapListings() {
           </IconButton>
         </Tooltip>
       </Box>
+
+      {/* Title row of the displayed side (annotations / base maps list):
+          properties of that side. Hidden in the Viewer module and the
+          BaseMaps module (read-only legends, no popper properties there). */}
+      {!collapsed && !isBaseMapsViewer && !isViewerModule && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 2,
+            py: 0.75,
+            borderBottom: "1px solid",
+            borderColor: "panel.border",
+          }}
+        >
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              color: "text.secondary",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              fontSize: "0.65rem",
+            }}
+          >
+            {showBaseMapsBody ? baseMapsSideS : annotationsSideS}
+          </Typography>
+
+          <Tooltip title={propertiesS} arrow placement="top">
+            <Box
+              component="button"
+              onClick={() => {
+                dispatch(
+                  setSelectedItem({
+                    id: selectedScopeId,
+                    type: showBaseMapsBody
+                      ? "POPPER_BASE_MAPS"
+                      : "POPPER_MAP_LISTINGS",
+                  })
+                );
+                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+              }}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                p: 0,
+                border: "none",
+                borderRadius: 2,
+                flexShrink: 0,
+                cursor: "pointer",
+                color: "text.secondary",
+                bgcolor: "action.hover",
+                "&:hover": { bgcolor: "action.selected" },
+              }}
+            >
+              <Tune sx={{ fontSize: 18 }} />
+            </Box>
+          </Tooltip>
+        </Box>
+      )}
 
       {/* BaseMaps module: "Afficher les annotations" switch (same state as
           the left panel's), right under the header on both sides. Turning it
