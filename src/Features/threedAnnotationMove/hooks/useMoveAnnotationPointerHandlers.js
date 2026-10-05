@@ -115,8 +115,9 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         );
         return;
       }
-      // A revolution axis is moved alone and in its plan only: the move
-      // re-positions it on its origin base map (commitRevolutionAxisMoveFrom3d).
+      // A revolution axis is moved alone: the move re-positions it on its
+      // origin base map, altitude included on a real snap
+      // (commitRevolutionAxisMoveFrom3d).
       const isRevolutionAxis = resolved.annotationType === "REVOLUTION_AXIS";
       if (
         !isRevolutionAxis &&
@@ -186,7 +187,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         annotationIds: carriedIds,
         startWorld: snap.position.clone(),
         startLocal: { x: startLocal.x, y: startLocal.y, z: startLocal.z },
-        planOnly: isRevolutionAxis,
+        isRevolutionAxis,
         rootStartPoses,
         targetVerts,
         targetAdjacency,
@@ -207,7 +208,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       dispatch(setMoveAnnotationCarriedIds([]));
       if (!delta) return;
       try {
-        if (grab.planOnly) {
+        if (grab.isRevolutionAxis) {
           await commitRevolutionAxisMoveFrom3d({
             editor,
             axisId: grab.annotationIds[0],
