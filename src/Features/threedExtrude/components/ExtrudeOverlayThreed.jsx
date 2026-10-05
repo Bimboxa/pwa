@@ -3,6 +3,8 @@ import { useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
+import LockOutlined from "@mui/icons-material/LockOutlined";
+import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
 import {
   getExtrudeOverlayState,
@@ -17,10 +19,18 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // DOM overlay of the 3D extrude mode: a cursor helper showing either
 // "Extruder" (hovering an extrudable top face) or the live extrusion value
 // once a face is armed, plus a circle on the scene vertex the armed face is
-// snapped on. Driven imperatively by useExtrudePointerHandlers through
+// snapped on. The armed value carries the same padlock as the 2D segment
+// length constraint (SegmentLengthBottomBar): closed while a typed value
+// holds it, open while the mouse drives it. Driven imperatively by useExtrudePointerHandlers through
 // extrudeOverlayStore; pointer-transparent.
 export default function ExtrudeOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.extrudeMode.active);
+  const valueBuffer = useSelector(
+    (s) => s.threedEditor.extrudeMode.valueBuffer
+  );
+  const targetAnnotationId = useSelector(
+    (s) => s.threedEditor.extrudeMode.targetAnnotationId
+  );
 
   const state = useSyncExternalStore(
     subscribeExtrudeOverlay,
@@ -29,6 +39,8 @@ export default function ExtrudeOverlayThreed() {
 
   if (!active) return null;
   const { cursor, snap } = state;
+  const armed = Boolean(targetAnnotationId);
+  const locked = armed && valueBuffer !== "";
   if (!cursor && !snap) return null;
 
   return (
@@ -63,9 +75,12 @@ export default function ExtrudeOverlayThreed() {
             left: cursor.x,
             top: cursor.y,
             transform: "translate(14px, 14px)",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
             bgcolor: "background.paper",
             border: "1px solid",
-            borderColor: "divider",
+            borderColor: locked ? "primary.main" : "divider",
             borderRadius: 1,
             px: 0.75,
             py: 0.25,
@@ -75,6 +90,12 @@ export default function ExtrudeOverlayThreed() {
           }}
         >
           {cursor.label}
+          {armed &&
+            (locked ? (
+              <LockOutlined sx={{ fontSize: 14, color: "primary.main" }} />
+            ) : (
+              <LockOpenOutlined sx={{ fontSize: 14, color: "text.disabled" }} />
+            ))}
         </Box>
       )}
     </Box>

@@ -234,6 +234,8 @@ export default function useExtrudePointerHandlers() {
   // Set by the main effect so the typed-value effect below can refresh the
   // ghost without going through the pointer handlers.
   const rebuildGhostRef = useRef(null);
+  // Same for the cursor helper: replays the hover at the last pointer position.
+  const scheduleHoverRef = useRef(null);
 
   useEffect(() => {
     if (!active) return;
@@ -280,6 +282,7 @@ export default function useExtrudePointerHandlers() {
     function scheduleHover() {
       if (rafId == null && lastEvent) rafId = requestAnimationFrame(runHover);
     }
+    scheduleHoverRef.current = scheduleHover;
 
     function clearStipple() {
       if (hover.overlay) {
@@ -993,6 +996,7 @@ export default function useExtrudePointerHandlers() {
       window.removeEventListener("keydown", onKeyDown, true);
       unsubReady?.();
       rebuildGhostRef.current = null;
+      scheduleHoverRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       cancelArm();
       for (const id of [...pending.keys()]) {
@@ -1004,9 +1008,10 @@ export default function useExtrudePointerHandlers() {
     };
   }, [active, dispatch]);
 
-  // Typed value → refresh the ghost. The mouse-driven path rebuilds it
-  // itself, so we only act while the buffer holds something — plus the one
-  // tick where it is emptied, to hand the ghost back to the mouse value.
+  // Typed value → refresh the ghost and the cursor helper (no pointer move
+  // needed). The mouse-driven path rebuilds them itself, so we only act while
+  // the buffer holds something — plus the one tick where it is emptied, to
+  // hand them back to the mouse value.
   const prevValueBufferRef = useRef(valueBuffer);
   useEffect(() => {
     const prev = prevValueBufferRef.current;
@@ -1014,5 +1019,6 @@ export default function useExtrudePointerHandlers() {
     if (!active) return;
     if (valueBuffer === "" && prev === "") return;
     rebuildGhostRef.current?.(effectiveValue);
+    scheduleHoverRef.current?.();
   }, [active, valueBuffer, effectiveValue]);
 }
