@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 
+import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
 import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
@@ -50,6 +51,7 @@ const SX_BY_VARIANT = {
 export default function RowRevolutionAxisTool({
   label,
   Icon,
+  shortcut,
   variant = "popper",
 }) {
   // strings
@@ -120,6 +122,12 @@ export default function RowRevolutionAxisTool({
           >
             <Icon sx={{ fontSize: sx.iconSize, color: sx.iconColor }} />
           </Box>
+          {/* The hotkey draws an axis: plan base maps only. */}
+          {shortcut && !isVertical && (
+            <Box sx={{ flexShrink: 0 }}>
+              <ShortcutBadge>{shortcut}</ShortcutBadge>
+            </Box>
+          )}
           <Typography
             variant="body2"
             noWrap

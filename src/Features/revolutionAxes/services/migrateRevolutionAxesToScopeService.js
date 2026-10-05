@@ -43,14 +43,18 @@ export default async function migrateRevolutionAxesToScopeService() {
 
   await withSystemWrite(() =>
     withoutUndo(() =>
-      db.transaction("rw", [db.annotations, db.annotationTemplates], async () => {
-        for (const { id, changes } of updates) {
-          await db.annotations.update(id, changes);
+      db.transaction(
+        "rw",
+        [db.annotations, db.annotationTemplates],
+        async () => {
+          for (const { id, changes } of updates) {
+            await db.annotations.update(id, changes);
+          }
+          if (templateIdsToDelete.length > 0) {
+            await db.annotationTemplates.bulkDelete(templateIdsToDelete);
+          }
         }
-        if (templateIdsToDelete.length > 0) {
-          await db.annotationTemplates.bulkDelete(templateIdsToDelete);
-        }
-      })
+      )
     )
   );
 

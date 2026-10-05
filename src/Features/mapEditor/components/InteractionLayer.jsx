@@ -7701,14 +7701,16 @@ const InteractionLayer = forwardRef(({
         if (draggedAnn) {
           const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
           const startMouseInLocal = toLocalCoords(worldPos);
-          // _snapPoints = [centre, rimPx[0], rimPx[1]] — same ordering as the
-          // REVOLUTION_RIM::<0|1> handles of NodeRevolutionAxisStatic.
+          // _snapPoints = [centre, end, end]: an end anchor carries the
+          // handle part type it stands for (REVOLUTION_RIM::<0|1> on a full
+          // circle, REVOLUTION_ANGLE::<START|END> on a partial revolution —
+          // see NodeRevolutionAxisStatic); the centre moves the whole axis.
           let partType = null;
           if (draggedAnn.type === "REVOLUTION_AXIS") {
-            const rimIndex = (draggedAnn._snapPoints ?? []).findIndex(
-              (p) => p.x === snap.x && p.y === snap.y
-            );
-            if (rimIndex > 0) partType = `REVOLUTION_RIM::${rimIndex - 1}`;
+            partType =
+              (draggedAnn._snapPoints ?? []).find(
+                (p) => p.x === snap.x && p.y === snap.y
+              )?.partType ?? null;
           }
           initAnnotationDrag({
             nodeId: draggedAnn.id,

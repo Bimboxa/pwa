@@ -31,6 +31,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
 import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
+import useRevolutionAxisHotkey from "Features/revolutionAxes/hooks/useRevolutionAxisHotkey";
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
@@ -243,6 +244,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("c", "FACE_CUT", { threed: true });
     // hotkeys — start a templateless draw (D = Dessin) when not drawing
     useTemplatelessDrawHotkey();
+    // hotkeys — start a revolution axis (A = Axe de révolution) on a plan
+    // when not drawing
+    useRevolutionAxisHotkey();
 
     // const
 
@@ -1787,9 +1791,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         radiusM: Math.round(next.radiusM * 1e6) / 1e6,
                         directionDeg: next.directionDeg,
                     }
+                    // A sector end handle sets its bound AND the radius.
                     : {
                         revolutionAngleStartDeg: next.revolutionAngleStartDeg,
                         revolutionAngleEndDeg: next.revolutionAngleEndDeg,
+                        ...(Number.isFinite(next.radiusM) && {
+                            radiusM: Math.round(next.radiusM * 1e6) / 1e6,
+                        }),
                     };
                 await db.annotations.update(annotation.id, updates);
                 // Orientation drives the pose of every elevation this axis places.

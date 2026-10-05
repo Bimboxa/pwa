@@ -8,6 +8,8 @@ import { isForeignFootprintId } from "Features/annotations/constants/foreignFoot
 import { isPointBasedAnnotationType } from "Features/threedAnnotationMove/utils/annotationTransformTypes";
 import getCarriedAnnotationIdsFromSelection from "Features/threedAnnotationMove/utils/getCarriedAnnotationIdsFromSelection";
 
+import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/moveRevolutionAxisCenterService";
+
 import commitAnnotationsTransform2d from "../services/commitAnnotationsTransform2d";
 import {
   getTransformSession,
@@ -55,6 +57,8 @@ const isEditableTarget = (el) => {
 //   click / Enter to validate.
 // The grabbed annotation carries the whole selection when it belongs to it
 // (getCarriedAnnotationIdsFromSelection — shared with the 3D tools).
+// A revolution axis is moved alone, from its centre or one of the ends of its
+// contour (not turned).
 //
 // Returns the handlers InteractionLayer calls from its click / snap-marker /
 // mouse-move paths; the session lives in transformSessionStore.
@@ -95,7 +99,15 @@ export default function useAnnotationTransformTool({
         dispatch(setToaster({ message: TRANSFORM_UNSUPPORTED_GRAB_MESSAGE }));
         return;
       }
-      if (!isPointBasedAnnotationType(annotation.type)) {
+      // A revolution axis can be MOVED (alone): the move re-positions it on
+      // its plan (moveRevolutionAxisCenterService). It cannot be turned here
+      // — its own blue handles do that.
+      const isRevolutionAxisMove =
+        kind === "MOVE" && annotation.type === "REVOLUTION_AXIS";
+      if (
+        !isRevolutionAxisMove &&
+        !isPointBasedAnnotationType(annotation.type)
+      ) {
         dispatch(
           setToaster({
             message:
@@ -108,18 +120,20 @@ export default function useAnnotationTransformTool({
         return;
       }
 
-      const carriedAnnotationIds = getCarriedAnnotationIdsFromSelection({
-        grabbed: {
-          annotationId,
-          annotationType: annotation.type,
-          listingId: annotation.listingId,
-          annotationTemplateId: annotation.annotationTemplateId,
-          baseMapId: annotation.baseMapId,
-        },
-        selectedItems: store.getState().selection.selectedItems,
-        allAnnotations: annotationsRef.current,
-        dispatch,
-      });
+      const carriedAnnotationIds = isRevolutionAxisMove
+        ? [annotationId]
+        : getCarriedAnnotationIdsFromSelection({
+            grabbed: {
+              annotationId,
+              annotationType: annotation.type,
+              listingId: annotation.listingId,
+              annotationTemplateId: annotation.annotationTemplateId,
+              baseMapId: annotation.baseMapId,
+            },
+            selectedItems: store.getState().selection.selectedItems,
+            allAnnotations: annotationsRef.current,
+            dispatch,
+          });
       if (!carriedAnnotationIds.length) return;
 
       // Ownership / read-only: every carried annotation must be editable
@@ -153,15 +167,34 @@ export default function useAnnotationTransformTool({
       // Keep the preview on the final pose until the db answers.
       setTransformSession({ committing: true });
       try {
-        await commitAnnotationsTransform2d({
-          annotationIds,
-          allAnnotations: annotationsRef.current,
-          transform,
-          imageSize,
-          meterByPx: currentBaseMap?.getMeterByPx?.(),
-          projectId: projectIdRef.current,
-          dispatch,
-        });
+        const axis =
+          transform.kind === "MOVE" && annotationIds.length === 1
+            ? annotationsRef.current?.find(
+                (a) => a.id === annotationIds[0] && a.type === "REVOLUTION_AXIS"
+              )
+            : null;
+        if (axis) {
+          if (!imageSize?.width || !imageSize?.height)
+            throw new Error("no image size");
+          await moveRevolutionAxisCenterService({
+            axisId: axis.id,
+            deltaNormalized: {
+              x: transform.deltaPx.x / imageSize.width,
+              y: transform.deltaPx.y / imageSize.height,
+            },
+            dispatch,
+          });
+        } else {
+          await commitAnnotationsTransform2d({
+            annotationIds,
+            allAnnotations: annotationsRef.current,
+            transform,
+            imageSize,
+            meterByPx: currentBaseMap?.getMeterByPx?.(),
+            projectId: projectIdRef.current,
+            dispatch,
+          });
+        }
       } catch (err) {
         console.error("[annotationTransform] persist failed", err);
         dispatch(

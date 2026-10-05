@@ -26,8 +26,18 @@ test("axes and placements are detached, empty templates removed", () => {
       revolutionAxisId: "axis",
     },
     // a live non-helper row riding an axis template (e.g. a procedure datum)
-    { id: "line", type: "POLYLINE", listingId: "l1", annotationTemplateId: "tShared" },
-    { id: "axis2", type: "REVOLUTION_AXIS", listingId: "l1", annotationTemplateId: "tShared" },
+    {
+      id: "line",
+      type: "POLYLINE",
+      listingId: "l1",
+      annotationTemplateId: "tShared",
+    },
+    {
+      id: "axis2",
+      type: "REVOLUTION_AXIS",
+      listingId: "l1",
+      annotationTemplateId: "tShared",
+    },
   ];
   const { updates, templateIdsToDelete } = getRevolutionAxesMigrationPlan({
     annotations,
@@ -50,7 +60,12 @@ test("axes and placements are detached, empty templates removed", () => {
 test("a row whose listing is gone keeps its template", () => {
   const { updates, templateIdsToDelete } = getRevolutionAxesMigrationPlan({
     annotations: [
-      { id: "axis", type: "REVOLUTION_AXIS", listingId: "gone", annotationTemplateId: "tAxis" },
+      {
+        id: "axis",
+        type: "REVOLUTION_AXIS",
+        listingId: "gone",
+        annotationTemplateId: "tAxis",
+      },
     ],
     templates,
     scopeIdByListingId,
@@ -62,7 +77,13 @@ test("a row whose listing is gone keeps its template", () => {
 test("second pass is a no-op (migrated rows carry no template id)", () => {
   const { updates, templateIdsToDelete } = getRevolutionAxesMigrationPlan({
     annotations: [
-      { id: "axis", type: "REVOLUTION_AXIS", scopeId: "s1", listingId: null, annotationTemplateId: null },
+      {
+        id: "axis",
+        type: "REVOLUTION_AXIS",
+        scopeId: "s1",
+        listingId: null,
+        annotationTemplateId: null,
+      },
     ],
     templates: [],
     scopeIdByListingId,

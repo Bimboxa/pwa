@@ -3,23 +3,39 @@ import { useMemo } from "react";
 import theme from "Styles/theme";
 import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
 import {
-  halfArcPath,
-  SWEEP_ORANGE,
-  SWEEP_BLACK,
+  angleToPx,
+  contourArcPath,
+  getRevolutionAxisContourArcs,
+  CUT_AXIS_OVERSHOOT,
 } from "Features/annotations/utils/revolutionAxisGlyph";
+import { CURSOR_ROTATE } from "../utils/rotateCursor";
 
-// Plan-view revolution axis: a circle split by its diameter into two halves —
-// the ORANGE one is what lies BEHIND the vertical base map this axis places
-// (matching the default half-revolution the 3D shows), the black one in front.
-// Plus the orange diameter and a black centre dot.
+// Plan-view revolution axis.
 //
-// Selected, it grows two square handles at the diameter ends (drag = radius +
-// orientation, centre fixed) and, when the axis carries a partial revolution,
-// two round handles for the sector bounds.
-const BLACK = "#000000";
+// The CONTOUR is the circle of the axis — or, for a partial revolution, its
+// kept sector only. The 3D half-view ("Demi-vue 3D") cuts along the diameter
+// and shows the half BEHIND the vertical base map this axis places: that half
+// of the contour is VISIBLE, the other one HIDDEN (see
+// getRevolutionAxisContourArcs). Half-view off → the whole contour is visible.
+//
+// - Not selected: a cross at the centre + the contour (visible = axis colour,
+//   hidden = grey).
+// - Selected (or being dragged — the transient copy drawn during a drag is
+//   not flagged `selected`): the contour in the axis colour (visible = thick, hidden = thin)
+//   and the CUT AXIS in blue, overshooting the circle, with a square handle at
+//   each end to ROTATE the axis (REVOLUTION_RIM::ROTATE<0|1>, centre and
+//   radius fixed).
+//   · Full revolution: a handle at each diameter end sets the RADIUS
+//     (REVOLUTION_RIM::<0|1>, direction fixed).
+//   · Partial revolution: the two radii bounding the sector, dotted (thick on
+//     the visible side, thin on the hidden one), with a handle at each sector
+//     end that sets that bound AND the radius (REVOLUTION_ANGLE::<START|END>).
+const BLUE = "#1976d2";
+const GREY = "#bdbdbd";
+const DEG = Math.PI / 180;
 const HANDLE_PX = 5;
-const CENTER_DOT_PX = 3.5;
-const ANGLE_HANDLE_PX = 5.5;
+const CROSS_PX = 7;
+const CENTER_HIT_PX = 9;
 const HIT_STROKE_PX = 12;
 
 export default function NodeRevolutionAxisStatic({
@@ -43,6 +59,7 @@ export default function NodeRevolutionAxisStatic({
     partialRevolution,
     revolutionAngleStartDeg,
     revolutionAngleEndDeg,
+    halfViewIn3d,
   } = mergedAnnotation;
 
   // Robust position read: drag puts x/y at the root, the DB stores point.x/y.
@@ -73,33 +90,32 @@ export default function NodeRevolutionAxisStatic({
     [k]
   );
 
-  const orange = strokeColor || theme.palette.secondary.main;
+  const isPartial = Boolean(partialRevolution);
+  // The cut axis only exists while the 3D half-view is on: without it nothing
+  // is cut, so neither the blue line nor its rotation handles are drawn.
+  const hasCutAxis = halfViewIn3d !== false;
+  // Sector angles share the axis convention: local metre frame, y up.
+  const angleStart = (Number(revolutionAngleStartDeg) || 0) * DEG;
+  const angleEnd = (Number(revolutionAngleEndDeg) || 0) * DEG;
 
-  const sector = useMemo(() => {
-    if (!partialRevolution || !frame) return null;
-    const toPx = (deg) => {
-      // Sector angles share the axis convention: local metre frame, y up.
-      const t = ((Number(deg) || 0) * Math.PI) / 180;
-      return {
-        x: frame.centerPx.x + frame.radiusPx * Math.cos(t),
-        y: frame.centerPx.y - frame.radiusPx * Math.sin(t),
-      };
-    };
-    return {
-      start: toPx(revolutionAngleStartDeg),
-      end: toPx(revolutionAngleEndDeg),
-    };
-  }, [
-    partialRevolution,
-    frame,
-    revolutionAngleStartDeg,
-    revolutionAngleEndDeg,
-  ]);
+  const arcs = useMemo(
+    () =>
+      frame
+        ? getRevolutionAxisContourArcs({
+            theta: frame.theta,
+            halfView: hasCutAxis,
+            partial: isPartial,
+            angleStart,
+            angleEnd,
+          })
+        : [],
+    [frame, hasCutAxis, isPartial, angleStart, angleEnd]
+  );
 
   if (!frame) return null;
 
-  const { radiusPx, rimPx } = frame;
-  const [rimA, rimB] = rimPx;
+  const { radiusPx, rimPx, dirPx } = frame;
+  const color = strokeColor || theme.palette.secondary.main;
 
   const dataProps = {
     "data-node-id": id,
@@ -109,127 +125,196 @@ export default function NodeRevolutionAxisStatic({
     "data-interaction": "draggable",
   };
 
-  const strokeW = selected || hovered ? 3 : 2;
+  // The transient copy rendered while dragging (a handle or the whole axis)
+  // keeps the selected look: the cut axis must stay visible while it turns.
+  const active = selected || dragged;
+  const thickW = active || hovered ? 3 : 2.5;
+  const thinW = 1;
+
+  // Cut axis: the diameter, overshooting the circle on both sides.
+  const cutEnds = [1, -1].map((sign) => ({
+    x: centerPx.x + sign * CUT_AXIS_OVERSHOOT * radiusPx * dirPx.x,
+    y: centerPx.y + sign * CUT_AXIS_OVERSHOOT * radiusPx * dirPx.y,
+  }));
+
+  // Sector bounds (partial revolution): each radius takes the visibility of
+  // the contour piece it ends.
+  const sectorBounds =
+    isPartial && arcs.length > 0
+      ? [
+          {
+            key: "START",
+            pt: angleToPx(centerPx, radiusPx, angleStart),
+            visible: arcs[0].visible,
+          },
+          {
+            key: "END",
+            pt: angleToPx(centerPx, radiusPx, angleEnd),
+            visible: arcs[arcs.length - 1].visible,
+          },
+        ]
+      : [];
+
+  // Cursors: rotation for the cut axis handles; an open hand for the radius
+  // / sector handles (useAnnotationDrag forces a crosshair while they are
+  // dragged, for a precise positioning).
+  const renderHandle = (pt, partType, stroke, key, cursor) => (
+    <g key={key} transform={`translate(${pt.x}, ${pt.y})`}>
+      <g style={{ transform: scaleTransform }}>
+        <rect
+          x={-HANDLE_PX}
+          y={-HANDLE_PX}
+          width={HANDLE_PX * 2}
+          height={HANDLE_PX * 2}
+          fill="#FFFFFF"
+          stroke={stroke}
+          strokeWidth={1.5}
+          style={{ cursor }}
+          data-interaction="draggable"
+          data-node-id={id}
+          data-node-type="ANNOTATION"
+          data-part-type={partType}
+        />
+      </g>
+    </g>
+  );
 
   return (
     <g
       style={{
-        cursor: dragged ? "grabbing" : "crosshair",
+        // Body: a move-drag zone once selected.
+        cursor: dragged ? "grabbing" : selected ? "move" : "pointer",
         opacity: dragged ? 0.7 : 1,
         transition: "opacity 0.1s",
       }}
       {...dataProps}
     >
-      {/* Fat transparent hit ring — the whole axis is grabbable. */}
-      <circle
-        cx={centerPx.x}
-        cy={centerPx.y}
-        r={radiusPx}
-        fill="transparent"
-        stroke="transparent"
-        strokeWidth={HIT_STROKE_PX}
-        vectorEffect="non-scaling-stroke"
-        pointerEvents="stroke"
-      />
-
-      {/* The two half-discs. `orangePx` is the +90°-CCW side of the diameter in
-          the plan LOCAL frame, which is provably the −normal (behind) side of
-          the placed plane — see getRevolutionAxisPlanFrame. */}
-      <path
-        d={halfArcPath(rimA, rimB, radiusPx, SWEEP_ORANGE)}
-        fill="none"
-        stroke={orange}
-        strokeWidth={strokeW}
-        vectorEffect="non-scaling-stroke"
-      />
-      <path
-        d={halfArcPath(rimA, rimB, radiusPx, SWEEP_BLACK)}
-        fill="none"
-        stroke={BLACK}
-        strokeWidth={strokeW}
-        vectorEffect="non-scaling-stroke"
-      />
-
-      {/* Diameter */}
-      <line
-        x1={rimA.x}
-        y1={rimA.y}
-        x2={rimB.x}
-        y2={rimB.y}
-        stroke={orange}
-        strokeWidth={strokeW}
-        vectorEffect="non-scaling-stroke"
-      />
-
-      {/* Centre dot */}
+      {/* Fat transparent hit areas — the contour and the centre cross are
+          grabbable. */}
+      {arcs.map((arc, i) => (
+        <path
+          key={`hit-${i}`}
+          d={contourArcPath(centerPx, radiusPx, arc)}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={HIT_STROKE_PX}
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="stroke"
+        />
+      ))}
       <g transform={`translate(${centerPx.x}, ${centerPx.y})`}>
         <g style={{ transform: scaleTransform }}>
-          <circle cx={0} cy={0} r={CENTER_DOT_PX} fill={BLACK} />
+          <circle cx={0} cy={0} r={CENTER_HIT_PX} fill="transparent" />
         </g>
       </g>
 
-      {/* Diameter handles — drag keeps the centre fixed. */}
-      {selected &&
-        !dragged &&
-        [rimA, rimB].map((pt, i) => (
-          <g key={`rim-${i}`} transform={`translate(${pt.x}, ${pt.y})`}>
-            <g style={{ transform: scaleTransform }}>
-              <rect
-                x={-HANDLE_PX}
-                y={-HANDLE_PX}
-                width={HANDLE_PX * 2}
-                height={HANDLE_PX * 2}
-                fill="#FFFFFF"
-                stroke={BLACK}
-                strokeWidth={1.5}
-                style={{ cursor: "crosshair" }}
-                data-interaction="draggable"
-                data-node-id={id}
-                data-node-type="ANNOTATION"
-                data-part-type={`REVOLUTION_RIM::${i}`}
-              />
-            </g>
-          </g>
-        ))}
+      {/* Cut axis of the 3D half-view (selected only) */}
+      {active && hasCutAxis && (
+        <line
+          x1={cutEnds[0].x}
+          y1={cutEnds[0].y}
+          x2={cutEnds[1].x}
+          y2={cutEnds[1].y}
+          stroke={BLUE}
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
 
-      {/* Partial-revolution sector bounds */}
-      {selected &&
-        !dragged &&
-        sector &&
-        [
-          { key: "START", pt: sector.start },
-          { key: "END", pt: sector.end },
-        ].map(({ key, pt }) => (
-          <g key={`angle-${key}`}>
-            <line
-              x1={centerPx.x}
-              y1={centerPx.y}
-              x2={pt.x}
-              y2={pt.y}
-              stroke="#1976d2"
-              strokeWidth={1}
-              strokeDasharray="4 3"
+      {/* Contour: hidden pieces first so the visible ones stay on top at the
+          junctions. */}
+      {[false, true].map((visible) =>
+        arcs
+          .filter((arc) => arc.visible === visible)
+          .map((arc, i) => (
+            <path
+              key={`arc-${visible ? "v" : "h"}-${i}`}
+              d={contourArcPath(centerPx, radiusPx, arc)}
+              fill="none"
+              stroke={visible || active ? color : GREY}
+              strokeWidth={visible ? thickW : thinW}
               vectorEffect="non-scaling-stroke"
             />
-            <g transform={`translate(${pt.x}, ${pt.y})`}>
-              <g style={{ transform: scaleTransform }}>
-                <circle
-                  cx={0}
-                  cy={0}
-                  r={ANGLE_HANDLE_PX}
-                  fill="#1976d2"
-                  stroke="#FFFFFF"
-                  strokeWidth={1.5}
-                  style={{ cursor: "crosshair" }}
-                  data-interaction="draggable"
-                  data-node-id={id}
-                  data-node-type="ANNOTATION"
-                  data-part-type={`REVOLUTION_ANGLE::${key}`}
-                />
-              </g>
-            </g>
-          </g>
+          ))
+      )}
+
+      {/* Radii bounding the sector of a partial revolution (selected only) */}
+      {active &&
+        sectorBounds.map(({ key, pt, visible }) => (
+          <line
+            key={`radius-${key}`}
+            x1={centerPx.x}
+            y1={centerPx.y}
+            x2={pt.x}
+            y2={pt.y}
+            stroke={color}
+            strokeWidth={visible ? thickW : thinW}
+            strokeDasharray={visible ? "1 6" : "1 4"}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
         ))}
+
+      {/* Centre cross — screen-constant */}
+      <g transform={`translate(${centerPx.x}, ${centerPx.y})`}>
+        <g style={{ transform: scaleTransform }}>
+          <line
+            x1={-CROSS_PX}
+            y1={0}
+            x2={CROSS_PX}
+            y2={0}
+            stroke={color}
+            strokeWidth={1.5}
+          />
+          <line
+            x1={0}
+            y1={-CROSS_PX}
+            x2={0}
+            y2={CROSS_PX}
+            stroke={color}
+            strokeWidth={1.5}
+          />
+        </g>
+      </g>
+
+      {selected && !dragged && (
+        <>
+          {/* Rotation handles, at the ends of the cut axis */}
+          {hasCutAxis &&
+            cutEnds.map((pt, i) =>
+              renderHandle(
+                pt,
+                `REVOLUTION_RIM::ROTATE${i}`,
+                BLUE,
+                `rotate-${i}`,
+                CURSOR_ROTATE
+              )
+            )}
+
+          {/* Full revolution: radius handles at the diameter ends */}
+          {!isPartial &&
+            rimPx.map((pt, i) =>
+              renderHandle(
+                pt,
+                `REVOLUTION_RIM::${i}`,
+                color,
+                `rim-${i}`,
+                "grab"
+              )
+            )}
+
+          {/* Partial revolution: sector bound (+ radius) handles */}
+          {sectorBounds.map(({ key, pt }) =>
+            renderHandle(
+              pt,
+              `REVOLUTION_ANGLE::${key}`,
+              color,
+              `angle-${key}`,
+              "grab"
+            )
+          )}
+        </>
+      )}
     </g>
   );
 }

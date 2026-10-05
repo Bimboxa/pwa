@@ -1798,7 +1798,7 @@ export default function useAnnotationsV2(options) {
       // get a base map of their own).
       //
       // `_snapPoints` = the anchors a drawing may snap onto: the centre and the
-      // two diameter ends. They are DERIVED from the radius/direction scalars
+      // two ends of the drawn contour (diameter ends, or sector ends). They are DERIVED from the radius/direction scalars
       // (not db.points rows), so they only exist once the scale is known — i.e.
       // here. See getBestSnap.
       if (_annotations?.length) {
@@ -1817,9 +1817,30 @@ export default function useAnnotationsV2(options) {
                 meterByPx,
               });
             if (frame) {
+              // The ends of what is DRAWN: the two diameter ends of a full
+              // circle, the two sector ends of a partial revolution. Each
+              // carries the handle part type a drag started on it drives
+              // (InteractionLayer, snap-marker mousedown).
+              const ends = a.partialRevolution
+                ? [
+                    ["START", a.revolutionAngleStartDeg],
+                    ["END", a.revolutionAngleEndDeg],
+                  ].map(([key, deg]) => {
+                    const t = (Number(deg) || 0) * DEG_TO_RAD;
+                    return {
+                      x: frame.centerPx.x + frame.radiusPx * Math.cos(t),
+                      y: frame.centerPx.y - frame.radiusPx * Math.sin(t),
+                      partType: `REVOLUTION_ANGLE::${key}`,
+                    };
+                  })
+                : frame.rimPx.map((p, i) => ({
+                    x: p.x,
+                    y: p.y,
+                    partType: `REVOLUTION_RIM::${i}`,
+                  }));
               a._snapPoints = [
                 { x: frame.centerPx.x, y: frame.centerPx.y },
-                ...frame.rimPx.map((p) => ({ x: p.x, y: p.y })),
+                ...ends,
               ];
             }
           } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {

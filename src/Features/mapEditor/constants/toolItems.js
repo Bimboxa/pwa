@@ -27,7 +27,8 @@ import IconCutSurface from "Features/icons/IconCutSurface";
 //
 // isRevolutionAxis: "Axe de révolution" row — draws a revolution axis on a
 // plan / drops one on a vertical base map (RowRevolutionAxisTool); the axis
-// belongs to the base map + the scope, not to a listing. No hotkey.
+// belongs to the base map + the scope, not to a listing. Its hotkey (A, plan
+// base maps only) is useRevolutionAxisHotkey.
 //
 // threedTool: in the 3D editor the row arms a threedEditor mode (Extruder /
 // Déplacer / Tourner — RowThreedTool, selectActiveThreedTool) instead of a
@@ -74,6 +75,7 @@ const TOOL_ITEMS = [
     type: "REVOLUTION_AXIS",
     label: "Axe de révolution",
     Icon: Adjust,
+    shortcut: "A",
     editor: "2D",
     isRevolutionAxis: true,
   },

@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
+import { setDragCursor, clearDragCursor } from "Features/mapEditor/utils/dragCursor";
+import { CURSOR_ROTATE } from "Features/mapEditorGeneric/utils/rotateCursor";
 
 const DRAG_THRESHOLD_PX = 3;
 const WRAPPER_NODE_ID = "wrapper";
@@ -107,7 +109,8 @@ export default function useAnnotationDrag({
     ) {
       hasChanged =
         ann.revolutionAngleStartDeg !== snap.angleStartDeg ||
-        ann.revolutionAngleEndDeg !== snap.angleEndDeg;
+        ann.revolutionAngleEndDeg !== snap.angleEndDeg ||
+        ann.radiusM !== snap.radiusM;
     } else if (ann.type === "DETAIL" && snap.partType === "ROTATE") {
       hasChanged = ann.arrowAngle !== snap.arrowAngle;
     } else if (
@@ -231,6 +234,18 @@ export default function useAnnotationDrag({
 
           setDragAnnotationState(newState);
           dragAnnotationStateRef.current = newState;
+
+          // Revolution axis handles: force the cursor for the whole gesture
+          // (the handle itself is not drawn while dragging) — rotation for
+          // the cut axis ends, a crosshair for the radius / sector handles
+          // so they can be positioned precisely.
+          if (_state.partType?.startsWith("REVOLUTION_")) {
+            setDragCursor(
+              _state.partType.startsWith("REVOLUTION_RIM::ROTATE")
+                ? CURSOR_ROTATE
+                : "crosshair"
+            );
+          }
 
           // Optimistic overlay
           if (_state.isWrapper && _state.wrapperAnnotationIds) {
@@ -453,6 +468,7 @@ export default function useAnnotationDrag({
     setDragAnnotationState(null);
     dragAnnotationStateRef.current = null;
     document.body.style.cursor = "";
+    clearDragCursor();
     return true;
   }, [commitPendingRef, startCommitPendingWatch]);
 

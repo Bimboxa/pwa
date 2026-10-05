@@ -29,6 +29,11 @@ Réutilisées depuis `threedAnnotationMove/utils/` :
 - **Types acceptés** (`annotationTransformTypes.js`) : tracés à points —
   POLYLINE, POLYGON, STRIP, LINEAR_LAYOUT. Les autres types sont refusés avec
   un message.
+- **Axe de révolution** : « Déplacer » l'accepte, seul (jamais avec la
+  sélection), saisi par son centre ou une extrémité de son contour (bouts du
+  diamètre, ou bouts du secteur en révolution partielle). Seul son centre sur
+  le plan est écrit (`revolutionAxes/services/moveRevolutionAxisCenterService`) ;
+  les fonds de plan verticaux liés sont re-posés. « Tourner » le refuse.
 - **Annotations emportées** (`getCarriedAnnotationIdsFromSelection.js`) : si
   l'annotation saisie fait partie de la sélection, toute la sélection suit ;
   sinon elle devient la seule sélectionnée et la seule emportée.

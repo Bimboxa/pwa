@@ -1101,9 +1101,9 @@ const DrawingLayer = forwardRef(
           />
         )}
 
-        {/* B3. Revolution axis preview — same glyph as NodeRevolutionAxisStatic
-            (orange/black half-arcs + diameter + centre dot), always solid 2px
-            like the committed node so nothing jumps at commit. */}
+        {/* B3. Revolution axis preview — the contour as the committed
+            NodeRevolutionAxisStatic draws it (visible half in the axis colour,
+            hidden half thin grey), plus the blue cut axis being oriented. */}
         {drawRevolutionAxis && (
           <g
             ref={previewRevAxisGroupRef}
@@ -1113,26 +1113,31 @@ const DrawingLayer = forwardRef(
               ref={previewRevAxisOrangeRef}
               fill="none"
               stroke={effectiveStrokeColor || theme.palette.secondary.main}
-              strokeWidth={2}
+              strokeWidth={2.5}
               vectorEffect="non-scaling-stroke"
             />
             <path
               ref={previewRevAxisBlackRef}
               fill="none"
-              stroke="#000000"
-              strokeWidth={2}
+              stroke="#bdbdbd"
+              strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
             <line
               ref={previewRevAxisDiameterRef}
-              stroke={effectiveStrokeColor || theme.palette.secondary.main}
-              strokeWidth={2}
+              stroke="#1976d2"
+              strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
             {/* Centre dot — screen-constant, mirrors CENTER_DOT_PX = 3.5 */}
             <g ref={previewRevAxisDotRef}>
               <g style={{ transform: scaleTransform }}>
-                <circle cx={0} cy={0} r={3.5} fill="#000000" />
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={2.5}
+                  fill={effectiveStrokeColor || theme.palette.secondary.main}
+                />
               </g>
             </g>
           </g>

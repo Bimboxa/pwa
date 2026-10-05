@@ -1,4 +1,5 @@
 import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
+import { CUT_AXIS_OVERSHOOT } from "Features/annotations/utils/revolutionAxisGlyph";
 
 // Fold an angle into (-180, 180].
 const normalizeDeg = (deg) => {
@@ -183,8 +184,7 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         (partType?.startsWith("REVOLUTION_RIM::") ||
             partType?.startsWith("REVOLUTION_ANGLE::"))
     ) {
-        const cx = _annotation.point?.x ?? 0;
-        const cy = _annotation.point?.y ?? 0;
+        // Everything below is relative to the centre (which never moves).
         const meterByPx = _annotation._planMeterByPx;
         const radiusM = Number(_annotation.radiusM) || 0;
         const radiusPx =
@@ -192,35 +192,59 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         const theta = ((Number(_annotation.directionDeg) || 0) * Math.PI) / 180;
 
         if (partType.startsWith("REVOLUTION_RIM::")) {
-            // Handle 1 is the antipode: dragging it is dragging handle 0 mirrored.
-            const sign = partType.split("::")[1] === "1" ? -1 : 1;
-            const grabbedX = cx + sign * radiusPx * Math.cos(theta);
-            const grabbedY = cy - sign * radiusPx * Math.sin(theta);
-            const vx = grabbedX + deltaPos.x - cx;
-            const vy = grabbedY + deltaPos.y - cy;
-            const nextRadiusPx = Math.hypot(vx, vy);
-            if (nextRadiusPx > 0) {
-                // Normalized to (-180, 180] so repeated drags can't drift the
-                // stored value out of range.
-                _annotation.directionDeg = normalizeDeg(
-                    (Math.atan2(-vy, vx) * 180) / Math.PI - (sign < 0 ? 180 : 0)
-                );
-                if (Number.isFinite(meterByPx) && meterByPx > 0) {
+            // Two handle pairs along the diameter (index 1 = the antipode,
+            // i.e. index 0 mirrored):
+            //   ROTATE<0|1> — ends of the blue cut axis (overshooting the
+            //     circle by CUT_AXIS_OVERSHOOT): ROTATES the axis, radius kept;
+            //   <0|1>       — diameter ends on the circle: sets the RADIUS,
+            //     direction kept (the drag is projected on the diameter).
+            const which = partType.split("::")[1];
+            const isRotate = which.startsWith("ROTATE");
+            const sign = which.endsWith("1") ? -1 : 1;
+            const reachPx = (isRotate ? CUT_AXIS_OVERSHOOT : 1) * radiusPx;
+            const ux = sign * Math.cos(theta);
+            const uy = -sign * Math.sin(theta);
+            const vx = reachPx * ux + deltaPos.x;
+            const vy = reachPx * uy + deltaPos.y;
+            if (isRotate) {
+                if (Math.hypot(vx, vy) > 0) {
+                    // Normalized to (-180, 180] so repeated drags can't drift
+                    // the stored value out of range.
+                    _annotation.directionDeg = normalizeDeg(
+                        (Math.atan2(-vy, vx) * 180) / Math.PI -
+                            (sign < 0 ? 180 : 0)
+                    );
+                }
+            } else {
+                const nextRadiusPx = vx * ux + vy * uy;
+                if (
+                    nextRadiusPx > 0 &&
+                    Number.isFinite(meterByPx) &&
+                    meterByPx > 0
+                ) {
                     _annotation.radiusM = nextRadiusPx * meterByPx;
                 }
             }
         } else {
+            // Sector end of a partial revolution: the handle sets that bound
+            // AND the radius.
             const which = partType.split("::")[1];
             const key =
                 which === "START"
                     ? "revolutionAngleStartDeg"
                     : "revolutionAngleEndDeg";
             const cur = ((Number(_annotation[key]) || 0) * Math.PI) / 180;
-            const hx = cx + radiusPx * Math.cos(cur) + deltaPos.x;
-            const hy = cy - radiusPx * Math.sin(cur) + deltaPos.y;
-            _annotation[key] = normalizeDeg(
-                (Math.atan2(-(hy - cy), hx - cx) * 180) / Math.PI
-            );
+            const vx = radiusPx * Math.cos(cur) + deltaPos.x;
+            const vy = -radiusPx * Math.sin(cur) + deltaPos.y;
+            const nextRadiusPx = Math.hypot(vx, vy);
+            if (nextRadiusPx > 0) {
+                _annotation[key] = normalizeDeg(
+                    (Math.atan2(-vy, vx) * 180) / Math.PI
+                );
+                if (Number.isFinite(meterByPx) && meterByPx > 0) {
+                    _annotation.radiusM = nextRadiusPx * meterByPx;
+                }
+            }
         }
         return _annotation;
     }
