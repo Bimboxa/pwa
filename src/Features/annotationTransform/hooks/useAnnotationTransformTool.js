@@ -25,6 +25,7 @@ import {
 import {
   ROTATE_SHIFT_STEP_DEG,
   appendToAngleBuffer,
+  getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
 } from "../utils/rotateAngle";
 import { TRANSFORM_UNSUPPORTED_GRAB_MESSAGE } from "../constants/transformToolStrings";
@@ -91,7 +92,25 @@ export default function useAnnotationTransformTool({
 
   const grab = useCallback(
     (kind, snap) => {
-      const annotationId = snap?.annotationId ?? snap?.previewAnnotationId;
+      // A selection made before arming the tool is what the tool carries:
+      // the clicked point is only the reference point — it must not hand the
+      // gesture over to another annotation that happens to share that point.
+      const selectedItems = store.getState().selection.selectedItems;
+      const selectedIds = (selectedItems ?? [])
+        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
+        .map((i) => i.nodeId ?? i.id);
+      const snapAnnotationId = snap?.annotationId ?? snap?.previewAnnotationId;
+      const selectedCarriable = selectedIds.filter((id) => {
+        const a = annotationsRef.current?.find((ann) => ann.id === id);
+        return (
+          a && !isForeignFootprintId(id) && isPointBasedAnnotationType(a.type)
+        );
+      });
+      const annotationId = selectedCarriable.length
+        ? selectedCarriable.includes(snapAnnotationId)
+          ? snapAnnotationId
+          : selectedCarriable[0]
+        : snapAnnotationId;
       const annotation = annotationId
         ? annotationsRef.current?.find((a) => a.id === annotationId)
         : null;
@@ -130,7 +149,7 @@ export default function useAnnotationTransformTool({
               annotationTemplateId: annotation.annotationTemplateId,
               baseMapId: annotation.baseMapId,
             },
-            selectedItems: store.getState().selection.selectedItems,
+            selectedItems,
             allAnnotations: annotationsRef.current,
             dispatch,
           });
@@ -231,10 +250,22 @@ export default function useAnnotationTransformTool({
   // handlers — called by InteractionLayer (positions in the pixel frame)
 
   const handleClick = useCallback(
-    ({ mode, localPos, snap }) => {
+    ({ mode, localPos, rawLocalPos, orthoAngleDeg, shiftKey, snap }) => {
       const session = getTransformSession();
       if (session.committing) return;
-      const point = snap ? { x: snap.x, y: snap.y } : localPos;
+      // Move destination with Shift: ortho lock from the clicked point, the
+      // snaps are ignored.
+      const orthoLocked =
+        shiftKey && session.kind === "MOVE" && mode === MOVE_ANNOTATION_MODE;
+      const point = orthoLocked
+        ? getOrthoConstrainedPoint({
+            anchor: session.anchor,
+            point: rawLocalPos ?? localPos,
+            angleDeg: orthoAngleDeg,
+          })
+        : snap
+          ? { x: snap.x, y: snap.y }
+          : localPos;
 
       if (mode === MOVE_ANNOTATION_MODE) {
         if (session.kind !== "MOVE") {
@@ -278,25 +309,37 @@ export default function useAnnotationTransformTool({
     [grab, commit, commitRotation]
   );
 
-  const handleMove = useCallback(({ localPos, snap, shiftKey }) => {
-    const session = getTransformSession();
-    if (!session.kind || session.committing) return;
-    const cursor = snap ? { x: snap.x, y: snap.y } : localPos;
+  const handleMove = useCallback(
+    ({ localPos, rawLocalPos, orthoAngleDeg, snap, shiftKey }) => {
+      const session = getTransformSession();
+      if (!session.kind || session.committing) return;
+      const cursor =
+        shiftKey && session.kind === "MOVE"
+          ? getOrthoConstrainedPoint({
+              anchor: session.anchor,
+              point: rawLocalPos ?? localPos,
+              angleDeg: orthoAngleDeg,
+            })
+          : snap
+            ? { x: snap.x, y: snap.y }
+            : localPos;
 
-    if (session.kind === "ROTATE" && session.reference) {
-      // A typed angle locks the pose: the mouse no longer drives it.
-      if (session.angleBuffer !== "") return;
-      const angleDeg = getRotatePixelAngleDeg({
-        pivot: session.anchor,
-        reference: session.reference,
-        cursor,
-        stepDeg: shiftKey ? ROTATE_SHIFT_STEP_DEG : 0,
-      });
-      setTransformSession({ cursor, angleDeg: angleDeg ?? session.angleDeg });
-      return;
-    }
-    setTransformSession({ cursor });
-  }, []);
+      if (session.kind === "ROTATE" && session.reference) {
+        // A typed angle locks the pose: the mouse no longer drives it.
+        if (session.angleBuffer !== "") return;
+        const angleDeg = getRotatePixelAngleDeg({
+          pivot: session.anchor,
+          reference: session.reference,
+          cursor,
+          stepDeg: shiftKey ? ROTATE_SHIFT_STEP_DEG : 0,
+        });
+        setTransformSession({ cursor, angleDeg: angleDeg ?? session.angleDeg });
+        return;
+      }
+      setTransformSession({ cursor });
+    },
+    []
+  );
 
   // effects
 

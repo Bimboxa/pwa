@@ -48,3 +48,19 @@ export function appendToAngleBuffer(buffer, key) {
   if (key === "-" && buffer !== "") return buffer;
   return buffer + key;
 }
+
+// « Déplacer » with Shift: the destination is locked on the dominant axis
+// through the clicked point (`angleDeg` = rotation of the ortho frame, 0 for
+// the image axes).
+export function getOrthoConstrainedPoint({ anchor, point, angleDeg = 0 }) {
+  const rad = (angleDeg * Math.PI) / 180;
+  const ux = Math.cos(rad);
+  const uy = Math.sin(rad);
+  const dx = point.x - anchor.x;
+  const dy = point.y - anchor.y;
+  const along = dx * ux + dy * uy;
+  const across = -dx * uy + dy * ux;
+  return Math.abs(along) >= Math.abs(across)
+    ? { x: anchor.x + along * ux, y: anchor.y + along * uy }
+    : { x: anchor.x - across * uy, y: anchor.y + across * ux };
+}

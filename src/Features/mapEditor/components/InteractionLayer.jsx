@@ -207,7 +207,7 @@ import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLe
 import useUndo from "App/db/useUndo";
 import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
 import { TRANSFORM_TOOL_MODES, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
-import { getSnapExcludedAnnotationIds, useTransformSession } from "Features/annotationTransform/services/transformSessionStore";
+import { getTransformSession, useTransformPhase } from "Features/annotationTransform/services/transformSessionStore";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 // constants
@@ -263,6 +263,9 @@ const OPENING_HOVER_THRESHOLD_M = 0.10;
 // Distant-point axis snapping (issue #282), in SCREEN pixels (zoom-independent).
 const AXIS_SNAP_PX = 3; // active snap threshold (red fill)
 const AXIS_SNAP_APPROACH_PX = AXIS_SNAP_PX * 1.5; // approach band (grey ring)
+// « Déplacer » / « Tourner »: max screen distance of an honoured PROJECTION
+// snap — same value as SnappingLayer's display threshold for its marker.
+const TRANSFORM_PROJECTION_SNAP_MAX_PX = 10;
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
@@ -1664,10 +1667,34 @@ const InteractionLayer = forwardRef(({
     selectedAnnotationsForCopyRef.current = selectedAnnotationsForCopy;
   }, [selectedAnnotationsForCopy]);
 
-  // « Déplacer » / « Tourner »: carried annotations left out of the snap
-  const transformSnapExcludedIds = getSnapExcludedAnnotationIds(
-    useTransformSession()
-  );
+  // « Déplacer » / « Tourner » (coarse phase only: no re-render on cursor
+  // moves). Once the carried annotations follow the cursor (move destination,
+  // turning 3/3) they stop being snap targets and their stored rendering is
+  // hidden — the tool's preview layer draws them at their live pose. Fixing
+  // the reference axis (2/3) they still are targets: it is typically one of
+  // their own edges.
+  const transformPhase = useTransformPhase();
+  const transformCarriedLive =
+    transformPhase === "MOVE" || transformPhase === "ROTATE_TURN";
+  const transformSnapExcludedIds = transformCarriedLive
+    ? getTransformSession().carriedAnnotationIds
+    : [];
+  const transformHidRef = useRef(false);
+  useEffect(() => {
+    if (transformCarriedLive) {
+      transformHidRef.current = true;
+      setHiddenAnnotationIds(getTransformSession().carriedAnnotationIds);
+    } else if (transformHidRef.current) {
+      transformHidRef.current = false;
+      setHiddenAnnotationIds([]);
+    }
+  }, [transformCarriedLive, transformPhase]);
+  // Snap under the cursor as seen by the tool (currentSnapRef keeps a stale
+  // snap when the cursor leaves every target).
+  const transformToolSnapRef = useRef(null);
+  // Last unsnapped cursor position (pixel frame) — the Shift ortho lock
+  // constrains it, not the axis-locked click position.
+  const transformToolRawPosRef = useRef(null);
 
   // annotations for Snap
   // When in point-editing mode, allow snapping to all annotations
@@ -1685,8 +1712,7 @@ const InteractionLayer = forwardRef(({
   } else if (isTransformToolMode(enabledDrawingMode)) {
     // « Déplacer » / « Tourner »: any annotation offers its points to the
     // grab — the grab selects it, and the restriction below would then
-    // reduce the destination candidates to the carried annotation itself.
-    // Once carried, the annotations stop being targets.
+    // reduce the candidates to the carried annotation itself.
     annotationsForSnap = transformSnapExcludedIds.length
       ? (annotations ?? []).filter(
           (a) => !transformSnapExcludedIds.includes(a.id)
@@ -1974,6 +2000,12 @@ const InteractionLayer = forwardRef(({
     }
     for (const p of (drawingPointsRef.current || [])) {
       pushCandidate(p, true);
+    }
+    // « Déplacer » / « Tourner »: the clicked point (grab point / pivot) stays
+    // an alignment target although its annotation is carried — a pure
+    // horizontal / vertical move aligns on it.
+    if (isTransformToolMode(enabledDrawingModeRef.current)) {
+      pushCandidate(getTransformSession().anchor, true);
     }
     if (!candidates.length) return null;
 
@@ -5568,7 +5600,10 @@ const InteractionLayer = forwardRef(({
       onTransformToolClickRef.current?.({
         mode: enabledDrawingMode,
         localPos: toLocalCoords(worldPos),
-        snap: currentSnapRef.current,
+        rawLocalPos: transformToolRawPosRef.current,
+        orthoAngleDeg: orthoSnapAngleOffsetRef.current || 0,
+        shiftKey: Boolean(event.shiftKey || event.evt?.shiftKey),
+        snap: transformToolSnapRef.current,
       });
       return;
     }
@@ -7184,10 +7219,45 @@ const InteractionLayer = forwardRef(({
     // MOVE_ANNOTATION / ROTATE_ANNOTATION: the carried annotations follow the
     // (snapped) cursor.
     if (isTransformToolMode(enabledDrawingMode)) {
+      // A PROJECTION snap has no distance threshold (closest edge wins, the
+      // marker is merely hidden when far): only honour it within the
+      // marker's display range, otherwise the carried annotations stay glued
+      // to the nearest edge.
+      let transformSnap = snapResult ?? null;
+      if (transformSnap?.type === "PROJECTION") {
+        const pose = getTargetPose();
+        const screenSnap = viewportRef.current?.worldToViewport(
+          transformSnap.x * pose.k + pose.x,
+          transformSnap.y * pose.k + pose.y
+        );
+        const screenDistance = screenSnap
+          ? Math.hypot(screenSnap.x - viewportPos.x, screenSnap.y - viewportPos.y)
+          : Infinity;
+        if (screenDistance > TRANSFORM_PROJECTION_SNAP_MAX_PX) transformSnap = null;
+      }
+      // Shift (move): ortho lock from the clicked point — it takes over the
+      // snaps, like the Shift-constrained vertex drag.
+      const transformShift = Boolean(event.shiftKey || event.evt?.shiftKey);
+      const transformRawPos = toLocalCoords(worldPos);
+      if (transformShift && transformPhase === "MOVE") {
+        transformSnap = null;
+        snappingLayerRef.current?.update(null);
+      }
+      transformToolSnapRef.current = transformSnap;
+      transformToolRawPosRef.current = transformRawPos;
       onTransformToolMoveRef.current?.({
-        localPos: toLocalCoords(worldPos),
-        snap: snapResult ?? null,
-        shiftKey: Boolean(event.shiftKey || event.evt?.shiftKey),
+        rawLocalPos: transformRawPos,
+        orthoAngleDeg: orthoSnapAngleOffsetRef.current || 0,
+        // Same precedence as the click: a point snap, else the distant-point
+        // axis lock, else the free cursor — the preview shows where a click
+        // would land.
+        localPos:
+          Number.isFinite(axisSnapRef.current?.x) &&
+          Number.isFinite(axisSnapRef.current?.y)
+            ? { x: axisSnapRef.current.x, y: axisSnapRef.current.y }
+            : toLocalCoords(worldPos),
+        snap: transformSnap,
+        shiftKey: transformShift,
       });
     }
 
@@ -7443,6 +7513,9 @@ const InteractionLayer = forwardRef(({
         onTransformToolClickRef.current?.({
           mode: enabledDrawingMode,
           localPos: { x: snap.x, y: snap.y },
+          rawLocalPos: transformToolRawPosRef.current,
+          orthoAngleDeg: orthoSnapAngleOffsetRef.current || 0,
+          shiftKey: Boolean(e.shiftKey),
           snap,
         });
         return;

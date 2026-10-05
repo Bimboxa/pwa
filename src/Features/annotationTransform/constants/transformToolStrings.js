@@ -22,6 +22,12 @@ export function getRotateToolHint({ carriedCount, referenceSet }) {
   return "3/3 — Tournez ou tapez l'angle, clic ou Entrée pour valider";
 }
 
+// 2D only: the 3D move has no ortho lock.
+export const MOVE_TOOL_SHORTCUTS_2D = [
+  { key: "⇧", label: "Déplacement orthogonal" },
+  { key: "Esc", label: "Annuler la saisie / Quitter" },
+];
+
 export const MOVE_TOOL_SHORTCUTS = [
   { key: "Esc", label: "Annuler la saisie / Quitter" },
 ];

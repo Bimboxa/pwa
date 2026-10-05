@@ -5,6 +5,7 @@ import getTransformPointUpdates from "./getTransformPointUpdates.js";
 import {
   appendToAngleBuffer,
   formatUserAngle,
+  getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
   parseAngleBufferToPixelDeg,
 } from "./rotateAngle.js";
@@ -93,4 +94,24 @@ test("angle buffer accepts a leading minus only", () => {
   assert.equal(appendToAngleBuffer("1", "-"), "1");
   assert.equal(appendToAngleBuffer("1", "2"), "12");
   assert.equal(appendToAngleBuffer("1", "a"), "1");
+});
+
+test("Shift locks the move on the dominant axis through the clicked point", () => {
+  const anchor = { x: 10, y: 10 };
+  assert.deepEqual(
+    getOrthoConstrainedPoint({ anchor, point: { x: 50, y: 14 } }),
+    { x: 50, y: 10 }
+  );
+  assert.deepEqual(
+    getOrthoConstrainedPoint({ anchor, point: { x: 12, y: -30 } }),
+    { x: 10, y: -30 }
+  );
+  // Rotated ortho frame (45°): the lock follows the frame's axes.
+  const p = getOrthoConstrainedPoint({
+    anchor: { x: 0, y: 0 },
+    point: { x: 10, y: 8 },
+    angleDeg: 45,
+  });
+  near(p.x, 9);
+  near(p.y, 9);
 });

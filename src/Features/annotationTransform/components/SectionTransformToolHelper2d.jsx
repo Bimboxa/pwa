@@ -3,7 +3,7 @@ import SectionTransformToolHelper from "./SectionTransformToolHelper";
 import {
   getMoveToolHint,
   getRotateToolHint,
-  MOVE_TOOL_SHORTCUTS,
+  MOVE_TOOL_SHORTCUTS_2D,
   ROTATE_TOOL_SHORTCUTS,
 } from "../constants/transformToolStrings";
 import {
@@ -39,7 +39,7 @@ export default function SectionTransformToolHelper2d({ mode }) {
     return (
       <SectionTransformToolHelper
         hint={getMoveToolHint({ carriedCount })}
-        shortcuts={MOVE_TOOL_SHORTCUTS}
+        shortcuts={MOVE_TOOL_SHORTCUTS_2D}
       />
     );
   }

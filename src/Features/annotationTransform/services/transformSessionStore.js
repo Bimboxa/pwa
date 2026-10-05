@@ -59,14 +59,18 @@ export function useTransformSession() {
   return useSyncExternalStore(subscribe, getTransformSession);
 }
 
-// The carried annotations no longer offer snap targets once they follow the
-// cursor (MOVE destination, ROTATE 3/3). During ROTATE 2/3 they still do: the
-// reference axis is typically one of their own edges.
-export function getSnapExcludedAnnotationIds(session) {
-  if (session.kind === "MOVE") return session.carriedAnnotationIds;
-  if (session.kind === "ROTATE" && session.reference)
-    return session.carriedAnnotationIds;
-  return [];
+// Coarse phase of the session, for subscribers that must NOT re-render on
+// every cursor move (InteractionLayer): "IDLE" (nothing grabbed) | "MOVE"
+// (destination pending) | "ROTATE_REFERENCE" (2/3) | "ROTATE_TURN" (3/3).
+function getTransformPhase() {
+  if (state.kind === "MOVE") return "MOVE";
+  if (state.kind === "ROTATE")
+    return state.reference ? "ROTATE_TURN" : "ROTATE_REFERENCE";
+  return "IDLE";
+}
+
+export function useTransformPhase() {
+  return useSyncExternalStore(subscribe, getTransformPhase);
 }
 
 // ROTATE 3/3 — typed angle (keyboard buffer or the helper's field): the pose
