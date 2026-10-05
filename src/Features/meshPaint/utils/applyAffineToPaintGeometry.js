@@ -26,6 +26,8 @@ import { faceCentroid, getFaceNewellNormal } from "./meshPaintGeometry.js";
 // contour) is turned toward the mapped probe, and the loops re-wound about
 // it. A mirror (det < 0) thus keeps painting the same physical face side.
 //
+// FACE, curved surface: vertices mapped, loops reversed by a mirror.
+//
 // EDGE: points mapped; the optional `sides` (normals of the facets the edge
 // borders) go through the inverse transpose of the map.
 //
@@ -130,6 +132,21 @@ export default function applyAffineToPaintGeometry({
     return {
       ...mapped,
       sides: geometry.sides.map((n) => mapNormal(n, mapLocal)),
+    };
+  }
+
+  // Curved surface (indexed facets): the winding of every loop is its side —
+  // a mirror turns it over, the loops are reversed to keep the physical one.
+  if (Array.isArray(geometry.vertices)) {
+    const mirrored = a * e - b * d < 0;
+    return {
+      ...geometry,
+      vertices: geometry.vertices.map(mapPoint),
+      facets: mirrored
+        ? (geometry.facets || []).map((facet) =>
+            (facet || []).map((loop) => [...loop].reverse())
+          )
+        : geometry.facets,
     };
   }
 

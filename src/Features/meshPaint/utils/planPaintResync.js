@@ -25,6 +25,8 @@ import {
   faceCentroid,
   faceOverlapArea,
   flipFace,
+  getPolygonNormal,
+  isCurvedFace,
   maxVertexShift,
   orientFaceLoops,
 } from "./meshPaintGeometry.js";
@@ -65,6 +67,14 @@ import {
 //   sharing an (unchanged) host plane with the paint win: a wall that got
 //   higher keeps its top-front edge, not the top-back one. The matched
 //   geometry carries the chain's sides.
+// Curved FACE (a smooth surface, see meshPaintGeometry): a few of its
+//   largest facets go through the stages above as planar faces; the islands
+//   they land on name the host's smooth surfaces (index.getSurfaces at the
+//   row's own angleDeg), which become the new geometry — whole, turned
+//   toward the painted side.
+// Curved EDGE (more than 2 points): same idea, segment by segment — the
+//   chains found name the curve (index.getCurves at the row's angleDeg),
+//   the most voted one wins.
 // No match → ORPHAN, geometry kept (a later pass may re-attach it).
 //
 // Provisional rows (split copies) only go through Stage 1: a copy trimmed
@@ -83,7 +93,23 @@ const OVERLAP_EPS = 1e-6;
 // Stage 1 EDGE: overlaps within this share of the paint's length are a tie.
 const EDGE_OVERLAP_TIE_RATIO = 0.01;
 
+// Curved parts: how many facets / segments are matched to find the host's
+// surface / curve again.
+const CURVED_SEEDS = 12;
+
 const isFace = (partType) => partType === MESH_PAINT_PART_TYPES.FACE;
+
+// Up to CURVED_SEEDS items spread over the largest ones (size ≥ half the
+// largest), in their original order.
+function pickSeeds(items) {
+  const largest = Math.max(0, ...items.map((item) => item.size));
+  const large = items.filter((item) => item.size >= largest / 2);
+  if (large.length <= CURVED_SEEDS) return large;
+  return Array.from(
+    { length: CURVED_SEEDS },
+    (_, k) => large[Math.floor((k * large.length) / CURVED_SEEDS)]
+  );
+}
 
 const boxDiagonal = (box) => (box ? length(sub(box.max, box.min)) : 0);
 
@@ -93,7 +119,9 @@ function collectFacePlanes(local, index, maxDist) {
   const c = faceCentroid(local);
   const area = faceArea(local);
   const planes = [];
-  for (const island of index.islands || []) {
+  const islands = index.islands || [];
+  for (let i = 0; i < islands.length; i++) {
+    const island = islands[i];
     const facing = dot(n, island.normal);
     if (Math.abs(facing) <= COS_PARALLEL) continue;
     if (index.isClosed && facing <= 0) continue;
@@ -120,11 +148,13 @@ function collectFacePlanes(local, index, maxDist) {
         normal: island.normal,
         point: island.centroid,
         islands: [],
+        indexes: [],
         overlap: 0,
       };
       planes.push(plane);
     }
     plane.islands.push(oriented);
+    plane.indexes.push(i);
     plane.overlap += overlap;
   }
   planes.sort((p1, p2) => Math.abs(p1.offset) - Math.abs(p2.offset));
@@ -144,15 +174,17 @@ function matchFaceInPlane(local, index) {
   const n = local.normal;
   const c = faceCentroid(local);
   const islands = [];
-  for (const island of index.islands || []) {
+  const indexes = [];
+  (index.islands || []).forEach((island, i) => {
     const facing = dot(n, island.normal);
-    if (Math.abs(facing) <= COS_PARALLEL) continue;
-    if (index.isClosed && facing <= 0) continue;
+    if (Math.abs(facing) <= COS_PARALLEL) return;
+    if (index.isClosed && facing <= 0) return;
     if (Math.abs(dot(island.normal, sub(c, island.centroid))) > RESYNC_NEAR_M) {
-      continue;
+      return;
     }
     islands.push(facing < 0 ? flipFace(island) : island);
-  }
+    indexes.push(i);
+  });
   if (!islands.length) return null;
   const ref = islands[0];
   const onePlane = islands.every(
@@ -161,15 +193,20 @@ function matchFaceInPlane(local, index) {
       SAME_PLANE_TOL_M
   );
   if (!onePlane || islands.length > local.polygons.length) return null;
-  return { geometry: planeToFace({ islands }), stage: 3 };
+  return { geometry: planeToFace({ islands }), stage: 3, indexes };
 }
 
-function matchFace(local, index, allowFar) {
+function matchPlanarFace(local, index, allowFar) {
   const area = faceArea(local);
   if (!(area > MIN_FACE_AREA_M2)) return null;
+  const found = (plane, stage) => ({
+    geometry: planeToFace(plane),
+    stage,
+    indexes: plane.indexes,
+  });
 
   const near = collectFacePlanes(local, index, RESYNC_NEAR_M);
-  if (near.length) return { geometry: planeToFace(near[0]), stage: 1 };
+  if (near.length) return found(near[0], 1);
   if (!allowFar) return null;
 
   // Far planes must cover half of the paint itself.
@@ -186,7 +223,80 @@ function matchFace(local, index, allowFar) {
   ) {
     return null;
   }
-  return { geometry: planeToFace(far[0]), stage: 2 };
+  return found(far[0], 2);
+}
+
+// The smooth surfaces (index.getSurfaces at angleDeg) holding the seed
+// islands, as ONE curved face: each surface is turned so that its seed
+// island faces the seed's `normal`.
+function buildSurfaceFace(index, seeds, angleDeg) {
+  const { surfaces, surfaceOfIsland, flipOfIsland } =
+    index.getSurfaces(angleDeg);
+  const seedBySurface = new Map();
+  for (const seed of seeds) {
+    const id = surfaceOfIsland[seed.island];
+    if (id !== undefined && !seedBySurface.has(id)) seedBySurface.set(id, seed);
+  }
+  const ids = [...seedBySurface.keys()].sort((a, b) => a - b);
+  const polygons = [];
+  let count = 0;
+  const flips = [];
+  for (const id of ids) {
+    const seed = seedBySurface.get(id);
+    const away = dot(index.islands[seed.island].normal, seed.normal) < 0;
+    const surfaceFlip = away !== flipOfIsland[seed.island];
+    flips.push(surfaceFlip ? "-" : "+");
+    for (const i of surfaces[id]) {
+      const island = index.islands[i];
+      const face = surfaceFlip !== flipOfIsland[i] ? flipFace(island) : island;
+      polygons.push(...face.polygons);
+      count += 1;
+    }
+  }
+  return {
+    count,
+    key: ids.map((id, k) => `${id}${flips[k]}`).join(","),
+    face: orientFaceLoops({ polygons, curved: true, angleDeg }),
+  };
+}
+
+function matchCurvedFace(local, index, allowFar) {
+  const facets = [];
+  for (const polygon of local.polygons || []) {
+    const normal = getPolygonNormal(polygon);
+    if (!normal) continue;
+    const face = { polygons: [polygon], normal };
+    facets.push({ face, size: faceArea(face) });
+  }
+  const seeds = [];
+  let stage = Infinity;
+  for (const { face } of pickSeeds(facets)) {
+    const match = matchPlanarFace(face, index, allowFar);
+    if (!match) continue;
+    stage = Math.min(stage, match.stage);
+    for (const island of match.indexes) {
+      seeds.push({ island, normal: face.normal });
+    }
+  }
+  if (!seeds.length) return null;
+  const grown = buildSurfaceFace(index, seeds, local.angleDeg ?? 0);
+  if (!grown.face.polygons.length) return null;
+  return { geometry: grown.face, stage, surfaceKey: grown.key };
+}
+
+// smoothAngleDeg (the pick): a planar face found on the host grows into the
+// smooth surface around it, when there is one.
+function matchFace(local, index, allowFar, smoothAngleDeg) {
+  if (isCurvedFace(local)) return matchCurvedFace(local, index, allowFar);
+  const match = matchPlanarFace(local, index, allowFar);
+  if (!match || !(smoothAngleDeg > 0)) return match;
+  const grown = buildSurfaceFace(
+    index,
+    match.indexes.map((island) => ({ island, normal: local.normal })),
+    smoothAngleDeg
+  );
+  if (grown.count <= match.indexes.length) return match;
+  return { geometry: grown.face, stage: match.stage, surfaceKey: grown.key };
 }
 
 const toSegment = (a, b) => {
@@ -245,14 +355,67 @@ function sharesHostPlane(row, segment, islands) {
   });
 }
 
+function matchCurvedEdge(local, index, allowFar) {
+  const points = local.points || [];
+  const angleDeg = local.angleDeg ?? 0;
+  const segments = [];
+  for (let i = 0; i + 1 < points.length; i++) {
+    const size = length(sub(points[i + 1], points[i]));
+    if (size > MIN_EDGE_LENGTH_M) {
+      segments.push({ a: points[i], b: points[i + 1], size });
+    }
+  }
+  const { curves, curveOfChain } = index.getCurves(angleDeg);
+  const votes = new Map(); // curve id → {count, along, stage}
+  for (const { a, b } of pickSeeds(segments)) {
+    const seed = local.sides?.length
+      ? { points: [a, b], sides: local.sides }
+      : { points: [a, b] };
+    const match = matchStraightEdge(seed, index, allowFar);
+    if (!match) continue;
+    const id = curveOfChain[match.chainIndex];
+    const curve = curves[id];
+    if (!curve) continue;
+    // Does the curve run the same way as the paint there?
+    const k = curve.chains.indexOf(match.chainIndex);
+    const along =
+      dot(sub(curve.points[k + 1], curve.points[k]), sub(b, a)) >= 0 ? 1 : -1;
+    const vote = votes.get(id) ?? { count: 0, along: 0, stage: Infinity };
+    vote.count += 1;
+    vote.along += along;
+    vote.stage = Math.min(vote.stage, match.stage);
+    votes.set(id, vote);
+  }
+  let best = null;
+  for (const [id, vote] of votes) {
+    if (!best || vote.count > best.vote.count) best = { id, vote };
+  }
+  if (!best) return null;
+  const curve = curves[best.id];
+  const geometry = {
+    points: best.vote.along < 0 ? [...curve.points].reverse() : curve.points,
+    angleDeg,
+  };
+  if (curve.sides?.length) geometry.sides = curve.sides;
+  return { geometry, stage: best.vote.stage };
+}
+
 function matchEdge(local, index, allowFar) {
+  return (local.points || []).length > 2
+    ? matchCurvedEdge(local, index, allowFar)
+    : matchStraightEdge(local, index, allowFar);
+}
+
+function matchStraightEdge(local, index, allowFar) {
   const points = local.points || [];
   const row = toSegment(points[0], points[points.length - 1]);
   if (!(row.chord > MIN_EDGE_LENGTH_M)) return null;
   const diagonal = boxDiagonal(index.box);
 
   const candidates = [];
-  for (const chain of index.chains || []) {
+  const chains = index.chains || [];
+  for (let chainIndex = 0; chainIndex < chains.length; chainIndex++) {
+    const chain = chains[chainIndex];
     const segment = toSegment(chain.points[0], chain.points[1]);
     if (!(segment.chord > MIN_EDGE_LENGTH_M)) continue;
     if (Math.abs(dot(row.dir, segment.dir)) <= COS_PARALLEL) continue;
@@ -264,7 +427,7 @@ function matchEdge(local, index, allowFar) {
       continue;
     }
     if (!(gap <= diagonal) && !(gap <= RESYNC_NEAR_M)) continue;
-    candidates.push({ chain, segment, overlap, gap });
+    candidates.push({ chain, chainIndex, segment, overlap, gap });
   }
   if (!candidates.length) return null;
 
@@ -295,7 +458,13 @@ function matchEdge(local, index, allowFar) {
       ? c2.overlap - c1.overlap
       : c1.gap - c2.gap
   );
-  if (near.length) return { geometry: toGeometry(near[0]), stage: 1 };
+  if (near.length) {
+    return {
+      geometry: toGeometry(near[0]),
+      stage: 1,
+      chainIndex: near[0].chainIndex,
+    };
+  }
   if (!allowFar) return null;
 
   let far = [...candidates];
@@ -327,7 +496,7 @@ function matchEdge(local, index, allowFar) {
     return null;
   }
   const best = [...sameLine].sort((c1, c2) => c2.overlap - c1.overlap)[0];
-  return { geometry: toGeometry(best), stage: 2 };
+  return { geometry: toGeometry(best), stage: 2, chainIndex: best.chainIndex };
 }
 
 /**
@@ -335,18 +504,22 @@ function matchEdge(local, index, allowFar) {
  * Also the re-detection of a freshly picked part on an un-shrunk host
  * (allowFar: false = Stage 1 only): its EDGE geometry carries the chain's
  * `sides`, keep them in the stored row (localGeometryToPaint does).
+ * smoothAngleDeg (the pick of a FACE): the planar facet found grows into the
+ * host's smooth surface around it (a curved LocalFace, with `surfaceKey`
+ * naming it) when its neighbors fold by less than that angle.
  *
- * @returns {{geometry: LocalFace|LocalEdge, stage: 1|2|3} | null}
+ * @returns {{geometry: LocalFace|LocalEdge, stage: 1|2|3,
+ *   surfaceKey?: string} | null}
  */
 export function matchPaintPartToIndex(
   partType,
   localGeometry,
   index,
-  { allowFar = true } = {}
+  { allowFar = true, smoothAngleDeg = 0 } = {}
 ) {
   if (!localGeometry || !index) return null;
   return isFace(partType)
-    ? matchFace(localGeometry, index, allowFar)
+    ? matchFace(localGeometry, index, allowFar, smoothAngleDeg)
     : matchEdge(localGeometry, index, allowFar);
 }
 

@@ -19,6 +19,13 @@ import { createInsideSoupTester } from "Features/meshPaint/utils/isPointInsideSo
 // - triangles: every SOLID mesh of the host (role "SOLID"; all plain meshes
 //   for untagged builders), hover / paint overlays, fat lines, sprites and
 //   hidden sub-parts left out; 9 numbers per triangle.
+// - A revolution shown as a display-only half (« Révolution partielle »,
+//   userData.isRevolutionHalfView) is read over its FULL turn: the displayed
+//   half plus its copy turned 180° about the axis. The parts, the paints and
+//   their quantities are those of the real surface, whatever the view;
+//   getHostHalfView gives the displayed side (the paints are clipped to it,
+//   see clipPaintGeometry). Openings carved in the displayed half are
+//   mirrored in the other one (the hidden half is not built).
 // - exactFaces (isMesh3d hosts): the stored faces, re-based like the built
 //   object (offsetZ + MESH3D_Z_FIGHT_OFFSET): islands are exactly the faces.
 // - hash: hashTriangles(triangles) + the frame metrics (a recalibration
@@ -66,6 +73,15 @@ function getMetricsKey(metrics) {
     : "";
 }
 
+// Axis of a display-only half revolution, in the mesh frame (null: the mesh
+// shows its real surface).
+function getHalfViewAxis(mesh) {
+  const axis = mesh?.userData?.isRevolutionHalfView
+    ? mesh.userData.revolutionAxis
+    : null;
+  return axis?.center ? axis : null;
+}
+
 function collectTriangles(meshes, groupInverse) {
   const out = [];
   const v = new Vector3();
@@ -83,8 +99,60 @@ function collectTriangles(meshes, groupInverse) {
       );
       out.push(v.x, v.y, v.z);
     }
+    // Hidden half: the displayed one turned 180° about the axis.
+    const axis = getHalfViewAxis(mesh);
+    if (!axis) continue;
+    const { center, axisAlongNormal } = axis;
+    for (let i = 0; i < usable; i++) {
+      v.fromBufferAttribute(position, index ? index.getX(i) : i);
+      if (axisAlongNormal) v.set(2 * center.x - v.x, 2 * center.y - v.y, v.z);
+      else v.set(2 * center.x - v.x, v.y, 2 * center.z - v.z);
+      v.applyMatrix4(toLocal);
+      out.push(v.x, v.y, v.z);
+    }
   }
   return Float64Array.from(out);
+}
+
+/**
+ * Displayed side of a host shown as a display-only half revolution
+ * (« Révolution partielle »), in base-map-local meters: {point, normal} — a
+ * point of the axis and the unit direction, across the axis, toward the
+ * displayed half (clipPaintGeometry's clip). Null for every other host.
+ *
+ * @param {import("three").Object3D} root - the host's annotation root
+ * @param {import("three").Object3D} group - its base map group
+ */
+export function getHostHalfView(root, group) {
+  if (!root || !group) return null;
+  const mesh = getHostSolidMeshes(root).find(getHalfViewAxis);
+  const position = mesh?.geometry?.getAttribute?.("position");
+  if (!position?.count) return null;
+  const { center, axisAlongNormal } = getHalfViewAxis(mesh);
+
+  group.updateWorldMatrix(true, false);
+  const groupInverse = new Matrix4().copy(group.matrixWorld).invert();
+  const toLocal = getLocalMatrix(mesh, groupInverse);
+  const point = new Vector3(center.x, center.y, center.z).applyMatrix4(toLocal);
+  const direction = (
+    axisAlongNormal ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0)
+  )
+    .transformDirection(toLocal)
+    .normalize();
+  // The displayed half lies on the side of its own vertices.
+  const mean = new Vector3();
+  const v = new Vector3();
+  for (let i = 0; i < position.count; i++) {
+    mean.add(v.fromBufferAttribute(position, i));
+  }
+  mean.divideScalar(position.count).applyMatrix4(toLocal).sub(point);
+  mean.addScaledVector(direction, -mean.dot(direction));
+  if (!(mean.length() > 1e-9)) return null;
+  mean.normalize();
+  return {
+    point: { x: point.x, y: point.y, z: point.z },
+    normal: { x: mean.x, y: mean.y, z: mean.z },
+  };
 }
 
 // Stored faces of an isMesh3d host in the base map frame, z re-based like

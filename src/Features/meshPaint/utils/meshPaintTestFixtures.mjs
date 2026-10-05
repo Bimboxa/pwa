@@ -163,3 +163,32 @@ export function storedEdge(a, b, metrics = METRICS) {
   ];
   return { points: [toP(a), toP(b)] };
 }
+
+// Vertical cylinder wall (axis z through the origin) as planar quads, from
+// angle `from` over `sweep` radians — outward winding. `caps`: closed solid
+// (full turn only). A partial sweep is an open curved sheet.
+export function cylinderTriangles({
+  radius = 2,
+  z0 = 0,
+  z1 = 3,
+  segments = 32,
+  from = 0,
+  sweep = 2 * Math.PI,
+  caps = false,
+  out = [],
+} = {}) {
+  const at = (i, z) => {
+    const angle = from + (sweep * i) / segments;
+    return v(radius * Math.cos(angle), radius * Math.sin(angle), z);
+  };
+  for (let i = 0; i < segments; i++) {
+    quadTriangles(at(i, z0), at(i + 1, z0), at(i + 1, z1), at(i, z1), out);
+  }
+  if (caps) {
+    for (let i = 0; i < segments; i++) {
+      pushTri(out, v(0, 0, z1), at(i, z1), at(i + 1, z1));
+      pushTri(out, v(0, 0, z0), at(i + 1, z0), at(i, z0));
+    }
+  }
+  return out;
+}

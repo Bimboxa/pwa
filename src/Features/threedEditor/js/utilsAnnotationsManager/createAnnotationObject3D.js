@@ -865,6 +865,15 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             resolution: options?.resolution,
             sectionFill: options?.revolutionSectionFill,
           });
+          // Display-only half-view (not the annotation's own partial
+          // revolution): the real surface is the full turn.
+          if (object && partialPhi.phiLength && !annotation.revolutionPhi) {
+            object.traverse((child) => {
+              if (child.userData?.role === "SOLID") {
+                child.userData.isRevolutionHalfView = true;
+              }
+            });
+          }
           if (object) break;
         }
       }

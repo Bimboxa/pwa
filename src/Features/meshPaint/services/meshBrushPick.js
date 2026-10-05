@@ -18,26 +18,37 @@ import {
   MESH_PAINT_PART_TYPES,
 } from "Features/meshPaint/constants/meshPaintConstants";
 import {
+  getHostHalfView,
   getHostPartData,
   getHostSolidMeshes,
 } from "Features/meshPaint/js/buildHostPartIndexFromObject";
 import { getMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
 import { probeNormalSide } from "Features/meshPaint/utils/buildHostPartIndex";
+import {
+  getClipKey,
+  isSegmentDisplayed,
+} from "Features/meshPaint/utils/clipPaintGeometry";
 import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
 import getPaintHostRefusal, {
   PAINT_REFUSAL,
 } from "Features/meshPaint/utils/getPaintHostRefusal";
 import { localGeometryToPaint } from "Features/meshPaint/utils/meshPaintFrame";
 import orientFaceTowardRay from "Features/meshPaint/utils/orientFaceTowardRay";
-import pickFaceContainingPoint from "Features/meshPaint/utils/pickFaceContainingPoint";
+import pickFaceContainingPoint, {
+  locatePointOnPlanarFace,
+} from "Features/meshPaint/utils/pickFaceContainingPoint";
+import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync";
 
 // Target picking of the « Pinceau » (MESH_BRUSH) in the 3D editor.
 //
-// pick(event, {partType, armedTemplateId}) →
+// pick(event, {partType, armedTemplateId, smoothAngleDeg}) →
 //   { kind: "PAINT", paintId, partType, hostId, baseMapId, localGeometry,
 //     previewKey }                       an existing paint (toggle / replace)
 //   { kind: "HOST", partType, hostId, baseMapId, metrics, localGeometry,
 //     candidate, previewKey }            a part of a host to paint
+//   PAINT and HOST targets carry `clip` when the host is shown as a
+//   display-only half revolution: the part covers the full turn, only its
+//   displayed side is drawn and picked (clipPaintGeometry).
 //   { kind: "REFUSED", reason, hostId?, previewKey }   (PAINT_REFUSAL key)
 //   null                                 nothing under the cursor
 //
@@ -49,13 +60,17 @@ import pickFaceContainingPoint from "Features/meshPaint/utils/pickFaceContaining
 //   FACE paints are raycast explicitly (FrontSide skins: hit only from the
 //   painted side), EDGE paints by screen distance.
 // - FACE: plane-mode region of the hit triangle (getFaceRegion at
-//   BRUSH_FACE_ANGLE_DEG) → planar islands (buildMeshDataFromRegion; a curved
-//   region is refused) → the island under the hit point → the side facing the
+//   BRUSH_FACE_ANGLE_DEG) → planar islands (buildMeshDataFromRegion; a
+//   region that is not planar enough falls back on the facets of the host
+//   part index) → the island under the hit point → the side facing the
 //   ray. On a closed host the inner side is refused (ray parity on the host's
-//   solid triangles, 5 mm off the hit point).
-// - EDGE: straight feature edges of the hosts near the cursor (the chains of
-//   the host part index — T-junction repaired, merged into maximal straight
-//   edges, with the facets they border), nearest on screen within
+//   solid triangles, 5 mm off the hit point). With smoothAngleDeg (the
+//   « Sélection de face » angle), the facet grows into the smooth surface
+//   around it (index.getSurfaces): a curved wall, a lathe, is ONE target.
+// - EDGE: feature edges of the hosts near the cursor (the chains of the host
+//   part index — T-junction repaired, merged into maximal straight edges,
+//   with the facets they border — chained into planar curves while they turn
+//   by less than smoothAngleDeg: index.getCurves), nearest on screen within
 //   BRUSH_EDGE_PICK_PX, hidden ones (behind the surface under the cursor,
 //   clipped) skipped; on a tie the host under the cursor wins.
 //
@@ -75,6 +90,12 @@ const PAINT_EDGE_WIN_PX = 1.5;
 const HOST_HIT_TIE_PX = 1;
 // Region polygons cache size (plane-mode regions of carved slabs are costly).
 const REGION_CACHE_MAX = 64;
+// Curved targets cache size (a stable target object per hovered surface:
+// its stored form and its matches are computed once).
+const SURFACE_CACHE_MAX = 8;
+// A facet of the host part index holds the hit point within this plane
+// distance (m).
+const INDEX_FACET_TOL_M = 2e-3;
 
 const FACE = MESH_PAINT_PART_TYPES.FACE;
 const EDGE = MESH_PAINT_PART_TYPES.EDGE;
@@ -198,6 +219,10 @@ export function createMeshBrushPicker(sceneManager) {
   // `${geometry.uuid}:${regionId}:${mesh→group matrix}` → local faces |
   // {shell: true}
   const regionCache = new Map();
+  // previewKey → curved FACE target
+  const surfaceCache = new Map();
+  // host part index → its facets as region faces
+  const indexFacesCache = new WeakMap();
   const box = new Box3();
 
   function getManagers() {
@@ -276,7 +301,8 @@ export function createMeshBrushPicker(sceneManager) {
       hostId: userData.hostAnnotationId,
       baseMapId: userData.baseMapId,
       localGeometry: userData.localGeometry,
-      previewKey: `P:${userData.meshPaintId}`,
+      clip: userData.clip ?? null,
+      previewKey: `P:${userData.meshPaintId}:${getClipKey(userData.clip)}`,
     };
   }
 
@@ -308,16 +334,28 @@ export function createMeshBrushPicker(sceneManager) {
   function pickPaintEdge({ camera, rect, cursor, accept }) {
     let best = null;
     for (const object of getPickablePaints(EDGE)) {
-      const [a, b] = object.userData.localGeometry?.points ?? [];
-      if (!a || !b) continue;
+      const points = object.userData.localGeometry?.points ?? [];
+      if (points.length < 2) continue;
       object.updateWorldMatrix(true, false);
-      const wa = new Vector3(a.x, a.y, a.z).applyMatrix4(object.matrixWorld);
-      const wb = new Vector3(b.x, b.y, b.z).applyMatrix4(object.matrixWorld);
-      const hit = getSegmentScreenHit(wa, wb, camera, rect, cursor);
-      if (!hit || hit.distancePx > BRUSH_EDGE_PICK_PX) continue;
-      if (!accept(hit.point)) continue;
-      if (!best || hit.distancePx < best.distancePx) {
-        best = { object, distancePx: hit.distancePx };
+      const world = points.map((p) =>
+        new Vector3(p.x, p.y, p.z).applyMatrix4(object.matrixWorld)
+      );
+      // Every displayed segment (a curve has several).
+      const clip = object.userData.clip ?? null;
+      for (let i = 0; i + 1 < world.length; i++) {
+        if (!isSegmentDisplayed(points[i], points[i + 1], clip)) continue;
+        const hit = getSegmentScreenHit(
+          world[i],
+          world[i + 1],
+          camera,
+          rect,
+          cursor
+        );
+        if (!hit || hit.distancePx > BRUSH_EDGE_PICK_PX) continue;
+        if (!accept(hit.point)) continue;
+        if (!best || hit.distancePx < best.distancePx) {
+          best = { object, distancePx: hit.distancePx };
+        }
       }
     }
     return best;
@@ -372,7 +410,23 @@ export function createMeshBrushPicker(sceneManager) {
     return faces;
   }
 
-  function pickHostFace(sceneHit, armedTemplateId) {
+  // Facets of the host part index as region faces (same local frame).
+  function getIndexFaces(index) {
+    let faces = indexFacesCache.get(index);
+    if (!faces) {
+      faces = index.islands.flatMap((island) =>
+        island.polygons.map((polygon) => ({
+          contour: polygon.contour,
+          holes: polygon.holes,
+          normal: island.normal,
+        }))
+      );
+      indexFacesCache.set(index, faces);
+    }
+    return faces;
+  }
+
+  function pickHostFace(sceneHit, armedTemplateId, smoothAngleDeg) {
     const host = getHostContext(sceneHit.root);
     if (!host) return null;
     const refusal = getPaintHostRefusal({
@@ -397,15 +451,31 @@ export function createMeshBrushPicker(sceneManager) {
     });
     if (!region) return null;
     const frame = getFrame(host.group);
-    const faces = getRegionLocalFaces(mesh, region, frame);
+    let faces = getRegionLocalFaces(mesh, region, frame);
     if (!faces) return null;
-    if (faces.shell) {
-      return refused(PAINT_REFUSAL.CURVED_SURFACE, host.hostId);
-    }
+    const data = getHostPartData({
+      root: host.root,
+      group: host.group,
+      source: host.source,
+      baseMap: host.baseMap,
+    });
+    const index = data?.getIndex() ?? null;
 
     const hitLocal = frame.toLocal(intersect.point);
+    // Not planar enough for the region builder: the facets of the index.
+    const fromIndex = Boolean(faces.shell);
+    if (fromIndex) faces = index ? getIndexFaces(index) : [];
     const islandIndex = pickFaceContainingPoint(faces, hitLocal);
     const island = faces[islandIndex];
+    if (
+      fromIndex &&
+      !(
+        locatePointOnPlanarFace(island, hitLocal)?.planeDist <=
+        INDEX_FACET_TOL_M
+      )
+    ) {
+      return refused(PAINT_REFUSAL.CURVED_SURFACE, host.hostId);
+    }
     if (!island) return null;
     const localFace = orientFaceTowardRay(
       {
@@ -422,13 +492,7 @@ export function createMeshBrushPicker(sceneManager) {
 
     // Inner side of a closed solid (seen through a clipping cut, from
     // inside a hollow): refused. Open sheets keep both sides.
-    const data = getHostPartData({
-      root: host.root,
-      group: host.group,
-      source: host.source,
-      baseMap: host.baseMap,
-    });
-    if (data?.getIndex().isClosed) {
+    if (index?.isClosed) {
       // Both sides probed (a thin solid would fool a single 5 mm probe).
       const side = probeNormalSide(hitLocal, n, data.isInside);
       const inner =
@@ -442,27 +506,57 @@ export function createMeshBrushPicker(sceneManager) {
       if (inner) return refused(PAINT_REFUSAL.INNER_FACE, host.hostId);
     }
 
-    return {
+    const clip = getHostHalfView(host.root, host.group);
+    const toTarget = (localGeometry, previewKey) => ({
       kind: "HOST",
       partType: FACE,
       hostId: host.hostId,
       baseMapId: host.baseMapId,
       metrics,
-      localGeometry: localFace,
+      localGeometry,
+      clip,
       candidate: {
         partType: FACE,
         hostAnnotationId: host.hostId,
         baseMapId: host.baseMapId,
-        geometry: localGeometryToPaint(FACE, localFace, metrics),
+        geometry: localGeometryToPaint(FACE, localGeometry, metrics),
         geomHash: null,
       },
-      previewKey: `F:${host.hostId}:${mesh.geometry.uuid}:${region.regionId}:${islandIndex}:${side}`,
-    };
+      previewKey,
+    });
+
+    // The smooth surface around the facet (a curved wall, a lathe).
+    if (index && smoothAngleDeg > BRUSH_FACE_ANGLE_DEG) {
+      const grown = matchPaintPartToIndex(FACE, localFace, index, {
+        allowFar: false,
+        smoothAngleDeg,
+      });
+      if (grown?.surfaceKey) {
+        const key = `S:${host.hostId}:${data.hash}:${smoothAngleDeg}:${
+          grown.surfaceKey
+        }:${getClipKey(clip)}`;
+        let target = surfaceCache.get(key);
+        if (!target) {
+          target = toTarget(grown.geometry, key);
+          if (surfaceCache.size >= SURFACE_CACHE_MAX) {
+            surfaceCache.delete(surfaceCache.keys().next().value);
+          }
+          surfaceCache.set(key, target);
+        }
+        return target;
+      }
+    }
+
+    return toTarget(
+      localFace,
+      `F:${host.hostId}:${mesh.geometry.uuid}:${region.regionId}:${islandIndex}:${side}`
+    );
   }
 
   function pickHostEdge({
     sceneHit,
     armedTemplateId,
+    smoothAngleDeg,
     camera,
     rect,
     cursor,
@@ -497,31 +591,40 @@ export function createMeshBrushPicker(sceneManager) {
         source: host.source,
         baseMap: host.baseMap,
       });
-      const chains = data?.getIndex().chains ?? [];
-      if (!chains.length) continue;
+      const curves = data?.getIndex().getCurves(smoothAngleDeg).curves ?? [];
+      if (!curves.length) continue;
       const frame = getFrame(host.group);
       const isHostHit = root === hostHitRoot;
-      chains.forEach((chain, chainIndex) => {
-        const [a, b] = chain.points;
-        const hit = getSegmentScreenHit(
-          frame.toWorld(a),
-          frame.toWorld(b),
-          camera,
-          rect,
-          cursor
-        );
-        if (!hit || hit.distancePx > BRUSH_EDGE_PICK_PX) return;
-        if (!accept(hit.point)) return;
-        const score = hit.distancePx - (isHostHit ? HOST_HIT_TIE_PX : 0);
-        if (!best || score < best.score) {
-          best = {
-            score,
-            distancePx: hit.distancePx,
-            host,
-            data,
-            chain,
-            chainIndex,
-          };
+      const clip = getHostHalfView(root, host.group);
+      curves.forEach((curve, curveIndex) => {
+        // Every displayed segment (a straight edge has one).
+        let from = frame.toWorld(curve.points[0]);
+        for (let i = 1; i < curve.points.length; i++) {
+          const to = frame.toWorld(curve.points[i]);
+          const displayed = isSegmentDisplayed(
+            curve.points[i - 1],
+            curve.points[i],
+            clip
+          );
+          const hit = displayed
+            ? getSegmentScreenHit(from, to, camera, rect, cursor)
+            : null;
+          from = to;
+          if (!hit || hit.distancePx > BRUSH_EDGE_PICK_PX) continue;
+          if (!accept(hit.point)) continue;
+          const score = hit.distancePx - (isHostHit ? HOST_HIT_TIE_PX : 0);
+          if (!best || score < best.score) {
+            best = {
+              score,
+              distancePx: hit.distancePx,
+              host,
+              data,
+              curve,
+              curveIndex,
+              smoothAngleDeg,
+              clip,
+            };
+          }
         }
       });
     }
@@ -529,12 +632,15 @@ export function createMeshBrushPicker(sceneManager) {
   }
 
   function edgeTarget(best) {
-    const { host, data, chain, chainIndex } = best;
+    const { host, data, curve, curveIndex, smoothAngleDeg, clip } = best;
     const metrics = getMeshPaintMetrics(host.baseMap);
     if (!metrics) return refused(PAINT_REFUSAL.NO_SCALE, host.hostId);
-    const localGeometry = chain.sides?.length
-      ? { points: [chain.points[0], chain.points[1]], sides: chain.sides }
-      : { points: [chain.points[0], chain.points[1]] };
+    const localGeometry = { points: [...curve.points] };
+    if (curve.sides?.length) localGeometry.sides = curve.sides;
+    // A curve remembers the angle it was chained with (the re-sync chains
+    // the host's edges again with the same one).
+    const isCurve = curve.points.length > 2;
+    if (isCurve) localGeometry.angleDeg = smoothAngleDeg;
     return {
       kind: "HOST",
       partType: EDGE,
@@ -542,6 +648,7 @@ export function createMeshBrushPicker(sceneManager) {
       baseMapId: host.baseMapId,
       metrics,
       localGeometry,
+      clip,
       candidate: {
         partType: EDGE,
         hostAnnotationId: host.hostId,
@@ -549,15 +656,24 @@ export function createMeshBrushPicker(sceneManager) {
         geometry: localGeometryToPaint(EDGE, localGeometry, metrics),
         geomHash: null,
       },
-      previewKey: `E:${host.hostId}:${data.hash}:${chainIndex}`,
+      previewKey: `E:${host.hostId}:${data.hash}:${
+        isCurve ? smoothAngleDeg : 0
+      }:${curveIndex}:${getClipKey(clip)}`,
     };
   }
 
   /**
    * @param {{clientX: number, clientY: number}} event
-   * @param {{partType: "FACE"|"EDGE", armedTemplateId: string|null}} options
+   * @param {{partType: "FACE"|"EDGE", armedTemplateId: string|null,
+   *   smoothAngleDeg?: number}} options - smoothAngleDeg: neighbors folding
+   *   (facets) / turning (edges) by less are one surface / one curve; 0 =
+   *   planar facets and straight edges only.
    */
-  function pick(event, { partType, armedTemplateId = null } = {}) {
+  function pick(
+    event,
+    { partType, armedTemplateId = null, smoothAngleDeg = 0 } = {}
+  ) {
+    const smoothAngle = Math.max(0, Number(smoothAngleDeg) || 0);
     const camera = sceneManager?.camera;
     const dom = sceneManager?.renderer?.domElement;
     if (!camera || !dom || !sceneManager.scene || !event) return null;
@@ -582,7 +698,7 @@ export function createMeshBrushPicker(sceneManager) {
       }
       if (!sceneHit) return null;
       if (sceneHit.kind === "MAILLE") return refused(PAINT_REFUSAL.OCCLUDED);
-      return pickHostFace(sceneHit, armedTemplateId);
+      return pickHostFace(sceneHit, armedTemplateId, smoothAngle);
     }
 
     if (partType !== EDGE) return null;
@@ -597,6 +713,7 @@ export function createMeshBrushPicker(sceneManager) {
       ...screen,
       sceneHit,
       armedTemplateId,
+      smoothAngleDeg: smoothAngle,
     });
     if (
       paintEdge &&

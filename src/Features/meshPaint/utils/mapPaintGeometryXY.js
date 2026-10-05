@@ -23,6 +23,13 @@ export default function mapPaintGeometryXY(partType, geometry, mapXY) {
       points: (geometry.points ?? []).map((p) => mapPoint(p, mapXY)),
     };
   }
+  // Curved surface (indexed facets).
+  if (Array.isArray(geometry.vertices)) {
+    return {
+      ...geometry,
+      vertices: geometry.vertices.map((p) => mapPoint(p, mapXY)),
+    };
+  }
   return {
     ...geometry,
     polygons: (geometry.polygons ?? []).map((polygon) => ({

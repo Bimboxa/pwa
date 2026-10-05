@@ -32,6 +32,7 @@ import {
 import { subscribeMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
 import commitMeshBrushTargetService from "Features/meshPaint/services/commitMeshBrushTargetService";
 import { createMeshBrushPicker } from "Features/meshPaint/services/meshBrushPick";
+import clipPaintGeometry from "Features/meshPaint/utils/clipPaintGeometry";
 import findMeshPaintMatches from "Features/meshPaint/utils/findMeshPaintMatches";
 import getMeshPaintColor from "Features/meshPaint/utils/getMeshPaintColor";
 import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
@@ -108,6 +109,11 @@ export default function useMeshBrushPointerHandlers() {
   const templateId = useSelector(selectMeshBrushTemplateId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  // « Sélection de face »: below this fold, neighboring facets are one
+  // (curved) surface and neighboring edges one curve.
+  const smoothAngleDeg = useSelector(
+    (s) => s.threedEditor.faceSelectionAngleDeg
+  );
   const linkedListingSourceByListingId = useSelector(
     selectLinkedListingSourceForSelectedScope
   );
@@ -174,6 +180,7 @@ export default function useMeshBrushPointerHandlers() {
       matchRows,
       rowsById,
       contextRefusal,
+      smoothAngleDeg,
     };
   }, [
     projectId,
@@ -183,13 +190,14 @@ export default function useMeshBrushPointerHandlers() {
     matchRows,
     rowsById,
     contextRefusal,
+    smoothAngleDeg,
   ]);
 
   // Paints / template / context changed: the helper and the preview follow
   // (a click just painted the part: « Peindre » becomes « Retirer »).
   useEffect(() => {
     refreshRef.current?.();
-  }, [matchRows, contextRefusal, armedTemplate]);
+  }, [matchRows, contextRefusal, armedTemplate, smoothAngleDeg]);
 
   useEffect(() => {
     if (!partType || !templateId) return;
@@ -228,7 +236,11 @@ export default function useMeshBrushPointerHandlers() {
 
     // Picked target + what a click does on it (action of the toggle).
     function resolveTarget(e) {
-      const picked = picker.pick(e, { partType, armedTemplateId: templateId });
+      const picked = picker.pick(e, {
+        partType,
+        armedTemplateId: templateId,
+        smoothAngleDeg: dataRef.current.smoothAngleDeg,
+      });
       if (!picked || picked.kind === "REFUSED") return picked;
       const data = dataRef.current;
       if (data.contextRefusal) {
@@ -284,12 +296,18 @@ export default function useMeshBrushPointerHandlers() {
 
     function buildPreview(target, color) {
       const group = sceneManager.imagesManager?.getGroup?.(target.baseMapId);
-      if (!group || !target.localGeometry) return null;
+      // Only the displayed side of a part of a half-view revolution.
+      const displayed = clipPaintGeometry(
+        target.partType,
+        target.localGeometry,
+        target.clip
+      );
+      if (!group || !displayed) return null;
       group.updateWorldMatrix(true, false);
       const matrix = group.matrixWorld;
 
       if (target.partType === MESH_PAINT_PART_TYPES.FACE) {
-        const { positions } = triangulatePaintFace(target.localGeometry, {
+        const { positions } = triangulatePaintFace(displayed, {
           lift: PREVIEW_FACE_LIFT_M,
         });
         if (!(positions?.length >= 9)) return null;
@@ -309,11 +327,16 @@ export default function useMeshBrushPointerHandlers() {
         });
       }
 
-      const [a, b] = target.localGeometry.points ?? [];
-      if (!a || !b) return null;
-      const wa = new Vector3(a.x, a.y, a.z).applyMatrix4(matrix);
-      const wb = new Vector3(b.x, b.y, b.z).applyMatrix4(matrix);
-      const line = buildMesh3dEdgeLines([wa.x, wa.y, wa.z, wb.x, wb.y, wb.z], {
+      // One line segment per segment of the edge (a curve has several).
+      const positions = [];
+      const v = new Vector3();
+      for (const segment of displayed.segments) {
+        for (const p of segment) {
+          v.set(p.x, p.y, p.z).applyMatrix4(matrix);
+          positions.push(v.x, v.y, v.z);
+        }
+      }
+      const line = buildMesh3dEdgeLines(positions, {
         color,
         linewidth: PREVIEW_EDGE_WIDTH_PX,
         domElement: dom,

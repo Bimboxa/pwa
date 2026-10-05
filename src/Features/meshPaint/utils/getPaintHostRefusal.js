@@ -9,11 +9,10 @@ export const PAINT_REFUSAL = Object.freeze({
   PHOTO_PLAN: "PHOTO_PLAN", // photo base map reconstruction (no base map group)
   OBJECT_3D: "OBJECT_3D", // imported model (GLB): no planar facets of its own
   IMAGE: "IMAGE", // picture plane
-  CURVED_SHAPE: "CURVED_SHAPE", // REVOLUTION / EXTRUSION_PROFILE shells
   MESH_CELL: "MESH_CELL", // maille annotation (cells of a meshed parent)
   OWN_TEMPLATE: "OWN_TEMPLATE", // annotation of the armed template itself
   // part rules (picking)
-  CURVED_SURFACE: "CURVED_SURFACE", // the clicked region is not planar
+  CURVED_SURFACE: "CURVED_SURFACE", // no planar facet under the cursor
   INNER_FACE: "INNER_FACE", // inner side of a closed solid
   NOT_SOLID: "NOT_SOLID", // a decoration of the host, not its solid
   OCCLUDED: "OCCLUDED", // a maille hides the host under the cursor
@@ -27,7 +26,6 @@ export const PAINT_REFUSAL_LABELS = Object.freeze({
   PHOTO_PLAN: "Annotation de photo non peignable",
   OBJECT_3D: "Objet 3D non peignable",
   IMAGE: "Image non peignable",
-  CURVED_SHAPE: "Forme courbe non peignable",
   MESH_CELL: "Maille non peignable",
   OWN_TEMPLATE: "Annotation du modèle actif",
   CURVED_SURFACE: "Surface courbe",
@@ -38,13 +36,6 @@ export const PAINT_REFUSAL_LABELS = Object.freeze({
   READ_ONLY: "Plan de repérage en lecture seule",
   LINKED_LISTING: "Modèle d'une liste liée",
 });
-
-// Shapes built as curved shells (lathe / profile sweeps): their facets are
-// tessellation artifacts, not parts.
-const CURVED_SHAPE_KEYS = new Set(["REVOLUTION", "EXTRUSION_PROFILE"]);
-
-const getShapeKey = (shape3D) =>
-  typeof shape3D === "string" ? shape3D : (shape3D?.key ?? null);
 
 /**
  * Host-level refusal of a brush target.
@@ -71,9 +62,6 @@ export default function getPaintHostRefusal({
   const type = source?.type ?? rootUserData?.annotationType ?? null;
   if (type === "OBJECT_3D") return PAINT_REFUSAL.OBJECT_3D;
   if (type === "IMAGE") return PAINT_REFUSAL.IMAGE;
-  if (CURVED_SHAPE_KEYS.has(getShapeKey(source?.shape3D))) {
-    return PAINT_REFUSAL.CURVED_SHAPE;
-  }
   if (source?.isMeshCell) return PAINT_REFUSAL.MESH_CELL;
   const templateId =
     source?.annotationTemplateId ?? rootUserData?.annotationTemplateId ?? null;
