@@ -269,6 +269,12 @@ export default function buildRevolutionMesh({
     // Tag every run so the carve pipeline finds ALL lathe surfaces (not just
     // the first mesh) — see getSolidMeshesFromObject3D.
     mesh.userData.role = "SOLID";
+    // Axis of the sweep in the mesh frame (the « Pinceau » completes a
+    // display-only half-view by turning it 180° about it — getHostPartData).
+    mesh.userData.revolutionAxis = {
+      center: { x: center.x, y: center.y, z: center.z ?? 0 },
+      axisAlongNormal: Boolean(axisAlongNormal),
+    };
     group.add(mesh);
     // Tagged (and per-call material, per the dispose rule above) so the carve
     // pipeline can strip + rebuild the grid from the carved geometry — see

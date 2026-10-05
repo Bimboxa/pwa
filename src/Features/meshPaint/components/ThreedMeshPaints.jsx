@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -44,8 +44,12 @@ import {
   PAINT_FACE_LIFT_M,
   PAINT_FACE_RENDER_ORDER,
 } from "Features/meshPaint/constants/meshPaintConstants";
+import { getHostHalfView } from "Features/meshPaint/js/buildHostPartIndexFromObject";
 import { setMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
 import focusMeshPaintInThreed from "Features/meshPaint/services/focusMeshPaintInThreed";
+import clipPaintGeometry, {
+  getClipKey,
+} from "Features/meshPaint/utils/clipPaintGeometry";
 import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
 import getMeshPaintVisibility, {
   MESH_PAINT_VISIBILITY,
@@ -224,6 +228,10 @@ export default function ThreedMeshPaints() {
 
   const layersRef = useRef(new Map()); // baseMapId → Group (isPaintLayer)
   const entriesRef = useRef(new Map()); // paintId → {object, buildKey, materialKey}
+  // Bumped when a painted host is rebuilt: its displayed side (half-view
+  // revolution) may have changed.
+  const [hostReadyTick, setHostReadyTick] = useState(0);
+  const paintedHostIdsRef = useRef(new Set());
   const faceMaterialsRef = useRef(new Map()); // style key → shared material
   const dimFaceMaterialRef = useRef(null);
   const resolvedRef = useRef(null); // resolveMeshPaints cache
@@ -369,6 +377,7 @@ export default function ThreedMeshPaints() {
     row,
     template,
     metrics,
+    clip,
     dimmed,
     highlighted,
     sceneManager,
@@ -379,7 +388,14 @@ export default function ThreedMeshPaints() {
       metrics
     );
     if (!localFace?.polygons?.length) return null;
-    const { positions, normals } = triangulatePaintFace(localFace, {
+    // Only the displayed side (host shown as a half revolution).
+    const displayed = clipPaintGeometry(
+      MESH_PAINT_PART_TYPES.FACE,
+      localFace,
+      clip
+    );
+    if (!displayed) return null;
+    const { positions, normals } = triangulatePaintFace(displayed, {
       lift: PAINT_FACE_LIFT_M,
     });
     if (!positions?.length) return null;
@@ -430,6 +446,7 @@ export default function ThreedMeshPaints() {
     row,
     template,
     metrics,
+    clip,
     dimmed,
     highlighted,
     domElement,
@@ -439,9 +456,23 @@ export default function ThreedMeshPaints() {
       row.geometry,
       metrics
     );
-    const [a, b] = localEdge?.points ?? [];
-    if (!a || !b) return null;
-    const positions = [a.x, a.y, a.z, b.x, b.y, b.z];
+    // One line segment per displayed segment of the edge (a curve has
+    // several; host shown as a half revolution: its displayed side only).
+    const points = localEdge?.points ?? [];
+    const displayed = clipPaintGeometry(
+      MESH_PAINT_PART_TYPES.EDGE,
+      localEdge,
+      clip
+    );
+    if (!displayed) return null;
+    const positions = displayed.segments.flatMap(([a, b]) => [
+      a.x,
+      a.y,
+      a.z,
+      b.x,
+      b.y,
+      b.z,
+    ]);
     if (!positions.every(Number.isFinite)) return null;
 
     const style = dimmed
@@ -457,7 +488,10 @@ export default function ThreedMeshPaints() {
     // follows the canvas on its own (LineSegments2.onBeforeRender).
     delete line.userData.isHoverOverlay;
     line.renderOrder = PAINT_EDGE_RENDER_ORDER;
-    line.userData.exportLine = { positions };
+    // Exported as ONE polyline (consecutive points, not segment pairs).
+    line.userData.exportLine = {
+      positions: points.flatMap((p) => [p.x, p.y, p.z]),
+    };
     if (style.opacity < 1) {
       line.material.transparent = true;
       line.material.opacity = style.opacity;
@@ -537,6 +571,23 @@ export default function ThreedMeshPaints() {
 
   // effects
 
+  useEffect(() => {
+    paintedHostIdsRef.current = new Set(
+      rows.map((row) => row.hostAnnotationId)
+    );
+  }, [rows]);
+
+  // Rebuilt painted hosts: the clip of their paints is read again.
+  useEffect(() => {
+    const annotationsManager =
+      getActiveThreedEditor()?.sceneManager?.annotationsManager;
+    return annotationsManager?.subscribeAnnotationReady?.((ids) => {
+      if ((ids || []).some((id) => paintedHostIdsRef.current.has(id))) {
+        setHostReadyTick((tick) => tick + 1);
+      }
+    });
+  }, []);
+
   // Unmount: dispose everything (objects, layers, shared materials).
   useEffect(() => {
     return () => {
@@ -596,6 +647,14 @@ export default function ThreedMeshPaints() {
         visibility === MESH_PAINT_VISIBILITY.DIMMED ||
         (visibility === MESH_PAINT_VISIBILITY.HIDDEN &&
           item.status !== MESH_PAINT_STATUS.OK);
+      // Host shown as a display-only half revolution: the paint covers the
+      // full turn, only its displayed side is drawn.
+      const clip = getHostHalfView(
+        sceneManager.annotationsManager?.annotationsObjectsMap?.[
+          row.hostAnnotationId
+        ],
+        group
+      );
       const template = item.template;
       const styleKey =
         row.partType === MESH_PAINT_PART_TYPES.EDGE
@@ -612,6 +671,7 @@ export default function ThreedMeshPaints() {
         getGeometryKey(row.geometry),
         `${metrics.imageWidth}x${metrics.imageHeight}@${metrics.meterByPx}`,
         styleKey,
+        getClipKey(clip),
         dimmed ? "dim" : "",
         highlighted ? "hl" : "",
       ].join("|");
@@ -622,6 +682,7 @@ export default function ThreedMeshPaints() {
           row,
           template,
           metrics,
+          clip,
           dimmed,
           highlighted,
           sceneManager,
@@ -650,6 +711,7 @@ export default function ThreedMeshPaints() {
         Object.assign(built.object.userData, {
           localGeometry: built.localGeometry,
           localNormal: built.localNormal,
+          clip,
         });
       }
 
@@ -722,6 +784,7 @@ export default function ThreedMeshPaints() {
     highlightedPaintId,
     annotationsLoadTick,
     baseMapsLoadTick,
+    hostReadyTick,
   ]);
 
   // Focus request from the panel (one per nonce bump).

@@ -19,6 +19,8 @@ import {
   faceArea,
   faceCentroid,
   faceOverlapArea,
+  faceOverlapAreaByFacet,
+  isCurvedFace,
   localGeometryBox,
 } from "./meshPaintGeometry.js";
 
@@ -31,6 +33,9 @@ import {
 //   never match), plane gap ≤ MATCH_PLANE_GAP_M, overlap ≥ ratio × min area.
 // EDGE: collinear within MATCH_ANGLE_DEG (direction sign ignored), line gap ≤
 //   MATCH_PLANE_GAP_M over the overlap, overlap ≥ ratio × min length.
+// Curved parts (a smooth surface, a curve) are compared facet by facet /
+//   segment by segment, the overlaps added up: a facet painted on its own
+//   and the surface holding it are the same part.
 //
 // Pure: node-testable, relative imports only.
 
@@ -39,6 +44,9 @@ const COS_MATCH = Math.cos((MATCH_ANGLE_DEG * Math.PI) / 180);
 // Prepared items are cached per row object (Dexie rows are never mutated in
 // place) and per metrics: resolveMeshPaints runs in several memos per change.
 const preparedCache = new WeakMap();
+// Verdicts per pair of prepared items (a large curved surface is costly to
+// compare, and the brush asks again on every hover frame).
+const sameCache = new WeakMap();
 const metricsKey = (m) => `${m.imageWidth}|${m.imageHeight}|${m.meterByPx}`;
 
 function computePrepared(partType, geometry, metrics) {
@@ -58,20 +66,17 @@ function computePrepared(partType, geometry, metrics) {
       centroid: faceCentroid(local),
     };
   }
-  const [a, b] = [local.points[0], local.points[local.points.length - 1]];
-  const len = edgeLength(local);
-  const chord = length(sub(b, a));
-  if (!(chord > MIN_EDGE_LENGTH_M)) return null;
-  return {
-    partType,
-    local,
-    box,
-    a,
-    b,
-    length: len,
-    chord,
-    dir: normalize(sub(b, a)),
-  };
+  // A curve is compared segment by segment (a straight edge is one).
+  const segments = [];
+  for (let i = 0; i + 1 < local.points.length; i++) {
+    const a = local.points[i];
+    const b = local.points[i + 1];
+    const chord = length(sub(b, a));
+    if (!(chord > MIN_EDGE_LENGTH_M)) continue;
+    segments.push({ a, b, chord, dir: normalize(sub(b, a)) });
+  }
+  if (!segments.length) return null;
+  return { partType, local, box, segments, length: edgeLength(local) };
 }
 
 /**
@@ -112,6 +117,13 @@ function boxesTouch(boxA, boxB, slack) {
 }
 
 function isSameFace(A, B) {
+  if (isCurvedFace(A.local) || isCurvedFace(B.local)) {
+    const overlap = faceOverlapAreaByFacet(A.local, B.local, {
+      cosMin: COS_MATCH,
+      maxGap: MATCH_PLANE_GAP_M,
+    });
+    return overlap >= MATCH_MIN_OVERLAP_RATIO * Math.min(A.area, B.area);
+  }
   if (dot(A.normal, B.normal) <= COS_MATCH) return false;
   const gap = Math.max(
     Math.abs(dot(A.normal, sub(B.centroid, A.centroid))),
@@ -151,10 +163,17 @@ export function getEdgeOverlap(A, B) {
 }
 
 function isSameEdge(A, B) {
-  if (Math.abs(dot(A.dir, B.dir)) <= COS_MATCH) return false;
-  const { overlap, gap } = getEdgeOverlap(A, B);
-  if (gap > MATCH_PLANE_GAP_M) return false;
-  return overlap >= MATCH_MIN_OVERLAP_RATIO * Math.min(A.chord, B.chord);
+  let total = 0;
+  for (const a of A.segments) {
+    for (const b of B.segments) {
+      if (Math.abs(dot(a.dir, b.dir)) <= COS_MATCH) continue;
+      const { overlap, gap } = getEdgeOverlap(a, b);
+      if (gap <= MATCH_PLANE_GAP_M) total += overlap;
+    }
+  }
+  return (
+    total > 0 && total >= MATCH_MIN_OVERLAP_RATIO * Math.min(A.length, B.length)
+  );
 }
 
 /**
@@ -164,9 +183,20 @@ function isSameEdge(A, B) {
 export function isSameMeshPaintPart(A, B) {
   if (!A || !B || A.partType !== B.partType) return false;
   if (!boxesTouch(A.box, B.box, MATCH_PLANE_GAP_M)) return false;
-  return A.partType === MESH_PAINT_PART_TYPES.FACE
-    ? isSameFace(A, B)
-    : isSameEdge(A, B);
+  let known = sameCache.get(A);
+  if (!known) {
+    known = new WeakMap();
+    sameCache.set(A, known);
+  }
+  let same = known.get(B);
+  if (same === undefined) {
+    same =
+      A.partType === MESH_PAINT_PART_TYPES.FACE
+        ? isSameFace(A, B)
+        : isSameEdge(A, B);
+    known.set(B, same);
+  }
+  return same;
 }
 
 /**

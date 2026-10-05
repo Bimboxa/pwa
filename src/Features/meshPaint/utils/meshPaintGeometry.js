@@ -16,7 +16,13 @@ import { MESH_PAINT_PART_TYPES } from "../constants/meshPaintConstants.js";
 //
 //   LocalFace = { polygons: [{ contour: V[], holes: V[][] }], normal: V }
 //     unit normal toward the painted side, contours CCW about it, holes CW.
-//   LocalEdge = { points: [V, V] }
+//   Curved LocalFace = { polygons, normal, curved: true, angleDeg } — a
+//     smooth surface: every polygon is ONE planar facet whose contour is CCW
+//     about ITS painted side (the winding is the side, facet by facet);
+//     `normal` is only indicative (area-weighted mean); angleDeg = the
+//     smoothing angle the surface was grown with.
+//   LocalEdge = { points: V[] } — 2 points (straight edge) or more (a planar
+//     curve; closed: first point repeated), with `angleDeg` when curved.
 //
 // Pure (no three.js): node-testable, relative imports only.
 
@@ -87,6 +93,29 @@ export function getFaceNewellNormal(face) {
   return best && bestArea > 0 ? normalize(best) : null;
 }
 
+export const isCurvedFace = (face) => Boolean(face?.curved);
+
+// Unit normal of ONE polygon from its contour winding (null when degenerate).
+export function getPolygonNormal(polygon) {
+  const v = loopAreaVector(polygon?.contour || []);
+  const area = length(v);
+  return area > 0 ? scale(v, 1 / area) : null;
+}
+
+// Indicative normal of a curved face: the area-weighted mean of its facets'
+// normals, or the largest facet's normal when they cancel out (a full turn).
+function getCurvedFaceNormal(face) {
+  let sum = { ...ZERO };
+  let total = 0;
+  for (const polygon of getPolygons(face)) {
+    const v = loopAreaVector(polygon.contour || []);
+    sum = add(sum, v);
+    total += length(v);
+  }
+  if (total > 0 && length(sum) > 1e-3 * total) return normalize(sum);
+  return getFaceNewellNormal(face);
+}
+
 // --- measures ---
 
 /**
@@ -105,7 +134,7 @@ export function faceArea(localFace) {
   return total;
 }
 
-// Length (m) of an edge (sum of its segments, V1 edges have 2 points).
+// Length (m) of an edge (sum of its segments).
 export function edgeLength(localEdge) {
   const points = localEdge?.points || [];
   let total = 0;
@@ -246,6 +275,59 @@ export function faceOverlapArea(faceA, faceB) {
   return 0;
 }
 
+// Facets of a face (planar: its polygons share the face normal; curved: one
+// normal per polygon), with their boxes — the unit of the facet-wise overlap.
+function getFacets(face) {
+  const curved = isCurvedFace(face);
+  const shared =
+    !curved && face?.normal && length(face.normal) > 0
+      ? normalize(face.normal)
+      : null;
+  const facets = [];
+  for (const polygon of getPolygons(face)) {
+    const normal = shared || getPolygonNormal(polygon);
+    if (!normal || !(polygon.contour?.length >= 3)) continue;
+    const local = { polygons: [polygon], normal };
+    facets.push({
+      local,
+      normal,
+      origin: polygon.contour[0],
+      box: localGeometryBox(MESH_PAINT_PART_TYPES.FACE, local),
+    });
+  }
+  return facets;
+}
+
+/**
+ * Area (m²) two faces share, facet by facet — for curved faces (a planar
+ * face is one facet per polygon): the overlaps of every pair of facets on
+ * the same side (normals within `cosMin`, signed) and the same plane (gap ≤
+ * `maxGap`) are added up.
+ */
+export function faceOverlapAreaByFacet(faceA, faceB, { cosMin, maxGap }) {
+  const facetsA = getFacets(faceA);
+  const facetsB = getFacets(faceB);
+  let total = 0;
+  for (const a of facetsA) {
+    for (const b of facetsB) {
+      if (dot(a.normal, b.normal) <= cosMin) continue;
+      if (
+        a.box.min.x - maxGap > b.box.max.x ||
+        b.box.min.x - maxGap > a.box.max.x ||
+        a.box.min.y - maxGap > b.box.max.y ||
+        b.box.min.y - maxGap > a.box.max.y ||
+        a.box.min.z - maxGap > b.box.max.z ||
+        b.box.min.z - maxGap > a.box.max.z
+      ) {
+        continue;
+      }
+      if (Math.abs(dot(a.normal, sub(b.origin, a.origin))) > maxGap) continue;
+      total += faceOverlapArea(a.local, b.local);
+    }
+  }
+  return total;
+}
+
 // 2D shoelace centroid of an open ring of [x, y] (null when degenerate).
 function ringCentroid(ring) {
   let area = 0;
@@ -272,6 +354,23 @@ function ringCentroid(ring) {
 export function faceCentroid(localFace) {
   const points = getPartPoints(MESH_PAINT_PART_TYPES.FACE, localFace);
   if (!points.length) return { ...ZERO };
+  if (isCurvedFace(localFace)) {
+    let total = 0;
+    let sum = { ...ZERO };
+    for (const polygon of getPolygons(localFace)) {
+      const normal = getPolygonNormal(polygon);
+      if (!normal) continue;
+      const facet = { polygons: [polygon], normal };
+      const area = faceArea(facet);
+      total += area;
+      sum = add(sum, scale(faceCentroid(facet), area));
+    }
+    if (total > MIN_FACE_AREA_M2) return scale(sum, 1 / total);
+    return scale(
+      points.reduce((acc, p) => add(acc, p), { ...ZERO }),
+      1 / points.length
+    );
+  }
   const n = localFace?.normal
     ? normalize(localFace.normal)
     : getFaceNewellNormal(localFace);
@@ -328,6 +427,26 @@ export function localGeometryBox(partType, localGeometry) {
  * normal, the Newell normal of the loops is adopted.
  */
 export function orientFaceLoops(localFace) {
+  if (isCurvedFace(localFace)) {
+    // The contour winding of each facet IS its side: only the holes are
+    // re-wound (CW about their facet).
+    const polygons = [];
+    for (const polygon of getPolygons(localFace)) {
+      const contour = (polygon.contour || []).map(toV);
+      const normal = getPolygonNormal({ contour });
+      if (!normal) continue;
+      const holes = (polygon.holes || []).map((hole) => hole.map(toV));
+      for (const hole of holes) {
+        if (dot(loopAreaVector(hole), normal) > 0) hole.reverse();
+      }
+      polygons.push({ contour, holes });
+    }
+    const curved = { polygons, curved: true };
+    const normal = getCurvedFaceNormal(curved) || AXIS_Z;
+    return Number.isFinite(localFace.angleDeg)
+      ? { ...curved, normal, angleDeg: localFace.angleDeg }
+      : { ...curved, normal };
+  }
   let n = localFace?.normal ? normalize(localFace.normal) : null;
   if (!n || length(n) === 0) n = getFaceNewellNormal(localFace) || AXIS_Z;
   return {
@@ -346,6 +465,15 @@ export function orientFaceLoops(localFace) {
 
 // The other side of a face: normal negated, loops re-wound about it.
 export function flipFace(localFace) {
+  if (isCurvedFace(localFace)) {
+    return orientFaceLoops({
+      ...localFace,
+      polygons: getPolygons(localFace).map((polygon) => ({
+        contour: [...(polygon.contour || [])].reverse(),
+        holes: polygon.holes || [],
+      })),
+    });
+  }
   const n = localFace?.normal ? normalize(localFace.normal) : null;
   const base =
     n && length(n) > 0 ? n : getFaceNewellNormal(localFace) || AXIS_Z;
@@ -391,7 +519,13 @@ export function maxVertexShift(partType, geomA, geomB) {
         .sort((a, b) => a - b)
         .join(",");
     if (holeCount(polygonsA) !== holeCount(polygonsB)) return Infinity;
-    if (geomA.normal && geomB.normal && dot(geomA.normal, geomB.normal) <= 0) {
+    if (isCurvedFace(geomA) !== isCurvedFace(geomB)) return Infinity;
+    if (
+      !isCurvedFace(geomA) &&
+      geomA.normal &&
+      geomB.normal &&
+      dot(geomA.normal, geomB.normal) <= 0
+    ) {
       return Infinity;
     }
   } else if ((geomA.points || []).length !== (geomB.points || []).length) {

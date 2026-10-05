@@ -36,6 +36,11 @@ export default function ThreedSelectionDimmer({
   );
   const mainBaseMap = useMainBaseMap();
   const mainBaseMapId = mainBaseMap?.id ?? null;
+  // Bumped after every annotations load (useAutoLoadAnnotationsInThreedEditor):
+  // a solo toggle rebuilds the annotations it leaves out (`soloDimmed`).
+  const annotationsLoadTick = useSelector(
+    (s) => s.threedEditor.annotationsLoadTick
+  );
 
   const selectedIdsRef = useRef([]);
   selectedIdsRef.current = getSelectedAnnotationIds(selectedItems);
@@ -92,7 +97,10 @@ export default function ThreedSelectionDimmer({
   );
 
   // Apply state to every existing annotation when the selection — or the
-  // per-basemap annotation mode / main basemap — changes.
+  // per-basemap annotation mode / main basemap — changes, and after every
+  // annotations load: the objects a solo toggle just rebuilt get their dim
+  // here even when the ready subscription below missed them (editor not
+  // created yet when this component mounted).
   useEffect(() => {
     const editor = threedEditorRef.current;
     if (!editor) return;
@@ -105,6 +113,7 @@ export default function ThreedSelectionDimmer({
     selectedItems,
     annotationsModeByBaseMapId,
     mainBaseMapId,
+    annotationsLoadTick,
     computeAndApply,
     threedEditorRef,
   ]);

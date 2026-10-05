@@ -548,6 +548,12 @@ export default function MainThreedEditor() {
       if (ids.includes(id)) return STATE_NONE;
       if (isHovered) return isLineHover ? STATE_HOVER : STATE_NONE;
       if (hasSelection) return STATE_DIM;
+      // Solo: an annotation left out of the solo goes back to its dimmed
+      // look once the hover leaves it (ThreedSelectionDimmer's rule).
+      const object =
+        threedEditorRef.current?.sceneManager?.annotationsManager
+          ?.annotationsObjectsMap?.[id];
+      if (object?.userData?.soloDimmed === true) return STATE_DIM;
       return STATE_NONE;
     },
     [store]

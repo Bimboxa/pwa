@@ -1,6 +1,11 @@
 import { MESH_PAINT_PART_TYPES } from "../constants/meshPaintConstants.js";
 
 import { paintGeometryToLocal } from "./meshPaintFrame.js";
+import {
+  faceArea,
+  getPolygonNormal,
+  isCurvedFace,
+} from "./meshPaintGeometry.js";
 
 // Where the painted parts of a host go when the host is split in plan (2D
 // cut of a POLYGON / wall, « Coupe face » 2D splits, scissors): each part is
@@ -196,17 +201,76 @@ function sampleSegment(a, b, step, tangent, out) {
   }
 }
 
-function sampleOutline(loops, tangent) {
-  const segments = loops.flatMap((loop) => ringSegments(loop, true));
-  const total = segments.reduce(
-    (sum, [a, b]) => sum + Math.hypot(b.x - a.x, b.y - a.y),
+// items: [{segments: [[a, b]…], tangent}] — one sampling step for all.
+function sampleSegments(items) {
+  const total = items.reduce(
+    (sum, item) =>
+      sum +
+      item.segments.reduce(
+        (acc, [a, b]) => acc + Math.hypot(b.x - a.x, b.y - a.y),
+        0
+      ),
     0
   );
   const samples = [];
   if (!(total > 0)) return samples;
   const step = Math.max(MIN_STEP_M, total / TARGET_SAMPLES);
-  segments.forEach(([a, b]) => sampleSegment(a, b, step, tangent, samples));
+  for (const { segments, tangent } of items) {
+    segments.forEach(([a, b]) => sampleSegment(a, b, step, tangent, samples));
+  }
   return samples;
+}
+
+function sampleOutline(loops, tangent) {
+  return sampleSegments([
+    { segments: loops.flatMap((loop) => ringSegments(loop, true)), tangent },
+  ]);
+}
+
+const planTangent = (normal) => {
+  const horizontal = Math.hypot(normal.x, normal.y);
+  return horizontal > 1e-6
+    ? { x: -normal.y / horizontal, y: normal.x / horizontal }
+    : null;
+};
+
+// Curved surface: its up / down facing facets by area when they carry most
+// of it (a dome), otherwise the outline of every other facet (a curved
+// wall), each along its own direction.
+function sampleCurvedFace(local) {
+  const flat = [];
+  const steep = [];
+  let flatArea = 0;
+  let steepArea = 0;
+  for (const polygon of local.polygons) {
+    const normal = getPolygonNormal(polygon);
+    if (!normal) continue;
+    const area = faceArea({ polygons: [polygon], normal });
+    const plan2d = {
+      contour: polygon.contour.map((p) => ({ x: p.x, y: p.y })),
+      holes: (polygon.holes || []).map((hole) =>
+        hole.map((p) => ({ x: p.x, y: p.y }))
+      ),
+    };
+    if (Math.abs(normal.z) >= PLAN_FACE_MIN_NZ) {
+      flat.push(plan2d);
+      flatArea += area;
+    } else {
+      steep.push({
+        segments: [plan2d.contour, ...plan2d.holes].flatMap((ring) =>
+          ringSegments(ring, true)
+        ),
+        tangent: planTangent(normal),
+      });
+      steepArea += area;
+    }
+  }
+  if (flatArea >= steepArea) {
+    const samples = sampleArea(flat);
+    if (samples.length) return { mode: "AREA", samples, unit: 1 };
+  }
+  const samples = sampleSegments(steep);
+  return samples.length ? { mode: "LENGTH", samples, unit: 1 } : null;
 }
 
 function sampleArea(polygons) {
@@ -242,26 +306,37 @@ function samplePart(row, metrics) {
   const plan = (v) => ({ x: v.x, y: v.y });
 
   if (!isFace(row.partType)) {
-    const [a, b] = [local.points[0], local.points[local.points.length - 1]];
-    const d = { x: b.x - a.x, y: b.y - a.y };
-    const length = Math.hypot(d.x, d.y);
-    if (!(length > MIN_STEP_M)) {
-      return {
-        mode: "LENGTH",
-        samples: [{ ...plan(a), weight: 1, tangent: null }],
-        unit: 1,
-      };
+    // Every segment of the edge (a curve has several), along its direction.
+    const items = [];
+    for (let i = 0; i + 1 < local.points.length; i++) {
+      const a = plan(local.points[i]);
+      const b = plan(local.points[i + 1]);
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      if (!(length > MIN_STEP_M)) continue;
+      items.push({
+        segments: [[a, b]],
+        tangent: { x: (b.x - a.x) / length, y: (b.y - a.y) / length },
+      });
     }
-    const samples = [];
-    const step = Math.max(MIN_STEP_M, length / TARGET_SAMPLES);
-    sampleSegment(
-      plan(a),
-      plan(b),
-      step,
-      { x: d.x / length, y: d.y / length },
-      samples
-    );
-    return { mode: "LENGTH", samples, unit: 1 };
+    const samples = sampleSegments(items);
+    if (samples.length) return { mode: "LENGTH", samples, unit: 1 };
+    // Vertical edge: a point in plan.
+    return {
+      mode: "LENGTH",
+      samples: [{ ...plan(local.points[0]), weight: 1, tangent: null }],
+      unit: 1,
+    };
+  }
+
+  if (isCurvedFace(local)) {
+    const curved = sampleCurvedFace(local);
+    if (curved) return curved;
+    const c = local.polygons[0].contour[0];
+    return {
+      mode: "LENGTH",
+      samples: [{ x: c.x, y: c.y, weight: 1, tangent: null }],
+      unit: 1,
+    };
   }
 
   const polygons = local.polygons.map((polygon) => ({
@@ -272,11 +347,7 @@ function samplePart(row, metrics) {
     const samples = sampleArea(polygons);
     if (samples.length) return { mode: "AREA", samples, unit: 1 };
   }
-  const horizontal = Math.hypot(local.normal.x, local.normal.y);
-  const tangent =
-    horizontal > 1e-6
-      ? { x: -local.normal.y / horizontal, y: local.normal.x / horizontal }
-      : null;
+  const tangent = planTangent(local.normal);
   const samples = sampleOutline(
     polygons.flatMap((polygon) => [polygon.contour, ...polygon.holes]),
     tangent

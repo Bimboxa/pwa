@@ -44,7 +44,14 @@ import {
 //     pinhole-sized border edges tolerated — see CLOSED_MAX_BORDER_M);
 //   island normals: OUTWARD on a closed host (ray parity), otherwise a
 //     deterministic orientation (+z, then +y, then +x first);
-//   hash: hashTriangles(triangles).
+//   hash: hashTriangles(triangles);
+//   getSurfaces(angleDeg): smooth surfaces — islands joined across the edges
+//     they share while the fold between NEIGHBORS stays below angleDeg
+//     (getFaceRegion's rule: a tessellated curved wall, a lathe, is one
+//     surface), with a consistent orientation on open hosts;
+//   getCurves(angleDeg): chains joined end to end while the turn at the
+//     shared vertex stays below angleDeg and the curve stays planar.
+//   Both are lazy and memoized per angle: islands / chains never change.
 //
 // Robust to inconsistent windings (extrudeClosedShape), float32 CSG noise
 // (sliver / needle triangles, T-junctions) and internal partitions of
@@ -586,6 +593,333 @@ function attachChainSides(chains, islands) {
   return chains;
 }
 
+// --- smooth surfaces ---
+
+// A triangle belongs to the island of its plane that holds its centroid.
+const COS_ISLAND = Math.cos(toRad(1));
+const ISLAND_PLANE_TOL_M = 2e-3;
+
+function isInsideLoop2d([px, py], loop) {
+  let inside = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const [xi, yi] = loop[i];
+    const [xj, yj] = loop[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function createIslandLocator(islands) {
+  const byCell = new Map();
+  const prepared = islands.map((island, index) => {
+    const origin = island.polygons[0].contour[0];
+    const basis = computeFaceBasis(island.normal, origin);
+    const key = cellKey(...cellOf(island.normal, 1));
+    if (!byCell.has(key)) byCell.set(key, []);
+    byCell.get(key).push(index);
+    return {
+      normal: island.normal,
+      d: dot(island.normal, origin),
+      basis,
+      polygons: island.polygons.map((polygon) => ({
+        contour: polygon.contour.map((p) => projectPoint(p, basis)),
+        holes: polygon.holes.map((hole) =>
+          hole.map((p) => projectPoint(p, basis))
+        ),
+      })),
+    };
+  });
+  return (tri) => {
+    const n = tri.group?.n;
+    if (!n) return -1;
+    let best = -1;
+    let bestDist = ISLAND_PLANE_TOL_M;
+    for (const sign of [1, -1]) {
+      const [cx, cy, cz] = cellOf(n, sign);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            for (const index of byCell.get(
+              cellKey(cx + dx, cy + dy, cz + dz)
+            ) || []) {
+              const island = prepared[index];
+              if (Math.abs(dot(n, island.normal)) < COS_ISLAND) continue;
+              const dist = Math.abs(
+                dot(island.normal, tri.centroid) - island.d
+              );
+              if (dist > bestDist) continue;
+              const p = projectPoint(tri.centroid, island.basis);
+              const inside = island.polygons.some(
+                (polygon) =>
+                  isInsideLoop2d(p, polygon.contour) &&
+                  !polygon.holes.some((hole) => isInsideLoop2d(p, hole))
+              );
+              if (!inside) continue;
+              best = index;
+              bestDist = dist;
+            }
+          }
+        }
+      }
+    }
+    return best;
+  };
+}
+
+// Islands sharing an edge: [{i, j, cos, sameSpin}] — cos = cosine of the
+// fold between the two (1 = flat continuation), from the in-plane directions
+// leaving the edge toward each island (orientation-free: island normals of
+// an open host are not consistent); sameSpin: the two normals are NOT on the
+// same side of the folded sheet (one of the islands must be flipped).
+function buildIslandPairs(tris, edgeMap, positions, islands) {
+  const locate = createIslandLocator(islands);
+  const islandOfTri = new Map();
+  const islandOf = (tri) => {
+    let index = islandOfTri.get(tri);
+    if (index === undefined) {
+      index = tri.altitude >= NEEDLE_ALTITUDE_M ? locate(tri) : -1;
+      islandOfTri.set(tri, index);
+    }
+    return index;
+  };
+  const pairs = new Map();
+  for (const edge of edgeMap.edges.values()) {
+    if (edge.tris.length < 2) continue;
+    const a = positions[edge.a];
+    const e = normalize(sub(positions[edge.b], a));
+    if (length(e) === 0) continue;
+    const sides = [];
+    for (const tri of edge.tris) {
+      const index = islandOf(tri);
+      if (index < 0) continue;
+      const across = cross(islands[index].normal, e);
+      const toward = dot(across, sub(tri.centroid, a));
+      if (Math.abs(toward) < NEEDLE_ALTITUDE_M) continue;
+      const spin = toward > 0 ? 1 : -1;
+      sides.push({ index, u: scale(across, spin), spin });
+    }
+    for (let k = 0; k < sides.length; k++) {
+      for (let l = k + 1; l < sides.length; l++) {
+        const [s1, s2] =
+          sides[k].index < sides[l].index
+            ? [sides[k], sides[l]]
+            : [sides[l], sides[k]];
+        if (s1.index === s2.index) continue;
+        const key = `${s1.index}_${s2.index}`;
+        const cos = -dot(s1.u, s2.u);
+        const known = pairs.get(key);
+        if (known && known.cos >= cos) continue;
+        pairs.set(key, {
+          i: s1.index,
+          j: s2.index,
+          cos,
+          sameSpin: s1.spin === s2.spin,
+        });
+      }
+    }
+  }
+  return [...pairs.values()];
+}
+
+function buildSurfaces(pairs, islandCount, angleDeg, isClosed) {
+  const parent = Array.from({ length: islandCount }, (_, i) => i);
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  const cosMin = Math.cos(toRad(Math.max(0, Math.min(180, angleDeg))));
+  const neighbors = Array.from({ length: islandCount }, () => []);
+  if (angleDeg > 0) {
+    for (const pair of pairs) {
+      if (pair.cos < cosMin) continue;
+      parent[find(pair.i)] = find(pair.j);
+      neighbors[pair.i].push({ to: pair.j, flip: pair.sameSpin });
+      neighbors[pair.j].push({ to: pair.i, flip: pair.sameSpin });
+    }
+  }
+  const surfaceOfIsland = new Array(islandCount);
+  const surfaces = [];
+  const idByRoot = new Map();
+  for (let i = 0; i < islandCount; i++) {
+    const root = find(i);
+    if (!idByRoot.has(root)) {
+      idByRoot.set(root, surfaces.length);
+      surfaces.push([]);
+    }
+    surfaceOfIsland[i] = idByRoot.get(root);
+    surfaces[surfaceOfIsland[i]].push(i);
+  }
+  // Open host: one orientation per surface, spread from its first island
+  // (a closed host's islands are all outward already).
+  const flipOfIsland = new Array(islandCount).fill(false);
+  if (!isClosed) {
+    const seen = new Array(islandCount).fill(false);
+    for (const surface of surfaces) {
+      const stack = [surface[0]];
+      seen[surface[0]] = true;
+      while (stack.length) {
+        const i = stack.pop();
+        for (const { to, flip } of neighbors[i]) {
+          if (seen[to]) continue;
+          seen[to] = true;
+          flipOfIsland[to] = flipOfIsland[i] !== flip;
+          stack.push(to);
+        }
+      }
+    }
+  }
+  return { surfaces, surfaceOfIsland, flipOfIsland };
+}
+
+// --- curves ---
+
+// A curve stays within this distance (m) of its plane.
+const CURVE_PLANE_TOL_M = 1e-3;
+const SIN_COLLINEAR = Math.sin(toRad(EDGE_COLLINEAR_DEG));
+const COS_SAME_SIDE = Math.cos(toRad(1));
+
+const weldKey = (p) =>
+  `${Math.round(p.x / WELD_M)},${Math.round(p.y / WELD_M)},${Math.round(
+    p.z / WELD_M
+  )}`;
+
+function commonSides(chains) {
+  const [first, ...others] = chains;
+  return (first.sides || []).filter((side) =>
+    others.every((chain) =>
+      (chain.sides || []).some((other) => dot(side, other) >= COS_SAME_SIDE)
+    )
+  );
+}
+
+function buildCurves(chains, angleDeg) {
+  const cosMin = Math.cos(toRad(Math.max(0, Math.min(180, angleDeg))));
+  // Chain ends meeting at each vertex; `out`: unit direction leaving it.
+  const endsByVertex = new Map();
+  chains.forEach((chain, index) => {
+    for (const end of [0, 1]) {
+      const at = chain.points[end];
+      const key = weldKey(at);
+      if (!endsByVertex.has(key)) endsByVertex.set(key, []);
+      endsByVertex.get(key).push({
+        chain: index,
+        end,
+        out: normalize(sub(chain.points[1 - end], at)),
+      });
+    }
+  });
+  // link[chain][end]: the chain end it continues into (mutual best turn
+  // below the angle).
+  const link = chains.map(() => [null, null]);
+  if (angleDeg > 0) {
+    for (const ends of endsByVertex.values()) {
+      if (ends.length < 2) continue;
+      const bestOf = ends.map((from, k) => {
+        let best = -1;
+        let bestCos = cosMin;
+        ends.forEach((to, l) => {
+          if (l === k || to.chain === from.chain) return;
+          const cos = -dot(from.out, to.out);
+          if (cos >= bestCos) {
+            bestCos = cos;
+            best = l;
+          }
+        });
+        return best;
+      });
+      bestOf.forEach((l, k) => {
+        if (l < 0 || bestOf[l] !== k) return;
+        link[ends[k].chain][ends[k].end] = {
+          chain: ends[l].chain,
+          end: ends[l].end,
+        };
+      });
+    }
+  }
+
+  const curves = [];
+  const curveOfChain = new Array(chains.length).fill(-1);
+  const pushCurve = (points, members) => {
+    let total = 0;
+    for (let i = 0; i + 1 < points.length; i++) {
+      total += length(sub(points[i + 1], points[i]));
+    }
+    for (const index of members) curveOfChain[index] = curves.length;
+    curves.push({
+      points,
+      length: total,
+      sides: commonSides(members.map((index) => chains[index])),
+      chains: members,
+    });
+  };
+
+  const visited = new Array(chains.length).fill(false);
+  chains.forEach((_, seed) => {
+    if (visited[seed]) return;
+    visited[seed] = true;
+    // Oriented run: {chain, from} = traveled from points[from].
+    const run = [{ chain: seed, from: 0 }];
+    let closed = false;
+    for (let exit = 1, current = seed; ; ) {
+      const next = link[current][exit];
+      if (!next) break;
+      if (next.chain === seed) {
+        closed = true;
+        break;
+      }
+      if (visited[next.chain]) break;
+      visited[next.chain] = true;
+      run.push({ chain: next.chain, from: next.end });
+      current = next.chain;
+      exit = 1 - next.end;
+    }
+    if (!closed) {
+      for (let exit = 0, current = seed; ; ) {
+        const next = link[current][exit];
+        if (!next || visited[next.chain]) break;
+        visited[next.chain] = true;
+        run.unshift({ chain: next.chain, from: 1 - next.end });
+        current = next.chain;
+        exit = 1 - next.end;
+      }
+    }
+
+    // Planar pieces of the run.
+    let points = [];
+    let members = [];
+    let plane = null;
+    for (const { chain, from } of run) {
+      const a = chains[chain].points[from];
+      const b = chains[chain].points[1 - from];
+      if (points.length >= 2) {
+        const origin = points[0];
+        if (!plane) {
+          const n = cross(
+            normalize(sub(points[1], origin)),
+            normalize(sub(b, a))
+          );
+          if (length(n) > SIN_COLLINEAR) plane = normalize(n);
+        } else if (Math.abs(dot(plane, sub(b, origin))) > CURVE_PLANE_TOL_M) {
+          pushCurve(points, members);
+          points = [];
+          members = [];
+          plane = null;
+        }
+      }
+      if (!points.length) points.push(a);
+      points.push(b);
+      members.push(chain);
+    }
+    pushCurve(points, members);
+  });
+  return { curves, curveOfChain };
+}
+
 // --- main ---
 
 // Smallest probe offset of probeNormalSide (above the weld / plane
@@ -624,8 +958,15 @@ export function probeNormalSide(point, normal, isInside) {
  *   frame): the islands are exactly these faces
  * @returns {{islands: Array<{polygons, normal, centroid, area}>,
  *   chains: Array<{points: [V, V], length, sides: V[]}>, isClosed: boolean,
- *   box: {min: V, max: V}, hash: string}} — chain.sides: normals (same
- *   orientation as the islands) of the islands the chain borders.
+ *   box: {min: V, max: V}, hash: string,
+ *   getSurfaces: (angleDeg) => {surfaces: number[][], surfaceOfIsland:
+ *   number[], flipOfIsland: boolean[]},
+ *   getCurves: (angleDeg) => {curves: Array<{points: V[], length, sides: V[],
+ *   chains: number[]}>, curveOfChain: number[]}}} — chain.sides: normals
+ *   (same orientation as the islands) of the islands the chain borders;
+ *   surfaces: island indexes (flipOfIsland: islands to flip for one
+ *   orientation per surface, open hosts); curves: polylines (closed: first
+ *   point repeated) with the sides common to all their chains.
  */
 export default function buildHostPartIndex({ triangles, exactFaces } = {}) {
   const { tris, positions, box } = parseTriangles(triangles);
@@ -703,11 +1044,43 @@ export default function buildHostPartIndex({ triangles, exactFaces } = {}) {
     });
   }
 
+  const chains = attachChainSides(
+    buildChains(featureEdges, positions),
+    islands
+  );
+
+  const angleKey = (angleDeg) => Math.round((Number(angleDeg) || 0) * 1e3);
+  let islandPairs = null;
+  const surfacesByAngle = new Map();
+  const getSurfaces = (angleDeg) => {
+    const key = angleKey(angleDeg);
+    if (!surfacesByAngle.has(key)) {
+      if (!islandPairs) {
+        islandPairs = buildIslandPairs(tris, edgeMap, positions, islands);
+      }
+      surfacesByAngle.set(
+        key,
+        buildSurfaces(islandPairs, islands.length, key / 1e3, isClosed)
+      );
+    }
+    return surfacesByAngle.get(key);
+  };
+  const curvesByAngle = new Map();
+  const getCurves = (angleDeg) => {
+    const key = angleKey(angleDeg);
+    if (!curvesByAngle.has(key)) {
+      curvesByAngle.set(key, buildCurves(chains, key / 1e3));
+    }
+    return curvesByAngle.get(key);
+  };
+
   return {
     islands,
-    chains: attachChainSides(buildChains(featureEdges, positions), islands),
+    chains,
     isClosed,
     box,
     hash: hashTriangles(triangles),
+    getSurfaces,
+    getCurves,
   };
 }

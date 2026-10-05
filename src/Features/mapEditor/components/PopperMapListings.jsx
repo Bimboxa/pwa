@@ -1305,7 +1305,11 @@ function AnnotationTemplatesForListing({
               )
                 return null;
               const templateQties = qtiesById?.[item.id];
-              const count = templateQties?.count || 0;
+              // Annotations + parts painted in 3D with the template: both
+              // are counted (colored main quantity).
+              const count =
+                (templateQties?.count || 0) +
+                (templateQties?.paintedCount || 0);
               const qtyLabel = templateQties?.mainQtyLabel;
               const isVerticalAxisRow =
                 isDrawInteraction &&

@@ -17,6 +17,9 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 | Hôte (l'annotation peinte)                                             | `hostAnnotationId`                                                                                             |
 | Facette                                                                | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                   |
 | Arête                                                                  | `partType: "EDGE"` : une arête vive droite (`chain`)                                                           |
+| Surface courbe                                                         | `partType: "FACE"`, géométrie `{ vertices, facets, angleDeg }` : des facettes voisines lisses (`getSurfaces`)  |
+| Courbe                                                                 | `partType: "EDGE"` à plus de 2 points : des arêtes enchaînées dans un même plan (`getCurves`)                  |
+| Seuil de lissage                                                       | `angleDeg` ; au clic, c'est le réglage « Sélection de face » (`threedEditor.faceSelectionAngleDeg`)            |
 | Côté peint                                                             | le signe de `geometry.normal`, qui pointe vers le côté peint                                                   |
 | Fond de plan                                                           | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                       |
 | Calque                                                                 | `layer` (`host.layerId`)                                                                                       |
@@ -33,7 +36,7 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 - Tout objet 3D d'annotation peut être peint : dalles extrudées, murs épais ou minces, bandes, rampes, meshes `isMesh3d`…
 - Sont refusés (`utils/getPaintHostRefusal.js`) :
   - les mailles (`db.meshes3d`), les fonds de plan et les scans ;
-  - `OBJECT_3D` et les formes courbes `REVOLUTION` / `EXTRUSION_PROFILE` ;
+  - `OBJECT_3D` ;
   - les cellules de maillage (`isMeshCell`) et les photo-plans ;
   - les annotations du modèle armé lui-même, pour éviter de compter deux fois.
 
@@ -41,6 +44,15 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 
 - Une facette est la région plane connexe sous le curseur.
 - Une arête est une arête vive droite ; ses morceaux colinéaires sont fusionnés.
+
+**Surfaces courbes et courbes**
+
+- Le seuil de lissage est le réglage « Sélection de face » de la vue 3D. À 0, le Pinceau ne voit que des facettes planes et des arêtes droites.
+- Une surface courbe réunit les facettes voisines dont le pli, mesuré **entre voisines**, reste sous le seuil : un mur en arc, une révolution ou une extrusion de profil se peignent en un clic (`index.getSurfaces(angleDeg)`).
+- Une courbe réunit les arêtes vives qui se touchent, restent dans un même plan et tournent de moins que le seuil au point de contact (`index.getCurves(angleDeg)`). Une courbe fermée répète son premier point.
+- « Révolution partielle » n'est qu'une option d'affichage : l'hôte est lu sur son **tour complet** (la moitié affichée et sa copie tournée de 180° autour de l'axe, `getHostPartData`). La peinture et ses quantités couvrent donc toute la révolution, quel que soit le côté affiché ; seule la moitié visible est dessinée et cliquable (`getHostHalfView`, `utils/clipPaintGeometry.js`). Une révolution partielle réglée sur l'axe (`revolutionPhi`) est, elle, la vraie géométrie.
+- Une surface courbe ou une courbe est **une seule ligne** : une seule quantité, un seul clic pour la retirer.
+- Une facette (ou un segment) déjà peinte seule fait partie de la surface (ou de la courbe) qui la contient : peindre la surface la remplace.
 
 **Un seul modèle par partie**
 
@@ -81,7 +93,8 @@ Une ligne par partie peinte.
   hostAnnotationId, baseMapId,          // hôte + repère de la géométrie
   partType: "FACE" | "EDGE",
   geometry: FACE { polygons: [{contour, holes}], normal: [x, y, z] }
-          | EDGE { points: [p0, p1], sides?: [[x, y, z], …] },
+          | FACE { vertices: [p…], facets: [[contour, …trous], …], angleDeg }   // surface courbe
+          | EDGE { points: [p0, p1, …], sides?: [[x, y, z], …], angleDeg? },   // angleDeg : courbe
   paintedAt,                            // actions utilisateur uniquement (arbitrage des conflits)
   sync: { state: "OK" | "ORPHAN", geomHash, syncedAt, provisional?, nearOnly? } }
 ```
@@ -93,7 +106,11 @@ Une ligne par partie peinte.
   - `z` est le z local en mètres, **absolu**, dans le repère de `imagesManager.getGroup(baseMapId)`. À la différence de `mesh3d`, `offsetZ` y est déjà inclus.
 - La normale d'une FACE est en mètres locaux et pointe **vers le côté peint** : c'est elle qui encode le côté.
 - Une facette coupée reste une seule ligne (multi-polygone).
-- `sides` (EDGE) contient les normales des facettes bordées par l'arête. Le recalage s'en sert pour ne pas confondre deux arêtes parallèles.
+- `sides` (EDGE) contient les normales des facettes bordées par l'arête. Le recalage s'en sert pour ne pas confondre deux arêtes parallèles. Pour une courbe : les facettes qui la bordent sur toute sa longueur.
+- Surface courbe : un maillage **indexé** de facettes planes. Chaque boucle est un tableau d'indices dans `vertices` (un sommet partagé n'est stocké qu'une fois). Il n'y a pas de `normal` : chaque contour tourne dans le sens anti-horaire vu du côté peint.
+- `angleDeg` est le seuil de lissage utilisé au clic. Le recalage reconstruit la surface ou la courbe avec ce même seuil, quel que soit le réglage de l'appareil.
+- Dans les utilitaires, une surface courbe est un `LocalFace` `{ polygons, normal, curved: true, angleDeg }` : une facette par polygone, `normal` seulement indicative.
+- Recalage d'une partie courbe : quelques-unes de ses plus grandes facettes (ou de ses segments) sont recalées comme des parties planes ; les facettes (ou arêtes) retrouvées désignent la surface (ou la courbe) de l'hôte, reprise en entier.
 
 **Enregistrements dans `App/db/db.js`**
 
@@ -237,9 +254,7 @@ Les utils purs n'utilisent que des imports relatifs en `.js`, sans alias.
 
 **Géométrie**
 
-- Surfaces courbes et gauches peintes comme une seule région ; en V1, elles se peignent facette par facette.
-- Chaînes d'arêtes courbes.
-- Géométrie de référence exacte, indépendante de l'affichage.
+- Géométrie de référence exacte, indépendante de l'affichage. Aujourd'hui, une partie courbe suit la tessellation **affichée** : si le nombre de segments change, la peinture devient orpheline. En « Révolution partielle », les ouvertures creusées dans la moitié affichée sont reproduites en miroir dans la moitié masquée (qui n'est pas construite).
 
 **Recalage**
 

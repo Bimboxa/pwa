@@ -40,6 +40,7 @@ const getMetrics = (metricsByBaseMapId, baseMapId) => {
 function getStoredPoints(partType, geometry) {
   if (!geometry) return [];
   if (partType === MESH_PAINT_PART_TYPES.EDGE) return geometry.points ?? [];
+  if (Array.isArray(geometry.vertices)) return geometry.vertices;
   const points = [];
   for (const polygon of geometry.polygons ?? []) {
     for (const p of polygon?.contour ?? []) points.push(p);

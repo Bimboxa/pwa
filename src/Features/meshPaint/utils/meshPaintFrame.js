@@ -5,13 +5,25 @@ import {
 import { dot, length, normalize } from "../../threedMesh/utils/vec3Utils.js";
 import { MESH_PAINT_PART_TYPES } from "../constants/meshPaintConstants.js";
 
-import { getFaceNewellNormal, orientFaceLoops } from "./meshPaintGeometry.js";
+import {
+  getFaceNewellNormal,
+  isCurvedFace,
+  orientFaceLoops,
+} from "./meshPaintGeometry.js";
 
 // Conversions between the two forms of a painted part (db.meshPaints):
 //
 // STORED (row.geometry):
 //   FACE { polygons: [{ contour: P[], holes: P[][] }], normal: [x, y, z] }
-//   EDGE { points: [P, P], sides?: [[x, y, z], …] }
+//   FACE, curved surface { vertices: P[], facets: [[contour, …holes], …],
+//     angleDeg } — an indexed mesh of planar facets: every loop is an array
+//     of indices into `vertices` (shared vertices stored once). No normal:
+//     each contour is wound CCW seen from the painted side. angleDeg = the
+//     smoothing angle the surface was grown with (the re-sync re-grows it
+//     with the same one).
+//   EDGE { points: P[], sides?: [[x, y, z], …], angleDeg? } — 2 points =
+//     straight edge; more = a planar curve (closed: first point repeated),
+//     with the angleDeg it was chained with.
 //   P = [nx, ny, z]: x, y normalized to [0..1] against the base map reference
 //   image (the db.points convention), z = base-map-local z in meters,
 //   ABSOLUTE (the host's offsetZ is baked in — unlike mesh3d).
@@ -30,6 +42,14 @@ import { getFaceNewellNormal, orientFaceLoops } from "./meshPaintGeometry.js";
 // Pure (no three.js): node-testable, relative imports only.
 
 const isFace = (partType) => partType === MESH_PAINT_PART_TYPES.FACE;
+
+// Shared vertices of a curved surface are stored once (codebase-wide weld).
+const VERTEX_WELD_M = 1e-4;
+
+const withAngle = (target, source) =>
+  Number.isFinite(source?.angleDeg)
+    ? { ...target, angleDeg: source.angleDeg }
+    : target;
 
 const toArrayPoint = (p) => (Array.isArray(p) ? p : [p?.x, p?.y, p?.z]);
 const toVector = (n) =>
@@ -60,7 +80,24 @@ export function paintGeometryToLocal(partType, geometry, metrics) {
     const sides = (geometry.sides || [])
       .map((n) => normalize(toVector(n)))
       .filter((n) => length(n) > 0);
-    return sides.length ? { points, sides } : { points };
+    const edge = sides.length ? { points, sides } : { points };
+    return withAngle(edge, geometry);
+  }
+
+  if (Array.isArray(geometry.vertices) && Array.isArray(geometry.facets)) {
+    const vertices = geometry.vertices.map(toLocal);
+    const toLoop = (loop) => (loop || []).map((i) => vertices[i]);
+    const isLoop = (loop) => loop.length >= 3 && loop.every(Boolean);
+    const polygons = [];
+    for (const facet of geometry.facets) {
+      const [contour, ...holes] = (facet || []).map(toLoop);
+      if (!contour || !isLoop(contour)) continue;
+      polygons.push({ contour, holes: holes.filter(isLoop) });
+    }
+    const face = orientFaceLoops(
+      withAngle({ polygons, curved: true }, geometry)
+    );
+    return face.polygons.length ? face : null;
   }
 
   const polygons = (geometry.polygons || [])
@@ -97,10 +134,32 @@ export function localGeometryToPaint(partType, localGeometry, metrics) {
       .map((n) => normalize(n))
       .filter((n) => length(n) > 0)
       .map((n) => [n.x || 0, n.y || 0, n.z || 0]);
-    return sides.length ? { points, sides } : { points };
+    const edge = sides.length ? { points, sides } : { points };
+    return withAngle(edge, localGeometry);
   }
 
   const oriented = orientFaceLoops(localGeometry);
+  if (isCurvedFace(oriented)) {
+    const vertices = [];
+    const indexByKey = new Map();
+    const toIndex = (v) => {
+      const key = `${Math.round(v.x / VERTEX_WELD_M)},${Math.round(
+        v.y / VERTEX_WELD_M
+      )},${Math.round(v.z / VERTEX_WELD_M)}`;
+      let index = indexByKey.get(key);
+      if (index === undefined) {
+        index = vertices.length;
+        indexByKey.set(key, index);
+        vertices.push(toPaint(v));
+      }
+      return index;
+    };
+    const facets = oriented.polygons.map((polygon) => [
+      polygon.contour.map(toIndex),
+      ...polygon.holes.map((hole) => hole.map(toIndex)),
+    ]);
+    return withAngle({ vertices, facets }, localGeometry);
+  }
   // `|| 0`: no -0 in stored normals.
   const { x, y, z } = oriented.normal;
   return {

@@ -41,13 +41,13 @@ test("host types that cannot be painted", () => {
   );
 });
 
-test("curved shells (REVOLUTION / EXTRUSION_PROFILE) are refused", () => {
+test("curved shells (REVOLUTION / EXTRUSION_PROFILE) are paintable", () => {
   for (const key of ["REVOLUTION", "EXTRUSION_PROFILE"]) {
     assert.equal(
       getPaintHostRefusal({
         source: { type: "POLYLINE", shape3D: { key, profileTemplateId: "p" } },
       }),
-      PAINT_REFUSAL.CURVED_SHAPE
+      null
     );
   }
   // Other shape variants are fine.
