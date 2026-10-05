@@ -81,8 +81,8 @@ function Glyph({ children }) {
   );
 }
 
-// Specialized bottom toolbar shown while meshing mode is active. Replaces
-// BottomToolbarThreed (same swap pattern as ClippingToolbarThreed). In the
+// Specialized bottom toolbar shown while meshing mode is active (same swap
+// pattern as ClippingToolbarThreed, see MainThreedEditor). In the
 // Maillage module (MESHES viewer) it is the only bottom toolbar, so the
 // close button is hidden there.
 export default function MeshingToolbarThreed() {

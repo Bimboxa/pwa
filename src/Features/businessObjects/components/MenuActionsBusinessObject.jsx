@@ -4,6 +4,7 @@ import { Menu, MenuItem } from "@mui/material";
 
 import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 import DialogDeleteBusinessObject from "./DialogDeleteBusinessObject";
+import MenuItemAssignBusinessObjectAnnotations from "./MenuItemAssignBusinessObjectAnnotations";
 
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 
@@ -41,6 +42,12 @@ export default function MenuActionsBusinessObject({
       >
         <MenuItem onClick={handleAddChild}>{type.strings.addChild}</MenuItem>
         <MenuItem onClick={() => setOpenEdit(true)}>Modifier</MenuItem>
+        {type.features.assignByGeometry && (
+          <MenuItemAssignBusinessObjectAnnotations
+            businessObject={businessObject}
+            onClick={onClose}
+          />
+        )}
         <MenuItem
           onClick={() => setOpenDelete(true)}
           sx={{ color: "error.main" }}

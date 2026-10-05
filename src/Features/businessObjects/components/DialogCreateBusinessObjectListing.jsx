@@ -93,7 +93,7 @@ export default function DialogCreateBusinessObjectListing({
     ? "Nouvelle liste"
     : `Nouvelle ${createdType.strings.listLabel.toLowerCase()}`;
   const canLocateBusinessObjects =
-    hasLocate && (canLocate ?? createdTypeKey === "PINNED_OBJECTS");
+    hasLocate && (canLocate ?? Boolean(createdType.features.locateByDefault));
 
   // handlers
 

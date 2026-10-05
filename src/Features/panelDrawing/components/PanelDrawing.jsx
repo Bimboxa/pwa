@@ -7,6 +7,7 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
+import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import FieldActiveListing from "./FieldActiveListing";
 import ChipsViewerScope from "./ChipsViewerScope";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
@@ -342,6 +343,7 @@ export default function PanelDrawing() {
           </LeftDrawerPanelHeader>
           <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
             <SectionBaseMapsList />
+            <SectionBaseMapsTools variant="panel" />
           </Box>
         </>
       ) : (

@@ -38,9 +38,8 @@ const DIRECTIONS = [
   { axis: "Z", label: "Plan horizontal", Icon: IconCutPlaneTop },
 ];
 
-// Specialized bottom toolbar shown while editing the 3D clipping plane. It
-// replaces the regular drawing toolbar (BottomToolbarThreed) for as long as
-// clippingPlane.editing is true. The plane is translated/rotated directly with
+// Specialized bottom toolbar shown while editing the 3D clipping plane, for
+// as long as clippingPlane.editing is true. The plane is translated/rotated directly with
 // the on-canvas gizmo; this toolbar only carries the discrete actions. Button
 // sizing mirrors the 2D drawing toolbar (ToolbarDrawingDraft) so the two have
 // the same height.

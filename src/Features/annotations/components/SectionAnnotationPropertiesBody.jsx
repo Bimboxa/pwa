@@ -15,6 +15,7 @@ import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPrope
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 import SectionAnnotationBusinessObjects from "Features/businessObjects/components/SectionAnnotationBusinessObjects";
+import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/components/SectionLinkAnnotationsToBusinessObject";
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 import SectionAnnotationMesh3d from "Features/annotationMesh3d/components/SectionAnnotationMesh3d";
@@ -124,6 +125,13 @@ export default function SectionAnnotationPropertiesBody({
             {/* Linked business objects (ouvrages, points...) — self-hiding
                 without link. */}
             <SectionAnnotationBusinessObjects annotation={annotation} />
+            {/* "Lier à ..." a business object — not for the objects' own
+                main annotations; self-hiding without business object. */}
+            {annotation?.id && !annotation.mainBusinessObjectId && (
+              <SectionLinkAnnotationsToBusinessObject
+                annotationIds={[annotation.id]}
+              />
+            )}
             {/* Plan photo (photoPlans) — POLYGON on a photo baseMap only,
                 self-hiding otherwise. */}
             <SectionAnnotationPhotoPlan annotation={annotation} />

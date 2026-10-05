@@ -114,13 +114,15 @@ const registry = {
         }
         dispatch?.(triggerRelsBusinessObjectAnnotationUpdate());
         dispatch?.(
-          setToaster({ message: `Ouvrage "${businessObject.label}" localisé` })
+          setToaster({
+            message: `"${businessObject.label}" localisé sur le plan`,
+          })
         );
       } catch (e) {
         console.error("[drawingCommitInterceptors] LOCATE_BUSINESS_OBJECT", e);
         dispatch?.(
           setToaster({
-            message: "Impossible de localiser l'ouvrage.",
+            message: `Impossible de localiser "${businessObject.label}".`,
             isError: true,
           })
         );

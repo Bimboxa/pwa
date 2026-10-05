@@ -3,13 +3,20 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import db from "App/db/db";
 
-import { BUSINESS_OBJECT_ENTITY_MODEL } from "../constants/businessObjectEntityModel";
-import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCatalog";
+import {
+  DEFAULT_BUSINESS_OBJECT_COLOR,
+  BUSINESS_OBJECT_ENTITY_MODEL,
+} from "../constants/businessObjectEntityModel";
+import {
+  DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+  getBusinessObjectType,
+} from "../data/businessObjectTypesCatalog";
 import { getBusinessObjectsModuleKey } from "../utils/businessObjectModuleKeys";
 
 import resolveBusinessObjectsModuleLabel from "../utils/resolveBusinessObjectsModuleLabel";
 
 import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
+import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
 
 // Creates a BUSINESS_OBJECT listing ("Ouvrages" list). Plain service so the
 // Krto creation flow (DPGF option) can call it outside a hook. `typeKey` is
@@ -17,15 +24,25 @@ import enableScopeModuleService from "Features/scopeConfig/services/enableScopeM
 // the module of that type is the only one displaying it, so creating the
 // listing also enables that module for the scope (idempotent).
 // `canLocateBusinessObjects` opts the listing into the main-location flow
-// (utils/canLocateBusinessObjects): written only when true, missing = false.
+// (utils/canLocateBusinessObjects): written only when true, missing = false;
+// its default follows the type (`locateByDefault`).
+// A located listing of a type with `assignByGeometry` (locations) gets a
+// default POLYGON location template ("Zone"), so the zone of an object can be
+// drawn right away from the popper (`withDefaultLocationTemplate: false` for
+// the callers bringing their own templates).
 export default async function createBusinessObjectListingService({
   projectId,
   scopeId,
   name,
   typeKey = DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
-  canLocateBusinessObjects = typeKey === "PINNED_OBJECTS",
+  canLocateBusinessObjects,
+  withDefaultLocationTemplate = true,
   appConfig,
 } = {}) {
+  const type = getBusinessObjectType(typeKey);
+  const isLocated =
+    canLocateBusinessObjects ?? Boolean(type?.features.locateByDefault);
+
   const entityModel =
     appConfig?.entityModelsObject?.businessObject ??
     BUSINESS_OBJECT_ENTITY_MODEL;
@@ -68,10 +85,38 @@ export default async function createBusinessObjectListingService({
     canCreateItem: false,
     // v1 only handles tree listings (parentId + fractional sortIndex).
     isTree: true,
-    ...(canLocateBusinessObjects ? { canLocateBusinessObjects: true } : {}),
+    ...(isLocated ? { canLocateBusinessObjects: true } : {}),
   };
 
   await db.listings.add(listing);
+
+  if (
+    isLocated &&
+    withDefaultLocationTemplate &&
+    type?.features.assignByGeometry
+  ) {
+    await db.annotationTemplates.add({
+      id: nanoid(),
+      projectId,
+      listingId: listing.id,
+      label: "Zone",
+      drawingShape: "POLYGON",
+      fillColor: DEFAULT_BUSINESS_OBJECT_COLOR,
+      fillOpacity: 0.3,
+      fillType: "SOLID",
+      strokeColor: DEFAULT_BUSINESS_OBJECT_COLOR,
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      isBusinessObjectAnnotation: true,
+      code: getAnnotationTemplateCode({
+        annotation: {
+          type: "POLYGON",
+          fillColor: DEFAULT_BUSINESS_OBJECT_COLOR,
+        },
+        listingKey: listing.id,
+      }),
+    });
+  }
 
   await enableScopeModuleService({
     scopeId,

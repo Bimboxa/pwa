@@ -2432,6 +2432,17 @@ export default function useAnnotationsV2(options) {
             label: main.label,
             annotationLabel: main.label,
             mainBusinessObjectId: main.businessObjectId,
+            // zone of an object (locations): the object's color wins over
+            // the template's, and the polygon offers "Affecter les
+            // annotations à l'intérieur" (EditAnnotationTools)
+            ...(main.color !== null && main.color !== undefined
+              ? {
+                  canAssignMainBusinessObject: true,
+                  ...(main.color
+                    ? { fillColor: main.color, strokeColor: main.color }
+                    : {}),
+                }
+              : {}),
           };
         });
       }

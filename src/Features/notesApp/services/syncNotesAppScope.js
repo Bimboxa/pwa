@@ -156,6 +156,8 @@ export default async function syncNotesAppScope({
       typeKey: getNotesAppBusinessObjectType(remoteListing.settings),
       // Krnet positions are main annotations: the listing is located
       canLocateBusinessObjects: true,
+      // Krnet listings bring their own templates (resolveNotesAppTemplates)
+      withDefaultLocationTemplate: false,
       appConfig,
     });
     pairs.push({ remoteListing, listing });
