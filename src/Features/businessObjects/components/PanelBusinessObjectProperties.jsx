@@ -54,6 +54,7 @@ import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
 import SectionBusinessObjectDocuments from "./SectionBusinessObjectDocuments";
 import SectionBusinessObjectLinkedAnnotations from "./SectionBusinessObjectLinkedAnnotations";
 import SectionBusinessObjectQuantities from "./SectionBusinessObjectQuantities";
+import ButtonAssignBusinessObjectAnnotations from "./ButtonAssignBusinessObjectAnnotations";
 import PanelBusinessObjectTemplateAnnotations from "./PanelBusinessObjectTemplateAnnotations";
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
@@ -816,6 +817,11 @@ export default function PanelBusinessObjectProperties() {
                   );
                 })}
               </List>
+              {type.features.assignByGeometry && (
+                <ButtonAssignBusinessObjectAnnotations
+                  businessObject={businessObject}
+                />
+              )}
             </>
           )}
         </Box>

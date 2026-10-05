@@ -5394,7 +5394,12 @@ const InteractionLayer = forwardRef(({
           dispatch(triggerRelsBusinessObjectAnnotationUpdate());
           dispatch(
             setToaster(
-              result === "linked"
+              result === "skipped"
+                ? {
+                  message: "Cette annotation délimite déjà un autre objet de la liste",
+                  severity: "warning",
+                }
+                : result === "linked"
                 ? {
                   message: `Annotation liée à "${businessObject.label}"`,
                   severity: "success",

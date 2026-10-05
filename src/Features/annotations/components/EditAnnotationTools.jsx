@@ -8,6 +8,7 @@ import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
 import IconButtonSubtractFromAnnotation from "./IconButtonSubtractFromAnnotation";
 import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
 import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
+import IconButtonAssignBusinessObjectAnnotations from "Features/businessObjects/components/IconButtonAssignBusinessObjectAnnotations";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
@@ -129,6 +130,13 @@ export default function EditAnnotationTools({
       {selectedAnnotation?.isZoneAnnotation &&
         selectedAnnotation?.type === "POLYGON" && (
           <IconButtonAssignZoneAnnotations
+            annotation={selectedAnnotation}
+            accentColor={accentColor}
+          />
+        )}
+      {selectedAnnotation?.canAssignMainBusinessObject &&
+        selectedAnnotation?.type === "POLYGON" && (
+          <IconButtonAssignBusinessObjectAnnotations
             annotation={selectedAnnotation}
             accentColor={accentColor}
           />

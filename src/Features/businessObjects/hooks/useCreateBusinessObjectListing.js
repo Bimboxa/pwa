@@ -1,4 +1,6 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -10,6 +12,7 @@ import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCat
 // defaults to the type of the selected business-objects module (the panel's
 // "Nouvelle liste" is the only caller), STANDARD outside those modules.
 export default function useCreateBusinessObjectListing() {
+  const dispatch = useDispatch();
   const appConfig = useAppConfig();
 
   const _projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -23,7 +26,7 @@ export default function useCreateBusinessObjectListing() {
     typeKey,
     canLocateBusinessObjects,
   } = {}) => {
-    return createBusinessObjectListingService({
+    const listing = await createBusinessObjectListingService({
       projectId: projectId ?? _projectId,
       scopeId: scopeId ?? _scopeId,
       name,
@@ -31,6 +34,9 @@ export default function useCreateBusinessObjectListing() {
       canLocateBusinessObjects,
       appConfig,
     });
+    // the service may seed a default location template
+    dispatch(triggerAnnotationTemplatesUpdate());
+    return listing;
   };
 
   return create;

@@ -33,6 +33,21 @@ const STANDARD_STRINGS = {
   linkedObjects: "Ouvrages liés",
 };
 
+// Locations ("Localisations"): the zones of a plan (levels, rooms, areas...).
+const LOCATION_STRINGS = {
+  objectLabel: "Localisation",
+  newObject: "Nouvelle localisation",
+  newChildPrefix: "Nouvelle sous-localisation de",
+  editObject: "Modifier la localisation",
+  addChild: "Ajouter une sous-localisation",
+  empty: "Aucune localisation",
+  noLinkedAnnotations: "Aucune annotation liée à cette localisation",
+  linkTo: "Lier à une localisation",
+  listLabel: "Liste de localisations",
+  linkResourceTo: "Lier à la localisation active",
+  linkedObjects: "Localisations liées",
+};
+
 // hoursBudget: the objects are TASKS carrying an hours ratio (hoursRatio =
 // hours per `unit`); hours budget = linked quantities × ratio, rolled up
 // over the sub-tasks (utils/getBusinessObjectHoursBudget).
@@ -49,6 +64,15 @@ const STANDARD_FEATURES = { hoursBudget: false, color: true };
 // locate: the listing can opt in the "Localisation" (main annotations).
 // status: the objects are open / closed points (row checkbox, Ouverts / Tous
 // filter) — see utils/getBusinessObjectStatus.
+// locateByDefault: a new listing opts in the "Localisation" unless told
+// otherwise.
+// singleObjectPerAnnotation: an annotation is linked to at most ONE object of
+// a listing — linking it to another object of the same listing replaces the
+// previous plain link (see utils/isSingleObjectPerAnnotationListing).
+// assignByGeometry: "Affecter les annotations à l'intérieur" — the object's
+// main POLYGON annotation links (and cuts) the annotations lying inside it
+// (hooks/useAssignBusinessObjectToAnnotations); main annotations also take
+// the object's color.
 const FEATURE_DEFAULTS = {
   hoursBudget: false,
   color: false,
@@ -59,6 +83,9 @@ const FEATURE_DEFAULTS = {
   titleRows: true,
   locate: true,
   status: false,
+  locateByDefault: false,
+  singleObjectPerAnnotation: false,
+  assignByGeometry: false,
 };
 
 const BUSINESS_OBJECT_TYPES = [
@@ -95,15 +122,20 @@ const BUSINESS_OBJECT_TYPES = [
     defaultIconKey: "pushPin",
     editors: ["MAP", "THREED"],
     strings: STANDARD_STRINGS,
-    features: STANDARD_FEATURES,
+    features: { ...STANDARD_FEATURES, locateByDefault: true },
   },
   {
     key: "LOCATIONS",
     defaultLabel: "Localisations",
     defaultIconKey: "locationOn",
     editors: ["MAP", "THREED"],
-    strings: STANDARD_STRINGS,
-    features: STANDARD_FEATURES,
+    strings: LOCATION_STRINGS,
+    features: {
+      ...STANDARD_FEATURES,
+      locateByDefault: true,
+      singleObjectPerAnnotation: true,
+      assignByGeometry: true,
+    },
   },
   {
     // Planning: hierarchical TASKS carrying an hours ratio. Same tree panel,
