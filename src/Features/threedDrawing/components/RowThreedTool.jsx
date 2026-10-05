@@ -5,6 +5,8 @@ import {
   setExtrudeModeActive,
   setMoveAnnotationModeActive,
   setRotateAnnotationModeActive,
+  setMoveBaseMapModeActive,
+  setRotateBaseMapModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 
 import { Box, ListItemButton, Typography } from "@mui/material";
@@ -15,13 +17,16 @@ const ACTION_BY_THREED_TOOL = {
   EXTRUDE: setExtrudeModeActive,
   MOVE_ANNOTATION: setMoveAnnotationModeActive,
   ROTATE_ANNOTATION: setRotateAnnotationModeActive,
+  MOVE_BASE_MAP: setMoveBaseMapModeActive,
+  ROTATE_BASE_MAP: setRotateBaseMapModeActive,
 };
 
 // ---------------------------------------------------------------------------
 // RowThreedTool — « Outils de dessin » row of a threedEditor tool (TOOL_ITEMS
 // `threedTool`: Extruder / Déplacer / Tourner) in the Dessin module's 3D
 // editor. Click arms the mode; the drawing helper then replaces the list
-// (selectActiveThreedTool). `variant`: "popper" (PopperMapListings' ToolRow
+// (selectActiveThreedTool). Also the rows of the base maps "Outils" section
+// (SectionBaseMapsTools: MOVE_BASE_MAP / ROTATE_BASE_MAP). `variant`: "popper" (PopperMapListings' ToolRow
 // look) or "panel" (RowPanelDrawingTool look).
 // ---------------------------------------------------------------------------
 

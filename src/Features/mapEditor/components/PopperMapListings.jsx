@@ -109,6 +109,7 @@ import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
 import RowRevolutionAxisTool from "Features/revolutionAxes/components/RowRevolutionAxisTool";
 import RowThreedTool from "Features/threedDrawing/components/RowThreedTool";
+import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
 import {
@@ -2535,6 +2536,7 @@ export default function PopperMapListings() {
         <Box sx={{ overflow: "auto", flex: 1 }}>
           {!isBaseMapsListOnly && <ButtonToggleBaseMapsListDetached />}
           <SectionBaseMapsList />
+          <SectionBaseMapsTools />
         </Box>
       )}
 

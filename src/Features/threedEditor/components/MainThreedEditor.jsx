@@ -100,7 +100,6 @@ import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
-import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
@@ -355,19 +354,11 @@ export default function MainThreedEditor() {
   // short-circuit without re-creating their callbacks (which would reset the
   // drag tracking mid-stream).
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
-  // A drawing is armed: the drawing toolbar (ToolbarDrawingDraft, above the
-  // bottom bar) takes the bottom-centre spot — the 3D tools toolbar would sit
-  // half hidden behind it.
   // Dessin module: Extruder / Déplacer / Tourner are armed from « Outils de
   // dessin » and show their help in the drawing helper (popper / Dessin
   // panel) — no bottom toolbar for them.
   const dessinToolHelperShown = useSelector(
     (s) => selectActiveThreedTool(s) != null
-  );
-  const drawingDraftToolbarShown = useSelector(
-    (s) =>
-      Boolean(s.mapEditor.enabledDrawingMode) &&
-      s.mapEditor.enabledDrawingMode !== "MEASURE"
   );
   const drawingActiveRef = useRef(drawingActive);
   useEffect(() => {
@@ -2614,9 +2605,7 @@ export default function MainThreedEditor() {
           <RotateBaseMapToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
-        ) : drawingDraftToolbarShown ? null : (
-          <BottomToolbarThreed />
-        ))}
+        ) : null)}
       {/* Bottom-right group (walk toggle + zoom out + 2D/3D toggle) sits outside the swap
           of bottom toolbars so it stays available in every module (Maillage
           included). Hidden while a capture/POV framing owns the screen. */}
