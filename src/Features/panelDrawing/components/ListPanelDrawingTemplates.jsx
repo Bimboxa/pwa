@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useSelector } from "react-redux";
 
 import {
   DndContext,
@@ -26,6 +27,7 @@ import Add from "@mui/icons-material/Add";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
+import SectionListingProcedures from "Features/annotationsAuto/components/SectionListingProcedures";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
@@ -75,6 +77,7 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   });
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // state
 
@@ -210,6 +213,13 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
         borderColor: "divider",
       }}
     >
+      {/* procedures linked to the listing ("Dessin auto") */}
+      <SectionListingProcedures
+        listingId={listingId}
+        baseMapId={selectedBaseMapId}
+        sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+      />
+
       {dndEnabled ? (
         <DndContext
           sensors={sensors}

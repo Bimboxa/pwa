@@ -11,6 +11,7 @@ import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
+import getProcedureOptions from "../utils/getProcedureOptions";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -55,6 +56,9 @@ export default function useAnnotationsAutoRun() {
   const returnTechnique = useSelector((s) => s.annotationsAuto.returnTechnique);
   const ignoreInteriorWalls = useSelector(
     (s) => s.annotationsAuto.ignoreInteriorWalls
+  );
+  const optionsByProcedureKey = useSelector(
+    (s) => s.annotationsAuto.optionsByProcedureKey
   );
   const selectedAnnotationTemplateId = useSelector(
     (s) => s.annotationsAuto.selectedAnnotationTemplateId
@@ -481,6 +485,7 @@ export default function useAnnotationsAutoRun() {
         targetAnnotationTemplate,
         targetListingId,
         procedureParams: procedureParams ?? null,
+        options: getProcedureOptions(procedureEntry, optionsByProcedureKey),
       },
     });
 

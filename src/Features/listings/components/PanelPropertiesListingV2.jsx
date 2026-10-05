@@ -53,6 +53,8 @@ import useDndSensors from "App/hooks/useDndSensors";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
+import FieldProcedureKeys from "Features/annotationsAuto/components/FieldProcedureKeys";
+import SectionListingProceduresLinks from "Features/annotationsAuto/components/SectionListingProceduresLinks";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import OverrideToggle from "Features/annotations/components/OverrideToggle";
@@ -746,6 +748,21 @@ export default function PanelPropertiesListingV2({ listing }) {
             options={{ showAsSection: true }}
           />
         )}
+
+        {/* Procedures launched at listing level ("Dessin auto" section
+            under the listing name) */}
+        {!isLinked && (
+          <FieldProcedureKeys
+            label="Procédures"
+            value={listing?.procedureKeys}
+            onChange={(procedureKeys) =>
+              updateListing({ id: listing.id, procedureKeys })
+            }
+          />
+        )}
+
+        {/* Linked procedures: a row opens the procedure properties */}
+        <SectionListingProceduresLinks listing={listing} />
 
         {/* Coupes & élévations (vertical baseMaps) */}
         {listing?.entityModel?.type === "BASE_MAP" && (

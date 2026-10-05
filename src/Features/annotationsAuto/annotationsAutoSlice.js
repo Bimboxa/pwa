@@ -10,6 +10,10 @@ const initialState = {
   waterHeight: null,
   returnTechnique: true,
   ignoreInteriorWalls: false,
+  // {[procedureKey]: {[optionKey]: boolean}} — values of the boolean options a
+  // procedure declares in its registry entry (`options`); a missing value
+  // falls back to the option's `default` (see getProcedureOptions).
+  optionsByProcedureKey: {},
   running: false,
   // {procedureKey, sourceAnnotationId} | null — armed by the drawing commit
   // when the source template links a procedure flagged launchOnSourceCreated;
@@ -48,6 +52,13 @@ export const annotationsAutoSlice = createSlice({
     setIgnoreInteriorWalls: (state, action) => {
       state.ignoreInteriorWalls = action.payload;
     },
+    setProcedureOption: (state, action) => {
+      const { procedureKey, key, value } = action.payload;
+      state.optionsByProcedureKey[procedureKey] = {
+        ...state.optionsByProcedureKey[procedureKey],
+        [key]: value,
+      };
+    },
     setRunning: (state, action) => {
       state.running = action.payload;
     },
@@ -68,6 +79,7 @@ export const {
   setWaterHeight,
   setReturnTechnique,
   setIgnoreInteriorWalls,
+  setProcedureOption,
   setRunning,
   setPendingProcedureLaunch,
   reset,

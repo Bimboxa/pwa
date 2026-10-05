@@ -41,6 +41,7 @@ import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProper
 import PanelPropertiesDrawing from "Features/panelDrawing/components/PanelPropertiesDrawing";
 import PanelPropertiesBaseMapsModule from "Features/baseMapEditor/components/PanelPropertiesBaseMapsModule";
 import PanelPropertiesModuleDefault from "Features/viewers/components/PanelPropertiesModuleDefault";
+import PanelProcedureProperties from "Features/annotationsAuto/components/PanelProcedureProperties";
 import PanelPropertiesMesh3dParts from "Features/annotationMesh3d/components/PanelPropertiesMesh3dParts";
 import { getSelectedMesh3dParts } from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -101,6 +102,10 @@ export default function PanelSelectionProperties() {
     // own panel (measures, deletion). Viewer-agnostic — the Dessin module
     // toggled to 3D keeps the "MAP" module key.
     type = "MESH3D_PARTS";
+  } else if (selectedItem?.type === "PROCEDURE") {
+    // Automated procedure opened from a listing's "Dessin auto" section or
+    // from the listing properties: description, templates, parameters.
+    type = "PROCEDURE";
   } else if (selectedItem?.type === "PHOTO") {
     // Photo selected from a photos grid (popper / panel) or its map node.
     type = "PHOTO";
@@ -374,6 +379,8 @@ export default function PanelSelectionProperties() {
           listing={selectionListingId ? listingById : businessObjectsListingById}
         />
       )}
+
+      {type === "PROCEDURE" && <PanelProcedureProperties />}
 
       {type === "PHOTO" && <PanelPhotoProperties />}
 

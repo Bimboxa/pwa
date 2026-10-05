@@ -8,6 +8,7 @@ export default function hasProcedureParams(procedure) {
     procedure?.showHeightInput === true ||
     procedure?.showCuvelageHeight === true ||
     procedure?.showWaterHeight === true ||
-    procedure?.showReturnTechnique === true
+    procedure?.showReturnTechnique === true ||
+    procedure?.options?.length > 0
   );
 }

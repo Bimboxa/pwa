@@ -1,3 +1,7 @@
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
+
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
@@ -10,9 +14,10 @@ import RowProcedureLauncher from "./RowProcedureLauncher";
 import SectionProcedureParams from "./SectionProcedureParams";
 
 /**
- * Toolbar rows (between quantities and actions) for an annotation whose template
- * is linked to one or several ANNOTATIONS_CREATOR procedures, or whose type is
- * a template-less source of one (getProceduresForAnnotation). One band per
+ * Toolbar rows (between quantities and actions) for an annotation that can
+ * source one or several ANNOTATIONS_CREATOR procedures — linked by its
+ * template, by its listing (source mapping categories) or by its type
+ * (getProceduresForAnnotation). One band per
  * procedure: an optional parameters row (lighter tint of the launch band, so it
  * reads as attached to it) on top of the launch band itself — left = procedure
  * name, right = play / reset / refresh applied to this single annotation as
@@ -24,7 +29,16 @@ export default function RowProcedureActionAuto({ annotation }) {
   const appConfig = useAppConfig();
   const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
 
-  const linkedProcedures = getProceduresForAnnotation(annotation, procedures);
+  // listing-level links (listing.procedureKeys + sourceMappingCategories)
+  const listingId = annotation?.listingId;
+  const listing = useLiveQuery(
+    () => (listingId ? db.listings.get(listingId) : null),
+    [listingId]
+  );
+
+  const linkedProcedures = getProceduresForAnnotation(annotation, procedures, {
+    listing,
+  });
 
   // render
 

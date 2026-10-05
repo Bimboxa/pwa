@@ -1,13 +1,19 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
+import getProceduresForAnnotation from "../utils/getProceduresForAnnotation";
+
 /**
- * Group the currently selected annotations by the ANNOTATIONS_CREATOR procedure
- * linked to their annotationTemplate (template.procedureKeys).
+ * Group the currently selected annotations by the ANNOTATIONS_CREATOR
+ * procedures they can source (getProceduresForAnnotation: template links,
+ * listing links + source mapping categories).
  *
  * Returns: [{ procedure, annotations: [...] }] — only non-empty groups, only
  * procedures of type ANNOTATIONS_CREATOR. FIXOR procedures are intentionally
@@ -23,6 +29,15 @@ export default function useSelectedAnnotationsByProcedure() {
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
   const templates = useAnnotationTemplatesByProject();
+
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const listings = useLiveQuery(
+    () =>
+      projectId
+        ? db.listings.where("projectId").equals(projectId).toArray()
+        : [],
+    [projectId]
+  );
 
   const visibleAnnotations = useAnnotationsV2({
     caller: "useSelectedAnnotationsByProcedure",
@@ -48,24 +63,29 @@ export default function useSelectedAnnotationsByProcedure() {
     const templatesById = new Map((templates ?? []).map((t) => [t.id, t]));
 
     const proceduresByKey = new Map(procedures.map((p) => [p.key, p]));
+    const listingsById = new Map((listings ?? []).map((l) => [l.id, l]));
 
-    // group selected annotations by each CREATOR procedure linked to their
-    // template (a template may reference several procedures, so an annotation
-    // can land in several groups)
+    // group selected annotations by each CREATOR procedure they can source
+    // (an annotation can land in several groups)
     const annotationsByProcedureKey = new Map();
     for (const annotation of visibleAnnotations ?? []) {
       if (!selectedNodeIds.has(annotation.id)) continue;
-      const template = templatesById.get(annotation.annotationTemplateId);
-      const procedureKeys = template?.procedureKeys ?? [];
-
-      for (const procedureKey of procedureKeys) {
-        const procedure = proceduresByKey.get(procedureKey);
-        if (procedure?.type !== "ANNOTATIONS_CREATOR") continue;
-
-        if (!annotationsByProcedureKey.has(procedureKey)) {
-          annotationsByProcedureKey.set(procedureKey, []);
+      const linkedProcedures = getProceduresForAnnotation(
+        annotation,
+        procedures,
+        {
+          template: templatesById.get(annotation.annotationTemplateId),
+          listing: listingsById.get(annotation.listingId),
         }
-        annotationsByProcedureKey.get(procedureKey).push(annotation);
+      );
+      // template-less type sources are launched from the toolbar only
+      for (const procedure of linkedProcedures) {
+        if ((procedure.sourceAnnotationTypes ?? []).includes(annotation.type))
+          continue;
+        if (!annotationsByProcedureKey.has(procedure.key)) {
+          annotationsByProcedureKey.set(procedure.key, []);
+        }
+        annotationsByProcedureKey.get(procedure.key).push(annotation);
       }
     }
 
@@ -75,5 +95,5 @@ export default function useSelectedAnnotationsByProcedure() {
         annotations,
       })
     );
-  }, [selectedItems, visibleAnnotations, templates, procedures]);
+  }, [selectedItems, visibleAnnotations, templates, procedures, listings]);
 }

@@ -5,9 +5,11 @@ import {
   setWaterHeight,
   setReturnTechnique,
   setIgnoreInteriorWalls,
+  setProcedureOption,
 } from "../annotationsAutoSlice";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
+import getProcedureOptions from "../utils/getProcedureOptions";
 
 import { Box, Typography, FormControlLabel, Checkbox } from "@mui/material";
 
@@ -43,6 +45,9 @@ export default function SectionProcedureParams({
   const ignoreInteriorWalls = useSelector(
     (s) => s.annotationsAuto.ignoreInteriorWalls
   );
+  const optionsByProcedureKey = useSelector(
+    (s) => s.annotationsAuto.optionsByProcedureKey
+  );
 
   // helpers
 
@@ -50,6 +55,8 @@ export default function SectionProcedureParams({
   const showCuvelageHeight = procedure?.showCuvelageHeight === true;
   const showWaterHeight = procedure?.showWaterHeight === true;
   const showReturnTechnique = procedure?.showReturnTechnique === true;
+  const options = procedure?.options ?? [];
+  const optionValues = getProcedureOptions(procedure, optionsByProcedureKey);
 
   // handlers
 
@@ -142,6 +149,28 @@ export default function SectionProcedureParams({
           }
         />
       )}
+
+      {options.map((option) => (
+        <FormControlLabel
+          key={option.key}
+          control={
+            <Checkbox
+              checked={optionValues[option.key]}
+              onChange={(e) =>
+                dispatch(
+                  setProcedureOption({
+                    procedureKey: procedure.key,
+                    key: option.key,
+                    value: e.target.checked,
+                  })
+                )
+              }
+              size="small"
+            />
+          }
+          label={<Typography variant="body2">{option.label}</Typography>}
+        />
+      ))}
     </Box>
   );
 }

@@ -15,6 +15,8 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             keywords: library.keywords,
             articlesNomenclaturesKeys: library.articlesNomenclaturesKeys,
             ...(library.avatarString && { avatarString: library.avatarString }),
+            // procedures launched at listing level (listing.procedureKeys)
+            ...(library.procedureKeys?.length && { procedureKeys: library.procedureKeys }),
             ...(library.isForBaseMaps && { isForBaseMaps: true }),
         }
 

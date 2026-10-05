@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -37,7 +37,6 @@ import {
   Tooltip,
   FormControlLabel,
   Checkbox,
-  Popper,
   Chip,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
@@ -58,7 +57,7 @@ import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/dr
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
+import SectionListingProcedures from "Features/annotationsAuto/components/SectionListingProcedures";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
@@ -397,50 +396,12 @@ function AnnotationTemplateRow({
   // data
 
   const appConfig = useAppConfig();
-  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
-  const linkedProcedures = (annotationTemplate?.procedureKeys ?? [])
-    .map((key) => procedures.find((p) => p.key === key))
-    .filter(Boolean);
-  const hasProcedure = linkedProcedures.length > 0;
-  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
-
   // state
 
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState("");
   const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
-  const [nameAnchorEl, setNameAnchorEl] = useState(null);
-  const procedurePopperCloseTimer = useRef(null);
-  const procedurePopperRef = useRef(null);
-  const procedurePopperHoveredRef = useRef(false);
-
-  // Keep the procedure popper open while hovering the chip OR the popper itself
-  // (so its action buttons stay clickable), with a small close delay to bridge
-  // the gap between them. It also stays open while one of its parameter fields
-  // is focused, so typing survives the pointer drifting off the popper.
-  const openProcedurePopper = (e) => {
-    if (procedurePopperCloseTimer.current)
-      clearTimeout(procedurePopperCloseTimer.current);
-    setNameAnchorEl(e.currentTarget);
-  };
-  const cancelCloseProcedurePopper = () => {
-    procedurePopperHoveredRef.current = true;
-    if (procedurePopperCloseTimer.current)
-      clearTimeout(procedurePopperCloseTimer.current);
-  };
-  const scheduleCloseProcedurePopper = () => {
-    procedurePopperHoveredRef.current = false;
-    if (procedurePopperCloseTimer.current)
-      clearTimeout(procedurePopperCloseTimer.current);
-    procedurePopperCloseTimer.current = setTimeout(() => {
-      if (procedurePopperRef.current?.contains(document.activeElement)) return;
-      setNameAnchorEl(null);
-    }, 150);
-  };
-  const handleProcedurePopperBlur = () => {
-    if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
-  };
   // Tool resolution + start-draw dispatches (shared with the Dessin panel).
   const {
     drawingShape,
@@ -455,15 +416,6 @@ function AnnotationTemplateRow({
   // business-objects module without an active object → EDIT) → use the
   // effective mode for all behavior gating in this row.
   const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
-  // Viewer module / BaseMaps module legend (read-only legend): procedures
-  // can't be launched there, so the "Auto" chip (and its procedure popper)
-  // is hidden.
-  const isViewerModuleRow = useSelector(
-    (s) =>
-      s.viewers.selectedViewerKey === "THREED" ||
-      selectIsBaseMapsLegendPopper(s)
-  );
-  const showProcedureChip = hasProcedure && !isViewerModuleRow;
   // The label wraps on several lines instead of being truncated behind a
   // tooltip (Dessin popper as well as the read-only Viewer legend).
   const wrapLabel = true;
@@ -849,55 +801,7 @@ function AnnotationTemplateRow({
               </Typography>
             </Tooltip>
           )}
-
-          {showProcedureChip && (
-            <Chip
-              label="Auto"
-              size="small"
-              onMouseEnter={openProcedurePopper}
-              onMouseLeave={scheduleCloseProcedurePopper}
-              sx={{
-                ml: 0.5,
-                flexShrink: 0,
-                height: 16,
-                "& .MuiChip-label": {
-                  px: 0.5,
-                  fontSize: "9px",
-                  fontWeight: "bold",
-                },
-              }}
-            />
-          )}
         </Box>
-
-        {showProcedureChip && (
-          <Popper
-            open={Boolean(nameAnchorEl)}
-            anchorEl={nameAnchorEl}
-            placement="bottom-start"
-            style={{ zIndex: 2000 }}
-            modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
-          >
-            {/* The popper is portaled but stays a React child of the row's
-                ListItemButton: without stopping propagation, clicking a
-                parameter field would bubble to handleRowClick and start the
-                drawing mode. */}
-            <Box
-              ref={procedurePopperRef}
-              onMouseEnter={cancelCloseProcedurePopper}
-              onMouseLeave={scheduleCloseProcedurePopper}
-              onBlurCapture={handleProcedurePopperBlur}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ProcedurePopperContent
-                procedures={linkedProcedures}
-                sourceTemplate={annotationTemplate}
-                baseMapId={selectedBaseMapId}
-              />
-            </Box>
-          </Popper>
-        )}
 
         {/* Right side: edit confirm/cancel OR tool+visibility (hover) OR qty */}
         <Box
@@ -1194,6 +1098,7 @@ function AnnotationTemplatesForListing({
   );
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
@@ -1252,6 +1157,16 @@ function AnnotationTemplatesForListing({
 
   return (
     <Box>
+      {/* procedures linked to the listing ("Dessin auto"), right below the
+          listing name — hidden in 3D (read-only), while SELECT-filtering and
+          for a listing linked from another scope */}
+      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+        <SectionListingProcedures
+          listingId={listingId}
+          baseMapId={selectedBaseMapId}
+        />
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
