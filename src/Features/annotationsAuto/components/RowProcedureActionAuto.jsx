@@ -22,8 +22,15 @@ import SectionProcedureParams from "./SectionProcedureParams";
  * reads as attached to it) on top of the launch band itself — left = procedure
  * name, right = play / reset / refresh applied to this single annotation as
  * source.
+ *
+ * `onlyProcedureKeys` (optional) restricts the bands to a subset of the
+ * linked procedures — the revolution-axis toolbar shows the systems
+ * ASSOCIATED to the axis only (SectionRevolutionAxisSystems).
  */
-export default function RowProcedureActionAuto({ annotation }) {
+export default function RowProcedureActionAuto({
+  annotation,
+  onlyProcedureKeys = null,
+}) {
   // data
 
   const appConfig = useAppConfig();
@@ -38,7 +45,7 @@ export default function RowProcedureActionAuto({ annotation }) {
 
   const linkedProcedures = getProceduresForAnnotation(annotation, procedures, {
     listing,
-  });
+  }).filter((p) => !onlyProcedureKeys || onlyProcedureKeys.includes(p.key));
 
   // render
 

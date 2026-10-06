@@ -10,6 +10,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
+import getProcedureOutputs from "../services/getProcedureOutputs";
 
 import {
   Box,
@@ -72,26 +73,20 @@ export default function ProcedureActionButtons({
   const sourceIds = sourceAnnotationIds ?? [];
   const sourceKey = sourceIds.join(",");
 
-  // annotations created from any of the source annotations (for reset/refresh).
-  // Scoped by autoCreatedFrom over the PROJECT, not the source's base map: a
-  // procedure may output on another map (CHATEAU_EAU_V1 draws on the vertical
-  // elevation from a plan axis) and reset must still find those rows.
+  // annotations created from any of the source annotations — display only
+  // (the reset count in the tooltip / disabled state). The reset itself
+  // re-reads the outputs from Dexie at call time (getProcedureOutputs), so a
+  // "Relancer" never relies on this React state being up to date.
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const createdAnnotations = useLiveQuery(async () => {
-    if (sourceIds.length === 0 || !projectId) return [];
-    const sourceIdSet = new Set(sourceIds);
-    const all = await db.annotations
-      .where("projectId")
-      .equals(projectId)
-      .toArray();
-    return all.filter(
-      (a) =>
-        !a.deletedAt &&
-        sourceIdSet.has(a.autoCreatedFrom) &&
-        (!a.autoCreatedByProcedureKey ||
-          a.autoCreatedByProcedureKey === procedureKey)
-    );
-  }, [sourceKey, projectId, procedureKey, annotationsUpdatedAt]);
+  const createdAnnotations = useLiveQuery(
+    () =>
+      getProcedureOutputs({
+        projectId,
+        procedureKey,
+        sourceAnnotationIds: sourceIds,
+      }),
+    [sourceKey, projectId, procedureKey, annotationsUpdatedAt]
+  );
 
   // state
 
@@ -143,8 +138,17 @@ export default function ProcedureActionButtons({
     notifyProcedureRunResult(dispatch, result);
   }
 
+  // Reset = sweep every live output of this procedure from these sources,
+  // read fresh from Dexie (not from the liveQuery state above): "Relancer"
+  // chains reset → run in one handler and must delete the previous drawing
+  // BEFORE the new one is committed, whatever the render timing.
   async function resetProcedure() {
-    const ids = (createdAnnotations ?? []).map((a) => a.id);
+    const outputs = await getProcedureOutputs({
+      projectId,
+      procedureKey,
+      sourceAnnotationIds: sourceIds,
+    });
+    const ids = outputs.map((a) => a.id);
     if (ids.length === 0) return;
     await deleteAnnotations(ids);
     dispatch(

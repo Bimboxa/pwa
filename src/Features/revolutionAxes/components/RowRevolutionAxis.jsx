@@ -38,6 +38,7 @@ import {
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
 import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfViewService";
+import { splitRevolutionAxisProcedures } from "../utils/getRevolutionAxisProcedures";
 
 const MENU_PAPER_SX = {
   minWidth: 220,
@@ -60,7 +61,9 @@ const MENU_PAPER_SX = {
 // - arrow: on the plan, goes to the vertical base map the profiles are drawn
 //   on — or, when the axis is not linked yet, picks / creates one and arms the
 //   placement click that links it; on a vertical base map, back to the plan;
-// - "…" (hover): procedures the axis can source (e.g. CHATEAU_EAU_V1).
+// - "…" (hover): the systems of the axis — relaunch of the ones ASSOCIATED
+//   to it (params dialog, replace-on-rerun) and "Associer un système…" while
+//   some remain available (getRevolutionAxisProcedures).
 export default function RowRevolutionAxis({
   axis,
   placements,
@@ -71,6 +74,7 @@ export default function RowRevolutionAxis({
   procedures,
   spriteImage,
   onCreateBaseMap,
+  onAssociateSystem,
 }) {
   const dispatch = useDispatch();
 
@@ -91,6 +95,7 @@ export default function RowRevolutionAxis({
   const noVerticalS = "Aucun fond de plan vertical";
   const createS = "Créer un fond de plan…";
   const moreS = "Plus d'actions";
+  const associateS = "Associer un système…";
 
   // data
 
@@ -112,6 +117,8 @@ export default function RowRevolutionAxis({
 
   const isOnPlan = axis.baseMapId === baseMap?.id;
   const placementHere = placements.find((p) => p.baseMapId === baseMap?.id);
+  const { associated: associatedProcedures, available: availableProcedures } =
+    splitRevolutionAxisProcedures(axis, procedures);
   const isHalfView = axis.halfViewIn3d !== false;
   const color = axis.strokeColor ?? "#1976d2";
   const planBaseMap = baseMapById[axis.baseMapId];
@@ -225,6 +232,11 @@ export default function RowRevolutionAxis({
         sourceAnnotationId: axis.id,
       })
     );
+  };
+
+  const handleAssociateSystem = () => {
+    closeMenus();
+    onAssociateSystem?.(axis);
   };
 
   // render
@@ -471,7 +483,8 @@ export default function RowRevolutionAxis({
         </MenuItem>
       </Menu>
 
-      {/* Procedures the axis can source */}
+      {/* Systems of the axis: relaunch of the associated ones, association
+          of the remaining ones */}
       <Menu
         anchorEl={moreMenuAnchor}
         open={Boolean(moreMenuAnchor)}
@@ -480,7 +493,7 @@ export default function RowRevolutionAxis({
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{ paper: { sx: MENU_PAPER_SX } }}
       >
-        {procedures.map((procedure) => (
+        {associatedProcedures.map((procedure) => (
           <MenuItem
             key={procedure.key}
             dense
@@ -494,6 +507,19 @@ export default function RowRevolutionAxis({
             </ListItemText>
           </MenuItem>
         ))}
+        {associatedProcedures.length > 0 && availableProcedures.length > 0 && (
+          <Divider />
+        )}
+        {availableProcedures.length > 0 && (
+          <MenuItem dense onClick={handleAssociateSystem}>
+            <ListItemIcon sx={{ minWidth: 28 }}>
+              <Add sx={{ fontSize: 16 }} />
+            </ListItemIcon>
+            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+              {associateS}
+            </ListItemText>
+          </MenuItem>
+        )}
       </Menu>
     </>
   );

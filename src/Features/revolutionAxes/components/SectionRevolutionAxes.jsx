@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Box, List, Typography } from "@mui/material";
 
 import RowRevolutionAxis from "./RowRevolutionAxis";
+import DialogAssociateSystemToAxis from "./DialogAssociateSystemToAxis";
 import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -11,6 +12,9 @@ import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVertica
 import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
 import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
 import pickVerticalBaseMapListing from "../utils/pickVerticalBaseMapListing";
+import getRevolutionAxisProcedures, {
+  splitRevolutionAxisProcedures,
+} from "../utils/getRevolutionAxisProcedures";
 
 // "Axes de révolution" section of PopperMapListings — rendered right below
 // the layers zone as soon as the base map carries a revolution axis: the axes
@@ -36,6 +40,8 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
 
   // Axis waiting for the vertical base map being created (blank page dialog).
   const [axisToLink, setAxisToLink] = useState(null);
+  // Axis whose system picker is open ("Associer un système…" of the row menu).
+  const [axisToAssociate, setAxisToAssociate] = useState(null);
 
   // helpers
 
@@ -45,16 +51,12 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
     return acc;
   }, [baseMaps]);
 
-  // Procedures an axis can source without a template (registry
-  // sourceAnnotationTypes) and that open a params dialog.
+  // Systems an axis can source without a template (registry
+  // sourceAnnotationTypes + params dialog); each row splits them into the
+  // ones associated to its axis and the ones still available.
   const procedures = useMemo(
     () =>
-      (appConfig?.automatedAnnotationsProcedures ?? []).filter(
-        (p) =>
-          p?.type === "ANNOTATIONS_CREATOR" &&
-          p.paramsDialog &&
-          (p.sourceAnnotationTypes ?? []).includes("REVOLUTION_AXIS")
-      ),
+      getRevolutionAxisProcedures(appConfig?.automatedAnnotationsProcedures),
     [appConfig?.automatedAnnotationsProcedures]
   );
 
@@ -109,6 +111,7 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
             procedures={procedures}
             spriteImage={spriteImage}
             onCreateBaseMap={setAxisToLink}
+            onAssociateSystem={setAxisToAssociate}
           />
         ))}
       </List>
@@ -120,6 +123,16 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
         defaultOrientation="VERTICAL"
         onCreated={handleBaseMapCreated}
       />
+
+      {axisToAssociate && (
+        <DialogAssociateSystemToAxis
+          axis={axisToAssociate}
+          procedures={
+            splitRevolutionAxisProcedures(axisToAssociate, procedures).available
+          }
+          onClose={() => setAxisToAssociate(null)}
+        />
+      )}
     </Box>
   );
 }

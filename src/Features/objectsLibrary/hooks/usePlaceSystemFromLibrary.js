@@ -1,6 +1,5 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
-import useCreateAnnotationTemplatesFromLibrary from "Features/annotations/hooks/useCreateAnnotationTemplatesFromLibrary";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import startDrawFromTemplate, {
@@ -13,16 +12,9 @@ import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.j
 import { buildRevolutionAxisDraft } from "Features/revolutionAxes/utils/buildRevolutionAxisDrafts";
 
 import findObjectTemplateInListing from "../services/findObjectTemplateInListing";
-
-// Deterministic library-model id for a système template, so re-running "Dessiner"
-// into the same listing reuses the existing rows instead of duplicating them
-// (dedup is by modelIdMaster via findObjectTemplateInListing, like the 2D flow).
-function getSystemTemplateModelId(object, template) {
-  const base = object?.modelIdMaster ?? object?.id ?? "system";
-  const slot =
-    template?.mappingCategories?.[0] ?? template?.label ?? "TEMPLATE";
-  return `${base}:${slot}`;
-}
+import useEnsureSystemTemplatesInListing, {
+  getSystemTemplateModelId,
+} from "./useEnsureSystemTemplatesInListing";
 
 // "Dessiner" for a Système: pre-create the source template AND every generated
 // template (with the user's dialog edits) in the target listing so the procedure
@@ -34,13 +26,10 @@ function getSystemTemplateModelId(object, template) {
 // matchAnnotationTemplate to resolve.
 export default function usePlaceSystemFromLibrary() {
   const dispatch = useDispatch();
-  const createTemplatesFromLibrary = useCreateAnnotationTemplatesFromLibrary();
-  const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
+  const ensureTemplates = useEnsureSystemTemplatesInListing();
 
   return async ({ object, mainTemplate, generatedTemplates, listingId }) => {
     if (!object || !listingId || !mainTemplate) return;
-
-    const projectId = selectedProjectId;
 
     // Revolution-axis source (useSystemDefinition stand-in, e.g. Château
     // d'eau): an axis belongs to its base map + scope — no source template.
@@ -48,21 +37,11 @@ export default function usePlaceSystemFromLibrary() {
     // carries the procedure to open once the axis is drawn
     // (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet).
     if (mainTemplate.isScopeBoundSource) {
-      const toCreate = [];
-      for (const t of generatedTemplates ?? []) {
-        const template = {
-          ...t,
-          modelIdMaster: getSystemTemplateModelId(object, t),
-        };
-        const existing = await findObjectTemplateInListing(
-          listingId,
-          template.modelIdMaster
-        );
-        if (!existing) toCreate.push(template);
-      }
-      if (toCreate.length > 0) {
-        await createTemplatesFromLibrary(toCreate, { listingId, projectId });
-      }
+      await ensureTemplates({
+        object,
+        templates: generatedTemplates,
+        listingId,
+      });
       const tool = getDrawingToolByKey("REVOLUTION_AXIS_PLAN");
       if (!tool) return;
       dispatch(
@@ -80,36 +59,19 @@ export default function usePlaceSystemFromLibrary() {
       return;
     }
 
-    // Tag each template (source + generated) with a deterministic modelIdMaster.
-    const sourceTemplate = {
-      ...mainTemplate,
-      modelIdMaster: getSystemTemplateModelId(object, mainTemplate),
-    };
-    const otherTemplates = (generatedTemplates ?? []).map((t) => ({
-      ...t,
-      modelIdMaster: getSystemTemplateModelId(object, t),
-    }));
-    const allTemplates = [sourceTemplate, ...otherTemplates];
-
-    // Only create the templates that aren't already in the listing.
-    const toCreate = [];
-    for (const template of allTemplates) {
-      const existing = await findObjectTemplateInListing(
-        listingId,
-        template.modelIdMaster
-      );
-      if (!existing) toCreate.push(template);
-    }
-    if (toCreate.length > 0) {
-      // Bulk insert in one transaction + single triggerAnnotationTemplatesUpdate.
-      await createTemplatesFromLibrary(toCreate, { listingId, projectId });
-    }
+    // Source + generated templates, each tagged with a deterministic
+    // modelIdMaster; only the ones missing from the listing are created.
+    await ensureTemplates({
+      object,
+      templates: [mainTemplate, ...(generatedTemplates ?? [])],
+      listingId,
+    });
 
     // Fetch the source row (freshly created or pre-existing) so the drawing commit
     // links the drawn annotation to it (and its procedureKeys).
     const sourceRow = await findObjectTemplateInListing(
       listingId,
-      sourceTemplate.modelIdMaster
+      getSystemTemplateModelId(object, mainTemplate)
     );
     if (!sourceRow) {
       dispatch(

@@ -21,16 +21,17 @@ import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
-import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import SectionRevolutionAxisLinkedAnnotations from "Features/revolutionAxes/components/SectionRevolutionAxisLinkedAnnotations";
+import SectionRevolutionAxisSystems from "Features/revolutionAxes/components/SectionRevolutionAxisSystems";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
 // Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
 // geometry model (centre + scalars), so the template-centric
 // ToolbarEditAnnotation does not apply: name, radius / height / offset Z, the
-// annotations revolved around the axis (per template) and the launcher rows
-// of the procedures an axis can source (CHATEAU_EAU_V1 — registry
-// sourceAnnotationTypes), like in the standard toolbar.
+// annotations revolved around the axis (per template) and the systems of the
+// axis (SectionRevolutionAxisSystems: one launcher band per ASSOCIATED
+// system — château d'eau, réservoir — and the "Associer un système à l'axe"
+// band while some remain available).
 //
 // The axis ACTIONS (invert halves, partial / total, 3D half-view, coupe base
 // map, delete) live in the quick-action row above the axis on the map
@@ -222,9 +223,9 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
           axisId={selectedAnnotation.id}
         />
 
-        {/* Procedure launcher rows (e.g. CHATEAU_EAU_V1) — same bands as
-            the standard toolbar. */}
-        <RowProcedureActionAuto annotation={selectedAnnotation} />
+        {/* Row 5 - systems of the axis: launcher bands of the associated
+            ones + "Associer un système à l'axe". */}
+        <SectionRevolutionAxisSystems axisId={selectedAnnotation.id} />
       </Paper>
     </Box>
   );
