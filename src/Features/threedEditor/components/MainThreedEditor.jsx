@@ -142,6 +142,8 @@ import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dL
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
 import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
+import VertexOffsetOverlayThreed from "Features/threedVertexOffset/components/VertexOffsetOverlayThreed";
+import useVertexOffsetPointerHandlers from "Features/threedVertexOffset/hooks/useVertexOffsetPointerHandlers";
 import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
 import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
 import {
@@ -410,6 +412,17 @@ export default function MainThreedEditor() {
     extrudeActiveRef.current = extrudeActive;
   }, [extrudeActive]);
 
+  // Same pattern for the vertex offset mode (« Déplacer » on a selected
+  // face) — useVertexOffsetPointerHandlers owns the pointer (face vertex
+  // handles, arm / commit) while active.
+  const vertexOffsetActive = useSelector(
+    (s) => s.threedEditor.vertexOffsetMode.active
+  );
+  const vertexOffsetActiveRef = useRef(vertexOffsetActive);
+  useEffect(() => {
+    vertexOffsetActiveRef.current = vertexOffsetActive;
+  }, [vertexOffsetActive]);
+
   // Same pattern for walk mode — WalkModeController owns the camera and the
   // keyboard; clicks are the pointer-lock re-acquire fallback, and hover
   // raycasts would read frozen client coords while the pointer is locked.
@@ -522,6 +535,7 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
+  useVertexOffsetPointerHandlers();
   // Mesh annotations: Delete on the selected faces / edges (before the
   // annotation delete shortcut). Their highlight is Mesh3dPartsHighlightThreed.
   useDeleteMesh3dPartsOnKeyboard();
@@ -820,6 +834,9 @@ export default function MainThreedEditor() {
       if (meshingActiveRef.current) return;
       // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
       if (extrudeActiveRef.current) return;
+      // Vertex offset mode owns the pointer; useVertexOffsetPointerHandlers
+      // handles it.
+      if (vertexOffsetActiveRef.current) return;
       // Walk mode: clicks only re-acquire the pointer lock, never select.
       if (walkActiveRef.current) return;
       // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
@@ -1328,6 +1345,7 @@ export default function MainThreedEditor() {
       if (dimensionActiveRef.current) return;
       if (meshingActiveRef.current) return;
       if (extrudeActiveRef.current) return;
+      if (vertexOffsetActiveRef.current) return;
       if (walkActiveRef.current) return;
       if (placementActiveRef.current) return;
       if (moveBaseMapActiveRef.current) return;
@@ -1904,6 +1922,7 @@ export default function MainThreedEditor() {
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
       extrudeActiveRef.current ||
+      vertexOffsetActiveRef.current ||
       walkActiveRef.current ||
       placementActiveRef.current ||
       moveBaseMapActiveRef.current ||
@@ -2683,6 +2702,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && <MeshBrushThreed />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}
+      {isThreedViewer && <VertexOffsetOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}
       {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}
       {isThreedViewer && <PopperEditMeshes3d viewerKey="THREED" />}

@@ -20,7 +20,16 @@ const MAX_FACES = 2000;
 // Returns the LOCAL mesh with ABSOLUTE local z (the annotation's offsetZ is
 // baked in the geometry; the caller re-bases it), or null when the solid is
 // not convertible: CSG-carved, neither closed nor a single flat face, etc.
-export default function convertObject3DToMesh3d(object, baseMapGroup) {
+//
+// options.allowOpen: an OPEN mesh of several faces (the zero-thickness quads
+// of a PX polyline wall, a sloped band...) is returned as it is instead of
+// null — for a display-only use (face selection, getDisplayedMesh3d), never
+// for a write: its winding is not normalized.
+export default function convertObject3DToMesh3d(
+  object,
+  baseMapGroup,
+  { allowOpen = false } = {}
+) {
   if (!object || !baseMapGroup) return null;
   const solids = getSolidMeshesFromObject3D(object);
   if (!solids.length) return null;
@@ -59,5 +68,6 @@ export default function convertObject3DToMesh3d(object, baseMapGroup) {
       : mesh;
   }
   // A flat polygon (height 0) is a one-face sheet.
-  return mesh.faces.length === 1 ? mesh : null;
+  if (mesh.faces.length === 1 || allowOpen) return mesh;
+  return null;
 }

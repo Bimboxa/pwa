@@ -19,8 +19,17 @@ const cache = new WeakMap();
 // un-shrunk conversion (deleteMesh3dPartsService).
 //
 // Null when the annotation is a mesh already, is not convertible, or is a
-// flat one-face sheet (its only face IS the annotation).
-export default function getDisplayedMesh3d(editor, annotationId) {
+// flat one-face sheet (its only face IS the annotation) — unless
+// options.allowSingleFace (the vertex offset tool addresses that lone face).
+//
+// Open meshes (a PX polyline wall: one zero-thickness quad per segment) are
+// accepted here: their faces are selectable like any other, only the writes
+// (getEditableMesh3d) keep rejecting them.
+export default function getDisplayedMesh3d(
+  editor,
+  annotationId,
+  { allowSingleFace = false } = {}
+) {
   const sceneManager = editor?.sceneManager;
   const annotationsManager = sceneManager?.annotationsManager;
   const object = annotationsManager?.annotationsObjectsMap?.[annotationId];
@@ -33,11 +42,11 @@ export default function getDisplayedMesh3d(editor, annotationId) {
 
   let mesh = cache.get(object);
   if (mesh === undefined) {
-    mesh = convertObject3DToMesh3d(object, baseMapGroup);
-    if (mesh && mesh.faces.length < 2) mesh = null;
+    mesh = convertObject3DToMesh3d(object, baseMapGroup, { allowOpen: true });
     cache.set(object, mesh);
   }
   if (!mesh) return null;
+  if (mesh.faces.length < 2 && !allowSingleFace) return null;
   return { mesh, baseMapGroup, baseOffsetZ: 0, object };
 }
 

@@ -145,6 +145,14 @@ vs. user-controlled.
 
 All utils live under `src/Features/annotations/utils/`.
 
+> **Vertex offset mode** (`src/Features/threedVertexOffset/`): in the 3D
+> editor, select an annotation, then one of its faces (selection-slice
+> `MESH3D_FACE` part), then « Déplacer » (M). The face's vertices become
+> handles; a clicked one follows the mouse along the base map normal and the
+> drop click writes `offsetTop` (top vertex) or `offsetBottom` (bottom vertex)
+> on that point's ref (`commitPointOffsetService`). PX polyline walls and
+> POLYGON prisms only (their face vertices stand on their points).
+>
 > **Removed:** the 3D move gizmo (`MoveGizmoThreed`) and its vertical-move
 > features (_Δz_, _Pente %_, edge / vertex sub-selection, ramp layout,
 > propagation to connected walls) were deleted. The utils that served it

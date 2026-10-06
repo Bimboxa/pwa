@@ -20,6 +20,17 @@ function closeBaseMapsGrid(state) {
   state.baseMapsGridMode.active = false;
 }
 
+// Leaves the vertex offset mode (« Déplacer » on a selected face): every
+// other 3D tool mode calls it when it arms.
+function closeVertexOffsetMode(state) {
+  state.vertexOffsetMode.active = false;
+  state.vertexOffsetMode.annotationId = null;
+  state.vertexOffsetMode.faceIndex = null;
+  state.vertexOffsetMode.armedPointId = null;
+  state.vertexOffsetMode.armedField = null;
+  state.vertexOffsetMode.valueBuffer = "";
+}
+
 const threedEditorInitialState = {
   showGrid: false,
   // When true, basemap images are hidden in the live 3D view AND omitted from
@@ -242,6 +253,27 @@ const threedEditorInitialState = {
     // Annotation armed by the first click (null = waiting for a face).
     targetAnnotationId: null,
   },
+  // « Déplacer » (M) armed while a FACE of a regular annotation is selected
+  // (Dessin module, 3D editor): the face's vertices become handles, a clicked
+  // one follows the mouse along the base map normal and its per-point
+  // `offsetTop` (top vertex) / `offsetBottom` (bottom vertex) is written on
+  // the drop click. Same click-click + typed-buffer model as extrudeMode.
+  // Mutually exclusive with the other 3D tool modes.
+  vertexOffsetMode: {
+    active: false,
+    // Face whose vertices are the handles (selection slice MESH3D_FACE part).
+    annotationId: null,
+    faceIndex: null,
+    // Vertex being moved (null = waiting for a click on a handle).
+    armedPointId: null,
+    armedField: null, // "offsetTop" | "offsetBottom"
+    // Stored offset of the armed vertex at arm time (meters).
+    baseOffset: 0,
+    // ABSOLUTE offset followed by the mouse (meters).
+    value: 0,
+    // Digits typed on the keyboard — wins over the mouse while non-empty.
+    valueBuffer: "",
+  },
   // "Déplacer" mode: grab a snapped point (vertex / feature edge) of a base
   // map's content (image corner, annotation vertex), the whole base map
   // group (image + annotations) then follows the mouse; the drop click
@@ -460,6 +492,7 @@ export const threedEditorSlice = createSlice({
       } else {
         // Mutually exclusive with dimension mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -584,6 +617,7 @@ export const threedEditorSlice = createSlice({
       } else {
         // Mutually exclusive with drawing and meshing modes.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -619,6 +653,7 @@ export const threedEditorSlice = createSlice({
       } else {
         // Mutually exclusive with drawing and dimension modes.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -678,6 +713,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -723,11 +759,73 @@ export const threedEditorSlice = createSlice({
     setExtrudeTargetAnnotationId: (state, action) => {
       state.extrudeMode.targetAnnotationId = action.payload;
     },
+    // payload: { annotationId, faceIndex } to arm, false / null to leave.
+    setVertexOffsetModeActive: (state, action) => {
+      const target = action.payload;
+      if (!target) {
+        closeVertexOffsetMode(state);
+        return;
+      }
+      closeVertexOffsetMode(state);
+      state.vertexOffsetMode.active = true;
+      state.vertexOffsetMode.annotationId = target.annotationId;
+      state.vertexOffsetMode.faceIndex = target.faceIndex;
+      // Mutually exclusive with every other 3D tool mode.
+      closeBaseMapsGrid(state);
+      state.drawingMode.active = false;
+      state.drawingMode.inProgressPolyline = [];
+      state.drawingMode.trait3DSegments = [];
+      state.drawingMode.axisLock = null;
+      state.dimensionMode.active = false;
+      state.dimensionMode.startPoint = null;
+      state.meshingMode.active = false;
+      state.meshingMode.tool = "SELECT";
+      state.walkMode.active = false;
+      state.extrudeMode.active = false;
+      state.extrudeMode.targetAnnotationId = null;
+      state.moveBaseMapMode.active = false;
+      state.moveBaseMapMode.carriedBaseMapId = null;
+      state.rotateBaseMapMode.active = false;
+      state.rotateBaseMapMode.carriedBaseMapId = null;
+      state.moveAnnotationMode.active = false;
+      state.moveAnnotationMode.carriedAnnotationIds = [];
+      state.rotateAnnotationMode.active = false;
+      state.rotateAnnotationMode.carriedAnnotationIds = [];
+      state.rotateAnnotationMode.referenceSet = false;
+      state.rotateAnnotationMode.angleBuffer = "";
+    },
+    // payload: { pointId, field, baseOffset } on the handle click, null when
+    // the vertex is dropped or the arm cancelled.
+    setVertexOffsetArmed: (state, action) => {
+      const armed = action.payload;
+      state.vertexOffsetMode.armedPointId = armed?.pointId ?? null;
+      state.vertexOffsetMode.armedField = armed?.field ?? null;
+      state.vertexOffsetMode.baseOffset = armed?.baseOffset ?? 0;
+      state.vertexOffsetMode.value = armed?.baseOffset ?? 0;
+      state.vertexOffsetMode.valueBuffer = "";
+    },
+    setVertexOffsetValue: (state, action) => {
+      state.vertexOffsetMode.value = action.payload;
+    },
+    setVertexOffsetValueBuffer: (state, action) => {
+      state.vertexOffsetMode.valueBuffer = action.payload ?? "";
+    },
+    appendToVertexOffsetValueBuffer: (state, action) => {
+      state.vertexOffsetMode.valueBuffer += action.payload;
+    },
+    deleteLastVertexOffsetValueBuffer: (state) => {
+      state.vertexOffsetMode.valueBuffer =
+        state.vertexOffsetMode.valueBuffer.slice(0, -1);
+    },
+    clearVertexOffsetValueBuffer: (state) => {
+      state.vertexOffsetMode.valueBuffer = "";
+    },
     setWalkModeActive: (state, action) => {
       state.walkMode.active = !!action.payload;
       if (action.payload) {
         // Mutually exclusive with every 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -755,6 +853,7 @@ export const threedEditorSlice = createSlice({
       state.baseMapsGridMode.active = active;
       if (!active) return;
       // Mutually exclusive with every other 3D tool mode.
+      closeVertexOffsetMode(state);
       state.drawingMode.active = false;
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.trait3DSegments = [];
@@ -786,6 +885,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -818,6 +918,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -859,6 +960,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -891,6 +993,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -1078,6 +1181,13 @@ export const {
   deleteLastExtrudeValueBuffer,
   clearExtrudeValueBuffer,
   setExtrudeTargetAnnotationId,
+  setVertexOffsetModeActive,
+  setVertexOffsetArmed,
+  setVertexOffsetValue,
+  setVertexOffsetValueBuffer,
+  appendToVertexOffsetValueBuffer,
+  deleteLastVertexOffsetValueBuffer,
+  clearVertexOffsetValueBuffer,
   setWalkModeActive,
   setBaseMapsGridModeActive,
   setMoveBaseMapModeActive,

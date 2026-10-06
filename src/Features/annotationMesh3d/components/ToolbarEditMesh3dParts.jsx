@@ -50,16 +50,26 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
   const captionS = "Sélection";
   const backS = "Revenir à l'annotation entière";
   const verticesS = "sommets";
+  const moveVertexHintS = "Déplacer (M) : décaler un sommet";
 
   // data
 
-  const { annotationId, parts, faces, edges } = useSelectedMesh3dParts();
+  const { annotationId, parts, faces, edges, isClosed } =
+    useSelectedMesh3dParts();
 
   // helpers
 
   const { title, canDelete, deleteLabel, totalSurface, totalLength } =
-    getMesh3dPartsDisplay({ faces, edges });
+    getMesh3dPartsDisplay({ faces, edges, isClosed });
   const singleFace = faces.length === 1 ? faces[0] : null;
+  // A regular annotation (its parts sit on its displayed conversion) can have
+  // a vertex of the selected face moved with « Déplacer ».
+  const editor = getActiveThreedEditor();
+  const isRegularAnnotation =
+    !!annotationId &&
+    !editor?.sceneManager?.annotationsManager?.getAnnotationSource?.(
+      annotationId
+    )?.isMesh3d;
 
   // handlers
 
@@ -149,6 +159,14 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
             <Box sx={{ flex: 1 }} />
             <Typography variant="caption" color="text.secondary">
               {singleFace.vertexCount} {verticesS}
+            </Typography>
+          </Box>
+        )}
+
+        {singleFace && isRegularAnnotation && (
+          <Box sx={rowSx}>
+            <Typography variant="caption" color="text.secondary">
+              {moveVertexHintS}
             </Typography>
           </Box>
         )}

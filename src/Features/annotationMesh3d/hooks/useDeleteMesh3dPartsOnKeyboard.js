@@ -3,6 +3,10 @@ import { useEffect } from "react";
 import { useDispatch, useStore } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
+import {
+  setSelectedPartIds,
+  setSubSelection,
+} from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -23,7 +27,9 @@ const isEditableTarget = (el) => {
 };
 
 // Delete / Backspace in the 3D editor while faces / edges of a mesh annotation
-// are selected: deletes THOSE parts, not the annotation.
+// are selected: deletes THOSE parts, not the annotation. Escape drops the
+// part selection (back to the whole annotation, like the toolbar's close
+// button) — the step after leaving the vertex offset mode.
 //
 // Capture phase + stopPropagation: it pre-empts the annotation delete
 // shortcut (useDeleteAnnotationOnKeyboardInThreedEditor), which would open
@@ -35,16 +41,46 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const isEscape = e.key === "Escape";
+      if (!isEscape && e.key !== "Delete" && e.key !== "Backspace") return;
       if (isEditableTarget(e.target)) return;
       if (isEditableTarget(document.activeElement)) return;
 
       const state = store.getState();
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;
-      // A tool that owns the keyboard (typed extrude value…) keeps Backspace;
-      // in walk mode Backspace / Delete clear the walk tool's traces.
+      // A tool that owns the keyboard (typed extrude / vertex offset value…)
+      // keeps Backspace and Escape; in walk mode Backspace / Delete clear the
+      // walk tool's traces.
       if (state.threedEditor.extrudeMode.active) return;
+      if (state.threedEditor.vertexOffsetMode.active) return;
       if (state.threedEditor.walkMode.active) return;
+      if (isEscape) {
+        // Only with no other 3D tool armed: those own Escape themselves.
+        const t = state.threedEditor;
+        if (
+          t.drawingMode.active ||
+          t.dimensionMode.active ||
+          t.meshingMode.active ||
+          t.moveBaseMapMode.active ||
+          t.rotateBaseMapMode.active ||
+          t.moveAnnotationMode.active ||
+          t.rotateAnnotationMode.active ||
+          t.baseMapsGridMode.active
+        ) {
+          return;
+        }
+        const item = state.selection.selectedItems[0];
+        const parts = getSelectedMesh3dParts(
+          item,
+          state.selection.selectedPartIds
+        );
+        if (!parts.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(setSelectedPartIds([]));
+        dispatch(setSubSelection({ partId: null, partType: null }));
+        return;
+      }
       // While drawing, the selected face is where the line is cut into:
       // swallow the key (nor the parts nor the annotation get deleted).
       if (state.threedEditor.drawingMode.active) {

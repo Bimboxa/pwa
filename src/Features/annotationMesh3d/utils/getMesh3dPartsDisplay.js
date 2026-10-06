@@ -14,8 +14,14 @@ const plural = (count, one, many) => (count > 1 ? `${count} ${many}` : one);
 
 // Wording + totals of the selected faces / edges of a mesh annotation
 // (getMesh3dPartsInfo output), shared by the properties panel and the edit
-// toolbar.
-export default function getMesh3dPartsDisplay({ faces, edges }) {
+// toolbar. isClosed (default true): false when the parts sit on an OPEN
+// displayed mesh (a PX polyline wall), which no write can convert — the
+// deletion is then disabled instead of failing.
+export default function getMesh3dPartsDisplay({
+  faces,
+  edges,
+  isClosed = true,
+}) {
   const title = [
     faces.length ? plural(faces.length, "Face", "faces") : null,
     edges.length ? plural(edges.length, "Arête", "arêtes") : null,
@@ -25,14 +31,17 @@ export default function getMesh3dPartsDisplay({ faces, edges }) {
 
   // Faces win over edges when both are selected (same rule as the service).
   const deletesFaces = faces.length > 0;
-  const canDelete = deletesFaces || edges.some((edge) => edge.canMerge);
-  const deleteLabel = deletesFaces
-    ? faces.length > 1
-      ? `Supprimer les ${faces.length} faces`
-      : "Supprimer la face"
-    : edges.length > 1
-      ? `Supprimer les ${edges.length} arêtes`
-      : "Supprimer l'arête";
+  const canDelete =
+    isClosed && (deletesFaces || edges.some((edge) => edge.canMerge));
+  const deleteLabel = !isClosed
+    ? "Suppression impossible sur une surface ouverte"
+    : deletesFaces
+      ? faces.length > 1
+        ? `Supprimer les ${faces.length} faces`
+        : "Supprimer la face"
+      : edges.length > 1
+        ? `Supprimer les ${edges.length} arêtes`
+        : "Supprimer l'arête";
 
   const totalSurface = faces.reduce((sum, face) => sum + face.area, 0);
   const totalLength = edges.reduce((sum, edge) => sum + edge.length, 0);

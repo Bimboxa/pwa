@@ -7,6 +7,8 @@ import {
   clearItemPartSelection,
   selectSelectedItem,
   selectSelectedPartIds,
+  setSelectedPartIds,
+  setSubSelection,
 } from "Features/selection/selectionSlice";
 
 import {
@@ -34,8 +36,11 @@ import {
 } from "../services/pickMesh3dEdge";
 import {
   MESH3D_FACE_PART,
+  getMesh3dEdgePartId,
+  getMesh3dFacePartId,
   getSelectedMesh3dParts,
 } from "../utils/mesh3dPartIds";
+import relocateMesh3dPartsByFootprint from "../utils/relocateMesh3dPartsByFootprint";
 
 function disposeObject(object) {
   object?.traverse?.((child) => {
@@ -62,14 +67,18 @@ function disposeObject(object) {
 // address the conversion of its displayed object (getDisplayedMesh3d). The
 // dots are then built from that face and added to the base map group, the
 // edge lines from its vertices. Those indices only hold for that geometry:
-// when the object is rebuilt with another one, the part selection is dropped.
+// when the object is rebuilt with another one, the parts are re-located on
+// the new conversion by their plan footprint (a vertical edit — a vertex
+// offset, a height — keeps a face selected), and dropped when not found.
 //
 // The helpers are invisible to raycasts and to the snap index
 // (userData.isHoverOverlay).
 export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
   const dispatch = useDispatch();
-  // Signature of the displayed mesh the current parts were selected on.
+  // Signature + mesh of the displayed conversion the current parts were
+  // selected on (regular annotation).
   const signatureRef = useRef(null);
+  const displayedMeshRef = useRef(null);
 
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
@@ -97,6 +106,7 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
   useEffect(() => {
     if (!enabled || !annotationId || !partsKey) {
       signatureRef.current = null;
+      displayedMeshRef.current = null;
       return undefined;
     }
     const editor = getActiveThreedEditor();
@@ -120,17 +130,57 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
     if (!isMeshObject) {
       const key = `${annotationId}|${getMesh3dSignature(displayed?.mesh)}`;
       const previous = signatureRef.current;
+      const previousMesh = displayedMeshRef.current;
       signatureRef.current = key;
+      displayedMeshRef.current = displayed?.mesh ?? null;
       const isStale =
         !displayed ||
         (previous?.startsWith(`${annotationId}|`) && previous !== key);
       if (isStale) {
-        signatureRef.current = null;
-        dispatch(clearItemPartSelection(annotationId));
-        return undefined;
+        // Another geometry: re-locate the parts on it when possible, by
+        // their plan footprint — the selection is re-dispatched and this
+        // effect runs again on the new ids.
+        const relocated =
+          displayed && previousMesh
+            ? relocateMesh3dPartsByFootprint(
+                previousMesh,
+                displayed.mesh,
+                parts
+              )
+            : [];
+        const relocatedKey = relocated
+          .map((part) =>
+            part.partType === MESH3D_FACE_PART
+              ? `F${part.faceIndex}`
+              : `E${part.a}_${part.b}`
+          )
+          .join("|");
+        if (!relocated.length) {
+          signatureRef.current = null;
+          displayedMeshRef.current = null;
+          dispatch(clearItemPartSelection(annotationId));
+          return undefined;
+        }
+        if (relocatedKey !== partsKey) {
+          const ids = relocated.map((part) =>
+            part.partType === MESH3D_FACE_PART
+              ? getMesh3dFacePartId(annotationId, part.faceIndex)
+              : getMesh3dEdgePartId(annotationId, part.a, part.b)
+          );
+          dispatch(setSelectedPartIds(ids.length > 1 ? ids : []));
+          dispatch(
+            setSubSelection({
+              partId: ids[0],
+              partType: relocated[0].partType,
+            })
+          );
+          return undefined;
+        }
+        // Same ids on the new geometry: draw them below.
       }
     } else {
       signatureRef.current = null;
+      displayedMeshRef.current = null;
     }
 
     const faceOverlays = [];

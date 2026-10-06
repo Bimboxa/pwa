@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useStore } from "react-redux";
 
 import {
   setExtrudeModeActive,
-  setMoveAnnotationModeActive,
   setRotateAnnotationModeActive,
   setMoveBaseMapModeActive,
   setRotateBaseMapModeActive,
@@ -12,10 +11,13 @@ import {
 import { Box, ListItemButton, Typography } from "@mui/material";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
+import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { activateMoveTool } from "Features/threedVertexOffset/utils/resolveVertexOffsetTarget";
 
+// MOVE_ANNOTATION goes through activateMoveTool: a selected face arms the
+// vertex offset mode instead of the whole-annotation move.
 const ACTION_BY_THREED_TOOL = {
   EXTRUDE: setExtrudeModeActive,
-  MOVE_ANNOTATION: setMoveAnnotationModeActive,
   ROTATE_ANNOTATION: setRotateAnnotationModeActive,
   MOVE_BASE_MAP: setMoveBaseMapModeActive,
   ROTATE_BASE_MAP: setRotateBaseMapModeActive,
@@ -38,6 +40,7 @@ export default function RowThreedTool({
   variant = "popper",
 }) {
   const dispatch = useDispatch();
+  const store = useStore();
 
   // state
 
@@ -50,6 +53,14 @@ export default function RowThreedTool({
   // handlers
 
   function handleClick() {
+    if (threedTool === "MOVE_ANNOTATION") {
+      activateMoveTool({
+        dispatch,
+        state: store.getState(),
+        editor: getActiveThreedEditor(),
+      });
+      return;
+    }
     const action = ACTION_BY_THREED_TOOL[threedTool];
     if (action) dispatch(action(true));
   }

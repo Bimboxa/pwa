@@ -3,9 +3,10 @@ import { useDispatch, useStore } from "react-redux";
 
 import {
   setExtrudeModeActive,
-  setMoveAnnotationModeActive,
   setRotateAnnotationModeActive,
 } from "Features/threedEditor/threedEditorSlice";
+import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { activateMoveTool } from "Features/threedVertexOffset/utils/resolveVertexOffsetTarget";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -21,9 +22,10 @@ const isEditableTarget = (el) => {
 };
 
 // Plain-letter shortcuts of the threedEditor tools of the Dessin (MAP)
-// module's 3D editor: E = Extruder, M = Déplacer (annotation), R = Tourner
-// (annotation) — the letters shown as badges on their « Outils de dessin »
-// rows (RowThreedTool). "D" is the "Dessin" tool, in 3D like in 2D
+// module's 3D editor: E = Extruder, M = Déplacer (annotation — or a vertex
+// of the selected face, see activateMoveTool), R = Tourner (annotation) —
+// the letters shown as badges on their « Outils de dessin » rows
+// (RowThreedTool). "D" is the "Dessin" tool, in 3D like in 2D
 // (useTemplatelessDrawHotkey). Toggle semantics: the letter also disarms
 // (the threedEditorSlice reducers own the mode mutual exclusion). In the 2D
 // editor M / R arm the 2D tool groups instead (useToolGroupHotkey).
@@ -60,9 +62,11 @@ export default function useDessinToolHotkeysThreed() {
       if (letter === "e") {
         dispatch(setExtrudeModeActive(!s.threedEditor.extrudeMode.active));
       } else if (letter === "m") {
-        dispatch(
-          setMoveAnnotationModeActive(!s.threedEditor.moveAnnotationMode.active)
-        );
+        activateMoveTool({
+          dispatch,
+          state: s,
+          editor: getActiveThreedEditor(),
+        });
       } else {
         dispatch(
           setRotateAnnotationModeActive(

@@ -68,7 +68,8 @@ export default function PanelPropertiesMesh3dParts() {
 
   // data
 
-  const { annotationId, parts, faces, edges } = useSelectedMesh3dParts();
+  const { annotationId, parts, faces, edges, isClosed } =
+    useSelectedMesh3dParts();
 
   // helpers
 
@@ -79,7 +80,7 @@ export default function PanelPropertiesMesh3dParts() {
     deleteLabel,
     totalSurface,
     totalLength,
-  } = getMesh3dPartsDisplay({ faces, edges });
+  } = getMesh3dPartsDisplay({ faces, edges, isClosed });
 
   // handlers
 
