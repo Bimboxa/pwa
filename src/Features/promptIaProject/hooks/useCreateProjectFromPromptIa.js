@@ -487,9 +487,8 @@ export default function useCreateProjectFromPromptIa() {
       };
     });
 
-    // Same setup as the "Krto vide" button: core modules, no system
-    // annotation templates. The row precedes the scope (see
-    // useCreateScopeFromPreset).
+    // Same setup as the "Krto vide" button: core modules only. The row
+    // precedes the scope (see useCreateScopeFromPreset).
     await createScopeConfig({
       scopeId: scope.id,
       projectId: project.id,
@@ -498,7 +497,6 @@ export default function useCreateProjectFromPromptIa() {
         EMPTY_SCOPE_CONFIGURATION.scopeConfig,
         appConfig
       ),
-      systemAnnotationTemplates: false,
     });
     // createScope selects the scope: the db guards then accept its
     // annotations and its points get the right scopeId.

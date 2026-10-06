@@ -175,7 +175,6 @@ import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
 import ProcedureAutoLaunchDialogOutlet from "Features/annotationsAuto/components/ProcedureAutoLaunchDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
-import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
 import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useSyncLinkBusinessObjectDraft from "Features/businessObjects/hooks/useSyncLinkBusinessObjectDraft";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
@@ -219,8 +218,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
     useDrawingToolHotkeys();
-    // hotkeys — start a free draw (L = line, P = polygon) when in DRAW mode
-    useFreeAnnotationHotkeys();
     // reset a residual interaction mode (set by ZONES / POV flows) to the default
     useResetInteractionMode();
     // business-objects modules — a draw linking to the ACTIVE object follows

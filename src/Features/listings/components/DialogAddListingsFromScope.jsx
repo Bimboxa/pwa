@@ -89,8 +89,7 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
   const hasCandidates = suggested.length + others.length > 0;
 
   // helpers - source scope listings (paternity only: its OWN drawing
-  // listings — a listing the source itself borrowed is not chained; the
-  // system "Générique" listing would duplicate the host's own one)
+  // listings — a listing the source itself borrowed is not chained)
 
   const { value: sourceListingsRaw } = useListings({
     filterByProjectId: projectId,
@@ -102,10 +101,7 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
   const sourceListings = useMemo(() => {
     if (!sourceScopeId) return [];
     return (sourceListingsRaw ?? []).filter(
-      (l) =>
-        l.scopeId === sourceScopeId &&
-        !l.isFreeAnnotationsListing &&
-        !linkedSourceByListingId[l.id]
+      (l) => l.scopeId === sourceScopeId && !linkedSourceByListingId[l.id]
     );
   }, [sourceListingsRaw, sourceScopeId, linkedSourceByListingId]);
 

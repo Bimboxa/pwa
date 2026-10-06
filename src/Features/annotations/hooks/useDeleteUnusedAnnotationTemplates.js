@@ -27,7 +27,7 @@ import { OwnershipError } from "App/db/ownership";
 export default function useDeleteUnusedAnnotationTemplates() {
   const dispatch = useDispatch();
 
-  // the scope's LOCATED_ENTITY listings (resolved entityModel, non free-annotations)
+  // the scope's LOCATED_ENTITY listings (resolved entityModel)
   const { value: scopeListings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
   });
@@ -35,9 +35,7 @@ export default function useDeleteUnusedAnnotationTemplates() {
 
   async function computeUnused({ listingId } = {}) {
     // single-listing mode: no listing is ever a deletion candidate
-    const listings = listingId
-      ? []
-      : (scopeListings ?? []).filter((l) => !l.isFreeAnnotationsListing);
+    const listings = listingId ? [] : (scopeListings ?? []);
     const scopeListingIds = listingId ? [listingId] : listings.map((l) => l.id);
     if (scopeListingIds.length === 0) {
       return {

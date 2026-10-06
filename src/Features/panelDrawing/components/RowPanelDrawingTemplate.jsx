@@ -22,7 +22,6 @@ import SplitButtonStartDraw from "./SplitButtonStartDraw";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
-import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import {
   formatTemplateQtiesLine,
   formatTemplateQtiesTooltip,
@@ -76,7 +75,6 @@ export default function RowPanelDrawingTemplate({
   // helpers
 
   const isHidden = Boolean(annotationTemplate?.hidden);
-  const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
   // No annotation nor painted part yet: a plain "0 annot" line, dimmed to
   // light grey.
   const hasQties = Boolean(
@@ -232,11 +230,6 @@ export default function RowPanelDrawingTemplate({
                 </Typography>
               )}
             </Typography>
-            {freeShortcut && !readOnly && (
-              <Box sx={{ flexShrink: 0 }}>
-                <ShortcutBadge>{freeShortcut}</ShortcutBadge>
-              </Box>
-            )}
             {hasProcedure && (
               <Chip
                 label="Auto"

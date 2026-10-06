@@ -25,8 +25,8 @@ export function resolveActiveToolForTemplate(
 }
 
 // Single source of truth for the "start drawing from a template" dispatch
-// sequence (shared by the panel row and the L/S hotkeys). The template's flags
-// (e.g. isFreeAnnotation) ride along via getNewAnnotationPropsFromAnnotationTemplate.
+// sequence (shared by the panel row and the tool-group hotkeys). The template's
+// flags ride along via getNewAnnotationPropsFromAnnotationTemplate.
 // extraProps: caller overrides merged over the template-derived draft (e.g. a
 // preset label, a transport-only commitInterceptor).
 export default function startDrawFromTemplate(

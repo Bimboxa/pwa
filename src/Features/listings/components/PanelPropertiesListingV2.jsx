@@ -412,7 +412,6 @@ export default function PanelPropertiesListingV2({ listing }) {
   const listingEntityModelKey =
     listing?.entityModelKey ?? listing?.entityModel?.key ?? null;
   const showListingType =
-    !listing?.isFreeAnnotationsListing &&
     listing?.entityModel?.type !== "BUSINESS_OBJECT" &&
     listingTypeOptions.length > 0;
 

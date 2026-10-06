@@ -37,9 +37,6 @@ const ALWAYS_COPY_KEYS = [
   // height). When unlocked the template is not a read-time fallback, so the
   // default has to be seeded here; when locked the resolver overrides it anyway.
   "isExt",
-  // Free annotations (no entity, no user-managed template) are backed by a
-  // hidden system template carrying this flag; it must reach the annotation.
-  "isFreeAnnotation",
   // Zone delimitation polygons (zonings module): per-zone templates carry this
   // flag; the commit skips the entity creation for them.
   "isZoneAnnotation",

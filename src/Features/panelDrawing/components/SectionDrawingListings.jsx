@@ -69,20 +69,9 @@ export default function SectionDrawingListings() {
     keepHiddenTemplates: true,
   });
 
-  // helpers - listings (rank order from the selector; the system "Générique"
-  // listing stays pinned first only while it has no rank — same rule as
-  // PanelDrawing)
+  // helpers - listings (rank order from the selector, same as PanelDrawing)
 
-  const displayedListings = useMemo(() => {
-    const pinnedSystemListings =
-      listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
-      [];
-    const otherListings =
-      listings?.filter(
-        (l) => !(l.isFreeAnnotationsListing && l.rank == null)
-      ) ?? [];
-    return [...pinnedSystemListings, ...otherListings];
-  }, [listings]);
+  const displayedListings = useMemo(() => listings ?? [], [listings]);
 
   // helpers - counts (mesh cells excluded, like computeAnnotationTemplateQties)
 

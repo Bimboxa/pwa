@@ -19,7 +19,6 @@ export default async function createScopeConfig({
   disabledModuleKeys,
   disabledToolKeys,
   disabledToolKeysByModule,
-  systemAnnotationTemplates,
   moduleLabelsByKey,
   moduleIconKeysByKey,
   moduleOrder,
@@ -49,10 +48,6 @@ export default async function createScopeConfig({
       ...(moduleLabelsByKey !== undefined && { moduleLabelsByKey }),
       ...(moduleIconKeysByKey !== undefined && { moduleIconKeysByKey }),
       ...(moduleOrder !== undefined && { moduleOrder }),
-      // only materialized when the caller decides (absent => enabled)
-      ...(systemAnnotationTemplates !== undefined && {
-        systemAnnotationTemplates,
-      }),
     })
   );
   notifyLocalChange();

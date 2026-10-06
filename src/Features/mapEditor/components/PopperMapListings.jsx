@@ -117,7 +117,6 @@ import {
   TEMPLATELESS_LABEL,
   TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
-import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
@@ -128,7 +127,6 @@ import FieldActiveListing from "Features/panelDrawing/components/FieldActiveList
 import ListingAvatarsBar from "Features/panelDrawing/components/ListingAvatarsBar";
 import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
 import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
-import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useSelectedZone from "Features/zonings/hooks/useSelectedZone";
@@ -451,8 +449,6 @@ function AnnotationTemplateRow({
   // helpers
 
   const isHidden = annotationTemplate?.hidden;
-  // Free annotations show their keyboard shortcut (L / P) next to the icon.
-  const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
   const ActiveToolIcon = activeTool?.Icon;
   // POLYLINE: thickness of the next drawn stroke, shown under the icon line.
   const strokeWidthLabel =
@@ -742,12 +738,6 @@ function AnnotationTemplateRow({
               )}
             </Box>
           </Tooltip>
-          {freeShortcut &&
-            (interactionMode === "DRAW" || interactionMode == null) && (
-              <Box sx={{ mr: 1, flexShrink: 0 }}>
-                <ShortcutBadge>{freeShortcut}</ShortcutBadge>
-              </Box>
-            )}
           {isEditing ? (
             <InputBase
               value={tempLabel}
@@ -2056,12 +2046,6 @@ export default function PopperMapListings() {
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
 
-  // Ensure the system listing ("Générique") + its Ligne/Polygone templates exist
-  // for this scope (idempotent). Provisioning used to live in <FreeAnnotationRows>;
-  // now that the system listing is a normal chip, keep it mounted here so the
-  // panel always has it (incl. the 3D editor mount).
-  useFreeAnnotationTemplates();
-
   // state
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
@@ -2076,24 +2060,8 @@ export default function PopperMapListings() {
   // helpers - filter listings when coming from LISTING viewer
 
   const returnListingId = viewerReturnContext?.listingId;
-  // The system listing (isFreeAnnotationsListing, "Générique") is shown as the
-  // first chip like any other listing, except in the base-maps / zones viewers
-  // where free annotations don't apply. It stays pinned first only while it
-  // has no rank — a drag reorder (FieldActiveListing) ranks every listing,
-  // and the selector's rank order then wins.
-  const excludeSystemListings =
-    (isBaseMapsViewer && !isBaseMapsLegendAll) || isZonesViewer;
-  const pinnedSystemListings = excludeSystemListings
-    ? []
-    : (listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
-      []);
-  const otherListings =
-    listings?.filter(
-      (l) =>
-        !(l.isFreeAnnotationsListing && l.rank == null) &&
-        !(excludeSystemListings && l.isFreeAnnotationsListing)
-    ) ?? [];
-  const visibleListings = [...pinnedSystemListings, ...otherListings];
+  // Listings in the selector's rank order.
+  const visibleListings = listings ?? [];
 
   // In effective SELECT contexts (2D Selection, 3D, Maillage, ?mode=viewer) the
   // panel acts as a legend: hide listings/templates that have no annotation on
