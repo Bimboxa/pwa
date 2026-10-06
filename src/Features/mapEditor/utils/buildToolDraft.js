@@ -1,4 +1,5 @@
 import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
+import { FACE_CUT_TOOL_TYPE } from "Features/threedFaceCut/utils/faceCutTools";
 
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 
@@ -46,5 +47,8 @@ export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
   // « Déplacer » / « Tourner » draw nothing: no drawing shape left over from
   // a previous draw (its letter hotkeys would switch tools).
   if (isTransformToolMode(tool.annotationType)) delete base.drawingShape;
+  // "Coupe face" (3D): its own tool letters (K / L / R / H / V), no drawing
+  // shape left over either.
+  if (tool.annotationType === FACE_CUT_TOOL_TYPE) delete base.drawingShape;
   return base;
 }

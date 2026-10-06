@@ -1,12 +1,7 @@
 import { useEffect, useRef } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useStore } from "react-redux";
 import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
-import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
@@ -14,7 +9,12 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import {
+  isFaceCutAxisMode,
+  isFaceCutDrawingMode,
+} from "Features/threedFaceCut/utils/faceCutTools";
+import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
+import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 import useVertexSnap from "../hooks/useVertexSnap";
@@ -30,6 +30,14 @@ import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
 import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
+import {
+  buildConnectedPolyline,
+  buildSegments,
+  disposeObject,
+  getCanvasResolution,
+  getDashSize,
+  makeLineMaterial,
+} from "../utils/drawingOverlayLines";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
@@ -95,76 +103,6 @@ function colorHex(c) {
   return `#${c.toString(16).padStart(6, "0")}`;
 }
 
-function disposeObject(obj) {
-  if (!obj) return;
-  obj.traverse?.((child) => {
-    child.geometry?.dispose?.();
-    if (Array.isArray(child.material)) {
-      child.material.forEach((m) => m.dispose?.());
-    } else {
-      child.material?.dispose?.();
-    }
-  });
-}
-
-function getCanvasResolution(editor) {
-  const dom = editor?.sceneManager?.renderer?.domElement;
-  if (!dom) return new Vector2(1, 1);
-  return new Vector2(dom.clientWidth, dom.clientHeight);
-}
-
-// Dash length (world metres) of a preview line seen from `distance` metres:
-// 5 cm up close, growing with the distance so the dashes stay readable when
-// drawing at the scale of a site (e.g. on a scan base map) — a fixed 5 cm
-// dash is sub-pixel there and the line fades out.
-function getDashSize(distance) {
-  return Math.max(0.05, (distance || 0) * 0.008);
-}
-
-function makeLineMaterial({
-  color,
-  linewidth,
-  dashed,
-  resolution,
-  dashSize = 0.05,
-}) {
-  return new LineMaterial({
-    color,
-    linewidth,
-    resolution,
-    dashed: !!dashed,
-    dashSize,
-    gapSize: dashSize,
-    worldUnits: false,
-    transparent: true,
-    depthTest: false,
-  });
-}
-
-function buildConnectedPolyline(points, mat) {
-  if (!points?.length || points.length < 2) return null;
-  const flat = [];
-  for (const p of points) flat.push(p.x, p.y, p.z);
-  const geom = new LineGeometry();
-  geom.setPositions(flat);
-  const line = new Line2(geom, mat);
-  line.computeLineDistances();
-  return line;
-}
-
-function buildSegments(segments, mat) {
-  if (!segments?.length) return null;
-  const flat = [];
-  for (const seg of segments) {
-    flat.push(seg.a.x, seg.a.y, seg.a.z, seg.b.x, seg.b.y, seg.b.z);
-  }
-  const geom = new LineSegmentsGeometry();
-  geom.setPositions(flat);
-  const line = new LineSegments2(geom, mat);
-  line.computeLineDistances();
-  return line;
-}
-
 // Renders the 3D drawing overlay:
 //   - persistent trait3D wireframe + in-progress polyline + dashed preview
 //     segment, all using Line2/LineSegments2 with screen-space pixel
@@ -172,12 +110,16 @@ function buildSegments(segments, mat) {
 //   - a fixed-pixel-size SVG snap circle overlaid on the canvas (mirrors
 //     the 2D SnappingLayer pattern)
 export default function DrawingOverlayThreed() {
+  const store = useStore();
   // « Pinceau »: the drawing mode is on (bridge guards) but nothing is drawn
-  // — no overlay, no vertex snap index, no scan picking preparation.
+  // — no overlay, no vertex snap index, no scan picking preparation. Same
+  // for the "Coupe face" axis cuts: FaceCutAxisOverlayThreed hovers the
+  // face itself, no vertex is drawn.
   const active = useSelector(
     (s) =>
       s.threedEditor.drawingMode.active &&
-      !isMeshBrushDrawingMode(s.mapEditor.enabledDrawingMode)
+      !isMeshBrushDrawingMode(s.mapEditor.enabledDrawingMode) &&
+      !isFaceCutAxisMode(s.mapEditor.enabledDrawingMode)
   );
   const inProgressPolyline = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline
@@ -196,6 +138,13 @@ export default function DrawingOverlayThreed() {
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMapId = useMainBaseMap()?.id;
+  // Typed X / Y dimensions of the "Coupe face" rectangle: the preview
+  // follows them (re-run of the pointer-move effect, which reads the store).
+  const rectDimsKey = useSelector((s) =>
+    isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
+      ? `${s.mapEditor.rectXBuffer}|${s.mapEditor.rectYBuffer}`
+      : ""
+  );
 
   const { findNearestSnap } = useVertexSnap({ active });
   // Lines (a POLYLINE template, or the "Dessin" tool on its line type) can
@@ -238,6 +187,8 @@ export default function DrawingOverlayThreed() {
       inProgressLinesRef.current = null;
       inProgressMarkersRef.current = null;
       previewLineRef.current = null;
+      // No stale snap for the next tool's click.
+      setLastSnap(null);
       editor.sceneManager.renderScene?.();
     };
   }, [active]);
@@ -351,8 +302,33 @@ export default function DrawingOverlayThreed() {
     const raycaster = new Raycaster();
     const traitPoints = trait3DSegments.flatMap((seg) => [seg.a, seg.b]);
 
+    // "Coupe face" rectangle: the face's frame (getFaceCutBasisWorld) and
+    // the typed X / Y dimensions, as the click commits them.
+    const faceCutBasis =
+      isFaceCutDrawingMode(enabledDrawingMode) && anchorNormal
+        ? getFaceCutBasisWorld(
+            anchorNormal,
+            anchor,
+            editor.sceneManager?.imagesManager?.getGroup?.(anchor.baseMapId) ??
+              null
+          )
+        : null;
+
     function getRectangleCorners(position) {
       if (anchorNormal) {
+        if (faceCutBasis) {
+          const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+          return computeRectangleCornersOnPlane(
+            anchor,
+            position,
+            anchorNormal,
+            {
+              forcedDu: parseRectBuffer(rectXBuffer),
+              forcedDv: parseRectBuffer(rectYBuffer),
+              basis: faceCutBasis,
+            }
+          );
+        }
         return computeRectangleCornersOnPlane(anchor, position, anchorNormal);
       }
       if (anchorHost)
@@ -637,6 +613,8 @@ export default function DrawingOverlayThreed() {
     mainBaseMapId,
     isMeshDraw,
     canDrawOnScan,
+    rectDimsKey,
+    store,
   ]);
 
   if (!active) return null;

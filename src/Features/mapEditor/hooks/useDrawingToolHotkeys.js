@@ -21,6 +21,7 @@ import {
 } from "../constants/drawingTools.jsx";
 import {
   DRAWING_TOOL_HOTKEYS,
+  FACE_CUT_TOOL_HOTKEYS,
   OPENING_TOOL_HOTKEYS,
 } from "../constants/drawingToolHotkeys";
 import buildToolDraft from "../utils/buildToolDraft";
@@ -29,6 +30,11 @@ import {
   SURFACE_CUT_TOOL_TYPE,
   isSurfaceCutDraft,
 } from "Features/surfaceCut/utils/surfaceCutTools";
+import {
+  FACE_CUT_TOOL_TYPE,
+  isFaceCutDrawingMode,
+} from "Features/threedFaceCut/utils/faceCutTools";
+import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlice";
 
 // Keyboard shortcuts to switch the active drawing tool without leaving the
 // drawing flow:
@@ -37,6 +43,8 @@ import {
 //   - R / L / C / G    : direct-access to a tool by behavior, but ONLY while no
 //     first point has been placed yet (so the in-drawing letter shortcuts keep
 //     priority once the object has started).
+//   - "Coupe face" (FACE_CUT, 3D editor): Tab cycles its tools, K / L / R /
+//     H / V jump to one (FACE_CUT_TOOL_HOTKEYS) before the first point.
 //
 // Mounted once in the live map editor (MainMapEditorV3). Reads live state from
 // the store inside the handler so the listener can stay registered for the
@@ -94,6 +102,10 @@ export default function useDrawingToolHotkeys() {
       dispatch(clearRectDims());
       dispatch(clearConstraintBuffer());
       dispatch(setRectHasFirstPoint(false));
+      // The 3D path in progress belongs to the previous tool too.
+      if (groupType === FACE_CUT_TOOL_TYPE) {
+        dispatch(cancelInProgressPolyline());
+      }
     };
 
     const handleKeyDown = (e) => {
@@ -181,6 +193,47 @@ export default function useDrawingToolHotkeys() {
           ];
         if (next && next.key !== currentKey) {
           switchTool(next, { groupType: SURFACE_CUT_TOOL_TYPE });
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // "Coupe face" group (3D editor): Tab cycles its five tools, the
+      // letters jump to one before the first point (the 3D path in progress
+      // lives in threedEditor, the rectangle anchor in rectHasFirstPoint).
+      if (isFaceCutDrawingMode(mode)) {
+        const faceCutTools = getDrawingToolsByType(FACE_CUT_TOOL_TYPE);
+        if (faceCutTools.length === 0) return;
+        const currentKey =
+          s.mapEditor.selectedToolKeyByTemplateId?.[FACE_CUT_TOOL_TYPE] ?? mode;
+        const hasThreedFirstPoint =
+          s.threedEditor.drawingMode.inProgressPolyline.length > 0 ||
+          s.mapEditor.rectHasFirstPoint;
+        if (e.key === "Tab") {
+          const idx = Math.max(
+            0,
+            faceCutTools.findIndex((t) => t.key === currentKey)
+          );
+          const next =
+            faceCutTools[
+              (idx + (e.shiftKey ? -1 : 1) + faceCutTools.length) %
+                faceCutTools.length
+            ];
+          if (next && next.key !== currentKey) {
+            switchTool(next, { groupType: FACE_CUT_TOOL_TYPE });
+          }
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
+        const toolKey = FACE_CUT_TOOL_HOTKEYS[e.key.toLowerCase()];
+        if (!toolKey) return;
+        if (hasThreedFirstPoint) return;
+        const faceCutTool = faceCutTools.find((t) => t.key === toolKey);
+        if (!faceCutTool) return;
+        if (faceCutTool.key !== currentKey) {
+          switchTool(faceCutTool, { groupType: FACE_CUT_TOOL_TYPE });
         }
         e.preventDefault();
         e.stopImmediatePropagation();

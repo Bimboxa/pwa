@@ -110,6 +110,7 @@ import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
+import FaceCutAxisOverlayThreed from "Features/threedFaceCut/components/FaceCutAxisOverlayThreed";
 import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
@@ -2716,6 +2717,7 @@ export default function MainThreedEditor() {
         </Box>
       )}
       {isThreedViewer && <DrawingOverlayThreed />}
+      {isThreedViewer && <FaceCutAxisOverlayThreed />}
       <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />

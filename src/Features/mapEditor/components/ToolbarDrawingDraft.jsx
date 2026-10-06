@@ -45,6 +45,7 @@ import {
 import getDraftFieldVisibility from "../utils/getDraftFieldVisibility";
 import {
   getHotkeyForToolInGroup,
+  getFaceCutHotkeyForTool,
   getOpeningHotkeyForTool,
 } from "../constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
@@ -68,6 +69,7 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
+import { FACE_CUT_TOOL_TYPE } from "Features/threedFaceCut/utils/faceCutTools";
 
 import theme from "Styles/theme";
 
@@ -199,9 +201,11 @@ export default function ToolbarDrawingDraft() {
     const hotkey =
       toolGroupType === "CUT"
         ? getOpeningHotkeyForTool(tool)
-        : isToolGroup
-          ? null
-          : getHotkeyForToolInGroup(tool, tools);
+        : toolGroupType === FACE_CUT_TOOL_TYPE
+          ? getFaceCutHotkeyForTool(tool)
+          : isToolGroup
+            ? null
+            : getHotkeyForToolInGroup(tool, tools);
     return {
       key,
       label,

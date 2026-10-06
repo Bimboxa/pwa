@@ -178,6 +178,10 @@ const threedEditorInitialState = {
     // db → liveQuery → AnnotationsManager pipeline time to add the new
     // mesh to the scene.
     snapIndexEpoch: 0,
+    // "Coupe face" vertical axis cut: the side of the face the typed
+    // distance is measured from (bottom-left / bottom-right corner), S
+    // toggles it.
+    faceCutSide: "LEFT", // "LEFT" | "RIGHT"
   },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
@@ -521,6 +525,7 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
+        state.drawingMode.faceCutSide = "LEFT";
       } else {
         // Mutually exclusive with dimension mode.
         closeBaseMapsGrid(state);
@@ -576,6 +581,10 @@ export const threedEditorSlice = createSlice({
     cancelInProgressPolyline: (state) => {
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.axisLock = null;
+    },
+    toggleFaceCutSide: (state) => {
+      state.drawingMode.faceCutSide =
+        state.drawingMode.faceCutSide === "LEFT" ? "RIGHT" : "LEFT";
     },
     flushInProgressAsTrait3D: (state) => {
       const pts = state.drawingMode.inProgressPolyline;
@@ -1272,6 +1281,7 @@ export const {
   setDrawingModeActive,
   pushDrawingVertex,
   cancelInProgressPolyline,
+  toggleFaceCutSide,
   flushInProgressAsTrait3D,
   consumeFaceSegments,
   setDrawingAxisLock,

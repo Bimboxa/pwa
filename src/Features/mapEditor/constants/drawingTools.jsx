@@ -31,6 +31,8 @@ import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import IconFaceCutHorizontal from "Features/icons/IconFaceCutHorizontal";
+import IconFaceCutVertical from "Features/icons/IconFaceCutVertical";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 import RotateRightIcon from "@mui/icons-material/RotateRight";
 
@@ -289,6 +291,34 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineClick,
     annotationType: "FACE_CUT",
     behavior: "CLICK",
+  },
+  // Rectangle (2 clicks on a face, X / Y typed dimensions): the loop cuts the
+  // face along it.
+  {
+    key: "FACE_CUT_RECTANGLE",
+    label: "Rectangle",
+    Icon: IconPolylineRectangle,
+    annotationType: "FACE_CUT",
+    behavior: "RECTANGLE",
+  },
+  // Axis cuts (one click): a horizontal / vertical line projected on the
+  // hovered face cuts it at the cursor (FaceCutAxisOverlayThreed). `axis`
+  // tells which one (see getFaceCutAxis).
+  {
+    key: "FACE_CUT_HORIZONTAL",
+    label: "Découpe horizontale",
+    Icon: IconFaceCutHorizontal,
+    annotationType: "FACE_CUT",
+    behavior: "FACE_AXIS_CUT",
+    axis: "H",
+  },
+  {
+    key: "FACE_CUT_VERTICAL",
+    label: "Découpe verticale",
+    Icon: IconFaceCutVertical,
+    annotationType: "FACE_CUT",
+    behavior: "FACE_AXIS_CUT",
+    axis: "V",
   },
   // SURFACE_CUT tools (Couper une surface — 2D editor): the trace cuts the
   // surfaces it runs across into one annotation per piece (surfaceCut). They
@@ -561,7 +591,13 @@ export const DRAWING_TOOLS_BY_TYPE = {
   SPLIT_LINE: ["CUT_SEGMENT"],
   ISOLATE_SEGMENT: ["ISOLATE_SEGMENT"],
   SPLIT_POLYLINE_CLICK: ["SPLIT_POLYLINE_CLICK"],
-  FACE_CUT: ["FACE_CUT_SEGMENT", "FACE_CUT_POLYLINE"],
+  FACE_CUT: [
+    "FACE_CUT_SEGMENT",
+    "FACE_CUT_POLYLINE",
+    "FACE_CUT_RECTANGLE",
+    "FACE_CUT_HORIZONTAL",
+    "FACE_CUT_VERTICAL",
+  ],
   SURFACE_CUT: ["SURFACE_CUT_SEGMENT", "SURFACE_CUT_POLYLINE"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],

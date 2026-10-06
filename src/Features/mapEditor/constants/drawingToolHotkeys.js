@@ -32,13 +32,33 @@ export const OPENING_TOOL_HOTKEYS = {
   b: "CUT_STRIP", // bande
 };
 
+// "Coupe face" (FACE_CUT, 3D editor) direct-access hotkeys → tool KEY.
+// Same scheme as the openings: the letters match the shape-group ones where
+// a counterpart exists (K segment, L polyline, R rectangle), plus H / V for
+// the axis cuts. Handled by useDrawingToolHotkeys while the group is armed.
+export const FACE_CUT_TOOL_HOTKEYS = {
+  k: "FACE_CUT_SEGMENT",
+  l: "FACE_CUT_POLYLINE",
+  r: "FACE_CUT_RECTANGLE",
+  h: "FACE_CUT_HORIZONTAL",
+  v: "FACE_CUT_VERTICAL",
+};
+
+// Uppercase badge letter of `tool` in a letter → tool key map, or null.
+function getHotkeyForToolKey(map, tool) {
+  if (!tool) return null;
+  const hit = Object.entries(map).find(([, key]) => key === tool.key);
+  return hit ? hit[0].toUpperCase() : null;
+}
+
 // Uppercase badge letter for a CUT tool, or null.
 export function getOpeningHotkeyForTool(tool) {
-  if (!tool) return null;
-  const hit = Object.entries(OPENING_TOOL_HOTKEYS).find(
-    ([, key]) => key === tool.key
-  );
-  return hit ? hit[0].toUpperCase() : null;
+  return getHotkeyForToolKey(OPENING_TOOL_HOTKEYS, tool);
+}
+
+// Uppercase badge letter for a FACE_CUT tool, or null.
+export function getFaceCutHotkeyForTool(tool) {
+  return getHotkeyForToolKey(FACE_CUT_TOOL_HOTKEYS, tool);
 }
 
 // Uppercase letter to display for a tool WITHIN its group, or null. Only the

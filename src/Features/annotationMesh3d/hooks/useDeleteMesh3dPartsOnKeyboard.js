@@ -8,6 +8,7 @@ import {
   setSubSelection,
 } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -79,6 +80,13 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
         e.stopPropagation();
         dispatch(setSelectedPartIds([]));
         dispatch(setSubSelection({ partId: null, partType: null }));
+        return;
+      }
+      // "Coupe face" tools type dimensions / distances: Backspace erases the
+      // last digit (useDrawingPointerHandlers, bubble phase) — let it through,
+      // only the browser default is blocked.
+      if (isFaceCutDrawingMode(state.mapEditor.enabledDrawingMode)) {
+        e.preventDefault();
         return;
       }
       // While drawing, the selected face is where the line is cut into:

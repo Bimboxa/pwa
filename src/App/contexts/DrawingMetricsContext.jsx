@@ -22,17 +22,9 @@ import {
   clearMetricInput as clearMetricInputAction,
 } from "Features/mapEditor/mapEditorSlice";
 import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
+import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 
 const DrawingMetricsContext = createContext(null);
-
-function parseBuffer(buf) {
-  if (!buf) return null;
-  const normalized = buf.replace(",", ".");
-  if (normalized === "-" || normalized === "." || normalized === "-.")
-    return null;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
 
 export function DrawingMetricsProvider({ children }) {
   const dispatch = useDispatch();
@@ -129,8 +121,8 @@ export function DrawingMetricsProvider({ children }) {
     [dispatch]
   );
 
-  const rectX = useMemo(() => parseBuffer(rectXBuffer), [rectXBuffer]);
-  const rectY = useMemo(() => parseBuffer(rectYBuffer), [rectYBuffer]);
+  const rectX = useMemo(() => parseRectBuffer(rectXBuffer), [rectXBuffer]);
+  const rectY = useMemo(() => parseRectBuffer(rectYBuffer), [rectYBuffer]);
 
   const rectMetricsRef = useRef({ rectX, rectY });
   rectMetricsRef.current = { rectX, rectY };
@@ -159,7 +151,7 @@ export function DrawingMetricsProvider({ children }) {
       const next = metricInputBufferRef.current + char;
       metricInputBufferRef.current = next;
       dispatch(appendToMetricInputBufferAction(char));
-      return parseBuffer(next);
+      return parseRectBuffer(next);
     },
     [dispatch]
   );
@@ -169,7 +161,7 @@ export function DrawingMetricsProvider({ children }) {
     const next = metricInputBufferRef.current.slice(0, -1);
     metricInputBufferRef.current = next;
     dispatch(deleteLastMetricInputBufferAction());
-    return parseBuffer(next);
+    return parseRectBuffer(next);
   }, [dispatch]);
 
   const clearMetricInput = useCallback(() => {

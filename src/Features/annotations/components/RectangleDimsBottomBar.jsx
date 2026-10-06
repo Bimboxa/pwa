@@ -5,16 +5,9 @@ import LockOutlined from "@mui/icons-material/LockOutlined";
 import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
-function parseBuffer(buf) {
-  if (!buf) return null;
-  const normalized = buf.replace(",", ".");
-  if (normalized === "-" || normalized === "." || normalized === "-.")
-    return null;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
 
 function AxisChip({ axis, buffer, value, isActive, unit }) {
   const locked = buffer.length > 0;
@@ -76,11 +69,14 @@ function AxisChip({ axis, buffer, value, isActive, unit }) {
   );
 }
 
-export default function RectangleDimsBottomBar() {
+// unit: forced display unit — the 3D editor draws in metres whatever the
+// main base map's scale (default: "m" when the main base map has a scale,
+// "px" otherwise).
+export default function RectangleDimsBottomBar({ unit: unitProp = null }) {
   const baseMap = useMainBaseMap();
   const meterByPx = baseMap?.meterByPx;
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
-  const unit = hasScale ? "m" : "px";
+  const unit = unitProp ?? (hasScale ? "m" : "px");
 
   const rectXBuffer = useSelector((s) => s.mapEditor.rectXBuffer);
   const rectYBuffer = useSelector((s) => s.mapEditor.rectYBuffer);
@@ -88,8 +84,8 @@ export default function RectangleDimsBottomBar() {
   const rectHasFirstPoint = useSelector(
     (s) => s.mapEditor.rectHasFirstPoint
   );
-  const rectX = parseBuffer(rectXBuffer);
-  const rectY = parseBuffer(rectYBuffer);
+  const rectX = parseRectBuffer(rectXBuffer);
+  const rectY = parseRectBuffer(rectYBuffer);
 
   if (!rectHasFirstPoint) {
     return (

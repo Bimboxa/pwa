@@ -27,6 +27,7 @@ import { selectMeshBrushPartType } from "Features/meshPaint/utils/meshBrushSelec
 import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
+import { selectIsFaceCutDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
@@ -72,6 +73,32 @@ const SURFACE_CUT_SHORTCUTS = [
   { key: "Tab", label: "Segment / Polyligne" },
   { key: "Esc", label: "Annuler le trait / Quitter" },
 ];
+
+// Shortcuts of the "Coupe face" tools (useDrawingToolHotkeys for the tool
+// letters, useDrawingPointerHandlers for the rest).
+const FACE_CUT_SHORTCUTS = [
+  { key: "Tab", label: "Outil suivant" },
+  { key: "K / L / R", label: "Segment / Polyligne / Rectangle" },
+  { key: "H / V", label: "Découpe horizontale / verticale" },
+  { key: "X / Y", label: "Saisir une dimension (rectangle)" },
+  { key: "0-9", label: "Saisir la distance (découpe H / V)" },
+  { key: "S", label: "Changer de côté (découpe verticale)" },
+  { key: "Entrée", label: "Couper" },
+  { key: "Esc", label: "Annuler le tracé / Quitter" },
+];
+
+// Message of each "Coupe face" tool, by its key (enabledDrawingMode).
+const FACE_CUT_MESSAGES = {
+  FACE_CUT_SEGMENT: "Cliquez 2 points sur une face pour la couper",
+  FACE_CUT_POLYLINE:
+    "Cliquez les points du tracé sur une face (Entrée pour couper)",
+  FACE_CUT_RECTANGLE:
+    "Cliquez les 2 angles du rectangle sur une face (X / Y pour saisir les dimensions)",
+  FACE_CUT_HORIZONTAL:
+    "Survolez une face : cliquez pour la couper à l'horizontale (un mur devient un maillage)",
+  FACE_CUT_VERTICAL:
+    "Survolez une face : cliquez pour la couper à la verticale",
+};
 
 // Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
 const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
@@ -229,6 +256,12 @@ export default function SectionDrawingHelperContent() {
       s.annotations.newAnnotation?.type === "POLYLINE" ||
       selectIsTemplateCoteDrawActive(s)
   );
+  // "Coupe face" (3D): one message per tool, its own shortcuts.
+  const isFaceCut = useSelector(selectIsFaceCutDrawActive);
+  const faceCutMessage = isFaceCut
+    ? (FACE_CUT_MESSAGES[enabledDrawingMode] ??
+      "Tracez sur une face pour la couper")
+    : null;
   const threedMessage = isObject3DPlacement
     ? "Cliquez sur le plan pour poser l'objet 3D"
     : isThreedCoteDraw
@@ -237,14 +270,16 @@ export default function SectionDrawingHelperContent() {
         ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
           ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
           : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
-        : "Cliquez pour poser les points du tracé";
+        : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
   const threedShortcuts = isObject3DPlacement
     ? THREED_PLACEMENT_SHORTCUTS
     : isThreedCoteDraw
       ? THREED_COTE_SHORTCUTS
       : isMeshBrush
         ? THREED_MESH_BRUSH_SHORTCUTS
-        : THREED_DRAWING_SHORTCUTS;
+        : isFaceCut
+          ? FACE_CUT_SHORTCUTS
+          : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit

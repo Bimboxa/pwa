@@ -4,7 +4,23 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
-import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  appendToConstraintBuffer,
+  appendToRectXBuffer,
+  appendToRectYBuffer,
+  clearConstraintBuffer,
+  clearRectDims,
+  deleteLastConstraintBuffer,
+  deleteLastRectXBuffer,
+  deleteLastRectYBuffer,
+  setEnabledDrawingMode,
+  setRectCurrentAxis,
+  setRectHasFirstPoint,
+  setRectXBuffer,
+  setRectYBuffer,
+  toggleRectXBufferSign,
+  toggleRectYBufferSign,
+} from "Features/mapEditor/mapEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   bumpSnapIndexEpoch,
@@ -12,6 +28,7 @@ import {
   consumeFaceSegments,
   flushInProgressAsTrait3D,
   pushDrawingVertex,
+  toggleFaceCutSide,
 } from "Features/threedEditor/threedEditorSlice";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
@@ -20,10 +37,19 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
+import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 
 import createFlatMesh3dAnnotationService from "Features/annotationMesh3d/services/createFlatMesh3dAnnotationService";
 import cutFaceAlongPathService from "Features/threedFaceCut/services/cutFaceAlongPathService";
-import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import {
+  clearFaceCutHoverCache,
+  getFaceCutAxisHover,
+} from "Features/threedFaceCut/services/faceCutAxisStore";
+import {
+  getFaceCutAxis,
+  isFaceCutDrawingMode,
+} from "Features/threedFaceCut/utils/faceCutTools";
+import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 import commitDrawnFaceService, {
@@ -78,7 +104,12 @@ const DOUBLE_CLICK_MS = 500;
 // "Coupe face" tool (FACE_CUT group): the path drawn on a face — ended by the
 // 2nd click of the segment tool, or Enter / double click / back on its first
 // point for the polyline tool — cuts that face in two
-// (cutFaceAlongPathService). The tool stays armed for the next cut.
+// (cutFaceAlongPathService). The tool stays armed for the next cut. Its
+// rectangle tool anchors on a face and cuts the loop at the 2nd click (or
+// Enter with X / Y typed dimensions — the 2D rectangle's bottom bar); its
+// axis tools (« Découpe horizontale / verticale ») cut, on a click or Enter,
+// the line FaceCutAxisOverlayThreed previews on the hovered face (digits
+// type the cut distance, S flips the side of the vertical one).
 //
 // Template-less and face-cut clicks and keys run one at a time, in order (a
 // commit awaits the db): each step reads the live drawing state from the
@@ -136,6 +167,38 @@ export default function useDrawingPointerHandlers() {
 
   const downPosRef = useRef(null);
   const isDraggingRef = useRef(false);
+  // Last axis cut (« Découpe horizontale / verticale »): the 2nd click of a
+  // double click on it must not cut the new face again.
+  const lastAxisCutTimeRef = useRef(0);
+
+  // A "Coupe face" tool left or switched (toolbar, Tab, letters — the 2D
+  // switch helpers clear nothing in 3D): the path in progress, the rectangle
+  // anchor and the typed dimensions / distance belong to the previous tool.
+  const prevModeRef = useRef(enabledDrawingMode);
+  useEffect(() => {
+    const prev = prevModeRef.current;
+    prevModeRef.current = enabledDrawingMode;
+    if (prev === enabledDrawingMode) return;
+    if (
+      !isFaceCutDrawingMode(prev) &&
+      !isFaceCutDrawingMode(enabledDrawingMode)
+    )
+      return;
+    dispatch(cancelInProgressPolyline());
+    dispatch(clearRectDims());
+    dispatch(setRectHasFirstPoint(false));
+    dispatch(clearConstraintBuffer());
+  }, [enabledDrawingMode, dispatch]);
+  const prevActiveRef = useRef(active);
+  useEffect(() => {
+    const prev = prevActiveRef.current;
+    prevActiveRef.current = active;
+    if (prev && !active) {
+      dispatch(clearRectDims());
+      dispatch(setRectHasFirstPoint(false));
+      dispatch(clearConstraintBuffer());
+    }
+  }, [active, dispatch]);
   // Serialized template-less / face-cut steps (clicks and keys).
   const queueRef = useRef(Promise.resolve());
   // Last click that ended the path in progress (commit or cut): the second
@@ -153,6 +216,8 @@ export default function useDrawingPointerHandlers() {
     if (!dom) return;
 
     const behavior = getDrawingToolByKey(enabledDrawingMode)?.behavior;
+    // "H" | "V" for the face cut axis tools, null otherwise.
+    const faceCutAxis = getFaceCutAxis(enabledDrawingMode);
 
     function hasTemplate() {
       const na = newAnnotationRef.current;
@@ -508,8 +573,89 @@ export default function useDrawingPointerHandlers() {
       finishCommit();
     }
 
+    // "Coupe face" rectangle: the loop anchored on a face, its sides along
+    // the face's frame (getFaceCutBasisWorld), the typed X / Y dimensions
+    // replacing the cursor's. True when a cut was attempted (the anchor is
+    // consumed either way); false when the corners are degenerate.
+    async function cutRectangle(anchor, cursorPosition) {
+      const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+      const baseMapGroup =
+        editor.sceneManager?.imagesManager?.getGroup?.(anchor.baseMapId) ??
+        null;
+      const basis = getFaceCutBasisWorld(
+        anchor.faceNormal,
+        anchor,
+        baseMapGroup
+      );
+      const corners = computeRectangleCornersOnPlane(
+        anchor,
+        cursorPosition,
+        anchor.faceNormal,
+        {
+          forcedDu: parseRectBuffer(rectXBuffer),
+          forcedDv: parseRectBuffer(rectYBuffer),
+          basis,
+        }
+      );
+      if (!corners) return false;
+      const vertices = corners.map((c) => ({
+        x: c.x,
+        y: c.y,
+        z: c.z,
+        snapKind: anchor.snapKind,
+        ...(anchor.nodeId ? { nodeId: anchor.nodeId } : {}),
+        ...(anchor.baseMapId ? { baseMapId: anchor.baseMapId } : {}),
+        faceNormal: anchor.faceNormal,
+      }));
+      await cutFace(vertices, { closed: true });
+      dispatch(clearRectDims());
+      dispatch(setRectHasFirstPoint(false));
+      return true;
+    }
+
+    // « Découpe horizontale / verticale »: the line previewed on the hovered
+    // face (FaceCutAxisOverlayThreed) cuts it.
+    async function cutFaceAlongAxis() {
+      const hover = getFaceCutAxisHover();
+      if (!hover?.chordWorld) return;
+      if (hover.endsOnHole) {
+        dispatch(
+          setToaster({
+            message: noFaceCutByReasonS.NOT_EDGE_TO_EDGE,
+            severity: "warning",
+          })
+        );
+        return;
+      }
+      lastAxisCutTimeRef.current = performance.now();
+      await cutFace(hover.chordWorld);
+      clearFaceCutHoverCache();
+    }
+
     async function onFaceCutClick(snap) {
       const { inProgress } = getLiveDrawing();
+
+      if (behavior === "RECTANGLE") {
+        if (inProgress.length === 0) {
+          // The anchor needs a face: the rectangle lives on its plane.
+          if (!snap.faceNormal) {
+            console.warn(
+              "[threedDrawing] face cut rectangle anchor ignored: on no face"
+            );
+            return;
+          }
+          dispatch(pushDrawingVertex(toDrawingVertex(snap)));
+          dispatch(setRectHasFirstPoint(true));
+          return;
+        }
+        if (!(await cutRectangle(inProgress[0], snap.position))) {
+          console.warn(
+            "[threedDrawing] face cut rectangle 2nd click ignored: degenerate corners"
+          );
+        }
+        return;
+      }
+
       const newVertex = toDrawingVertex(snap);
       const last = inProgress[inProgress.length - 1];
       if (last && isSamePoint(last, newVertex)) {
@@ -591,6 +737,104 @@ export default function useDrawingPointerHandlers() {
       return false;
     }
 
+    // Keys of « Découpe horizontale / verticale »: digits type the cut
+    // distance (mapEditor.constraintBuffer, shown in FaceCutAxisBottomBar),
+    // S flips the side of the vertical cut, Enter cuts like a click. True
+    // when consumed.
+    function onFaceCutAxisKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (/^[0-9.,]$/.test(e.key)) {
+        e.preventDefault();
+        dispatch(appendToConstraintBuffer(e.key === "," ? "." : e.key));
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        dispatch(deleteLastConstraintBuffer());
+        return true;
+      }
+      if ((e.key === "s" || e.key === "S") && faceCutAxis === "V") {
+        if (!e.repeat) dispatch(toggleFaceCutSide());
+        e.preventDefault();
+        return true;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        enqueue(cutFaceAlongAxis);
+        return true;
+      }
+      return false;
+    }
+
+    // Keys of the "Coupe face" rectangle once its anchor is placed (2D
+    // rectangle parity, InteractionLayer): X / Y target a dimension, digits
+    // type it, "-" flips its sign, Backspace erases, Enter cuts with the
+    // typed dimensions (a missing one follows the cursor). True when
+    // consumed.
+    async function onFaceCutRectangleKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (e.key === "x" || e.key === "X") {
+        e.preventDefault();
+        dispatch(setRectCurrentAxis("x"));
+        dispatch(setRectXBuffer(""));
+        return true;
+      }
+      if (e.key === "y" || e.key === "Y") {
+        e.preventDefault();
+        dispatch(setRectCurrentAxis("y"));
+        dispatch(setRectYBuffer(""));
+        return true;
+      }
+      const axis = store.getState().mapEditor.rectCurrentAxis;
+      if (axis) {
+        const isX = axis === "x";
+        if (e.key === "-") {
+          e.preventDefault();
+          dispatch(isX ? toggleRectXBufferSign() : toggleRectYBufferSign());
+          return true;
+        }
+        if (/^[0-9.,]$/.test(e.key)) {
+          e.preventDefault();
+          const char = e.key === "," ? "." : e.key;
+          dispatch(isX ? appendToRectXBuffer(char) : appendToRectYBuffer(char));
+          return true;
+        }
+        if (e.key === "Backspace") {
+          e.preventDefault();
+          dispatch(isX ? deleteLastRectXBuffer() : deleteLastRectYBuffer());
+          return true;
+        }
+        if (e.key === " ") {
+          e.preventDefault();
+          return true;
+        }
+      }
+      if (e.key === "Enter") {
+        const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+        if (
+          parseRectBuffer(rectXBuffer) == null &&
+          parseRectBuffer(rectYBuffer) == null
+        ) {
+          return true; // nothing typed: the 2nd click commits
+        }
+        e.preventDefault();
+        await enqueue(async () => {
+          const { inProgress } = getLiveDrawing();
+          const anchor = inProgress[0];
+          // The free dimension follows the cursor (its last snap).
+          const cursor = getLastSnap()?.position ?? anchor;
+          if (!anchor) return;
+          if (!(await cutRectangle(anchor, cursor))) {
+            console.warn(
+              "[threedDrawing] face cut rectangle Enter ignored: degenerate corners"
+            );
+          }
+        });
+        return true;
+      }
+      return false;
+    }
+
     function onPointerDown(e) {
       if (e.button !== 0) return;
       downPosRef.current = { x: e.clientX, y: e.clientY };
@@ -627,6 +871,12 @@ export default function useDrawingPointerHandlers() {
         points: inProgressPolyline.length,
         baseMapsCount: baseMaps?.length ?? 0,
       });
+      // Axis cut: no drawn vertex, the hovered line is the cut.
+      if (faceCutAxis) {
+        if (clickTime - lastAxisCutTimeRef.current < DOUBLE_CLICK_MS) return;
+        await enqueue(cutFaceAlongAxis);
+        return;
+      }
       if (!snap?.position) {
         console.warn("[threedDrawing] click ignored: no snap under cursor");
         return;
@@ -781,17 +1031,30 @@ export default function useDrawingPointerHandlers() {
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
       if (isFaceCutDraw()) {
+        if (faceCutAxis) {
+          if (onFaceCutAxisKey(e)) return;
+        } else if (
+          behavior === "RECTANGLE" &&
+          inProgressPolyline.length === 1
+        ) {
+          if (await onFaceCutRectangleKey(e)) return;
+        }
         if (e.key === "Enter") {
-          if (behavior === "SEGMENT") return;
+          if (behavior === "SEGMENT" || behavior === "RECTANGLE") return;
           await enqueue(async () => {
             const { inProgress } = getLiveDrawing();
             if (inProgress.length >= 2) await cutFace(inProgress);
           });
         } else if (e.key === "Escape") {
-          // A cut is never made on Escape: the path is dropped, then the
-          // tool is left.
+          // A cut is never made on Escape: the path is dropped (with the
+          // typed dimensions / distance), then the tool is left.
+          const { constraintBuffer } = store.getState().mapEditor;
           if (inProgressPolyline.length > 0) {
             dispatch(cancelInProgressPolyline());
+            dispatch(clearRectDims());
+            dispatch(setRectHasFirstPoint(false));
+          } else if (faceCutAxis && constraintBuffer) {
+            dispatch(clearConstraintBuffer());
           } else {
             dispatch(setEnabledDrawingMode(null));
             dispatch(setNewAnnotation({}));

@@ -12,6 +12,7 @@ import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNav
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
 import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
+import FaceCutAxisBottomBar from "Features/threedFaceCut/components/FaceCutAxisBottomBar";
 import RevolutionAxisRadiusBottomBarThreed from "Features/revolutionAxes/components/RevolutionAxisRadiusBottomBarThreed";
 import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
@@ -25,6 +26,14 @@ const RECTANGLE_DRAWING_MODES = [
   "POLYLINE_RECTANGLE",
   "POLYGON_RECTANGLE",
   "CUT_RECTANGLE",
+  "FACE_CUT_RECTANGLE",
+];
+
+// "Coupe face" axis cuts (3D editor) — cut distance display + typed
+// constraint (FaceCutAxisBottomBar).
+const FACE_CUT_AXIS_DRAWING_MODES = [
+  "FACE_CUT_HORIZONTAL",
+  "FACE_CUT_VERTICAL",
 ];
 
 // Center/radius circle modes — surface a dedicated radius display + lock.
@@ -71,8 +80,17 @@ export default function BottomBarDesktop() {
     SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
   const showCircleRadius =
     CIRCLE_RADIUS_DRAWING_MODES.includes(enabledDrawingMode);
+  const showFaceCutAxis =
+    FACE_CUT_AXIS_DRAWING_MODES.includes(enabledDrawingMode);
   const showDrawingBar =
-    showRectangleDims || showSegmentLength || showCircleRadius;
+    showRectangleDims ||
+    showSegmentLength ||
+    showCircleRadius ||
+    showFaceCutAxis;
+  // The 3D "Coupe face" rectangle is drawn in metres, whatever the scale of
+  // the main base map.
+  const rectangleUnit =
+    enabledDrawingMode === "FACE_CUT_RECTANGLE" ? "m" : null;
 
   // render
 
@@ -92,7 +110,8 @@ export default function BottomBarDesktop() {
         }}
       >
         <ToolbarDrawingDraft />
-        {showRectangleDims && <RectangleDimsBottomBar />}
+        {showRectangleDims && <RectangleDimsBottomBar unit={rectangleUnit} />}
+        {showFaceCutAxis && <FaceCutAxisBottomBar />}
         {showSegmentLength && <SegmentLengthBottomBar />}
         {showCircleRadius &&
           (isRevolutionAxisDraw3d ? (
