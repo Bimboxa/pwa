@@ -359,6 +359,7 @@ export default function FormAnnotationTemplateVariantBlock({
               fullWidth: true,
               placeholder: "Libellé",
               showAsField: true,
+              changeOnBlur: true,
             }}
           />
 
@@ -490,6 +491,7 @@ export default function FormAnnotationTemplateVariantBlock({
                     options={{
                       fullWidth: true,
                       placeholder: "Libellé",
+                      changeOnBlur: true,
                     }}
                   />
                 </Box>
@@ -502,6 +504,7 @@ export default function FormAnnotationTemplateVariantBlock({
                         fullWidth: true,
                         placeholder: "Echelle m/px",
                         isNumber: true,
+                        changeOnBlur: true,
                       }}
                     />
                   </Box>

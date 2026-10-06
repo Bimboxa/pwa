@@ -64,7 +64,11 @@ export default function FieldAnnotationTemplateLegend({
             <FieldTextV2
               value={labelLegend}
               onChange={onLabelLegendChange}
-              options={{ fullWidth: true, placeholder: "Libellé légende" }}
+              options={{
+                fullWidth: true,
+                placeholder: "Libellé légende",
+                changeOnBlur: true,
+              }}
             />
           </Box>
         </Box>
