@@ -36,7 +36,6 @@ import IconButtonShareScope from "Features/scopes/components/IconButtonShareScop
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
-import ToggleOpenLeftPanel from "Features/leftPanel/components/ToggleOpenLeftPanel";
 
 import TopBarBreadcrumbs from "./TopBarBreadcrumbs";
 import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityModel";

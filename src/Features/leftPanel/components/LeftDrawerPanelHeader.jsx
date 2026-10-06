@@ -1,29 +1,23 @@
 import { Box, Typography } from "@mui/material";
 
-import ButtonToggleLeftPanelDock from "./ButtonToggleLeftPanelDock";
-
-// Shared header of the module left drawers: dock toggle followed by the
-// designation of the items listed below (e.g. "Annotations", "Mailles").
-// `children` replaces the title (e.g. the Viewer panel's tabs toggle).
-export default function LeftDrawerPanelHeader({
-  title,
-  hideDockToggle,
-  children,
-}) {
+// Shared header of the module left drawers: the designation of the items
+// listed below (e.g. "Annotations", "Mailles"). `children` replaces the
+// title (e.g. the Viewer panel's tabs toggle). The dock toggle lives in the
+// top bar (ButtonToggleLeftPanelDock).
+export default function LeftDrawerPanelHeader({ title, children }) {
   return (
     <Box
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 0.5,
-        pl: hideDockToggle ? 2 : 1,
+        pl: 2,
         pr: 2,
         pt: 1,
         pb: 0.5,
         minWidth: 0,
       }}
     >
-      {!hideDockToggle && <ButtonToggleLeftPanelDock iconFontSize={18} />}
       {children ?? (
         <Typography
           variant="subtitle2"

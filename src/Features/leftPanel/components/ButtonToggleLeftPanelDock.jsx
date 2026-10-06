@@ -1,14 +1,12 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setLeftPanelDocked, setLeftDrawerHovered } from "../leftPanelSlice";
-
-import useLeftAreaHover from "../hooks/useLeftAreaHover";
+import { setLeftPanelDocked } from "../leftPanelSlice";
 
 import { IconButton, Tooltip } from "@mui/material";
-import { ViewSidebar } from "@mui/icons-material";
+import { ViewSidebar, PushPin } from "@mui/icons-material";
 
-// Toggle that docks / undocks the left module drawer. Rendered in front of
-// the title of every left drawer header (LeftDrawerPanelHeader).
+// Top bar toggle of the left module dock. Two states: hidden (default,
+// ViewSidebar icon) and pinned open in flow (PushPin icon).
 export default function ButtonToggleLeftPanelDock({
   size = "small",
   iconFontSize = 20,
@@ -18,38 +16,28 @@ export default function ButtonToggleLeftPanelDock({
 
   // strings
 
-  const dockS = "Garder le panneau latéral ouvert";
-  const undockS = "Masquer le panneau latéral";
+  const showS = "Afficher le panneau latéral";
+  const hideS = "Panneau latéral verrouillé – cliquer pour le masquer";
 
   // data
 
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
-  // hover - reveal the left drawer overlay when undocked
-
-  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
-
   // handlers
 
   function handleToggle() {
-    const nextDocked = !leftPanelDocked;
-    dispatch(setLeftPanelDocked(nextDocked));
-    // Undocking from inside the drawer: LeftDrawerPanel attaches its hover
-    // handlers only in overlay mode, so leftDrawerHovered may be false at
-    // this point. Force it so the overlay stays while the mouse is over it;
-    // the drawer's onMouseLeave closes it afterwards.
-    if (!nextDocked) dispatch(setLeftDrawerHovered(true));
+    dispatch(setLeftPanelDocked(!leftPanelDocked));
   }
 
   // render
 
+  const Icon = leftPanelDocked ? PushPin : ViewSidebar;
+
   return (
-    <Tooltip title={leftPanelDocked ? undockS : dockS}>
+    <Tooltip title={leftPanelDocked ? hideS : showS}>
       <IconButton
         size={size}
         onClick={handleToggle}
-        onMouseEnter={leftPanelDocked ? undefined : onMouseEnter}
-        onMouseLeave={leftPanelDocked ? undefined : onMouseLeave}
         sx={{
           color: "action.active",
           bgcolor: leftPanelDocked ? "action.selected" : "transparent",
@@ -58,7 +46,7 @@ export default function ButtonToggleLeftPanelDock({
           ...sx,
         }}
       >
-        <ViewSidebar sx={{ fontSize: iconFontSize }} />
+        <Icon sx={{ fontSize: iconFontSize }} />
       </IconButton>
     </Tooltip>
   );

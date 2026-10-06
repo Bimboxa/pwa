@@ -339,11 +339,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // popper shows it (SELECT-only) — same visibility pattern as Dessin below.
     const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
     // Dessin module (key MAP): the left panel (PanelDrawing) takes over the
-    // listings popper (#310) whenever it is VISIBLE — docked, or drawer mode
-    // while the left area is hovered (the drawer slides over the map). Docked
-    // → the popper UNMOUNTS (stable state, avoids a permanent duplicate
-    // annotations subscription); drawer hover → the popper is only CSS-hidden
-    // so its local state (drag position, ...) survives the transient overlay.
+    // listings popper (#310) whenever it is docked (pinned open from the top
+    // bar) — the popper then UNMOUNTS (stable state, avoids a permanent
+    // duplicate annotations subscription).
     const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
     // Photos module (key PHOTOS): the Photos panel owns the left side and the
     // module has no use for the annotation listings popper — never mounted.
@@ -358,18 +356,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         (s) => s.popperMapListings.viewerContentMode === "PHOTOS"
     );
     const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-    const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
     const dessinPanelDocked = isDessinModule && leftPanelDocked;
-    const dessinPanelSlidedIn =
-        isDessinModule && !leftPanelDocked && leftDrawerHovered;
     const viewerPanelDocked = isViewerModule && leftPanelDocked;
-    const viewerPanelSlidedIn =
-        isViewerModule && !leftPanelDocked && leftDrawerHovered;
-    // BaseMaps module: with the left panel (PanelBaseMaps) folded, the popper
+    // BaseMaps module: with the left panel (PanelBaseMaps) hidden, the popper
     // shows as a read-only legend + base maps list (see
-    // selectIsBaseMapsLegendPopper); hidden while the drawer slides over.
-    const baseMapsPanelSlidedIn =
-        forViewerKey === "BASE_MAPS" && !leftPanelDocked && leftDrawerHovered;
+    // selectIsBaseMapsLegendPopper).
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2663,16 +2654,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     showDrawingToolsInBaseMaps ||
                     !leftPanelDocked) && (
                     /* Rendered in the layout-level host (over the top bar,
-                       under the sliding panels). Hidden (not unmounted)
-                       while the drawer slides over the map, so the poppers
-                       keep their state. */
-                    <PortalEditorFloatingPanels
-                        hidden={
-                            dessinPanelSlidedIn ||
-                            viewerPanelSlidedIn ||
-                            baseMapsPanelSlidedIn
-                        }
-                    >
+                       under the editors' panels). */
+                    <PortalEditorFloatingPanels>
                         <PopperMapListings />
                         {/* Base maps list detached from the popper above. */}
                         <PopperBaseMapsList />

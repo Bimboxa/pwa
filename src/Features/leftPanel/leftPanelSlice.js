@@ -4,8 +4,9 @@ const leftPanelInitialState = {
   verticalBarWidth: 80, //64
   width: 320,
   openLeftPanel: true,
+  // Left module dock: false (default) = hidden, true = pinned open in flow.
+  // Toggled from the top bar (ButtonToggleLeftPanelDock); never persisted.
   leftPanelDocked: false,
-  leftDrawerHovered: false,
   //
 };
 
@@ -19,13 +20,9 @@ export const leftPanelSlice = createSlice({
     setLeftPanelDocked: (state, action) => {
       state.leftPanelDocked = action.payload;
     },
-    setLeftDrawerHovered: (state, action) => {
-      state.leftDrawerHovered = action.payload;
-    },
   },
 });
 
-export const { setOpenLeftPanel, setLeftPanelDocked, setLeftDrawerHovered } =
-  leftPanelSlice.actions;
+export const { setOpenLeftPanel, setLeftPanelDocked } = leftPanelSlice.actions;
 
 export default leftPanelSlice.reducer;

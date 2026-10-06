@@ -6,7 +6,6 @@ import { setViewerReturnContext } from "../viewersSlice";
 import useSwitchViewer from "../hooks/useSwitchViewer";
 
 import useViewers from "../hooks/useViewers";
-import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
 
 import {
   Box,
@@ -25,11 +24,6 @@ export default function VerticalMenuViewers() {
 
   const viewers = useViewers();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-
-  // hover
-
-  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
 
   // handlers
 
@@ -39,7 +33,6 @@ export default function VerticalMenuViewers() {
     // "Retour" button do not outlive the navigation they belong to.
     dispatch(setViewerReturnContext(null));
     switchViewer(viewerKey);
-    if (!leftPanelDocked) onMouseEnter();
   }
 
   function handleConfigurationClick() {
@@ -55,8 +48,6 @@ export default function VerticalMenuViewers() {
       <ButtonBase
         key={viewer.key}
         onClick={() => handleClick(viewer.key)}
-        onMouseEnter={!leftPanelDocked && isSelected ? onMouseEnter : undefined}
-        onMouseLeave={!leftPanelDocked && isSelected ? onMouseLeave : undefined}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -113,8 +104,8 @@ export default function VerticalMenuViewers() {
     );
   });
 
-  // render - always-visible bar; when undocked, only the selected module
-  // button reveals the drawer (see hover handlers on ButtonBase above)
+  // render - always-visible bar; the left dock is toggled from the top bar
+  // (ButtonToggleLeftPanelDock), never revealed on hover
 
   return (
     <Box

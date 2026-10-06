@@ -292,23 +292,14 @@ export default function MainThreedEditor() {
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
   // Dessin module (key MAP) toggled to 3D: the left panel (PanelDrawing)
-  // takes over the listings popper (#310) whenever it is VISIBLE — docked, or
-  // drawer mode while the left area is hovered. Docked → the popper UNMOUNTS;
-  // drawer hover → it is only CSS-hidden so its local state (drag position,
-  // ...) survives the transient overlay.
+  // takes over the listings popper (#310) whenever it is docked (pinned open
+  // from the top bar) — the popper then UNMOUNTS.
   const isDessinModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MAP"
   );
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-  const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
-  const dessinPanelSlidedIn =
-    isDessinModule && !leftPanelDocked && leftDrawerHovered;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
-  const viewerPanelSlidedIn =
-    isViewerModule && !leftPanelDocked && leftDrawerHovered;
-  const baseMapsPanelSlidedIn =
-    isBaseMapsModule && !leftPanelDocked && leftDrawerHovered;
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -2622,17 +2613,9 @@ export default function MainThreedEditor() {
         !captureFramingActive &&
         !subtractPickActive && (
           /* Rendered in the layout-level host (over the top bar, under the
-             sliding panels). Hidden (not unmounted) while the drawer slides
-             over the editor or in walk mode, so the poppers keep their
-             state. */
-          <PortalEditorFloatingPanels
-            hidden={
-              dessinPanelSlidedIn ||
-              viewerPanelSlidedIn ||
-              baseMapsPanelSlidedIn ||
-              walkActive
-            }
-          >
+             editors' panels). Hidden (not unmounted) in walk mode, so the
+             poppers keep their state. */
+          <PortalEditorFloatingPanels hidden={walkActive}>
             <PopperMapListings />
             {/* Base maps list detached from the popper above. */}
             <PopperBaseMapsList />

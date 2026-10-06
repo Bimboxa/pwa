@@ -13,6 +13,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import ButtonGeneric from "./ButtonGeneric";
 import ButtonDialogOnboardingSelectProject from "Features/projects/components/ButtonDialogOnboardingSelectProject";
 import ButtonDialogOnboardingSelectScope from "Features/scopes/components/ButtonDialogOnboardingSelectScope";
+import ButtonToggleLeftPanelDock from "Features/leftPanel/components/ButtonToggleLeftPanelDock";
 
 export default function TopBarBreadcrumbs() {
   const dispatch = useDispatch();
@@ -61,6 +62,12 @@ export default function TopBarBreadcrumbs() {
     );
   };
 
+  // Left dock toggle (hidden <-> pinned open), next to Home.
+  const DockToggle = () => {
+    if (viewerMode) return null;
+    return <ButtonToggleLeftPanelDock />;
+  };
+
   const Project = () => (
     <Box sx={{ maxWidth: 200, display: "flex" }}>
       <Tooltip title={selectedProject?.name}>
@@ -87,6 +94,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <DockToggle />
         <Separator />
         <ButtonDialogOnboardingSelectProject />
       </Box>
@@ -105,6 +113,7 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
+        <DockToggle />
         <Separator />
         <Project />
         {/* <Separator />
