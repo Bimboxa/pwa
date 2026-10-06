@@ -76,6 +76,8 @@ import {
   setFaceHoverClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
+import CursorAltitudeThreed from "./CursorAltitudeThreed";
+import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonToggleCursorAltitude";
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
@@ -2635,6 +2637,17 @@ export default function MainThreedEditor() {
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
+      {/* Altimetry under the cursor (same preference / badge as the 2D
+          editor); hidden in walk mode (pointer locked) and under a capture
+          framing. */}
+      {isThreedViewer && (
+        <CursorAltitudeThreed
+          threedEditorRef={threedEditorRef}
+          containerRef={containerRef}
+          rendererIsReady={rendererIsReady}
+          hidden={walkActive || captureFramingActive}
+        />
+      )}
       {isThreedViewer && <ThreedLassoOverlay ref={lassoOverlayRef} />}
       {isThreedViewer && (
         <ThreedSelectionDimmer
@@ -2695,6 +2708,30 @@ export default function MainThreedEditor() {
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : null)}
+      {/* Bottom-left stack, mirror of the 2D editors' (UILayerDesktop):
+          altimetry under the cursor — the same device preference as in 2D.
+          Hidden in walk mode (its HUD owns the screen, pointer locked), in
+          the POV viewer and under a capture framing. */}
+      {isThreedViewer &&
+        !captureFramingActive &&
+        !isPovViewer &&
+        !walkActive && (
+          <Box
+            data-capture-hide
+            sx={{
+              position: "absolute",
+              left: "16px",
+              bottom: `${16 + planningBottomInset}px`,
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 1,
+            }}
+          >
+            <ButtonToggleCursorAltitude />
+          </Box>
+        )}
       {/* Bottom-right group (walk toggle stacked above the 3D side of the
           2D/3D toggle) sits outside the swap of bottom toolbars so it stays
           available in every module (Maillage included). Hidden while a

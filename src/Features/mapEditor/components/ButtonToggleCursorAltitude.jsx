@@ -3,8 +3,9 @@ import TerrainIcon from "@mui/icons-material/Terrain";
 
 import useCursorAltitudeToggle from "Features/mapEditor/hooks/useCursorAltitudeToggle";
 
-// Bottom-left toggle of the altimetry under the cursor (2D editor): the
-// altitude of the hovered annotation / scan follows the pointer.
+// Bottom-left toggle of the altimetry under the cursor (2D and 3D editors,
+// one shared device preference): the altitude of the hovered annotation /
+// scan / surface follows the pointer.
 export default function ButtonToggleCursorAltitude() {
   // strings
 

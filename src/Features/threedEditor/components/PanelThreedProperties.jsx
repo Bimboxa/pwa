@@ -25,6 +25,7 @@ import {
   setEnvironment3d,
   setRevolutionSectionFillIn3d,
 } from "Features/threedEditor/threedEditorSlice";
+import useCursorAltitudeToggle from "Features/mapEditor/hooks/useCursorAltitudeToggle";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 // 3D view settings, shown by the right-panel SETTINGS tool while a 3D editor
@@ -54,6 +55,11 @@ export default function PanelThreedProperties() {
   );
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
+  // Altimetry under the cursor: the device preference shared with the 2D
+  // editor (same switch in SectionEditorSettings2d, bottom-left button in
+  // both editors).
+  const { enabled: cursorAltitudeEnabled, setEnabled: setCursorAltitude } =
+    useCursorAltitudeToggle();
 
   // render
 
@@ -275,6 +281,34 @@ export default function PanelThreedProperties() {
               </ToggleButtonGroup>
             </>
           )}
+        </Card>
+
+        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Altimétrie
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              py: 0.25,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {"Afficher l'altitude sous le curseur"}
+            </Typography>
+            <Switch
+              size="small"
+              checked={cursorAltitudeEnabled}
+              onChange={(e) => setCursorAltitude(e.target.checked)}
+            />
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            {
+              "Altitude absolue de la surface survolée (fonds de plan, annotations, scans 3D). Réglage partagé avec l'éditeur 2D."
+            }
+          </Typography>
         </Card>
       </Box>
     </BoxFlexVStretch>
