@@ -16,6 +16,8 @@ import {
 
 import IconCatStarEyes from "Features/icons/IconCatStarEyes";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 // Left summary column of the Configuration dialog. Sections top to bottom:
 // Généralités (app-level entries always shown), Modules, Outils (both hidden
 // without a selected scope), Éditeurs. `modules` / `tools` are the ENABLED ones only (filtered by
@@ -30,10 +32,20 @@ export default function NavConfigurationList({
   selection,
   onSelect,
 }) {
+  // data
+
+  const appConfig = useAppConfig();
+
   // helpers
 
   const isSelected = (type, key) =>
     selection.type === type && selection.key === key;
+
+  // The Chat server connection only matters when the org offers the CHAT tool
+  // (appConfig.features.tools allowlist, same gate as useRightPanelTools).
+  const showChatConnection = (appConfig?.features?.tools ?? []).includes(
+    "CHAT"
+  );
 
   const editorItems = [
     { key: "EDITOR_2D", label: "Éditeur 2D", icon: <Draw fontSize="small" /> },
@@ -79,15 +91,19 @@ export default function NavConfigurationList({
           </ListItemIcon>
           <ListItemText primary="Données & préférences" />
         </ListItemButton>
-        <ListItemButton
-          selected={isSelected("GENERAL", "CHAT_CONNECTION")}
-          onClick={() => onSelect({ type: "GENERAL", key: "CHAT_CONNECTION" })}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <IconCatStarEyes fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Serveur Chat" />
-        </ListItemButton>
+        {showChatConnection && (
+          <ListItemButton
+            selected={isSelected("GENERAL", "CHAT_CONNECTION")}
+            onClick={() =>
+              onSelect({ type: "GENERAL", key: "CHAT_CONNECTION" })
+            }
+          >
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <IconCatStarEyes fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Serveur Chat" />
+          </ListItemButton>
+        )}
 
         {showScopeSections && (
           <>

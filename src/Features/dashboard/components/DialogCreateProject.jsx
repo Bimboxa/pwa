@@ -11,7 +11,6 @@ import { Box, CircularProgress } from "@mui/material";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import FormProject from "Features/projects/components/FormProject";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import ButtonPromptIaProject from "Features/promptIaProject/components/ButtonPromptIaProject";
 
 export default function DialogCreateProject({ open, onClose }) {
   const dispatch = useDispatch();
@@ -69,12 +68,6 @@ export default function DialogCreateProject({ open, onClose }) {
         onClick={handleCreate}
         variant="contained"
         disabled={!canCreate || creating}
-      />
-      <ButtonPromptIaProject
-        project={tempProject}
-        onProjectChange={setTempProject}
-        onCreated={handleClose}
-        disabled={creating}
       />
     </DialogGeneric>
   );
