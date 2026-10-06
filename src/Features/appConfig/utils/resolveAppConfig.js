@@ -113,6 +113,15 @@ const KRTO_CONFIGURATIONS_LOADERS = import.meta.glob(
   { eager: false }
 );
 
+// Krto configuration tutorials — one Markdown file per configuration, matched
+// by convention on the configuration key: configurations/tutorials/<key>.md
+// (shown by the right-band "Tutoriel" tool, Features/tutorial). Raw text, a
+// few KB: resolved eagerly with the configuration; its images stay lazy.
+const KRTO_TUTORIALS_MD_LOADERS = import.meta.glob(
+  "../../../Data/*/configurations/tutorials/*.md",
+  { query: "?raw", import: "default", eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -247,7 +256,17 @@ export default async function resolveAppConfig(appConfig) {
   //       disabledCoreModuleKeys,   // optional core modules to disable
   //                                 // (["SCOPE"]; enabled when absent)
   //       disabledToolKeys,        // root-disabled tools (persisted form)
-  //       disabledToolKeysByModule } }
+  //       disabledToolKeysByModule },
+  //     tutorial }                  // NOT declared in the file: derived here
+  //                                 // from configurations/tutorials/<key>.md
+  //                                 // when that file exists =>
+  //                                 // { markdown, basePath }. Markdown
+  //                                 // conventions (Features/tutorial):
+  //                                 // "##" = section, ordered list = steps,
+  //                                 // "![caption](./assets/x.svg)" in a step
+  //                                 // = image icon (lazy, path relative to
+  //                                 // the tutorials folder), ":::action{…}"
+  //                                 // reserved for future action cards.
   // Named export `configurationKeywordFamilies` = [{ key, label }].
   // Yaml side: features.krtoConfigurations.simpleModeKeys (optional list of
   // configuration keys) restricts the compact creation dialog shown when the
@@ -283,6 +302,24 @@ export default async function resolveAppConfig(appConfig) {
                 const assetLoader = DATA_IMAGE_URL_LOADERS[assetKey];
                 if (assetLoader) baseMapItem.assetUrl = await assetLoader();
               }
+            }
+          }
+
+          // tutorial (by convention, see KRTO_TUTORIALS_MD_LOADERS)
+          const tutorialBasePath = "configurations/tutorials";
+          const tutorialKey = `../../../Data/${orgaCode}/${tutorialBasePath}/${item.key}.md`;
+          const tutorialLoader = KRTO_TUTORIALS_MD_LOADERS[tutorialKey];
+          if (tutorialLoader) {
+            try {
+              const markdown = await tutorialLoader();
+              if (typeof markdown === "string" && markdown.trim()) {
+                item.tutorial = { markdown, basePath: tutorialBasePath };
+              }
+            } catch (error) {
+              console.error(
+                `[resolveAppConfig] Error loading tutorial for configuration "${item.key}":`,
+                error
+              );
             }
           }
 

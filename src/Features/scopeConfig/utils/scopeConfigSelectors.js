@@ -163,14 +163,29 @@ export function selectDisabledToolKeysByModule(s) {
 
 // Creation-preset defaults also apply to older scopes that did not persist
 // module presentation settings. Explicit scope overrides still take precedence.
-export function selectPresetScopeConfig(s) {
+// Krto configuration the selected scope was created from
+// (appConfig.features.krtoConfigurations.items), or null. Matched on
+// scope.configurationKey, falling back to the legacy scope.presetScopeKey.
+export function selectSelectedScopeConfiguration(s) {
   const scope = s.scopes.scopesById?.[s.scopes.selectedScopeId];
-  if (!scope?.presetScopeKey) return EMPTY_OBJ;
+  const key = scope?.configurationKey ?? scope?.presetScopeKey;
+  if (!key) return null;
   return (
     s.appConfig.value?.features?.krtoConfigurations?.items?.find(
-      (configuration) => configuration.key === scope.presetScopeKey
-    )?.scopeConfig ?? EMPTY_OBJ
+      (configuration) => configuration.key === key
+    ) ?? null
   );
+}
+
+export function selectPresetScopeConfig(s) {
+  return selectSelectedScopeConfiguration(s)?.scopeConfig ?? EMPTY_OBJ;
+}
+
+// Tutorial of the selected scope's configuration ({ markdown, basePath },
+// resolved by resolveAppConfig from configurations/tutorials/<key>.md), or
+// null — the right-band TUTORIAL tool is hidden then.
+export function selectSelectedScopeTutorial(s) {
+  return selectSelectedScopeConfiguration(s)?.tutorial ?? null;
 }
 
 // Per-scope module label overrides ({moduleKey: label}). Empty by default —

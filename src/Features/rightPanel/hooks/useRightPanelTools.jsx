@@ -15,6 +15,7 @@ import {
   FolderOpen,
   CloudSync,
   SmartToy,
+  School,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -25,6 +26,7 @@ import IconExportPlan from "Features/icons/IconExportPlan";
 import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
+  selectSelectedScopeTutorial,
   selectToolOrder,
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
@@ -56,16 +58,38 @@ export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 //     org-allowlist tools (SELECTION_PROPERTIES force-included) plus the
 //     contextual ones, unfiltered by module or scopeConfig, in the per-scope
 //     band order, each annotated with `locked`.
-// "Chat" closes the appConfig-driven bottom tools, whatever rank
-// appConfig.features.tools gives it: the contextual bottom tools
-// ("Réglages") are appended after it, so it sits right above them.
-function moveChatLast(tools) {
-  const index = tools.findIndex((t) => t.key === "CHAT");
-  if (index === -1 || index === tools.length - 1) return tools;
-  const next = [...tools];
-  const [chatTool] = next.splice(index, 1);
-  next.push(chatTool);
-  return next;
+// "Tutoriel" then "Chat" close the appConfig-driven bottom tools, whatever
+// rank appConfig.features.tools gives them: the contextual bottom tools
+// ("Réglages") are appended after them, so Chat sits right above Réglages
+// and the tutorial right above Chat.
+const LAST_BOTTOM_TOOL_KEYS = ["TUTORIAL", "CHAT"];
+
+function moveToolsLast(tools, keys = LAST_BOTTOM_TOOL_KEYS) {
+  const moved = keys
+    .map((key) => tools.find((t) => t.key === key))
+    .filter(Boolean);
+  if (moved.length === 0) return tools;
+  return [...tools.filter((t) => !keys.includes(t.key)), ...moved];
+}
+
+// Invariant applied after the per-scope order: "Tutoriel" sits right above
+// "Chat" (or, without Chat, right above the first contextual bottom tool). A
+// scopeConfigs.toolOrder saved before the tool existed ranks it as unknown
+// (after "Réglages"); bottom tools are not reorderable in the Configuration
+// dialog, so pinning it here never fights a user choice.
+function placeTutorialAboveChat(tools) {
+  const tutorial = tools.find((t) => t.key === "TUTORIAL");
+  if (!tutorial) return tools;
+  const rest = tools.filter((t) => t.key !== "TUTORIAL");
+  let anchorIndex = rest.findIndex((t) => t.key === "CHAT");
+  if (anchorIndex === -1) {
+    anchorIndex = rest.findIndex(
+      (t) => t.group === "bottom" && t.contextual === true
+    );
+  }
+  if (anchorIndex === -1) return [...rest, tutorial];
+  rest.splice(anchorIndex, 0, tutorial);
+  return rest;
 }
 
 export default function useRightPanelTools() {
@@ -74,6 +98,7 @@ export default function useRightPanelTools() {
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
   const toolOrder = useSelector(selectToolOrder);
+  const hasTutorial = Boolean(useSelector(selectSelectedScopeTutorial));
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -116,6 +141,21 @@ export default function useRightPanelTools() {
       // In BASE_MAPS the panel has a dedicated role: browse the vertical
       // baseMaps and locate them against a plan view.
       viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS"],
+    },
+    TUTORIAL: {
+      label: "Tutoriel",
+      icon: <School />,
+      // Step-by-step guide of the scope's Krto configuration
+      // (Data/<org>/configurations/tutorials/<key>.md). Every module.
+      // Bottom section, right above "Chat" (see moveToolsLast /
+      // placeTutorialAboveChat below).
+      group: "bottom",
+      // Plain "H" — free outside a draw: the height field capture ("h")
+      // only exists while drawing, and the hotkey hook is inert then.
+      hotkey: "H",
+      // Hard gate (band AND scope-config catalog): nothing to show or to
+      // configure when the selected scope's configuration has no tutorial.
+      disabled: !hasTutorial,
     },
     CHAT: {
       label: "Chat",
@@ -193,6 +233,7 @@ export default function useRightPanelTools() {
       label: "Réglages",
       icon: <Settings />,
       group: "bottom",
+      contextual: true,
     },
     // Global capture: same frame as the POV framing (panel-independent). The
     // only capture entry point since the Export tool dropped its "Export
@@ -327,7 +368,7 @@ export default function useRightPanelTools() {
     );
     menuItems.splice(propertiesIndex + 1, 0, ...belowPropertiesTools);
   }
-  menuItems = moveChatLast(menuItems);
+  menuItems = moveToolsLast(menuItems);
   menuItems.push(...bottomTools);
 
   // Per-scope order (Configuration > Modules & outils), applied last so it
@@ -335,7 +376,7 @@ export default function useRightPanelTools() {
   // which only survives while the scope stores no explicit order. The
   // bottom-anchored tools keep their own band section whatever their rank
   // (VerticalMenuV2 splits on `group`).
-  menuItems = sortToolsByOrder(menuItems, toolOrder);
+  menuItems = placeTutorialAboveChat(sortToolsByOrder(menuItems, toolOrder));
 
   // catalog — see the hook doc comment. Mirrors the menu construction rules
   // (org allowlist order, SELECTION_PROPERTIES force-included, `disabled`
@@ -350,14 +391,14 @@ export default function useRightPanelTools() {
       key: "SELECTION_PROPERTIES",
     });
   }
-  const orderedCatalog = moveChatLast(catalog);
+  const orderedCatalog = moveToolsLast(catalog);
   orderedCatalog.push(...contextualTools.filter((t) => !t.disabled));
-  const catalogWithLock = sortToolsByOrder(orderedCatalog, toolOrder).map(
-    (t) => ({
-      ...t,
-      locked: LOCKED_TOOL_KEYS.has(t.key),
-    })
-  );
+  const catalogWithLock = placeTutorialAboveChat(
+    sortToolsByOrder(orderedCatalog, toolOrder)
+  ).map((t) => ({
+    ...t,
+    locked: LOCKED_TOOL_KEYS.has(t.key),
+  }));
 
   return { menuItems, toolsByKey, catalog: catalogWithLock };
 }

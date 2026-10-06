@@ -43,6 +43,7 @@ import PanelEditorSettings from "Features/settings/components/PanelEditorSetting
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
 import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
+import PanelTutorial from "Features/tutorial/components/PanelTutorial";
 
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -201,6 +202,7 @@ export default function RightPanelContainer() {
             <PanelMasterProjectPictures />
           )}
           {selectedKey === "TOOLS" && <PanelTools />}
+          {selectedKey === "TUTORIAL" && <PanelTutorial />}
           {selectedKey === "CHAT" && <PanelChat />}
           {selectedKey === "ADMIN_MODEL" && <PanelAdminEntityModel />}
           {selectedKey === "ADMIN_LISTING" && <PanelAdminListing />}

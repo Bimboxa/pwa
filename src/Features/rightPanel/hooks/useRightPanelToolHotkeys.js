@@ -22,9 +22,9 @@ const isEditableTarget = (el) => {
 };
 
 // Global shortcuts to OPEN/CLOSE a right-panel tool by its plain letter (I =
-// Propriétés, E = Élévation, B = Banque d'objets, V = Capture, A = Chat — the
-// letters shown under the tool labels in the right band; modules switch on
-// Ctrl+<letter>, see useViewerSwitchHotkeys).
+// Propriétés, E = Élévation, B = Banque d'objets, V = Capture, H = Tutoriel,
+// A = Chat — the letters shown under the tool labels in the right band;
+// modules switch on Ctrl+<letter>, see useViewerSwitchHotkeys).
 //
 // Mirror of useViewerSwitchHotkeys, kept state-disjoint from the module/editor hotkeys
 // so listener order never decides a race:
