@@ -213,7 +213,16 @@ export default function SectionDailyScopes() {
             animationDelay={0.5}
           />
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              // items still belong to the previous day while loading
+              opacity: refreshing ? 0.5 : 1,
+              transition: "opacity 150ms",
+            }}
+          >
             {items.map((item) => (
               <ListItemDailyScope
                 key={item.scopeId}
