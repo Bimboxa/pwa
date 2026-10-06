@@ -21,6 +21,7 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDataImageUrl from "Features/appConfig/hooks/useDataImageUrl";
@@ -292,9 +293,15 @@ export default function DialogKrtoRecap({
           py: 0.25,
         }}
       >
-        <InsertDriveFileOutlinedIcon
-          sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
-        />
+        {page.type === "PDF_PAGE" ? (
+          <PictureAsPdfOutlinedIcon
+            sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
+          />
+        ) : (
+          <InsertDriveFileOutlinedIcon
+            sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
+          />
+        )}
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="body2" noWrap>
             {page.name}

@@ -5,11 +5,12 @@
 
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 import resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries from "../services/resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries";
-// Data image URL loaders (SVG + raster), shared with the lazy
+// Data image URL loaders (SVG + raster + PDF), shared with the lazy
 // useDataImageUrl hook.
 import {
   DATA_SVG_URL_LOADERS,
   DATA_IMAGE_URL_LOADERS,
+  DATA_PDF_URL_LOADERS,
 } from "./dataImageUrlLoaders";
 
 // Dynamic asset loaders for background images or other features.
@@ -235,6 +236,14 @@ export default async function resolveAppConfig(appConfig) {
   //         { type: "BLANK_PAGE", name, pageFormat: "A4"|"A3",
   //           pageOrientation: "LANDSCAPE"|"PORTRAIT"|"SQUARE", scale },
   //         { type: "ASSET", name, assetPath, meterByPx },  // raster only
+  //         { type: "PDF_PAGE", name, assetPath, pageNumber, scale,
+  //           pageFormat, pageOrientation,  // optional: recap label +
+  //                                         // printZone of the sheet
+  //           dpi },                        // optional, default 150
+  //                                 // assetPath relative to Data/<orgaCode>/;
+  //                                 // the page is rasterized at scope
+  //                                 // creation and kept as a PDF_PAGE
+  //                                 // resource (regenerable base map)
   //       ]}],
   //     },
   //     sourceConfigurationKeys,    // optional [configurationKey]: Krto
@@ -297,10 +306,20 @@ export default async function resolveAppConfig(appConfig) {
 
           for (const listing of item.baseMaps?.listings ?? []) {
             for (const baseMapItem of listing.items ?? []) {
-              if (baseMapItem.type === "ASSET" && baseMapItem.assetPath) {
-                const assetKey = `../../../Data/${orgaCode}/${baseMapItem.assetPath}`;
-                const assetLoader = DATA_IMAGE_URL_LOADERS[assetKey];
-                if (assetLoader) baseMapItem.assetUrl = await assetLoader();
+              if (!baseMapItem.assetPath) continue;
+              const assetKey = `../../../Data/${orgaCode}/${baseMapItem.assetPath}`;
+              const assetLoader =
+                baseMapItem.type === "ASSET"
+                  ? DATA_IMAGE_URL_LOADERS[assetKey]
+                  : baseMapItem.type === "PDF_PAGE"
+                    ? DATA_PDF_URL_LOADERS[assetKey]
+                    : null;
+              if (assetLoader) {
+                baseMapItem.assetUrl = await assetLoader();
+              } else {
+                console.warn(
+                  `[resolveAppConfig] Configuration "${item.key}": base map asset not found at ${assetKey}`
+                );
               }
             }
           }

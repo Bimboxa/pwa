@@ -18,6 +18,13 @@ export const DATA_IMAGE_URL_LOADERS = import.meta.glob(
   { as: "url", eager: false }
 );
 
+// PDF assets (configuration PDF_PAGE base map items), rasterized at scope
+// creation time by useCreateConfigurationBaseMaps.
+export const DATA_PDF_URL_LOADERS = import.meta.glob("../../../Data/**/*.pdf", {
+  as: "url",
+  eager: false,
+});
+
 // resolved URLs, keyed by glob path — one load per asset
 const urlCache = new Map();
 
