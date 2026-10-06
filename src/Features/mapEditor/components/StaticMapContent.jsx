@@ -94,7 +94,11 @@ function StaticMapContent({
   // Derive selectMode from the active drawing tool
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const selectMode = useMemo(() => {
-    if (["TECHNICAL_RETURN", "CUT_SEGMENT"].includes(enabledDrawingMode))
+    if (
+      ["TECHNICAL_RETURN", "CUT_SEGMENT", "ISOLATE_SEGMENT"].includes(
+        enabledDrawingMode
+      )
+    )
       return "SEGMENT";
     // Future: add "VERTEX" for point-selection modes
     return null;

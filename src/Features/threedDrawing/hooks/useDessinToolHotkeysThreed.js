@@ -3,6 +3,7 @@ import { useDispatch, useStore } from "react-redux";
 
 import {
   setExtrudeModeActive,
+  setIsolateFaceModeActive,
   setRotateAnnotationModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -23,7 +24,8 @@ const isEditableTarget = (el) => {
 
 // Plain-letter shortcuts of the threedEditor tools of the Dessin (MAP)
 // module's 3D editor: E = Extruder, M = Déplacer (annotation — or a vertex
-// of the selected face, see activateMoveTool), R = Tourner (annotation) —
+// of the selected face, see activateMoveTool), R = Tourner (annotation),
+// S = Isoler une face (isolateSegment) —
 // the letters shown as badges on their « Outils de dessin » rows
 // (RowThreedTool). "D" is the "Dessin" tool, in 3D like in 2D
 // (useTemplatelessDrawHotkey). Toggle semantics: the letter also disarms
@@ -49,7 +51,7 @@ export default function useDessinToolHotkeysThreed() {
       if (isEditableTarget(e.target)) return;
 
       const letter = e.key.toLowerCase();
-      if (letter !== "e" && letter !== "m" && letter !== "r") return;
+      if (!["e", "m", "r", "s"].includes(letter)) return;
 
       const s = store.getState();
       if (s.viewers.selectedViewerKey !== "MAP") return;
@@ -67,11 +69,15 @@ export default function useDessinToolHotkeysThreed() {
           state: s,
           editor: getActiveThreedEditor(),
         });
-      } else {
+      } else if (letter === "r") {
         dispatch(
           setRotateAnnotationModeActive(
             !s.threedEditor.rotateAnnotationMode.active
           )
+        );
+      } else {
+        dispatch(
+          setIsolateFaceModeActive(!s.threedEditor.isolateFaceMode.active)
         );
       }
       e.preventDefault();

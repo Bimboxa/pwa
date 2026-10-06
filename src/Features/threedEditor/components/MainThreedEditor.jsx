@@ -173,6 +173,7 @@ import useRotateBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/us
 import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/RotateBaseMapOverlayThreed";
 import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
 import useMoveAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useMoveAnnotationPointerHandlers";
+import useIsolateFacePointerHandlers from "Features/isolateSegment/hooks/useIsolateFacePointerHandlers";
 import MoveAnnotationOverlayThreed from "Features/threedAnnotationMove/components/MoveAnnotationOverlayThreed";
 import useRotateAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useRotateAnnotationPointerHandlers";
 import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/components/RotateAnnotationOverlayThreed";
@@ -411,6 +412,16 @@ export default function MainThreedEditor() {
   useEffect(() => {
     extrudeActiveRef.current = extrudeActive;
   }, [extrudeActive]);
+
+  // Same pattern for « Isoler une face » — useIsolateFacePointerHandlers
+  // owns the pointer (face hover stipple, click) while active.
+  const isolateFaceActive = useSelector(
+    (s) => s.threedEditor.isolateFaceMode.active
+  );
+  const isolateFaceActiveRef = useRef(isolateFaceActive);
+  useEffect(() => {
+    isolateFaceActiveRef.current = isolateFaceActive;
+  }, [isolateFaceActive]);
 
   // Same pattern for the vertex offset mode (« Déplacer » on a selected
   // face) — useVertexOffsetPointerHandlers owns the pointer (face vertex
@@ -817,6 +828,8 @@ export default function MainThreedEditor() {
   // annotations for the carry-set resolution and the 2D write-back.
   useMoveAnnotationPointerHandlers({ annotations });
   useRotateAnnotationPointerHandlers({ annotations });
+  // « Isoler une face » (Dessin module): permissions on the resolved list.
+  useIsolateFacePointerHandlers({ annotations });
 
   // Click handler for raycasting
   const handleClick = useCallback(
@@ -834,6 +847,9 @@ export default function MainThreedEditor() {
       if (meshingActiveRef.current) return;
       // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
       if (extrudeActiveRef.current) return;
+      // « Isoler une face » owns the pointer; useIsolateFacePointerHandlers
+      // handles it.
+      if (isolateFaceActiveRef.current) return;
       // Vertex offset mode owns the pointer; useVertexOffsetPointerHandlers
       // handles it.
       if (vertexOffsetActiveRef.current) return;
@@ -1345,6 +1361,7 @@ export default function MainThreedEditor() {
       if (dimensionActiveRef.current) return;
       if (meshingActiveRef.current) return;
       if (extrudeActiveRef.current) return;
+      if (isolateFaceActiveRef.current) return;
       if (vertexOffsetActiveRef.current) return;
       if (walkActiveRef.current) return;
       if (placementActiveRef.current) return;
@@ -1922,6 +1939,7 @@ export default function MainThreedEditor() {
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
       extrudeActiveRef.current ||
+      isolateFaceActiveRef.current ||
       vertexOffsetActiveRef.current ||
       walkActiveRef.current ||
       placementActiveRef.current ||

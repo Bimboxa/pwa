@@ -3,6 +3,7 @@ import { useDispatch, useStore } from "react-redux";
 
 import {
   setExtrudeModeActive,
+  setIsolateFaceModeActive,
   setRotateAnnotationModeActive,
   setMoveBaseMapModeActive,
   setRotateBaseMapModeActive,
@@ -19,13 +20,14 @@ import { activateMoveTool } from "Features/threedVertexOffset/utils/resolveVerte
 const ACTION_BY_THREED_TOOL = {
   EXTRUDE: setExtrudeModeActive,
   ROTATE_ANNOTATION: setRotateAnnotationModeActive,
+  ISOLATE_FACE: setIsolateFaceModeActive,
   MOVE_BASE_MAP: setMoveBaseMapModeActive,
   ROTATE_BASE_MAP: setRotateBaseMapModeActive,
 };
 
 // ---------------------------------------------------------------------------
 // RowThreedTool — « Outils de dessin » row of a threedEditor tool (TOOL_ITEMS
-// `threedTool`: Extruder / Déplacer / Tourner) in the Dessin module's 3D
+// `threedTool`: Extruder / Déplacer / Tourner / Isoler une face) in the Dessin module's 3D
 // editor. Click arms the mode; the drawing helper then replaces the list
 // (selectActiveThreedTool). Also the rows of the base maps "Outils" section
 // (SectionBaseMapsTools: MOVE_BASE_MAP / ROTATE_BASE_MAP). `variant`: "popper" (PopperMapListings' ToolRow
