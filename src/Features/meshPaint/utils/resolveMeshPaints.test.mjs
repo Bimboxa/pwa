@@ -72,7 +72,6 @@ test("dropped rows are not listed at all", () => {
     row({ listingId: "missing" }),
     row({ hostAnnotationId: "hGone" }),
     row({ hostAnnotationId: "missing" }),
-    row({ annotationTemplateId: "tLine" }), // POLYLINE template on a FACE
     row({ annotationTemplateId: "tPoint" }),
     row({ sync: { state: "OK", provisional: true } }),
   ];
@@ -85,6 +84,19 @@ test("dropped rows are not listed at all", () => {
   assert.equal(byId.get("kept").host, hosts.get("h1"));
   assert.ok(isMeshPaintCounted(byId.get("kept")));
   assert.ok(isMeshPaintListed(byId.get("kept")));
+});
+
+test("a Ligne template keeps its painted facets (brush part mode)", () => {
+  // A POLYLINE template paints edges by default, but the drawing helper can
+  // switch the brush to facets: such a FACE row stays listed and counted.
+  const faceByLine = row({ id: "faceByLine", annotationTemplateId: "tLine" });
+  const { items, byId } = resolve([faceByLine]);
+  assert.deepEqual(
+    items.map((item) => item.row.id),
+    ["faceByLine"]
+  );
+  assert.equal(byId.get("faceByLine").template, templates.tLine);
+  assert.ok(isMeshPaintCounted(byId.get("faceByLine")));
 });
 
 test("orphans are listed, not counted", () => {

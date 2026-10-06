@@ -7,15 +7,16 @@ import {
   isSameMeshPaintPart,
   prepareMeshPaintMatchItem,
 } from "./findMeshPaintMatches.js";
-import { getMeshPaintPartTypeForTemplate } from "./meshBrushTools.js";
+import { canTemplatePaint } from "./meshBrushTools.js";
 
 // Read-time resolution of the painted parts (shared by the 3D layer, the
 // quantities and the panel):
 //
 // - DROPPED (not listed at all): soft-deleted rows, rows whose painting
 //   template / its listing / the host is missing or deleted, rows whose
-//   template no longer paints this part type (POLYGON ↔ FACE, POLYLINE ↔
-//   EDGE), provisional split copies (not re-synced yet);
+//   template can no longer paint (neither a Surface nor a Ligne shape — a
+//   template carries facets AND edges, the brush part mode decides),
+//   provisional split copies (not re-synced yet);
 // - ORPHAN: the re-sync lost the host face / edge (listed, not counted);
 // - CONFLICT: the same part painted twice (two devices merged): the newest
 //   paint (paintedAt, then createdAt) wins, ties → smaller id. Losers are
@@ -110,7 +111,7 @@ export default function resolveMeshPaints({
     if (!listing || listing.deletedAt) continue;
     const host = lookup(hostById, row.hostAnnotationId);
     if (!host || host.deletedAt) continue;
-    if (getMeshPaintPartTypeForTemplate(template) !== row.partType) continue;
+    if (!canTemplatePaint(template)) continue;
     items.push({
       row,
       status:

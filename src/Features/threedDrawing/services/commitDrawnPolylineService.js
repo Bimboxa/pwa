@@ -77,6 +77,10 @@ export async function commitDrawnPolyline({
   createAnnotationFn = null,
   closeLine = false,
   scopeId = null,
+  // See commitDrawnFace: a painted edge stays a flat line (no template
+  // extrusion height); extraFields are spread last (provenance markers…).
+  ignoreTemplateHeight = false,
+  extraFields = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -150,7 +154,7 @@ export async function commitDrawnPolyline({
       type: "POLYLINE",
       closeLine,
       offsetZ: roundForDisplay((minO + maxO) / 2),
-      height: templateProps.height ?? 0,
+      height: ignoreTemplateHeight ? 0 : (templateProps.height ?? 0),
     };
   } else {
     projectedPoints = projected.map((p) => ({
@@ -201,6 +205,7 @@ export async function commitDrawnPolyline({
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...annotationFields,
+    ...(extraFields ?? {}),
   };
 
   const create = createAnnotationFn ?? createAnnotationService;

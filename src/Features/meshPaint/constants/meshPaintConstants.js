@@ -10,6 +10,14 @@ export const MESH_PAINT_PART_TYPES = {
   EDGE: "EDGE",
 };
 
+// Part mode of the armed brush (mapEditor.meshBrushPartMode): "AUTO" follows
+// the template shape (Surface → FACE, Ligne → EDGE); "FACE" / "EDGE" force it.
+export const MESH_BRUSH_PART_MODES = {
+  AUTO: "AUTO",
+  FACE: "FACE",
+  EDGE: "EDGE",
+};
+
 export const MESH_PAINT_SYNC_STATES = {
   OK: "OK",
   ORPHAN: "ORPHAN",
