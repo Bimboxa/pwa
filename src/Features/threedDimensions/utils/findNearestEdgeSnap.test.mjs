@@ -113,3 +113,30 @@ test("an edge refused by `accept` gives way to the next closest one", () => {
   });
   assert.equal(none, null);
 });
+
+test("an edge running past the camera is clipped, not dropped", () => {
+  // Along the view direction, from well in front of the camera to behind it:
+  // the camera sits at (1, 3, 2) looking towards (0, 0, -6).
+  const front = new Vector3(0, 0, -6);
+  const behind = new Vector3(4, 6, 10);
+  const adjacency = adjacencyOfEdges([[front.toArray(), behind.toArray()]]);
+
+  const target = front.clone().lerp(behind, 0.2);
+  const ndc = toNdc(target);
+  const snap = findNearestEdgeSnap(adjacency, ndc, camera, canvasSize);
+  assert.ok(snap, "the visible part of the edge is a snap target");
+  assert.ok(
+    snap.position.distanceTo(target) < 1e-6,
+    `${snap.position.toArray()} vs ${target.toArray()}`
+  );
+  assert.ok(screenGapPx(snap.position, ndc) < 1e-3);
+
+  // Entirely behind the camera: nothing to snap on.
+  const back = adjacencyOfEdges([
+    [
+      [4, 6, 10],
+      [5, 7, 12],
+    ],
+  ]);
+  assert.equal(findNearestEdgeSnap(back, ndc, camera, canvasSize), null);
+});

@@ -1,6 +1,8 @@
 import { Vector3, Vector4 } from "three";
 
 const _clip = new Vector4();
+const _viewA = new Vector3();
+const _viewB = new Vector3();
 
 // Clip-space w of a world point: the perspective divisor (1 for an
 // orthographic camera).
@@ -22,6 +24,12 @@ function getClipW(position, camera) {
 // A + s (B - A) with s = t wA / ((1 - t) wB + t wA) (w = clip-space w of
 // each end) — a plain A.lerp(B, t) drifts towards the far end of an edge
 // running away from the camera, off the cursor.
+//
+// An edge running past the camera (a long wall top seen from up close: one
+// end behind the eye) is first clipped to the near plane in view space —
+// projecting an end behind the camera is meaningless and used to drop the
+// whole edge. The visible part keeps its exact world points, so the snapped
+// position still lies on the edge.
 //
 // options.accept(position): a candidate point is kept only when it returns
 // true (e.g. not hidden behind the surface under the cursor) — the next
@@ -49,6 +57,23 @@ export default function findNearestEdgeSnap(
 
   const pa = new Vector3();
   const pb = new Vector3();
+  // View-space depth every point must stay beyond (in front of the eye).
+  const zLimit = -(camera.near ?? 0) - 1e-6;
+
+  // The part of segment [a, b] in front of the camera's near plane:
+  // [a', b'] (world) or null when the whole edge is behind it.
+  function clipToNearPlane(a, b) {
+    _viewA.copy(a).applyMatrix4(camera.matrixWorldInverse);
+    _viewB.copy(b).applyMatrix4(camera.matrixWorldInverse);
+    const aIn = _viewA.z <= zLimit;
+    const bIn = _viewB.z <= zLimit;
+    if (aIn && bIn) return [a, b];
+    if (!aIn && !bIn) return null;
+    const t = (zLimit - _viewA.z) / (_viewB.z - _viewA.z);
+    if (!Number.isFinite(t)) return null;
+    const cut = a.clone().lerp(b, t);
+    return aIn ? [a, cut] : [cut, b];
+  }
 
   let best = null;
   let bestNodes = null;
@@ -61,8 +86,11 @@ export default function findNearestEdgeSnap(
       const nodeB = adjacency.get(keyB);
       if (!nodeB) continue;
 
-      pa.copy(nodeA.position).project(camera);
-      pb.copy(nodeB.position).project(camera);
+      const clipped = clipToNearPlane(nodeA.position, nodeB.position);
+      if (!clipped) continue;
+      const [worldA, worldB] = clipped;
+      pa.copy(worldA).project(camera);
+      pb.copy(worldB).project(camera);
       if (pa.z < -1 || pa.z > 1 || pb.z < -1 || pb.z > 1) continue;
 
       const ax = pa.x * halfW;
@@ -85,11 +113,11 @@ export default function findNearestEdgeSnap(
       const d2 = ddx * ddx + ddy * ddy;
       if (d2 >= bestSq) continue;
 
-      const wA = getClipW(nodeA.position, camera);
-      const wB = getClipW(nodeB.position, camera);
+      const wA = getClipW(worldA, camera);
+      const wB = getClipW(worldB, camera);
       const denom = (1 - t) * wB + t * wA;
       const s = Math.abs(denom) > 1e-12 ? (t * wA) / denom : t;
-      const position = nodeA.position.clone().lerp(nodeB.position, s);
+      const position = worldA.clone().lerp(worldB, s);
       if (accept && !accept(position)) continue;
 
       bestSq = d2;
