@@ -17,9 +17,10 @@ import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 // the shortcut tools (Dessin D, Ouverture O, Retirer un segment X, Couper un
 // segment C, Joindre J, Axe de révolution A — RowRevolutionAxisTool —,
 // Déplacer M, Tourner R). In the 3D editor
-// (`isThreedEditor`): the "Dessin" row and the 3D tools only (Coupe face C,
-// and the threedEditor tools Extruder E / Déplacer M / Tourner R —
-// RowThreedTool) — the others are 2D drawing modes.
+// (`isThreedEditor`): the "Dessin" row, the "Axe de révolution" row (drawn on
+// a horizontal base map plane) and the 3D tools only (Coupe face C, and the
+// threedEditor tools Extruder E / Déplacer M / Tourner R — RowThreedTool) —
+// the others are 2D drawing modes.
 // ---------------------------------------------------------------------------
 
 export default function SectionPanelDrawingTools({
@@ -41,7 +42,11 @@ export default function SectionPanelDrawingTools({
   const tools = getToolItemsForEditor({ isThreedEditor }).filter(
     (t) =>
       (t.shortcut || t.isRevolutionAxis) &&
-      (!isThreedEditor || t.isTemplatelessDraw || t.editor || t.threedTool)
+      (!isThreedEditor ||
+        t.isTemplatelessDraw ||
+        t.isRevolutionAxis ||
+        t.editor ||
+        t.threedTool)
   );
 
   // render

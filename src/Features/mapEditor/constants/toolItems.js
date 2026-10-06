@@ -29,8 +29,8 @@ import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 // isRevolutionAxis: "Axe de révolution" row — draws a revolution axis on a
 // plan / drops one on a vertical base map (RowRevolutionAxisTool); in the 3D
 // editor it draws the axis on a horizontal base map plane. The axis belongs
-// to the base map + the scope, not to a listing. Its hotkey (A, 2D plan base
-// maps only) is useRevolutionAxisHotkey.
+// to the base map + the scope, not to a listing. Its hotkey (A — 2D plan base
+// maps and the 3D editor) is useRevolutionAxisHotkey.
 //
 // threedTool: in the 3D editor the row arms a threedEditor mode (Extruder /
 // Déplacer / Tourner / Isoler une face — RowThreedTool,

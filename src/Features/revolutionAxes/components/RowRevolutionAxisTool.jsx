@@ -134,8 +134,9 @@ export default function RowRevolutionAxisTool({
           >
             <Icon sx={{ fontSize: sx.iconSize, color: sx.iconColor }} />
           </Box>
-          {/* The hotkey draws an axis: 2D plan base maps only. */}
-          {shortcut && !isVertical && !isThreedEditor && (
+          {/* The hotkey draws an axis: 2D plan base maps, or the 3D editor
+              (not a vertical base map, where the row drops an axis). */}
+          {shortcut && !isVertical && (
             <Box sx={{ flexShrink: 0 }}>
               <ShortcutBadge>{shortcut}</ShortcutBadge>
             </Box>

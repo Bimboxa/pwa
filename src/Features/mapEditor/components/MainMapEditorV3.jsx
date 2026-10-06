@@ -256,8 +256,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("c", "FACE_CUT", { threed: true });
     // hotkeys — start a templateless draw (D = Dessin) when not drawing
     useTemplatelessDrawHotkey();
-    // hotkeys — start a revolution axis (A = Axe de révolution) on a plan
-    // when not drawing
+    // hotkeys — start a revolution axis (A = Axe de révolution) on a plan,
+    // or on a horizontal base map plane of the 3D editor, when not drawing
     useRevolutionAxisHotkey();
 
     // const

@@ -3,6 +3,7 @@ import { useSelector, useStore } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import useStartRevolutionAxisTools from "./useStartRevolutionAxisTools";
 
@@ -20,13 +21,18 @@ const isEditableTarget = (el) => {
 };
 
 // Global shortcut to START the drawing of a revolution axis ("Axe de
-// révolution" tool row): "a" → draw a new axis on the current plan.
+// révolution" tool row): "a" → draw a new axis on the current plan, or — in
+// the Dessin module's 3D editor — on a horizontal base map plane of the scene
+// (the same 2D state is bridged into revolutionAxisDrawMode, see
+// useRevolutionAxisDrawThreedBridge).
 //
 // Same contract as useToolGroupHotkey: fires UPSTREAM only (no draw armed —
-// once a draw runs, "a" keeps its in-draw meanings), in the 2D editor of the
-// Dessin module, on the capture phase. HORIZONTAL base maps only: on a
-// vertical one an axis is not drawn but dropped, which needs the row (axis
-// choice).
+// once a draw runs, "a" keeps its in-draw meanings), in the Dessin module, on
+// the capture phase. One shortcut for both editors: MainMapEditorV3 (which
+// mounts this hook) stays mounted while the module shows its 3D editor. In 2D,
+// HORIZONTAL base maps only: on a vertical one an axis is not drawn but
+// dropped, which needs the row (axis choice). In 3D the main base map's
+// orientation is irrelevant (the clicks pick a horizontal plane).
 export default function useRevolutionAxisHotkey() {
   const store = useStore();
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -36,7 +42,7 @@ export default function useRevolutionAxisHotkey() {
 
   useEffect(() => {
     // Only act before any draw has started.
-    if (enabledDrawingMode || isVertical) return undefined;
+    if (enabledDrawingMode) return undefined;
 
     const handleKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -53,10 +59,16 @@ export default function useRevolutionAxisHotkey() {
       )
         return;
 
-      // 2D editor of the Dessin module only (the editor stays mounted under
-      // every module).
+      // Dessin module only (the editor stays mounted under every module), in
+      // its 2D editor or toggled to 3D.
       if (s.viewers.selectedViewerKey !== "MAP") return;
-      if (selectEffectiveViewerKey(s) !== "MAP") return;
+      const editorKey = selectEffectiveViewerKey(s);
+      const isThreedEditor = isThreedFamilyViewerKey(editorKey);
+      if (editorKey !== "MAP" && !isThreedEditor) return;
+      // 2D: a vertical base map drops an axis instead of drawing one.
+      if (!isThreedEditor && isVertical) return;
+      // Walk mode owns the keyboard.
+      if (isThreedEditor && s.threedEditor.walkMode.active) return;
 
       // Docked panel on a template detail view: the tool rows are not on
       // screen and the letters belong to the pre-draw template shortcuts.
