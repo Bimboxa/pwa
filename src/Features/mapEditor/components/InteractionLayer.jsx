@@ -13,7 +13,7 @@ import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEdito
 import { setSelectedPhotoId } from 'Features/photos/photosSlice';
 import { isPhotoNodeId, getPhotoIdFromNodeId } from 'Features/photos/constants/photoNode';
 import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
-import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
+import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition, setAnnotationOverlayAnchor } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import { setHollowOutDialogAnnotationId } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
@@ -1911,6 +1911,22 @@ const InteractionLayer = forwardRef(({
   const getTargetPose = () => {
     if (activeContext === "BG_IMAGE") return { x: 0, y: 0, k: 1 };
     return basePoseRef.current || { x: 0, y: 0, k: 1 };
+  };
+
+  // Quick-action row anchor (mapEditorSlice.annotationOverlayAnchor): the
+  // clicked point in the node's local px space (base map px, or the bg image
+  // px for a BG_IMAGE node). Null when the viewport cannot convert.
+  const getOverlayAnchorAtClient = (annotationId, clientX, clientY, isBgContext) => {
+    const world = viewportRef.current?.screenToWorld(clientX, clientY);
+    if (!world) return null;
+    const pose = isBgContext ? bgPose : getTargetPose();
+    const k = pose?.k || 1;
+    return {
+      annotationId,
+      space: "MAP_PX",
+      x: (world.x - (pose?.x || 0)) / k,
+      y: (world.y - (pose?.y || 0)) / k,
+    };
   };
   // FREE_TEXT placement ghost (ScreenCursorV2, screen space): page pt →
   // screen px = page scale × base map pose × camera zoom.
@@ -6475,6 +6491,16 @@ const InteractionLayer = forwardRef(({
             _selectedItems = [newItem];
             dispatch(setSelectedItem(newItem));
             dispatch(setShowAnnotationsProperties(true));
+            dispatch(
+              setAnnotationOverlayAnchor(
+                getOverlayAnchorAtClient(
+                  newItem.id,
+                  event.clientX,
+                  event.clientY,
+                  hit?.dataset?.nodeContext === "BG_IMAGE"
+                )
+              )
+            );
           }
 
 
@@ -8015,6 +8041,16 @@ const InteractionLayer = forwardRef(({
         _selectedItems = [newItem];
         dispatch(setSelectedItem(newItem));
         dispatch(setShowAnnotationsProperties(true));
+        dispatch(
+          setAnnotationOverlayAnchor(
+            getOverlayAnchorAtClient(
+              newItem.id,
+              event.clientX,
+              event.clientY,
+              annotation?.context === "BG_IMAGE"
+            )
+          )
+        );
       }
 
       // -- Afichage du toolbar pour édition --

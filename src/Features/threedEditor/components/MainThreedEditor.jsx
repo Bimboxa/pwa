@@ -24,6 +24,7 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
+  setAnnotationOverlayAnchor,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -1275,6 +1276,19 @@ export default function MainThreedEditor() {
               // Mirror the 2D InteractionLayer: the flag drives the properties
               // panel back chain (annotation → annotationTemplate → listing).
               dispatch(setShowAnnotationsProperties(true));
+              // Quick-action row (ThreedAnnotationOverlayActions) just above
+              // the clicked point, like the 2D editor.
+              if (intersect.point) {
+                dispatch(
+                  setAnnotationOverlayAnchor({
+                    annotationId: nodeId,
+                    space: "WORLD_3D",
+                    x: intersect.point.x,
+                    y: intersect.point.y,
+                    z: intersect.point.z,
+                  })
+                );
+              }
             }
             // Selection of a face clears any prior vertex/edge sub-selection.
             dispatch(clearSubSelection());

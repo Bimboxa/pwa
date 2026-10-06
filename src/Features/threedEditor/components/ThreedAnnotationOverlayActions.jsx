@@ -61,6 +61,10 @@ export default function ThreedAnnotationOverlayActions() {
     (s) => s.popperMapListings?.interactionMode
   );
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
+  // Clicked point (MainThreedEditor handleClick, world space): the row sits
+  // just above it. Bbox fallback when the anchor is not this annotation's
+  // (selection from a panel, from the 2D editor...).
+  const clickAnchor = useSelector((s) => s.mapEditor.annotationOverlayAnchor);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const isWidest = useIsWidestCoupledTab();
 
@@ -95,32 +99,19 @@ export default function ThreedAnnotationOverlayActions() {
 
     const box = new Box3();
     const corner = new Vector3();
+    const clickPoint =
+      clickAnchor?.space === "WORLD_3D" &&
+      clickAnchor.annotationId === annotationId
+        ? new Vector3(clickAnchor.x, clickAnchor.y, clickAnchor.z)
+        : null;
 
-    const update = () => {
-      const row = rowRef.current;
-      const host = row?.parentElement;
-      if (!row || !host) return;
-
-      // Looked up on every update: an async rebuild (CSG carve, GLB load)
-      // swaps the root object.
-      const object = annotationsManager.annotationsObjectsMap?.[annotationId];
+    // Top-center of the on-screen bbox (the 8 projected corners) of the
+    // annotation object, canvas px — null when it cannot be placed.
+    const projectBoxTopCenter = (object) => {
       const camera = sceneManager.camera;
-      const canvasRect = sceneManager.renderer?.domElement?.getBoundingClientRect();
-      if (!object || !camera || !canvasRect?.width || !canvasRect?.height) {
-        row.style.visibility = "hidden";
-        return;
-      }
-
+      const canvasRect = sceneManager.renderer.domElement.getBoundingClientRect();
       box.setFromObject(object);
-      if (box.isEmpty()) {
-        row.style.visibility = "hidden";
-        return;
-      }
-
-      camera.updateMatrixWorld();
-
-      // Top-center of the on-screen bbox (the 8 projected corners), so the
-      // row sits above the annotation whatever the camera orientation.
+      if (box.isEmpty()) return null;
       let minX = Infinity;
       let maxX = -Infinity;
       let minY = Infinity;
@@ -143,27 +134,57 @@ export default function ThreedAnnotationOverlayActions() {
         maxX = Math.max(maxX, x);
         minY = Math.min(minY, y);
       }
+      if (allVisible) return [(minX + maxX) / 2, minY];
+      // Part of the box is behind the camera (close-up): fall back to the
+      // box center, hidden when that one is out of the frustum too.
+      box.getCenter(corner).project(camera);
+      if (
+        corner.z < -1 ||
+        corner.z > 1 ||
+        Math.abs(corner.x) > 1 ||
+        Math.abs(corner.y) > 1
+      )
+        return null;
+      return [
+        (corner.x * 0.5 + 0.5) * canvasRect.width,
+        (-corner.y * 0.5 + 0.5) * canvasRect.height,
+      ];
+    };
+
+    const update = () => {
+      const row = rowRef.current;
+      const host = row?.parentElement;
+      if (!row || !host) return;
+
+      // Looked up on every update: an async rebuild (CSG carve, GLB load)
+      // swaps the root object.
+      const object = annotationsManager.annotationsObjectsMap?.[annotationId];
+      const camera = sceneManager.camera;
+      const canvasRect = sceneManager.renderer?.domElement?.getBoundingClientRect();
+      if (!object || !camera || !canvasRect?.width || !canvasRect?.height) {
+        row.style.visibility = "hidden";
+        return;
+      }
+
+      camera.updateMatrixWorld();
 
       let anchorX;
       let anchorY;
-      if (allVisible) {
-        anchorX = (minX + maxX) / 2;
-        anchorY = minY;
-      } else {
-        // Part of the box is behind the camera (close-up): fall back to the
-        // box center, hidden when that one is out of the frustum too.
-        box.getCenter(corner).project(camera);
-        if (
-          corner.z < -1 ||
-          corner.z > 1 ||
-          Math.abs(corner.x) > 1 ||
-          Math.abs(corner.y) > 1
-        ) {
+      if (clickPoint) {
+        corner.copy(clickPoint).project(camera);
+        if (corner.z < -1 || corner.z > 1) {
           row.style.visibility = "hidden";
           return;
         }
         anchorX = (corner.x * 0.5 + 0.5) * canvasRect.width;
         anchorY = (-corner.y * 0.5 + 0.5) * canvasRect.height;
+      } else {
+        const projected = projectBoxTopCenter(object);
+        if (!projected) {
+          row.style.visibility = "hidden";
+          return;
+        }
+        [anchorX, anchorY] = projected;
       }
 
       // Canvas px → host px, then clamp inside the host so the actions stay
@@ -217,7 +238,14 @@ export default function ThreedAnnotationOverlayActions() {
       unsubscribeReady?.();
       resizeObserver.disconnect();
     };
-  }, [active, annotationId, annotation, showHollowOutButton, showMoreButton]);
+  }, [
+    active,
+    annotationId,
+    annotation,
+    clickAnchor,
+    showHollowOutButton,
+    showMoreButton,
+  ]);
 
   // render
 

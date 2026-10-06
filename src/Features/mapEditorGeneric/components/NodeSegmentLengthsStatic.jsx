@@ -125,6 +125,11 @@ export default function NodeSegmentLengthsStatic({
   // handles) rendered by EditedObjectLayer. Reset on selection change.
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
+  // Clicked point of the selection (InteractionLayer): the overlay row sits
+  // just above it rather than above the bbox, so the buttons are always next
+  // to the cursor. Bbox top-center fallback (selection from a panel...).
+  const clickAnchor = useSelector((s) => s.mapEditor.annotationOverlayAnchor);
+
   // Multi-selection: the no-mode overlay targets ONE annotation — with
   // several selected, each node would grow its own toolbar. Hide it (cotes
   // included) until the selection is back to a single annotation.
@@ -266,9 +271,18 @@ export default function NodeSegmentLengthsStatic({
     );
   }, [items, selectedPointId]);
 
-  // Anchor of the global angle padlock: top-center of the contour bbox,
-  // pushed up by a screen-px offset so it never covers a vertex.
+  // Anchor of the overlay row: the clicked point when it is this
+  // annotation's, else top-center of the contour bbox — pushed up by a
+  // screen-px offset so it never covers a vertex.
   const angleLockAnchor = useMemo(() => {
+    if (
+      clickAnchor?.space === "MAP_PX" &&
+      clickAnchor.annotationId === annotationId &&
+      Number.isFinite(clickAnchor.x) &&
+      Number.isFinite(clickAnchor.y)
+    ) {
+      return { x: clickAnchor.x, y: clickAnchor.y };
+    }
     const pts = (points || []).filter(
       (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
     );
@@ -282,7 +296,7 @@ export default function NodeSegmentLengthsStatic({
       if (p.y < minY) minY = p.y;
     }
     return { x: (minX + maxX) / 2, y: minY };
-  }, [points]);
+  }, [points, clickAnchor, annotationId]);
 
   const flashConflict = useCallback((segmentId, reason) => {
     clearTimeout(conflictTimerRef.current);
