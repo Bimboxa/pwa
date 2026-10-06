@@ -1,3 +1,8 @@
+import db from "App/db/db";
+
+import commitMeshBrush2dService, {
+  BRUSH_2D_STATUS,
+} from "Features/meshPaint/services/commitMeshBrush2dService";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 import paintMeshPartService from "Features/meshPaint/services/paintMeshPartService";
 import { getHostPartData } from "Features/meshPaint/js/buildHostPartIndexFromObject";
@@ -19,6 +24,12 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
  *   stored with the host geometry hash (the re-sync then has nothing to do).
  *   A part not found again keeps its picked geometry, without hash (the next
  *   re-sync decides).
+ * - HOST with `create2dIfPossible` (drawing helper switch « Créer une
+ *   annotation 2D si possible »): the re-detected part is first offered to
+ *   commitMeshBrush2dService — CREATED → action "CREATED_2D" (no paint row);
+ *   NO_GROUND (thick wall facet without a floor polygon at its foot) →
+ *   nothing written, reason "NO_GROUND" (the caller shows a toaster);
+ *   FALLBACK → the paint row as usual.
  *
  * @param {object} params
  * @param {object} params.editor - the active ThreedEditor
@@ -27,8 +38,13 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
  * @param {object} params.template - the armed (painting) template
  * @param {string} [params.projectId]
  * @param {string} params.scopeId
- * @returns {Promise<{action: string|null, id: string|null, deletedIds: string[], reason?: string}>}
- *   paintMeshPartService result (db guard errors are thrown).
+ * @param {boolean} [params.create2dIfPossible]
+ * @param {object} [params.templateProps] - the armed newAnnotation draft
+ * @param {object[]} [params.baseMaps] - resolved base maps (2D commit host)
+ * @param {Function} [params.createAnnotationFn] - useCreateAnnotation's fn
+ * @returns {Promise<{action: string|null, id: string|null, deletedIds: string[], annotationIds?: string[], reason?: string}>}
+ *   paintMeshPartService result (db guard errors are thrown), or
+ *   {action: "CREATED_2D", annotationIds}.
  */
 export default async function commitMeshBrushTargetService({
   editor,
@@ -36,6 +52,10 @@ export default async function commitMeshBrushTargetService({
   template,
   projectId,
   scopeId,
+  create2dIfPossible = false,
+  templateProps = null,
+  baseMaps = [],
+  createAnnotationFn = null,
 }) {
   const sceneManager = editor?.sceneManager;
   const imagesManager = sceneManager?.imagesManager;
@@ -100,6 +120,36 @@ export default async function commitMeshBrushTargetService({
   } catch (error) {
     // The picked geometry stands (the next re-sync decides).
     console.warn("[meshBrush] re-detection failed", hostId, error);
+  }
+
+  if (create2dIfPossible) {
+    const host = await db.annotations.get(hostId);
+    if (!host || host.deletedAt) return refuse("HOST_DELETED");
+    const result = await commitMeshBrush2dService({
+      editor,
+      partType,
+      hostId,
+      baseMapId,
+      localGeometry,
+      host,
+      template,
+      templateProps,
+      baseMaps,
+      projectId: projectId ?? host.projectId ?? null,
+      createAnnotationFn,
+    });
+    if (result.status === BRUSH_2D_STATUS.CREATED) {
+      return {
+        action: "CREATED_2D",
+        id: result.annotationIds[0] ?? null,
+        annotationIds: result.annotationIds,
+        deletedIds: [],
+      };
+    }
+    if (result.status === BRUSH_2D_STATUS.NO_GROUND) {
+      return refuse("NO_GROUND");
+    }
+    // FALLBACK: the paint row below.
   }
 
   const geometry = localGeometryToPaint(partType, localGeometry, metrics);

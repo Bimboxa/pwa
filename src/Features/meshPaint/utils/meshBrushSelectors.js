@@ -5,7 +5,7 @@ import {
 } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 
 import {
-  getMeshBrushPartType,
+  getEffectiveMeshBrushPartType,
   isMeshBrushDrawingMode,
   resolveBrushDrawingShape,
 } from "./meshBrushTools";
@@ -23,8 +23,10 @@ export function selectDrawingToolsEditor(s) {
   });
 }
 
-// Part type the ARMED brush paints ("FACE" for a Surface template, "EDGE" for
-// a Ligne template), or null when the brush is not active. Active when:
+// Part type the ARMED brush paints — the explicit part mode of the drawing
+// helper (mapEditor.meshBrushPartMode "FACE" / "EDGE"), else "FACE" for a
+// Surface template and "EDGE" for a Ligne template — or null when the brush
+// is not active. Active when:
 //   - the drawing mode is MESH_BRUSH;
 //   - the draft carries an annotation template, and is neither template-less
 //     nor an opening;
@@ -39,7 +41,10 @@ export function selectMeshBrushPartType(s) {
   const na = s.annotations.newAnnotation;
   if (!na?.annotationTemplateId || na.isTemplateless || na.isOpening)
     return null;
-  const partType = getMeshBrushPartType(resolveBrushDrawingShape(na));
+  const partType = getEffectiveMeshBrushPartType(
+    resolveBrushDrawingShape(na),
+    s.mapEditor.meshBrushPartMode
+  );
   if (!partType) return null;
   if (selectDrawingToolsEditor(s) !== DRAWING_TOOLS_EDITOR_3D) return null;
   return partType;

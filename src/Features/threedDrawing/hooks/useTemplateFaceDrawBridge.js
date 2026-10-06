@@ -3,7 +3,10 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
-import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setMeshBrushPartMode,
+} from "Features/mapEditor/mapEditorSlice";
 import {
   cancelInProgressPolyline,
   setDrawingModeActive,
@@ -115,6 +118,13 @@ export default function useTemplateFaceDrawBridge() {
       dispatch(cancelInProgressPolyline());
     }
   }, [isMeshBrushMode, drawingActive, dispatch]);
+
+  // The brush part mode (« Facette / Arête » in the drawing helper) belongs
+  // to one armed template: another template, or leaving the brush, goes
+  // back to the shape default.
+  useEffect(() => {
+    dispatch(setMeshBrushPartMode("AUTO"));
+  }, [templateId, isMeshBrushMode, dispatch]);
 
   // Template switch mid-draw: keep the mode active but drop the in-progress
   // polyline — the next face belongs to the new template.

@@ -15,6 +15,7 @@ import {
 // template colour itself).
 const TONE_COLOR = {
   PAINT: "text.primary",
+  CREATE_2D: "primary.main",
   REPLACE: "text.primary",
   REMOVE: "text.secondary",
   REFUSED: "error.main",

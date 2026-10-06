@@ -32,6 +32,16 @@ const meshPaintSlice = createSlice({
       );
       if (ids.length) state.shrinkExemptAnnotationIds.push(...ids);
     },
+    // The brush created a 2D annotation instead of a paint: the host is
+    // displayed shrunk again (a flush band would z-fight an un-shrunk host).
+    // Hosts with live paints stay exempt on their own.
+    removeShrinkExemptAnnotationIds: (state, action) => {
+      const ids = new Set(action.payload ?? []);
+      if (!ids.size) return;
+      state.shrinkExemptAnnotationIds = state.shrinkExemptAnnotationIds.filter(
+        (id) => !ids.has(id)
+      );
+    },
   },
   extraReducers: (builder) => {
     builder.addCase("scopes/setSelectedScopeId", (state) => {
@@ -45,6 +55,7 @@ export const {
   setHighlightedMeshPaintId,
   requestMeshPaintFocus,
   addShrinkExemptAnnotationIds,
+  removeShrinkExemptAnnotationIds,
 } = meshPaintSlice.actions;
 
 export default meshPaintSlice.reducer;

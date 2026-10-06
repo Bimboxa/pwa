@@ -1,6 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
+import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
 import buildVerticalBandPoints from "../utils/buildVerticalBandPoints";
@@ -51,6 +52,15 @@ export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
 //   - createAnnotationFn: useCreateAnnotation's fn — routes the commit
 //     through mapping-category rels + update triggers; falls back to the
 //     plain createAnnotationService when absent
+//   - holes: inner rings of the face (3D world points), kept as POLYGON
+//     `cuts` on a PARALLEL face; a vertical / oblique face with holes has no
+//     plan encoding (NO_2D_ENCODING)
+//   - strict: refuse an inexact vertical band for a templated face too (the
+//     « Pinceau », which falls back on a paint row) — by default only the
+//     template-less face is strict
+//   - ignoreTemplateHeight: a PARALLEL face stays flat (height 0) instead of
+//     taking the template's extrusion height (a painted face is a coating)
+//   - extraFields: spread last on the annotation (provenance markers…)
 //
 // Returns the created annotation record, or null on failure (no template, no
 // host baseMap, degenerate geometry, etc.).
@@ -71,6 +81,10 @@ export async function commitDrawnFace({
   templateProps,
   layerId = null,
   createAnnotationFn = null,
+  holes = [],
+  strict = false,
+  ignoreTemplateHeight = false,
+  extraFields = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -78,6 +92,7 @@ export async function commitDrawnFace({
     console.warn(`[threedDrawing] face commit aborted: ${message}`);
     return { annotation: null, reason };
   };
+  const holeRings = (holes || []).filter((hole) => hole?.length >= 3);
 
   if (!cornersInOrder?.length || cornersInOrder.length < 3)
     return abort(`needs 3+ corners (got ${cornersInOrder?.length ?? 0})`);
@@ -111,6 +126,8 @@ export async function commitDrawnFace({
 
   let annotationFields;
   let projectedPoints;
+  // Inner rings (PARALLEL only): normalized plan points per hole.
+  const projectedHoles = [];
 
   switch (classification.kind) {
     case "PARALLEL": {
@@ -124,6 +141,20 @@ export async function commitDrawnFace({
       );
       if (projectedPoints.length < 3)
         return abort("degenerate PARALLEL face after dedupe");
+      for (const hole of holeRings) {
+        const projected = hole.map((v) => worldToBaseMapNormalized(v, host));
+        if (projected.some((p) => !p))
+          return abort(`hole projection on base map ${host.id} failed`);
+        const ring = dedupeAdjacent(
+          projected.map((p) => ({
+            x: p.x,
+            y: p.y,
+            offsetBottom: 0,
+            offsetTop: 0,
+          }))
+        );
+        if (ring.length >= 3) projectedHoles.push(ring);
+      }
       annotationFields = buildFaceAnnotationFields({
         classifiedShape: "POLYGON",
         classificationFields: {
@@ -131,7 +162,7 @@ export async function commitDrawnFace({
           offsetZ: roundForDisplay(classification.offset),
           // 2D parity: a flat-on-plan commit takes the template's extrusion
           // height, like the same template drawn in the 2D editor.
-          height: templateProps.height ?? 0,
+          height: ignoreTemplateHeight ? 0 : (templateProps.height ?? 0),
         },
         templateProps,
       });
@@ -146,11 +177,19 @@ export async function commitDrawnFace({
       // and drew the full bounding rectangle).
       const band = buildVerticalBandPoints(classification.projected);
       if (!band) return abort("degenerate PERPENDICULAR band");
-      // A template-less face has a fallback (a mesh sheet): never commit a
-      // band that would fill another shape.
-      if (isTemplateless && !isVerticalBandExact(classification.projected))
+      // A template-less face has a fallback (a mesh sheet), a painted face a
+      // paint row: never commit a band that would fill another shape.
+      if (
+        (isTemplateless || strict) &&
+        !isVerticalBandExact(classification.projected)
+      )
         return abort(
           "vertical face not encodable as a band",
+          FACE_COMMIT_NO_2D_ENCODING
+        );
+      if (holeRings.length)
+        return abort(
+          "vertical face with holes has no band encoding",
           FACE_COMMIT_NO_2D_ENCODING
         );
       projectedPoints = band.points;
@@ -173,6 +212,11 @@ export async function commitDrawnFace({
       // contribute to the top face. We carry the per-vertex slope in
       // `offsetBottom` only and leave `offsetTop` at 0 — otherwise the same
       // value in both fields would double the Z lift.
+      if (holeRings.length)
+        return abort(
+          "oblique face with holes has no plan encoding",
+          FACE_COMMIT_NO_2D_ENCODING
+        );
       const offsets = classification.projected.map((p) => p.offset);
       const baseOffset = Math.min(...offsets);
       projectedPoints = dedupeAdjacent(
@@ -206,6 +250,16 @@ export async function commitDrawnFace({
     projectId,
     listingId: isTemplateless ? undefined : listingId,
   });
+  const cuts = [];
+  for (const ring of projectedHoles) {
+    const refs = await insertOrReusePoints({
+      projectedPoints: ring,
+      baseMap: host,
+      projectId,
+      listingId: isTemplateless ? undefined : listingId,
+    });
+    cuts.push({ id: nanoid(), points: refs });
+  }
 
   const annotation = {
     id: nanoid(),
@@ -219,9 +273,11 @@ export async function commitDrawnFace({
     baseMapId: host.id,
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
+    ...(cuts.length ? { cuts } : {}),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...annotationFields,
+    ...(extraFields ?? {}),
   };
 
   const create = createAnnotationFn ?? createAnnotationService;

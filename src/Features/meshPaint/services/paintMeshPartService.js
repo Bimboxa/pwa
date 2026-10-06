@@ -4,7 +4,7 @@ import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 
 import { MESH_PAINT_SYNC_STATES } from "Features/meshPaint/constants/meshPaintConstants";
-import { getMeshPaintPartTypeForTemplate } from "Features/meshPaint/utils/meshBrushTools";
+import { canTemplatePaint } from "Features/meshPaint/utils/meshBrushTools";
 import findMeshPaintMatches from "Features/meshPaint/utils/findMeshPaintMatches";
 import planPaintToggle from "Features/meshPaint/utils/planPaintToggle";
 
@@ -68,9 +68,9 @@ export default async function paintMeshPartService({
     db.annotations.get(candidate.hostAnnotationId),
   ]);
   if (!isLive(liveTemplate)) return refuse("TEMPLATE_DELETED");
-  if (getMeshPaintPartTypeForTemplate(liveTemplate) !== candidate.partType) {
-    return refuse("PART_TYPE_MISMATCH");
-  }
+  // A template paints facets AND edges (brush part mode): only the shape
+  // matters.
+  if (!canTemplatePaint(liveTemplate)) return refuse("TEMPLATE_CANNOT_PAINT");
   if (!isLive(host)) return refuse("HOST_DELETED");
   if (host.baseMapId && host.baseMapId !== candidate.baseMapId) {
     return refuse("BASE_MAP_MISMATCH");
@@ -131,7 +131,7 @@ export default async function paintMeshPartService({
 }
 
 // Matches the user can see (same rule as resolveMeshPaints): host and
-// template still live, template still painting this part type. A paint left
+// template still live, template still able to paint. A paint left
 // on a deleted host (deletion path without cascade) must not swallow the
 // click.
 async function keepEffectiveRows(rows) {
@@ -146,10 +146,6 @@ async function keepEffectiveRows(rows) {
   const templateById = new Map(templates.filter(isLive).map((t) => [t.id, t]));
   return rows.filter((r) => {
     if (!liveHostIds.has(r.hostAnnotationId)) return false;
-    const template = templateById.get(r.annotationTemplateId);
-    return (
-      Boolean(template) &&
-      getMeshPaintPartTypeForTemplate(template) === r.partType
-    );
+    return canTemplatePaint(templateById.get(r.annotationTemplateId));
   });
 }

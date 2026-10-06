@@ -14,6 +14,8 @@ import {
 } from "Features/meshPaint/utils/meshBrushSelectors";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMeshPaints from "Features/meshPaint/hooks/useMeshPaints";
 import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 
@@ -31,7 +33,11 @@ import {
 } from "Features/meshPaint/js/meshBrushOverlayStore";
 import { subscribeMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
 import commitMeshBrushTargetService from "Features/meshPaint/services/commitMeshBrushTargetService";
+import { isShrinkableAnnotation } from "Features/meshPaint/services/ensureUnshrunkHostObject";
 import { createMeshBrushPicker } from "Features/meshPaint/services/meshBrushPick";
+import classifyMeshBrushLocalPart, {
+  BRUSH_2D_KIND,
+} from "Features/meshPaint/utils/classifyMeshBrushLocalPart";
 import clipPaintGeometry from "Features/meshPaint/utils/clipPaintGeometry";
 import findMeshPaintMatches from "Features/meshPaint/utils/findMeshPaintMatches";
 import getMeshPaintColor from "Features/meshPaint/utils/getMeshPaintColor";
@@ -40,7 +46,7 @@ import {
   PAINT_REFUSAL,
   getPaintRefusalLabel,
 } from "Features/meshPaint/utils/getPaintHostRefusal";
-import { getMeshPaintPartTypeForTemplate } from "Features/meshPaint/utils/meshBrushTools";
+import { canTemplatePaint } from "Features/meshPaint/utils/meshBrushTools";
 import planPaintToggle from "Features/meshPaint/utils/planPaintToggle";
 import triangulatePaintFace from "Features/meshPaint/utils/triangulatePaintFace";
 import { buildStippleOverlayFromPositions } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
@@ -98,6 +104,11 @@ function disposeObject(object) {
 // - click (pointer up within BRUSH_DRAG_PX of the press, no Ctrl / Cmd): the
 //   target is committed (commitMeshBrushTargetService), commits queued in
 //   click order; a drag is an orbit and never paints;
+// - « Créer une annotation 2D si possible » (mapEditor
+//   .meshBrushCreate2dIfPossible): a bare part (nothing to remove / replace)
+//   the plan can hold becomes a 2D annotation of the armed template instead
+//   of a paint row — the helper then reads « Annotation 2D »; a thick wall
+//   facet without a floor polygon at its foot gets a toaster, nothing else;
 // - the orbit pivot follows the cursor on press (like the selection mode);
 // - Escape (outside fields) leaves the brush.
 export default function useMeshBrushPointerHandlers() {
@@ -120,6 +131,15 @@ export default function useMeshBrushPointerHandlers() {
   const { isReadOnly } = useReadOnlyScope();
   const { rows, hostById } = useMeshPaints();
   const annotationTemplates = useAnnotationTemplates();
+  // 2D annotation preference (drawing helper switch) + what the 2D commit
+  // needs: the armed draft (template style), the resolved base maps (host of
+  // the commit) and the regular creation path (rels, auto-number, triggers).
+  const create2dIfPossible = useSelector(
+    (s) => s.mapEditor.meshBrushCreate2dIfPossible
+  );
+  const templateProps = useSelector((s) => s.annotations.newAnnotation);
+  const baseMaps = useBaseMaps()?.value;
+  const createAnnotation = useCreateAnnotation();
 
   const templateById = useMemo(() => {
     const byId = {};
@@ -140,10 +160,7 @@ export default function useMeshBrushPointerHandlers() {
         if ((row.scopeId ?? null) !== (scopeId ?? null)) return false;
         if (!isLive(hostById[row.hostAnnotationId])) return false;
         const template = templateById[row.annotationTemplateId];
-        return (
-          isLive(template) &&
-          getMeshPaintPartTypeForTemplate(template) === row.partType
-        );
+        return isLive(template) && canTemplatePaint(template);
       }),
     [rows, hostById, templateById, scopeId]
   );
@@ -181,6 +198,10 @@ export default function useMeshBrushPointerHandlers() {
       rowsById,
       contextRefusal,
       smoothAngleDeg,
+      create2dIfPossible,
+      templateProps,
+      baseMaps,
+      createAnnotation,
     };
   }, [
     projectId,
@@ -191,13 +212,23 @@ export default function useMeshBrushPointerHandlers() {
     rowsById,
     contextRefusal,
     smoothAngleDeg,
+    create2dIfPossible,
+    templateProps,
+    baseMaps,
+    createAnnotation,
   ]);
 
   // Paints / template / context changed: the helper and the preview follow
   // (a click just painted the part: « Peindre » becomes « Retirer »).
   useEffect(() => {
     refreshRef.current?.();
-  }, [matchRows, contextRefusal, armedTemplate, smoothAngleDeg]);
+  }, [
+    matchRows,
+    contextRefusal,
+    armedTemplate,
+    smoothAngleDeg,
+    create2dIfPossible,
+  ]);
 
   useEffect(() => {
     if (!partType || !templateId) return;
@@ -285,9 +316,23 @@ export default function useMeshBrushPointerHandlers() {
       const replacedTemplateId = matches.find(
         (match) => match.annotationTemplateId !== templateId
       )?.annotationTemplateId;
+      // A bare host part the plan can hold → a 2D annotation (optimistic for
+      // a thick wall facet: the floor search runs at the click).
+      const twoD =
+        Boolean(data.create2dIfPossible) &&
+        target.kind === "HOST" &&
+        action === "ADDED" &&
+        classifyMeshBrushLocalPart(target.partType, target.localGeometry, {
+          isThickWallHost: isShrinkableAnnotation(
+            sceneManager.annotationsManager?.getAnnotationSource?.(
+              target.hostId
+            )
+          ),
+        }).kind !== BRUSH_2D_KIND.PAINT;
       return {
         ...target,
         action,
+        twoD,
         replacedLabel: replacedTemplateId
           ? (data.templateById?.[replacedTemplateId]?.label ?? null)
           : null,
@@ -357,7 +402,7 @@ export default function useMeshBrushPointerHandlers() {
           : getMeshPaintColor(dataRef.current.armedTemplate, partType)
         : null;
       const key = actionable
-        ? `${target.previewKey}|${target.action}|${color}`
+        ? `${target.previewKey}|${target.action}|${target.twoD ? "2D" : ""}|${color}`
         : null;
       if (key === preview.key) return;
       disposePreview();
@@ -388,6 +433,9 @@ export default function useMeshBrushPointerHandlers() {
       } else if (target.action === "REPLACED") {
         label = `Remplacer « ${target.replacedLabel || "autre modèle"} »`;
         tone = "REPLACE";
+      } else if (target.twoD) {
+        label = "Annotation 2D";
+        tone = "CREATE_2D";
       } else {
         label = "Peindre";
         tone = "PAINT";
@@ -435,8 +483,23 @@ export default function useMeshBrushPointerHandlers() {
             template,
             projectId: data.projectId,
             scopeId: data.scopeId,
+            // Only a bare part becomes a 2D annotation: a click that removes
+            // or replaces a paint keeps the paint semantics.
+            create2dIfPossible:
+              Boolean(data.create2dIfPossible) && target.action === "ADDED",
+            templateProps: data.templateProps,
+            baseMaps: data.baseMaps || [],
+            createAnnotationFn: data.createAnnotation,
           });
-          if (!result?.action && result?.reason) {
+          if (!result?.action && result?.reason === "NO_GROUND") {
+            dispatch(
+              setToaster({
+                message:
+                  "L'annotation doit être posée sur un sol pour être peinte",
+                severity: "warning",
+              })
+            );
+          } else if (!result?.action && result?.reason) {
             console.warn("[meshBrush] paint refused", result.reason);
           }
         } catch (error) {

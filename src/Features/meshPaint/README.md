@@ -44,6 +44,18 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 
 - Une facette est la région plane connexe sous le curseur.
 - Une arête est une arête vive droite ; ses morceaux colinéaires sont fusionnés.
+- Le type de partie peint est **indépendant de la forme du modèle** : par défaut (mode `AUTO`), un modèle Surface peint des facettes et un modèle Ligne des arêtes ; la bascule « Facette / Arête » du DrawingHelper (`mapEditor.meshBrushPartMode`, `selectMeshBrushPartType`) force l'un ou l'autre. Un modèle Ligne (« Surface verticale ») peint donc un parement ; un modèle peut porter des peintures des deux types, et leurs quantités s'additionnent par type (m² pour les facettes, ml pour les arêtes). La bascule revient à `AUTO` quand le modèle armé change.
+
+**Annotation 2D si possible** (`mapEditor.meshBrushCreate2dIfPossible`, switch « Créer une annotation 2D si possible », actif par défaut)
+
+- Quand le plan peut porter la partie cliquée, le Pinceau crée une **annotation 2D du modèle armé** au lieu d'une peinture (`services/commitMeshBrush2dService.js`, après la re-détection sur l'hôte non rétréci) :
+  - **parement d'un mur épais** (POLYLINE en cm, STRIP) : le segment plan de la facette est découpé aux projections (≤ 5 cm) des sommets et aux intersections des contours des polygones « sol » — tout POLYGON du même fond de plan chargé en 3D, hors ouvertures, mailles, photo-plans et modèle armé (`services/collectGroundPolygonsFromScene.js`) — puis chaque morceau dont un point sondé à 5 cm du parement, **du côté peint**, tombe dans un sol devient une bande POLYLINE verticale (`utils/matchWallFaceToGroundPolygons.js` : la construction de `SURFACES_VERTICALES` vue depuis le mur ; le sol n'a pas à longer le parement, un mur au milieu d'une dalle est « posé » dessus ; plusieurs sols superposés → le plus haut). Bas = `offsetZ` de ce sol (+ rampe `guideLines`), haut = sommet de la facette (`utils/buildWallBandAnnotationFields.js`, conventions de `SURFACES_VERTICALES` / `computeAutoWallChains`). **Aucun sol sous aucun morceau → toaster « L'annotation doit être posée sur un sol pour être peinte », rien n'est créé** (pas de peinture non plus). Les ouvertures de la facette ne sont pas déduites ;
+  - **autre facette plane** : `commitDrawnFace` en mode strict — POLYGON + `offsetZ` (trous → `cuts`), bande verticale si elle est exacte, polygone oblique sans trou ; la hauteur du modèle est ignorée (revêtement plat) ;
+  - **arête horizontale** (Δz ≤ 5 mm) : POLYLINE 2D (`closeLine` pour une courbe fermée).
+- Reste une peinture : surface courbe lissée, facette multi-polygone, arête verticale ou en pente, face verticale ou oblique à trous, bande inexacte (`utils/classifyMeshBrushLocalPart.js`).
+- Seule une partie **nue** (rien à retirer / remplacer) devient une annotation 2D ; le libellé du curseur passe de « Peindre » à « Annotation 2D » (optimiste pour un mur épais : la recherche de sol a lieu au clic).
+- L'annotation créée porte `autoCreatedFrom` (l'hôte) et `autoGenKind: "MESH_BRUSH"`, appartient à la liste du modèle armé et au calque de l'hôte. Elle est **indépendante de l'hôte** : déplacer l'hôte ne la déplace pas (une peinture, elle, suit). Elle se supprime comme toute annotation (pas de bascule au re-clic) ; une fois en place, elle couvre la facette et le survol répond « Annotation du modèle actif ».
+- Un clic = une étape d'undo (`withUndoGroup`). Après création, l'exemption de rétrécissement de session de l'hôte est retirée (`removeShrinkExemptAnnotationIds`) : la bande est collée au parement, l'hôte redevient rétréci.
 
 **Surfaces courbes et courbes**
 
@@ -223,6 +235,7 @@ Une ligne par partie peinte.
 - **Drapeau des overlays** : les objets de peinture portent `isPaintOverlay`, pas `isHoverOverlay`. Picking, index de snap (`useVertexSnap`), contours de coupe et traits « aquarelle » l'ignorent ; l'export 3D le garde.
 - **Parent des overlays** : ne jamais placer une peinture sous la racine de son hôte, car un hôte masqué n'est pas construit du tout.
 - **Immutabilité des lignes** : les formes locales sont mises en cache par objet ligne (WeakMap). Ne jamais modifier une ligne Dexie en place.
+- **Type de partie ≠ forme du modèle** : ne jamais filtrer les lignes `meshPaints` sur `partType` vs `drawingShape` du modèle (une facette peinte par un modèle Ligne disparaîtrait) ; la seule garde est « le modèle peut peindre » (`canTemplatePaint`).
 
 ## Tests
 

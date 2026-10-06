@@ -1,6 +1,14 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { Alert, Box, Paper, Typography, Switch } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Paper,
+  Switch,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -10,6 +18,8 @@ import {
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
+  setMeshBrushCreate2dIfPossible,
+  setMeshBrushPartMode,
   setRepairMode,
 } from "Features/mapEditor/mapEditorSlice";
 import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
@@ -166,6 +176,10 @@ export default function SectionDrawingHelperContent() {
 
   const meshBrushHiddenS =
     "Le modèle actif est masqué : les parties peintes ne seront pas visibles.";
+  const meshBrushPartS = "Partie peinte";
+  const meshBrushFaceS = "Facette";
+  const meshBrushEdgeS = "Arête";
+  const meshBrushCreate2dS = "Créer une annotation 2D si possible";
   const surfaceCutS =
     "Tracez un trait à travers la surface : elle est coupée en autant d'annotations que de morceaux";
 
@@ -190,6 +204,11 @@ export default function SectionDrawingHelperContent() {
   // when the brush is not armed.
   const meshBrushPartType = useSelector(selectMeshBrushPartType);
   const isMeshBrush = Boolean(meshBrushPartType);
+  // « Créer une annotation 2D si possible »: a painted part the plan can
+  // hold becomes a 2D annotation instead of a paint row.
+  const meshBrushCreate2dIfPossible = useSelector(
+    (s) => s.mapEditor.meshBrushCreate2dIfPossible
+  );
   // A paint is shown only when its own template and listing are visible:
   // warn when the armed template (or its listing) is hidden.
   const isMeshBrushTemplateHidden = useSelector((s) => {
@@ -325,6 +344,70 @@ export default function SectionDrawingHelperContent() {
         <Alert severity="warning" sx={{ py: 0, fontSize: "0.8125rem" }}>
           {meshBrushHiddenS}
         </Alert>
+      )}
+      {isThreedToggledEditor && isMeshBrush && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {meshBrushPartS}
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={meshBrushPartType}
+            onChange={(e, value) => {
+              if (value) dispatch(setMeshBrushPartMode(value));
+            }}
+          >
+            <ToggleButton
+              value={MESH_PAINT_PART_TYPES.FACE}
+              sx={{ py: 0.25, px: 1, textTransform: "none" }}
+            >
+              {meshBrushFaceS}
+            </ToggleButton>
+            <ToggleButton
+              value={MESH_PAINT_PART_TYPES.EDGE}
+              sx={{ py: 0.25, px: 1, textTransform: "none" }}
+            >
+              {meshBrushEdgeS}
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Paper>
+      )}
+      {isThreedToggledEditor && isMeshBrush && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {meshBrushCreate2dS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={Boolean(meshBrushCreate2dIfPossible)}
+            onChange={(e) =>
+              dispatch(setMeshBrushCreate2dIfPossible(e.target.checked))
+            }
+          />
+        </Paper>
       )}
       {isThreedToggledEditor && isMeshBrush && <SectionMeshBrushPaintedTotal />}
       {isThreedToggledEditor && canDrawOnScan && !isMeshBrush && (

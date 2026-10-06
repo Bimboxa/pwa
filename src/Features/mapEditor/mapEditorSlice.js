@@ -44,6 +44,15 @@ const mapEditorInitialState = {
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
   defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
   joinMergeIfPossible: true, // JOIN_ANNOTATIONS (Joindre): when true, two ends of walls sharing the same template and width are merged into one polyline (junction vertex at the intersection) instead of being joined as a corner
+  // « Pinceau » (MESH_BRUSH, 3D): part type the brush paints — "AUTO" (a
+  // Surface template paints facets, a Ligne template paints edges), or an
+  // explicit "FACE" / "EDGE" chosen in the drawing helper.
+  meshBrushPartMode: "AUTO",
+  // « Pinceau »: a clicked part the plan can hold (a vertical band glued to
+  // the floor polygons at the foot of a thick wall, a flat face, a horizontal
+  // edge…) is created as a 2D annotation of the armed template instead of a
+  // db.meshPaints row (commitMeshBrush2dService).
+  meshBrushCreate2dIfPossible: true,
   // RAMP tool — transient params shown in the bottom drawing toolbar while the
   // "Rampe" tool is active. Not persisted on the annotation/template.
   rampWidthM: 1, // band width in meters, centered on the drawn median line
@@ -384,6 +393,12 @@ export const mapEditorSlice = createSlice({
     },
     setJoinMergeIfPossible: (state, action) => {
       state.joinMergeIfPossible = action.payload;
+    },
+    setMeshBrushPartMode: (state, action) => {
+      state.meshBrushPartMode = action.payload || "AUTO";
+    },
+    setMeshBrushCreate2dIfPossible: (state, action) => {
+      state.meshBrushCreate2dIfPossible = Boolean(action.payload);
     },
     setRampWidthM: (state, action) => {
       state.rampWidthM = action.payload;
@@ -949,6 +964,8 @@ export const {
   setRepairMode,
   setAutoMergeOnCommit,
   setJoinMergeIfPossible,
+  setMeshBrushPartMode,
+  setMeshBrushCreate2dIfPossible,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,
