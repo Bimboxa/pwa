@@ -9,6 +9,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListingItemsCountById from "Features/listings/hooks/useListingItemsCountById";
+import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
 import { Box, Button, Typography } from "@mui/material";
@@ -33,6 +34,10 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // the group already answers. A click selects the listing — which narrows the
 // recap editor and sends the listing properties to the right panel; there is
 // no subview to drill into.
+//
+// A base map folder hidden from the Fond de plan module (eye of the tree,
+// scope.baseMapsSettings.disabledListingIds) is left out here too: the scope
+// content follows what the base map module shows.
 export default function SelectorListingForViewer({
   selectedListingId,
   onListingSelected,
@@ -56,6 +61,7 @@ export default function SelectorListingForViewer({
   const { value: listings, loading } = useListingsByScope({
     filterByProjectId: projectId,
   });
+  const { disabledListingIds } = useDisabledBaseMapListingIds();
 
   // state
 
@@ -67,16 +73,26 @@ export default function SelectorListingForViewer({
   // helpers
 
   const entityModelTypes = appConfig?.features?.entityModelTypes;
+  // Only base map folders can be disabled; the guard keeps the other
+  // families untouched whatever the array holds.
+  const visibleListings = useMemo(() => {
+    if (!listings || disabledListingIds.length === 0) return listings;
+    return listings.filter(
+      (l) =>
+        l?.entityModel?.type !== "BASE_MAP" ||
+        !disabledListingIds.includes(l.id)
+    );
+  }, [listings, disabledListingIds]);
   const rawGroups = useMemo(
     () =>
       getListingGroupsByEntityModelType({
-        listings,
+        listings: visibleListings,
         entityModelTypes,
       }),
-    [listings, entityModelTypes]
+    [visibleListings, entityModelTypes]
   );
   const groups = useListingGroupsWithIcons(rawGroups);
-  const itemsCountById = useListingItemsCountById(listings);
+  const itemsCountById = useListingItemsCountById(visibleListings);
   const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
 

@@ -10,6 +10,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBusinessObjects from "Features/businessObjects/hooks/useBusinessObjects";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
+import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import SectionBaseMap from "./SectionBaseMap";
 import SectionBaseMapCard from "./SectionBaseMapCard";
@@ -62,6 +63,9 @@ export default function MainListingMapsEditor({ listing }) {
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
+  // Base map folders hidden from the Fond de plan module (scope record):
+  // the SCOPE panel no longer lists them, so their plans leave the recap too.
+  const { disabledListingIds } = useDisabledBaseMapListingIds();
 
   // helpers - listing mode
 
@@ -151,12 +155,13 @@ export default function MainListingMapsEditor({ listing }) {
   }, [allAnnotations]);
 
   // Base maps worth a section for the selected listing (see the table above),
-  // minus the folders hidden from the panel.
+  // minus the folders hidden from the panel or from the Fond de plan module.
   const displayedBaseMaps = useMemo(() => {
     if (!baseMaps?.length) return [];
-    const visibleBaseMaps = hiddenListingsIds.length
+    const hiddenFolderIds = [...hiddenListingsIds, ...disabledListingIds];
+    const visibleBaseMaps = hiddenFolderIds.length
       ? baseMaps.filter(
-          (baseMap) => !hiddenListingsIds.includes(baseMap.listingId)
+          (baseMap) => !hiddenFolderIds.includes(baseMap.listingId)
         )
       : baseMaps;
     if (showAllListings) return visibleBaseMaps;
@@ -180,6 +185,7 @@ export default function MainListingMapsEditor({ listing }) {
   }, [
     baseMaps,
     hiddenListingsIds,
+    disabledListingIds,
     showAllListings,
     isBaseMapListing,
     isBusinessObjectListing,
