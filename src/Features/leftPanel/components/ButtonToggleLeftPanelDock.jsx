@@ -3,10 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { setLeftPanelDocked } from "../leftPanelSlice";
 
 import { IconButton, Tooltip } from "@mui/material";
-import { ViewSidebar, PushPin } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
+import { ViewSidebar } from "@mui/icons-material";
 
-// Top bar toggle of the left module dock. Two states: hidden (default,
-// ViewSidebar icon) and pinned open in flow (PushPin icon).
+// Top bar toggle of the left module dock. Two states: hidden (default) and
+// pinned open in flow. One icon for both — the pinned state reads in the
+// button style (secondary tint + border), the tooltip says a click unpins.
 export default function ButtonToggleLeftPanelDock({
   size = "small",
   iconFontSize = 20,
@@ -31,22 +33,35 @@ export default function ButtonToggleLeftPanelDock({
 
   // render
 
-  const Icon = leftPanelDocked ? PushPin : ViewSidebar;
-
   return (
     <Tooltip title={leftPanelDocked ? hideS : showS}>
       <IconButton
         size={size}
         onClick={handleToggle}
-        sx={{
-          color: "action.active",
-          bgcolor: leftPanelDocked ? "action.selected" : "transparent",
+        sx={(theme) => ({
           borderRadius: 1,
           p: 0.5,
+          // The border is always there, transparent when unpinned, so the
+          // toggle never shifts the breadcrumbs.
+          border: "1px solid",
+          ...(leftPanelDocked
+            ? {
+                color: "secondary.main",
+                borderColor: "secondary.main",
+                bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                "&:hover": {
+                  bgcolor: alpha(theme.palette.secondary.main, 0.2),
+                },
+              }
+            : {
+                color: "action.active",
+                borderColor: "transparent",
+                bgcolor: "transparent",
+              }),
           ...sx,
-        }}
+        })}
       >
-        <Icon sx={{ fontSize: iconFontSize }} />
+        <ViewSidebar sx={{ fontSize: iconFontSize }} />
       </IconButton>
     </Tooltip>
   );
