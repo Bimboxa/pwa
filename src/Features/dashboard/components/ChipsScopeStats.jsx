@@ -20,6 +20,22 @@ const chipSx = {
   "& .MuiChip-icon": { fontSize: 13, ml: 0.5, color: TEXT_MUTED },
 };
 
+// One stat chip: family icon + count. Shared with the SCOPE module listing
+// selector (RowListingInGroup, ButtonSelectorListingInViewer), so a listing
+// row there reads like a scope row of the dashboard. `tooltip` is optional.
+export function ChipScopeStat({ icon, label, tooltip, sx }) {
+  const chip = (
+    <Chip
+      size="small"
+      icon={icon}
+      label={label}
+      sx={[chipSx, ...(Array.isArray(sx) ? sx : [sx])]}
+    />
+  );
+  if (!tooltip) return chip;
+  return <Tooltip title={tooltip}>{chip}</Tooltip>;
+}
+
 export default function ChipsScopeStats({ baseMapsCount, annotationsCount }) {
   const showBaseMaps = baseMapsCount !== undefined && baseMapsCount !== null;
   const showAnnotations =
@@ -32,24 +48,18 @@ export default function ChipsScopeStats({ baseMapsCount, annotationsCount }) {
       sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}
     >
       {showBaseMaps && (
-        <Tooltip title="Fonds de plan">
-          <Chip
-            size="small"
-            icon={<Layers />}
-            label={baseMapsCount}
-            sx={chipSx}
-          />
-        </Tooltip>
+        <ChipScopeStat
+          icon={<Layers />}
+          label={baseMapsCount}
+          tooltip="Fonds de plan"
+        />
       )}
       {showAnnotations && (
-        <Tooltip title="Annotations">
-          <Chip
-            size="small"
-            icon={<Pentagon />}
-            label={annotationsCount}
-            sx={chipSx}
-          />
-        </Tooltip>
+        <ChipScopeStat
+          icon={<Pentagon />}
+          label={annotationsCount}
+          tooltip="Annotations"
+        />
       )}
     </Box>
   );

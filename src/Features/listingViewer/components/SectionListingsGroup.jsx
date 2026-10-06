@@ -18,10 +18,11 @@ import {
 } from "@dnd-kit/sortable";
 import { generateKeyBetween } from "fractional-indexing";
 
-// One family section of the SCOPE module panel: the family icon + label, a
-// "+" opening that family's own creation dialog, then its listings — sortable
-// within the group. The rows carry no icon of their own: the header says what
-// they are.
+// One family section of the SCOPE module panel: the family label, a "+"
+// opening that family's own creation dialog, then its listings — sortable
+// within the group. The header carries no icon: the family reads on each row
+// (folder / listing avatar at the left, family icon in the count chip), like
+// the scope rows of the dashboard.
 //
 // Reordering rewrites listings.rank (fractional indexing, the field the
 // listings selector sorts on) for the group's rows only, the same rule as the
@@ -91,17 +92,6 @@ export default function SectionListingsGroup({
           pb: 0.5,
         }}
       >
-        {group.icon && (
-          <Box
-            sx={{
-              display: "flex",
-              color: "text.secondary",
-              "& svg": { fontSize: 18 },
-            }}
-          >
-            {group.icon}
-          </Box>
-        )}
         <Typography
           variant="caption"
           sx={{
@@ -142,6 +132,8 @@ export default function SectionListingsGroup({
                 listing={listing}
                 selected={selection?.includes(listing.id)}
                 itemsCount={itemsCountById?.[listing.id]}
+                familyType={group.type}
+                familyIcon={group.icon}
                 showVisibility={showVisibility}
                 onClick={onListingClick}
               />

@@ -16,14 +16,19 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import IconButtonMoreActionsListing from "Features/listings/components/IconButtonMoreActionsListing";
+import { ChipScopeStat } from "Features/dashboard/components/ChipsScopeStats";
+import ListingFamilyAvatar from "./ListingFamilyAvatar";
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-// One listing row of the SCOPE panel: drag handle, name, and the row actions
-// on the right. `showVisibility` adds the eye — base map folders only, where
-// it hides that folder's plans from the recap editor.
+// One listing row of the SCOPE panel: drag handle, family mark (folder for a
+// base map listing, initials avatar for an annotation listing — see
+// ListingFamilyAvatar), name, and on the right the items count as a chip with
+// the family icon (same chip as the dashboard scope rows) plus the row
+// actions. `showVisibility` adds the eye — base map folders only, where it
+// hides that folder's plans from the recap editor.
 //
 // The drag handle and the actions are laid over the row, not beside it, so the
 // ListItemButton spans the whole width and the hover / selection tint reaches
@@ -38,6 +43,8 @@ export default function RowListingInGroup({
   listing,
   selected,
   itemsCount,
+  familyType,
+  familyIcon,
   showVisibility = false,
   onClick,
 }) {
@@ -76,9 +83,9 @@ export default function RowListingInGroup({
 
   const hidden = hiddenListingsIds.includes(listing.id);
 
-  // Room the button keeps on the right for the actions overlay: count and
-  // "⋮", plus the eye when the family has one.
-  const actionsWidth = showVisibility ? 12 : 8;
+  // Room the button keeps on the right for the actions overlay: count chip
+  // and "⋮", plus the eye when the family has one.
+  const actionsWidth = showVisibility ? 15 : 11;
 
   // handlers
 
@@ -137,7 +144,7 @@ export default function RowListingInGroup({
           {...(linked ? {} : listeners)}
           sx={{
             position: "absolute",
-            left: 4,
+            left: 2,
             top: 0,
             bottom: 0,
             zIndex: 1,
@@ -160,14 +167,23 @@ export default function RowListingInGroup({
       <ListItemButton
         onClick={() => onClick(listing)}
         sx={{
-          py: 1.25,
-          pl: 3.75,
+          py: 1,
+          pl: 3,
           pr: actionsWidth,
+          gap: 1,
           // The row owns the background; without this the default hover would
           // darken the middle band again, on top of the row tint.
           "&:hover": { bgcolor: "transparent" },
         }}
       >
+        <ListingFamilyAvatar
+          listing={listing}
+          familyType={familyType}
+          familyIcon={familyIcon}
+          selected={selected}
+          hidden={hidden}
+          linked={linked}
+        />
         <Typography
           variant="body2"
           noWrap
@@ -237,17 +253,11 @@ export default function RowListingInGroup({
 
         {/* Item count — information, not an action: always visible, and outside
             the hover-revealed actions box. */}
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{
-            minWidth: 20,
-            textAlign: "right",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {itemsCount ?? ""}
-        </Typography>
+        <ChipScopeStat
+          icon={familyIcon ?? undefined}
+          label={itemsCount ?? 0}
+          sx={{ opacity: hidden ? 0.5 : 1 }}
+        />
       </Box>
     </ListItem>
   );

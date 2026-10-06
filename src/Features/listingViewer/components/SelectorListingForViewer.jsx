@@ -27,7 +27,7 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // Listing selector of the SCOPE module: every listing of the scope whatever
 // its nature (base maps, annotations, business objects, exports...), grouped
 // by family (base maps first, then annotations, then one group per business
-// object type). Each group header carries its family icon and a "+" opening
+// object type). Each group header carries a "+" opening
 // that family's own creation dialog — there is no panel-level "+": a listing
 // always belongs to a family, so the generic entry point only asked a question
 // the group already answers. A click selects the listing — which narrows the
@@ -39,15 +39,19 @@ export default function SelectorListingForViewer({
 }) {
   const dispatch = useDispatch();
 
-  // strings
-
-  const titleS = "Listes";
-  const createListingS = "Nouvelle liste";
-  const emptyS = "Aucune liste dans ce repérage.";
-
   // data
 
   const appConfig = useAppConfig();
+
+  // strings
+
+  // Panel title: the scope content ("Contenu du Krto" / "Contenu du
+  // dossier"), configurable per organization through strings.scope.
+  const titleS =
+    appConfig?.strings?.scope?.contentTitle ?? "Contenu du dossier";
+  const createListingS = "Nouvelle liste";
+  const emptyS = "Aucune liste dans ce repérage.";
+
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: listings, loading } = useListingsByScope({
     filterByProjectId: projectId,
