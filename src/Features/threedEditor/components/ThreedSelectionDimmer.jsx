@@ -21,6 +21,7 @@ import applyAnnotationMaterialState, {
 //     hover highlight is the face-level stipple overlay, not a recolor)
 //   - dimmed by solo (not in the soloed set)   → STATE_DIM   (grey, translucent)
 //   - selection non-empty (and not selected)   → STATE_DIM   (grey, opacity 0.6)
+//     — except while the vertex offset mode is active (snap targets)
 //   - otherwise                                → STATE_NONE  (original)
 //
 // `hoveredIdRef` is read at the moment we apply state so the dimmer doesn't
@@ -41,6 +42,14 @@ export default function ThreedSelectionDimmer({
   const annotationsLoadTick = useSelector(
     (s) => s.threedEditor.annotationsLoadTick
   );
+  // Vertex offset mode (« Déplacer » on a selected face): the moved vertex
+  // levels on the vertices / edges of the OTHER annotations, which must stay
+  // readable to aim at — the selection-driven dim is suspended meanwhile.
+  const vertexOffsetActive = useSelector(
+    (s) => s.threedEditor.vertexOffsetMode.active
+  );
+  const vertexOffsetActiveRef = useRef(vertexOffsetActive);
+  vertexOffsetActiveRef.current = vertexOffsetActive;
 
   const selectedIdsRef = useRef([]);
   selectedIdsRef.current = getSelectedAnnotationIds(selectedItems);
@@ -89,7 +98,8 @@ export default function ThreedSelectionDimmer({
       else if (id === hoveredId) state = STATE_NONE;
       else if (!isMain && mode === "DIMMED") state = STATE_DIM;
       else if (isSoloDimmed) state = STATE_DIM;
-      else if (hasSelectionRef.current) state = STATE_DIM;
+      else if (hasSelectionRef.current && !vertexOffsetActiveRef.current)
+        state = STATE_DIM;
       else state = STATE_NONE;
       applyAnnotationMaterialState(obj, state);
     },
@@ -114,6 +124,7 @@ export default function ThreedSelectionDimmer({
     annotationsModeByBaseMapId,
     mainBaseMapId,
     annotationsLoadTick,
+    vertexOffsetActive,
     computeAndApply,
     threedEditorRef,
   ]);
