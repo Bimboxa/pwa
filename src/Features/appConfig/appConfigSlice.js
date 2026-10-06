@@ -12,9 +12,9 @@ const appConfigSlice = createSlice({
     forceUpdateAt: null,
     useDefault: false, // use default config
     disable3D: false, // disable 3D rendering (perf testing)
-    // device preference: full scope creation flow (card selector) vs the
-    // compact name + configuration dialog (default)
-    configurationsManagement: false,
+    // device preference: full scope creation flow (card selector, default)
+    // vs the compact name + configuration dialog
+    configurationsManagement: true,
     satelliteCaptureMode: "MERCATOR", // "MERCATOR" | "LAMBERT_CC" (see satelliteMap/utils/satelliteCaptureModes)
     // device preference: module a scope lands on when opened from the
     // dashboard (see useLandingViewerModuleOnScopeOpen)
