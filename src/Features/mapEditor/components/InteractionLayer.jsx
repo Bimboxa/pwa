@@ -473,6 +473,7 @@ const InteractionLayer = forwardRef(({
   onAnnotationMoveCommit,
   onSegmentSplit,
   onCutSegment,
+  onIsolateSegment,
   onTechnicalReturn,
   onSplitPolylineClick,
   onSplitPolylineEnter,
@@ -2043,7 +2044,7 @@ const InteractionLayer = forwardRef(({
   // updateSmartDetect
 
   // Drawing modes that only select existing geometry (no smart detect needed)
-  const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT"];
+  const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "ISOLATE_SEGMENT"];
   // Drawing modes whose action is a single click on existing geometry — show a
   // pointer cursor and hide the ScreenCursor crosshair.
   const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
@@ -5486,6 +5487,26 @@ const InteractionLayer = forwardRef(({
             id: annotation.id,
             annotationTemplateId: editTarget.id,
           });
+        }
+      }
+      return;
+    }
+
+    // --- ISOLATE_SEGMENT: click on a segment to cut the polyline / strip at
+    // both of its ends (Features/isolateSegment) — same hit-testing as
+    // CUT_SEGMENT, the index being the renderer's segment index ---
+    if (enabledDrawingMode === "ISOLATE_SEGMENT") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hitPart = nativeTarget.closest?.("[data-part-id]");
+      if (hitPart) {
+        const { partId, nodeId, partType: dataPartType } = hitPart.dataset;
+        if (partId) {
+          const parts = partId.split("::"); // annotationId::SEG::index
+          const partType = dataPartType || parts[1];
+          const segmentIndex = parseInt(parts[2], 10);
+          if (partType === "SEG" && onIsolateSegment && !isNaN(segmentIndex)) {
+            onIsolateSegment(nodeId, segmentIndex);
+          }
         }
       }
       return;

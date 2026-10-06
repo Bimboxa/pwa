@@ -6,6 +6,7 @@ export const TRANSFORM_TOOL_LABELS = {
   EXTRUDE: "Extruder",
   MOVE_ANNOTATION: "Déplacer",
   ROTATE_ANNOTATION: "Tourner",
+  ISOLATE_FACE: "Isoler une face",
 };
 
 export function getMoveToolHint({ carriedCount }) {

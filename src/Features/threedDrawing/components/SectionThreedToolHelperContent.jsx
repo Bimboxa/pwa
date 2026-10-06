@@ -38,6 +38,9 @@ const VERTEX_OFFSET_SHORTCUTS = [
   { key: "Esc", label: "Annuler / Quitter" },
 ];
 
+// Shortcuts of the 3D « Isoler une face » (useIsolateFacePointerHandlers).
+const ISOLATE_FACE_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
+
 // ---------------------------------------------------------------------------
 // SectionThreedToolHelperContent — drawing-helper body of the threedEditor
 // tools armed from « Outils de dessin » in the Dessin module's 3D editor
@@ -167,6 +170,15 @@ export default function SectionThreedToolHelperContent({ tool }) {
             : null
         }
         shortcuts={VERTEX_OFFSET_SHORTCUTS}
+      />
+    );
+  }
+
+  if (tool === "ISOLATE_FACE") {
+    return (
+      <SectionTransformToolHelper
+        hint="Cliquez une face d'un mur ou d'une bande pour isoler son segment"
+        shortcuts={ISOLATE_FACE_SHORTCUTS}
       />
     );
   }

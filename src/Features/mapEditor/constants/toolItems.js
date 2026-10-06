@@ -11,6 +11,7 @@ import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import IconCutSurface from "Features/icons/IconCutSurface";
+import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 
 // TODO: clean up the code behind the drawing tools removed from this UI list
 // (SPLIT_SURFACE "Couper des surfaces", TECHNICAL_RETURN "Retour 1m",
@@ -31,9 +32,11 @@ import IconCutSurface from "Features/icons/IconCutSurface";
 // base maps only) is useRevolutionAxisHotkey.
 //
 // threedTool: in the 3D editor the row arms a threedEditor mode (Extruder /
-// Déplacer / Tourner — RowThreedTool, selectActiveThreedTool) instead of a
-// DRAWING_TOOLS group. In 2D, "Déplacer" / "Tourner" are regular tool groups
-// (Features/annotationTransform).
+// Déplacer / Tourner / Isoler une face — RowThreedTool,
+// selectActiveThreedTool) instead of a DRAWING_TOOLS group. In 2D,
+// "Déplacer" / "Tourner" are regular tool groups
+// (Features/annotationTransform) and "Isoler un segment" (same letter S as
+// "Isoler une face") is the ISOLATE_SEGMENT group (Features/isolateSegment).
 const TOOL_ITEMS = [
   {
     type: "DRAW",
@@ -55,6 +58,13 @@ const TOOL_ITEMS = [
     label: "Couper un segment",
     Icon: IconSplitPolylineClick,
     shortcut: "C",
+    editor: "2D",
+  },
+  {
+    type: "ISOLATE_SEGMENT",
+    label: "Isoler un segment",
+    Icon: IconIsolateSegment,
+    shortcut: "S",
     editor: "2D",
   },
   {
@@ -85,6 +95,14 @@ const TOOL_ITEMS = [
     Icon: IconSplitPolygon,
     shortcut: "C",
     editor: "3D",
+  },
+  {
+    type: "ISOLATE_FACE",
+    label: "Isoler une face",
+    Icon: IconIsolateSegment,
+    shortcut: "S",
+    editor: "3D",
+    threedTool: "ISOLATE_FACE",
   },
   {
     type: "EXTRUDE",

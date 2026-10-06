@@ -40,10 +40,15 @@ const isEditableTarget = (el) => {
 // face).
 // options.plainOnly: ignore the letter while Shift is held (Shift+M toggles
 // the quick point editing — "m" → MOVE_ANNOTATION must not fire with it).
+// options.yieldWhen(state): when it returns true the letter is left to its
+// other owner (returned WITHOUT consuming the event — same spirit as the "E"
+// that yields to « Évider » in useRightPanelToolHotkeys): "s" →
+// ISOLATE_SEGMENT yields to the door-side flip of a selected DOOR opening
+// (InteractionLayer). A stable callback (read through a ref by the caller).
 export default function useToolGroupHotkey(
   hotkey,
   templateId,
-  { threed = false, plainOnly = false } = {}
+  { threed = false, plainOnly = false, yieldWhen = null } = {}
 ) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -89,6 +94,8 @@ export default function useToolGroupHotkey(
       if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
         return;
 
+      if (yieldWhen && yieldWhen(s)) return;
+
       const tools = getDrawingToolsByType(templateId);
       if (tools.length === 0) return;
       const selectedKey = s.mapEditor.selectedToolKeyByTemplateId?.[templateId];
@@ -126,5 +133,6 @@ export default function useToolGroupHotkey(
     templateId,
     threed,
     plainOnly,
+    yieldWhen,
   ]);
 }

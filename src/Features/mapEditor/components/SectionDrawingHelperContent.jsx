@@ -36,6 +36,7 @@ import { isTransformToolMode } from "Features/annotationTransform/utils/transfor
 const SEGMENT_SELECT_MODES = [
   "TECHNICAL_RETURN",
   "CUT_SEGMENT",
+  "ISOLATE_SEGMENT",
   "SPLIT_POLYLINE",
   "SPLIT_POLYLINE_CLICK",
 ];
@@ -376,6 +377,22 @@ export default function SectionDrawingHelperContent() {
           }}
         >
           Cliquez sur un segment pour le supprimer
+        </Box>
+      )}
+      {enabledDrawingMode === "ISOLATE_SEGMENT" && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {"Cliquez sur un segment pour l'isoler (coupe à ses deux extrémités)"}
         </Box>
       )}
       {enabledDrawingMode === "SPLIT_POLYLINE_CLICK" && (

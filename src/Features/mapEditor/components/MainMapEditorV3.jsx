@@ -59,7 +59,7 @@ import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLay
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import moveOpeningAlongHostService from "Features/annotations/services/moveOpeningAlongHostService";
-import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
+import isOpeningAnnotation, { getOpeningType } from "Features/annotations/utils/isOpeningAnnotation";
 import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -153,6 +153,7 @@ import computeWrapperBbox from "../utils/computeWrapperBbox";
 import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoints";
 import removeCutAsync from "../services/removeCutAsync";
 import useHandleCutSegment from "../hooks/useHandleCutSegment";
+import useHandleIsolateSegment from "Features/isolateSegment/hooks/useHandleIsolateSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
@@ -240,6 +241,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // point editing toggle
     useToolGroupHotkey("m", "MOVE_ANNOTATION", { plainOnly: true });
     useToolGroupHotkey("r", "ROTATE_ANNOTATION", { plainOnly: true });
+    // hotkeys — start a segment isolation (S = Isoler un segment) when not
+    // drawing; "S" stays the door-side flip of a single selected DOOR
+    // opening (InteractionLayer's own "s" handler) — the hotkey yields to it
+    // (the ref is refreshed below, once the annotations are resolved)
+    const isolateSegmentYieldRef = useRef(false);
+    const isolateSegmentHotkeyYieldWhen = useMemo(
+        () => () => isolateSegmentYieldRef.current,
+        []
+    );
+    useToolGroupHotkey("s", "ISOLATE_SEGMENT", {
+        plainOnly: true,
+        yieldWhen: isolateSegmentHotkeyYieldWhen,
+    });
     // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
     // drawing (this editor stays mounted under the 3D one)
     useToolGroupHotkey("c", "FACE_CUT", { threed: true });
@@ -583,6 +597,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             });
     }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
 
+    // "S" → « Isoler un segment » yields while the selection is a DOOR
+    // opening (see the hotkey above).
+    const selectedNodeId =
+        selectedNode?.nodeType === "ANNOTATION" ? selectedNode.nodeId : null;
+    isolateSegmentYieldRef.current = useMemo(() => {
+        if (!selectedNodeId) return false;
+        const selected = annotations?.find((a) => a.id === selectedNodeId);
+        return (
+            isOpeningAnnotation(selected) && getOpeningType(selected) === "DOOR"
+        );
+    }, [annotations, selectedNodeId]);
+
     // Altimetry under the cursor: have the height map of a scan base map
     // ready before the first pointer move (see InteractionLayer).
     const cursorAltitudeEnabled = useSelector((s) => s.mapEditor.cursorAltitudeEnabled);
@@ -842,6 +868,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
     const handleSurfaceCutCommit = useHandleSurfaceCutCommit({ annotations, selectedNodes });
     const handleCutSegment = useHandleCutSegment();
+    const handleIsolateSegment = useHandleIsolateSegment({ annotations, baseMap });
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations });
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
@@ -2395,6 +2422,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
+                    onIsolateSegment={handleIsolateSegment}
                     onTechnicalReturn={handleTechnicalReturn}
                     onSplitPolylineClick={handleSplitPolylineClick}
                     onSplitPolylineEnter={handleSplitPolylineEnter}

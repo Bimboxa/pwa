@@ -29,6 +29,7 @@ import IconPolylineCircleRadius from "Features/icons/IconPolylineCircleRadius";
 import IconPolygonCircleRadius from "Features/icons/IconPolygonCircleRadius";
 import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
+import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 import RotateRightIcon from "@mui/icons-material/RotateRight";
@@ -253,6 +254,16 @@ const DRAWING_TOOLS = [
     label: "Retirer segment",
     Icon: IconCutSegment,
     annotationType: "CUT_SEGMENT",
+    behavior: "CUT_SEGMENT",
+  },
+  // ISOLATE_SEGMENT tool (Isoler un segment — Features/isolateSegment): a
+  // click on a segment cuts the polyline / strip at both of its ends. Same
+  // pointer / hit-testing behavior as CUT_SEGMENT (segment-select mode).
+  {
+    key: "ISOLATE_SEGMENT",
+    label: "Isoler un segment",
+    Icon: IconIsolateSegment,
+    annotationType: "ISOLATE_SEGMENT",
     behavior: "CUT_SEGMENT",
   },
   // SPLIT_POLYLINE_CLICK tool (Couper un segment — single click)
@@ -548,6 +559,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
     "CUT_STRIP_SEGMENT",
   ],
   SPLIT_LINE: ["CUT_SEGMENT"],
+  ISOLATE_SEGMENT: ["ISOLATE_SEGMENT"],
   SPLIT_POLYLINE_CLICK: ["SPLIT_POLYLINE_CLICK"],
   FACE_CUT: ["FACE_CUT_SEGMENT", "FACE_CUT_POLYLINE"],
   SURFACE_CUT: ["SURFACE_CUT_SEGMENT", "SURFACE_CUT_POLYLINE"],
