@@ -32,9 +32,11 @@ import DialogCreateListing from "Features/listings/components/DialogCreateListin
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
 import getPageLabel from "../utils/getPageLabel";
+import resolveCarnetDetailLibraryKeys from "../services/resolveCarnetDetailLibraryKeys";
 import resolveBaseMapPages, {
   matchExistingListing,
 } from "../utils/resolveBaseMapPages";
+import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
 
 /*
  * Recap modal of the Krto about to be created. Left column: the form (name +
@@ -133,11 +135,16 @@ export default function DialogKrtoRecap({
     ? (configuration.optionalModules ?? [])
     : ["DPGF", "CARNET_DETAIL"];
 
-  // helpers — annotation libraries (+ DIVERS via the Carnet de détail option)
+  // helpers — annotation libraries (+ the Carnet de détail option's library,
+  // DIVERS, unless the configuration already provides a DETAIL template)
 
   const libraryKeys = [
     ...(configuration?.annotations?.libraryKeys ?? []),
-    ...(options?.carnetDetail ? ["DIVERS"] : []),
+    ...resolveCarnetDetailLibraryKeys({
+      carnetDetail: options?.carnetDetail,
+      configuration,
+      appConfig,
+    }),
     ...(extraLibraryKeys ?? []),
   ];
   const libraries = [...new Set(libraryKeys)]
@@ -160,10 +167,7 @@ export default function DialogKrtoRecap({
   const configListingRows = configuration?.baseMaps?.listings?.length
     ? configuration.baseMaps.listings
     : !configuration && existingListings.length === 0
-      ? [
-          { name: "Vues en plan", items: [] },
-          { name: "Coupes & élévations", verticalBaseMaps: true, items: [] },
-        ]
+      ? [{ name: GENERIC_BASE_MAP_LISTING_NAME, items: [] }]
       : [];
 
   function findExistingListing(listingConfig) {

@@ -11,6 +11,11 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 // Creates a project (Dexie) with its default baseMaps listings
 // ("Vues en plan" + "Coupes & élévations") and selects the plan listing.
+//
+// Used by the Prompt IA project flow only, which places the generated base
+// maps in those PLAN / ELEVATION listings. The dashboard "Créer un nouveau
+// projet" dialog uses useCreateProject alone: its dossiers come from the Krto
+// configuration chosen afterwards (or the generic fallback).
 
 export default function useCreateProjectWithDefaultListings() {
   const dispatch = useDispatch();

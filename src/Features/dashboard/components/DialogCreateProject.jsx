@@ -4,7 +4,8 @@ import { useDispatch } from "react-redux";
 
 import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 
-import useCreateProjectWithDefaultListings from "Features/projects/hooks/useCreateProjectWithDefaultListings";
+import useCreateProject from "Features/projects/hooks/useCreateProject";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, CircularProgress } from "@mui/material";
 
@@ -17,7 +18,14 @@ export default function DialogCreateProject({ open, onClose }) {
 
   // data
 
-  const createProject = useCreateProjectWithDefaultListings();
+  const appConfig = useAppConfig();
+  const createProject = useCreateProject();
+
+  // free projects (created without a référentiel entity) still get a default
+  // type from the config (e.g. "PROJECT" for edx); undefined → stays typeless.
+  // No default baseMap listings here: the dossiers come from the Krto
+  // configuration chosen afterwards (or the generic fallback).
+  const defaultProjectType = appConfig?.creation?.defaultProjectType;
 
   // state
 
@@ -45,7 +53,10 @@ export default function DialogCreateProject({ open, onClose }) {
     if (!canCreate || creating) return;
     try {
       setCreating(true);
-      const project = await createProject(tempProject);
+      const project = await createProject({
+        ...tempProject,
+        type: tempProject.type ?? defaultProjectType,
+      });
       if (project) {
         // select the created project so "Nouveau Krto" is one click away
         dispatch(setSelectedProjectKeyInDashboard(`local_${project.id}`));

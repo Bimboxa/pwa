@@ -129,7 +129,8 @@ export default function DialogCreateScopeFromPreset({
   });
   // creation options — dpgf: BUSINESS_OBJECTS module (STANDARD business
   // object type) + first "DPGF" listing;
-  // carnetDetail: PORTFOLIO module + DIVERS annotation library;
+  // carnetDetail: PORTFOLIO module + DIVERS annotation library (skipped when
+  // the configuration already provides a DETAIL template);
   // portfolio: PORTFOLIO module alone.
   const [options, setOptions] = useState({
     dpgf: false,

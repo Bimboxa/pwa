@@ -30,6 +30,8 @@ import useCreateConfigurationBaseMaps from "./useCreateConfigurationBaseMaps";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
+import resolveCarnetDetailLibraryKeys from "../services/resolveCarnetDetailLibraryKeys";
+import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
 import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
@@ -117,10 +119,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
     );
 
     // libraries added in the recap modal ("Nouvelle liste" dialog) + the
-    // Carnet de détail option (DIVERS), on top of the configuration's own.
+    // Carnet de détail option (DIVERS, unless the configuration already
+    // provides a DETAIL template), on top of the configuration's own.
     const allExtraLibraryKeys = [
       ...(extraLibraryKeys ?? []),
-      ...(carnetDetail ? ["DIVERS"] : []),
+      ...resolveCarnetDetailLibraryKeys({
+        carnetDetail,
+        configuration,
+        appConfig,
+      }),
     ];
 
     // system annotation templates (isForBaseMaps preset listings at creation):
@@ -272,10 +279,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
       usesConfigurationFlow &&
       !configuration &&
       (!baseMapsListings || baseMapsListings.length === 0)
-        ? [
-            { name: "Vues en plan", items: [] },
-            { name: "Coupes & élévations", verticalBaseMaps: true, items: [] },
-          ]
+        ? [{ name: GENERIC_BASE_MAP_LISTING_NAME, items: [] }]
         : [];
 
     const { folders, pages } = resolveBaseMapPages({
@@ -366,35 +370,20 @@ export default function useCreateScopeFromPreset({ projectId }) {
       !usesConfigurationFlow &&
       (!baseMapsListings || baseMapsListings?.length === 0)
     ) {
-      // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
-      const planRank = generateKeyBetween(null, null);
-      const verticalRank = generateKeyBetween(planRank, null);
-      const [planListing, verticalListing] = await createListings({
+      // project without any baseMap listing: a single generic dossier
+      const [listing] = await createListings({
         listings: [
           {
             ...defaultBaseMapsListingProps,
-            name: "Vues en plan",
-            rank: planRank,
-            projectId,
-            canCreateItem: true,
-          },
-          {
-            ...defaultBaseMapsListingProps,
-            name: "Coupes & élévations",
-            verticalBaseMaps: true,
-            rank: verticalRank,
+            name: GENERIC_BASE_MAP_LISTING_NAME,
+            rank: generateKeyBetween(null, null),
             projectId,
             canCreateItem: true,
           },
         ],
         scope,
       });
-      console.log(
-        "debug_25_09 [baseMapsListings] created baseMapsListings",
-        planListing,
-        verticalListing
-      );
-      dispatch(setSelectedBaseMapsListingId(planListing?.id));
+      dispatch(setSelectedBaseMapsListingId(listing?.id));
     }
 
     // per-scope visibility of the pre-existing baseMap listings
