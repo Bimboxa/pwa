@@ -6,7 +6,8 @@ import ZoomOutMapIcon from "@mui/icons-material/ZoomOutMap";
 // Fire-and-forget button: re-frame the camera so it encompasses all annotations
 // currently shown in the scene (the useAnnotationsV2 set). With no annotation it
 // frames a 10 m cube at the world center (see ControlsManager.fitToAnnotations).
-// Positioned by its parent — the bottom-right overlay group of MainThreedEditor,
+// Positioned by its parent — the top-right overlay row of MainThreedEditor,
+// between the base map image mode selector and the base maps grid button,
 // outside the bottom-toolbar swap so it stays available whatever toolbar is
 // active (drawing, meshing, extrude, …).
 export default function ButtonZoomOutThreed() {

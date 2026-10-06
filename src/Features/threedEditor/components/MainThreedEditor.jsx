@@ -78,6 +78,7 @@ import {
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
+import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedAnnotationOverlayActions from "./ThreedAnnotationOverlayActions";
@@ -2651,9 +2652,10 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
-      {/* Top-right group, mirror of the 2D editors' (UILayerDesktop): the
-          base maps grid button. Not in the Maillage module (meshing-only). */}
-      {isThreedViewer && !captureFramingActive && !isMeshesViewer && (
+      {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): base map
+          image display mode, zoom out, base maps grid button. The Maillage
+          module (meshing-only) keeps the zoom out alone. */}
+      {isThreedViewer && !captureFramingActive && (
         <Box
           data-capture-hide
           sx={{
@@ -2667,7 +2669,9 @@ export default function MainThreedEditor() {
             transition: "right 0.2s ease",
           }}
         >
-          <ButtonOpenBaseMapsGrid3d />
+          {!isMeshesViewer && <SelectorBaseMapsImageMode />}
+          <ButtonZoomOutThreed />
+          {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}
         </Box>
       )}
       {/* No 3D toolbars in the POV viewer nor under the capture tool — their
@@ -2689,9 +2693,10 @@ export default function MainThreedEditor() {
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : null)}
-      {/* Bottom-right group (walk toggle + zoom out + 2D/3D toggle) sits outside the swap
+      {/* Bottom-right group (walk toggle + 2D/3D toggle) sits outside the swap
           of bottom toolbars so it stays available in every module (Maillage
-          included). Hidden while a capture/POV framing owns the screen. */}
+          included). Hidden while a capture/POV framing owns the screen. The
+          zoom out moved to the top-right row. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           sx={{
@@ -2706,7 +2711,6 @@ export default function MainThreedEditor() {
           }}
         >
           <ButtonToggleWalkMode />
-          <ButtonZoomOutThreed />
           <ButtonToggleThreedViewer />
         </Box>
       )}

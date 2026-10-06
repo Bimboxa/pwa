@@ -43,7 +43,7 @@ import BaseMapSheetSvg, {
 import AddBaseMapSheetSvg from "./AddBaseMapSheetSvg";
 import BaseMapsGridTabs from "./BaseMapsGridTabs";
 import ButtonBaseMapsGrid from "./ButtonBaseMapsGrid";
-import SelectorBaseMapsGridImageMode from "./SelectorBaseMapsGridImageMode";
+import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
 
 import { BASE_MAPS_GRID_HOTKEY } from "../hooks/useOpenBaseMapsGridHotkey";
 import isEditableTarget from "../utils/isEditableTarget";
@@ -587,7 +587,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
             transition: "right 0.2s ease",
           }}
         >
-          <SelectorBaseMapsGridImageMode />
+          <SelectorBaseMapsImageMode />
           {reorganizing && (
             <ButtonBaseMapsGrid
               title={resetS}

@@ -3,8 +3,9 @@ import ZoomOutMapIcon from "@mui/icons-material/ZoomOutMap";
 
 // 2D twin of ButtonZoomOutThreed: re-fit the camera so the base map fills the
 // visible editor viewport (the default camera matrix). Positioned by its
-// parent — the bottom-right overlay group of UILayerDesktop, next to the
-// 2D/3D toggle, mirroring the 3D editor layout.
+// parent — the top-right overlay row of UILayerDesktop, between the base map
+// image mode selector and the base maps grid button, mirroring the 3D editor
+// layout.
 export default function ButtonZoomOutMap({ onResetCamera }) {
   // handlers
 

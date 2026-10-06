@@ -18,6 +18,7 @@ import DialogCalibration2D from "./DialogCalibration2D";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import ButtonZoomOutMap from "./ButtonZoomOutMap";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
+import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -118,7 +119,10 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
 
 
-            {/* Top-right: base maps grid ("table of plans") */}
+            {/* Top-right row, same order as the row of the opened base maps
+                grid (LayerBaseMapsGrid, which covers this one while open):
+                base map image display mode, zoom out, base maps grid
+                ("table of plans"). Mirrored in the 3D editor. */}
             <Box
                 data-capture-hide
                 sx={{
@@ -132,6 +136,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                     transition: "right 0.2s ease",
                 }}
             >
+                <SelectorBaseMapsImageMode />
+                <ButtonZoomOutMap onResetCamera={onResetCamera} />
                 <ButtonOpenBaseMapsGrid />
             </Box>
 
@@ -151,9 +157,9 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 {/* 2D editor settings moved to the right-panel SETTINGS tool
                     (PanelEditorSettings), the clipping-plane toggle to its
                     "Plan de coupes" section, and SelectorOrthoSnap to the
-                    bottom-left cluster — only the 2D/3D toggle stays here so
-                    its position matches the 3D editor. */}
-                <ButtonZoomOutMap onResetCamera={onResetCamera} />
+                    bottom-left cluster and the zoom out to the top-right row —
+                    only the 2D/3D toggle stays here so its position matches
+                    the 3D editor. */}
                 <ButtonToggleThreedViewer />
                 {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now
                     automatically active when PopperMapListings is in DRAW mode,

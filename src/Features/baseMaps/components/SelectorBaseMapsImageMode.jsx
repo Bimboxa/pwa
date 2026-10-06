@@ -6,11 +6,13 @@ import { Box, IconButton, Paper, Tooltip } from "@mui/material";
 
 import { BASE_MAPS_IMAGE_MODE_OPTIONS } from "Features/baseMaps/constants/baseMapsImageMode";
 
-// How the base map images show on the sheets of the grid: hidden
-// (annotations only), faded (light grey, the annotations stand out) or as is.
-// Same global state as the "Fonds de plan" module panel
-// (SectionBaseMapsImageMode): the editors underneath follow it too.
-export default function SelectorBaseMapsGridImageMode() {
+// How the base map images show: hidden (annotations only), faded (light
+// grey, the annotations stand out) or as is. Same global state as the
+// "Fonds de plan" module panel (SectionBaseMapsImageMode): it applies to
+// every 2D editor, to the 3D scene and to the base maps grid. Floating
+// 3-button group of the top-right row of the editors (same look as
+// ButtonBaseMapsGrid / ButtonZoomOutMap).
+export default function SelectorBaseMapsImageMode() {
   const dispatch = useDispatch();
 
   // data
