@@ -6,7 +6,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
@@ -37,8 +36,6 @@ export default function SectionKrtoPreview({
     "Ces listes seront ajoutées au Krto, prêtes à annoter. Vous pourrez en retirer ensuite.";
   const noLibrariesS = "Aucun modèle";
   const addListingS = "+ Ajouter";
-  const bannerS =
-    "Les fonds de plan et les modèles d'annotations pourront être paramétrés plus tard";
   const newListingPlaceholderS = "Nom de la liste";
 
   // helpers
@@ -71,19 +68,6 @@ export default function SectionKrtoPreview({
         minHeight: 0,
       }}
     >
-      {/* full-width banner */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
-        }}
-      >
-        <Typography variant="caption" sx={{ color: "secondary.main" }}>
-          {bannerS}
-        </Typography>
-      </Box>
-
       <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
         {/* templates panel — left, like the app's Dessin panel */}
         <Box

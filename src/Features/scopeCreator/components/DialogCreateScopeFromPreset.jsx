@@ -54,7 +54,9 @@ const isEditableTarget = (el) => {
     tag === "INPUT" ||
     tag === "TEXTAREA" ||
     tag === "SELECT" ||
-    el.isContentEditable
+    el.isContentEditable ||
+    // MUI Select: a div[role="combobox"] whose open menu is a listbox
+    Boolean(el.closest?.('[role="combobox"],[role="listbox"],[role="menu"]'))
   );
 };
 
@@ -143,6 +145,10 @@ export default function DialogCreateScopeFromPreset({
   // ("+ Nouvelle liste").
   const [excludedLibraryKeys, setExcludedLibraryKeys] = useState([]);
   const [removedPageKeys, setRemovedPageKeys] = useState([]);
+  // target dossier chosen per configuration page in the "Fonds de plan à
+  // créer" rows ({ "listingName::itemName": folderKey }, see
+  // resolveBaseMapPages) — unset or unavailable => declaring dossier.
+  const [baseMapPageTargets, setBaseMapPageTargets] = useState({});
   const [removedListingNames, setRemovedListingNames] = useState([]);
   const [extraAnnotationListings, setExtraAnnotationListings] = useState([]);
   // preset libraries added via the "Nouvelle liste" dialog
@@ -190,6 +196,7 @@ export default function DialogCreateScopeFromPreset({
     setExcludedLibraryKeys([]);
     setRemovedPageKeys([]);
     // keyed by names of the current configuration — reset on switch
+    setBaseMapPageTargets({});
     setRemovedListingNames([]);
     setExtraAnnotationListings([]);
     setExtraLibraryKeys([]);
@@ -219,6 +226,7 @@ export default function DialogCreateScopeFromPreset({
         excludedLibraryKeys,
         removedBaseMapItemKeys: removedPageKeys,
         removedBaseMapListingNames: removedListingNames,
+        baseMapPageTargets,
         hiddenExistingListingIds,
       });
     } catch (error) {
@@ -464,6 +472,8 @@ export default function DialogCreateScopeFromPreset({
                 onRemovedPageKeysChange={setRemovedPageKeys}
                 removedListingNames={removedListingNames}
                 onRemovedListingNamesChange={setRemovedListingNames}
+                baseMapPageTargets={baseMapPageTargets}
+                onBaseMapPageTargetsChange={setBaseMapPageTargets}
                 extraAnnotationListings={extraAnnotationListings}
                 onExtraAnnotationListingsChange={setExtraAnnotationListings}
                 extraLibraryKeys={extraLibraryKeys}

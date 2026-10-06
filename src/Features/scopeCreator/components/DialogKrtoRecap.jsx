@@ -8,6 +8,8 @@ import {
   CircularProgress,
   Dialog,
   IconButton,
+  MenuItem,
+  Select,
   TextField,
   Tooltip,
   Typography,
@@ -29,11 +31,15 @@ import DialogCreateListing from "Features/listings/components/DialogCreateListin
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
 import getPageLabel from "../utils/getPageLabel";
+import resolveBaseMapPages, {
+  matchExistingListing,
+} from "../utils/resolveBaseMapPages";
 
 /*
  * Recap modal of the Krto about to be created. Left column: the form (name +
  * the configuration tags as read-only chips), the baseMap listings (dossiers
  * created — removable — and the project's — toggled with an eye), the
+ * configuration pages to create — each with a target dossier select — the
  * optional modules and the create button. Right: the annotation templates
  * panel and the configuration's illustration (loaded lazily).
  */
@@ -53,6 +59,8 @@ export default function DialogKrtoRecap({
   onRemovedPageKeysChange,
   removedListingNames,
   onRemovedListingNamesChange,
+  baseMapPageTargets,
+  onBaseMapPageTargetsChange,
   extraAnnotationListings,
   onExtraAnnotationListingsChange,
   extraLibraryKeys,
@@ -85,6 +93,8 @@ export default function DialogKrtoRecap({
   const addS = "+ Ajouter";
   const createdSectionS = "Dossiers créés";
   const projectSectionS = "Dossiers du projet";
+  const pagesSectionS = "Fonds de plan à créer";
+  const noFolderS = "Aucun dossier";
   const newListingPlaceholderS = "Nom du dossier";
   const createS = "Créer le Krto";
   const hotkeyTooltipS = "Appuyez sur C pour créer";
@@ -156,11 +166,7 @@ export default function DialogKrtoRecap({
       : [];
 
   function findExistingListing(listingConfig) {
-    return existingListings.find(
-      (l) =>
-        l.name === listingConfig.name &&
-        Boolean(l.verticalBaseMaps) === Boolean(listingConfig.verticalBaseMaps)
-    );
+    return matchExistingListing(listingConfig, existingListings);
   }
 
   const _removedListingNames = removedListingNames ?? [];
@@ -198,16 +204,21 @@ export default function DialogKrtoRecap({
     existingListings.length,
   ]);
 
-  // pages (configuration baseMap items) of a listing, keyed for removal,
-  // minus the removed ones
-  function getVisiblePages(listingConfig) {
-    return (listingConfig.items ?? [])
-      .map((item) => ({
-        ...item,
-        pageKey: `${listingConfig.name}::${item.name}`,
-      }))
-      .filter((page) => !(removedPageKeys ?? []).includes(page.pageKey));
-  }
+  // pages (configuration baseMap items) to create and the dossiers they can
+  // land in — shared resolution with useCreateScopeFromPreset
+  const { folders, pages } = resolveBaseMapPages({
+    listingConfigs: configListingRows,
+    existingListings,
+    removedListingNames: _removedListingNames,
+    removedPageKeys,
+    extraBaseMapListings: extraListings,
+    hiddenExistingListingIds,
+    pageTargets: baseMapPageTargets,
+  });
+  const folderOptions = [
+    ...folders.filter((f) => f.kind === "new"),
+    ...folders.filter((f) => f.kind === "existing"),
+  ];
 
   // handlers
 
@@ -225,6 +236,13 @@ export default function DialogKrtoRecap({
 
   function handleRemovePage(pageKey) {
     onRemovedPageKeysChange([...(removedPageKeys ?? []), pageKey]);
+  }
+
+  function handlePageTargetChange(pageKey, targetKey) {
+    onBaseMapPageTargetsChange({
+      ...(baseMapPageTargets ?? {}),
+      [pageKey]: targetKey,
+    });
   }
 
   function handleAddListing() {
@@ -262,9 +280,9 @@ export default function DialogKrtoRecap({
     );
   }
 
-  // indented page rows under a dossier, each removable
-  function renderPageRows(listingConfig) {
-    return getVisiblePages(listingConfig).map((page) => (
+  // a page to create: name + format, the target dossier select, removable
+  function renderPageRow(page) {
+    return (
       <Box
         key={page.pageKey}
         sx={{
@@ -272,22 +290,69 @@ export default function DialogKrtoRecap({
           alignItems: "center",
           gap: 0.75,
           py: 0.25,
-          pl: 3,
         }}
       >
         <InsertDriveFileOutlinedIcon
           sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
         />
-        <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-          {page.name}
-        </Typography>
-        <Typography
-          variant="caption"
-          noWrap
-          sx={{ flexGrow: 1, color: "text.secondary" }}
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap>
+            {page.name}
+          </Typography>
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{ display: "block", color: "text.secondary" }}
+          >
+            {getPageLabel(page)}
+          </Typography>
+        </Box>
+        <Select
+          size="small"
+          variant="standard"
+          disableUnderline
+          displayEmpty
+          value={page.targetKey ?? ""}
+          onChange={(e) => handlePageTargetChange(page.pageKey, e.target.value)}
+          disabled={folderOptions.length === 0}
+          renderValue={(value) => {
+            const folder = folderOptions.find((f) => f.targetKey === value);
+            return (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  minWidth: 0,
+                }}
+              >
+                <FolderOutlinedIcon
+                  sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
+                />
+                <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>
+                  {folder?.name ?? noFolderS}
+                </Typography>
+              </Box>
+            );
+          }}
+          sx={{ minWidth: 120, maxWidth: 150, fontSize: 13, flexShrink: 0 }}
         >
-          {getPageLabel(page)}
-        </Typography>
+          {folderOptions.map((folder) => (
+            <MenuItem
+              key={folder.targetKey}
+              value={folder.targetKey}
+              dense
+              sx={{ gap: 0.75 }}
+            >
+              <FolderOutlinedIcon
+                sx={{ fontSize: 14, color: "text.secondary", flexShrink: 0 }}
+              />
+              <Typography variant="body2" noWrap>
+                {folder.name}
+              </Typography>
+            </MenuItem>
+          ))}
+        </Select>
         <IconButton
           size="small"
           onClick={() => handleRemovePage(page.pageKey)}
@@ -296,7 +361,7 @@ export default function DialogKrtoRecap({
           <CloseIcon sx={{ fontSize: 14 }} />
         </IconButton>
       </Box>
-    ));
+    );
   }
 
   function renderModuleRow({ key, label, caption }) {
@@ -332,8 +397,9 @@ export default function DialogKrtoRecap({
 
   const hasCreatedRows = newListingRows.length > 0 || extraListings.length > 0;
 
-  // "Fonds de plan" section — dossiers created for the Krto (removable,
-  // with their pages) then the project's dossiers (visibility eye).
+  // "Fonds de plan" section — dossiers created for the Krto (removable),
+  // the project's dossiers (visibility eye), then the pages to create with
+  // their target dossier.
   const baseMapsSectionNode = (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box
@@ -359,30 +425,28 @@ export default function DialogKrtoRecap({
       <Box sx={sectionCardSx}>
         {hasCreatedRows && renderSubSectionTitle(createdSectionS)}
         {newListingRows.map((row) => (
-          <Box key={row.name}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.75,
-                py: 0.25,
-              }}
+          <Box
+            key={row.name}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              py: 0.25,
+            }}
+          >
+            <FolderOutlinedIcon
+              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
+            />
+            <Typography variant="body2" noWrap sx={{ flexGrow: 1 }}>
+              {row.name}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => handleRemoveNewListing(row.name)}
+              sx={{ color: "text.secondary", p: 0.25 }}
             >
-              <FolderOutlinedIcon
-                sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
-              />
-              <Typography variant="body2" noWrap sx={{ flexGrow: 1 }}>
-                {row.name}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={() => handleRemoveNewListing(row.name)}
-                sx={{ color: "text.secondary", p: 0.25 }}
-              >
-                <CloseIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Box>
-            {renderPageRows(row)}
+              <CloseIcon sx={{ fontSize: 16 }} />
+            </IconButton>
           </Box>
         ))}
         {extraListings.map((listing, index) => (
@@ -418,53 +482,52 @@ export default function DialogKrtoRecap({
           })}
         {existingListings.map((listing) => {
           const hidden = (hiddenExistingListingIds ?? []).includes(listing.id);
-          // configuration listing reused by name: its pages land in this
-          // existing dossier, so they are listed (and removable) here.
-          const reusedConfig = configListingRows.find(
-            (c) => findExistingListing(c) === listing
-          );
           return (
-            <Box key={listing.id}>
-              <Box
+            <Box
+              key={listing.id}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                py: 0.25,
+              }}
+            >
+              <FolderOutlinedIcon
+                sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
+              />
+              <Typography
+                variant="body2"
+                noWrap
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.75,
-                  py: 0.25,
+                  flexGrow: 1,
+                  color: hidden ? "text.disabled" : "text.primary",
                 }}
               >
-                <FolderOutlinedIcon
-                  sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
-                />
-                <Typography
-                  variant="body2"
-                  noWrap
-                  sx={{
-                    flexGrow: 1,
-                    color: hidden ? "text.disabled" : "text.primary",
-                  }}
-                >
-                  {listing.name}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => handleToggleListingVisibility(listing.id)}
-                  sx={{
-                    p: 0.25,
-                    color: hidden ? "text.disabled" : "secondary.main",
-                  }}
-                >
-                  {hidden ? (
-                    <VisibilityOffOutlinedIcon sx={{ fontSize: 16 }} />
-                  ) : (
-                    <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
-                  )}
-                </IconButton>
-              </Box>
-              {reusedConfig && renderPageRows(reusedConfig)}
+                {listing.name}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => handleToggleListingVisibility(listing.id)}
+                sx={{
+                  p: 0.25,
+                  color: hidden ? "text.disabled" : "secondary.main",
+                }}
+              >
+                {hidden ? (
+                  <VisibilityOffOutlinedIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
             </Box>
           );
         })}
+
+        {pages.length > 0 &&
+          renderSubSectionTitle(pagesSectionS, {
+            mt: hasCreatedRows || existingListings.length > 0 ? 1 : 0,
+          })}
+        {pages.map((page) => renderPageRow(page))}
       </Box>
     </Box>
   );

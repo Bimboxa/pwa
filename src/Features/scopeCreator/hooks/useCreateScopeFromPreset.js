@@ -40,6 +40,7 @@ import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "Features/businessObjects/data/
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
 import getConfigurationCategories from "../utils/getConfigurationCategories";
+import resolveBaseMapPages from "../utils/resolveBaseMapPages";
 
 import EMPTY_SCOPE_CONFIGURATION from "../data/emptyScopeConfiguration";
 
@@ -88,6 +89,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // configuration / generic baseMap listings removed in the recap modal
     // (keyed by listing name): neither created nor reused.
     removedBaseMapListingNames,
+    // target dossier chosen in the recap modal for each configuration page
+    // ({ "listingName::itemName": folderKey }) — see resolveBaseMapPages.
+    baseMapPageTargets,
     hiddenExistingListingIds,
     // empty: create a bare scope from the built-in EMPTY_SCOPE_CONFIGURATION
     // ("Krto vide" button / select entry): no annotation listing at all (no
@@ -256,15 +260,13 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     // baseMaps listings (and configuration baseMap items). The section merges
     // the configuration's listings, the generic defaults (project without
-    // baseMaps) and the user-added "+ Ajouter" rows from the recap modal.
+    // baseMaps) and the user-added "+ Ajouter" rows from the recap modal;
+    // each configuration page lands in the dossier chosen in the recap
+    // (default: its declaring dossier) — resolveBaseMapPages is the shared
+    // resolution, so the recap and this hook agree.
 
     let configurationItemsCount = 0;
     let configReusedListingIds = [];
-
-    const extraListingConfigs = (extraBaseMapListings ?? [])
-      .map((l) => l?.name?.trim())
-      .filter(Boolean)
-      .map((listingName) => ({ name: listingName, items: [] }));
 
     const genericDefaultListings =
       usesConfigurationFlow &&
@@ -276,26 +278,63 @@ export default function useCreateScopeFromPreset({ projectId }) {
           ]
         : [];
 
-    // configuration listings (or the generic defaults) minus the dossiers
-    // removed in the recap modal (by name), each with its items minus the
-    // pages removed there (keys "listingName::itemName").
-    const removedKeys = removedBaseMapItemKeys ?? [];
-    const removedListingNames = removedBaseMapListingNames ?? [];
-    const baseListingConfigs = (
-      configuration?.baseMaps?.listings ?? genericDefaultListings
-    )
-      .filter((listing) => !removedListingNames.includes(listing.name))
-      .map((listing) => ({
-        ...listing,
-        items: (listing.items ?? []).filter(
-          (item) => !removedKeys.includes(`${listing.name}::${item.name}`)
-        ),
-      }));
+    const { folders, pages } = resolveBaseMapPages({
+      listingConfigs:
+        configuration?.baseMaps?.listings ?? genericDefaultListings,
+      existingListings: baseMapsListings,
+      removedListingNames: removedBaseMapListingNames,
+      removedPageKeys: removedBaseMapItemKeys,
+      extraBaseMapListings,
+      hiddenExistingListingIds,
+      pageTargets: baseMapPageTargets,
+    });
 
-    const baseMapsListingConfigs = [
-      ...baseListingConfigs,
-      ...extraListingConfigs,
+    // pages grouped by target dossier, as bare configuration items
+    const RESOLUTION_FIELDS = [
+      "pageKey",
+      "listingName",
+      "defaultTargetKey",
+      "targetKey",
     ];
+    const pagesByTarget = new Map();
+    for (const page of pages) {
+      if (!page.targetKey) continue;
+      const item = { ...page };
+      for (const field of RESOLUTION_FIELDS) delete item[field];
+      if (!pagesByTarget.has(page.targetKey)) {
+        pagesByTarget.set(page.targetKey, []);
+      }
+      pagesByTarget.get(page.targetKey).push(item);
+    }
+    function takePages(targetKey) {
+      const items = pagesByTarget.get(targetKey) ?? [];
+      pagesByTarget.delete(targetKey);
+      return items;
+    }
+
+    // listing configs in creation order (folders order): configuration
+    // listings first — keeps firstListingId on the configuration's first
+    // listing — then the "+ Ajouter" rows, then the project listings that
+    // received pages without being declared (re-matched by name + flag by
+    // createConfigurationBaseMaps, no rank consumed). Their ids also land in
+    // reusedListingIds, harmless: that list only feeds the
+    // disableExistingListings fallback used when the recap passed no eyes.
+    const baseMapsListingConfigs = [];
+    for (const folder of folders) {
+      const items = takePages(folder.targetKey);
+      if (folder.declared) {
+        // spread the original config so flags (fallback, ...) survive
+        baseMapsListingConfigs.push({ ...folder.listingConfig, items });
+      } else if (folder.kind === "new") {
+        baseMapsListingConfigs.push({ name: folder.name, items });
+      } else if (items.length > 0) {
+        baseMapsListingConfigs.push({
+          name: folder.existing.name,
+          ...(folder.existing.verticalBaseMaps && { verticalBaseMaps: true }),
+          items,
+        });
+      }
+    }
 
     if (usesConfigurationFlow && baseMapsListingConfigs.length > 0) {
       const baseMapsSection = {
