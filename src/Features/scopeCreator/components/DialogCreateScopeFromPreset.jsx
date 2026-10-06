@@ -127,8 +127,13 @@ export default function DialogCreateScopeFromPreset({
   });
   // creation options — dpgf: BUSINESS_OBJECTS module (STANDARD business
   // object type) + first "DPGF" listing;
-  // carnetDetail: PORTFOLIO module + DIVERS annotation library.
-  const [options, setOptions] = useState({ dpgf: false, carnetDetail: false });
+  // carnetDetail: PORTFOLIO module + DIVERS annotation library;
+  // portfolio: PORTFOLIO module alone.
+  const [options, setOptions] = useState({
+    dpgf: false,
+    carnetDetail: false,
+    portfolio: false,
+  });
   // extra baseMap listings added via "+ Ajouter" in the recap modal.
   const [extraBaseMapListings, setExtraBaseMapListings] = useState([]);
   // recap-modal adjustments: removed libraries, removed pages
@@ -177,6 +182,9 @@ export default function DialogCreateScopeFromPreset({
       carnetDetail:
         optionalModules.includes("CARNET_DETAIL") &&
         optionKeywords.includes("Carnet de détail"),
+      portfolio:
+        optionalModules.includes("PORTFOLIO") &&
+        optionKeywords.includes("Portfolio"),
     });
     setExtraBaseMapListings([]);
     setExcludedLibraryKeys([]);

@@ -139,7 +139,7 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
             ? {
                 name: name.trim(),
                 configurationKey: null,
-                options: { dpgf: false, carnetDetail: false },
+                options: { dpgf: false, carnetDetail: false, portfolio: false },
               }
             : { name: name.trim(), presetScopeKey: null }
         );
@@ -160,6 +160,9 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
             carnetDetail:
               optionalModules.includes("CARNET_DETAIL") &&
               optionKeywords.includes("Carnet de détail"),
+            portfolio:
+              optionalModules.includes("PORTFOLIO") &&
+              optionKeywords.includes("Portfolio"),
           },
         });
       } else {

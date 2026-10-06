@@ -78,6 +78,9 @@ export default function DialogKrtoRecap({
   const carnetDetailS = "Carnet de détail";
   const carnetDetailCaptionS =
     "Folios de détails liés aux repères — active le module Carnet de plans et l'outil Ressources.";
+  const portfolioS = "Carnet de plans";
+  const portfolioCaptionS =
+    "Active le module Carnet de plans (portfolio de pages).";
   const baseMapsS = "Fonds de plan";
   const addS = "+ Ajouter";
   const createdSectionS = "Dossiers créés";
@@ -485,6 +488,12 @@ export default function DialogKrtoRecap({
               key: "carnetDetail",
               label: carnetDetailS,
               caption: carnetDetailCaptionS,
+            })}
+          {optionalModules.includes("PORTFOLIO") &&
+            renderModuleRow({
+              key: "portfolio",
+              label: portfolioS,
+              caption: portfolioCaptionS,
             })}
         </Box>
       </Box>

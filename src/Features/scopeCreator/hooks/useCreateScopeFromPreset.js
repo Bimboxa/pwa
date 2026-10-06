@@ -105,6 +105,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     const dpgf = Boolean(options?.dpgf);
     const carnetDetail = Boolean(options?.carnetDetail);
+    const portfolio = Boolean(options?.portfolio);
     // the new creator always passes options (even for the generic card); the
     // legacy preset flow passes none — its behavior stays untouched.
     const usesConfigurationFlow = Boolean(
@@ -181,9 +182,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // scopeConfig (per-scope module/tool activation) — absent from the
     // configuration => no row, the app defaults apply. Written BEFORE the
     // scope row: createScope selects the new scope right away, so the row is
-    // in place when the editor reads it. The DPGF and Carnet de détail
-    // options need their module ON for this scope (BUSINESS_OBJECTS /
-    // PORTFOLIO), so they materialize a row (seeded from the app defaults
+    // in place when the editor reads it. The DPGF, Carnet de détail and
+    // Portfolio options need their module ON for this scope (BUSINESS_OBJECTS
+    // / PORTFOLIO), so they materialize a row (seeded from the app defaults
     // when the configuration carries none) with the module removed from the
     // persisted disabled list — the configuration itself declares its
     // modules in the enabled form (resolveConfigurationScopeConfig converts).
@@ -193,7 +194,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     const optionEnabledModuleKeys = [
       ...(dpgf ? [getBusinessObjectsModuleKey()] : []),
-      ...(carnetDetail ? ["PORTFOLIO"] : []),
+      ...(carnetDetail || portfolio ? ["PORTFOLIO"] : []),
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
 
