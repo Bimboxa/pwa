@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -33,7 +33,6 @@ import useCreateScopeFromPreset from "../hooks/useCreateScopeFromPreset";
 
 import MenuKrtoConfigurationsFilter from "./MenuKrtoConfigurationsFilter";
 import SectionSelectKrtoConfiguration from "./SectionSelectKrtoConfiguration";
-import DialogKrtoRecap from "./DialogKrtoRecap";
 
 import getDefaultScopeName from "../utils/getDefaultScopeName";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
@@ -42,6 +41,10 @@ import { PAGE_BG, AMBER_GLOW } from "Features/dashboard/utils/dashboardStyles";
 import db from "App/db/db";
 
 const GENERIC_KEY = "__GENERIC__";
+
+// recap modal loaded on demand: keeps the preview + its lazily resolved
+// configuration images out of the selector's initial bundle.
+const DialogKrtoRecap = lazy(() => import("./DialogKrtoRecap"));
 
 // Same guard as the 2D hotkeys: never steal keystrokes from a real field.
 const isEditableTarget = (el) => {
@@ -81,7 +84,8 @@ export default function DialogCreateScopeFromPreset({
   // strings
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
-  const title = appConfig?.strings?.scope?.new ?? `Nouveau ${scopeS.toLowerCase()}`;
+  const title =
+    appConfig?.strings?.scope?.new ?? `Nouveau ${scopeS.toLowerCase()}`;
   const pageTitleS = "Partir d'une configuration";
   const pageSubtitleS = `Chaque configuration pré-remplit le ${scopeS} — vous ajusterez ensuite`;
   const searchPlaceholderS = "Rechercher une configuration";
@@ -121,22 +125,21 @@ export default function DialogCreateScopeFromPreset({
     type: null,
     ouvrage: null,
   });
-  // main ouvrage/type categories (selects in the recap modal) — prefilled
-  // from the selected configuration, saved into scope.metaData.categories.
-  const [categories, setCategories] = useState({ ouvrage: null, type: null });
   // creation options — dpgf: BUSINESS_OBJECTS module (STANDARD business
   // object type) + first "DPGF" listing;
   // carnetDetail: PORTFOLIO module + DIVERS annotation library.
   const [options, setOptions] = useState({ dpgf: false, carnetDetail: false });
   // extra baseMap listings added via "+ Ajouter" in the recap modal.
   const [extraBaseMapListings, setExtraBaseMapListings] = useState([]);
-  // recap-modal adjustments: removed libraries / removed pages
-  // (keys "listingName::itemName"), added empty annotation listings
-  // ("+ Nouvelle liste") and added blank pages ("+ Fond de plan").
+  // recap-modal adjustments: removed libraries, removed pages
+  // (keys "listingName::itemName"), removed configuration / generic baseMap
+  // listings (keyed by listing name — a same-named "+ Ajouter" row would
+  // still create an empty one) and added empty annotation listings
+  // ("+ Nouvelle liste").
   const [excludedLibraryKeys, setExcludedLibraryKeys] = useState([]);
   const [removedPageKeys, setRemovedPageKeys] = useState([]);
+  const [removedListingNames, setRemovedListingNames] = useState([]);
   const [extraAnnotationListings, setExtraAnnotationListings] = useState([]);
-  const [extraBaseMapPages, setExtraBaseMapPages] = useState([]);
   // preset libraries added via the "Nouvelle liste" dialog
   const [extraLibraryKeys, setExtraLibraryKeys] = useState([]);
   // visibility eyes of the existing baseMap listings (per-scope
@@ -162,22 +165,15 @@ export default function DialogCreateScopeFromPreset({
     const nextKey = key ?? GENERIC_KEY;
     setSelectedKey(nextKey);
     if (!nameEdited) setName(getPrefilledName(nextKey));
-    const configuration = krtoConfigurations?.items?.find(
-      (c) => c.key === key
-    );
+    const configuration = krtoConfigurations?.items?.find((c) => c.key === key);
     const optionKeywords = configuration?.keywords?.options ?? [];
     // only the modules declared optional by the configuration are togglable —
     // and only those get prechecked (generic scope: both available).
     const optionalModules = configuration
-      ? configuration.optionalModules ?? []
+      ? (configuration.optionalModules ?? [])
       : ["DPGF", "CARNET_DETAIL"];
-    setCategories({
-      ouvrage: configuration?.keywords?.ouvrage?.[0] ?? null,
-      type: configuration?.keywords?.type?.[0] ?? null,
-    });
     setOptions({
-      dpgf:
-        optionalModules.includes("DPGF") && optionKeywords.includes("DPGF"),
+      dpgf: optionalModules.includes("DPGF") && optionKeywords.includes("DPGF"),
       carnetDetail:
         optionalModules.includes("CARNET_DETAIL") &&
         optionKeywords.includes("Carnet de détail"),
@@ -185,8 +181,9 @@ export default function DialogCreateScopeFromPreset({
     setExtraBaseMapListings([]);
     setExcludedLibraryKeys([]);
     setRemovedPageKeys([]);
+    // keyed by names of the current configuration — reset on switch
+    setRemovedListingNames([]);
     setExtraAnnotationListings([]);
-    setExtraBaseMapPages([]);
     setExtraLibraryKeys([]);
     setHiddenExistingListingIds(null);
     setRecapOpen(true);
@@ -201,9 +198,6 @@ export default function DialogCreateScopeFromPreset({
 
   async function handleCreate() {
     if (isCreating || !name.trim() || !projectId) return;
-    // usage/ouvrage categories are required in the configuration flow
-    if (krtoConfigurations && (!categories.type || !categories.ouvrage))
-      return;
     const key = selectedKey === GENERIC_KEY ? null : selectedKey;
     try {
       await createScopeFromPreset({
@@ -213,15 +207,11 @@ export default function DialogCreateScopeFromPreset({
         options,
         extraBaseMapListings,
         extraAnnotationListings,
-        extraBaseMapPages,
         extraLibraryKeys,
         excludedLibraryKeys,
         removedBaseMapItemKeys: removedPageKeys,
+        removedBaseMapListingNames: removedListingNames,
         hiddenExistingListingIds,
-        metaData:
-          krtoConfigurations && (categories.ouvrage || categories.type)
-            ? { categories: { ...categories } }
-            : null,
       });
     } catch (error) {
       console.error("[DialogCreateScopeFromPreset] creation failed", error);
@@ -448,39 +438,36 @@ export default function DialogCreateScopeFromPreset({
             </Box>
           </Box>
 
-          <DialogKrtoRecap
-            open={recapOpen}
-            onClose={() => setRecapOpen(false)}
-            configuration={selectedConfiguration}
-            projectId={projectId}
-            nameField={nameField}
-            categories={categories}
-            onCategoriesChange={setCategories}
-            options={options}
-            onOptionsChange={setOptions}
-            extraBaseMapListings={extraBaseMapListings}
-            onExtraBaseMapListingsChange={setExtraBaseMapListings}
-            excludedLibraryKeys={excludedLibraryKeys}
-            onExcludedLibraryKeysChange={setExcludedLibraryKeys}
-            removedPageKeys={removedPageKeys}
-            onRemovedPageKeysChange={setRemovedPageKeys}
-            extraAnnotationListings={extraAnnotationListings}
-            onExtraAnnotationListingsChange={setExtraAnnotationListings}
-            extraLibraryKeys={extraLibraryKeys}
-            onExtraLibraryKeysChange={setExtraLibraryKeys}
-            hiddenExistingListingIds={hiddenExistingListingIds}
-            onHiddenExistingListingIdsChange={setHiddenExistingListingIds}
-            extraBaseMapPages={extraBaseMapPages}
-            onExtraBaseMapPagesChange={setExtraBaseMapPages}
-            onCreate={handleCreate}
-            isCreating={isCreating}
-            canCreate={
-              Boolean(name.trim()) &&
-              Boolean(projectId) &&
-              Boolean(categories.type) &&
-              Boolean(categories.ouvrage)
-            }
-          />
+          {recapOpen && (
+            <Suspense fallback={null}>
+              <DialogKrtoRecap
+                open={recapOpen}
+                onClose={() => setRecapOpen(false)}
+                configuration={selectedConfiguration}
+                projectId={projectId}
+                nameField={nameField}
+                options={options}
+                onOptionsChange={setOptions}
+                extraBaseMapListings={extraBaseMapListings}
+                onExtraBaseMapListingsChange={setExtraBaseMapListings}
+                excludedLibraryKeys={excludedLibraryKeys}
+                onExcludedLibraryKeysChange={setExcludedLibraryKeys}
+                removedPageKeys={removedPageKeys}
+                onRemovedPageKeysChange={setRemovedPageKeys}
+                removedListingNames={removedListingNames}
+                onRemovedListingNamesChange={setRemovedListingNames}
+                extraAnnotationListings={extraAnnotationListings}
+                onExtraAnnotationListingsChange={setExtraAnnotationListings}
+                extraLibraryKeys={extraLibraryKeys}
+                onExtraLibraryKeysChange={setExtraLibraryKeys}
+                hiddenExistingListingIds={hiddenExistingListingIds}
+                onHiddenExistingListingIdsChange={setHiddenExistingListingIds}
+                onCreate={handleCreate}
+                isCreating={isCreating}
+                canCreate={Boolean(name.trim()) && Boolean(projectId)}
+              />
+            </Suspense>
+          )}
         </Box>
       </Dialog>
     );

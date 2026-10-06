@@ -34,6 +34,7 @@ export default function useCreateScope() {
       newListings,
       newEntities,
       presetScopeKey,
+      configurationKey,
       metaData,
     },
     options
@@ -54,6 +55,10 @@ export default function useCreateScope() {
     const scope = {
       id: id ?? nanoid(),
       presetScopeKey,
+      // Krto creation configuration the scope was created from (null for
+      // legacy presets / generic scopes); presetScopeKey keeps the key too
+      // for the existing readers.
+      configurationKey: configurationKey ?? null,
       createdBy,
       createdByTrigram,
       name,

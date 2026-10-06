@@ -5,6 +5,12 @@
 
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 import resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries from "../services/resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries";
+// Data image URL loaders (SVG + raster), shared with the lazy
+// useDataImageUrl hook.
+import {
+  DATA_SVG_URL_LOADERS,
+  DATA_IMAGE_URL_LOADERS,
+} from "./dataImageUrlLoaders";
 
 // Dynamic asset loaders for background images or other features.
 const APP_IMAGE_ASSET_LOADERS = import.meta.glob("../../../App/assets/*.png", {
@@ -66,19 +72,6 @@ const APP_LOG_EVENTS_LOADERS = import.meta.glob(
 const DATA_LOADERS = import.meta.glob("../../../Data/**/*.js", {
   eager: false,
 });
-
-// SVG assets stored under each org's Data folder, returned as URLs so we
-// can use them in <img src> or SVG <image href>.
-const DATA_SVG_URL_LOADERS = import.meta.glob("../../../Data/**/*.svg", {
-  as: "url",
-  eager: false,
-});
-
-// Raster assets (PNG / JPG) stored under each org's Data folder.
-const DATA_IMAGE_URL_LOADERS = import.meta.glob(
-  "../../../Data/**/*.{png,jpg,jpeg,webp}",
-  { as: "url", eager: false }
-);
 
 // Documentation: per-org Markdown pages, sidebar manifest, and optional CSS.
 // Lives under Data/<orga>/documentation/.
@@ -216,6 +209,11 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // the recap ("DPGF" | "CARNET_DETAIL");
   //                                 // absent/empty => Modules section hidden
   //     imagePath,                  // card SVG, relative to Data/<orgaCode>/
+  //     recapImagePath,             // recap dialog illustration (svg/png/
+  //                                 // jpg/webp), relative to Data/<orgaCode>/;
+  //                                 // NOT resolved here: loaded lazily when
+  //                                 // the recap opens (useDataImageUrl);
+  //                                 // absent => hatched placeholder + code
   //     keywords: { ouvrage: [], type: [], options: [] },
   //     baseMaps: {
   //       disableExistingListings,  // hide the project's pre-existing

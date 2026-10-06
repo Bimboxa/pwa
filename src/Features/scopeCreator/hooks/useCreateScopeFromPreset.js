@@ -39,6 +39,8 @@ import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/busi
 import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "Features/businessObjects/data/businessObjectTypesCatalog";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
+import getConfigurationCategories from "../utils/getConfigurationCategories";
+
 import EMPTY_SCOPE_CONFIGURATION from "../data/emptyScopeConfiguration";
 
 export default function useCreateScopeFromPreset({ projectId }) {
@@ -77,14 +79,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
     name,
     presetScopeKey,
     configurationKey,
-    metaData,
     options,
     extraBaseMapListings,
     extraAnnotationListings,
-    extraBaseMapPages,
     extraLibraryKeys,
     excludedLibraryKeys,
     removedBaseMapItemKeys,
+    // configuration / generic baseMap listings removed in the recap modal
+    // (keyed by listing name): neither created nor reused.
+    removedBaseMapListingNames,
     hiddenExistingListingIds,
     // empty: create a bare scope from the built-in EMPTY_SCOPE_CONFIGURATION
     // ("Krto vide" button / select entry): no annotation listing at all (no
@@ -237,6 +240,10 @@ export default function useCreateScopeFromPreset({ projectId }) {
       });
     }
 
+    // scope.metaData.categories = every tag of the configuration (arrays per
+    // keyword family); none for the generic / empty scope.
+    const categories = empty ? null : getConfigurationCategories(configuration);
+
     const scope = await createScope({
       id: scopeId,
       name,
@@ -244,7 +251,8 @@ export default function useCreateScopeFromPreset({ projectId }) {
       newListings,
       newEntities,
       presetScopeKey: configuration?.key ?? presetScopeKey,
-      metaData,
+      configurationKey: empty ? null : (configuration?.key ?? null),
+      metaData: categories ? { categories } : null,
     });
     console.log("debug_25_09 [scope] created scope", scope, baseMapsListings);
     if (!scope) {
@@ -280,49 +288,26 @@ export default function useCreateScopeFromPreset({ projectId }) {
           ]
         : [];
 
-    // configuration listings with their items, minus the pages removed in
-    // the recap modal (keys "listingName::itemName"), plus the
-    // "+ Fond de plan" pages added there (targeted by listingName, fallback
-    // to the first listing).
+    // configuration listings (or the generic defaults) minus the dossiers
+    // removed in the recap modal (by name), each with its items minus the
+    // pages removed there (keys "listingName::itemName").
     const removedKeys = removedBaseMapItemKeys ?? [];
+    const removedListingNames = removedBaseMapListingNames ?? [];
     const baseListingConfigs = (
       configuration?.baseMaps?.listings ?? genericDefaultListings
-    ).map((listing) => ({
-      ...listing,
-      items: (listing.items ?? []).filter(
-        (item) => !removedKeys.includes(`${listing.name}::${item.name}`)
-      ),
-    }));
+    )
+      .filter((listing) => !removedListingNames.includes(listing.name))
+      .map((listing) => ({
+        ...listing,
+        items: (listing.items ?? []).filter(
+          (item) => !removedKeys.includes(`${listing.name}::${item.name}`)
+        ),
+      }));
 
     const baseMapsListingConfigs = [
       ...baseListingConfigs,
       ...extraListingConfigs,
     ];
-
-    for (const page of extraBaseMapPages ?? []) {
-      const pageName = page?.name?.trim();
-      if (!pageName) continue;
-      let target =
-        baseMapsListingConfigs.find((l) => l.name === page.listingName) ??
-        baseMapsListingConfigs[0];
-      if (!target) {
-        // no listing config yet (e.g. generic scope on a project that already
-        // has baseMap listings): target an implicit one — reused by name when
-        // it already exists in the project.
-        target = { name: page.listingName ?? "Vues en plan", items: [] };
-        baseMapsListingConfigs.push(target);
-      }
-      target.items = [
-        ...(target.items ?? []),
-        {
-          type: "BLANK_PAGE",
-          name: pageName,
-          pageFormat: page.pageFormat ?? "A3",
-          pageOrientation: page.pageOrientation ?? "LANDSCAPE",
-          scale: page.scale ?? 50,
-        },
-      ];
-    }
 
     if (usesConfigurationFlow && baseMapsListingConfigs.length > 0) {
       const baseMapsSection = {

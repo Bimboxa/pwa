@@ -146,13 +146,10 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
       } else if (krtoConfigurations) {
         const configuration = configurations.find((c) => c.key === selectedKey);
         // same derivation as the card selector: optional modules prechecked
-        // when the configuration declares them, categories from its keywords.
+        // when the configuration declares them (the hook derives
+        // configurationKey + metaData.categories from the configuration).
         const optionKeywords = configuration?.keywords?.options ?? [];
         const optionalModules = configuration?.optionalModules ?? [];
-        const categories = {
-          ouvrage: configuration?.keywords?.ouvrage?.[0] ?? null,
-          type: configuration?.keywords?.type?.[0] ?? null,
-        };
         await createScopeFromPreset({
           name: name.trim(),
           configurationKey: selectedKey,
@@ -164,8 +161,6 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
               optionalModules.includes("CARNET_DETAIL") &&
               optionKeywords.includes("Carnet de détail"),
           },
-          metaData:
-            categories.ouvrage || categories.type ? { categories } : null,
         });
       } else {
         await createScopeFromPreset({
