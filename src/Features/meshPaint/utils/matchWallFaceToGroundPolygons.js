@@ -1,11 +1,12 @@
-import { findGuideEdgeForSubEdge } from "../../geometry/utils/classifyRingByGuideEdges.js";
-import subdivideChainByForeignProjections from "../../geometry/utils/subdivideChainByForeignProjections.js";
-
-// « Pinceau » on the lateral facet of a thick wall: the floor polygons glued
-// to the foot of that facet, on its painted side — the runs of their ring
-// sub-edges that lie along the facet's plan segment (the SURFACES_VERTICALES
-// procedure's ring walk, seen from the wall: src/Data imports Features, never
-// the reverse, so the walk is mirrored here).
+// « Pinceau » on the lateral facet of a thick wall: the stretches of the
+// facet standing on a floor polygon, on its painted side — the base
+// segments of the vertical surface(s) the brush creates. Same construction
+// as the SURFACES_VERTICALES procedure, seen from the wall: the facet's plan
+// segment is cut at the projections of the floor contour vertices and at
+// its intersections with the floor contours, then each piece is kept when a
+// point probed just beside it, on the painted side, falls inside a floor
+// polygon (the floor does not have to run along the facet: a wall standing
+// in the middle of a slab is "on" that slab).
 //
 // Pixel space (resolved annotations). Pure: node-testable, relative imports.
 //
@@ -15,19 +16,20 @@ import subdivideChainByForeignProjections from "../../geometry/utils/subdivideCh
 // polygons: [{id, baseZ, sloped, rings: [{kind: "MAIN"|"CUT", points}],
 //   contains(pt), bottomAt(pt)}] — see collectGroundPolygonsFromScene;
 //   bottomAt in the same z frame as topZ.
-// tolPx: glue tolerance (0.05 m / meterByPx); probePx: side probe distance
-//   (defaults to tolPx).
+// tolPx: floor detection distance (0.05 m / meterByPx); probePx: side probe
+//   distance (defaults to tolPx).
 //
-// Returns [{polygonId, baseZ, sloped, closeLine, topZ, points: [{x, y,
-//   bottomZ, topZ}]}] — one run per contiguous stretch of matched sub-edges
-//   of one ring (a gap-less ring is one closed run); a run breaks where the
-//   facet top changes.
+// Returns [{polygonId, baseZ, sloped, closeLine: false, topZ, points: [{x, y,
+//   bottomZ, topZ}]}] — one run per contiguous stretch of one guide edge on
+//   one floor polygon; a run breaks where the floor polygon or the facet top
+//   changes. Several floors under one probe: the highest floor wins (the one
+//   the wall stands on).
 
 // A band thinner than this (m) is not a surface.
 export const MIN_BAND_HEIGHT_M = 1e-3;
-// Sub-edges shorter than this (px) are noise of the subdivision.
-const MIN_SUB_EDGE_PX = 0.5;
-const TOP_KEY_M = 1e-3;
+// Pieces shorter than this (px) are noise of the subdivision.
+const MIN_PIECE_PX = 0.5;
+const T_EPS = 1e-6;
 
 // Even-odd point-in-ring test (ring without closing duplicate).
 export function pointInRing(pt, ring) {
@@ -57,116 +59,116 @@ export function makeRingsContains(rings) {
   };
 }
 
-const topKey = (z) => Math.round(z / TOP_KEY_M);
-
-function walkRing(ring, { guideEdges, polygon, tolPx, probePx }) {
-  const points = ring.points;
-  const n = points.length;
-  if (n < 2) return [];
-  const edgeCount = ring.closed === false ? n - 1 : n;
-
-  // One slot per sub-edge span, in ring order: {from, to, topZ} or null.
-  const slots = [];
-  const classify = (p, q) => {
-    if (Math.hypot(q.x - p.x, q.y - p.y) < MIN_SUB_EDGE_PX) return null;
-    const edge = findGuideEdgeForSubEdge(p, q, guideEdges, tolPx);
-    if (!edge) return null;
-    const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
-    const probe = {
-      x: mid.x + edge.nx * probePx,
-      y: mid.y + edge.ny * probePx,
-    };
-    if (!polygon.contains(probe)) return null;
-    if (edge.topZ - polygon.bottomAt(mid) <= MIN_BAND_HEIGHT_M) return null;
-    return { topZ: edge.topZ };
+// Parameters t ∈ (0, 1) along [a, b] where the floor contours cut the
+// segment: projections of contour vertices within tolPx, and intersections
+// with contour edges.
+function collectSplits(edge, polygons, tolPx) {
+  const ux = edge.bx - edge.ax;
+  const uy = edge.by - edge.ay;
+  const lenSq = ux * ux + uy * uy;
+  if (lenSq < 1e-12) return [];
+  const splits = [];
+  const pushT = (t) => {
+    if (t > T_EPS && t < 1 - T_EPS) splits.push(t);
   };
-
-  for (let i = 0; i < edgeCount; i++) {
-    const a = points[i];
-    const b = points[(i + 1) % n];
-    const chain = subdivideChainByForeignProjections([a, b], guideEdges, tolPx);
-    let current = null;
-    const flush = () => {
-      if (current) slots.push(current);
-      current = null;
-    };
-    for (let k = 0; k < chain.length - 1; k++) {
-      const attrs = classify(chain[k], chain[k + 1]);
-      if (!attrs) {
-        flush();
-        slots.push(null);
-        continue;
-      }
-      if (current && topKey(current.topZ) === topKey(attrs.topZ)) {
-        current.to = chain[k + 1];
-      } else {
-        flush();
-        current = { from: chain[k], to: chain[k + 1], topZ: attrs.topZ };
+  for (const polygon of polygons) {
+    for (const ring of polygon.rings || []) {
+      const pts = ring.points || [];
+      const n = pts.length;
+      const edgeCount = ring.closed === false ? n - 1 : n;
+      for (let i = 0; i < n; i++) {
+        const p = pts[i];
+        // vertex projection
+        const t = ((p.x - edge.ax) * ux + (p.y - edge.ay) * uy) / lenSq;
+        if (t > T_EPS && t < 1 - T_EPS) {
+          const px = edge.ax + t * ux;
+          const py = edge.ay + t * uy;
+          if (Math.hypot(p.x - px, p.y - py) <= tolPx) pushT(t);
+        }
+        // edge intersection
+        if (i >= edgeCount) continue;
+        const q = pts[(i + 1) % n];
+        const vx = q.x - p.x;
+        const vy = q.y - p.y;
+        const denom = ux * vy - uy * vx;
+        if (Math.abs(denom) < 1e-12) continue;
+        const wx = p.x - edge.ax;
+        const wy = p.y - edge.ay;
+        const tI = (wx * vy - wy * vx) / denom;
+        const s = (wx * uy - wy * ux) / denom;
+        if (s >= -T_EPS && s <= 1 + T_EPS) pushT(tI);
       }
     }
-    flush();
+  }
+  return splits;
+}
+
+function walkGuideEdge(edge, { polygons, tolPx, probePx }) {
+  const splits = [0, ...collectSplits(edge, polygons, tolPx), 1].sort(
+    (a, b) => a - b
+  );
+  const at = (t) => ({
+    x: edge.ax + t * (edge.bx - edge.ax),
+    y: edge.ay + t * (edge.by - edge.ay),
+  });
+
+  // One slot per piece, in order: {from, to, polygon} or null.
+  const slots = [];
+  let last = null;
+  for (let i = 0; i < splits.length - 1; i++) {
+    const t0 = splits[i];
+    const t1 = splits[i + 1];
+    if (t1 - t0 < T_EPS) continue;
+    const p = at(t0);
+    const q = at(t1);
+    let slot = null;
+    if (Math.hypot(q.x - p.x, q.y - p.y) >= MIN_PIECE_PX) {
+      const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+      const probe = {
+        x: mid.x + edge.nx * probePx,
+        y: mid.y + edge.ny * probePx,
+      };
+      let floor = null;
+      let floorZ = -Infinity;
+      for (const polygon of polygons) {
+        if (!polygon.contains(probe)) continue;
+        const z = polygon.bottomAt(mid);
+        if (z > floorZ) {
+          floor = polygon;
+          floorZ = z;
+        }
+      }
+      if (floor && edge.topZ - floorZ > MIN_BAND_HEIGHT_M) {
+        slot = { from: p, to: q, polygon: floor };
+      }
+    }
+    if (slot && last && last.polygon === slot.polygon) {
+      last.to = slot.to;
+    } else {
+      slots.push(slot);
+      last = slot;
+    }
   }
 
-  // Contiguous runs (cyclic ring: a gap-less ring is one closed run).
   const runs = [];
-  const firstGap = slots.indexOf(null);
-  if (firstGap < 0) {
-    if (slots.length) runs.push({ segments: slots, closed: true });
-  } else {
-    const count = slots.length;
-    let current = [];
-    for (let k = 1; k <= count; k++) {
-      const slot = slots[(firstGap + k) % count];
-      if (slot) current.push(slot);
-      else if (current.length) {
-        runs.push({ segments: current, closed: false });
-        current = [];
-      }
-    }
+  for (const slot of slots) {
+    if (!slot) continue;
+    const { polygon } = slot;
+    runs.push({
+      polygonId: polygon.id,
+      baseZ: polygon.baseZ,
+      sloped: Boolean(polygon.sloped),
+      closeLine: false,
+      topZ: edge.topZ,
+      points: [slot.from, slot.to].map((pt) => ({
+        x: pt.x,
+        y: pt.y,
+        bottomZ: polygon.bottomAt(pt),
+        topZ: edge.topZ,
+      })),
+    });
   }
-
-  // Split a run where the facet top changes (one band per top).
-  const out = [];
-  for (const run of runs) {
-    const groups = [];
-    for (const segment of run.segments) {
-      const last = groups[groups.length - 1];
-      if (last && topKey(last.topZ) === topKey(segment.topZ)) {
-        last.segments.push(segment);
-      } else {
-        groups.push({ topZ: segment.topZ, segments: [segment] });
-      }
-    }
-    const closeLine = run.closed && groups.length === 1;
-    if (run.closed && groups.length > 1) {
-      // The cyclic start fell inside a group: re-join its two halves.
-      const first = groups[0];
-      const last = groups[groups.length - 1];
-      if (topKey(first.topZ) === topKey(last.topZ)) {
-        groups.pop();
-        first.segments = [...last.segments, ...first.segments];
-      }
-    }
-    for (const group of groups) {
-      const pts = [group.segments[0].from];
-      for (const segment of group.segments) pts.push(segment.to);
-      if (closeLine) pts.pop();
-      out.push({
-        polygonId: polygon.id,
-        baseZ: polygon.baseZ,
-        sloped: Boolean(polygon.sloped),
-        closeLine,
-        topZ: group.topZ,
-        points: pts.map((pt) => ({
-          x: pt.x,
-          y: pt.y,
-          bottomZ: polygon.bottomAt(pt),
-          topZ: group.topZ,
-        })),
-      });
-    }
-  }
-  return out;
+  return runs;
 }
 
 export default function matchWallFaceToGroundPolygons({
@@ -177,11 +179,9 @@ export default function matchWallFaceToGroundPolygons({
 }) {
   if (!guideEdges?.length || !polygons?.length) return [];
   const runs = [];
-  for (const polygon of polygons) {
-    for (const ring of polygon.rings || []) {
-      if (!(ring?.points?.length >= 2)) continue;
-      runs.push(...walkRing(ring, { guideEdges, polygon, tolPx, probePx }));
-    }
+  for (const edge of guideEdges) {
+    if (!Number.isFinite(edge?.topZ)) continue;
+    runs.push(...walkGuideEdge(edge, { polygons, tolPx, probePx }));
   }
   return runs;
 }

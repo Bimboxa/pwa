@@ -42,6 +42,9 @@ function polygon({
     bottomAt: bottomAt ?? (() => baseZ),
   };
 }
+const match = (polygons, guideEdges = [face()]) =>
+  matchWallFaceToGroundPolygons({ guideEdges, polygons, tolPx: TOL_PX });
+const xs = (run) => run.points.map((p) => p.x);
 
 test("pointInRing / makeRingsContains", () => {
   const square = [pt(0, 0), pt(10, 0), pt(10, 10), pt(0, 10)];
@@ -55,17 +58,12 @@ test("pointInRing / makeRingsContains", () => {
   assert.ok(!contains(pt(5, 5)));
 });
 
-test("a room glued to the painted side → one run along the shared edge", () => {
-  // Room: 400 × 300 px, its top edge on the wall face.
+test("a room glued to the painted side → one run along the whole facet", () => {
   const room = polygon({
     main: [pt(0, 100), pt(400, 100), pt(400, 400), pt(0, 400)],
     baseZ: 0.1,
   });
-  const runs = matchWallFaceToGroundPolygons({
-    guideEdges: [face()],
-    polygons: [room],
-    tolPx: TOL_PX,
-  });
+  const runs = match([room]);
   assert.equal(runs.length, 1);
   const [run] = runs;
   assert.equal(run.polygonId, "sol");
@@ -80,91 +78,94 @@ test("a room glued to the painted side → one run along the shared edge", () =>
   );
 });
 
+test("a wall standing inside a slab (no contour along it) is on that slab", () => {
+  const slab = polygon({
+    main: [pt(-500, -500), pt(900, -500), pt(900, 900), pt(-500, 900)],
+    baseZ: -0.2,
+  });
+  const [run] = match([slab]);
+  assert.deepEqual(xs(run), [0, 400]);
+  assert.equal(run.points[0].bottomZ, -0.2);
+  // The other side of the same wall stands on it too.
+  assert.equal(match([slab], [face({ ny: -1 })]).length, 1);
+});
+
 test("the room on the other side of the wall does not match", () => {
   const behind = polygon({
     main: [pt(0, -200), pt(400, -200), pt(400, 100), pt(0, 100)],
   });
-  assert.deepEqual(
-    matchWallFaceToGroundPolygons({
-      guideEdges: [face()],
-      polygons: [behind],
-      tolPx: TOL_PX,
-    }),
-    []
-  );
-  // Same room, painted side flipped toward -y: matches.
-  const runs = matchWallFaceToGroundPolygons({
-    guideEdges: [face({ ny: -1 })],
-    polygons: [behind],
-    tolPx: TOL_PX,
-  });
-  assert.equal(runs.length, 1);
+  assert.deepEqual(match([behind]), []);
+  assert.equal(match([behind], [face({ ny: -1 })]).length, 1);
 });
 
-test("a polygon 6 cm away from the face does not match, 4 cm does", () => {
+test("a floor 6 cm away from the face does not match, 4 cm does", () => {
   const far = polygon({
     main: [pt(0, 106), pt(400, 106), pt(400, 400), pt(0, 400)],
   });
   const near = polygon({
     main: [pt(0, 104), pt(400, 104), pt(400, 400), pt(0, 400)],
   });
-  assert.equal(
-    matchWallFaceToGroundPolygons({
-      guideEdges: [face()],
-      polygons: [far],
-      tolPx: TOL_PX,
-    }).length,
-    0
-  );
-  assert.equal(
-    matchWallFaceToGroundPolygons({
-      guideEdges: [face()],
-      polygons: [near],
-      tolPx: TOL_PX,
-    }).length,
-    1
-  );
+  assert.equal(match([far]).length, 0);
+  assert.equal(match([near]).length, 1);
 });
 
-test("a room edge longer than the facet is cut at the facet ends", () => {
+test("a room narrower than the facet gives a run cut at its contour", () => {
+  // Room from x = 100 to x = 300 under the facet (its side walls cross it).
   const room = polygon({
-    main: [pt(-100, 100), pt(600, 100), pt(600, 400), pt(-100, 400)],
+    main: [pt(100, 100), pt(300, 100), pt(300, 400), pt(100, 400)],
   });
-  const [run] = matchWallFaceToGroundPolygons({
-    guideEdges: [face()],
-    polygons: [room],
-    tolPx: TOL_PX,
+  const runs = match([room]);
+  assert.equal(runs.length, 1);
+  assert.deepEqual(xs(runs[0]), [100, 300]);
+});
+
+test("two rooms side by side → two runs with their own floor, split at the partition", () => {
+  const left = polygon({
+    id: "left",
+    main: [pt(-50, 50), pt(150, 50), pt(150, 400), pt(-50, 400)],
+    baseZ: 0,
   });
+  const right = polygon({
+    id: "right",
+    main: [pt(150, 50), pt(500, 50), pt(500, 400), pt(150, 400)],
+    baseZ: 0.3,
+  });
+  const runs = match([left, right]);
   assert.deepEqual(
-    run.points.map((p) => [p.x, p.y]),
+    runs.map((run) => [run.polygonId, xs(run), run.points[0].bottomZ]),
     [
-      [0, 100],
-      [400, 100],
+      ["left", [0, 150], 0],
+      ["right", [150, 400], 0.3],
     ]
   );
 });
 
-test("a cut hugging the facet (a column) gives a closed run", () => {
-  // Column 100 × 100 px standing on the wall face, inside a big room.
-  const column = [pt(100, 100), pt(200, 100), pt(200, 200), pt(100, 200)];
+test("a cut (a column hole) breaks the run", () => {
   const room = polygon({
     main: [pt(-500, -500), pt(900, -500), pt(900, 900), pt(-500, 900)],
-    cuts: [column],
+    cuts: [[pt(150, 90), pt(250, 90), pt(250, 200), pt(150, 200)]],
   });
-  const edges = [
-    { ax: 100, ay: 100, bx: 200, by: 100, nx: 0, ny: -1, topZ: 2.5 },
-    { ax: 200, ay: 100, bx: 200, by: 200, nx: 1, ny: 0, topZ: 2.5 },
-    { ax: 200, ay: 200, bx: 100, by: 200, nx: 0, ny: 1, topZ: 2.5 },
-    { ax: 100, ay: 200, bx: 100, by: 100, nx: -1, ny: 0, topZ: 2.5 },
-  ];
-  const runs = matchWallFaceToGroundPolygons({
-    guideEdges: edges,
-    polygons: [room],
-    tolPx: TOL_PX,
+  const runs = match([room]);
+  assert.deepEqual(runs.map(xs), [
+    [0, 150],
+    [250, 400],
+  ]);
+});
+
+test("overlapping floors: the highest one wins", () => {
+  const low = polygon({
+    id: "low",
+    main: [pt(-50, 50), pt(500, 50), pt(500, 400), pt(-50, 400)],
+    baseZ: -1,
   });
+  const high = polygon({
+    id: "high",
+    main: [pt(-50, 50), pt(500, 50), pt(500, 400), pt(-50, 400)],
+    baseZ: 0.5,
+  });
+  const runs = match([low, high]);
   assert.equal(runs.length, 1);
-  assert.equal(runs[0].closeLine, true);
-  assert.equal(runs[0].points.length, 4);
+  assert.equal(runs[0].polygonId, "high");
 });
 
 test("no height above the floor → no run; sloped floor carries bottomZ per vertex", () => {
@@ -172,25 +173,14 @@ test("no height above the floor → no run; sloped floor carries bottomZ per ver
     main: [pt(0, 100), pt(400, 100), pt(400, 400), pt(0, 400)],
     baseZ: 2.5,
   });
-  assert.equal(
-    matchWallFaceToGroundPolygons({
-      guideEdges: [face()],
-      polygons: [flat],
-      tolPx: TOL_PX,
-    }).length,
-    0
-  );
+  assert.equal(match([flat]).length, 0);
   const ramp = polygon({
     main: [pt(0, 100), pt(400, 100), pt(400, 400), pt(0, 400)],
     baseZ: 0,
     sloped: true,
-    bottomAt: (p) => p.x / 400, // 0 → 1 m along the edge
+    bottomAt: (p) => p.x / 400, // 0 → 1 m along the facet
   });
-  const [run] = matchWallFaceToGroundPolygons({
-    guideEdges: [face()],
-    polygons: [ramp],
-    tolPx: TOL_PX,
-  });
+  const [run] = match([ramp]);
   assert.equal(run.sloped, true);
   assert.deepEqual(
     run.points.map((p) => p.bottomZ),
@@ -198,18 +188,16 @@ test("no height above the floor → no run; sloped floor carries bottomZ per ver
   );
 });
 
-test("two facets with different tops along one edge → two runs sharing a point", () => {
+test("two facets with different tops → two runs", () => {
   const room = polygon({
     main: [pt(0, 100), pt(400, 100), pt(400, 400), pt(0, 400)],
   });
-  const runs = matchWallFaceToGroundPolygons({
-    guideEdges: [face({ bx: 200, topZ: 2.5 }), face({ ax: 200, topZ: 3 })],
-    polygons: [room],
-    tolPx: TOL_PX,
-  });
-  assert.equal(runs.length, 2);
+  const runs = match(
+    [room],
+    [face({ bx: 200, topZ: 2.5 }), face({ ax: 200, topZ: 3 })]
+  );
   assert.deepEqual(
-    runs.map((run) => [run.topZ, run.points.map((p) => p.x)]),
+    runs.map((run) => [run.topZ, xs(run)]),
     [
       [2.5, [0, 200]],
       [3, [200, 400]],
