@@ -266,9 +266,19 @@ export default function EditedObjectLayer({
         annotationsToRender.map((annotation) => {
           const pts = annotation?.points;
           if (!pts?.length) return null;
-          const d =
-            pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") +
-            " Z";
+          // Every ring: the contour and the holes (a revolution footprint is
+          // an annulus whose inner circle lives in `cuts`). An open ring
+          // (partial-revolution POINT arc) is not closed.
+          const ringPath = (ring, close) =>
+            ring.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") +
+            (close ? " Z" : "");
+          const close = annotation.closeLine !== false;
+          const d = [
+            ringPath(pts, close),
+            ...(annotation.cuts ?? [])
+              .filter((c) => c?.points?.length)
+              .map((c) => ringPath(c.points, true)),
+          ].join(" ");
           const k = finalPose.k || 1;
           return (
             <path

@@ -93,6 +93,10 @@ export default function MainListingMapsEditor({ listing }) {
     excludeIsForBaseMapsListings: true,
     withQties: true,
     withListingName: showAllListings,
+    // Plan footprints of the listing's revolved annotations: they carry the
+    // listing id, so the plan hosting the axis gets its own section too
+    // (no quantities — computeAnnotationTemplateQties skips them).
+    withRevolutionFootprints: true,
   });
 
   // data - business objects (fetched once here, not per base map section)

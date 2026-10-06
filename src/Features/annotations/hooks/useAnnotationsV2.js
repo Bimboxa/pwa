@@ -342,7 +342,11 @@ import getEffectiveAnnotationType from "Features/annotations/utils/getEffectiveA
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getAnnotationFootprintOnBaseMap from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
-import { FOREIGN_FOOTPRINT_ID_PREFIX } from "Features/annotations/constants/foreignFootprint";
+import {
+  FOREIGN_FOOTPRINT_ID_PREFIX,
+  REVOLUTION_FOOTPRINT_ID_PREFIX,
+} from "Features/annotations/constants/foreignFootprint";
+import getRevolutionFootprintRings from "Features/revolutionAxes/utils/getRevolutionFootprintRings";
 import { PHOTO_ID_PREFIX } from "Features/photos/constants/photoNode";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
@@ -411,7 +415,10 @@ const PLAY_STYLE_TODO = {
 };
 import useMainBusinessObjectLabelByAnnotationId from "Features/businessObjects/hooks/useMainBusinessObjectLabelByAnnotationId";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
-import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import {
+  getShape3DKey,
+  TYPES_SUPPORTING_REVOLUTION,
+} from "Features/annotations/constants/shape3DConfig";
 import {
   isRevolutionHelperType,
   isLegacyRevolutionRecord,
@@ -523,11 +530,55 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
       { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
     ];
     arc.revolutionPhi = getRevolutionPhiForAxis(axis);
+    // Raw axis row (point NOT resolved — it lives on the plan base map), for
+    // consumers that need the axis without a second read (plan footprints).
+    arc._revolutionAxis = axis;
     // 3D half-view ("Demi-vue 3D"): display-only 180° cut on the
     // side opposite the camera, a property of the AXIS (on unless
     // explicitly switched off). An explicit sector above wins.
     arc.revolutionHalfView = axis.halfViewIn3d !== false;
   }
+}
+
+// Resolve the points of raw db.annotations rows hosted by OTHER base maps
+// than the queried one (so absent from `pointsIndex`): each row's points are
+// fetched and resolved against ITS OWN base map's reference frame. Returns a
+// Map id → resolved row. Shared by the cross-base-map subtraction targets and
+// the revolution footprints.
+async function resolveRowsAgainstOwnBaseMap(rows, baseMapById) {
+  const refIds = [];
+  for (const r of rows) {
+    for (const p of r.points ?? []) if (p?.id) refIds.push(p.id);
+    if (r.point?.id) refIds.push(r.point.id);
+  }
+  const ptRows = refIds.length ? await db.points.bulkGet(refIds) : [];
+  const ptIndex = {};
+  for (const p of ptRows) if (p?.id && !p.deletedAt) ptIndex[p.id] = p;
+
+  const byId = new Map();
+  for (const r of rows) {
+    const bm = baseMapById[r.baseMapId];
+    const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+    if (!imageSize) continue;
+    byId.set(r.id, {
+      ...r,
+      points: r.points
+        ? resolvePoints({
+            points: r.points,
+            pointsIndex: ptIndex,
+            imageSize,
+          })
+        : r.points,
+      point: r.point
+        ? resolvePoints({
+            points: [r.point],
+            pointsIndex: ptIndex,
+            imageSize,
+          })?.[0]
+        : r.point,
+    });
+  }
+  return byId;
 }
 
 export default function useAnnotationsV2(options) {
@@ -560,6 +611,12 @@ export default function useAnnotationsV2(options) {
     // Only the 2D renderer and useSelectedAnnotation ask for them — every
     // quantity / listing / export caller must keep ignoring them.
     const withForeignFootprints = options?.withForeignFootprints;
+
+    // Opt-in: append read-only "revolution footprint" annotations — the plan
+    // projection (disc / annulus / sector) of every annotation revolved
+    // around a REVOLUTION_AXIS drawn on the queried base map (see
+    // REVOLUTION_FOOTPRINT_ID_PREFIX). Same callers / same rule as above.
+    const withRevolutionFootprints = options?.withRevolutionFootprints;
 
     // Opt-in: append read-only PHOTO pseudo-annotations from db.photos
     // (Photos module map rendering — see PHOTO_ID_PREFIX). Every quantity /
@@ -1035,21 +1092,25 @@ export default function useAnnotationsV2(options) {
 
       // -- SCOPE FILTER --
 
+      // `isListingInScope` is kept for the revolution footprints below: the
+      // arcs they project come from a supplementary read, with listings that
+      // are NOT in `listings` (built from this query's rows only), and must
+      // obey the same scope rule. Null when the scope filter is off.
+      let isListingInScope = null;
       if (filterBySelectedScope && scope?.id) {
+        isListingInScope = (l) => {
+          const em = appConfig?.entityModelsObject?.[l.entityModelKey];
+          return (
+            em?.type === "BASE_MAP" ||
+            em?.type === "PHOTO" ||
+            l.scopeId === scope?.id ||
+            // linked from another scope (db.relsScopeListing) — same
+            // rule as the listings selector (makeGetListingsByOptions)
+            linkedListingIds.has(l.id)
+          );
+        };
         const scopeListingIds = new Set(
-          listings
-            .filter((l) => {
-              const em = appConfig?.entityModelsObject?.[l.entityModelKey];
-              return (
-                em?.type === "BASE_MAP" ||
-                em?.type === "PHOTO" ||
-                l.scopeId === scope?.id ||
-                // linked from another scope (db.relsScopeListing) — same
-                // rule as the listings selector (makeGetListingsByOptions)
-                linkedListingIds.has(l.id)
-              );
-            })
-            .map((l) => l.id)
+          listings.filter(isListingInScope).map((l) => l.id)
         );
         _annotations = _annotations.filter((a) => {
           if (a.isBaseMapAnnotation) return true;
@@ -1927,38 +1988,10 @@ export default function useAnnotationsV2(options) {
           const rows = (
             await db.annotations.bulkGet([...missingTargetIds])
           ).filter((r) => r && !r.deletedAt && r.baseMapId);
-          const refIds = [];
-          for (const r of rows) {
-            for (const p of r.points ?? []) if (p?.id) refIds.push(p.id);
-            if (r.point?.id) refIds.push(r.point.id);
-          }
-          const ptRows = refIds.length ? await db.points.bulkGet(refIds) : [];
-          const ptIndex = {};
-          for (const p of ptRows) if (p?.id && !p.deletedAt) ptIndex[p.id] = p;
-
-          _foreignTargetsById = new Map();
-          for (const r of rows) {
-            const bm = baseMapById[r.baseMapId];
-            const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
-            if (!imageSize) continue;
-            _foreignTargetsById.set(r.id, {
-              ...r,
-              points: r.points
-                ? resolvePoints({
-                    points: r.points,
-                    pointsIndex: ptIndex,
-                    imageSize,
-                  })
-                : r.points,
-              point: r.point
-                ? resolvePoints({
-                    points: [r.point],
-                    pointsIndex: ptIndex,
-                    imageSize,
-                  })?.[0]
-                : r.point,
-            });
-          }
+          _foreignTargetsById = await resolveRowsAgainstOwnBaseMap(
+            rows,
+            baseMapById
+          );
           // A foreign REVOLUTION target needs its lathe axis to be built as
           // a revolution (solid or shell) when it carves this plan's hosts.
           await resolveRevolutionAxes(
@@ -2016,6 +2049,201 @@ export default function useAnnotationsV2(options) {
           }
           if (footprints.length > 0)
             a._foreignSubtractionFootprints = footprints;
+        }
+      }
+
+      // -- REVOLUTION FOOTPRINTS --
+      // The plan projection (disc / annulus / sector) of every annotation
+      // revolved around a REVOLUTION_AXIS: a read-only pseudo-annotation on
+      // the axis's (horizontal) base map, carrying the arc's listing /
+      // template. Two ways in, so it works whatever the query filters:
+      //   - the AXIS is in `_annotations` (plan base map displayed) but its
+      //     arcs are not — they live on VERTICAL base maps (the only ones a
+      //     placement can pose): read them from those base maps (an
+      //     observation scoped to those ranges, not a project scan);
+      //   - the ARCS are in `_annotations` (listing recap, vertical base map)
+      //     but the axis is not (scope-bound, no listing): take the raw axis
+      //     row resolveRevolutionAxes attached (`_revolutionAxis`) and
+      //     resolve its centre against the plan base map.
+      // When the query is scoped to base maps, only footprints hosted by one
+      // of them are emitted (a vertical base map must not carry the plan's
+      // footprints). Appended LAST (see the foreign footprints below) with
+      // the "revolution::" prefix: no write can ever reach the real arc. The
+      // eye / solo of an axis filter them in the processed pass through
+      // `revolutionAxisId` (getRevolutionAxisIdOfAnnotation).
+      let _revolutionFootprints = null;
+      if (withRevolutionFootprints && _annotations?.length) {
+        const allowedHostIds = baseMapId
+          ? new Set([baseMapId, ...extraBaseMapIds])
+          : null;
+        const isHostAllowed = (id) => !allowedHostIds || allowedHostIds.has(id);
+
+        // Axes: resolved rows of the query, then raw rows reached via the
+        // loaded arcs (centre resolved below).
+        const axisById = new Map();
+        for (const a of _annotations) {
+          if (a?.type === "REVOLUTION_AXIS" && a.point && a.baseMapId)
+            axisById.set(a.id, a);
+        }
+        const isRevolvedArc = (a) =>
+          a &&
+          TYPES_SUPPORTING_REVOLUTION.includes(a.type) &&
+          getShape3DKey(a.shape3D) === "REVOLUTION" &&
+          a.shape3D?.axisAnnotationId;
+        const loadedArcs = _annotations.filter(
+          (a) => isRevolvedArc(a) && a.revolutionAxisPoints && a._revolutionAxis
+        );
+        const rawAxisRows = [];
+        for (const arc of loadedArcs) {
+          const axis = arc._revolutionAxis;
+          if (
+            axisById.has(axis.id) ||
+            rawAxisRows.some((r) => r.id === axis.id) ||
+            isLegacyRevolutionRecord(axis) ||
+            !axis.point?.id ||
+            !isHostAllowed(axis.baseMapId)
+          )
+            continue;
+          rawAxisRows.push(axis);
+        }
+        if (rawAxisRows.length > 0) {
+          const resolved = await resolveRowsAgainstOwnBaseMap(
+            rawAxisRows,
+            baseMapById
+          );
+          for (const axis of resolved.values()) {
+            if (axis.point) axisById.set(axis.id, axis);
+          }
+        }
+
+        if (axisById.size > 0) {
+          // Arcs: the loaded ones, plus — for the axes of the query — those
+          // hosted by the vertical base maps and missing here.
+          const arcsById = new Map();
+          for (const arc of loadedArcs) {
+            if (axisById.has(arc.shape3D.axisAnnotationId))
+              arcsById.set(arc.id, arc);
+          }
+          const queryAxisIds = new Set(
+            _annotations
+              .filter((a) => a?.type === "REVOLUTION_AXIS" && axisById.has(a.id))
+              .map((a) => a.id)
+          );
+          const verticalIds = queryAxisIds.size
+            ? Object.values(baseMapById)
+                .filter(
+                  (bm) => getBaseMapTransform(bm)?.orientation === "VERTICAL"
+                )
+                .map((bm) => bm.id)
+            : [];
+          if (verticalIds.length > 0) {
+            let rows = (
+              await db.annotations.where("baseMapId").anyOf(verticalIds).toArray()
+            ).filter(
+              (r) =>
+                isRevolvedArc(r) &&
+                !r.deletedAt &&
+                !arcsById.has(r.id) &&
+                queryAxisIds.has(r.shape3D.axisAnnotationId) &&
+                // Same listing visibility rules as the queried base map.
+                !(excludeListingsIds && excludeListingsIds.includes(r.listingId))
+            );
+            // Scope rule on the arcs' listings. `listings` / `listingsMap`
+            // only hold the listings of THIS query's rows (a plan showing
+            // nothing but the axis has none of the arc's listing), so the
+            // missing ones are read here.
+            if (isListingInScope && rows.length > 0) {
+              const missingIds = [
+                ...new Set(
+                  rows
+                    .map((r) => r.listingId)
+                    .filter((id) => id && !listingsMap?.[id])
+                ),
+              ];
+              const extraById = {};
+              if (missingIds.length > 0) {
+                for (const l of await db.listings.bulkGet(missingIds)) {
+                  if (l && !l.deletedAt) extraById[l.id] = l;
+                }
+              }
+              rows = rows.filter((r) => {
+                const l = listingsMap?.[r.listingId] ?? extraById[r.listingId];
+                return l ? isListingInScope(l) : false;
+              });
+            }
+            if (rows.length > 0) {
+              const fetched = await resolveRowsAgainstOwnBaseMap(rows, baseMapById);
+              const arcs = [...fetched.values()];
+              await resolveRevolutionAxes(arcs, baseMapById);
+              for (const arc of arcs) {
+                if (arc.revolutionAxisPoints) arcsById.set(arc.id, arc);
+              }
+            }
+          }
+
+          _revolutionFootprints = [];
+          for (const arc of arcsById.values()) {
+            if (arc.revolutionMissingPlacement || !arc.revolutionAxisPoints)
+              continue;
+            const axis = axisById.get(arc.shape3D?.axisAnnotationId);
+            if (!axis || !isHostAllowed(axis.baseMapId)) continue;
+            const planMeterByPx = baseMapById[axis.baseMapId]?.getMeterByPx?.();
+            const arcMeterByPx = baseMapById[arc.baseMapId]?.getMeterByPx?.();
+            const fp = getRevolutionFootprintRings({
+              arc,
+              axis,
+              arcMeterByPx,
+              planMeterByPx,
+            });
+            if (!fp?.rings?.length) continue;
+            const [main, ...holes] = fp.rings;
+            _revolutionFootprints.push({
+              // Style and identity fields (colour, template, listing,
+              // label) come from the arc: the footprint reads as "that
+              // annotation", and is sorted / grouped with its listing.
+              ...arc,
+              id: REVOLUTION_FOOTPRINT_ID_PREFIX + arc.id,
+              type: fp.isLine ? "POLYLINE" : "POLYGON",
+              baseMapId: axis.baseMapId,
+              points: main,
+              cuts: holes.map((points) => ({ points })),
+              point: null,
+              closeLine: fp.closed,
+              fillColor: arc.fillColor || arc.strokeColor,
+              fillOpacity: 0.25,
+              strokeType: "DASHED",
+              isForeignFootprint: true,
+              isRevolutionFootprint: true,
+              foreignAnnotationId: arc.id,
+              foreignBaseMapId: arc.baseMapId,
+              revolutionAxisId: axis.id,
+              revolutionAxisLabel: axis.label,
+              // A projection: no 3D, no quantities, none of the profile's
+              // per-segment / per-vertex geometry.
+              shape3D: null,
+              height: 0,
+              qties: undefined,
+              hiddenSegmentsIdx: undefined,
+              isoHeightSegmentsIdx: undefined,
+              isExtEdgeSegmentsIdx: undefined,
+              isoHeightLines: undefined,
+              segmentFlags: undefined,
+              guideLines: undefined,
+              profileLines: undefined,
+              isProfile: undefined,
+              rotation: undefined,
+              rotationCenter: undefined,
+              subtractionTargetIds: undefined,
+              subtractionTargets: undefined,
+              _foreignSubtractionTargets: undefined,
+              _foreignSubtractionFootprints: undefined,
+              _revolutionAxis: undefined,
+              revolutionAxisPoints: undefined,
+              revolutionPhi: undefined,
+              revolutionHalfView: undefined,
+              revolutionMissingPlacement: undefined,
+            });
+          }
         }
       }
 
@@ -2324,6 +2552,9 @@ export default function useAnnotationsV2(options) {
           _annotations = [..._annotations, ...footprintAnnotations];
         }
       }
+      if (_revolutionFootprints?.length > 0) {
+        _annotations = [..._annotations, ..._revolutionFootprints];
+      }
 
       // -- PHOTO PSEUDO-ANNOTATIONS --
       // Opt-in (`withPhotos` — Photos module, Viewer module 2D). Appended
@@ -2390,6 +2621,7 @@ export default function useAnnotationsV2(options) {
       povFreezeCreatedBefore,
       dbWriteTick,
       withForeignFootprints,
+      withRevolutionFootprints,
       withPhotos,
     ]);
 
@@ -2415,11 +2647,23 @@ export default function useAnnotationsV2(options) {
           const templateProps = getAnnotationTemplateProps(
             annotationTemplatesMap[annotation?.annotationTemplateId]
           );
-          return getAnnotationPropsFromAnnotationTemplateProps(
+          const merged = getAnnotationPropsFromAnnotationTemplateProps(
             annotation,
             templateProps,
             baseMap
           );
+          // A revolution footprint keeps its own translucent dashed look:
+          // the template may override fill / stroke fields on the arc, not
+          // on its projection (the eye and the label still come from it).
+          if (annotation?.isRevolutionFootprint) {
+            return {
+              ...merged,
+              fillColor: annotation.fillColor,
+              fillOpacity: annotation.fillOpacity,
+              strokeType: annotation.strokeType,
+            };
+          }
+          return merged;
         }
       });
 
@@ -2462,6 +2706,9 @@ export default function useAnnotationsV2(options) {
         // objects it may have returned before.
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
+          // A read-only footprint is the projection of something counted
+          // elsewhere: never give it quantities of its own.
+          if (annotation?.isForeignFootprint) return annotation;
           // Photo annotations attached to a calibrated photoPlan: real
           // quantities come from the homography-mapped meter geometry
           // (precomputed in the async query) — the photo has no meterByPx.
