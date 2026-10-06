@@ -16,7 +16,6 @@ import {
   selectModuleLabelsByKey,
   selectModuleIconKeysByKey,
   selectDisabledBaseMapSourceKeys,
-  selectSystemAnnotationTemplatesEnabled,
   selectLayersMode,
 } from "../utils/scopeConfigSelectors";
 
@@ -50,16 +49,12 @@ export default function PageModuleConfig({ module, tools }) {
     selectDisabledBaseMapSourceKeys
   );
 
-  const systemTemplatesEnabled = useSelector(
-    selectSystemAnnotationTemplatesEnabled
-  );
   const layersMode = useSelector(selectLayersMode);
 
   const {
     toggleModule,
     toggleToolInModule,
     toggleBaseMapSource,
-    setSystemAnnotationTemplates,
     setLayersMode,
     setModuleLabel,
     setModuleIconKey,
@@ -229,21 +224,6 @@ export default function PageModuleConfig({ module, tools }) {
 
       {module.key === "MAP" && (
         <>
-          <Divider sx={{ my: 2 }} />
-
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Modèles système
-          </Typography>
-
-          <RowSwitchConfig
-            label="Liste Générique (Ligne / Polygone)"
-            caption="Créée automatiquement à l'ouverture du dossier. Désactivée : aucune liste système n'est ajoutée."
-            checked={systemTemplatesEnabled}
-            onChange={() =>
-              setSystemAnnotationTemplates(!systemTemplatesEnabled)
-            }
-          />
-
           <Divider sx={{ my: 2 }} />
 
           <Typography variant="subtitle2" sx={{ mb: 1 }}>

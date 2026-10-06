@@ -6,7 +6,7 @@ import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConf
  * item, minus key / card fields — it never shows in the card selector.
  *
  * - no annotation listing at all: no library and no system isForBaseMaps
- *   listing (initSystemAnnotationTemplates false);
+ *   preset listing (initSystemAnnotationTemplates false);
  * - baseMap listing "Fonds de plan" created as a fallback only when the
  *   project has no baseMap listing yet; otherwise the scope works with the
  *   project's existing listings (all kept visible — hiding them would leave

@@ -118,10 +118,10 @@ export default function useCreateScopeFromPreset({ projectId }) {
       ...(carnetDetail ? ["DIVERS"] : []),
     ];
 
-    // system annotation templates (isForBaseMaps preset listings at creation
-    // + the on-the-fly "Générique" Ligne/Polygone listing): only the generic
-    // scope (no configuration) seeds them by default; a configuration opts in
-    // through annotations.initSystemAnnotationTemplates (EMPTY config: false).
+    // system annotation templates (isForBaseMaps preset listings at creation):
+    // only the generic scope (no configuration) seeds them by default; a
+    // configuration opts in through annotations.initSystemAnnotationTemplates
+    // (EMPTY config: false).
     const initSystemAnnotationTemplates = configuration
       ? (configuration.annotations?.initSystemAnnotationTemplates ?? false)
       : true;
@@ -180,11 +180,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     // scopeConfig (per-scope module/tool activation) — absent from the
     // configuration => no row, the app defaults apply. Written BEFORE the
-    // scope row: createScope selects the new scope right away, and with a
-    // scope already open the mounted Dessin panel (useFreeAnnotationTemplates)
-    // would read a missing row as "system templates enabled" and provision
-    // the "Générique" listing before this row lands. The DPGF and Carnet de
-    // détail options need their module ON for this scope (BUSINESS_OBJECTS /
+    // scope row: createScope selects the new scope right away, so the row is
+    // in place when the editor reads it. The DPGF and Carnet de détail
+    // options need their module ON for this scope (BUSINESS_OBJECTS /
     // PORTFOLIO), so they materialize a row (seeded from the app defaults
     // when the configuration carries none) with the module removed from the
     // persisted disabled list — the configuration itself declares its
@@ -199,17 +197,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
 
-    // A configuration without system annotation templates also needs a row:
-    // useFreeAnnotationTemplates reads the persisted flag to skip the
-    // on-the-fly "Générique" listing provisioning.
-    const disableSystemTemplates =
-      usesConfigurationFlow && !initSystemAnnotationTemplates;
-
-    if (
-      configuration?.scopeConfig ||
-      optionEnabledModuleKeys.length > 0 ||
-      disableSystemTemplates
-    ) {
+    if (configuration?.scopeConfig || optionEnabledModuleKeys.length > 0) {
       const baseScopeConfig = resolveConfigurationScopeConfig(
         configuration?.scopeConfig,
         appConfig
@@ -236,7 +224,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
         projectId,
         appConfig,
         ...scopeConfigProps,
-        ...(disableSystemTemplates && { systemAnnotationTemplates: false }),
       });
     }
 

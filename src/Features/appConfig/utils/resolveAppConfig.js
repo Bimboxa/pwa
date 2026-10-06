@@ -244,10 +244,9 @@ export default async function resolveAppConfig(appConfig) {
   //     annotations: {
   //       libraryKeys,              // annotationTemplatesLibraries keys
   //       initSystemAnnotationTemplates,  // true => system annotation
-  //                                 // templates: isForBaseMaps preset
-  //                                 // listings + the "Générique" Ligne /
-  //                                 // Polygone listing (default false; the
-  //                                 // generic scope always seeds them)
+  //                                 // templates: the isForBaseMaps preset
+  //                                 // listings (default false; the generic
+  //                                 // scope always seeds them)
   //     },
   //     scopeConfig: {             // absent => org default modules/tools
   //       enabledModuleKeys,        // non-core modules to enable (keys of

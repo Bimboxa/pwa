@@ -24,7 +24,6 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
-import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
@@ -154,27 +153,13 @@ export default function PanelDrawing() {
     excludeIsForBaseMaps: true,
   });
 
-  // Ensure the system listing ("Générique") + its Ligne/Polygone templates
-  // exist for this scope (idempotent) — the popper used to mount this and is
-  // hidden in the Dessin module.
-  useFreeAnnotationTemplates();
-
-  // helpers - listings (rank order from the selector; the system "Générique"
-  // listing stays pinned first only while it has no rank — a drag reorder in
-  // FieldActiveListing gives every listing a rank, which then wins)
+  // helpers - listings (rank order from the selector)
 
   const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
   const returnListingId = viewerReturnContext?.listingId;
 
   const displayedListings = useMemo(() => {
-    const pinnedSystemListings =
-      listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
-      [];
-    const otherListings =
-      listings?.filter(
-        (l) => !(l.isFreeAnnotationsListing && l.rank == null)
-      ) ?? [];
-    const ordered = [...pinnedSystemListings, ...otherListings];
+    const ordered = listings ?? [];
     // Opened from the SCOPE recap with a listing selected: narrow to it, only
     // while that listing is the selected one — creating a listing from the
     // field selects the new one, which must then show. A returnListingId that

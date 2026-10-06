@@ -39,7 +39,6 @@ import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync
 function isAutoNumberExempt(annotation) {
   return Boolean(
     annotation?.isBaseMapAnnotation ||
-      annotation?.isFreeAnnotation ||
       annotation?.isZoneAnnotation ||
       annotation?.isBusinessObjectAnnotation ||
       annotation?.isScaleSegment ||
