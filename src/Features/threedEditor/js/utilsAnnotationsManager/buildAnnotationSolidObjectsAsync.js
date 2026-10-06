@@ -40,6 +40,23 @@ export default async function buildAnnotationSolidObjectsAsync(
     return [group];
   }
 
-  const object = createAnnotationObject3D(annotation, baseMapForRender, options);
+  // A REVOLUTION operand must be the FULL solid (shape3D.solid builds it
+  // watertight): the camera-driven 180° half-view is display-only and would
+  // otherwise cut the cutter in two. The axis's own partial sector
+  // (`revolutionPhi`) still applies — it is part of the annotation.
+  let operandOptions = options;
+  if (getShape3DKey(annotation.shape3D) === "REVOLUTION" && options) {
+    operandOptions = {
+      ...options,
+      revolutionSection: undefined,
+      revolutionSectionFill: false,
+    };
+  }
+
+  const object = createAnnotationObject3D(
+    annotation,
+    baseMapForRender,
+    operandOptions
+  );
   return object ? [object] : [];
 }

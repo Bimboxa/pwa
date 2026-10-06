@@ -1,6 +1,9 @@
 import { Group, Vector3 } from "three";
 
-import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import {
+  getShape3DKey,
+  isRevolutionSolid,
+} from "Features/annotations/constants/shape3DConfig";
 import getBaseMapTransform, {
   getBaseMapEuler,
   BASE_MAP_ROTATION_ORDER,
@@ -133,7 +136,16 @@ function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
     w: baseMapForRender.imageWidth,
     h: baseMapForRender.imageHeight,
     o: baseMapForRender.orientation,
-    t: targets.map((t) => [t.id, t.updatedAt, t.height, t.baseMapId]),
+    // A REVOLUTION target's volume follows its axis (points + sector),
+    // whose edits don't touch the target's updatedAt either.
+    t: targets.map((t) => [
+      t.id,
+      t.updatedAt,
+      t.height,
+      t.baseMapId,
+      (t.revolutionAxisPoints || []).map((p) => [p.x, p.y]),
+      t.revolutionPhi ?? null,
+    ]),
     // null in the same-basemap case, so existing keys keep their shape.
     x: crossBaseMaps,
   });
@@ -186,8 +198,18 @@ export default async function computeSubtractedSurfaceM2Async(
   let targetObjs = [];
   let result = null;
   try {
+    // The quantity of a revolution is its LATERAL (developed) surface, solid
+    // or not: build the source as the open shell even when shape3D.solid is
+    // set, so the caps / cut faces of the volume are never counted. Targets
+    // keep their solid form (they define the removed volume).
+    const shellSource = isRevolutionSolid(sourceAnnotation)
+      ? {
+          ...sourceAnnotation,
+          shape3D: { ...sourceAnnotation.shape3D, solid: false },
+        }
+      : sourceAnnotation;
     sourceObj = await buildResolvedSourceObjectAsync(
-      sourceAnnotation,
+      shellSource,
       baseMapForRender,
       { disableOpacity: true }
     );

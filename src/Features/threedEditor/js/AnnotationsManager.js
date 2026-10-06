@@ -16,7 +16,10 @@ import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRe
 import applyWireframeSettings from "./utilsAnnotationsManager/applyWireframeSettings";
 import applyHatchFill from "./utilsAnnotationsManager/applyHatchFill";
 
-import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import {
+  getShape3DKey,
+  isRevolutionSolid,
+} from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
 import ensureMaterial3dMaps from "Features/photorealRender/utils/ensureMaterial3dMaps";
 import { applySketchEdges } from "./postfx/aquarelleMaterials";
@@ -464,10 +467,13 @@ export default class AnnotationsManager {
             // Open-surface sources (swept EXTRUSION_PROFILE, lathe REVOLUTION
             // shells) must use a hollow subtraction so the boolean only clips
             // the surface and doesn't add the target's cap faces (stray
-            // triangles in the source material).
-            const hollow = ["EXTRUSION_PROFILE", "REVOLUTION"].includes(
-              getShape3DKey(annotation.shape3D)
-            );
+            // triangles in the source material). A SOLID revolution is a
+            // closed volume: regular subtraction, cut faces included.
+            const sourceShapeKey = getShape3DKey(annotation.shape3D);
+            const hollow =
+              sourceShapeKey === "EXTRUSION_PROFILE" ||
+              (sourceShapeKey === "REVOLUTION" &&
+                !isRevolutionSolid(annotation));
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
               rebuildEdges: true,

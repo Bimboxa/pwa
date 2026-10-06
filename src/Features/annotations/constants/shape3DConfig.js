@@ -71,6 +71,34 @@ export function getShape3DKey(shape3D) {
   return shape3D?.key ?? null;
 }
 
+// REVOLUTION option `shape3D.solid`: the revolved profile is closed toward
+// the axis (its two ends are projected onto it; an already-closed profile is
+// used as is) and the 3D object is a WATERTIGHT volume instead of an open
+// lathe shell. A solid revolution removes its whole volume when subtracted
+// from another annotation, and is carved with a regular (capped) boolean
+// when it is the host. Quantities are unaffected (lateral surface only).
+export function isRevolutionSolid(annotation) {
+  return (
+    annotation?.type === "POLYLINE" &&
+    getShape3DKey(annotation?.shape3D) === SHAPE_3D_KEYS.REVOLUTION &&
+    annotation.shape3D?.solid === true
+  );
+}
+
+// Merge a freshly picked shape3D value with the previous one so the
+// REVOLUTION options survive a change of axis (the selectors replace the
+// whole object).
+export function mergeShape3DOptions(prevShape3D, nextShape3D) {
+  if (
+    getShape3DKey(prevShape3D) === SHAPE_3D_KEYS.REVOLUTION &&
+    getShape3DKey(nextShape3D) === SHAPE_3D_KEYS.REVOLUTION &&
+    prevShape3D?.solid === true
+  ) {
+    return { ...nextShape3D, solid: true };
+  }
+  return nextShape3D;
+}
+
 // Effective shell mode for a POLYGON with profileLines: null when no
 // profiles; the explicit SHELL_TENT choice; otherwise DOME (the DEFAULT even
 // when shape3D is unset). Used by the 3D build and the qties path.

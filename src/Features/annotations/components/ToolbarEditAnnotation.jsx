@@ -62,6 +62,7 @@ import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
+import FieldAnnotationRevolutionSolidSwitch from "./FieldAnnotationRevolutionSolidSwitch";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
@@ -69,6 +70,8 @@ import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
+import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/ToolbarEditMesh3dParts";
+import useSelectedMesh3dParts from "Features/annotationMesh3d/hooks/useSelectedMesh3dParts";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationHasOverlayActions from "../utils/getAnnotationHasOverlayActions";
@@ -89,6 +92,7 @@ export default function ToolbarEditAnnotation({
   const selectedAnnotation = useSelectedAnnotation();
   const part = useSelectedAnnotationPart();
   const hasPart = part && part.kind && part.kind !== "NONE";
+  const mesh3dParts = useSelectedMesh3dParts();
   const deleteAnnotation = useDeleteAnnotation();
   const updateAnnotation = useUpdateAnnotation();
   const changeAnnotationTemplate = useChangeAnnotationTemplate();
@@ -285,6 +289,14 @@ export default function ToolbarEditAnnotation({
     await updateAnnotation({ id: selectedAnnotation.id, isExt: checked });
   }
 
+  async function handleRevolutionSolidChange(checked) {
+    if (!selectedAnnotation?.id) return;
+    await updateAnnotation({
+      id: selectedAnnotation.id,
+      shape3D: { ...(selectedAnnotation.shape3D ?? {}), solid: checked },
+    });
+  }
+
   async function handleStrokeWidthChange(updatedAnnotation) {
     if (!updatedAnnotation?.id) return;
     await updateAnnotation({
@@ -340,6 +352,11 @@ export default function ToolbarEditAnnotation({
   // meaningful action is to go and open the real one.
   if (selectedAnnotation?.isForeignFootprint) {
     return <ToolbarEditForeignFootprint onDragStart={onDragStart} />;
+  }
+  // Faces / edges of the annotation's mesh selected (3D): the toolbar shows
+  // that selection, not the whole annotation.
+  if (mesh3dParts.parts.length > 0) {
+    return <ToolbarEditMesh3dParts onDragStart={onDragStart} />;
   }
 
   return (
@@ -657,6 +674,14 @@ export default function ToolbarEditAnnotation({
                 disabled={isLocked("isExt")}
               />
             )}
+            {selectedAnnotation?.type === "POLYLINE" &&
+              selectedAnnotation?.shape3D?.key === "REVOLUTION" && (
+                <FieldAnnotationRevolutionSolidSwitch
+                  checked={selectedAnnotation?.shape3D?.solid === true}
+                  onChange={handleRevolutionSolidChange}
+                  disabled={isLocked("shape3D")}
+                />
+              )}
             <Shape3DSelector annotation={selectedAnnotation} />
           </Box>
         )}

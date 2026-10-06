@@ -20,6 +20,7 @@ import useRevolutionAxes from "../hooks/useRevolutionAxes";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import {
   getShape3DKey,
+  mergeShape3DOptions,
   TYPES_SUPPORTING_PROFILES,
   TYPES_SUPPORTING_REVOLUTION,
 } from "../constants/shape3DConfig";
@@ -123,7 +124,10 @@ export default function Shape3DBatchSelector({ annotations }) {
       // Default shape (null) clears the override on every selected annotation.
       targets = annotations;
     }
-    const updates = targets.map((a) => ({ id: a.id, shape3D: value }));
+    const updates = targets.map((a) => ({
+      id: a.id,
+      shape3D: mergeShape3DOptions(a.shape3D, value),
+    }));
     await updateAnnotations(updates);
     handleClose();
   }

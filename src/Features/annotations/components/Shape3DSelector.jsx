@@ -19,6 +19,7 @@ import {
   getShape3DKey,
   getShape3DOptionsForType,
   getEffectiveShellMode,
+  mergeShape3DOptions,
   TYPES_SUPPORTING_PROFILES,
   TYPES_SUPPORTING_REVOLUTION,
 } from "../constants/shape3DConfig";
@@ -97,7 +98,10 @@ export default function Shape3DSelector({ annotation }) {
   }
 
   async function handleSelect(value) {
-    await updateAnnotation({ id: annotation.id, shape3D: value });
+    await updateAnnotation({
+      id: annotation.id,
+      shape3D: mergeShape3DOptions(annotation.shape3D, value),
+    });
     handleClose();
   }
 

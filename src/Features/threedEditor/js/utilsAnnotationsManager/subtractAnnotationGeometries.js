@@ -30,12 +30,17 @@ function worldGeometry(mesh) {
 }
 
 // Collect every renderable mesh inside an object (a target may be a Group of
-// several prism meshes — e.g. an EXTRUSION_PROFILE solid).
+// several prism meshes — e.g. an EXTRUSION_PROFILE solid). Fat lines
+// (LineSegments2 / Line2 are `isMesh`) and the partial-revolution section
+// markers are decoration, never a cutting brush.
 function collectMeshes(object) {
   const meshes = [];
   object.updateMatrixWorld?.(true);
   object.traverse?.((c) => {
-    if (c.isMesh && c.geometry) meshes.push(c);
+    if (!c.isMesh || !c.geometry) return;
+    if (c.isLineSegments2 || c.isLine2) return;
+    if (c.userData?.isSectionMarker) return;
+    meshes.push(c);
   });
   return meshes;
 }

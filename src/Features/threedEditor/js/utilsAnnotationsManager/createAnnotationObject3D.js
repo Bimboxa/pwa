@@ -868,6 +868,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             ...partialPhi,
             resolution: options?.resolution,
             sectionFill: options?.revolutionSectionFill,
+            // Watertight volume (closed toward the axis) instead of the
+            // open lathe shell — see shape3DConfig.isRevolutionSolid.
+            solid: annotation.shape3D?.solid === true,
           });
           // Display-only half-view (not the annotation's own partial
           // revolution): the real surface is the full turn.

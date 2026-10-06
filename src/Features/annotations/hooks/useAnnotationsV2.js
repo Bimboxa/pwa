@@ -446,6 +446,90 @@ function getRevolutionPhiForAxis(axis) {
   );
 }
 
+// Resolve the lathe axis of every REVOLUTION arc in `annotations` (mutated in
+// place): `revolutionAxisPoints`, `revolutionPhi`, `revolutionHalfView`, or
+// `revolutionMissingPlacement` when the axis / its placement on the arc's base
+// map cannot be found. Shared by the main query and by the supplementary fetch
+// of cross-base-map subtraction targets (a revolution used as a cutter on
+// another plan must revolve there too, or it is built as a flat wall).
+async function resolveRevolutionAxes(annotations, baseMapById) {
+  const revolutionArcs = annotations.filter(
+    (a) =>
+      a &&
+      getShape3DKey(a.shape3D) === "REVOLUTION" &&
+      a.shape3D?.axisAnnotationId
+  );
+  if (revolutionArcs.length === 0) return;
+
+  const arcBaseMapIds = [
+    ...new Set(revolutionArcs.map((a) => a.baseMapId).filter(Boolean)),
+  ];
+  const placements = (
+    await db.annotations.where("baseMapId").anyOf(arcBaseMapIds).toArray()
+  ).filter((a) => !a.deletedAt && a.type === "REVOLUTION_AXIS_PLACEMENT");
+  // Keyed by (baseMapId, axisId): several scopes may each pose their
+  // OWN axis on the same vertical base map, so a lone per-base-map
+  // entry could resolve an arc to another scope's placement and wrongly
+  // flag it revolutionMissingPlacement (profile rendered un-revolved).
+  const placementByBaseMapAndAxisId = {};
+  for (const p of placements) {
+    placementByBaseMapAndAxisId[`${p.baseMapId}:${p.revolutionAxisId}`] = p;
+  }
+
+  // Placement points live on ANOTHER base map than the arc, so they are
+  // not in `pointsIndex` — fetch them explicitly.
+  const placementPointRows = await db.points.bulkGet(
+    placements.map((p) => p.point?.id).filter(Boolean)
+  );
+  const placementPointById = {};
+  for (const row of placementPointRows) {
+    if (row) placementPointById[row.id] = row;
+  }
+
+  const axisCache = new Map();
+  for (const arc of revolutionArcs) {
+    const axisId = arc.shape3D.axisAnnotationId;
+    if (!axisCache.has(axisId)) {
+      axisCache.set(axisId, await db.annotations.get(axisId));
+    }
+    const axis = axisCache.get(axisId);
+    if (!axis || axis.deletedAt) {
+      arc.revolutionMissingPlacement = true;
+      continue;
+    }
+
+    // A placement of a DIFFERENT axis is not "close enough" (the key
+    // carries the axis id): flag it rather than silently revolving
+    // around the wrong centre.
+    const placement = placementByBaseMapAndAxisId[`${arc.baseMapId}:${axisId}`];
+    if (!placement) {
+      arc.revolutionMissingPlacement = true;
+      continue;
+    }
+
+    const arcBaseMap = baseMapById[arc.baseMapId];
+    const arcImageSize =
+      arcBaseMap?.getImageSize?.() || arcBaseMap?.image?.imageSize;
+    const row = placementPointById[placement.point?.id];
+    if (!arcImageSize?.width || !row) {
+      arc.revolutionMissingPlacement = true;
+      continue;
+    }
+
+    const cx = row.x * arcImageSize.width;
+    const cy = row.y * arcImageSize.height;
+    arc.revolutionAxisPoints = [
+      { x: cx, y: cy },
+      { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
+    ];
+    arc.revolutionPhi = getRevolutionPhiForAxis(axis);
+    // 3D half-view ("Demi-vue 3D"): display-only 180° cut on the
+    // side opposite the camera, a property of the AXIS (on unless
+    // explicitly switched off). An explicit sector above wins.
+    arc.revolutionHalfView = axis.halfViewIn3d !== false;
+  }
+}
+
 export default function useAnnotationsV2(options) {
   try {
     // options
@@ -1720,90 +1804,7 @@ export default function useAnnotationsV2(options) {
       // z = 0 default is correct), and dropping it removes the cross-base-map
       // pose read that made this query depend on base map transforms.
       if (_annotations?.length) {
-        const revolutionArcs = _annotations.filter(
-          (a) =>
-            a &&
-            getShape3DKey(a.shape3D) === "REVOLUTION" &&
-            a.shape3D?.axisAnnotationId
-        );
-
-        if (revolutionArcs.length > 0) {
-          const arcBaseMapIds = [
-            ...new Set(revolutionArcs.map((a) => a.baseMapId).filter(Boolean)),
-          ];
-          const placements = (
-            await db.annotations
-              .where("baseMapId")
-              .anyOf(arcBaseMapIds)
-              .toArray()
-          ).filter(
-            (a) => !a.deletedAt && a.type === "REVOLUTION_AXIS_PLACEMENT"
-          );
-          // Keyed by (baseMapId, axisId): several scopes may each pose their
-          // OWN axis on the same vertical base map, so a lone per-base-map
-          // entry could resolve an arc to another scope's placement and wrongly
-          // flag it revolutionMissingPlacement (profile rendered un-revolved).
-          const placementByBaseMapAndAxisId = {};
-          for (const p of placements) {
-            placementByBaseMapAndAxisId[
-              `${p.baseMapId}:${p.revolutionAxisId}`
-            ] = p;
-          }
-
-          // Placement points live on ANOTHER base map than the arc, so they are
-          // not in `pointsIndex` — fetch them explicitly.
-          const placementPointRows = await db.points.bulkGet(
-            placements.map((p) => p.point?.id).filter(Boolean)
-          );
-          const placementPointById = {};
-          for (const row of placementPointRows) {
-            if (row) placementPointById[row.id] = row;
-          }
-
-          const axisCache = new Map();
-          for (const arc of revolutionArcs) {
-            const axisId = arc.shape3D.axisAnnotationId;
-            if (!axisCache.has(axisId)) {
-              axisCache.set(axisId, await db.annotations.get(axisId));
-            }
-            const axis = axisCache.get(axisId);
-            if (!axis || axis.deletedAt) {
-              arc.revolutionMissingPlacement = true;
-              continue;
-            }
-
-            // A placement of a DIFFERENT axis is not "close enough" (the key
-            // carries the axis id): flag it rather than silently revolving
-            // around the wrong centre.
-            const placement =
-              placementByBaseMapAndAxisId[`${arc.baseMapId}:${axisId}`];
-            if (!placement) {
-              arc.revolutionMissingPlacement = true;
-              continue;
-            }
-
-            const arcBaseMap = baseMapById[arc.baseMapId];
-            const arcImageSize =
-              arcBaseMap?.getImageSize?.() || arcBaseMap?.image?.imageSize;
-            const row = placementPointById[placement.point?.id];
-            if (!arcImageSize?.width || !row) {
-              arc.revolutionMissingPlacement = true;
-              continue;
-            }
-
-            const cx = row.x * arcImageSize.width;
-            const cy = row.y * arcImageSize.height;
-            arc.revolutionAxisPoints = [
-              { x: cx, y: cy },
-              { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
-            ];
-            arc.revolutionPhi = getRevolutionPhiForAxis(axis);
-            // 3D half-view ("Demi-vue 3D"): display-only 180° cut on the
-            // side opposite the camera, a property of the AXIS (on unless
-            // explicitly switched off). An explicit sector above wins.
-            arc.revolutionHalfView = axis.halfViewIn3d !== false;
-          }
-        }
+        await resolveRevolutionAxes(_annotations, baseMapById);
       }
 
       // Plan axes and their placements need a few resolved extras for the 2D
@@ -1958,6 +1959,12 @@ export default function useAnnotationsV2(options) {
                 : r.point,
             });
           }
+          // A foreign REVOLUTION target needs its lathe axis to be built as
+          // a revolution (solid or shell) when it carves this plan's hosts.
+          await resolveRevolutionAxes(
+            [..._foreignTargetsById.values()],
+            baseMapById
+          );
         }
       }
 
