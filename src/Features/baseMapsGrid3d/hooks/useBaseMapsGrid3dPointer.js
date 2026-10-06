@@ -26,9 +26,10 @@ const TOOLTIP_OFFSET_PX = 15;
 //   - click on the navigation button (bottom-right): leaves the grid around
 //     this sheet — it stays where it is on screen, the other base maps fly
 //     back to their real poses around it
-//   - double-click on a sheet: closes the grid and opens that base map
-// A plain click on a sheet does nothing. The camera controls keep working
-// (orbit / pan / zoom over the table).
+//   - click on a sheet: closes the grid and opens that base map
+// The camera controls keep working (orbit / pan / zoom over the table): a
+// press that travels further than DRAG_THRESHOLD_PX is a camera gesture, not
+// a click.
 export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -168,16 +169,10 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
         clearHover();
         manager.closeAround(hit.baseMapId);
         dispatch(setBaseMapsGridModeActive(false));
+        return;
       }
-    }
-
-    function onDoubleClick(e) {
-      if (e.shiftKey || !manager.isActive()) return;
-      const hit = pick(e);
-      if (!hit || hit.kind !== "sheet") return;
-      // The regular double-click handler of MainThreedEditor (React, at the
-      // root) must not run on top of this one once the grid is closed.
-      e.stopPropagation();
+      // sheet: shift stays reserved (multi-selection / lasso of the editor)
+      if (e.shiftKey) return;
       // The frame of the base map at its REAL pose, read before the grid
       // releases the sheet.
       const frame = manager.getHomeFrame(hit.baseMapId);
@@ -203,7 +198,6 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointercancel", onPointerCancel);
     dom.addEventListener("pointerleave", onPointerLeave);
-    dom.addEventListener("dblclick", onDoubleClick);
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -211,7 +205,6 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
-      dom.removeEventListener("dblclick", onDoubleClick);
       if (hoverRafId !== null) cancelAnimationFrame(hoverRafId);
       clearHover();
     };
