@@ -1092,24 +1092,25 @@ export default function useAnnotationsV2(options) {
 
       // -- SCOPE FILTER --
 
-      // Kept for the revolution footprints below: the arcs they project
-      // come from a supplementary read and must obey the same scope rule.
-      let scopeListingIds = null;
+      // `isListingInScope` is kept for the revolution footprints below: the
+      // arcs they project come from a supplementary read, with listings that
+      // are NOT in `listings` (built from this query's rows only), and must
+      // obey the same scope rule. Null when the scope filter is off.
+      let isListingInScope = null;
       if (filterBySelectedScope && scope?.id) {
-        scopeListingIds = new Set(
-          listings
-            .filter((l) => {
-              const em = appConfig?.entityModelsObject?.[l.entityModelKey];
-              return (
-                em?.type === "BASE_MAP" ||
-                em?.type === "PHOTO" ||
-                l.scopeId === scope?.id ||
-                // linked from another scope (db.relsScopeListing) — same
-                // rule as the listings selector (makeGetListingsByOptions)
-                linkedListingIds.has(l.id)
-              );
-            })
-            .map((l) => l.id)
+        isListingInScope = (l) => {
+          const em = appConfig?.entityModelsObject?.[l.entityModelKey];
+          return (
+            em?.type === "BASE_MAP" ||
+            em?.type === "PHOTO" ||
+            l.scopeId === scope?.id ||
+            // linked from another scope (db.relsScopeListing) — same
+            // rule as the listings selector (makeGetListingsByOptions)
+            linkedListingIds.has(l.id)
+          );
+        };
+        const scopeListingIds = new Set(
+          listings.filter(isListingInScope).map((l) => l.id)
         );
         _annotations = _annotations.filter((a) => {
           if (a.isBaseMapAnnotation) return true;
@@ -2136,7 +2137,7 @@ export default function useAnnotationsV2(options) {
                 .map((bm) => bm.id)
             : [];
           if (verticalIds.length > 0) {
-            const rows = (
+            let rows = (
               await db.annotations.where("baseMapId").anyOf(verticalIds).toArray()
             ).filter(
               (r) =>
@@ -2145,9 +2146,31 @@ export default function useAnnotationsV2(options) {
                 !arcsById.has(r.id) &&
                 queryAxisIds.has(r.shape3D.axisAnnotationId) &&
                 // Same listing visibility rules as the queried base map.
-                !(excludeListingsIds && excludeListingsIds.includes(r.listingId)) &&
-                (!scopeListingIds || scopeListingIds.has(r.listingId))
+                !(excludeListingsIds && excludeListingsIds.includes(r.listingId))
             );
+            // Scope rule on the arcs' listings. `listings` / `listingsMap`
+            // only hold the listings of THIS query's rows (a plan showing
+            // nothing but the axis has none of the arc's listing), so the
+            // missing ones are read here.
+            if (isListingInScope && rows.length > 0) {
+              const missingIds = [
+                ...new Set(
+                  rows
+                    .map((r) => r.listingId)
+                    .filter((id) => id && !listingsMap?.[id])
+                ),
+              ];
+              const extraById = {};
+              if (missingIds.length > 0) {
+                for (const l of await db.listings.bulkGet(missingIds)) {
+                  if (l && !l.deletedAt) extraById[l.id] = l;
+                }
+              }
+              rows = rows.filter((r) => {
+                const l = listingsMap?.[r.listingId] ?? extraById[r.listingId];
+                return l ? isListingInScope(l) : false;
+              });
+            }
             if (rows.length > 0) {
               const fetched = await resolveRowsAgainstOwnBaseMap(rows, baseMapById);
               const arcs = [...fetched.values()];
