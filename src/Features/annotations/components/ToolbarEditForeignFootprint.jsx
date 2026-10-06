@@ -5,8 +5,9 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import IconButtonGoToForeignAnnotation from "./IconButtonGoToForeignAnnotation";
 
 /**
- * Toolbar for a read-only footprint: the projection, onto this base map, of a
- * subtraction target that lives on another one.
+ * Toolbar for a read-only footprint: the projection, onto this base map, of an
+ * annotation that lives on another one (a subtraction target, or an
+ * annotation revolved around one of this plan's axes).
  *
  * Deliberately reduced to a single action. Every editing action of the normal
  * toolbar (move, resize, delete, template change…) would write against an id
@@ -24,6 +25,15 @@ export default function ToolbarEditForeignFootprint({ onDragStart }) {
     selectedAnnotation?.templateLabel ||
     selectedAnnotation?.label ||
     "Annotation";
+
+  // A revolution footprint is the plan projection of an annotation revolved
+  // around an axis drawn on this plan; a foreign footprint the silhouette of
+  // a subtraction target hosted by another base map.
+  const caption = selectedAnnotation?.isRevolutionFootprint
+    ? `Empreinte en plan de la révolution autour de « ${
+        selectedAnnotation?.revolutionAxisLabel || "l'axe"
+      } ».`
+    : "Empreinte d'une annotation d'un autre fond de plan.";
 
   // render
 
@@ -71,7 +81,7 @@ export default function ToolbarEditForeignFootprint({ onDragStart }) {
           }}
         >
           <Typography variant="caption" color="text.secondary">
-            Empreinte d&apos;une annotation d&apos;un autre fond de plan.
+            {caption}
           </Typography>
           <IconButtonGoToForeignAnnotation annotation={selectedAnnotation} />
         </Box>

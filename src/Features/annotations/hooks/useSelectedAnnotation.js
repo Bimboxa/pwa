@@ -19,12 +19,14 @@ export default function useSelectedAnnotation() {
 
   // data
 
-  // withForeignFootprints: a footprint (subtraction target hosted by another
-  // base map) is selectable on the plan, so the toolbar must be able to
+  // withForeignFootprints / withRevolutionFootprints: a footprint (subtraction
+  // target hosted by another base map, plan footprint of a revolved
+  // annotation) is selectable on the plan, so the toolbar must be able to
   // resolve it — otherwise selecting one shows no toolbar at all.
   const annotations = useAnnotationsV2({
     caller: "useSelectedAnnotation",
     withForeignFootprints: true,
+    withRevolutionFootprints: true,
   })
 
   // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed

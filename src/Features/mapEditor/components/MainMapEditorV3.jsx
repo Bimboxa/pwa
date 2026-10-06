@@ -570,6 +570,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // Read-only outlines of subtraction targets hosted by another base map
         // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
         withForeignFootprints: true,
+        // Read-only plan footprints (disc / annulus / sector) of the
+        // annotations revolved around a REVOLUTION_AXIS drawn on this plan.
+        withRevolutionFootprints: true,
         // Photo camera poses (point + view cone) — Photos module, and the
         // Viewer module's 2D editor while the popper's Photos tab is active
         // (read-only consultation, hover preview + click-select in the grid).
