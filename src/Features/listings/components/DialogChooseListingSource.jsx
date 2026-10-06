@@ -2,14 +2,14 @@ import { useState } from "react";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box, Button, IconButton, Typography } from "@mui/material";
+import { Box, IconButton, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LinkIcon from "@mui/icons-material/Link";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
-import CardCreateBaseMapOption from "Features/baseMaps/components/CardCreateBaseMapOption";
+import CardListingSourceOption from "./CardListingSourceOption";
 import DialogCreateListing from "./DialogCreateListing";
 import DialogAddListingsFromScope from "./DialogAddListingsFromScope";
 
@@ -35,28 +35,11 @@ export default function DialogChooseListingSource({
   const presetsSubtitleS = "Des listes pré-configurées de modèles.";
   const fromScopeTitleS = `Depuis un autre ${scopeS}`;
   const fromScopeSubtitleS = `Afficher ici les listes d'un autre ${scopeS} du projet (lecture seule).`;
-  const chooseS = "Choisir";
 
   // state
 
   // "CHOOSE" | "EMPTY" | "PRESETS" | "FROM_SCOPE"
   const [step, setStep] = useState(isForBaseMaps ? "EMPTY" : "CHOOSE");
-
-  // helpers
-
-  const illustration = (Icon) => (
-    <Box
-      sx={{
-        width: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "text.disabled",
-      }}
-    >
-      <Icon sx={{ fontSize: 48 }} />
-    </Box>
-  );
 
   // handlers
 
@@ -102,50 +85,23 @@ export default function DialogChooseListingSource({
             gap: 3,
           }}
         >
-          <CardCreateBaseMapOption
+          <CardListingSourceOption
             title={emptyTitleS}
             subtitle={emptySubtitleS}
-            illustration={illustration(AddIcon)}
-            actions={
-              <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                onClick={() => setStep("EMPTY")}
-              >
-                {chooseS}
-              </Button>
-            }
+            icon={AddIcon}
+            onClick={() => setStep("EMPTY")}
           />
-          <CardCreateBaseMapOption
+          <CardListingSourceOption
             title={presetsTitleS}
             subtitle={presetsSubtitleS}
-            illustration={illustration(LibraryBooksIcon)}
-            actions={
-              <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                onClick={() => setStep("PRESETS")}
-              >
-                {chooseS}
-              </Button>
-            }
+            icon={LibraryBooksIcon}
+            onClick={() => setStep("PRESETS")}
           />
-          <CardCreateBaseMapOption
+          <CardListingSourceOption
             title={fromScopeTitleS}
             subtitle={fromScopeSubtitleS}
-            illustration={illustration(LinkIcon)}
-            actions={
-              <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                onClick={() => setStep("FROM_SCOPE")}
-              >
-                {chooseS}
-              </Button>
-            }
+            icon={LinkIcon}
+            onClick={() => setStep("FROM_SCOPE")}
           />
         </Box>
       </Box>
