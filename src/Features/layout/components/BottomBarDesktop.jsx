@@ -12,6 +12,8 @@ import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNav
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
 import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
+import RevolutionAxisRadiusBottomBarThreed from "Features/revolutionAxes/components/RevolutionAxisRadiusBottomBarThreed";
+import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
 import ToolbarStartDrawTemplate from "Features/panelDrawing/components/ToolbarStartDrawTemplate";
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
@@ -55,6 +57,11 @@ export default function BottomBarDesktop() {
   const enabledDrawingMode = useSelector(
     (s) => s.mapEditor.enabledDrawingMode
   );
+  // Revolution axis drawn from the 3D editor: the live radius comes from the
+  // 3D overlay, not from the 2D preview CircleRadiusBottomBar polls.
+  const isRevolutionAxisDraw3d = useSelector(
+    selectIsRevolutionAxisDrawThreedActive
+  );
 
   // helpers
 
@@ -87,7 +94,12 @@ export default function BottomBarDesktop() {
         <ToolbarDrawingDraft />
         {showRectangleDims && <RectangleDimsBottomBar />}
         {showSegmentLength && <SegmentLengthBottomBar />}
-        {showCircleRadius && <CircleRadiusBottomBar />}
+        {showCircleRadius &&
+          (isRevolutionAxisDraw3d ? (
+            <RevolutionAxisRadiusBottomBarThreed />
+          ) : (
+            <CircleRadiusBottomBar />
+          ))}
         <SectionReadOnlyScopeInBottomBar />
       </Box>
     );

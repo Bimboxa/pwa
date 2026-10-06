@@ -104,6 +104,7 @@ export default function SectionPanelDrawingTools({
                 Icon={tool.Icon}
                 shortcut={tool.shortcut}
                 variant="panel"
+                isThreedEditor={isThreedEditor}
               />
             ) : isThreedEditor && tool.threedTool ? (
               <RowThreedTool

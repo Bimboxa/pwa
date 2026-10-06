@@ -2813,6 +2813,7 @@ export default function PopperMapListings() {
                               label={tool.label}
                               Icon={tool.Icon}
                               shortcut={tool.shortcut}
+                              isThreedEditor={isThreedEditor}
                             />
                           )
                         ) : isThreedEditor && tool.threedTool ? (

@@ -27,9 +27,10 @@ import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 // the plan, "3D": its 3D editor) — no editor: both. getToolItemsForEditor.
 //
 // isRevolutionAxis: "Axe de révolution" row — draws a revolution axis on a
-// plan / drops one on a vertical base map (RowRevolutionAxisTool); the axis
-// belongs to the base map + the scope, not to a listing. Its hotkey (A, plan
-// base maps only) is useRevolutionAxisHotkey.
+// plan / drops one on a vertical base map (RowRevolutionAxisTool); in the 3D
+// editor it draws the axis on a horizontal base map plane. The axis belongs
+// to the base map + the scope, not to a listing. Its hotkey (A, 2D plan base
+// maps only) is useRevolutionAxisHotkey.
 //
 // threedTool: in the 3D editor the row arms a threedEditor mode (Extruder /
 // Déplacer / Tourner / Isoler une face — RowThreedTool,
@@ -86,7 +87,8 @@ const TOOL_ITEMS = [
     label: "Axe de révolution",
     Icon: Adjust,
     shortcut: "A",
-    editor: "2D",
+    // Both editors: on the plan (2D) and on a horizontal base map plane of
+    // the 3D editor (RevolutionAxisDraftOverlayThreed, two clicks too).
     isRevolutionAxis: true,
   },
   {
