@@ -72,6 +72,7 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
       x={state.x}
       y={state.y}
       qtiesOverride={state.node.partQties}
+      qtiesOverrideType={state.node.partType}
     />
   );
 });

@@ -14,8 +14,14 @@ import { formatHours } from "Features/businessObjects/utils/hoursRatioConversion
 
 // qtiesOverride ({ length?, surface? }): quantities of the hovered PART (a
 // face / edge of a mesh annotation in the 3D editor) shown instead of the
-// annotation's own totals.
-const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qtiesOverride }, ref) => {
+// annotation's own totals. qtiesOverrideType ("FACE" | "EDGE") names that part
+// in a caption above the quantities.
+const QTIES_OVERRIDE_LABELS = {
+    FACE: "Quantités de la face",
+    EDGE: "Quantités de l'arête",
+};
+
+const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qtiesOverride, qtiesOverrideType }, ref) => {
 
     // data
 
@@ -56,6 +62,10 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
     const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     const showLength = Boolean(qties?.enabled) && length > 0;
     const showSurface = Boolean(qties?.enabled) && surface > 0;
+    const qtiesOverrideLabel =
+        qtiesOverride && (showLength || showSurface)
+            ? QTIES_OVERRIDE_LABELS[qtiesOverrideType]
+            : null;
 
     // helper - PLANNING module: hours this annotation represents for each
     // applicable task of the active listing (empty everywhere else)
@@ -172,6 +182,12 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
             {annotationLabel && (
                 <Typography variant="caption" sx={{ display: 'block' }}>
                     {annotationLabel}
+                </Typography>
+            )}
+            {/* Hovered part caption (3D face / edge of a mesh annotation) */}
+            {qtiesOverrideLabel && (
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'grey.400', fontStyle: 'italic' }}>
+                    {qtiesOverrideLabel}
                 </Typography>
             )}
             {/* Qties (length & surface, zero values hidden) */}

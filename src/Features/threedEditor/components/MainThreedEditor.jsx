@@ -2171,6 +2171,7 @@ export default function MainThreedEditor() {
             annotationType,
             listingId,
             partQties: meshPart?.qties ?? null,
+            partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
           },
           event.clientX - containerRect.left + 15,
           event.clientY - containerRect.top + 15
@@ -2192,6 +2193,7 @@ export default function MainThreedEditor() {
           annotationType,
           listingId,
           partQties: meshPart?.qties ?? null,
+          partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
         },
         event.clientX - containerRect.left + 15,
         event.clientY - containerRect.top + 15
@@ -2568,13 +2570,13 @@ export default function MainThreedEditor() {
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
-      {/* "Evider" dialog requested from the toolbar above (the 2D editors
-          host their own outlet while they are the active viewer) */}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}
       {isThreedViewer && <ThreedAnnotationOverlayActions />}
       {/* Right click on an annotation: "change template" menu */}
       {isThreedViewer && <PopperContextMenu viewerKey="THREED" />}
+      {/* "Evider" dialog requested from the toolbar above (the 2D editors
+          host their own outlet while they are the active viewer) */}
       {isThreedViewer && <DialogHollowOutAnnotationOutlet />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
