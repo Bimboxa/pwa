@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 
-import { triggerAnnotationsUpdate } from "../annotationsSlice";
-
 import {
   Box,
   IconButton,
@@ -15,10 +13,6 @@ import {
   DragIndicator as GripIcon,
   BugReport as BugReportIcon,
   RotateRight as AxisIcon,
-  Flip as FlipIcon,
-  DonutLarge as PartialIcon,
-  Lens as TotalIcon,
-  Contrast as HalfViewIcon,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -28,20 +22,22 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
+import SectionRevolutionAxisLinkedAnnotations from "Features/revolutionAxes/components/SectionRevolutionAxisLinkedAnnotations";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
-import setRevolutionAxisHalfViewService from "Features/revolutionAxes/services/setRevolutionAxisHalfViewService";
 
 // Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
 // geometry model (centre + scalars), so the template-centric
-// ToolbarEditAnnotation does not apply. The procedures an axis can source
-// (CHATEAU_EAU_V1 — registry sourceAnnotationTypes) show their launcher rows
-// like in the standard toolbar.
+// ToolbarEditAnnotation does not apply: name, radius / height / offset Z, the
+// annotations revolved around the axis (per template) and the launcher rows
+// of the procedures an axis can source (CHATEAU_EAU_V1 — registry
+// sourceAnnotationTypes), like in the standard toolbar.
 //
-// `invertHalf` and `offsetZ` both change the pose of every vertical base map
-// this axis places, so they run the resync service after writing.
-const DEFAULT_ANGLE_START_DEG = 0;
-const DEFAULT_ANGLE_END_DEG = 180;
-
+// The axis ACTIONS (invert halves, partial / total, 3D half-view, coupe base
+// map, delete) live in the quick-action row above the axis on the map
+// (NodeRevolutionAxisOverlayStatic), like a polyline's Dupliquer / Evider.
+//
+// `offsetZ` changes the pose of every vertical base map this axis places, so
+// it runs the resync service after writing.
 export default function ToolbarEditRevolutionAxis({ onDragStart }) {
   const dispatch = useDispatch();
 
@@ -60,9 +56,6 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
 
   const accentColor =
     selectedAnnotation.strokeColor || theme.palette.secondary.main;
-  const isPartial = Boolean(selectedAnnotation.partialRevolution);
-  // 3D half-view: display-only, on unless explicitly switched off.
-  const isHalfView = selectedAnnotation.halfViewIn3d !== false;
 
   // handlers
 
@@ -70,33 +63,6 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
     if (labelDraft == null) return;
     await updateAnnotation({ id: selectedAnnotation.id, label: labelDraft });
     setLabelDraft(null);
-  }
-
-  async function handleToggleInvertHalf() {
-    await updateAnnotation({
-      id: selectedAnnotation.id,
-      invertHalf: !selectedAnnotation.invertHalf,
-    });
-    await resyncRevolutionAxisPlacementsService({
-      axisId: selectedAnnotation.id,
-      dispatch,
-    });
-  }
-
-  async function handleTogglePartial() {
-    const next = !isPartial;
-    const updates = { id: selectedAnnotation.id, partialRevolution: next };
-    if (next && selectedAnnotation.revolutionAngleStartDeg == null) {
-      updates.revolutionAngleStartDeg = DEFAULT_ANGLE_START_DEG;
-      updates.revolutionAngleEndDeg = DEFAULT_ANGLE_END_DEG;
-    }
-    await updateAnnotation(updates);
-  }
-
-  async function handleToggleHalfView() {
-    // View setting: open to anyone (not gated by the axis ownership).
-    await setRevolutionAxisHalfViewService(selectedAnnotation.id, !isHalfView);
-    dispatch(triggerAnnotationsUpdate());
   }
 
   // FieldAnnotationHeight echoes back the WHOLE annotation with one field
@@ -251,78 +217,10 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
           />
         </Box>
 
-        {/* Row 4 - actions */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            px: 1.25,
-            py: 0.5,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Tooltip title="Inverser les demi-révolutions" arrow>
-            <IconButton
-              size="small"
-              onClick={handleToggleInvertHalf}
-              sx={{
-                color: selectedAnnotation.invertHalf
-                  ? accentColor
-                  : "text.disabled",
-                bgcolor: selectedAnnotation.invertHalf
-                  ? accentColor + "18"
-                  : "transparent",
-                "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-              }}
-            >
-              <FlipIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip
-            title={isPartial ? "Révolution totale" : "Révolution partielle"}
-            arrow
-          >
-            <IconButton
-              size="small"
-              onClick={handleTogglePartial}
-              sx={{
-                color: isPartial ? accentColor : "text.disabled",
-                bgcolor: isPartial ? accentColor + "18" : "transparent",
-                "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-              }}
-            >
-              {isPartial ? (
-                <PartialIcon fontSize="small" />
-              ) : (
-                <TotalIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip
-            title={
-              isHalfView
-                ? "Demi-vue 3D (coupe) : activée"
-                : "Demi-vue 3D (coupe) : désactivée"
-            }
-            arrow
-          >
-            <IconButton
-              size="small"
-              onClick={handleToggleHalfView}
-              sx={{
-                color: isHalfView ? accentColor : "text.disabled",
-                bgcolor: isHalfView ? accentColor + "18" : "transparent",
-                "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-              }}
-            >
-              <HalfViewIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {/* Row 4 - annotations revolved around the axis, per template */}
+        <SectionRevolutionAxisLinkedAnnotations
+          axisId={selectedAnnotation.id}
+        />
 
         {/* Procedure launcher rows (e.g. CHATEAU_EAU_V1) — same bands as
             the standard toolbar. */}

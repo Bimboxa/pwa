@@ -9,6 +9,7 @@ import {
   CUT_AXIS_OVERSHOOT,
 } from "Features/annotations/utils/revolutionAxisGlyph";
 import { CURSOR_ROTATE } from "../utils/rotateCursor";
+import NodeRevolutionAxisOverlayStatic from "./NodeRevolutionAxisOverlayStatic";
 
 // Plan-view revolution axis.
 //
@@ -30,6 +31,8 @@ import { CURSOR_ROTATE } from "../utils/rotateCursor";
 //   · Partial revolution: the two radii bounding the sector, dotted (thick on
 //     the visible side, thin on the hidden one), with a handle at each sector
 //     end that sets that bound AND the radius (REVOLUTION_ANGLE::<START|END>).
+//   · Quick-action row above the clicked point (NodeRevolutionAxisOverlayStatic):
+//     invert halves, partial / total, 3D half-view, coupe base map, delete.
 const BLUE = "#1976d2";
 const GREY = "#bdbdbd";
 const DEG = Math.PI / 180;
@@ -46,6 +49,7 @@ export default function NodeRevolutionAxisStatic({
   dragged,
   containerK = 1,
   baseMapMeterByPx,
+  printMode,
 }) {
   const mergedAnnotation = { ...annotation, ...annotationOverride };
 
@@ -312,6 +316,16 @@ export default function NodeRevolutionAxisStatic({
               `angle-${key}`,
               "grab"
             )
+          )}
+
+          {/* Quick-action row (HTML buttons in a foreignObject) */}
+          {!printMode && (
+            <NodeRevolutionAxisOverlayStatic
+              annotation={mergedAnnotation}
+              centerPx={centerPx}
+              radiusPx={radiusPx}
+              containerK={containerK}
+            />
           )}
         </>
       )}

@@ -9,6 +9,9 @@ import {
   DoubleSide,
   LineSegments,
   LineBasicMaterial,
+  MeshBasicMaterial,
+  Shape,
+  ShapeGeometry,
 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -77,6 +80,38 @@ const REVOLUTION_AXIS_LINEWIDTH_PX = 1.5;
 // Dash pattern in world meters (computeLineDistances feeds world distances).
 const REVOLUTION_AXIS_DASH_M = 0.3;
 const REVOLUTION_AXIS_GAP_M = 0.2;
+// Base disc of the plan axis: the displayed circle (radiusM) — or the kept
+// sector of a partial revolution — laid flat at the axis base, half
+// transparent. Lifted 1 mm above the plan so it never z-fights the base map
+// image (same offset as extrudeClosedShape's Z_FIGHT_OFFSET).
+const REVOLUTION_AXIS_DISC_OPACITY = 0.5;
+const REVOLUTION_AXIS_DISC_LIFT_M = 0.001;
+const REVOLUTION_AXIS_DISC_SEGMENTS = 64;
+const DEG_TO_RAD = Math.PI / 180;
+
+// Shape of the axis base disc in basemap-local metres (y up, CCW like the
+// axis storage contract: directionDeg / revolutionAngleStartDeg / EndDeg
+// live in that frame). Full circle, or the sector [start, end] (CCW span,
+// mod 2π) of a partial revolution — the half-view is display-only in 3D
+// and ignored here, like the plan footprints.
+function buildRevolutionAxisDiscShape({ cx, cy, r, annotation }) {
+  const shape = new Shape();
+  const partial = Boolean(annotation.partialRevolution);
+  if (!partial) {
+    shape.absarc(cx, cy, r, 0, Math.PI * 2, false);
+    return shape;
+  }
+  const start = (Number(annotation.revolutionAngleStartDeg) || 0) * DEG_TO_RAD;
+  const end = (Number(annotation.revolutionAngleEndDeg) || 0) * DEG_TO_RAD;
+  let span = (end - start) % (Math.PI * 2);
+  if (span < 0) span += Math.PI * 2;
+  if (span < 1e-6) span = Math.PI * 2;
+  shape.moveTo(cx, cy);
+  shape.lineTo(cx + r * Math.cos(start), cy + r * Math.sin(start));
+  shape.absarc(cx, cy, r, start, start + span, false);
+  shape.lineTo(cx, cy);
+  return shape;
+}
 
 // Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
 // surface) and POINT (circle line) branches. Returns a `{ phiStart, phiLength }`
@@ -1135,7 +1170,38 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // a Line2 is never indexed from its instanced geometry, so without this
       // tag the two ends of the axis could not be snapped onto.
       line.userData.isSnapLine = true;
-      object = line;
+
+      // Base disc (or sector) at the axis base, in the axis colour, 50 %
+      // transparent. Display-only: `isRevolutionAxisDisc` keeps it out of
+      // the scene export, the vertex snap index, the drawable faces and the
+      // hover / dim material swaps.
+      const axisGroup = new Group();
+      axisGroup.add(line);
+      const r = Number(annotation.radiusM) || 0;
+      if (r > 0) {
+        const discGeom = new ShapeGeometry(
+          buildRevolutionAxisDiscShape({
+            cx: local.x,
+            cy: local.y,
+            r,
+            annotation,
+          }),
+          REVOLUTION_AXIS_DISC_SEGMENTS
+        );
+        const discMat = new MeshBasicMaterial({
+          color: normalizeHex(annotation.strokeColor || "#e85426"),
+          transparent: true,
+          opacity: REVOLUTION_AXIS_DISC_OPACITY,
+          side: DoubleSide,
+          depthWrite: false,
+          toneMapped: false,
+        });
+        const disc = new Mesh(discGeom, discMat);
+        disc.position.z = z0 + REVOLUTION_AXIS_DISC_LIFT_M;
+        disc.userData.isRevolutionAxisDisc = true;
+        axisGroup.add(disc);
+      }
+      object = axisGroup;
       break;
     }
     case "REVOLUTION_AXIS_PLACEMENT":

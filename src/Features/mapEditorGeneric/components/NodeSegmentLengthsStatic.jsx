@@ -34,14 +34,15 @@ const FIELD_H_PX = 30;
 const ACCENT_COLOR = "#2196f3";
 
 // Overlay toolbar geometry, screen px: MUI small IconButton with p: 0.5
-// around an 18px icon ≈ 34px, plus the flex gap.
-const OVERLAY_BUTTON_PX = 34;
-const OVERLAY_GAP_PX = 4;
-const OVERLAY_H_PX = 40;
+// around an 18px icon ≈ 34px, plus the flex gap. Exported: the quick-action
+// rows of other nodes (NodeRevolutionAxisOverlayStatic) share the geometry.
+export const OVERLAY_BUTTON_PX = 34;
+export const OVERLAY_GAP_PX = 4;
+export const OVERLAY_H_PX = 40;
 // Distance between the bbox top edge and the overlay bottom edge. Must clear
 // the wrapper's rotation handle (AnnotationEditingWrapper, 50px above the
 // bbox) when the move / resize wrapper is active.
-const OVERLAY_OFFSET_PX = 50;
+export const OVERLAY_OFFSET_PX = 50;
 const OVERLAY_OFFSET_WRAPPER_PX = 94;
 
 // Below this on-screen segment length (px) the label starts fading out; fully

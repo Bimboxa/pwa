@@ -23,6 +23,9 @@ import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
 // - VERTICAL base map: an axis cannot be authored there — the row drops an
 //   EXISTING axis of the scope instead (one click, which poses the base map in
 //   3D): directly when there is a single axis, through a menu otherwise.
+// - 3D editor (`isThreedEditor`): the row always draws — the two clicks land
+//   on a horizontal base map plane of the scene (useRevolutionAxisDrawThreed*
+//   hooks); the 2D main base map's orientation is irrelevant there.
 // ---------------------------------------------------------------------------
 
 const SX_BY_VARIANT = {
@@ -53,10 +56,13 @@ export default function RowRevolutionAxisTool({
   Icon,
   shortcut,
   variant = "popper",
+  isThreedEditor = false,
 }) {
   // strings
 
   const drawS = "Dessiner un axe : centre, puis rayon et direction";
+  const draw3dS =
+    "Dessiner un axe sur un plan horizontal : centre, puis rayon et direction";
   const placeS = "Poser un axe sur ce fond de plan";
   const noAxisS = "Créez d'abord un axe sur un fond de plan horizontal";
   const menuTitleS = "Axe à poser";
@@ -74,9 +80,15 @@ export default function RowRevolutionAxisTool({
   // helpers
 
   const sx = SX_BY_VARIANT[variant] ?? SX_BY_VARIANT.popper;
-  const isVertical = baseMap?.orientation === "VERTICAL";
+  const isVertical = !isThreedEditor && baseMap?.orientation === "VERTICAL";
   const disabled = isVertical && revolutionAxes.length === 0;
-  const tooltip = !isVertical ? drawS : disabled ? noAxisS : placeS;
+  const tooltip = isThreedEditor
+    ? draw3dS
+    : !isVertical
+      ? drawS
+      : disabled
+        ? noAxisS
+        : placeS;
 
   // handlers
 
@@ -122,8 +134,8 @@ export default function RowRevolutionAxisTool({
           >
             <Icon sx={{ fontSize: sx.iconSize, color: sx.iconColor }} />
           </Box>
-          {/* The hotkey draws an axis: plan base maps only. */}
-          {shortcut && !isVertical && (
+          {/* The hotkey draws an axis: 2D plan base maps only. */}
+          {shortcut && !isVertical && !isThreedEditor && (
             <Box sx={{ flexShrink: 0 }}>
               <ShortcutBadge>{shortcut}</ShortcutBadge>
             </Box>
