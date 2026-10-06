@@ -42,7 +42,8 @@ const COUNT_PADDING_X = 9;
 
 // One base map lying on the table: a sheet of paper sized like the page of
 // its print zone, the image + annotations framed by the print zone on top.
-// Read-only content. A click selects the sheet, a double-click opens it.
+// Read-only content. Outside the "Réorganiser" mode a click opens the sheet;
+// in the "Réorganiser" mode a click selects it and a drag moves it.
 // The paper lies flat on the table (no shadow) and rises under the pointer or
 // when selected. The sheet can only be dragged in the "Réorganiser" mode
 // (`movable`): every paper then lifts off the table (higher shadow). Otherwise a
@@ -67,7 +68,6 @@ export default memo(function BaseMapSheetSvg({
   movable,
   getZoom,
   onSelect,
-  onOpen,
   onMove,
 }) {
   // state
@@ -128,12 +128,6 @@ export default memo(function BaseMapSheetSvg({
     onCommit: (position) => onMove?.(baseMap.id, position),
   });
 
-  function handleDoubleClick(e) {
-    e.stopPropagation();
-    if (disabled) return;
-    onOpen?.(baseMap.id);
-  }
-
   // render
 
   return (
@@ -142,7 +136,6 @@ export default memo(function BaseMapSheetSvg({
       data-sheet-id={baseMap.id}
       data-sheet-movable={movable ? "" : undefined}
       transform={`translate(${sheet.x}, ${sheet.y})`}
-      onDoubleClick={handleDoubleClick}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       {...dragHandlers}

@@ -426,7 +426,8 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   // Clean click (not a pan) anywhere on the table. Outside the "Réorganiser"
   // mode a press on a sheet pans the table like a press on the table itself,
-  // so its click lands here.
+  // so its click lands here: it opens the sheet. A click on the table itself
+  // clears the selection.
   function handleTableClick({ event }) {
     if (!isOpen) return;
     const sheetId =
@@ -435,7 +436,11 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
       handleAddBaseMap();
       return;
     }
-    dispatch(setBaseMapsGridSelectedBaseMapId(sheetId));
+    if (sheetId) {
+      handleOpen(sheetId);
+      return;
+    }
+    dispatch(setBaseMapsGridSelectedBaseMapId(null));
   }
 
   // effect - Escape / "G" close the grid
@@ -546,7 +551,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
                 movable={reorganizing}
                 getZoom={getZoom}
                 onSelect={handleSelect}
-                onOpen={handleOpen}
                 onMove={handleMove}
               />
             );
