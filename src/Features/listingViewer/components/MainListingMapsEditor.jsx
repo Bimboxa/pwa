@@ -5,6 +5,7 @@ import { Box, Typography, Divider } from "@mui/material";
 import { Image as ImageIcon, TableRows } from "@mui/icons-material";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBusinessObjects from "Features/businessObjects/hooks/useBusinessObjects";
@@ -51,6 +52,12 @@ export default function MainListingMapsEditor({ listing }) {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: baseMaps } = useBaseMaps({ filterByProject: projectId });
+  // Listings of the scope (own, shared, linked): bounds the templates of the
+  // all-listings quantities below — the annotations are scope-filtered by
+  // useAnnotationsV2 itself.
+  const { value: scopeListings } = useListingsByScope({
+    filterByProjectId: projectId,
+  });
   // Base map folders switched off by the eye of the SCOPE panel.
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
@@ -82,14 +89,29 @@ export default function MainListingMapsEditor({ listing }) {
 
   // data - annotations
 
-  const annotationTemplates = useAnnotationTemplates({
+  const projectAnnotationTemplates = useAnnotationTemplates({
     filterByListingId,
     sortByLabel: true,
   });
 
+  // Without a listing the templates hook falls back to the whole project:
+  // keep the scope's own (a template of another scope would show up at 0).
+  const annotationTemplates = useMemo(() => {
+    if (!showAllListings || !projectAnnotationTemplates) {
+      return projectAnnotationTemplates;
+    }
+    const scopeListingIds = new Set((scopeListings ?? []).map((l) => l.id));
+    return projectAnnotationTemplates.filter((t) =>
+      scopeListingIds.has(t.listingId)
+    );
+  }, [projectAnnotationTemplates, showAllListings, scopeListings]);
+
   const allAnnotations = useAnnotationsV2({
     caller: "MainListingMapsEditor",
     filterByListingId,
+    // Only the scope's annotations (the module shows the SCOPE content):
+    // matters for the all-listings view, where no listing bounds the query.
+    filterBySelectedScope: true,
     excludeIsForBaseMapsListings: true,
     withQties: true,
     withListingName: showAllListings,

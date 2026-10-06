@@ -37,9 +37,10 @@ export default function LayoutDesktop() {
   // Scope-open seeding of the Viewer module's 3D visibility (images off,
   // annotations of every annotated baseMap on).
   useInitViewerModuleOnScopeOpen();
-  // Scope-change landing on a module (Viewer, or Dessin for a freshly created
-  // scope). Skipped on refresh / same-scope reopen, where the persisted
-  // module/editor context is restored.
+  // Scope-open landing on a module (default module, or Dessin for a freshly
+  // created scope). Skipped on refresh / same-scope reopen, where the
+  // persisted module/editor context is restored, and on a top-bar scope
+  // switch, which keeps the current module.
   useLandingViewerModuleOnScopeOpen();
   // Falls back to an enabled module when the selected one gets disabled from
   // the Configuration dialog (or was restored disabled at boot).

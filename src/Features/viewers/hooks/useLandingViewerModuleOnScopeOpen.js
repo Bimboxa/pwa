@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
@@ -15,6 +15,11 @@ import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
 // module/editor (seeded from localStorage in viewersSlice) instead of
 // re-landing on the default module. Must be read at import time, before any
 // setSelectedScopeId dispatch rewrites initScopeId.
+//
+// The default-module landing only applies to a scope OPEN (dashboard → scope,
+// which remounts LayoutDesktop and this hook). Switching scope from the top
+// bar while the layout stays mounted keeps the current module: the user asked
+// for another scope, not for another module.
 let lastLandedScopeId = getInitScopeId();
 
 export default function useLandingViewerModuleOnScopeOpen() {
@@ -57,12 +62,18 @@ export default function useLandingViewerModuleOnScopeOpen() {
     }
   }
 
+  // Whether this mount already saw a selected scope: true after the first
+  // run with a scope, so later scope changes (top-bar switch) don't re-land.
+  const hasSeenScopeInMountRef = useRef(false);
+
   // effects
 
   useEffect(() => {
     if (!selectedScopeId) return;
     const isNewScope = selectedScopeId !== lastLandedScopeId;
+    const isScopeOpen = !hasSeenScopeInMountRef.current;
     lastLandedScopeId = selectedScopeId;
+    hasSeenScopeInMountRef.current = true;
 
     // With 3D disabled a 3D-family default module lands on Dessin instead.
     const landingModuleKey =
@@ -73,12 +84,13 @@ export default function useLandingViewerModuleOnScopeOpen() {
     if (isNewScopeDrawLanding) {
       // Freshly created scope: straight to drawing.
       landOnModule("MAP");
-    } else if (isNewScope && (!wants3dViewer || disable3D)) {
-      // Default landing module on scope change (device preference), on its
+    } else if (isNewScope && isScopeOpen && (!wants3dViewer || disable3D)) {
+      // Default landing module on scope OPEN (device preference), on its
       // default editor. Skipped on refresh / same-scope reopen, where the
-      // previous context is kept, and on the ?viewer=3d deep link. A module
-      // disabled on the opened scope is corrected by useEnsureEnabledModule
-      // once scopeConfig hydrates.
+      // previous context is kept, on the ?viewer=3d deep link, and on a
+      // top-bar scope switch (layout still mounted: the current module
+      // stays). A module disabled on the opened scope is corrected by
+      // useEnsureEnabledModule once scopeConfig hydrates.
       landOnModule(landingModuleKey);
     } else if (
       disable3D &&

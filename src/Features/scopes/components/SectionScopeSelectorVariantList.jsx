@@ -5,9 +5,6 @@ import useScopes from "Features/scopes/hooks/useScopes";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 
 import { setSelectedScopeId } from "../scopesSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
-
-import db from "App/db/db";
 
 import {
     List,
@@ -50,16 +47,14 @@ export default function SectionScopeSelectorVariantList({
 
     // --- Handlers ---
 
-    async function handleSelect(id) {
+    // The current module is kept (useLandingViewerModuleOnScopeOpen lands only
+    // on scope open). The selected listing follows the scope through
+    // useAutoSelectListing: a listing of the previous scope is dropped and the
+    // first annotation listing of the new one is selected.
+    function handleSelect(id) {
         if (editingScopeId) return;
 
         dispatch(setSelectedScopeId(id));
-        const scopeListings = await db.listings
-            .where("scopeId")
-            .equals(id)
-            .toArray();
-        const id0 = scopeListings?.[0]?.id;
-        dispatch(setSelectedListingId(id0));
 
         if (onSelect) onSelect();
     }

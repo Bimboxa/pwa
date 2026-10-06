@@ -290,6 +290,21 @@ export const selectionSlice = createSlice({
       state.selectedPartIds = [];
       state.showAnnotationsProperties = false;
     });
+    // Switching scope (top bar) keeps the current module, but the previous
+    // scope's annotations and listings are no longer displayed: a selection
+    // inherited from it would be orphaned (stale properties panel). Base maps
+    // are shared across the scopes of a project, so a BASE_MAP selection
+    // survives. Matched by type string to avoid importing scopesSlice.
+    builder.addMatcher(
+      (action) => action.type === "scopes/setSelectedScopeId",
+      (state) => {
+        const item = state.selectedItems[0];
+        if (!item || item.type === "BASE_MAP") return;
+        state.selectedItems = [];
+        state.selectedPointIds = [];
+        state.selectedPartIds = [];
+      }
+    );
     // Switching the MAIN baseMap (base maps list, BaseMapSelectorInMapEditorV2,
     // baseMap trees, …) while the properties panel shows a baseMap must
     // retarget the BASE_MAP selection item so the panel follows the newly

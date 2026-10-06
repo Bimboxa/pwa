@@ -23,6 +23,13 @@ export default function useAutoSelectListing() {
   });
 
 
+  // Every listing displayable in the scope (own, shared BASE_MAP / PHOTO,
+  // linked from another scope) — the membership rule of the SCOPE panel.
+  const { value: scopeListings } = useListingsByScope({
+    filterByProjectId: projectId,
+  });
+  const scopeListingIdsKey = scopeListings?.map((l) => l.id).join(",") ?? "";
+
   const { value: selectedListing } = useSelectedListing();
 
   useEffect(() => {
@@ -34,6 +41,16 @@ export default function useAutoSelectListing() {
       dispatch(setSelectedListingId(null));
     }
   }, [projectId, selectedListing?.id]);
+
+  // Scope switch (top bar) with the module kept: a listing of the previous
+  // scope must not survive — drop it, the effect below picks the first
+  // annotation listing of the new scope. Gated on a non-empty scope list so
+  // a not-yet-hydrated store never clears a valid selection.
+  useEffect(() => {
+    if (!selectedListingId || !scopeId || !scopeListings?.length) return;
+    const inScope = scopeListings.some((l) => l.id === selectedListingId);
+    if (!inScope) dispatch(setSelectedListingId(null));
+  }, [scopeId, selectedListingId, scopeListingIdsKey]);
 
 
   useEffect(() => {
