@@ -73,6 +73,12 @@ const mapEditorInitialState = {
   wrapperMode: false, // true = show bbox wrapper for point-based annotations
   annotationToolbarPosition: null,
   annotationsToolbarPosition: null,
+  // Where the selected annotation was clicked: the quick-action row renders
+  // just above that point (no hunting for the buttons). `space` = "MAP_PX"
+  // (2D, base map px) | "WORLD_3D" (3D world point); the row falls back to
+  // the annotation's bbox when the anchor is not its own (selection from a
+  // panel, the other editor...).
+  annotationOverlayAnchor: null, // { annotationId, space, x, y, z? }
   tempAnnotationToolbarPosition: null,
   toolbarDragOffset: { x: 0, y: 0 },
   //
@@ -570,6 +576,9 @@ export const mapEditorSlice = createSlice({
     setAnnotationToolbarPosition: (state, action) => {
       state.annotationToolbarPosition = action.payload;
     },
+    setAnnotationOverlayAnchor: (state, action) => {
+      state.annotationOverlayAnchor = action.payload;
+    },
     setToolbarDragOffset: (state, action) => {
       state.toolbarDragOffset = action.payload;
     },
@@ -981,6 +990,7 @@ export const {
   setCanTransformNode,
   setAnnotationToolbarPosition,
   setToolbarDragOffset,
+  setAnnotationOverlayAnchor,
   setAnnotationsToolbarPosition,
   setTempAnnotationToolbarPosition,
   //
