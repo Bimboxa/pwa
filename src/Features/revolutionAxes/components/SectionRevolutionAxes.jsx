@@ -10,6 +10,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVerticalBaseMapsByListing";
 import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
 import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
+import pickVerticalBaseMapListing from "../utils/pickVerticalBaseMapListing";
 
 // "Axes de révolution" section of PopperMapListings — rendered right below
 // the layers zone as soon as the base map carries a revolution axis: the axes
@@ -57,18 +58,18 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
     [appConfig?.automatedAnnotationsProcedures]
   );
 
-  // Listing of a created vertical base map: the first listing that already
-  // holds vertical base maps, else the plan's own listing.
-  const createListing = useMemo(() => {
-    const listings = baseMapListings ?? [];
-    const verticalListingId = verticalBaseMapGroups?.[0]?.listing?.id;
-    return (
-      listings.find((l) => l.id === verticalListingId) ??
-      listings.find((l) => l.id === baseMap?.listingId) ??
-      listings[0] ??
-      null
-    );
-  }, [baseMapListings, verticalBaseMapGroups, baseMap?.listingId]);
+  // Listing of a created vertical base map (shared rule with the overlay's
+  // automatic A3 page): the first listing that already holds vertical base
+  // maps, else the plan's own listing.
+  const createListing = useMemo(
+    () =>
+      pickVerticalBaseMapListing({
+        listings: baseMapListings,
+        verticalBaseMapGroups,
+        planListingId: baseMap?.listingId,
+      }),
+    [baseMapListings, verticalBaseMapGroups, baseMap?.listingId]
+  );
 
   // handlers
 
