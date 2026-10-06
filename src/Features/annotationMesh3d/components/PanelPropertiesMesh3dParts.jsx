@@ -18,12 +18,10 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useSelectedMesh3dParts from "../hooks/useSelectedMesh3dParts";
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
 import getMesh3dPartsDeleteMessage from "../utils/getMesh3dPartsDeleteMessage";
-
-const format = (value, decimals = 2) =>
-  Number(value).toLocaleString("fr-FR", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+import getMesh3dPartsDisplay, {
+  formatMesh3dQty as format,
+  getMesh3dFaceOrientationLabel as orientationLabel,
+} from "../utils/getMesh3dPartsDisplay";
 
 function Row({ label, value }) {
   return (
@@ -74,33 +72,14 @@ export default function PanelPropertiesMesh3dParts() {
 
   // helpers
 
-  const orientationLabel = (orientation) => {
-    if (orientation.kind === "PARALLEL") return "Parallèle au plan";
-    if (orientation.kind === "PERPENDICULAR") return "Perpendiculaire au plan";
-    return `Inclinée (${format(orientation.angleDeg, 1)}°)`;
-  };
-
-  const plural = (count, one, many) => (count > 1 ? `${count} ${many}` : one);
-  const title = [
-    faces.length ? plural(faces.length, "Face", "faces") : null,
-    edges.length ? plural(edges.length, "Arête", "arêtes") : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  // Faces win over edges when both are selected (same rule as the service).
-  const deletesFaces = faces.length > 0;
-  const canDelete = deletesFaces || edges.some((edge) => edge.canMerge);
-  const deleteLabel = deletesFaces
-    ? faces.length > 1
-      ? `Supprimer les ${faces.length} faces`
-      : "Supprimer la face"
-    : edges.length > 1
-      ? `Supprimer les ${edges.length} arêtes`
-      : "Supprimer l'arête";
-
-  const totalSurface = faces.reduce((sum, face) => sum + face.area, 0);
-  const totalLength = edges.reduce((sum, edge) => sum + edge.length, 0);
+  const {
+    title,
+    deletesFaces,
+    canDelete,
+    deleteLabel,
+    totalSurface,
+    totalLength,
+  } = getMesh3dPartsDisplay({ faces, edges });
 
   // handlers
 
