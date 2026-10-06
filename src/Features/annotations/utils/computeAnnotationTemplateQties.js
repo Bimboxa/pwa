@@ -25,6 +25,9 @@ export default function computeAnnotationTemplateQties(
     // Mesh cells are children of a parent annotation that is already counted;
     // skip them so the parent + its cells don't double-count quantities.
     if (annotation?.isMeshCell) return acc;
+    // Read-only footprints (foreign / revolution) are projections of
+    // annotations counted on their own base map.
+    if (annotation?.isForeignFootprint) return acc;
 
     if (!acc[templateId]) {
       acc[templateId] = { count: 0, length: 0, surface: 0, unit: 0, mainQtyLabel: "-" };
