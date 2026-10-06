@@ -8,8 +8,8 @@ import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 import { WALK_MODE_TOGGLE_KEY, toggleWalkMode } from "../utils/walkModeToggle";
 
-// Bottom-right "first person" toggle of the 3D editor, next to the 2D/3D
-// switch: enters / exits the walk mode (same rule as the P shortcut, see
+// Bottom-right "first person" toggle of the 3D editor, stacked above the 3D
+// side of the 2D/3D switch: enters / exits the walk mode (same rule as the P shortcut, see
 // walkModeToggle — the pointer lock is requested inside this click). The
 // keycap badge mirrors the "T" badge of ButtonToggleThreedViewer.
 export default function ButtonToggleWalkMode() {

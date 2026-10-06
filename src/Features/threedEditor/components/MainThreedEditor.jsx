@@ -2695,10 +2695,12 @@ export default function MainThreedEditor() {
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : null)}
-      {/* Bottom-right group (walk toggle + 2D/3D toggle) sits outside the swap
-          of bottom toolbars so it stays available in every module (Maillage
-          included). Hidden while a capture/POV framing owns the screen. The
-          zoom out moved to the top-right row. */}
+      {/* Bottom-right group (walk toggle stacked above the 3D side of the
+          2D/3D toggle) sits outside the swap of bottom toolbars so it stays
+          available in every module (Maillage included). Hidden while a
+          capture/POV framing owns the screen. The zoom out moved to the
+          top-right row. The column gap leaves room for the "T" badge of the
+          toggle when it sits on the right side. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           sx={{
@@ -2707,8 +2709,9 @@ export default function MainThreedEditor() {
             bottom: `${16 + planningBottomInset}px`,
             zIndex: 10,
             display: "flex",
-            alignItems: "center",
-            gap: 1,
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 2,
             transition: "right 0.2s ease",
           }}
         >
