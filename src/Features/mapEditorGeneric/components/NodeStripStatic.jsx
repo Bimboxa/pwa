@@ -567,8 +567,12 @@ function NodeStripStatic({
             {/* 5. ANCHORS */}
             {selected && points.map(pt => renderVertex(pt))}
 
-            {/* 6. SEGMENT LENGTHS — editable per-segment cotes with lock
-                constraints on the director line, EDIT (Modification) mode only. */}
+            {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} showElbowHandle={Boolean(selected)} />}
+
+            {/* 6. SEGMENT LENGTHS + quick-action row — editable per-segment
+                cotes with lock constraints on the director line, EDIT
+                (Modification) mode only. Rendered LAST so the action row
+                paints above the label. */}
             {selected && !disableVertexEditing && (
                 <NodeSegmentLengthsStatic
                     annotation={mergedAnnotation}
@@ -583,8 +587,6 @@ function NodeStripStatic({
                     disableVertexEditing={disableVertexEditing}
                 />
             )}
-
-            {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} showElbowHandle={Boolean(selected)} />}
         </g>
     );
 }

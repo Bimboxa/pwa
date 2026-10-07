@@ -126,11 +126,6 @@ export default function NodeSegmentLengthsStatic({
   // handles) rendered by EditedObjectLayer. Reset on selection change.
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
-  // Clicked point of the selection (InteractionLayer): the overlay row sits
-  // just above it rather than above the bbox, so the buttons are always next
-  // to the cursor. Bbox top-center fallback (selection from a panel...).
-  const clickAnchor = useSelector((s) => s.mapEditor.annotationOverlayAnchor);
-
   // Multi-selection: the no-mode overlay targets ONE annotation — with
   // several selected, each node would grow its own toolbar. Hide it (cotes
   // included) until the selection is back to a single annotation.
@@ -272,18 +267,9 @@ export default function NodeSegmentLengthsStatic({
     );
   }, [items, selectedPointId]);
 
-  // Anchor of the overlay row: the clicked point when it is this
-  // annotation's, else top-center of the contour bbox — pushed up by a
-  // screen-px offset so it never covers a vertex.
+  // Anchor of the overlay row: top-center of the contour bbox, pushed up by
+  // a screen-px offset so it never covers a vertex.
   const angleLockAnchor = useMemo(() => {
-    if (
-      clickAnchor?.space === "MAP_PX" &&
-      clickAnchor.annotationId === annotationId &&
-      Number.isFinite(clickAnchor.x) &&
-      Number.isFinite(clickAnchor.y)
-    ) {
-      return { x: clickAnchor.x, y: clickAnchor.y };
-    }
     const pts = (points || []).filter(
       (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
     );
@@ -297,7 +283,7 @@ export default function NodeSegmentLengthsStatic({
       if (p.y < minY) minY = p.y;
     }
     return { x: (minX + maxX) / 2, y: minY };
-  }, [points, clickAnchor, annotationId]);
+  }, [points]);
 
   const flashConflict = useCallback((segmentId, reason) => {
     clearTimeout(conflictTimerRef.current);
@@ -669,13 +655,58 @@ export default function NodeSegmentLengthsStatic({
         );
       })}
 
+      {/* per-point padlocks (arc control points excluded: locking a control
+          point is meaningless in v1). EDIT keeps its historical gating: no
+          straight segment → no padlocks either. */}
+      {labelsActive &&
+        !simple &&
+        (interactionMode !== "EDIT" || straightItems.length > 0) &&
+        points.map((pt, i) => {
+        if (!pt?.id || typeOf(pt) === "circle") return null;
+        const isLocked = Boolean(lockedPointIds[pt.id]);
+        return (
+          <g
+            key={`pt-lock-${pt.id ?? i}`}
+            transform={`translate(${pt.x}, ${pt.y})`}
+          >
+            <g style={{ transform: counterScaleTransform }}>
+              <g
+                data-interaction="ui-overlay"
+                {...overlayGuards}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLockedPointIds((prev) => ({
+                    ...prev,
+                    [pt.id]: !prev[pt.id],
+                  }));
+                }}
+                transform="translate(11, -11)"
+                style={{ cursor: "pointer" }}
+                opacity={isLocked ? 1 : 0.35}
+              >
+                <title>
+                  {isLocked
+                    ? "Point verrouillé : il ne bougera pas"
+                    : "Point libre : cliquer pour le verrouiller"}
+                </title>
+                <circle r={7} fill="transparent" />
+                <LockGlyph x={0} y={0} locked={isLocked} color={ACCENT_COLOR} />
+              </g>
+            </g>
+          </g>
+        );
+      })}
+
       {/* Overlay above the annotation (session-wide toggles, mapEditorSlice).
           Up to 4 toggles: move / resize wrapper, show/hide cotes (no-mode),
           enable segment drag (no-mode), ANGLE padlock — preserves the joint
           angles during vertex / segment drags and typed length edits
           (default: unlocked). Rendered as HTML buttons in a foreignObject so
           they get real MUI Tooltips. While the wrapper is active the group
-          is pushed further up so the rotation handle stays reachable. */}
+          is pushed further up so the rotation handle stays reachable.
+          Rendered LAST in this node (after the padlocks) so it paints above
+          the cotes / padlocks; the host node renders this component last
+          for the same reason. */}
       {showToolbar && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
@@ -833,47 +864,6 @@ export default function NodeSegmentLengthsStatic({
         </g>
       )}
 
-      {/* per-point padlocks (arc control points excluded: locking a control
-          point is meaningless in v1). EDIT keeps its historical gating: no
-          straight segment → no padlocks either. */}
-      {labelsActive &&
-        !simple &&
-        (interactionMode !== "EDIT" || straightItems.length > 0) &&
-        points.map((pt, i) => {
-        if (!pt?.id || typeOf(pt) === "circle") return null;
-        const isLocked = Boolean(lockedPointIds[pt.id]);
-        return (
-          <g
-            key={`pt-lock-${pt.id ?? i}`}
-            transform={`translate(${pt.x}, ${pt.y})`}
-          >
-            <g style={{ transform: counterScaleTransform }}>
-              <g
-                data-interaction="ui-overlay"
-                {...overlayGuards}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLockedPointIds((prev) => ({
-                    ...prev,
-                    [pt.id]: !prev[pt.id],
-                  }));
-                }}
-                transform="translate(11, -11)"
-                style={{ cursor: "pointer" }}
-                opacity={isLocked ? 1 : 0.35}
-              >
-                <title>
-                  {isLocked
-                    ? "Point verrouillé : il ne bougera pas"
-                    : "Point libre : cliquer pour le verrouiller"}
-                </title>
-                <circle r={7} fill="transparent" />
-                <LockGlyph x={0} y={0} locked={isLocked} color={ACCENT_COLOR} />
-              </g>
-            </g>
-          </g>
-        );
-      })}
     </g>
   );
 }

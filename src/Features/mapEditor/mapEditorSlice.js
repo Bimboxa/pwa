@@ -82,11 +82,11 @@ const mapEditorInitialState = {
   wrapperMode: false, // true = show bbox wrapper for point-based annotations
   annotationToolbarPosition: null,
   annotationsToolbarPosition: null,
-  // Where the selected annotation was clicked: the quick-action row renders
-  // just above that point (no hunting for the buttons). `space` = "MAP_PX"
-  // (2D, base map px) | "WORLD_3D" (3D world point); the row falls back to
-  // the annotation's bbox when the anchor is not its own (selection from a
-  // panel, the other editor...).
+  // 3D only: where the selected annotation was clicked (MainThreedEditor),
+  // the 3D quick-action row renders just above that point. `space` =
+  // "WORLD_3D"; the row falls back to the annotation's bbox when the anchor
+  // is not its own (selection from a panel, from the 2D editor...). In 2D
+  // the row is anchored on the geometry (bbox top-center) instead.
   annotationOverlayAnchor: null, // { annotationId, space, x, y, z? }
   tempAnnotationToolbarPosition: null,
   toolbarDragOffset: { x: 0, y: 0 },

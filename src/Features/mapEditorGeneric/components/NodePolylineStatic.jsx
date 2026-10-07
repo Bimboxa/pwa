@@ -1922,24 +1922,6 @@ function NodePolylineStatic({
           renderVertex(point, cutIndex, source)
         )}
 
-      {/* SEGMENT LENGTHS — editable per-segment cotes with lock constraints,
-          EDIT (Modification) mode only. Main contour only in v1 (no cuts /
-          innerPoints / guideLines). */}
-      {selected && !disableVertexEditing && (
-        <NodeSegmentLengthsStatic
-          annotation={mergedAnnotation}
-          points={points}
-          closed={closeLine}
-          selected={selected}
-          selectedPointId={selectedPointId}
-          baseMapMeterByPx={baseMapMeterByPx}
-          containerK={containerK}
-          printMode={printMode}
-          isTransient={isTransient}
-          disableVertexEditing={disableVertexEditing}
-        />
-      )}
-
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.
                 Small fixed-size cross (zoom-invariant via vertexScaleTransform),
                 non-interactive (pointerEvents:none). To interact (select / drag /
@@ -2401,6 +2383,26 @@ function NodePolylineStatic({
             </g>
           );
         })()}
+
+      {/* SEGMENT LENGTHS + quick-action row — editable per-segment cotes with
+          lock constraints, EDIT (Modification) mode only. Main contour only
+          in v1 (no cuts / innerPoints / guideLines). Rendered LAST: SVG
+          paints in document order, so the action row stays above the label,
+          the guide lines and the slope arrows of this annotation. */}
+      {selected && !disableVertexEditing && (
+        <NodeSegmentLengthsStatic
+          annotation={mergedAnnotation}
+          points={points}
+          closed={closeLine}
+          selected={selected}
+          selectedPointId={selectedPointId}
+          baseMapMeterByPx={baseMapMeterByPx}
+          containerK={containerK}
+          printMode={printMode}
+          isTransient={isTransient}
+          disableVertexEditing={disableVertexEditing}
+        />
+      )}
     </g>
   );
 }

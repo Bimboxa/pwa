@@ -34,9 +34,8 @@ import {
 
 // Quick-action row above a selected plan REVOLUTION_AXIS — the axis
 // counterpart of the NodeSegmentLengthsStatic overlay of a polyline: HTML
-// buttons in a counter-scaled foreignObject, anchored just above the clicked
-// point (mapEditorSlice.annotationOverlayAnchor) or, when the selection came
-// from a panel, above the top of the circle.
+// buttons in a counter-scaled foreignObject, anchored above the top of the
+// circle.
 //
 // Buttons: invert the half-revolutions · partial / total revolution · 3D
 // half-view · coupe base map (creates the A3 page + poses the axis when none
@@ -114,8 +113,6 @@ export default function NodeRevolutionAxisOverlayStatic({
   const hasMultiSelection = useSelector(
     (s) => (s.selection?.selectedItems?.length ?? 0) > 1
   );
-  const clickAnchor = useSelector((s) => s.mapEditor.annotationOverlayAnchor);
-
   const actions = useRevolutionAxisActions(annotation);
   const { linkedBaseMaps, goTo } = useRevolutionAxisLinkedBaseMaps(annotation);
   const { createForAxis, creating } = useCreateRevolutionAxisBaseMap();
@@ -133,22 +130,13 @@ export default function NodeRevolutionAxisOverlayStatic({
 
   // helpers
 
-  const annotationId = annotation?.id;
   const isNoMode = interactionMode == null;
   const active = (isNoMode || interactionMode === "EDIT") && !hasMultiSelection;
 
   const anchor = useMemo(() => {
-    if (
-      clickAnchor?.space === "MAP_PX" &&
-      clickAnchor.annotationId === annotationId &&
-      Number.isFinite(clickAnchor.x) &&
-      Number.isFinite(clickAnchor.y)
-    ) {
-      return { x: clickAnchor.x, y: clickAnchor.y };
-    }
     if (!centerPx) return null;
     return { x: centerPx.x, y: centerPx.y - (radiusPx || 0) };
-  }, [clickAnchor, annotationId, centerPx, radiusPx]);
+  }, [centerPx, radiusPx]);
 
   const counterScaleTransform = useMemo(() => {
     const k = containerK || 1;
