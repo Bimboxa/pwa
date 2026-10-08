@@ -28,6 +28,7 @@ import Add from "@mui/icons-material/Add";
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import SectionListingProcedures from "Features/annotationsAuto/components/SectionListingProcedures";
+import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
@@ -115,43 +116,52 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
 
   if (templates && templates.length === 0) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 1.5,
-          mx: 1.5,
-          px: 2,
-          py: 3,
-          textAlign: "center",
-          bgcolor: "background.paper",
-          border: "1px dashed",
-          borderColor: "divider",
-          borderRadius: 3,
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
-          Aucun modèle dans cette liste. Créez votre premier modèle pour
-          commencer à dessiner.
-        </Typography>
-        <Button
-          variant="contained"
-          color="secondary"
-          startIcon={<Add />}
-          onClick={() => setOpenCreateDialog(true)}
+      <>
+        {/* Orphan annotations (every template deleted): the row is the only
+            way left to find them. */}
+        <RowOrphanAnnotations
+          listingId={listingId}
+          variant="panel"
+          sx={{ mb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+        />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.5,
+            mx: 1.5,
+            px: 2,
+            py: 3,
+            textAlign: "center",
+            bgcolor: "background.paper",
+            border: "1px dashed",
+            borderColor: "divider",
+            borderRadius: 3,
+          }}
         >
-          Nouveau modèle
-        </Button>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            Aucun modèle dans cette liste. Créez votre premier modèle pour
+            commencer à dessiner.
+          </Typography>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<Add />}
+            onClick={() => setOpenCreateDialog(true)}
+          >
+            Nouveau modèle
+          </Button>
 
-        {openCreateDialog && (
-          <DialogCreateAnnotationTemplate
-            open={openCreateDialog}
-            onClose={() => setOpenCreateDialog(false)}
-            listingId={listingId}
-          />
-        )}
-      </Box>
+          {openCreateDialog && (
+            <DialogCreateAnnotationTemplate
+              open={openCreateDialog}
+              onClose={() => setOpenCreateDialog(false)}
+              listingId={listingId}
+            />
+          )}
+        </Box>
+      </>
     );
   }
 
@@ -229,6 +239,9 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
       ) : (
         rows
       )}
+
+      {/* « Annot. sans modèle » (orphan annotations of the listing) */}
+      <RowOrphanAnnotations listingId={listingId} variant="panel" />
 
       {/* + Nouveau modèle */}
       <ListItemButton

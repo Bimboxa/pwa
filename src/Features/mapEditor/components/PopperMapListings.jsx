@@ -75,6 +75,7 @@ import ToggleContentMode from "Features/popperMapListings/components/ToggleConte
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
+import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
 import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -1040,8 +1041,12 @@ function AnnotationTemplatesForListing({
         </SortableContext>
       </DndContext>
 
-      {/* + Nouveau modele — hidden in 3D (read-only), while SELECT-filtering
+      {/* « Annot. sans modèle » (orphan annotations of the listing) then
+          + Nouveau modele — hidden in 3D (read-only), while SELECT-filtering
           and for a listing linked from another scope */}
+      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+        <RowOrphanAnnotations listingId={listingId} variant="popper" />
+      )}
       {!isThreedViewer && !visibleTemplateIds && !readOnly && (
         <ListItemButton
           onClick={() => setOpenCreateDialog(true)}

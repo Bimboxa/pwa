@@ -372,6 +372,7 @@ import {
   isTemplatelessAnnotation,
   TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
+import { ORPHAN_TEMPLATE_ID } from "Features/annotations/utils/orphanAnnotations";
 import {
   selectHiddenAnnotationTemplateIdSet,
   selectHiddenRevolutionAxisIdSet,
@@ -670,6 +671,9 @@ export default function useAnnotationsV2(options) {
       () => getItemsByKey(annotationTemplates, "id"),
       [annotationTemplates]
     );
+    // Orphan detection (template missing from the map) is only meaningful
+    // once the templates are loaded: getItemsByKey(undefined) is {}.
+    const templatesLoaded = annotationTemplates !== undefined;
 
     const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
@@ -764,6 +768,10 @@ export default function useAnnotationsV2(options) {
     // eye of the templateless annotations ("Dessin" tool row)
     const hideTemplateless = useSelector((s) =>
       selectHiddenAnnotationTemplateIdSet(s).has(TEMPLATELESS_TEMPLATE_ID)
+    );
+    // eye of the orphan annotations (« Annot. sans modèle » row)
+    const hideOrphans = useSelector((s) =>
+      selectHiddenAnnotationTemplateIdSet(s).has(ORPHAN_TEMPLATE_ID)
     );
 
     // template FOCUS (Dessin module's recap panel): templateId | null. Same
@@ -2644,6 +2652,18 @@ export default function useAnnotationsV2(options) {
               ? { ...annotation, hidden: true }
               : annotation;
           }
+          // Orphan annotation (template missing / soft-deleted): kept as-is
+          // with its own style; flagged (display-only) for the solo and the
+          // eye of the « Annot. sans modèle » row.
+          if (
+            templatesLoaded &&
+            annotation?.annotationTemplateId &&
+            !annotationTemplatesMap[annotation.annotationTemplateId]
+          ) {
+            return hideOrphans
+              ? { ...annotation, _isOrphan: true, hidden: true }
+              : { ...annotation, _isOrphan: true };
+          }
           const templateProps = getAnnotationTemplateProps(
             annotationTemplatesMap[annotation?.annotationTemplateId]
           );
@@ -3002,9 +3022,13 @@ export default function useAnnotationsV2(options) {
       // template's annotations. Base-map (background) annotations are always
       // kept, like the zone solo above.
       if (!ignoreSolo && soloTemplateId) {
+        // Orphan sentinel: getAnnotationTemplateKey returns the missing
+        // template id, so the orphan flag is matched instead.
         const isInTemplateSolo = (a) =>
           a.isBaseMapAnnotation ||
-          getAnnotationTemplateKey(a) === soloTemplateId;
+          (soloTemplateId === ORPHAN_TEMPLATE_ID
+            ? Boolean(a._isOrphan)
+            : getAnnotationTemplateKey(a) === soloTemplateId);
         if (keepSoloDimmed) {
           result = result.map((a) =>
             isInTemplateSolo(a) ? a : { ...a, _soloDimmed: true }
@@ -3209,6 +3233,8 @@ export default function useAnnotationsV2(options) {
       playActive,
       mainBusinessObjectLabelByAnnotationId,
       hideTemplateless,
+      hideOrphans,
+      templatesLoaded,
       soloTemplateId,
       soloAnnotationId,
       soloRevolutionAxisId,
