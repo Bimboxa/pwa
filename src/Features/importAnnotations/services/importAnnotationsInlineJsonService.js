@@ -164,6 +164,20 @@ async function importTemplatesAndAnnotations({
       preserveIds,
     });
 
+  // Template rows the annotations are created from: the reused ones (live
+  // rows of the project) read from Dexie, plus the records created below.
+  // buildImportData seeds height / offsetZ / isExt from them.
+  const createdIds = new Set(templateRecords.map((r) => r.id));
+  const reusedIds = [...new Set(templateIdMap.values())].filter(
+    (id) => !createdIds.has(id)
+  );
+  const reusedRows = reusedIds.length
+    ? await db.annotationTemplates.bulkGet(reusedIds)
+    : [];
+  const templateRowsById = new Map(
+    [...reusedRows.filter(Boolean), ...templateRecords].map((r) => [r.id, r])
+  );
+
   const { clipboard, relative } = buildImportData({
     data,
     widthMeters: widthMeters > 0 ? widthMeters : undefined,
@@ -173,6 +187,7 @@ async function importTemplatesAndAnnotations({
     excludedTemplateIds,
     relativeToBaseMap,
     templateIdMap,
+    templateRowsById,
     baseMapIdMap,
   });
 

@@ -11,6 +11,8 @@ export const STYLE_FIELDS = [
   // offsetTop / offsetBottom live on the point refs (buildImportData)
   "height",
   "offsetZ",
+  // exterior-side flag (guides, COTE:EXT classification)
+  "isExt",
   "hideSlope",
   "fillColor",
   "fillOpacity",
@@ -55,6 +57,21 @@ export const STYLE_FIELDS = [
   "hasPadding",
   "hasConnector",
 ];
+
+// Fields an annotation inherits from its template ROW at creation when the
+// payload sets none — the same seed as a hand-drawn annotation
+// (getNewAnnotationPropsFromAnnotationTemplate ALWAYS_COPY_KEYS): an unlocked
+// field has no template fallback at read time, so the row must carry it.
+export const TEMPLATE_INHERITED_FIELDS = ["height", "offsetZ", "isExt"];
+
+export function pickInherited(templateRow) {
+  const out = {};
+  for (const key of TEMPLATE_INHERITED_FIELDS) {
+    if (templateRow?.[key] !== undefined && templateRow[key] !== null)
+      out[key] = templateRow[key];
+  }
+  return out;
+}
 
 export function pickStyle(obj) {
   const out = {};

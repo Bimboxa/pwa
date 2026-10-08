@@ -3,7 +3,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
-import { pickStyle } from "./importStyleFields";
+import { pickInherited, pickStyle } from "./importStyleFields";
 
 const FREE_TEXT_DEFAULT_FONT_SIZE = 14;
 
@@ -122,6 +122,10 @@ function toPointRefs(points) {
  * @param {string} params.projectId
  * @param {string} params.listingId
  * @param {Map<string,string>} params.templateIdMap - source template id → db id
+ * @param {Map<string,Object>} [params.templateRowsById] - db id → template row
+ *   (reused rows read from Dexie + the records about to be created): the
+ *   annotation inherits its height / offsetZ / isExt from it when the payload
+ *   sets none, like a hand-drawn annotation
  * @param {Map<string,string>} [params.baseMapIdMap] - payload detail baseMap
  *   id → db id (DETAIL bubbles; an id absent from the map is an existing one)
  * @returns {{ clipboard: Object, scaled: boolean, relative: boolean }}
@@ -135,6 +139,7 @@ export default function buildImportData({
   excludedTemplateIds,
   relativeToBaseMap,
   templateIdMap,
+  templateRowsById,
   baseMapIdMap,
 }) {
   const image = data.image;
@@ -187,8 +192,15 @@ export default function buildImportData({
     // The dump format ships full DB rows, already scrubbed of the hydrated
     // fields by normalizeAnnotationsDumpJson — take them verbatim, so nothing
     // is silently dropped. The inline-JSON format has no row, only style keys:
-    // merge template first, then annotation-level overrides.
-    const style = ann.props ?? { ...pickStyle(tplDef), ...pickStyle(ann) };
+    // merge the payload template, then the inherited 3D / isExt values of the
+    // resolved template row (a reused row beats the author's copy of it),
+    // then the annotation-level overrides.
+    const tplRow = newTplId ? templateRowsById?.get(newTplId) : null;
+    const style = ann.props ?? {
+      ...pickStyle(tplDef),
+      ...pickInherited(tplRow),
+      ...pickStyle(ann),
+    };
 
     const annotation = {
       ...style,
@@ -259,7 +271,7 @@ export default function buildImportData({
           ? ann.arrowAngle
           : 0;
         annotation.detailBaseMapId = ann.detailBaseMapId
-          ? baseMapIdMap?.get(ann.detailBaseMapId) ?? ann.detailBaseMapId
+          ? (baseMapIdMap?.get(ann.detailBaseMapId) ?? ann.detailBaseMapId)
           : null;
         // The bubble shows the linked baseMap's detailRef; the row label is
         // only the fallback text (same default as a hand-drawn bubble).

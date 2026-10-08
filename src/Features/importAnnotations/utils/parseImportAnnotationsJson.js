@@ -15,6 +15,7 @@
 //     { "id": "a1", "type": "POLYGON|POLYLINE|COTE",
 //       "annotationTemplateId": "tpl_x", "closeLine": <bool>,
 //       "offsetZ": <m>?, "height": <m>?,             // 3D, above the plan
+//       "isExt": <bool>?,                             // exterior side (walls)
 //       "points": [ { "x": 0..1, "y": 0..1, "type": "circle"?,
 //                     "offsetTop": <m>?, "offsetBottom": <m>? } ],
 //       "cuts": [ { "points": [ ...>= 3 points ] } ]   // POLYGON holes, optional
@@ -113,7 +114,8 @@ function validateNormalizedPoint(p) {
   return null;
 }
 
-// Annotation-level 3D fields (metres above the plan), optional.
+// Annotation-level 3D fields (metres above the plan) and the exterior-side
+// flag, all optional.
 function validateHeightFields(ann) {
   for (const key of ["offsetZ", "height"]) {
     if (
@@ -123,6 +125,13 @@ function validateHeightFields(ann) {
     ) {
       return `\`${key}\` doit être un nombre (mètres).`;
     }
+  }
+  if (
+    ann.isExt !== undefined &&
+    ann.isExt !== null &&
+    typeof ann.isExt !== "boolean"
+  ) {
+    return "`isExt` doit être un booléen.";
   }
   return null;
 }
