@@ -14,6 +14,9 @@ import {
   isFaceCutDrawingMode,
 } from "Features/threedFaceCut/utils/faceCutTools";
 import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
+import resolveFaceCutLockedFace, {
+  intersectLockedFace,
+} from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
@@ -302,6 +305,12 @@ export default function DrawingOverlayThreed() {
     const raycaster = new Raycaster();
     const traitPoints = trait3DSegments.flatMap((seg) => [seg.a, seg.b]);
 
+    // "Coupe face" launched on a selected face: the drawing is bound to that
+    // face (resolveFaceCutLockedFace) — re-resolved on every move, the
+    // displayed object may be rebuilt meanwhile.
+    const canLockFace = isFaceCutDrawingMode(enabledDrawingMode);
+    let faceLock = null;
+
     // "Coupe face" rectangle: the face's frame (getFaceCutBasisWorld) and
     // the typed X / Y dimensions, as the click commits them.
     const faceCutBasis =
@@ -348,6 +357,22 @@ export default function DrawingOverlayThreed() {
               baseMapId: anchor.baseMapId,
             })
           : null;
+      }
+      if (faceLock) {
+        // Bound to the selected face: its plane, and only where the cursor
+        // is on the face — no base map, other face or scan.
+        const hit = intersectLockedFace(
+          faceLock,
+          mNdc,
+          camera,
+          editor.sceneManager
+        );
+        if (!hit?.inside) return null;
+        return buildFacePlaneHit(hit.position, hit.normal, {
+          nodeId: faceLock.annotationId,
+          baseMapId: faceLock.baseMapId,
+          distance: hit.distance,
+        });
       }
       const planHit = intersectBaseMapPlane(
         editor,
@@ -544,6 +569,9 @@ export default function DrawingOverlayThreed() {
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       const canvasSize = { width: rect.width, height: rect.height };
+      faceLock = canLockFace
+        ? resolveFaceCutLockedFace(store.getState(), editor)
+        : null;
       const snap = computeSnapTarget({
         mouseNdc: ndc,
         camera,
@@ -575,6 +603,7 @@ export default function DrawingOverlayThreed() {
         intersectPlane,
         alignAdjacency: getMeshAdjacency(),
         attachFaceToPointSnaps: isMeshDraw && !anchor,
+        lockedPlane: faceLock?.planeWorld ?? null,
       });
       setLastSnap(snap);
       updateSnapCircle(snap, rect);

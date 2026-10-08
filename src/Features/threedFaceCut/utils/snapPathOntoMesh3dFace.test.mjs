@@ -114,3 +114,15 @@ test("thin band: the view ray keeps a cut across the shrunk top on the top", () 
   assert.equal(snapped.faceIndex, 1);
   nearV(snapped.points[0], v(0.5, 0, 0.008));
 });
+
+test("faceIndices restricts the candidate faces (locked face)", () => {
+  const mesh = makeWall();
+  const drawn = [v(1, 0.01, 0), v(1, 0.01, 0.995)];
+  // The front face only: found as before.
+  assert.equal(
+    snapPathOntoMesh3dFace(mesh, drawn, { faceIndices: [2] })?.faceIndex,
+    2
+  );
+  // Another face only: the path is not near it.
+  assert.equal(snapPathOntoMesh3dFace(mesh, drawn, { faceIndices: [1] }), null);
+});

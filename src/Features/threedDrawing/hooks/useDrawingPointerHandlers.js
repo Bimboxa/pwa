@@ -50,6 +50,7 @@ import {
   isFaceCutDrawingMode,
 } from "Features/threedFaceCut/utils/faceCutTools";
 import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
+import resolveFaceCutLockedFace from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
 import commitDrawnFaceService, {
@@ -109,7 +110,9 @@ const DOUBLE_CLICK_MS = 500;
 // Enter with X / Y typed dimensions — the 2D rectangle's bottom bar); its
 // axis tools (« Découpe horizontale / verticale ») cut, on a click or Enter,
 // the line FaceCutAxisOverlayThreed previews on the hovered face (digits
-// type the cut distance, S flips the side of the vertical one).
+// type the cut distance, S flips the side of the vertical one). Launched
+// while a face is selected, every tool is bound to that face
+// (resolveFaceCutLockedFace): the path is drawn on it and only it is cut.
 //
 // Template-less and face-cut clicks and keys run one at a time, in order (a
 // commit awaits the db): each step reads the live drawing state from the
@@ -130,6 +133,8 @@ export default function useDrawingPointerHandlers() {
       "Aucune face coupée : le tracé doit rester sur une seule face.",
     NOT_EDGE_TO_EDGE:
       "Aucune face coupée : le tracé doit aller d'un bord à l'autre de la face (ou y faire une boucle).",
+    NOT_ON_SELECTED_FACE:
+      "Aucune face coupée : le tracé doit rester sur la face sélectionnée.",
   };
   const faceCutFailedS = "La coupe de la face n'a pas pu être enregistrée.";
 
@@ -537,8 +542,24 @@ export default function useDrawingPointerHandlers() {
       dispatch(pushDrawingVertex(newVertex));
     }
 
-    // "Coupe face": cut of the face the path lies on, whatever the outcome
-    // the path is consumed and the tool stays armed.
+    // "Coupe face" launched on a selected face: the cut is bound to it
+    // (resolveFaceCutLockedFace — the overlays bound the drawing to the
+    // same face). Read at cut time: the selection is cleared by the cut.
+    function getFaceCutTarget() {
+      const lock = resolveFaceCutLockedFace(store.getState(), editor);
+      return lock
+        ? {
+            annotationId: lock.annotationId,
+            faceIndex: lock.faceIndex,
+            isMesh3d: lock.isMesh3d,
+            displayedMesh: lock.displayed.mesh,
+          }
+        : null;
+    }
+
+    // "Coupe face": cut of the face the path lies on (the selected face
+    // only when the tool was launched on one), whatever the outcome the
+    // path is consumed and the tool stays armed.
     async function cutFace(points, { closed = false } = {}) {
       try {
         const result = await cutFaceAlongPathService({
@@ -549,6 +570,7 @@ export default function useDrawingPointerHandlers() {
           dispatch,
           createAnnotationFn: createAnnotation,
           updateAnnotationFn: updateAnnotation,
+          target: getFaceCutTarget(),
         });
         console.log(
           `[threedDrawing] face cut: ${result.kind}${result.annotationId ? ` ${result.annotationId}` : ""}`

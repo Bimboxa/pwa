@@ -28,7 +28,8 @@ import {
 // onto it (the drawn path ran edge to edge on the shrunk face).
 //
 // mesh: LOCAL mesh {vertices: [{x, y, z}], faces: [{loop, holes}]}; points
-// in the same frame. Returns {faceIndex, points} or null.
+// in the same frame. faceIndices: the only faces considered (null: any
+// face). Returns {faceIndex, points} or null.
 //
 // Pure: node-testable.
 
@@ -82,11 +83,13 @@ export default function snapPathOntoMesh3dFace(
     planeTolM = SNAP_PLANE_TOL_M,
     snapTolM = SNAP_OUTLINE_TOL_M,
     rayDir = null,
+    faceIndices = null,
   } = {}
 ) {
   if (!mesh?.faces?.length || !mesh.vertices?.length || !points?.length) {
     return null;
   }
+  const allowed = faceIndices ? new Set(faceIndices) : null;
   const probes = getProbes(points, closed);
   const facing = (normal) =>
     rayDir
@@ -98,6 +101,7 @@ export default function snapPathOntoMesh3dFace(
   let bestFront = false;
   mesh.faces.forEach((face, faceIndex) => {
     if (!(face?.loop?.length >= 3)) return;
+    if (allowed && !allowed.has(faceIndex)) return;
     const normal = getFaceNormal(mesh.vertices, face);
     const maxDist = Math.max(
       ...points.map((p) =>

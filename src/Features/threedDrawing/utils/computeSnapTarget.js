@@ -14,6 +14,10 @@ const AXIS_THRESHOLD_PX = 20;
 // (matches inPlaneOrthoSnap's COPLANAR_EPS_M).
 const OCCLUSION_EPS_M = 5e-3;
 
+// A snap candidate further than this (m) from the LOCKED plane (either side)
+// would pull the point off the face the drawing is bound to.
+const LOCK_PLANE_EPS_M = 5e-3;
+
 const AXES = [
   { key: "X", vec: new Vector3(1, 0, 0) },
   { key: "Y", vec: new Vector3(0, 1, 0) },
@@ -125,10 +129,35 @@ function snapToInProgress(
 // world-axis lock is skipped (it would pull the point off the face; the
 // in-plane ortho lock already covers the face's own axes).
 //
+// A LOCKED plane (`lockedPlane: { point, normal }` — the "Coupe face" tools
+// bound to the selected face): every candidate must lie on it. Vertex / edge
+// snaps off the plane are rejected, the plane hit is the caller's (ray ∩
+// locked plane), the world-axis and FREE fallbacks are skipped, and a snap
+// that still left the plane (an edge snap slid along a crossing edge) is
+// dropped: no target rather than a point off the face.
+//
 // Returns { position, kind, meshKey?, nodeId?, axis?, lockedAxes?, baseMapId?,
 // axisA?, axisB?, alignFrom?, faceNormal? } or null when no candidate is
 // available.
-export default function computeSnapTarget({
+export default function computeSnapTarget(args) {
+  const snap = computeSnapCandidate(args);
+  const { lockedPlane } = args;
+  if (!snap?.position || !lockedPlane) return snap;
+  return Math.abs(distanceToPlane(snap.position, lockedPlane)) <=
+    LOCK_PLANE_EPS_M
+    ? snap
+    : null;
+}
+
+function distanceToPlane(position, { point, normal }) {
+  return (
+    (position.x - point.x) * normal.x +
+    (position.y - point.y) * normal.y +
+    (position.z - point.z) * normal.z
+  );
+}
+
+function computeSnapCandidate({
   mouseNdc,
   camera,
   canvasSize,
@@ -139,6 +168,7 @@ export default function computeSnapTarget({
   intersectPlane = null,
   alignAdjacency = null,
   attachFaceToPointSnaps = false,
+  lockedPlane = null,
 }) {
   // Plane / face / scan under the cursor — resolved once, on first need.
   let cachedPlaneHit;
@@ -157,7 +187,9 @@ export default function computeSnapTarget({
     if (!hit?.isFace) return snap;
     return {
       ...snap,
-      nodeId: snap.nodeId ?? hit.nodeId,
+      // On a locked face the point belongs to that face's annotation, even
+      // on a vertex shared with a glued neighbor.
+      nodeId: lockedPlane ? hit.nodeId : (snap.nodeId ?? hit.nodeId),
       faceNormal: hit.normal,
       baseMapId: hit.baseMapId,
     };
@@ -210,7 +242,13 @@ export default function computeSnapTarget({
     toCandidate.copy(position).sub(plane.point);
     return toCandidate.dot(plane.normal) < -OCCLUSION_EPS_M;
   };
-  const snapFilter = { accept: (position) => !isHiddenBySurface(position) };
+  const isOffLockedPlane = (position) =>
+    Boolean(lockedPlane) &&
+    Math.abs(distanceToPlane(position, lockedPlane)) > LOCK_PLANE_EPS_M;
+  const snapFilter = {
+    accept: (position) =>
+      !isOffLockedPlane(position) && !isHiddenBySurface(position),
+  };
 
   const vertexSnap = findNearestVertex(
     mouseNdc,
@@ -345,7 +383,7 @@ export default function computeSnapTarget({
   let bestAxis = null;
   let bestDist = AXIS_THRESHOLD_PX;
   let bestPosition = null;
-  for (const ax of planeHit?.isFace ? [] : AXES) {
+  for (const ax of planeHit?.isFace || lockedPlane ? [] : AXES) {
     const pt = closestPointOnAxis(camera.position, cursorDir, lastVec, ax.vec);
     if (!pt) continue;
     const { distance, behind } = ndcDistance(pt, mouseNdc, camera, canvasSize);
@@ -367,6 +405,8 @@ export default function computeSnapTarget({
   // A hovered base map plane beats the camera-facing FREE plane — the latter
   // is almost never wanted while the cursor is over a plan.
   if (planeHit) return refinePlaneHit();
+  // Bound to a face: no point off it.
+  if (lockedPlane) return null;
 
   const camForward = new Vector3();
   camera.getWorldDirection(camForward);

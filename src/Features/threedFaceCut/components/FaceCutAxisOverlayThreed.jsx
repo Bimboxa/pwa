@@ -38,6 +38,9 @@ import {
 import computeFaceAxisCut from "../utils/computeFaceAxisCut";
 import { getFaceCutAxis } from "../utils/faceCutTools";
 import getFaceCutBasisWorld from "../utils/getFaceCutBasisWorld";
+import resolveFaceCutLockedFace, {
+  intersectLockedFace,
+} from "../utils/resolveFaceCutLockedFace";
 
 // Line colours: the plane blue of the drawing overlay, its lock red once the
 // line snaps on a vertex / edge middle or sits on the typed distance, grey
@@ -76,6 +79,11 @@ function formatDistance(m) {
 // its frame is the viewer's (getFaceCutBasisWorld: u right, v up). Pointer
 // moves are coalesced per animation frame, and a stale async result (another
 // move landed meanwhile) is dropped.
+//
+// Tool launched on a SELECTED face (resolveFaceCutLockedFace): the hover is
+// bound to that face — the cursor ray meets its plane (the plane's extension
+// included: the chord is always inside the face), the face index is the
+// selected one, nothing else is raycast.
 export default function FaceCutAxisOverlayThreed() {
   const store = useStore();
 
@@ -203,7 +211,20 @@ export default function FaceCutAxisOverlayThreed() {
       const myRequest = ++requestId;
       const rect = dom.getBoundingClientRect();
 
-      const hit = intersectAnnotationFace(editor, mNdc, camera);
+      const lock = resolveFaceCutLockedFace(store.getState(), editor);
+      let hit;
+      if (lock) {
+        const locked = intersectLockedFace(lock, mNdc, camera, sceneManager);
+        hit = locked
+          ? {
+              position: locked.position,
+              normal: locked.normal,
+              nodeId: lock.annotationId,
+            }
+          : null;
+      } else {
+        hit = intersectAnnotationFace(editor, mNdc, camera);
+      }
       if (!hit?.nodeId) {
         showNothing();
         return;
@@ -241,13 +262,16 @@ export default function FaceCutAxisOverlayThreed() {
       const localPoint = worldToMesh3dLocal(hit.position, ctx);
       const localNormal = hit.normal.clone().applyQuaternion(qInv);
       const localRay = getViewRayWorld(hit.position).applyQuaternion(qInv);
-      const faceIndex = locateFaceNearHit(
-        ctx.mesh,
-        localPoint,
-        localNormal,
-        FACE_HIT_TOL_M,
-        { rayDir: localRay }
-      );
+      // Locked face: its index holds on the displayed object's conversion
+      // (unshrink: false reads that same object, and a mesh annotation's
+      // stored mesh is the one getEditableMesh3d returns).
+      const faceIndex = lock
+        ? ctx.mesh.faces[lock.faceIndex]
+          ? lock.faceIndex
+          : -1
+        : locateFaceNearHit(ctx.mesh, localPoint, localNormal, FACE_HIT_TOL_M, {
+            rayDir: localRay,
+          });
       if (faceIndex < 0) {
         showNothing();
         return;
@@ -375,11 +399,19 @@ export default function FaceCutAxisOverlayThreed() {
 
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerleave", onPointerLeave);
+    // An annotation rebuilt while the tool is armed (a cut, a vertical edit):
+    // its cached editable mesh is stale, and so is the hover on it.
+    const unsubscribeReady =
+      sceneManager.annotationsManager?.subscribeAnnotationReady?.(() => {
+        clearFaceCutHoverCache();
+        rerunRef.current?.();
+      }) ?? null;
     return () => {
       disposed = true;
       if (rafId !== null) cancelAnimationFrame(rafId);
       rerunRef.current = null;
       lastNdcRef.current = null;
+      unsubscribeReady?.();
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerleave", onPointerLeave);
       clearDraft();

@@ -21,9 +21,12 @@ import {
   getDistanceToFacePlane,
   getFaceNormal,
 } from "Features/annotationMesh3d/utils/mesh3dTopology";
+import { MESH3D_FACE_PART } from "Features/annotationMesh3d/utils/mesh3dPartIds";
+import remapMesh3dParts from "Features/annotationMesh3d/utils/remapMesh3dParts";
 import { splitMesh3dFaceDetailed } from "Features/annotationMesh3d/utils/splitMesh3dFace";
 import splitPolylineAtVertex from "Features/mapEditor/utils/splitPolylineAtVertex";
 import { copyMeshPaintsForSplit } from "Features/meshPaint/services/copyMeshPaintsService";
+import { clearItemPartSelection } from "Features/selection/selectionSlice";
 import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import { projectPointTo2d } from "Features/threedMesh/utils/planeProjection";
 
@@ -46,7 +49,8 @@ const PLAN_FACE_MIN_NORMAL_Z = 0.1;
 const VERTICAL_FACE_MAX_NORMAL_Z = 0.05;
 
 // "Coupe face" tool (3D editor): cuts in two the face a path is drawn on —
-// the face of any annotation, selected or not.
+// the face of any annotation the path lies on, or, when the tool was
+// launched on a SELECTED face (`target`), that face and no other.
 //
 // A regular annotation stays regular whenever the cut has a plan encoding:
 // - a POLYGON cut on its plan face (top / bottom) → two polygons (a loop
@@ -57,14 +61,20 @@ const VERTICAL_FACE_MAX_NORMAL_Z = 0.05;
 // annotation — the annotation's mesh is split (converted to a mesh first).
 //
 // vertices: drawn world points [{x, y, z, nodeId?}]; closed: the path loops
-// back to its first point. Returns { kind: "POLYGON_2D" | "WALL_2D" | "MESH",
-// annotationId } once cut, { kind: "FAILED" } when the cut could not be
-// written, or { kind: "NONE", reason } when the path cuts no face — reason
-// (most telling one over the candidates, each logged):
-//   NO_ANNOTATION     the path lies on no annotation
-//   NOT_EDITABLE      its annotation has no editable faces (carved...)
-//   NOT_ON_ONE_FACE   the path does not lie on one face
-//   NOT_EDGE_TO_EDGE  it lies on a face but does not run edge to edge
+// back to its first point. target (resolveFaceCutLockedFace, or null):
+// { annotationId, faceIndex, isMesh3d, displayedMesh } — the selected face
+// the cut is bound to; `displayedMesh` is the LOCAL mesh its index addresses
+// (the displayed object's conversion), re-located by geometry on the
+// un-shrunk conversion that gets written.
+// Returns { kind: "POLYGON_2D" | "WALL_2D" | "MESH", annotationId } once cut,
+// { kind: "FAILED" } when the cut could not be written, or { kind: "NONE",
+// reason } when the path cuts no face — reason (most telling one over the
+// candidates, each logged):
+//   NO_ANNOTATION         the path lies on no annotation
+//   NOT_EDITABLE          its annotation has no editable faces (carved...)
+//   NOT_ON_ONE_FACE       the path does not lie on one face
+//   NOT_EDGE_TO_EDGE      it lies on a face but does not run edge to edge
+//   NOT_ON_SELECTED_FACE  it does not lie on the selected face (target)
 export default async function cutFaceAlongPathService({
   editor,
   vertices,
@@ -73,6 +83,7 @@ export default async function cutFaceAlongPathService({
   dispatch,
   createAnnotationFn,
   updateAnnotationFn,
+  target = null,
 }) {
   if (!editor || !vertices || vertices.length < 2) {
     return { kind: "NONE", reason: "NO_ANNOTATION" };
@@ -84,7 +95,10 @@ export default async function cutFaceAlongPathService({
       reason = next;
     }
   };
-  for (const annotationId of getCandidateAnnotationIds(editor, vertices)) {
+  const candidateIds = target
+    ? [target.annotationId]
+    : getCandidateAnnotationIds(editor, vertices);
+  for (const annotationId of candidateIds) {
     // First pass on the DISPLAYED object (unshrink: false): a candidate the
     // path does not cut — or one split in plan — keeps its anti-aliasing
     // shrink. Only the mesh split below reads (and exempts) the un-shrunk
@@ -102,9 +116,23 @@ export default async function cutFaceAlongPathService({
       continue;
     }
     const camera = editor.sceneManager?.camera;
-    let { local, split } = splitPathOnMesh3d(ctx, vertices, closed, camera);
+    let faceIndices = getTargetFaceIndices(target, ctx);
+    if (faceIndices && !faceIndices.length) {
+      console.warn(
+        `[threedFaceCut] ${annotationId}: selected face ${target.faceIndex} not found on its mesh`
+      );
+      keepReason("NOT_ON_SELECTED_FACE");
+      continue;
+    }
+    let { local, split } = splitPathOnMesh3d(
+      ctx,
+      vertices,
+      closed,
+      camera,
+      faceIndices
+    );
     if (!split) {
-      const why = explainNoSplit(ctx.mesh, local, closed);
+      const why = explainNoSplit(ctx.mesh, local, closed, faceIndices);
       console.warn(`[threedFaceCut] ${annotationId}: no cut`, why);
       keepReason(why.reason);
       continue;
@@ -129,6 +157,9 @@ export default async function cutFaceAlongPathService({
         Math.abs(normal.z) >= PLAN_FACE_MIN_NORMAL_Z &&
         (await splitPolygonIn2d(args))
       ) {
+        // The cut face is gone with the rebuild: a part selected on it
+        // (the locked face) would point at another face of the new object.
+        dispatch?.(clearItemPartSelection(annotationId));
         return { kind: "POLYGON_2D", annotationId };
       }
       if (
@@ -136,6 +167,7 @@ export default async function cutFaceAlongPathService({
         Math.abs(normal.z) <= VERTICAL_FACE_MAX_NORMAL_Z &&
         (await splitWallIn2d(args))
       ) {
+        dispatch?.(clearItemPartSelection(annotationId));
         return { kind: "WALL_2D", annotationId };
       }
     }
@@ -143,14 +175,18 @@ export default async function cutFaceAlongPathService({
     // The mesh is written: split the un-shrunk object.
     if (ctx.isShrunk) {
       const unshrunk = await getEditableMesh3d({ editor, annotationId });
-      const resplit = unshrunk
-        ? splitPathOnMesh3d(unshrunk, vertices, closed, camera)
-        : null;
+      if (unshrunk) {
+        faceIndices = getTargetFaceIndices(target, unshrunk, { remap: true });
+      }
+      const resplit =
+        unshrunk && !(faceIndices && !faceIndices.length)
+          ? splitPathOnMesh3d(unshrunk, vertices, closed, camera, faceIndices)
+          : null;
       if (!resplit?.split) {
         console.warn(
           `[threedFaceCut] ${annotationId}: no cut on the un-shrunk object`
         );
-        keepReason("NOT_ON_ONE_FACE");
+        keepReason(target ? "NOT_ON_SELECTED_FACE" : "NOT_ON_ONE_FACE");
         continue;
       }
       ctx = unshrunk;
@@ -171,18 +207,38 @@ export default async function cutFaceAlongPathService({
   return { kind: "NONE", reason };
 }
 
+// Faces of an editable mesh the cut is bound to: null without a target (any
+// face), else the selected face's index on `ctx.mesh` — as selected for a
+// mesh annotation (stored mesh) or for the displayed object's conversion
+// (same object, same numbering: unshrink false), re-located by geometry
+// (`remap`) on the un-shrunk conversion that gets written (remapMesh3dParts,
+// like deleteMesh3dPartsService). Empty when the face cannot be found there.
+function getTargetFaceIndices(target, ctx, { remap = false } = {}) {
+  if (!target) return null;
+  const { faceIndex, displayedMesh } = target;
+  if (!remap || !ctx.isConversion || !displayedMesh) {
+    return ctx.mesh.faces[faceIndex] ? [faceIndex] : [];
+  }
+  return remapMesh3dParts(displayedMesh, ctx.mesh, [
+    { partType: MESH3D_FACE_PART, faceIndex },
+  ])
+    .filter((part) => part.partType === MESH3D_FACE_PART)
+    .map((part) => part.faceIndex);
+}
+
 // The path (world points) split on an editable mesh: { local, split }
 // (split null when it cuts no face). A conversion may read an object up to
 // 10 mm away from the one the path was drawn on (anti-aliasing shrink, either
 // way): the face is then re-detected near the path and the path moved onto
-// it.
-function splitPathOnMesh3d(ctx, vertices, closed, camera) {
+// it. faceIndices: the only faces the path may cut (null: any).
+function splitPathOnMesh3d(ctx, vertices, closed, camera, faceIndices = null) {
   let local = vertices.map((v) => worldToMesh3dLocal(v, ctx));
-  let split = splitMesh3dFaceDetailed(ctx.mesh, local, { closed });
+  let split = splitMesh3dFaceDetailed(ctx.mesh, local, { closed, faceIndices });
   if (!split && ctx.isConversion) {
     const snapped = snapPathOntoMesh3dFace(ctx.mesh, local, {
       closed,
       rayDir: getViewRayLocal(ctx, vertices, camera),
+      faceIndices,
     });
     if (snapped) {
       const resplit = splitMesh3dFaceDetailed(ctx.mesh, snapped.points, {
@@ -217,14 +273,19 @@ const REASON_RANK = [
   "NOT_EDITABLE",
   "NOT_ON_ONE_FACE",
   "NOT_EDGE_TO_EDGE",
+  "NOT_ON_SELECTED_FACE",
 ];
 
 // Why a path splits no face of a mesh (diagnostics): the face carrying it
 // with where its points fall (a dangling end reads INSIDE), else the face it
 // comes closest to lying on (max distance of its points to the plane, points
-// outside the face).
-function explainNoSplit(mesh, points, closed) {
-  const faceIndex = locatePathOnMesh3d(mesh, points, { closed });
+// outside the face). Bound to the selected face (faceIndices): a path it
+// carries is NOT_EDGE_TO_EDGE, any other NOT_ON_SELECTED_FACE.
+function explainNoSplit(mesh, points, closed, faceIndices = null) {
+  const faceIndex = locatePathOnMesh3d(mesh, points, { closed, faceIndices });
+  if (faceIndex < 0 && faceIndices) {
+    return { reason: "NOT_ON_SELECTED_FACE", faceIndices };
+  }
   if (faceIndex >= 0) {
     const face = mesh.faces[faceIndex];
     const face2d = getFace2d(mesh.vertices, face);

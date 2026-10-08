@@ -28,6 +28,7 @@ import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/se
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import { selectIsFaceCutDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
@@ -99,6 +100,9 @@ const FACE_CUT_MESSAGES = {
   FACE_CUT_VERTICAL:
     "Survolez une face : cliquez pour la couper à la verticale",
 };
+// Tool launched on a selected face: every tool cuts that face only.
+const FACE_CUT_LOCKED_MESSAGE =
+  "Face sélectionnée : la coupe se fera sur cette face";
 
 // Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
 const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
@@ -258,9 +262,15 @@ export default function SectionDrawingHelperContent() {
   );
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
+  // Launched on a selected face: the cut is bound to it.
+  const hasFaceCutLock = useSelector(
+    (s) => selectIsFaceCutDrawActive(s) && Boolean(getFaceCutLockedPart(s))
+  );
   const faceCutMessage = isFaceCut
-    ? (FACE_CUT_MESSAGES[enabledDrawingMode] ??
-      "Tracez sur une face pour la couper")
+    ? hasFaceCutLock
+      ? FACE_CUT_LOCKED_MESSAGE
+      : (FACE_CUT_MESSAGES[enabledDrawingMode] ??
+        "Tracez sur une face pour la couper")
     : null;
   const threedMessage = isObject3DPlacement
     ? "Cliquez sur le plan pour poser l'objet 3D"
