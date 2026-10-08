@@ -2394,7 +2394,47 @@ export default function PopperMapListings() {
             <WarningBaseMapNotToScale />
           )}
 
-          {/* Scrollable listings */}
+          {/* Listing selector — pick the current listing (selectedListingId).
+            Same "LISTE ACTIVE" field as the Dessin left panel (counts chips,
+            visibility eyes, "Visibilité auto" option). Shown whenever there
+            are listings, or when a new one can be created (empty-state CTA).
+            Hidden in the legend poppers (Viewer module, BaseMaps module),
+            where every listing is shown at once. Kept out of the scrollable
+            body so it stays in sight while the templates scroll. */}
+          {!isLegendPopper &&
+            !isLocateBusinessObjectMode &&
+            (displayedListings?.length > 0 || canAddListing) && (
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
+                }}
+              >
+                {/* Either the LISTE ACTIVE field or the avatars band,
+                    per the "Sélecteur / Avatars" switch of the "..."
+                    menu. The field stays for the empty state (its CTA
+                    creates the first listing). */}
+                {listingSelectorMode === "AVATARS" && !hasNoListing ? (
+                  <ListingAvatarsBar
+                    listings={displayedListings}
+                    activeListing={activeListing}
+                    countsByListingId={listingCountsById}
+                    showAddListing={canAddListing}
+                  />
+                ) : (
+                  <FieldActiveListing
+                    listings={displayedListings}
+                    activeListing={activeListing}
+                    countsByListingId={listingCountsById}
+                    showAddListing={canAddListing}
+                    showModeSwitch
+                  />
+                )}
+              </Box>
+            )}
+
+          {/* Scrollable body: layers / axes / templates of the active listing */}
           <Box sx={{ overflow: "auto", flex: 1 }}>
             {viewerKey === "MAP" && showLayers && (
               <SectionLayers baseMapId={baseMap?.id} />
@@ -2443,44 +2483,6 @@ export default function PopperMapListings() {
                 </List>
               </Box>
             )}
-
-            {/* Listing selector — pick the current listing (selectedListingId).
-            Same "LISTE ACTIVE" field as the Dessin left panel (counts chips,
-            visibility eyes, "Visibilité auto" option). Shown whenever there
-            are listings, or when a new one can be created (empty-state CTA).
-            Hidden in the legend poppers (Viewer module, BaseMaps module),
-            where every listing is shown at once. */}
-            {!isLegendPopper &&
-              !isLocateBusinessObjectMode &&
-              (displayedListings?.length > 0 || canAddListing) && (
-                <Box
-                  sx={{
-                    borderBottom: "1px solid",
-                    borderColor: "panel.border",
-                  }}
-                >
-                  {/* Either the LISTE ACTIVE field or the avatars band,
-                      per the "Sélecteur / Avatars" switch of the "..."
-                      menu. The field stays for the empty state (its CTA
-                      creates the first listing). */}
-                  {listingSelectorMode === "AVATARS" && !hasNoListing ? (
-                    <ListingAvatarsBar
-                      listings={displayedListings}
-                      activeListing={activeListing}
-                      countsByListingId={listingCountsById}
-                      showAddListing={canAddListing}
-                    />
-                  ) : (
-                    <FieldActiveListing
-                      listings={displayedListings}
-                      activeListing={activeListing}
-                      countsByListingId={listingCountsById}
-                      showAddListing={canAddListing}
-                      showModeSwitch
-                    />
-                  )}
-                </Box>
-              )}
 
             {/* Former chips-based selector (ListingChipsBar) — kept below,
             commented, in case the chip version needs to be reactivated:
