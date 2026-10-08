@@ -4,8 +4,9 @@ import { createSlice } from "@reduxjs/toolkit";
 const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 
 // Header toggle of the popper / PanelDrawing: "ANNOTATIONS" | "PHOTOS" (Viewer
-// module with photos) | "BASE_MAPS" (base maps list).
-const CONTENT_MODES = ["ANNOTATIONS", "PHOTOS", "BASE_MAPS"];
+// module with photos) | "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes":
+// the drawing tools, popper only, while they are attached).
+const CONTENT_MODES = ["ANNOTATIONS", "PHOTOS", "BASE_MAPS", "TOOLS"];
 
 const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
@@ -28,10 +29,16 @@ const popperMapListingsSlice = createSlice({
     // base maps without annotations — except the main one and those whose
     // image / annotations are currently shown in 3D.
     hideEmptyBaseMapsInList: false,
-    // "Détacher la liste": the base maps list lives in its own popper
-    // (PopperBaseMapsList) instead of the "Fonds de plan" side of the
-    // annotations popper, which then has no such side.
+    // "Détacher la liste" (icon of the "Fonds de plan" title row): the base
+    // maps list lives in its own popper (PopperBaseMapsList) instead of the
+    // "Fonds de plan" side of the annotations popper, which then has no such
+    // side.
     baseMapsListDetached: false,
+    // "Détacher les commandes": the drawing tools ("Commandes") live in their
+    // own popper (PopperDrawingTools, under the annotations popper by
+    // default) instead of the "Commandes" side of the annotations popper.
+    // Detached by default.
+    toolsDetached: true,
   },
   reducers: {
     setShowLayers(state, action) {
@@ -62,6 +69,16 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode = "BASE_MAPS";
       }
     },
+    // Same rule for the drawing tools ("Commandes" side).
+    setToolsDetached(state, action) {
+      const detached = Boolean(action.payload);
+      state.toolsDetached = detached;
+      if (detached && state.viewerContentMode === "TOOLS") {
+        state.viewerContentMode = "ANNOTATIONS";
+      } else if (!detached) {
+        state.viewerContentMode = "TOOLS";
+      }
+    },
     setHideEmptyBaseMapsInList(state, action) {
       state.hideEmptyBaseMapsInList = Boolean(action.payload);
     },
@@ -84,6 +101,7 @@ export const {
   setListingSelectorMode,
   setHideEmptyBaseMapsInList,
   setBaseMapsListDetached,
+  setToolsDetached,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

@@ -1,5 +1,6 @@
 // DOM host of the editors' floating panels (PopperMapListings,
-// PopperBaseMapsList and the helpers that replace them), rendered by
+// PopperBaseMapsList, PopperDrawingTools and the helpers that replace them),
+// rendered by
 // LayoutDesktop and filled through PortalEditorFloatingPanels.
 //
 // Stacking order of the desktop layout (root stacking context = the fixed

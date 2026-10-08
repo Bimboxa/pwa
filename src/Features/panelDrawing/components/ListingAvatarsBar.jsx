@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setHiddenListingsIds,
-  setSelectedListingId,
-} from "Features/listings/listingsSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 
 import { Box, Tooltip, Typography } from "@mui/material";
 import Add from "@mui/icons-material/Add";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import Tune from "@mui/icons-material/Tune";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
@@ -27,9 +21,11 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // avatar per listing (selected in intense secondary, visible listings with
 // annotations on the current base map in light secondary, hidden or empty
 // listings in grey) and a "+" avatar to create a listing. Below, the active
-// listing band: "Liste active" title + full name, the listing properties
-// button and the "..." menu of the active listing (which hosts the
-// Sélecteur / Avatars mode switch).
+// listing band: the listing avatar, "Liste active" title + full name, the
+// "..." menu of the active listing (which hosts the Sélecteur / Avatars mode
+// switch) and, at the end of the row, its annotations count as a pill that
+// toggles the listing visibility (same badge as the base map selector of the
+// top bar).
 // Click = select the listing (unhides it, the other listings are untouched),
 // double click = select the listing and hide all the others.
 // The annotations count stays visible above the avatar (top right, "+99"
@@ -69,8 +65,9 @@ export default function ListingAvatarsBar({
 
   const labelS = "Liste active";
   const addListingS = "Nouvelle liste";
-  const propertiesS = "Propriétés de la liste";
   const moreS = "Actions sur la liste active";
+  const hideListingS = "Masquer la liste";
+  const showListingS = "Afficher la liste";
 
   // data
 
@@ -99,6 +96,13 @@ export default function ListingAvatarsBar({
   const getBadgeContent = (count) =>
     count > MAX_BADGE_COUNT ? `+${MAX_BADGE_COUNT}` : count;
 
+  const activeCount = activeListingId
+    ? (countsByListingId?.[activeListingId] ?? 0)
+    : 0;
+  const activeHidden = activeListingId
+    ? hiddenListingsIds.includes(activeListingId)
+    : false;
+
   // handlers
 
   const toggleVisibility = (listingId) => {
@@ -125,12 +129,6 @@ export default function ListingAvatarsBar({
   const handleToggleVisibility = (e, listingId) => {
     e.stopPropagation();
     toggleVisibility(listingId);
-  };
-
-  const handleOpenProperties = () => {
-    dispatch(setSelectedListingId(activeListing.id));
-    dispatch(setSelectedItem({ id: activeListing.id, type: "LISTING" }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   };
 
   // render
@@ -289,14 +287,15 @@ export default function ListingAvatarsBar({
       </Box>
 
       {/* Active listing band, right above its templates (same section band
-          as "Outils de dessin" below): "Liste active" title over the full
-          name, then the listing properties and "..." menu buttons. */}
+          as "Outils de dessin" below): listing avatar, "Liste active" title
+          over the full name, the "..." menu button, then the annotations
+          count pill toggling the listing visibility. */}
       {activeListing && (
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: 0.5,
+            gap: 1,
             pl: 1,
             pr: 2,
             py: 0.5,
@@ -305,6 +304,12 @@ export default function ListingAvatarsBar({
             borderColor: "panel.border",
           }}
         >
+          <AvatarListing
+            listing={activeListing}
+            size={28}
+            variant="selected"
+            linked={isLinkedListing(activeListing.id)}
+          />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="caption"
@@ -334,16 +339,6 @@ export default function ListingAvatarsBar({
             </Typography>
           </Box>
 
-          <Tooltip title={propertiesS} arrow placement="top">
-            <Box
-              component="button"
-              onClick={handleOpenProperties}
-              sx={bandButtonSx}
-            >
-              <Tune sx={{ fontSize: 18 }} />
-            </Box>
-          </Tooltip>
-
           <Tooltip title={moreS} arrow placement="top">
             <Box
               component="button"
@@ -354,6 +349,53 @@ export default function ListingAvatarsBar({
               }}
             >
               <MoreHoriz sx={{ fontSize: 18 }} />
+            </Box>
+          </Tooltip>
+
+          {/* Annotations count pill = listing visibility toggle (light
+              transposition of the top bar base map badge). */}
+          <Tooltip
+            title={activeHidden ? showListingS : hideListingS}
+            arrow
+            placement="top"
+          >
+            <Box
+              component="button"
+              onClick={() => toggleVisibility(activeListing.id)}
+              sx={{
+                minWidth: 24,
+                height: 20,
+                px: 0.75,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                borderRadius: 999,
+                border: "1px solid",
+                borderColor: activeHidden ? "panel.border" : "transparent",
+                bgcolor: activeHidden ? "transparent" : "secondary.main",
+                color: activeHidden
+                  ? "text.disabled"
+                  : "secondary.contrastText",
+                cursor: "pointer",
+                transition: "0.2s",
+                "&:hover": {
+                  filter: "brightness(1.1)",
+                  borderColor: activeHidden ? "text.secondary" : "transparent",
+                },
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 600,
+                  fontFamily: "monospace",
+                  lineHeight: 1,
+                  color: "inherit",
+                }}
+              >
+                {activeCount}
+              </Typography>
             </Box>
           </Tooltip>
         </Box>

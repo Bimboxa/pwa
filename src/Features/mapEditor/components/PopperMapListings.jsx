@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -29,11 +29,7 @@ import {
   ListItemButton,
   IconButton,
   InputBase,
-  Menu,
-  MenuItem,
   Divider,
-  ListItemIcon,
-  ListItemText,
   Tooltip,
   FormControlLabel,
   Checkbox,
@@ -77,7 +73,10 @@ import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
-import ButtonToggleBaseMapsListDetached from "Features/popperMapListings/components/ButtonToggleBaseMapsListDetached";
+import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
+import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
+import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
+import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -86,8 +85,6 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectIsBaseMapsLegendPopper from "Features/popperMapListings/utils/selectIsBaseMapsLegendPopper";
-
-import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
@@ -105,13 +102,9 @@ import {
   setAnnotationTemplatesHidden,
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
-import { getToolItemsForEditor } from "Features/mapEditor/constants/toolItems";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
-import RowRevolutionAxisTool from "Features/revolutionAxes/components/RowRevolutionAxisTool";
-import RowThreedTool from "Features/threedDrawing/components/RowThreedTool";
 import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
-import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
 import {
   isTemplatelessAnnotationInScope,
   TEMPLATELESS_LABEL,
@@ -135,8 +128,8 @@ import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapI
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
-import useDrawToolOfType from "Features/mapEditor/hooks/useDrawToolOfType";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+import usePanelResize from "Features/layout/hooks/usePanelResize";
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -146,183 +139,6 @@ import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel"
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
-
-// ---------------------------------------------------------------------------
-// ToolRow — one cut/split tool with click-to-draw + tool picker menu
-// ---------------------------------------------------------------------------
-
-function ToolRow({ type, label, Icon, shortcut }) {
-  const { tools, activeTool, startDraw, selectToolAndDraw } =
-    useDrawToolOfType(type);
-
-  // state
-
-  const [isHovered, setIsHovered] = useState(false);
-  const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
-
-  // helpers
-
-  const ActiveToolIcon = activeTool?.Icon;
-
-  // handlers
-
-  const handleRowClick = () => {
-    startDraw();
-  };
-
-  const handleToolBtnClick = (e) => {
-    e.stopPropagation();
-    setToolMenuAnchor(e.currentTarget);
-  };
-
-  const handleSelectTool = (tool) => {
-    selectToolAndDraw(tool);
-  };
-
-  const handleMenuClose = () => {
-    setToolMenuAnchor(null);
-    setIsHovered(false);
-  };
-
-  // render
-
-  return (
-    <Box>
-      <ListItemButton
-        onClick={handleRowClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => {
-          if (!toolMenuAnchor) setIsHovered(false);
-        }}
-        sx={{
-          position: "relative",
-          bgcolor: "white",
-          alignItems: "center",
-          justifyContent: "space-between",
-          pl: 3,
-          pr: 1,
-          py: 0.5,
-          "&:hover": { bgcolor: "action.hover" },
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "24px",
-              height: "24px",
-              mr: 1,
-            }}
-          >
-            <Icon
-              sx={{
-                fontSize: 18,
-                color: isHovered ? "panel.textSecondary" : "panel.textMuted",
-              }}
-            />
-          </Box>
-          {shortcut && (
-            <Box sx={{ mr: 1, flexShrink: 0 }}>
-              <ShortcutBadge>{shortcut}</ShortcutBadge>
-            </Box>
-          )}
-          <Typography
-            variant="body2"
-            sx={{ color: "panel.textSecondary", userSelect: "none" }}
-          >
-            {label}
-          </Typography>
-        </Box>
-
-        {/* Right side: active tool icon on hover (only when there is a choice) */}
-        {isHovered && ActiveToolIcon && tools.length > 1 && (
-          <Tooltip title="Changer d'outil" arrow>
-            <IconButton
-              size="small"
-              onClick={handleToolBtnClick}
-              sx={{
-                p: 0.5,
-                bgcolor: Boolean(toolMenuAnchor)
-                  ? "panel.textMuted"
-                  : "action.hover",
-                color: Boolean(toolMenuAnchor) ? "white" : "panel.textMuted",
-                borderRadius: 1,
-                "&:hover": {
-                  bgcolor: "panel.textMuted",
-                  color: "white",
-                },
-              }}
-            >
-              <ActiveToolIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-      </ListItemButton>
-
-      {/* Tool picker menu */}
-      <Menu
-        anchorEl={toolMenuAnchor}
-        open={Boolean(toolMenuAnchor)}
-        onClose={handleMenuClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        slotProps={{
-          paper: {
-            sx: {
-              minWidth: 200,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "panel.border",
-              mt: 0.5,
-            },
-          },
-        }}
-      >
-        <Box
-          sx={{
-            px: 2,
-            py: 1,
-            borderBottom: "1px solid",
-            borderColor: "panel.border",
-          }}
-        >
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600, color: "panel.textPrimary" }}
-          >
-            {label}
-          </Typography>
-        </Box>
-        {tools.map((tool) => (
-          <MenuItem
-            key={tool.key}
-            onClick={() => {
-              handleSelectTool(tool);
-              handleMenuClose();
-            }}
-            sx={{ gap: 1, py: 0.75, fontSize: "0.8125rem" }}
-          >
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              <tool.Icon sx={{ fontSize: 18 }} />
-            </ListItemIcon>
-            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-              {tool.label}
-            </ListItemText>
-          </MenuItem>
-        ))}
-      </Menu>
-    </Box>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // SortableAnnotationTemplateRow — wrapper for DnD
@@ -1148,16 +964,6 @@ function AnnotationTemplatesForListing({
 
   return (
     <Box>
-      {/* procedures linked to the listing ("Dessin auto"), right below the
-          listing name — hidden in 3D (read-only), while SELECT-filtering and
-          for a listing linked from another scope */}
-      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
-        <SectionListingProcedures
-          listingId={listingId}
-          baseMapId={selectedBaseMapId}
-        />
-      )}
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -1276,6 +1082,16 @@ function AnnotationTemplatesForListing({
             Nouveau modèle
           </Typography>
         </ListItemButton>
+      )}
+
+      {/* procedures linked to the listing ("Dessin auto"), below the add
+          row — hidden in 3D (read-only), while SELECT-filtering and for a
+          listing linked from another scope */}
+      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+        <SectionListingProcedures
+          listingId={listingId}
+          baseMapId={selectedBaseMapId}
+        />
       )}
 
       {openCreateDialog && (
@@ -1988,6 +1804,7 @@ export default function PopperMapListings() {
 
   const annotationsSideS = "Annotations";
   const baseMapsSideS = "Fonds de plan";
+  const toolsSideS = "Commandes";
   const propertiesS = "Propriétés";
 
   const titleS =
@@ -2016,22 +1833,37 @@ export default function PopperMapListings() {
   );
   // "Détacher la liste": the base maps list lives in its own popper
   // (PopperBaseMapsList, mounted next to this one by the editors) — this one
-  // loses its "Fonds de plan" side, and its toggle altogether when no
-  // "Photos" side remains.
+  // loses its "Fonds de plan" side. Same for the drawing tools ("Détacher
+  // les commandes", detached by default: PopperDrawingTools under this one)
+  // and the "Commandes" side. The toggle goes altogether when no second side
+  // remains.
   const baseMapsListDetached = useSelector(
     (s) => s.popperMapListings.baseMapsListDetached
   );
+  const toolsDetached = useSelector((s) => s.popperMapListings.toolsDetached);
+  const showDrawingTools = selectShowDrawingTools({
+    effectiveInteractionMode,
+    isZonesViewer,
+    isBusinessObjectsModuleNoObject,
+    isLocateBusinessObjectMode,
+  });
+  const showToolsSide = showDrawingTools && !toolsDetached;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
-    (!baseMapsListDetached || showPhotosToggle);
+    (!baseMapsListDetached || showPhotosToggle || showToolsSide);
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
   const showBaseMapsBody =
     isBaseMapsListOnly ||
     (showContentToggle &&
       !baseMapsListDetached &&
       popperContentMode === "BASE_MAPS");
+  const showToolsBody =
+    showContentToggle && showToolsSide && popperContentMode === "TOOLS";
+  // Side title row with the properties button: not in the Viewer module nor
+  // the BaseMaps module (read-only legends, no popper properties there).
+  const showSideProperties = !isBaseMapsViewer && !isViewerModule;
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2056,6 +1888,12 @@ export default function PopperMapListings() {
   const [openMergeCompare, setOpenMergeCompare] = useState(false);
   const [mergeCreateNewVersion, setMergeCreateNewVersion] = useState(true);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
+  const paperRef = useRef(null);
+  const {
+    size,
+    handleResizeMouseDown,
+    reset: resetSize,
+  } = usePanelResize({ paperRef });
 
   // helpers - filter listings when coming from LISTING viewer
 
@@ -2324,8 +2162,17 @@ export default function PopperMapListings() {
   // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend)
   // or popperMapListings.showInBaseMapsViewer (see MainMapEditorV3)
 
+  // Default geometry: 2/3 of the available height while the "Commandes"
+  // popper sits below (its 1/3, see PopperDrawingTools), the whole height
+  // otherwise — until the user resizes (explicit width / height, reset on a
+  // double-click of the handle).
+  const defaultMaxHeight = toolsDetached
+    ? "calc((100% - 130px - 12px) * 2 / 3)"
+    : "calc(100% - 130px)";
+
   return (
     <Paper
+      ref={paperRef}
       elevation={4}
       data-capture-hide
       sx={{
@@ -2333,8 +2180,10 @@ export default function PopperMapListings() {
         top: 50,
         left: 50,
         zIndex: 10,
-        width: 290,
-        maxHeight: "calc(100% - 50px - 80px)",
+        width: size?.width ?? 320,
+        ...(size && !collapsed
+          ? { height: size.height, maxHeight: "calc(100% - 50px)" }
+          : { maxHeight: defaultMaxHeight }),
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -2374,6 +2223,7 @@ export default function PopperMapListings() {
           <ToggleContentMode
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
+            showTools={showToolsSide}
             annotationsLabel={
               isBaseMapsViewer && !isBaseMapsLegend ? "Dessins" : "Annotations"
             }
@@ -2407,72 +2257,87 @@ export default function PopperMapListings() {
         </Tooltip>
       </Box>
 
-      {/* Title row of the displayed side (annotations / base maps list):
-          properties of that side. Hidden in the Viewer module and the
-          BaseMaps module (read-only legends, no popper properties there). */}
-      {!collapsed && !isBaseMapsViewer && !isViewerModule && (
-        <Box
-          sx={{
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            px: 2,
-            py: 0.75,
-            borderBottom: "1px solid",
-            borderColor: "panel.border",
-          }}
-        >
-          <Typography
-            variant="caption"
-            noWrap
+      {/* Title row of the displayed side (annotations / base maps list /
+          commandes): properties of that side (annotations and base maps
+          sides) + the detach icon (base maps and commandes sides). Hidden in
+          the Viewer module and the BaseMaps module (read-only legends, no
+          popper properties there) — except on the base maps side, whose
+          detach icon stays reachable. */}
+      {!collapsed &&
+        (showSideProperties || (showBaseMapsBody && !isBaseMapsListOnly)) && (
+          <Box
             sx={{
-              flex: 1,
-              minWidth: 0,
-              color: "text.secondary",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              fontSize: "0.65rem",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              px: 2,
+              py: 0.75,
+              borderBottom: "1px solid",
+              borderColor: "panel.border",
             }}
           >
-            {showBaseMapsBody ? baseMapsSideS : annotationsSideS}
-          </Typography>
-
-          <Tooltip title={propertiesS} arrow placement="top">
-            <Box
-              component="button"
-              onClick={() => {
-                dispatch(
-                  setSelectedItem({
-                    id: selectedScopeId,
-                    type: showBaseMapsBody
-                      ? "POPPER_BASE_MAPS"
-                      : "POPPER_MAP_LISTINGS",
-                  })
-                );
-                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-              }}
+            <Typography
+              variant="caption"
+              noWrap
               sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                p: 0,
-                border: "none",
-                borderRadius: 2,
-                flexShrink: 0,
-                cursor: "pointer",
+                flex: 1,
+                minWidth: 0,
                 color: "text.secondary",
-                bgcolor: "action.hover",
-                "&:hover": { bgcolor: "action.selected" },
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontSize: "0.65rem",
               }}
             >
-              <Tune sx={{ fontSize: 18 }} />
-            </Box>
-          </Tooltip>
-        </Box>
-      )}
+              {showBaseMapsBody
+                ? baseMapsSideS
+                : showToolsBody
+                  ? toolsSideS
+                  : annotationsSideS}
+            </Typography>
+
+            {showSideProperties && !showToolsBody && (
+              <Tooltip title={propertiesS} arrow placement="top">
+                <Box
+                  component="button"
+                  onClick={() => {
+                    dispatch(
+                      setSelectedItem({
+                        id: selectedScopeId,
+                        type: showBaseMapsBody
+                          ? "POPPER_BASE_MAPS"
+                          : "POPPER_MAP_LISTINGS",
+                      })
+                    );
+                    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+                  }}
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    p: 0,
+                    border: "none",
+                    borderRadius: 2,
+                    flexShrink: 0,
+                    cursor: "pointer",
+                    color: "text.secondary",
+                    bgcolor: "action.hover",
+                    "&:hover": { bgcolor: "action.selected" },
+                  }}
+                >
+                  <Tune sx={{ fontSize: 18 }} />
+                </Box>
+              </Tooltip>
+            )}
+
+            {showBaseMapsBody && !isBaseMapsListOnly && (
+              <IconButtonToggleDetached target="BASE_MAPS" />
+            )}
+            {showToolsBody && <IconButtonToggleDetached target="TOOLS" />}
+          </Box>
+        )}
 
       {/* BaseMaps module: "Afficher les annotations" switch (same state as
           the left panel's), right under the header on both sides. Turning it
@@ -2502,13 +2367,24 @@ export default function PopperMapListings() {
       {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          {!isBaseMapsListOnly && <ButtonToggleBaseMapsListDetached />}
           <SectionBaseMapsList />
           <SectionBaseMapsTools />
         </Box>
       )}
 
-      {!collapsed && !showBaseMapsBody && (
+      {/* "Commandes" side (tools attached): the drawing tools replace the
+          whole body. */}
+      {!collapsed && showToolsBody && (
+        <Box sx={{ overflow: "auto", flex: 1 }}>
+          <SectionPopperDrawingTools
+            templatelessCount={templatelessCount}
+            isThreedEditor={isThreedEditor}
+            viewerKey={viewerKey}
+          />
+        </Box>
+      )}
+
+      {!collapsed && !showBaseMapsBody && !showToolsBody && (
         <>
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
@@ -2723,88 +2599,6 @@ export default function PopperMapListings() {
                   spriteImage={spriteImage}
                 />
               )}
-
-              {/* Outils section — DRAW mode and "no mode" (null, draws like
-                DRAW), always in the ZONES module (openings / splits on the
-                zone delimitation polygons) and in a business-objects module
-                without an active object (edit-only panel: cuts / openings on
-                existing annotations stay possible) */}
-              {!isLocateBusinessObjectMode &&
-                (effectiveInteractionMode === "DRAW" ||
-                  effectiveInteractionMode == null ||
-                  isZonesViewer ||
-                  isBusinessObjectsModuleNoObject) && (
-                  <>
-                    <Box
-                      sx={{
-                        mt: 2,
-                        px: 1,
-                        py: 0.5,
-                        bgcolor: "panel.sectionBg",
-                        borderTop: "1px solid",
-                        borderColor: "panel.border",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "panel.textMuted",
-                          fontWeight: 700,
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase",
-                          fontSize: "11px",
-                        }}
-                      >
-                        Outils de dessin
-                      </Typography>
-                    </Box>
-                    <List dense disablePadding>
-                      {getToolItemsForEditor({ isThreedEditor }).map((tool) =>
-                        tool.isTemplatelessDraw ? (
-                          // templateless annotations belong to a scope, not
-                          // to the ZONES / business-objects flows
-                          viewerKey === "MAP" && (
-                            <RowTemplatelessDraw
-                              key={tool.type}
-                              label={tool.label}
-                              Icon={tool.Icon}
-                              shortcut={tool.shortcut}
-                              count={templatelessCount}
-                            />
-                          )
-                        ) : tool.isRevolutionAxis ? (
-                          // revolution axes belong to a scope, like the
-                          // templateless annotations
-                          viewerKey === "MAP" && (
-                            <RowRevolutionAxisTool
-                              key={tool.type}
-                              label={tool.label}
-                              Icon={tool.Icon}
-                              shortcut={tool.shortcut}
-                              isThreedEditor={isThreedEditor}
-                            />
-                          )
-                        ) : isThreedEditor && tool.threedTool ? (
-                          <RowThreedTool
-                            key={tool.type}
-                            threedTool={tool.threedTool}
-                            label={tool.label}
-                            Icon={tool.Icon}
-                            shortcut={tool.shortcut}
-                          />
-                        ) : (
-                          <ToolRow
-                            key={tool.type}
-                            type={tool.type}
-                            label={tool.label}
-                            Icon={tool.Icon}
-                            shortcut={tool.shortcut}
-                          />
-                        )
-                      )}
-                    </List>
-                  </>
-                )}
             </>
           </Box>
         </>
@@ -2812,37 +2606,39 @@ export default function PopperMapListings() {
 
       {/* Template SOLO band — outside the scrollable body, so it stays visible
           at the bottom (collapsed panel included). */}
-      {(soloTemplateId || soloRevolutionAxisId) && !showBaseMapsBody && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            pl: 1.5,
-            pr: 0.5,
-            py: 0.25,
-            flexShrink: 0,
-            bgcolor: "secondary.main",
-            color: "secondary.contrastText",
-          }}
-        >
-          <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
-            <b>{soloS}</b>{" "}
-            {[soloTemplate?.label, soloRevolutionAxis?.label]
-              .filter(Boolean)
-              .join(" · ")}
-          </Typography>
-          <Tooltip title={exitSoloS} arrow placement="top">
-            <IconButton
-              size="small"
-              onClick={handleExitSolo}
-              sx={{ color: "inherit", p: 0.25 }}
-            >
-              <Close sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
+      {(soloTemplateId || soloRevolutionAxisId) &&
+        !showBaseMapsBody &&
+        !showToolsBody && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              pl: 1.5,
+              pr: 0.5,
+              py: 0.25,
+              flexShrink: 0,
+              bgcolor: "secondary.main",
+              color: "secondary.contrastText",
+            }}
+          >
+            <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+              <b>{soloS}</b>{" "}
+              {[soloTemplate?.label, soloRevolutionAxis?.label]
+                .filter(Boolean)
+                .join(" · ")}
+            </Typography>
+            <Tooltip title={exitSoloS} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={handleExitSolo}
+                sx={{ color: "inherit", p: 0.25 }}
+              >
+                <Close sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
 
       {/* Create listing dialog */}
 
@@ -2896,6 +2692,13 @@ export default function PopperMapListings() {
             </Box>
           </BoxFlexVStretch>
         </DialogGeneric>
+      )}
+
+      {!collapsed && (
+        <PanelResizeHandle
+          onMouseDown={handleResizeMouseDown}
+          onDoubleClick={resetSize}
+        />
       )}
     </Paper>
   );

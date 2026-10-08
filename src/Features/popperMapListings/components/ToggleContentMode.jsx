@@ -15,6 +15,7 @@ import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 export default function ToggleContentMode({
   showPhotos = false,
   showBaseMaps = true,
+  showTools = false,
   annotationsLabel = "Annotations",
 }) {
   const dispatch = useDispatch();
@@ -23,6 +24,7 @@ export default function ToggleContentMode({
 
   const photosS = "Photos";
   const baseMapsS = "Fonds de plan";
+  const toolsS = "Commandes";
 
   // data
 
@@ -34,6 +36,7 @@ export default function ToggleContentMode({
     { value: "ANNOTATIONS", label: annotationsLabel },
     ...(showPhotos ? [{ value: "PHOTOS", label: photosS }] : []),
     ...(showBaseMaps ? [{ value: "BASE_MAPS", label: baseMapsS }] : []),
+    ...(showTools ? [{ value: "TOOLS", label: toolsS }] : []),
   ];
   // "PHOTOS" stored from the Viewer module while this surface has no Photos
   // side: the body shows the annotations, so does the toggle.

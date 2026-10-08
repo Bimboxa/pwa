@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -11,9 +11,11 @@ import UnfoldLess from "@mui/icons-material/UnfoldLess";
 import UnfoldMore from "@mui/icons-material/UnfoldMore";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
-import ButtonToggleBaseMapsListDetached from "./ButtonToggleBaseMapsListDetached";
+import IconButtonToggleDetached from "./IconButtonToggleDetached";
+import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
 
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+import usePanelResize from "Features/layout/hooks/usePanelResize";
 import selectIsBaseMapsLegendPopper from "Features/popperMapListings/utils/selectIsBaseMapsLegendPopper";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -21,17 +23,17 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 // ---------------------------------------------------------------------------
 // PopperBaseMapsList — the base maps list detached from PopperMapListings
-// ("Détacher la liste"): a second floating panel with the very same
-// structure (draggable header, properties, collapse), showing the base maps
-// only. Mounted by the editors right next to PopperMapListings (same gates);
+// ("Détacher la liste" icon of its "Fonds de plan" title row): a second
+// floating panel with the very same structure (draggable header, properties,
+// attach icon, collapse, resize handle), showing the base maps only. Mounted by the editors right next to PopperMapListings (same gates);
 // renders nothing while the list is attached. In 2D it is hidden — not
 // unmounted, so it keeps its drag position and collapsed state — while a
 // paste / subtract / drawing helper replaces the annotations popper.
 // ---------------------------------------------------------------------------
 
 const POPPER_WIDTH = 290;
-// Default spot: right of the annotations popper (left 50 + width + gap).
-const DEFAULT_LEFT = 50 + POPPER_WIDTH + 12;
+// Default spot: right of the annotations popper (left 50 + its width + gap).
+const DEFAULT_LEFT = 50 + 320 + 12;
 
 export default function PopperBaseMapsList() {
   const dispatch = useDispatch();
@@ -73,6 +75,12 @@ export default function PopperBaseMapsList() {
 
   const [collapsed, setCollapsed] = useState(false);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
+  const paperRef = useRef(null);
+  const {
+    size,
+    handleResizeMouseDown,
+    reset: resetSize,
+  } = usePanelResize({ paperRef });
 
   // helpers
 
@@ -96,6 +104,7 @@ export default function PopperBaseMapsList() {
 
   return (
     <Paper
+      ref={paperRef}
       elevation={4}
       data-capture-hide
       sx={{
@@ -103,8 +112,10 @@ export default function PopperBaseMapsList() {
         top: 50,
         left: DEFAULT_LEFT,
         zIndex: 10,
-        width: POPPER_WIDTH,
-        maxHeight: "calc(100% - 50px - 80px)",
+        width: size?.width ?? POPPER_WIDTH,
+        ...(size && !collapsed
+          ? { height: size.height, maxHeight: "calc(100% - 50px)" }
+          : { maxHeight: "calc(100% - 50px - 80px)" }),
         display: helperActive ? "none" : "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -160,6 +171,8 @@ export default function PopperBaseMapsList() {
           </Tooltip>
         )}
 
+        <IconButtonToggleDetached target="BASE_MAPS" variant="header" />
+
         <Tooltip title={collapsed ? expandS : collapseS}>
           <IconButton
             size="small"
@@ -181,9 +194,15 @@ export default function PopperBaseMapsList() {
 
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          <ButtonToggleBaseMapsListDetached />
           <SectionBaseMapsList />
         </Box>
+      )}
+
+      {!collapsed && (
+        <PanelResizeHandle
+          onMouseDown={handleResizeMouseDown}
+          onDoubleClick={resetSize}
+        />
       )}
     </Paper>
   );

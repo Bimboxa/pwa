@@ -103,6 +103,7 @@ import {
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
+import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
@@ -2620,8 +2621,10 @@ export default function MainThreedEditor() {
              poppers keep their state. */
           <PortalEditorFloatingPanels hidden={walkActive}>
             <PopperMapListings />
-            {/* Base maps list detached from the popper above. */}
+            {/* Base maps list / drawing tools ("Commandes") detached from
+                the popper above. */}
             <PopperBaseMapsList />
+            <PopperDrawingTools />
           </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}

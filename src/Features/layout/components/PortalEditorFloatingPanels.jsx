@@ -9,7 +9,8 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 // ---------------------------------------------------------------------------
 // PortalEditorFloatingPanels — renders the floating panels of an editor
-// (PopperMapListings, PopperBaseMapsList) in the layout-level host instead
+// (PopperMapListings, PopperBaseMapsList, PopperDrawingTools) in the
+// layout-level host instead
 // of inside the editor, so they:
 // - are no longer clipped by the editors area (SectionViewer overflow) and
 //   can be dragged over the top bar;
