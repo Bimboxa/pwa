@@ -1,22 +1,26 @@
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import { setOpenLeftPanel } from "Features/leftPanel/leftPanelSlice";
-
-import { Box, IconButton } from "@mui/material";
-import {
-  Fullscreen,
-  FullscreenExit as FullScreenExit,
-} from "@mui/icons-material";
-
-import ButtonGeneric from "./ButtonGeneric";
 import { setIsFullScreen } from "../layoutSlice";
 
+import { Button } from "@mui/material";
+import { Fullscreen, FullscreenExit } from "@mui/icons-material";
+
+import ButtonBaseMapsGrid from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
+
+// Top-right toggle of the editors' full screen mode: the top bar, the modules
+// band, the left dock and the bottom bar go away, only the displayed editor
+// and the right tools band stay (see LayoutDesktop); the browser full screen
+// follows (useBrowserFullScreenSync). Off: floating icon button with the look
+// of the row (ButtonBaseMapsGrid). On: a labelled secondary contained button,
+// the obvious way out of the mode. Mounted in the three mirrored rows (2D
+// editor, 3D editor, base maps grid).
 export default function ButtonFullScreen() {
   const dispatch = useDispatch();
 
   // strings
 
-  const labelS = "Mode plein écran";
+  const enterS = "Plein écran";
+  const exitS = "Quitter le mode plein écran";
 
   // data
 
@@ -30,32 +34,26 @@ export default function ButtonFullScreen() {
 
   // render
 
-  if (!isFullScreen)
-    return (
-      <ButtonGeneric
-        startIcon={<Fullscreen />}
-        label={labelS}
-        onClick={handleClick}
-        variant="contained"
-      />
-    );
-
   if (isFullScreen) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "50%",
-          bgcolor: "primary.main",
-          color: "white",
-        }}
+      <Button
+        size="small"
+        variant="contained"
+        color="secondary"
+        startIcon={<FullscreenExit />}
+        onClick={handleClick}
+        sx={{ whiteSpace: "nowrap", borderRadius: "10px" }}
       >
-        <IconButton onClick={handleClick} color="inherit">
-          <FullScreenExit />
-        </IconButton>
-      </Box>
+        {exitS}
+      </Button>
     );
   }
+
+  return (
+    <ButtonBaseMapsGrid
+      title={enterS}
+      icon={<Fullscreen fontSize="small" />}
+      onClick={handleClick}
+    />
+  );
 }

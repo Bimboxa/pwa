@@ -19,6 +19,8 @@ import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleTh
 import ButtonZoomOutMap from "./ButtonZoomOutMap";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
 import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
+import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/SectionMainBaseMapControlsFloating";
+import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -69,17 +71,9 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 <ButtonRunningTransform />
             </Box>
 
-            {/* <Box
-                sx={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "8px",
-                    transform: "translateX(-50%)",
-                    zIndex: 1,
-                }}
-            >
-                <BaseMapSelectorInMapEditorV2 viewportWidth={viewport?.w} />
-            </Box> */}
+            {/* Full screen only: the main base map controls of the (hidden)
+                top bar float at the top center of the editor. */}
+            <SectionMainBaseMapControlsFloating zIndex={1} />
 
 
 
@@ -121,8 +115,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
 
             {/* Top-right row, same order as the row of the opened base maps
                 grid (LayerBaseMapsGrid, which covers this one while open):
-                base map image display mode, zoom out, base maps grid
-                ("table of plans"). Mirrored in the 3D editor. */}
+                full screen, base map image display mode, zoom out, base maps
+                grid ("table of plans"). Mirrored in the 3D editor. */}
             <Box
                 data-capture-hide
                 sx={{
@@ -136,6 +130,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                     transition: "right 0.2s ease",
                 }}
             >
+                <ButtonFullScreen />
                 <SelectorBaseMapsImageMode />
                 <ButtonZoomOutMap onResetCamera={onResetCamera} />
                 <ButtonOpenBaseMapsGrid />

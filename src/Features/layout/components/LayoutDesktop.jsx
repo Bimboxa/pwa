@@ -22,6 +22,8 @@ import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToo
 import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
 import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLandingViewerModuleOnScopeOpen";
 import useEnsureEnabledModule from "Features/viewers/hooks/useEnsureEnabledModule";
+import useExitFullScreenOnNonEditorModule from "../hooks/useExitFullScreenOnNonEditorModule";
+import useBrowserFullScreenSync from "../hooks/useBrowserFullScreenSync";
 
 export default function LayoutDesktop() {
   // hotkeys — switch module (D = Dessin, F = Fonds de plan, V = Points de vue).
@@ -45,9 +47,19 @@ export default function LayoutDesktop() {
   // Falls back to an enabled module when the selected one gets disabled from
   // the Configuration dialog (or was restored disabled at boot).
   useEnsureEnabledModule();
+  // Full screen (ButtonFullScreen) is left automatically when the displayed
+  // editor has no top-right row to leave it from (Krto, Portfolio, …).
+  useExitFullScreenOnNonEditorModule();
+  // Browser full screen (Fullscreen API) follows the mode, and leaving the
+  // browser full screen (Escape) leaves the mode.
+  useBrowserFullScreenSync();
 
   // data
 
+  // Full screen: only the displayed editor and the right tools band stay. The
+  // left dock hides itself (LeftDrawerPanel), the bottom bar turns into a
+  // floating drawing bar (BottomBarDesktop), the base map controls of the top
+  // bar move to the top center of the editor (SectionMainBaseMapControlsFloating).
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
 
   return (

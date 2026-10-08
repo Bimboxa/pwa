@@ -1,23 +1,11 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setViewerReturnContext } from "Features/viewers/viewersSlice";
-import {
-  setIsCalibrating,
-  setShowCalibration,
-  setCalibrationTargets,
-} from "Features/baseMapEditor/baseMapEditorSlice";
-import db from "App/db/db";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import computeCalibrationTransform, {
-  DEFAULT_RED,
-  DEFAULT_GREEN,
-} from "Features/mapEditor/utils/computeCalibrationTransform";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import {
   setSelectedListingId,
   setScopeModuleShowAllListings,
 } from "Features/listings/listingsSlice";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -45,10 +33,7 @@ import useSelectedEntityModel from "Features/listings/hooks/useSelectedEntityMod
 import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingTools";
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
-import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
-import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
-import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInTopBar";
-import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import SectionMainBaseMapControls from "Features/baseMaps/components/SectionMainBaseMapControls";
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
@@ -63,11 +48,6 @@ export default function TopBarDesktop() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const isCalibrating = useSelector((s) => s.baseMapEditor.isCalibrating);
-  const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
-  const calibrationTargetsByVersionId = useSelector(
-    (s) => s.baseMapEditor.calibrationTargetsByVersionId
-  );
-  const baseMap = useMainBaseMap();
 
   // helper - em
 
@@ -90,87 +70,11 @@ export default function TopBarDesktop() {
 
   const isPortfolioViewer = viewerKey === "PORTFOLIO";
 
-  // The top bar is module-driven: the Dessin module keeps its baseMap
-  // selector (the baseMap drawn annotations get linked to) whichever editor
-  // (2D/3D) it displays; the 3D recap and Maillage modules have none (pure
-  // viewers / per-scope mailles). POV keeps the 2D selector when it displays
-  // the map editor, and — like the 3D module — nothing when it displays the 3D
-  // editor: the base maps are picked from the "Fonds de plan" list of the
-  // popper / left panel there.
-  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
-  const isPovViewer = viewerKey === "POINT_OF_VIEW";
-  const isPovMap = isPovViewer && effectiveViewerKey === "MAP";
-  // Ouvrages module: same rule as POV — the 2D selector shows while the
-  // module displays the map editor, the 3D editor keeps its canvas chips.
-  const isBusinessObjectsMap =
-    isBusinessObjectsModuleKey(viewerKey) && effectiveViewerKey === "MAP";
-  // While the create-baseMap overlay is open, the baseMap-related controls
-  // (selector, versions, Z) are meaningless: hide the whole center section.
-  const isCreatingBaseMap = useSelector(
-    (s) => s.mapEditor.showCreateBaseMapSection
-  );
-
   // handlers
 
   function handleReturnToDrawing() {
     switchViewer("MAP");
     dispatch(setViewerReturnContext(null));
-  }
-
-  function handleCancelCalibration() {
-    dispatch(setIsCalibrating(false));
-    dispatch(setShowCalibration(false));
-  }
-
-  async function handleConfirmCalibration() {
-    if (!baseMap || !versionCompareId) return;
-
-    const activeVersion = baseMap.getActiveVersion();
-    if (!activeVersion) return;
-
-    const activeTargets = calibrationTargetsByVersionId[activeVersion.id] || {
-      red: DEFAULT_RED,
-      green: DEFAULT_GREEN,
-    };
-    const refTargets = calibrationTargetsByVersionId[versionCompareId] || {
-      red: DEFAULT_RED,
-      green: DEFAULT_GREEN,
-    };
-
-    const refSize = baseMap.getImageSize();
-    if (!refSize) return;
-
-    const activeTransform = activeVersion.transform || {
-      x: 0,
-      y: 0,
-      scale: 1,
-      rotation: 0,
-    };
-
-    const newTransform = computeCalibrationTransform({
-      activeTargets,
-      refTargets,
-      refSize,
-      activeTransform,
-    });
-
-    if (!newTransform) return;
-
-    await db.baseMapVersions.update(activeVersion.id, {
-      transform: newTransform,
-    });
-
-    // Move active targets to reference positions after calibration
-    dispatch(
-      setCalibrationTargets({
-        versionId: activeVersion.id,
-        red: { x: refTargets.red.x, y: refTargets.red.y },
-        green: { x: refTargets.green.x, y: refTargets.green.y },
-      })
-    );
-
-    dispatch(setIsCalibrating(false));
-    dispatch(setShowCalibration(false));
   }
 
   function handleReturnToViewer() {
@@ -233,21 +137,11 @@ export default function TopBarDesktop() {
         </Box>
       </Box>
 
-      {/* Center section - baseMap selectors or portfolio return */}
-      {!isCreatingBaseMap &&
-        (viewerKey === "MAP" ||
-          viewerKey === "BASE_MAPS" ||
-          isPovMap ||
-          isBusinessObjectsMap) && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <BaseMapSelectorInMapEditorV2
-              // The BaseMaps module edits the image itself: no eye there.
-              showImageToggle={viewerKey !== "BASE_MAPS"}
-            />
-            <BaseMapVersionSelectorInTopBar />
-            <FieldBaseMapZInTopBar />
-          </Box>
-        )}
+      {/* Center section - main base map controls (selector, versions, Z,
+          calibration buttons; module-driven visibility, see the component —
+          in full screen the same section floats over the editor) or
+          portfolio return */}
+      <SectionMainBaseMapControls />
       {isPortfolioViewer && (
         <Button
           size="small"
@@ -281,29 +175,6 @@ export default function TopBarDesktop() {
             Revenir au Dessin
           </Button>
         )}
-      {viewerKey === "BASE_MAPS" && isCalibrating && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleCancelCalibration}
-          >
-            Annuler
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            onClick={handleConfirmCalibration}
-            sx={{
-              bgcolor: "warning.main",
-              color: "warning.contrastText",
-              "&:hover": { bgcolor: "warning.dark" },
-            }}
-          >
-            Calibrer
-          </Button>
-        </Box>
-      )}
 
       {/* Right section - actions */}
       <Box

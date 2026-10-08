@@ -82,6 +82,8 @@ import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonTogg
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
+import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/SectionMainBaseMapControlsFloating";
+import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedAnnotationOverlayActions from "./ThreedAnnotationOverlayActions";
@@ -2672,9 +2674,16 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
-      {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): base map
-          image display mode, zoom out, base maps grid button. The Maillage
-          module (meshing-only) keeps the zoom out alone. */}
+      {/* Full screen only: the main base map controls of the (hidden) top
+          bar float at the top center of the editor (Dessin / BaseMaps
+          modules displaying the 3D editor). */}
+      {isThreedViewer && !captureFramingActive && (
+        <SectionMainBaseMapControlsFloating zIndex={10} />
+      )}
+      {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): full
+          screen, base map image display mode, zoom out, base maps grid
+          button. The Maillage module (meshing-only) keeps the full screen
+          and zoom out alone. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           data-capture-hide
@@ -2689,6 +2698,7 @@ export default function MainThreedEditor() {
             transition: "right 0.2s ease",
           }}
         >
+          <ButtonFullScreen />
           {!isMeshesViewer && <SelectorBaseMapsImageMode />}
           <ButtonZoomOutThreed />
           {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}

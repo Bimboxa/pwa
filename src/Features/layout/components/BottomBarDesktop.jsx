@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
@@ -62,10 +62,9 @@ export default function BottomBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
+  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const helperMessage = useHelperMessageInBottomBar();
-  const enabledDrawingMode = useSelector(
-    (s) => s.mapEditor.enabledDrawingMode
-  );
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   // Revolution axis drawn from the 3D editor: the live radius comes from the
   // 3D overlay, not from the 2D preview CircleRadiusBottomBar polls.
   const isRevolutionAxisDraw3d = useSelector(
@@ -76,8 +75,7 @@ export default function BottomBarDesktop() {
 
   const showRectangleDims =
     RECTANGLE_DRAWING_MODES.includes(enabledDrawingMode);
-  const showSegmentLength =
-    SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
+  const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
   const showCircleRadius =
     CIRCLE_RADIUS_DRAWING_MODES.includes(enabledDrawingMode);
   const showFaceCutAxis =
@@ -92,7 +90,63 @@ export default function BottomBarDesktop() {
   const rectangleUnit =
     enabledDrawingMode === "FACE_CUT_RECTANGLE" ? "m" : null;
 
+  // helpers - drawing-mode constraint UI (dims / cut distance / length /
+  // radius), shared by the in-flow drawing bar and its full screen variant.
+
+  const constraintBar = (
+    <>
+      {showRectangleDims && <RectangleDimsBottomBar unit={rectangleUnit} />}
+      {showFaceCutAxis && <FaceCutAxisBottomBar />}
+      {showSegmentLength && <SegmentLengthBottomBar />}
+      {showCircleRadius &&
+        (isRevolutionAxisDraw3d ? (
+          <RevolutionAxisRadiusBottomBarThreed />
+        ) : (
+          <CircleRadiusBottomBar />
+        ))}
+    </>
+  );
+
   // render
+
+  // Full screen (ButtonFullScreen): no bar. Only the drawing UI survives, as
+  // a floating card at the bottom center of the editors: the constraint UI
+  // of the armed drawing mode, and above it the draft / start-draw toolbars,
+  // which position themselves over their host (bottom: calc(100% + 8px)) —
+  // over the card when it shows, 8px over the edge otherwise. Dropped there:
+  // sign-in, app version, config, documentation, helper message, bg-position
+  // helper, coupled navigation switch and the read-only scope strip.
+  if (isFullScreen) {
+    return (
+      <Box
+        data-capture-hide
+        sx={{
+          position: "absolute",
+          bottom: 8,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 400,
+        }}
+      >
+        {showDrawingBar && (
+          <Paper
+            elevation={6}
+            sx={{
+              borderRadius: 2,
+              px: 0.5,
+              display: "flex",
+              alignItems: "center",
+              maxWidth: "calc(100vw - 32px)",
+            }}
+          >
+            {constraintBar}
+          </Paper>
+        )}
+        <ToolbarDrawingDraft />
+        {!showDrawingBar && <ToolbarStartDrawTemplate />}
+      </Box>
+    );
+  }
 
   if (showDrawingBar) {
     return (
@@ -110,15 +164,7 @@ export default function BottomBarDesktop() {
         }}
       >
         <ToolbarDrawingDraft />
-        {showRectangleDims && <RectangleDimsBottomBar unit={rectangleUnit} />}
-        {showFaceCutAxis && <FaceCutAxisBottomBar />}
-        {showSegmentLength && <SegmentLengthBottomBar />}
-        {showCircleRadius &&
-          (isRevolutionAxisDraw3d ? (
-            <RevolutionAxisRadiusBottomBarThreed />
-          ) : (
-            <CircleRadiusBottomBar />
-          ))}
+        {constraintBar}
         <SectionReadOnlyScopeInBottomBar />
       </Box>
     );
