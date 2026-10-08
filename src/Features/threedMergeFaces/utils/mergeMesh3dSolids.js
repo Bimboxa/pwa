@@ -2,7 +2,12 @@ import polygonClipping from "polygon-clipping";
 
 import { buildMesh3dFromPlanarFaces } from "../../annotationMesh3d/utils/buildMesh3dFromTriangles.js";
 import { WELD_PRECISION_M } from "../../annotationMesh3d/utils/mesh3dConstants.js";
-import { getFaceNormal } from "../../annotationMesh3d/utils/mesh3dTopology.js";
+import { getMesh3dSignedVolume } from "../../annotationMesh3d/utils/getMesh3dQties.js";
+import isMesh3dClosed from "../../annotationMesh3d/utils/isMesh3dClosed.js";
+import {
+  getFaceNormal,
+  reverseFace,
+} from "../../annotationMesh3d/utils/mesh3dTopology.js";
 import coalesceCoplanarFaces, {
   COALESCE_NORMAL_TOL_RAD,
   COALESCE_PLANE_TOL_M,
@@ -34,7 +39,17 @@ import { dot } from "../../threedMesh/utils/vec3Utils.js";
 // seedPlane: { point, normal } of the face the merge was launched from. The
 // merge is refused (NOT_TOUCHING) when no face of A was unioned with a face
 // of B on that plane: the two clicked faces are coplanar but do not touch,
-// and a merge would leave one annotation in two pieces.
+// and a merge would leave one annotation in two pieces. The seed plane was
+// read on the DISPLAYED geometry, which may be shrunk (« Réduire le
+// crénelage », 10 mm lateral / 5 mm top) while the meshes here are not: it
+// is matched with a loose tolerance and whatever its orientation.
+//
+// clickedNormal: normal of the clicked face of B as displayed. An open mesh
+// keeps the raw winding of its builder (convertObject3DToMesh3d only
+// normalizes closed solids), so B may be wound inside out: when its clicked
+// face looks the other way than the seed plane, the whole of B is reversed
+// first — the two faces the user merges are the same side by definition. A
+// closed result is finally wound outward (signed volume).
 //
 // Pure (no three.js): node-testable, relative imports only.
 
@@ -46,6 +61,9 @@ export const MERGE_MESH3D_REASONS = {
 const COS_TOL = Math.cos(COALESCE_NORMAL_TOL_RAD);
 // Contact overlaps smaller than this (m²) are edge contacts, not faces.
 const MIN_CONTACT_AREA_M2 = 1e-8;
+// Seed plane match: covers the anti-aliasing shrink of the displayed
+// geometry it was read on.
+const SEED_PLANE_TOL_M = 0.015;
 
 const closeRing = (ring) => {
   const [fx, fy] = ring[0];
@@ -81,10 +99,13 @@ function toRawFaces(mesh, tag) {
   return out;
 }
 
-const samePlane = (a, b, cosTol) =>
+const samePlane = (a, b, cosTol, tol = COALESCE_PLANE_TOL_M) =>
   dot(a.normal, b.normal) >= cosTol &&
-  Math.abs(dot(a.normal, a.contour[0]) - dot(a.normal, b.contour[0])) <=
-    COALESCE_PLANE_TOL_M;
+  Math.abs(dot(a.normal, a.contour[0]) - dot(a.normal, b.contour[0])) <= tol;
+
+// Same plane whatever the orientation (seed plane match).
+const sameUnsignedPlane = (a, b, cosTol, tol) =>
+  samePlane(a, b, cosTol, tol) || samePlane(a, flipped(b), cosTol, tol);
 
 // Faces of `b` reversed to be measured in `a`'s plane (opposite normal).
 const flipped = (face) => ({
@@ -202,7 +223,9 @@ function unionAcross(faces, seedPlane) {
         const unioned = coalesceCoplanarFaces([a, b]);
         if (unioned.length !== 1) continue;
         const merged = { ...unioned[0], tags: new Set([...a.tags, ...b.tags]) };
-        if (seed && samePlane(a, seed, COS_TOL)) mergedOnSeedPlane = true;
+        if (seed && sameUnsignedPlane(a, seed, COS_TOL, SEED_PLANE_TOL_M)) {
+          mergedOnSeedPlane = true;
+        }
         list.splice(j, 1);
         list.splice(i, 1, merged);
         changed = true;
@@ -216,14 +239,29 @@ function unionAcross(faces, seedPlane) {
 /**
  * @param {object} meshA - LOCAL mesh { vertices: [{x,y,z}], faces } (z absolute)
  * @param {object} meshB - same frame
- * @param {{ seedPlane?: { point: {x,y,z}, normal: {x,y,z} } }} [options]
+ * @param {{ seedPlane?: { point: {x,y,z}, normal: {x,y,z} },
+ *   clickedNormal?: {x,y,z} }} [options]
  * @returns {{ ok: true, mesh } | { ok: false, reason }}
  */
-export default function mergeMesh3dSolids(meshA, meshB, { seedPlane } = {}) {
+export default function mergeMesh3dSolids(
+  meshA,
+  meshB,
+  { seedPlane, clickedNormal } = {}
+) {
   const facesA = toRawFaces(meshA, "A");
-  const facesB = toRawFaces(meshB, "B");
+  let facesB = toRawFaces(meshB, "B");
   if (!facesA.length || !facesB.length) {
     return { ok: false, reason: MERGE_MESH3D_REASONS.EMPTY };
+  }
+  if (
+    seedPlane?.normal &&
+    clickedNormal &&
+    dot(seedPlane.normal, clickedNormal) < 0
+  ) {
+    facesB = toRawFaces(
+      { vertices: meshB.vertices, faces: meshB.faces.map(reverseFace) },
+      "B"
+    );
   }
 
   const afterContacts = resolveContacts(facesA, facesB);
@@ -232,11 +270,14 @@ export default function mergeMesh3dSolids(meshA, meshB, { seedPlane } = {}) {
     return { ok: false, reason: MERGE_MESH3D_REASONS.NOT_TOUCHING };
   }
 
-  const mesh = buildMesh3dFromPlanarFaces(
+  let mesh = buildMesh3dFromPlanarFaces(
     faces.map(({ contour, holes, normal }) => ({ contour, holes, normal }))
   );
   if (!mesh?.faces?.length) {
     return { ok: false, reason: MERGE_MESH3D_REASONS.EMPTY };
+  }
+  if (isMesh3dClosed(mesh) && getMesh3dSignedVolume(mesh) < 0) {
+    mesh = { vertices: mesh.vertices, faces: mesh.faces.map(reverseFace) };
   }
   return { ok: true, mesh };
 }

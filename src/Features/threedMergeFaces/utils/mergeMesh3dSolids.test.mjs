@@ -122,3 +122,35 @@ test("a face split inside one mesh keeps its seam after the merge", () => {
   // Left half of A stays its own face; right half of A + front of B = one.
   assert.equal(fronts.length, 2);
 });
+
+test("a mesh wound inside out is re-oriented from its clicked face", () => {
+  const a = box(0, 1, 0, 0.2, 0, 2.5);
+  const b = box(1, 2, 0, 0.2, 0, 2.5);
+  b.faces = b.faces.map((face) => ({
+    loop: [...face.loop].reverse(),
+    holes: [],
+  }));
+  // B's front now looks inward (+y): the hook passes that normal as clicked.
+  const result = mergeMesh3dSolids(a, b, {
+    seedPlane: FRONT_PLANE,
+    clickedNormal: { x: 0, y: 1, z: 0 },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.mesh.faces.length, 6);
+  assert.ok(isMesh3dClosed(result.mesh));
+  const fronts = facesOnPlane(result.mesh, { x: 0, y: -1, z: 0 }, 0);
+  assert.equal(fronts.length, 1);
+});
+
+test("a seed plane read on a shrunk display (10 mm off) still matches", () => {
+  const a = box(0, 1, 0, 0.2, 0, 2.5);
+  const b = box(1, 2, 0, 0.2, 0, 2.5);
+  const result = mergeMesh3dSolids(a, b, {
+    seedPlane: {
+      point: { x: 0.5, y: 0.01, z: 1 },
+      normal: { x: 0, y: 1, z: 0 },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.mesh.faces.length, 6);
+});

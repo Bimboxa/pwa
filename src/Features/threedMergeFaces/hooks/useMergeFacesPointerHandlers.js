@@ -46,10 +46,15 @@ import {
 // camera orbit, not a click.
 const DRAG_THRESHOLD_PX = 4;
 
-// Coplanarity of a clicked face with the seed plane: same orientation within
-// 1°, plane offset within 3 mm (the display lift is 1 mm).
+// Coplanarity of a clicked face with the seed plane — a pre-check for the
+// toaster only, the exact test is the merge itself on the un-shrunk meshes:
+// parallel within 1° WHATEVER the orientation (an open mesh keeps the raw
+// winding of its builder, possibly inside out), plane offset within 15 mm
+// (both planes are read on the DISPLAYED geometry: a regular annotation is
+// shrunk by « Réduire le crénelage » — 10 mm lateral, 5 mm top — while a
+// mesh annotation, the seed after a first merge for instance, is not).
 const COPLANAR_COS = Math.cos((1 * Math.PI) / 180);
-const COPLANAR_OFFSET_M = 3e-3;
+const COPLANAR_OFFSET_M = 0.015;
 
 function isCoplanarWithSeed(seedPlane, planeLocal) {
   if (!seedPlane?.normal || !planeLocal?.normal) return false;
@@ -58,7 +63,7 @@ function isCoplanarWithSeed(seedPlane, planeLocal) {
   const n = planeLocal.normal;
   const p = planeLocal.point;
   const cos = nx * n.x + ny * n.y + nz * n.z;
-  if (cos < COPLANAR_COS) return false;
+  if (Math.abs(cos) < COPLANAR_COS) return false;
   const offset = nx * (p.x - px) + ny * (p.y - py) + nz * (p.z - pz);
   return Math.abs(offset) <= COPLANAR_OFFSET_M;
 }
@@ -300,6 +305,7 @@ export default function useMergeFacesPointerHandlers({ annotations }) {
             point: { x: px, y: py, z: pz },
             normal: { x: nx, y: ny, z: nz },
           },
+          clickedNormal: face.planeLocal.normal,
           editor,
           dispatch,
           deleteAnnotationsFn: deleteAnnotationsRef.current,

@@ -23,7 +23,9 @@ import mergeMesh3dSolids from "../utils/mergeMesh3dSolids";
 //
 // seedPlane: { point, normal } (base map local frame, absolute z) of the
 // face the merge was launched from — the merge is refused when the other
-// annotation's faces do not touch the seed's on that plane.
+// annotation's faces do not touch the seed's on that plane. clickedNormal:
+// normal of the clicked face of the other annotation (same frame), used to
+// re-orient a mesh wound inside out (mergeMesh3dSolids).
 //
 // Returns { status: "done", annotation } | { status: "refused", reason }
 // (reasons: mergeFacesMessages MERGE_FACES_REASONS).
@@ -80,6 +82,7 @@ export default async function mergeAnnotationMeshesService({
   seedAnnotationId,
   otherAnnotationId,
   seedPlane,
+  clickedNormal,
   editor,
   dispatch,
   deleteAnnotationsFn,
@@ -130,7 +133,7 @@ export default async function mergeAnnotationMeshesService({
   const merged = mergeMesh3dSolids(
     withAbsoluteZ(seedCtx),
     withAbsoluteZ(otherCtx),
-    { seedPlane }
+    { seedPlane, clickedNormal }
   );
   if (!merged.ok) return refused(merged.reason);
 
