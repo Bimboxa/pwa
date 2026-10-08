@@ -12,10 +12,7 @@ import {
 
 import { setHighlightedMeshPaintId } from "Features/meshPaint/meshPaintSlice";
 
-import {
-  selectHiddenAnnotationTemplateIdSet,
-  selectHiddenRevolutionAxisIdSet,
-} from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import selectSoloWorkPackageId from "Features/businessObjects/utils/selectSoloWorkPackageId";
@@ -213,7 +210,6 @@ export default function ThreedMeshPaints() {
   const soloAnnotationId = useSelector(
     (s) => s.annotations?.soloAnnotationId ?? null
   );
-  const hiddenRevolutionAxisIds = useSelector(selectHiddenRevolutionAxisIdSet);
   const soloRevolutionAxisId = useSelector(
     (s) => s.annotations?.soloRevolutionAxisId ?? null
   );
@@ -278,7 +274,6 @@ export default function ThreedMeshPaints() {
       meshCellParentIds: meshCellParentIds ?? EMPTY_SET,
       soloAnnotationTemplateId,
       soloAnnotationId,
-      hiddenRevolutionAxisIds,
       soloRevolutionAxisId,
       soloZone,
       zoneSoloAnnotationIds,
@@ -306,7 +301,6 @@ export default function ThreedMeshPaints() {
       meshCellParentIds,
       soloAnnotationTemplateId,
       soloAnnotationId,
-      hiddenRevolutionAxisIds,
       soloRevolutionAxisId,
       soloZone,
       zoneSoloAnnotationIds,

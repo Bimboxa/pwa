@@ -65,8 +65,8 @@ export default function intersectAnnotationFace(editor, ndc, camera) {
     if (obj.userData?.isBasemap || obj.userData?.isHoverOverlay) return;
     // Painted parts (Pinceau): skins over their host's faces, never a target.
     if (obj.userData?.isPaintOverlay) return;
-    // Base disc of a plan revolution axis: a decoration, never a face.
-    if (obj.userData?.isRevolutionAxisDisc) return;
+    // Base circle of a plan revolution axis: a decoration, never a face.
+    if (obj.userData?.isRevolutionAxisCircle) return;
     targets.push(obj);
   });
   if (!targets.length) return null;

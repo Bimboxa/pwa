@@ -9,9 +9,6 @@ import {
   DoubleSide,
   LineSegments,
   LineBasicMaterial,
-  MeshBasicMaterial,
-  Shape,
-  ShapeGeometry,
 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -80,37 +77,47 @@ const REVOLUTION_AXIS_LINEWIDTH_PX = 1.5;
 // Dash pattern in world meters (computeLineDistances feeds world distances).
 const REVOLUTION_AXIS_DASH_M = 0.3;
 const REVOLUTION_AXIS_GAP_M = 0.2;
-// Base disc of the plan axis: the displayed circle (radiusM) — or the kept
-// sector of a partial revolution — laid flat at the axis base, half
-// transparent. Lifted 1 mm above the plan so it never z-fights the base map
-// image (same offset as extrudeClosedShape's Z_FIGHT_OFFSET).
-const REVOLUTION_AXIS_DISC_OPACITY = 0.5;
-const REVOLUTION_AXIS_DISC_LIFT_M = 0.001;
-const REVOLUTION_AXIS_DISC_SEGMENTS = 64;
+// Base circle of the plan axis: the OUTLINE of the displayed circle (radiusM)
+// — or of the kept sector of a partial revolution — laid flat at the axis
+// base, as a thin solid fat line in the axis colour (no fill: a circle, not a
+// disc, like the 2D glyph and the 3D draw preview). Lifted 1 mm above the plan
+// so it never z-fights the base map image (same offset as extrudeClosedShape's
+// Z_FIGHT_OFFSET).
+const REVOLUTION_AXIS_CIRCLE_LIFT_M = 0.001;
+const REVOLUTION_AXIS_CIRCLE_SEGMENTS = 64;
 const DEG_TO_RAD = Math.PI / 180;
 
-// Shape of the axis base disc in basemap-local metres (y up, CCW like the
-// axis storage contract: directionDeg / revolutionAngleStartDeg / EndDeg
-// live in that frame). Full circle, or the sector [start, end] (CCW span,
-// mod 2π) of a partial revolution — the half-view is display-only in 3D
-// and ignored here, like the plan footprints.
-function buildRevolutionAxisDiscShape({ cx, cy, r, annotation }) {
-  const shape = new Shape();
+// Vertices of the axis base outline in basemap-local metres (y up, CCW like
+// the axis storage contract: directionDeg / revolutionAngleStartDeg / EndDeg
+// live in that frame), z = 0. Full circle, or the sector [start, end] (CCW
+// span, mod 2π) of a partial revolution closed through the centre — the
+// half-view is display-only in 3D and ignored here, like the plan footprints.
+// The circle closes as an open polyline (last sample = first): no LineLoop,
+// same convention as buildRevolutionCircleLine.
+function buildRevolutionAxisBasePoints({ cx, cy, r, annotation }) {
   const partial = Boolean(annotation.partialRevolution);
-  if (!partial) {
-    shape.absarc(cx, cy, r, 0, Math.PI * 2, false);
-    return shape;
+  let start = 0;
+  let span = Math.PI * 2;
+  if (partial) {
+    start = (Number(annotation.revolutionAngleStartDeg) || 0) * DEG_TO_RAD;
+    const end = (Number(annotation.revolutionAngleEndDeg) || 0) * DEG_TO_RAD;
+    span = (end - start) % (Math.PI * 2);
+    if (span < 0) span += Math.PI * 2;
+    if (span < 1e-6) span = Math.PI * 2;
   }
-  const start = (Number(annotation.revolutionAngleStartDeg) || 0) * DEG_TO_RAD;
-  const end = (Number(annotation.revolutionAngleEndDeg) || 0) * DEG_TO_RAD;
-  let span = (end - start) % (Math.PI * 2);
-  if (span < 0) span += Math.PI * 2;
-  if (span < 1e-6) span = Math.PI * 2;
-  shape.moveTo(cx, cy);
-  shape.lineTo(cx + r * Math.cos(start), cy + r * Math.sin(start));
-  shape.absarc(cx, cy, r, start, start + span, false);
-  shape.lineTo(cx, cy);
-  return shape;
+  const isSector = partial && span < Math.PI * 2 - 1e-6;
+  const segments = Math.max(
+    2,
+    Math.round((REVOLUTION_AXIS_CIRCLE_SEGMENTS * span) / (Math.PI * 2))
+  );
+  const points = [];
+  if (isSector) points.push(new Vector3(cx, cy, 0));
+  for (let i = 0; i <= segments; i++) {
+    const phi = start + (span * i) / segments;
+    points.push(new Vector3(cx + r * Math.cos(phi), cy + r * Math.sin(phi), 0));
+  }
+  if (isSector) points.push(new Vector3(cx, cy, 0));
+  return points;
 }
 
 // Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
@@ -1171,35 +1178,38 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // tag the two ends of the axis could not be snapped onto.
       line.userData.isSnapLine = true;
 
-      // Base disc (or sector) at the axis base, in the axis colour, 50 %
-      // transparent. Display-only: `isRevolutionAxisDisc` keeps it out of
-      // the scene export, the vertex snap index, the drawable faces and the
+      // Base circle (or sector outline) at the axis base, in the axis colour:
+      // a thin solid fat line, same technique as the axis line. Pickable
+      // through attachFatLineRaycast (clicking the circle selects the axis).
+      // Display-only otherwise: `isRevolutionAxisCircle` keeps it out of the
+      // scene export, the vertex snap index, the drawable faces and the
       // hover / dim material swaps.
       const axisGroup = new Group();
       axisGroup.add(line);
       const r = Number(annotation.radiusM) || 0;
       if (r > 0) {
-        const discGeom = new ShapeGeometry(
-          buildRevolutionAxisDiscShape({
-            cx: local.x,
-            cy: local.y,
-            r,
-            annotation,
-          }),
-          REVOLUTION_AXIS_DISC_SEGMENTS
-        );
-        const discMat = new MeshBasicMaterial({
-          color: normalizeHex(annotation.strokeColor || "#e85426"),
-          transparent: true,
-          opacity: REVOLUTION_AXIS_DISC_OPACITY,
-          side: DoubleSide,
-          depthWrite: false,
-          toneMapped: false,
+        const circlePoints = buildRevolutionAxisBasePoints({
+          cx: local.x,
+          cy: local.y,
+          r,
+          annotation,
         });
-        const disc = new Mesh(discGeom, discMat);
-        disc.position.z = z0 + REVOLUTION_AXIS_DISC_LIFT_M;
-        disc.userData.isRevolutionAxisDisc = true;
-        axisGroup.add(disc);
+        const circleGeom = new LineGeometry();
+        circleGeom.setPositions(circlePoints.flatMap((v) => [v.x, v.y, v.z]));
+        const circleMat = new LineMaterial({
+          color: normalizeHex(annotation.strokeColor || "#e85426"),
+          linewidth: REVOLUTION_AXIS_LINEWIDTH_PX,
+          resolution: options?.resolution,
+          worldUnits: false,
+          transparent: true,
+          depthTest: true,
+        });
+        const circle = new Line2(circleGeom, circleMat);
+        circle.computeLineDistances();
+        circle.position.z = z0 + REVOLUTION_AXIS_CIRCLE_LIFT_M;
+        attachFatLineRaycast(circle, circlePoints);
+        circle.userData.isRevolutionAxisCircle = true;
+        axisGroup.add(circle);
       }
       object = axisGroup;
       break;

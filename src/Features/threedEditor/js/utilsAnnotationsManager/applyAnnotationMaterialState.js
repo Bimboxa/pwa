@@ -118,9 +118,9 @@ export default function applyAnnotationMaterialState(object3D, state) {
     // Invisible full surface of a hatched fill (applyHatchFill): its band and
     // lines carry the state, the surface must stay invisible.
     if (child.userData?.isHatchPickSurface) return;
-    // Base disc of a plan revolution axis: keeps its half-transparent look
-    // through hover / dim (the dashed axis line carries the state).
-    if (child.userData?.isRevolutionAxisDisc) return;
+    // Base circle of a plan revolution axis: keeps its look through hover /
+    // dim (the dashed axis line carries the state).
+    if (child.userData?.isRevolutionAxisCircle) return;
     if (!child.userData) child.userData = {};
     if (!child.userData.originalMaterial) {
       child.userData.originalMaterial = child.material;

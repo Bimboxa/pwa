@@ -723,8 +723,7 @@ export default function useAnnotationsV2(options) {
       [linkedListingSourceByListingId]
     );
     const linkedListingIds = useMemo(
-      () =>
-        new Set(linkedListingIdsKey ? linkedListingIdsKey.split(",") : []),
+      () => new Set(linkedListingIdsKey ? linkedListingIdsKey.split(",") : []),
       [linkedListingIdsKey]
     );
 
@@ -1038,7 +1037,9 @@ export default function useAnnotationsV2(options) {
       const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
 
       // layer visibility filter
-      _annotations = _annotations.filter((a) => isDxfAnnotationVisible(a, baseMapById[a.baseMapId]));
+      _annotations = _annotations.filter((a) =>
+        isDxfAnnotationVisible(a, baseMapById[a.baseMapId])
+      );
       if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
         _annotations = _annotations.filter((a) => {
           if (a.isBaseMapAnnotation || isRevolutionHelper(a)) return true;
@@ -2134,7 +2135,9 @@ export default function useAnnotationsV2(options) {
           }
           const queryAxisIds = new Set(
             _annotations
-              .filter((a) => a?.type === "REVOLUTION_AXIS" && axisById.has(a.id))
+              .filter(
+                (a) => a?.type === "REVOLUTION_AXIS" && axisById.has(a.id)
+              )
               .map((a) => a.id)
           );
           const verticalIds = queryAxisIds.size
@@ -2146,7 +2149,10 @@ export default function useAnnotationsV2(options) {
             : [];
           if (verticalIds.length > 0) {
             let rows = (
-              await db.annotations.where("baseMapId").anyOf(verticalIds).toArray()
+              await db.annotations
+                .where("baseMapId")
+                .anyOf(verticalIds)
+                .toArray()
             ).filter(
               (r) =>
                 isRevolvedArc(r) &&
@@ -2154,7 +2160,9 @@ export default function useAnnotationsV2(options) {
                 !arcsById.has(r.id) &&
                 queryAxisIds.has(r.shape3D.axisAnnotationId) &&
                 // Same listing visibility rules as the queried base map.
-                !(excludeListingsIds && excludeListingsIds.includes(r.listingId))
+                !(
+                  excludeListingsIds && excludeListingsIds.includes(r.listingId)
+                )
             );
             // Scope rule on the arcs' listings. `listings` / `listingsMap`
             // only hold the listings of THIS query's rows (a plan showing
@@ -2180,7 +2188,10 @@ export default function useAnnotationsV2(options) {
               });
             }
             if (rows.length > 0) {
-              const fetched = await resolveRowsAgainstOwnBaseMap(rows, baseMapById);
+              const fetched = await resolveRowsAgainstOwnBaseMap(
+                rows,
+                baseMapById
+              );
               const arcs = [...fetched.values()];
               await resolveRevolutionAxes(arcs, baseMapById);
               for (const arc of arcs) {
@@ -2922,12 +2933,17 @@ export default function useAnnotationsV2(options) {
       // filter out annotations whose template is hidden
       if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
-      // filter out the hidden revolution axes and what is linked to them
+      // filter out the hidden revolution axes: the axis line itself and its
+      // clones on the vertical base maps only — what is revolved around them
+      // (profiles, circles, plan footprints) stays visible.
       if (!keepHiddenTemplates && hiddenRevolutionAxisIdSet.size > 0) {
-        result = result.filter(
-          (a) =>
-            !hiddenRevolutionAxisIdSet.has(getRevolutionAxisIdOfAnnotation(a))
-        );
+        result = result.filter((a) => {
+          if (a.type === "REVOLUTION_AXIS")
+            return !hiddenRevolutionAxisIdSet.has(a.id);
+          if (a.type === "REVOLUTION_AXIS_PLACEMENT")
+            return !hiddenRevolutionAxisIdSet.has(a.revolutionAxisId);
+          return true;
+        });
       }
 
       // Planning "Play" mode (PLANNING module): every annotation is styled by

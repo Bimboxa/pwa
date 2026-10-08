@@ -66,7 +66,7 @@ export function buildIndex(scene, options = {}) {
     if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
     if (obj.userData?.isDecor) return; // scan base maps (no CPU geometry)
     if (obj.userData?.isHatchFill) return; // hatched fill band / lines
-    if (obj.userData?.isRevolutionAxisDisc) return; // axis base disc (decoration)
+    if (obj.userData?.isRevolutionAxisCircle) return; // axis base circle (decoration)
     let isSnappable = false;
     let nodeId = null; // owning annotation, when there is one
     let parent = obj;

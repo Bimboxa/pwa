@@ -6,8 +6,8 @@
 // every annotation revolved around it (REVOLUTION shape3D.axisAnnotationId:
 // POLYLINE profiles, POINT circles) — and the read-only plan footprints of
 // those (isRevolutionFootprint, synthesized by useAnnotationsV2, which carry
-// `revolutionAxisId` and no shape3D). Drives the eye and the solo of the
-// revolution axis rows (SectionRevolutionAxes).
+// `revolutionAxisId` and no shape3D). Drives the solo of the revolution axis
+// rows (SectionRevolutionAxes) — the eye hides the axis line alone.
 export default function getRevolutionAxisIdOfAnnotation(annotation) {
   if (!annotation) return null;
   if (annotation.isRevolutionFootprint)

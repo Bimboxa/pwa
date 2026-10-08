@@ -87,8 +87,8 @@ function isAfterPovFreeze(createdAt, freeze) {
  *   - povFreezeCreatedBefore: ISO string | null
  *   - showMeshCells: boolean; meshCellParentIds: Set | Array (useMeshCellRelations)
  *   - soloAnnotationTemplateId, soloAnnotationId: ids | null
- *   - hiddenRevolutionAxisIds: Set | Array (scopeVisibility slice);
- *     soloRevolutionAxisId: id | null — both read the HOST's axis
+ *   - soloRevolutionAxisId: id | null — reads the HOST's axis (the axis eye
+ *     hides the axis line only, never the paints of what is revolved around it)
  *   - soloZone: {templateId} | null; zoneSoloAnnotationIds: Set | Array
  *   - soloWorkPackageId: id | null (pass null in planning Play mode);
  *     workPackageSoloAnnotationIds: Set | Array
@@ -132,8 +132,6 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
   // --- host: structural filters only (no template / listing) ---
   if (host.isBaseMapAnnotation) return HIDDEN;
   if (!isHostLayerVisible(host, ctx)) return HIDDEN;
-  const hostAxisId = getRevolutionAxisIdOfAnnotation(host);
-  if (hostAxisId && has(ctx.hiddenRevolutionAxisIds, hostAxisId)) return HIDDEN;
   if (ctx.showMeshCells) {
     // The parent is replaced by its mesh cells.
     if (has(ctx.meshCellParentIds, host.id)) return HIDDEN;
@@ -176,7 +174,10 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
   )
     return DIMMED;
   if (ctx.soloAnnotationId && host.id !== ctx.soloAnnotationId) return DIMMED;
-  if (ctx.soloRevolutionAxisId && hostAxisId !== ctx.soloRevolutionAxisId)
+  if (
+    ctx.soloRevolutionAxisId &&
+    getRevolutionAxisIdOfAnnotation(host) !== ctx.soloRevolutionAxisId
+  )
     return DIMMED;
 
   return VISIBLE;

@@ -73,8 +73,8 @@ export default function buildExportScene(
       // Partial-revolution section markers (fat boundary lines + poché fill)
       // are display-only decorations, same story as the sketch edges.
       obj.userData?.isSectionMarker ||
-      // Base disc of a plan revolution axis: a display-only decoration.
-      obj.userData?.isRevolutionAxisDisc ||
+      // Base circle of a plan revolution axis: a display-only decoration.
+      obj.userData?.isRevolutionAxisCircle ||
       // 3D base maps grid decorations (sheet outline, label, eye button).
       obj.userData?.isGridPlaceholder ||
       // Hatched fill band / lines: the full surface is exported instead.

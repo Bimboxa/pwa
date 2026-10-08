@@ -54,8 +54,9 @@ const MENU_PAPER_SX = {
 //
 // - row click: selects the axis (plan) / its placement (vertical);
 // - icon click: SOLO of the axis and everything linked to it;
-// - eye (hover): hides / shows the axis and everything linked to it
-//   (per-scope local state, like the template eyes);
+// - eye (hover): hides / shows the axis itself only — its plan line and its
+//   clones on the vertical base maps; what is revolved around it stays
+//   visible (per-scope local state, like the template eyes);
 // - half-view (hover): "Demi-vue 3D" of the axis (persisted on the axis, but
 //   a view setting anyone may switch — setRevolutionAxisHalfViewService);
 // - arrow: on the plan, goes to the vertical base map the profiles are drawn
@@ -83,8 +84,8 @@ export default function RowRevolutionAxis({
   const selectS = "Sélectionner l'axe";
   const soloS = "Solo";
   const exitSoloS = "Quitter le solo";
-  const showS = "Afficher l'axe et ses annotations";
-  const hideS = "Masquer l'axe et ses annotations";
+  const showS = "Afficher l'axe";
+  const hideS = "Masquer l'axe";
   const halfViewOnS = "Demi-vue 3D (coupe) : activée";
   const halfViewOffS = "Demi-vue 3D (coupe) : désactivée";
   const goToProfilesS = "Voir le fond de plan des profils";
