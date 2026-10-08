@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useStore } from "react-redux";
 
 import { bumpBaseMapsLoadTick } from "../threedEditorSlice";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 export default function useAutoLoadMapsInThreedEditor({
@@ -14,8 +15,21 @@ export default function useAutoLoadMapsInThreedEditor({
   const { value: baseMaps = [] } = useBaseMaps();
   const store = useStore();
   const dispatch = useDispatch();
+  // Folder eye-off of the scope: read through a ref (like visibleIds from
+  // the store) so toggling a folder never rebuilds the scene — the live
+  // visibility pass (useApplyBaseMapVisibilityIn3d) hides the group.
+  const { disabledIds } = useDisabledBaseMapIds();
+  const disabledIdsRef = useRef(disabledIds);
+  disabledIdsRef.current = disabledIds;
 
   const baseMapsKey = baseMaps.map((b) => b.id).join(",");
+
+  const isExtra = (b, mainId, visibleIds) =>
+    b.id !== mainId &&
+    !b.isPhoto &&
+    visibleIds.includes(b.id) &&
+    !disabledIdsRef.current.has(b.id) &&
+    Boolean(b?.image?.imageUrlClient);
 
   // Full (re)load only on main / project change. Visibility toggles are
   // applied live by useApplyBaseMapVisibilityIn3d (just flips group.visible),
@@ -27,12 +41,8 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!threedEditor?.loadMaps || !mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
-    const extras = baseMaps.filter(
-      (b) =>
-        b.id !== mainBaseMap.id &&
-        !b.isPhoto &&
-        visibleIds.includes(b.id) &&
-        b?.image?.imageUrlClient
+    const extras = baseMaps.filter((b) =>
+      isExtra(b, mainBaseMap.id, visibleIds)
     );
     // Opacity is owned by ImagesManager (recorded desired state, applied at
     // mesh attach) — nothing to pass here.
@@ -73,12 +83,8 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
-    const extras = baseMaps.filter(
-      (b) =>
-        b.id !== mainBaseMap.id &&
-        !b.isPhoto &&
-        visibleIds.includes(b.id) &&
-        b?.image?.imageUrlClient
+    const extras = baseMaps.filter((b) =>
+      isExtra(b, mainBaseMap.id, visibleIds)
     );
     [mainBaseMap, ...extras].forEach((bm) => {
       threedEditor.ensureBaseMapLoaded(bm);

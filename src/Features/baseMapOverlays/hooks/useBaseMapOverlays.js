@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import useBaseMapsGridAnnotations from "Features/baseMapsGrid/hooks/useBaseMapsGridAnnotations";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 
 import areBaseMapsParallel from "Features/baseMaps/js/areBaseMapsParallel";
 import getBaseMapToBaseMapPxMatrix, {
@@ -14,7 +15,9 @@ const EMPTY = [];
 // switched on in the base maps list (eye = image, badge = annotations) that
 // are PARALLEL to the main base map and calibrated, each with the affine
 // transform taking its pixels to the main base map's pixels (both 3D
-// placements, projection along the normal).
+// placements, projection along the normal). Base maps of the folders disabled
+// for the scope are skipped whatever their persisted toggles say (the list
+// hides them, no row would switch them off — see useDisabledBaseMapIds).
 //
 // Returns a memoized array of
 //   { baseMap, matrix, matrixStr, showImage, annotations }
@@ -32,6 +35,7 @@ export default function useBaseMapOverlays({
   const annotationsIds = useSelector(
     (s) => s.viewers.annotationsBaseMapIdsIn2d
   );
+  const { disabledIds } = useDisabledBaseMapIds();
 
   // helpers
 
@@ -41,6 +45,7 @@ export default function useBaseMapOverlays({
     const result = [];
     for (const bm of baseMaps ?? []) {
       if (bm.id === baseMap.id || bm.isPhoto) continue;
+      if (disabledIds.has(bm.id)) continue;
       const showImage = visibleIds.includes(bm.id);
       const showAnnotations = annotationsIds.includes(bm.id);
       if (!showImage && !showAnnotations) continue;
@@ -56,7 +61,7 @@ export default function useBaseMapOverlays({
       });
     }
     return result.length > 0 ? result : EMPTY;
-  }, [enabled, baseMap, baseMaps, visibleIds, annotationsIds]);
+  }, [enabled, baseMap, baseMaps, visibleIds, annotationsIds, disabledIds]);
 
   const annotationsBaseMapIds = useMemo(
     () => placed.filter((o) => o.showAnnotations).map((o) => o.baseMap.id),

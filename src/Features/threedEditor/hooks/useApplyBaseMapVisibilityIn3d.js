@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideBaseMapImagesIn3d";
@@ -23,6 +24,11 @@ import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideB
 // participates (its group stays loaded) but its image can be hidden through
 // `hideMainBaseMapImageIn3d`. Mounted once from MainThreedEditor, same pattern
 // as useApplyBaseMapOpacityIn3d.
+//
+// Base maps of the listings disabled for the scope (folder eye-off,
+// scope.baseMapsSettings.disabledListingIds) never participate — except the
+// main one — whatever their persisted toggles say (see useDisabledBaseMapIds).
+// A loaded group whose folder gets disabled is hidden live, no scene reload.
 //
 // `rendererIsReady` MUST be a dependency: when the baseMaps resolve BEFORE the
 // editor exists, every pass here is a no-op (no imagesManager) — without it,
@@ -51,6 +57,7 @@ export default function useApplyBaseMapVisibilityIn3d({
   );
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
+  const { disabledIds, disabledKey } = useDisabledBaseMapIds();
 
   const visibleKey = (visibleIds || []).join(",");
   const hiddenScanKey = (hiddenScanIds || []).join(",");
@@ -79,7 +86,8 @@ export default function useApplyBaseMapVisibilityIn3d({
       const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
         bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
-      const shouldParticipate = eyeOn || annoOn;
+      const isDisabled = bm.id !== mainId && disabledIds.has(bm.id);
+      const shouldParticipate = !isDisabled && (eyeOn || annoOn);
 
       if (shouldParticipate) {
         if (!imagesManager.hasTexturedImageObject(bm.id)) {
@@ -104,6 +112,7 @@ export default function useApplyBaseMapVisibilityIn3d({
     visibleKey,
     hiddenScanKey,
     annotationsModeKey,
+    disabledKey,
     mainBaseMap?.id,
     baseMapsKey,
     hideBaseMaps,

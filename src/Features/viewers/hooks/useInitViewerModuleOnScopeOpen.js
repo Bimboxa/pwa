@@ -13,6 +13,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import { selectHasSavedThreedVisibility } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
@@ -47,6 +48,10 @@ export default function useInitViewerModuleOnScopeOpen() {
     (s) => s.listings.hiddenListingsIds || []
   );
   const mainBaseMap = useMainBaseMap();
+  // Base maps of the folders disabled for the scope: their annotations are
+  // not seeded (a disabled folder's base map must stay out of the 3D scene).
+  const { disabledIds: disabledBaseMapIds, synced: disabledSynced } =
+    useDisabledBaseMapIds();
   // Same option set as useAnnotationsCountByBaseMapId (the base maps list
   // badges):
   // every baseMap of the project is counted, not just the visible ones.
@@ -148,13 +153,16 @@ export default function useInitViewerModuleOnScopeOpen() {
     // truly empty — only seed once annotations exist (an empty scope needs no
     // seeding: nothing to display, keep the default eye states).
     if (!annotations?.length) return;
+    // Wait for the scope's disabled folders (EMPTY while the scope record
+    // loads: seeding then would include the disabled base maps).
+    if (!disabledSynced) return;
     doneAnnotationsScopeRef.current = scopeId;
     // Saved toggles restored for this scope: keep them.
     if (hasSavedThreedState) return;
 
     const modeByBaseMapId = {};
     annotations.forEach((a) => {
-      if (a.baseMapId)
+      if (a.baseMapId && !disabledBaseMapIds.has(a.baseMapId))
         modeByBaseMapId[a.baseMapId] = ANNOTATIONS_DISPLAY_MODE.NORMAL;
     });
     // Main included on purpose: useExtraBaseMapIdsIn3d filters it out, and
@@ -167,6 +175,8 @@ export default function useInitViewerModuleOnScopeOpen() {
     mainBaseMap?.id,
     annotations,
     hasSavedThreedState,
+    disabledBaseMapIds,
+    disabledSynced,
     dispatch,
   ]);
 }

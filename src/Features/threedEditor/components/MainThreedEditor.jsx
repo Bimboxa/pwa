@@ -19,6 +19,7 @@ import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
 import useSelectMainBaseMap from "../hooks/useSelectMainBaseMap";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import getBaseMapPlaneFrame from "../js/utilsImagesManager/getBaseMapPlaneFrame";
 import {
   setSelectedNode,
@@ -806,20 +807,21 @@ export default function MainThreedEditor() {
   const visibleBaseMapIdsIn3d = useSelector(
     (s) => s.threedEditor.visibleBaseMapIdsIn3d
   );
+  // Same participation rule as useApplyBaseMapVisibilityIn3d: a visible extra
+  // of a folder disabled for the scope is not in the scene.
+  const { disabledIds: viewDistanceDisabledIds } = useDisabledBaseMapIds();
+  const isViewDistanceExtra = (b) =>
+    visibleBaseMapIdsIn3d?.includes(b.id) && !viewDistanceDisabledIds.has(b.id);
   const sceneBaseMapsKey = [
     viewDistanceMainBaseMap?.id,
-    ...(viewDistanceBaseMaps ?? [])
-      .filter((b) => visibleBaseMapIdsIn3d?.includes(b.id))
-      .map((b) => b.id),
+    ...(viewDistanceBaseMaps ?? []).filter(isViewDistanceExtra).map((b) => b.id),
   ].join(",");
   const appliedViewDistanceRef = useRef({ setting: null, distance: null });
   useEffect(() => {
     if (!rendererIsReady || !isThreedViewer) return;
     const sceneBaseMaps = [
       viewDistanceMainBaseMap,
-      ...(viewDistanceBaseMaps ?? []).filter((b) =>
-        visibleBaseMapIdsIn3d?.includes(b.id)
-      ),
+      ...(viewDistanceBaseMaps ?? []).filter(isViewDistanceExtra),
     ].filter(Boolean);
     const applied = appliedViewDistanceRef.current;
     const isStaleList =
