@@ -51,6 +51,14 @@ export default function ProcedureActionButtons({
   sourceListingId = null,
   standardRun = false,
   disabled = false,
+  // Labelled play ("Lancer"): a text button with the play icon, rendered
+  // LAST so it sits at the right end of a dialog footer.
+  playLabel = null,
+  // Listing-level launch: a run always replaces the previous outputs (reset
+  // then apply — the standard flow would duplicate them otherwise), so play
+  // IS the re-run and the separate refresh button is hidden. The label
+  // switches to "Relancer" once outputs exist.
+  relaunchOnPlay = false,
 }) {
   const dispatch = useDispatch();
 
@@ -219,23 +227,40 @@ export default function ProcedureActionButtons({
 
   // render
 
+  const isRelaunch = relaunchOnPlay && createdCount > 0;
+  const playTooltipS = isRelaunch
+    ? "Relancer (supprimer puis appliquer)"
+    : "Appliquer la procédure";
+  const playLabelS = isRelaunch && playLabel ? "Relancer" : playLabel;
+
+  const playButton = (
+    <Tooltip title={playTooltipS}>
+      <span>
+        <Button
+          variant="contained"
+          color="secondary"
+          size="small"
+          // relaunchOnPlay: reset first whatever the (possibly stale) count —
+          // resetProcedure re-reads the outputs and is a no-op without any.
+          onClick={relaunchOnPlay ? handleRefresh : handlePlay}
+          disabled={running || disabled}
+          startIcon={playLabel ? <PlayArrow /> : undefined}
+          sx={
+            playLabel
+              ? { ml: 0.5, borderRadius: 5 }
+              : { minWidth: 0, px: 0.75, py: 0.25, borderRadius: 5 }
+          }
+        >
+          {playLabelS ?? <PlayArrow sx={{ fontSize: 18 }} />}
+        </Button>
+      </span>
+    </Tooltip>
+  );
+
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
       {running && <CircularProgress size={14} sx={{ mr: 0.5 }} />}
-      <Tooltip title="Appliquer la procédure">
-        <span>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="small"
-            onClick={handlePlay}
-            disabled={running || disabled}
-            sx={{ minWidth: 0, px: 0.75, py: 0.25, borderRadius: 5 }}
-          >
-            <PlayArrow sx={{ fontSize: 18 }} />
-          </Button>
-        </span>
-      </Tooltip>
+      {!playLabel && playButton}
       <Tooltip
         title={
           createdCount > 0
@@ -253,17 +278,20 @@ export default function ProcedureActionButtons({
           </IconButton>
         </span>
       </Tooltip>
-      <Tooltip title="Relancer (supprimer puis appliquer)">
-        <span>
-          <IconButton
-            size="small"
-            onClick={handleRefresh}
-            disabled={running || disabled}
-          >
-            <Refresh sx={{ fontSize: 18 }} />
-          </IconButton>
-        </span>
-      </Tooltip>
+      {!relaunchOnPlay && (
+        <Tooltip title="Relancer (supprimer puis appliquer)">
+          <span>
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={running || disabled}
+            >
+              <Refresh sx={{ fontSize: 18 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
+      {playLabel && playButton}
       {ParamsDialog && paramsDialogOpen && (
         <Suspense fallback={null}>
           <ParamsDialog
