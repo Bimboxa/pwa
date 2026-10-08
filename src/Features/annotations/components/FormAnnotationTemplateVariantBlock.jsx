@@ -299,6 +299,10 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, hideSlope });
   }
 
+  function handleShowIn3dChange(showIn3d) {
+    onChange({ ...annotationTemplate, showIn3d });
+  }
+
   function handleMaterial3dChange(key) {
     onChange({
       ...annotationTemplate,
@@ -628,6 +632,18 @@ export default function FormAnnotationTemplateVariantBlock({
               onOverrideFieldsChange={handleOverrideFieldsChange}
               showTotalOption={drawingShape === "RULER"}
               showLabelOption={drawingShape === "RULER"}
+            />
+          )}
+
+          {/* COTE / RULER — 3D visibility of the template's annotations.
+              Template-owned flag (no padlock, not seeded on rows), shown in
+              the creation dialog too (not gated by compact). */}
+          {["COTE", "RULER"].includes(drawingShape) && (
+            <FieldCheck
+              label="Afficher en 3D"
+              value={Boolean(annotationTemplate?.showIn3d)}
+              onChange={handleShowIn3dChange}
+              options={{ type: "switch", showAsField: true }}
             />
           )}
 

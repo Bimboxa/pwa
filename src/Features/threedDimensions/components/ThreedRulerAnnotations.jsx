@@ -53,6 +53,10 @@ function makeLine({ positions, color, linewidth, resolution, dashed }) {
   return line;
 }
 
+// The annotations array is already filtered upstream (useAnnotationsV2,
+// excludeDimensionsHiddenIn3d): only rulers whose template has showIn3d
+// reach this component.
+//
 // Renders every RULER annotation (dimension chain) of the 3D editor's
 // annotations array: the alignment line, the dashed extension lines and one
 // value card sprite per segment. Sibling of ThreedCoteAnnotations, same

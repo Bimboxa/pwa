@@ -108,6 +108,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     excludeIsForBaseMapsListings: !isBaseMapsModule,
     onlyIsForBaseMapsListings: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeProfileTemplates: true,
+    // COTE / RULER only when template.showIn3d or row.isDrawnIn3d.
+    excludeDimensionsHiddenIn3d: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent.
     keepSoloDimmed: true,

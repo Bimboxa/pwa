@@ -87,6 +87,10 @@ function makeLine({ positions, color, linewidth, resolution, dashed }) {
   return line;
 }
 
+// The annotations array is already filtered upstream (useAnnotationsV2,
+// excludeDimensionsHiddenIn3d): only cotes whose template has showIn3d, or
+// rows drawn from 3D (isDrawnIn3d), reach this component.
+//
 // Renders every COTE annotation of the 3D editor's annotations array as a
 // screen-space-thick dimension line + dashed extension lines + a clickable
 // value card sprite. Each cote Group is attached to its basemap's group so

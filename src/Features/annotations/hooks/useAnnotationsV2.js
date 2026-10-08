@@ -642,6 +642,10 @@ export default function useAnnotationsV2(options) {
     // (template.isProfile === true). Used by the 3D viewer so profile
     // annotations stay visible in 2D but are dropped from the 3D scene.
     const excludeProfileTemplates = options?.excludeProfileTemplates;
+    // Drop COTE / RULER annotations whose template does not opt into the 3D
+    // scene (template.showIn3d), unless the row was drawn from the 3D viewer
+    // (isDrawnIn3d). 3D viewer only — 2D keeps showing them.
+    const excludeDimensionsHiddenIn3d = options?.excludeDimensionsHiddenIn3d;
     const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
     const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
     // In the 3D viewer, keep non-soloed annotations in the result (instead of
@@ -2986,6 +2990,19 @@ export default function useAnnotationsV2(options) {
         );
       }
 
+      // COTE / RULER are 3D-visible only when their template opts in
+      // (template.showIn3d, false by default) or when the row was drawn from
+      // the 3D viewer (isDrawnIn3d). Templateless / orphan cotes are hidden.
+      if (excludeDimensionsHiddenIn3d) {
+        result = result.filter((a) => {
+          if (a.type !== "COTE" && a.type !== "RULER") return true;
+          if (a.isDrawnIn3d) return true;
+          return Boolean(
+            annotationTemplatesMap[a.annotationTemplateId]?.showIn3d
+          );
+        });
+      }
+
       // zone solo (zonings module): keep the zone's delimitation polygons
       // (its template) and the annotations linked to the zone via
       // relsZoneAnnotation. Base-map (background) annotations are always kept.
@@ -3268,6 +3285,7 @@ export default function useAnnotationsV2(options) {
       subtractionTargetIdsBySource,
       openingRowsByHostId,
       excludeProfileTemplates,
+      excludeDimensionsHiddenIn3d,
       // NOTE — `appConfig` is read inside this query (the scope filter's
       // entityModel lookup) but is NOT a dependency: adding the object itself
       // would make this heavy query re-resolve every annotation on any re-set

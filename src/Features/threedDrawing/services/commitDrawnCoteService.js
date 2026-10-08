@@ -126,6 +126,10 @@ export default async function commitDrawnCoteService({
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...annotationFields,
+    // Cotes drawn from the 3D viewer stay visible in 3D whatever the
+    // template's showIn3d (see the excludeDimensionsHiddenIn3d filter in
+    // useAnnotationsV2).
+    isDrawnIn3d: true,
   };
 
   const create = createAnnotationFn ?? createAnnotationService;

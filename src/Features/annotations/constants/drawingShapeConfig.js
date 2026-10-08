@@ -453,6 +453,9 @@ const DRAWING_SHAPE_CONFIG = {
       showUnitLabel: true,
       showTotalCote: false,
       showRulerLabel: false,
+      // Template-owned 3D visibility (not a configurable prop: never stamped
+      // on annotation rows, read by the 3D viewer's filter only).
+      showIn3d: false,
     },
     shapeCategory: "polyline",
   },
@@ -483,6 +486,8 @@ const DRAWING_SHAPE_CONFIG = {
       decimals: 0,
       fontSize: 18,
       showUnitLabel: true,
+      // Same as RULER: template-owned 3D visibility, false by default.
+      showIn3d: false,
     },
     shapeCategory: "polyline",
   },
