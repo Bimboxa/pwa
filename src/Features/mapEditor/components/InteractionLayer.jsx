@@ -125,6 +125,8 @@ import ClosingMarker from 'Features/mapEditorGeneric/components/ClosingMarker';
 import HelperScale from 'Features/mapEditorGeneric/components/HelperScale';
 import MapTooltip from 'Features/mapEditorGeneric/components/MapTooltip';
 import CursorAltitudeBadge from 'Features/mapEditorGeneric/components/CursorAltitudeBadge';
+import DrawingLengthBadge from 'Features/mapEditorGeneric/components/DrawingLengthBadge';
+import formatSegmentLengthDisplay from 'Features/annotations/utils/formatSegmentLengthDisplay';
 import getBaseMapTransform from 'Features/baseMaps/js/getBaseMapTransform';
 import getAnnotationHeightAtPoint from 'Features/annotations/utils/getAnnotationHeightAtPoint';
 import getScene3dHeightAtPx, { getScene3dScanPointFromPx } from 'Features/scene3d/utils/getScene3dHeightAtPx';
@@ -505,6 +507,10 @@ const InteractionLayer = forwardRef(({
   const drawingLayerRef = useRef(null);
   const pastePreviewLayerRef = useRef(null);
   const lastPreviewPosRef = useRef(null);
+  // Preview candidate BEFORE the typed length constraint (after axis / ortho /
+  // closing snaps): typing a length without moving the mouse re-applies the
+  // constraint to it (see the [constraintBuffer] effect).
+  const rawPreviewPosRef = useRef(null);
   const brushLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
@@ -678,6 +684,9 @@ const InteractionLayer = forwardRef(({
     clearBuffer,
     rectX,
     rectY,
+    rectXBuffer,
+    rectYBuffer,
+    rectCurrentAxis,
     rectMetricsRef,
     rectCurrentAxisRef,
     setRectHasFirstPoint,
@@ -700,6 +709,19 @@ const InteractionLayer = forwardRef(({
   // otherwise. Kept as a ref (not redux): only event handlers read it, and the
   // bottom bar re-parses the buffer itself.
   const fixedLengthsRef = useRef(null);
+  const constraintBufferRef = useRef(constraintBuffer);
+  useEffect(() => { constraintBufferRef.current = constraintBuffer; }, [constraintBuffer]);
+
+  // Releases the typed length once a click consumed it (single value or
+  // series alike). Clears the buffer AND nulls the refs synchronously: the
+  // [constraintBuffer] effect below only resyncs them one render later, so
+  // the next mousemove (or a click landing in the same React batch) would
+  // otherwise still constrain.
+  const releaseLengthConstraint = useCallback(() => {
+    clearBuffer();
+    fixedLengthRef.current = null;
+    fixedLengthsRef.current = null;
+  }, [clearBuffer]);
 
   const meterByPxRef = useRef(baseMapMeterByPx);
   useEffect(() => { meterByPxRef.current = baseMapMeterByPx; }, [baseMapMeterByPx]);
@@ -739,13 +761,14 @@ const InteractionLayer = forwardRef(({
     clearMetricInput();
   }, [enabledDrawingMode, clearMetricInput]);
 
-  // Re-trigger preview when typed X/Y dimensions change so the rectangle
-  // adopts the typed value without requiring a mouse move.
+  // Re-trigger preview when typed X/Y dimensions (or the axis being typed)
+  // change so the rectangle and its side badges adopt the typed value
+  // without requiring a mouse move.
   useEffect(() => {
     if (lastPreviewPosRef.current && drawingLayerRef.current) {
       drawingLayerRef.current.updatePreview(lastPreviewPosRef.current);
     }
-  }, [rectX, rectY]);
+  }, [rectX, rectY, rectXBuffer, rectYBuffer, rectCurrentAxis]);
 
   // Re-computes smartDetectionPresent from the three detection refs and
   // dispatches only when the aggregate boolean changes (dedup).
@@ -2600,6 +2623,18 @@ const InteractionLayer = forwardRef(({
     cursorAltitudeEnabledRef.current = cursorAltitudeEnabled;
   }, [cursorAltitudeEnabled]);
   const cursorAltitudeBadgeRef = useRef(null);
+  // Length of the segment being drawn, next to the cursor (imperative, see
+  // updateSegmentLengthMetrics)
+  const segmentLengthBadgeRef = useRef(null);
+  // Rectangle preview: X / Y side-length badges (imperative, see
+  // handleRectanglePreview). The raw typed buffers are mirrored in a ref:
+  // the badge text is written from the mouse-move path.
+  const rectDimBadgeRefs = useRef([]);
+  const rectDimBadgesShownRef = useRef(false);
+  const rectBuffersRef = useRef({ x: "", y: "" });
+  useEffect(() => {
+    rectBuffersRef.current = { x: rectXBuffer, y: rectYBuffer };
+  }, [rectXBuffer, rectYBuffer]);
   const cursorAltitudeIndex = useMemo(() => {
     const byId = new Map();
     (annotations || []).forEach((a) => {
@@ -3229,6 +3264,160 @@ const InteractionLayer = forwardRef(({
     lastSmartROI,
   });
 
+  // --- TYPED LENGTH ON THE RUBBER BAND + LIVE LENGTH NEXT TO THE CURSOR ---
+
+  // Applies the typed length (constraintBuffer) to the preview candidate.
+  // With a ";"-separated series the click places several segments at once,
+  // so the rubber band spans their TOTAL — it shows the full extent the
+  // click is about to create, not just the first segment.
+  // COMPLETE_ANNOTATION is excluded as in the marker click: it must land
+  // exactly on existing vertices, so the preview must not pretend otherwise.
+  const applyLengthConstraintToPreview = (lastPt, candidate) => {
+    if (!lastPt || !candidate) return candidate;
+    if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION") return candidate;
+    const previewLengthMeters = fixedLengthsRef.current
+      ? fixedLengthsRef.current.reduce((sum, v) => sum + v, 0)
+      : fixedLengthRef.current;
+    if (!previewLengthMeters) return candidate;
+    const mbp = meterByPxRef.current;
+    const hasScale = Number.isFinite(mbp) && mbp > 0;
+    return applyFixedLengthConstraint({
+      lastPointPx: lastPt,
+      candidatePointPx: candidate,
+      fixedLengthMeters: previewLengthMeters,
+      meterPerPixel: hasScale ? mbp : 1, // no scale => value is in px
+    });
+  };
+
+  // Live length of the segment being drawn: the bottom bar polls
+  // segmentLengthPxRef, the badge next to the cursor is driven here. Locked
+  // (typed value): the badge shows the raw buffer like the bottom bar, so
+  // "2." stays readable while typing.
+  const updateSegmentLengthMetrics = (lastPt, previewPos, viewportPos) => {
+    const badge = segmentLengthBadgeRef.current;
+    if (!lastPt || !previewPos) {
+      if (segmentLengthPxRef) segmentLengthPxRef.current = 0;
+      badge?.hide();
+      return;
+    }
+    const px = Math.hypot(previewPos.x - lastPt.x, previewPos.y - lastPt.y);
+    if (segmentLengthPxRef) segmentLengthPxRef.current = px;
+    if (!badge || !viewportPos) return;
+    const mode = enabledDrawingModeRef.current;
+    if (!SEGMENT_DRAWING_MODES.includes(mode)) {
+      badge.hide();
+      return;
+    }
+    const locked =
+      mode !== "COMPLETE_ANNOTATION" &&
+      Boolean(fixedLengthRef.current || fixedLengthsRef.current);
+    const { value, unit } = formatSegmentLengthDisplay({
+      px,
+      meterByPx: meterByPxRef.current,
+    });
+    const text = locked
+      ? `${constraintBufferRef.current.split(";").join(" ; ")} ${unit}`
+      : `${value} ${unit}`;
+    badge.update({ x: viewportPos.x, y: viewportPos.y, text, locked });
+  };
+
+  // Rectangle preview (DrawingLayer.onRectanglePreview): one badge per side
+  // adjacent to the cursor corner, at the side's midpoint pushed outside the
+  // rectangle (away from its centre) by a fixed screen offset. Each badge is
+  // prefixed with the key that locks that dimension (X / Y); a typed value
+  // shows the raw buffer, locked, and the axis being typed is outlined.
+  const RECT_DIM_BADGE_OFFSET_PX = 22;
+  const hideRectDimBadges = () => {
+    if (!rectDimBadgesShownRef.current) return;
+    rectDimBadgesShownRef.current = false;
+    rectDimBadgeRefs.current.forEach((b) => b?.hide());
+  };
+  const handleRectanglePreview = useCallback((info) => {
+    if (!info) {
+      hideRectDimBadges();
+      return;
+    }
+    const viewport = viewportRef.current;
+    if (!viewport?.worldToViewport) return;
+    const pose = getTargetPose();
+    const toVp = (p) =>
+      viewport.worldToViewport(p.x * pose.k + pose.x, p.y * pose.k + pose.y);
+    const center = toVp(info.center);
+    const mbp = meterByPxRef.current;
+    const buffers = rectBuffersRef.current;
+    const activeAxis = rectCurrentAxisRef.current;
+    info.sides.forEach((side, i) => {
+      const badge = rectDimBadgeRefs.current[i];
+      if (!badge) return;
+      const lengthPx = Math.hypot(side.q.x - side.p.x, side.q.y - side.p.y);
+      if (!center || lengthPx < 0.5) {
+        badge.hide();
+        return;
+      }
+      const mid = toVp({
+        x: (side.p.x + side.q.x) / 2,
+        y: (side.p.y + side.q.y) / 2,
+      });
+      if (!mid) {
+        badge.hide();
+        return;
+      }
+      const ox = mid.x - center.x;
+      const oy = mid.y - center.y;
+      const od = Math.hypot(ox, oy) || 1;
+      const { value, unit } = formatSegmentLengthDisplay({
+        px: lengthPx,
+        meterByPx: mbp,
+      });
+      const buffer = buffers[side.axis] || "";
+      const label = side.axis.toUpperCase();
+      badge.update({
+        x: mid.x + (ox / od) * RECT_DIM_BADGE_OFFSET_PX,
+        y: mid.y + (oy / od) * RECT_DIM_BADGE_OFFSET_PX,
+        text: buffer ? `${label} ${buffer} ${unit}` : `${label} ${value} ${unit}`,
+        locked: buffer.length > 0,
+        active: activeAxis === side.axis,
+        anchor: "center",
+      });
+    });
+    rectDimBadgesShownRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Typed length changed (digit / Backspace / release) without a mouse move:
+  // re-apply the constraint to the last raw cursor position so the rubber
+  // band and the badge follow the typing right away. Declared after the
+  // [constraintBuffer] sync effect, so fixedLengthRef / fixedLengthsRef are
+  // already fresh. Gated on the active viewer: this layer stays mounted under
+  // the 3D editor, which types into the same buffer.
+  useEffect(() => {
+    if (!isActiveViewerRef.current) return;
+    const raw = rawPreviewPosRef.current;
+    const pts = drawingPointsRef.current;
+    if (!raw || !pts?.length) return;
+    if (!SEGMENT_DRAWING_MODES.includes(enabledDrawingModeRef.current)) return;
+    const lastPt = pts[pts.length - 1];
+    const previewPos = applyLengthConstraintToPreview(lastPt, raw);
+    updateSegmentLengthMetrics(
+      lastPt,
+      previewPos,
+      lastMouseScreenPosRef.current?.viewportPos
+    );
+    lastPreviewPosRef.current = previewPos;
+    drawingLayerRef.current?.updatePreview(previewPos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [constraintBuffer]);
+
+  // No segment in progress (Enter / double-click / Escape commit, tool
+  // change): the badge must not linger until the next mouse move.
+  useEffect(() => {
+    if (drawingPoints.length === 0) {
+      segmentLengthBadgeRef.current?.hide();
+      hideRectDimBadges();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawingPoints.length]);
+
   // ADD_GUIDE_LINE: self-contained multi-click capture (reuses the generic
   // drawingPoints/DrawingLayer preview in local pixel space). Enter commits
   // the polyline to the selected annotation's guideLine, Escape cancels.
@@ -3377,6 +3566,7 @@ const InteractionLayer = forwardRef(({
     drawingPointsRef.current = [];
     drawingLayerRef.current?.setPoints?.([]);
     drawingLayerRef.current?.clearPreview?.();
+    segmentLengthBadgeRef.current?.hide();
     setBrushPath([]);
     setCutHostId(null);
   }, [enabledDrawingMode]);
@@ -3733,6 +3923,7 @@ const InteractionLayer = forwardRef(({
           completeAnnotationRef.current = null;
           completeStartPointRef.current = null;
           drawingLayerRef.current?.clearPreview?.();
+          segmentLengthBadgeRef.current?.hide();
         } else if (lastPreviewPosRef.current) {
           requestAnimationFrame(() => {
             drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
@@ -4479,6 +4670,7 @@ const InteractionLayer = forwardRef(({
               drawingPointsRef.current = [];
               drawingLayerRef.current?.setPoints?.([]);
               drawingLayerRef.current?.clearPreview?.();
+              segmentLengthBadgeRef.current?.hide();
               dispatch(clearConstraintBuffer());
             }
             return;
@@ -5783,7 +5975,7 @@ const InteractionLayer = forwardRef(({
           // Force DrawingLayer to use the new points immediately (bypasses the
           // render cycle — the mousemove preview reads the ref).
           drawingLayerRef.current?.setPoints?.(seriesPoints);
-          clearBuffer();
+          releaseLengthConstraint();
           return;
         }
       }
@@ -5792,6 +5984,10 @@ const InteractionLayer = forwardRef(({
       const nextPoints = [...placedPoints, finalPos];
       setDrawingPoints(nextPoints);
       drawingPointsRef.current = nextPoints;
+      // The typed length is consumed by this point: the next segment is free.
+      if (fixedLengthRef.current && placedPoints.length > 0) {
+        releaseLengthConstraint();
+      }
 
       // 2. Si on a fini (ex: double clic ou fermeture), on commit
       // if (isClosing) { saveToDb(drawingPoints); setDrawingPoints([]); }
@@ -5885,6 +6081,10 @@ const InteractionLayer = forwardRef(({
 
       // Update State (for visual feedback if it doesn't close immediately)
       setDrawingPoints(nextPoints);
+      // The typed length is consumed by this point.
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        releaseLengthConstraint();
+      }
 
       // Check if finished
       if (nextPoints.length === 2) {
@@ -5947,6 +6147,10 @@ const InteractionLayer = forwardRef(({
 
       const nextPoints = [...drawingPoints, finalPos];
       setDrawingPoints(nextPoints);
+      // The typed length is consumed by this point.
+      if (fixedLengthRef.current && drawingPoints.length > 0) {
+        releaseLengthConstraint();
+      }
 
       if (nextPoints.length === 3) {
         drawingPointsRef.current = nextPoints;
@@ -5988,6 +6192,8 @@ const InteractionLayer = forwardRef(({
       const nextPoints = [center, finalPos];
       setDrawingPoints(nextPoints);
       drawingPointsRef.current = nextPoints;
+      // The typed radius is consumed by this circle.
+      if (fixedLengthRef.current) releaseLengthConstraint();
       commitPolyline(event);
     }
 
@@ -7354,29 +7560,9 @@ const InteractionLayer = forwardRef(({
 
       // G. FIXED LENGTH CONSTRAINT + SEGMENT LENGTH METRICS
       const lastPt = currentDrawingPts[currentDrawingPts.length - 1];
-      // With a ";"-separated series the click places several segments at once,
-      // so the rubber band spans their TOTAL — it shows the full extent the
-      // click is about to create, not just the first segment.
-      const previewLengthMeters = fixedLengthsRef.current
-        ? fixedLengthsRef.current.reduce((sum, v) => sum + v, 0)
-        : fixedLengthRef.current;
-      if (lastPt && previewLengthMeters) {
-        const mbp = meterByPxRef.current;
-        const hasScale = Number.isFinite(mbp) && mbp > 0;
-        previewPos = applyFixedLengthConstraint({
-          lastPointPx: lastPt,
-          candidatePointPx: previewPos,
-          fixedLengthMeters: previewLengthMeters,
-          meterPerPixel: hasScale ? mbp : 1, // no scale => value is in px
-        });
-      }
-      if (lastPt && segmentLengthPxRef) {
-        const dx = previewPos.x - lastPt.x;
-        const dy = previewPos.y - lastPt.y;
-        segmentLengthPxRef.current = Math.hypot(dx, dy);
-      } else if (segmentLengthPxRef) {
-        segmentLengthPxRef.current = 0;
-      }
+      rawPreviewPosRef.current = previewPos;
+      previewPos = applyLengthConstraintToPreview(lastPt, previewPos);
+      updateSegmentLengthMetrics(lastPt, previewPos, viewportPos);
 
       lastPreviewPosRef.current = previewPos;
       drawingLayerRef.current?.updatePreview(previewPos);
@@ -7661,7 +7847,7 @@ const InteractionLayer = forwardRef(({
             setDrawingPoints(seriesPoints);
             drawingPointsRef.current = seriesPoints;
             drawingLayerRef.current?.setPoints?.(seriesPoints);
-            clearBuffer();
+            releaseLengthConstraint();
             screenCursorRef.current?.triggerFlash();
             return;
           }
@@ -7684,6 +7870,10 @@ const InteractionLayer = forwardRef(({
       const newPointsList = [...drawingPointsRef.current, pointToAdd];
       setDrawingPoints(newPointsList);
       drawingPointsRef.current = newPointsList; // Force ref update pour commit immédiat
+      // The typed length is consumed by this point: the next segment is free.
+      if (lengthConstraintActive && fixedLengthRef.current) {
+        releaseLengthConstraint();
+      }
 
       // On force un flash visuel
       screenCursorRef.current?.triggerFlash();
@@ -8447,6 +8637,8 @@ const InteractionLayer = forwardRef(({
   const handleMouseLeave = () => {
     setTooltipData(null);
     cursorAltitudeBadgeRef.current?.hide();
+    segmentLengthBadgeRef.current?.hide();
+    hideRectDimBadges();
   };
 
 
@@ -8692,6 +8884,17 @@ const InteractionLayer = forwardRef(({
             {cursorAltitudeEnabled && (
               <CursorAltitudeBadge ref={cursorAltitudeBadgeRef} />
             )}
+            {/* Length of the segment being drawn (imperative, see
+                updateSegmentLengthMetrics) */}
+            <DrawingLengthBadge ref={segmentLengthBadgeRef} />
+            {/* Rectangle preview: X / Y side lengths (imperative, see
+                handleRectanglePreview) */}
+            {[0, 1].map((i) => (
+              <DrawingLengthBadge
+                key={`rect-dim-${i}`}
+                ref={(el) => (rectDimBadgeRefs.current[i] = el)}
+              />
+            ))}
             {/* Render conditionally based on Data State */}
             {tooltipData && (
               <MapTooltip
@@ -8957,6 +9160,7 @@ const InteractionLayer = forwardRef(({
               isForBaseMaps={newAnnotation?.isForBaseMaps}
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}
+              onRectanglePreview={handleRectanglePreview}
             />
           </g>
 

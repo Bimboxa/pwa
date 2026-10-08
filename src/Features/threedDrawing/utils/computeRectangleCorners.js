@@ -17,10 +17,15 @@ const MIN_SIDE_PX = 1;
 //
 // Returns [Vector3 x4] in A, B, C, D order, or null when degenerate or when
 // the baseMap lacks a usable size / meterByPx.
+//
+// `forcedDx` / `forcedDy` (metres, signed): typed X / Y dimensions replacing
+// the cursor's along the image axes (2D RECTANGLE parity); ignored without
+// a usable meterByPx.
 export default function computeRectangleCorners(
   anchorWorld,
   cursorWorld,
-  baseMap
+  baseMap,
+  { forcedDx = null, forcedDy = null } = {}
 ) {
   if (!anchorWorld || !cursorWorld || !baseMap) return null;
 
@@ -37,6 +42,11 @@ export default function computeRectangleCorners(
   const { width: W, height: H } = imageSize;
   const a = { x: relA.x * W, y: relA.y * H };
   const c = { x: relC.x * W, y: relC.y * H };
+  const mbp = baseMap.meterByPx;
+  if (Number.isFinite(mbp) && mbp > 0) {
+    if (Number.isFinite(forcedDx)) c.x = a.x + forcedDx / mbp;
+    if (Number.isFinite(forcedDy)) c.y = a.y + forcedDy / mbp;
+  }
   if (Math.abs(a.x - c.x) < MIN_SIDE_PX || Math.abs(a.y - c.y) < MIN_SIDE_PX)
     return null;
 

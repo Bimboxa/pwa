@@ -109,6 +109,7 @@ const DrawingLayer = forwardRef(
       isForBaseMaps = false,
       orthoSnapAngleOffset = 0,
       rampWidthM = 1,
+      onRectanglePreview,
     },
     ref
   ) => {
@@ -117,6 +118,12 @@ const DrawingLayer = forwardRef(
     const previewArcPathRef = useRef(null); // arc preview for an "open" circle tail
     const previewFillRef = useRef(null);
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
+    const previewRectGroupRef = useRef(null);
+    // Rectangle preview geometry → the host (InteractionLayer), which shows
+    // the two side-length badges in its screen-space HTML overlay. Called
+    // with null whenever no rectangle is previewed.
+    const onRectanglePreviewRef = useRef(onRectanglePreview);
+    onRectanglePreviewRef.current = onRectanglePreview;
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
     // Linear layout (calepinage) preview — band polygon + axis/ticks path.
@@ -319,6 +326,10 @@ const DrawingLayer = forwardRef(
         pointsRef.current = newPoints;
       },
       updatePreview: (cursorPos) => {
+        // Rectangle side badges: off unless the rectangle branch below sets
+        // them (same synchronous pass, no flicker).
+        onRectanglePreviewRef.current?.(null);
+
         // OBJECT_3D: render the top-view projection at the cursor, sized to the
         // model footprint (bbox X×Z meters / meterByPx). Runs before the
         // "no points" guard (nothing is placed until the click).
@@ -350,8 +361,14 @@ const DrawingLayer = forwardRef(
             baseMapImageSize: baseMapImageSizeRef.current,
           });
           if (size) {
-            previewImageRef.current.setAttribute("x", cursorPos.x - size.width / 2);
-            previewImageRef.current.setAttribute("y", cursorPos.y - size.height / 2);
+            previewImageRef.current.setAttribute(
+              "x",
+              cursorPos.x - size.width / 2
+            );
+            previewImageRef.current.setAttribute(
+              "y",
+              cursorPos.y - size.height / 2
+            );
             previewImageRef.current.setAttribute("width", size.width);
             previewImageRef.current.setAttribute("height", size.height);
             previewImageRef.current.style.display = "block";
@@ -390,18 +407,20 @@ const DrawingLayer = forwardRef(
           const forcedDy =
             metrics?.rectY != null ? metrics.rectY / mPerPx : null;
 
+          // Corners A (anchor), B, C (cursor side), D — C is the corner the
+          // cursor drives, its two sides carry the length labels.
+          let A;
+          let B;
+          let C;
+          let D;
           if (angle === 0) {
             // Axis-aligned rectangle (original behavior)
             const cx = forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
             const cy = forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
-            const x = Math.min(lastPoint.x, cx);
-            const y = Math.min(lastPoint.y, cy);
-            const width = Math.abs(cx - lastPoint.x);
-            const height = Math.abs(cy - lastPoint.y);
-            previewRectRef.current.setAttribute(
-              "points",
-              `${x},${y} ${x + width},${y} ${x + width},${y + height} ${x},${y + height}`
-            );
+            A = lastPoint;
+            B = { x: cx, y: lastPoint.y };
+            C = { x: cx, y: cy };
+            D = { x: lastPoint.x, y: cy };
           } else {
             // Rotated rectangle: project diagonal onto ortho snap grid axes
             // Snap grid primary axis is at -offset in screen coords (Y down)
@@ -417,18 +436,31 @@ const DrawingLayer = forwardRef(
             const d2 = forcedDy != null ? forcedDy : dx * ax2.x + dy * ax2.y;
 
             // 4 corners: A, B, C (=cursor projected), D
-            const A = lastPoint;
-            const B = { x: A.x + d1 * ax1.x, y: A.y + d1 * ax1.y };
-            const C = { x: B.x + d2 * ax2.x, y: B.y + d2 * ax2.y };
-            const D = { x: A.x + d2 * ax2.x, y: A.y + d2 * ax2.y };
+            A = lastPoint;
+            B = { x: A.x + d1 * ax1.x, y: A.y + d1 * ax1.y };
+            C = { x: B.x + d2 * ax2.x, y: B.y + d2 * ax2.y };
+            D = { x: A.x + d2 * ax2.x, y: A.y + d2 * ax2.y };
+          }
+          previewRectRef.current.setAttribute(
+            "points",
+            `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y} ${D.x},${D.y}`
+          );
 
-            previewRectRef.current.setAttribute(
-              "points",
-              `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y} ${D.x},${D.y}`
-            );
+          // Side lengths of the two sides adjacent to the cursor corner,
+          // shown by the host as badges: B→C runs along the second grid
+          // axis (typed Y), C→D along the first (typed X). Not for the
+          // selection rectangles (repair / join / chat zones).
+          if (!isSelectionRectMode) {
+            onRectanglePreviewRef.current?.({
+              center: { x: (A.x + C.x) / 2, y: (A.y + C.y) / 2 },
+              sides: [
+                { axis: "y", p: B, q: C },
+                { axis: "x", p: C, q: D },
+              ],
+            });
           }
 
-          previewRectRef.current.style.display = "block";
+          previewRectGroupRef.current.style.display = "block";
           return; // On arrête ici pour le rectangle
         }
 
@@ -440,8 +472,8 @@ const DrawingLayer = forwardRef(
             previewLineRef.current.style.display = "none";
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
           if (previewCircleRef.current)
             previewCircleRef.current.style.display = "none";
           if (previewStripRef.current)
@@ -567,8 +599,8 @@ const DrawingLayer = forwardRef(
             previewLineRef.current.style.display = "none";
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const circle = getCircleFrom3Points(
             currentPoints[0],
@@ -593,8 +625,8 @@ const DrawingLayer = forwardRef(
         if (drawRevolutionAxis && previewRevAxisGroupRef.current) {
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const center = currentPoints[0];
           const dx = cursorPos.x - center.x;
@@ -646,8 +678,8 @@ const DrawingLayer = forwardRef(
         if (drawPhotoPose && previewPhotoPoseGroupRef.current) {
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const center = currentPoints[0];
           const dx = cursorPos.x - center.x;
@@ -687,8 +719,8 @@ const DrawingLayer = forwardRef(
             previewLineRef.current.style.display = "none";
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const center = currentPoints[0];
           const r = Math.hypot(cursorPos.x - center.x, cursorPos.y - center.y);
@@ -711,8 +743,8 @@ const DrawingLayer = forwardRef(
         // CAS 2b : STRIP (Band preview)
         // ------------------------------------------------
         if (isStrip && previewStripRef.current) {
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const allPts = [...currentPoints, cursorPos];
           const na = newAnnotationRef.current;
@@ -742,8 +774,8 @@ const DrawingLayer = forwardRef(
         // CAS 2b'' : LINEAR_LAYOUT (band + axis + ticks from 1st point)
         // ------------------------------------------------
         if (isLinearLayout && previewLinearLayoutFillRef.current) {
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
 
           const na = newAnnotationRef.current || {};
           const p1 = currentPoints[0];
@@ -834,8 +866,8 @@ const DrawingLayer = forwardRef(
         // CAS 2c : RAMP (band centered on the median line)
         // ------------------------------------------------
         if (isRamp && previewRampRef.current) {
-          if (previewRectRef.current)
-            previewRectRef.current.style.display = "none";
+          if (previewRectGroupRef.current)
+            previewRectGroupRef.current.style.display = "none";
           if (previewFillRef.current)
             previewFillRef.current.style.display = "none";
 
@@ -882,8 +914,8 @@ const DrawingLayer = forwardRef(
         // ------------------------------------------------
 
         // On s'assure que le rectangle est caché
-        if (previewRectRef.current)
-          previewRectRef.current.style.display = "none";
+        if (previewRectGroupRef.current)
+          previewRectGroupRef.current.style.display = "none";
         if (previewStripRef.current)
           previewStripRef.current.style.display = "none";
 
@@ -934,14 +966,15 @@ const DrawingLayer = forwardRef(
       },
 
       clearPreview: () => {
+        onRectanglePreviewRef.current?.(null);
         if (previewLineRef.current)
           previewLineRef.current.style.display = "none";
         if (previewArcPathRef.current)
           previewArcPathRef.current.style.display = "none";
         if (previewFillRef.current)
           previewFillRef.current.style.display = "none";
-        if (previewRectRef.current)
-          previewRectRef.current.style.display = "none";
+        if (previewRectGroupRef.current)
+          previewRectGroupRef.current.style.display = "none";
         if (previewCircleRef.current)
           previewCircleRef.current.style.display = "none";
         if (previewStripRef.current)
@@ -1068,23 +1101,30 @@ const DrawingLayer = forwardRef(
           />
         )}
 
-        {/* B. Dynamic Rectangle (polygon for rotation support) */}
+        {/* B. Dynamic Rectangle (polygon for rotation support); the side
+            lengths are badges of the host (onRectanglePreview) */}
         {drawRectangle && (
-          <polygon
-            ref={previewRectRef}
-            fill="none"
-            {...(!isSelectionRectMode &&
-              isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
-            fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
-            stroke={
-              isSelectionRectMode ? "#00ff00" : effectiveStrokeColor || "#2196f3"
-            }
-            strokeWidth={isSelectionRectMode ? 2 : previewStrokeWidth}
-            vectorEffect={
-              isSelectionRectMode ? "non-scaling-stroke" : previewVectorEffect
-            }
+          <g
+            ref={previewRectGroupRef}
             style={{ display: "none", pointerEvents: "none" }}
-          />
+          >
+            <polygon
+              ref={previewRectRef}
+              fill="none"
+              {...(!isSelectionRectMode &&
+                isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
+              fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
+              stroke={
+                isSelectionRectMode
+                  ? "#00ff00"
+                  : effectiveStrokeColor || "#2196f3"
+              }
+              strokeWidth={isSelectionRectMode ? 2 : previewStrokeWidth}
+              vectorEffect={
+                isSelectionRectMode ? "non-scaling-stroke" : previewVectorEffect
+              }
+            />
+          </g>
         )}
 
         {/* B2. Dynamic Circle preview */}

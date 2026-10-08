@@ -11,6 +11,7 @@ import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
+import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingModes";
 import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
 import FaceCutAxisBottomBar from "Features/threedFaceCut/components/FaceCutAxisBottomBar";
 import RevolutionAxisRadiusBottomBarThreed from "Features/revolutionAxes/components/RevolutionAxisRadiusBottomBarThreed";
@@ -41,21 +42,6 @@ const CIRCLE_RADIUS_DRAWING_MODES = [
   "POLYLINE_CIRCLE_RADIUS",
   "POLYGON_CIRCLE_RADIUS",
   "REVOLUTION_AXIS_PLAN",
-];
-
-// Modes that produce segments and support length display / constraint.
-const SEGMENT_DRAWING_MODES = [
-  "CLICK",
-  "POLYLINE_CLICK",
-  "POLYLINE_SEGMENT",
-  "STRIP_SEGMENT",
-  "POLYGON_CLICK",
-  "CUT_CLICK",
-  "SPLIT_CLICK",
-  "STRIP",
-  "MEASURE",
-  "COTE_TWO_CLICK",
-  "COMPLETE_ANNOTATION",
 ];
 
 export default function BottomBarDesktop() {

@@ -467,20 +467,30 @@ export default function useDrawingPointerHandlers() {
               toDrawingVertex(snap, baseMapId ? { baseMapId } : {})
             )
           );
+          dispatch(setRectHasFirstPoint(true));
           return;
         }
         const anchor = inProgress[0];
         const host = (baseMaps || []).find((b) => b.id === anchor.baseMapId);
+        // Typed X / Y dimensions replace the cursor's (2D parity).
+        const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+        const forcedX = parseRectBuffer(rectXBuffer);
+        const forcedY = parseRectBuffer(rectYBuffer);
         const corners = anchor.faceNormal
           ? computeRectangleCornersOnPlane(
               anchor,
               snap.position,
-              anchor.faceNormal
+              anchor.faceNormal,
+              { forcedDu: forcedX, forcedDv: forcedY }
             )
           : host
-            ? computeRectangleCorners(anchor, snap.position, host)
+            ? computeRectangleCorners(anchor, snap.position, host, {
+                forcedDx: forcedX,
+                forcedDy: forcedY,
+              })
             : null;
         if (!corners) return; // degenerate: stay armed
+        releaseRectDims();
         const vertices = corners.map((c) => ({
           x: c.x,
           y: c.y,
@@ -507,6 +517,10 @@ export default function useDrawingPointerHandlers() {
         }
         return;
       }
+      // NB: while a length is typed the snap is always exactly that far from
+      // `last`, so the double click / back-on-first-point closures cannot
+      // trigger — Enter ends the path, as in 2D.
+      if (last) releaseLengthConstraint();
 
       if (inProgress.length === 0) {
         dispatch(pushDrawingVertex(newVertex));
@@ -630,8 +644,7 @@ export default function useDrawingPointerHandlers() {
         faceNormal: anchor.faceNormal,
       }));
       await cutFace(vertices, { closed: true });
-      dispatch(clearRectDims());
-      dispatch(setRectHasFirstPoint(false));
+      releaseRectDims();
       return true;
     }
 
@@ -759,6 +772,42 @@ export default function useDrawingPointerHandlers() {
       return false;
     }
 
+    // Typed X / Y rectangle dimensions are consumed by the rectangle (or
+    // dropped with it): back to the "click the 1st corner" state.
+    function releaseRectDims() {
+      dispatch(clearRectDims());
+      dispatch(setRectHasFirstPoint(false));
+    }
+
+    // The typed segment length is consumed by the point just placed: the
+    // next segment is free again (2D parity, InteractionLayer).
+    function releaseLengthConstraint() {
+      if (store.getState().mapEditor.constraintBuffer) {
+        dispatch(clearConstraintBuffer());
+      }
+    }
+
+    // Typed segment length (2D parity): digits / "." / "," feed
+    // mapEditor.constraintBuffer (SegmentLengthBottomBar + the cursor badge),
+    // DrawingOverlayThreed rescales the preview to it and the next click
+    // consumes it. No ";" series in 3D (no collinear expansion here). Not
+    // for rectangles (their second corner is the cursor). True when consumed.
+    function onLengthKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (behavior === "RECTANGLE") return false;
+      if (/^[0-9.,]$/.test(e.key)) {
+        e.preventDefault();
+        dispatch(appendToConstraintBuffer(e.key === "," ? "." : e.key));
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        dispatch(deleteLastConstraintBuffer());
+        return true;
+      }
+      return false;
+    }
+
     // Keys of « Découpe horizontale / verticale »: digits type the cut
     // distance (mapEditor.constraintBuffer, shown in FaceCutAxisBottomBar),
     // S flips the side of the vertical cut, Enter cuts like a click. True
@@ -788,12 +837,11 @@ export default function useDrawingPointerHandlers() {
       return false;
     }
 
-    // Keys of the "Coupe face" rectangle once its anchor is placed (2D
-    // rectangle parity, InteractionLayer): X / Y target a dimension, digits
-    // type it, "-" flips its sign, Backspace erases, Enter cuts with the
-    // typed dimensions (a missing one follows the cursor). True when
-    // consumed.
-    async function onFaceCutRectangleKey(e) {
+    // Keys of a rectangle once its anchor is placed (2D rectangle parity,
+    // InteractionLayer): X / Y target a dimension, digits type it, "-"
+    // flips its sign, Backspace erases. Shared by the template, "Dessin"
+    // and "Coupe face" rectangles. True when consumed.
+    function onRectangleDimsKey(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (e.key === "x" || e.key === "X") {
         e.preventDefault();
@@ -831,6 +879,14 @@ export default function useDrawingPointerHandlers() {
           return true;
         }
       }
+      return false;
+    }
+
+    // "Coupe face" rectangle keys: the dims keys above, plus Enter which
+    // cuts with the typed dimensions (a missing one follows the cursor).
+    // True when consumed.
+    async function onFaceCutRectangleKey(e) {
+      if (onRectangleDimsKey(e)) return true;
       if (e.key === "Enter") {
         const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
         if (
@@ -939,6 +995,7 @@ export default function useDrawingPointerHandlers() {
               baseMapId,
             })
           );
+          dispatch(setRectHasFirstPoint(true));
           return;
         }
         // Second click: auto-commit the 4 corners (2D parity — the RECTANGLE
@@ -950,15 +1007,22 @@ export default function useDrawingPointerHandlers() {
             `[threedDrawing] rectangle cancelled: anchor base map ${anchor.baseMapId} not found`
           );
           dispatch(cancelInProgressPolyline());
+          releaseRectDims();
           return;
         }
-        const corners = computeRectangleCorners(anchor, snap.position, host);
+        // Typed X / Y dimensions replace the cursor's (2D parity).
+        const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+        const corners = computeRectangleCorners(anchor, snap.position, host, {
+          forcedDx: parseRectBuffer(rectXBuffer),
+          forcedDy: parseRectBuffer(rectYBuffer),
+        });
         if (!corners) {
           console.warn(
             "[threedDrawing] rectangle 2nd click ignored: degenerate corners"
           );
           return; // stay armed
         }
+        releaseRectDims();
         const na = newAnnotationRef.current;
         const vertices = corners.map((c) => ({
           x: c.x,
@@ -997,6 +1061,10 @@ export default function useDrawingPointerHandlers() {
         ...(snap.baseMapId ? { baseMapId: snap.baseMapId } : {}),
       };
       const nextPolyline = [...inProgressPolyline, newVertex];
+      // The typed length was applied to this point (preview snap): consumed.
+      // NB: while locked the point is always exactly that far from the last
+      // vertex, so a click back on it cannot be a double click — Enter ends.
+      if (inProgressPolyline.length > 0) releaseLengthConstraint();
 
       let detectedFaces = [];
       if (nextPolyline.length >= 2) {
@@ -1084,6 +1152,13 @@ export default function useDrawingPointerHandlers() {
         }
         return;
       }
+      if (
+        behavior === "RECTANGLE" &&
+        inProgressPolyline.length === 1 &&
+        onRectangleDimsKey(e)
+      )
+        return;
+      if (onLengthKey(e)) return;
       if (isTemplatelessDraw()) {
         if (e.key === "Enter") {
           if (behavior === "RECTANGLE") return;
@@ -1093,6 +1168,12 @@ export default function useDrawingPointerHandlers() {
           });
         } else if (e.key === "Escape") {
           if (inProgressPolyline.length === 0) {
+            // A typed length with nothing drawn: Escape only drops it (same
+            // as the "Coupe face" axis).
+            if (store.getState().mapEditor.constraintBuffer) {
+              dispatch(clearConstraintBuffer());
+              return;
+            }
             dispatch(setEnabledDrawingMode(null));
             dispatch(setNewAnnotation({}));
             return;
@@ -1109,6 +1190,7 @@ export default function useDrawingPointerHandlers() {
               inProgress.length >= 2 &&
               (await endPath(inProgress));
             if (!committed) dispatch(cancelInProgressPolyline());
+            if (behavior === "RECTANGLE") releaseRectDims();
           });
         }
         return;
@@ -1122,12 +1204,18 @@ export default function useDrawingPointerHandlers() {
         if (inProgressPolyline.length > 0) {
           if (behavior === "RECTANGLE") {
             dispatch(cancelInProgressPolyline());
+            releaseRectDims();
             return;
           }
           // 2D parity: Escape mid-drawing commits too; an uncommittable
           // polyline (too few points, no template...) is discarded instead.
           const committed = await commitInProgressAsAnnotation();
           if (!committed) dispatch(cancelInProgressPolyline());
+          return;
+        }
+        // A typed length with nothing drawn: Escape only drops it.
+        if (store.getState().mapEditor.constraintBuffer) {
+          dispatch(clearConstraintBuffer());
           return;
         }
         const na = newAnnotationRef.current;

@@ -8,6 +8,7 @@ import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
 import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
+import formatSegmentLengthDisplay from "Features/annotations/utils/formatSegmentLengthDisplay";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 export default function SegmentLengthBottomBar() {
@@ -16,9 +17,7 @@ export default function SegmentLengthBottomBar() {
   const baseMap = useMainBaseMap();
   const meterByPx = baseMap?.meterByPx;
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
-  const constraintBuffer = useSelector(
-    (s) => s.mapEditor.constraintBuffer
-  );
+  const constraintBuffer = useSelector((s) => s.mapEditor.constraintBuffer);
 
   // state
 
@@ -31,13 +30,8 @@ export default function SegmentLengthBottomBar() {
   const locked = constraintBuffer.length > 0;
 
   const formatLength = useCallback(
-    (px) => {
-      if (!Number.isFinite(px) || px < 0) return "0";
-      const value = hasScale ? px * meterByPx : px;
-      if (value < 0.01) return "0";
-      return hasScale ? value.toFixed(3) : Math.round(value).toString();
-    },
-    [hasScale, meterByPx]
+    (px) => formatSegmentLengthDisplay({ px, meterByPx }).value,
+    [meterByPx]
   );
 
   // Live display update via requestAnimationFrame (throttled to ~10fps)
@@ -86,7 +80,11 @@ export default function SegmentLengthBottomBar() {
     >
       <Typography
         variant="body2"
-        sx={{ color: "text.secondary", fontSize: "0.8rem", whiteSpace: "nowrap" }}
+        sx={{
+          color: "text.secondary",
+          fontSize: "0.8rem",
+          whiteSpace: "nowrap",
+        }}
       >
         Segment en cours :
       </Typography>
@@ -147,7 +145,11 @@ export default function SegmentLengthBottomBar() {
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, ml: 1 }}>
         <Typography
           variant="caption"
-          sx={{ color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.75rem",
+            whiteSpace: "nowrap",
+          }}
         >
           Contraindre
         </Typography>
@@ -157,7 +159,11 @@ export default function SegmentLengthBottomBar() {
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         <Typography
           variant="caption"
-          sx={{ color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.75rem",
+            whiteSpace: "nowrap",
+          }}
         >
           Enchaîner
         </Typography>
@@ -167,7 +173,11 @@ export default function SegmentLengthBottomBar() {
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         <Typography
           variant="caption"
-          sx={{ color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.75rem",
+            whiteSpace: "nowrap",
+          }}
         >
           Effacer
         </Typography>

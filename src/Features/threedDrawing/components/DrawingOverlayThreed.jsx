@@ -3,9 +3,14 @@ import { useEffect, useRef } from "react";
 import { useSelector, useStore } from "react-redux";
 import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
 
+import formatSegmentLengthDisplay from "Features/annotations/utils/formatSegmentLengthDisplay";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
+import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingModes";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
+import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
+import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -23,6 +28,7 @@ import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools"
 import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
 import { getMeshAdjacency } from "../services/meshGraphStore";
+import applyFixedLengthConstraint3d from "../utils/applyFixedLengthConstraint3d";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import computeSnapTarget from "../utils/computeSnapTarget";
@@ -68,6 +74,9 @@ const LINEWIDTH_TRAIT = 3;
 
 // Pixel radius of the snap-helper circle, matching the 2D SnappingLayer.
 const SNAP_CIRCLE_RADIUS_PX = 6;
+// Rectangle preview: screen px between a side's midpoint and its length
+// badge, outside the rectangle (2D InteractionLayer parity).
+const RECT_DIM_BADGE_OFFSET_PX = 22;
 const SNAP_CIRCLE_STROKE_PX = 2;
 
 function colorForKind(kind) {
@@ -140,12 +149,22 @@ export default function DrawingOverlayThreed() {
   );
 
   const baseMaps = useBaseMaps()?.value;
-  const mainBaseMapId = useMainBaseMap()?.id;
-  // Typed X / Y dimensions of the "Coupe face" rectangle: the preview
-  // follows them (re-run of the pointer-move effect, which reads the store).
+  const mainBaseMap = useMainBaseMap();
+  const mainBaseMapId = mainBaseMap?.id;
+  // The bottom bar reads the live length as image px × meterByPx: the 3D
+  // length (metres) is fed back through that scale.
+  const meterByPx = mainBaseMap?.meterByPx;
+  // Typed segment length (digits, see useDrawingPointerHandlers): the
+  // preview snap is rescaled to it on the next move — and right away through
+  // the rerun effect below.
+  const constraintBuffer = useSelector((s) => s.mapEditor.constraintBuffer);
+  // Typed X / Y dimensions of a rectangle (template, "Dessin" or "Coupe
+  // face") and the axis being typed: the preview and its side badges follow
+  // them (re-run of the pointer-move effect, which reads the store).
   const rectDimsKey = useSelector((s) =>
-    isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
-      ? `${s.mapEditor.rectXBuffer}|${s.mapEditor.rectYBuffer}`
+    getDrawingToolByKey(s.mapEditor.enabledDrawingMode)?.behavior ===
+    "RECTANGLE"
+      ? `${s.mapEditor.rectXBuffer}|${s.mapEditor.rectYBuffer}|${s.mapEditor.rectCurrentAxis}`
       : ""
   );
 
@@ -168,6 +187,13 @@ export default function DrawingOverlayThreed() {
   const crossBRef = useRef(null);
   const alignMarkerRefs = useRef([]);
   const alignLeaderRefs = useRef([]);
+  const badgeRef = useRef(null);
+  // X / Y badges of the two rectangle sides adjacent to the cursor corner.
+  const rectDimBadgeRefs = useRef([]);
+  // Last pointer position + a re-run of the hover from it, so a typed length
+  // moves the preview without a mouse move (FaceCutAxisOverlayThreed pattern).
+  const lastClientRef = useRef(null);
+  const rerunRef = useRef(null);
 
   // mount / unmount root group
   useEffect(() => {
@@ -323,25 +349,25 @@ export default function DrawingOverlayThreed() {
           )
         : null;
 
+    // Typed X / Y dimensions replace the cursor's (2D parity), whatever the
+    // rectangle's host: a face frame ("Coupe face"), a face plane ("Dessin")
+    // or a base map plane (template).
     function getRectangleCorners(position) {
+      const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
+      const forcedX = parseRectBuffer(rectXBuffer);
+      const forcedY = parseRectBuffer(rectYBuffer);
       if (anchorNormal) {
-        if (faceCutBasis) {
-          const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
-          return computeRectangleCornersOnPlane(
-            anchor,
-            position,
-            anchorNormal,
-            {
-              forcedDu: parseRectBuffer(rectXBuffer),
-              forcedDv: parseRectBuffer(rectYBuffer),
-              basis: faceCutBasis,
-            }
-          );
-        }
-        return computeRectangleCornersOnPlane(anchor, position, anchorNormal);
+        return computeRectangleCornersOnPlane(anchor, position, anchorNormal, {
+          forcedDu: forcedX,
+          forcedDv: forcedY,
+          basis: faceCutBasis,
+        });
       }
       if (anchorHost)
-        return computeRectangleCorners(anchor, position, anchorHost);
+        return computeRectangleCorners(anchor, position, anchorHost, {
+          forcedDx: forcedX,
+          forcedDy: forcedY,
+        });
       return null;
     }
 
@@ -543,12 +569,83 @@ export default function DrawingOverlayThreed() {
       }
     }
 
-    function updateRectanglePreview(snap) {
+    function hideRectDimBadges() {
+      rectDimBadgeRefs.current.forEach((b) => b?.hide());
+    }
+
+    // Side lengths (metres) of the two sides adjacent to the corner under
+    // the cursor, as badges at their midpoint pushed outside the rectangle
+    // (away from its screen centre). Corners come in A, B, C, D order with
+    // A→B along the first axis: sides AB / CD are the typed X, BC / DA the
+    // typed Y. Mirrors the 2D InteractionLayer.handleRectanglePreview.
+    function updateRectDimBadges(corners, cursorPos, rect) {
+      if (!corners || corners.length !== 4) {
+        hideRectDimBadges();
+        return;
+      }
+      const { rectXBuffer, rectYBuffer, rectCurrentAxis } =
+        store.getState().mapEditor;
+      const buffers = { x: rectXBuffer, y: rectYBuffer };
+      let nearest = 0;
+      let nearestDist = Infinity;
+      corners.forEach((c, i) => {
+        const d = c.distanceToSquared(cursorPos);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearest = i;
+        }
+      });
+      const prevIdx = (nearest + 3) % 4;
+      const centerWorld = corners[0]
+        .clone()
+        .add(corners[2])
+        .multiplyScalar(0.5);
+      const center = toScreen(centerWorld, rect);
+      // [start corner index of the side, start corner, end corner]
+      [
+        [prevIdx, corners[prevIdx], corners[nearest]],
+        [nearest, corners[nearest], corners[(nearest + 1) % 4]],
+      ].forEach(([startIdx, p, q], i) => {
+        const badge = rectDimBadgeRefs.current[i];
+        if (!badge) return;
+        const mid = toScreen(p.clone().add(q).multiplyScalar(0.5), rect);
+        if (!mid || !center) {
+          badge.hide();
+          return;
+        }
+        const axis = startIdx % 2 === 0 ? "x" : "y";
+        const ox = mid.sx - center.sx;
+        const oy = mid.sy - center.sy;
+        const od = Math.hypot(ox, oy) || 1;
+        const { value, unit } = formatSegmentLengthDisplay({
+          meters: p.distanceTo(q),
+          meterByPx: 1,
+        });
+        const buffer = buffers[axis] || "";
+        const label = axis.toUpperCase();
+        badge.update({
+          x: mid.sx + (ox / od) * RECT_DIM_BADGE_OFFSET_PX,
+          y: mid.sy + (oy / od) * RECT_DIM_BADGE_OFFSET_PX,
+          text: buffer
+            ? `${label} ${buffer} ${unit}`
+            : `${label} ${value} ${unit}`,
+          locked: buffer.length > 0,
+          active: rectCurrentAxis === axis,
+          anchor: "center",
+        });
+      });
+    }
+
+    function updateRectanglePreview(snap, rect) {
       const root = rootRef.current;
       if (!root) return;
       clearPreviewLine();
-      if (!snap?.position || !anchor) return;
+      if (!snap?.position || !anchor) {
+        hideRectDimBadges();
+        return;
+      }
       const corners = getRectangleCorners(snap.position);
+      updateRectDimBadges(corners, snap.position, rect);
       if (!corners) return;
       const mat = makeLineMaterial({
         color: colorForSnap(snap),
@@ -564,15 +661,94 @@ export default function DrawingOverlayThreed() {
       }
     }
 
+    // The snap and the last vertex must sit on the same host for the typed
+    // length to keep the point on it: same base map plane, same face
+    // (normal), or the locked "Coupe face" face. A snap with no host
+    // information (vertex of another object, FREE / world axis) is allowed —
+    // refusing would make the lock flicker as the cursor crosses vertices.
+    function sharesHost(snap, last) {
+      if (faceLock) return true;
+      if (snap.baseMapId && last.baseMapId) {
+        return snap.baseMapId === last.baseMapId;
+      }
+      if (snap.faceNormal && last.faceNormal) {
+        const a = snap.faceNormal;
+        const b = last.faceNormal;
+        return a.x * b.x + a.y * b.y + a.z * b.z > 0.999;
+      }
+      return true;
+    }
+
+    // Typed length (mapEditor.constraintBuffer): the snap only gives the
+    // direction from the last vertex, the typed value gives the distance
+    // (2D parity: applyFixedLengthConstraint). Never on a scan (not a
+    // plane). The point no longer sits on the snapped vertex / edge, so its
+    // identity and alignment helpers are dropped: it is an independent
+    // point, drawn with the plane colour. Null when the lock does not apply.
+    function constrainSnapToLength(snap, last, lengthM) {
+      if (!snap?.position || snap.kind === "SCAN" || snap.isScan) return null;
+      if (!sharesHost(snap, last)) return null;
+      const position = applyFixedLengthConstraint3d({
+        last,
+        candidate: snap.position,
+        lengthM,
+      });
+      const kind =
+        snap.kind === "VERTEX" || snap.kind === "EDGE" ? "PLANE" : snap.kind;
+      const next = { ...snap, position, kind, lengthLocked: true };
+      delete next.meshKey;
+      delete next.axisA;
+      delete next.axisB;
+      delete next.alignFrom;
+      return next;
+    }
+
+    // Live length of the segment being drawn: the badge next to the cursor
+    // and the bottom bar (segmentLengthPxRef). Locked: the badge shows the
+    // raw typed buffer like the bottom bar, so "2." stays readable.
+    function updateLengthBadge(snap, last, e, rect, locked) {
+      const badge = badgeRef.current;
+      if (
+        !last ||
+        !snap?.position ||
+        !SEGMENT_DRAWING_MODES.includes(enabledDrawingMode)
+      ) {
+        segmentLengthPxRef.current = 0;
+        badge?.hide();
+        return;
+      }
+      const meters = new Vector3(last.x, last.y, last.z).distanceTo(
+        snap.position
+      );
+      const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
+      segmentLengthPxRef.current = hasScale ? meters / meterByPx : 0;
+      if (!badge) return;
+      // The scene is in metres whatever the main base map's scale.
+      const { value, unit } = formatSegmentLengthDisplay({
+        meters,
+        meterByPx: 1,
+      });
+      const text = locked
+        ? `${store.getState().mapEditor.constraintBuffer} ${unit}`
+        : `${value} ${unit}`;
+      badge.update({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        text,
+        locked,
+      });
+    }
+
     function onPointerMove(e) {
       const rect = dom.getBoundingClientRect();
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       const canvasSize = { width: rect.width, height: rect.height };
+      lastClientRef.current = { clientX: e.clientX, clientY: e.clientY };
       faceLock = canLockFace
         ? resolveFaceCutLockedFace(store.getState(), editor)
         : null;
-      const snap = computeSnapTarget({
+      const rawSnap = computeSnapTarget({
         mouseNdc: ndc,
         camera,
         canvasSize,
@@ -605,17 +781,39 @@ export default function DrawingOverlayThreed() {
         attachFaceToPointSnaps: isMeshDraw && !anchor,
         lockedPlane: faceLock?.planeWorld ?? null,
       });
+      // Typed length: the rubber band (and the click, through lastSnap) is
+      // rescaled from the last vertex. Not for rectangles (second corner).
+      const last = anchor
+        ? null
+        : inProgressPolyline[inProgressPolyline.length - 1];
+      const lockedLength = last
+        ? (parseConstraintLengths(store.getState().mapEditor.constraintBuffer)
+            ?.lengths[0] ?? null)
+        : null;
+      const constrained = lockedLength
+        ? constrainSnapToLength(rawSnap, last, lockedLength)
+        : null;
+      const snap = constrained ?? rawSnap;
       setLastSnap(snap);
       updateSnapCircle(snap, rect);
       updateCross(snap, rect);
       updateAlignMarkers(snap, rect);
-      if (anchor) updateRectanglePreview(snap);
-      else updatePreviewLine(snap);
+      if (anchor) {
+        updateRectanglePreview(snap, rect);
+      } else {
+        hideRectDimBadges();
+        updatePreviewLine(snap);
+      }
+      updateLengthBadge(snap, last, e, rect, Boolean(constrained));
       editor.sceneManager.renderScene?.();
     }
 
     function onPointerLeave() {
       setLastSnap(null);
+      lastClientRef.current = null;
+      segmentLengthPxRef.current = 0;
+      badgeRef.current?.hide();
+      hideRectDimBadges();
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
       if (crossARef.current) crossARef.current.style.display = "none";
       if (crossBRef.current) crossBRef.current.style.display = "none";
@@ -628,7 +826,11 @@ export default function DrawingOverlayThreed() {
 
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerleave", onPointerLeave);
+    rerunRef.current = () => {
+      if (lastClientRef.current) onPointerMove(lastClientRef.current);
+    };
     return () => {
+      rerunRef.current = null;
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerleave", onPointerLeave);
     };
@@ -644,62 +846,85 @@ export default function DrawingOverlayThreed() {
     canDrawOnScan,
     rectDimsKey,
     store,
+    meterByPx,
   ]);
+
+  // Typed length changed (digit / Backspace / consumed by a click): re-run
+  // the hover from the last pointer position so the rubber band and the
+  // badge follow the typing without a mouse move. Declared after the
+  // pointer-move effect: on a click, pushDrawingVertex + clearConstraintBuffer
+  // are batched, the effect above re-closes over the new vertex first, then
+  // this one redraws the free preview from it.
+  useEffect(() => {
+    rerunRef.current?.();
+  }, [constraintBuffer]);
 
   if (!active) return null;
   return (
-    <svg
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none",
-        zIndex: 5,
-      }}
-    >
-      <line
-        ref={crossARef}
-        stroke={COLOR_CROSS}
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={crossBRef}
-        stroke={COLOR_CROSS}
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        style={{ display: "none" }}
-      />
-      {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+    <>
+      <svg
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 5,
+        }}
+      >
         <line
-          key={`leader-${i}`}
-          ref={(el) => (alignLeaderRefs.current[i] = el)}
-          stroke={colorHex(COLOR_LOCK)}
+          ref={crossARef}
+          stroke={COLOR_CROSS}
           strokeWidth="1.5"
           strokeDasharray="5 4"
           style={{ display: "none" }}
         />
-      ))}
-      {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
-        <circle
-          key={`marker-${i}`}
-          ref={(el) => (alignMarkerRefs.current[i] = el)}
-          r={SNAP_CIRCLE_RADIUS_PX}
-          stroke={colorHex(COLOR_LOCK)}
+        <line
+          ref={crossBRef}
+          stroke={COLOR_CROSS}
           strokeWidth="1.5"
-          fill={ALIGN_MARKER_FILL}
+          strokeDasharray="5 4"
           style={{ display: "none" }}
         />
+        {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+          <line
+            key={`leader-${i}`}
+            ref={(el) => (alignLeaderRefs.current[i] = el)}
+            stroke={colorHex(COLOR_LOCK)}
+            strokeWidth="1.5"
+            strokeDasharray="5 4"
+            style={{ display: "none" }}
+          />
+        ))}
+        {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+          <circle
+            key={`marker-${i}`}
+            ref={(el) => (alignMarkerRefs.current[i] = el)}
+            r={SNAP_CIRCLE_RADIUS_PX}
+            stroke={colorHex(COLOR_LOCK)}
+            strokeWidth="1.5"
+            fill={ALIGN_MARKER_FILL}
+            style={{ display: "none" }}
+          />
+        ))}
+        <circle
+          ref={snapCircleRef}
+          r={SNAP_CIRCLE_RADIUS_PX}
+          strokeWidth={SNAP_CIRCLE_STROKE_PX}
+          fill="none"
+          style={{ display: "none" }}
+        />
+      </svg>
+      {/* Length of the segment being drawn, next to the cursor (imperative,
+        see updateLengthBadge) */}
+      <DrawingLengthBadge ref={badgeRef} />
+      {/* Rectangle preview: X / Y side lengths (see updateRectDimBadges) */}
+      {[0, 1].map((i) => (
+        <DrawingLengthBadge
+          key={`rect-dim-${i}`}
+          ref={(el) => (rectDimBadgeRefs.current[i] = el)}
+        />
       ))}
-      <circle
-        ref={snapCircleRef}
-        r={SNAP_CIRCLE_RADIUS_PX}
-        strokeWidth={SNAP_CIRCLE_STROKE_PX}
-        fill="none"
-        style={{ display: "none" }}
-      />
-    </svg>
+    </>
   );
 }
