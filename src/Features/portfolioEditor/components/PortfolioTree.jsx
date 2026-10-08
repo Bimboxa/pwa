@@ -1,19 +1,13 @@
-import { useEffect } from "react";
-
-import { useDispatch, useSelector } from "react-redux";
-
-import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import { useSelector } from "react-redux";
 
 import { Box, Button, List } from "@mui/material";
 
 import usePortfolios from "Features/portfolios/hooks/usePortfolios";
+import useAutoSelectFirstPortfolio from "Features/portfolios/hooks/useAutoSelectFirstPortfolio";
 
 import PortfolioTreeItem from "./PortfolioTreeItem";
 
 export default function PortfolioTree({ onCreateClick }) {
-  const dispatch = useDispatch();
-
   // strings
 
   const createS = "Créer un carnet";
@@ -21,20 +15,9 @@ export default function PortfolioTree({ onCreateClick }) {
   // data
 
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const displayedPortfolioId = useSelector(
-    (s) => s.portfolios.displayedPortfolioId
-  );
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
 
-  // effects
-
-  useEffect(() => {
-    if (displayedPortfolioId) return;
-    if (!portfolios?.length) return;
-    const first = portfolios[0];
-    dispatch(setDisplayedPortfolioId(first.id));
-    dispatch(setSelectedItem({ id: first.id, type: "PORTFOLIO" }));
-  }, [displayedPortfolioId, portfolios, dispatch]);
+  useAutoSelectFirstPortfolio(portfolios);
 
   // render
 

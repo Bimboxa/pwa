@@ -1,9 +1,5 @@
 import { useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
-
-import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
-
 import { Box, IconButton, Tooltip } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
@@ -11,9 +7,7 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import PortfolioTree from "./PortfolioTree";
 import DialogCreatePortfolio from "./DialogCreatePortfolio";
 
-import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
-import useCreateDetailsPortfolio from "Features/portfolios/hooks/useCreateDetailsPortfolio";
-import useCreateBaseMapPage from "Features/portfolioPages/hooks/useCreateBaseMapPage";
+import useCreatePortfolioFromDialog from "Features/portfolios/hooks/useCreatePortfolioFromDialog";
 
 // ---------------------------------------------------------------------------
 // PanelPortfolios — left panel of the Carnet de plans module: header with a
@@ -22,8 +16,6 @@ import useCreateBaseMapPage from "Features/portfolioPages/hooks/useCreateBaseMap
 // ---------------------------------------------------------------------------
 
 export default function PanelPortfolios() {
-  const dispatch = useDispatch();
-
   // strings
 
   const titleS = "Carnets";
@@ -31,57 +23,11 @@ export default function PanelPortfolios() {
 
   // data
 
-  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const createPortfolio = useCreatePortfolio();
-  const createDetailsPortfolio = useCreateDetailsPortfolio();
-  const createBaseMapPage = useCreateBaseMapPage();
+  const createFromDialog = useCreatePortfolioFromDialog();
 
   // state
 
   const [openDialog, setOpenDialog] = useState(false);
-
-  // handlers
-
-  async function handleCreate({
-    title,
-    isDetailsPortfolio,
-    selectedBaseMapIds = [],
-    selectedDetails,
-    titleBlock,
-  }) {
-    const metadata = titleBlock ? { titleBlock } : undefined;
-    let portfolio;
-    if (isDetailsPortfolio) {
-      portfolio = await createDetailsPortfolio({
-        scopeId,
-        projectId,
-        title,
-        baseMapIds: selectedBaseMapIds,
-        details: selectedDetails,
-        metadata,
-      });
-    } else {
-      portfolio = await createPortfolio({
-        scopeId,
-        projectId,
-        title,
-        metadata,
-      });
-      // one plan page per selected baseMap, in the base map tree order
-      let afterSortIndex = null;
-      for (const baseMapId of selectedBaseMapIds) {
-        const page = await createBaseMapPage({
-          listing: portfolio,
-          projectId,
-          baseMapId,
-          afterSortIndex,
-        });
-        afterSortIndex = page.sortIndex;
-      }
-    }
-    dispatch(setDisplayedPortfolioId(portfolio.id));
-  }
 
   // render
 
@@ -122,7 +68,7 @@ export default function PanelPortfolios() {
       <DialogCreatePortfolio
         open={openDialog}
         onClose={() => setOpenDialog(false)}
-        onCreate={handleCreate}
+        onCreate={createFromDialog}
       />
     </Box>
   );
