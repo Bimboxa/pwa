@@ -1945,20 +1945,27 @@ export default function useAnnotationsV2(options) {
             a.revolutionAxisHeightM = axis.height;
             a.revolutionAxisLabel = axis.label;
 
-            // Same three anchors seen edge-on: the centre and both ends of the
-            // orange bar (the plan diameter laid flat on the elevation). The
-            // centre is always published — an axis whose radius cannot be
-            // converted to pixels still has a meaningful centre to snap onto.
+            // The anchors seen edge-on: the centre, both ends of the orange
+            // bar (the plan diameter laid flat on the elevation) and the TOP of
+            // the black dashed stem (the axis height). The centre is always
+            // published — an axis whose radius / height cannot be converted to
+            // pixels still has a meaningful centre to snap onto.
             const meterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
             const r = Number(axis.radiusM);
+            const h = Number(axis.height);
             if (a.point) {
               const anchors = [{ x: a.point.x, y: a.point.y }];
-              if (Number.isFinite(meterByPx) && meterByPx > 0 && r > 0) {
+              const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
+              if (hasScale && r > 0) {
                 const halfPx = r / meterByPx;
                 anchors.push(
                   { x: a.point.x - halfPx, y: a.point.y },
                   { x: a.point.x + halfPx, y: a.point.y }
                 );
+              }
+              if (hasScale && h > 0) {
+                // Same direction as the drawn stem: up in image pixels.
+                anchors.push({ x: a.point.x, y: a.point.y - h / meterByPx });
               }
               a._snapPoints = anchors;
             }
