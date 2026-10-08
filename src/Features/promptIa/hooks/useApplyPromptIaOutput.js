@@ -40,6 +40,7 @@ import parsePromptIaResult, {
   hasExtendedKeys,
 } from "../utils/parsePromptIaResult";
 import { convertPayloadToImageSpace } from "../utils/pdfUserSpaceToImage";
+import { PROMPT_IA_PROCEDURE_KEY } from "../utils/promptIaProcedure";
 
 const isZipFile = (file) =>
   /\.zip$/i.test(file?.name ?? "") ||
@@ -112,14 +113,19 @@ function buildPreview({ legacy, extended }) {
  * `source` = the pasted text, or a dropped file: a `.json` / `.txt`, or the
  * zip (`resultat.json` + the files of the base maps the model created).
  *
- * The historical keys go to the displayed base map and the current listing.
+ * The historical keys go to the displayed base map and the target listing
+ * (`listingId` option, else the selected listing — the "Dessin auto" band
+ * opens the flow for an expanded listing that may not be the selected one).
  * The extended ones (parsePromptIaResult) create base maps from CAD / BIM
  * sources, one annotation listing per source and the issues of the scope.
  */
-export default function useApplyPromptIaOutput() {
+export default function useApplyPromptIaOutput({
+  listingId: listingIdOption,
+} = {}) {
   const dispatch = useDispatch();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listingId = useSelector((s) => s.listings.selectedListingId);
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
+  const listingId = listingIdOption ?? selectedListingId;
   const userProfile = useSelector((s) => s.auth.userProfile);
   const mainBaseMap = useMainBaseMap();
   const templates = useAnnotationTemplates();
@@ -293,7 +299,12 @@ export default function useApplyPromptIaOutput() {
             widthMeters: legacy.data.image?.widthMeters,
             relativeToBaseMap: true,
             preserveIds: true,
-            annotationProps: { promptIaBatchId: batchId },
+            // batch id for the undo; procedure key for the sweep of the
+            // "Dessin auto" band (getPromptIaOutputs)
+            annotationProps: {
+              promptIaBatchId: batchId,
+              autoCreatedByProcedureKey: PROMPT_IA_PROCEDURE_KEY,
+            },
             templateProps: { promptIaBatchId: batchId },
             baseMapProps: { promptIaBatchId: batchId },
             createdBy: userEmail ?? null,

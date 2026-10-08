@@ -12,6 +12,7 @@ export default function StepperPromptIa({
   onStepChange,
   completed = [],
   disabled = false,
+  steps = PROMPT_IA_STEPS,
   sx,
 }) {
   // render
@@ -26,7 +27,7 @@ export default function StepperPromptIa({
         ...sx,
       }}
     >
-      {PROMPT_IA_STEPS.map((label, index) => (
+      {steps.map((label, index) => (
         <Step key={label} completed={Boolean(completed[index])}>
           <StepButton
             color="inherit"
@@ -46,5 +47,6 @@ StepperPromptIa.propTypes = {
   onStepChange: PropTypes.func.isRequired,
   completed: PropTypes.arrayOf(PropTypes.bool),
   disabled: PropTypes.bool,
+  steps: PropTypes.arrayOf(PropTypes.string),
   sx: PropTypes.object,
 };

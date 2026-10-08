@@ -258,6 +258,8 @@ export default function buildPromptIaContext({
       ? {
           file: "plan.pdf",
           pageNumber: source.pageNumber,
+          // page of the original document (plan.pdf holds that page alone)
+          sourcePageNumber: source.sourcePageNumber ?? source.pageNumber,
           rotation: source.rotation,
           bboxInRatio: source.bboxInRatio,
           page: source.page,

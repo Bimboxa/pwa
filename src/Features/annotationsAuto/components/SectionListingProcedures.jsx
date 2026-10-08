@@ -2,19 +2,18 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import useListingProcedureSourceIds from "../hooks/useListingProcedureSourceIds";
-
-import getProcedureParamsSummary from "../utils/getProcedureParamsSummary";
-import getProcedureSelectedItem from "../utils/getProcedureSelectedItem";
+import getProcedureOutputs from "../services/getProcedureOutputs";
 
 import {
   Box,
+  CircularProgress,
   IconButton,
   Menu,
   MenuItem,
@@ -22,19 +21,40 @@ import {
   Typography,
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
-import { ExpandMore, MoreHoriz } from "@mui/icons-material";
+import {
+  DeleteSweep,
+  ExpandMore,
+  PlayArrow,
+  Refresh,
+} from "@mui/icons-material";
 
-import ProcedureActionButtons from "./ProcedureActionButtons";
+import DialogProcedureLaunch from "./DialogProcedureLaunch";
+import DialogPromptIa from "Features/promptIa/components/DialogPromptIa";
+import getPromptIaOutputs from "Features/promptIa/services/getPromptIaOutputs";
+import {
+  PROMPT_IA_PROCEDURE,
+  isPromptIaProcedure,
+} from "Features/promptIa/utils/promptIaProcedure";
 
 /**
  * "Dessin auto" section of a listing, for the procedures linked to it
- * (`listing.procedureKeys`, edited in the listing properties), on 2 lines:
- *   1. active procedure name — properties button (opens
- *      PanelProcedureProperties in the right panel) — procedure selector
- *      (only when the listing links several procedures)
- *   2. recap of the current parameters — play / reset / refresh
+ * (`listing.procedureKeys`, edited in the listing properties), on one line:
+ * active procedure name — launch button — procedure selector (only when the
+ * listing links several procedures).
+ *
+ * The launch button opens DialogProcedureLaunch (procedure properties, number
+ * of source annotations concerned, launch buttons). While the procedure has
+ * live outputs from the base map's sources, it reads "update" instead of
+ * "play" and a delete button sweeps those outputs (same scope as the reset of
+ * ProcedureActionButtons: getProcedureOutputs).
  *
  * Sources of the run: useListingProcedureSourceIds.
+ *
+ * A listing whose Prompt IA is enabled (listing.promptIaEnabled) also lists
+ * the virtual "Prompt IA" procedure: no sources, its play button opens
+ * DialogPromptIa (zip download, result import). Its outputs are the
+ * annotations the Prompt IA created on the base map and that the user has
+ * not edited since (getPromptIaOutputs): the delete button sweeps them.
  *
  * Renders nothing when the listing links no procedure.
  */
@@ -44,7 +64,9 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   // strings
 
   const captionS = "Dessin auto";
-  const propertiesS = "Propriétés de la procédure";
+  const launchS = "Lancer la procédure";
+  const openPromptIaS = "Ouvrir le Prompt IA";
+  const updateS = "Mettre à jour (supprimer puis relancer)";
   const selectS = "Choisir la procédure";
 
   // data
@@ -57,53 +79,101 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     [listingId]
   );
 
-  const annotationsAutoState = useSelector((s) => s.annotationsAuto);
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const annotationsUpdatedAt = useSelector(
+    (s) => s.annotations.annotationsUpdatedAt
+  );
+  const deleteAnnotations = useDeleteAnnotations();
 
   // state
 
   const [activeKey, setActiveKey] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [launchOpen, setLaunchOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // helpers
 
-  const linkedProcedures = (listing?.procedureKeys ?? [])
+  const registryProcedures = (listing?.procedureKeys ?? [])
     .map((key) => procedures.find((p) => p.key === key))
     .filter(Boolean);
+  const hasRegistryProcedures = registryProcedures.length > 0;
+  const linkedProcedures = listing?.promptIaEnabled
+    ? [...registryProcedures, PROMPT_IA_PROCEDURE]
+    : registryProcedures;
   const hasProcedures = linkedProcedures.length > 0;
   const procedure =
     linkedProcedures.find((p) => p.key === activeKey) ?? linkedProcedures[0];
+  const isPromptIa = isPromptIaProcedure(procedure);
   const showSelector = linkedProcedures.length > 1;
 
-  // data - sources of the active procedure
+  // data - sources of the active procedure (none for the Prompt IA)
 
   const getSourceAnnotationIds = useListingProcedureSourceIds({
     listingId,
     baseMapId,
-    enabled: hasProcedures,
+    enabled: hasRegistryProcedures,
   });
 
-  // handlers
+  const sourceAnnotationIds =
+    procedure && !isPromptIa ? getSourceAnnotationIds(procedure) : [];
+  const sourceKey = sourceAnnotationIds.join(",");
 
-  function handleOpenProperties() {
-    dispatch(
-      setSelectedItem(
-        getProcedureSelectedItem({ procedureKey: procedure.key, listingId })
-      )
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  // data - live outputs of the active procedure from these sources, or of
+  // the Prompt IA on the base map (display only: the delete re-reads them
+  // from Dexie at call time).
+
+  function readOutputs() {
+    if (!procedure) return [];
+    if (isPromptIa) return getPromptIaOutputs({ listingId, baseMapId });
+    return getProcedureOutputs({
+      projectId,
+      procedureKey: procedure.key,
+      sourceAnnotationIds,
+    });
   }
+
+  const createdAnnotations = useLiveQuery(readOutputs, [
+    projectId,
+    listingId,
+    baseMapId,
+    procedure?.key,
+    isPromptIa,
+    sourceKey,
+    annotationsUpdatedAt,
+  ]);
+  const createdCount = createdAnnotations?.length ?? 0;
+  const hasOutputs = createdCount > 0;
+  const deleteS = isPromptIa
+    ? `Supprimer les ${createdCount} annotation(s) créée(s) par le Prompt IA (non modifiées depuis)`
+    : `Supprimer les ${createdCount} annotation(s) créée(s)`;
+
+  // handlers
 
   function handleSelect(key) {
     setActiveKey(key);
     setMenuAnchorEl(null);
   }
 
+  async function handleDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const outputs = await readOutputs();
+      const ids = outputs.map((a) => a.id);
+      if (ids.length === 0) return;
+      await deleteAnnotations(ids);
+      dispatch(
+        setToaster({ message: `${ids.length} annotation(s) supprimée(s)` })
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // render
 
   if (!hasProcedures) return null;
-
-  const sourceAnnotationIds = getSourceAnnotationIds(procedure);
-  const summary = getProcedureParamsSummary(procedure, annotationsAutoState);
 
   return (
     // white band around the tinted section
@@ -115,7 +185,7 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
           overflow: "hidden",
         }}
       >
-        {/* line 1: active procedure + properties + selector */}
+        {/* active procedure + play + selector */}
         <Box
           sx={{
             display: "flex",
@@ -147,10 +217,40 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            <Tooltip title={propertiesS}>
-              <IconButton size="small" onClick={handleOpenProperties}>
-                <MoreHoriz sx={{ fontSize: 18 }} />
-              </IconButton>
+            {deleting && <CircularProgress size={14} sx={{ mr: 0.5 }} />}
+            {hasOutputs && (
+              <Tooltip title={deleteS}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    <DeleteSweep sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip
+              title={
+                isPromptIa ? openPromptIaS : hasOutputs ? updateS : launchS
+              }
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  color="secondary"
+                  onClick={() => setLaunchOpen(true)}
+                  // the Prompt IA zip is built from the displayed base map
+                  disabled={deleting || (isPromptIa && !baseMapId)}
+                >
+                  {hasOutputs && !isPromptIa ? (
+                    <Refresh sx={{ fontSize: 20 }} />
+                  ) : (
+                    <PlayArrow sx={{ fontSize: 20 }} />
+                  )}
+                </IconButton>
+              </span>
             </Tooltip>
             {showSelector && (
               <Tooltip title={selectS}>
@@ -162,40 +262,6 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
                 </IconButton>
               </Tooltip>
             )}
-          </Box>
-        </Box>
-
-        {/* line 2: parameters recap + actions */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 0.5,
-            pl: 1.25,
-            pr: 0.5,
-            py: 0.5,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ minWidth: 0, lineHeight: 1.2 }}
-          >
-            {summary}
-          </Typography>
-          <Box sx={{ flexShrink: 0 }}>
-            <ProcedureActionButtons
-              // per-procedure instance: no running / dialog state carried
-              // over when the active procedure changes
-              key={procedure.key}
-              procedureKey={procedure.key}
-              baseMapId={baseMapId}
-              sourceAnnotationIds={sourceAnnotationIds}
-              disabled={sourceAnnotationIds.length === 0}
-            />
           </Box>
         </Box>
       </Box>
@@ -219,6 +285,30 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
             </MenuItem>
           ))}
         </Menu>
+      )}
+
+      {launchOpen && isPromptIa && (
+        <DialogPromptIa
+          key={procedure.key}
+          open={launchOpen}
+          onClose={() => setLaunchOpen(false)}
+          listingId={listingId}
+          baseMapId={baseMapId}
+        />
+      )}
+
+      {launchOpen && !isPromptIa && (
+        <DialogProcedureLaunch
+          // per-procedure instance: no dialog state carried over when the
+          // active procedure changes
+          key={procedure.key}
+          open={launchOpen}
+          onClose={() => setLaunchOpen(false)}
+          procedure={procedure}
+          listingId={listingId}
+          baseMapId={baseMapId}
+          sourceAnnotationIds={sourceAnnotationIds}
+        />
       )}
     </Box>
   );

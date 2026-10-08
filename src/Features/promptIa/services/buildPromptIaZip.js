@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
+import extractPdfPage from "Features/pdf/utils/extractPdfPage";
 import { buildBaseMapSnapshotBlob } from "Features/assistantRelay/services/buildBaseMapSnapshotImage";
 
 import instructionsBody from "../docs/PROMPT_IA_INSTRUCTIONS.md?raw";
@@ -98,7 +99,12 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
     "- `contexte.json` — données du plan (à lire en premier)",
     `- \`plan.png\` — image du fond (${context.plan.image.width} × ${context.plan.image.height} px)`,
     hasPdf
-      ? `- \`plan.pdf\` — page PDF source (page ${context.source.pageNumber})`
+      ? `- \`plan.pdf\` — la page PDF source du fond, seule${
+          context.source.sourcePageNumber &&
+          context.source.sourcePageNumber !== context.source.pageNumber
+            ? ` (page ${context.source.sourcePageNumber} du document d'origine)`
+            : ""
+        }`
       : "- (pas de PDF source : travaille sur `plan.png`, voie B)",
     ...(heightMap
       ? [
@@ -125,6 +131,8 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
     "## Demande",
     "",
     `**Mode** : ${describeMode(context.mode)}`,
+    "",
+    "**Périmètre** : uniquement ce fond de plan (`plan.png`, et la page de `plan.pdf`). N'annote aucune autre page, aucun autre plan et aucune autre pièce jointe, sauf consigne explicite.",
     "",
     ...(context.mode.description
       ? [
@@ -217,12 +225,27 @@ export default async function buildPromptIaZip({
     }
   }
 
+  // plan.pdf = the source page ALONE: the model must not detect on the other
+  // pages of the document. Falls back to the whole file when the extraction
+  // fails. The import converts `pdf_user_space` results with the original
+  // file and frame (same page geometry), so only the zip-side numbering
+  // changes.
   const pdf = await loadSourcePdf({ baseMap, projectId });
   let source = null;
+  let planPdf = null;
   if (pdf.file) {
-    const page = await readPdfPageFrame(pdf.file, pdf.frame.pageNumber);
+    let pageNumber = pdf.frame.pageNumber;
+    try {
+      planPdf = await extractPdfPage(pdf.file, pdf.frame.pageNumber);
+      pageNumber = 1;
+    } catch (err) {
+      console.warn("[promptIa] single page extraction failed", err);
+      planPdf = pdf.file;
+    }
+    const page = await readPdfPageFrame(planPdf, pageNumber);
     source = {
-      pageNumber: pdf.frame.pageNumber,
+      pageNumber,
+      sourcePageNumber: pdf.frame.pageNumber,
       rotation: pdf.frame.rotation,
       bboxInRatio: pdf.frame.bboxInRatio,
       page: { view: page.view, rotate: page.rotate },
@@ -297,7 +320,7 @@ export default async function buildPromptIaZip({
   zip.file("contexte.json", JSON.stringify(context, null, 2));
   // PNG / PDF are already compressed: store them as-is.
   zip.file("plan.png", picture.blob, { compression: "STORE" });
-  if (pdf.file) zip.file("plan.pdf", pdf.file, { compression: "STORE" });
+  if (planPdf) zip.file("plan.pdf", planPdf, { compression: "STORE" });
   if (relief) {
     zip.file(HEIGHT_MAP_FILE, relief.blob, { compression: "STORE" });
     zip.file(HEIGHT_MAP_PREVIEW_FILE, relief.previewBlob, {

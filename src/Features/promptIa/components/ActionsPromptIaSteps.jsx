@@ -14,6 +14,7 @@ export default function ActionsPromptIaSteps({
   backDisabled = false,
   hideBack = false,
   finalAction,
+  steps = PROMPT_IA_STEPS,
   sx,
 }) {
   // strings
@@ -23,7 +24,7 @@ export default function ActionsPromptIaSteps({
 
   // helpers
 
-  const isLast = activeStep === PROMPT_IA_STEPS.length - 1;
+  const isLast = activeStep === steps.length - 1;
   const showBack = activeStep > 0 && !hideBack;
 
   // render
@@ -70,5 +71,6 @@ ActionsPromptIaSteps.propTypes = {
   backDisabled: PropTypes.bool,
   hideBack: PropTypes.bool,
   finalAction: PropTypes.node,
+  steps: PropTypes.arrayOf(PropTypes.string),
   sx: PropTypes.object,
 };

@@ -54,6 +54,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldProcedureKeys from "Features/annotationsAuto/components/FieldProcedureKeys";
+import SectionListingPromptIa from "Features/promptIa/components/SectionListingPromptIa";
 import SectionListingProceduresLinks from "Features/annotationsAuto/components/SectionListingProceduresLinks";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
@@ -1036,6 +1037,19 @@ export default function PanelPropertiesListingV2({ listing }) {
             )}
           </List>
         </WhiteSectionGeneric>
+
+        {/* Prompt IA: virtual procedure of the "Dessin auto" band + the
+            instructions handed to the AI — drawing lists only */}
+        {listing?.entityModel?.type === "LOCATED_ENTITY" &&
+          !listing?.isForBaseMaps &&
+          !isLinked && (
+            <SectionListingPromptIa
+              listing={listing}
+              onChange={(updates) =>
+                updateListing({ id: listing.id, ...updates })
+              }
+            />
+          )}
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

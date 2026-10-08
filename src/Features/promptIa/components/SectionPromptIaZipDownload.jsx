@@ -23,11 +23,12 @@ export default function SectionPromptIaZipDownload({
   disabled = false,
   building = false,
   built,
+  label,
   children,
 }) {
   // strings
 
-  const downloadS = "Télécharger le zip";
+  const downloadS = label ?? "Télécharger le zip";
   const dropZipS =
     "Déposez ce zip dans un chat IA (ChatGPT, Claude…) et écrivez :";
   const promptS = "Suis les instructions contenues dans le zip";
@@ -134,5 +135,6 @@ SectionPromptIaZipDownload.propTypes = {
     fileName: PropTypes.string,
     sizeBytes: PropTypes.number,
   }),
+  label: PropTypes.string,
   children: PropTypes.node,
 };
