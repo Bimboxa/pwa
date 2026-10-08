@@ -75,6 +75,17 @@ export default function buildMesh3dFromTriangles({ positions, index = null }) {
   }
   if (!rawFaces.length) return null;
 
+  return buildMesh3dFromPlanarFaces(rawFaces);
+}
+
+// Planar polygon faces -> indexed mesh (LOCAL form): steps 2, 3a and 3b
+// above, shared with the merge of two annotation meshes
+// (threedMergeFaces/utils/mergeMesh3dSolids.js), whose inputs are polygon
+// faces already. rawFaces: [{ contour: [{x,y,z}], holes: [[{x,y,z}]],
+// normal }], contour CCW around `normal`, holes CW. Returns null when
+// everything cancels out.
+export function buildMesh3dFromPlanarFaces(rawFaces) {
+  if (!rawFaces?.length) return null;
   // 3a. Weld.
   const vertices = [];
   const idByKey = new Map();

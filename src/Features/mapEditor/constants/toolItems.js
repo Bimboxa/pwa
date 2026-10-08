@@ -1,5 +1,6 @@
 import {
   Adjust,
+  CallMerge,
   Draw,
   Height,
   OpenWith,
@@ -105,6 +106,13 @@ const TOOL_ITEMS = [
     shortcut: "S",
     editor: "3D",
     threedTool: "ISOLATE_FACE",
+  },
+  {
+    type: "MERGE_FACES",
+    label: "Fusionner des faces",
+    Icon: CallMerge,
+    editor: "3D",
+    threedTool: "MERGE_FACES",
   },
   {
     type: "EXTRUDE",

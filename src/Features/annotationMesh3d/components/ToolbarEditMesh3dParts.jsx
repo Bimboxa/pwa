@@ -51,6 +51,7 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
   const backS = "Revenir à l'annotation entière";
   const verticesS = "sommets";
   const moveVertexHintS = "Déplacer (M) : décaler un sommet";
+  const mergeFacesHintS = "Fusionner : réunir avec une face coplanaire voisine";
 
   // data
 
@@ -167,6 +168,14 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
           <Box sx={rowSx}>
             <Typography variant="caption" color="text.secondary">
               {moveVertexHintS}
+            </Typography>
+          </Box>
+        )}
+
+        {singleFace && (
+          <Box sx={rowSx}>
+            <Typography variant="caption" color="text.secondary">
+              {mergeFacesHintS}
             </Typography>
           </Box>
         )}

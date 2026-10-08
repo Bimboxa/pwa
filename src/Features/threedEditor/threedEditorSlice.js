@@ -45,6 +45,13 @@ function closeIsolateFaceMode(state) {
   state.isolateFaceMode.active = false;
 }
 
+// Leaves the « Fusionner des faces » mode (threedMergeFaces): every other 3D
+// tool mode calls it when it arms.
+function closeMergeFacesMode(state) {
+  state.mergeFacesMode.active = false;
+  state.mergeFacesMode.seed = null;
+}
+
 const threedEditorInitialState = {
   showGrid: false,
   // When true, basemap images are hidden in the live 3D view AND omitted from
@@ -160,14 +167,14 @@ const threedEditorInitialState = {
   // (only if it isn't already selected there). `triggeredAt` makes repeated
   // requests for the same annotation still fire.
   selectAnnotationInThreed: null, // { annotationId, annotationType, listingId, annotationTemplateId, triggeredAt }
-  // 3D drawing mode: vertex-snapped polylines that auto-commit to a 2D
-  // annotation when a closed coplanar face is detected.
+  // 3D drawing mode: vertex-snapped polylines committed as 2D annotations
+  // by a click back on the first point, Enter or Escape.
   drawingMode: {
     active: false,
-    // Vertices clicked since the last face-commit / Enter / Esc.
+    // Vertices clicked since the last commit / Enter / Esc.
     inProgressPolyline: [], // [{x, y, z}]
-    // Persistent 3D wireframe segments (memory-only v1). Produced by Enter,
-    // consumed when a face closes against them.
+    // Persistent 3D wireframe segments (memory-only v1). Produced by Enter
+    // when nothing commits; drawn as guide lines by DrawingOverlayThreed.
     trait3DSegments: [], // [{a:{x,y,z}, b:{x,y,z}}]
     // Auto-detected dominant world axis when Shift is held during
     // mouse-move; null otherwise.
@@ -379,6 +386,16 @@ const threedEditorInitialState = {
   isolateFaceMode: {
     active: false,
   },
+  // « Fusionner des faces » (Dessin/MAP module, Features/threedMergeFaces):
+  // a click on a face coplanar with the seed face of another annotation
+  // merges the two annotation meshes into the seed one. seed = { annotationId,
+  // baseMapId, plane: { point: [x, y, z], normal: [x, y, z] } } in the base
+  // map local frame (absolute z) — null until the first face is clicked when
+  // armed from the tools list. Mutually exclusive with the other 3D modes.
+  mergeFacesMode: {
+    active: false,
+    seed: null,
+  },
   // Sub-selection inside the currently-selected annotation (vertex or edge).
   // Populated when the user clicks a vertex / edge of an already-selected
   // annotation. Cleared when the user clicks elsewhere on the same face or
@@ -530,6 +547,7 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with dimension mode.
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.dimensionMode.active = false;
@@ -594,27 +612,6 @@ export const threedEditorSlice = createSlice({
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.axisLock = null;
     },
-    consumeFaceSegments: (state, action) => {
-      // payload: array of {a:{x,y,z}, b:{x,y,z}} to remove from trait3DSegments.
-      // The in-progress polyline is reset entirely (face just committed).
-      const consumed = action.payload || [];
-      const isSame = (s1, s2) => {
-        const eq = (p, q) =>
-          Math.abs(p.x - q.x) < 1e-6 &&
-          Math.abs(p.y - q.y) < 1e-6 &&
-          Math.abs(p.z - q.z) < 1e-6;
-        return (
-          (eq(s1.a, s2.a) && eq(s1.b, s2.b)) ||
-          (eq(s1.a, s2.b) && eq(s1.b, s2.a))
-        );
-      };
-      state.drawingMode.trait3DSegments =
-        state.drawingMode.trait3DSegments.filter(
-          (seg) => !consumed.some((c) => isSame(seg, c))
-        );
-      state.drawingMode.inProgressPolyline = [];
-      state.drawingMode.axisLock = null;
-    },
     setDrawingAxisLock: (state, action) => {
       state.drawingMode.axisLock = action.payload;
     },
@@ -661,6 +658,7 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with drawing and meshing modes.
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -699,6 +697,7 @@ export const threedEditorSlice = createSlice({
         // dimension mode).
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
@@ -738,6 +737,7 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with drawing and dimension modes.
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -799,6 +799,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
@@ -860,6 +861,7 @@ export const threedEditorSlice = createSlice({
       state.vertexOffsetMode.faceIndex = target.faceIndex;
       // Mutually exclusive with every other 3D tool mode.
       closeIsolateFaceMode(state);
+      closeMergeFacesMode(state);
       closeRevolutionAxisDrawMode(state);
       closeBaseMapsGrid(state);
       state.drawingMode.active = false;
@@ -916,6 +918,7 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every 3D tool mode.
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -946,6 +949,7 @@ export const threedEditorSlice = createSlice({
       if (!active) return;
       // Mutually exclusive with every other 3D tool mode.
       closeIsolateFaceMode(state);
+      closeMergeFacesMode(state);
       closeRevolutionAxisDrawMode(state);
       closeVertexOffsetMode(state);
       state.drawingMode.active = false;
@@ -979,6 +983,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
@@ -1014,6 +1019,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
@@ -1058,6 +1064,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
@@ -1087,6 +1094,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode (own block: the
         // generic insertion above must not close this mode on itself).
+        closeMergeFacesMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1112,6 +1120,48 @@ export const threedEditorSlice = createSlice({
         state.rotateAnnotationMode.angleBuffer = "";
       }
     },
+    // payload: false to leave; true to arm without a seed (tools list: the
+    // first clicked face becomes the seed); { seed } to arm on a face.
+    setMergeFacesModeActive: (state, action) => {
+      const payload = action.payload;
+      state.mergeFacesMode.active = !!payload;
+      state.mergeFacesMode.seed =
+        payload && typeof payload === "object" && payload.seed
+          ? payload.seed
+          : null;
+      if (payload) {
+        // Mutually exclusive with every other 3D tool mode (own block).
+        closeIsolateFaceMode(state);
+        closeRevolutionAxisDrawMode(state);
+        closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setMergeFacesSeed: (state, action) => {
+      if (!state.mergeFacesMode.active) return;
+      state.mergeFacesMode.seed = action.payload ?? null;
+    },
     setMoveAnnotationCarriedIds: (state, action) => {
       state.moveAnnotationMode.carriedAnnotationIds = action.payload ?? [];
     },
@@ -1123,6 +1173,7 @@ export const threedEditorSlice = createSlice({
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
         closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
@@ -1283,7 +1334,6 @@ export const {
   cancelInProgressPolyline,
   toggleFaceCutSide,
   flushInProgressAsTrait3D,
-  consumeFaceSegments,
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
   bumpAnnotationsLoadTick,
@@ -1335,6 +1385,8 @@ export const {
   setMoveAnnotationModeActive,
   setMoveAnnotationCarriedIds,
   setIsolateFaceModeActive,
+  setMergeFacesModeActive,
+  setMergeFacesSeed,
   setRotateAnnotationModeActive,
   setRotateAnnotationCarriedIds,
   setRotateAnnotationReferenceSet,
