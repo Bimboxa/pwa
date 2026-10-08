@@ -13,7 +13,10 @@ import computeCalibrationTransform, {
   DEFAULT_GREEN,
 } from "Features/mapEditor/utils/computeCalibrationTransform";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
+import {
+  setSelectedListingId,
+  setScopeModuleShowAllListings,
+} from "Features/listings/listingsSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
@@ -175,9 +178,13 @@ export default function TopBarDesktop() {
       dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
     }
     // The listing viewer reads s.listings.selectedListingId (MainListingViewer,
-    // SelectorListingForViewer), not the listingViewer slice.
-    if (returnViewer === "SCOPE" && viewerReturnContext?.listingId) {
-      dispatch(setSelectedListingId(viewerReturnContext.listingId));
+    // SelectorListingForViewer), not the listingViewer slice. A plan opened
+    // from a listing goes back to that listing; one opened from the
+    // all-listings recap goes back to it.
+    if (returnViewer === "SCOPE") {
+      const listingId = viewerReturnContext?.listingId;
+      if (listingId) dispatch(setSelectedListingId(listingId));
+      dispatch(setScopeModuleShowAllListings(!listingId));
     }
     switchViewer(returnViewer);
     dispatch(setViewerReturnContext(null));

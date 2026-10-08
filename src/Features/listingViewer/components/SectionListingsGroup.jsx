@@ -6,6 +6,7 @@ import { Box, IconButton, List, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import RowListingInGroup from "./RowListingInGroup";
+import RowAllListingsInGroup from "./RowAllListingsInGroup";
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 
 import db from "App/db/db";
@@ -29,10 +30,15 @@ import { generateKeyBetween } from "fractional-indexing";
 // Dessin panel's active-listing menu. Ranks are global to the scope but the
 // groups never interleave: they are rebuilt from the entityModel type at every
 // read, so a group-local renumbering cannot disturb another family's order.
+//
+// `allListingsRow` ({selected, itemsCount, onClick}, annotation listings
+// group only) pins an "Afficher toutes les listes" row above the listings;
+// it is not one of the sortable items.
 export default function SectionListingsGroup({
   group,
   selection,
   itemsCountById,
+  allListingsRow,
   onListingClick,
   onCreateClick,
 }) {
@@ -127,6 +133,14 @@ export default function SectionListingsGroup({
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <List disablePadding>
+            {allListingsRow && (
+              <RowAllListingsInGroup
+                selected={allListingsRow.selected}
+                itemsCount={allListingsRow.itemsCount}
+                familyIcon={group.icon}
+                onClick={allListingsRow.onClick}
+              />
+            )}
             {listings.map((listing) => (
               <RowListingInGroup
                 key={listing.id}

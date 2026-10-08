@@ -18,12 +18,19 @@ export default function MainListingViewer() {
   // data
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const listing = useListingById(selectedListingId);
+  // "Afficher toutes les listes": the editor and the selectors get no
+  // listing (their all-listings mode) while selectedListingId stays what it
+  // is for the rest of the app.
+  const showAllListings = useSelector(
+    (s) => s.listings.scopeModuleShowAllListings
+  );
+  const selectedListing = useListingById(selectedListingId);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   // helpers
 
   const panelWidth = 300;
+  const listing = showAllListings ? null : selectedListing;
 
   // render
 
@@ -46,7 +53,10 @@ export default function MainListingViewer() {
             borderColor: "divider",
           }}
         >
-          <SelectorListingForViewer selectedListingId={selectedListingId} />
+          <SelectorListingForViewer
+            selectedListingId={listing?.id ?? null}
+            showAllListings={showAllListings}
+          />
         </BoxFlexVStretch>
       </LeftDrawerPanel>
 

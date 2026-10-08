@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 
 import { Box, Button, Paper, Popover, Typography } from "@mui/material";
 import { ArrowDropDown } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListingItemsCountById from "Features/listings/hooks/useListingItemsCountById";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
@@ -12,6 +14,7 @@ import ListingFamilyAvatar from "./ListingFamilyAvatar";
 import SelectorListingForViewer from "./SelectorListingForViewer";
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
+import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 
 // Floating listing selector of the SCOPE module, shown at the top left of the
 // recap editor when the left panel is folded (leftPanelDocked false). Folded,
@@ -24,36 +27,54 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // A Popover, not a Popper + ClickAwayListener: the panel mounts the family
 // creation dialogs as its own children, and a ClickAwayListener would close
 // the popper — unmounting the dialog with it — on the first click inside it.
+//
+// `listing` null is the "Afficher toutes les listes" mode of the panel: the
+// button then recaps that row — annotation family icon, "Toutes les listes",
+// total of the scope's annotations.
 export default function ButtonSelectorListingInViewer({ listing }) {
   // strings
 
-  // No selection means the editor shows every base map and the totals of the
-  // whole scope, not an empty state.
   const allListingsS = "Toutes les listes";
 
   // data
 
   const appConfig = useAppConfig();
   const entityModelTypes = appConfig?.features?.entityModelTypes;
+  const showAllListings = !listing;
+
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  // Scope listings, for the all-listings total only (the hook is cheap, the
+  // count query below is bounded to the listings handed to it).
+  const { value: scopeListings } = useListingsByScope({
+    filterByProjectId: projectId,
+  });
 
   // Family of the selected listing, resolved the way the panel resolves its
-  // groups (so a business object listing gets its module icon too).
-  const rawGroups = useMemo(
-    () =>
-      listing
-        ? getListingGroupsByEntityModelType({
-            listings: [listing],
-            entityModelTypes,
-          })
-        : [],
-    [listing, entityModelTypes]
-  );
+  // groups (so a business object listing gets its module icon too). In
+  // all-listings mode, the annotation listings family — the group the row
+  // belongs to — through a synthetic group, so the icon is the same source.
+  const rawGroups = useMemo(() => {
+    if (listing) {
+      return getListingGroupsByEntityModelType({
+        listings: [listing],
+        entityModelTypes,
+      });
+    }
+    return [{ key: "LOCATED_ENTITY", type: "LOCATED_ENTITY", listings: [] }];
+  }, [listing, entityModelTypes]);
   const groups = useListingGroupsWithIcons(rawGroups);
   const family = groups[0] ?? null;
 
-  const listingsToCount = useMemo(() => (listing ? [listing] : []), [listing]);
+  const listingsToCount = useMemo(() => {
+    if (listing) return [listing];
+    return (scopeListings ?? []).filter(
+      (l) => l?.entityModel?.type === "LOCATED_ENTITY" && !l.isForBaseMaps
+    );
+  }, [listing, scopeListings]);
   const itemsCountById = useListingItemsCountById(listingsToCount);
-  const itemsCount = listing ? (itemsCountById[listing.id] ?? 0) : null;
+  const itemsCount = listing
+    ? (itemsCountById[listing.id] ?? 0)
+    : getAnnotationListingsCount(listingsToCount, itemsCountById);
 
   // state
 
@@ -108,13 +129,11 @@ export default function ButtonSelectorListingInViewer({ listing }) {
               minWidth: 0,
             }}
           >
-            {listing && (
-              <ListingFamilyAvatar
-                listing={listing}
-                familyType={family?.type}
-                familyIcon={family?.icon}
-              />
-            )}
+            <ListingFamilyAvatar
+              listing={listing}
+              familyType={showAllListings ? null : family?.type}
+              familyIcon={family?.icon}
+            />
             {/* A flex item defaults to min-width:auto — without minWidth 0 the
                 name would push past the Paper instead of ellipsizing, and
                 shove the chip and the arrow out of view. */}
@@ -125,12 +144,10 @@ export default function ButtonSelectorListingInViewer({ listing }) {
             >
               {label}
             </Typography>
-            {listing && (
-              <ChipScopeStat
-                icon={family?.icon ?? undefined}
-                label={itemsCount}
-              />
-            )}
+            <ChipScopeStat
+              icon={family?.icon ?? undefined}
+              label={itemsCount}
+            />
           </Box>
         </Button>
       </Paper>
@@ -165,6 +182,7 @@ export default function ButtonSelectorListingInViewer({ listing }) {
         <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           <SelectorListingForViewer
             selectedListingId={listing?.id ?? null}
+            showAllListings={showAllListings}
             onListingSelected={handleClose}
           />
         </Box>

@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedListingId } from "Features/listings/listingsSlice";
+import {
+  setSelectedListingId,
+  setScopeModuleShowAllListings,
+} from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
@@ -24,6 +27,7 @@ import DialogCreateBaseMapListing from "Features/baseMapEditor/components/Dialog
 import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
+import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 
 // Listing selector of the SCOPE module: every listing of the scope whatever
 // its nature (base maps, annotations, business objects, exports...), grouped
@@ -38,8 +42,14 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // A base map folder hidden from the Fond de plan module (eye of the tree,
 // scope.baseMapsSettings.disabledListingIds) is left out here too: the scope
 // content follows what the base map module shows.
+//
+// `showAllListings` (listings.scopeModuleShowAllListings) is the "Afficher
+// toutes les listes" row of the annotation listings group: the editor then
+// shows the whole scope, and no listing row reads as selected — the caller
+// passes selectedListingId null in that mode.
 export default function SelectorListingForViewer({
   selectedListingId,
+  showAllListings = false,
   onListingSelected,
 }) {
   const dispatch = useDispatch();
@@ -95,6 +105,10 @@ export default function SelectorListingForViewer({
   const itemsCountById = useListingItemsCountById(visibleListings);
   const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
+  const annotationsCount = useMemo(
+    () => getAnnotationListingsCount(visibleListings, itemsCountById),
+    [visibleListings, itemsCountById]
+  );
 
   // handlers
 
@@ -103,24 +117,34 @@ export default function SelectorListingForViewer({
   // there). Creation is the exception below — a listing you just made is
   // waiting to be configured.
   function selectListing(listing) {
+    dispatch(setScopeModuleShowAllListings(false));
     dispatch(setSelectedListingId(listing.id));
     dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
   }
 
-  function deselectListing() {
-    dispatch(setSelectedListingId(null));
+  // The all-listings mode is a flag of the SCOPE module, not a null
+  // selectedListingId: that id is the app-wide active listing (Dessin draws
+  // into it) and useAutoSelectListing would refill it at once.
+  function selectAllListings() {
+    dispatch(setScopeModuleShowAllListings(true));
     dispatch(setSelectedItem(null));
   }
 
-  // Clicking the selected listing again clears the selection, which puts the
-  // editor back on the all-listings totals.
+  // Clicking the selected listing again puts the editor back on the
+  // all-listings totals, like the dedicated row.
   // `onListingSelected` is the floating-button caller (ButtonSelectorListingInViewer)
-  // closing its popover: deselecting counts too, it is a choice like any other.
-  // The creation flow below never calls it — the creation dialogs are children
-  // of this component, so closing the popover would unmount the open dialog.
+  // closing its popover: choosing all listings counts too, it is a choice
+  // like any other. The creation flow below never calls it — the creation
+  // dialogs are children of this component, so closing the popover would
+  // unmount the open dialog.
   function handleListingClick(listing) {
-    if (listing.id === selectedListingId) deselectListing();
+    if (listing.id === selectedListingId) selectAllListings();
     else selectListing(listing);
+    onListingSelected?.();
+  }
+
+  function handleAllListingsClick() {
+    selectAllListings();
     onListingSelected?.();
   }
 
@@ -190,6 +214,15 @@ export default function SelectorListingForViewer({
               group={group}
               selection={selection}
               itemsCountById={itemsCountById}
+              allListingsRow={
+                group.type === "LOCATED_ENTITY"
+                  ? {
+                      selected: showAllListings,
+                      itemsCount: annotationsCount,
+                      onClick: handleAllListingsClick,
+                    }
+                  : undefined
+              }
               onListingClick={handleListingClick}
               onCreateClick={
                 getCreateTargetOfGroup(group) ? handleCreateClick : undefined

@@ -32,6 +32,14 @@ const listingsInitialState = {
   // localStorage on every scope selection (scopeVisibilityPersistMiddleware
   // saves it), so ids never leak from one scope to the next.
   hiddenListingsIds: [],
+  //
+  // SCOPE module (Krto) in "all listings" mode: the recap editor shows every
+  // base map and the annotations of every listing of the scope. A flag of
+  // its own, not selectedListingId === null: the selected listing is the
+  // app-wide active listing (Dessin, creation flows) and useAutoSelectListing
+  // never leaves it null. Default true so the module opens on the whole
+  // scope; reset on every scope selection. Not persisted.
+  scopeModuleShowAllListings: true,
 };
 
 export const listingsSlice = createSlice({
@@ -99,6 +107,9 @@ export const listingsSlice = createSlice({
         (id) => id !== action.payload
       );
     },
+    setScopeModuleShowAllListings: (state, action) => {
+      state.scopeModuleShowAllListings = Boolean(action.payload);
+    },
   },
   extraReducers: (builder) => {
     // Matched by type string to avoid importing scopesSlice (setInitListingId
@@ -108,6 +119,7 @@ export const listingsSlice = createSlice({
       (state, action) => {
         state.hiddenListingsIds =
           getInitScopeVisibility(action.payload)?.hiddenListingsIds ?? [];
+        state.scopeModuleShowAllListings = true;
       }
     );
   },
@@ -134,6 +146,8 @@ export const {
   hideListingId,
   showListingId,
   setHiddenListingsIds,
+  //
+  setScopeModuleShowAllListings,
 } = listingsSlice.actions;
 
 export default listingsSlice.reducer;
