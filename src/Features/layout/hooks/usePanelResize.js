@@ -5,8 +5,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 // mechanics as usePanelDrag: document mousemove / mouseup). `size` stays null
 // until the user resizes: the panel keeps its CSS default geometry (width +
 // maxHeight). From the first drag, the measured rect of `paperRef` is the
-// starting point, and the panel gets an explicit width / height. `reset`
-// (double-click on the handle) returns to the defaults.
+// starting point, and the panel gets an explicit width / height. `fitContent`
+// ("auto" button of PanelFooter) keeps the current width and sets the height
+// to CSS "auto": the panel follows its content (capped by the panel's
+// maxHeight) until the next drag. `reset` (double-click on the handle)
+// returns to the defaults.
 // ---------------------------------------------------------------------------
 
 export default function usePanelResize({
@@ -55,6 +58,14 @@ export default function usePanelResize({
     [paperRef, handleMouseMove, handleMouseUp]
   );
 
+  const fitContent = useCallback(() => {
+    const rect = paperRef?.current?.getBoundingClientRect();
+    setSize((s) => ({
+      width: rect ? Math.round(rect.width) : (s?.width ?? undefined),
+      height: "auto",
+    }));
+  }, [paperRef]);
+
   const reset = useCallback(() => setSize(null), []);
 
   useEffect(() => {
@@ -64,5 +75,14 @@ export default function usePanelResize({
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  return { size, isResizing, handleResizeMouseDown, reset };
+  const isAutoHeight = size?.height === "auto";
+
+  return {
+    size,
+    isResizing,
+    isAutoHeight,
+    handleResizeMouseDown,
+    fitContent,
+    reset,
+  };
 }

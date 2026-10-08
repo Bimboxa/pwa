@@ -43,8 +43,6 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Tune from "@mui/icons-material/Tune";
 import FormatColorFill from "@mui/icons-material/FormatColorFill";
-import UnfoldLess from "@mui/icons-material/UnfoldLess";
-import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -77,7 +75,8 @@ import IconButtonToggleDetached from "Features/popperMapListings/components/Icon
 import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
-import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
+import PanelFooter from "Features/layout/components/PanelFooter";
+import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -1807,9 +1806,6 @@ export default function PopperMapListings() {
     }, {});
   }, [allAnnotations]);
 
-  const annotationsSideS = "Annotations";
-  const baseMapsSideS = "Fonds de plan";
-  const toolsSideS = "Commandes";
   const propertiesS = "Propriétés";
 
   const titleS =
@@ -1896,7 +1892,9 @@ export default function PopperMapListings() {
   const paperRef = useRef(null);
   const {
     size,
+    isAutoHeight,
     handleResizeMouseDown,
+    fitContent,
     reset: resetSize,
   } = usePanelResize({ paperRef });
 
@@ -2187,7 +2185,13 @@ export default function PopperMapListings() {
         zIndex: 10,
         width: size?.width ?? 320,
         ...(size && !collapsed
-          ? { height: size.height, maxHeight: "calc(100% - 50px)" }
+          ? {
+              height: size.height,
+              // "auto" height: the bottom stays above the bottom reserve.
+              maxHeight: isAutoHeight
+                ? getPanelAutoMaxHeight({ top: "50px", offsetY: position.y })
+                : "calc(100% - 50px)",
+            }
           : { maxHeight: defaultMaxHeight }),
         display: "flex",
         flexDirection: "column",
@@ -2242,107 +2246,41 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Collapse / expand body */}
-        <Tooltip title={collapsed ? "Déplier" : "Replier"}>
-          <IconButton
-            size="small"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              dispatch(setCollapsed(!collapsed));
-            }}
-            sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
-          >
-            {collapsed ? (
-              <UnfoldMore sx={{ fontSize: 16 }} />
-            ) : (
-              <UnfoldLess sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      {/* Title row of the displayed side (annotations / base maps list /
-          commandes): properties of that side (annotations and base maps
-          sides) + the detach icon (base maps and commandes sides). Hidden in
-          the Viewer module and the BaseMaps module (read-only legends, no
-          popper properties there) — except on the base maps side, whose
-          detach icon stays reachable. */}
-      {!collapsed &&
-        (showSideProperties || (showBaseMapsBody && !isBaseMapsListOnly)) && (
-          <Box
-            sx={{
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 2,
-              py: 0.75,
-              borderBottom: "1px solid",
-              borderColor: "panel.border",
-            }}
-          >
-            <Typography
-              variant="caption"
-              noWrap
+        {/* Properties of the displayed side (annotations / base maps sides).
+            Hidden in the Viewer module and the BaseMaps module (read-only
+            legends, no popper properties there). On the commandes side the
+            button is kept in the layout, invisible, so the header does not
+            jump between sides. */}
+        {showSideProperties && (
+          <Tooltip title={propertiesS} arrow placement="top">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch(
+                  setSelectedItem({
+                    id: selectedScopeId,
+                    type: showBaseMapsBody
+                      ? "POPPER_BASE_MAPS"
+                      : "POPPER_MAP_LISTINGS",
+                  })
+                );
+                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+              }}
               sx={{
-                flex: 1,
-                minWidth: 0,
-                color: "text.secondary",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                fontSize: "0.65rem",
+                color: "panel.textLight",
+                p: 0.25,
+                cursor: "pointer",
+                visibility: showToolsBody ? "hidden" : "visible",
+                pointerEvents: showToolsBody ? "none" : "auto",
               }}
             >
-              {showBaseMapsBody
-                ? baseMapsSideS
-                : showToolsBody
-                  ? toolsSideS
-                  : annotationsSideS}
-            </Typography>
-
-            {showSideProperties && !showToolsBody && (
-              <Tooltip title={propertiesS} arrow placement="top">
-                <Box
-                  component="button"
-                  onClick={() => {
-                    dispatch(
-                      setSelectedItem({
-                        id: selectedScopeId,
-                        type: showBaseMapsBody
-                          ? "POPPER_BASE_MAPS"
-                          : "POPPER_MAP_LISTINGS",
-                      })
-                    );
-                    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-                  }}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 28,
-                    height: 28,
-                    p: 0,
-                    border: "none",
-                    borderRadius: 2,
-                    flexShrink: 0,
-                    cursor: "pointer",
-                    color: "text.secondary",
-                    bgcolor: "action.hover",
-                    "&:hover": { bgcolor: "action.selected" },
-                  }}
-                >
-                  <Tune sx={{ fontSize: 18 }} />
-                </Box>
-              </Tooltip>
-            )}
-
-            {showBaseMapsBody && !isBaseMapsListOnly && (
-              <IconButtonToggleDetached target="BASE_MAPS" />
-            )}
-            {showToolsBody && <IconButtonToggleDetached target="TOOLS" />}
-          </Box>
+              <Tune sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
         )}
+      </Box>
 
       {/* BaseMaps module: "Afficher les annotations" switch (same state as
           the left panel's), right under the header on both sides. Turning it
@@ -2412,6 +2350,7 @@ export default function PopperMapListings() {
               <Box
                 sx={{
                   flexShrink: 0,
+                  py: 0.75,
                   borderBottom: "1px solid",
                   borderColor: "panel.border",
                 }}
@@ -2647,6 +2586,23 @@ export default function PopperMapListings() {
           </Box>
         )}
 
+      {/* Bottom band (collapsed included): "auto" height, detach icon of the
+          base maps / commandes sides, collapse / expand toggle, resize handle
+          in its reserved right margin. */}
+      <PanelFooter
+        onResizeMouseDown={handleResizeMouseDown}
+        onResetSize={resetSize}
+        onFitContent={fitContent}
+        isAutoHeight={isAutoHeight}
+        collapsed={collapsed}
+        onToggleCollapsed={() => dispatch(setCollapsed(!collapsed))}
+      >
+        {showBaseMapsBody && !isBaseMapsListOnly && (
+          <IconButtonToggleDetached target="BASE_MAPS" />
+        )}
+        {showToolsBody && <IconButtonToggleDetached target="TOOLS" />}
+      </PanelFooter>
+
       {/* Create listing dialog */}
 
       {/* Merge compare dialog */}
@@ -2699,13 +2655,6 @@ export default function PopperMapListings() {
             </Box>
           </BoxFlexVStretch>
         </DialogGeneric>
-      )}
-
-      {!collapsed && (
-        <PanelResizeHandle
-          onMouseDown={handleResizeMouseDown}
-          onDoubleClick={resetSize}
-        />
       )}
     </Paper>
   );

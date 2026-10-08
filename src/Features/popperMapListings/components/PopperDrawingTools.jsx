@@ -2,14 +2,13 @@ import { useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import UnfoldLess from "@mui/icons-material/UnfoldLess";
-import UnfoldMore from "@mui/icons-material/UnfoldMore";
 
 import SectionPopperDrawingTools from "./SectionPopperDrawingTools";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
-import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
+import PanelFooter from "Features/layout/components/PanelFooter";
+import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 
 import db from "App/db/db";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
@@ -26,9 +25,10 @@ import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBu
 
 // ---------------------------------------------------------------------------
 // PopperDrawingTools — the drawing tools ("Commandes") detached from
-// PopperMapListings ("Détacher les commandes" icon of its "Commandes" title
-// row — detached by default): a floating panel with the same structure
-// (draggable header, attach icon, collapse, resize handle) listing the tool
+// PopperMapListings ("Détacher les commandes" icon of the bottom band of its
+// "Commandes" side — detached by default): a floating panel with the same
+// structure (draggable header, bottom band with the "auto" height button,
+// the attach icon, the collapse toggle and the resize handle) listing the tool
 // rows (SectionPopperDrawingTools). Mounted by both editors (2D and 3D) right
 // next to PopperMapListings, under it by default (2/3 - 1/3 of the available
 // height); renders nothing while the tools are attached or do not apply
@@ -48,8 +48,6 @@ export default function PopperDrawingTools() {
   // strings
 
   const titleS = "Commandes";
-  const collapseS = "Replier";
-  const expandS = "Déplier";
 
   // data
 
@@ -126,7 +124,9 @@ export default function PopperDrawingTools() {
   const paperRef = useRef(null);
   const {
     size,
+    isAutoHeight,
     handleResizeMouseDown,
+    fitContent,
     reset: resetSize,
   } = usePanelResize({ paperRef });
 
@@ -146,7 +146,16 @@ export default function PopperDrawingTools() {
         zIndex: 10,
         width: size?.width ?? POPPER_WIDTH,
         ...(size && !collapsed
-          ? { height: size.height, maxHeight: "calc(100% - 50px)" }
+          ? {
+              height: size.height,
+              // "auto" height: the bottom stays above the bottom reserve.
+              maxHeight: isAutoHeight
+                ? getPanelAutoMaxHeight({
+                    top: DEFAULT_TOP,
+                    offsetY: position.y,
+                  })
+                : "calc(100% - 50px)",
+            }
           : { maxHeight: DEFAULT_MAX_HEIGHT }),
         display: helperActive ? "none" : "flex",
         flexDirection: "column",
@@ -189,26 +198,6 @@ export default function PopperDrawingTools() {
         >
           {titleS}
         </Typography>
-
-        <IconButtonToggleDetached target="TOOLS" variant="header" />
-
-        <Tooltip title={collapsed ? expandS : collapseS}>
-          <IconButton
-            size="small"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setCollapsed((c) => !c);
-            }}
-            sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
-          >
-            {collapsed ? (
-              <UnfoldMore sx={{ fontSize: 16 }} />
-            ) : (
-              <UnfoldLess sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
       </Box>
 
       {!collapsed && (
@@ -221,12 +210,16 @@ export default function PopperDrawingTools() {
         </Box>
       )}
 
-      {!collapsed && (
-        <PanelResizeHandle
-          onMouseDown={handleResizeMouseDown}
-          onDoubleClick={resetSize}
-        />
-      )}
+      <PanelFooter
+        onResizeMouseDown={handleResizeMouseDown}
+        onResetSize={resetSize}
+        onFitContent={fitContent}
+        isAutoHeight={isAutoHeight}
+        collapsed={collapsed}
+        onToggleCollapsed={() => setCollapsed((c) => !c)}
+      >
+        <IconButtonToggleDetached target="TOOLS" />
+      </PanelFooter>
     </Paper>
   );
 }

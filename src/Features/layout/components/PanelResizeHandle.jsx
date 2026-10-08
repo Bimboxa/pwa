@@ -3,7 +3,8 @@ import SouthEast from "@mui/icons-material/SouthEast";
 
 // ---------------------------------------------------------------------------
 // PanelResizeHandle — small diagonal arrow at the bottom-right corner of a
-// floating panel (position: relative container): drag to resize
+// floating panel, rendered in the reserved right margin of its bottom band
+// (PanelFooter, position: relative): drag to resize
 // (usePanelResize.handleResizeMouseDown), double-click to reset the size.
 // ---------------------------------------------------------------------------
 

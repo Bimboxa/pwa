@@ -7,12 +7,11 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Tune from "@mui/icons-material/Tune";
-import UnfoldLess from "@mui/icons-material/UnfoldLess";
-import UnfoldMore from "@mui/icons-material/UnfoldMore";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
-import PanelResizeHandle from "Features/layout/components/PanelResizeHandle";
+import PanelFooter from "Features/layout/components/PanelFooter";
+import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import usePanelResize from "Features/layout/hooks/usePanelResize";
@@ -23,9 +22,11 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 // ---------------------------------------------------------------------------
 // PopperBaseMapsList — the base maps list detached from PopperMapListings
-// ("Détacher la liste" icon of its "Fonds de plan" title row): a second
-// floating panel with the very same structure (draggable header, properties,
-// attach icon, collapse, resize handle), showing the base maps only. Mounted by the editors right next to PopperMapListings (same gates);
+// ("Détacher la liste" icon of the bottom band of its "Fonds de plan" side):
+// a second floating panel with the very same structure (draggable header,
+// properties, bottom band with the "auto" height button, the attach icon,
+// the collapse toggle and the resize handle), showing the base maps only. Mounted by the
+// editors right next to PopperMapListings (same gates);
 // renders nothing while the list is attached. In 2D it is hidden — not
 // unmounted, so it keeps its drag position and collapsed state — while a
 // paste / subtract / drawing helper replaces the annotations popper.
@@ -42,8 +43,6 @@ export default function PopperBaseMapsList() {
 
   const titleS = "Fonds de plan";
   const propertiesS = "Propriétés";
-  const collapseS = "Replier";
-  const expandS = "Déplier";
 
   // data
 
@@ -78,7 +77,9 @@ export default function PopperBaseMapsList() {
   const paperRef = useRef(null);
   const {
     size,
+    isAutoHeight,
     handleResizeMouseDown,
+    fitContent,
     reset: resetSize,
   } = usePanelResize({ paperRef });
 
@@ -114,7 +115,13 @@ export default function PopperBaseMapsList() {
         zIndex: 10,
         width: size?.width ?? POPPER_WIDTH,
         ...(size && !collapsed
-          ? { height: size.height, maxHeight: "calc(100% - 50px)" }
+          ? {
+              height: size.height,
+              // "auto" height: the bottom stays above the bottom reserve.
+              maxHeight: isAutoHeight
+                ? getPanelAutoMaxHeight({ top: "50px", offsetY: position.y })
+                : "calc(100% - 50px)",
+            }
           : { maxHeight: "calc(100% - 50px - 80px)" }),
         display: helperActive ? "none" : "flex",
         flexDirection: "column",
@@ -170,26 +177,6 @@ export default function PopperBaseMapsList() {
             </IconButton>
           </Tooltip>
         )}
-
-        <IconButtonToggleDetached target="BASE_MAPS" variant="header" />
-
-        <Tooltip title={collapsed ? expandS : collapseS}>
-          <IconButton
-            size="small"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setCollapsed((c) => !c);
-            }}
-            sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
-          >
-            {collapsed ? (
-              <UnfoldMore sx={{ fontSize: 16 }} />
-            ) : (
-              <UnfoldLess sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
       </Box>
 
       {!collapsed && (
@@ -198,12 +185,16 @@ export default function PopperBaseMapsList() {
         </Box>
       )}
 
-      {!collapsed && (
-        <PanelResizeHandle
-          onMouseDown={handleResizeMouseDown}
-          onDoubleClick={resetSize}
-        />
-      )}
+      <PanelFooter
+        onResizeMouseDown={handleResizeMouseDown}
+        onResetSize={resetSize}
+        onFitContent={fitContent}
+        isAutoHeight={isAutoHeight}
+        collapsed={collapsed}
+        onToggleCollapsed={() => setCollapsed((c) => !c)}
+      >
+        <IconButtonToggleDetached target="BASE_MAPS" />
+      </PanelFooter>
     </Paper>
   );
 }
