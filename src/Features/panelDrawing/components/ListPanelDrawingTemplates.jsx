@@ -213,13 +213,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
         borderColor: "divider",
       }}
     >
-      {/* procedures linked to the listing ("Dessin auto") */}
-      <SectionListingProcedures
-        listingId={listingId}
-        baseMapId={selectedBaseMapId}
-        sx={{ borderBottom: "1px solid", borderColor: "divider" }}
-      />
-
       {dndEnabled ? (
         <DndContext
           sensors={sensors}
@@ -279,6 +272,12 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
           Nouveau modèle
         </Typography>
       </ListItemButton>
+
+      {/* procedures linked to the listing ("Dessin auto"), below the add row */}
+      <SectionListingProcedures
+        listingId={listingId}
+        baseMapId={selectedBaseMapId}
+      />
 
       {openCreateDialog && (
         <DialogCreateAnnotationTemplate
