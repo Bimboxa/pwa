@@ -6,6 +6,9 @@ import mergePaintedQtiesIntoTemplateQties, {
   formatTemplateQtiesTooltip,
   getPaintedPartsCountLabel,
 } from "./mergePaintedQtiesIntoTemplateQties.js";
+import getAnnotationTemplateMainQtyLabel, {
+  MESH_3D_QTY_LABEL,
+} from "./getAnnotationTemplateMainQtyLabel.js";
 
 const templateById = {
   tWall: { id: "tWall", type: "POLYLINE" },
@@ -205,4 +208,94 @@ test("drawingShape-only template (no type, no mainQtyKey): m² / ml label", () =
   assert.equal(out.tJoint.mainQtyLabel, "6.2 ml");
   // The template itself is not mutated.
   assert.equal(byId.tEnduit.type, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Mesh 3D rule: a template holding a mesh 3D annotation has no surface /
+// length total at all (not even the painted parts), only the unit count.
+// ---------------------------------------------------------------------------
+
+test("mesh 3D template: label is the marker, line has no ml / m², tooltip set", () => {
+  const stats = {
+    count: 2,
+    length: null,
+    surface: null,
+    unit: 2,
+    mesh3dCount: 1,
+  };
+  assert.equal(
+    getAnnotationTemplateMainQtyLabel(templateById.tPlaster, stats),
+    MESH_3D_QTY_LABEL
+  );
+  assert.equal(
+    getAnnotationTemplateMainQtyLabel(templateById.tWall, stats),
+    MESH_3D_QTY_LABEL
+  );
+  assert.equal(formatTemplateQtiesLine(stats), `2 u · ${MESH_3D_QTY_LABEL}`);
+  const tooltip = formatTemplateQtiesTooltip(stats);
+  assert.ok(tooltip && tooltip.startsWith("1 annotation en mesh 3D"));
+});
+
+test("mesh 3D template: unit-count template keeps its 'N u' label", () => {
+  const stats = {
+    count: 3,
+    length: null,
+    surface: null,
+    unit: 3,
+    mesh3dCount: 2,
+  };
+  assert.equal(
+    getAnnotationTemplateMainQtyLabel(templateById.tUnits, stats),
+    "3 u"
+  );
+});
+
+test("mesh 3D template + painted parts: painted m² not added, line keeps the parts count", () => {
+  const qtiesById = {
+    tPlaster: {
+      count: 1,
+      length: null,
+      surface: null,
+      unit: 1,
+      mesh3dCount: 1,
+      mainQtyLabel: MESH_3D_QTY_LABEL,
+    },
+  };
+  const paintedById = {
+    tPlaster: painted({
+      surface: 12.4,
+      partsCount: 3,
+      facesCount: 3,
+      listedCount: 3,
+    }),
+  };
+  const out = mergePaintedQtiesIntoTemplateQties(
+    qtiesById,
+    paintedById,
+    templateById
+  );
+  const stats = out.tPlaster;
+  assert.equal(stats.surface, null);
+  assert.equal(stats.length, null);
+  assert.equal(stats.annotationsSurface, null);
+  assert.equal(stats.paintedSurface, 12.4);
+  assert.equal(stats.mainQtyLabel, MESH_3D_QTY_LABEL);
+  assert.equal(
+    formatTemplateQtiesLine(stats),
+    `1 u · ${MESH_3D_QTY_LABEL} · 3 faces`
+  );
+  const tooltip = formatTemplateQtiesTooltip(stats);
+  assert.ok(tooltip.startsWith("1 annotation en mesh 3D"));
+  assert.ok(tooltip.includes(`Annotations : ${MESH_3D_QTY_LABEL}`));
+  assert.ok(tooltip.includes("Parties peintes : 12.40 m² (3 faces)"));
+});
+
+test("no mesh 3D: unchanged behaviour", () => {
+  const stats = { count: 2, length: 8, surface: 0, unit: 2, mesh3dCount: 0 };
+  assert.equal(
+    getAnnotationTemplateMainQtyLabel(templateById.tWall, stats),
+    "8 ml"
+  );
+  assert.equal(formatTemplateQtiesLine(stats), "2 u · 8.00 ml · 0 m²");
+  assert.equal(formatTemplateQtiesTooltip(stats), null);
 });

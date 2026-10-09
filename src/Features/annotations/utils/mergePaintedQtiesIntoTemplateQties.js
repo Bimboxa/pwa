@@ -5,18 +5,29 @@
 // template's totals. `count` (annotations) and `unit` stay untouched: a
 // painted part is not an annotation. `mainQtyLabel` keeps the exact
 // "${qty} ${unit}" format (parseMainQtyLabel / applyHardCodedQties depend on
-// it); the faces / edges count only goes in the secondary line.
-import getAnnotationTemplateMainQtyLabel from "./getAnnotationTemplateMainQtyLabel.js";
+// it) — except MESH_3D_QTY_LABEL, the unit then comes from `mainQtyUnit`; the
+// faces / edges count only goes in the secondary line.
+//
+// Mesh 3D rule (stats.mesh3dCount > 0): the template has NO surface / length
+// total at all — `length` / `surface` stay null, the painted parts are not
+// added either, the label is "⚠ 3D" and only the unit count remains. The
+// painted detail is still kept for the tooltip.
+import getAnnotationTemplateMainQtyLabel, {
+  MESH_3D_QTY_LABEL,
+} from "./getAnnotationTemplateMainQtyLabel.js";
 
 const EMPTY_BASE = Object.freeze({
   count: 0,
   length: 0,
   surface: 0,
   unit: 0,
+  mesh3dCount: 0,
   mainQtyLabel: "-",
 });
 
 const num = (v) => (Number.isFinite(v) ? v : 0);
+
+const hasMesh3d = (stats) => (stats?.mesh3dCount ?? 0) > 0;
 
 // Annotation `type` a drawingShape-only template draws (dialog-created and
 // library templates carry no `type`): the main quantity label picks its
@@ -66,8 +77,9 @@ export default function mergePaintedQtiesIntoTemplateQties(
 
   for (const [templateId, painted] of paintedEntries) {
     const base = qtiesById?.[templateId] ?? EMPTY_BASE;
-    const annotationsSurface = num(base.surface);
-    const annotationsLength = num(base.length);
+    const mesh3d = hasMesh3d(base);
+    const annotationsSurface = mesh3d ? null : num(base.surface);
+    const annotationsLength = mesh3d ? null : num(base.length);
     const paintedSurface = num(painted.surface);
     const paintedLength = num(painted.length);
 
@@ -84,8 +96,9 @@ export default function mergePaintedQtiesIntoTemplateQties(
       paintedConflictsCount: painted.conflictsCount ?? 0,
       paintedStaleCount: painted.staleCount ?? 0,
       paintedListedCount: painted.listedCount ?? 0,
-      surface: annotationsSurface + paintedSurface,
-      length: annotationsLength + paintedLength,
+      // Mesh 3D: no total — the painted parts are not added either.
+      surface: mesh3d ? null : annotationsSurface + paintedSurface,
+      length: mesh3d ? null : annotationsLength + paintedLength,
     };
 
     const template = templateById?.[templateId];
@@ -133,6 +146,8 @@ export function getPaintedPartsCountLabel(stats) {
  * - annotations only: "2 u · 14.00 ml · 30.20 m²" (unchanged)
  * - annotations + paints: "2 u · 14.00 ml · 42.60 m² · 3 faces" (totals)
  * - paints only: "12.40 m² · 3 faces" / "6.20 ml · 4 arêtes"
+ * - with a mesh 3D annotation: "2 u · ⚠ 3D" (no ml / m² at all; the painted
+ *   parts count may follow: "2 u · ⚠ 3D · 3 faces")
  *
  * @param {Object} stats - merged template stats.
  * @param {number} [annotationsCount] - defaults to stats.count.
@@ -143,7 +158,9 @@ export function formatTemplateQtiesLine(stats, annotationsCount) {
   if (count === 0 && listed === 0) return "0 annot.";
 
   const items = [];
-  if (count > 0) {
+  if (hasMesh3d(stats)) {
+    items.push(`${formatQtyValue(stats?.unit ?? 0, 0)} u`, MESH_3D_QTY_LABEL);
+  } else if (count > 0) {
     items.push(
       `${formatQtyValue(stats?.unit ?? 0, 0)} u`,
       `${formatQtyValue(stats?.length ?? 0)} ml`,
@@ -161,11 +178,28 @@ export function formatTemplateQtiesLine(stats, annotationsCount) {
 }
 
 /**
+ * "1 annotation en mesh 3D : …" / "3 annotations en mesh 3D : …", null when
+ * the template holds no mesh 3D annotation.
+ */
+export function getMesh3dQtiesNotice(stats) {
+  const n = stats?.mesh3dCount ?? 0;
+  if (n === 0) return null;
+  return (
+    `${plural(n, "annotation")} en mesh 3D : le total surface / linéaire ` +
+    "du modèle n'est pas calculé. Les faces / arêtes se mesurent " +
+    "individuellement (sélection, Pinceau)."
+  );
+}
+
+/**
  * Tooltip splitting annotations / painted parts, null without painted part:
  * "Annotations : 17.80 m² — Parties peintes : 12.40 m² (3 faces)".
+ * With a mesh 3D annotation the notice comes first and the annotations
+ * total reads "⚠ 3D"; the painted detail stays indicative.
  */
 export function formatTemplateQtiesTooltip(stats) {
-  if (!(stats?.paintedListedCount > 0)) return null;
+  const mesh3dNotice = getMesh3dQtiesNotice(stats);
+  if (!(stats?.paintedListedCount > 0)) return mesh3dNotice;
   const hasEdges = (stats.paintedEdgesCount ?? 0) > 0;
   const hasFaces = (stats.paintedFacesCount ?? 0) > 0 || !hasEdges;
 
@@ -178,7 +212,12 @@ export function formatTemplateQtiesTooltip(stats) {
       .join(" · ");
 
   const items = [
-    `Annotations : ${qtyLine(stats.annotationsLength, stats.annotationsSurface)}`,
+    ...(mesh3dNotice ? [mesh3dNotice] : []),
+    `Annotations : ${
+      mesh3dNotice
+        ? MESH_3D_QTY_LABEL
+        : qtyLine(stats.annotationsLength, stats.annotationsSurface)
+    }`,
     `Parties peintes : ${qtyLine(stats.paintedLength, stats.paintedSurface)}` +
       ((stats.paintedCount ?? 0) > 0
         ? ` (${getPaintedPartsCountLabel(stats)})`

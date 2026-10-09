@@ -245,6 +245,7 @@ export default function ToolbarEditAnnotations({
       if (existing) {
         existing.annotationIds.push(annotation.id);
         existing.count += 1;
+        if (annotation.isMesh3d) existing.hasMesh3d = true;
         if (qties?.enabled) {
           existing.totalSurface += qties.surface || 0;
           existing.totalLength += qties.length || 0;
@@ -256,6 +257,8 @@ export default function ToolbarEditAnnotations({
           annotation,
           annotationIds: [annotation.id],
           count: 1,
+          // A mesh 3D annotation voids the group's surface / length total.
+          hasMesh3d: Boolean(annotation.isMesh3d),
           totalSurface: qties?.enabled ? qties.surface || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
           totalUnits: unitCount,
@@ -865,6 +868,7 @@ function TemplateGroupRow({ group, onRemove }) {
     totalLength,
     totalUnits,
     hasSurface,
+    hasMesh3d,
   } = group;
   const label =
     annotation?.annotationTemplateProps?.label || annotation?.label || "-";
@@ -911,9 +915,12 @@ function TemplateGroupRow({ group, onRemove }) {
           )}
         </Typography>
         <AnnotationMeasurements
-          surface={hasSurface && totalSurface > 0 ? totalSurface : null}
-          length={totalLength > 0 ? totalLength : null}
+          surface={
+            !hasMesh3d && hasSurface && totalSurface > 0 ? totalSurface : null
+          }
+          length={!hasMesh3d && totalLength > 0 ? totalLength : null}
           units={totalUnits > 0 ? totalUnits : null}
+          mesh3d={hasMesh3d}
         />
       </Box>
 

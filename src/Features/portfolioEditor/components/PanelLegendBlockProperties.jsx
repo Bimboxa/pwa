@@ -77,7 +77,9 @@ export default function PanelLegendBlockProperties() {
     .filter((it) => it.id)
     .map((it) => {
       const computedLabel = qtiesById?.[it.id]?.mainQtyLabel ?? "";
-      const { value: computedValue, unit } = parseMainQtyLabel(computedLabel);
+      const { value: computedValue, unit: parsedUnit } =
+        parseMainQtyLabel(computedLabel);
+      const unit = qtiesById?.[it.id]?.mainQtyUnit ?? parsedUnit;
       return { id: it.id, label: it.label, computedValue, unit, computedLabel };
     });
 

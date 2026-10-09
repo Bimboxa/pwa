@@ -9,6 +9,10 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import IconPointer from "Features/icons/IconPointer";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
+import {
+  MESH_3D_QTY_LABEL,
+  MESH_3D_QTIES_TOOLTIP,
+} from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
 
 // ---------------------------------------------------------------------------
 // RowTemplateAnnotation — one annotation of the detail view (#311): color
@@ -37,10 +41,14 @@ export default function RowTemplateAnnotation({ annotation, label, color }) {
 
   // Prefer the developed values (sloped strips / guideLine ramps), like
   // computeAnnotationTemplateQties.
+  // A mesh 3D annotation has no surface / length: "⚠ 3D" marker.
+  const isMesh3d = Boolean(annotation.isMesh3d);
   const qties = annotation.qties;
   const length = qties?.lengthDeveloped ?? qties?.length ?? 0;
   const surface = qties?.surfaceDeveloped ?? qties?.surface ?? 0;
-  const qtyLine = `${formatQty(length)} ml · ${formatQty(surface)} m²`;
+  const qtyLine = isMesh3d
+    ? MESH_3D_QTY_LABEL
+    : `${formatQty(length)} ml · ${formatQty(surface)} m²`;
 
   // handlers
 
@@ -95,18 +103,20 @@ export default function RowTemplateAnnotation({ annotation, label, color }) {
         >
           {label}
         </Typography>
-        <Typography
-          variant="caption"
-          noWrap
-          sx={{
-            display: "block",
-            fontFamily: "monospace",
-            fontWeight: 500,
-            color: "text.secondary",
-          }}
-        >
-          {qtyLine}
-        </Typography>
+        <Tooltip title={isMesh3d ? MESH_3D_QTIES_TOOLTIP : ""}>
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              display: "block",
+              fontFamily: "monospace",
+              fontWeight: 500,
+              color: "text.secondary",
+            }}
+          >
+            {qtyLine}
+          </Typography>
+        </Tooltip>
       </Box>
 
       {/* Select on map (hover) — same action as the subview's "Sélectionner" */}

@@ -1,20 +1,28 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import getAnnotationQties, {
   hasPerVertexZOffsets,
+  QTIES_REASON_MESH_3D,
 } from "../utils/getAnnotationQties";
+import {
+  MESH_3D_QTY_LABEL,
+  MESH_3D_QTIES_TOOLTIP,
+} from "../utils/getAnnotationTemplateMainQtyLabel";
 import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useProfileResolution from "../hooks/useProfileResolution";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
+// mesh3d: a group total (multi-selection) that holds a mesh 3D annotation —
+// no surface / length total, the "⚠ 3D" marker is shown instead.
 export default function AnnotationMeasurements({
   annotation,
   surface,
   length,
   units,
   part,
+  mesh3d,
 }) {
   // data
 
@@ -41,6 +49,9 @@ export default function AnnotationMeasurements({
   // number of bars).
   let computedUnits = units;
   let enabled = true;
+  // Mesh 3D annotation (or group holding one): "⚠ 3D" instead of the
+  // surface / length. A selected face / edge (hasPart) keeps its own measure.
+  let isMesh3d = Boolean(mesh3d);
   const hasPart = part && part.kind && part.kind !== "NONE";
 
   if (annotation && surface == null && length == null) {
@@ -56,6 +67,10 @@ export default function AnnotationMeasurements({
           profileLengthMeters,
         });
     if (!qties?.enabled) enabled = false;
+    if (!hasPart && qties?.reason === QTIES_REASON_MESH_3D) {
+      isMesh3d = true;
+      enabled = true;
+    }
     // Prefer the developed (sloped) values when a guideLine ramp is present.
     computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
@@ -69,7 +84,9 @@ export default function AnnotationMeasurements({
 
   // When a part is selected we want surface to show whenever the calc returns
   // one (e.g. CUT → area), not gated on the host annotation type.
-  const showSurface = hasPart
+  const showSurface = isMesh3d
+    ? false
+    : hasPart
     ? computedSurface != null && computedSurface > 0
     : computedSurface != null &&
       computedSurface > 0 &&
@@ -83,13 +100,24 @@ export default function AnnotationMeasurements({
             // so the wall has a real lateral surface to display.
             hasPerVertexZOffsets(annotation))));
 
-  const showLength = computedLength != null && computedLength > 0;
+  const showLength = !isMesh3d && computedLength != null && computedLength > 0;
   const showUnits = computedUnits != null && computedUnits > 0;
 
-  if (!enabled || (!showSurface && !showLength && !showUnits)) return null;
+  if (!enabled || (!isMesh3d && !showSurface && !showLength && !showUnits))
+    return null;
 
   return (
     <Box sx={{ display: "flex", gap: 1 }}>
+      {isMesh3d && (
+        <Tooltip title={MESH_3D_QTIES_TOOLTIP}>
+          <Typography
+            variant="caption"
+            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          >
+            {MESH_3D_QTY_LABEL}
+          </Typography>
+        </Tooltip>
+      )}
       {showUnits && (
         <Typography
           variant="caption"
