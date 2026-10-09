@@ -727,8 +727,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     dispatch(setPropertiesRequestedView("printZone"));
   };
-  // Base map name: the base map itself is the selected item, on its main
-  // properties view (not the print zone sub-panel).
+  // Base map name: the base map itself becomes the selected item, on its
+  // main properties view (not the print zone sub-panel). The properties
+  // panel is NOT opened: a click on the name only selects.
   const handleBaseMapNameSelect = () => {
     if (!baseMap?.id) return;
     dispatch(
@@ -738,7 +739,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         listingId: baseMap.listingId,
       })
     );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     dispatch(setPropertiesRequestedView("main"));
   };
   const handlePrintZoneDeselect = () => {
@@ -782,6 +782,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     selectedItems[0].id !== baseMap?.id
       ? selectedItems[0].id
       : null;
+  // Overlaid base map name: selects only (no properties panel), like the
+  // main base map name.
   const handleOverlayBaseMapSelect = (baseMapId) => {
     const overlay = baseMapOverlays.find((o) => o.baseMap.id === baseMapId);
     if (!overlay) return;
@@ -792,7 +794,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         listingId: overlay.baseMap.listingId,
       })
     );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     dispatch(setPropertiesRequestedView("main"));
   };
   // Same contract as the 3D move / rotate tools: the 3D scene follows
