@@ -7,12 +7,14 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 // through `textContent`) — no React state, no re-render per move.
 //
 // ref API:
-//   update({ x, y, text, locked, active, anchor })
+//   update({ x, y, text, locked, active, anchor, color })
 //     x, y     — container px
 //     anchor   — "cursor" (default): below-right of the point, clear of the
 //                altitude badge which sits above-right; "center": centred
 //                on the point (rectangle side labels)
 //     locked   — "typed constraint" look (primary background + padlock)
+//     color    — background when not locked (CSS colour, e.g. the colour of
+//                the axis the segment runs along in 3D); default: black
 //     active   — the dimension currently being typed (X / Y): outlined
 //   hide()
 const OFFSET_X = 18;
@@ -27,12 +29,13 @@ const DrawingLengthBadge = forwardRef(function DrawingLengthBadge(_, ref) {
   const textRef = useRef(null);
   const lockRef = useRef(null);
   const lockedRef = useRef(false);
+  const backgroundRef = useRef(BG_FREE);
   const activeRef = useRef(false);
 
   useImperativeHandle(
     ref,
     () => ({
-      update({ x, y, text, locked, active, anchor = "cursor" }) {
+      update({ x, y, text, locked, active, anchor = "cursor", color }) {
         const root = rootRef.current;
         if (!root) return;
         root.style.transform =
@@ -46,10 +49,14 @@ const DrawingLengthBadge = forwardRef(function DrawingLengthBadge(_, ref) {
         const isLocked = Boolean(locked);
         if (lockedRef.current !== isLocked) {
           lockedRef.current = isLocked;
-          root.style.backgroundColor = isLocked ? BG_LOCKED : BG_FREE;
           if (lockRef.current) {
             lockRef.current.style.display = isLocked ? "block" : "none";
           }
+        }
+        const background = isLocked ? BG_LOCKED : color || BG_FREE;
+        if (backgroundRef.current !== background) {
+          backgroundRef.current = background;
+          root.style.backgroundColor = background;
         }
         const isActive = Boolean(active);
         if (activeRef.current !== isActive) {

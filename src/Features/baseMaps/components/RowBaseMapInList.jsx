@@ -89,10 +89,19 @@ export default function RowBaseMapInList({
         "&:hover .drag-handle": { opacity: canDrag ? 1 : 0 },
         borderBottom: "1px solid",
         borderColor: "panel.border",
+        // Main (selected) row: same highlight as a selected layer / template
+        // row — secondary tint + 3px secondary left border.
+        borderLeft: "3px solid",
+        borderLeftColor: isMain ? "secondary.main" : "transparent",
         cursor: isMain ? "default" : "pointer",
         bgcolor: (theme) =>
-          isMain ? alpha(theme.palette.primary.main, 0.06) : "transparent",
-        "&:hover": { bgcolor: isMain ? undefined : "panel.headerBg" },
+          isMain ? alpha(theme.palette.secondary.main, 0.08) : "transparent",
+        "&:hover": {
+          bgcolor: (theme) =>
+            isMain
+              ? alpha(theme.palette.secondary.main, 0.125)
+              : theme.palette.panel.headerBg,
+        },
       }}
     >
       {/* Drag handle — far left, on hover (reorder inside the listing) */}
@@ -124,7 +133,7 @@ export default function RowBaseMapInList({
             overflowWrap: "anywhere",
             lineHeight: 1.25,
             fontWeight: isMain ? 700 : 400,
-            color: isMain ? "primary.main" : "panel.textPrimary",
+            color: isMain ? "secondary.main" : "panel.textPrimary",
           }}
         >
           {name}

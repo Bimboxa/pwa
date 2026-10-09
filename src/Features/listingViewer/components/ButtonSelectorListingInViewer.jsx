@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import { Box, Button, Paper, Popover, Typography } from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 import { ArrowDropDown } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -11,36 +11,37 @@ import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
 import { ChipScopeStat } from "Features/dashboard/components/ChipsScopeStats";
 import ListingFamilyAvatar from "./ListingFamilyAvatar";
-import SelectorListingForViewer from "./SelectorListingForViewer";
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
 import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 
-// Floating listing selector of the SCOPE module, shown at the top left of the
-// recap editor when the left panel is folded (leftPanelDocked false). Folded,
-// the panel only slides back on hover of the module band or the breadcrumbs —
-// so nothing said which listing drove the editor, and there was no explicit
-// way to change it. The button recaps the selected listing's row — family
-// mark, name, items count chip — and opens the very content of the docked
-// panel (SelectorListingForViewer), so both entry points stay the same list.
-//
-// A Popover, not a Popper + ClickAwayListener: the panel mounts the family
-// creation dialogs as its own children, and a ClickAwayListener would close
-// the popper — unmounting the dialog with it — on the first click inside it.
+// Folded state of the SCOPE module's floating listing selector, shown at the
+// top left of the recap editor when the left panel is folded
+// (leftPanelDocked false). Folded, the panel only slides back on hover of
+// the module band or the breadcrumbs — so nothing said which listing drove
+// the editor, and there was no explicit way to change it. The button recaps
+// the selected listing's row — the scope content title above, then family
+// mark, name, items count chip — and `onExpand` asks the parent
+// (MainListingViewer) to swap it for the unfolded panel
+// (PanelSelectorListingFloating), so both entry points stay the same list.
 //
 // `listing` null is the "Afficher toutes les listes" mode of the panel: the
 // button then recaps that row — annotation family icon, "Toutes les listes",
 // total of the scope's annotations.
-export default function ButtonSelectorListingInViewer({ listing }) {
-  // strings
-
-  const allListingsS = "Toutes les listes";
-
+export default function ButtonSelectorListingInViewer({ listing, onExpand }) {
   // data
 
   const appConfig = useAppConfig();
   const entityModelTypes = appConfig?.features?.entityModelTypes;
   const showAllListings = !listing;
+
+  // strings
+
+  // Scope content title ("Contenu du Krto" / "Contenu du dossier"), the same
+  // key as the panel header (SelectorListingForViewer).
+  const titleS =
+    appConfig?.strings?.scope?.contentTitle ?? "Contenu du dossier";
+  const allListingsS = "Toutes les listes";
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   // Scope listings, for the all-listings total only (the hook is cheap, the
@@ -76,57 +77,65 @@ export default function ButtonSelectorListingInViewer({ listing }) {
     ? (itemsCountById[listing.id] ?? 0)
     : getAnnotationListingsCount(listingsToCount, itemsCountById);
 
-  // state
-
-  const [anchorEl, setAnchorEl] = useState(null);
-
   // helpers
 
-  const open = Boolean(anchorEl);
   const label = listing?.name ?? allListingsS;
-
-  // handlers
-
-  function handleClick(e) {
-    setAnchorEl(e.currentTarget);
-  }
-
-  function handleClose() {
-    setAnchorEl(null);
-  }
 
   // render
 
   return (
-    <>
-      <Paper
-        elevation={2}
+    <Paper
+      elevation={2}
+      sx={{
+        maxWidth: 320,
+        borderRadius: 2,
+        border: "1px solid",
+        borderColor: "panel.border",
+        bgcolor: "background.paper",
+        overflow: "hidden",
+      }}
+    >
+      <Button
+        onClick={onExpand}
+        endIcon={<ArrowDropDown />}
         sx={{
-          maxWidth: 320,
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: "panel.border",
-          bgcolor: "background.paper",
-          overflow: "hidden",
+          maxWidth: 1,
+          minWidth: 0,
+          px: 1.5,
+          py: 0.75,
+          textTransform: "none",
+          color: "text.primary",
         }}
       >
-        <Button
-          onClick={handleClick}
-          endIcon={<ArrowDropDown />}
+        <Box
           sx={{
-            maxWidth: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
             minWidth: 0,
-            px: 1.5,
-            textTransform: "none",
-            color: "text.primary",
           }}
         >
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              maxWidth: 1,
+              color: "panel.textLight",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              lineHeight: 1.2,
+              fontWeight: 600,
+            }}
+          >
+            {titleS}
+          </Typography>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1,
               minWidth: 0,
+              maxWidth: 1,
             }}
           >
             <ListingFamilyAvatar
@@ -149,44 +158,8 @@ export default function ButtonSelectorListingInViewer({ listing }) {
               label={itemsCount}
             />
           </Box>
-        </Button>
-      </Paper>
-
-      <Popover
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        // The creation dialogs open on top of the popover; letting them own the
-        // focus keeps the two focus traps from fighting.
-        disableEnforceFocus
-        slotProps={{
-          paper: {
-            sx: {
-              // Same width as the docked panel (MainListingViewer panelWidth):
-              // the menu reads as that panel, floated.
-              width: 300,
-              maxHeight: "70vh",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "panel.border",
-              mt: 0.5,
-            },
-          },
-        }}
-      >
-        <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <SelectorListingForViewer
-            selectedListingId={listing?.id ?? null}
-            showAllListings={showAllListings}
-            onListingSelected={handleClose}
-          />
         </Box>
-      </Popover>
-    </>
+      </Button>
+    </Paper>
   );
 }

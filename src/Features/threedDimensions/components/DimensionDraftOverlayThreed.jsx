@@ -75,9 +75,13 @@ export default function DimensionDraftOverlayThreed() {
     root.name = "DimensionDraftOverlayThreed";
     scene.add(root);
     rootRef.current = root;
+    // Precision cue while placing a cote: crosshair cursor, restored on exit.
+    const dom = editor.sceneManager.renderer?.domElement;
+    if (dom) dom.style.cursor = "crosshair";
     editor.sceneManager.renderScene?.();
 
     return () => {
+      if (dom) dom.style.cursor = "";
       scene.remove(root);
       disposeObject(root);
       rootRef.current = null;

@@ -3,11 +3,21 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import UILayerDesktop from "./UILayerDesktop";
 import UILayerMobile from "./UILayerMobile";
 
-export default function UILayer({ mapController, onResetCamera, viewport }) {
+export default function UILayer({
+    mapController,
+    onResetCamera,
+    viewport,
+    isActiveViewer,
+}) {
 
     const isMobile = useIsMobile();
 
     return (
-        isMobile ? <UILayerMobile mapController={mapController} onResetCamera={onResetCamera} /> : <UILayerDesktop mapController={mapController} onResetCamera={onResetCamera} viewport={viewport} />
+        isMobile ? <UILayerMobile mapController={mapController} onResetCamera={onResetCamera} /> : <UILayerDesktop
+            mapController={mapController}
+            onResetCamera={onResetCamera}
+            viewport={viewport}
+            isActiveViewer={isActiveViewer}
+        />
     );
 }

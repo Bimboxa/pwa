@@ -34,6 +34,7 @@ import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import SectionDrawingConstraints from "./SectionDrawingConstraints";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
 import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScene3dPickingStatus";
 import SectionMeshBrushPaintedTotal from "Features/meshPaint/components/SectionMeshBrushPaintedTotal";
@@ -76,13 +77,12 @@ const SURFACE_CUT_SHORTCUTS = [
 ];
 
 // Shortcuts of the "Coupe face" tools (useDrawingToolHotkeys for the tool
-// letters, useDrawingPointerHandlers for the rest).
+// letters, useDrawingPointerHandlers for the rest). The typed dimension /
+// distance keys are shown by the « Contraintes » card.
 const FACE_CUT_SHORTCUTS = [
   { key: "Tab", label: "Outil suivant" },
   { key: "K / L / R", label: "Segment / Polyligne / Rectangle" },
   { key: "H / V", label: "Découpe horizontale / verticale" },
-  { key: "X / Y", label: "Saisir une dimension (rectangle)" },
-  { key: "0-9", label: "Saisir la distance (découpe H / V)" },
   { key: "S", label: "Changer de côté (découpe verticale)" },
   { key: "Entrée", label: "Couper" },
   { key: "Esc", label: "Annuler le tracé / Quitter" },
@@ -594,6 +594,9 @@ export default function SectionDrawingHelperContent() {
           {"Dessinez un rectangle autour de la zone à réparer (2 clics)"}
         </Box>
       )}
+      {/* Typed length / dimension constraints of the armed mode (rectangle
+          sides, segment length, radius, cut distance) — null otherwise. */}
+      <SectionDrawingConstraints />
       {/* 2D image detection: meaningless in the 3D editor */}
       {showSmartDetectCard && !isThreedToggledEditor && <CardSmartDetect />}
       {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}

@@ -47,10 +47,16 @@ import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 // toutes les listes" row of the annotation listings group: the editor then
 // shows the whole scope, and no listing row reads as selected — the caller
 // passes selectedListingId null in that mode.
+//
+// `onListingSelected` and `onClose` are the floated caller's
+// (PanelSelectorListingFloating): the first folds the panel back to its recap
+// after a choice, the second is the header's close cross. The docked panel
+// passes neither.
 export default function SelectorListingForViewer({
   selectedListingId,
   showAllListings = false,
   onListingSelected,
+  onClose,
 }) {
   const dispatch = useDispatch();
 
@@ -132,11 +138,11 @@ export default function SelectorListingForViewer({
 
   // Clicking the selected listing again puts the editor back on the
   // all-listings totals, like the dedicated row.
-  // `onListingSelected` is the floating-button caller (ButtonSelectorListingInViewer)
-  // closing its popover: choosing all listings counts too, it is a choice
-  // like any other. The creation flow below never calls it — the creation
-  // dialogs are children of this component, so closing the popover would
-  // unmount the open dialog.
+  // `onListingSelected` is the floated caller (PanelSelectorListingFloating)
+  // folding back to its recap: choosing all listings counts too, it is a
+  // choice like any other. The creation flow below never calls it — the
+  // creation dialogs are children of this component, so folding the panel
+  // would unmount the open dialog.
   function handleListingClick(listing) {
     if (listing.id === selectedListingId) selectAllListings();
     else selectListing(listing);
@@ -176,7 +182,7 @@ export default function SelectorListingForViewer({
 
   return (
     <BoxFlexVStretch>
-      <LeftDrawerPanelHeader title={titleS} />
+      <LeftDrawerPanelHeader title={titleS} onClose={onClose} />
 
       {loading ? (
         <ListListings loading />

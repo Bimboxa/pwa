@@ -12,7 +12,7 @@
  *
  * Writer: `InteractionLayer` (active viewer only — gated by isActiveViewer
  * on the consuming key/mouse handlers).
- * Reader: `SegmentLengthBottomBar` polls it via requestAnimationFrame.
+ * Reader: `SectionSegmentLengthConstraint` polls it via requestAnimationFrame.
  */
 const segmentLengthPxRef = { current: 0 };
 

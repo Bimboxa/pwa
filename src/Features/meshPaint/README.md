@@ -149,7 +149,7 @@ Une ligne par partie peinte.
 
 **Outil**
 
-- Entrée `MESH_BRUSH` dans `mapEditor/constants/drawingTools.jsx` (`editor: "3D"`, `requiresTemplate: true`), ajoutée en fin des `tools` POLYGON / POLYLINE de `annotations/constants/drawingShapeConfig.js`.
+- Entrée `MESH_BRUSH` dans `mapEditor/constants/drawingTools.jsx` (`editor: "3D"`, `requiresTemplate: true`), ajoutée en fin des `tools` POLYGON / POLYLINE de `annotations/constants/drawingShapeConfig.js`. Icône rouleau (`FormatPaint`), raccourci **P** (`DRAWING_TOOL_HOTKEYS`, `p → MESH_BRUSH`) : actif seulement une fois un dessin armé en 3D (avant, P reste la bascule du mode promenade).
 - Les listes d'outils dépendent de l'éditeur (`mapEditor/utils/filterDrawingToolsForEditor.js`) : le pinceau n'apparaît que dans le module Dessin en 3D. Il ne peut devenir ni `defaultTool` ni un outil du Dessin sans modèle.
 - `utils/meshBrushTools.js` et `utils/meshBrushSelectors.js` (`selectIsMeshBrushActive`).
 - Activation : le pinceau s'appuie sur `threedDrawing/hooks/useTemplateFaceDrawBridge.js` (`drawingMode.active`). La machinerie de dessin de faces (`useDrawingPointerHandlers`, `DrawingOverlayThreed`) reste inerte. Quitter la 3D désarme l'outil.

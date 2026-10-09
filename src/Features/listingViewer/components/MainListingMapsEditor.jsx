@@ -26,8 +26,8 @@ import SectionCrossBaseMaps from "./SectionCrossBaseMaps";
 // The selected listing drives everything. Its entityModel type decides which
 // quantities are displayed (annotation templates / business objects / none),
 // which annotations are queried, and which base maps are worth showing:
-//   - no listing        -> every base map, annotations of the whole scope
-//                          grouped by listing name;
+//   - no listing        -> the base maps carrying at least one annotation of
+//                          the scope, annotations grouped by listing name;
 //   - BASE_MAP listing  -> the base maps of that listing, no quantities;
 //   - BUSINESS_OBJECT   -> the base maps carrying an annotation linked to one
 //                          of its objects, quantities per object;
@@ -40,6 +40,7 @@ export default function MainListingMapsEditor({ listing }) {
 
   const noBaseMapS = "Aucun fond de plan dans ce périmètre.";
   const noBaseMapForListingS = "Aucun fond de plan pour cette liste.";
+  const noAnnotatedBaseMapS = "Aucun fond de plan annoté dans ce Krto.";
   const imageModeS = "Image";
   const quantitiesModeS = "Quantités";
 
@@ -164,7 +165,6 @@ export default function MainListingMapsEditor({ listing }) {
           (baseMap) => !hiddenFolderIds.includes(baseMap.listingId)
         )
       : baseMaps;
-    if (showAllListings) return visibleBaseMaps;
     if (isBaseMapListing)
       return visibleBaseMaps.filter(
         (baseMap) => baseMap.listingId === listing?.id
@@ -179,6 +179,8 @@ export default function MainListingMapsEditor({ listing }) {
         )
       );
     }
+    // Annotation listing, or all listings: a plan without an annotation of
+    // the listing (of the scope) has nothing to recap.
     return visibleBaseMaps.filter(
       (baseMap) => (annotationsByBaseMapId[baseMap.id] ?? []).length > 0
     );
@@ -186,7 +188,6 @@ export default function MainListingMapsEditor({ listing }) {
     baseMaps,
     hiddenListingsIds,
     disabledListingIds,
-    showAllListings,
     isBaseMapListing,
     isBusinessObjectListing,
     listing?.id,
@@ -224,6 +225,9 @@ export default function MainListingMapsEditor({ listing }) {
   const isImageMode = displayMode === DISPLAY_MODES.IMAGE;
   const showEmptyMessage =
     displayedBaseMaps.length === 0 && !annotationsLoading;
+  const emptyMessageS = showAllListings
+    ? noAnnotatedBaseMapS
+    : noBaseMapForListingS;
 
   return (
     <Box
@@ -258,7 +262,7 @@ export default function MainListingMapsEditor({ listing }) {
       {isImageMode ? (
         showEmptyMessage ? (
           <Typography variant="body2" color="text.secondary">
-            {noBaseMapForListingS}
+            {emptyMessageS}
           </Typography>
         ) : (
           <Box
@@ -293,7 +297,7 @@ export default function MainListingMapsEditor({ listing }) {
           <Divider sx={{ my: 2 }} />
           {showEmptyMessage && (
             <Typography variant="body2" color="text.secondary">
-              {noBaseMapForListingS}
+              {emptyMessageS}
             </Typography>
           )}
           {displayedBaseMaps.map((baseMap, index) => (

@@ -105,6 +105,7 @@ import {
 } from "Features/contextMenu/contextMenuSlice";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
+import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
@@ -113,6 +114,7 @@ import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkey
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
+import AxesGizmoThreed from "./AxesGizmoThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
@@ -308,12 +310,23 @@ export default function MainThreedEditor() {
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
+  // Full screen hides the docked panel (LeftDrawerPanel) while keeping the
+  // docked state: the drawing helper then floats again (see render).
+  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
+  const drawingHelperArmed = useSelector(
+    (s) =>
+      Boolean(s.mapEditor.enabledDrawingMode) ||
+      selectActiveThreedTool(s) != null
+  );
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
   // settings) with the displayed editor, so nothing needs closing.
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  // "Axes" section of the 3D view settings: orientation gizmo (DOM overlay),
+  // in-scene axes helper + yaw of the displayed frame (purely visual).
+  const axesSettings = useSelector((s) => s.threedEditor.axesSettings);
   // "Wireframe" section of the 3D view settings: grid-edge lines visibility +
   // EdgesGeometry dihedral threshold, synced live to the AnnotationsManager.
   const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
@@ -674,6 +687,18 @@ export default function MainThreedEditor() {
     grid.visible = showGrid;
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
+
+  // Sync the "Axes" settings → sceneManager.axes (visibility + yaw of the
+  // displayed frame around world Y, same sense as a base map angleDeg).
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    const axes = editor.sceneManager?.axes;
+    if (!axes) return;
+    axes.visible = axesSettings.showSceneAxes;
+    axes.rotation.y = (axesSettings.yawDeg * Math.PI) / 180;
+    editor.renderScene();
+  }, [axesSettings.showSceneAxes, axesSettings.yawDeg, rendererIsReady]);
 
   // Sync the Wireframe settings → AnnotationsManager (visibility toggle +
   // EdgesGeometry threshold rebuild on the built annotation objects; newly
@@ -2663,6 +2688,19 @@ export default function MainThreedEditor() {
             <PopperDrawingTools />
           </PortalEditorFloatingPanels>
         )}
+      {/* Docked Dessin panel hidden by full screen: the drawing helper (and
+          its « Contraintes » card) floats like in the undocked layout — the
+          helper only, not the listings / commands poppers. */}
+      {isThreedViewer &&
+        dessinPanelDocked &&
+        isFullScreen &&
+        drawingHelperArmed &&
+        !captureFramingActive &&
+        !subtractPickActive && (
+          <PortalEditorFloatingPanels hidden={walkActive}>
+            <PopperDrawingHelper />
+          </PortalEditorFloatingPanels>
+        )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
@@ -2721,8 +2759,8 @@ export default function MainThreedEditor() {
           data-capture-hide
           sx={{
             position: "absolute",
-            right: rightPanelOpen ? `${rightPanelWidth + 16}px` : "16px",
-            top: "7px",
+            right: rightPanelOpen ? `${rightPanelWidth + 24}px` : "24px",
+            top: "14px",
             zIndex: 10,
             display: "flex",
             alignItems: "center",
@@ -2736,6 +2774,26 @@ export default function MainThreedEditor() {
           {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}
         </Box>
       )}
+      {/* Orientation gizmo, under the top-right row (3D view settings
+          "Gizmo d'orientation"). Hidden with the row under a capture
+          framing, in walk mode (HUD) and in the POV viewer. */}
+      {isThreedViewer &&
+        rendererIsReady &&
+        axesSettings.showGizmo &&
+        !captureFramingActive &&
+        !walkActive &&
+        !isPovViewer && (
+          <AxesGizmoThreed
+            threedEditorRef={threedEditorRef}
+            sx={{
+              position: "absolute",
+              right: rightPanelOpen ? `${rightPanelWidth + 24}px` : "24px",
+              top: "64px",
+              zIndex: 10,
+              transition: "right 0.2s ease",
+            }}
+          />
+        )}
       {/* No 3D toolbars in the POV viewer nor under the capture tool — their
           save bars sit there — nor in walk mode (its HUD sits there). */}
       {isThreedViewer &&

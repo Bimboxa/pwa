@@ -6,7 +6,8 @@ import {
   PointsMaterial,
 } from "three";
 
-const MARKER_SIZE_PX = 14;
+// Small on purpose: a drawn point should read as precise, not as a handle.
+const MARKER_SIZE_PX = 8;
 
 // One shared sprite: a white disc with a dark rim, tinted by the material
 // color (the rim stays dark) — readable on any background.
@@ -35,7 +36,13 @@ function getDiscTexture() {
 // (no depth test), like the in-progress lines. The caller disposes the
 // geometry and material (the sprite texture is shared, never disposed).
 // points: [{x, y, z}] → Points | null
-export default function buildDrawingVertexMarkers(points, color) {
+// options.size: pixel diameter (default MARKER_SIZE_PX) — grab handles want
+// a bigger disc than drawn points.
+export default function buildDrawingVertexMarkers(
+  points,
+  color,
+  { size = MARKER_SIZE_PX } = {}
+) {
   if (!points?.length) return null;
   const geometry = new BufferGeometry();
   geometry.setAttribute(
@@ -48,7 +55,7 @@ export default function buildDrawingVertexMarkers(points, color) {
   const material = new PointsMaterial({
     color,
     map: getDiscTexture(),
-    size: MARKER_SIZE_PX,
+    size,
     sizeAttenuation: false,
     transparent: true,
     alphaTest: 0.5,

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import Brush from "@mui/icons-material/Brush";
+import FormatPaint from "@mui/icons-material/FormatPaint";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 
 import { formatQtyValue } from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
@@ -129,7 +129,7 @@ export default function RowTemplatePaintedPart({
           },
         }}
       >
-        {/* Color swatch + brush */}
+        {/* Color swatch + roller (same icon as the « Pinceau » tool) */}
         <Box
           sx={{
             display: "flex",
@@ -143,7 +143,7 @@ export default function RowTemplatePaintedPart({
             opacity: part.isCounted ? 1 : 0.5,
           }}
         >
-          <Brush sx={{ fontSize: 20, color }} />
+          <FormatPaint sx={{ fontSize: 20, color }} />
         </Box>
 
         {/* Host label + part line */}

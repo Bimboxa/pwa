@@ -17,13 +17,12 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // Build, in a single scene traversal:
 //   - a flat list of world-space mesh vertices for cursor → vertex snap
 //   - a quantized adjacency map from the same meshes' triangles, used by
-//     detectClosedFace as candidate face borders so the user doesn't have
-//     to redraw segments that already exist as mesh geometry
+//     the snap helpers (vertex alignment along existing edges, rotation
+//     overlays) — a drawn shape is never closed through it
 // Only FEATURE edges enter the adjacency: border edges (one triangle) and
 // edges shared by non-coplanar triangles. Interior triangulation diagonals
 // of a planar face (earcut artifacts, invisible to the user) are dropped —
-// a cycle closing through them would commit a face cutting across existing
-// faces (e.g. the fan diagonals of an L-shaped cap beating its notch path).
+// they are no edge the user can see or align with.
 // Snappable = baseMap meshes (userData.isBasemap), existing annotation
 // meshes (userData.nodeType === "ANNOTATION") and maille shells
 // (userData.isMesh3d) — cut mailles carry vertices (cut endpoints,

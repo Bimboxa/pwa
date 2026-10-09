@@ -23,7 +23,12 @@ import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/Sec
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 
 
-export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
+export default function UILayerDesktop({
+    mapController,
+    onResetCamera,
+    viewport,
+    isActiveViewer,
+}) {
 
     // data
 
@@ -121,8 +126,8 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 data-capture-hide
                 sx={{
                     position: "absolute",
-                    right: panelOpen ? `${panelWidth + 16}px` : "16px",
-                    top: "7px",
+                    right: panelOpen ? `${panelWidth + 24}px` : "24px",
+                    top: "14px",
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
@@ -132,7 +137,10 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             >
                 <ButtonFullScreen />
                 <SelectorBaseMapsImageMode />
-                <ButtonZoomOutMap onResetCamera={onResetCamera} />
+                <ButtonZoomOutMap
+                    onResetCamera={onResetCamera}
+                    isActiveViewer={isActiveViewer}
+                />
                 <ButtonOpenBaseMapsGrid />
             </Box>
 

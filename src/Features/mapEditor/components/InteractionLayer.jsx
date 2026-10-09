@@ -3540,7 +3540,7 @@ const InteractionLayer = forwardRef(({
   }, [enabledDrawingMode, dispatch, setDrawingPoints, drawingPointsRef]);
 
   // Track whether the first rectangle corner has been placed (for the
-  // RectangleDimsBottomBar to switch between its prompt and its dimensions UI).
+  // SectionRectangleDimsConstraint to switch between its prompt and its dimensions UI).
   // Placed here (after useDrawingCommit) so `drawingPoints` is in scope for the
   // dependency array — referencing it earlier would hit the const TDZ.
   useEffect(() => {

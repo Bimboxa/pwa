@@ -15,7 +15,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
     const isJoinAnnotations = enabledDrawingMode === "JOIN_ANNOTATIONS";
 
     // Note: loupe size / constraint-length shortcuts are shown inline inside
-    // CardLoupe and SectionSegmentLength respectively — no longer here.
+    // CardLoupe and SectionDrawingConstraints respectively — no longer here.
     const derivedShortcuts = isLocalizedRepair
         ? [
             { key: "Espace", label: "Valider la réparation" },

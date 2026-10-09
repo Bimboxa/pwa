@@ -25,7 +25,6 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import {
   bumpSnapIndexEpoch,
   cancelInProgressPolyline,
-  consumeFaceSegments,
   flushInProgressAsTrait3D,
   pushDrawingVertex,
   toggleFaceCutSide,
@@ -62,9 +61,11 @@ import commitDrawnPolylineService, {
   commitDrawnPolyline,
 } from "../services/commitDrawnPolylineService";
 import { getLastSnap } from "../services/lastSnapStore";
-import computeRectangleCorners from "../utils/computeRectangleCorners";
+import {
+  DEFAULT_RECT_SIDE_AXES,
+  getRectangleFrame,
+} from "../services/rectangleFrameStore";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
-import detectClosedFace from "../utils/detectClosedFace";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
 import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 
@@ -81,9 +82,9 @@ const DOUBLE_CLICK_MS = 500;
 
 // Wires click + key handlers for the 3D drawing mode. A vertex is committed
 // on pointerup only when the pointer hasn't moved past `DRAG_THRESHOLD_PX`
-// since pointerdown — drags belong to OrbitControls. If the resulting
-// segment closes a coplanar face, the face is auto-committed (3D → 2D
-// annotation).
+// since pointerdown — drags belong to OrbitControls. The shape never closes
+// on its own (existing mesh vertices / edges are snap targets only): it is
+// committed by a click back on its first point, Enter or Escape.
 //
 // Keys mirror the 2D editor: Enter — and Escape with points in progress —
 // commit the drawing as an annotation when a template is armed (open
@@ -92,7 +93,10 @@ const DOUBLE_CLICK_MS = 500;
 // polyline as a persistent wireframe trait.
 //
 // RECTANGLE-behavior tools get their own two-click flow: first click anchors
-// on a base map plane, second click commits the axis-aligned rectangle.
+// anywhere a first point lands (a plan, a face), second click commits the
+// rectangle DrawingOverlayThreed previews on the natural plane of the anchor
+// (rectangleFrameStore: its base map image frame, or a plane whose sides
+// follow the user axes of the gizmo frame).
 //
 // Template-less "Dessin" tool (isTemplatelessDraft) — like the 2D tool, the
 // drawn shape becomes a template-less annotation of the scope: a POLYLINE
@@ -141,9 +145,6 @@ export default function useDrawingPointerHandlers() {
   const active = useSelector((s) => s.threedEditor.drawingMode.active);
   const inProgressPolyline = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline
-  );
-  const trait3DSegments = useSelector(
-    (s) => s.threedEditor.drawingMode.trait3DSegments
   );
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
@@ -459,52 +460,31 @@ export default function useDrawingPointerHandlers() {
       };
     }
 
+    // Rectangle anchor: the first point, with the base map plane it sits on
+    // when the snap carries none (a vertex of an existing annotation) — the
+    // natural plane of the rectangle then prefers that plan.
+    function toRectangleAnchor(snap) {
+      let baseMapId = snap.baseMapId ?? null;
+      if (!snap.faceNormal && !baseMapId) {
+        baseMapId =
+          resolveBaseMapForPoint(snap.position, baseMaps || [])?.baseMap?.id ??
+          null;
+      }
+      return toDrawingVertex(snap, baseMapId ? { baseMapId } : {});
+    }
+
     async function onTemplatelessClick(snap) {
       const { inProgress } = getLiveDrawing();
 
       if (behavior === "RECTANGLE") {
         if (inProgress.length === 0) {
-          // The anchor needs a plane: the face under the cursor, else the
-          // base map plane it sits on.
-          let baseMapId = snap.baseMapId ?? null;
-          if (!snap.faceNormal && !baseMapId) {
-            baseMapId =
-              resolveBaseMapForPoint(snap.position, baseMaps || [])?.baseMap
-                ?.id ?? null;
-          }
-          if (!snap.faceNormal && !baseMapId) {
-            console.warn(
-              "[threedDrawing] rectangle anchor ignored: on no face nor plan"
-            );
-            return;
-          }
-          dispatch(
-            pushDrawingVertex(
-              toDrawingVertex(snap, baseMapId ? { baseMapId } : {})
-            )
-          );
+          dispatch(pushDrawingVertex(toRectangleAnchor(snap)));
           dispatch(setRectHasFirstPoint(true));
           return;
         }
         const anchor = inProgress[0];
-        const host = (baseMaps || []).find((b) => b.id === anchor.baseMapId);
-        // Typed X / Y dimensions replace the cursor's (2D parity).
-        const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
-        const forcedX = parseRectBuffer(rectXBuffer);
-        const forcedY = parseRectBuffer(rectYBuffer);
-        const corners = anchor.faceNormal
-          ? computeRectangleCornersOnPlane(
-              anchor,
-              snap.position,
-              anchor.faceNormal,
-              { forcedDu: forcedX, forcedDv: forcedY }
-            )
-          : host
-            ? computeRectangleCorners(anchor, snap.position, host, {
-                forcedDx: forcedX,
-                forcedDy: forcedY,
-              })
-            : null;
+        // The corners previewed by the overlay (typed dimensions applied).
+        const corners = getRectangleFrame()?.corners;
         if (!corners) return; // degenerate: stay armed
         releaseRectDims();
         const vertices = corners.map((c) => ({
@@ -751,11 +731,12 @@ export default function useDrawingPointerHandlers() {
 
     // Enter/Escape commit of the in-progress polyline (2D parity): POLYGON
     // templates need 3+ points and go through the face classification;
-    // POLYLINE templates commit as an OPEN polyline from 2 points.
-    async function commitInProgressAsAnnotation() {
+    // POLYLINE templates commit as an OPEN polyline from 2 points — CLOSED
+    // (3+ points) when the path came back on its first point.
+    async function commitInProgressAsAnnotation({ closed = false } = {}) {
       if (!hasTemplate()) {
         console.warn(
-          "[threedDrawing] key commit skipped: no armed POLYGON/POLYLINE template"
+          "[threedDrawing] commit skipped: no armed POLYGON/POLYLINE template"
         );
         return false;
       }
@@ -765,12 +746,12 @@ export default function useDrawingPointerHandlers() {
         let created = null;
         if (na.type === "POLYGON" && pts.length >= 3) {
           created = await commitFace(pts);
-        } else if (na.type === "POLYLINE" && pts.length >= 2) {
-          created = await commitPolyline(pts);
+        } else if (na.type === "POLYLINE" && pts.length >= (closed ? 3 : 2)) {
+          created = await commitPolyline(pts, { closeLine: closed });
         } else {
           console.warn(
-            `[threedDrawing] key commit skipped: ${na.type} needs ${
-              na.type === "POLYGON" ? 3 : 2
+            `[threedDrawing] commit skipped: ${na.type} needs ${
+              na.type === "POLYGON" || closed ? 3 : 2
             }+ points (got ${pts.length})`
           );
         }
@@ -804,7 +785,7 @@ export default function useDrawingPointerHandlers() {
     }
 
     // Typed segment length (2D parity): digits / "." / "," feed
-    // mapEditor.constraintBuffer (SegmentLengthBottomBar + the cursor badge),
+    // mapEditor.constraintBuffer (SectionSegmentLengthConstraint + the cursor badge),
     // DrawingOverlayThreed rescales the preview to it and the next click
     // consumes it. No ";" series in 3D (no collinear expansion here). Not
     // for rectangles (their second corner is the cursor). True when consumed.
@@ -825,7 +806,7 @@ export default function useDrawingPointerHandlers() {
     }
 
     // Keys of « Découpe horizontale / verticale »: digits type the cut
-    // distance (mapEditor.constraintBuffer, shown in FaceCutAxisBottomBar),
+    // distance (mapEditor.constraintBuffer, shown in SectionFaceCutAxisConstraint),
     // S flips the side of the vertical cut, Enter cuts like a click. True
     // when consumed.
     function onFaceCutAxisKey(e) {
@@ -854,21 +835,28 @@ export default function useDrawingPointerHandlers() {
     }
 
     // Keys of a rectangle once its anchor is placed (2D rectangle parity,
-    // InteractionLayer): X / Y target a dimension, digits type it, "-"
-    // flips its sign, Backspace erases. Shared by the template, "Dessin"
-    // and "Coupe face" rectangles. True when consumed.
+    // InteractionLayer): the letter of a side (X / Y / Z — the user axis it
+    // runs along, as shown on its badge and in the bottom bar) targets its
+    // dimension, digits type it, "-" flips its sign, Backspace erases.
+    // Shared by the template, "Dessin" and "Coupe face" rectangles. True
+    // when consumed.
     function onRectangleDimsKey(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
-      if (e.key === "x" || e.key === "X") {
+      const letter = e.key.length === 1 ? e.key.toUpperCase() : "";
+      if (["X", "Y", "Z"].includes(letter)) {
+        const sideAxes =
+          getRectangleFrame()?.sideAxes ?? DEFAULT_RECT_SIDE_AXES;
+        const side = sideAxes.indexOf(letter);
+        // A letter of no side: X / Y are still consumed (they are rectangle
+        // keys), Z is left to the other handlers.
+        if (side < 0) {
+          if (letter === "Z") return false;
+          e.preventDefault();
+          return true;
+        }
         e.preventDefault();
-        dispatch(setRectCurrentAxis("x"));
-        dispatch(setRectXBuffer(""));
-        return true;
-      }
-      if (e.key === "y" || e.key === "Y") {
-        e.preventDefault();
-        dispatch(setRectCurrentAxis("y"));
-        dispatch(setRectYBuffer(""));
+        dispatch(setRectCurrentAxis(side === 0 ? "x" : "y"));
+        dispatch(side === 0 ? setRectXBuffer("") : setRectYBuffer(""));
         return true;
       }
       const axis = store.getState().mapEditor.rectCurrentAxis;
@@ -987,51 +975,16 @@ export default function useDrawingPointerHandlers() {
 
       if (behavior === "RECTANGLE" && hasTemplate()) {
         if (inProgressPolyline.length === 0) {
-          // The anchor must resolve to a base map plane — the rectangle is
-          // axis-aligned in that image's frame.
-          let baseMapId = snap.baseMapId ?? null;
-          if (!baseMapId) {
-            baseMapId =
-              resolveBaseMapForPoint(snap.position, baseMaps || [])?.baseMap
-                ?.id ?? null;
-          }
-          if (!baseMapId) {
-            console.warn(
-              "[threedDrawing] rectangle anchor ignored: not on a base map plane"
-            );
-            return;
-          }
-          dispatch(
-            pushDrawingVertex({
-              x: snap.position.x,
-              y: snap.position.y,
-              z: snap.position.z,
-              meshKey: snap.meshKey,
-              snapKind: snap.kind,
-              baseMapId,
-            })
-          );
+          dispatch(pushDrawingVertex(toRectangleAnchor(snap)));
           dispatch(setRectHasFirstPoint(true));
           return;
         }
-        // Second click: auto-commit the 4 corners (2D parity — the RECTANGLE
-        // behavior never falls through to face detection).
+        // Second click: auto-commit the 4 corners previewed by the overlay
+        // (2D parity — the RECTANGLE behavior never falls through to face
+        // detection).
         const anchor = inProgressPolyline[0];
-        const host = (baseMaps || []).find((b) => b.id === anchor.baseMapId);
-        if (!host) {
-          console.warn(
-            `[threedDrawing] rectangle cancelled: anchor base map ${anchor.baseMapId} not found`
-          );
-          dispatch(cancelInProgressPolyline());
-          releaseRectDims();
-          return;
-        }
-        // Typed X / Y dimensions replace the cursor's (2D parity).
-        const { rectXBuffer, rectYBuffer } = store.getState().mapEditor;
-        const corners = computeRectangleCorners(anchor, snap.position, host, {
-          forcedDx: parseRectBuffer(rectXBuffer),
-          forcedDy: parseRectBuffer(rectYBuffer),
-        });
+        const frame = getRectangleFrame();
+        const corners = frame?.corners;
         if (!corners) {
           console.warn(
             "[threedDrawing] rectangle 2nd click ignored: degenerate corners"
@@ -1044,13 +997,17 @@ export default function useDrawingPointerHandlers() {
           x: c.x,
           y: c.y,
           z: c.z,
-          baseMapId: host.id,
+          ...(anchor.baseMapId ? { baseMapId: anchor.baseMapId } : {}),
         }));
         try {
-          const created =
-            na.type === "POLYGON"
-              ? await commitFace(vertices)
-              : await commitPolyline(vertices, { closeLine: true });
+          // A POLYLINE template off its plan (a vertical rectangle): the
+          // polyline commit would collapse the corner pairs sharing a plan
+          // position into a 2-point line — the face commit encodes it as a
+          // band instead.
+          const asFace = na.type === "POLYGON" || !frame.onBaseMap;
+          const created = asFace
+            ? await commitFace(vertices)
+            : await commitPolyline(vertices, { closeLine: true });
           if (created) {
             console.log(
               `[threedDrawing] rectangle annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
@@ -1076,55 +1033,22 @@ export default function useDrawingPointerHandlers() {
         snapKind: snap.kind,
         ...(snap.baseMapId ? { baseMapId: snap.baseMapId } : {}),
       };
-      const nextPolyline = [...inProgressPolyline, newVertex];
+      // Closure is explicit only (Enter / Escape, or a click back on the
+      // first point): existing mesh vertices / edges never close the shape.
+      const last = inProgressPolyline[inProgressPolyline.length - 1];
+      if (last && isSamePoint(last, newVertex)) return; // no duplicate point
       // The typed length was applied to this point (preview snap): consumed.
-      // NB: while locked the point is always exactly that far from the last
-      // vertex, so a click back on it cannot be a double click — Enter ends.
-      if (inProgressPolyline.length > 0) releaseLengthConstraint();
-
-      let detectedFaces = [];
-      if (nextPolyline.length >= 2) {
-        const inProgressSegments = [];
-        for (let i = 0; i < nextPolyline.length - 1; i++) {
-          inProgressSegments.push({
-            a: nextPolyline[i],
-            b: nextPolyline[i + 1],
-          });
-        }
-        const allSegments = [...trait3DSegments, ...inProgressSegments];
-        const lastIdx = allSegments.length - 1;
-        detectedFaces = detectClosedFace(allSegments, lastIdx);
-      }
-
-      // The mode is only ever armed by a template row click (via
-      // useTemplateFaceDrawBridge), so a missing template means the state is
-      // stale — keep drawing, but commit nothing.
-      if (detectedFaces.length > 0 && hasTemplate()) {
-        try {
-          // Several closures (e.g. a notch diagonal closing both the floor
-          // triangle and the wall rectangle) all commit — one annotation
-          // (and entity) per face; the user deletes the unwanted one.
-          let committedAny = false;
-          const consumed = [];
-          for (const face of detectedFaces) {
-            const created = await commitFace(face.cornersInOrder);
-            if (created) {
-              console.log(
-                `[threedDrawing] face annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
-              );
-              warnIfOffMainBaseMap(created);
-              committedAny = true;
-              consumed.push(...face.consumedSegments);
-            }
-          }
-          if (committedAny) {
-            dispatch(consumeFaceSegments(consumed));
-            setTimeout(() => dispatch(bumpSnapIndexEpoch()), 350);
-            return;
-          }
-        } catch (err) {
-          console.error("[threedDrawing] face commit failed", err);
-        }
+      // NB: while locked the point is always exactly that far from `last`,
+      // so the back-on-first-point closure below cannot trigger — Enter ends.
+      if (last) releaseLengthConstraint();
+      if (
+        inProgressPolyline.length >= 3 &&
+        isSamePoint(inProgressPolyline[0], newVertex)
+      ) {
+        // Back on the first point: the contour is closed. One that commits
+        // nothing stays as drawn (Escape discards it).
+        await commitInProgressAsAnnotation({ closed: true });
+        return;
       }
       dispatch(pushDrawingVertex(newVertex));
     }
@@ -1261,7 +1185,6 @@ export default function useDrawingPointerHandlers() {
   }, [
     active,
     inProgressPolyline,
-    trait3DSegments,
     baseMaps,
     mainBaseMapId,
     projectId,

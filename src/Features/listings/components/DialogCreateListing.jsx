@@ -9,20 +9,11 @@ import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsF
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
-import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
-
-import {
-  Box,
-  Button,
-  Divider,
-  IconButton,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Divider, IconButton, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
-import AvatarListing from "./AvatarListing";
+import FieldsListingNameAvatar from "./FieldsListingNameAvatar";
 import SectionPresetListingsSelector from "./SectionPresetListingsSelector";
 import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 
@@ -46,8 +37,6 @@ export default function DialogCreateListing({
   const titleS = "Nouvelle liste";
   const emptyNamePlaceholderS = "Observations, repérages, métrés, ...";
   const createEmptyS = "Créer";
-  const avatarS = "Avatar";
-  const avatarHelperS = "Vide = automatique";
   const presetTitleS = "Ajouter des listes pré-configurées";
 
   // data
@@ -64,14 +53,14 @@ export default function DialogCreateListing({
   const [emptyName, setEmptyName] = useState("");
   const [avatarString, setAvatarString] = useState("");
   const [selectedKeys, setSelectedKeys] = useState([]);
+  // { [presetKey]: { name, avatarString } } — edits made in the preview
+  const [presetOverrides, setPresetOverrides] = useState({});
 
   // helpers
 
   const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
-  const previewListing = { name: emptyName, avatarString };
   const showEmpty = mode !== "PRESETS";
   const showPresets = mode !== "EMPTY";
-  const avatarPlaceholder = getDefaultListingAvatarString({ name: emptyName });
 
   // handlers
 
@@ -116,6 +105,7 @@ export default function DialogCreateListing({
       // deferred mode — only preset keys travel (favorites need a live scope)
       onAddPresets(presetKeys);
       setSelectedKeys([]);
+      setPresetOverrides({});
       onClose?.();
       return;
     }
@@ -128,6 +118,7 @@ export default function DialogCreateListing({
         presetListingsKeys: presetKeys,
         scope,
         isForBaseMaps,
+        overridesByKey: presetOverrides,
       });
       allCreated.push(...(listings ?? []));
     }
@@ -141,8 +132,13 @@ export default function DialogCreateListing({
             (f) => f.sourceListingId === sourceId
           );
           if (!fav) return null;
+          const override = presetOverrides[key];
           return {
-            name: fav.name,
+            name: override?.name?.trim() || fav.name,
+            avatarString:
+              (override
+                ? override.avatarString?.trim()
+                : fav.avatarString?.trim()) || null,
             projectId,
             canCreateItem: fav.canCreateItem ?? true,
             table: fav.table ?? "entities",
@@ -170,6 +166,8 @@ export default function DialogCreateListing({
       dispatch(setSelectedListingId(allCreated[0].id));
       dispatch(setOpenedPanel("LISTING"));
     }
+    setSelectedKeys([]);
+    setPresetOverrides({});
     onClose?.();
   }
 
@@ -191,41 +189,14 @@ export default function DialogCreateListing({
             <Typography variant="h6" sx={{ mb: 2 }}>
               {titleS}
             </Typography>
-            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-              <AvatarListing
-                listing={previewListing}
-                size={40}
-                variant="selected"
-              />
-              <TextField
-                size="small"
-                label={avatarS}
-                value={avatarString}
-                onChange={(e) => setAvatarString(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateEmpty();
-                }}
-                placeholder={avatarPlaceholder}
-                helperText={avatarHelperS}
-                slotProps={{
-                  htmlInput: {
-                    maxLength: 3,
-                    style: { fontWeight: 700, textAlign: "center" },
-                  },
-                  inputLabel: { shrink: true },
-                }}
-                sx={{ width: 96, flexShrink: 0 }}
-              />
-              <TextField
-                size="small"
-                fullWidth
-                placeholder={emptyNamePlaceholderS}
-                value={emptyName}
-                onChange={(e) => setEmptyName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateEmpty();
-                }}
-              />
+            <FieldsListingNameAvatar
+              name={emptyName}
+              avatarString={avatarString}
+              onNameChange={setEmptyName}
+              onAvatarStringChange={setAvatarString}
+              namePlaceholder={emptyNamePlaceholderS}
+              onEnter={handleCreateEmpty}
+            >
               <Button
                 variant="contained"
                 color="secondary"
@@ -235,7 +206,7 @@ export default function DialogCreateListing({
               >
                 {createEmptyS}
               </Button>
-            </Box>
+            </FieldsListingNameAvatar>
           </Box>
         )}
 
@@ -279,6 +250,9 @@ export default function DialogCreateListing({
                 <SectionPresetListingsPreview
                   selectedKeys={selectedKeys}
                   onAddListings={handleAddPresets}
+                  overridesByKey={presetOverrides}
+                  onOverridesChange={setPresetOverrides}
+                  editable={!onAddPresets}
                 />
               </Box>
             </Box>

@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
@@ -9,40 +9,13 @@ import HelperClickInBgPosition from "Features/mapEditor/components/HelperClickIn
 import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessageInBottomBar";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
-import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
-import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
-import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingModes";
-import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
-import FaceCutAxisBottomBar from "Features/threedFaceCut/components/FaceCutAxisBottomBar";
-import RevolutionAxisRadiusBottomBarThreed from "Features/revolutionAxes/components/RevolutionAxisRadiusBottomBarThreed";
-import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
 import ToolbarStartDrawTemplate from "Features/panelDrawing/components/ToolbarStartDrawTemplate";
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
 
-// Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
-// bottom-bar items so they don't compete for space).
-const RECTANGLE_DRAWING_MODES = [
-  "RECTANGLE",
-  "POLYLINE_RECTANGLE",
-  "POLYGON_RECTANGLE",
-  "CUT_RECTANGLE",
-  "FACE_CUT_RECTANGLE",
-];
-
-// "Coupe face" axis cuts (3D editor) — cut distance display + typed
-// constraint (FaceCutAxisBottomBar).
-const FACE_CUT_AXIS_DRAWING_MODES = [
-  "FACE_CUT_HORIZONTAL",
-  "FACE_CUT_VERTICAL",
-];
-
-// Center/radius circle modes — surface a dedicated radius display + lock.
-const CIRCLE_RADIUS_DRAWING_MODES = [
-  "POLYLINE_CIRCLE_RADIUS",
-  "POLYGON_CIRCLE_RADIUS",
-  "REVOLUTION_AXIS_PLAN",
-];
+// The typed length / dimension constraints of the drawing modes (rectangle
+// sides, segment length, radius, cut distance) live in the drawing helper's
+// « Contraintes » card (SectionDrawingConstraints), not here.
 
 export default function BottomBarDesktop() {
   // data
@@ -50,58 +23,15 @@ export default function BottomBarDesktop() {
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const helperMessage = useHelperMessageInBottomBar();
-  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  // Revolution axis drawn from the 3D editor: the live radius comes from the
-  // 3D overlay, not from the 2D preview CircleRadiusBottomBar polls.
-  const isRevolutionAxisDraw3d = useSelector(
-    selectIsRevolutionAxisDrawThreedActive
-  );
-
-  // helpers
-
-  const showRectangleDims =
-    RECTANGLE_DRAWING_MODES.includes(enabledDrawingMode);
-  const showSegmentLength = SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
-  const showCircleRadius =
-    CIRCLE_RADIUS_DRAWING_MODES.includes(enabledDrawingMode);
-  const showFaceCutAxis =
-    FACE_CUT_AXIS_DRAWING_MODES.includes(enabledDrawingMode);
-  const showDrawingBar =
-    showRectangleDims ||
-    showSegmentLength ||
-    showCircleRadius ||
-    showFaceCutAxis;
-  // The 3D "Coupe face" rectangle is drawn in metres, whatever the scale of
-  // the main base map.
-  const rectangleUnit =
-    enabledDrawingMode === "FACE_CUT_RECTANGLE" ? "m" : null;
-
-  // helpers - drawing-mode constraint UI (dims / cut distance / length /
-  // radius), shared by the in-flow drawing bar and its full screen variant.
-
-  const constraintBar = (
-    <>
-      {showRectangleDims && <RectangleDimsBottomBar unit={rectangleUnit} />}
-      {showFaceCutAxis && <FaceCutAxisBottomBar />}
-      {showSegmentLength && <SegmentLengthBottomBar />}
-      {showCircleRadius &&
-        (isRevolutionAxisDraw3d ? (
-          <RevolutionAxisRadiusBottomBarThreed />
-        ) : (
-          <CircleRadiusBottomBar />
-        ))}
-    </>
-  );
 
   // render
 
-  // Full screen (ButtonFullScreen): no bar. Only the drawing UI survives, as
-  // a floating card at the bottom center of the editors: the constraint UI
-  // of the armed drawing mode, and above it the draft / start-draw toolbars,
-  // which position themselves over their host (bottom: calc(100% + 8px)) —
-  // over the card when it shows, 8px over the edge otherwise. Dropped there:
-  // sign-in, app version, config, documentation, helper message, bg-position
-  // helper, coupled navigation switch and the read-only scope strip.
+  // Full screen (ButtonFullScreen): no bar. Only the draft / start-draw
+  // toolbars survive, floating at the bottom center of the editors: they
+  // position themselves over their host (bottom: calc(100% + 8px)), i.e. 8px
+  // over the edge. Dropped there: sign-in, app version, config,
+  // documentation, helper message, bg-position helper, coupled navigation
+  // switch and the read-only scope strip.
   if (isFullScreen) {
     return (
       <Box
@@ -114,44 +44,8 @@ export default function BottomBarDesktop() {
           zIndex: 400,
         }}
       >
-        {showDrawingBar && (
-          <Paper
-            elevation={6}
-            sx={{
-              borderRadius: 2,
-              px: 0.5,
-              display: "flex",
-              alignItems: "center",
-              maxWidth: "calc(100vw - 32px)",
-            }}
-          >
-            {constraintBar}
-          </Paper>
-        )}
         <ToolbarDrawingDraft />
-        {!showDrawingBar && <ToolbarStartDrawTemplate />}
-      </Box>
-    );
-  }
-
-  if (showDrawingBar) {
-    return (
-      <Box
-        sx={{
-          bgcolor: "white",
-          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-          height,
-          minHeight: height,
-          display: "flex",
-          alignItems: "center",
-          zIndex: 400,
-          px: 0.5,
-          position: "relative",
-        }}
-      >
-        <ToolbarDrawingDraft />
-        {constraintBar}
-        <SectionReadOnlyScopeInBottomBar />
+        <ToolbarStartDrawTemplate />
       </Box>
     );
   }

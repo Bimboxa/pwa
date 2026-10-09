@@ -52,7 +52,7 @@ export default function ButtonFullScreen() {
   return (
     <ButtonBaseMapsGrid
       title={enterS}
-      icon={<Fullscreen fontSize="small" />}
+      icon={<Fullscreen />}
       onClick={handleClick}
     />
   );

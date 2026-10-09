@@ -214,6 +214,10 @@ const mapEditorInitialState = {
   rectYBuffer: "",
   rectCurrentAxis: null, // 'x' | 'y' | null
   rectHasFirstPoint: false,
+  // Letters shown for the two sides (X buffer side, Y buffer side): in 3D the
+  // user axis (gizmo frame) each side runs along, so the user types a
+  // dimension with X / Y / Z. The 2D rectangle keeps X / Y.
+  rectSideAxes: ["X", "Y"],
 
   // Typed thickness / height entry while drawing (E = épaisseur → strokeWidth,
   // H = hauteur → height). Same keyboard mechanism as the rectangle X/Y dims,
@@ -720,10 +724,16 @@ export const mapEditorSlice = createSlice({
     setRectHasFirstPoint: (state, action) => {
       state.rectHasFirstPoint = action.payload;
     },
+    setRectSideAxes: (state, action) => {
+      const axes = action.payload;
+      state.rectSideAxes =
+        Array.isArray(axes) && axes.length === 2 ? axes : ["X", "Y"];
+    },
     clearRectDims: (state) => {
       state.rectXBuffer = "";
       state.rectYBuffer = "";
       state.rectCurrentAxis = null;
+      state.rectSideAxes = ["X", "Y"];
     },
 
     // typed thickness / height entry (E / H)
@@ -1058,6 +1068,7 @@ export const {
   toggleRectYBufferSign,
   setRectCurrentAxis,
   setRectHasFirstPoint,
+  setRectSideAxes,
   clearRectDims,
 
   // typed thickness / height entry (E / H)

@@ -138,6 +138,8 @@ export default function FaceCutAxisOverlayThreed() {
     const root = new Group();
     root.name = "FaceCutAxisOverlayThreed";
     scene.add(root);
+    // Precision cue: crosshair cursor while the cut axis is armed.
+    dom.style.cursor = "crosshair";
 
     let disposed = false;
     let rafId = null;
@@ -414,6 +416,7 @@ export default function FaceCutAxisOverlayThreed() {
       unsubscribeReady?.();
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerleave", onPointerLeave);
+      dom.style.cursor = "";
       clearDraft();
       scene.remove(root);
       setFaceCutAxisHover(null);

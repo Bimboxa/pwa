@@ -6,26 +6,11 @@ import getBaseMapTransform, {
 } from "Features/baseMaps/js/getBaseMapTransform";
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
+import { computeNewellNormal } from "./computeDraftPlane";
+
 const ANGLE_EPS_RAD = (5 * Math.PI) / 180; // 5 degrees
 const OFFSET_EPS_M = 5e-3; // 5 mm
 const COLLINEAR_EPS = 2e-3; // 0.2% of normalized space — perpendicular footprint test
-
-function computeFaceNormal(vertices) {
-  if (vertices.length < 3) return null;
-  // Newell's method over ALL vertices — a first-triplet cross product
-  // degenerates when the first three clicks are collinear (common when
-  // tracing along a straight wall), silently killing the classification.
-  const n = new Vector3();
-  for (let i = 0; i < vertices.length; i++) {
-    const a = vertices[i];
-    const b = vertices[(i + 1) % vertices.length];
-    n.x += (a.y - b.y) * (a.z + b.z);
-    n.y += (a.z - b.z) * (a.x + b.x);
-    n.z += (a.x - b.x) * (a.y + b.y);
-  }
-  if (n.lengthSq() < 1e-12) return null;
-  return n.normalize();
-}
 
 // True when all projected 2D points lie on a single straight line (within
 // COLLINEAR_EPS in normalized baseMap space). Equivalent geometric test for
@@ -56,7 +41,8 @@ function projectedXYAreCollinear(projected) {
   return true;
 }
 
-function getBaseMapWorldNormal(baseMap) {
+// World unit normal of a base map plane (its local +Z).
+export function getBaseMapWorldNormal(baseMap) {
   const transform = getBaseMapTransform(baseMap);
   const tmp = new Object3D();
   const euler = getBaseMapEuler(transform);
@@ -88,7 +74,7 @@ export default function classifyFaceVsBaseMap(vertices, baseMap) {
   const projected = vertices.map((v) => worldToBaseMapNormalized(v, baseMap));
   if (projected.some((p) => !p)) return null;
 
-  const faceNormal = computeFaceNormal(vertices);
+  const faceNormal = computeNewellNormal(vertices);
   if (!faceNormal) return null;
 
   const mapNormal = getBaseMapWorldNormal(baseMap);

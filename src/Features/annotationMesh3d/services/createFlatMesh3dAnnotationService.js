@@ -75,7 +75,8 @@ export default async function createFlatMesh3dAnnotationService({
     listingId: isTemplateless ? null : listingId,
   });
   if (!storage) return null;
-  const { pointRows, mesh3d, offsetZ, points, cuts } = storage;
+  const { pointRows, mesh3d, offsetZ, points, cuts, mesh3dPlanIsSegment } =
+    storage;
 
   const fields = buildFaceAnnotationFields({
     classifiedShape: "POLYGON",
@@ -101,6 +102,9 @@ export default async function createFlatMesh3dAnnotationService({
     mesh3d,
     points,
     cuts,
+    // Kept like the other buildMesh3dStorage callers: the 2D renderer draws
+    // a segment projection as a 3 px line with a polyline hit area.
+    mesh3dPlanIsSegment,
   };
 
   await withoutUndo(() => db.points.bulkAdd(pointRows));

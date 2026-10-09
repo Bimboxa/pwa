@@ -9,15 +9,33 @@ export default function useCreateListingsFromPresetListingsKeys() {
 
   const createListings = useCreateListings();
   const filterByProjectId = useSelector((s) => s.projects.selectedProjectId);
-  const {value: projectListings} = useListings({ filterByProjectId });
+  const { value: projectListings } = useListings({ filterByProjectId });
   const projectListingsKeys = projectListings?.map((l) => l.key);
 
   const resolvedPresetListings = useResolvedPresetListings();
 
-  const create = async ({ presetListingsKeys, scope, isForBaseMaps }) => {
+  // overridesByKey: { [presetKey]: { name, avatarString } } — user edits made
+  // before creation (DialogCreateListing). Only applies to the requested keys,
+  // not to the annotationTemplates listings added as dependencies below.
+  const create = async ({
+    presetListingsKeys,
+    scope,
+    isForBaseMaps,
+    overridesByKey,
+  }) => {
     let listings = resolvedPresetListings.filter(({ key }) =>
       presetListingsKeys.includes(key)
     );
+
+    listings = listings.map((listing) => {
+      const override = overridesByKey?.[listing.key];
+      if (!override) return listing;
+      return {
+        ...listing,
+        name: override.name?.trim() || listing.name,
+        avatarString: override.avatarString?.trim() || null,
+      };
+    });
 
     // annotationTemplates Listings
     const atlKeys = [];

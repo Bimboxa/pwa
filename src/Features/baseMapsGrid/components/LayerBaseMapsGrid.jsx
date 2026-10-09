@@ -47,6 +47,7 @@ import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBase
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 
 import { BASE_MAPS_GRID_HOTKEY } from "../hooks/useOpenBaseMapsGridHotkey";
+import { ZOOM_OUT_HOTKEY } from "Features/mapEditor/hooks/useZoomOutHotkey";
 import isEditableTarget from "../utils/isEditableTarget";
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
 import composeBaseMapsGridSheets from "../utils/composeBaseMapsGridSheets";
@@ -168,7 +169,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     opacity: editorImageOpacity,
     grayScale: editorGrayScale,
   });
-  const rightOffset = panelKey ? panelWidth + 16 : 16;
+  const rightOffset = panelKey ? panelWidth + 24 : 24;
 
   const listingId = listings?.some((l) => l.id === selectedListingId)
     ? selectedListingId
@@ -444,10 +445,12 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     dispatch(setBaseMapsGridSelectedBaseMapId(null));
   }
 
-  // effect - Escape / "G" close the grid
+  // effect - Escape / "G" close the grid, "Z" fits all the sheets
 
   const handleCloseRef = useRef(handleClose);
   handleCloseRef.current = handleClose;
+  const handleFitAllRef = useRef(handleFitAll);
+  handleFitAllRef.current = handleFitAll;
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -455,6 +458,11 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
       if (isEditableTarget(e.target)) return;
       if (e.key.toLowerCase() === BASE_MAPS_GRID_HOTKEY.toLowerCase()) {
         handleCloseRef.current();
+        return;
+      }
+      if (e.key.toLowerCase() === ZOOM_OUT_HOTKEY.toLowerCase()) {
+        if (e.repeat) return;
+        handleFitAllRef.current();
         return;
       }
       if (e.key !== "Escape") return;
@@ -585,7 +593,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
           sx={{
             position: "absolute",
             right: `${rightOffset}px`,
-            top: "7px",
+            top: "14px",
             display: "flex",
             alignItems: "center",
             gap: 1,
@@ -597,7 +605,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
           {reorganizing && (
             <ButtonBaseMapsGrid
               title={resetS}
-              icon={<RestartAlt fontSize="small" />}
+              icon={<RestartAlt />}
               disabled={!hasManualPositions}
               onClick={handleReset}
             />
@@ -605,24 +613,25 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
           {reorganizing && (
             <ButtonBaseMapsGrid
               title={alignS}
-              icon={<AlignHorizontalLeft fontSize="small" />}
+              icon={<AlignHorizontalLeft />}
               onClick={handleAlign}
             />
           )}
           <ButtonBaseMapsGrid
             title={reorganizing ? reorganizeDoneS : reorganizeS}
-            icon={<OpenWith fontSize="small" />}
+            icon={<OpenWith />}
             active={reorganizing}
             onClick={handleToggleReorganize}
           />
           <ButtonBaseMapsGrid
             title={fitAllS}
-            icon={<ZoomOutMap fontSize="small" />}
+            icon={<ZoomOutMap />}
+            shortcut={ZOOM_OUT_HOTKEY}
             onClick={handleFitAll}
           />
           <ButtonBaseMapsGrid
             title={closeS}
-            icon={<GridView fontSize="small" />}
+            icon={<GridView />}
             active
             shortcut={BASE_MAPS_GRID_HOTKEY}
             onClick={handleClose}

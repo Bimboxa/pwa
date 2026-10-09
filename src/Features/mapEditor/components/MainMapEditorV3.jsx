@@ -135,6 +135,7 @@ import PopperBaseMapsList from "Features/popperMapListings/components/PopperBase
 import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
+import PopperDrawingHelper from "./PopperDrawingHelper";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
 import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
 import PopperLinkWorkPackageHelper from "Features/businessObjects/components/PopperLinkWorkPackageHelper";
@@ -396,6 +397,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   );
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
+  // Full screen hides the docked panel (LeftDrawerPanel) while keeping the
+  // docked state: the drawing helper then floats again (see below).
+  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
   // BaseMaps module: with the left panel (PanelBaseMaps) hidden, the popper
   // shows as a read-only legend + base maps list (see
@@ -2858,6 +2862,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 mapController={interactionLayerRef.current}
                 onResetCamera={handleResetCamera}
                 viewport={viewport}
+                isActiveViewer={isActiveViewer}
               />
             )}
           </InteractionProvider>
@@ -2959,6 +2964,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               <PanelDrawingHelperPortal />
             </>
           )}
+
+          {/* Docked panel hidden by full screen: the drawing helper (and its
+                « Contraintes » card) floats like in the undocked layout — the
+                helper only, not the listings / commands poppers. Rendered
+                from this tree so it keeps the SmartZoom / DrawingMetrics
+                contexts (the panel portal finds no host in full screen). */}
+          {dessinPanelDocked &&
+            isFullScreen &&
+            Boolean(enabledDrawingMode) &&
+            !versionCompareEnabled &&
+            !imageModeActive && (
+              <PortalEditorFloatingPanels>
+                <PopperDrawingHelper />
+              </PortalEditorFloatingPanels>
+            )}
 
           {/* Business-object link mode helper ("Ouvrages") — self-guards on
                 the linkingBusinessObjectId flag, armed from the

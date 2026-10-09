@@ -1,5 +1,5 @@
 // Drawing modes that produce segments and support the live length display /
-// typed length constraint (SegmentLengthBottomBar, DrawingLengthBadge).
+// typed length constraint (SectionSegmentLengthConstraint, DrawingLengthBadge).
 const SEGMENT_DRAWING_MODES = [
   "CLICK",
   "POLYLINE_CLICK",

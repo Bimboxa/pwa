@@ -1,6 +1,6 @@
 // Module-level holder for the mesh-edge adjacency map built when drawing
-// mode activates. detectClosedFace pulls it on each click so the cycle BFS
-// can traverse existing mesh geometry as candidate face borders.
+// mode activates. Read by the snap / alignment helpers (vertex alignment in
+// computeSnapTarget, rotation overlays) — never to close a drawn shape.
 //
 // Shape: Map<vertexKey, { position: THREE.Vector3, neighbors: Set<key> }>
 

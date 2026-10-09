@@ -44,6 +44,8 @@ const TRACKING_THRESHOLD_PX = 4;
 // Screen distance under which a handle is hovered / the armed vertex levels
 // on a scene vertex or edge — the vertex snap of the 3D drawing tools.
 const SNAP_THRESHOLD_PX = 12;
+// Handles are grabbed: bigger than the drawn-point markers.
+const HANDLE_SIZE_PX = 14;
 // Length (m) of the vertical helper on each side of the anchor.
 const AXIS_HELPER_MIN_M = 2;
 // A handle sits on the displayed conversion, 1 mm above a PX wall's real
@@ -263,7 +265,8 @@ export default function useVertexOffsetPointerHandlers() {
       if (handles.length && !armed) {
         handleMarkers = buildDrawingVertexMarkers(
           handles.map((h) => h.world),
-          HANDLE_COLOR
+          HANDLE_COLOR,
+          { size: HANDLE_SIZE_PX }
         );
         if (handleMarkers) {
           handleMarkers.userData.isHoverOverlay = true;
@@ -303,7 +306,8 @@ export default function useVertexOffsetPointerHandlers() {
       if (handle) {
         hoverMarker = buildDrawingVertexMarkers(
           [handle.world],
-          HANDLE_HOVER_COLOR
+          HANDLE_HOVER_COLOR,
+          { size: HANDLE_SIZE_PX }
         );
         if (hoverMarker) {
           hoverMarker.userData.isHoverOverlay = true;

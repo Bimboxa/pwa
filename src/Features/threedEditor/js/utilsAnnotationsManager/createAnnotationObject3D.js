@@ -68,7 +68,8 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
-// annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
+// annotation with a height (the in-progress trait of DrawingOverlayThreed is
+// drawn thinner, as a provisional line).
 const POINT_TRAIT_LINEWIDTH_PX = 3;
 
 // Screen-space thickness (px) of the vertical line rendered for a plan

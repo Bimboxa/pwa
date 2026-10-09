@@ -27,6 +27,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 import useCursorAltitudeToggle from "Features/mapEditor/hooks/useCursorAltitudeToggle";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionAxes3d from "./SectionAxes3d";
 
 // 3D view settings, shown by the right-panel SETTINGS tool while a 3D editor
 // is displayed (see PanelEditorSettings). Holds the viewer toggles only:
@@ -137,6 +138,8 @@ export default function PanelThreedProperties() {
         </Box>
 
         <Divider sx={{ my: 1.5 }} />
+
+        <SectionAxes3d />
 
         <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>

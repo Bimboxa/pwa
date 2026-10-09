@@ -2332,6 +2332,31 @@ export default function PopperMapListings() {
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
           {/* Standard body (layers / listings / cut tools) */}
+
+          {/* Layers + revolution axes — pinned right under the header, above
+              the listing selector. Capped in height so a long layers list
+              never pushes the listing selector / templates out of sight. */}
+          {((viewerKey === "MAP" && showLayers) ||
+            (!isBaseMapsLegend && !isLocateBusinessObjectMode)) && (
+            <Box sx={{ flexShrink: 0, maxHeight: "45%", overflow: "auto" }}>
+              {viewerKey === "MAP" && showLayers && (
+                <SectionLayers baseMapId={baseMap?.id} />
+              )}
+
+              {/* Axes de révolution — as soon as the base map carries one
+                (drawn on this plan / placed on this vertical base map): one
+                row per axis, with the navigation to the perpendicular base
+                map, the eye / solo of everything linked to it and its 3D
+                half-view. */}
+              {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
+                <SectionRevolutionAxes
+                  baseMap={baseMap}
+                  spriteImage={spriteImage}
+                />
+              )}
+            </Box>
+          )}
+
           {/* Warning: base map has no scale */}
           {baseMap && !baseMap.meterByPx && !isLegendPopper && (
             <WarningBaseMapNotToScale />
@@ -2378,24 +2403,8 @@ export default function PopperMapListings() {
               </Box>
             )}
 
-          {/* Scrollable body: layers / axes / templates of the active listing */}
+          {/* Scrollable body: templates of the active listing */}
           <Box sx={{ overflow: "auto", flex: 1 }}>
-            {viewerKey === "MAP" && showLayers && (
-              <SectionLayers baseMapId={baseMap?.id} />
-            )}
-
-            {/* Axes de révolution — as soon as the base map carries one
-              (drawn on this plan / placed on this vertical base map): one
-              row per axis, with the navigation to the perpendicular base
-              map, the eye / solo of everything linked to it and its 3D
-              half-view. */}
-            {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
-              <SectionRevolutionAxes
-                baseMap={baseMap}
-                spriteImage={spriteImage}
-              />
-            )}
-
             {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
             selected in the drawer as a DRAW-armed template row: this is the
             only drawing entry of the module (the listings below are a

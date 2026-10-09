@@ -36,7 +36,7 @@ export default function ButtonOpenBaseMapsGrid() {
   return (
     <ButtonBaseMapsGrid
       title={titleS}
-      icon={<GridView fontSize="small" />}
+      icon={<GridView />}
       disabled={isOpen}
       shortcut={BASE_MAPS_GRID_HOTKEY}
       onClick={openGrid}

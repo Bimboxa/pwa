@@ -4,7 +4,7 @@
 // Mirrors threedDimensions/services/lastDimensionSnapStore.js.
 //
 // Also carries the live radius (metres) of the pending second click, polled
-// by the bottom bar (RevolutionAxisRadiusBottomBarThreed) at animation-frame
+// by the drawing helper (SectionRevolutionAxisRadiusConstraintThreed) at animation-frame
 // rate — a ref, not Redux, like segmentLengthPxRef in 2D.
 
 let _lastHit = null; // { position: Vector3, baseMapId, group } | null

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
@@ -6,6 +7,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import SelectorListingForViewer from "./SelectorListingForViewer";
 import ButtonSelectorListingInViewer from "./ButtonSelectorListingInViewer";
+import PanelSelectorListingFloating from "./PanelSelectorListingFloating";
 import MainListingMapsEditor from "./MainListingMapsEditor";
 
 import useListingById from "Features/listings/hooks/useListingById";
@@ -26,6 +28,18 @@ export default function MainListingViewer() {
   );
   const selectedListing = useListingById(selectedListingId);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+
+  // state
+
+  // Floating selector (folded left panel): recap button, or the unfolded
+  // panel in its place. Local like the fold it answers to.
+  const [expanded, setExpanded] = useState(false);
+
+  // Docking brings the real panel back: the floated one folds so that the
+  // next unfold starts from the recap.
+  useEffect(() => {
+    if (leftPanelDocked) setExpanded(false);
+  }, [leftPanelDocked]);
 
   // helpers
 
@@ -63,11 +77,22 @@ export default function MainListingViewer() {
       {/* Right: baseMaps recap editor */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
         {/* Folded panel: the floating selector takes over naming the current
-            listing and changing it. zIndex 10 is the app's floating-overlay
-            level — below the drawer (20), which must keep sliding over it. */}
+            listing and changing it — a recap button, swapped in place for the
+            unfolded panel. zIndex 10 is the app's floating-overlay level —
+            below the drawer (20), which must keep sliding over it. */}
         {!leftPanelDocked && (
           <Box sx={{ position: "absolute", top: 16, left: 16, zIndex: 10 }}>
-            <ButtonSelectorListingInViewer listing={listing} />
+            {expanded ? (
+              <PanelSelectorListingFloating
+                listing={listing}
+                onClose={() => setExpanded(false)}
+              />
+            ) : (
+              <ButtonSelectorListingInViewer
+                listing={listing}
+                onExpand={() => setExpanded(true)}
+              />
+            )}
           </Box>
         )}
         <MainListingMapsEditor listing={listing} />

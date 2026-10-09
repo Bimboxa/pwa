@@ -6,6 +6,7 @@ import {
   HemisphereLight,
   DirectionalLight,
   GridHelper,
+  AxesHelper,
 } from "three";
 
 import ControlsManager from "./ControlsManager";
@@ -19,6 +20,11 @@ import RenderModeManager from "./RenderModeManager";
 import SketchPostFxManager from "./postfx/SketchPostFxManager";
 
 import BaseMapsGridManager from "Features/baseMapsGrid3d/js/BaseMapsGridManager";
+
+import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
+
+// Length (m) of the in-scene axes helper ("Afficher les axes dans la scène").
+const SCENE_AXES_SIZE_M = 5;
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -37,6 +43,13 @@ export default class SceneManager {
 
     this.camera = null;
     this.addGrid = null;
+    this.axes = null;
+
+    // Called after every renderScene() — the "camera may have moved" signal
+    // of DOM overlays that follow the camera (AxesGizmoThreed). Covers the
+    // camera-controls loop, walk mode and every other render caller without
+    // an extra rAF loop.
+    this._renderListeners = new Set();
 
     this.imagesManager = new ImagesManager({ sceneManager: this });
     // 3D base maps grid ("table à plans"): poses the base map groups as paper
@@ -71,6 +84,7 @@ export default class SceneManager {
     this.directionalLight = this._addDirectionalLight();
     this.camera = this._addCamera();
     this.grid = this._addGrid();
+    this.axes = this._addAxes();
 
     this._initRenderer();
     this.controlsManager.initControls();
@@ -124,6 +138,15 @@ export default class SceneManager {
     // every caller (resize, hover, capture, controls) picks up the effect.
     if (this.sketchPostFx?.enabled) this.sketchPostFx.render();
     else this.renderer.render(this.scene, this.camera);
+    this._renderListeners.forEach((listener) => listener());
+  };
+
+  addRenderListener = (listener) => {
+    if (typeof listener === "function") this._renderListeners.add(listener);
+  };
+
+  removeRenderListener = (listener) => {
+    this._renderListeners.delete(listener);
   };
 
   // rAF-coalesced renderScene: N requests landing in the same frame cost one
@@ -200,6 +223,25 @@ export default class SceneManager {
     const grid = new GridHelper(100, 50);
     this.scene.add(grid);
     return grid;
+  };
+
+  // Coloured axes at the world origin, hidden by default (3D view settings
+  // "Afficher les axes dans la scène"). User-facing convention is Z up
+  // (utils/userCoords): world Y (vertical) takes the Z colour, world Z the Y
+  // colour. The yaw of the displayed frame is applied by MainThreedEditor
+  // (axes.rotation.y). Drawn on top of the scene so it stays readable over a
+  // base map; tagged isGizmo like the transform gizmos.
+  _addAxes = () => {
+    const axes = new AxesHelper(SCENE_AXES_SIZE_M);
+    axes.setColors(AXIS_COLORS.X, AXIS_COLORS.Z, AXIS_COLORS.Y);
+    axes.material.depthTest = false;
+    axes.material.depthWrite = false;
+    axes.material.transparent = true;
+    axes.renderOrder = 999;
+    axes.visible = false;
+    axes.userData.isGizmo = true;
+    this.scene.add(axes);
+    return axes;
   };
 
   ///////////   UPDATE   ///////////

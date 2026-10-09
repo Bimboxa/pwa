@@ -1,9 +1,9 @@
 import { Vector3 } from "three";
 
-import alignPlaneHitToVertices from "./alignPlaneHitToVertices";
-import getEdgeSnapFrame, { getPlaneHitNormal } from "./getEdgeSnapFrame";
-import inPlaneOrthoSnap from "./inPlaneOrthoSnap";
-import lockEdgeSnapToAxes from "./lockEdgeSnapToAxes";
+import alignPlaneHitToVertices from "./alignPlaneHitToVertices.js";
+import getEdgeSnapFrame, { getPlaneHitNormal } from "./getEdgeSnapFrame.js";
+import inPlaneOrthoSnap from "./inPlaneOrthoSnap.js";
+import lockEdgeSnapToAxes from "./lockEdgeSnapToAxes.js";
 
 // Pixel threshold under which the cursor is considered "on" an axis line
 // projected through the last committed vertex.
@@ -18,10 +18,13 @@ const OCCLUSION_EPS_M = 5e-3;
 // would pull the point off the face the drawing is bound to.
 const LOCK_PLANE_EPS_M = 5e-3;
 
-const AXES = [
-  { key: "X", vec: new Vector3(1, 0, 0) },
-  { key: "Y", vec: new Vector3(0, 1, 0) },
-  { key: "Z", vec: new Vector3(0, 0, 1) },
+// Default axis lines (raw world axes) when the caller passes no `axes` —
+// the drawing overlay passes the user axes of the gizmo frame
+// (getUserAxesWorldDirections), whose keys colour and label the lock.
+const WORLD_AXES = [
+  { key: "X", dir: new Vector3(1, 0, 0) },
+  { key: "Y", dir: new Vector3(0, 1, 0) },
+  { key: "Z", dir: new Vector3(0, 0, 1) },
 ];
 
 function ndcDistance(world, mouseNdc, camera, canvasSize) {
@@ -108,10 +111,16 @@ function snapToInProgress(
 //   5. in-plane ortho lock along the hovered plane's axes through the last
 //      vertex (beats the world axes on rotated / vertical base maps),
 //      refined by vertex alignment ALONG the locked line (both arms lock)
-//   6. snap to the world axis line (X / Y / Z) closest to the cursor
-//      ray, anchored at the last committed vertex
+//   6. snap to the axis line (`axes`: the user axes X / Y / Z of the gizmo
+//      frame, world axes by default) closest to the cursor ray, anchored at
+//      the last committed vertex
 //   7. the base map plane hit (refined by vertex alignment)
-//   8. fall back to a free position on the plane through the last vertex
+//   8. nothing under the cursor: the "natural" plane (optional
+//      `intersectFallbackPlane` callback — the user-axis plane most facing
+//      the camera through the first / last vertex, see pickNaturalPlane),
+//      with the same in-plane ortho lock + vertex alignment as a hovered
+//      plane; the hit is tagged `isNatural`
+//   9. fall back to a free position on the plane through the last vertex
 //      perpendicular to the camera
 //
 // Vertex alignment (alignPlaneHitToVertices, the 2D axis snap in the hovered
@@ -131,14 +140,16 @@ function snapToInProgress(
 //
 // A LOCKED plane (`lockedPlane: { point, normal }` — the "Coupe face" tools
 // bound to the selected face): every candidate must lie on it. Vertex / edge
-// snaps off the plane are rejected, the plane hit is the caller's (ray ∩
-// locked plane), the world-axis and FREE fallbacks are skipped, and a snap
-// that still left the plane (an edge snap slid along a crossing edge) is
-// dropped: no target rather than a point off the face.
+// snaps off the plane are rejected (an edge snap slid along a crossing edge
+// falls through to the plane hit), the plane hit is the caller's (ray ∩
+// locked plane), the world-axis, natural-plane and FREE fallbacks are
+// skipped, and a snap that still left the plane is dropped: no target rather
+// than a point off the face. The polygon being drawn locks its own plane the
+// same way once it has 3 points (computeDraftPlane).
 //
 // Returns { position, kind, meshKey?, nodeId?, axis?, lockedAxes?, baseMapId?,
-// axisA?, axisB?, alignFrom?, faceNormal? } or null when no candidate is
-// available.
+// axisA?, axisB?, axisKeys?, alignFrom?, faceNormal?, isNatural? } or null
+// when no candidate is available.
 export default function computeSnapTarget(args) {
   const snap = computeSnapCandidate(args);
   const { lockedPlane } = args;
@@ -169,6 +180,8 @@ function computeSnapCandidate({
   alignAdjacency = null,
   attachFaceToPointSnaps = false,
   lockedPlane = null,
+  axes = WORLD_AXES,
+  intersectFallbackPlane = null,
 }) {
   // Plane / face / scan under the cursor — resolved once, on first need.
   let cachedPlaneHit;
@@ -294,7 +307,13 @@ function computeSnapCandidate({
           canvasSize,
         })
       : null;
-    return withFaceUnderCursor({ ...snap, ...frame, ...locked });
+    const edgeResult = { ...snap, ...frame, ...locked };
+    // An edge snap that slid off the locked plane (along a crossing edge)
+    // is no candidate: the cascade goes on to the plane under the cursor
+    // rather than leaving the user with no target.
+    if (!isOffLockedPlane(edgeResult.position)) {
+      return withFaceUnderCursor(edgeResult);
+    }
   }
 
   const planeHit = getPlaneHit();
@@ -320,61 +339,74 @@ function computeSnapCandidate({
     snap && planeHit?.isFace
       ? { ...snap, nodeId: planeHit.nodeId, faceNormal: planeHit.normal }
       : snap;
-  const refinePlaneHit = () => {
+  // Fields of a plane hit carried by every snap derived from it.
+  const hitTags = (hit) => ({
+    ...(hit.axisKeys ? { axisKeys: hit.axisKeys } : {}),
+    ...(hit.isNatural ? { isNatural: true } : {}),
+  });
+  // The hit itself, refined by vertex alignment.
+  const refineHit = (hit) => {
     const aligned = alignPlaneHitToVertices({
-      planeHit,
+      planeHit: hit,
       adjacency: alignAdjacency,
       extraPoints: inProgressPolyline,
       camera,
       canvasSize,
     });
-    if (aligned) return withFace(aligned);
-    return withFace({
-      position: planeHit.position,
-      kind: planeHit.isFace ? "FACE" : "PLANE",
-      baseMapId: planeHit.baseMapId,
-      axisA: planeHit.axisA,
-      axisB: planeHit.axisB,
-    });
+    if (aligned) return { ...aligned, ...hitTags(hit) };
+    return {
+      position: hit.position,
+      kind: hit.isFace ? "FACE" : "PLANE",
+      baseMapId: hit.baseMapId,
+      axisA: hit.axisA,
+      axisB: hit.axisB,
+      ...hitTags(hit),
+    };
   };
-
-  if (!lastVertex) return planeHit ? refinePlaneHit() : null;
-
-  if (planeHit) {
+  const refinePlaneHit = () => withFace(refineHit(planeHit));
+  // In-plane ortho lock through the last vertex along the hit's axes, the
+  // point then sliding along the locked line onto the coordinate of another
+  // vertex: ortho from the last point AND aligned with e.g. the first one
+  // (closing a rectangle). Null when the cursor is off both ortho lines.
+  const orthoOnHit = (hit) => {
     const ortho = inPlaneOrthoSnap({
-      planeHit,
+      planeHit: hit,
       lastVertex,
       mouseNdc,
       camera,
       canvasSize,
     });
-    if (ortho) {
-      // The point stays on the locked line and slides along it onto the
-      // coordinate of another vertex: ortho from the last point AND aligned
-      // with e.g. the first one (closing a rectangle).
-      const aligned = alignPlaneHitToVertices({
-        planeHit: {
-          ...planeHit,
-          position: ortho.position,
-          axisA: ortho.axisA,
-          axisB: ortho.axisB,
-        },
-        adjacency: alignAdjacency,
-        extraPoints: inProgressPolyline,
-        slideAxes: [ortho.axis],
-        camera,
-        canvasSize,
-      });
-      if (!aligned) return withFace(ortho);
-      return withFace({
-        ...ortho,
-        position: aligned.position,
-        lockedAxes: { A: true, B: true },
-        axisA: aligned.axisA,
-        axisB: aligned.axisB,
-        alignFrom: aligned.alignFrom,
-      });
-    }
+    if (!ortho) return null;
+    const aligned = alignPlaneHitToVertices({
+      planeHit: {
+        ...hit,
+        position: ortho.position,
+        axisA: ortho.axisA,
+        axisB: ortho.axisB,
+      },
+      adjacency: alignAdjacency,
+      extraPoints: inProgressPolyline,
+      slideAxes: [ortho.axis],
+      camera,
+      canvasSize,
+    });
+    if (!aligned) return { ...ortho, ...hitTags(hit) };
+    return {
+      ...ortho,
+      position: aligned.position,
+      lockedAxes: { A: true, B: true },
+      axisA: aligned.axisA,
+      axisB: aligned.axisB,
+      alignFrom: aligned.alignFrom,
+      ...hitTags(hit),
+    };
+  };
+
+  if (!lastVertex) return planeHit ? refinePlaneHit() : null;
+
+  if (planeHit) {
+    const ortho = orthoOnHit(planeHit);
+    if (ortho) return withFace(ortho);
   }
 
   const lastVec = new Vector3(lastVertex.x, lastVertex.y, lastVertex.z);
@@ -383,8 +415,8 @@ function computeSnapCandidate({
   let bestAxis = null;
   let bestDist = AXIS_THRESHOLD_PX;
   let bestPosition = null;
-  for (const ax of planeHit?.isFace || lockedPlane ? [] : AXES) {
-    const pt = closestPointOnAxis(camera.position, cursorDir, lastVec, ax.vec);
+  for (const ax of planeHit?.isFace || lockedPlane ? [] : axes) {
+    const pt = closestPointOnAxis(camera.position, cursorDir, lastVec, ax.dir);
     if (!pt) continue;
     const { distance, behind } = ndcDistance(pt, mouseNdc, camera, canvasSize);
     if (behind) continue;
@@ -407,6 +439,14 @@ function computeSnapCandidate({
   if (planeHit) return refinePlaneHit();
   // Bound to a face: no point off it.
   if (lockedPlane) return null;
+
+  // Nothing under the cursor: the natural plane of the drawing. Never fed to
+  // getPlaneHit — it is no surface, it must neither occlude the vertices
+  // behind it nor tag the point as a face point.
+  const fallbackHit = intersectFallbackPlane?.(mouseNdc) ?? null;
+  if (fallbackHit?.position) {
+    return orthoOnHit(fallbackHit) ?? refineHit(fallbackHit);
+  }
 
   const camForward = new Vector3();
   camera.getWorldDirection(camForward);

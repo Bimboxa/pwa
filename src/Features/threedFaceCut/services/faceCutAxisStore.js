@@ -1,7 +1,7 @@
 // Tiny external store connecting FaceCutAxisOverlayThreed (the hover of the
 // « Découpe horizontale / verticale » tools, imperative pointer code) to the
 // click / Enter handler (useDrawingPointerHandlers) and the bottom bar
-// (FaceCutAxisBottomBar).
+// (SectionFaceCutAxisConstraint).
 //
 // hover: null when no face is hovered, else {
 //   nodeId,          // hovered annotation

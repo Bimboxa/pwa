@@ -20,7 +20,7 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // "Extruder" (hovering an extrudable top face) or the live extrusion value
 // once a face is armed, plus a circle on the scene vertex the armed face is
 // snapped on. The armed value carries the same padlock as the 2D segment
-// length constraint (SegmentLengthBottomBar): closed while a typed value
+// length constraint (SectionSegmentLengthConstraint): closed while a typed value
 // holds it, open while the mouse drives it. Driven imperatively by useExtrudePointerHandlers through
 // extrudeOverlayStore; pointer-transparent.
 export default function ExtrudeOverlayThreed() {

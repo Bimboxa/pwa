@@ -34,7 +34,7 @@ export default function ButtonOpenBaseMapsGrid3d() {
   return (
     <ButtonBaseMapsGrid
       title={titleS}
-      icon={<GridView fontSize="small" />}
+      icon={<GridView />}
       active={active}
       disabled={!active && !canOpen}
       shortcut={BASE_MAPS_GRID_HOTKEY}

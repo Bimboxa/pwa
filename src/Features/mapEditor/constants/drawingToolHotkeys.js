@@ -16,6 +16,10 @@ export const DRAWING_TOOL_HOTKEYS = {
   a: "ARC", // "Arc de cercle" — only resolves for shapes that have an ARC tool
   // (POLYLINE). "A" also doubles as the global smart-detect trigger; the hook
   // yields A to smart-detect when that switch is active (see useDrawingToolHotkeys).
+  p: "MESH_BRUSH", // « Pinceau » (3D editor only). In 2D no tool of the group
+  // has this behavior, so the letter falls through to the smart-detect zoom
+  // (InteractionLayer). The walk-mode P toggle (useWalkMode) already yields
+  // the key while a drawing mode is armed.
   // Note: "T" is intentionally NOT a tool shortcut — it is reserved for the
   // in-drawing "toggle last point to arc" action (InteractionLayer).
 };

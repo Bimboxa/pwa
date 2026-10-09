@@ -40,9 +40,9 @@ import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlic
 // drawing flow:
 //   - Tab / Shift+Tab : cycle next / previous tool within the current shape
 //     group (allowed any time a tool is active).
-//   - R / L / C / G    : direct-access to a tool by behavior, but ONLY while no
-//     first point has been placed yet (so the in-drawing letter shortcuts keep
-//     priority once the object has started).
+//   - R / L / C / G / P : direct-access to a tool by behavior, but ONLY while
+//     no first point has been placed yet (so the in-drawing letter shortcuts
+//     keep priority once the object has started). P is the 3D-only « Pinceau ».
 //   - "Coupe face" (FACE_CUT, 3D editor): Tab cycles its tools, K / L / R /
 //     H / V jump to one (FACE_CUT_TOOL_HOTKEYS) before the first point.
 //

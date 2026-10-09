@@ -11,7 +11,13 @@ import {
   storeMaxViewDistance,
 } from "Features/threedEditor/services/viewDistanceLocalStorage";
 
+import {
+  loadAxesSettings,
+  storeAxesSettings,
+} from "Features/threedEditor/services/axesSettingsLocalStorage";
+
 import { isNavigationPreset } from "Features/threedEditor/constants/navigationPresets";
+import { normalizeAxesYawDeg } from "Features/threedEditor/constants/axesDisplay";
 import { isViewDistance } from "Features/threedEditor/constants/viewDistances";
 
 // Closes the base maps grid (3D "table à plans"): every other 3D tool mode
@@ -107,6 +113,14 @@ const threedEditorInitialState = {
   // constants/viewDistances). Device preference like navigationPreset;
   // synced by MainThreedEditor → ControlsManager.setRegularMaxDistance.
   maxViewDistance: loadMaxViewDistance(),
+  // "Axes" section of the 3D view settings (constants/axesDisplay):
+  // { showGizmo, showSceneAxes, yawDeg }. showGizmo = orientation gizmo at the
+  // top right of the view (AxesGizmoThreed), showSceneAxes = coloured axes
+  // helper at the world origin, yawDeg = rotation of the DISPLAYED frame
+  // around the vertical axis — purely visual (gizmo, in-scene axes, gizmo
+  // face views), nothing else reads it. Device preference persisted in
+  // localStorage.
+  axesSettings: loadAxesSettings(),
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -450,6 +464,18 @@ export const threedEditorSlice = createSlice({
       if (!isViewDistance(action.payload)) return;
       state.maxViewDistance = action.payload;
       storeMaxViewDistance(state.maxViewDistance);
+    },
+    setShowAxesGizmo: (state, action) => {
+      state.axesSettings.showGizmo = !!action.payload;
+      storeAxesSettings(state.axesSettings);
+    },
+    setShowSceneAxes: (state, action) => {
+      state.axesSettings.showSceneAxes = !!action.payload;
+      storeAxesSettings(state.axesSettings);
+    },
+    setAxesYawDeg: (state, action) => {
+      state.axesSettings.yawDeg = normalizeAxesYawDeg(action.payload);
+      storeAxesSettings(state.axesSettings);
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
@@ -1312,6 +1338,9 @@ export const {
   setEnvironment3d,
   setNavigationPreset,
   setMaxViewDistance,
+  setShowAxesGizmo,
+  setShowSceneAxes,
+  setAxesYawDeg,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,

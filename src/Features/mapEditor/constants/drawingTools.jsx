@@ -5,6 +5,7 @@ import {
   WaterDrop,
   MyLocation as Target,
   Brush,
+  FormatPaint as RollerIcon,
   Insights as Smart,
   Create,
   AddLocationAlt as AddInnerPoint,
@@ -566,11 +567,13 @@ const DRAWING_TOOLS = [
   // template-less draft (`requiresTemplate`). The draft keeps the template's
   // type (annotationType null). Distinct from the 2D "BRUSH" key, which the
   // hidden 2D InteractionLayer reacts to (raster mask → polygons). Kept last
-  // so it shows at the end of the POLYGON / POLYLINE tool lists.
+  // so it shows at the end of the POLYGON / POLYLINE tool lists. Paint-roller
+  // icon (the 2D BRUSH keeps the brush one); direct-access letter P
+  // (DRAWING_TOOL_HOTKEYS).
   {
     key: MESH_BRUSH_TOOL_KEY,
     label: "Pinceau",
-    Icon: Brush,
+    Icon: RollerIcon,
     annotationType: null,
     behavior: "MESH_BRUSH",
     editor: "3D",
