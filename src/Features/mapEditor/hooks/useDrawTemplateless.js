@@ -40,7 +40,7 @@ export default function useDrawTemplateless() {
 
   // helpers
 
-  // 3D editor: lines and surfaces only.
+  // 3D editor: lines, surfaces and cotes only.
   const shapes = isThreedEditor
     ? TEMPLATELESS_DRAWING_SHAPES.filter((shape) =>
         THREED_DRAWING_SHAPES.includes(shape.key)

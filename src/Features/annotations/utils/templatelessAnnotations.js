@@ -11,7 +11,7 @@ export const TEMPLATELESS_TEMPLATE_ID = "__TEMPLATELESS__";
 
 export const TEMPLATELESS_LABEL = "Sans modèle";
 
-export const DEFAULT_TEMPLATELESS_DRAWING_SHAPE = "POLYGON";
+export const DEFAULT_TEMPLATELESS_DRAWING_SHAPE = "POLYLINE";
 
 export function isTemplatelessAnnotation(annotation) {
   return Boolean(annotation?.isTemplateless);

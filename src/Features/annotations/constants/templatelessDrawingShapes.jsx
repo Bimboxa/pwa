@@ -4,8 +4,8 @@ import DRAWING_SHAPES from "./drawingShapes.jsx";
 // in menu order. Technical shapes (revolution axis, base map link, opening,
 // linear layout, circulation, 3D object) stay template-driven.
 const TEMPLATELESS_DRAWING_SHAPE_KEYS = [
-  "POLYGON",
   "POLYLINE",
+  "POLYGON",
   "MARKER",
   "POINT",
   "LABEL",

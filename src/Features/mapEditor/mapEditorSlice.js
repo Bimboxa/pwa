@@ -232,7 +232,7 @@ const mapEditorInitialState = {
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
   // annotation type drawn by the "Dessin" tool (templateless annotations)
-  templatelessDrawingShape: "POLYGON",
+  templatelessDrawingShape: "POLYLINE",
 
   // last draft props (dimensions + colour) tuned in the drawing toolbar, per
   // annotation template, so re-arming the same template restores them as

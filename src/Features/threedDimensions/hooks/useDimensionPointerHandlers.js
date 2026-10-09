@@ -14,6 +14,7 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 import commitDrawnCoteService from "Features/threedDrawing/services/commitDrawnCoteService";
+import { isTemplatelessDraft } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 
 import { getLastDimensionSnap } from "../services/lastDimensionSnapStore";
 
@@ -38,11 +39,14 @@ export default function useDimensionPointerHandlers() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
+  // Template-less cote ("Dessin" tool): the annotation belongs to the scope.
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const baseMaps = useBaseMaps()?.value;
 
   // Template-driven mode (see useTemplateCoteDrawBridge): the committed cote
-  // carries the armed template + layer.
+  // carries the armed template + layer. Template-less mode ("Dessin" tool on
+  // its COTE type): the draft's own style, no template nor listing.
   const createAnnotation = useCreateAnnotation();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
@@ -106,18 +110,19 @@ export default function useDimensionPointerHandlers() {
 
       try {
         const na = newAnnotationRef.current;
-        const hasTemplate = Boolean(
-          na?.annotationTemplateId && na?.type === "COTE"
-        );
+        const hasDraft =
+          na?.type === "COTE" &&
+          (Boolean(na.annotationTemplateId) || isTemplatelessDraft(na));
         await commitDrawnCoteService({
           a: startPoint,
           b: point,
           baseMaps: baseMaps || [],
           projectId,
           listingId,
-          templateProps: hasTemplate ? na : null,
-          layerId: hasTemplate ? (activeLayerIdRef.current ?? null) : null,
-          createAnnotationFn: hasTemplate ? createAnnotation : null,
+          scopeId,
+          templateProps: hasDraft ? na : null,
+          layerId: hasDraft ? (activeLayerIdRef.current ?? null) : null,
+          createAnnotationFn: hasDraft ? createAnnotation : null,
         });
       } catch (err) {
         console.error("[threedDimensions] cote commit failed", err);
@@ -133,9 +138,13 @@ export default function useDimensionPointerHandlers() {
     function onKeyDown(e) {
       if (e.key === "Escape") {
         const na = newAnnotationRef.current;
-        if (!startPoint && na?.annotationTemplateId) {
-          // Template-driven mode, nothing in progress: exit entirely by
-          // clearing the 2D drawing state (the bridge deactivates the mode).
+        if (
+          !startPoint &&
+          (na?.annotationTemplateId || isTemplatelessDraft(na))
+        ) {
+          // Template-driven / template-less mode, nothing in progress: exit
+          // entirely by clearing the 2D drawing state (the bridge
+          // deactivates the mode).
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
         } else {
@@ -162,6 +171,7 @@ export default function useDimensionPointerHandlers() {
     baseMaps,
     projectId,
     listingId,
+    scopeId,
     createAnnotation,
     dispatch,
   ]);
