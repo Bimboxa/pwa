@@ -5,7 +5,7 @@ import createAnnotationService from "Features/annotations/services/createAnnotat
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
 import buildCoteAnnotationFields from "../utils/buildCoteAnnotationFields";
-import pickHostBaseMap from "../utils/pickHostBaseMap";
+import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
 
@@ -50,6 +50,7 @@ export default async function commitDrawnCoteService({
   templateProps = null,
   layerId = null,
   createAnnotationFn = null,
+  preferredBaseMapId = null,
 }) {
   if (!a || !b) return null;
   if (!baseMaps?.length) return null;
@@ -61,15 +62,13 @@ export default async function commitDrawnCoteService({
   if (length3d < MIN_COTE_LENGTH_M) return null;
 
   // A unanimous base map carried by the endpoints (points picked on a
-  // scan base map) wins over the centroid heuristic — same rule as
-  // commitDrawnPolylineService.
-  const carriedIds = new Set([a.baseMapId, b.baseMapId].filter(Boolean));
-  let host = null;
-  if (carriedIds.size === 1) {
-    const id = carriedIds.values().next().value;
-    host = baseMaps.find((baseMap) => baseMap.id === id) ?? null;
-  }
-  if (!host) host = pickHostBaseMap([a, b], baseMaps);
+  // scan base map) wins, then the base map selected in 2D, then the
+  // centroid heuristic — same rule as commitDrawnPolylineService.
+  const host = resolveHostBaseMap({
+    vertices: [a, b],
+    baseMaps,
+    preferredBaseMapId,
+  });
   if (!host) return null;
 
   const pA = worldToBaseMapNormalized(a, host);

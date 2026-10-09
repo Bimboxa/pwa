@@ -12,6 +12,7 @@ import {
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import commitDrawnCoteService from "Features/threedDrawing/services/commitDrawnCoteService";
 import { isTemplatelessDraft } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
@@ -43,6 +44,7 @@ export default function useDimensionPointerHandlers() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const baseMaps = useBaseMaps()?.value;
+  const mainBaseMapId = useMainBaseMap()?.id;
 
   // Template-driven mode (see useTemplateCoteDrawBridge): the committed cote
   // carries the armed template + layer. Template-less mode ("Dessin" tool on
@@ -123,6 +125,9 @@ export default function useDimensionPointerHandlers() {
           templateProps: hasDraft ? na : null,
           layerId: hasDraft ? (activeLayerIdRef.current ?? null) : null,
           createAnnotationFn: hasDraft ? createAnnotation : null,
+          // Endpoints snapped on annotations carry no base map: the cote
+          // then belongs to the plan selected in 2D.
+          preferredBaseMapId: mainBaseMapId ?? null,
         });
       } catch (err) {
         console.error("[threedDimensions] cote commit failed", err);
@@ -172,6 +177,7 @@ export default function useDimensionPointerHandlers() {
     projectId,
     listingId,
     scopeId,
+    mainBaseMapId,
     createAnnotation,
     dispatch,
   ]);

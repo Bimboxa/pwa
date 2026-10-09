@@ -243,6 +243,9 @@ export default function useDrawingPointerHandlers() {
         listingId,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
+        // Vertices snapped on existing annotations / axis locks carry no
+        // base map: the shape then belongs to the plan selected in 2D.
+        preferredBaseMapId: mainBaseMapId ?? null,
       };
       const { annotation, reason } = await commitDrawnFace({
         ...common,
@@ -271,6 +274,7 @@ export default function useDrawingPointerHandlers() {
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
         closeLine,
+        preferredBaseMapId: mainBaseMapId ?? null,
       });
     }
 
@@ -352,6 +356,7 @@ export default function useDrawingPointerHandlers() {
           templateProps: getLiveDrawing().draft,
           layerId: activeLayerIdRef.current ?? null,
           createAnnotationFn: createAnnotation,
+          preferredBaseMapId: mainBaseMapId ?? null,
         });
         if (!created) {
           if (reason === POLYLINE_COMMIT_NO_2D_ENCODING) {
@@ -386,6 +391,7 @@ export default function useDrawingPointerHandlers() {
         templateProps: draft,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
+        preferredBaseMapId: mainBaseMapId ?? null,
       };
       let created = null;
       try {
@@ -406,6 +412,7 @@ export default function useDrawingPointerHandlers() {
               draftProps: draft,
               layerId: common.layerId,
               createAnnotationFn: createAnnotation,
+              preferredBaseMapId: common.preferredBaseMapId,
             });
           }
         } else {

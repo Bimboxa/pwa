@@ -4,7 +4,7 @@ import createAnnotationService from "Features/annotations/services/createAnnotat
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
-import pickHostBaseMap from "../utils/pickHostBaseMap";
+import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
 
@@ -48,8 +48,9 @@ function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
 //     (same convention as the face service's OBLIQUE branch)
 //
 // Inputs mirror commitDrawnFaceService; `verticesInOrder` items are
-// {x, y, z, baseMapId?} — a unanimous carried baseMapId wins over the
-// centroid heuristic for host resolution.
+// {x, y, z, baseMapId?} — a unanimous carried baseMapId wins, then the
+// base map selected in 2D (`preferredBaseMapId`), then the centroid
+// heuristic (resolveHostBaseMap).
 //
 // Templateless draft (3D "Dessin" tool, `templateProps.isTemplateless`
 // without annotationTemplateId): the annotation belongs to the base map +
@@ -77,6 +78,8 @@ export async function commitDrawnPolyline({
   createAnnotationFn = null,
   closeLine = false,
   scopeId = null,
+  // The base map selected in 2D (resolveHostBaseMap).
+  preferredBaseMapId = null,
   // See commitDrawnFace: a painted edge stays a flat line (no template
   // extrusion height); extraFields are spread last (provenance markers…).
   ignoreTemplateHeight = false,
@@ -98,15 +101,11 @@ export async function commitDrawnPolyline({
   if (!isTemplateless && !templateProps?.annotationTemplateId)
     return abort("no armed template (annotationTemplateId missing)");
 
-  const carriedIds = new Set(
-    verticesInOrder.map((v) => v.baseMapId).filter(Boolean)
-  );
-  let host = null;
-  if (carriedIds.size === 1) {
-    const id = carriedIds.values().next().value;
-    host = baseMaps.find((b) => b.id === id) ?? null;
-  }
-  if (!host) host = pickHostBaseMap(verticesInOrder, baseMaps);
+  const host = resolveHostBaseMap({
+    vertices: verticesInOrder,
+    baseMaps,
+    preferredBaseMapId,
+  });
   if (!host)
     return abort("no host base map (projection failed on every base map)");
 

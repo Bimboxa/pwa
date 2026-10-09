@@ -7,7 +7,7 @@ import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
 import buildVerticalBandPoints from "../utils/buildVerticalBandPoints";
 import classifyFaceVsBaseMap from "../utils/classifyFaceVsBaseMap";
 import isVerticalBandExact from "../utils/isVerticalBandExact";
-import pickHostBaseMap from "../utils/pickHostBaseMap";
+import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
 
@@ -55,6 +55,8 @@ export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
 //   - holes: inner rings of the face (3D world points), kept as POLYGON
 //     `cuts` on a PARALLEL face; a vertical / oblique face with holes has no
 //     plan encoding (NO_2D_ENCODING)
+//   - preferredBaseMapId: the base map selected in 2D — hosts the face when
+//     its vertices carry no base map (resolveHostBaseMap)
 //   - ignoreTemplateHeight: a PARALLEL face stays flat (height 0) instead of
 //     taking the template's extrusion height (a painted face is a coating)
 //   - extraFields: spread last on the annotation (provenance markers…)
@@ -80,6 +82,7 @@ export async function commitDrawnFace({
   layerId = null,
   createAnnotationFn = null,
   holes = [],
+  preferredBaseMapId = null,
   ignoreTemplateHeight = false,
   extraFields = null,
 }) {
@@ -101,19 +104,13 @@ export async function commitDrawnFace({
     return abort("no armed template (annotationTemplateId missing)");
 
   // Host resolution: a unanimous baseMapId carried by the drawn vertices
-  // (PLANE snaps stamp it) wins over the centroid heuristic — with several
-  // unplaced base maps stacked coplanar at the origin, pickHostBaseMap ties
-  // on every candidate and would pick an arbitrary one, re-hosting the face
-  // away from the plan the cursor actually snapped to.
-  const carriedIds = new Set(
-    cornersInOrder.map((v) => v.baseMapId).filter(Boolean)
-  );
-  let host = null;
-  if (carriedIds.size === 1) {
-    const id = carriedIds.values().next().value;
-    host = baseMaps.find((b) => b.id === id) ?? null;
-  }
-  if (!host) host = pickHostBaseMap(cornersInOrder, baseMaps);
+  // (PLANE snaps stamp it), else the base map selected in 2D, else the
+  // centroid heuristic (see resolveHostBaseMap).
+  const host = resolveHostBaseMap({
+    vertices: cornersInOrder,
+    baseMaps,
+    preferredBaseMapId,
+  });
   if (!host)
     return abort("no host base map (projection failed on every base map)");
 

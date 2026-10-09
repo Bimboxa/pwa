@@ -103,6 +103,7 @@ export default function useWalkMode() {
     baseMaps,
     listingTemplates,
     createAnnotation,
+    mainBaseMap,
   };
 
   // Ground = the selected baseMap plane. Prefer the live group's world Y
@@ -288,6 +289,7 @@ export default function useWalkMode() {
         templateProps,
         layerId: coteTemplate ? (ctx.activeLayerId ?? null) : null,
         createAnnotationFn: ctx.createAnnotation,
+        preferredBaseMapId: ctx.mainBaseMap?.id ?? null,
       });
     };
     let firstHit = null;

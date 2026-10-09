@@ -6,7 +6,7 @@ import { withoutUndo } from "App/db/undoManager";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
 import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnnotationFields";
-import pickHostBaseMap from "Features/threedDrawing/utils/pickHostBaseMap";
+import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
 import buildFlatMesh3d from "../utils/buildFlatMesh3d";
@@ -21,8 +21,10 @@ import { buildMesh3dStorage } from "./writeMesh3dService";
 // draftProps: the armed newAnnotation — a template draft (the sheet keeps
 // the template + `listingId`, like commitDrawnFace), or the template-less
 // draft of the "Dessin" tool (the sheet belongs to the base map + `scopeId`
-// only). vertices: drawn world points [{x, y, z, baseMapId?}]. Returns the
-// created annotation, or null.
+// only). vertices: drawn world points [{x, y, z, baseMapId?}].
+// preferredBaseMapId: the base map selected in 2D, host of the sheet when
+// the vertices carry none (resolveHostBaseMap). Returns the created
+// annotation, or null.
 export default async function createFlatMesh3dAnnotationService({
   editor,
   vertices,
@@ -33,18 +35,13 @@ export default async function createFlatMesh3dAnnotationService({
   draftProps,
   layerId,
   createAnnotationFn,
+  preferredBaseMapId = null,
 }) {
   const isTemplateless =
     Boolean(draftProps?.isTemplateless) && !draftProps?.annotationTemplateId;
   if (!isTemplateless && !draftProps?.annotationTemplateId) return null;
 
-  const carriedIds = new Set(vertices.map((v) => v.baseMapId).filter(Boolean));
-  let host = null;
-  if (carriedIds.size === 1) {
-    const id = carriedIds.values().next().value;
-    host = baseMaps.find((b) => b.id === id) ?? null;
-  }
-  if (!host) host = pickHostBaseMap(vertices, baseMaps);
+  const host = resolveHostBaseMap({ vertices, baseMaps, preferredBaseMapId });
   const sceneManager = editor?.sceneManager;
   const group = host ? sceneManager?.imagesManager?.getGroup?.(host.id) : null;
   const metrics = getBaseMapForRender(host);
