@@ -189,6 +189,7 @@ export default function useThreedLegendItems(annotations) {
             : base;
         })(),
         qtyLabel: qtiesById[templateId]?.mainQtyLabel ?? "",
+        mainQtyUnit: qtiesById[templateId]?.mainQtyUnit,
       });
     };
 
@@ -270,7 +271,8 @@ export default function useThreedLegendItems(annotations) {
   const qtiesById = useMemo(() => {
     const map = {};
     legendItems.forEach((it) => {
-      if (it.id) map[it.id] = { mainQtyLabel: it.qtyLabel };
+      if (it.id)
+        map[it.id] = { mainQtyLabel: it.qtyLabel, mainQtyUnit: it.mainQtyUnit };
     });
     return map;
   }, [legendItems]);

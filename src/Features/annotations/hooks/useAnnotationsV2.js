@@ -1741,7 +1741,6 @@ export default function useAnnotationsV2(options) {
             _annotation.qties = getAnnotationQties({
               annotation: _annotation,
               meterByPx,
-              imageSize: { width, height },
             });
           }
 

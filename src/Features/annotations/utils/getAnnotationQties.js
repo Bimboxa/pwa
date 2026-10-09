@@ -26,9 +26,6 @@ import {
   getEffectiveShellMode,
   getShape3DKey,
 } from "Features/annotations/constants/shape3DConfig";
-import getMesh3dQties from "Features/annotationMesh3d/utils/getMesh3dQties";
-import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dSegmentFromQuad";
-import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
 // on the SAME arc-expanded rings as the rendered geometry:
@@ -360,18 +357,26 @@ function computeInlineExtrusionSurface(
  * --- FONCTION PRINCIPALE ---
  */
 
+// `reason` of a disabled result for a mesh 3D annotation (isMesh3d): its
+// plan projection and its developed mesh area do not describe the work any
+// more (faces of different natures), so the annotation carries no surface /
+// length. Faces / edges are measured individually (selection, « Pinceau »).
+export const QTIES_REASON_MESH_3D = "MESH_3D";
+
 export default function getAnnotationQties({
   annotation,
   meterByPx,
   profileLengthMeters,
-  // Reference image size of the base map ({width, height}) — only needed by
-  // isMesh3d annotations, whose mesh is stored normalized.
-  imageSize,
 }) {
   try {
     if (!annotation) return null;
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0)
       return { enabled: false };
+
+    // Mesh 3D: no meaningful surface / length (see QTIES_REASON_MESH_3D).
+    // Checked first: the unit count is handled by the aggregators.
+    if (annotation.isMesh3d)
+      return { enabled: false, reason: QTIES_REASON_MESH_3D };
 
     // RULER is a measurement object (a dimension chain), like COTE: it
     // describes the drawing, it is not part of the work. No quantities.
@@ -722,38 +727,6 @@ export default function getAnnotationQties({
       length: totalLengthPx * meterByPx,
       surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx),
     };
-
-    // isMesh3d: length / surface above describe the plan projection (the 2D
-    // polygon). The developed surface and the volume come from the stored
-    // mesh itself.
-    if (
-      annotation.isMesh3d &&
-      annotation.mesh3d?.faces?.length &&
-      imageSize?.width &&
-      imageSize?.height
-    ) {
-      // A projection with no area (a lone vertical face) is stored as a thin
-      // quad around a segment: the plan length is that segment's, not the
-      // quad's perimeter, and the plan surface is nil.
-      if (annotation.mesh3dPlanIsSegment) {
-        const segment = getMesh3dSegmentFromQuad(points);
-        if (segment) {
-          const [a, b] = segment;
-          result.length = Math.hypot(b.x - a.x, b.y - a.y) * meterByPx;
-          result.surface = 0;
-        }
-      }
-      const meshQties = getMesh3dQties(
-        mesh3dToLocal(annotation.mesh3d, {
-          imageWidth: imageSize.width,
-          imageHeight: imageSize.height,
-          meterByPx,
-        })
-      );
-      result.surfaceDeveloped = meshQties.surface;
-      if (meshQties.volume > 0) result.volume = meshQties.volume;
-      return result;
-    }
 
     // Stairs guideLine: developed surface = treads (planar footprint, cuts
     // already subtracted) + risers (Σ nosing length × riser height), and

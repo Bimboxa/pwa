@@ -1,5 +1,7 @@
 import getAnnotationQties from "./getAnnotationQties";
-import getAnnotationTemplateMainQtyLabel from "./getAnnotationTemplateMainQtyLabel";
+import getAnnotationTemplateMainQtyLabel, {
+  getAnnotationTemplateMainQtyUnit,
+} from "./getAnnotationTemplateMainQtyLabel";
 
 /**
  * Pure function that aggregates annotation quantities by template ID.
@@ -10,7 +12,10 @@ import getAnnotationTemplateMainQtyLabel from "./getAnnotationTemplateMainQtyLab
  * @param {Object} annotationTemplateById - Map of template id → template.
  * @param {Object} [baseMapById] - Map of baseMap id → baseMap (needed only
  *   when annotations don't carry pre-computed `.qties`).
- * @returns {{ [templateId]: { count, length, surface, unit, mainQtyLabel } }}
+ * @returns {{ [templateId]: { count, length, surface, unit, mesh3dCount,
+ *   mainQtyLabel, mainQtyUnit } }} — `length` / `surface` are null (no total
+ *   at all) as soon as the template holds a mesh 3D annotation
+ *   (mesh3dCount > 0); only the unit count keeps its meaning.
  */
 export default function computeAnnotationTemplateQties(
   annotations,
@@ -30,11 +35,19 @@ export default function computeAnnotationTemplateQties(
     if (annotation?.isForeignFootprint) return acc;
 
     if (!acc[templateId]) {
-      acc[templateId] = { count: 0, length: 0, surface: 0, unit: 0, mainQtyLabel: "-" };
+      acc[templateId] = {
+        count: 0,
+        length: 0,
+        surface: 0,
+        unit: 0,
+        mesh3dCount: 0,
+        mainQtyLabel: "-",
+      };
     }
 
     const stats = acc[templateId];
     stats.count += 1;
+    if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
     // Use pre-computed qties when available (withQties was used),
     // otherwise compute on the fly.
@@ -63,12 +76,19 @@ export default function computeAnnotationTemplateQties(
 
   // Format labels
   Object.entries(qtiesById).forEach(([templateId, stats]) => {
+    // A mesh 3D annotation voids the template's surface / length total.
+    if (stats.mesh3dCount > 0) {
+      stats.length = null;
+      stats.surface = null;
+    }
     const template = annotationTemplateById?.[templateId];
     if (!template) {
       stats.mainQtyLabel = `${stats.unit ?? "-"} u`;
+      stats.mainQtyUnit = "u";
       return;
     }
     stats.mainQtyLabel = getAnnotationTemplateMainQtyLabel(template, stats);
+    stats.mainQtyUnit = getAnnotationTemplateMainQtyUnit(template);
   });
 
   return qtiesById;

@@ -7,7 +7,9 @@ import useAnnotationsV2 from "./useAnnotationsV2";
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
-import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
+import getAnnotationTemplateMainQtyLabel, {
+  getAnnotationTemplateMainQtyUnit,
+} from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 
 // Assurez-vous que le chemin est correct vers votre nouveau fichier utilitaire
@@ -57,6 +59,7 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
           length: 0,
           surface: 0,
           unit: 0,
+          mesh3dCount: 0,
           mainQtyLabel: "-",
         };
       }
@@ -66,6 +69,7 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       // 2. Incrément du nombre d'unités
       stats.count += 1;
       stats.unit = stats.count;
+      if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
       // 3. Récupération du ratio Métrique/Pixel
       const baseMap = annotation.baseMapId ? baseMapById?.[annotation.baseMapId] : null;
@@ -92,12 +96,20 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
 
     // --- FORMATTING LABELS ---
     Object.entries(qtiesById).forEach(([templateId, stats]) => {
+      // A mesh 3D annotation voids the template's surface / length total
+      // (only the unit count stays) — same rule as computeAnnotationTemplateQties.
+      if (stats.mesh3dCount > 0) {
+        stats.length = null;
+        stats.surface = null;
+      }
       const template = annotationTemplateById?.[templateId];
       if (!template) {
         stats.mainQtyLabel = `${stats.unit ?? "-"} u`;
+        stats.mainQtyUnit = "u";
         return;
       }
       stats.mainQtyLabel = getAnnotationTemplateMainQtyLabel(template, stats);
+      stats.mainQtyUnit = getAnnotationTemplateMainQtyUnit(template);
     });
 
     return mergePaintedQtiesIntoTemplateQties(

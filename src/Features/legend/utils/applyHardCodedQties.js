@@ -12,7 +12,10 @@ export default function applyHardCodedQties(qtiesById, hardCodedQtiesById) {
   const merged = { ...(qtiesById ?? {}) };
   entries.forEach(([templateId, manualQty]) => {
     const stats = merged[templateId];
-    const { unit } = parseMainQtyLabel(stats?.mainQtyLabel);
+    // mainQtyUnit: set by the template qties aggregators — the only unit
+    // source when the computed label is the mesh 3D marker.
+    const unit =
+      stats?.mainQtyUnit ?? parseMainQtyLabel(stats?.mainQtyLabel).unit;
     merged[templateId] = {
       ...stats,
       mainQtyLabel: `${Number(manualQty.toFixed(1))}${unit ? ` ${unit}` : ""}`,
