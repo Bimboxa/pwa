@@ -25,6 +25,8 @@ function getManager() {
 //     camera goes top-down over the table. Inactive: they fly back, the
 //     camera is left where it is.
 //     The main base map is the anchor of the table: it does not move.
+//     The "new base map" frame closes the table, at the slot of the 2D
+//     grid's "+" frame.
 //   - image eyes (same state as the chips' layer icon) → image, label and
 //     eye button of each sheet.
 // Mounted once (BaseMapsGrid3dController) while a 3D editor is displayed.
@@ -116,13 +118,14 @@ export default function useBaseMapsGrid3d() {
       return;
     }
 
-    const sheets = buildBaseMapsGrid3dSheets({
+    const { sheets, addSlot } = buildBaseMapsGrid3dSheets({
       baseMaps: baseMapsRef.current,
       listingId,
       positions: readBaseMapsGridPositions(projectId),
     });
     const result = manager.open({
       sheets,
+      addSlot,
       anchorBaseMapId: mainBaseMapId,
       imageOnById: getImageOnById(sheets.map((s) => s.id)),
       hideBaseMaps: selectHideBaseMapImagesIn3d(store.getState()),

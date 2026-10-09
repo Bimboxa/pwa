@@ -46,21 +46,26 @@ export function getSheetLocalCorners(sheet, meterByPx) {
 //   from the anchor so that the anchor keeps its real size (scale 1). Passed
 //   (anchor change while open), the table keeps its size: the new anchor
 //   stays exactly as it is, scale included.
+// addSlot (optional): { positionPt, pagePt } — the "new base map" frame
+//   closing the grid (see buildBaseMapsGrid3dSheets), laid like a sheet.
 //
 // Every sheet shares the orientation Q = Euler(-π/2, yaw, 0, "YXZ"): local
 // +X = paper right, local -Y = paper down, local +Z = world up.
 // A sheet i is scaled by s_i = K / (pxPerPt_i × meterByPx_i) so that its
 // page measures page_i × K whatever its own scale.
 //
-// Returns { K, yaw, quaternion, poseById, cornersById } with
+// Returns { K, yaw, quaternion, poseById, cornersById, addFrame } with
 //   poseById[id] = { position: Vector3, euler: {x, y, z}, scale,
 //     effectiveMeterByPx }
 //   cornersById[id] = world corners of the print zone in the grid pose.
+//   addFrame = { position (world top-left), euler, width, height (metres),
+//     corners } or null without addSlot.
 export default function computeBaseMapsGrid3dPoses({
   sheets,
   anchorId,
   anchorRef,
   K: fixedK,
+  addSlot = null,
 }) {
   const anchor = sheets?.find((sheet) => sheet.id === anchorId);
   if (!anchor) return null;
@@ -99,6 +104,16 @@ export default function computeBaseMapsGrid3dPoses({
     .applyQuaternion(quaternion)
     .add(anchorPosition);
 
+  // 2D grid offset (paper pt, y down) → grid plane (local +X, local -Y)
+  const getWorldTopLeft = (positionPt) =>
+    new Vector3(
+      (positionPt.x - anchor.positionPt.x) * K,
+      -(positionPt.y - anchor.positionPt.y) * K,
+      0
+    )
+      .applyQuaternion(quaternion)
+      .add(anchorTopLeft);
+
   const poseById = {};
   const cornersById = {};
 
@@ -106,15 +121,7 @@ export default function computeBaseMapsGrid3dPoses({
     const effectiveMeterByPx = getEffectiveMeterByPx(sheet);
     const scale = getScale(sheet);
     const localCorners = getSheetLocalCorners(sheet, effectiveMeterByPx);
-
-    // 2D grid offset (paper pt, y down) → grid plane (local +X, local -Y)
-    const topLeft = new Vector3(
-      (sheet.positionPt.x - anchor.positionPt.x) * K,
-      -(sheet.positionPt.y - anchor.positionPt.y) * K,
-      0
-    )
-      .applyQuaternion(quaternion)
-      .add(anchorTopLeft);
+    const topLeft = getWorldTopLeft(sheet.positionPt);
 
     // world(local) = position + Q·(scale·local) — solved for the top-left
     const position = topLeft
@@ -141,5 +148,21 @@ export default function computeBaseMapsGrid3dPoses({
     );
   });
 
-  return { K, yaw, quaternion, poseById, cornersById };
+  // "new base map" frame: a sheet-like slot with no group of its own, laid
+  // at scale 1 from its top-left corner (local +X right, local -Y down)
+  let addFrame = null;
+  if (addSlot) {
+    const width = addSlot.pagePt.width * K;
+    const height = addSlot.pagePt.height * K;
+    const position = getWorldTopLeft(addSlot.positionPt);
+    const corners = [
+      new Vector3(0, 0, 0),
+      new Vector3(width, 0, 0),
+      new Vector3(width, -height, 0),
+      new Vector3(0, -height, 0),
+    ].map((corner) => corner.applyQuaternion(quaternion).add(position));
+    addFrame = { position, euler: { ...euler }, width, height, corners };
+  }
+
+  return { K, yaw, quaternion, poseById, cornersById, addFrame };
 }

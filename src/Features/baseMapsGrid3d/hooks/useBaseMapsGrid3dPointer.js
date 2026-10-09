@@ -1,9 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
+import {
+  setSelectedBaseMapsListingId,
+  setShowCreateBaseMapSection,
+} from "Features/mapEditor/mapEditorSlice";
 import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -27,6 +32,9 @@ const TOOLTIP_OFFSET_PX = 15;
 //     this sheet — it stays where it is on screen, the other base maps fly
 //     back to their real poses around it
 //   - click on a sheet: closes the grid and opens that base map
+//   - click on the "new base map" frame (or its "+ créer" button): opens the
+//     create-base-map section for the listing of the table, the grid stays
+//     open underneath (same as the "+" frame of the 2D grid)
 // The camera controls keep working (orbit / pan / zoom over the table): a
 // press that travels further than DRAG_THRESHOLD_PX is a camera gesture, not
 // a click.
@@ -39,11 +47,19 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
   const showImageS = "Afficher l'image dans la vue 3D";
   const hideImageS = "Masquer l'image dans la vue 3D";
   const leaveAroundS = "Quitter la grille sur ce fond de plan";
+  const addBaseMapS = "Nouveau fond de plan";
 
   // data
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
   const selectMainBaseMap = useSelectMainBaseMap();
+  // the listing of the table (the new base map lands in it)
+  const listingId = useMainBaseMap()?.listingId ?? null;
+
+  // refs
+
+  const listingIdRef = useRef(listingId);
+  listingIdRef.current = listingId;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -93,7 +109,9 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       manager.setHovered(hit.baseMapId);
       dom.style.cursor = "pointer";
       let text = manager.getSheetName(hit.baseMapId);
-      if (hit.kind === "nav") {
+      if (hit.kind === "add") {
+        text = addBaseMapS;
+      } else if (hit.kind === "nav") {
         text = leaveAroundS;
       } else if (hit.kind === "eye") {
         const state = store.getState();
@@ -145,6 +163,12 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
 
       const hit = pick(e);
       if (!hit) return;
+      if (hit.kind === "add") {
+        clearHover();
+        dispatch(setSelectedBaseMapsListingId(listingIdRef.current));
+        dispatch(setShowCreateBaseMapSection(true));
+        return;
+      }
       if (hit.kind === "eye") {
         dispatch(
           getToggleBaseMapImageIn3dAction({

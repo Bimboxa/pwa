@@ -7,22 +7,25 @@ import composeBaseMapsGridSheets from "Features/baseMapsGrid/utils/composeBaseMa
 // Photo base maps have no flat plane in 3D and are left out, like the base
 // maps without a usable print zone.
 //
-// Returns [{ id, name, baseMap, printZone (reference px), pagePt {width,
-// height}, positionPt {x, y} (top-left, y down), refSize {width, height},
-// meterByPx }].
+// Returns { sheets, addSlot }:
+//   sheets: [{ id, name, baseMap, printZone (reference px), pagePt {width,
+//     height}, positionPt {x, y} (top-left, y down), refSize {width, height},
+//     meterByPx }]
+//   addSlot: { positionPt, pagePt } — the "new base map" frame closing the
+//     grid (same slot as the "+" frame of the 2D grid), null without listing.
 export default function buildBaseMapsGrid3dSheets({
   baseMaps,
   listingId,
   positions,
 }) {
-  if (!listingId) return [];
-  const { items } = composeBaseMapsGridSheets({
+  if (!listingId) return { sheets: [], addSlot: null };
+  const { items, addSheet } = composeBaseMapsGridSheets({
     baseMaps,
     listingId,
     positions,
   });
 
-  return items
+  const sheets = items
     .filter(({ baseMap }) => !baseMap.isPhoto)
     .map(({ baseMap, sheet }) => {
       const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
@@ -39,4 +42,11 @@ export default function buildBaseMapsGrid3dSheets({
       };
     })
     .filter(Boolean);
+
+  const addSlot = {
+    positionPt: { x: addSheet.x, y: addSheet.y },
+    pagePt: { width: addSheet.width, height: addSheet.height },
+  };
+
+  return { sheets, addSlot };
 }

@@ -2,11 +2,13 @@ import { Box3, Euler, Matrix4, Quaternion, Vector2, Vector3 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { BASE_MAP_ROTATION_ORDER } from "Features/baseMaps/js/getBaseMapTransform";
+import { ADD_SHEET_ID } from "Features/baseMapsGrid/constants/baseMapsGridConstants";
 import { easeInOutCubic } from "Features/pov/utils/getPovFlightPose";
 
 import computeBaseMapsGrid3dPoses, {
   getSheetLocalCorners,
 } from "../utils/computeBaseMapsGrid3dPoses";
+import createAddFrameDecorations from "./createAddFrameDecorations";
 import createSheetDecorations from "./createSheetDecorations";
 
 const FLIGHT_DURATION_MS = 600;
@@ -52,6 +54,10 @@ function applyPose(group, pose) {
 //     .applyBaseMapPlacement no longer writes the group then).
 //   - gridPose: the pose on the table.
 // A sheet stays registered (isSheet) until the closing flight has landed.
+//
+// The table also carries the "new base map" frame (createAddFrameDecorations,
+// picked as ADD_SHEET_ID): a group of the manager's own, laid at its slot
+// when the sheets land and dropped as soon as they fly home.
 export default class BaseMapsGridManager {
   constructor({ sceneManager }) {
     this.sceneManager = sceneManager;
@@ -68,6 +74,8 @@ export default class BaseMapsGridManager {
     this.closing = false;
     // global "Masquer les fonds de plan" switch (threedEditor.hideBaseMaps)
     this.hideBaseMaps = false;
+    // "new base map" frame decorations (see createAddFrameDecorations)
+    this.addFrame = null;
 
     this._materials = null;
     this._rafId = null;
@@ -93,13 +101,14 @@ export default class BaseMapsGridManager {
 
   // open / anchor / close
 
-  // sheets: see buildBaseMapsGrid3dSheets. The groups of the hidden base
-  // maps are created texture-less (ImagesManager.ensureBaseMapGroup).
+  // sheets, addSlot: see buildBaseMapsGrid3dSheets. The groups of the hidden
+  // base maps are created texture-less (ImagesManager.ensureBaseMapGroup).
   // Re-entrant: called again while open (sheet set / positions changed) or
   // while closing, the sheets fly on from where they are.
   // Returns { box, yaw } (extent of the table, for the camera) or null.
   open({
     sheets,
+    addSlot = null,
     anchorBaseMapId,
     imageOnById = {},
     hideBaseMaps = false,
@@ -138,6 +147,7 @@ export default class BaseMapsGridManager {
 
     if (this.sheetsById.size === 0) {
       this.active = false;
+      this._disposeAddFrame();
       this.sceneManager.controlsManager?.clearDistanceBoost?.();
       this.sceneManager.renderScene();
       return null;
@@ -163,6 +173,7 @@ export default class BaseMapsGridManager {
     const result = this._computePoses({
       anchorRef,
       K: keepFrame ? this.K : undefined,
+      addSlot,
     });
     if (!result) return null;
 
@@ -180,6 +191,20 @@ export default class BaseMapsGridManager {
       this._applySheetScale(entry);
     });
     this.hoveredId = null;
+
+    // The frame shows once the sheets have landed (at once on a re-entry:
+    // the table is already there).
+    this._disposeAddFrame();
+    if (result.addFrame) {
+      this.addFrame = createAddFrameDecorations({
+        width: result.addFrame.width,
+        height: result.addFrame.height,
+        resolution: this._resolution(),
+      });
+      applyPose(this.addFrame.group, { ...result.addFrame, scale: 1 });
+      this.addFrame.group.visible = wasOpen || !animate;
+      this.sceneManager.scene.add(this.addFrame.group);
+    }
 
     this._boostCameraRange(result.box);
     this._fly({ toGrid: true, instant: !animate });
@@ -239,6 +264,8 @@ export default class BaseMapsGridManager {
     this.active = false;
     this.hoveredId = null;
     this.sheetsById.forEach((entry) => entry.decorations?.setHovered(false));
+    // the frame leaves with the first frame of the flight home
+    this._disposeAddFrame();
     this._fly({
       toGrid: false,
       instant,
@@ -248,11 +275,14 @@ export default class BaseMapsGridManager {
 
   // decorations state
 
+  // baseMapId: a sheet id, ADD_SHEET_ID (the "new base map" frame) or null.
   setHovered(baseMapId) {
-    const nextId = this.sheetsById.has(baseMapId) ? baseMapId : null;
+    const isAddFrame = baseMapId === ADD_SHEET_ID && Boolean(this.addFrame);
+    const nextId =
+      isAddFrame || this.sheetsById.has(baseMapId) ? baseMapId : null;
     if (nextId === this.hoveredId) return;
-    this.sheetsById.get(this.hoveredId)?.decorations?.setHovered(false);
-    this.sheetsById.get(nextId)?.decorations?.setHovered(true);
+    this._setDecorationsHovered(this.hoveredId, false);
+    this._setDecorationsHovered(nextId, true);
     this.hoveredId = nextId;
     this.sceneManager.renderScene();
   }
@@ -303,6 +333,7 @@ export default class BaseMapsGridManager {
     this._cancelFlight();
     this.sheetsById.forEach((entry) => entry.decorations?.dispose());
     this.sheetsById = new Map();
+    this._disposeAddFrame();
     const wasActive = this.active;
     this.active = false;
     this.closing = false;
@@ -313,9 +344,11 @@ export default class BaseMapsGridManager {
 
   // picking
 
-  // What lies under the pointer: { kind: "eye" | "nav" | "sheet", baseMapId }
-  // or null. The raycaster must be set from the camera (sprites need it). No
-  // visibility filter on purpose: the hit planes are not rendered.
+  // What lies under the pointer: { kind: "eye" | "nav" | "sheet" | "add",
+  // baseMapId } or null — "add" is the "new base map" frame (its button or
+  // its area), baseMapId = ADD_SHEET_ID. The raycaster must be set from the
+  // camera (sprites need it). No visibility filter on purpose: the hit
+  // planes are not rendered.
   pick(raycaster) {
     if (!this.active) return null;
     const buttons = [];
@@ -325,14 +358,21 @@ export default class BaseMapsGridManager {
       buttons.push(entry.decorations.eyeSprite, entry.decorations.navSprite);
       planes.push(entry.decorations.hitPlane);
     });
+    if (this.addFrame?.group.visible) {
+      buttons.push(this.addFrame.buttonSprite);
+      planes.push(this.addFrame.hitPlane);
+    }
     const buttonHit = raycaster.intersectObjects(buttons, false)[0];
     if (buttonHit) {
-      const { baseMapId, gridNavButton } = buttonHit.object.userData;
+      const { baseMapId, gridNavButton, gridAddButton } =
+        buttonHit.object.userData;
+      if (gridAddButton) return { kind: "add", baseMapId };
       return { kind: gridNavButton ? "nav" : "eye", baseMapId };
     }
     const planeHit = raycaster.intersectObjects(planes, false)[0];
     if (planeHit) {
-      return { kind: "sheet", baseMapId: planeHit.object.userData.baseMapId };
+      const { baseMapId, gridAddFrameHit } = planeHit.object.userData;
+      return { kind: gridAddFrameHit ? "add" : "sheet", baseMapId };
     }
     return null;
   }
@@ -366,8 +406,9 @@ export default class BaseMapsGridManager {
 
   // Keeps the screen-space outlines crisp after a canvas resize.
   onResize() {
-    if (!this._materials) return;
     const resolution = this._resolution();
+    this.addFrame?.setResolution(resolution);
+    if (!this._materials) return;
     this._materials.idle.resolution.copy(resolution);
     this._materials.hover.resolution.copy(resolution);
   }
@@ -376,6 +417,7 @@ export default class BaseMapsGridManager {
     this._cancelFlight();
     this.sheetsById.forEach((entry) => entry.decorations?.dispose());
     this.sheetsById = new Map();
+    this._disposeAddFrame();
     this.active = false;
     this.closing = false;
     this.sceneManager.controlsManager?.clearDistanceBoost?.();
@@ -386,6 +428,22 @@ export default class BaseMapsGridManager {
   }
 
   // internals
+
+  _setDecorationsHovered(id, hovered) {
+    if (id === null || id === undefined) return;
+    if (id === ADD_SHEET_ID) {
+      this.addFrame?.setHovered(hovered);
+      return;
+    }
+    this.sheetsById.get(id)?.decorations?.setHovered(hovered);
+  }
+
+  _disposeAddFrame() {
+    if (!this.addFrame) return;
+    this.addFrame.dispose();
+    this.addFrame = null;
+    if (this.hoveredId === ADD_SHEET_ID) this.hoveredId = null;
+  }
 
   // Moves the camera by a similarity (rigid transform + uniform scale), at
   // once: what is on screen does not change when the scene moved the same.
@@ -475,9 +533,10 @@ export default class BaseMapsGridManager {
     return this._materials;
   }
 
-  // Grid poses of every sheet for the current anchor. Writes
-  // entry.gridPose and the session frame (K, yaw).
-  _computePoses({ anchorRef, K }) {
+  // Grid poses of every sheet for the current anchor (and of the "new base
+  // map" frame). Writes entry.gridPose and the session frame (K, yaw).
+  // Returns { box, addFrame } — the box spans the frame too.
+  _computePoses({ anchorRef, K, addSlot }) {
     const sheets = [...this.sheetsById.values()].map((entry) => entry.sheet);
 
     const result = computeBaseMapsGrid3dPoses({
@@ -485,6 +544,7 @@ export default class BaseMapsGridManager {
       anchorId: this.anchorId,
       anchorRef,
       K,
+      addSlot,
     });
     if (!result) return null;
 
@@ -495,7 +555,8 @@ export default class BaseMapsGridManager {
       entry.gridPose = result.poseById[id];
       result.cornersById[id].forEach((corner) => box.expandByPoint(corner));
     });
-    return { box };
+    result.addFrame?.corners.forEach((corner) => box.expandByPoint(corner));
+    return { box, addFrame: result.addFrame };
   }
 
   // One rAF loop for every group: position + scale lerp, quaternion slerp.
@@ -526,6 +587,7 @@ export default class BaseMapsGridManager {
 
     const land = () => {
       flights.forEach((flight) => applyPose(flight.group, getTarget(flight)));
+      if (toGrid && this.addFrame) this.addFrame.group.visible = true;
       this.sceneManager.renderScene();
       onDone?.();
     };
@@ -609,6 +671,7 @@ export default class BaseMapsGridManager {
     // placement hooks called below.
     this.sheetsById = new Map();
     entries.forEach((entry, id) => this._releaseEntry(id, entry));
+    this._disposeAddFrame();
     this.K = null;
     this.anchorId = null;
     this.closing = false;
