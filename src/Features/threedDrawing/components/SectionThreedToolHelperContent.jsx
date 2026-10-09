@@ -41,6 +41,9 @@ const VERTEX_OFFSET_SHORTCUTS = [
 // Shortcuts of the 3D « Isoler une face » (useIsolateFacePointerHandlers).
 const ISOLATE_FACE_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
 
+// Shortcuts of the 3D « Fusionner des faces » (useMergeFacesPointerHandlers).
+const MERGE_FACES_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
+
 // ---------------------------------------------------------------------------
 // SectionThreedToolHelperContent — drawing-helper body of the threedEditor
 // tools armed from « Outils de dessin » in the Dessin module's 3D editor
@@ -58,6 +61,7 @@ export default function SectionThreedToolHelperContent({ tool }) {
   const extrudeValueBuffer = useSelector(
     (s) => s.threedEditor.extrudeMode.valueBuffer
   );
+  const mergeFacesSeed = useSelector((s) => s.threedEditor.mergeFacesMode.seed);
   const extrudeTargetAnnotationId = useSelector(
     (s) => s.threedEditor.extrudeMode.targetAnnotationId
   );
@@ -179,6 +183,19 @@ export default function SectionThreedToolHelperContent({ tool }) {
       <SectionTransformToolHelper
         hint="Cliquez une face d'un mur ou d'une bande pour isoler son segment"
         shortcuts={ISOLATE_FACE_SHORTCUTS}
+      />
+    );
+  }
+
+  if (tool === "MERGE_FACES") {
+    return (
+      <SectionTransformToolHelper
+        hint={
+          mergeFacesSeed
+            ? "Cliquez une face coplanaire d'une annotation voisine pour la fusionner"
+            : "Cliquez la face de départ, puis les faces coplanaires des annotations voisines"
+        }
+        shortcuts={MERGE_FACES_SHORTCUTS}
       />
     );
   }

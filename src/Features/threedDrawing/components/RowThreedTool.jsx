@@ -14,9 +14,11 @@ import { Box, ListItemButton, Typography } from "@mui/material";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { activateMoveTool } from "Features/threedVertexOffset/utils/resolveVertexOffsetTarget";
+import activateMergeFacesTool from "Features/threedMergeFaces/utils/activateMergeFacesTool";
 
 // MOVE_ANNOTATION goes through activateMoveTool: a selected face arms the
-// vertex offset mode instead of the whole-annotation move.
+// vertex offset mode instead of the whole-annotation move. MERGE_FACES
+// through activateMergeFacesTool: a selected face is the seed of the merge.
 const ACTION_BY_THREED_TOOL = {
   EXTRUDE: setExtrudeModeActive,
   ROTATE_ANNOTATION: setRotateAnnotationModeActive,
@@ -57,6 +59,14 @@ export default function RowThreedTool({
   function handleClick() {
     if (threedTool === "MOVE_ANNOTATION") {
       activateMoveTool({
+        dispatch,
+        state: store.getState(),
+        editor: getActiveThreedEditor(),
+      });
+      return;
+    }
+    if (threedTool === "MERGE_FACES") {
+      activateMergeFacesTool({
         dispatch,
         state: store.getState(),
         editor: getActiveThreedEditor(),

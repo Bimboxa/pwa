@@ -66,7 +66,9 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
           t.rotateBaseMapMode.active ||
           t.moveAnnotationMode.active ||
           t.rotateAnnotationMode.active ||
-          t.baseMapsGridMode.active
+          t.baseMapsGridMode.active ||
+          t.isolateFaceMode.active ||
+          t.mergeFacesMode.active
         ) {
           return;
         }

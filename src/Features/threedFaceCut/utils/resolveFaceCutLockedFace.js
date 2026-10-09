@@ -88,10 +88,14 @@ function getStoredDisplayedMesh3d(editor, annotationId) {
   };
 }
 
-export default function resolveFaceCutLockedFace(state, editor) {
-  const part = getFaceCutLockedPart(state);
-  if (!part || !editor?.sceneManager) return null;
-  const { annotationId, faceIndex } = part;
+// The face `faceIndex` of an annotation as displayed in the scene — what
+// resolveFaceCutLockedFace returns (see above), for any (annotationId,
+// faceIndex) pair, plus `planeLocal`: { point, normal } of the face in the
+// base map LOCAL frame with ABSOLUTE z (the frame of a stored mesh once its
+// offsetZ is added back) — the frame « Fusionner des faces » keeps its seed
+// plane in. Null when the face does not exist on the current geometry.
+export function resolveAnnotationFace(editor, { annotationId, faceIndex }) {
+  if (!annotationId || !(faceIndex >= 0) || !editor?.sceneManager) return null;
 
   const source =
     editor.sceneManager.annotationsManager?.getAnnotationSource?.(annotationId);
@@ -104,6 +108,7 @@ export default function resolveFaceCutLockedFace(state, editor) {
   if (!face || !(face.loop?.length >= 3)) return null;
 
   const { mesh, baseMapGroup } = displayed;
+  const baseOffsetZ = displayed.baseOffsetZ ?? 0;
   const toWorld = (vi) => {
     const p = mesh3dLocalToWorld(mesh.vertices[vi], displayed);
     return { x: p.x, y: p.y, z: p.z };
@@ -113,6 +118,7 @@ export default function resolveFaceCutLockedFace(state, editor) {
   const normal = new Vector3(localNormal.x, localNormal.y, localNormal.z)
     .applyQuaternion(baseMapGroup.getWorldQuaternion(new Quaternion()))
     .normalize();
+  const first = mesh.vertices[face.loop[0]];
 
   return {
     annotationId,
@@ -123,14 +129,24 @@ export default function resolveFaceCutLockedFace(state, editor) {
     displayed: {
       mesh,
       baseMapGroup,
-      baseOffsetZ: displayed.baseOffsetZ ?? 0,
+      baseOffsetZ,
     },
     planeWorld: {
       point: loopsWorld[0][0],
       normal: { x: normal.x, y: normal.y, z: normal.z },
     },
+    planeLocal: {
+      point: { x: first.x, y: first.y, z: first.z + baseOffsetZ },
+      normal: { x: localNormal.x, y: localNormal.y, z: localNormal.z },
+    },
     loopsWorld,
   };
+}
+
+export default function resolveFaceCutLockedFace(state, editor) {
+  const part = getFaceCutLockedPart(state);
+  if (!part) return null;
+  return resolveAnnotationFace(editor, part);
 }
 
 // The cursor against the locked face: { position, normal, distance, inside }

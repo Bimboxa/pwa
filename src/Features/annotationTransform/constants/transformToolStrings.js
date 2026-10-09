@@ -7,6 +7,7 @@ export const TRANSFORM_TOOL_LABELS = {
   MOVE_ANNOTATION: "Déplacer",
   ROTATE_ANNOTATION: "Tourner",
   ISOLATE_FACE: "Isoler une face",
+  MERGE_FACES: "Fusionner des faces",
 };
 
 export function getMoveToolHint({ carriedCount }) {

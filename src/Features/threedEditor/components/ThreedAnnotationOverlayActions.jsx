@@ -12,6 +12,7 @@ import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 import ButtonCloneAnnotation from "Features/annotations/components/ButtonCloneAnnotation";
 import OverlayButtonHollowOutAnnotation from "Features/annotations/components/OverlayButtonHollowOutAnnotation";
 import OverlayButtonMoreAnnotationTools from "Features/annotations/components/OverlayButtonMoreAnnotationTools";
+import OverlayButtonMergeFaces from "Features/threedMergeFaces/components/OverlayButtonMergeFaces";
 
 import { Box3, Vector3 } from "three";
 
@@ -19,6 +20,7 @@ import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import getAnnotationHasEditTools from "Features/annotations/utils/getAnnotationHasEditTools";
 import getAnnotationHasOverlayActions from "Features/annotations/utils/getAnnotationHasOverlayActions";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 
 const ACCENT_COLOR = "#2196f3";
 
@@ -48,6 +50,11 @@ const BOX_CORNER_SIGNS = [
 // mode), so the two must stay in sync. The 2D-only toggles (move / resize
 // wrapper, cotes, segment drag, angle padlock) have no 3D equivalent.
 //
+// With exactly ONE selected face (annotation first, face second — mesh
+// annotations included), the row becomes the FACE row: « Fusionner »
+// (threedMergeFaces), placed above the point clicked on the face. The whole
+// row is hidden while that tool is armed.
+//
 // Own subscriptions on purpose: a MainThreedEditor re-render rebuilds the 3D
 // objects. The row is positioned imperatively (no state) at the top-center of
 // the annotation's on-screen bounding box and follows the camera.
@@ -67,6 +74,10 @@ export default function ThreedAnnotationOverlayActions() {
   const clickAnchor = useSelector((s) => s.mapEditor.annotationOverlayAnchor);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const isWidest = useIsWidestCoupledTab();
+  const selectedPartIds = useSelector((s) => s.selection.selectedPartIds);
+  const mergeFacesActive = useSelector(
+    (s) => s.threedEditor.mergeFacesMode.active
+  );
 
   const rowRef = useRef(null);
 
@@ -74,7 +85,7 @@ export default function ThreedAnnotationOverlayActions() {
 
   const annotationId = annotation?.id;
 
-  const active =
+  const baseActive =
     Boolean(annotationId) &&
     !String(annotationId).startsWith("temp") &&
     selectedItems.length === 1 &&
@@ -82,11 +93,20 @@ export default function ThreedAnnotationOverlayActions() {
     isWidest &&
     !walkActive &&
     !captureFramingActive &&
-    getAnnotationHasOverlayActions(annotation) &&
     (interactionMode == null || interactionMode === "EDIT");
+  // Exactly one selected face of this annotation (same rule as the face
+  // cut lock) — computed here, not in a selector: a fresh object each call.
+  const facePart = getFaceCutLockedPart({
+    selection: { selectedItems, selectedPartIds },
+  });
+  const isFaceRow = Boolean(facePart && facePart.annotationId === annotationId);
+  const active =
+    baseActive &&
+    !mergeFacesActive &&
+    (isFaceRow || getAnnotationHasOverlayActions(annotation));
 
-  const showHollowOutButton = annotation?.type === "POLYGON";
-  const showMoreButton = getAnnotationHasEditTools(annotation);
+  const showHollowOutButton = !isFaceRow && annotation?.type === "POLYGON";
+  const showMoreButton = !isFaceRow && getAnnotationHasEditTools(annotation);
 
   // effects - follow the annotation on screen
 
@@ -109,7 +129,8 @@ export default function ThreedAnnotationOverlayActions() {
     // annotation object, canvas px — null when it cannot be placed.
     const projectBoxTopCenter = (object) => {
       const camera = sceneManager.camera;
-      const canvasRect = sceneManager.renderer.domElement.getBoundingClientRect();
+      const canvasRect =
+        sceneManager.renderer.domElement.getBoundingClientRect();
       box.setFromObject(object);
       if (box.isEmpty()) return null;
       let minX = Infinity;
@@ -160,7 +181,8 @@ export default function ThreedAnnotationOverlayActions() {
       // swaps the root object.
       const object = annotationsManager.annotationsObjectsMap?.[annotationId];
       const camera = sceneManager.camera;
-      const canvasRect = sceneManager.renderer?.domElement?.getBoundingClientRect();
+      const canvasRect =
+        sceneManager.renderer?.domElement?.getBoundingClientRect();
       if (!object || !camera || !canvasRect?.width || !canvasRect?.height) {
         row.style.visibility = "hidden";
         return;
@@ -243,6 +265,7 @@ export default function ThreedAnnotationOverlayActions() {
     annotationId,
     annotation,
     clickAnchor,
+    isFaceRow,
     showHollowOutButton,
     showMoreButton,
   ]);
@@ -271,12 +294,15 @@ export default function ThreedAnnotationOverlayActions() {
         visibility: "hidden",
       }}
     >
-      <ButtonCloneAnnotation
-        key={annotationId}
-        variant="overlay"
-        accentColor={getAnnotationColor(annotation) || "#6366F1"}
-        overlayColor={ACCENT_COLOR}
-      />
+      {isFaceRow && <OverlayButtonMergeFaces overlayColor={ACCENT_COLOR} />}
+      {!isFaceRow && (
+        <ButtonCloneAnnotation
+          key={annotationId}
+          variant="overlay"
+          accentColor={getAnnotationColor(annotation) || "#6366F1"}
+          overlayColor={ACCENT_COLOR}
+        />
+      )}
       {showHollowOutButton && (
         <OverlayButtonHollowOutAnnotation
           annotation={annotation}

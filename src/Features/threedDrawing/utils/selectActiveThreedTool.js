@@ -4,7 +4,8 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // The threedEditor tool armed from the « Outils de dessin » rows of the
 // Dessin module's 3D editor (TOOL_ITEMS `threedTool`): "EXTRUDE" |
 // "MOVE_ANNOTATION" | "VERTEX_OFFSET" (Déplacer armed on a selected face) |
-// "ROTATE_ANNOTATION" | "ISOLATE_FACE" (Isoler une face), or null. Drives the drawing helper
+// "ROTATE_ANNOTATION" | "ISOLATE_FACE" (Isoler une face) | "MERGE_FACES"
+// (Fusionner des faces), or null. Drives the drawing helper
 // swap (PopperMapListings / PanelDrawing) and its content. Null outside
 // "Dessin module + 3D editor shown": the other modules keep their bottom
 // toolbars (ExtrudeToolbarThreed in Maillage).
@@ -16,5 +17,6 @@ export default function selectActiveThreedTool(s) {
   if (s.threedEditor.vertexOffsetMode.active) return "VERTEX_OFFSET";
   if (s.threedEditor.rotateAnnotationMode.active) return "ROTATE_ANNOTATION";
   if (s.threedEditor.isolateFaceMode.active) return "ISOLATE_FACE";
+  if (s.threedEditor.mergeFacesMode.active) return "MERGE_FACES";
   return null;
 }
