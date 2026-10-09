@@ -53,7 +53,7 @@ import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWo
 import resolveFaceCutLockedFace from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
-import commitDrawnFaceService, {
+import {
   FACE_COMMIT_NO_2D_ENCODING,
   commitDrawnFace,
 } from "../services/commitDrawnFaceService";
@@ -232,15 +232,31 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
+    // Templated face: encoded on its plan when it can be — else (a vertical
+    // face the band cannot reproduce) a flat mesh sheet keeping the template
+    // and its listing, whose plan projection is a segment.
     async function commitFace(cornersInOrder) {
-      return await commitDrawnFaceService({
-        cornersInOrder,
+      const common = {
         baseMaps: baseMaps || [],
         projectId,
         listingId,
-        templateProps: newAnnotationRef.current,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
+      };
+      const { annotation, reason } = await commitDrawnFace({
+        ...common,
+        cornersInOrder,
+        templateProps: newAnnotationRef.current,
+      });
+      if (annotation || reason !== FACE_COMMIT_NO_2D_ENCODING) {
+        return annotation;
+      }
+      return await createFlatMesh3dAnnotationService({
+        ...common,
+        editor,
+        vertices: cornersInOrder,
+        scopeId,
+        draftProps: newAnnotationRef.current,
       });
     }
 
@@ -760,7 +776,7 @@ export default function useDrawingPointerHandlers() {
         }
         if (created) {
           console.log(
-            `[threedDrawing] annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
+            `[threedDrawing] annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})${created.isMesh3d ? " (mesh sheet)" : ""}`
           );
           warnIfOffMainBaseMap(created);
           finishCommit();
