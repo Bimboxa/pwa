@@ -110,6 +110,7 @@ export default function ToolbarEditAnnotations({
   const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [pendingHeight, setPendingHeight] = useState(null);
+  const [pendingOffsetZ, setPendingOffsetZ] = useState(null);
   const [pendingIsExt, setPendingIsExt] = useState(null);
 
   // helpers - selected annotations
@@ -145,6 +146,16 @@ export default function ToolbarEditAnnotations({
   const canApplyHeight =
     typeof pendingHeight === "number" && Number.isFinite(pendingHeight);
 
+  // helpers - batch offsetZ (elevation of the annotation base, metres)
+
+  const offsetZValues = [...new Set(annotations.map((a) => a.offsetZ))];
+  const offsetZAreUniform = offsetZValues.length === 1;
+  const offsetZDisplayValue = offsetZAreUniform
+    ? (offsetZValues[0] ?? "")
+    : "Offsets variables";
+  const canApplyOffsetZ =
+    typeof pendingOffsetZ === "number" && Number.isFinite(pendingOffsetZ);
+
   const hasStrips = annotations.some((a) => a.type === "STRIP");
 
   const hasPolylines = annotations.some((a) => a.type === "POLYLINE");
@@ -172,7 +183,7 @@ export default function ToolbarEditAnnotations({
     isExtTargets.length > 0 && isExtTargets.every((a) => a.isExt);
   const canApplyIsExt =
     typeof pendingIsExt === "boolean" && pendingIsExt !== allTargetsAreExt;
-  const canApplyBatch = canApplyHeight || canApplyIsExt;
+  const canApplyBatch = canApplyHeight || canApplyIsExt || canApplyOffsetZ;
 
   const hasPolygons = annotations.some((a) => a.type === "POLYGON");
 
@@ -263,6 +274,7 @@ export default function ToolbarEditAnnotations({
   // Reset the pending values whenever the selection changes
   useEffect(() => {
     setPendingHeight(null);
+    setPendingOffsetZ(null);
     setPendingIsExt(null);
   }, [selectionKey]);
 
@@ -271,14 +283,25 @@ export default function ToolbarEditAnnotations({
     setPendingHeight(updated?.height);
   }
 
+  function handleBatchOffsetZFieldChange(updated) {
+    setPendingOffsetZ(updated?.offsetZ);
+  }
+
   async function handleApplyBatch() {
     if (!canApplyBatch || annotations.length === 0) return;
-    // Merge height (all annotations) and isExt (polylines / strips only)
-    // into a single update per annotation.
+    // Merge height + offsetZ (all annotations) and isExt (polylines /
+    // strips only) into a single update per annotation.
     const updatesById = new Map();
     if (canApplyHeight) {
       for (const a of annotations) {
         updatesById.set(a.id, { id: a.id, height: pendingHeight });
+      }
+    }
+    if (canApplyOffsetZ) {
+      for (const a of annotations) {
+        const update = updatesById.get(a.id) ?? { id: a.id };
+        update.offsetZ = pendingOffsetZ;
+        updatesById.set(a.id, update);
       }
     }
     if (canApplyIsExt) {
@@ -290,6 +313,7 @@ export default function ToolbarEditAnnotations({
     }
     await updateAnnotations([...updatesById.values()]);
     setPendingHeight(null);
+    setPendingOffsetZ(null);
     setPendingIsExt(null);
   }
 
@@ -564,11 +588,12 @@ export default function ToolbarEditAnnotations({
 
         <Divider sx={{ flexShrink: 0 }} />
 
-        {/* Batch height */}
+        {/* Batch height + offsetZ */}
         <Box
           sx={{
             flexShrink: 0,
             display: "flex",
+            flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 1,
@@ -584,6 +609,13 @@ export default function ToolbarEditAnnotations({
               ...(allPolygons && { type: "POLYGON" }),
             }}
             onChange={handleBatchHeightFieldChange}
+          />
+          <FieldAnnotationHeight
+            key={`${selectionKey}-offsetZ`}
+            annotation={{ id: "batch-offsetZ", offsetZ: offsetZDisplayValue }}
+            onChange={handleBatchOffsetZFieldChange}
+            field="offsetZ"
+            label="Offset"
           />
           {isExtTargets.length > 0 && (
             <FieldAnnotationIsExtSwitch
