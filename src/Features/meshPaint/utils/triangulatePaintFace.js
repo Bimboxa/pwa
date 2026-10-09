@@ -1,6 +1,6 @@
 import { ShapeUtils, Vector2 } from "three";
 
-import { length, normalize } from "../../threedMesh/utils/vec3Utils.js";
+import { length, normalize, scale } from "../../threedMesh/utils/vec3Utils.js";
 
 import {
   computeFaceBasis,
@@ -14,7 +14,8 @@ import {
 // every triangle is wound CCW about `normal` (its FRONT face looks toward the
 // painted side) and every vertex is lifted by `lift` meters along `normal`
 // (z-fight with the host face). A curved face is triangulated facet by
-// facet, each about its own normal.
+// facet, each about its own normal. `flip` reverses every normal (curved
+// facets included): the back skin of a paint, wound toward the other side.
 //
 // Pure (three.js math only, no scene): node-testable.
 
@@ -44,11 +45,15 @@ function cleanLoop(loop, basis) {
 
 /**
  * @param {{polygons: [{contour, holes}], normal}} localFace
- * @param {{lift?: number}} [options]
+ * @param {{lift?: number, flip?: boolean}} [options] lift: meters along the
+ *   (possibly flipped) normal; flip: wind and lift toward the other side.
  * @returns {{positions: Float32Array, normals: Float32Array}} non-indexed
  *   triangles (9 floats per triangle), flat normals.
  */
-export default function triangulatePaintFace(localFace, { lift = 0 } = {}) {
+export default function triangulatePaintFace(
+  localFace,
+  { lift = 0, flip = false } = {}
+) {
   const curved = isCurvedFace(localFace);
   let shared = localFace?.normal ? normalize(localFace.normal) : null;
   if (!shared || length(shared) === 0) shared = getFaceNewellNormal(localFace);
@@ -61,8 +66,9 @@ export default function triangulatePaintFace(localFace, { lift = 0 } = {}) {
     const origin = polygon?.contour?.[0];
     if (!origin) continue;
     // Curved surface: every facet has its own plane.
-    const n = curved ? getPolygonNormal(polygon) : shared;
-    if (!n) continue;
+    const facetNormal = curved ? getPolygonNormal(polygon) : shared;
+    if (!facetNormal) continue;
+    const n = flip ? scale(facetNormal, -1) : facetNormal;
     const basis = computeFaceBasis(n, origin);
     const contour = cleanLoop(polygon.contour, basis);
     if (!contour) continue;

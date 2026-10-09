@@ -185,7 +185,7 @@ Une ligne par partie peinte.
 
 - `components/ThreedMeshPaints.jsx` :
   - une couche par fond de plan, sous son groupe d'image ;
-  - facettes en peau `FrontSide` décollée de 1 mm ;
+  - facettes en deux peaux `FrontSide` : la peau avant décollée de 1 mm vers le côté peint, et une peau arrière, tournée vers l'autre côté et décollée de 0,5 mm, pour qu'une peinture reste visible des deux côtés d'un hôte fin (mesh ouvert, mur mince) ; sur un hôte épais la peau arrière est dans le volume, masquée par le test de profondeur ; si les deux côtés d'un hôte fin sont peints, la peau avant de chaque côté (1 mm) passe devant la peau arrière de l'autre (0,5 mm) ;
   - arêtes en lignes épaisses ;
   - `userData.isPaintOverlay`.
 - Avec `js/meshPaintObjectsStore.js` et `services/focusMeshPaintInThreed.js`.

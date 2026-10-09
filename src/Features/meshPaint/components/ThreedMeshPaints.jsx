@@ -118,6 +118,13 @@ function getFaceMaterialSource(template) {
   };
 }
 
+function concatFloat32(a, b) {
+  const out = new Float32Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
+}
+
 function syncClippingPlanes(material, planes) {
   if (!material) return;
   const next = planes && planes.length ? planes : null;
@@ -135,9 +142,15 @@ function syncClippingPlanes(material, planes) {
 // stays visible when its host's template or listing is hidden, and the host's
 // hover / dim must not tint it.
 //
-// - FACE: FrontSide skin (front = painted side) triangulated in its plane,
-//   lifted PAINT_FACE_LIFT_M along its normal + polygon offset, material of
-//   the painting template (makeMaterial, current render mode).
+// - FACE: two FrontSide skins triangulated in its plane, material of the
+//   painting template (makeMaterial, current render mode) + polygon offset:
+//   the front skin (painted side) lifted PAINT_FACE_LIFT_M along the normal,
+//   and a back skin wound toward the other side, lifted half as much the
+//   other way. A paint thus shows from both sides of a thin host (open mesh,
+//   thin wall) instead of vanishing when the camera turns; on a thick host
+//   the back skin sits inside the volume, hidden by the depth test. When both
+//   sides of a thin host are painted, each side's own front skin is nearer
+//   than the other paint's back skin, so each side keeps its own colour.
 // - EDGE: thick screen-space line (buildMesh3dEdgeLines) in the template's
 //   colour, exported as a polyline (userData.exportLine).
 // - Visibility: getMeshPaintVisibility (own template / listing, host layer,
@@ -365,9 +378,8 @@ export default function ThreedMeshPaints() {
         aquarelleShading: renderMode === "AQUARELLE",
         onAsyncLoaded: () => sceneManager.requestRender?.(),
       });
-      // Single-sided: only the painted side shows (the other side of a thin
-      // host keeps its own colour / paint). The back-face darkening of the
-      // Lambert branch is inert on front faces.
+      // FrontSide on both skins (see buildFaceObject): the back-face
+      // darkening of the Lambert branch stays inert.
       material.side = FrontSide;
       material.polygonOffset = true;
       material.polygonOffsetFactor = -1;
@@ -400,10 +412,16 @@ export default function ThreedMeshPaints() {
       clip
     );
     if (!displayed) return null;
-    const { positions, normals } = triangulatePaintFace(displayed, {
-      lift: PAINT_FACE_LIFT_M,
+    const front = triangulatePaintFace(displayed, { lift: PAINT_FACE_LIFT_M });
+    if (!front.positions?.length) return null;
+    // Back skin: visible from the other side of a thin host, nearer than the
+    // host but farther than that side's own paint (half lift).
+    const back = triangulatePaintFace(displayed, {
+      lift: PAINT_FACE_LIFT_M / 2,
+      flip: true,
     });
-    if (!positions?.length) return null;
+    const positions = concatFloat32(front.positions, back.positions);
+    const normals = concatFloat32(front.normals, back.normals);
 
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
@@ -431,9 +449,10 @@ export default function ThreedMeshPaints() {
     }
 
     if (highlighted) {
-      // Copy: the overlay must not share the paint's position array.
+      // Front skin only (copy: the overlay must not share the paint's
+      // position array).
       const overlay = buildStippleOverlayFromPositions(
-        Float32Array.from(positions),
+        Float32Array.from(front.positions),
         MESH3D_FACE_SELECTED_STIPPLE
       );
       if (overlay) mesh.add(overlay);

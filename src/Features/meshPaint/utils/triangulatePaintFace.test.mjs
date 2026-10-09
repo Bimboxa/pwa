@@ -107,3 +107,38 @@ test("triangulatePaintFace: concave L and degenerate input", () => {
   assert.equal(triangulatePaintFace({ polygons: [] }).positions.length, 0);
   assert.equal(triangulatePaintFace(null).positions.length, 0);
 });
+
+test("triangulatePaintFace: flip winds and lifts toward the other side", () => {
+  const n = v(0, -1, 0);
+  const face = {
+    polygons: [
+      {
+        contour: [v(0, 0, 0), v(5, 0, 0), v(5, 0, 2.5), v(0, 0, 2.5)],
+        holes: [],
+      },
+    ],
+    normal: n,
+  };
+  const { positions, normals } = triangulatePaintFace(face, {
+    lift: 0.0005,
+    flip: true,
+  });
+  const areas = triangleAreasAlong(positions, n);
+  assert.ok(
+    areas.every((a) => a < 0),
+    "every triangle CW about the painted normal (CCW about -n)"
+  );
+  near(
+    areas.reduce((s, a) => s - a, 0),
+    faceArea(face),
+    1e-5
+  );
+  // Lifted 0.5 mm away from the painted side (+y).
+  for (let i = 1; i < positions.length; i += 3)
+    near(positions[i], 0.0005, 1e-7);
+  for (let i = 0; i < normals.length; i += 3) {
+    near(normals[i], 0, 1e-9);
+    near(normals[i + 1], 1, 1e-9);
+    near(normals[i + 2], 0, 1e-9);
+  }
+});
