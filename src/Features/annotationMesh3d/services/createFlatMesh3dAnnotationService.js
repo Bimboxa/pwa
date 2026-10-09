@@ -12,24 +12,32 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 import buildFlatMesh3d from "../utils/buildFlatMesh3d";
 import { buildMesh3dStorage } from "./writeMesh3dService";
 
-// A closed contour drawn with the 3D "Dessin" tool that has no plan encoding
-// (commitDrawnFace returned NO_2D_ENCODING, e.g. an L-shaped contour on a
-// wall): a new template-less annotation holding a one-face mesh (a flat
-// sheet, pulled into a solid with the extrude tool). Every contour that HAS a
-// plan encoding stays a regular annotation.
+// A closed contour drawn in 3D that has no plan encoding (commitDrawnFace
+// returned NO_2D_ENCODING, e.g. an L-shaped contour on a wall, or a vertical
+// face with an apex that has no corner below it): a new annotation holding a
+// one-face mesh (a flat sheet, pulled into a solid with the extrude tool).
+// Every contour that HAS a plan encoding stays a regular annotation.
 //
-// vertices: drawn world points [{x, y, z, baseMapId?}]. Returns the created
-// annotation, or null.
+// draftProps: the armed newAnnotation — a template draft (the sheet keeps
+// the template + `listingId`, like commitDrawnFace), or the template-less
+// draft of the "Dessin" tool (the sheet belongs to the base map + `scopeId`
+// only). vertices: drawn world points [{x, y, z, baseMapId?}]. Returns the
+// created annotation, or null.
 export default async function createFlatMesh3dAnnotationService({
   editor,
   vertices,
   baseMaps,
   projectId,
   scopeId,
+  listingId = null,
   draftProps,
   layerId,
   createAnnotationFn,
 }) {
+  const isTemplateless =
+    Boolean(draftProps?.isTemplateless) && !draftProps?.annotationTemplateId;
+  if (!isTemplateless && !draftProps?.annotationTemplateId) return null;
+
   const carriedIds = new Set(vertices.map((v) => v.baseMapId).filter(Boolean));
   let host = null;
   if (carriedIds.size === 1) {
@@ -64,7 +72,7 @@ export default async function createFlatMesh3dAnnotationService({
     metrics,
     baseMapId: host.id,
     projectId,
-    listingId: null,
+    listingId: isTemplateless ? null : listingId,
   });
   if (!storage) return null;
   const { pointRows, mesh3d, offsetZ, points, cuts } = storage;
@@ -78,14 +86,17 @@ export default async function createFlatMesh3dAnnotationService({
   const annotation = {
     id: nanoid(),
     projectId,
-    scopeId: scopeId ?? null,
-    listingId: null,
+    ...(isTemplateless
+      ? { scopeId: scopeId ?? null, listingId: null, isTemplateless: true }
+      : {
+          listingId,
+          annotationTemplateId: draftProps.annotationTemplateId,
+        }),
     baseMapId: host.id,
     ...(layerId ? { layerId } : {}),
     createdAt: now,
     updatedAt: now,
     ...fields,
-    isTemplateless: true,
     isMesh3d: true,
     mesh3d,
     points,

@@ -30,7 +30,7 @@ import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnn
 //               the floor (+ ramp), top = the facet's top. No run → NO_GROUND
 //               (the caller shows a toaster, nothing is written — the paint
 //               row is NOT a fallback there).
-//   FACE_2D     commitDrawnFace in strict mode (PARALLEL polygon with cuts,
+//   FACE_2D     commitDrawnFace (PARALLEL polygon with cuts,
 //               exact vertical band, oblique polygon) → else FALLBACK.
 //   POLYLINE_2D commitDrawnPolyline (horizontal edge) → else FALLBACK.
 //   PAINT       FALLBACK (curved / multi-polygon facet, sloped edge).
@@ -126,7 +126,6 @@ export default async function commitMeshBrush2dService({
       const { annotation, reason } = await commitDrawnFace({
         cornersInOrder: polygon.contour.map(toWorld),
         holes: (polygon.holes || []).map((hole) => hole.map(toWorld)),
-        strict: true,
         ignoreTemplateHeight: true,
         ...common,
       });

@@ -7,8 +7,10 @@ import { getFaceLoops } from "./mesh3dTopology.js";
 // plane (local z dropped), as ONE polygon with holes — what the 2D
 // annotation of an isMesh3d annotation draws.
 //
-// Returns { contour: [{x, y}], holes: [[{x, y}]] } in local meters (open
-// loops), or null for an empty mesh.
+// Returns { contour: [{x, y}], holes: [[{x, y}]], isSegment } in local
+// meters (open loops), or null for an empty mesh. isSegment: no face has a
+// plan area — the contour is the thin quad around the projected segment
+// (buildThinQuad), drawn as a line in 2D.
 
 // Snap grid (meters) applied before the union so the shared edges of
 // neighbor faces land on identical coordinates.
@@ -53,7 +55,8 @@ function openRing(ring) {
 }
 
 // No face has a plan area (e.g. a single vertical face): a thin quad around
-// the projected segment keeps the 2D annotation a valid polygon.
+// the projected segment keeps the 2D annotation a valid polygon (the 2D
+// renderer draws it as a line, see getMesh3dSegmentFromQuad).
 function buildThinQuad(vertices) {
   let a = null;
   let b = null;
@@ -96,6 +99,7 @@ function buildThinQuad(vertices) {
       { x: a.x - ex + nx, y: a.y - ey + ny },
     ],
     holes: [],
+    isSegment: true,
   };
 }
 
@@ -151,5 +155,6 @@ export default function projectMesh3dToRings(mesh) {
       .slice(1)
       .map(openRing)
       .filter((hole) => hole.length >= 3),
+    isSegment: false,
   };
 }

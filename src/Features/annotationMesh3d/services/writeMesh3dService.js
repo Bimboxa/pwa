@@ -33,6 +33,10 @@ const CLEARED_ARRAY_FIELDS = [
 
 // Storage fields of a mesh: the stored mesh (normalized), the offsetZ it
 // stands on and its plan projection as fresh db.points rows + refs.
+// `mesh3dPlanIsSegment`: the projection has no area (a lone vertical face),
+// the points are a thin quad around a segment that the 2D renderer draws as
+// a line — re-derived at every write, so a sheet pulled into a solid loses
+// the flag.
 //
 // The points are always NEW rows, never reused: a projection vertex shared
 // with a neighbor annotation would deform the polygon (but not the mesh) as
@@ -70,6 +74,7 @@ export function buildMesh3dStorage({
     offsetZ,
     points: toRefs(rings.contour),
     cuts: rings.holes.map((hole) => ({ id: nanoid(), points: toRefs(hole) })),
+    mesh3dPlanIsSegment: Boolean(rings.isSegment),
     pointRows,
   };
 }

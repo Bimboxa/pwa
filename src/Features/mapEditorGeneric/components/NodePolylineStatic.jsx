@@ -68,6 +68,7 @@ import NodeLabelStatic from "./NodeLabelStatic";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 import getArrowsAlongPolyline from "Features/annotations/utils/getArrowsAlongPolyline";
+import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dSegmentFromQuad";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
@@ -86,6 +87,8 @@ const CIRCULATION_ARROW_GAP_PX = 4;
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
 // independent band is what the user can rely on to click a specific edge.
 const POLYGON_HIT_STROKE_WIDTH_PX = 10;
+// Screen width of the line standing for a mesh sheet with no plan area.
+const MESH3D_SEGMENT_STROKE_PX = 3;
 
 // Per-half-arc sampling of the guide when building the inline "Extrusion"
 // band (its offset must follow the true arc tangent — see the band memo).
@@ -185,6 +188,32 @@ function NodePolylineStatic({
 
   if (type === "POLYGON") closeLine = true;
 
+  // --- MESH SHEET WITH A SEGMENT PROJECTION ---
+  // An isMesh3d annotation whose mesh has no plan area (a lone vertical
+  // face): its points are a thin quad around the projected segment
+  // (projectMesh3dToRings). Drawn as a 3 px line along that segment, in the
+  // fill color — rendered as a virtual POLYLINE (no fill, polyline hit area,
+  // no vertices since isMesh3d disables vertex editing). The data attributes
+  // below keep the real type.
+  const mesh3dSegment =
+    mergedAnnotation.isMesh3d && mergedAnnotation.mesh3dPlanIsSegment
+      ? getMesh3dSegmentFromQuad(points)
+      : null;
+  if (mesh3dSegment) {
+    points = mesh3dSegment.map((p, i) => ({
+      id: `${annotationId}::mesh3d-seg-${i}`,
+      type: "square",
+      x: p.x,
+      y: p.y,
+    }));
+    type = "POLYLINE";
+    closeLine = false;
+    strokeColor = fillColor;
+    strokeOpacity = fillOpacity ?? strokeOpacity;
+    strokeWidth = MESH3D_SEGMENT_STROKE_PX;
+    strokeWidthUnit = "PX";
+  }
+
   const labelAnnotation =
     getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
   const showLabel = mergedAnnotation.showLabel && !forceHideLabel;
@@ -232,7 +261,7 @@ function NodePolylineStatic({
     "data-node-entity-id": mergedAnnotation.entityId,
     "data-node-listing-id": mergedAnnotation.listingId,
     "data-node-type": "ANNOTATION",
-    "data-annotation-type": type,
+    "data-annotation-type": mergedAnnotation.type,
   };
 
   const patternIdRef = useRef(
@@ -778,8 +807,11 @@ function NodePolylineStatic({
             if (!isTransient) setHoveredPartId(partId);
           }}
           onMouseLeave={() => setHoveredPartId(null)}
-          data-part-id={partId}
-          data-part-type={segPartType}
+          // The virtual segment of a mesh sheet is not a part: a click
+          // selects the whole annotation (its geometry is locked in 2D).
+          {...(mesh3dSegment
+            ? {}
+            : { "data-part-id": partId, "data-part-type": segPartType })}
           data-node-id={annotationId}
           style={{ cursor: getPartCursor(partId) }}
         >

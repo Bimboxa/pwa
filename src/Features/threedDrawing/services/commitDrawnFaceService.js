@@ -55,9 +55,6 @@ export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
 //   - holes: inner rings of the face (3D world points), kept as POLYGON
 //     `cuts` on a PARALLEL face; a vertical / oblique face with holes has no
 //     plan encoding (NO_2D_ENCODING)
-//   - strict: refuse an inexact vertical band for a templated face too (the
-//     « Pinceau », which falls back on a paint row) — by default only the
-//     template-less face is strict
 //   - ignoreTemplateHeight: a PARALLEL face stays flat (height 0) instead of
 //     taking the template's extrusion height (a painted face is a coating)
 //   - extraFields: spread last on the annotation (provenance markers…)
@@ -70,8 +67,9 @@ export default async function commitDrawnFaceService(args) {
 
 // Same commit, with the reason of a failure: { annotation } or
 // { annotation: null, reason }. reason FACE_COMMIT_NO_2D_ENCODING: the face
-// has no plan encoding — a template-less vertical face the band cannot
-// reproduce (an L, a U...: isVerticalBandExact).
+// has no plan encoding — a vertical face the band cannot reproduce (an L, a
+// U, an apex without a corner below it...: isVerticalBandExact), templated
+// or not. The caller falls back (a mesh sheet, a paint row...).
 export async function commitDrawnFace({
   cornersInOrder,
   baseMaps,
@@ -82,7 +80,6 @@ export async function commitDrawnFace({
   layerId = null,
   createAnnotationFn = null,
   holes = [],
-  strict = false,
   ignoreTemplateHeight = false,
   extraFields = null,
 }) {
@@ -177,12 +174,10 @@ export async function commitDrawnFace({
       // and drew the full bounding rectangle).
       const band = buildVerticalBandPoints(classification.projected);
       if (!band) return abort("degenerate PERPENDICULAR band");
-      // A template-less face has a fallback (a mesh sheet), a painted face a
-      // paint row: never commit a band that would fill another shape.
-      if (
-        (isTemplateless || strict) &&
-        !isVerticalBandExact(classification.projected)
-      )
+      // Never commit a band that would fill another shape (an apex without
+      // a corner below it came out as a triangle): the caller falls back —
+      // a mesh sheet for a drawn face, a paint row for the « Pinceau ».
+      if (!isVerticalBandExact(classification.projected))
         return abort(
           "vertical face not encodable as a band",
           FACE_COMMIT_NO_2D_ENCODING

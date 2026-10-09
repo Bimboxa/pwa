@@ -27,6 +27,7 @@ import {
   getShape3DKey,
 } from "Features/annotations/constants/shape3DConfig";
 import getMesh3dQties from "Features/annotationMesh3d/utils/getMesh3dQties";
+import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dSegmentFromQuad";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
@@ -731,6 +732,17 @@ export default function getAnnotationQties({
       imageSize?.width &&
       imageSize?.height
     ) {
+      // A projection with no area (a lone vertical face) is stored as a thin
+      // quad around a segment: the plan length is that segment's, not the
+      // quad's perimeter, and the plan surface is nil.
+      if (annotation.mesh3dPlanIsSegment) {
+        const segment = getMesh3dSegmentFromQuad(points);
+        if (segment) {
+          const [a, b] = segment;
+          result.length = Math.hypot(b.x - a.x, b.y - a.y) * meterByPx;
+          result.surface = 0;
+        }
+      }
       const meshQties = getMesh3dQties(
         mesh3dToLocal(annotation.mesh3d, {
           imageWidth: imageSize.width,
