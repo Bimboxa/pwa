@@ -13,10 +13,14 @@ const EMPTY = {};
 // filter is swapped for the ids of the sheets, loaded in ONE query.
 // `ignoreHideAnnotations`: the annotations eye belongs to the MAIN base map —
 // the base maps overlaid on it in the 2D editor have their own toggles.
+// `filterByListingId` / `annotationIdSet`: the SCOPE module narrows the
+// sheets to the listing selected in its panel (useScopeGridAnnotationsFilter).
 export default function useBaseMapsGridAnnotations({
   baseMapIds,
   forViewerKey,
   ignoreHideAnnotations = false,
+  filterByListingId,
+  annotationIdSet = null,
 }) {
   // data
 
@@ -48,6 +52,7 @@ export default function useBaseMapsGridAnnotations({
     hideBaseMapAnnotations: openedPanel !== "BASE_MAP_DETAIL",
     filterByBaseMapId: firstId,
     extraBaseMapIds: otherIds,
+    filterByListingId,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: !isBaseMapsViewer,
@@ -61,6 +66,7 @@ export default function useBaseMapsGridAnnotations({
     annotations.forEach((annotation) => {
       // temp annotations are appended whatever their base map
       if (!ids.has(annotation.baseMapId)) return;
+      if (annotationIdSet && !annotationIdSet.has(annotation.id)) return;
       if (showMeshCells) {
         if (parentIdSet.has(annotation.id)) return;
       } else if (annotation.isMeshCell) return;
@@ -71,5 +77,11 @@ export default function useBaseMapsGridAnnotations({
     });
     return byBaseMapId;
     // baseMapIds: its content is tracked by the annotations query itself.
-  }, [annotations, hideAnnotations, showMeshCells, parentIdSet]);
+  }, [
+    annotations,
+    hideAnnotations,
+    showMeshCells,
+    parentIdSet,
+    annotationIdSet,
+  ]);
 }

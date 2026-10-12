@@ -51,15 +51,25 @@ export default function RowAllListingsInGroup({
           "&:hover": { bgcolor: "transparent" },
         }}
       >
-        <ListingFamilyAvatar
-          familyType={null}
-          familyIcon={familyIcon}
-          selected={selected}
-        />
+        {/* No family mark for the "all listings" row — the slot is kept so
+            the label aligns with the listing rows below. */}
+        <Box sx={{ visibility: "hidden", display: "flex" }}>
+          <ListingFamilyAvatar
+            familyType={null}
+            familyIcon={familyIcon}
+            selected={selected}
+          />
+        </Box>
         <Typography
           variant="body2"
           noWrap
-          sx={{ flex: 1, minWidth: 0, fontWeight: selected ? 700 : 400 }}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontWeight: selected ? 700 : 400,
+            fontStyle: "italic",
+            color: "text.disabled",
+          }}
         >
           {label}
         </Typography>

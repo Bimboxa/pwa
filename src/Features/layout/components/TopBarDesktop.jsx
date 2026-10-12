@@ -81,7 +81,7 @@ export default function TopBarDesktop() {
     if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
       dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
     }
-    // The listing viewer reads s.listings.selectedListingId (MainListingViewer,
+    // The SCOPE module reads s.listings.selectedListingId (useScopeListing,
     // SelectorListingForViewer), not the listingViewer slice. A plan opened
     // from a listing goes back to that listing; one opened from the
     // all-listings recap goes back to it.

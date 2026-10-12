@@ -15,7 +15,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { setSelectedListingId } from "Features/listings/listingsSlice";
+import {
+  setSelectedListingId,
+  setScopeModuleShowAllListings,
+} from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -70,6 +73,10 @@ import {
 import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
+import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
+import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
+import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
+import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
@@ -1545,6 +1552,8 @@ export default function PopperMapListings() {
   // eslint-disable-next-line no-unused-vars
   const addListS = "+ Liste";
   const soloS = "Solo :";
+  const scopeFilterS = "Filtre :";
+  const exitScopeFilterS = "Afficher toutes les listes";
   const showAnnotationsS = "Afficher les annotations";
   const exitSoloS = "Quitter le solo";
 
@@ -1623,7 +1632,23 @@ export default function PopperMapListings() {
     (s) =>
       isBaseMapsLegend && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const isLegendPopper = isViewerModule || isBaseMapsLegend;
+  // SCOPE module (pinned base maps grid, read-only): same bare legend as the
+  // Viewer module, plus the "Contenu" side (the scope content: every listing
+  // of the scope whatever its nature) — the popper lands on it when the
+  // module is entered (popperMapListingsSlice).
+  const isScopeModule = viewerKey === "SCOPE";
+  const { listing: scopeListing } = useScopeListing();
+  // While its grid is displayed, the annotations legend mirrors it: the
+  // sheets on the table (baseMapsGrid.scopeSheets) narrowed to the selected
+  // listing (useScopeGridAnnotationsFilter) — all of them with "Afficher
+  // toutes les listes". With the grid left, the legend is the main base
+  // map's, like the Viewer 2D.
+  const isScopeGridOpen = useSelector(selectBaseMapsGridScopeOpen);
+  const scopeFilter = useScopeGridAnnotationsFilter();
+  const scopeSheetIds = useSelector(
+    (s) => s.baseMapsGrid.scopeSheets.baseMapIds
+  );
+  const isLegendPopper = isViewerModule || isBaseMapsLegend || isScopeModule;
   // BaseMaps module legend with the "Afficher les annotations" switch OFF:
   // there is no annotations side — the popper is the base maps list only
   // (plain title, no toggle, attached whatever the detach flag).
@@ -1696,7 +1721,11 @@ export default function PopperMapListings() {
 
   // 3D can show annotations from several base maps at once; mirror those extra
   // base maps here so the panel's visible set matches the 3D scene.
-  const extraBaseMapIds = useExtraBaseMapIdsIn3d();
+  const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
+  const extraBaseMapIds = useMemo(() => {
+    if (!isScopeGridOpen) return extraBaseMapIdsIn3d;
+    return scopeSheetIds.filter((id) => id !== baseMap?.id);
+  }, [isScopeGridOpen, extraBaseMapIdsIn3d, scopeSheetIds, baseMap?.id]);
 
   // single annotation source for all counts and for the SELECT-mode visibility
   // filter. `ignoreSolo` keeps this set stable while a zone is soloed (zonings
@@ -1712,7 +1741,8 @@ export default function PopperMapListings() {
       viewerKey === "ZONES" ||
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
-      isThreedViewer,
+      isThreedViewer ||
+      isScopeModule,
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
     withQties: true,
@@ -1729,6 +1759,17 @@ export default function PopperMapListings() {
           excludeListingsIds: hiddenListingsIds,
         }
       : {}),
+    // SCOPE module: the sheets of the displayed grid, the selected listing.
+    ...(isScopeModule
+      ? {
+          extraBaseMapIds,
+          filterBySelectedScope: true,
+          excludeListingsIds: hiddenListingsIds,
+          filterByListingId: isScopeGridOpen
+            ? scopeFilter.filterByListingId
+            : undefined,
+        }
+      : {}),
   });
 
   // "Dessin" tool row counter: annotations drawn without template in the
@@ -1742,9 +1783,18 @@ export default function PopperMapListings() {
   );
 
   // visible-only set for counts and qties (matches what's on screen).
+  // SCOPE module narrowed to a business-objects listing: only the
+  // annotations linked to its objects (same set as the grid).
+  const scopeAnnotationIdSet = isScopeGridOpen
+    ? scopeFilter.annotationIdSet
+    : null;
   const allAnnotations = useMemo(
-    () => allAnnotationsInclHidden?.filter((a) => !a.hidden),
-    [allAnnotationsInclHidden]
+    () =>
+      allAnnotationsInclHidden?.filter(
+        (a) =>
+          !a.hidden && (!scopeAnnotationIdSet || scopeAnnotationIdSet.has(a.id))
+      ),
+    [allAnnotationsInclHidden, scopeAnnotationIdSet]
   );
 
   const annotationTemplates = useAnnotationTemplates();
@@ -1794,6 +1844,16 @@ export default function PopperMapListings() {
       return acc;
     }, {});
   }, [allAnnotations]);
+
+  // SCOPE module "Fonds de plan" rows: counts narrowed like the legend.
+  const scopeCountByBaseMapId = useMemo(() => {
+    if (!isScopeModule || !allAnnotations) return null;
+    return allAnnotations.reduce((acc, a) => {
+      if (a.baseMapId && !isLegacyStyleRevolutionHelper(a))
+        acc[a.baseMapId] = (acc[a.baseMapId] || 0) + 1;
+      return acc;
+    }, {});
+  }, [isScopeModule, allAnnotations]);
 
   const annotationsByListingId = useMemo(() => {
     if (!allAnnotations) return {};
@@ -1853,7 +1913,12 @@ export default function PopperMapListings() {
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
-    (!baseMapsListDetached || showPhotosToggle || showToolsSide);
+    (!baseMapsListDetached ||
+      showPhotosToggle ||
+      showToolsSide ||
+      isScopeModule);
+  const showScopeContentBody =
+    isScopeModule && showContentToggle && popperContentMode === "CONTENT";
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
   const showBaseMapsBody =
     isBaseMapsListOnly ||
@@ -1862,9 +1927,14 @@ export default function PopperMapListings() {
       popperContentMode === "BASE_MAPS");
   const showToolsBody =
     showContentToggle && showToolsSide && popperContentMode === "TOOLS";
-  // Side title row with the properties button: not in the Viewer module nor
-  // the BaseMaps module (read-only legends, no popper properties there).
-  const showSideProperties = !isBaseMapsViewer && !isViewerModule;
+  // Annotations side (the standard body): no other side displayed.
+  const showStandardBody =
+    !collapsed && !showBaseMapsBody && !showToolsBody && !showScopeContentBody;
+  // Side title row with the properties button: not in the Viewer / SCOPE
+  // modules nor the BaseMaps module (read-only legends, no popper properties
+  // there).
+  const showSideProperties =
+    !isBaseMapsViewer && !isViewerModule && !isScopeModule;
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -1917,12 +1987,15 @@ export default function PopperMapListings() {
     let arr = allAnnotationsInclHidden ?? [];
     if (mirrors3dFilters && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
+    if (scopeAnnotationIdSet)
+      arr = arr.filter((a) => scopeAnnotationIdSet.has(a.id));
     return arr;
   }, [
     allAnnotationsInclHidden,
     mirrors3dFilters,
     hideMainAnnotationsIn3d,
     baseMap?.id,
+    scopeAnnotationIdSet,
   ]);
 
   // Parts painted in 3D (« Pinceau ») — same scope as the annotations above
@@ -2026,7 +2099,20 @@ export default function PopperMapListings() {
     (!selectedListingId || selectedListingId === returnListingId)
       ? scopedListings?.find((l) => l.id === returnListingId)
       : null;
-  const displayedListings = returnListing ? [returnListing] : scopedListings;
+  // SCOPE module with an annotation listing picked on the "Contenu" side:
+  // the legend narrows to it (the grid draws that listing only, see
+  // useScopeGridAnnotationsFilter); "Afficher toutes les listes" shows all.
+  const scopeFilterListing =
+    isScopeGridOpen &&
+    scopeListing?.entityModel?.type === "LOCATED_ENTITY" &&
+    !scopeListing?.isForBaseMaps
+      ? scopedListings?.find((l) => l.id === scopeListing.id)
+      : null;
+  const displayedListings = returnListing
+    ? [returnListing]
+    : scopeFilterListing
+      ? [scopeFilterListing]
+      : scopedListings;
   // No listing yet → the "+ Liste" chip becomes the main CTA (contained, orange).
   const hasNoListing = !displayedListings?.length;
   const canAddListing = !isBaseMapsViewer && !isThreedViewer;
@@ -2230,6 +2316,7 @@ export default function PopperMapListings() {
 
         {showContentToggle ? (
           <ToggleContentMode
+            showContent={isScopeModule}
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
             showTools={showToolsSide}
@@ -2307,10 +2394,55 @@ export default function PopperMapListings() {
         </Box>
       )}
 
+      {/* SCOPE module filter band, under the header on every side: the
+          listing picked on the "Contenu" side narrows the grid and the
+          legend — the cross goes back to "Afficher toutes les listes". */}
+      {isScopeGridOpen && scopeListing && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            pl: 1.5,
+            pr: 0.5,
+            py: 0.25,
+            flexShrink: 0,
+            bgcolor: "secondary.main",
+            color: "secondary.contrastText",
+          }}
+        >
+          <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+            <b>{scopeFilterS}</b> {scopeListing.name}
+          </Typography>
+          <Tooltip title={exitScopeFilterS} arrow placement="top">
+            <IconButton
+              size="small"
+              onClick={() => {
+                dispatch(setScopeModuleShowAllListings(true));
+                dispatch(setSelectedItem(null));
+              }}
+              sx={{ color: "inherit", p: 0.25 }}
+            >
+              <Close sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
+      {/* "Contenu" side (SCOPE module): the scope content replaces the whole
+          body — every listing of the scope, grouped by family. */}
+      {!collapsed && showScopeContentBody && (
+        <Box sx={{ overflow: "auto", flex: 1 }}>
+          <SectionPopperScopeContent />
+        </Box>
+      )}
+
       {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionBaseMapsList />
+          <SectionBaseMapsList
+            countByBaseMapIdOverride={scopeCountByBaseMapId}
+          />
           <SectionBaseMapsTools />
         </Box>
       )}
@@ -2327,7 +2459,7 @@ export default function PopperMapListings() {
         </Box>
       )}
 
-      {!collapsed && !showBaseMapsBody && !showToolsBody && (
+      {showStandardBody && (
         <>
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
@@ -2563,7 +2695,8 @@ export default function PopperMapListings() {
           at the bottom (collapsed panel included). */}
       {(soloTemplateId || soloRevolutionAxisId) &&
         !showBaseMapsBody &&
-        !showToolsBody && (
+        !showToolsBody &&
+        !showScopeContentBody && (
           <Box
             sx={{
               display: "flex",

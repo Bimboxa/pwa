@@ -13,15 +13,20 @@ import composeBaseMapsGridSheets from "Features/baseMapsGrid/utils/composeBaseMa
 //     meterByPx }]
 //   addSlot: { positionPt, pagePt } — the "new base map" frame closing the
 //     grid (same slot as the "+" frame of the 2D grid), null without listing.
+// `baseMapIds` (pinned grid): explicit set instead of the listing's base
+// maps (see composeBaseMapsGridSheets); `withAddSlot` false drops the frame.
 export default function buildBaseMapsGrid3dSheets({
   baseMaps,
   listingId,
+  baseMapIds,
   positions,
+  withAddSlot = true,
 }) {
-  if (!listingId) return { sheets: [], addSlot: null };
+  if (!listingId && !baseMapIds) return { sheets: [], addSlot: null };
   const { items, addSheet } = composeBaseMapsGridSheets({
     baseMaps,
     listingId,
+    baseMapIds,
     positions,
   });
 
@@ -43,10 +48,12 @@ export default function buildBaseMapsGrid3dSheets({
     })
     .filter(Boolean);
 
-  const addSlot = {
-    positionPt: { x: addSheet.x, y: addSheet.y },
-    pagePt: { width: addSheet.width, height: addSheet.height },
-  };
+  const addSlot = withAddSlot
+    ? {
+        positionPt: { x: addSheet.x, y: addSheet.y },
+        pagePt: { width: addSheet.width, height: addSheet.height },
+      }
+    : null;
 
   return { sheets, addSlot };
 }

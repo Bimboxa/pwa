@@ -36,7 +36,7 @@ export const selectEffectiveViewerKey = (s) => {
   // (the shared "MAP" instance, or the BaseMap module's own instance).
   if (editorKey === "THREED" && s.appConfig.disable3D) {
     if (
-      ["MAP", "ZONES", "THREED", "BASE_MAPS"].includes(moduleKey) ||
+      ["MAP", "ZONES", "THREED", "BASE_MAPS", "SCOPE"].includes(moduleKey) ||
       isBusinessObjectsModuleKey(moduleKey)
     )
       return get2dEditorKeyForModule(moduleKey);

@@ -3,10 +3,17 @@ import { createSlice } from "@reduxjs/toolkit";
 // "SELECTOR" (LISTE ACTIVE field) | "AVATARS" (listing avatars band).
 const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 
-// Header toggle of the popper / PanelDrawing: "ANNOTATIONS" | "PHOTOS" (Viewer
-// module with photos) | "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes":
-// the drawing tools, popper only, while they are attached).
-const CONTENT_MODES = ["ANNOTATIONS", "PHOTOS", "BASE_MAPS", "TOOLS"];
+// Header toggle of the popper / PanelDrawing: "CONTENT" (scope content, SCOPE
+// module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module with photos) |
+// "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes": the drawing tools,
+// popper only, while they are attached).
+const CONTENT_MODES = [
+  "CONTENT",
+  "ANNOTATIONS",
+  "PHOTOS",
+  "BASE_MAPS",
+  "TOOLS",
+];
 
 const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
@@ -89,6 +96,17 @@ const popperMapListingsSlice = createSlice({
         ? action.payload
         : "AVATARS";
     },
+  },
+  extraReducers: (builder) => {
+    // The "Contenu" side exists in the SCOPE module only: the popper lands
+    // on the annotations when the module is entered (the content is one tab
+    // away), and leaves the "Contenu" side when the module is left (the
+    // other modules have no such side).
+    builder.addCase("viewers/setSelectedViewerKey", (state, action) => {
+      if (action.payload === "SCOPE") state.viewerContentMode = "ANNOTATIONS";
+      else if (state.viewerContentMode === "CONTENT")
+        state.viewerContentMode = "ANNOTATIONS";
+    });
   },
 });
 

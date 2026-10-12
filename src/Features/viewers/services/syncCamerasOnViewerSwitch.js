@@ -123,6 +123,19 @@ function probe2d(label, { cameraMatrix, basePose, s }) {
 
 let isSwitching = false;
 
+// Resolves once no 2D <-> 3D switch is in flight (right away when none is):
+// a camera move that must not fight the switch's own animation (the 3D base
+// maps grid fit, see useBaseMapsGrid3d) waits on it.
+export function waitForViewerSwitch() {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!isSwitching) resolve();
+      else requestAnimationFrame(check);
+    };
+    check();
+  });
+}
+
 // Sprites rendered with sizeAttenuation:false are NOT fov-invariant: their
 // on-screen size is ∝ 1/tan(fov/2) (three's sprite shader only cancels the
 // perspective divide, not the projection scale). During the dolly-zoom of the

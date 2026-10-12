@@ -21,7 +21,7 @@ const chipSx = {
 };
 
 // One stat chip: family icon + count. Shared with the SCOPE module listing
-// selector (RowListingInGroup, ButtonSelectorListingInViewer), so a listing
+// selector (RowListingInGroup), so a listing
 // row there reads like a scope row of the dashboard. `tooltip` is optional.
 export function ChipScopeStat({ icon, label, tooltip, sx }) {
   const chip = (

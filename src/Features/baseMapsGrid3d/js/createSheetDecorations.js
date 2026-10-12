@@ -8,14 +8,16 @@ import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 
 // Decorations of one sheet of the 3D base maps grid. They are CHILDREN of the
 // base map group (local metres), so they follow its flight for free:
-//   - outline: print zone frame (screen-space fat line; grey, orange hovered)
+//   - outline: print zone frame (screen-space fat line; grey, orange hovered
+//     / selected — hover wins)
 //   - hitPlane: invisible plane over the print zone — hover / click target,
 //     also for the sheets that have no image mesh
 //   - label: base map name in the middle, shown while the image is hidden
 //   - eye: round button at the bottom-left, the image eye of the base map
 //     (same state as the layer icon of the base map chips)
 //   - nav: round button at the bottom-right, leaves the grid around this
-//     sheet (it stays where it is on screen)
+//     sheet (it stays where it is on screen) — left out when the grid is
+//     pinned (`showNav` false: nothing to leave)
 // Everything is tagged `userData.isGridPlaceholder` (ignored by the export,
 // the snap index and the clipping).
 
@@ -27,13 +29,14 @@ const BUTTON_INSET_RATIO = 0.06;
 const BUTTON_CSS_SIZE = 28;
 
 // sheet: see buildBaseMapsGrid3dSheets. meterByPx: the EFFECTIVE scale of the
-// sheet (see computeBaseMapsGrid3dPoses). materials: { idle, hover } shared
-// LineMaterials owned by the manager.
+// sheet (see computeBaseMapsGrid3dPoses). materials: { idle, hover,
+// selected } shared LineMaterials owned by the manager.
 export default function createSheetDecorations({
   sheet,
   meterByPx,
   materials,
   imageOn,
+  showNav = true,
 }) {
   const [topLeft, topRight, , bottomLeft] = getSheetLocalCorners(
     sheet,
@@ -111,23 +114,44 @@ export default function createSheetDecorations({
   eye.sprite.userData = { ...userData, gridEyeButton: true };
 
   // navigation button
-  const nav = createIconSprite({
-    iconPath: ICON_PATHS.NEAR_ME,
-    cssSize: BUTTON_CSS_SIZE,
-  });
-  nav.sprite.position.set(topRight.x - inset, bottomLeft.y + inset, 0);
-  nav.sprite.renderOrder = 1004;
-  nav.sprite.userData = { ...userData, gridNavButton: true };
+  const nav = showNav
+    ? createIconSprite({
+        iconPath: ICON_PATHS.NEAR_ME,
+        cssSize: BUTTON_CSS_SIZE,
+      })
+    : null;
+  if (nav) {
+    nav.sprite.position.set(topRight.x - inset, bottomLeft.y + inset, 0);
+    nav.sprite.renderOrder = 1004;
+    nav.sprite.userData = { ...userData, gridNavButton: true };
+  }
 
-  const objects = [outline, hitPlane, label.sprite, eye.sprite, nav.sprite];
+  const objects = [outline, hitPlane, label.sprite, eye.sprite];
+  if (nav) objects.push(nav.sprite);
+
+  // outline state: hover > selected > idle
+  let hovered = false;
+  let selected = false;
+  function applyOutline() {
+    outline.material = hovered
+      ? materials.hover
+      : selected
+        ? materials.selected
+        : materials.idle;
+  }
 
   return {
     objects,
     hitPlane,
     eyeSprite: eye.sprite,
-    navSprite: nav.sprite,
-    setHovered: (hovered) => {
-      outline.material = hovered ? materials.hover : materials.idle;
+    navSprite: nav?.sprite ?? null,
+    setHovered: (value) => {
+      hovered = Boolean(value);
+      applyOutline();
+    },
+    setSelected: (value) => {
+      selected = Boolean(value);
+      applyOutline();
     },
     setImageOn: (visible) => {
       label.sprite.visible = !visible;
@@ -140,7 +164,7 @@ export default function createSheetDecorations({
       hitMaterial.dispose();
       label.dispose();
       eye.dispose();
-      nav.dispose();
+      nav?.dispose();
     },
   };
 }

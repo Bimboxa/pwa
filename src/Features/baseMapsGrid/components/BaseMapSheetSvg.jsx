@@ -33,6 +33,9 @@ const PAPER_ZOOM_STORE = createMapZoomStore(1);
 
 const NAME_FONT_SIZE = 16;
 const NAME_OFFSET = 26;
+// secondary line under the name (the base maps folder, pinned grid)
+const SUBTITLE_FONT_SIZE = 13;
+const SUBTITLE_OFFSET = 18;
 
 // annotations counter, on the name row (right-aligned under the sheet)
 const COUNT_HEIGHT = 24;
@@ -53,6 +56,8 @@ export default memo(function BaseMapSheetSvg({
   baseMap,
   sheet,
   annotations,
+  // secondary text under the name (the base maps folder, pinned grid)
+  subtitle,
   // annotations of the base map in the scope (same count as the chips)
   annotationsCount,
   spriteImage,
@@ -296,7 +301,7 @@ export default memo(function BaseMapSheetSvg({
             x={0}
             y={sheet.height}
             width={Math.max(0, nameMaxWidth)}
-            height={NAME_OFFSET + NAME_FONT_SIZE}
+            height={NAME_OFFSET + NAME_FONT_SIZE + SUBTITLE_OFFSET}
           />
         </clipPath>
         <text
@@ -310,6 +315,18 @@ export default memo(function BaseMapSheetSvg({
         >
           {baseMap.name}
         </text>
+        {subtitle && (
+          <text
+            clipPath={`url(#${clipId}-name)`}
+            x={0}
+            y={sheet.height + NAME_OFFSET + SUBTITLE_OFFSET}
+            fontSize={SUBTITLE_FONT_SIZE}
+            fontFamily={theme.typography.fontFamily}
+            fill={theme.palette.text.secondary}
+          >
+            {subtitle}
+          </text>
+        )}
         <g
           transform={`translate(${sheet.width - countWidth}, ${
             sheet.height + NAME_OFFSET - COUNT_HEIGHT + 6

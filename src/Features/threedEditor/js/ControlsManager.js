@@ -20,6 +20,7 @@ import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNa
 
 // Far plane of the camera at the default view distance (SceneManager).
 const DEFAULT_CAMERA_FAR = 1000;
+const DEFAULT_MAX_DISTANCE = 500;
 
 // camera-controls must be installed once with a (subset of) three before use.
 // We pass only the classes it needs so three stays tree-shakeable elsewhere.
@@ -122,7 +123,7 @@ export default class ControlsManager {
 
     // Match the previous OrbitControls feel.
     this.cameraControls.minDistance = 0.1;
-    this.cameraControls.maxDistance = 500;
+    this.cameraControls.maxDistance = DEFAULT_MAX_DISTANCE;
     this.cameraControls.smoothTime = 0.1; // settle/transition damping (s)
     this.cameraControls.draggingSmoothTime = 0.05; // snappier while dragging
     // Wheel zoom converges toward the point under the cursor.
@@ -349,7 +350,11 @@ export default class ControlsManager {
   // the base maps as paper sheets at the scale of the main one, a table that
   // can span kilometres. No-op when the regular range already covers it.
   // The regular dolly limit may be parked in the stash (ortho-like fov of the
-  // 3D → 2D switch): the boost is then applied there.
+  // 3D → 2D switch): the boost is then applied there. During the 2D → 3D
+  // entry transition (applyPoseAndAnimateFov lifts the limit to Infinity for
+  // its duration) the boost goes to the deferred limit the transition hands
+  // over at its end — the lifted Infinity must never be read as a base
+  // (far = Infinity would break the projection: nothing renders).
   setDistanceBoost = (distance) => {
     const controls = this.cameraControls;
     const camera = this.sceneManager?.camera;
@@ -358,9 +363,12 @@ export default class ControlsManager {
     if (!Number.isFinite(distance) || distance <= 0) return;
 
     const stashed = this._stashedMaxDistance != null;
+    const inTransition = !stashed && controls.maxDistance === Infinity;
     const baseMaxDistance = stashed
       ? this._stashedMaxDistance
-      : controls.maxDistance;
+      : inTransition
+        ? (this._deferredMaxDistance ?? DEFAULT_MAX_DISTANCE)
+        : controls.maxDistance;
     const baseFar = camera.far;
     const maxDistance = Math.max(baseMaxDistance, distance);
     const far = Math.max(baseFar, 2 * maxDistance);
@@ -373,6 +381,7 @@ export default class ControlsManager {
     };
 
     if (stashed) this._stashedMaxDistance = maxDistance;
+    else if (inTransition) this._deferredMaxDistance = maxDistance;
     else controls.maxDistance = maxDistance;
     if (far !== baseFar) {
       camera.far = far;
@@ -431,6 +440,8 @@ export default class ControlsManager {
     );
     if (this._stashedMaxDistance === boost.maxDistance) {
       this._stashedMaxDistance = maxDistance;
+    } else if (this._deferredMaxDistance === boost.maxDistance) {
+      this._deferredMaxDistance = maxDistance;
     } else if (controls.maxDistance === boost.maxDistance) {
       controls.maxDistance = maxDistance;
     }

@@ -7,9 +7,17 @@ import {
   setShowCreateBaseMapSection,
 } from "Features/mapEditor/mapEditorSlice";
 import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
+import {
+  setBaseMapsGridSelectedBaseMapId,
+  setScopeGridWanted,
+  toggleBaseMapsGridImageHidden,
+} from "Features/baseMapsGrid/baseMapsGridSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
+import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
@@ -35,6 +43,11 @@ const TOOLTIP_OFFSET_PX = 15;
 //   - click on the "new base map" frame (or its "+ créer" button): opens the
 //     create-base-map section for the listing of the table, the grid stays
 //     open underneath (same as the "+" frame of the 2D grid)
+// SCOPE module: a click on a sheet only SELECTS it (persistent outline,
+// baseMapsGrid.selectedBaseMapId + BASE_MAP item of the properties panel —
+// never a change of main base map, the anchor of the table), a double-click
+// opens it like the click does elsewhere; leaving the grid (double-click,
+// nav sprite) drops `scopeGridWanted` so the keeper lets it closed.
 // The camera controls keep working (orbit / pan / zoom over the table): a
 // press that travels further than DRAG_THRESHOLD_PX is a camera gesture, not
 // a click.
@@ -52,14 +65,24 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
   // data
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
+  const pinned = useSelector(selectBaseMapsGridPinned);
   const selectMainBaseMap = useSelectMainBaseMap();
   // the listing of the table (the new base map lands in it)
-  const listingId = useMainBaseMap()?.listingId ?? null;
+  const mainBaseMap = useMainBaseMap();
+  const scopeAddListingId = useSelector(
+    (s) => s.baseMapsGrid.scopeSheets.addListingId
+  );
+  const listingId = pinned
+    ? scopeAddListingId
+    : (mainBaseMap?.listingId ?? null);
+  const { value: baseMaps } = useBaseMaps();
 
   // refs
 
   const listingIdRef = useRef(listingId);
   listingIdRef.current = listingId;
+  const baseMapsRef = useRef(baseMaps);
+  baseMapsRef.current = baseMaps;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -115,13 +138,14 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
         text = leaveAroundS;
       } else if (hit.kind === "eye") {
         const state = store.getState();
-        text = isBaseMapImageOnIn3d({
-          threedEditor: state.threedEditor,
-          mainBaseMapId: state.mapEditor.selectedBaseMapId,
-          baseMapId: hit.baseMapId,
-        })
-          ? hideImageS
-          : showImageS;
+        const imageOn = pinned
+          ? !state.baseMapsGrid.hiddenImageBaseMapIds.includes(hit.baseMapId)
+          : isBaseMapImageOnIn3d({
+              threedEditor: state.threedEditor,
+              mainBaseMapId: state.mapEditor.selectedBaseMapId,
+              baseMapId: hit.baseMapId,
+            });
+        text = imageOn ? hideImageS : showImageS;
       }
       if (text) {
         tooltipApi?.setText(
@@ -162,7 +186,15 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       if (!wasClick || !manager.isActive()) return;
 
       const hit = pick(e);
-      if (!hit) return;
+      if (!hit) {
+        // SCOPE module: a click on the table itself clears the selection
+        // (same as the 2D grid)
+        if (pinned) {
+          dispatch(setBaseMapsGridSelectedBaseMapId(null));
+          dispatch(setSelectedItem(null));
+        }
+        return;
+      }
       if (hit.kind === "add") {
         clearHover();
         dispatch(setSelectedBaseMapsListingId(listingIdRef.current));
@@ -170,11 +202,15 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
         return;
       }
       if (hit.kind === "eye") {
+        // pinned: the grid's own eye (shared with the 2D grid and the
+        // "Fonds de plan" rows), else the 3D eye of the base map
         dispatch(
-          getToggleBaseMapImageIn3dAction({
-            mainBaseMapId: store.getState().mapEditor.selectedBaseMapId,
-            baseMapId: hit.baseMapId,
-          })
+          pinned
+            ? toggleBaseMapsGridImageHidden(hit.baseMapId)
+            : getToggleBaseMapImageIn3dAction({
+                mainBaseMapId: store.getState().mapEditor.selectedBaseMapId,
+                baseMapId: hit.baseMapId,
+              })
         );
         return;
       }
@@ -192,19 +228,64 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
         }
         clearHover();
         manager.closeAround(hit.baseMapId);
+        if (pinned) dispatch(setScopeGridWanted(false));
         dispatch(setBaseMapsGridModeActive(false));
         return;
       }
       // sheet: shift stays reserved (multi-selection / lasso of the editor)
       if (e.shiftKey) return;
+      if (pinned) {
+        // selected on the table AND as the item of the properties panel
+        dispatch(setBaseMapsGridSelectedBaseMapId(hit.baseMapId));
+        const sheetBaseMap = baseMapsRef.current?.find(
+          (b) => b.id === hit.baseMapId
+        );
+        if (sheetBaseMap) {
+          dispatch(
+            setSelectedItem({
+              id: sheetBaseMap.id,
+              type: "BASE_MAP",
+              listingId: sheetBaseMap.listingId,
+            })
+          );
+        }
+        return;
+      }
+      openSheet(hit.baseMapId);
+    }
+
+    // Leaves the grid on a sheet: the base map becomes the main one, the
+    // camera frames it at its real pose.
+    function openSheet(baseMapId) {
       // The frame of the base map at its REAL pose, read before the grid
       // releases the sheet.
-      const frame = manager.getHomeFrame(hit.baseMapId);
+      const frame = manager.getHomeFrame(baseMapId);
       clearHover();
       manager.close({ instant: true });
+      if (pinned) dispatch(setScopeGridWanted(false));
       dispatch(setBaseMapsGridModeActive(false));
-      selectMainBaseMap(hit.baseMapId);
+      selectMainBaseMap(baseMapId);
       if (frame) editor.fitToBox3Facing?.(frame.box, frame.normal);
+    }
+
+    // SCOPE module: the double-click on a sheet opens it (the click only
+    // selects it there).
+    function onDoubleClick(e) {
+      if (!pinned || isDragging || !manager.isActive()) return;
+      const hit = pick(e);
+      if (!hit || hit.kind !== "sheet") return;
+      const state = store.getState();
+      const args = {
+        threedEditor: state.threedEditor,
+        mainBaseMapId: state.mapEditor.selectedBaseMapId,
+        baseMapId: hit.baseMapId,
+      };
+      // A sheet showing nothing would vanish once out of the grid: its
+      // image is turned on.
+      if (!isBaseMapImageOnIn3d(args) && !isBaseMapAnnotationsOnIn3d(args)) {
+        dispatch(getToggleBaseMapImageIn3dAction(args));
+      }
+      openSheet(hit.baseMapId);
     }
 
     function onPointerLeave() {
@@ -222,6 +303,7 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointercancel", onPointerCancel);
     dom.addEventListener("pointerleave", onPointerLeave);
+    dom.addEventListener("dblclick", onDoubleClick);
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -229,8 +311,9 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
+      dom.removeEventListener("dblclick", onDoubleClick);
       if (hoverRafId !== null) cancelAnimationFrame(hoverRafId);
       clearHover();
     };
-  }, [active, dispatch, store, selectMainBaseMap, tooltipApiRef]);
+  }, [active, pinned, dispatch, store, selectMainBaseMap, tooltipApiRef]);
 }

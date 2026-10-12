@@ -14,8 +14,10 @@ import createSheetDecorations from "./createSheetDecorations";
 const FLIGHT_DURATION_MS = 600;
 const OUTLINE_IDLE_COLOR = 0xbdbdbd;
 const OUTLINE_HOVER_COLOR = 0xe85426; // theme secondary.main
+const OUTLINE_SELECTED_COLOR = 0x424242; // theme primary.main (2D sheet)
 const OUTLINE_IDLE_WIDTH = 1; // px (screen-space)
 const OUTLINE_HOVER_WIDTH = 2;
+const OUTLINE_SELECTED_WIDTH = 2;
 // Zoom-out range over the table, in table diagonals (the table is at paper
 // scale: it can be far larger than the real scene).
 const ZOOM_OUT_RANGE_IN_DIAGONALS = 4;
@@ -70,6 +72,10 @@ export default class BaseMapsGridManager {
     this.K = null;
     this.yaw = 0;
     this.hoveredId = null;
+    // sheet selected by a click on the pinned grid (persistent outline)
+    this.selectedId = null;
+    // nav sprite of the sheets (false on the pinned grid)
+    this.showNav = true;
     // closing flight in progress (the sheets are still registered)
     this.closing = false;
     // global "Masquer les fonds de plan" switch (threedEditor.hideBaseMaps)
@@ -113,10 +119,12 @@ export default class BaseMapsGridManager {
     imageOnById = {},
     hideBaseMaps = false,
     animate = true,
+    showNav = true,
   }) {
     const imagesManager = this.sceneManager.imagesManager;
     this._cancelFlight();
     this.closing = false;
+    this.showNav = showNav;
 
     const previous = this.sheetsById;
     const wasOpen = this.active;
@@ -184,8 +192,13 @@ export default class BaseMapsGridManager {
         meterByPx: entry.gridPose.effectiveMeterByPx,
         materials,
         imageOn: entry.imageOn,
+        showNav,
       });
       entry.decorations.objects.forEach((object) => entry.group.add(object));
+      // the decorations are recreated on a re-entry: restore the selection
+      if (entry.sheet.id === this.selectedId) {
+        entry.decorations.setSelected(true);
+      }
       entry.group.visible = true;
       this._applyImageVisibility(entry);
       this._applySheetScale(entry);
@@ -287,6 +300,17 @@ export default class BaseMapsGridManager {
     this.sceneManager.renderScene();
   }
 
+  // baseMapId: a sheet id or null — persistent outline of the sheet selected
+  // on the pinned grid (mirrors baseMapsGrid.selectedBaseMapId).
+  setSelected(baseMapId) {
+    const nextId = this.sheetsById.has(baseMapId) ? baseMapId : null;
+    if (nextId === this.selectedId) return;
+    this.sheetsById.get(this.selectedId)?.decorations?.setSelected(false);
+    this.sheetsById.get(nextId)?.decorations?.setSelected(true);
+    this.selectedId = nextId;
+    this.sceneManager.renderScene();
+  }
+
   // { [baseMapId]: bool } — image eye of each base map (same state as the
   // layer icon of the chips). Drives the eye button, the label (shown while
   // the image is off) and the image itself: on the table every group stays
@@ -338,6 +362,7 @@ export default class BaseMapsGridManager {
     this.active = false;
     this.closing = false;
     this.hoveredId = null;
+    this.selectedId = null;
     this.sceneManager.controlsManager?.clearDistanceBoost?.();
     if (wasActive) this._listeners.forEach((listener) => listener());
   }
@@ -355,7 +380,10 @@ export default class BaseMapsGridManager {
     const planes = [];
     this.sheetsById.forEach((entry) => {
       if (!entry.decorations) return;
-      buttons.push(entry.decorations.eyeSprite, entry.decorations.navSprite);
+      buttons.push(entry.decorations.eyeSprite);
+      if (entry.decorations.navSprite) {
+        buttons.push(entry.decorations.navSprite);
+      }
       planes.push(entry.decorations.hitPlane);
     });
     if (this.addFrame?.group.visible) {
@@ -411,6 +439,7 @@ export default class BaseMapsGridManager {
     if (!this._materials) return;
     this._materials.idle.resolution.copy(resolution);
     this._materials.hover.resolution.copy(resolution);
+    this._materials.selected.resolution.copy(resolution);
   }
 
   dispose() {
@@ -423,7 +452,9 @@ export default class BaseMapsGridManager {
     this.sceneManager.controlsManager?.clearDistanceBoost?.();
     this._materials?.idle.dispose();
     this._materials?.hover.dispose();
+    this._materials?.selected.dispose();
     this._materials = null;
+    this.selectedId = null;
     this._listeners.clear();
   }
 
@@ -528,6 +559,11 @@ export default class BaseMapsGridManager {
         ...common,
         color: OUTLINE_HOVER_COLOR,
         linewidth: OUTLINE_HOVER_WIDTH,
+      }),
+      selected: new LineMaterial({
+        ...common,
+        color: OUTLINE_SELECTED_COLOR,
+        linewidth: OUTLINE_SELECTED_WIDTH,
       }),
     };
     return this._materials;
@@ -675,6 +711,7 @@ export default class BaseMapsGridManager {
     this.K = null;
     this.anchorId = null;
     this.closing = false;
+    this.selectedId = null;
     this.sceneManager.controlsManager?.clearDistanceBoost?.();
     this.sceneManager.renderScene();
   }

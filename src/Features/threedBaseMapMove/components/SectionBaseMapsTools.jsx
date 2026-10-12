@@ -28,13 +28,16 @@ export default function SectionBaseMapsTools({ variant = "popper" }) {
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const isViewerModule = useSelector(
-    (s) => s.viewers.selectedViewerKey === "THREED"
+  // Read-only modules (Viewer, Scope): no placement tools.
+  const isReadOnlyModule = useSelector(
+    (s) =>
+      s.viewers.selectedViewerKey === "THREED" ||
+      s.viewers.selectedViewerKey === "SCOPE"
   );
 
   // render
 
-  if (!isThreedEditor || isViewerModule) return null;
+  if (!isThreedEditor || isReadOnlyModule) return null;
 
   return (
     <Box>
