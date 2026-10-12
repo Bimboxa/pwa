@@ -10,10 +10,14 @@ import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdge
 import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
-import { parseRotateAngleBuffer } from "Features/threedBaseMapMove/utils/applyRotateBaseMapPose";
+import {
+  formatRotateBadge,
+  parseTypedAngleDeg,
+} from "Features/annotationTransform/utils/copyBuffer";
 
 import useAnnotationsOnlyVertexSnap from "../hooks/useAnnotationsOnlyVertexSnap";
 import applyRotateAnnotationsPose from "../utils/applyRotateAnnotationsPose";
+import { getGrabCopyCount } from "../services/moveCopyGhostsThreed";
 import {
   setLastRotateAnnotationSnap,
   getRotateAnnotationGrab,
@@ -51,8 +55,10 @@ function normalizeAngle(phi) {
 //    (global snap — the reference axis usually anchors on a point of the
 //    rotated annotation itself, which hasn't moved yet);
 // 3. rotation phase: the carried annotation roots rotate live around the
-//    pivot; targets snap on the target-only index, then a base map plane,
-//    with the pivot's base-map-plane free fallback.
+//    pivot (or, with a typed `*N`, the copy ghosts — the originals stay);
+//    targets snap on the target-only index, then a base map plane, with
+//    the pivot's base-map-plane free fallback. The angle label carries the
+//    copy count ("45.0° ×3").
 export default function RotateAnnotationOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.rotateAnnotationMode.active);
 
@@ -139,14 +145,18 @@ export default function RotateAnnotationOverlayThreed() {
       line.style.display = "block";
     }
 
-    function updateAngleLabel(phi, screen) {
+    function updateAngleLabel(phi, screen, grab = null) {
       const labelEl = angleLabelRef.current;
       if (!labelEl) return;
       if (phi == null || !screen) {
         labelEl.style.display = "none";
         return;
       }
-      labelEl.textContent = `${((phi * 180) / Math.PI).toFixed(1)}°`;
+      labelEl.textContent = formatRotateBadge({
+        angleLabel: `${((phi * 180) / Math.PI).toFixed(1)}°`,
+        count: getGrabCopyCount(grab),
+      });
+      labelEl.style.fontWeight = grab?.angleBuffer ? "700" : "600";
       labelEl.setAttribute("x", screen.sx + 12);
       labelEl.setAttribute("y", screen.sy - 12);
       labelEl.style.display = "block";
@@ -401,7 +411,8 @@ export default function RotateAnnotationOverlayThreed() {
       updateAxisLine(group, grab, rect, refRadius);
       updateLine(refLineRef, pivotScreen, refScreen);
 
-      const typedPhi = parseRotateAngleBuffer(grab.angleBuffer);
+      const typedDeg = parseTypedAngleDeg(grab.angleBuffer);
+      const typedPhi = typedDeg == null ? null : (typedDeg * Math.PI) / 180;
       if (typedPhi != null) {
         applyRotateAnnotationsPose(editor, grab, typedPhi);
         const endScreen = toScreen(
@@ -413,7 +424,7 @@ export default function RotateAnnotationOverlayThreed() {
         if (crossARef.current) crossARef.current.style.display = "none";
         if (crossBRef.current) crossBRef.current.style.display = "none";
         updateArc(group, grab, rect, refRadius, typedPhi);
-        updateAngleLabel(typedPhi, endScreen);
+        updateAngleLabel(typedPhi, endScreen, grab);
         editor.renderScene?.();
         return;
       }
@@ -433,7 +444,7 @@ export default function RotateAnnotationOverlayThreed() {
 
       updateLine(currentLineRef, pivotScreen, targetScreen);
       updateArc(group, grab, rect, refRadius, grab.currentPhi);
-      updateAngleLabel(grab.currentPhi, targetScreen);
+      updateAngleLabel(grab.currentPhi, targetScreen, grab);
       editor.renderScene?.();
     }
 

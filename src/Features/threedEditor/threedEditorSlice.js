@@ -378,8 +378,9 @@ const threedEditorInitialState = {
     carriedAnnotationIds: [],
     // Reference axis fixed (2nd click done) — drives the toolbar hint.
     referenceSet: false,
-    // Angle typed on the keyboard during the rotation phase (degrees) — same
-    // model as rotateBaseMapMode.angleBuffer.
+    // Typed `<angle>[*<copies>]` buffer ("45*3", degrees) during the
+    // rotation phase — see annotationTransform/utils/copyBuffer. The `*N`
+    // tail turns the rotation into a « copie multiple ».
     angleBuffer: "",
   },
   // Base maps grid ("table à plans", G in the 3D viewer): every base map of

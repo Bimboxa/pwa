@@ -10,26 +10,31 @@ import {
   parseMoveLength,
 } from "Features/annotationTransform/utils/copyBuffer";
 
-// « Copie multiple » ghosts of the 3D « Déplacer » tool: one fresh 3D object
-// per (copy, carried annotation), built from the resolved annotation like
+// « Copie multiple » ghosts of the 3D « Déplacer » / « Tourner » tools: one
+// fresh 3D object per (copy, carried annotation), built from the resolved
+// annotation like
 // the real objects (createAnnotationObject3D — never a clone of the real
 // root: Object3D.copy serialises userData, which holds materials and dispose
 // callbacks, and fat lines would leak their constructor defaults). The
 // ghosts own their geometry and materials, so disposeObject is safe.
 //
-// A ghost is a child of the base map group (local metre frame), posed at the
-// carried root's grab-time position + i × delta. Its userData is replaced by
-// { isCopyGhost: true }: no nodeType, so picking ignores it and buildIndex
-// skips it (useVertexSnap).
+// A ghost is a child of the base map group (local metre frame), posed from
+// the carried root's grab-time pose: + i × delta (poseCopyGhosts, move) or
+// turned by i × phi around the pivot (poseCopyGhostsRotated, rotate). Its
+// userData is replaced by { isCopyGhost: true }: no nodeType, so picking
+// ignores it and buildIndex skips it (useVertexSnap).
 //
-// grab.ghosts: [{ index, annotationId, object, start: Vector3 }]
+// grab.ghosts: [{ index, annotationId, object, start: Vector3, startRotZ }]
+// The copy count comes from the grab's typed buffer: `copyBuffer`
+// (`<distance>[*<copies>]`, move) or `angleBuffer` (`<angle>[*<copies>]`,
+// rotate).
 
 // How long the ghosts may stand in for the written copies after the drop
 // before being dropped anyway (the rebuild normally lands well before).
 const HOLD_FALLBACK_MS = 2500;
 
 export function getGrabCopyCount(grab) {
-  return parseCopyCount(grab?.copyBuffer ?? "");
+  return parseCopyCount(grab?.copyBuffer ?? grab?.angleBuffer ?? "");
 }
 
 // Typed distance of the grab (metres), or null.
@@ -63,7 +68,8 @@ export function buildCopyGhosts(editor, grab, annotations) {
   const ghosts = [];
   for (let i = 1; i <= count; i++) {
     for (const annotationId of grab.annotationIds) {
-      const start = grab.rootStartPoses.get(annotationId)?.position;
+      const startPose = grab.rootStartPoses.get(annotationId);
+      const start = startPose?.position;
       const annotation = annotations?.find((a) => a.id === annotationId);
       if (!start || !annotation) continue;
       let object = null;
@@ -74,8 +80,17 @@ export function buildCopyGhosts(editor, grab, annotations) {
       }
       if (!object) continue;
       object.userData = { isCopyGhost: true };
+      const startRotZ = startPose.rotZ || 0;
+      object.position.copy(start);
+      object.rotation.z = startRotZ;
       group.add(object);
-      ghosts.push({ index: i, annotationId, object, start: start.clone() });
+      ghosts.push({
+        index: i,
+        annotationId,
+        object,
+        start: start.clone(),
+        startRotZ,
+      });
     }
   }
   grab.ghosts = ghosts;
@@ -89,6 +104,27 @@ export function poseCopyGhosts(grab, delta) {
       ghost.start.y + delta.y * ghost.index,
       ghost.start.z + delta.z * ghost.index
     );
+  }
+}
+
+// Poses every ghost turned by index × phi (rad) about the base map plane's
+// normal (local +Z) through grab.pivotLocal — same composition as
+// applyRotateAnnotationsPose. Does not render.
+export function poseCopyGhostsRotated(grab, phi) {
+  const pivot = grab?.pivotLocal;
+  if (!pivot) return;
+  for (const ghost of grab.ghosts ?? []) {
+    const angle = phi * ghost.index;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const dx = ghost.start.x - pivot.x;
+    const dy = ghost.start.y - pivot.y;
+    ghost.object.position.set(
+      pivot.x + dx * cos - dy * sin,
+      pivot.y + dx * sin + dy * cos,
+      ghost.start.z
+    );
+    ghost.object.rotation.z = ghost.startRotZ + angle;
   }
 }
 

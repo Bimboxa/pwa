@@ -4,7 +4,6 @@ import {
   clearExtrudeValueBuffer,
   clearVertexOffsetValueBuffer,
   setExtrudeValueBuffer,
-  setRotateAnnotationAngleBuffer,
   setVertexOffsetValueBuffer,
 } from "Features/threedEditor/threedEditorSlice";
 
@@ -18,11 +17,13 @@ import {
   ROTATE_TOOL_SHORTCUTS,
 } from "Features/annotationTransform/constants/transformToolStrings";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { parseRotateAngleBuffer } from "Features/threedBaseMapMove/utils/applyRotateBaseMapPose";
-import applyRotateAnnotationsPose from "Features/threedAnnotationMove/utils/applyRotateAnnotationsPose";
-import { getRotateAnnotationGrab } from "Features/threedAnnotationMove/services/rotateAnnotationSessionStore";
+import setRotateAngleBufferService from "Features/threedAnnotationMove/services/setRotateAngleBufferService";
 import getVertexOffsetFieldLabel from "Features/threedVertexOffset/utils/getVertexOffsetFieldLabel";
-import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
+import {
+  formatAngleValueBuffer,
+  parseCopyCount,
+  withCopyCountPart,
+} from "Features/annotationTransform/utils/copyBuffer";
 
 // Shortcuts of the 3D « Extruder » (useExtrudePointerHandlers).
 const EXTRUDE_SHORTCUTS = [
@@ -125,14 +126,13 @@ export default function SectionThreedToolHelperContent({ tool }) {
     dispatch(setVertexOffsetValueBuffer(text));
   }
 
+  // The field edits the angle part only; the typed `*N` tail is kept.
   function handleAngleText(text) {
-    dispatch(setRotateAnnotationAngleBuffer(text));
-    const grab = getRotateAnnotationGrab();
-    if (!grab || grab.refBearing == null) return;
-    grab.angleBuffer = text;
-    const phi = parseRotateAngleBuffer(text);
-    if (phi != null)
-      applyRotateAnnotationsPose(getActiveThreedEditor(), grab, phi);
+    setRotateAngleBufferService({
+      editor: getActiveThreedEditor(),
+      buffer: withCopyCountPart(text, angleBuffer),
+      dispatch,
+    });
   }
 
   // render
@@ -224,18 +224,21 @@ export default function SectionThreedToolHelperContent({ tool }) {
       hint={getRotateToolHint({
         carriedCount: rotateCarriedCount,
         referenceSet,
+        copyCount: parseCopyCount(angleBuffer),
       })}
       field={
         referenceSet
           ? {
               label: "Angle",
               unit: "°",
-              value: angleBuffer,
+              value: formatAngleValueBuffer(angleBuffer),
               onChangeText: handleAngleText,
             }
           : null
       }
       shortcuts={ROTATE_TOOL_SHORTCUTS}
-    />
+    >
+      <SectionMultiCopy variant="ROTATE" copyBuffer={angleBuffer} />
+    </SectionTransformToolHelper>
   );
 }

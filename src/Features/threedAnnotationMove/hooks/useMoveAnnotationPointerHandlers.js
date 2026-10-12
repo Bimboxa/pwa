@@ -15,7 +15,7 @@ import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
-import createTranslatedAnnotationCopiesService from "Features/annotationTransform/services/createTranslatedAnnotationCopiesService";
+import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
 import { appendToMoveBuffer } from "Features/annotationTransform/utils/copyBuffer";
 import { MULTI_COPY_UNSUPPORTED_MESSAGE } from "Features/annotationTransform/constants/transformToolStrings";
 
@@ -93,7 +93,7 @@ function restoreCarriedAnnotations() {
 // Typed buffer while carrying (`<distance>[*<copies>]`): digits constrain
 // the distance along the current direction; `*` + digits ("*3") keep the
 // originals in place and preview N copies (moveCopyGhostsThreed), the drop
-// writes the copies (createTranslatedAnnotationCopiesService). Shift (ortho
+// writes the copies (createTransformedAnnotationCopiesService). Shift (ortho
 // lock) is handled by the overlay.
 export default function useMoveAnnotationPointerHandlers({ annotations }) {
   const dispatch = useDispatch();
@@ -285,12 +285,15 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       const { meterByPx, imageWidth, imageHeight } = metrics;
       let newAnnotationIds = [];
       try {
-        const result = await createTranslatedAnnotationCopiesService({
+        const result = await createTransformedAnnotationCopiesService({
           annotations: (annotationsRef.current ?? []).filter((a) =>
             grab.annotationIds.includes(a.id)
           ),
-          deltaPx: { x: delta.x / meterByPx, y: -delta.y / meterByPx },
-          deltaZ: delta.z,
+          transform: {
+            kind: "MOVE",
+            deltaPx: { x: delta.x / meterByPx, y: -delta.y / meterByPx },
+            deltaZ: delta.z,
+          },
           count,
           imageSize: { width: imageWidth, height: imageHeight },
           projectId: store.getState().projects.selectedProjectId,

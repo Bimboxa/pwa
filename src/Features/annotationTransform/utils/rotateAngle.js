@@ -1,3 +1,5 @@
+import { parseTypedAngleDeg } from "./copyBuffer.js";
+
 // Angle helpers of the 2D « Tourner » tool. Pixel space is y-down: a positive
 // PIXEL angle turns clockwise on screen. The user-facing angle (typed buffer,
 // cursor label) is counter-clockwise positive — same convention as the 3D
@@ -26,13 +28,12 @@ export function normalizeAngleDeg(deg) {
   return a;
 }
 
-// Typed buffer (user degrees, counter-clockwise positive, "," or ".") →
-// pixel-space angle in degrees, or null when not parsable.
+// Typed buffer `<angle>[*<copies>]` (user degrees, counter-clockwise
+// positive, "," or ".") → pixel-space angle in degrees, or null when the
+// angle part is not parsable (see utils/copyBuffer).
 export function parseAngleBufferToPixelDeg(buffer) {
-  if (!buffer) return null;
-  const deg = parseFloat(String(buffer).replace(",", "."));
-  if (!Number.isFinite(deg)) return null;
-  return -deg;
+  const deg = parseTypedAngleDeg(buffer);
+  return deg == null ? null : -deg;
 }
 
 // Pixel-space angle → user-facing label ("12.5°").
@@ -40,13 +41,6 @@ export function formatUserAngle(pixelDeg) {
   const user = -pixelDeg;
   const rounded = Math.round(user * 10) / 10;
   return `${Object.is(rounded, -0) ? 0 : rounded}°`;
-}
-
-// Keys accepted in the typed angle buffer; "-" only as the first character.
-export function appendToAngleBuffer(buffer, key) {
-  if (!/^[0-9.,-]$/.test(key)) return buffer;
-  if (key === "-" && buffer !== "") return buffer;
-  return buffer + key;
 }
 
 // « Déplacer » with Shift: the destination is locked on the dominant axis

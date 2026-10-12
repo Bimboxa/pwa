@@ -33,6 +33,14 @@ Le geste est le même en 2D et en 3D :
   2/3 clic sur un point qui fixe l'axe de référence, 3/3 rotation à la souris
   (`Maj` : pas de 15° en 2D) ou angle tapé au clavier, clic ou `Entrée` pour
   valider.
+  **Saisie clavier** `<angle>[*<copies>]` en 3/3 : des chiffres (`45`, `-30`,
+  `12.5`) **verrouillent l'angle** ; `*` puis des chiffres (`*3`) = **copie
+  multiple** : l'originale reste en place, la copie i est tournée de `i ×`
+  l'angle courant autour du pivot (le clic / `Entrée` pose la 1re copie) ;
+  `45*3` = 3 copies à 45°, 90° et 135°. L'angle se tape avant le `*` (ou via
+  le champ Angle du helper, qui conserve la queue `*N`). Le libellé d'angle
+  affiche le `×N` (en gras si l'angle est tapé) ; la carte « Copie
+  multiple » du helper affiche le compteur.
 - `Échap` annule dans l'ordre : l'angle / les copies tapés, la saisie en
   cours, puis l'outil.
 - L'outil reste armé après une validation.
@@ -133,46 +141,67 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
 
 ### Copie multiple
 
-- Buffer : `utils/copyBuffer.js` (`appendToMoveBuffer`, `parseMoveLength`,
-  `parseCopyCount`, `scaleDeltaToLength`, `formatMoveBadge`, `MAX_COPIES`).
-  2D : `transformSessionStore.copyBuffer` + `rawCursor` / `meterByPx`
-  (`constrainMoveCursor` rescale le vecteur ancre → curseur à la distance
-  tapée ; phase `"MOVE_COPY"` → les originales restent visibles et
-  aimantables). 3D : `threedEditor.moveAnnotationMode.copyBuffer`, miroir
-  `grab.copyBuffer` ; `computeMoveDeltaLocal({lengthM})` ; un changement de
-  buffer rejoue le dernier pointeur de l'overlay (`replayMoveOverlay`).
-- Écriture : `services/createTranslatedAnnotationCopiesService.js`, partagé
-  2D / 3D. Chaque copie part de la **ligne stockée** de sa source (jamais de
-  l'objet hydraté), sur laquelle on greffe la géométrie : points résolus
-  translatés (`applyDeltaPosToAnnotation`) puis re-frappés en nouveaux
-  `db.points` (`duplicateAnnotationPoints` avec une `idMap` partagée par
-  copie : un sommet commun à deux murs emportés reste commun à leurs
-  copies). Suivent aussi `rotationCenter`, `offsetZ` (+ i × dz en 3D), le
-  `mesh3d` / `mesh3dSource` (affine de translation), les rels de catégories,
-  le calque actif, les libellés auto-numérotés. **Non copiés** (comme
-  « Dupliquer ») : ouvertures collées, parties peintes ; `meshLines`
-  abandonnées. Un seul `withUndoGroup`, une seule transaction.
+- Buffer `<valeur>[*<copies>]` : `utils/copyBuffer.js` (`appendToMoveBuffer`
+  / `appendToRotateBuffer` — même grammaire, le `-` initial en plus pour
+  l'angle —, `parseMoveLength`, `parseTypedAngleDeg`, `parseCopyCount`,
+  `withCopyCountPart`, `scaleDeltaToLength`, `formatMoveBadge`,
+  `formatRotateBadge`, `MAX_COPIES`).
+  - Déplacer 2D : `transformSessionStore.copyBuffer` + `rawCursor` /
+    `meterByPx` (`constrainMoveCursor` rescale le vecteur ancre → curseur à
+    la distance tapée ; phase `"MOVE_COPY"` → les originales restent visibles
+    et aimantables). 3D : `threedEditor.moveAnnotationMode.copyBuffer`,
+    miroir `grab.copyBuffer` ; `computeMoveDeltaLocal({lengthM})` ; un
+    changement de buffer rejoue le dernier pointeur de l'overlay
+    (`replayMoveOverlay`).
+  - Tourner 2D : le buffer d'angle `transformSessionStore.angleBuffer` porte
+    toute la grammaire (`parseAngleBufferToPixelDeg` n'en lit que l'angle) ;
+    phase `"ROTATE_COPY"` (3/3 avec copies) → originales visibles et
+    aimantables, comme `MOVE_COPY`. 3D :
+    `threedEditor.rotateAnnotationMode.angleBuffer`, miroir
+    `grab.angleBuffer` ; `services/setRotateAngleBufferService` (clavier et
+    champ du helper) reconstruit les fantômes et repose aussitôt.
+- Écriture : `services/createTransformedAnnotationCopiesService.js`, partagé
+  2D / 3D, `transform = { kind: "MOVE", deltaPx, deltaZ? }` ou
+  `{ kind: "ROTATE", pivotPx, angleDeg }` (angle pixel, horaire positif).
+  Chaque copie part de la **ligne stockée** de sa source (jamais de l'objet
+  hydraté), sur laquelle on greffe la géométrie : points résolus transformés
+  (`applyDeltaPosToAnnotation`, `partType "ROTATE"` + bbox nulle sur le
+  pivot pour une rotation) puis re-frappés en nouveaux `db.points`
+  (`duplicateAnnotationPoints` avec une `idMap` partagée par copie : un
+  sommet commun à deux murs emportés reste commun à leurs copies). Suivent
+  aussi le `mesh3d` / `mesh3dSource` (même affine pixel —
+  `utils/pixelRotationAffine.js` pour une rotation), les rels de catégories,
+  le calque actif, les libellés auto-numérotés ; en MOVE `rotationCenter`
+  translaté et `offsetZ` (+ i × dz en 3D) ; en ROTATE la rotation est cuite
+  dans les points et `rotation` / `rotationCenter` remis à zéro (règle
+  `clearRotation`). **Non copiés** (comme « Dupliquer ») : ouvertures
+  collées, parties peintes ; `meshLines` abandonnées. Un seul
+  `withUndoGroup`, une seule transaction.
 - Aperçu 3D : `threedAnnotationMove/services/moveCopyGhostsThreed.js` —
   un objet neuf par (copie, annotation) via `createAnnotationObject3D`
   (jamais un `clone()` du root : `Object3D.copy` sérialise `userData`, qui
   porte matériaux et callbacks), `userData = { isCopyGhost: true }` (ignoré
-  par `buildIndex` et le picking), enfant du groupe du fond de plan. Les
-  originaux restent à leur pose de saisie ; après le drop les fantômes
-  tiennent lieu des copies jusqu'à leur construction
-  (`subscribeAnnotationReady`, fallback 2,5 s).
+  par `buildIndex` et le picking), enfant du groupe du fond de plan, posé
+  par `poseCopyGhosts` (i × delta) ou `poseCopyGhostsRotated` (i × phi
+  autour du pivot — `applyRotateAnnotationsPose` est le point d'entrée
+  unique de la pose, il bascule originaux / fantômes). Les originaux
+  restent à leur pose de saisie ; après le drop les fantômes tiennent lieu
+  des copies jusqu'à leur construction (`subscribeAnnotationReady`,
+  fallback 2,5 s).
 
 ## Glossaire français → code
 
-| Français              | Code                                  |
-| --------------------- | ------------------------------------- |
-| Déplacer              | `MOVE_ANNOTATION`, `kind: "MOVE"`     |
-| Tourner               | `ROTATE_ANNOTATION`, `kind: "ROTATE"` |
-| point saisi / pivot   | `session.anchor`                      |
-| axe de référence      | `session.reference`                   |
-| annotations emportées | `session.carriedAnnotationIds`        |
-| angle tapé            | `session.angleBuffer`                 |
-| copies tapées         | `session.copyBuffer`, `"MOVE_COPY"`   |
-| aperçu                | `TransformToolPreviewLayer`           |
+| Français              | Code                                   |
+| --------------------- | -------------------------------------- |
+| Déplacer              | `MOVE_ANNOTATION`, `kind: "MOVE"`      |
+| Tourner               | `ROTATE_ANNOTATION`, `kind: "ROTATE"`  |
+| point saisi / pivot   | `session.anchor`                       |
+| axe de référence      | `session.reference`                    |
+| annotations emportées | `session.carriedAnnotationIds`         |
+| angle tapé            | `session.angleBuffer` (`<angle>[*N]`)  |
+| copies tapées         | `*N` de `copyBuffer` / `angleBuffer`,  |
+|                       | phases `"MOVE_COPY"` / `"ROTATE_COPY"` |
+| aperçu                | `TransformToolPreviewLayer`            |
 
 ## Limites (V1)
 

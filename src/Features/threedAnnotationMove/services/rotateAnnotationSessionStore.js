@@ -15,7 +15,10 @@ let lastSnap = null;
 //   refPoint: Vector3 | null,    // 2nd click: point fixing the reference axis
 //   refBearing: number | null,   // reference bearing in LOCAL XY (rad)
 //   currentPhi: number,          // live rotation angle (rad, local +Z)
-//   angleBuffer: "",             // typed angle (degrees)
+//   angleBuffer: "",             // typed `<angle>[*<copies>]` ("45*3",
+//                                // degrees — see annotationTransform/utils/
+//                                // copyBuffer)
+//   ghosts,                      // copy previews (moveCopyGhostsThreed)
 //   targetVerts,                 // target-only snap index (carried roots
 //   targetAdjacency,             // excluded), built fresh at pivot click
 // } | null

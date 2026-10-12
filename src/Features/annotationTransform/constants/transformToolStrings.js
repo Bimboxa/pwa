@@ -17,11 +17,17 @@ export function getMoveToolHint({ carriedCount, copyCount = 0 }) {
   return "Cliquez le point de destination";
 }
 
-export function getRotateToolHint({ carriedCount, referenceSet }) {
+export function getRotateToolHint({
+  carriedCount,
+  referenceSet,
+  copyCount = 0,
+}) {
   if (carriedCount === 0)
     return "1/3 — Cliquez le centre de rotation sur l'annotation à tourner";
   if (!referenceSet)
     return "2/3 — Cliquez un point pour fixer l'axe de référence";
+  if (copyCount > 0)
+    return `3/3 — Tournez ou tapez l'angle de la 1re copie (×${copyCount}, l'originale reste en place)`;
   return "3/3 — Tournez ou tapez l'angle, clic ou Entrée pour valider";
 }
 
@@ -39,6 +45,7 @@ export const MULTI_COPY_UNSUPPORTED_MESSAGE =
 
 export const ROTATE_TOOL_SHORTCUTS = [
   { key: "0-9", label: "Saisir l'angle" },
+  { key: "* 0-9", label: "Copie multiple (*N)" },
   { key: "Entrée", label: "Valider la rotation" },
   { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler / Quitter" },

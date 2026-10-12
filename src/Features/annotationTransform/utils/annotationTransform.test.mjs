@@ -3,7 +3,6 @@ import { test } from "node:test";
 
 import getTransformPointUpdates from "./getTransformPointUpdates.js";
 import {
-  appendToAngleBuffer,
   formatUserAngle,
   getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
@@ -85,15 +84,11 @@ test("typed angle is counter-clockwise positive", () => {
   assert.equal(parseAngleBufferToPixelDeg("-12,5"), 12.5);
   assert.equal(parseAngleBufferToPixelDeg(""), null);
   assert.equal(parseAngleBufferToPixelDeg("-"), null);
+  // The `*N` copy tail is not part of the angle.
+  assert.equal(parseAngleBufferToPixelDeg("30*3"), -30);
+  assert.equal(parseAngleBufferToPixelDeg("*3"), null);
   assert.equal(formatUserAngle(-45), "45°");
   assert.equal(formatUserAngle(0), "0°");
-});
-
-test("angle buffer accepts a leading minus only", () => {
-  assert.equal(appendToAngleBuffer("", "-"), "-");
-  assert.equal(appendToAngleBuffer("1", "-"), "1");
-  assert.equal(appendToAngleBuffer("1", "2"), "12");
-  assert.equal(appendToAngleBuffer("1", "a"), "1");
 });
 
 test("Shift locks the move on the dominant axis through the clicked point", () => {

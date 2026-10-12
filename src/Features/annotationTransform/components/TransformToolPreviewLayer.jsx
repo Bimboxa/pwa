@@ -8,9 +8,12 @@ import {
   resetTransformSession,
   useTransformSession,
 } from "../services/transformSessionStore";
-import { formatMoveBadge } from "../utils/copyBuffer";
+import { formatMoveBadge, formatRotateBadge } from "../utils/copyBuffer";
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
-import { formatUserAngle } from "../utils/rotateAngle";
+import {
+  formatUserAngle,
+  parseAngleBufferToPixelDeg,
+} from "../utils/rotateAngle";
 
 const GUIDE_COLOR = "#e65100";
 const REFERENCE_COLOR = "#757575";
@@ -24,9 +27,10 @@ const REFERENCE_COLOR = "#757575";
 // The carried annotations are redrawn at their transformed pose (the stored
 // ones stay in place underneath, as the "before" ghost) with the guides:
 // MOVE = grabbed point → cursor; ROTATE = pivot, reference axis, current
-// axis and the angle. « Copie multiple » (MOVE with a typed count): one
-// redraw per copy at i × the vector, a tick on each landing point and the
-// « ×N » label — the originals stay visible in place.
+// axis and the angle. « Copie multiple » (typed count): one redraw per copy
+// at i × the vector (MOVE, a tick on each landing point) or i × the angle
+// (ROTATE, a thin guide per copy) and the « ×N » label — the originals stay
+// visible in place.
 // ---------------------------------------------------------------------------
 
 export default function TransformToolPreviewLayer({
@@ -67,7 +71,7 @@ export default function TransformToolPreviewLayer({
   const partType = isRotate ? "ROTATE" : null;
   const wrapperBbox = isRotate ? getPivotBbox(anchor) : undefined;
   const showCarried = !isRotate || rotating;
-  const copyCount = isRotate ? 0 : getTransformCopyCount(session);
+  const copyCount = showCarried ? getTransformCopyCount(session) : 0;
   // Poses to draw: one per copy, or the single moved / turned pose.
   const poses =
     copyCount > 0
@@ -87,24 +91,34 @@ export default function TransformToolPreviewLayer({
     ? null
     : formatMoveBadge({ lengthM: moveLengthM ?? undefined, count: copyCount });
   const moveLabelLocked = getTransformMoveLength(session) != null;
+  const rotateLabelLocked =
+    isRotate && parseAngleBufferToPixelDeg(session.angleBuffer) != null;
 
   // Screen-constant sizes in the scaled group.
   const k = basePose.k || 1;
   const px = (n) => n / k;
 
   // ROTATE: the current axis has the reference axis' length, turned by the
-  // current angle.
-  let currentEnd = null;
-  let labelPos = null;
-  if (rotating) {
+  // current angle (the 1st copy's); the other copies get a thinner guide at
+  // i × the angle.
+  const axisEndAt = (deg) => {
     const rx = reference.x - anchor.x;
     const ry = reference.y - anchor.y;
-    const rad = (angleDeg * Math.PI) / 180;
-    currentEnd = {
+    const rad = (deg * Math.PI) / 180;
+    return {
       x: anchor.x + rx * Math.cos(rad) - ry * Math.sin(rad),
       y: anchor.y + rx * Math.sin(rad) + ry * Math.cos(rad),
     };
+  };
+  let currentEnd = null;
+  let labelPos = null;
+  let copyAxisEnds = [];
+  if (rotating) {
+    currentEnd = axisEndAt(angleDeg);
     labelPos = { x: currentEnd.x + px(10), y: currentEnd.y - px(10) };
+    copyAxisEnds = poses
+      .filter((pose) => pose.index > 1)
+      .map((pose) => ({ index: pose.index, end: axisEndAt(pose.deltaPos.x) }));
   }
 
   // render
@@ -141,7 +155,8 @@ export default function TransformToolPreviewLayer({
         />
       )}
 
-      {copyCount > 0 &&
+      {!isRotate &&
+        copyCount > 0 &&
         poses.map((pose) => (
           <circle
             key={pose.index}
@@ -201,17 +216,32 @@ export default function TransformToolPreviewLayer({
             strokeWidth={px(1.5)}
             strokeDasharray={`${px(4)} ${px(4)}`}
           />
+          {copyAxisEnds.map(({ index, end }) => (
+            <line
+              key={index}
+              x1={anchor.x}
+              y1={anchor.y}
+              x2={end.x}
+              y2={end.y}
+              stroke={GUIDE_COLOR}
+              strokeWidth={px(1)}
+              strokeDasharray={`${px(2)} ${px(4)}`}
+            />
+          ))}
           <text
             x={labelPos.x}
             y={labelPos.y}
             fontSize={px(13)}
-            fontWeight={600}
+            fontWeight={rotateLabelLocked ? 700 : 600}
             fill={GUIDE_COLOR}
             stroke="white"
             strokeWidth={px(3)}
             paintOrder="stroke"
           >
-            {formatUserAngle(angleDeg)}
+            {formatRotateBadge({
+              angleLabel: formatUserAngle(angleDeg),
+              count: copyCount,
+            })}
           </text>
         </>
       )}

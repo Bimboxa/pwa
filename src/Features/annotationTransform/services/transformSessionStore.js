@@ -22,7 +22,8 @@ import {
 //   rawCursor: MOVE = the cursor before the typed-distance constraint
 //   meterByPx: MOVE = scale of the base map (typed distance → pixels)
 //   angleDeg: ROTATE = current pixel-space angle (y down: clockwise positive)
-//   angleBuffer: ROTATE = typed angle (user degrees), "" when mouse-driven
+//   angleBuffer: ROTATE = typed `<angle>[*<copies>]` buffer ("45*3", user
+//     degrees), "" when mouse-driven without copies (see utils/copyBuffer)
 //   copyBuffer: MOVE = typed `<distance>[*<copies>]` buffer ("1.3*3"), ""
 //     = plain move (see utils/copyBuffer)
 //   committing: the write is in flight — the preview stays until the
@@ -72,9 +73,12 @@ export function useTransformSession() {
   return useSyncExternalStore(subscribe, getTransformSession);
 }
 
-// Number of copies the MOVE session asks for (0 = plain move).
+// Number of copies the session asks for (0 = plain move / turn): the `*N`
+// tail of the MOVE buffer or of the ROTATE angle buffer.
 export function getTransformCopyCount(session = state) {
-  return session.kind === "MOVE" ? parseCopyCount(session.copyBuffer) : 0;
+  if (session.kind === "MOVE") return parseCopyCount(session.copyBuffer);
+  if (session.kind === "ROTATE") return parseCopyCount(session.angleBuffer);
+  return 0;
 }
 
 // Typed distance of the MOVE session (metres), or null.
@@ -107,12 +111,15 @@ export function setMoveCursor(rawCursor) {
 // every cursor move (InteractionLayer): "IDLE" (nothing grabbed) | "MOVE"
 // (destination pending) | "MOVE_COPY" (destination of the 1st copy pending —
 // the originals stay in place, visible and snappable) | "ROTATE_REFERENCE"
-// (2/3) | "ROTATE_TURN" (3/3).
+// (2/3) | "ROTATE_TURN" (3/3) | "ROTATE_COPY" (3/3 with typed copies — the
+// originals stay in place, visible and snappable).
 function getTransformPhase() {
   if (state.kind === "MOVE")
     return getTransformCopyCount() > 0 ? "MOVE_COPY" : "MOVE";
-  if (state.kind === "ROTATE")
-    return state.reference ? "ROTATE_TURN" : "ROTATE_REFERENCE";
+  if (state.kind === "ROTATE") {
+    if (!state.reference) return "ROTATE_REFERENCE";
+    return getTransformCopyCount() > 0 ? "ROTATE_COPY" : "ROTATE_TURN";
+  }
   return "IDLE";
 }
 
@@ -120,8 +127,9 @@ export function useTransformPhase() {
   return useSyncExternalStore(subscribe, getTransformPhase);
 }
 
-// ROTATE 3/3 — typed angle (keyboard buffer or the helper's field): the pose
-// follows the typed value as soon as it parses.
+// ROTATE 3/3 — typed `<angle>[*<copies>]` buffer (keyboard or the helper's
+// field): the pose follows the typed angle as soon as it parses; the copy
+// count is read from the `*N` tail (getTransformCopyCount).
 export function setRotateAngleBuffer(angleBuffer) {
   if (state.kind !== "ROTATE" || !state.reference || state.committing) return;
   const angleDeg = parseAngleBufferToPixelDeg(angleBuffer);

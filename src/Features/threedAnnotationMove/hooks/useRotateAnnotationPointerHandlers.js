@@ -6,7 +6,7 @@ import {
   setRotateAnnotationModeActive,
   setRotateAnnotationCarriedIds,
   setRotateAnnotationReferenceSet,
-  setRotateAnnotationAngleBuffer,
+  bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
@@ -14,13 +14,21 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
-import { parseRotateAngleBuffer } from "Features/threedBaseMapMove/utils/applyRotateBaseMapPose";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
+import { appendToRotateBuffer } from "Features/annotationTransform/utils/copyBuffer";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
 import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
-import applyRotateAnnotationsPose from "../utils/applyRotateAnnotationsPose";
 import commitAnnotationsTransformFrom3d from "../services/commitAnnotationsTransformFrom3d";
+import setRotateAngleBufferService from "../services/setRotateAngleBufferService";
+import {
+  disposeCopyGhosts,
+  getGrabCopyCount,
+  holdCopyGhostsUntilBuilt,
+  poseCopyGhostsRotated,
+} from "../services/moveCopyGhostsThreed";
 import {
   getLastRotateAnnotationSnap,
   getRotateAnnotationGrab,
@@ -31,8 +39,9 @@ import {
 // Mirrors useRotateBaseMapPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 
-// Characters accepted by the typed angle buffer (degrees).
-const ANGLE_BUFFER_CHAR_RE = /^[0-9.,-]$/;
+// Characters accepted by the typed `<angle>[*<copies>]` buffer (degrees;
+// appendToRotateBuffer validates the grammar).
+const ANGLE_BUFFER_CHAR_RE = /^[0-9.,*-]$/;
 
 // Same guard as the 2D hotkeys: never steal keystrokes from a real field.
 const isEditableTarget = (el) => {
@@ -47,11 +56,12 @@ const isEditableTarget = (el) => {
 };
 
 // Restores the rotating annotation roots to their pivot-click poses
-// (Escape / mode exit).
+// (Escape / mode exit) and drops the copy ghosts.
 function restoreRotatedAnnotations() {
   const grab = getRotateAnnotationGrab();
   if (!grab) return;
   const editor = getActiveThreedEditor();
+  disposeCopyGhosts(grab);
   const annotationsObjectsMap =
     editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
   for (const id of grab.annotationIds) {
@@ -74,6 +84,10 @@ function restoreRotatedAnnotations() {
 // around the base map plane's normal through the pivot; the 3rd click (or
 // Enter) commits the new 2D point coordinates. Esc cancels the in-progress
 // rotation, or exits the mode when nothing is grabbed.
+// Typed buffer in the rotation phase (`<angle>[*<copies>]`): digits lock
+// the angle; `*` + digits ("*3") keep the originals in place and preview N
+// copies turned by i × the angle (moveCopyGhostsThreed), the commit writes
+// the copies (createTransformedAnnotationCopiesService).
 export default function useRotateAnnotationPointerHandlers({ annotations }) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -193,6 +207,11 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         refBearing: null,
         currentPhi: 0,
         angleBuffer: "",
+        ghosts: [],
+        // Resolved snapshot of the carried annotations (copy ghosts).
+        carriedAnnotations: (annotationsRef.current ?? []).filter((a) =>
+          carriedIds.includes(a.id)
+        ),
         targetVerts,
         targetAdjacency,
       });
@@ -218,7 +237,66 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       dispatch(setRotateAnnotationReferenceSet(true));
     }
 
+    // « Copie multiple »: the originals never moved; the ghosts stand for
+    // the copies until the AnnotationsManager has built them. The pixel
+    // transform mirrors commitAnnotationsTransformFrom3d (local y up → pixel
+    // y down: pivot Y flipped, angle negated).
+    async function commitRotatedCopies(grab) {
+      const phi = grab.currentPhi;
+      const count = getGrabCopyCount(grab);
+      const imagesManager = editor?.sceneManager?.imagesManager;
+      const metrics = getBaseMapForRender(
+        imagesManager?.baseMapsMap?.[grab.baseMapId]
+      );
+      if (!phi || !metrics) {
+        disposeCopyGhosts(grab);
+        clearRotateAnnotationGrab();
+        dispatch(setRotateAnnotationCarriedIds([]));
+        return;
+      }
+      poseCopyGhostsRotated(grab, phi);
+      const ghostsHolder = { ghosts: grab.ghosts };
+      grab.ghosts = [];
+      clearRotateAnnotationGrab();
+      dispatch(setRotateAnnotationCarriedIds([]));
+
+      const { meterByPx, imageWidth, imageHeight } = metrics;
+      let newAnnotationIds = [];
+      try {
+        const result = await createTransformedAnnotationCopiesService({
+          annotations: (annotationsRef.current ?? []).filter((a) =>
+            grab.annotationIds.includes(a.id)
+          ),
+          transform: {
+            kind: "ROTATE",
+            pivotPx: {
+              x: imageWidth / 2 + grab.pivotLocal.x / meterByPx,
+              y: imageHeight / 2 - grab.pivotLocal.y / meterByPx,
+            },
+            angleDeg: (-phi * 180) / Math.PI,
+          },
+          count,
+          imageSize: { width: imageWidth, height: imageHeight },
+          projectId: store.getState().projects.selectedProjectId,
+          activeLayerId: store.getState().layers?.activeLayerId,
+          dispatch,
+        });
+        newAnnotationIds = result?.newAnnotationIds ?? [];
+      } catch (err) {
+        console.error(
+          "[threedAnnotationMove] rotated copies persist failed",
+          err
+        );
+      }
+      holdCopyGhostsUntilBuilt(editor, ghostsHolder, newAnnotationIds);
+      if (newAnnotationIds.length) dispatch(bumpSnapIndexEpoch());
+    }
+
     async function commitRotation(grab) {
+      if (getGrabCopyCount(grab) > 0) {
+        await commitRotatedCopies(grab);
+        return;
+      }
       const phi = grab.currentPhi;
       // The overlay already posed the roots — the poses stay applied, the
       // post-commit rebuild swaps the carried objects with fresh geometry.
@@ -273,13 +351,10 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       isDragging = false;
     }
 
+    // Typed buffer → slice, ghosts, immediate pose (the overlay redraws its
+    // helpers on the next pointer move).
     function setAngleBuffer(grab, buffer) {
-      grab.angleBuffer = buffer;
-      dispatch(setRotateAnnotationAngleBuffer(buffer));
-      // Immediate visual feedback: pose the annotations for the typed angle
-      // (the overlay redraws its helpers on the next pointer move).
-      const phi = parseRotateAngleBuffer(buffer);
-      if (phi != null) applyRotateAnnotationsPose(editor, grab, phi);
+      setRotateAngleBufferService({ editor, buffer, dispatch });
     }
 
     function onKeyDown(e) {
@@ -288,7 +363,8 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
 
       if (e.key === "Escape") {
         if (grab?.angleBuffer) {
-          // Drop the typed angle first (back to the mouse-driven angle).
+          // Drop the typed angle / copies first (back to the mouse-driven
+          // angle).
           setAngleBuffer(grab, "");
         } else if (grab) {
           // Cancel the in-progress rotation: put the annotations back.
@@ -320,11 +396,10 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         return;
       }
       if (ANGLE_BUFFER_CHAR_RE.test(e.key)) {
-        // A minus only makes sense as the first character.
-        if (e.key === "-" && grab.angleBuffer !== "") return;
         e.preventDefault();
         e.stopPropagation();
-        setAngleBuffer(grab, grab.angleBuffer + (e.key === "," ? "." : e.key));
+        const next = appendToRotateBuffer(grab.angleBuffer, e.key);
+        if (next !== grab.angleBuffer) setAngleBuffer(grab, next);
       }
     }
 

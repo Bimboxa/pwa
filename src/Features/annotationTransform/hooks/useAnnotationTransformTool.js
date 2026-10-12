@@ -11,7 +11,7 @@ import getCarriedAnnotationIdsFromSelection from "Features/threedAnnotationMove/
 import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/moveRevolutionAxisCenterService";
 
 import commitAnnotationsTransform2d from "../services/commitAnnotationsTransform2d";
-import createTranslatedAnnotationCopiesService from "../services/createTranslatedAnnotationCopiesService";
+import createTransformedAnnotationCopiesService from "../services/createTransformedAnnotationCopiesService";
 import {
   constrainMoveCursor,
   getTransformCopyCount,
@@ -29,11 +29,10 @@ import {
 } from "../utils/transformToolModes";
 import {
   ROTATE_SHIFT_STEP_DEG,
-  appendToAngleBuffer,
   getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
 } from "../utils/rotateAngle";
-import { appendToMoveBuffer } from "../utils/copyBuffer";
+import { appendToMoveBuffer, appendToRotateBuffer } from "../utils/copyBuffer";
 import {
   MULTI_COPY_UNSUPPORTED_MESSAGE,
   TRANSFORM_UNSUPPORTED_GRAB_MESSAGE,
@@ -68,7 +67,9 @@ const isEditableTarget = (el) => {
 //   at i × it) — "1.3*3": 3 copies with a 1.30 m pitch.
 //   Tourner: click the pivot on an annotation, click a point fixing the
 //   reference axis, turn with the mouse (Shift: 15° steps) or type the angle,
-//   click / Enter to validate.
+//   click / Enter to validate. `*` + digits ("45*3") turn the rotation into
+//   a « copie multiple »: the originals stay, N copies turned by i × the
+//   angle around the pivot.
 // The grabbed annotation carries the whole selection when it belongs to it
 // (getCarriedAnnotationIdsFromSelection — shared with the 3D tools).
 // A revolution axis is moved alone, from its centre or one of the ends of its
@@ -227,12 +228,22 @@ export default function useAnnotationTransformTool({
             },
             dispatch,
           });
-        } else if (transform.kind === "MOVE_COPY") {
-          await createTranslatedAnnotationCopiesService({
+        } else if (
+          transform.kind === "MOVE_COPY" ||
+          transform.kind === "ROTATE_COPY"
+        ) {
+          await createTransformedAnnotationCopiesService({
             annotations: (annotationsRef.current ?? []).filter((a) =>
               annotationIds.includes(a.id)
             ),
-            deltaPx: transform.deltaPx,
+            transform:
+              transform.kind === "MOVE_COPY"
+                ? { kind: "MOVE", deltaPx: transform.deltaPx }
+                : {
+                    kind: "ROTATE",
+                    pivotPx: transform.pivotPx,
+                    angleDeg: transform.angleDeg,
+                  },
             count: transform.count,
             imageSize,
             projectId: projectIdRef.current,
@@ -276,10 +287,12 @@ export default function useAnnotationTransformTool({
       resetTransformSession();
       return;
     }
+    const copyCount = getTransformCopyCount(session);
     commit({
-      kind: "ROTATE",
+      kind: copyCount > 0 ? "ROTATE_COPY" : "ROTATE",
       pivotPx: session.anchor,
       angleDeg: session.angleDeg,
+      ...(copyCount > 0 ? { count: copyCount } : {}),
     });
   }, [commit]);
 
@@ -418,7 +431,8 @@ export default function useAnnotationTransformTool({
         // Typed angle / copies → in-progress grab → (not consumed) exit the
         // tool.
         if (rotating && session.angleBuffer !== "") {
-          // Back to the mouse-driven angle (next mouse move refreshes it).
+          // Back to the mouse-driven angle without copies (next mouse move
+          // refreshes it).
           setTransformSession({ angleBuffer: "" });
           return consume();
         }
@@ -467,9 +481,13 @@ export default function useAnnotationTransformTool({
         return consume();
       }
 
-      if (/^[0-9.,;-]$/.test(e.key)) {
+      // Typed angle (digits, a leading `-`) / « copie multiple » (`*` then
+      // digits) while turning (3/3).
+      if (/^[0-9.,;*-]$/.test(e.key)) {
         if (rotating)
-          setRotateAngleBuffer(appendToAngleBuffer(session.angleBuffer, e.key));
+          setRotateAngleBuffer(
+            appendToRotateBuffer(session.angleBuffer, e.key)
+          );
         // Outside 3/3 the digits are swallowed too: these tools have no
         // segment length to constrain.
         return consume();

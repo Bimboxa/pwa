@@ -13,6 +13,7 @@ import {
   useTransformSession,
 } from "../services/transformSessionStore";
 import { MOVE_ANNOTATION_MODE } from "../utils/transformToolModes";
+import { formatAngleValueBuffer, withCopyCountPart } from "../utils/copyBuffer";
 
 const ROTATE_TOOL_SHORTCUTS_2D = [
   { key: "⇧", label: "Tourner par pas de 15°" },
@@ -51,20 +52,30 @@ export default function SectionTransformToolHelper2d({ mode }) {
     );
   }
 
+  // The field shows the angle part only; editing it keeps the `*N` tail.
   return (
     <SectionTransformToolHelper
-      hint={getRotateToolHint({ carriedCount, referenceSet })}
+      hint={getRotateToolHint({
+        carriedCount,
+        referenceSet,
+        copyCount: getTransformCopyCount(session),
+      })}
       field={
         referenceSet
           ? {
               label: "Angle",
               unit: "°",
-              value: session.angleBuffer,
-              onChangeText: setRotateAngleBuffer,
+              value: formatAngleValueBuffer(session.angleBuffer),
+              onChangeText: (text) =>
+                setRotateAngleBuffer(
+                  withCopyCountPart(text, session.angleBuffer)
+                ),
             }
           : null
       }
       shortcuts={ROTATE_TOOL_SHORTCUTS_2D}
-    />
+    >
+      <SectionMultiCopy variant="ROTATE" copyBuffer={session.angleBuffer} />
+    </SectionTransformToolHelper>
   );
 }

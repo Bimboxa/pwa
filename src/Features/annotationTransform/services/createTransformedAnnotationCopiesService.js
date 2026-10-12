@@ -12,32 +12,77 @@ import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3
 import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
 
-// « Copie multiple » of the « Déplacer » tools (2D and 3D): N translated
-// copies of the carried annotations, copy i at i × `deltaPx`, the originals
-// untouched. Shared by the 2D commit (pixel delta from the click) and the 3D
-// one (local metres mapped to pixels, vertical component as `deltaZ`).
+import { getPivotBbox } from "../utils/getTransformPointUpdates";
+import getPixelRotationAffine from "../utils/pixelRotationAffine";
+
+// « Copie multiple » of the « Déplacer » / « Tourner » tools (2D and 3D): N
+// transformed copies of the carried annotations, copy i at i × the
+// transform, the originals untouched. Shared by the 2D commits (pixel
+// frame) and the 3D ones (local metres mapped to pixels).
+//
+// transform:
+//   { kind: "MOVE", deltaPx: {x, y}, deltaZ? }   copy i translated by
+//     i × deltaPx (and i × deltaZ metres of altitude, 3D snapped drop)
+//   { kind: "ROTATE", pivotPx: {x, y}, angleDeg } copy i turned by
+//     i × angleDeg around the pivot (pixel space, y down: clockwise
+//     positive — the convention of getTransformPointUpdates)
 //
 // Each copy is built from the STORED row of its source (never from the
 // hydrated object of useAnnotationsV2 — template-merged props, quantities,
 // `_xxx` runtime fields…), onto which only the geometry is grafted: the
-// resolved pixel points are translated (applyDeltaPosToAnnotation) and
+// resolved pixel points are transformed (applyDeltaPosToAnnotation) and
 // re-minted as fresh db.points (duplicateAnnotationPoints, one id map per
 // copy so a vertex shared by two carried walls stays shared by their copies).
 //
-// Also carried: rotationCenter, offsetZ (+ i × deltaZ), the isMesh3d mesh
-// and its source snapshot (translation affine), the mapping-category rels,
-// the active layer, the listing's auto-number labels. Not copied (same as
-// « Dupliquer »): glued openings, painted parts (meshPaints); POLYGON
-// meshLines are dropped (absolute coords, they would sit on the source).
+// Also carried: the isMesh3d mesh and its source snapshot (same pixel
+// affine), the mapping-category rels, the active layer, the listing's
+// auto-number labels. MOVE translates rotationCenter and adds i × deltaZ to
+// offsetZ; ROTATE bakes the turn into the points and resets the rotation
+// metadata (rotation / rotationCenter — same rule as commitWrapperTransform
+// clearRotation). Not copied (same as « Dupliquer »): glued openings,
+// painted parts (meshPaints); POLYGON meshLines are dropped (absolute
+// coords, they would sit on the source).
 //
 // One undo step: a single withUndoGroup around a single transaction.
 //
 // annotations: carried annotations, resolved in PIXELS (useAnnotationsV2).
 // Returns { newAnnotationIds } (empty when nothing was written).
-export default async function createTranslatedAnnotationCopiesService({
+
+// Per-copy geometry recipe of a transform: the arguments of
+// applyDeltaPosToAnnotation and the matching pixel affine.
+function getCopyStep(transform, i) {
+  if (transform.kind === "ROTATE") {
+    const angleDeg = transform.angleDeg * i;
+    return {
+      deltaPos: { x: angleDeg, y: 0 },
+      partType: "ROTATE",
+      wrapperBbox: getPivotBbox(transform.pivotPx),
+      affine: getPixelRotationAffine({ pivotPx: transform.pivotPx, angleDeg }),
+      deltaPx: null,
+      dz: 0,
+    };
+  }
+  const delta = { x: transform.deltaPx.x * i, y: transform.deltaPx.y * i };
+  return {
+    deltaPos: delta,
+    partType: null,
+    wrapperBbox: undefined,
+    affine: { a: 1, b: 0, c: delta.x, d: 0, e: 1, f: delta.y },
+    deltaPx: delta,
+    dz: (transform.deltaZ || 0) * i,
+  };
+}
+
+function isValidTransform(transform) {
+  if (transform?.kind === "MOVE") return Boolean(transform.deltaPx);
+  if (transform?.kind === "ROTATE")
+    return Boolean(transform.pivotPx) && Number.isFinite(transform.angleDeg);
+  return false;
+}
+
+export default async function createTransformedAnnotationCopiesService({
   annotations,
-  deltaPx,
-  deltaZ = 0,
+  transform,
   count,
   imageSize,
   projectId,
@@ -49,7 +94,7 @@ export default async function createTranslatedAnnotationCopiesService({
   if (
     !annotations?.length ||
     copies < 1 ||
-    !deltaPx ||
+    !isValidTransform(transform) ||
     !imageSize?.width ||
     !imageSize?.height
   ) {
@@ -71,9 +116,8 @@ export default async function createTranslatedAnnotationCopiesService({
   const sourceIdOfNew = []; // parallel to newAnnotations (mapping rels)
 
   for (let i = 1; i <= copies; i++) {
-    const delta = { x: deltaPx.x * i, y: deltaPx.y * i };
-    const dz = deltaZ * i;
-    const affine = { a: 1, b: 0, c: delta.x, d: 0, e: 1, f: delta.y };
+    const { deltaPos, partType, wrapperBbox, affine, deltaPx, dz } =
+      getCopyStep(transform, i);
     // One map per copy: points shared between carried annotations stay
     // welded in the copy, never with the sources or another copy.
     const idMap = new Map();
@@ -82,9 +126,14 @@ export default async function createTranslatedAnnotationCopiesService({
       const stored = storedById.get(resolved.id);
       if (!stored) continue;
 
-      const translated = applyDeltaPosToAnnotation(resolved, delta, null);
+      const transformed = applyDeltaPosToAnnotation(
+        resolved,
+        deltaPos,
+        partType,
+        wrapperBbox
+      );
       const { annotation: remapped, pointRecords } = duplicateAnnotationPoints(
-        translated,
+        transformed,
         {
           imageSize,
           projectId,
@@ -122,11 +171,18 @@ export default async function createTranslatedAnnotationCopiesService({
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };
 
-      if (stored.rotationCenter) {
-        copy.rotationCenter = {
-          x: stored.rotationCenter.x + delta.x / width,
-          y: stored.rotationCenter.y + delta.y / height,
-        };
+      if (deltaPx) {
+        if (stored.rotationCenter) {
+          copy.rotationCenter = {
+            x: stored.rotationCenter.x + deltaPx.x / width,
+            y: stored.rotationCenter.y + deltaPx.y / height,
+          };
+        }
+      } else {
+        // The turn is baked into the points: the single-centre rotation
+        // model no longer describes the copy.
+        delete copy.rotationCenter;
+        if (stored.rotation) copy.rotation = 0;
       }
 
       if (Math.abs(dz) > 1e-9) {
