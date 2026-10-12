@@ -1,12 +1,14 @@
 import SectionTransformToolHelper from "./SectionTransformToolHelper";
+import SectionMultiCopy from "./SectionMultiCopy";
 
 import {
   getMoveToolHint,
   getRotateToolHint,
-  MOVE_TOOL_SHORTCUTS_2D,
+  MOVE_TOOL_SHORTCUTS,
   ROTATE_TOOL_SHORTCUTS,
 } from "../constants/transformToolStrings";
 import {
+  getTransformCopyCount,
   setRotateAngleBuffer,
   useTransformSession,
 } from "../services/transformSessionStore";
@@ -38,9 +40,14 @@ export default function SectionTransformToolHelper2d({ mode }) {
   if (mode === MOVE_ANNOTATION_MODE) {
     return (
       <SectionTransformToolHelper
-        hint={getMoveToolHint({ carriedCount })}
-        shortcuts={MOVE_TOOL_SHORTCUTS_2D}
-      />
+        hint={getMoveToolHint({
+          carriedCount,
+          copyCount: getTransformCopyCount(session),
+        })}
+        shortcuts={MOVE_TOOL_SHORTCUTS}
+      >
+        <SectionMultiCopy copyBuffer={session.copyBuffer} />
+      </SectionTransformToolHelper>
     );
   }
 

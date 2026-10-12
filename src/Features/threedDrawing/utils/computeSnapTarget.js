@@ -27,7 +27,7 @@ const WORLD_AXES = [
   { key: "Z", dir: new Vector3(0, 0, 1) },
 ];
 
-function ndcDistance(world, mouseNdc, camera, canvasSize) {
+export function ndcDistance(world, mouseNdc, camera, canvasSize) {
   const v = world.clone().project(camera);
   const dx = ((v.x - mouseNdc.x) * canvasSize.width) / 2;
   const dy = ((v.y - mouseNdc.y) * canvasSize.height) / 2;
@@ -39,7 +39,7 @@ function ndcDistance(world, mouseNdc, camera, canvasSize) {
 
 // Closest approach point on the axis line `last + t * axisVec` to the camera
 // ray `camPos + s * cursorDir`. Returns null when the lines are parallel.
-function closestPointOnAxis(camPos, cursorDir, last, axisVec) {
+export function closestPointOnAxis(camPos, cursorDir, last, axisVec) {
   const b = cursorDir.dot(axisVec);
   const denom = 1 - b * b;
   if (denom < 1e-6) return null;
@@ -48,7 +48,7 @@ function closestPointOnAxis(camPos, cursorDir, last, axisVec) {
   return last.clone().add(axisVec.clone().multiplyScalar(t));
 }
 
-function getCursorDir(mouseNdc, camera) {
+export function getCursorDir(mouseNdc, camera) {
   const v = new Vector3(mouseNdc.x, mouseNdc.y, 0.5).unproject(camera);
   return v.sub(camera.position).normalize();
 }

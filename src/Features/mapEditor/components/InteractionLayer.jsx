@@ -7472,7 +7472,10 @@ const InteractionLayer = forwardRef(({
       // snaps, like the Shift-constrained vertex drag.
       const transformShift = Boolean(event.shiftKey || event.evt?.shiftKey);
       const transformRawPos = toLocalCoords(worldPos);
-      if (transformShift && transformPhase === "MOVE") {
+      if (
+        transformShift &&
+        (transformPhase === "MOVE" || transformPhase === "MOVE_COPY")
+      ) {
         transformSnap = null;
         snappingLayerRef.current?.update(null);
       }

@@ -72,6 +72,7 @@ export function buildIndex(scene, options = {}) {
     while (parent) {
       if (parent.visible === false) return; // hidden by an ancestor
       if (excludeSet.has(parent)) return;
+      if (parent.userData?.isCopyGhost) return; // « copie multiple » preview
       if (parent.userData?.nodeType === "ANNOTATION") {
         nodeId = parent.userData.nodeId ?? nodeId;
       }

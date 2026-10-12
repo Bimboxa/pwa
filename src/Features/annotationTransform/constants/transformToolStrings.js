@@ -10,10 +10,11 @@ export const TRANSFORM_TOOL_LABELS = {
   MERGE_FACES: "Fusionner des faces",
 };
 
-export function getMoveToolHint({ carriedCount }) {
-  return carriedCount > 0
-    ? "Cliquez le point de destination"
-    : "Cliquez un point de l'annotation à déplacer";
+export function getMoveToolHint({ carriedCount, copyCount = 0 }) {
+  if (carriedCount === 0) return "Cliquez un point de l'annotation à déplacer";
+  if (copyCount > 0)
+    return `Cliquez la destination de la 1re copie (×${copyCount}, l'originale reste en place)`;
+  return "Cliquez le point de destination";
 }
 
 export function getRotateToolHint({ carriedCount, referenceSet }) {
@@ -24,15 +25,16 @@ export function getRotateToolHint({ carriedCount, referenceSet }) {
   return "3/3 — Tournez ou tapez l'angle, clic ou Entrée pour valider";
 }
 
-// 2D only: the 3D move has no ortho lock.
-export const MOVE_TOOL_SHORTCUTS_2D = [
+// Same keys in 2D (image axes) and 3D (user axes X / Y / Z of the gizmo).
+export const MOVE_TOOL_SHORTCUTS = [
   { key: "⇧", label: "Déplacement orthogonal" },
+  { key: "x 0-9", label: "Copie multiple (xN)" },
+  { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler la saisie / Quitter" },
 ];
 
-export const MOVE_TOOL_SHORTCUTS = [
-  { key: "Esc", label: "Annuler la saisie / Quitter" },
-];
+export const MULTI_COPY_UNSUPPORTED_MESSAGE =
+  "La copie multiple ne s'applique pas à un axe de révolution";
 
 export const ROTATE_TOOL_SHORTCUTS = [
   { key: "0-9", label: "Saisir l'angle" },

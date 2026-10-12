@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import TransientAnnotationLayer from "Features/mapEditorGeneric/components/TransientAnnotationLayer";
 
 import {
+  getTransformCopyCount,
   resetTransformSession,
   useTransformSession,
 } from "../services/transformSessionStore";
@@ -21,7 +22,9 @@ const REFERENCE_COLOR = "#757575";
 // The carried annotations are redrawn at their transformed pose (the stored
 // ones stay in place underneath, as the "before" ghost) with the guides:
 // MOVE = grabbed point → cursor; ROTATE = pivot, reference axis, current
-// axis and the angle.
+// axis and the angle. « Copie multiple » (MOVE with a typed count): one
+// redraw per copy at i × the vector, a tick on each landing point and the
+// « ×N » label — the originals stay visible in place.
 // ---------------------------------------------------------------------------
 
 export default function TransformToolPreviewLayer({
@@ -62,6 +65,16 @@ export default function TransformToolPreviewLayer({
   const partType = isRotate ? "ROTATE" : null;
   const wrapperBbox = isRotate ? getPivotBbox(anchor) : undefined;
   const showCarried = !isRotate || rotating;
+  const copyCount = isRotate ? 0 : getTransformCopyCount(session);
+  // Poses to draw: one per copy, or the single moved / turned pose.
+  const poses =
+    copyCount > 0
+      ? Array.from({ length: copyCount }, (_, idx) => ({
+          index: idx + 1,
+          deltaPos: { x: deltaPos.x * (idx + 1), y: deltaPos.y * (idx + 1) },
+        }))
+      : [{ index: 0, deltaPos }];
+  const lastPose = poses[poses.length - 1];
 
   // Screen-constant sizes in the scaled group.
   const k = basePose.k || 1;
@@ -90,28 +103,58 @@ export default function TransformToolPreviewLayer({
       style={{ pointerEvents: "none" }}
     >
       {showCarried &&
-        carried.map((annotation) => (
-          <TransientAnnotationLayer
-            key={annotation.id}
-            annotation={annotation}
-            deltaPos={deltaPos}
-            partType={partType}
-            wrapperBbox={wrapperBbox}
-            basePose={basePose}
-            baseMapMeterByPx={baseMapMeterByPx}
-          />
-        ))}
+        poses.map((pose) =>
+          carried.map((annotation) => (
+            <TransientAnnotationLayer
+              key={`${annotation.id}::${pose.index}`}
+              annotation={annotation}
+              deltaPos={pose.deltaPos}
+              partType={partType}
+              wrapperBbox={wrapperBbox}
+              basePose={basePose}
+              baseMapMeterByPx={baseMapMeterByPx}
+            />
+          ))
+        )}
 
       {!isRotate && cursor && (
         <line
           x1={anchor.x}
           y1={anchor.y}
-          x2={cursor.x}
-          y2={cursor.y}
+          x2={anchor.x + lastPose.deltaPos.x}
+          y2={anchor.y + lastPose.deltaPos.y}
           stroke={REFERENCE_COLOR}
           strokeWidth={px(1)}
           strokeDasharray={`${px(4)} ${px(4)}`}
         />
+      )}
+
+      {copyCount > 0 &&
+        poses.map((pose) => (
+          <circle
+            key={pose.index}
+            cx={anchor.x + pose.deltaPos.x}
+            cy={anchor.y + pose.deltaPos.y}
+            r={px(3)}
+            fill="white"
+            stroke={GUIDE_COLOR}
+            strokeWidth={px(1.5)}
+          />
+        ))}
+
+      {copyCount > 0 && cursor && (
+        <text
+          x={cursor.x + px(10)}
+          y={cursor.y - px(10)}
+          fontSize={px(13)}
+          fontWeight={600}
+          fill={GUIDE_COLOR}
+          stroke="white"
+          strokeWidth={px(3)}
+          paintOrder="stroke"
+        >
+          {`×${copyCount}`}
+        </text>
       )}
 
       {isRotate && !rotating && cursor && (

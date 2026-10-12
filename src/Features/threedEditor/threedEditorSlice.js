@@ -362,6 +362,9 @@ const threedEditorInitialState = {
     active: false,
     // Annotations currently carried (empty = waiting for the grab click).
     carriedAnnotationIds: [],
+    // « Copie multiple » typed buffer ("x3") while carrying — see
+    // annotationTransform/utils/copyBuffer. "" = plain move.
+    copyBuffer: "",
   },
   // "Tourner" mode for ANNOTATIONS (Dessin/MAP module), CAD-style 3 clicks:
   // 1st snapped click sets the pivot on an annotation (and picks the carried
@@ -1087,6 +1090,7 @@ export const threedEditorSlice = createSlice({
     setMoveAnnotationModeActive: (state, action) => {
       state.moveAnnotationMode.active = !!action.payload;
       state.moveAnnotationMode.carriedAnnotationIds = [];
+      state.moveAnnotationMode.copyBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
@@ -1190,6 +1194,12 @@ export const threedEditorSlice = createSlice({
     },
     setMoveAnnotationCarriedIds: (state, action) => {
       state.moveAnnotationMode.carriedAnnotationIds = action.payload ?? [];
+      // Grab / drop / cancel: the typed copies never outlive the carry.
+      state.moveAnnotationMode.copyBuffer = "";
+    },
+    setMoveAnnotationCopyBuffer: (state, action) => {
+      if (!state.moveAnnotationMode.active) return;
+      state.moveAnnotationMode.copyBuffer = action.payload ?? "";
     },
     setRotateAnnotationModeActive: (state, action) => {
       state.rotateAnnotationMode.active = !!action.payload;
@@ -1413,6 +1423,7 @@ export const {
   setRotateAngleBuffer,
   setMoveAnnotationModeActive,
   setMoveAnnotationCarriedIds,
+  setMoveAnnotationCopyBuffer,
   setIsolateFaceModeActive,
   setMergeFacesModeActive,
   setMergeFacesSeed,
