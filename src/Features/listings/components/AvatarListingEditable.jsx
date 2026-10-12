@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Box, InputBase, Tooltip } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
@@ -7,9 +9,11 @@ import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 // AvatarListingEditable — the listing avatar as the edit point of its avatar
 // string: the round "selected" avatar hosts a 3-char input, so clicking it
 // shows the caret and the letters are typed in place. Empty = automatic
-// initials derived from `name` (shown as the placeholder). Fully controlled
-// through `avatarString` / `onChange`; Enter / Escape blur without bubbling
-// to the parent form.
+// initials derived from `name`, shown as the placeholder only while the
+// field is not focused: during the edit the avatar can be fully cleared,
+// the fallback applies at the commit (blur). Fully controlled through
+// `avatarString` / `onChange`; Enter / Escape blur without bubbling to the
+// parent form.
 // ---------------------------------------------------------------------------
 
 export default function AvatarListingEditable({
@@ -24,9 +28,15 @@ export default function AvatarListingEditable({
 
   const tooltipS = "Avatar (vide = automatique)";
 
+  // state
+
+  const [focused, setFocused] = useState(false);
+
   // helpers
 
-  const avatarPlaceholder = getDefaultListingAvatarString({ name });
+  const avatarPlaceholder = focused
+    ? ""
+    : getDefaultListingAvatarString({ name });
   const fontSize = Math.round(size * 0.4);
 
   // handlers
@@ -40,7 +50,12 @@ export default function AvatarListingEditable({
   }
 
   function handleFocus(e) {
+    setFocused(true);
     e.target.select();
+  }
+
+  function handleBlur() {
+    setFocused(false);
   }
 
   // render
@@ -70,6 +85,7 @@ export default function AvatarListingEditable({
           onChange={(e) => onChange?.(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholder={avatarPlaceholder}
           readOnly={disabled}
           inputProps={{ maxLength: 3, "aria-label": tooltipS }}
