@@ -195,6 +195,7 @@ export default function DialogCreateListing({
               onNameChange={setEmptyName}
               onAvatarStringChange={setAvatarString}
               namePlaceholder={emptyNamePlaceholderS}
+              nameVariant="field"
               onEnter={handleCreateEmpty}
               size={36}
             >
@@ -253,6 +254,7 @@ export default function DialogCreateListing({
                   onAddListings={handleAddPresets}
                   overridesByKey={presetOverrides}
                   onOverridesChange={setPresetOverrides}
+                  onSelectedKeysChange={setSelectedKeys}
                   editable={!onAddPresets}
                 />
               </Box>

@@ -1,14 +1,15 @@
-import { Box } from "@mui/material";
+import { Box, TextField } from "@mui/material";
 
 import AvatarListingEditable from "./AvatarListingEditable";
 import InputBaseBand from "Features/layout/components/InputBaseBand";
 
 // ---------------------------------------------------------------------------
-// FieldsListingNameAvatar — one dense row to edit a listing name + avatar:
-// the avatar itself is the edit point of the avatar string (click → popover,
-// empty = automatic initials), followed by the name band. Controlled;
-// `onEnter` fires on Enter in the name band only. Extra children (e.g. a
-// button) are rendered at the end.
+// FieldsListingNameAvatar — one row to edit a listing name + avatar: the
+// avatar itself is the edit point of the avatar string (letters typed in
+// place, empty = automatic initials), followed by the name. `nameVariant`:
+// "band" (dense InputBaseBand, default) or "field" (outlined TextField).
+// Controlled; `onEnter` fires on Enter in the name only. Extra children
+// (e.g. a button) are rendered at the end.
 // ---------------------------------------------------------------------------
 
 export default function FieldsListingNameAvatar({
@@ -17,6 +18,7 @@ export default function FieldsListingNameAvatar({
   onNameChange,
   onAvatarStringChange,
   namePlaceholder,
+  nameVariant = "band",
   onEnter,
   autoFocus,
   size = 32,
@@ -31,6 +33,15 @@ export default function FieldsListingNameAvatar({
 
   // render
 
+  const nameProps = {
+    fullWidth: true,
+    autoFocus,
+    placeholder: namePlaceholder,
+    value: name ?? "",
+    onChange: (e) => onNameChange?.(e.target.value),
+    onKeyDown: handleKeyDown,
+  };
+
   return (
     <Box
       sx={[
@@ -44,14 +55,11 @@ export default function FieldsListingNameAvatar({
         onChange={onAvatarStringChange}
         size={size}
       />
-      <InputBaseBand
-        fullWidth
-        autoFocus={autoFocus}
-        placeholder={namePlaceholder}
-        value={name ?? ""}
-        onChange={(e) => onNameChange?.(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
+      {nameVariant === "field" ? (
+        <TextField size="small" {...nameProps} />
+      ) : (
+        <InputBaseBand {...nameProps} />
+      )}
       {children}
     </Box>
   );

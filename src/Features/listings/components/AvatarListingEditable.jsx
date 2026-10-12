@@ -1,17 +1,15 @@
-import { useState } from "react";
-
-import { InputBase, Popover, Tooltip, Typography } from "@mui/material";
-
-import AvatarListing from "./AvatarListing";
+import { Box, InputBase, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 
 // ---------------------------------------------------------------------------
 // AvatarListingEditable — the listing avatar as the edit point of its avatar
-// string: clicking the avatar opens a small popover with a 3-char field
-// (empty = automatic initials derived from `name`). Fully controlled through
-// `avatarString` / `onChange`; the avatar updates live while typing.
-// Enter / Escape close the popover without bubbling to the parent form.
+// string: the round "selected" avatar hosts a 3-char input, so clicking it
+// shows the caret and the letters are typed in place. Empty = automatic
+// initials derived from `name` (shown as the placeholder). Fully controlled
+// through `avatarString` / `onChange`; Enter / Escape blur without bubbling
+// to the parent form.
 // ---------------------------------------------------------------------------
 
 export default function AvatarListingEditable({
@@ -24,96 +22,74 @@ export default function AvatarListingEditable({
 }) {
   // strings
 
-  const avatarS = "Avatar";
-  const editAvatarS = "Modifier l'avatar";
-  const avatarHintS = "Vide = automatique";
-
-  // state
-
-  const [anchorEl, setAnchorEl] = useState(null);
+  const tooltipS = "Avatar (vide = automatique)";
 
   // helpers
 
-  const previewListing = { name, avatarString };
   const avatarPlaceholder = getDefaultListingAvatarString({ name });
+  const fontSize = Math.round(size * 0.4);
 
   // handlers
-
-  function handleOpen(e) {
-    if (disabled) return;
-    setAnchorEl(e.currentTarget);
-  }
-
-  function handleClose() {
-    setAnchorEl(null);
-  }
 
   function handleKeyDown(e) {
     if (e.key === "Enter" || e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      handleClose();
+      e.target.blur();
     }
+  }
+
+  function handleFocus(e) {
+    e.target.select();
   }
 
   // render
 
   return (
-    <>
-      <Tooltip title={disabled ? "" : editAvatarS}>
-        <span style={{ display: "inline-flex", flexShrink: 0 }}>
-          <AvatarListing
-            listing={previewListing}
-            size={size}
-            variant="selected"
-            onClick={disabled ? undefined : handleOpen}
-            sx={sx}
-          />
-        </span>
-      </Tooltip>
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        slotProps={{ paper: { sx: { p: 1.5, mt: 0.5 } } }}
+    <Tooltip title={disabled ? "" : tooltipS}>
+      <Box
+        sx={[
+          (theme) => ({
+            width: size,
+            height: size,
+            borderRadius: "50%",
+            flexShrink: 0,
+            bgcolor: theme.palette.secondary.main,
+            color: theme.palette.secondary.contrastText,
+            cursor: disabled ? "default" : "text",
+            transition: "box-shadow 120ms",
+            "&:focus-within": {
+              boxShadow: `0 0 0 2px ${alpha(theme.palette.secondary.main, 0.35)}`,
+            },
+          }),
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontWeight: 600, mb: 0.5, display: "block" }}
-        >
-          {avatarS}
-        </Typography>
         <InputBase
-          autoFocus
           value={avatarString ?? ""}
           onChange={(e) => onChange?.(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
           placeholder={avatarPlaceholder}
-          inputProps={{ maxLength: 3 }}
+          readOnly={disabled}
+          inputProps={{ maxLength: 3, "aria-label": tooltipS }}
           sx={{
-            width: 80,
-            fontSize: "0.875rem",
+            width: 1,
+            height: 1,
+            color: "inherit",
+            fontSize,
             fontWeight: 700,
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            border: (theme) => `1px solid ${theme.palette.divider}`,
-            "&:focus-within": {
-              borderColor: "secondary.main",
+            letterSpacing: "0.02em",
+            "& .MuiInputBase-input": {
+              p: 0,
+              height: 1,
+              textAlign: "center",
+              caretColor: "currentColor",
+              "&::placeholder": { color: "inherit", opacity: 0.9 },
             },
           }}
         />
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{ display: "block", mt: 0.5 }}
-        >
-          {avatarHintS}
-        </Typography>
-      </Popover>
-    </>
+      </Box>
+    </Tooltip>
   );
 }

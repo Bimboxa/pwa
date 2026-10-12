@@ -22,7 +22,10 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import SectionPresetListingsSelector from "./SectionPresetListingsSelector";
 import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 
-export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps }) {
+export default function PanelCreateListingsV3({
+  onListingCreated,
+  isForBaseMaps,
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -85,9 +88,7 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
       projectId,
       canCreateItem: true,
       table:
-        tempListing?.table ??
-        resolvedEntityModel?.defaultTable ??
-        "entities",
+        tempListing?.table ?? resolvedEntityModel?.defaultTable ?? "entities",
       entityModel: resolvedEntityModel,
       ...(isForBaseMaps && { isForBaseMaps: true }),
     };
@@ -95,7 +96,10 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
       newListing.entityModelKey = newListing.entityModel?.key;
     }
 
-    const [_newListing] = await createListings({ listings: [newListing], scope });
+    const [_newListing] = await createListings({
+      listings: [newListing],
+      scope,
+    });
 
     logAppEvent("LISTING_CREATED", { name: _newListing.name });
 
@@ -134,10 +138,13 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
   // render - selection step
 
   return (
-    <BoxFlexVStretch sx={{
-      //overflow: "hidden"
-
-    }}>
+    <BoxFlexVStretch
+      sx={
+        {
+          //overflow: "hidden"
+        }
+      }
+    >
       <Box sx={{ p: 1 }}>
         <Typography variant="h6">{titleS}</Typography>
       </Box>
@@ -163,6 +170,7 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
         >
           <SectionPresetListingsPreview
             selectedKeys={selectedKeys}
+            onSelectedKeysChange={setSelectedKeys}
             onAddListings={handleAddListings}
             onAddEmptyListing={handleAddEmptyListing}
           />

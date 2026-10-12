@@ -4,7 +4,8 @@ import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
@@ -17,6 +18,8 @@ import FieldsListingNameAvatar from "./FieldsListingNameAvatar";
 // of its annotation templates) and the "Ajouter les N listes" button.
 // `overridesByKey` ({ [key]: { name, avatarString } }) holds the user edits;
 // `editable={false}` (deferred mode) shows the listing name as a title.
+// `onSelectedKeysChange` enables the "x" that drops a listing from the
+// selection.
 // ---------------------------------------------------------------------------
 
 export default function SectionPresetListingsPreview({
@@ -24,6 +27,7 @@ export default function SectionPresetListingsPreview({
   onAddListings,
   overridesByKey,
   onOverridesChange,
+  onSelectedKeysChange,
   editable = true,
 }) {
   // strings
@@ -32,6 +36,7 @@ export default function SectionPresetListingsPreview({
   const addListingsS = `Ajouter les ${count} listes`;
   const emptyS = "Sélectionnez une ou plusieurs listes";
   const namePlaceholderS = "Nom de la liste";
+  const removeS = "Retirer de la sélection";
 
   // data
 
@@ -82,7 +87,27 @@ export default function SectionPresetListingsPreview({
     });
   }
 
+  function handleRemove(listing) {
+    onSelectedKeysChange?.(selectedKeys.filter((k) => k !== listing.key));
+  }
+
   // render
+
+  // "x" at the end of a listing header — only when the selection is editable
+  function renderRemoveButton(listing) {
+    if (!onSelectedKeysChange) return null;
+    return (
+      <Tooltip title={removeS}>
+        <IconButton
+          size="small"
+          onClick={() => handleRemove(listing)}
+          sx={{ color: "text.secondary", p: 0.25, flexShrink: 0 }}
+        >
+          <CloseIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
+    );
+  }
 
   return (
     <BoxFlexVStretch sx={{ width: 1, p: 1 }}>
@@ -123,14 +148,27 @@ export default function SectionPresetListingsPreview({
                     namePlaceholder={namePlaceholderS}
                     size={28}
                     sx={{ mb: 0.75 }}
-                  />
-                ) : (
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: "bold", mb: 0.5 }}
                   >
-                    {listing.fullName ?? listing.name}
-                  </Typography>
+                    {renderRemoveButton(listing)}
+                  </FieldsListingNameAvatar>
+                ) : (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 0.5,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: "bold", flexGrow: 1, minWidth: 0 }}
+                      noWrap
+                    >
+                      {listing.fullName ?? listing.name}
+                    </Typography>
+                    {renderRemoveButton(listing)}
+                  </Box>
                 )}
                 <Box
                   sx={{
