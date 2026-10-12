@@ -4,11 +4,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import useUpdateListing from "../hooks/useUpdateListing";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
-import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import {
@@ -26,7 +23,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Chip,
   Tooltip,
   TextField,
   Popover,
@@ -35,256 +31,26 @@ import {
   ChevronRight,
   Favorite,
   FavoriteBorder,
-  DragIndicator,
   TableChart,
   ArrowBack,
 } from "@mui/icons-material";
 
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
-import useDndSensors from "App/hooks/useDndSensors";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldProcedureKeys from "Features/annotationsAuto/components/FieldProcedureKeys";
 import SectionListingPromptIa from "Features/promptIa/components/SectionListingPromptIa";
 import SectionListingProceduresLinks from "Features/annotationsAuto/components/SectionListingProceduresLinks";
-import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
-import OverrideToggle from "Features/annotations/components/OverrideToggle";
-import DialogAddMappingCategories from "Features/annotations/components/DialogAddMappingCategories";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
-import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
-import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
+import ListListingAnnotationTemplatesGrouped from "./ListListingAnnotationTemplatesGrouped";
 import AvatarListing from "./AvatarListing";
 import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 import useLinkedListings from "../hooks/useLinkedListings";
 import { getListingTypeLabel } from "../utils/getListingGroupsByEntityModelType";
-
-function getTemplateMainColor(template) {
-  const shape = resolveDrawingShape(template);
-  const shapeType = resolveShapeCategory(shape);
-  return shapeType === "polyline"
-    ? (template.strokeColor ?? template.fillColor ?? "#999")
-    : (template.fillColor ?? template.strokeColor ?? "#999");
-}
-
-function parseHexToRgb(hex) {
-  const c = hex.replace("#", "");
-  if (c.length === 3) {
-    return [
-      parseInt(c[0] + c[0], 16),
-      parseInt(c[1] + c[1], 16),
-      parseInt(c[2] + c[2], 16),
-    ];
-  }
-  return [
-    parseInt(c.substring(0, 2), 16),
-    parseInt(c.substring(2, 4), 16),
-    parseInt(c.substring(4, 6), 16),
-  ];
-}
-
-function lightenColor(hex, alpha = 0.2) {
-  const [r, g, b] = parseHexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function darkenColor(hex, amount = 0.4) {
-  const [r, g, b] = parseHexToRgb(hex);
-  const dr = Math.round(r * (1 - amount));
-  const dg = Math.round(g * (1 - amount));
-  const db = Math.round(b * (1 - amount));
-  return `rgb(${dr}, ${dg}, ${db})`;
-}
-
-function resolveShortLabel(categoryString, allMappingCategories) {
-  if (!categoryString || typeof categoryString !== "string")
-    return categoryString;
-  const [nomenclatureKey, categoryKey] = categoryString.split(":");
-  if (!nomenclatureKey || !categoryKey) return categoryString;
-  const nomenclature = allMappingCategories?.find(
-    (n) => n.nomenclature.key === nomenclatureKey
-  );
-  if (!nomenclature) return categoryString;
-  const category = nomenclature.categories.find((c) => c.key === categoryKey);
-  return category ? category.label : categoryKey;
-}
-
-function SortableTemplateRow({
-  template,
-  spriteImage,
-  allMappingCategories,
-  qtyLabel,
-  onHeightChange,
-  onToggleOverride,
-  onDeleteCategory,
-  onOpenAddCategories,
-  onSelect,
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: template.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const categories = template.mappingCategories ?? [];
-  const chipColor = getTemplateMainColor(template);
-  const chipBg = lightenColor(chipColor, 0.2);
-  const chipText = darkenColor(chipColor, 0.4);
-
-  return (
-    <Box
-      ref={setNodeRef}
-      {...attributes}
-      sx={{
-        ...style,
-        display: "flex",
-        borderBottom: `1px solid ${lightenColor(chipColor, 0.3)}`,
-      }}
-    >
-      {/* Drag handle — vertically centered */}
-      <Box
-        {...listeners}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          cursor: "grab",
-          px: 0.5,
-        }}
-      >
-        <DragIndicator fontSize="small" sx={{ opacity: 0.4 }} />
-      </Box>
-
-      {/* Content with left color border */}
-      <Box
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          py: 0.75,
-          pl: 1,
-          borderLeft: `3px solid ${chipColor}`,
-        }}
-      >
-        {/* Line 1: icon + label + arrow right */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, pr: 0.5 }}>
-          <AnnotationTemplateIcon
-            template={template}
-            spriteImage={spriteImage}
-            size={20}
-          />
-          <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
-            {template.label}
-          </Typography>
-          <IconButton size="small" onClick={() => onSelect(template)}>
-            <ChevronRight sx={{ fontSize: 16, color: "text.disabled" }} />
-          </IconButton>
-        </Box>
-
-        {/* Line 2: height (left) + quantities (right) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            pl: 3.5,
-            pr: 1,
-            mt: 0.25,
-          }}
-        >
-          <OverrideToggle
-            field="height"
-            overrideFields={template.overrideFields}
-            onToggle={(field) => onToggleOverride(template, field)}
-            size={14}
-          />
-          <FieldAnnotationHeight
-            annotation={{
-              id: template.id,
-              height: template.height,
-              drawingShape: resolveDrawingShape(template),
-            }}
-            onChange={(updated) => onHeightChange(template, updated.height)}
-          />
-          <Box sx={{ flex: 1 }} />
-          {qtyLabel && (
-            <Typography
-              variant="body2"
-              sx={{
-                fontFamily: "monospace",
-                fontSize: "10px",
-                fontWeight: 500,
-                color: "secondary.main",
-                flexShrink: 0,
-              }}
-            >
-              {qtyLabel}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Line 3: tags */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 0.5,
-            pl: 3.5,
-            pr: 1,
-            mt: 0.75,
-            mb: 0.5,
-            flexWrap: "wrap",
-          }}
-        >
-          {categories.map((cat) => (
-            <Chip
-              key={cat}
-              label={resolveShortLabel(cat, allMappingCategories)}
-              size="small"
-              onDelete={() => onDeleteCategory(template, cat)}
-              sx={{
-                height: 20,
-                fontSize: "0.7rem",
-                bgcolor: chipBg,
-                color: chipText,
-                "& .MuiChip-deleteIcon": {
-                  fontSize: 14,
-                  color: chipText,
-                  opacity: 0.6,
-                },
-              }}
-            />
-          ))}
-          <Chip
-            label="+ tag"
-            size="small"
-            variant="outlined"
-            onClick={() => onOpenAddCategories(template)}
-            sx={{
-              height: 20,
-              fontSize: "0.7rem",
-              borderColor: lightenColor(chipColor, 0.4),
-              color: chipText,
-            }}
-          />
-        </Box>
-      </Box>
-    </Box>
-  );
-}
 
 export default function PanelPropertiesListingV2({ listing }) {
   const dispatch = useDispatch();
@@ -306,12 +72,7 @@ export default function PanelPropertiesListingV2({ listing }) {
     filterByListingId: listing?.id,
     sortByOrder: true,
   });
-  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const spriteImage = useAnnotationSpriteImage();
   const appConfig = useAppConfig();
-  const allMappingCategories = appConfig?.mappingCategories;
-  const sensors = useDndSensors();
-  const annotationTemplateQtiesById = useAnnotationTemplateQtiesById();
   const listingAnnotations = useAnnotationsV2({
     filterByListingId: listing?.id,
     withQties: true,
@@ -321,17 +82,12 @@ export default function PanelPropertiesListingV2({ listing }) {
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
-  const templateIds = useMemo(
-    () => (annotationTemplates || []).map((t) => t.id),
-    [annotationTemplates]
-  );
 
   // state
 
   const [name, setName] = useState(listing?.name ?? "");
   const [avatarValue, setAvatarValue] = useState(listing?.avatarString ?? "");
   const [avatarAnchor, setAvatarAnchor] = useState(null);
-  const [addCategoriesTemplate, setAddCategoriesTemplate] = useState(null);
   const [openTableDialog, setOpenTableDialog] = useState(false);
 
   useEffect(() => {
@@ -456,89 +212,17 @@ export default function PanelPropertiesListingV2({ listing }) {
     dispatch(setSelectedMainBaseMapId(baseMapId));
   };
 
-  const handleHeightChange = (template, height) => {
-    updateAnnotationTemplate({
-      id: template.id,
-      height,
-      listingId: listing.id,
-      projectId,
-    });
-  };
-
-  const handleToggleOverride = (template, field) => {
-    const current = Array.isArray(template.overrideFields)
-      ? [...template.overrideFields]
-      : [];
-    const index = current.indexOf(field);
-    if (index >= 0) {
-      current.splice(index, 1);
-    } else {
-      current.push(field);
-    }
-    updateAnnotationTemplate({
-      id: template.id,
-      overrideFields: current,
-      listingId: listing.id,
-      projectId,
-    });
-  };
-
-  async function handleDragEnd(event) {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !annotationTemplates?.length) return;
-
-    const oldIndex = templateIds.indexOf(active.id);
-    const newIndex = templateIds.indexOf(over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    let newOrderIndex;
-    if (oldIndex < newIndex) {
-      const b = annotationTemplates[newIndex]?.orderIndex ?? null;
-      const a =
-        newIndex + 1 < annotationTemplates.length
-          ? annotationTemplates[newIndex + 1]?.orderIndex
-          : null;
-      newOrderIndex = generateKeyBetween(b, a);
-    } else {
-      const b =
-        newIndex > 0 ? annotationTemplates[newIndex - 1]?.orderIndex : null;
-      const a = annotationTemplates[newIndex]?.orderIndex ?? null;
-      newOrderIndex = generateKeyBetween(b, a);
-    }
-
-    await db.annotationTemplates.update(active.id, {
-      orderIndex: newOrderIndex,
-    });
-  }
-
-  function handleDeleteCategory(template, categoryString) {
-    const updated = (template.mappingCategories ?? []).filter(
-      (c) => c !== categoryString
-    );
-    updateAnnotationTemplate({
-      id: template.id,
-      mappingCategories: updated,
-      listingId: listing.id,
-      projectId,
-    });
-  }
-
   function handleSelectTemplate(template) {
-    dispatch(setSelectedItem({ id: template.id, type: "ANNOTATION_TEMPLATE" }));
+    // listingId: triggerSelectionBack maps ANNOTATION_TEMPLATE back to
+    // { type: "LISTING", id: item.listingId }.
+    dispatch(
+      setSelectedItem({
+        id: template.id,
+        type: "ANNOTATION_TEMPLATE",
+        listingId: listing.id,
+      })
+    );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-  }
-
-  function handleAddCategories(newCategories) {
-    if (!addCategoriesTemplate) return;
-    const current = addCategoriesTemplate.mappingCategories ?? [];
-    const merged = [...current, ...newCategories];
-    updateAnnotationTemplate({
-      id: addCategoriesTemplate.id,
-      mappingCategories: merged,
-      listingId: addCategoriesTemplate.listingId,
-      projectId,
-    });
-    setAddCategoriesTemplate(null);
   }
 
   function handleListingTypeChange(entityModelKey) {
@@ -919,46 +603,13 @@ export default function PanelPropertiesListingV2({ listing }) {
                 <TableChart sx={{ fontSize: 16 }} />
               </IconButton>
             </Box>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <Box sx={{ mx: -1, mb: -1 }}>
-                <SortableContext
-                  items={templateIds}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {annotationTemplates.map((template) => (
-                    <SortableTemplateRow
-                      key={template.id}
-                      template={template}
-                      spriteImage={spriteImage}
-                      allMappingCategories={allMappingCategories}
-                      qtyLabel={
-                        annotationTemplateQtiesById?.[template.id]?.mainQtyLabel
-                      }
-                      onHeightChange={handleHeightChange}
-                      onToggleOverride={handleToggleOverride}
-                      onDeleteCategory={handleDeleteCategory}
-                      onOpenAddCategories={setAddCategoriesTemplate}
-                      onSelect={handleSelectTemplate}
-                    />
-                  ))}
-                </SortableContext>
-              </Box>
-            </DndContext>
+            <Box sx={{ mx: -1, mb: -1 }}>
+              <ListListingAnnotationTemplatesGrouped
+                annotationTemplates={annotationTemplates}
+                onSelectTemplate={handleSelectTemplate}
+              />
+            </Box>
           </WhiteSectionGeneric>
-        )}
-
-        {addCategoriesTemplate && (
-          <DialogAddMappingCategories
-            open={!!addCategoriesTemplate}
-            onClose={() => setAddCategoriesTemplate(null)}
-            allMappingCategories={allMappingCategories}
-            currentCategories={addCategoriesTemplate.mappingCategories ?? []}
-            onAdd={handleAddCategories}
-          />
         )}
 
         <DialogGeneric

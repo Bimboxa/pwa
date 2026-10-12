@@ -20,27 +20,39 @@ import {
   Close,
   CheckBoxOutlineBlank,
   CheckBox,
-  Favorite,
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import useFavoriteListings from "../hooks/useFavoriteListings";
+
+// ---------------------------------------------------------------------------
+// SectionPresetListingsSelector — left side of the "pre-configured lists"
+// section: search, keyword chips and a multi-select list of candidate
+// listings (checkbox at the end of each row).
+// `listings` (optional) replaces the resolved preset listings as the
+// candidates (used by the favorites dialog). `showKeywordFilters` hides the
+// keyword chips. `renderItemActions(listing)` is rendered just before the
+// checkbox of each row (e.g. a "..." menu button).
+// ---------------------------------------------------------------------------
 
 export default function SectionPresetListingsSelector({
   selectedKeys,
   onChange,
   isForBaseMaps,
+  listings,
+  showKeywordFilters = true,
+  renderItemActions,
+  helperText,
 }) {
   // strings
 
   const searchPlaceholderS = "Rechercher...";
-  const selectS = "Sélectionnez une ou plusieurs listes déjà configurées";
+  const selectS =
+    helperText ?? "Sélectionnez une ou plusieurs listes déjà configurées";
 
   // data
 
   const presetListings = useResolvedPresetListings();
   const appConfig = useAppConfig();
-  const { favoriteListings } = useFavoriteListings();
 
   // state
 
@@ -48,12 +60,16 @@ export default function SectionPresetListingsSelector({
   const [activeFilters, setActiveFilters] = useState({});
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuGroup, setMenuGroup] = useState(null);
-  const [showFavorites, setShowFavorites] = useState(false);
+
+  // helpers - candidates
+
+  const candidates = listings ?? presetListings;
 
   // helpers - keyword groups from appConfig
 
-  const keywordsGroups =
-    appConfig?.features?.annotationTemplatesLibraries?.keywordsGroups ?? [];
+  const keywordsGroups = showKeywordFilters
+    ? (appConfig?.features?.annotationTemplatesLibraries?.keywordsGroups ?? [])
+    : [];
 
   // helpers - extract all available keyword values per group
 
@@ -63,7 +79,7 @@ export default function SectionPresetListingsSelector({
       map[group] = new Set();
     });
 
-    presetListings?.forEach((listing) => {
+    candidates?.forEach((listing) => {
       listing.keywords?.forEach((keyword) => {
         const sepIndex = keyword.indexOf(":");
         if (sepIndex === -1) return;
@@ -80,41 +96,12 @@ export default function SectionPresetListingsSelector({
     });
 
     return map;
-  }, [presetListings, keywordsGroups]);
+  }, [candidates, keywordsGroups]);
 
   // helpers - filtered listings
 
-  // helpers - favorite listings formatted as selectable items
-
-  const favoriteItems = useMemo(() => {
-    return favoriteListings.map((fav) => ({
-      key: `fav_${fav.sourceListingId}`,
-      name: fav.name,
-      fullName: fav.name,
-      annotationTemplatesLibrary: fav.annotationTemplates,
-      isForBaseMaps: fav.isForBaseMaps,
-      isFavorite: true,
-      ...fav,
-    }));
-  }, [favoriteListings]);
-
   const filteredListings = useMemo(() => {
-    if (showFavorites) {
-      let items = favoriteItems;
-      if (isForBaseMaps) {
-        items = items.filter((l) => l.isForBaseMaps === true);
-      } else {
-        items = items.filter((l) => !l.isForBaseMaps);
-      }
-      if (searchText) {
-        const search = searchText.toLowerCase();
-        items = items.filter((l) => l.name?.toLowerCase().includes(search));
-      }
-      return items;
-    }
-
-    let items =
-      presetListings?.filter((l) => l.annotationTemplatesLibrary) ?? [];
+    let items = candidates?.filter((l) => l.annotationTemplatesLibrary) ?? [];
 
     if (isForBaseMaps) {
       items = items.filter((l) => l.isForBaseMaps === true);
@@ -140,7 +127,7 @@ export default function SectionPresetListingsSelector({
     });
 
     return items;
-  }, [presetListings, searchText, activeFilters, isForBaseMaps, showFavorites, favoriteItems]);
+  }, [candidates, searchText, activeFilters, isForBaseMaps]);
 
   // handlers
 
@@ -152,7 +139,6 @@ export default function SectionPresetListingsSelector({
         return next;
       });
     } else {
-      setShowFavorites(false);
       setMenuAnchor(event.currentTarget);
       setMenuGroup(group);
     }
@@ -207,59 +193,57 @@ export default function SectionPresetListingsSelector({
         />
       </Box>
 
-      <Box sx={{ px: 1, pb: 1, mb: 2, display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-        {favoriteListings.length > 0 && (
-          <Chip
-            label="Favoris"
-            size="small"
-            icon={<Favorite sx={{ fontSize: 16 }} />}
-            onClick={() => {
-              setShowFavorites((prev) => !prev);
-              setActiveFilters({});
-            }}
-            onDelete={showFavorites ? () => setShowFavorites(false) : undefined}
-            deleteIcon={showFavorites ? <Close fontSize="small" /> : undefined}
-            variant={showFavorites ? "filled" : "outlined"}
-            color={showFavorites ? "warning" : "default"}
-          />
-        )}
-        {keywordsGroups.map((group) => {
-          const isActive = Boolean(activeFilters[group]);
-          return (
-            <Chip
-              key={group}
-              label={isActive ? activeFilters[group] : group}
-              size="small"
-              onClick={(e) => handleChipClick(e, group)}
-              onDelete={
-                isActive ? () => handleChipClick(null, group) : undefined
-              }
-              deleteIcon={isActive ? <Close fontSize="small" /> : undefined}
-              icon={!isActive ? <ArrowDropDown /> : undefined}
-              variant={isActive ? "filled" : "outlined"}
-              color={isActive ? "primary" : "default"}
-            />
-          );
-        })}
-
-        <Menu
-          anchorEl={menuAnchor}
-          open={Boolean(menuAnchor)}
-          onClose={handleMenuClose}
+      {keywordsGroups.length > 0 && (
+        <Box
+          sx={{
+            px: 1,
+            pb: 1,
+            mb: 2,
+            display: "flex",
+            gap: 0.5,
+            flexWrap: "wrap",
+          }}
         >
-          {menuGroup &&
-            keywordValuesByGroup[menuGroup]?.map((value) => (
-              <MenuItem
-                key={value}
-                onClick={() => handleMenuSelect(menuGroup, value)}
-              >
-                {value}
-              </MenuItem>
-            ))}
-        </Menu>
-      </Box>
+          {keywordsGroups.map((group) => {
+            const isActive = Boolean(activeFilters[group]);
+            return (
+              <Chip
+                key={group}
+                label={isActive ? activeFilters[group] : group}
+                size="small"
+                onClick={(e) => handleChipClick(e, group)}
+                onDelete={
+                  isActive ? () => handleChipClick(null, group) : undefined
+                }
+                deleteIcon={isActive ? <Close fontSize="small" /> : undefined}
+                icon={!isActive ? <ArrowDropDown /> : undefined}
+                variant={isActive ? "filled" : "outlined"}
+                color={isActive ? "primary" : "default"}
+              />
+            );
+          })}
 
-      <BoxFlexVStretch sx={{ overflow: "auto", bgcolor: "white", borderRadius: 1 }}>
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={handleMenuClose}
+          >
+            {menuGroup &&
+              keywordValuesByGroup[menuGroup]?.map((value) => (
+                <MenuItem
+                  key={value}
+                  onClick={() => handleMenuSelect(menuGroup, value)}
+                >
+                  {value}
+                </MenuItem>
+              ))}
+          </Menu>
+        </Box>
+      )}
+
+      <BoxFlexVStretch
+        sx={{ overflow: "auto", bgcolor: "white", borderRadius: 1 }}
+      >
         <List dense disablePadding>
           {filteredListings.map((listing) => {
             const checked = selectedKeys?.includes(listing.key);
@@ -277,16 +261,27 @@ export default function SectionPresetListingsSelector({
                     alignItems: "center",
                     width: 1,
                     justifyContent: "space-between",
+                    gap: 1,
                   }}
                 >
-                  <Typography variant="button">
+                  <Typography variant="button" noWrap sx={{ minWidth: 0 }}>
                     {listing.fullName ?? listing.name}
                   </Typography>
                   <Box
-                    color="secondary.main"
-                    sx={{ display: "flex", alignItems: "center" }}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      flexShrink: 0,
+                    }}
                   >
-                    {checked ? <CheckBox /> : <CheckBoxOutlineBlank />}
+                    {renderItemActions?.(listing)}
+                    <Box
+                      color="secondary.main"
+                      sx={{ display: "flex", alignItems: "center" }}
+                    >
+                      {checked ? <CheckBox /> : <CheckBoxOutlineBlank />}
+                    </Box>
                   </Box>
                 </Box>
               </ListItemButton>

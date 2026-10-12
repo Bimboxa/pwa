@@ -7,7 +7,6 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListings from "../hooks/useCreateListings";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useFavoriteListings from "../hooks/useFavoriteListings";
 import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 import { Box, Button, Divider, IconButton, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -46,7 +45,6 @@ export default function DialogCreateListing({
   const { value: scope } = useSelectedScope();
   const createListings = useCreateListings();
   const createListingsFromPresets = useCreateListingsFromPresetListingsKeys();
-  const { favoriteListings } = useFavoriteListings();
 
   // state
 
@@ -98,72 +96,24 @@ export default function DialogCreateListing({
   }
 
   async function handleAddPresets() {
-    const favoriteKeys = selectedKeys.filter((k) => k.startsWith("fav_"));
-    const presetKeys = selectedKeys.filter((k) => !k.startsWith("fav_"));
-
     if (onAddPresets) {
-      // deferred mode — only preset keys travel (favorites need a live scope)
-      onAddPresets(presetKeys);
+      // deferred mode — the keys travel back to the caller
+      onAddPresets(selectedKeys);
       setSelectedKeys([]);
       setPresetOverrides({});
       onClose?.();
       return;
     }
 
-    let allCreated = [];
+    const created = await createListingsFromPresets({
+      presetListingsKeys: selectedKeys,
+      scope,
+      isForBaseMaps,
+      overridesByKey: presetOverrides,
+    });
 
-    // create from preset listings
-    if (presetKeys.length > 0) {
-      const listings = await createListingsFromPresets({
-        presetListingsKeys: presetKeys,
-        scope,
-        isForBaseMaps,
-        overridesByKey: presetOverrides,
-      });
-      allCreated.push(...(listings ?? []));
-    }
-
-    // create from favorite listings
-    if (favoriteKeys.length > 0) {
-      const favListings = favoriteKeys
-        .map((key) => {
-          const sourceId = key.replace("fav_", "");
-          const fav = favoriteListings.find(
-            (f) => f.sourceListingId === sourceId
-          );
-          if (!fav) return null;
-          const override = presetOverrides[key];
-          return {
-            name: override?.name?.trim() || fav.name,
-            avatarString:
-              (override
-                ? override.avatarString?.trim()
-                : fav.avatarString?.trim()) || null,
-            projectId,
-            canCreateItem: fav.canCreateItem ?? true,
-            table: fav.table ?? "entities",
-            entityModel: fav.entityModel,
-            entityModelKey: fav.entityModelKey,
-            color: fav.color,
-            iconKey: fav.iconKey,
-            showNewAnnotationToolbar: fav.showNewAnnotationToolbar,
-            autoNumberAnnotations: fav.autoNumberAnnotations,
-            autoNumberPrefix: fav.autoNumberPrefix,
-            autoNumberPadStart: fav.autoNumberPadStart,
-            annotationTemplatesLibrary: fav.annotationTemplates,
-            ...(isForBaseMaps && { isForBaseMaps: true }),
-          };
-        })
-        .filter(Boolean);
-
-      if (favListings.length > 0) {
-        const created = await createListings({ listings: favListings, scope });
-        allCreated.push(...(created ?? []));
-      }
-    }
-
-    if (allCreated.length > 0) {
-      dispatch(setSelectedListingId(allCreated[0].id));
+    if (created?.length > 0) {
+      dispatch(setSelectedListingId(created[0].id));
       dispatch(setOpenedPanel("LISTING"));
     }
     setSelectedKeys([]);
