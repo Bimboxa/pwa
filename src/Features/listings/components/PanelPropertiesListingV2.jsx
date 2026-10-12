@@ -87,8 +87,8 @@ export default function PanelPropertiesListingV2({ listing }) {
   const [avatarValue, setAvatarValue] = useState(listing?.avatarString ?? "");
   const [avatarAnchor, setAvatarAnchor] = useState(null);
   const [openTableDialog, setOpenTableDialog] = useState(false);
-  // "Info" (name, favorite, procedures, templates, base maps) / "Avancé"
-  // (auto-numbering, planning, Prompt IA)
+  // "Info" (name, favorite, templates, base maps) / "Avancé" (procedures,
+  // auto-numbering, planning, Prompt IA)
   const [tab, setTab] = useState("INFO");
 
   useEffect(() => {
@@ -400,18 +400,6 @@ export default function PanelPropertiesListingV2({ listing }) {
             </Box>
           </WhiteSectionGeneric>
 
-          {/* Procedures launched at listing level ("Dessin auto" section
-            under the listing name) */}
-          {!isLinked && (
-            <FieldProcedureKeys
-              label="Procédures"
-              value={listing?.procedureKeys}
-              onChange={(procedureKeys) =>
-                updateListing({ id: listing.id, procedureKeys })
-              }
-            />
-          )}
-
           {/* Linked procedures: a row opens the procedure properties */}
           <SectionListingProceduresLinks listing={listing} />
 
@@ -550,6 +538,18 @@ export default function PanelPropertiesListingV2({ listing }) {
       {/* Content - Avancé tab */}
       {tab === "ADVANCED" && (
         <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
+          {/* Procedures launched at listing level ("Dessin auto" section
+            under the listing name) */}
+          {!isLinked && (
+            <FieldProcedureKeys
+              label="Procédures"
+              value={listing?.procedureKeys}
+              onChange={(procedureKeys) =>
+                updateListing({ id: listing.id, procedureKeys })
+              }
+            />
+          )}
+
           {/* Auto-numbered annotation labels */}
           <WhiteSectionGeneric>
             <Box
