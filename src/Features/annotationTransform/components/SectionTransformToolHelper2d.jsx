@@ -1,5 +1,5 @@
 import SectionTransformToolHelper from "./SectionTransformToolHelper";
-import SectionMultiCopy from "./SectionMultiCopy";
+import SectionTypedConstraint from "./SectionTypedConstraint";
 
 import {
   getMoveToolHint,
@@ -9,11 +9,11 @@ import {
 } from "../constants/transformToolStrings";
 import {
   getTransformCopyCount,
+  setMoveCopyBuffer,
   setRotateAngleBuffer,
   useTransformSession,
 } from "../services/transformSessionStore";
 import { MOVE_ANNOTATION_MODE } from "../utils/transformToolModes";
-import { formatAngleValueBuffer, withCopyCountPart } from "../utils/copyBuffer";
 
 const ROTATE_TOOL_SHORTCUTS_2D = [
   { key: "⇧", label: "Tourner par pas de 15°" },
@@ -24,6 +24,8 @@ const ROTATE_TOOL_SHORTCUTS_2D = [
 // SectionTransformToolHelper2d — drawing-helper body of the 2D « Déplacer » /
 // « Tourner » tools (`mode` = the armed drawing mode), fed by the tool's
 // session store. Same texts as the 3D tools (SectionThreedToolHelperContent).
+// The typed buffer (distance / angle, copies) is shown and editable in the
+// SectionTypedConstraint card.
 // ---------------------------------------------------------------------------
 
 export default function SectionTransformToolHelper2d({ mode }) {
@@ -47,12 +49,16 @@ export default function SectionTransformToolHelper2d({ mode }) {
         })}
         shortcuts={MOVE_TOOL_SHORTCUTS}
       >
-        <SectionMultiCopy copyBuffer={session.copyBuffer} />
+        <SectionTypedConstraint
+          variant="MOVE"
+          buffer={session.copyBuffer}
+          onChangeBuffer={setMoveCopyBuffer}
+          disabled={session.kind !== "MOVE"}
+        />
       </SectionTransformToolHelper>
     );
   }
 
-  // The field shows the angle part only; editing it keeps the `*N` tail.
   return (
     <SectionTransformToolHelper
       hint={getRotateToolHint({
@@ -60,22 +66,14 @@ export default function SectionTransformToolHelper2d({ mode }) {
         referenceSet,
         copyCount: getTransformCopyCount(session),
       })}
-      field={
-        referenceSet
-          ? {
-              label: "Angle",
-              unit: "°",
-              value: formatAngleValueBuffer(session.angleBuffer),
-              onChangeText: (text) =>
-                setRotateAngleBuffer(
-                  withCopyCountPart(text, session.angleBuffer)
-                ),
-            }
-          : null
-      }
       shortcuts={ROTATE_TOOL_SHORTCUTS_2D}
     >
-      <SectionMultiCopy variant="ROTATE" copyBuffer={session.angleBuffer} />
+      <SectionTypedConstraint
+        variant="ROTATE"
+        buffer={session.angleBuffer}
+        onChangeBuffer={setRotateAngleBuffer}
+        disabled={!referenceSet}
+      />
     </SectionTransformToolHelper>
   );
 }

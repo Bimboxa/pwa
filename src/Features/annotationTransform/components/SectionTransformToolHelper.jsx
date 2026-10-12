@@ -11,8 +11,8 @@ import SectionShortcutHelpers from "Features/annotations/components/SectionShort
 // numeric field mirroring the keyboard buffer, the shortcuts.
 //
 // field: { label, unit, value, onChangeText, onClear?, clearTitle? } | null
-// children: optional extra cards (e.g. SectionMultiCopy), between the field
-// and the shortcuts.
+// children: optional extra cards (e.g. SectionTypedConstraint), between the
+// field and the shortcuts.
 // ---------------------------------------------------------------------------
 
 export default function SectionTransformToolHelper({

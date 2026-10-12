@@ -5,7 +5,6 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import {
   setMoveAnnotationModeActive,
   setMoveAnnotationCarriedIds,
-  setMoveAnnotationCopyBuffer,
   bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -18,6 +17,7 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
 import { appendToMoveBuffer } from "Features/annotationTransform/utils/copyBuffer";
 import { MULTI_COPY_UNSUPPORTED_MESSAGE } from "Features/annotationTransform/constants/transformToolStrings";
+import setMoveCopyBufferService from "../services/setMoveCopyBufferService";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMoveFrom3d";
@@ -25,11 +25,9 @@ import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationI
 import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
 import applyMoveAnnotationsPose, {
   computeMoveDeltaLocal,
-  poseCarriedAnnotations,
 } from "../utils/applyMoveAnnotationsPose";
 import commitAnnotationsTransformFrom3d from "../services/commitAnnotationsTransformFrom3d";
 import {
-  buildCopyGhosts,
   disposeCopyGhosts,
   getGrabCopyCount,
   getGrabMoveLength,
@@ -39,7 +37,6 @@ import {
 import {
   getLastMoveAnnotationSnap,
   getMoveAnnotationGrab,
-  replayMoveOverlay,
   setMoveAnnotationGrab,
   clearMoveAnnotationGrab,
 } from "../services/moveAnnotationSessionStore";
@@ -230,32 +227,19 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         targetAdjacency,
         copyBuffer: "",
         ghosts: [],
+        // Resolved snapshot of the carried annotations (copy ghosts).
+        carriedAnnotations: (annotationsRef.current ?? []).filter((a) =>
+          carriedIds.includes(a.id)
+        ),
         lastDelta: ZERO_DELTA,
       });
       dispatch(setMoveAnnotationCarriedIds(carriedIds));
     }
 
-    // Typed buffer: rebuilds the ghosts for a new count and swaps what
-    // follows the cursor (ghosts vs the originals), then replays the overlay
-    // so the pose and the badge follow the typed distance at once — no
-    // pointer move needed to see the change.
+    // Typed buffer → slice, ghosts, immediate re-pose (shared with the
+    // helper's fields).
     function setCopyBuffer(grab, buffer) {
-      const prevCount = getGrabCopyCount(grab);
-      grab.copyBuffer = buffer;
-      dispatch(setMoveAnnotationCopyBuffer(buffer));
-      const count = getGrabCopyCount(grab);
-      if (count !== prevCount) {
-        if (count > 0) {
-          if (prevCount === 0) poseCarriedAnnotations(editor, grab, ZERO_DELTA);
-          buildCopyGhosts(editor, grab, annotationsRef.current);
-          poseCopyGhosts(grab, grab.lastDelta ?? ZERO_DELTA);
-        } else {
-          disposeCopyGhosts(grab);
-          poseCarriedAnnotations(editor, grab, grab.lastDelta ?? ZERO_DELTA);
-        }
-      }
-      replayMoveOverlay();
-      editor.renderScene?.();
+      setMoveCopyBufferService({ editor, buffer, dispatch });
     }
 
     async function dropCopiesAtSnap(grab, snap) {

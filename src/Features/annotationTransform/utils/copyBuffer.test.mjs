@@ -10,11 +10,14 @@ import {
   formatMoveBadge,
   formatMoveLengthBuffer,
   formatRotateBadge,
+  getBufferCountPart,
+  getBufferValuePart,
   parseCopyCount,
   parseMoveLength,
   parseTypedAngleDeg,
   scaleDeltaToLength,
   withCopyCountPart,
+  withCopyCountText,
 } from "./copyBuffer.js";
 
 test("digits feed the distance, * opens the count, digits then feed it", () => {
@@ -98,6 +101,20 @@ test("chip labels and badges", () => {
   );
   assert.equal(formatRotateBadge({ angleLabel: "45°", count: 0 }), "45°");
   assert.equal(formatRotateBadge({ angleLabel: "45°", count: 3 }), "45° ×3");
+});
+
+test("raw parts and the copy-count field", () => {
+  assert.equal(getBufferValuePart("1.3*2"), "1.3");
+  assert.equal(getBufferValuePart("*2"), "");
+  assert.equal(getBufferCountPart("1.3*2"), "2");
+  assert.equal(getBufferCountPart("1.3"), "");
+  assert.equal(getBufferCountPart("1.3*"), "");
+  assert.equal(withCopyCountText("3", "1.3"), "1.3*3");
+  assert.equal(withCopyCountText("", "1.3*3"), "1.3");
+  assert.equal(withCopyCountText("4a", "45"), "45*4");
+  assert.equal(withCopyCountText("", ""), "");
+  assert.equal(withCopyCountText("", "*3"), "");
+  assert.equal(withCopyCountText("150", "45*3"), "45*3");
 });
 
 test("withCopyCountPart keeps the typed copies when the field edits the value", () => {

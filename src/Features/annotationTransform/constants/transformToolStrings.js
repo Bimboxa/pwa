@@ -32,22 +32,20 @@ export function getRotateToolHint({
 }
 
 // Same keys in 2D (image axes) and 3D (user axes X / Y / Z of the gizmo).
+// The typed distance / copies keys live in the « Distance - Copies
+// multiples » card (SectionTypedConstraint).
 export const MOVE_TOOL_SHORTCUTS = [
   { key: "⇧", label: "Déplacement orthogonal" },
-  { key: "0-9", label: "Distance du déplacement" },
-  { key: "* 0-9", label: "Copie multiple (*N)" },
-  { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler la saisie / Quitter" },
 ];
 
 export const MULTI_COPY_UNSUPPORTED_MESSAGE =
   "La copie multiple ne s'applique pas à un axe de révolution";
 
+// The typed angle / copies keys live in the « Angle - Copies multiples »
+// card (SectionTypedConstraint).
 export const ROTATE_TOOL_SHORTCUTS = [
-  { key: "0-9", label: "Saisir l'angle" },
-  { key: "* 0-9", label: "Copie multiple (*N)" },
   { key: "Entrée", label: "Valider la rotation" },
-  { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler / Quitter" },
 ];
 

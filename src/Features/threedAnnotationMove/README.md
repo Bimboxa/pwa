@@ -41,9 +41,10 @@ Les modes sont mutuellement exclusifs avec les autres outils 3D (slice
    Un **axe de révolution** est déplacé seul par
    `commitRevolutionAxisMoveFrom3d`.
 
-Saisie clavier `<distance>[*<copies>]` (`setCopyBuffer` du hook) : la
-distance rescale le delta (`scaleDeltaToLength`), le `*N` bascule les roots
-en fantômes (`buildCopyGhosts`) ; le drop écrit les copies par
+Saisie clavier `<distance>[*<copies>]` (`setMoveCopyBufferService`, partagé
+par le clavier et la carte du helper) : la distance rescale le delta
+(`scaleDeltaToLength`), le `*N` bascule les roots en fantômes
+(`buildCopyGhosts`) ; le drop écrit les copies par
 `createTransformedAnnotationCopiesService({ kind: "MOVE" })` et tient les
 fantômes jusqu'à la construction des copies (`holdCopyGhostsUntilBuilt`).
 
@@ -109,7 +110,8 @@ leur pose de départ, fantômes jetés) → sortie du mode.
   libellé d'angle avec `×N`).
 - `hooks/` : les deux handlers pointeur + clavier, `useAnnotationsOnlyVertexSnap`.
 - `services/` : stores de session, commits 3D → 2D, fantômes,
-  `setRotateAngleBufferService`.
+  `setMoveCopyBufferService` / `setRotateAngleBufferService` (buffers tapés,
+  clavier + carte du helper).
 - `utils/` : poses (`applyMoveAnnotationsPose`, `applyRotateAnnotationsPose`),
   `computeAxisLockSnap`, `getCarriedAnnotationIdsFromSelection`,
   `resolveAnnotationFromSnap`, `annotationTransformTypes` (partagés avec la

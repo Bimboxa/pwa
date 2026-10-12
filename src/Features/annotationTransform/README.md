@@ -27,8 +27,8 @@ Le geste est le même en 2D et en 3D :
     à `i ×` le vecteur (le clic pose la 1re copie) ; `1.3*3` = 3 copies au pas
     de 1,30 m. Refusée sur un axe de révolution.
     `⌫` efface un caractère. Le badge qui suit la souris affiche la distance
-    (en gras si tapée) et le `×N` ; la carte « Distance / Copie multiple » du
-    helper affiche le buffer.
+    (verrouillée dès le 1er caractère tapé) et le `×N` ; la carte
+    « Distance - Copies multiples » du helper affiche et édite le buffer.
 - **Tourner** : 1/3 clic sur le centre de rotation (un point de l'annotation,
   ou n'importe quel point — arête, plan, point libre — si les annotations à
   tourner sont sélectionnées), 2/3 clic sur un point qui fixe l'axe de référence,
@@ -39,10 +39,10 @@ Le geste est le même en 2D et en 3D :
   `12.5`) **verrouillent l'angle** ; `*` puis des chiffres (`*3`) = **copie
   multiple** : l'originale reste en place, la copie i est tournée de `i ×`
   l'angle courant autour du pivot (le clic / `Entrée` pose la 1re copie) ;
-  `45*3` = 3 copies à 45°, 90° et 135°. L'angle se tape avant le `*` (ou via
-  le champ Angle du helper, qui conserve la queue `*N`). Le libellé d'angle
-  affiche le `×N` (en gras si l'angle est tapé) ; la carte « Copie
-  multiple » du helper affiche le compteur.
+  `45*3` = 3 copies à 45°, 90° et 135°. L'angle se tape avant le `*` (ou
+  dans le champ Angle de la carte, qui conserve la queue `*N`). Le badge
+  d'angle affiche le `×N` (verrouillé dès le 1er caractère tapé) ; la carte
+  « Angle - Copies multiples » du helper affiche et édite le buffer.
 - `Échap` annule dans l'ordre : l'angle / les copies tapés, la saisie en
   cours, puis l'outil.
 - L'outil reste armé après une validation.
@@ -79,6 +79,11 @@ ancré), titré du nom de l'outil (`selectTransformToolTitle`).
 
 - `SectionTransformToolHelper` : présentation partagée (consigne, champ
   numérique optionnel, raccourcis).
+- `SectionTypedConstraint` : carte « Distance / Angle - Copies multiples »
+  (2D et 3D) : champ valeur (unité, cadenas) et champ copies, éditables ;
+  elle écrit le même buffer que le clavier (`setMoveCopyBuffer` /
+  `setRotateAngleBuffer` en 2D, `setMoveCopyBufferService` /
+  `setRotateAngleBufferService` en 3D).
 - `SectionTransformToolHelper2d` : conteneur 2D, lit le store de session.
 - `threedDrawing/components/SectionThreedToolHelperContent` : conteneur 3D,
   lit `threedEditor` (Extruder, Déplacer, Tourner).
@@ -182,9 +187,12 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
 - `⌫` efface un caractère du buffer, `Échap` efface le buffer avant
   d'annuler la saisie. L'originale reste **visible et aimantable** pendant
   l'aperçu (phases `"MOVE_COPY"` / `"ROTATE_COPY"` en 2D, fantômes en 3D).
-- Le badge / libellé affiche la valeur (brute et verrouillée dès le 1er
-  caractère tapé) et le `×N` ; la carte « Copie multiple » du helper
-  affiche le compteur (et la distance pour Déplacer).
+- Le badge affiche la valeur (brute et verrouillée dès le 1er caractère
+  tapé) et le `×N` ; la carte « Distance / Angle - Copies multiples » du
+  helper (`SectionTypedConstraint`) montre les deux champs — valeur avec
+  unité et cadenas, « x » copies — chacun éditable, avec ses touches en
+  regard. Les raccourcis de la section « Raccourcis clavier » ne répètent
+  pas ces touches.
 - **Non copiés** (comme « Dupliquer ») : ouvertures collées, parties
   peintes ; `meshLines` abandonnées. Un seul `withUndoGroup`, une seule
   transaction : un `Ctrl+Z` retire toutes les copies.

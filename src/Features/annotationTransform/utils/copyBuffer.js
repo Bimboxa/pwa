@@ -111,6 +111,29 @@ export function formatAngleValueBuffer(buffer) {
   return splitBuffer(buffer).valuePart;
 }
 
+// Raw parts for the helper's fields: the value as typed and the copy count
+// digits ("" when none).
+export function getBufferValuePart(buffer) {
+  return splitBuffer(buffer).valuePart;
+}
+
+export function getBufferCountPart(buffer) {
+  return splitBuffer(buffer).countPart ?? "";
+}
+
+// Buffer rebuilt from a copy-count text (the helper's field, digits only)
+// and the value already typed in `buffer`: an empty text drops the `*N`
+// tail, digits beyond MAX_COPIES are refused (the previous count stays).
+export function withCopyCountText(countText, buffer) {
+  const { valuePart, countPart } = splitBuffer(buffer);
+  const digits = (countText ?? "").replace(/[^0-9]/g, "");
+  if (digits === "") return valuePart;
+  if (Number(digits) > MAX_COPIES) {
+    return countPart === null ? valuePart : `${valuePart}*${countPart}`;
+  }
+  return `${valuePart}*${digits}`;
+}
+
 // Buffer rebuilt from a value text (the helper's field) and the `*N` tail
 // already typed in `buffer`, so editing the field keeps the copies.
 export function withCopyCountPart(valueText, buffer) {

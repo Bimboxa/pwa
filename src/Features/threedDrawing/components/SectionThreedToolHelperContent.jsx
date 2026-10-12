@@ -8,7 +8,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import SectionTransformToolHelper from "Features/annotationTransform/components/SectionTransformToolHelper";
-import SectionMultiCopy from "Features/annotationTransform/components/SectionMultiCopy";
+import SectionTypedConstraint from "Features/annotationTransform/components/SectionTypedConstraint";
 
 import {
   getMoveToolHint,
@@ -18,12 +18,9 @@ import {
 } from "Features/annotationTransform/constants/transformToolStrings";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import setRotateAngleBufferService from "Features/threedAnnotationMove/services/setRotateAngleBufferService";
+import setMoveCopyBufferService from "Features/threedAnnotationMove/services/setMoveCopyBufferService";
 import getVertexOffsetFieldLabel from "Features/threedVertexOffset/utils/getVertexOffsetFieldLabel";
-import {
-  formatAngleValueBuffer,
-  parseCopyCount,
-  withCopyCountPart,
-} from "Features/annotationTransform/utils/copyBuffer";
+import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
 
 // Shortcuts of the 3D « Extruder » (useExtrudePointerHandlers).
 const EXTRUDE_SHORTCUTS = [
@@ -126,11 +123,19 @@ export default function SectionThreedToolHelperContent({ tool }) {
     dispatch(setVertexOffsetValueBuffer(text));
   }
 
-  // The field edits the angle part only; the typed `*N` tail is kept.
-  function handleAngleText(text) {
+  // The card's fields write the same buffers as the keyboard.
+  function handleMoveBuffer(buffer) {
+    setMoveCopyBufferService({
+      editor: getActiveThreedEditor(),
+      buffer,
+      dispatch,
+    });
+  }
+
+  function handleRotateBuffer(buffer) {
     setRotateAngleBufferService({
       editor: getActiveThreedEditor(),
-      buffer: withCopyCountPart(text, angleBuffer),
+      buffer,
       dispatch,
     });
   }
@@ -214,7 +219,12 @@ export default function SectionThreedToolHelperContent({ tool }) {
         })}
         shortcuts={MOVE_TOOL_SHORTCUTS}
       >
-        <SectionMultiCopy copyBuffer={moveCopyBuffer} />
+        <SectionTypedConstraint
+          variant="MOVE"
+          buffer={moveCopyBuffer}
+          onChangeBuffer={handleMoveBuffer}
+          disabled={moveCarriedCount === 0}
+        />
       </SectionTransformToolHelper>
     );
   }
@@ -226,19 +236,14 @@ export default function SectionThreedToolHelperContent({ tool }) {
         referenceSet,
         copyCount: parseCopyCount(angleBuffer),
       })}
-      field={
-        referenceSet
-          ? {
-              label: "Angle",
-              unit: "°",
-              value: formatAngleValueBuffer(angleBuffer),
-              onChangeText: handleAngleText,
-            }
-          : null
-      }
       shortcuts={ROTATE_TOOL_SHORTCUTS}
     >
-      <SectionMultiCopy variant="ROTATE" copyBuffer={angleBuffer} />
+      <SectionTypedConstraint
+        variant="ROTATE"
+        buffer={angleBuffer}
+        onChangeBuffer={handleRotateBuffer}
+        disabled={!referenceSet}
+      />
     </SectionTransformToolHelper>
   );
 }
