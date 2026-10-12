@@ -102,7 +102,9 @@ Même schéma qu'un groupe d'outils classique (cf. `surfaceCut/README.md`) :
    point distant) ; sinon la pose est libre. Pendant ces phases le rendu
    d'origine des annotations emportées est masqué (`hiddenAnnotationIds`).
 5. `TransformToolPreviewLayer` : aperçu (annotations emportées à leur pose
-   courante + guides), monté dans `InteractionLayer`.
+   courante + guides), monté dans `InteractionLayer` ; `TransformToolBadge` :
+   le badge de valeur (distance / angle, `×N`, cadenas si tapé — le même
+   `DrawingLengthBadge` que les tracés), monté dans l'overlay HTML.
 
 ### État de session
 

@@ -208,6 +208,7 @@ import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapE
 import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
 import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
+import TransformToolBadge from "Features/annotationTransform/components/TransformToolBadge";
 import { TRANSFORM_TOOL_MODES, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import { getTransformSession, useTransformPhase } from "Features/annotationTransform/services/transformSessionStore";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
@@ -8890,6 +8891,16 @@ const InteractionLayer = forwardRef(({
             {/* Length of the segment being drawn (imperative, see
                 updateSegmentLengthMetrics) */}
             <DrawingLengthBadge ref={segmentLengthBadgeRef} />
+            {/* « Déplacer » / « Tourner »: distance / angle + copies badge */}
+            <TransformToolBadge
+              projectToViewport={(p) =>
+                viewportRef.current?.worldToViewport?.(
+                  p.x * targetPose.k + targetPose.x,
+                  p.y * targetPose.k + targetPose.y
+                )
+              }
+              baseMapMeterByPx={baseMapMeterByPx}
+            />
             {/* Rectangle preview: X / Y side lengths (imperative, see
                 handleRectanglePreview) */}
             {[0, 1].map((i) => (

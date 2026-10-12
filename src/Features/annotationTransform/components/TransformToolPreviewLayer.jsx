@@ -4,16 +4,10 @@ import TransientAnnotationLayer from "Features/mapEditorGeneric/components/Trans
 
 import {
   getTransformCopyCount,
-  getTransformMoveLength,
   resetTransformSession,
   useTransformSession,
 } from "../services/transformSessionStore";
-import { formatMoveBadge, formatRotateBadge } from "../utils/copyBuffer";
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
-import {
-  formatUserAngle,
-  parseAngleBufferToPixelDeg,
-} from "../utils/rotateAngle";
 
 const GUIDE_COLOR = "#e65100";
 const REFERENCE_COLOR = "#757575";
@@ -27,10 +21,10 @@ const REFERENCE_COLOR = "#757575";
 // The carried annotations are redrawn at their transformed pose (the stored
 // ones stay in place underneath, as the "before" ghost) with the guides:
 // MOVE = grabbed point → cursor; ROTATE = pivot, reference axis, current
-// axis and the angle. « Copie multiple » (typed count): one redraw per copy
-// at i × the vector (MOVE, a tick on each landing point) or i × the angle
-// (ROTATE, a thin guide per copy) and the « ×N » label — the originals stay
-// visible in place.
+// axis. « Copie multiple » (typed count): one redraw per copy at i × the
+// vector (MOVE, a tick on each landing point) or i × the angle (ROTATE, a
+// thin guide per copy) — the originals stay visible in place. The value
+// label (distance / angle, ×N) is TransformToolBadge, in the HTML overlay.
 // ---------------------------------------------------------------------------
 
 export default function TransformToolPreviewLayer({
@@ -81,18 +75,6 @@ export default function TransformToolPreviewLayer({
         }))
       : [{ index: 0, deltaPos }];
   const lastPose = poses[poses.length - 1];
-  // Cursor label of a move: the travelled distance (typed or live) and the
-  // copy count.
-  const moveLengthM =
-    !isRotate && baseMapMeterByPx > 0
-      ? Math.hypot(deltaPos.x, deltaPos.y) * baseMapMeterByPx
-      : null;
-  const moveLabel = isRotate
-    ? null
-    : formatMoveBadge({ lengthM: moveLengthM ?? undefined, count: copyCount });
-  const moveLabelLocked = getTransformMoveLength(session) != null;
-  const rotateLabelLocked =
-    isRotate && parseAngleBufferToPixelDeg(session.angleBuffer) != null;
 
   // Screen-constant sizes in the scaled group.
   const k = basePose.k || 1;
@@ -111,11 +93,9 @@ export default function TransformToolPreviewLayer({
     };
   };
   let currentEnd = null;
-  let labelPos = null;
   let copyAxisEnds = [];
   if (rotating) {
     currentEnd = axisEndAt(angleDeg);
-    labelPos = { x: currentEnd.x + px(10), y: currentEnd.y - px(10) };
     copyAxisEnds = poses
       .filter((pose) => pose.index > 1)
       .map((pose) => ({ index: pose.index, end: axisEndAt(pose.deltaPos.x) }));
@@ -169,21 +149,6 @@ export default function TransformToolPreviewLayer({
           />
         ))}
 
-      {moveLabel && cursor && (
-        <text
-          x={cursor.x + px(10)}
-          y={cursor.y - px(10)}
-          fontSize={px(13)}
-          fontWeight={moveLabelLocked ? 700 : 600}
-          fill={GUIDE_COLOR}
-          stroke="white"
-          strokeWidth={px(3)}
-          paintOrder="stroke"
-        >
-          {moveLabel}
-        </text>
-      )}
-
       {isRotate && !rotating && cursor && (
         <line
           x1={anchor.x}
@@ -228,21 +193,6 @@ export default function TransformToolPreviewLayer({
               strokeDasharray={`${px(2)} ${px(4)}`}
             />
           ))}
-          <text
-            x={labelPos.x}
-            y={labelPos.y}
-            fontSize={px(13)}
-            fontWeight={rotateLabelLocked ? 700 : 600}
-            fill={GUIDE_COLOR}
-            stroke="white"
-            strokeWidth={px(3)}
-            paintOrder="stroke"
-          >
-            {formatRotateBadge({
-              angleLabel: formatUserAngle(angleDeg),
-              count: copyCount,
-            })}
-          </text>
         </>
       )}
 
