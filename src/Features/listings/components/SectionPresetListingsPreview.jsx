@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
-import useFavoriteListings from "../hooks/useFavoriteListings";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
@@ -19,7 +18,8 @@ import FieldsListingNameAvatar from "./FieldsListingNameAvatar";
 // `overridesByKey` ({ [key]: { name, avatarString } }) holds the user edits;
 // `editable={false}` (deferred mode) shows the listing name as a title.
 // `onSelectedKeysChange` enables the "x" that drops a listing from the
-// selection.
+// selection. `listings` (optional) replaces the resolved preset listings as
+// the candidates the selected keys are looked up in (favorites dialog).
 // ---------------------------------------------------------------------------
 
 export default function SectionPresetListingsPreview({
@@ -29,6 +29,7 @@ export default function SectionPresetListingsPreview({
   onOverridesChange,
   onSelectedKeysChange,
   editable = true,
+  listings,
 }) {
   // strings
 
@@ -41,33 +42,19 @@ export default function SectionPresetListingsPreview({
   // data
 
   const presetListings = useResolvedPresetListings();
-  const { favoriteListings } = useFavoriteListings();
   const spriteImage = useAnnotationSpriteImage();
 
   // helpers
 
-  const favoriteItems = useMemo(() => {
-    return favoriteListings.map((fav) => ({
-      key: `fav_${fav.sourceListingId}`,
-      name: fav.name,
-      fullName: fav.name,
-      avatarString: fav.avatarString,
-      annotationTemplatesLibrary: fav.annotationTemplates,
-    }));
-  }, [favoriteListings]);
+  const candidates = listings ?? presetListings;
 
   const selectedListings = useMemo(() => {
     return (
       selectedKeys
-        ?.map((key) => {
-          if (key.startsWith("fav_")) {
-            return favoriteItems.find((f) => f.key === key);
-          }
-          return presetListings?.find((l) => l.key === key);
-        })
+        ?.map((key) => candidates?.find((l) => l.key === key))
         .filter(Boolean) ?? []
     );
-  }, [selectedKeys, presetListings, favoriteItems]);
+  }, [selectedKeys, candidates]);
 
   function getDefaultOverride(listing) {
     return {

@@ -7,14 +7,17 @@ import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LinkIcon from "@mui/icons-material/Link";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import CardListingSourceOption from "./CardListingSourceOption";
 import DialogCreateListing from "./DialogCreateListing";
 import DialogAddListingsFromScope from "./DialogAddListingsFromScope";
+import DialogCreateListingsFromFavorites from "./DialogCreateListingsFromFavorites";
 
 // Chooser shown before the create-listing dialogs: "Nouvelle liste" (empty
-// list), "Depuis une bibliothèque" (pre-configured lists) or "Depuis un autre
+// list), "Depuis une bibliothèque" (pre-configured lists), "Depuis mes
+// favoris" (listings saved as favorites, heart icon) or "Depuis un autre
 // Krto" (link listings of another scope of the project — read-only here).
 // Base map listings (isForBaseMaps) skip the chooser: linking only concerns
 // the drawing (LOCATED_ENTITY) listings.
@@ -33,12 +36,15 @@ export default function DialogChooseListingSource({
   const emptySubtitleS = "Une liste vide, à configurer.";
   const presetsTitleS = "Depuis une bibliothèque";
   const presetsSubtitleS = "Des listes pré-configurées de modèles.";
+  const favoritesTitleS = "Depuis mes favoris";
+  const favoritesSubtitleS =
+    "Les listes que vous avez marquées en favori (cœur).";
   const fromScopeTitleS = `Depuis un autre ${scopeS}`;
   const fromScopeSubtitleS = `Afficher ici les listes d'un autre ${scopeS} du projet (lecture seule).`;
 
   // state
 
-  // "CHOOSE" | "EMPTY" | "PRESETS" | "FROM_SCOPE"
+  // "CHOOSE" | "EMPTY" | "PRESETS" | "FAVORITES" | "FROM_SCOPE"
   const [step, setStep] = useState(isForBaseMaps ? "EMPTY" : "CHOOSE");
 
   // handlers
@@ -56,6 +62,16 @@ export default function DialogChooseListingSource({
         onClose={handleClose}
         isForBaseMaps={isForBaseMaps}
         mode={isForBaseMaps ? undefined : step}
+      />
+    );
+  }
+
+  if (step === "FAVORITES") {
+    return (
+      <DialogCreateListingsFromFavorites
+        open={open}
+        onClose={handleClose}
+        isForBaseMaps={isForBaseMaps}
       />
     );
   }
@@ -96,6 +112,12 @@ export default function DialogChooseListingSource({
             subtitle={presetsSubtitleS}
             icon={LibraryBooksIcon}
             onClick={() => setStep("PRESETS")}
+          />
+          <CardListingSourceOption
+            title={favoritesTitleS}
+            subtitle={favoritesSubtitleS}
+            icon={FavoriteIcon}
+            onClick={() => setStep("FAVORITES")}
           />
           <CardListingSourceOption
             title={fromScopeTitleS}
