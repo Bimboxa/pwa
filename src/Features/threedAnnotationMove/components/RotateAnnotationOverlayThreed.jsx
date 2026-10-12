@@ -5,6 +5,7 @@ import { Plane, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
@@ -51,7 +52,10 @@ function normalizeAngle(phi) {
 // map group's LOCAL XY frame (bearing = atan2(dy_local, dx_local)): the
 // rotation happens around the plane's normal (local +Z), so the same math
 // serves HORIZONTAL and VERTICAL maps. CAD-style 3 clicks:
-// 1. pivot phase: vertex snap on ANNOTATION geometry only;
+// 1. pivot phase: a vertex of an annotation (that annotation is turned, with
+//    the implicit-selection rule), else — like a polyline being drawn — an
+//    edge, a point of a base map plane (cross) or a free point on the
+//    2D-selected base map's plane: the SELECTION is then turned around it;
 // 2. reference phase: dashed helper line from the pivot to the cursor
 //    (global snap — the reference axis usually anchors on a point of the
 //    rotated annotation itself, which hasn't moved yet);
@@ -66,6 +70,11 @@ export default function RotateAnnotationOverlayThreed() {
   const { findNearestSnap } = useVertexSnap({ active });
   const { findNearestSnap: findNearestAnnotationSnap } =
     useAnnotationsOnlyVertexSnap({ active });
+  // Free pivot fallback plane: the 2D-selected base map (read in the
+  // pointer handler through a ref, no re-attach).
+  const mainBaseMapId = useMainBaseMap()?.id ?? null;
+  const mainBaseMapIdRef = useRef(mainBaseMapId);
+  mainBaseMapIdRef.current = mainBaseMapId;
 
   const snapCircleRef = useRef(null);
   const pivotCircleRef = useRef(null);
@@ -304,6 +313,51 @@ export default function RotateAnnotationOverlayThreed() {
       return target;
     }
 
+    // Pivot pick (phase 1): annotation vertex, else edge, else a base map
+    // plane hit, else a free point on the 2D-selected base map's plane.
+    function computePivotSnap(canvasSize) {
+      const vertexSnap = findNearestAnnotationSnap(ndc, camera, canvasSize, 12);
+      if (vertexSnap) return vertexSnap;
+      const edgeSnap = findNearestEdgeSnap(
+        getMeshAdjacency(),
+        ndc,
+        camera,
+        canvasSize,
+        12
+      );
+      if (edgeSnap) return edgeSnap;
+      const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
+        preferredBaseMapId: mainBaseMapIdRef.current,
+      });
+      if (planeHitTarget) {
+        return {
+          position: planeHitTarget.position,
+          kind: "PLANE",
+          baseMapId: planeHitTarget.baseMapId,
+          axisA: planeHitTarget.axisA,
+          axisB: planeHitTarget.axisB,
+        };
+      }
+      const group = mainBaseMapIdRef.current
+        ? editor?.sceneManager?.imagesManager?.getGroup(
+            mainBaseMapIdRef.current
+          )
+        : null;
+      if (!group) return null;
+      group.updateWorldMatrix(true, false);
+      raycaster.setFromCamera(ndc, camera);
+      group.getWorldQuaternion(groupQuat);
+      planeNormal.set(0, 0, 1).applyQuaternion(groupQuat);
+      fallbackPlane.setFromNormalAndCoplanarPoint(
+        planeNormal,
+        group.getWorldPosition(new Vector3())
+      );
+      if (raycaster.ray.intersectPlane(fallbackPlane, planeHit)) {
+        return { position: planeHit.clone(), kind: "FREE" };
+      }
+      return null;
+    }
+
     function colorForKind(kind) {
       return kind === "VERTEX"
         ? COLOR_VERTEX
@@ -346,13 +400,19 @@ export default function RotateAnnotationOverlayThreed() {
 
       const grab = getRotateAnnotationGrab();
 
-      // Phase 1 — pivot pick: annotation vertices only (the pivot must land
-      // on an annotation).
+      // Phase 1 — pivot pick: an annotation vertex, or any point (edge,
+      // base map plane, free) when the selection is what turns.
       if (!grab) {
-        const snap = findNearestAnnotationSnap(ndc, camera, canvasSize, 12);
+        const snap = computePivotSnap(canvasSize);
         setLastRotateAnnotationSnap(snap);
         hideAll();
-        updateCircle(snapCircleRef, snap?.position ?? null, rect, COLOR_VERTEX);
+        updateCircle(
+          snapCircleRef,
+          snap?.position ?? null,
+          rect,
+          colorForKind(snap?.kind)
+        );
+        updateCross(snap, rect);
         editor.renderScene?.();
         return;
       }

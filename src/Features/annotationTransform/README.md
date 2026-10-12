@@ -30,8 +30,8 @@ Le geste est le même en 2D et en 3D :
     (en gras si tapée) et le `×N` ; la carte « Distance / Copie multiple » du
     helper affiche le buffer.
 - **Tourner** : 1/3 clic sur le centre de rotation (un point de l'annotation,
-  ou en 2D n'importe quel point du fond de plan si les annotations à tourner
-  sont sélectionnées), 2/3 clic sur un point qui fixe l'axe de référence,
+  ou n'importe quel point — arête, plan, point libre — si les annotations à
+  tourner sont sélectionnées), 2/3 clic sur un point qui fixe l'axe de référence,
   3/3 rotation à la souris
   (`Maj` : pas de 15° en 2D) ou angle tapé au clavier, clic ou `Entrée` pour
   valider.

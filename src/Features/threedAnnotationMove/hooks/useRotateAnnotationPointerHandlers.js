@@ -17,6 +17,7 @@ import { isForeignFootprintId } from "Features/annotations/constants/foreignFoot
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
 import { appendToRotateBuffer } from "Features/annotationTransform/utils/copyBuffer";
+import { ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE } from "Features/annotationTransform/constants/transformToolStrings";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
@@ -78,8 +79,11 @@ function restoreRotatedAnnotations() {
 // Wires click + key handlers for the "Tourner" (rotate annotation) mode of
 // the Dessin (MAP) module's 3D editor — CAD-style 3 clicks, mirroring
 // useRotateBaseMapPointerHandlers but on the selected point-based
-// annotations of one base map: the 1st snapped click sets the pivot on an
-// annotation (implicit-selection rule, like the move tool); the 2nd click
+// annotations of one base map: the 1st click sets the pivot — on an
+// annotation vertex (implicit-selection rule, like the move tool) or, when
+// the annotations to turn are selected, anywhere (edge, base map plane,
+// free point: the selection is carried, the clicked point is the pivot);
+// the 2nd click
 // fixes the reference axis; the mouse then rotates the carried annotations
 // around the base map plane's normal through the pivot; the 3rd click (or
 // Enter) commits the new 2D point coordinates. Esc cancels the in-progress
@@ -130,29 +134,73 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) isDragging = true;
     }
 
+    // The annotation a pivot click grabs: the owner of the snapped vertex,
+    // or — free pivot — the first carriable annotation of the selection
+    // (the whole selection then follows through the implicit-selection
+    // rule). Returns { grabbed, group } or null (toasted).
+    function resolveGrabbedAtPivot(snap) {
+      const resolved =
+        snap.kind === "VERTEX" ? resolveAnnotationFromSnap(editor, snap) : null;
+      if (resolved?.annotationId) {
+        if (
+          isForeignFootprintId(resolved.annotationId) ||
+          !resolved.group ||
+          !resolved.baseMapId
+        ) {
+          dispatch(
+            setToaster({ message: "Sélectionnez un point d'une annotation" })
+          );
+          return null;
+        }
+        if (!isPointBasedAnnotationType(resolved.annotationType)) {
+          dispatch(
+            setToaster({
+              message:
+                "Ce type d'annotation ne peut pas être tourné ici (tracé à points requis)",
+              severity: "warning",
+            })
+          );
+          return null;
+        }
+        return { grabbed: resolved, group: resolved.group };
+      }
+
+      const selectedIds = (store.getState().selection.selectedItems ?? [])
+        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
+        .map((i) => i.nodeId ?? i.id);
+      const first = selectedIds
+        .map((id) => annotationsRef.current?.find((a) => a.id === id))
+        .find(
+          (a) =>
+            a &&
+            !isForeignFootprintId(a.id) &&
+            isPointBasedAnnotationType(a.type)
+        );
+      const group = first
+        ? editor?.sceneManager?.imagesManager?.getGroup(first.baseMapId)
+        : null;
+      if (!first || !group) {
+        dispatch(
+          setToaster({ message: ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE })
+        );
+        return null;
+      }
+      return {
+        grabbed: {
+          annotationId: first.id,
+          annotationType: first.type,
+          listingId: first.listingId,
+          annotationTemplateId: first.annotationTemplateId,
+          baseMapId: first.baseMapId,
+        },
+        group,
+      };
+    }
+
     function grabPivotAtSnap(snap) {
-      const resolved = resolveAnnotationFromSnap(editor, snap);
-      if (
-        !resolved.annotationId ||
-        isForeignFootprintId(resolved.annotationId) ||
-        !resolved.group ||
-        !resolved.baseMapId
-      ) {
-        dispatch(
-          setToaster({ message: "Sélectionnez un point d'une annotation" })
-        );
-        return;
-      }
-      if (!isPointBasedAnnotationType(resolved.annotationType)) {
-        dispatch(
-          setToaster({
-            message:
-              "Ce type d'annotation ne peut pas être tourné ici (tracé à points requis)",
-            severity: "warning",
-          })
-        );
-        return;
-      }
+      const picked = resolveGrabbedAtPivot(snap);
+      if (!picked) return;
+      const { grabbed: resolved, group } = picked;
 
       const annotationIds = getCarriedAnnotationIdsFromSelection({
         grabbed: resolved,
@@ -186,7 +234,6 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       }
       if (!carriedIds.length) return;
 
-      const group = resolved.group;
       group.updateWorldMatrix(true, false);
       const pivotLocal = group.worldToLocal(snap.position.clone());
 
@@ -331,10 +378,9 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
 
       const grab = getRotateAnnotationGrab();
       if (!grab) {
-        // Pivot click: an annotation vertex only.
+        // Pivot click: an annotation vertex, or any point with a selection.
         const snap = getLastRotateAnnotationSnap();
         if (!snap?.position) return;
-        if (snap.kind !== "VERTEX") return;
         grabPivotAtSnap(snap);
       } else if (grab.refBearing == null) {
         // Reference-axis click: snapped or free point.
