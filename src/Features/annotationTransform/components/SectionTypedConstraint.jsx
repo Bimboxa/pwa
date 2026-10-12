@@ -61,6 +61,9 @@ export default function SectionTypedConstraint({
   const valueText = getBufferValuePart(current);
   const countText = getBufferCountPart(current);
   const locked = valueText !== "";
+  // `*` typed: the copies field is the one the digits feed — its « x »
+  // lights up like the padlock of a typed value.
+  const countActive = current.includes("*");
   const valueKeys = isRotate ? ["0-9", ".", "-"] : ["0-9", "."];
 
   // handlers
@@ -155,7 +158,12 @@ export default function SectionTypedConstraint({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography
             variant="body2"
-            sx={{ color: "text.secondary", width: 16, textAlign: "center" }}
+            sx={{
+              width: 16,
+              textAlign: "center",
+              fontWeight: countActive ? 700 : 400,
+              color: countActive ? "primary.main" : "text.secondary",
+            }}
           >
             {timesS}
           </Typography>
