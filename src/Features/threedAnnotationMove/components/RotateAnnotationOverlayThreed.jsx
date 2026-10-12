@@ -7,6 +7,8 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
+
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
@@ -84,7 +86,9 @@ export default function RotateAnnotationOverlayThreed() {
   const arcRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
-  const angleLabelRef = useRef(null);
+  // Angle badge: the same DrawingLengthBadge as the move tool and the 2D
+  // tools (pill, padlock when the angle is typed).
+  const badgeRef = useRef(null);
 
   // pointer-move: snap detection + helper lines + live rotation
   useEffect(() => {
@@ -156,25 +160,26 @@ export default function RotateAnnotationOverlayThreed() {
     }
 
     function updateAngleLabel(phi, screen, grab = null) {
-      const labelEl = angleLabelRef.current;
-      if (!labelEl) return;
+      const badge = badgeRef.current;
+      if (!badge) return;
       if (phi == null || !screen) {
-        labelEl.style.display = "none";
+        badge.hide();
         return;
       }
       // A typed angle shows the raw buffer from its first character ("-"),
-      // bold, so the constraint mode is visible at once.
+      // locked, so the constraint mode is visible at once.
       const typed = formatAngleValueBuffer(grab?.angleBuffer ?? "");
-      labelEl.textContent = formatRotateBadge({
-        angleLabel: typed
-          ? `${typed}°`
-          : `${((phi * 180) / Math.PI).toFixed(1)}°`,
-        count: getGrabCopyCount(grab),
+      badge.update({
+        x: screen.sx,
+        y: screen.sy,
+        text: formatRotateBadge({
+          angleLabel: typed
+            ? `${typed}°`
+            : `${((phi * 180) / Math.PI).toFixed(1)}°`,
+          count: getGrabCopyCount(grab),
+        }),
+        locked: typed !== "",
       });
-      labelEl.style.fontWeight = typed ? "700" : "600";
-      labelEl.setAttribute("x", screen.sx + 12);
-      labelEl.setAttribute("y", screen.sy - 12);
-      labelEl.style.display = "block";
     }
 
     function hideAll() {
@@ -531,82 +536,75 @@ export default function RotateAnnotationOverlayThreed() {
 
   if (!active) return null;
   return (
-    <svg
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none",
-        zIndex: 5,
-      }}
-    >
-      <path
-        ref={arcRef}
-        fill="rgba(230, 81, 0, 0.15)"
-        stroke={COLOR_CURRENT_LINE}
-        strokeWidth="1"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={crossARef}
-        stroke={COLOR_CROSS}
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={crossBRef}
-        stroke={COLOR_CROSS}
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={axisLineRef}
-        stroke={COLOR_PIVOT}
-        strokeWidth="1.5"
-        strokeDasharray="4 3"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={refLineRef}
-        stroke={COLOR_REF_LINE}
-        strokeWidth="2"
-        strokeDasharray="6 4"
-        style={{ display: "none" }}
-      />
-      <line
-        ref={currentLineRef}
-        stroke={COLOR_CURRENT_LINE}
-        strokeWidth="2"
-        strokeDasharray="6 4"
-        style={{ display: "none" }}
-      />
-      <circle
-        ref={pivotCircleRef}
-        r={PIVOT_CIRCLE_RADIUS_PX}
-        strokeWidth={SNAP_CIRCLE_STROKE_PX}
-        fill={COLOR_PIVOT}
-        style={{ display: "none" }}
-      />
-      <circle
-        ref={snapCircleRef}
-        r={SNAP_CIRCLE_RADIUS_PX}
-        strokeWidth={SNAP_CIRCLE_STROKE_PX}
-        fill="none"
-        style={{ display: "none" }}
-      />
-      <text
-        ref={angleLabelRef}
-        fontSize="13"
-        fontWeight="600"
-        fill="#bf360c"
-        stroke="#ffffff"
-        strokeWidth="3"
-        paintOrder="stroke"
-        style={{ display: "none" }}
-      />
-    </svg>
+    <>
+      <svg
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 5,
+        }}
+      >
+        <path
+          ref={arcRef}
+          fill="rgba(230, 81, 0, 0.15)"
+          stroke={COLOR_CURRENT_LINE}
+          strokeWidth="1"
+          style={{ display: "none" }}
+        />
+        <line
+          ref={crossARef}
+          stroke={COLOR_CROSS}
+          strokeWidth="1.5"
+          strokeDasharray="5 4"
+          style={{ display: "none" }}
+        />
+        <line
+          ref={crossBRef}
+          stroke={COLOR_CROSS}
+          strokeWidth="1.5"
+          strokeDasharray="5 4"
+          style={{ display: "none" }}
+        />
+        <line
+          ref={axisLineRef}
+          stroke={COLOR_PIVOT}
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+          style={{ display: "none" }}
+        />
+        <line
+          ref={refLineRef}
+          stroke={COLOR_REF_LINE}
+          strokeWidth="2"
+          strokeDasharray="6 4"
+          style={{ display: "none" }}
+        />
+        <line
+          ref={currentLineRef}
+          stroke={COLOR_CURRENT_LINE}
+          strokeWidth="2"
+          strokeDasharray="6 4"
+          style={{ display: "none" }}
+        />
+        <circle
+          ref={pivotCircleRef}
+          r={PIVOT_CIRCLE_RADIUS_PX}
+          strokeWidth={SNAP_CIRCLE_STROKE_PX}
+          fill={COLOR_PIVOT}
+          style={{ display: "none" }}
+        />
+        <circle
+          ref={snapCircleRef}
+          r={SNAP_CIRCLE_RADIUS_PX}
+          strokeWidth={SNAP_CIRCLE_STROKE_PX}
+          fill="none"
+          style={{ display: "none" }}
+        />
+      </svg>
+      <DrawingLengthBadge ref={badgeRef} />
+    </>
   );
 }
