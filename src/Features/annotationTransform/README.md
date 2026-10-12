@@ -143,7 +143,53 @@ anti-horaire (même convention qu'en 3D) — voir `utils/rotateAngle.js`.
 Ne jamais écrire de `x/y` directement dans `annotation.points`
 (cf. `docs/annotations/POINTS_STORAGE.md`).
 
-### Copie multiple
+### Copie multiple (translation ou rotation)
+
+Deux fonctionnalités jumelles, portées par la même saisie clavier
+`<valeur>[*<copies>]`, le même service d'écriture et le même aperçu 3D.
+
+#### Copie par translation (« Déplacer », `M`)
+
+- Pendant le déplacement (point saisi, destination en attente), taper `*`
+  puis un nombre : `*3`. L'originale **reste en place** ; le clic (ou la
+  distance tapée) pose la **1re copie**, la copie i est posée à `i ×` le
+  vecteur point saisi → point cliqué (modèle SketchUp « 3x », pas de mode
+  « répartir »). `1.3*3` = 3 copies au pas de 1,30 m ; `Maj` + `*3` = 3
+  copies le long d'un axe.
+- Les copies emportent la géométrie (points, découpes, points intérieurs,
+  lignes guides / de niveau / de profil), le `mesh3d` des annotations
+  `isMesh3d`, `rotationCenter` translaté, `offsetZ` (+ i × dz pour un drop
+  3D aimanté à une autre altitude), les catégories, le calque actif et un
+  libellé auto-numéroté.
+- Refusée sur un axe de révolution (toast `MULTI_COPY_UNSUPPORTED_MESSAGE`).
+
+#### Copie par rotation (« Tourner », `R`)
+
+- En 3/3 (pivot et axe de référence fixés), taper `*` puis un nombre : `*3`.
+  L'originale **reste en place** ; le clic / `Entrée` pose la **1re copie**
+  à l'angle courant (souris ou tapé), la copie i est tournée de `i ×`
+  l'angle autour du pivot. `45*3` = 3 copies à 45°, 90° et 135° ; `-30*2`
+  = 2 copies à −30° et −60°. L'angle se tape **avant** le `*` ; le champ
+  Angle du helper n'édite que l'angle et conserve la queue `*N`.
+- Les copies emportent la même géométrie que ci-dessus, tournée autour du
+  pivot ; le `mesh3d` suit par la même affine pixel ; la rotation est
+  **cuite dans les points** : `rotation` et `rotationCenter` sont remis à
+  zéro (règle `clearRotation`), `offsetZ` inchangé.
+- Pas de rotation sur un axe de révolution (déjà refusé par « Tourner »).
+
+#### Commun aux deux
+
+- `⌫` efface un caractère du buffer, `Échap` efface le buffer avant
+  d'annuler la saisie. L'originale reste **visible et aimantable** pendant
+  l'aperçu (phases `"MOVE_COPY"` / `"ROTATE_COPY"` en 2D, fantômes en 3D).
+- Le badge / libellé affiche la valeur (brute et verrouillée dès le 1er
+  caractère tapé) et le `×N` ; la carte « Copie multiple » du helper
+  affiche le compteur (et la distance pour Déplacer).
+- **Non copiés** (comme « Dupliquer ») : ouvertures collées, parties
+  peintes ; `meshLines` abandonnées. Un seul `withUndoGroup`, une seule
+  transaction : un `Ctrl+Z` retire toutes les copies.
+
+#### Mécanique
 
 - Buffer `<valeur>[*<copies>]` : `utils/copyBuffer.js` (`appendToMoveBuffer`
   / `appendToRotateBuffer` — même grammaire, le `-` initial en plus pour
@@ -152,35 +198,27 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
   `formatRotateBadge`, `MAX_COPIES`).
   - Déplacer 2D : `transformSessionStore.copyBuffer` + `rawCursor` /
     `meterByPx` (`constrainMoveCursor` rescale le vecteur ancre → curseur à
-    la distance tapée ; phase `"MOVE_COPY"` → les originales restent visibles
-    et aimantables). 3D : `threedEditor.moveAnnotationMode.copyBuffer`,
+    la distance tapée). 3D : `threedEditor.moveAnnotationMode.copyBuffer`,
     miroir `grab.copyBuffer` ; `computeMoveDeltaLocal({lengthM})` ; un
     changement de buffer rejoue le dernier pointeur de l'overlay
     (`replayMoveOverlay`).
   - Tourner 2D : le buffer d'angle `transformSessionStore.angleBuffer` porte
-    toute la grammaire (`parseAngleBufferToPixelDeg` n'en lit que l'angle) ;
-    phase `"ROTATE_COPY"` (3/3 avec copies) → originales visibles et
-    aimantables, comme `MOVE_COPY`. 3D :
-    `threedEditor.rotateAnnotationMode.angleBuffer`, miroir
+    toute la grammaire (`parseAngleBufferToPixelDeg` n'en lit que l'angle).
+    3D : `threedEditor.rotateAnnotationMode.angleBuffer`, miroir
     `grab.angleBuffer` ; `services/setRotateAngleBufferService` (clavier et
     champ du helper) reconstruit les fantômes et repose aussitôt.
 - Écriture : `services/createTransformedAnnotationCopiesService.js`, partagé
   2D / 3D, `transform = { kind: "MOVE", deltaPx, deltaZ? }` ou
-  `{ kind: "ROTATE", pivotPx, angleDeg }` (angle pixel, horaire positif).
-  Chaque copie part de la **ligne stockée** de sa source (jamais de l'objet
-  hydraté), sur laquelle on greffe la géométrie : points résolus transformés
-  (`applyDeltaPosToAnnotation`, `partType "ROTATE"` + bbox nulle sur le
-  pivot pour une rotation) puis re-frappés en nouveaux `db.points`
-  (`duplicateAnnotationPoints` avec une `idMap` partagée par copie : un
-  sommet commun à deux murs emportés reste commun à leurs copies). Suivent
-  aussi le `mesh3d` / `mesh3dSource` (même affine pixel —
-  `utils/pixelRotationAffine.js` pour une rotation), les rels de catégories,
-  le calque actif, les libellés auto-numérotés ; en MOVE `rotationCenter`
-  translaté et `offsetZ` (+ i × dz en 3D) ; en ROTATE la rotation est cuite
-  dans les points et `rotation` / `rotationCenter` remis à zéro (règle
-  `clearRotation`). **Non copiés** (comme « Dupliquer ») : ouvertures
-  collées, parties peintes ; `meshLines` abandonnées. Un seul
-  `withUndoGroup`, une seule transaction.
+  `{ kind: "ROTATE", pivotPx, angleDeg }` (angle pixel, horaire positif ; la
+  3D passe `−phi` et inverse le Y du pivot comme
+  `commitAnnotationsTransformFrom3d`). Chaque copie part de la **ligne
+  stockée** de sa source (jamais de l'objet hydraté), sur laquelle on greffe
+  la géométrie : points résolus transformés (`applyDeltaPosToAnnotation`,
+  `partType "ROTATE"` + bbox nulle sur le pivot pour une rotation) puis
+  re-frappés en nouveaux `db.points` (`duplicateAnnotationPoints` avec une
+  `idMap` partagée par copie : un sommet commun à deux murs emportés reste
+  commun à leurs copies). `mesh3d` / `mesh3dSource` suivent la même affine
+  pixel (`utils/pixelRotationAffine.js` pour une rotation).
 - Aperçu 3D : `threedAnnotationMove/services/moveCopyGhostsThreed.js` —
   un objet neuf par (copie, annotation) via `createAnnotationObject3D`
   (jamais un `clone()` du root : `Object3D.copy` sérialise `userData`, qui
@@ -191,7 +229,7 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
   unique de la pose, il bascule originaux / fantômes). Les originaux
   restent à leur pose de saisie ; après le drop les fantômes tiennent lieu
   des copies jusqu'à leur construction (`subscribeAnnotationReady`,
-  fallback 2,5 s).
+  fallback 2,5 s). Voir `threedAnnotationMove/README.md`.
 
 ## Glossaire français → code
 
