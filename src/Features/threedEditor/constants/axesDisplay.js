@@ -18,7 +18,7 @@ export const AXIS_COLORS = {
 
 export const DEFAULT_AXES_SETTINGS = {
   showGizmo: true,
-  showSceneAxes: false,
+  showSceneAxes: true,
   yawDeg: 0,
 };
 
