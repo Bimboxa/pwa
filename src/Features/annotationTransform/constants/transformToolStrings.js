@@ -28,7 +28,8 @@ export function getRotateToolHint({ carriedCount, referenceSet }) {
 // Same keys in 2D (image axes) and 3D (user axes X / Y / Z of the gizmo).
 export const MOVE_TOOL_SHORTCUTS = [
   { key: "⇧", label: "Déplacement orthogonal" },
-  { key: "x 0-9", label: "Copie multiple (xN)" },
+  { key: "0-9", label: "Distance du déplacement" },
+  { key: "* 0-9", label: "Copie multiple (*N)" },
   { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler la saisie / Quitter" },
 ];

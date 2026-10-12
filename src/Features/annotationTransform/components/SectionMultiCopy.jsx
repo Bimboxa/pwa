@@ -3,30 +3,39 @@ import { Box, Paper, Typography } from "@mui/material";
 import ConstraintValueChip from "Features/mapEditor/components/ConstraintValueChip";
 import ConstraintShortcutRow from "Features/mapEditor/components/ConstraintShortcutRow";
 
-import { formatCopyBuffer, parseCopyCount } from "../utils/copyBuffer";
+import {
+  formatCopyCountBuffer,
+  formatMoveLengthBuffer,
+  parseCopyCount,
+  parseMoveLength,
+} from "../utils/copyBuffer";
 
 // ---------------------------------------------------------------------------
-// SectionMultiCopy — « Copie multiple » card of the « Déplacer » helper (2D
-// and 3D), same dress as the « Contraintes » card: the typed copy buffer
-// ("x3", locked once typed) and the keys. Nothing is typed here: the editors
-// feed the buffer (transformSessionStore in 2D, threedEditor in 3D).
+// SectionMultiCopy — « Distance / Copie multiple » card of the « Déplacer »
+// helper (2D and 3D), same dress as the « Contraintes » card: the typed
+// buffer `<distance>[*<copies>]` (distance of the move, copy count), locked
+// once typed, and the keys. Nothing is typed here: the editors feed the
+// buffer (transformSessionStore in 2D, threedEditor in 3D).
 // ---------------------------------------------------------------------------
 
 export default function SectionMultiCopy({ copyBuffer }) {
   // strings
 
-  const titleS = "Copie multiple";
+  const titleS = "Distance / Copie multiple";
+  const distanceS = "Distance";
   const copiesS = "Copies";
-  const typeS = "Copier N fois";
+  const typeLengthS = "Contraindre la distance";
+  const typeCopiesS = "Copier N fois";
   const eraseS = "Effacer";
   const helpS =
-    "L'originale reste en place ; la copie n° i est posée à i × le vecteur point saisi → point cliqué.";
+    "« 1.3 » déplace de 1,30 m dans la direction de la souris ; « *3 » garde l'originale et pose 3 copies, la copie n° i à i × le vecteur ; « 1.3*3 » : 3 copies au pas de 1,30 m.";
 
   // helpers
 
   const buffer = copyBuffer ?? "";
-  const count = parseCopyCount(buffer);
-  const locked = count > 0;
+  const lengthLocked = parseMoveLength(buffer) != null;
+  const countLocked = parseCopyCount(buffer) > 0;
+  const countActive = buffer.includes("*");
 
   // render
 
@@ -52,12 +61,20 @@ export default function SectionMultiCopy({ copyBuffer }) {
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
         <ConstraintValueChip
-          label={copiesS}
-          value={formatCopyBuffer(buffer)}
-          locked={locked}
-          isActive={buffer !== ""}
+          label={distanceS}
+          value={formatMoveLengthBuffer(buffer)}
+          unit="m"
+          locked={lengthLocked}
+          isActive={buffer !== "" && !countActive}
         />
-        <ConstraintShortcutRow label={typeS} keys={["x", "0-9"]} />
+        <ConstraintValueChip
+          label={copiesS}
+          value={formatCopyCountBuffer(buffer)}
+          locked={countLocked}
+          isActive={countActive}
+        />
+        <ConstraintShortcutRow label={typeLengthS} keys={["0-9", "."]} />
+        <ConstraintShortcutRow label={typeCopiesS} keys={["*", "0-9"]} />
         <ConstraintShortcutRow label={eraseS} keys={["⌫"]} />
         <Typography
           variant="caption"

@@ -1,3 +1,5 @@
+import { scaleDeltaToLength } from "Features/annotationTransform/utils/copyBuffer";
+
 // Local (base map metre frame) delta that brings the grabbed point onto
 // `targetWorld`. The roots are children of the base map group with their
 // geometry baked in the group's LOCAL metre frame, so a move is a plain
@@ -7,17 +9,22 @@
 // lands EXACTLY on the target, altitude included — persisted as an offsetZ
 // delta at commit. When false (free cursor), the vertical component is
 // dropped so the annotations keep their altitude while sliding in the plane.
+// options.lengthM: typed distance — the delta is rescaled to that length
+// (the target only gives the direction).
 // Returns {x, y, z}, or null when the group is gone.
 export function computeMoveDeltaLocal(editor, grab, targetWorld, options = {}) {
   const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
   if (!group) return null;
   group.updateWorldMatrix(true, false);
   const local = group.worldToLocal(targetWorld.clone());
-  return {
+  const delta = {
     x: local.x - grab.startLocal.x,
     y: local.y - grab.startLocal.y,
     z: options.includeZ ? local.z - grab.startLocal.z : 0,
   };
+  return options.lengthM > 0
+    ? scaleDeltaToLength(delta, options.lengthM)
+    : delta;
 }
 
 // Poses the carried annotation roots at their grab-time pose + `delta`

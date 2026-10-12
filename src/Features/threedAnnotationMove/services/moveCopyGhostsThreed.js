@@ -5,7 +5,10 @@ import {
   getCanvasResolution,
 } from "Features/threedDrawing/utils/drawingOverlayLines";
 
-import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
+import {
+  parseCopyCount,
+  parseMoveLength,
+} from "Features/annotationTransform/utils/copyBuffer";
 
 // « Copie multiple » ghosts of the 3D « Déplacer » tool: one fresh 3D object
 // per (copy, carried annotation), built from the resolved annotation like
@@ -27,6 +30,11 @@ const HOLD_FALLBACK_MS = 2500;
 
 export function getGrabCopyCount(grab) {
   return parseCopyCount(grab?.copyBuffer ?? "");
+}
+
+// Typed distance of the grab (metres), or null.
+export function getGrabMoveLength(grab) {
+  return parseMoveLength(grab?.copyBuffer ?? "");
 }
 
 export function disposeCopyGhosts(grab) {

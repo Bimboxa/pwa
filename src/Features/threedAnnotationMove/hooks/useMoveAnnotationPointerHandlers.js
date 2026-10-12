@@ -16,7 +16,7 @@ import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPerm
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import createTranslatedAnnotationCopiesService from "Features/annotationTransform/services/createTranslatedAnnotationCopiesService";
-import { appendToCopyBuffer } from "Features/annotationTransform/utils/copyBuffer";
+import { appendToMoveBuffer } from "Features/annotationTransform/utils/copyBuffer";
 import { MULTI_COPY_UNSUPPORTED_MESSAGE } from "Features/annotationTransform/constants/transformToolStrings";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
@@ -32,12 +32,14 @@ import {
   buildCopyGhosts,
   disposeCopyGhosts,
   getGrabCopyCount,
+  getGrabMoveLength,
   holdCopyGhostsUntilBuilt,
   poseCopyGhosts,
 } from "../services/moveCopyGhostsThreed";
 import {
   getLastMoveAnnotationSnap,
   getMoveAnnotationGrab,
+  replayMoveOverlay,
   setMoveAnnotationGrab,
   clearMoveAnnotationGrab,
 } from "../services/moveAnnotationSessionStore";
@@ -88,10 +90,11 @@ function restoreCarriedAnnotations() {
 // annotation alone; 2nd click drops — the new 2D point coordinates are
 // written back to db.points (commitAnnotationsTransformFrom3d). Esc cancels
 // the in-progress move, or exits the mode when nothing is grabbed.
-// « Copie multiple »: while carrying, `x` + digits ("x3") keep the originals
-// in place and preview N copies (moveCopyGhostsThreed); the drop writes the
-// copies (createTranslatedAnnotationCopiesService). Shift (ortho lock) is
-// handled by the overlay.
+// Typed buffer while carrying (`<distance>[*<copies>]`): digits constrain
+// the distance along the current direction; `*` + digits ("*3") keep the
+// originals in place and preview N copies (moveCopyGhostsThreed), the drop
+// writes the copies (createTranslatedAnnotationCopiesService). Shift (ortho
+// lock) is handled by the overlay.
 export default function useMoveAnnotationPointerHandlers({ annotations }) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -232,29 +235,33 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       dispatch(setMoveAnnotationCarriedIds(carriedIds));
     }
 
-    // « Copie multiple » buffer: rebuilds the ghosts for the new count and
-    // swaps what follows the cursor (ghosts vs the originals) at the last
-    // applied delta — no pointer move needed to see the change.
+    // Typed buffer: rebuilds the ghosts for a new count and swaps what
+    // follows the cursor (ghosts vs the originals), then replays the overlay
+    // so the pose and the badge follow the typed distance at once — no
+    // pointer move needed to see the change.
     function setCopyBuffer(grab, buffer) {
       const prevCount = getGrabCopyCount(grab);
       grab.copyBuffer = buffer;
       dispatch(setMoveAnnotationCopyBuffer(buffer));
       const count = getGrabCopyCount(grab);
-      if (count === prevCount) return;
-      if (count > 0) {
-        if (prevCount === 0) poseCarriedAnnotations(editor, grab, ZERO_DELTA);
-        buildCopyGhosts(editor, grab, annotationsRef.current);
-        poseCopyGhosts(grab, grab.lastDelta ?? ZERO_DELTA);
-      } else {
-        disposeCopyGhosts(grab);
-        poseCarriedAnnotations(editor, grab, grab.lastDelta ?? ZERO_DELTA);
+      if (count !== prevCount) {
+        if (count > 0) {
+          if (prevCount === 0) poseCarriedAnnotations(editor, grab, ZERO_DELTA);
+          buildCopyGhosts(editor, grab, annotationsRef.current);
+          poseCopyGhosts(grab, grab.lastDelta ?? ZERO_DELTA);
+        } else {
+          disposeCopyGhosts(grab);
+          poseCarriedAnnotations(editor, grab, grab.lastDelta ?? ZERO_DELTA);
+        }
       }
+      replayMoveOverlay();
       editor.renderScene?.();
     }
 
     async function dropCopiesAtSnap(grab, snap) {
       const delta = computeMoveDeltaLocal(editor, grab, snap.position, {
         includeZ: snap.kind !== "FREE",
+        lengthM: getGrabMoveLength(grab),
       });
       const count = getGrabCopyCount(grab);
       const imagesManager = editor?.sceneManager?.imagesManager;
@@ -310,6 +317,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       // offsetZ delta); a free drop stays in the plane.
       const delta = applyMoveAnnotationsPose(editor, grab, snap.position, {
         includeZ: snap.kind !== "FREE",
+        lengthM: getGrabMoveLength(grab),
       });
       clearMoveAnnotationGrab();
       dispatch(setMoveAnnotationCarriedIds([]));
@@ -400,19 +408,18 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         return;
       }
 
-      if (/^[0-9xX]$/.test(e.key)) {
+      if (/^[0-9.,*]$/.test(e.key)) {
         consume();
-        if (grab.isRevolutionAxis) {
-          if (e.key === "x" || e.key === "X")
-            dispatch(
-              setToaster({
-                message: MULTI_COPY_UNSUPPORTED_MESSAGE,
-                severity: "warning",
-              })
-            );
+        if (grab.isRevolutionAxis && e.key === "*") {
+          dispatch(
+            setToaster({
+              message: MULTI_COPY_UNSUPPORTED_MESSAGE,
+              severity: "warning",
+            })
+          );
           return;
         }
-        setCopyBuffer(grab, appendToCopyBuffer(grab.copyBuffer, e.key));
+        setCopyBuffer(grab, appendToMoveBuffer(grab.copyBuffer, e.key));
       }
     }
 
