@@ -11,7 +11,7 @@ import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLeng
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
-import roundForDisplay from "Features/threedDrawing/utils/roundForDisplay";
+import { formatMoveBadge } from "Features/annotationTransform/utils/copyBuffer";
 
 import useAnnotationsOnlyVertexSnap from "../hooks/useAnnotationsOnlyVertexSnap";
 import computeAxisLockSnap from "../utils/computeAxisLockSnap";
@@ -21,10 +21,12 @@ import {
 } from "../utils/applyMoveAnnotationsPose";
 import {
   getGrabCopyCount,
+  getGrabMoveLength,
   poseCopyGhosts,
 } from "../services/moveCopyGhostsThreed";
 import {
   setLastMoveAnnotationSnap,
+  setMoveOverlayReplay,
   getMoveAnnotationGrab,
 } from "../services/moveAnnotationSessionStore";
 
@@ -48,8 +50,11 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // of the gizmo frame) through the grabbed point closest to the cursor, the
 // snaps are ignored (2D parity), the axis line is drawn in its colour with
 // the travelled length.
-// « Copie multiple » (grab.copyBuffer): the originals stay at their grab
-// pose, the copy ghosts (moveCopyGhostsThreed) follow instead.
+// Typed buffer (grab.copyBuffer, `<distance>[*<copies>]`): a distance
+// rescales the move along the current direction; « copie multiple » keeps
+// the originals at their grab pose, the copy ghosts (moveCopyGhostsThreed)
+// follow instead. The badge under the cursor shows the travelled distance
+// (bold when typed) and the copy count.
 export default function MoveAnnotationOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.moveAnnotationMode.active);
   const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
@@ -138,34 +143,49 @@ export default function MoveAnnotationOverlayThreed() {
     }
 
     // Shift ortho lock: the axis line from the grabbed point to the locked
-    // destination, in the axis colour, and the travelled length.
+    // destination, in the axis colour.
     function updateAxisLock(grab, snap, rect) {
       const line = axisLineRef.current;
-      const badge = badgeRef.current;
+      if (!line) return;
       const show = grab && snap?.kind === "AXIS";
       const a = show ? toScreen(grab.startWorld, rect) : null;
       const b = show ? toScreen(snap.position, rect) : null;
       if (!a || !b) {
-        if (line) line.style.display = "none";
-        badge?.hide?.();
+        line.style.display = "none";
         return;
       }
-      const color = AXIS_COLORS[snap.axis] ?? COLOR_FREE;
-      if (line) {
-        line.setAttribute("x1", a.sx);
-        line.setAttribute("y1", a.sy);
-        line.setAttribute("x2", b.sx);
-        line.setAttribute("y2", b.sy);
-        line.style.stroke = color;
-        line.style.display = "block";
+      line.setAttribute("x1", a.sx);
+      line.setAttribute("y1", a.sy);
+      line.setAttribute("x2", b.sx);
+      line.setAttribute("y2", b.sy);
+      line.style.stroke = AXIS_COLORS[snap.axis] ?? COLOR_FREE;
+      line.style.display = "block";
+    }
+
+    // Badge under the cursor while carrying: the travelled distance (the
+    // typed one, bold / locked, or the live one) and the copy count, in the
+    // axis colour under a Shift lock.
+    function updateBadge(grab, snap, delta, rect) {
+      const badge = badgeRef.current;
+      if (!badge) return;
+      const screen =
+        grab && snap?.position ? toScreen(snap.position, rect) : null;
+      if (!screen || !delta) {
+        badge.hide?.();
+        return;
       }
-      const length = snap.position.distanceTo(grab.startWorld);
-      badge?.update?.({
-        x: b.sx,
-        y: b.sy,
-        text: `${snap.axis} ${roundForDisplay(length).toFixed(3)} m`,
-        locked: false,
-        color,
+      const lengthM = Math.hypot(delta.x, delta.y, delta.z);
+      const text = formatMoveBadge({
+        lengthM,
+        count: getGrabCopyCount(grab),
+        axis: snap.kind === "AXIS" ? snap.axis : null,
+      });
+      badge.update?.({
+        x: screen.sx,
+        y: screen.sy,
+        text,
+        locked: getGrabMoveLength(grab) != null,
+        color: snap.kind === "AXIS" ? AXIS_COLORS[snap.axis] : undefined,
       });
     }
 
@@ -240,10 +260,13 @@ export default function MoveAnnotationOverlayThreed() {
 
       // Live move: the carried annotation roots (or, in copy mode, the copy
       // ghosts) follow so the grabbed point lands on the current target —
-      // altitude included on a real snap, in the plane only on a free cursor.
+      // altitude included on a real snap, in the plane only on a free
+      // cursor; a typed distance keeps the direction only.
+      let delta = null;
       if (grab && snap?.position) {
-        const delta = computeMoveDeltaLocal(editor, grab, snap.position, {
+        delta = computeMoveDeltaLocal(editor, grab, snap.position, {
           includeZ: snap.kind !== "FREE",
+          lengthM: getGrabMoveLength(grab),
         });
         if (delta) {
           grab.lastDelta = delta;
@@ -251,19 +274,31 @@ export default function MoveAnnotationOverlayThreed() {
           else poseCarriedAnnotations(editor, grab, delta);
         }
       }
+      updateBadge(grab, snap, delta, rect);
       editor.renderScene?.();
     }
 
+    let lastShiftKey = false;
+
     function onPointerMove(e) {
       lastPointer = { clientX: e.clientX, clientY: e.clientY };
+      lastShiftKey = e.shiftKey;
       update({ clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey });
     }
+
+    // Replayed by the pointer handlers after a buffer change (typed distance
+    // / copies): same pointer, same Shift state.
+    setMoveOverlayReplay(() => {
+      if (!lastPointer || !getMoveAnnotationGrab()) return;
+      update({ ...lastPointer, shiftKey: lastShiftKey });
+    });
 
     // Shift pressed / released with a still mouse: lock / unlock at once.
     function onShiftChange(e) {
       if (e.key !== "Shift" || e.repeat || !lastPointer) return;
+      lastShiftKey = e.type === "keydown";
       if (!getMoveAnnotationGrab()) return;
-      update({ ...lastPointer, shiftKey: e.type === "keydown" });
+      update({ ...lastPointer, shiftKey: lastShiftKey });
     }
 
     function onPointerLeave() {
@@ -286,6 +321,7 @@ export default function MoveAnnotationOverlayThreed() {
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onShiftChange);
       window.removeEventListener("keyup", onShiftChange);
+      setMoveOverlayReplay(null);
       setLastMoveAnnotationSnap(null);
     };
   }, [active, findNearestSnap]);

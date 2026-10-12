@@ -18,12 +18,17 @@ Le geste est le même en 2D et en 3D :
   l'axe utilisateur X / Y / Z du gizmo le plus proche du curseur
   (`computeAxisLockSnap`, ligne et longueur dans la couleur de l'axe ; un
   verrou Z change l'altitude, persistée en `offsetZ`).
-  **Copie multiple** : pendant le déplacement, `x` puis des chiffres (`x3`)
-  conservent l'originale en place et créent N copies le long du vecteur
-  point saisi → point cliqué, la copie i à `i ×` le vecteur (le clic pose la
-  1re copie). `⌫` efface la saisie (`x3` → `x` → déplacement simple). L'aperçu
-  montre toutes les copies ; la carte « Copie multiple » du helper affiche le
-  buffer. Refusée sur un axe de révolution.
+  **Saisie clavier** `<distance>[*<copies>]` pendant le déplacement :
+  - des chiffres (`1.3`) **contraignent la distance** à 1,30 m dans la
+    direction courante (souris ou axe `Maj`), la souris ne donne plus que la
+    direction ;
+  - `*` puis des chiffres (`*3`) = **copie multiple** : l'originale reste en
+    place, N copies le long du vecteur point saisi → point cliqué, la copie i
+    à `i ×` le vecteur (le clic pose la 1re copie) ; `1.3*3` = 3 copies au pas
+    de 1,30 m. Refusée sur un axe de révolution.
+    `⌫` efface un caractère. Le badge qui suit la souris affiche la distance
+    (en gras si tapée) et le `×N` ; la carte « Distance / Copie multiple » du
+    helper affiche le buffer.
 - **Tourner** : 1/3 clic sur le centre de rotation (un point de l'annotation),
   2/3 clic sur un point qui fixe l'axe de référence, 3/3 rotation à la souris
   (`Maj` : pas de 15° en 2D) ou angle tapé au clavier, clic ou `Entrée` pour
@@ -128,10 +133,14 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
 
 ### Copie multiple
 
-- Buffer : `utils/copyBuffer.js` (`appendToCopyBuffer`, `parseCopyCount`,
-  `MAX_COPIES`). 2D : `transformSessionStore.copyBuffer` (phase
-  `"MOVE_COPY"` → les originales restent visibles et aimantables). 3D :
-  `threedEditor.moveAnnotationMode.copyBuffer`, miroir `grab.copyBuffer`.
+- Buffer : `utils/copyBuffer.js` (`appendToMoveBuffer`, `parseMoveLength`,
+  `parseCopyCount`, `scaleDeltaToLength`, `formatMoveBadge`, `MAX_COPIES`).
+  2D : `transformSessionStore.copyBuffer` + `rawCursor` / `meterByPx`
+  (`constrainMoveCursor` rescale le vecteur ancre → curseur à la distance
+  tapée ; phase `"MOVE_COPY"` → les originales restent visibles et
+  aimantables). 3D : `threedEditor.moveAnnotationMode.copyBuffer`, miroir
+  `grab.copyBuffer` ; `computeMoveDeltaLocal({lengthM})` ; un changement de
+  buffer rejoue le dernier pointeur de l'overlay (`replayMoveOverlay`).
 - Écriture : `services/createTranslatedAnnotationCopiesService.js`, partagé
   2D / 3D. Chaque copie part de la **ligne stockée** de sa source (jamais de
   l'objet hydraté), sur laquelle on greffe la géométrie : points résolus

@@ -13,10 +13,12 @@ import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/mo
 import commitAnnotationsTransform2d from "../services/commitAnnotationsTransform2d";
 import createTranslatedAnnotationCopiesService from "../services/createTranslatedAnnotationCopiesService";
 import {
+  constrainMoveCursor,
   getTransformCopyCount,
   getTransformSession,
   resetTransformSession,
   setMoveCopyBuffer,
+  setMoveCursor,
   setRotateAngleBuffer,
   setTransformSession,
 } from "../services/transformSessionStore";
@@ -31,7 +33,7 @@ import {
   getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
 } from "../utils/rotateAngle";
-import { appendToCopyBuffer } from "../utils/copyBuffer";
+import { appendToMoveBuffer } from "../utils/copyBuffer";
 import {
   MULTI_COPY_UNSUPPORTED_MESSAGE,
   TRANSFORM_UNSUPPORTED_GRAB_MESSAGE,
@@ -60,8 +62,10 @@ const isEditableTarget = (el) => {
 // « Tourner » (ROTATE_ANNOTATION) drawing modes: same gesture as the 3D tools
 // (threedAnnotationMove), in the base map's pixel frame.
 //   Déplacer: click a point of an annotation, click the destination. While
-//   carrying, `x` + digits ("x3") turns the move into a « copie multiple »:
-//   the originals stay, N copies land along the vector (copy i at i × it).
+//   carrying, digits ("1.3") constrain the distance along the cursor
+//   direction and `*` + digits ("*3") turn the move into a « copie
+//   multiple »: the originals stay, N copies land along the vector (copy i
+//   at i × it) — "1.3*3": 3 copies with a 1.30 m pitch.
 //   Tourner: click the pivot on an annotation, click a point fixing the
 //   reference axis, turn with the mouse (Shift: 15° steps) or type the angle,
 //   click / Enter to validate.
@@ -185,6 +189,8 @@ export default function useAnnotationTransformTool({
         anchor,
         reference: null,
         cursor: anchor,
+        rawCursor: anchor,
+        meterByPx: baseMapRef.current?.getMeterByPx?.() ?? null,
         angleDeg: 0,
         angleBuffer: "",
         copyBuffer: "",
@@ -304,15 +310,17 @@ export default function useAnnotationTransformTool({
           grab("MOVE", snap);
           return;
         }
+        // A typed distance rescales the anchor → click vector.
+        const destination = constrainMoveCursor(session, point);
         const deltaPx = {
-          x: point.x - session.anchor.x,
-          y: point.y - session.anchor.y,
+          x: destination.x - session.anchor.x,
+          y: destination.y - session.anchor.y,
         };
         if (Math.hypot(deltaPx.x, deltaPx.y) < MIN_MOVE_PX) {
           resetTransformSession();
           return;
         }
-        setTransformSession({ cursor: point });
+        setTransformSession({ rawCursor: point, cursor: destination });
         const copyCount = getTransformCopyCount(session);
         commit(
           copyCount > 0
@@ -369,6 +377,10 @@ export default function useAnnotationTransformTool({
           stepDeg: shiftKey ? ROTATE_SHIFT_STEP_DEG : 0,
         });
         setTransformSession({ cursor, angleDeg: angleDeg ?? session.angleDeg });
+        return;
+      }
+      if (session.kind === "MOVE") {
+        setMoveCursor(cursor);
         return;
       }
       setTransformSession({ cursor });
@@ -438,20 +450,20 @@ export default function useAnnotationTransformTool({
         return consume();
       }
 
-      // « Copie multiple »: `x` then digits while a move is pending. A
-      // revolution axis is moved alone, never copied.
-      if (moving && /^[0-9xX]$/.test(e.key)) {
-        if (isRevolutionAxisCarried(session)) {
-          if (e.key === "x" || e.key === "X")
-            dispatch(
-              setToaster({
-                message: MULTI_COPY_UNSUPPORTED_MESSAGE,
-                severity: "warning",
-              })
-            );
+      // Typed distance (digits) / « copie multiple » (`*` then digits)
+      // while a move is pending. A revolution axis is moved alone, never
+      // copied.
+      if (moving && /^[0-9.,*]$/.test(e.key)) {
+        if (isRevolutionAxisCarried(session) && e.key === "*") {
+          dispatch(
+            setToaster({
+              message: MULTI_COPY_UNSUPPORTED_MESSAGE,
+              severity: "warning",
+            })
+          );
           return consume();
         }
-        setMoveCopyBuffer(appendToCopyBuffer(session.copyBuffer, e.key));
+        setMoveCopyBuffer(appendToMoveBuffer(session.copyBuffer, e.key));
         return consume();
       }
 

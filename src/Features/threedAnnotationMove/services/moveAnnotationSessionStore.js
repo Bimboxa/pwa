@@ -19,7 +19,7 @@ let lastSnap = null;
 //   rootStartPoses: Map<id, {position: Vector3, rotZ}>, // at grab time
 //   targetVerts,                 // target-only snap index (carried roots
 //   targetAdjacency,             // excluded), built fresh at grab time
-//   copyBuffer,                  // « copie multiple » typed buffer ("x3")
+//   copyBuffer,                  // typed `<distance>[*<copies>]` ("1.3*3")
 //   ghosts,                      // copy previews (moveCopyGhostsThreed)
 //   lastDelta,                   // last local delta applied (pose replay)
 // } | null
@@ -43,4 +43,17 @@ export function getMoveAnnotationGrab() {
 
 export function clearMoveAnnotationGrab() {
   grab = null;
+}
+
+// The overlay registers a replay of its last pointer update here, so a
+// buffer change (typed distance / copies) re-poses and re-labels at once
+// without a pointer move.
+let overlayReplay = null;
+
+export function setMoveOverlayReplay(fn) {
+  overlayReplay = fn;
+}
+
+export function replayMoveOverlay() {
+  overlayReplay?.();
 }

@@ -362,7 +362,7 @@ const threedEditorInitialState = {
     active: false,
     // Annotations currently carried (empty = waiting for the grab click).
     carriedAnnotationIds: [],
-    // « Copie multiple » typed buffer ("x3") while carrying — see
+    // Typed `<distance>[*<copies>]` buffer ("1.3*3") while carrying — see
     // annotationTransform/utils/copyBuffer. "" = plain move.
     copyBuffer: "",
   },

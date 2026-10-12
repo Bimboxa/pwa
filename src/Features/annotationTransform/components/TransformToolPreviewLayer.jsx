@@ -4,9 +4,11 @@ import TransientAnnotationLayer from "Features/mapEditorGeneric/components/Trans
 
 import {
   getTransformCopyCount,
+  getTransformMoveLength,
   resetTransformSession,
   useTransformSession,
 } from "../services/transformSessionStore";
+import { formatMoveBadge } from "../utils/copyBuffer";
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
 import { formatUserAngle } from "../utils/rotateAngle";
 
@@ -75,6 +77,16 @@ export default function TransformToolPreviewLayer({
         }))
       : [{ index: 0, deltaPos }];
   const lastPose = poses[poses.length - 1];
+  // Cursor label of a move: the travelled distance (typed or live) and the
+  // copy count.
+  const moveLengthM =
+    !isRotate && baseMapMeterByPx > 0
+      ? Math.hypot(deltaPos.x, deltaPos.y) * baseMapMeterByPx
+      : null;
+  const moveLabel = isRotate
+    ? null
+    : formatMoveBadge({ lengthM: moveLengthM ?? undefined, count: copyCount });
+  const moveLabelLocked = getTransformMoveLength(session) != null;
 
   // Screen-constant sizes in the scaled group.
   const k = basePose.k || 1;
@@ -142,18 +154,18 @@ export default function TransformToolPreviewLayer({
           />
         ))}
 
-      {copyCount > 0 && cursor && (
+      {moveLabel && cursor && (
         <text
           x={cursor.x + px(10)}
           y={cursor.y - px(10)}
           fontSize={px(13)}
-          fontWeight={600}
+          fontWeight={moveLabelLocked ? 700 : 600}
           fill={GUIDE_COLOR}
           stroke="white"
           strokeWidth={px(3)}
           paintOrder="stroke"
         >
-          {`×${copyCount}`}
+          {moveLabel}
         </text>
       )}
 
