@@ -35,6 +35,7 @@ import {
 import { appendToMoveBuffer, appendToRotateBuffer } from "../utils/copyBuffer";
 import {
   MULTI_COPY_UNSUPPORTED_MESSAGE,
+  ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE,
   TRANSFORM_UNSUPPORTED_GRAB_MESSAGE,
 } from "../constants/transformToolStrings";
 
@@ -73,7 +74,8 @@ const isEditableTarget = (el) => {
 // The grabbed annotation carries the whole selection when it belongs to it
 // (getCarriedAnnotationIdsFromSelection — shared with the 3D tools).
 // A revolution axis is moved alone, from its centre or one of the ends of its
-// contour (not turned).
+// contour (not turned). The rotation pivot may be a free point of the base
+// map when the annotations to turn are selected (the selection is carried).
 //
 // Returns the handlers InteractionLayer calls from its click / snap-marker /
 // mouse-move paths; the session lives in transformSessionStore.
@@ -112,6 +114,9 @@ export default function useAnnotationTransformTool({
     return a?.type === "REVOLUTION_AXIS";
   }, []);
 
+  // snap: the clicked point ({x, y} in the pixel frame) with the snapped
+  // annotation's id when the click landed on one (annotationId /
+  // previewAnnotationId); a ROTATE pivot may be a free point.
   const grab = useCallback(
     (kind, snap) => {
       // A selection made before arming the tool is what the tool carries:
@@ -137,7 +142,14 @@ export default function useAnnotationTransformTool({
         ? annotationsRef.current?.find((a) => a.id === annotationId)
         : null;
       if (!annotation || isForeignFootprintId(annotationId)) {
-        dispatch(setToaster({ message: TRANSFORM_UNSUPPORTED_GRAB_MESSAGE }));
+        dispatch(
+          setToaster({
+            message:
+              kind === "ROTATE" && !snapAnnotationId
+                ? ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE
+                : TRANSFORM_UNSUPPORTED_GRAB_MESSAGE,
+          })
+        );
         return;
       }
       // A revolution axis can be MOVED (alone): the move re-positions it on
@@ -345,8 +357,9 @@ export default function useAnnotationTransformTool({
 
       if (mode === ROTATE_ANNOTATION_MODE) {
         if (session.kind !== "ROTATE") {
-          if (!snap) return;
-          grab("ROTATE", snap);
+          // Pivot: a point of an annotation, or any point of the base map
+          // when the annotations to turn are selected.
+          grab("ROTATE", snap ?? { x: localPos.x, y: localPos.y });
           return;
         }
         if (!session.reference) {
