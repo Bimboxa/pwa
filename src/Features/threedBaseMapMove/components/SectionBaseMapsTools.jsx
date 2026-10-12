@@ -9,35 +9,80 @@ import RowThreedTool from "Features/threedDrawing/components/RowThreedTool";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
-// "Outils" section of the « Fonds de plan » side (PopperMapListings, docked
-// PanelDrawing), under the base maps list: the 3D placement tools of the
-// base maps. "Déplacer": grab a snapped point of a base map's content, the
-// whole base map (image + annotations) follows the mouse. "Tourner": pick a
-// pivot, the base map rotates around the world-vertical axis through it.
-// 3D editor only (self-hiding in 2D) — not in the read-only Viewer module.
-// `variant`: "popper" | "panel" (row look, see RowThreedTool).
+// ---------------------------------------------------------------------------
+// The 3D placement tools of the base maps. "Déplacer": grab a snapped point
+// of a base map's content, the whole base map (image + annotations) follows
+// the mouse. "Tourner": pick a pivot, the base map rotates around the
+// world-vertical axis through it.
+//
+// ListBaseMapsCommands — the two rows alone (no title band): the body of the
+// "Commandes" popper (PopperDrawingTools) in the BaseMaps module, where the
+// module's commands are these two tools. `variant`: "popper" | "panel" (row
+// look, see RowThreedTool).
+//
+// SectionBaseMapsTools — titled section of the « Fonds de plan » side
+// (PopperMapListings, PopperBaseMapsList, docked PanelDrawing), under the
+// base maps list. 3D editor only (self-hiding in 2D) — not in the read-only
+// Viewer / Scope modules.
+// - BaseMaps module: it is the ATTACHED form of the module's "Commandes"
+//   (popperMapListings.toolsDetached, detached by default — the section then
+//   leaves the list for PopperDrawingTools, same mechanism as the Dessin
+//   module's drawing tools);
+// - other modules (Dessin…): plain "Outils" section, always attached.
+// ---------------------------------------------------------------------------
+
+export function ListBaseMapsCommands({ variant = "popper" }) {
+  // strings
+
+  const moveS = "Déplacer";
+  const rotateS = "Tourner";
+
+  // render
+
+  return (
+    <List dense disablePadding>
+      <RowThreedTool
+        threedTool="MOVE_BASE_MAP"
+        label={moveS}
+        Icon={OpenWithIcon}
+        variant={variant}
+      />
+      <RowThreedTool
+        threedTool="ROTATE_BASE_MAP"
+        label={rotateS}
+        Icon={RotateRightIcon}
+        variant={variant}
+      />
+    </List>
+  );
+}
+
 export default function SectionBaseMapsTools({ variant = "popper" }) {
   // strings
 
-  const titleS = "Outils";
-  const moveS = "Déplacer";
-  const rotateS = "Tourner";
+  const toolsS = "Outils";
+  const commandsS = "Commandes";
 
   // data
 
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const toolsDetached = useSelector((s) => s.popperMapListings.toolsDetached);
+
+  // helpers
+
   // Read-only modules (Viewer, Scope): no placement tools.
-  const isReadOnlyModule = useSelector(
-    (s) =>
-      s.viewers.selectedViewerKey === "THREED" ||
-      s.viewers.selectedViewerKey === "SCOPE"
-  );
+  const isReadOnlyModule = viewerKey === "THREED" || viewerKey === "SCOPE";
+  const isBaseMapsModule = viewerKey === "BASE_MAPS";
+  const titleS = isBaseMapsModule ? commandsS : toolsS;
 
   // render
 
   if (!isThreedEditor || isReadOnlyModule) return null;
+  // BaseMaps module: the commands live in PopperDrawingTools while detached.
+  if (isBaseMapsModule && toolsDetached) return null;
 
   return (
     <Box>
@@ -64,20 +109,7 @@ export default function SectionBaseMapsTools({ variant = "popper" }) {
           {titleS}
         </Typography>
       </Box>
-      <List dense disablePadding>
-        <RowThreedTool
-          threedTool="MOVE_BASE_MAP"
-          label={moveS}
-          Icon={OpenWithIcon}
-          variant={variant}
-        />
-        <RowThreedTool
-          threedTool="ROTATE_BASE_MAP"
-          label={rotateS}
-          Icon={RotateRightIcon}
-          variant={variant}
-        />
-      </List>
+      <ListBaseMapsCommands variant={variant} />
     </Box>
   );
 }

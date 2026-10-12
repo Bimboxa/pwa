@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { Box, IconButton, TextField, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Chip,
+  IconButton,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { AddLink, ChevronRight, LinkOff } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
@@ -15,15 +22,25 @@ import {
   parseQtyFormula,
 } from "../utils/qtyFormula";
 
-// Card of one annotation template linked to a business object ("Quantités"
+const CHIP_SX = {
+  height: 18,
+  fontSize: "0.65rem",
+  "& .MuiChip-label": { px: 0.75 },
+};
+
+// Card of one annotation template feeding a business object ("Quantités"
 // tab): template + bulk actions (link / unlink every annotation of the
-// template), the linked annotations line (count, resulting quantity, button
+// template), the link kinds as chips — "Lien par annotation" (rels) and / or
+// "Lien par modèle" (whole-template link, every annotation of the template
+// in the scope) —, the annotations line (count, resulting quantity, button
 // to the annotations list) and the editable quantity formula — evaluated
 // per annotation with S = surface, L = length, U = unit count, then summed;
 // a plain number is the quantity of the whole template.
 // row: one item of getBusinessObjectQtiesByTemplate; unit: the unit the
 // object's quantity is read in; unlinkedCount: annotations of the template
-// not linked to the object yet.
+// not feeding the object yet (0 when linked by template).
+// onUnlinkAll: removes the template link when the row is linked by template,
+// else deletes the rels (two steps when both link kinds coexist).
 export default function CardBusinessObjectTemplateQty({
   row,
   template,
@@ -41,17 +58,23 @@ export default function CardBusinessObjectTemplateQty({
   const formulaS = "Formule";
   const helperS =
     "S = surface, L = longueur, U = unité (par annotation). Un nombre seul = quantité saisie pour le modèle.";
-  const linkAllS =
-    unlinkedCount > 0
-      ? `Lier toutes les annotations du modèle (${unlinkedCount} non liée${
-          unlinkedCount > 1 ? "s" : ""
-        })`
-      : "Toutes les annotations du modèle sont liées";
-  const unlinkAllS = "Délier toutes les annotations du modèle";
+  const byAnnotationS = "Lien par annotation";
+  const byTemplateS = "Lien par modèle";
+  const isByTemplate = Boolean(row.isLinkedByTemplate);
+  const hasRelLinks = (row.relLinkedCount ?? 0) > 0;
+  let linkAllS = "Toutes les annotations du modèle sont liées";
+  if (isByTemplate) linkAllS += " (lien par modèle)";
+  else if (unlinkedCount > 0)
+    linkAllS = `Lier toutes les annotations du modèle (${unlinkedCount} non liée${
+      unlinkedCount > 1 ? "s" : ""
+    })`;
+  const unlinkAllS = isByTemplate
+    ? "Retirer le lien par modèle"
+    : "Délier toutes les annotations du modèle";
   const openS = "Voir les annotations liées";
   const countS = `${row.annotationsCount} annotation${
     row.annotationsCount > 1 ? "s" : ""
-  }`;
+  }${isByTemplate ? " du modèle" : ""}`;
 
   // data
 
@@ -134,7 +157,7 @@ export default function CardBusinessObjectTemplateQty({
           <Box component="span">
             <IconButton
               size="small"
-              disabled={!unlinkedCount}
+              disabled={!unlinkedCount || isByTemplate}
               onClick={() => onLinkAll(row)}
             >
               <AddLink fontSize="small" />
@@ -148,7 +171,30 @@ export default function CardBusinessObjectTemplateQty({
         </Tooltip>
       </Box>
 
-      {/* linked annotations line */}
+      {/* link kinds */}
+      {(hasRelLinks || isByTemplate) && (
+        <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+          {hasRelLinks && (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={byAnnotationS}
+              sx={CHIP_SX}
+            />
+          )}
+          {isByTemplate && (
+            <Chip
+              size="small"
+              variant="outlined"
+              color="primary"
+              label={byTemplateS}
+              sx={CHIP_SX}
+            />
+          )}
+        </Box>
+      )}
+
+      {/* annotations line */}
       <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
         <Typography
           variant="body2"

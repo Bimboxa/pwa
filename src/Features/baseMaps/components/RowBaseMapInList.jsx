@@ -1,9 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { Box, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import Check from "@mui/icons-material/Check";
+import Close from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -11,18 +13,22 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
 // drag handle | name (+ version chip) | "3D" scan button | annotations badge
-// | image eye. The handle (shown on hover, `canDrag`) reorders the row inside
-// its listing — the row must live in a dnd-kit SortableContext. The name
-// wraps on several lines rather than being truncated.
+// | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
+// row inside its listing — the row must live in a dnd-kit SortableContext.
+// The name wraps on several lines rather than being truncated.
 // Presentational: SectionBaseMapsList resolves the states (main / 2D / 3D)
 // and hands the toggles over. `imageEye` / `annotationsBadge` are null when
 // the control does not apply (an empty slot keeps the columns aligned).
+// `actions`: an optional trailing node (the "…" menu of the Fonds de plan
+// module). `renaming`: inline rename mode — the name becomes an input and
+// the right-hand controls give way to the confirm / cancel buttons.
 // ---------------------------------------------------------------------------
 
 const SLOT_SIZE = 22;
 
 export default function RowBaseMapInList({
   id,
+  listingId, // the folder of the row (dnd data: cross-folder drops)
   name,
   canDrag = false,
   isMain,
@@ -30,6 +36,8 @@ export default function RowBaseMapInList({
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
   scanButton, // null | { on, disabled, onToggle }
   versionChip, // null | { label, onOpen }
+  actions = null, // null | ReactNode
+  renaming = null, // null | { value, onChange, onConfirm, onCancel }
   onSelect,
 }) {
   // strings
@@ -53,7 +61,11 @@ export default function RowBaseMapInList({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: !canDrag });
+  } = useSortable({
+    id,
+    disabled: !canDrag,
+    data: { type: "baseMap", listingId },
+  });
 
   // helpers
 
@@ -68,6 +80,55 @@ export default function RowBaseMapInList({
   }
 
   // render
+
+  if (renaming) {
+    return (
+      <Box
+        ref={setNodeRef}
+        {...attributes}
+        onClick={(e) => e.stopPropagation()}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          pl: 1,
+          pr: 0.5,
+          py: 0.25,
+          borderBottom: "1px solid",
+          borderColor: "panel.border",
+          borderLeft: "3px solid",
+          borderLeftColor: isMain ? "secondary.main" : "transparent",
+        }}
+      >
+        <InputBase
+          value={renaming.value}
+          onChange={(e) => renaming.onChange(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") renaming.onConfirm();
+            else if (e.key === "Escape") renaming.onCancel();
+          }}
+          autoFocus
+          sx={{ fontSize: "0.875rem", flex: 1, minWidth: 0 }}
+        />
+        <IconButton
+          size="small"
+          onClick={renaming.onConfirm}
+          sx={{ color: "success.main", p: 0.25 }}
+        >
+          <Check sx={{ fontSize: 16 }} />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={renaming.onCancel}
+          sx={{ color: "error.main", p: 0.25 }}
+        >
+          <Close sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -318,6 +379,16 @@ export default function RowBaseMapInList({
           </Tooltip>
         )}
       </Box>
+
+      {/* Trailing actions ("…" menu of the Fonds de plan module) */}
+      {actions && (
+        <Box
+          onClick={(e) => e.stopPropagation()}
+          sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}
+        >
+          {actions}
+        </Box>
+      )}
     </Box>
   );
 }

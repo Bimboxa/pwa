@@ -6,14 +6,18 @@ import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 
 // ---------------------------------------------------------------------------
 // ToggleContentMode — header toggle shared by the floating PopperMapListings
-// and the docked PanelDrawing: "Contenu" (`showContent`, the scope content
-// of the SCOPE module) | "Annotations" | "Photos" (Viewer module with
-// photos, `showPhotos`) | "Fonds de plan" (`showBaseMaps`, off in the popper
-// while the base maps list is detached). The mode lives in redux
+// and the docked PanelDrawing: the module's objects (`showObjects`, labelled
+// after the business-objects module — "Ouvrages", "Quantités"…, far left) |
+// "Contenu" (`showContent`, the scope content of the SCOPE module) |
+// "Annotations" | "Photos" (Viewer module with photos, `showPhotos`) |
+// "Fonds de plan" (`showBaseMaps`, off in the popper while the base maps
+// list is detached). The mode lives in redux
 // (popperMapListings.viewerContentMode) so both surfaces agree.
 // ---------------------------------------------------------------------------
 
 export default function ToggleContentMode({
+  showObjects = false,
+  objectsLabel = "Objets",
   showContent = false,
   showPhotos = false,
   showBaseMaps = true,
@@ -36,6 +40,7 @@ export default function ToggleContentMode({
   // helpers
 
   const options = [
+    ...(showObjects ? [{ value: "OBJECTS", label: objectsLabel }] : []),
     ...(showContent ? [{ value: "CONTENT", label: contentS }] : []),
     { value: "ANNOTATIONS", label: annotationsLabel },
     ...(showPhotos ? [{ value: "PHOTOS", label: photosS }] : []),

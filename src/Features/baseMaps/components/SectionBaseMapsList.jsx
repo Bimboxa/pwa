@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   DndContext,
-  closestCenter,
+  DragOverlay,
   PointerSensor,
+  pointerWithin,
+  rectIntersection,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -12,6 +16,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { generateKeyBetween } from "fractional-indexing";
 
 import {
   toggleBaseMapVisibleIn3d,
@@ -29,12 +34,33 @@ import {
   toggleBaseMapsGridAnnotationsHidden,
 } from "Features/baseMapsGrid/baseMapsGridSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  setCreatingInListingId,
+  setDetailBaseMapId,
+  setDisplayedBaseMapListingId,
+} from "Features/baseMapEditor/baseMapEditorSlice";
+import { setLeftPanelDocked } from "Features/leftPanel/leftPanelSlice";
 
-import { Box, Typography } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  InputBase,
+  Paper,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import Check from "@mui/icons-material/Check";
+import Close from "@mui/icons-material/Close";
 
 import RowBaseMapInList from "./RowBaseMapInList";
 import PopoverBaseMapVersions from "./PopoverBaseMapVersions";
+import IconButtonMoreActionsBaseMap from "Features/baseMapEditor/components/IconButtonMoreActionsBaseMap";
+import IconButtonMoreActionsBaseMapListing from "Features/baseMapEditor/components/IconButtonMoreActionsBaseMapListing";
+import DialogCreateBaseMapVersion from "Features/baseMapEditor/components/DialogCreateBaseMapVersion";
 
+import db from "App/db/db";
+import createBaseMapVersionFromSource from "../services/createBaseMapVersionFromSource";
 import useBaseMaps from "../hooks/useBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
@@ -43,7 +69,9 @@ import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseM
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useMoveBaseMapToListing from "../hooks/useMoveBaseMapToListing";
 import reorderBaseMapInListing from "../utils/reorderBaseMapInListing";
+import ensureBaseMapSortIndexes from "../utils/ensureBaseMapSortIndexes";
 import areBaseMapsParallel from "../js/areBaseMapsParallel";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
@@ -69,8 +97,10 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   — the image / annotations overlaid, greyed, on the main base map (see
 //   Features/baseMapOverlays). An uncalibrated base map (no meterByPx)
 //   cannot be placed: no eye, plain count.
-// - BaseMaps module, 2D displayed: every base map, no eye, plain count (its
-//   editor only shows the edited base map).
+// - BaseMaps module, 2D displayed: every base map is listed (the module's
+//   editing surface); the main row has no eye (the image is edited there),
+//   the PARALLEL rows get the 2D overlay eye / badge — the overlays and
+//   their move / rotate work in the module's editor like in Dessin.
 // - "3D" button (scan base maps only): hiddenScene3dBaseMapIdsIn3d, a 3D
 //   state toggled from either editor.
 // - SCOPE module (pinned base maps grid): the rows are the SHEETS of the
@@ -81,7 +111,27 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   same states under both editors — the 3D eyes / modes are not involved).
 //   `countByBaseMapIdOverride`: counts narrowed like the legend (the popper
 //   passes them).
+// - BaseMaps module (`editable`): the list is also the module's editing
+//   surface, same actions as the expanded left panel (BaseMapTreeItem) —
+//   every folder is listed (empty ones included) under a header carrying a
+//   "+" (new base map in the folder, fullscreen creation section) and the
+//   folder "…" menu (rename / add / delete); each row carries the base map
+//   "…" menu (properties / rename / new version / orientation / delete).
+//   Renames are inline (one at a time, folders and base maps alike). A row
+//   can also be dragged to ANOTHER folder (onto one of its rows = inserted
+//   before it, onto its header = appended; useMoveBaseMapToListing, same
+//   cascade as the left panel tree) — the other surfaces reorder only.
 // ---------------------------------------------------------------------------
+
+// Collision detection of the single DndContext: pointer position first
+// (accurate over rows and headers), rect intersection as a fallback.
+function listCollisionDetection(args) {
+  const within = pointerWithin(args);
+  if (within.length > 0) return within;
+  return rectIntersection(args);
+}
+
+const GROUP_DROPPABLE_PREFIX = "group:";
 
 export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const dispatch = useDispatch();
@@ -91,6 +141,7 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const emptyS = "Aucun fond de plan";
   const othersS = "Autres";
   const versionS = "Version";
+  const newBaseMapS = "Nouveau fond de plan";
 
   // data
 
@@ -100,6 +151,7 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
   const updateEntity = useUpdateEntity();
+  const moveBaseMapToListing = useMoveBaseMapToListing();
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
   const {
     isThreedDisplayed,
@@ -146,6 +198,13 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   // state
 
   const [versionsAnchorEl, setVersionsAnchorEl] = useState(null);
+  // inline rename (a folder or a base map id) + "Nouvelle version" dialog
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [tempTitle, setTempTitle] = useState("");
+  const [createVersionForBaseMap, setCreateVersionForBaseMap] = useState(null);
+  // dnd: the dragged base map (DragOverlay) + the hovered FOREIGN folder
+  const [activeDragBaseMap, setActiveDragBaseMap] = useState(null);
+  const [overListingId, setOverListingId] = useState(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -157,11 +216,16 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   // same as the top bar — the 3D editor keeps the eyes), and the drawing
   // annotations are loaded only with the panel switch.
   const isBaseMapsModule = viewerKey === "BASE_MAPS";
-  const showImageEye = !isBaseMapsModule || isThreedDisplayed;
+  // BaseMaps module: editing affordances (see the header comment).
+  const editable = isBaseMapsModule && !pinned;
+  const showMainImageEye = !isBaseMapsModule || isThreedDisplayed;
   const hideAnnotationsBadge = isBaseMapsModule && !showAnnotationsInBaseMaps;
-  // 2D editors (BaseMaps module aside): the other base maps can be overlaid
-  // on the main one — only the ones parallel to it.
-  const overlaysIn2d = !isThreedDisplayed && !isBaseMapsModule;
+  // 2D editors: the other base maps can be overlaid on the main one — only
+  // the ones parallel to it. The BaseMaps module lists EVERY base map (its
+  // editing surface) and offers the overlay eye on the parallel ones only;
+  // the other 2D editors list the parallel ones alone.
+  const overlaysIn2d = !isThreedDisplayed;
+  const listParallelOnly = overlaysIn2d && !isBaseMapsModule;
   const mainMeterByPx = mainBaseMap?.getMeterByPx?.();
 
   // Per-scope disabled listings leave the list — except the current main
@@ -177,7 +241,7 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
         ? sheetIdSet.has(bm.id)
         : (!disabledListingIds.includes(bm.listingId) ||
             bm.id === mainBaseMap?.id) &&
-          (!overlaysIn2d ||
+          (!listParallelOnly ||
             !mainBaseMap ||
             bm.id === mainBaseMap.id ||
             areBaseMapsParallel(bm, mainBaseMap)) &&
@@ -198,12 +262,14 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     }
     const ordered = [];
     for (const listing of listings) {
-      if (byListing.has(listing.id)) {
+      // editable list: every folder, the empty ones included (a folder just
+      // created must be reachable to get its first base map)
+      if (byListing.has(listing.id) || editable) {
         ordered.push({
           id: listing.id,
           name: listing.name,
           listing,
-          baseMaps: byListing.get(listing.id),
+          baseMaps: byListing.get(listing.id) ?? [],
         });
         byListing.delete(listing.id);
       }
@@ -224,10 +290,12 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     visibleIds,
     annotationsModeByBaseMapId,
     overlaysIn2d,
+    listParallelOnly,
     visibleIdsIn2d,
     annotationsIdsIn2d,
     pinned,
     scopeSheetIds,
+    editable,
   ]);
 
   const mainVersions = mainBaseMap?.versions ?? [];
@@ -237,25 +305,31 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   function getRowProps(map) {
     if (pinned) return getPinnedRowProps(map);
     const isMain = map.id === mainBaseMap?.id;
-    // Overlay on the main base map (2D): both scales are needed to place it.
+    // Overlay on the main base map (2D): both scales are needed to place it,
+    // and the base map must be parallel to the main one (already the case in
+    // the editors listing the parallel ones alone).
     const canOverlayIn2d =
-      overlaysIn2d && mainMeterByPx > 0 && map.getMeterByPx?.() > 0;
+      overlaysIn2d &&
+      mainMeterByPx > 0 &&
+      map.getMeterByPx?.() > 0 &&
+      (listParallelOnly ||
+        (Boolean(mainBaseMap) && areBaseMapsParallel(map, mainBaseMap)));
 
-    const imageEye = !showImageEye
-      ? null
-      : isMain
+    const imageEye = isMain
+      ? showMainImageEye
         ? { on: mainImageOn, onToggle: toggleMainImage }
-        : isThreedDisplayed
+        : null
+      : isThreedDisplayed
+        ? {
+            on: visibleIds.includes(map.id),
+            onToggle: () => dispatch(toggleBaseMapVisibleIn3d(map.id)),
+          }
+        : canOverlayIn2d
           ? {
-              on: visibleIds.includes(map.id),
-              onToggle: () => dispatch(toggleBaseMapVisibleIn3d(map.id)),
+              on: visibleIdsIn2d.includes(map.id),
+              onToggle: () => dispatch(toggleBaseMapVisibleIn2d(map.id)),
             }
-          : canOverlayIn2d
-            ? {
-                on: visibleIdsIn2d.includes(map.id),
-                onToggle: () => dispatch(toggleBaseMapVisibleIn2d(map.id)),
-              }
-            : null;
+          : null;
 
     const count = annotationsCountByBaseMapId[map.id] ?? 0;
     const annotationsMode =
@@ -341,21 +415,116 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
 
   // handlers
 
-  // Reorder inside the listing. The new sortIndex is computed against EVERY
-  // base map of the listing, not the (possibly filtered) displayed rows.
-  async function handleDragEnd(event, group) {
-    const { active, over } = event;
-    if (!group.listing || !over || active.id === over.id) return;
-    const fullGroup = baseMaps.filter((bm) => bm.listingId === group.id);
-    const baseMap = fullGroup.find((bm) => bm.id === active.id);
-    if (!baseMap) return;
-    await reorderBaseMapInListing({
-      baseMap,
-      overBaseMapId: over.id,
-      group: fullGroup,
-      listing: group.listing,
-      updateEntity,
+  // handlers - dnd (one context for every folder)
+
+  // The drop target: { listingId, overBaseMapId } — a row (insert before
+  // it) or a folder header (append), null otherwise.
+  function getDropTarget(over) {
+    const data = over?.data?.current;
+    if (!data) return null;
+    if (data.type === "baseMap")
+      return { listingId: data.listingId, overBaseMapId: over.id };
+    if (data.type === "group")
+      return { listingId: data.listingId, overBaseMapId: null };
+    return null;
+  }
+
+  function handleDragStart({ active }) {
+    setActiveDragBaseMap(baseMaps.find((bm) => bm.id === active.id) ?? null);
+  }
+
+  function handleDragOver({ active, over }) {
+    const target = getDropTarget(over);
+    const sourceListingId = active.data.current?.listingId;
+    setOverListingId(
+      editable && target && target.listingId !== sourceListingId
+        ? target.listingId
+        : null
+    );
+  }
+
+  function handleDragCancel() {
+    setActiveDragBaseMap(null);
+    setOverListingId(null);
+  }
+
+  // Reorder inside the listing, or move to another one (editable list). The
+  // new sortIndex is computed against EVERY base map of the target listing,
+  // not the (possibly filtered) displayed rows.
+  async function handleDragEnd({ active, over }) {
+    setActiveDragBaseMap(null);
+    setOverListingId(null);
+    const target = getDropTarget(over);
+    if (!target || active.id === target.overBaseMapId) return;
+    const sourceListingId = active.data.current?.listingId;
+    const baseMap = baseMaps.find((bm) => bm.id === active.id);
+    const targetListing = listings.find((l) => l.id === target.listingId);
+    if (!baseMap || !targetListing) return;
+    const targetGroup = baseMaps.filter(
+      (bm) => bm.listingId === targetListing.id
+    );
+    try {
+      if (targetListing.id === sourceListingId) {
+        if (!target.overBaseMapId) return; // dropped on its own header
+        await reorderBaseMapInListing({
+          baseMap,
+          overBaseMapId: target.overBaseMapId,
+          group: targetGroup,
+          listing: targetListing,
+          updateEntity,
+        });
+        return;
+      }
+      if (!editable) return;
+      await moveBaseMapAcrossListings(
+        baseMap,
+        sourceListingId,
+        targetListing,
+        targetGroup,
+        target.overBaseMapId
+      );
+    } catch (e) {
+      console.error("[SectionBaseMapsList] DnD error:", e);
+    }
+  }
+
+  // Same as BaseMapTree.moveBaseMapAcrossListings.
+  async function moveBaseMapAcrossListings(
+    baseMap,
+    sourceListingId,
+    targetListing,
+    targetGroup,
+    overBaseMapId
+  ) {
+    const sortIndices = await ensureBaseMapSortIndexes(
+      targetGroup,
+      targetListing,
+      updateEntity
+    );
+    let newSortIndex;
+    if (overBaseMapId) {
+      const overIdx = targetGroup.findIndex((bm) => bm.id === overBaseMapId);
+      newSortIndex = generateKeyBetween(
+        overIdx > 0 ? sortIndices[overIdx - 1] : null,
+        sortIndices[overIdx] ?? null
+      );
+    } else {
+      newSortIndex = generateKeyBetween(
+        sortIndices.length > 0 ? sortIndices[sortIndices.length - 1] : null,
+        null
+      );
+    }
+    await moveBaseMapToListing({
+      baseMapId: baseMap.id,
+      sourceListingId,
+      targetListingId: targetListing.id,
+      newSortIndex,
     });
+    // The main base map followed: keep the listing selection in sync.
+    if (baseMap.id === mainBaseMap?.id) {
+      dispatch(setSelectedBaseMapsListingId(targetListing.id));
+      dispatch(setDisplayedBaseMapListingId(targetListing.id));
+    }
   }
 
   function handleSelect(map) {
@@ -378,6 +547,62 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     if (map.listingId) dispatch(setSelectedBaseMapsListingId(map.listingId));
   }
 
+  // handlers - BaseMaps module editing (same flows as BaseMapTreeItem)
+
+  // "+" of a folder: the fullscreen creation section (LayerCreateBaseMap)
+  // targets selectedBaseMapsListingId first, hence the extra dispatch.
+  function handleAddBaseMap(listing) {
+    dispatch(setDisplayedBaseMapListingId(listing.id));
+    dispatch(setSelectedBaseMapsListingId(listing.id));
+    dispatch(setCreatingInListingId(listing.id));
+  }
+
+  // "Propriétés du fond de plan": the detail view (versions / Position 3D)
+  // lives in the left panel only — dock it on that view.
+  function handleOpenProperties(map) {
+    handleSelect(map);
+    dispatch(setDetailBaseMapId(map.id));
+    dispatch(setLeftPanelDocked(true));
+  }
+
+  function handleStartRename(item) {
+    setEditingItemId(item.id);
+    setTempTitle(item.name ?? "");
+  }
+
+  function handleCancelRename() {
+    setEditingItemId(null);
+  }
+
+  async function handleConfirmRenameListing(listing) {
+    await db.listings.update(listing.id, { name: tempTitle });
+    setEditingItemId(null);
+  }
+
+  async function handleConfirmRenameBaseMap(map, listing) {
+    await updateEntity(map.id, { name: tempTitle }, { listing });
+    setEditingItemId(null);
+  }
+
+  async function handleCreateVersionFromDialog({ label, sourceVersion }) {
+    await createBaseMapVersionFromSource({
+      targetBaseMap: createVersionForBaseMap,
+      label,
+      sourceVersion,
+    });
+    setCreateVersionForBaseMap(null);
+  }
+
+  function getRenamingProps(item, onConfirm) {
+    if (!editable || editingItemId !== item.id) return null;
+    return {
+      value: tempTitle,
+      onChange: setTempTitle,
+      onConfirm,
+      onCancel: handleCancelRename,
+    };
+  }
+
   // render
 
   if (groups.length === 0) {
@@ -397,41 +622,61 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     );
   }
 
+  function renderGroupHeader(group) {
+    const listing = group.listing;
+    const folderActions = Boolean(editable && listing);
+    return (
+      <GroupHeader
+        group={group}
+        droppable={folderActions}
+        isDropTarget={Boolean(listing) && overListingId === listing.id}
+        showActions={folderActions}
+        renaming={
+          folderActions && editingItemId === listing.id
+            ? {
+                value: tempTitle,
+                onChange: setTempTitle,
+                onConfirm: () => handleConfirmRenameListing(listing),
+                onCancel: handleCancelRename,
+              }
+            : null
+        }
+        newBaseMapS={newBaseMapS}
+        onAddBaseMap={() => handleAddBaseMap(listing)}
+        onRename={() => handleStartRename(listing)}
+      />
+    );
+  }
+
   return (
     <Box>
-      {groups.map((group) => (
-        <Box key={group.id}>
-          {groups.length > 1 && (
-            <Box
-              sx={{
-                px: 1,
-                py: 0.5,
-                bgcolor: "panel.sectionBg",
-                borderBottom: "1px solid",
-                borderColor: "panel.border",
-              }}
-            >
+      <DndContext
+        sensors={sensors}
+        collisionDetection={listCollisionDetection}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        {groups.map((group) => (
+          <Box key={group.id}>
+            {(groups.length > 1 || editable) && renderGroupHeader(group)}
+            {editable && group.baseMaps.length === 0 && (
               <Typography
                 variant="caption"
-                noWrap
                 sx={{
                   display: "block",
+                  px: 2,
+                  py: 0.75,
                   color: "panel.textMuted",
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  fontSize: "11px",
+                  fontStyle: "italic",
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
                 }}
               >
-                {group.name}
+                {emptyS}
               </Typography>
-            </Box>
-          )}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(event) => handleDragEnd(event, group)}
-          >
+            )}
             <SortableContext
               items={group.baseMaps.map((map) => map.id)}
               strategy={verticalListSortingStrategy}
@@ -440,22 +685,183 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
                 <RowBaseMapInList
                   key={map.id}
                   id={map.id}
+                  listingId={group.id}
                   name={map.name}
                   canDrag={Boolean(group.listing)}
                   onSelect={() => handleSelect(map)}
+                  renaming={getRenamingProps(map, () =>
+                    handleConfirmRenameBaseMap(map, group.listing)
+                  )}
+                  actions={
+                    editable ? (
+                      <IconButtonMoreActionsBaseMap
+                        baseMap={map}
+                        onOpenProperties={() => handleOpenProperties(map)}
+                        onRename={() => handleStartRename(map)}
+                        onAddVersion={() => setCreateVersionForBaseMap(map)}
+                        sx={{ color: "panel.textLight", p: 0.25 }}
+                      />
+                    ) : null
+                  }
                   {...getRowProps(map)}
                 />
               ))}
             </SortableContext>
-          </DndContext>
-        </Box>
-      ))}
+          </Box>
+        ))}
+        {/* Portal to body: the popper's CSS transform would offset the
+            overlay's fixed positioning away from the pointer. */}
+        {createPortal(
+          <DragOverlay dropAnimation={null}>
+            {activeDragBaseMap && (
+              <Paper
+                elevation={4}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  px: 1.5,
+                  py: 0.75,
+                }}
+              >
+                <Typography variant="body2">
+                  {activeDragBaseMap.name}
+                </Typography>
+              </Paper>
+            )}
+          </DragOverlay>,
+          document.body
+        )}
+      </DndContext>
       {isViewerModule && (
         <PopoverBaseMapVersions
           baseMap={mainBaseMap}
           anchorEl={versionsAnchorEl}
           onClose={() => setVersionsAnchorEl(null)}
         />
+      )}
+      {createVersionForBaseMap && (
+        <DialogCreateBaseMapVersion
+          open={Boolean(createVersionForBaseMap)}
+          onClose={() => setCreateVersionForBaseMap(null)}
+          onConfirm={handleCreateVersionFromDialog}
+        />
+      )}
+    </Box>
+  );
+}
+
+// Folder header of the list: name (uppercase caption), and in the editable
+// list the "+" / "…" actions, the inline rename, and a DROP TARGET for a
+// base map dragged from another folder (appended at its end).
+function GroupHeader({
+  group,
+  droppable,
+  isDropTarget,
+  showActions,
+  renaming, // null | { value, onChange, onConfirm, onCancel }
+  newBaseMapS,
+  onAddBaseMap,
+  onRename,
+}) {
+  const listing = group.listing;
+
+  // dnd
+
+  const { setNodeRef } = useDroppable({
+    id: `${GROUP_DROPPABLE_PREFIX}${group.id}`,
+    data: { type: "group", listingId: group.id },
+    disabled: !droppable,
+  });
+
+  // render
+
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        pl: 1,
+        pr: 0.5,
+        py: renaming ? 0.25 : showActions ? 0.125 : 0.5,
+        bgcolor: isDropTarget ? "action.focus" : "panel.sectionBg",
+        borderBottom: "1px solid",
+        borderColor: "panel.border",
+        ...(isDropTarget && {
+          outline: "1px dashed",
+          outlineColor: "primary.main",
+          outlineOffset: -1,
+        }),
+      }}
+    >
+      {renaming ? (
+        <>
+          <InputBase
+            value={renaming.value}
+            onChange={(e) => renaming.onChange(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") renaming.onConfirm();
+              else if (e.key === "Escape") renaming.onCancel();
+            }}
+            autoFocus
+            sx={{ fontSize: "0.875rem", flex: 1, minWidth: 0 }}
+          />
+          <IconButton
+            size="small"
+            onClick={renaming.onConfirm}
+            sx={{ color: "success.main", p: 0.25 }}
+          >
+            <Check sx={{ fontSize: 16 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={renaming.onCancel}
+            sx={{ color: "error.main", p: 0.25 }}
+          >
+            <Close sx={{ fontSize: 16 }} />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              display: "block",
+              flex: 1,
+              minWidth: 0,
+              color: "panel.textMuted",
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              fontSize: "11px",
+            }}
+          >
+            {group.name}
+          </Typography>
+          {showActions && (
+            <>
+              <Tooltip title={newBaseMapS} disableInteractive>
+                <IconButton
+                  size="small"
+                  onClick={onAddBaseMap}
+                  sx={{ color: "panel.textLight", p: 0.25 }}
+                >
+                  <AddIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <IconButtonMoreActionsBaseMapListing
+                listing={listing}
+                onRename={onRename}
+                onAddBaseMap={onAddBaseMap}
+                size="small"
+                sx={{ color: "panel.textLight", p: 0.25, fontSize: 16 }}
+              />
+            </>
+          )}
+        </>
       )}
     </Box>
   );

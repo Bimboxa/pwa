@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { generateKeyBetween } from "fractional-indexing";
 
@@ -45,6 +45,13 @@ import renumberBusinessObjectsService from "../services/renumberBusinessObjectsS
 
 import DialogCreateBusinessObjectListing from "./DialogCreateBusinessObjectListing";
 import DialogRenameBusinessObjectListing from "./DialogRenameBusinessObjectListing";
+
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import selectSelectedBusinessObjectTypeKey from "../utils/selectSelectedBusinessObjectTypeKey";
+import {
+  DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+  getBusinessObjectType,
+} from "../data/businessObjectTypesCatalog";
 
 import db from "App/db/db";
 
@@ -123,15 +130,27 @@ export default function FieldActiveBusinessObjectListing({
 }) {
   const dispatch = useDispatch();
 
+  // data — type of the module (the module IS the type): wording of the
+  // creation button ("Créer une liste d'ouvrages" / "... de quantités"...)
+  const moduleTypeKey = useSelector(selectSelectedBusinessObjectTypeKey);
+  const moduleType =
+    getBusinessObjectType(moduleTypeKey) ??
+    getBusinessObjectType(DEFAULT_BUSINESS_OBJECT_TYPE_KEY);
+
   // strings
 
   const labelS = "Liste active";
   const addListingS = "Nouvelle liste";
-  const createListingS = "Créer une liste d'ouvrages";
+  const createListingS = moduleType.strings.createListing;
 
   // data
 
   const deleteBusinessObjectListing = useDeleteBusinessObjectListing();
+  // "Renuméroter" writes the `code` field: types without it (QUANTITY, whose
+  // numbering is computed at display time) do not offer it.
+  const hasCode = Boolean(
+    getBusinessObjectTypeOfListing(activeListing).features?.code
+  );
 
   // state
 
@@ -303,13 +322,15 @@ export default function FieldActiveBusinessObjectListing({
         open={Boolean(moreMenuAnchor)}
         onClose={() => setMoreMenuAnchor(null)}
       >
-        <MenuItem
-          onClick={handleRenumber}
-          disabled={Boolean(activeListing?.notesApp)}
-        >
-          Renuméroter
-        </MenuItem>
-        <Divider />
+        {hasCode && (
+          <MenuItem
+            onClick={handleRenumber}
+            disabled={Boolean(activeListing?.notesApp)}
+          >
+            Renuméroter
+          </MenuItem>
+        )}
+        {hasCode && <Divider />}
         <MenuItem onClick={handleRename}>Renommer</MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
           Supprimer

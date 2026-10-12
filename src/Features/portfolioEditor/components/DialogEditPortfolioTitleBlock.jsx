@@ -33,6 +33,7 @@ export default function DialogEditPortfolioTitleBlock({
   layout,
   pageIndex,
   totalPages,
+  scaleLabel,
 }) {
   // strings
 
@@ -137,6 +138,7 @@ export default function DialogEditPortfolioTitleBlock({
     "project.name": project?.name || "",
     "portfolio.name": draft.portfolioName,
     "page.title": draft.pageTitle,
+    "page.scale": scaleLabel || "",
     pageNum: totalPages
       ? `p. ${(pageIndex ?? 0) + 1} / ${totalPages}`
       : `p. ${(pageIndex ?? 0) + 1}`,

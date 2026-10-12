@@ -14,14 +14,18 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 
 // Sub-panel of the business object properties ("Quantités" tab): the
-// annotations of ONE annotation template linked to the object, with their
+// annotations of ONE annotation template feeding the object, with their
 // own quantity and unlink buttons. The back button returns to the
 // quantities recap.
-// rows: [{annotation, rel}] of the template.
+// rows: [{annotation, rel | null}] of the template (rel null = fed by the
+// template link only). isLinkedByTemplate: the template is linked as a
+// whole — every annotation of the template counts, so the per-row unlink
+// (a rel delete that would not change the count) is not offered.
 export default function PanelBusinessObjectTemplateAnnotations({
   businessObject,
   template,
   rows,
+  isLinkedByTemplate,
   baseMapNameById,
   spriteImage,
   onBack,
@@ -33,6 +37,8 @@ export default function PanelBusinessObjectTemplateAnnotations({
   const noTemplateS = "Sans modèle";
   const unlinkS = "Délier cette annotation";
   const emptyS = "Aucune annotation liée pour ce modèle";
+  const byTemplateS =
+    "Lien par modèle : toutes les annotations du modèle sont liées.";
   const countS = `${rows.length} annotation${rows.length > 1 ? "s" : ""}`;
 
   // render
@@ -78,6 +84,16 @@ export default function PanelBusinessObjectTemplateAnnotations({
         </Typography>
       </Box>
 
+      {isLinkedByTemplate && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", px: 2, py: 0.75 }}
+        >
+          {byTemplateS}
+        </Typography>
+      )}
+
       {/* annotations */}
       <Box sx={{ overflowY: "auto", flex: 1 }}>
         {rows.length === 0 ? (
@@ -111,16 +127,18 @@ export default function PanelBusinessObjectTemplateAnnotations({
                 >
                   {getAnnotationMainQtyLabel(annotation, annotation.qties)}
                 </Typography>
-                <Tooltip title={unlinkS} placement="top" arrow>
-                  <IconButton
-                    className="business-object-unlink"
-                    size="small"
-                    onClick={() => onUnlink(rel)}
-                    sx={{ ml: 0.5, visibility: "hidden" }}
-                  >
-                    <LinkOff sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
+                {rel && !isLinkedByTemplate && (
+                  <Tooltip title={unlinkS} placement="top" arrow>
+                    <IconButton
+                      className="business-object-unlink"
+                      size="small"
+                      onClick={() => onUnlink(rel)}
+                      sx={{ ml: 0.5, visibility: "hidden" }}
+                    >
+                      <LinkOff sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </ListItem>
             ))}
           </List>

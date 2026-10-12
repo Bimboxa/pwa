@@ -12,8 +12,9 @@ const initialState = {
 
   syncStatus: { status: "idle", step: null, message: null }, // idle | syncing | success | error
 
-  // Selected tab of the business-object properties panel ("PROPS" | "FICHE"
-  // | "NOTES"). In Redux so browsing from object to object keeps the tab.
+  // Selected tab of the business-object properties panel ("PROPS" | "QTY"
+  // | "FICHE" | "NOTES"). In Redux so browsing from object to object keeps
+  // the tab (a type with defaultPropertiesTab "QTY" re-arms it on selection).
   objectPropertiesTab: "PROPS",
 
   // Sub-view stack of the listing configuration ("Avancé" tab of the

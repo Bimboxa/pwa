@@ -1,4 +1,4 @@
-import { Box, Button, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { SelectAll } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -16,7 +16,7 @@ import {
 
 // ---------------------------------------------------------------------------
 // Key quantities of one annotation template (right properties panel): the
-// annotations count with a "Tout sélectionner" button, then one cell per
+// annotations count with a "Tout sélectionner" icon button, then one cell per
 // relevant quantity (u / ml / m²). A quantity is relevant when it is the
 // template's main quantity or when its total is > 0. Same aggregates and
 // number format as the Dessin / Viewer panels (computeAnnotationTemplateQties
@@ -144,25 +144,19 @@ export default function SectionAnnotationTemplateKeyQties({
           <Typography variant="body2" color="text.secondary" noWrap>
             {countS}
           </Typography>
-          <Button
-            size="small"
-            startIcon={<SelectAll fontSize="small" />}
-            onClick={onSelectAll}
-            disabled={count === 0}
-            sx={{
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 3,
-              color: "text.primary",
-              fontWeight: 600,
-              textTransform: "none",
-              whiteSpace: "nowrap",
-              "&:hover": { bgcolor: "action.hover" },
-            }}
-          >
-            {selectAllS}
-          </Button>
+          <Tooltip title={selectAllS} arrow>
+            {/* span: the tooltip still listens when the button is disabled */}
+            <span>
+              <IconButton
+                size="small"
+                onClick={onSelectAll}
+                disabled={count === 0}
+                sx={{ color: "text.primary" }}
+              >
+                <SelectAll fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
         </Box>
 
         {paintedTooltip ? (

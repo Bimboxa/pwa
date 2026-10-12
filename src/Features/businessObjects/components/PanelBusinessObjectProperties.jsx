@@ -65,6 +65,8 @@ import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationM
 import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import resolveBusinessObjectAnnotationLinks from "../utils/resolveBusinessObjectAnnotationLinks";
+import { isTemplateLinked } from "../utils/linkedTemplateIds";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import {
   BUSINESS_OBJECT_STATUS,
@@ -144,6 +146,9 @@ export default function PanelBusinessObjectProperties() {
   const hasCode = Boolean(type.features?.code);
   const hasTitleRows = Boolean(type.features?.titleRows);
   const hasStatus = Boolean(type.features?.status);
+  // types opening on "Quantités" (feature defaultPropertiesTab)
+  const prefersQtyTab =
+    hasQuantities && type.features?.defaultPropertiesTab === "QTY";
 
   // hours budget of the whole listing (own + descendants per task) — null
   // listingId short-circuits the queries for non-task listings
@@ -256,6 +261,15 @@ export default function PanelBusinessObjectProperties() {
       ? tab
       : "PROPS";
 
+  // Selecting an object of a type opening on "Quantités" re-arms the QTY
+  // tab (the user may still switch to "Infos" for that object; the next
+  // selection opens "Quantités" again). The flag is in the deps: the listing
+  // (hence the type) resolves after the object.
+  useEffect(() => {
+    if (!businessObject?.id || !prefersQtyTab) return;
+    dispatch(setNotesAppObjectPropertiesTab("QTY"));
+  }, [businessObject?.id, prefersQtyTab, dispatch]);
+
   // state — annotation template whose linked annotations are shown in the
   // sub-panel of the "Quantités" tab (getQtyFormulaKey key, "" = annotations
   // without template); null = quantities recap
@@ -266,22 +280,25 @@ export default function PanelBusinessObjectProperties() {
     setOpenedTemplateKey(null);
   }, [businessObjectId, effectiveTab]);
 
-  // helpers — linked annotations + rolled-up quantities
+  // helpers — annotations feeding the object (rel-linked "Lien par
+  // annotation" + template-linked "Lien par modèle", one row per
+  // annotation: {annotation, rel | null, byAnnotation, byTemplate}) +
+  // rolled-up quantities
 
   const linkedRows = useMemo(() => {
-    const relByAnnotationId = {};
-    (rels ?? []).forEach((r) => {
-      relByAnnotationId[r.annotationId] = r;
+    if (!businessObject) return [];
+    const { rowsByObjectId } = resolveBusinessObjectAnnotationLinks({
+      rels,
+      annotations,
+      businessObjects: [businessObject],
     });
-    return (annotations ?? [])
-      .filter((a) => relByAnnotationId[a.id])
-      .map((a) => ({ annotation: a, rel: relByAnnotationId[a.id] }));
-  }, [rels, annotations]);
+    return rowsByObjectId[businessObject.id] ?? [];
+  }, [rels, annotations, businessObject]);
 
   // main annotations ("Localisation"); the "Annotations liées" recap and
   // the quantity rollup count every linked annotation, main ones included.
   const mainRows = useMemo(
-    () => linkedRows.filter(({ rel }) => rel.isMain),
+    () => linkedRows.filter(({ rel }) => rel?.isMain),
     [linkedRows]
   );
 
@@ -421,6 +438,8 @@ export default function PanelBusinessObjectProperties() {
   }
 
   async function handleUnlink(rel) {
+    // template-only rows carry no rel (nothing to delete)
+    if (!rel) return;
     await db.relsBusinessObjectAnnotation.delete(rel.id);
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
   }
@@ -478,6 +497,7 @@ export default function PanelBusinessObjectProperties() {
         businessObject={businessObject}
         template={annotationTemplateById[openedTemplateKey]}
         rows={openedTemplateRows}
+        isLinkedByTemplate={isTemplateLinked(businessObject, openedTemplateKey)}
         baseMapNameById={baseMapNameById}
         spriteImage={spriteImage}
         onBack={() => setOpenedTemplateKey(null)}

@@ -97,7 +97,7 @@ export default function IconButtonMoreActionsBaseMapListing({
   return (
     <>
       <IconButton onClick={handleClick} {...iconButtonProps}>
-        <MoreActionsIcon />
+        <MoreActionsIcon fontSize="inherit" />
       </IconButton>
 
       <Menu open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={handleClose}>

@@ -56,8 +56,14 @@ export default function PopperBusinessObjectQtyGap({
     () => getItemsByKey(annotationTemplates ?? [], "id"),
     [annotationTemplates]
   );
+  // the empty rows seeded for the templates linked by template without
+  // annotation have nothing to detail
   const rows = useMemo(
-    () => getBusinessObjectQtiesByTemplate(linkedAnnotations, businessObject),
+    () =>
+      getBusinessObjectQtiesByTemplate(
+        linkedAnnotations,
+        businessObject
+      ).filter((row) => row.annotations.length > 0),
     [linkedAnnotations, businessObject]
   );
 

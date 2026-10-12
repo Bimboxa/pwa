@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setBaseMapsListDetached,
   setToolsDetached,
+  setViewerContentMode,
 } from "../popperMapListingsSlice";
 
 import { IconButton, Tooltip } from "@mui/material";
@@ -15,8 +16,11 @@ import OpenInNew from "@mui/icons-material/OpenInNew";
 // of the poppers:
 // - target "BASE_MAPS": the base maps list leaves the "Fonds de plan" side for
 //   its own popper (PopperBaseMapsList) and back;
-// - target "TOOLS": the drawing tools leave the "Commandes" side for their own
-//   popper (PopperDrawingTools) and back.
+// - target "TOOLS": the commands leave the popper for their own popper
+//   (PopperDrawingTools) and back — the "Commandes" side of the annotations
+//   popper in the drawing modules, the "Commandes" section under the base
+//   maps list in the BaseMaps module (attaching lands there, not on the
+//   "TOOLS" side the reducer selects, which that module does not have).
 // ---------------------------------------------------------------------------
 
 const DETACH_LABEL_BY_TARGET = {
@@ -27,11 +31,6 @@ const DETACH_LABEL_BY_TARGET = {
 export default function IconButtonToggleDetached({ target = "BASE_MAPS" }) {
   const dispatch = useDispatch();
 
-  // strings
-
-  const detachS = DETACH_LABEL_BY_TARGET[target];
-  const attachS = "Attacher aux annotations";
-
   // data
 
   const detached = useSelector((s) =>
@@ -39,6 +38,17 @@ export default function IconButtonToggleDetached({ target = "BASE_MAPS" }) {
       ? s.popperMapListings.toolsDetached
       : s.popperMapListings.baseMapsListDetached
   );
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
+
+  // strings
+
+  const detachS = DETACH_LABEL_BY_TARGET[target];
+  const attachS =
+    target === "TOOLS" && isBaseMapsModule
+      ? "Attacher aux fonds de plan"
+      : "Attacher aux annotations";
 
   // helpers
 
@@ -51,6 +61,8 @@ export default function IconButtonToggleDetached({ target = "BASE_MAPS" }) {
   function handleClick(e) {
     e.stopPropagation();
     dispatch(setDetached(!detached));
+    if (target === "TOOLS" && detached && isBaseMapsModule)
+      dispatch(setViewerContentMode("BASE_MAPS"));
   }
 
   // render

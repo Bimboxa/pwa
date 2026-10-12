@@ -5,18 +5,25 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 import { getBusinessObjectDescendants } from "../utils/buildBusinessObjectsTree";
+import { getLinkedTemplateIds } from "../utils/linkedTemplateIds";
 
 const EMPTY_SET = new Set();
 
-// Set of annotationIds linked (via relsBusinessObjectAnnotation) to the given
-// business object OR any of its descendants. Used by the business-object SOLO
-// filter in useAnnotationsV2 (clicking an object shows only its linked
-// annotations, subtree included). Queries only when an id is set; returns a
-// stable empty Set otherwise.
+// Set of annotationIds feeding the given business object OR any of its
+// descendants: the rel-linked ones (relsBusinessObjectAnnotation) and the
+// annotations of the templates linked by template (linkedTemplateIds).
+// Used by the business-object SOLO filter in useAnnotationsV2 (clicking an
+// object shows only its linked annotations, subtree included) — the filter
+// intersects the set with the scope-filtered annotations, so the
+// template-linked ids are collected project-wide without scope filtering.
+// Queries only when an id is set; returns a stable empty Set otherwise.
 export default function useBusinessObjectSoloAnnotationIdSet(businessObjectId) {
   const relsUpdatedAt = useSelector((s) => s.businessObjects?.relsUpdatedAt);
   const businessObjectsUpdatedAt = useSelector(
     (s) => s.businessObjects?.businessObjectsUpdatedAt
+  );
+  const annotationsUpdatedAt = useSelector(
+    (s) => s.annotations?.annotationsUpdatedAt
   );
 
   const annotationIds = useLiveQuery(async () => {
@@ -29,18 +36,40 @@ export default function useBusinessObjectSoloAnnotationIdSet(businessObjectId) {
         .equals(object.listingId)
         .toArray()
     ).filter((o) => !o.deletedAt);
-    const ids = [
-      businessObjectId,
-      ...getBusinessObjectDescendants(listingObjects, businessObjectId).map(
-        (o) => o.id
-      ),
+    const objects = [
+      object,
+      ...getBusinessObjectDescendants(listingObjects, businessObjectId),
     ];
+    const ids = objects.map((o) => o.id);
     const rels = await db.relsBusinessObjectAnnotation
       .where("businessObjectId")
       .anyOf(ids)
       .toArray();
-    return rels.filter((r) => !r.deletedAt).map((r) => r.annotationId);
-  }, [businessObjectId, relsUpdatedAt, businessObjectsUpdatedAt]);
+    const result = rels.filter((r) => !r.deletedAt).map((r) => r.annotationId);
+
+    // whole-template links: every live annotation of the linked templates
+    const templateIds = [
+      ...new Set(objects.flatMap((o) => getLinkedTemplateIds(o))),
+    ];
+    if (templateIds.length > 0) {
+      const annotations = await db.annotations
+        .where("annotationTemplateId")
+        .anyOf(templateIds)
+        .toArray();
+      annotations.forEach((a) => {
+        if (a.deletedAt || a.isMeshCell) return;
+        if (object.projectId && a.projectId && a.projectId !== object.projectId)
+          return;
+        result.push(a.id);
+      });
+    }
+    return result;
+  }, [
+    businessObjectId,
+    relsUpdatedAt,
+    businessObjectsUpdatedAt,
+    annotationsUpdatedAt,
+  ]);
 
   return useMemo(() => {
     if (!annotationIds?.length) return EMPTY_SET;

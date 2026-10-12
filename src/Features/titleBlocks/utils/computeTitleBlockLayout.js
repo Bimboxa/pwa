@@ -140,14 +140,32 @@ export default function computeTitleBlockLayout(
     });
   }
 
+  // visible cells: a `hideIfEmpty` cell is dropped when its resolved value
+  // is empty (e.g. the page scale, only known on full-page print zones).
+  // A cell's colSpan is then truncated at the next visible cell of its row,
+  // so a wide cell yields its extra columns to an optional neighbour only
+  // while that neighbour is shown.
+  const textCtx = { values, bindings };
+  const visibleCells = [];
+  for (const cell of cells) {
+    const colIdx = colIndexByKey[cell.col];
+    if (colIdx == null || cell.row == null || rowY[cell.row] == null) continue;
+    const text = resolveCellValue(cell, textCtx);
+    if (cell.hideIfEmpty && !text) continue;
+    visibleCells.push({ cell, colIdx, text, span: cell.colSpan ?? 1 });
+  }
+  for (const entry of visibleCells) {
+    const nextColIdx = visibleCells
+      .filter((o) => o.cell.row === entry.cell.row && o.colIdx > entry.colIdx)
+      .reduce((min, o) => Math.min(min, o.colIdx), columns.length);
+    entry.span = Math.max(1, Math.min(entry.span, nextColIdx - entry.colIdx));
+  }
+
   // vertical separators: full height at the logo right edge (the logo spans
   // all rows), per-row segments elsewhere so a colSpan cell can suppress the
   // boundaries it crosses on its row
   const suppressedBoundaries = new Set(); // `${row}:${boundaryIdx}`
-  for (const cell of cells) {
-    const colIdx = colIndexByKey[cell.col];
-    if (colIdx == null || cell.row == null) continue;
-    const span = cell.colSpan ?? 1;
+  for (const { cell, colIdx, span } of visibleCells) {
     for (let b = colIdx + 1; b < colIdx + span; b++) {
       suppressedBoundaries.add(`${cell.row}:${b}`);
     }
@@ -177,15 +195,10 @@ export default function computeTitleBlockLayout(
   }
 
   // cells: uppercase label band on top + value band below
-  const textCtx = { values, bindings };
-  for (const cell of cells) {
-    const colIdx = colIndexByKey[cell.col];
-    if (colIdx == null || cell.row == null || rowY[cell.row] == null) continue;
-
+  for (const { cell, colIdx, span, text } of visibleCells) {
     const cellY = rowY[cell.row];
     const cellH = rowHeights[cell.row];
     const cellX = colX[colIdx];
-    const span = cell.colSpan ?? 1;
     let cellW = 0;
     for (let c = colIdx; c < Math.min(colIdx + span, columns.length); c++) {
       cellW += colWidths[c];
@@ -219,7 +232,7 @@ export default function computeTitleBlockLayout(
       width: cellW,
       height: valueH,
       kind: "value",
-      text: resolveCellValue(cell, textCtx),
+      text,
       bold: !!cell.bold,
       align,
       fontSize: style.valueFontSize ?? 10,

@@ -298,6 +298,15 @@ export default function remapDexieExportIds(jsonData, opts) {
           ),
         }));
       }
+      // Business objects: whole-template links ("Lien par modèle").
+      if (
+        tableName === "businessObjects" &&
+        Array.isArray(row.linkedTemplateIds)
+      ) {
+        row.linkedTemplateIds = row.linkedTemplateIds.map((id) =>
+          remapId("annotationTemplates", id)
+        );
+      }
 
       // layerId may point at a GLOBAL layer (scope in layersMode "GLOBAL"):
       // the SIMPLE_FK pass above targets db.layers and falls through for an

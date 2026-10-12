@@ -1,13 +1,17 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+
 // "SELECTOR" (LISTE ACTIVE field) | "AVATARS" (listing avatars band).
 const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 
-// Header toggle of the popper / PanelDrawing: "CONTENT" (scope content, SCOPE
-// module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module with photos) |
-// "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes": the drawing tools,
-// popper only, while they are attached).
+// Header toggle of the popper / PanelDrawing: "OBJECTS" (the objects and
+// listings of a business-objects module, popper only) | "CONTENT" (scope
+// content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module
+// with photos) | "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes": the
+// drawing tools, popper only, while they are attached).
 const CONTENT_MODES = [
+  "OBJECTS",
   "CONTENT",
   "ANNOTATIONS",
   "PHOTOS",
@@ -41,10 +45,12 @@ const popperMapListingsSlice = createSlice({
     // "Fonds de plan" side of the annotations popper, which then has no such
     // side.
     baseMapsListDetached: false,
-    // "Détacher les commandes": the drawing tools ("Commandes") live in their
-    // own popper (PopperDrawingTools, under the annotations popper by
-    // default) instead of the "Commandes" side of the annotations popper.
-    // Detached by default.
+    // "Détacher les commandes": the module's commands live in their own
+    // popper (PopperDrawingTools, under the annotations popper by default)
+    // instead of the "Commandes" side of the annotations popper (drawing
+    // tools) — or, in the BaseMaps module, instead of the "Commandes" section
+    // under the base maps list (Déplacer / Tourner the base map). Detached by
+    // default.
     toolsDetached: true,
   },
   reducers: {
@@ -102,9 +108,15 @@ const popperMapListingsSlice = createSlice({
     // on the annotations when the module is entered (the content is one tab
     // away), and leaves the "Contenu" side when the module is left (the
     // other modules have no such side).
+    // Same rule for the "Objets" side of the business-objects modules.
     builder.addCase("viewers/setSelectedViewerKey", (state, action) => {
       if (action.payload === "SCOPE") state.viewerContentMode = "ANNOTATIONS";
       else if (state.viewerContentMode === "CONTENT")
+        state.viewerContentMode = "ANNOTATIONS";
+      if (
+        state.viewerContentMode === "OBJECTS" &&
+        !isBusinessObjectsModuleKey(action.payload)
+      )
         state.viewerContentMode = "ANNOTATIONS";
     });
   },

@@ -18,19 +18,38 @@ import { MathUtils, Vector3 } from "three";
 // - O switches the tool (onSwitchTool), Backspace / Delete clears the
 //   current tool's traces (onClear);
 // - B cycles the nozzle shape (onCycleJetMode), + / - widen / narrow the
-//   nozzle aperture (onSprayWiden / onSprayNarrow, key-repeat sweeps).
+//   nozzle aperture (onSprayWiden / onSprayNarrow, key-repeat sweeps);
+// - C toggles "free climb" (onToggleFreeClimb): obstacles stop blocking and
+//   the ground becomes the highest surface at the walker's (x, z).
 //
 // Movement model (user-validated):
 // - eye at groundY + EYE_HEIGHT (+ the Z/W altitude offset) above the
-//   ground: the selected baseMap plane, or — on a scan base map — the scan
-//   relief under the camera (sampleGroundY, read every frame; null falls
-//   back to the plane) so the walk stays above the 3D scene;
+//   ground. The ground is the highest of: the selected baseMap plane, the
+//   scan relief under the camera (sampleGroundY, height map of a scan base
+//   map) and the scene geometry under the camera (collisionProbe: base map
+//   planes, annotation solids, mailles). With the step constraint on, only
+//   the geometry below the feet + MAX_STEP counts (slabs, steps): a wall top
+//   is not a floor. With free climb (C) the highest surface wins whatever
+//   its height — on the walls, on the roofs (and, under a roof, up onto it);
+// - obstacles: with the step constraint on, horizontal moves are probed in
+//   the body band (BODY_HEIGHTS above the feet, BODY_RADIUS ahead) and
+//   stopped at the obstacle, the remainder sliding along it. Free climb
+//   disables the probe;
 // - |pitch| > CLIMB_PITCH: forward/back follow the full look vector (climb
-//   when looking up, descend when looking down);
+//   when looking up, descend when looking down) — the vertical part is never
+//   constrained;
 // - |pitch| <= CLIMB_PITCH: movement is horizontal and gravity glides the
 //   eye back to its reference height.
 
 const EYE_HEIGHT = 1.7; // m above the baseMap plane
+const MAX_STEP = 0.4; // m, highest step / slab climbed without free climb
+const BODY_RADIUS = 0.3; // m, kept between the camera and an obstacle
+const GROUND_EPS = 0.01; // m, ground ray origin above the step height
+// Body band probed ahead, in m above the feet: from just above the step
+// height to just above the eyes, every 0.25 m (no blind gap for a thin slab
+// at mid height). A gentle mesh ramp stays walkable (the lowest ray reaches
+// the slope beyond its range) while a steep one blocks.
+const BODY_HEIGHTS = [0.45, 0.7, 0.95, 1.2, 1.45, 1.7, 1.85];
 const SPEED = 4; // m/s
 const RUN_MULTIPLIER = 3; // R held
 const TURN_SPEED = MathUtils.degToRad(90); // rad/s, Q / S held
@@ -77,12 +96,16 @@ const LETTER_KEYS = {
 };
 
 const _dir = new Vector3();
+const _delta = new Vector3();
+const _step = new Vector3();
+const _rest = new Vector3();
 
 export default class WalkModeController {
   constructor({
     sceneManager,
     groundY = 0,
     sampleGroundY = null,
+    collisionProbe = null,
     onRequestExit,
     onPrimaryStart,
     onPrimaryStop,
@@ -91,11 +114,14 @@ export default class WalkModeController {
     onCycleJetMode,
     onSprayWiden,
     onSprayNarrow,
+    onToggleFreeClimb,
   }) {
     this.sceneManager = sceneManager;
     // Plane ground (fallback) and the live ground under the camera.
     this._baseGroundY = groundY;
     this._sampleGroundY = sampleGroundY;
+    // Scene geometry probe (walkCollisionProbe): ground + obstacles.
+    this._collisionProbe = collisionProbe;
     this.groundY = groundY;
     this.onRequestExit = onRequestExit;
     this.onPrimaryStart = onPrimaryStart;
@@ -105,11 +131,14 @@ export default class WalkModeController {
     this.onCycleJetMode = onCycleJetMode;
     this.onSprayWiden = onSprayWiden;
     this.onSprayNarrow = onSprayNarrow;
+    this.onToggleFreeClimb = onToggleFreeClimb;
 
     this._yaw = 0;
     this._pitch = 0;
     this._lookDirty = false;
     this._keys = emptyKeys();
+    // C: no obstacle blocks and the ground is the highest surface at (x, z).
+    this._freeClimb = false;
     // Altitude gained with Z / W, in meters above the walking eye height.
     // Gravity targets groundY + EYE_HEIGHT + this offset (see _refEyeY).
     this._altitudeOffset = 0;
@@ -138,13 +167,91 @@ export default class WalkModeController {
     this._updateGround();
   };
 
-  // Ground under the camera: the sampled relief, else the plane.
-  _updateGround = () => {
+  // Ground under the camera: the highest of the plane, the scan relief and
+  // the scene geometry (walkable part only unless free climb, see header).
+  // feetY: where the feet are taken to be — the camera's by default; the
+  // entry landing passes the selected plane (the orbit camera may hang high
+  // above a roof or an upper level: landing must target the plane's level).
+  _updateGround = ({ feetY = null } = {}) => {
     const camera = this.sceneManager?.camera;
-    const y = camera
-      ? this._sampleGroundY?.(camera.position.x, camera.position.z)
-      : null;
-    this.groundY = Number.isFinite(y) ? y : this._baseGroundY;
+    if (!camera) {
+      this.groundY = this._baseGroundY;
+      return;
+    }
+    const { x, y, z } = camera.position;
+    const feet = Number.isFinite(feetY) ? feetY : y - EYE_HEIGHT;
+    let groundY = this._baseGroundY;
+
+    const scanY = this._sampleGroundY?.(x, z);
+    if (Number.isFinite(scanY)) groundY = Math.max(groundY, scanY);
+
+    const probe = this._collisionProbe;
+    if (probe) {
+      const probeY = this._freeClimb
+        ? probe.sampleGroundY(x, z, probe.getBounds().max.y + 1, {
+            // An upper level's plan over the head is not a floor.
+            skipBasemapsAbove: feet + EYE_HEIGHT,
+          })
+        : probe.sampleGroundY(x, z, feet + MAX_STEP + GROUND_EPS);
+      if (Number.isFinite(probeY)) groundY = Math.max(groundY, probeY);
+    }
+
+    this.groundY = groundY;
+  };
+
+  // Horizontal move of `delta` (y ignored) stopped at the first obstacle of
+  // the body band, the remainder sliding along it (one slide pass: a corner
+  // resolves to a stop). Free climb / no probe: the move is applied as is.
+  // → true when the camera moved.
+  _moveHorizontal = (delta) => {
+    const camera = this.sceneManager.camera;
+    const len = Math.hypot(delta.x, delta.z);
+    if (len < 1e-6) return false;
+    const probe = this._collisionProbe;
+    if (this._freeClimb || !probe) {
+      camera.position.x += delta.x;
+      camera.position.z += delta.z;
+      return true;
+    }
+
+    const feetY = camera.position.y - EYE_HEIGHT;
+    const probeArgs = {
+      origin: camera.position,
+      feetY,
+      radius: BODY_RADIUS,
+      heights: BODY_HEIGHTS,
+    };
+
+    _dir.set(delta.x / len, 0, delta.z / len);
+    const hit = probe.probeBody({ ...probeArgs, dir: _dir, length: len });
+    const allowed = hit ? Math.max(0, hit.distance - BODY_RADIUS) : len;
+    _step.copy(_dir).multiplyScalar(allowed);
+    camera.position.x += _step.x;
+    camera.position.z += _step.z;
+    let moved = allowed > 1e-6;
+    if (!hit) return moved;
+
+    // Remainder projected on the obstacle's plane, probed once more.
+    _rest.set(delta.x - _step.x, 0, delta.z - _step.z);
+    const n = hit.normal;
+    _rest.addScaledVector(n, -_rest.dot(n));
+    const slideLen = Math.hypot(_rest.x, _rest.z);
+    if (slideLen < 1e-6) return moved;
+    _dir.set(_rest.x / slideLen, 0, _rest.z / slideLen);
+    const hit2 = probe.probeBody({
+      ...probeArgs,
+      dir: _dir,
+      length: slideLen,
+    });
+    const slideAllowed = hit2
+      ? Math.min(slideLen, Math.max(0, hit2.distance - BODY_RADIUS))
+      : slideLen;
+    if (slideAllowed > 1e-6) {
+      camera.position.x += _dir.x * slideAllowed;
+      camera.position.z += _dir.z * slideAllowed;
+      moved = true;
+    }
+    return moved;
   };
 
   enter = () => {
@@ -171,7 +278,7 @@ export default class WalkModeController {
     // eye height while the gaze levels out to the horizon.
     this._keys = emptyKeys();
     this._altitudeOffset = 0;
-    this._updateGround();
+    this._updateGround({ feetY: this._baseGroundY });
     const eyeY = this._refEyeY();
     this._landingFromY = camera.position.y;
     this._landingFromPitch = this._pitch;
@@ -369,6 +476,19 @@ export default class WalkModeController {
         e.stopImmediatePropagation();
         return;
       }
+      if (key === "c") {
+        // Free climb: obstacles stop blocking, the ground is the highest
+        // surface under the walker (re-read right away: gravity then glides
+        // the eye onto it).
+        if (!e.repeat) {
+          this._freeClimb = !this._freeClimb;
+          this.onToggleFreeClimb?.(this._freeClimb);
+          this._updateGround();
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       // Nozzle aperture: repeat allowed, holding the key sweeps the angle.
       // "=" is the unshifted "+" key on most layouts.
       if (key === "+" || key === "=" || key === "-") {
@@ -431,6 +551,10 @@ export default class WalkModeController {
       return;
     }
 
+    // Scene changes mid-walk (rebuilt annotations, loaded textures / GLBs)
+    // reach the probe within a second.
+    this._collisionProbe?.maybeRefresh(now);
+
     const keys = this._keys;
     const runMul = keys.run ? RUN_MULTIPLIER : 1;
     const speed = SPEED * runMul;
@@ -446,26 +570,27 @@ export default class WalkModeController {
       this._lookDirty = true;
     }
 
-    if (fwdSign) {
-      if (climbing) {
-        // Full look vector: climb when looking up, descend when looking down.
-        _dir.set(
-          -Math.sin(this._yaw) * Math.cos(this._pitch),
-          Math.sin(this._pitch),
-          -Math.cos(this._yaw) * Math.cos(this._pitch)
-        );
-      } else {
-        _dir.set(-Math.sin(this._yaw), 0, -Math.cos(this._yaw));
+    if (fwdSign || strafeSign) {
+      // One horizontal delta for forward/back + strafe (a diagonal move is
+      // probed once), the vertical part of a climb kept aside: obstacles
+      // only constrain the horizontal travel.
+      const travel = speed * dt;
+      const sinYaw = Math.sin(this._yaw);
+      const cosYaw = Math.cos(this._yaw);
+      // Forward along the look vector when climbing (its horizontal part
+      // shrinks with the pitch), along the horizon otherwise.
+      const fwdScale = climbing ? Math.cos(this._pitch) : 1;
+      _delta.set(
+        (-sinYaw * fwdScale * fwdSign + cosYaw * strafeSign) * travel,
+        0,
+        (-cosYaw * fwdScale * fwdSign - sinYaw * strafeSign) * travel
+      );
+      if (this._moveHorizontal(_delta)) moved = true;
+      if (climbing && fwdSign) {
+        // Climb when looking up, descend when looking down.
+        camera.position.y += Math.sin(this._pitch) * fwdSign * travel;
+        moved = true;
       }
-      camera.position.addScaledVector(_dir, fwdSign * speed * dt);
-      moved = true;
-    }
-
-    if (strafeSign) {
-      // Lateral strafe is always horizontal.
-      camera.position.x += Math.cos(this._yaw) * strafeSign * speed * dt;
-      camera.position.z += -Math.sin(this._yaw) * strafeSign * speed * dt;
-      moved = true;
     }
 
     if (vertSign) {

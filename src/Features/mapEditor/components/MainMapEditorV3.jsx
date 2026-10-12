@@ -766,17 +766,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
   // Other base maps overlaid (greyed) on the main one: the parallel base
   // maps switched on in the base maps list (eye = image, badge =
-  // annotations), placed through both 3D poses. MAP instance only — the
-  // BaseMaps module's editor shows the edited base map alone. Their name
-  // (OverlayBaseMapsTransformLayer, Dessin module) selects one as a
-  // BASE_MAP item; the selected one is moved / turned imperatively and its
-  // 3D pose written once on release.
+  // annotations), placed through both 3D poses. MAP instance (Dessin module)
+  // and the BaseMaps module's own 2D instance — the other 2D instances show
+  // their base map alone. Their name (OverlayBaseMapsTransformLayer) selects
+  // one as a BASE_MAP item; the selected one is moved / turned imperatively
+  // and its 3D pose written once on release.
+  const overlaysEnabled =
+    forViewerKey === "MAP" || forViewerKey === "BASE_MAPS";
   const baseMapOverlays = useBaseMapOverlays({
     baseMap,
     baseMaps,
     enabled:
       isActiveViewer &&
-      forViewerKey === "MAP" &&
+      overlaysEnabled &&
       !showBgImage &&
       !versionCompareEnabled,
     forViewerKey,
@@ -2787,9 +2789,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 )}
 
                 {/* Overlaid base maps: names (select) + frame / move /
-                        rotate of the selected one. Dessin module only. */}
+                        rotate of the selected one. Dessin and BaseMaps
+                        modules. */}
                 {baseMapOverlays.length > 0 &&
-                  isDessinModule &&
+                  (isDessinModule || forViewerKey === "BASE_MAPS") &&
                   !imageModeActive && (
                     <OverlayBaseMapsTransformLayer
                       overlays={baseMapOverlays}

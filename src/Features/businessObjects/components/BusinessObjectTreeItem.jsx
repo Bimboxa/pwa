@@ -174,6 +174,9 @@ export default function BusinessObjectTreeItem({
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
   const hasQuantities = Boolean(type.features?.quantities);
+  // numbering computed from the tree position (feature autoNumbering):
+  // column 1 shows displayMeta.number instead of the stored code
+  const hasAutoNumbering = Boolean(type.features?.autoNumbering);
   // open / closed points (type feature status): checkbox + struck label
   const hasStatus = Boolean(type.features?.status);
   const isClosed = hasStatus && isBusinessObjectClosed(businessObject);
@@ -499,7 +502,7 @@ export default function BusinessObjectTreeItem({
               fontWeight: labelFontWeight,
             }}
           >
-            {businessObject.code}
+            {hasAutoNumbering ? displayMeta?.number : businessObject.code}
           </Typography>
         )}
 

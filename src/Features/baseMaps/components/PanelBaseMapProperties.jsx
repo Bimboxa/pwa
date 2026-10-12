@@ -16,6 +16,7 @@ import {
   setSelectedBaseMapId,
   setPropertiesRequestedView,
   setShowPrintZone,
+  triggerBaseMapsUpdate,
 } from "Features/baseMaps/baseMapsSlice";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
@@ -28,6 +29,9 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
+import getBaseMapTransform, {
+  DEFAULT_ORIENTATION,
+} from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -38,6 +42,8 @@ import {
   Menu,
   MenuItem,
   ButtonBase,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import {
   MoreVert as MoreActionsIcon,
@@ -68,6 +74,9 @@ export default function PanelBaseMapProperties() {
 
   const labelS = "Libellé";
   const referenceS = "Référence";
+  const position3dS = "Position 3D";
+  const horizontalS = "Horizontal";
+  const verticalS = "Vertical";
 
   // data
 
@@ -127,8 +136,19 @@ export default function PanelBaseMapProperties() {
       ? (imageSize.width / imageSize.height).toFixed(2)
       : null;
   const fileSizeS = stringifyFileSize(activeVersion?.image?.file?.size);
+  // Orientation of the plane in the 3D scene (same field as the "Position
+  // 3D" drill-in and the base map "…" menu).
+  const orientation = baseMap
+    ? (getBaseMapTransform(baseMap)?.orientation ?? DEFAULT_ORIENTATION)
+    : DEFAULT_ORIENTATION;
 
   // handlers
+
+  async function handleOrientationChange(value) {
+    if (!baseMap?.id || !value || value === orientation) return;
+    await db.baseMaps.update(baseMap.id, { orientation: value });
+    dispatch(triggerBaseMapsUpdate());
+  }
 
   function handleBack() {
     // Back from baseMap properties empties the selection: the module's
@@ -308,7 +328,11 @@ export default function PanelBaseMapProperties() {
         {baseMap?.scene3d && <SectionBaseMapScene3d baseMap={baseMap} />}
 
         <WhiteSectionGeneric>
+          {/* "Position 3D" drill-in, with the plane orientation toggle
+              inline (HORIZONTAL = floor, VERTICAL = wall — same field as
+              the drill-in's "Orientation du plan"; not for photos). */}
           <ButtonBase
+            component="div"
             onClick={() => setView("position3d")}
             sx={{
               width: 1,
@@ -316,10 +340,35 @@ export default function PanelBaseMapProperties() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              gap: 1,
               borderRadius: 1,
             }}
           >
-            <Typography variant="body2">Position 3D</Typography>
+            <Typography variant="body2" sx={{ flex: 1, textAlign: "left" }}>
+              {position3dS}
+            </Typography>
+            {!baseMap.isPhoto && (
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={orientation}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(_e, v) => handleOrientationChange(v)}
+              >
+                <ToggleButton
+                  value="HORIZONTAL"
+                  sx={{ textTransform: "none", py: 0, px: 1 }}
+                >
+                  {horizontalS}
+                </ToggleButton>
+                <ToggleButton
+                  value="VERTICAL"
+                  sx={{ textTransform: "none", py: 0, px: 1 }}
+                >
+                  {verticalS}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            )}
             <ChevronRight color="action" />
           </ButtonBase>
         </WhiteSectionGeneric>

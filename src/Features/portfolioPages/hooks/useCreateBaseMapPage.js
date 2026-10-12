@@ -4,7 +4,7 @@ import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFra
 import getPageLayout from "Features/portfolioEditor/utils/getPageLayout";
 import getPageDimensions from "Features/portfolioEditor/utils/getPageDimensions";
 import fitContainerToBaseMap from "Features/portfolioEditor/utils/fitContainerToBaseMap";
-import { resolvePrintZone } from "Features/baseMaps/utils/printZone";
+import { getBaseMapRecordPrintZone } from "Features/baseMaps/utils/printZone";
 
 import db from "App/db/db";
 
@@ -30,13 +30,7 @@ export default function useCreateBaseMapPage() {
       baseMap?.refWidth > 0 && baseMap?.refHeight > 0
         ? { width: baseMap.refWidth, height: baseMap.refHeight }
         : baseMap?.image?.imageSize;
-    const zone = baseMap
-      ? resolvePrintZone({
-          printZone: baseMap.printZone,
-          createdFrom: baseMap.createdFrom,
-          imageSize,
-        })
-      : null;
+    const zone = getBaseMapRecordPrintZone(baseMap);
     const page = await createPage({
       listing,
       projectId,

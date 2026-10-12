@@ -15,9 +15,14 @@
 //   form input placeholder (live default, nothing persisted).
 //   `legacyKey` = portfolio.metadata key used by pre-titleBlock portfolios.
 // - cells: grid content, one value cell per entry. `bind` tokens resolved at
-//   render time: project.name | portfolio.name | page.title | pageNum |
-//   field:<fieldKey>. `fallbackBind` = binding rendered while a field: bind
-//   has no stored value (live default, e.g. chantier -> project.name).
+//   render time: project.name | portfolio.name | page.title | page.scale |
+//   pageNum | field:<fieldKey>. `fallbackBind` = binding rendered while a
+//   field: bind has no stored value (live default, e.g. chantier ->
+//   project.name). `page.scale` = printed scale label ("1:50"), only bound
+//   on pages whose largest base map fills the page with a scaled print zone.
+//   `hideIfEmpty` drops the cell when its value is empty; a colSpan cell
+//   stops at the next visible cell of its row, so it widens back over a
+//   hidden optional neighbour (see getPortfolioPageScaleLabel).
 //   `label` = caption rendered uppercase in a small band at the top of the
 //   cell (style.labelBandHeight tall); the value centers in the band below.
 //   `legacyLabelKey` = metadata key holding the user label override.

@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 
-import { triggerRelsBusinessObjectAnnotationUpdate } from "../businessObjectsSlice";
+import {
+  setLinkingBusinessObjectId,
+  triggerRelsBusinessObjectAnnotationUpdate,
+} from "../businessObjectsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
-import { Box, InputBase, Typography } from "@mui/material";
+import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
+import { Add } from "@mui/icons-material";
 
 import db from "App/db/db";
 
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
 import useLinkAnnotationsToBusinessObject from "../hooks/useLinkAnnotationsToBusinessObject";
+import useLinkTemplatesToBusinessObject from "../hooks/useLinkTemplatesToBusinessObject";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import CardBusinessObjectTemplateQty from "./CardBusinessObjectTemplateQty";
+import DialogLinkBusinessObjectAnnotations from "./DialogLinkBusinessObjectAnnotations";
 
 import getBusinessObjectQtiesByTemplate from "../utils/getBusinessObjectQtiesByTemplate";
 import getBusinessObjectQtyValue from "../utils/getBusinessObjectQtyValue";
@@ -28,15 +34,20 @@ function getRefQtyText(refQty) {
 }
 
 // Content of the "Quantités" tab of the business object properties: the
-// quantity summary (computed from the linked annotations, reference quantity
-// — editable, saved on blur — and gap — absolute + percentage) then one card per linked annotation
-// template (CardBusinessObjectTemplateQty). The cards cover every linked
-// annotation, the MAIN ones ("Localisation") included — the rollup counts
-// both.
-// linkedRows: [{annotation, rel}]; annotations: every annotation in scope
-// (for the "link all" action); unit: the unit the quantity is read in (the
-// ratio unit for a task); showRefQty: false for the types without reference
-// quantity (tasks).
+// quantity summary (computed from the annotations feeding the object,
+// reference quantity — editable, saved on blur — and gap — absolute +
+// percentage) then one card per annotation template
+// (CardBusinessObjectTemplateQty). The "+" of the "Annotations liées"
+// heading opens DialogLinkBusinessObjectAnnotations: link "Par annotation"
+// (picking mode, rels) or "Par modèle" (whole-template link,
+// businessObject.linkedTemplateIds). The cards cover every annotation
+// feeding the object, the MAIN ones ("Localisation") included — the rollup
+// counts both.
+// linkedRows: [{annotation, rel | null, byAnnotation, byTemplate}]
+// (resolveBusinessObjectAnnotationLinks); annotations: every annotation in
+// scope (for the "link all" action and the template picker); unit: the unit
+// the quantity is read in (the ratio unit for a task); showRefQty: false for
+// the types without reference quantity (tasks).
 export default function SectionBusinessObjectQuantities({
   businessObject,
   unit,
@@ -56,11 +67,13 @@ export default function SectionBusinessObjectQuantities({
   const refS = "Quantité de référence";
   const gapS = "Écart";
   const templatesS = "Annotations liées";
+  const addLinkS = "Lier des annotations";
 
   // data
 
   const updateBusinessObject = useUpdateBusinessObject();
   const linkAnnotations = useLinkAnnotationsToBusinessObject();
+  const { linkTemplates, unlinkTemplate } = useLinkTemplatesToBusinessObject();
 
   // state — reference quantity text ("" = none), committed on blur
 
@@ -70,37 +83,60 @@ export default function SectionBusinessObjectQuantities({
     setRefQtyText(getRefQtyText(businessObject.refQty));
   }, [businessObject.id, businessObject.refQty]);
 
-  // helpers
+  // state — link dialog
+
+  const [openLinkDialog, setOpenLinkDialog] = useState(false);
+
+  // helpers — rels of the rows linked by annotation
 
   const relByAnnotationId = useMemo(() => {
     const byId = {};
     (linkedRows ?? []).forEach(({ annotation, rel }) => {
-      byId[annotation.id] = rel;
+      if (rel) byId[annotation.id] = rel;
     });
     return byId;
   }, [linkedRows]);
 
+  const relAnnotationIds = useMemo(
+    () => new Set(Object.keys(relByAnnotationId)),
+    [relByAnnotationId]
+  );
+
+  // every annotation feeding the object (both link kinds)
+  const linkedAnnotationIdSet = useMemo(
+    () => new Set((linkedRows ?? []).map(({ annotation }) => annotation.id)),
+    [linkedRows]
+  );
+
+  // one row per template; the empty row seeded for a linked template whose
+  // template no longer exists is hidden
   const rows = useMemo(
     () =>
       getBusinessObjectQtiesByTemplate(
         (linkedRows ?? []).map(({ annotation }) => annotation),
-        businessObject
+        businessObject,
+        { relAnnotationIds }
+      ).filter(
+        (row) =>
+          row.annotations.length > 0 ||
+          Boolean(annotationTemplateById?.[row.annotationTemplateId])
       ),
-    [linkedRows, businessObject]
+    [linkedRows, businessObject, relAnnotationIds, annotationTemplateById]
   );
 
-  // annotations of each template not linked to the object yet (mesh cells
+  // annotations of each template not feeding the object yet (mesh cells
   // skipped: their parent is the one to link)
   const unlinkedIdsByKey = useMemo(() => {
     const byKey = {};
     (annotations ?? []).forEach((annotation) => {
-      if (annotation.isMeshCell || relByAnnotationId[annotation.id]) return;
+      if (annotation.isMeshCell || linkedAnnotationIdSet.has(annotation.id))
+        return;
       const key = getQtyFormulaKey(annotation.annotationTemplateId);
       if (!byKey[key]) byKey[key] = [];
       byKey[key].push(annotation.id);
     });
     return byKey;
-  }, [annotations, relByAnnotationId]);
+  }, [annotations, linkedAnnotationIdSet]);
 
   // helpers — summary: total = Σ of the template rows, in the object's unit
 
@@ -175,7 +211,16 @@ export default function SectionBusinessObjectQuantities({
     linkAnnotations({ businessObject, annotationIds });
   }
 
+  // linked by template: the template link goes first (a second click on a
+  // row still linked by annotation then deletes the rels)
   async function handleUnlinkAll(row) {
+    if (row.isLinkedByTemplate) {
+      await unlinkTemplate({
+        businessObject,
+        annotationTemplateId: row.annotationTemplateId,
+      });
+      return;
+    }
     const relIds = row.annotations
       .map((annotation) => relByAnnotationId[annotation.id]?.id)
       .filter(Boolean);
@@ -196,6 +241,20 @@ export default function SectionBusinessObjectQuantities({
         setToaster({ message: error?.message ?? `${error}`, isError: true })
       );
     }
+  }
+
+  function handleLinkByAnnotation() {
+    setOpenLinkDialog(false);
+    dispatch(setLinkingBusinessObjectId(businessObject.id));
+  }
+
+  async function handleLinkByTemplate(annotationTemplateIds) {
+    setOpenLinkDialog(false);
+    const labelById = {};
+    annotationTemplateIds.forEach((id) => {
+      labelById[id] = annotationTemplateById?.[id]?.label;
+    });
+    await linkTemplates({ businessObject, annotationTemplateIds, labelById });
   }
 
   // render
@@ -259,9 +318,17 @@ export default function SectionBusinessObjectQuantities({
         ))}
       </WhiteSectionGeneric>
 
-      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
-        {templatesS}
-      </Typography>
+      {/* heading + "+" (link dialog) */}
+      <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+          {templatesS}
+        </Typography>
+        <Tooltip title={addLinkS} placement="top" arrow>
+          <IconButton size="small" onClick={() => setOpenLinkDialog(true)}>
+            <Add fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
       {rows.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
           {emptyLabel}
@@ -286,6 +353,19 @@ export default function SectionBusinessObjectQuantities({
             }
           />
         ))
+      )}
+
+      {openLinkDialog && (
+        <DialogLinkBusinessObjectAnnotations
+          open={openLinkDialog}
+          businessObject={businessObject}
+          annotations={annotations}
+          annotationTemplateById={annotationTemplateById}
+          spriteImage={spriteImage}
+          onClose={() => setOpenLinkDialog(false)}
+          onLinkByAnnotation={handleLinkByAnnotation}
+          onLinkByTemplate={handleLinkByTemplate}
+        />
       )}
     </Box>
   );

@@ -7,6 +7,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
 import SectionPopperDrawingTools from "./SectionPopperDrawingTools";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
+import { ListBaseMapsCommands } from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 
@@ -24,19 +25,24 @@ import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/busin
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
 // ---------------------------------------------------------------------------
-// PopperDrawingTools — the drawing tools ("Commandes") detached from
-// PopperMapListings ("Détacher les commandes" icon of the bottom band of its
-// "Commandes" side — detached by default): a floating panel with the same
-// structure (draggable header, bottom band with the "auto" height button,
-// the attach icon, the collapse toggle and the resize handle) listing the tool
-// rows (SectionPopperDrawingTools). Mounted by both editors (2D and 3D) right
-// next to PopperMapListings, under it by default (2/3 - 1/3 of the available
-// height); renders nothing while the tools are attached or do not apply
-// (selectShowDrawingTools). Hidden — not unmounted, so it keeps its drag
-// position, size and collapsed state — while a paste / subtract / drawing
-// helper replaces the annotations popper (same chain as PopperMapListings:
-// an armed draw, or an armed threedEditor tool in the Dessin module's 3D
-// editor).
+// PopperDrawingTools — the "Commandes" of the displayed module detached from
+// PopperMapListings ("Détacher les commandes" icon of its bottom band —
+// detached by default): a floating panel with the same structure (draggable
+// header, bottom band with the "auto" height button, the attach icon, the
+// collapse toggle and the resize handle) listing the command rows:
+// - drawing modules (Dessin, Zones, business objects…): the drawing tools
+//   (SectionPopperDrawingTools), offered per selectShowDrawingTools, attached
+//   on the "Commandes" side of the annotations popper;
+// - BaseMaps module: the base maps placement tools Déplacer / Tourner
+//   (ListBaseMapsCommands), 3D editor only, attached as the "Commandes"
+//   section under the base maps list (SectionBaseMapsTools).
+// Mounted by both editors (2D and 3D) right next to PopperMapListings, under
+// it by default (2/3 - 1/3 of the available height); renders nothing while
+// the commands are attached or do not apply. Hidden — not unmounted, so it
+// keeps its drag position, size and collapsed state — while a paste /
+// subtract / drawing helper replaces the annotations popper (same chain as
+// PopperMapListings: an armed draw, or an armed threedEditor tool in the
+// Dessin module's 3D editor).
 // ---------------------------------------------------------------------------
 
 const POPPER_WIDTH = 320;
@@ -98,6 +104,10 @@ export default function PopperDrawingTools() {
     isBusinessObjectsModuleNoObject,
     isLocateBusinessObjectMode,
   });
+  // BaseMaps module: the module's commands are the base maps placement
+  // tools, 3D editor only (nothing in 2D, like SectionBaseMapsTools).
+  const isBaseMapsCommands = viewerKey === "BASE_MAPS";
+  const showCommands = isBaseMapsCommands ? isThreedEditor : showDrawingTools;
 
   // Helper chain of PopperMapListings: a helper replaces the annotations
   // popper in the drawing modules (off in the 3D-family modules and in the
@@ -132,7 +142,7 @@ export default function PopperDrawingTools() {
 
   // render
 
-  if (!detached || !showDrawingTools) return null;
+  if (!detached || !showCommands) return null;
 
   return (
     <Paper
@@ -202,11 +212,15 @@ export default function PopperDrawingTools() {
 
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionPopperDrawingTools
-            templatelessCount={templatelessCount}
-            isThreedEditor={isThreedEditor}
-            viewerKey={viewerKey}
-          />
+          {isBaseMapsCommands ? (
+            <ListBaseMapsCommands />
+          ) : (
+            <SectionPopperDrawingTools
+              templatelessCount={templatelessCount}
+              isThreedEditor={isThreedEditor}
+              viewerKey={viewerKey}
+            />
+          )}
         </Box>
       )}
 

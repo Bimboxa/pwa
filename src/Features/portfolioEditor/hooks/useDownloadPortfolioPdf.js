@@ -21,6 +21,7 @@ import drawTitleBlockOnPdfPage, {
 } from "Features/titleBlocks/utils/drawTitleBlockOnPdfPage";
 import sanitizeWinAnsiText from "Features/titleBlocks/utils/sanitizeWinAnsiText";
 import getPortfolioPageFrameConfig from "Features/portfolios/utils/getPortfolioPageFrameConfig";
+import { getBaseMapRecordPrintZone } from "Features/baseMaps/utils/printZone";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import getPageLayout, {
@@ -35,6 +36,9 @@ import resolveDetailRefFormat, {
   getDetailRefText,
 } from "../utils/resolveDetailRefFormat";
 import getFolioDetailRef from "../utils/getFolioDetailRef";
+import getPortfolioPageScaleLabel, {
+  getLargestBaseMapContainer,
+} from "../utils/getPortfolioPageScaleLabel";
 import collectFreeTextVectorItems, {
   FREE_TEXT_NODE_SELECTOR,
 } from "../utils/collectFreeTextVectorItems";
@@ -115,6 +119,24 @@ async function captureFolioAnnotationsPng(pageId, pixelRatio) {
     svgEl.style.background = prevBackground;
     hiddenEls.forEach((el) => (el.style.visibility = ""));
   }
+}
+
+// Printed scale label ("1:50") of a plan page, same rule as the on-screen
+// cartouche (largest base map container filling the page with a scaled
+// print zone), "" otherwise.
+async function getPageScaleLabel(page) {
+  const containers = await db.portfolioBaseMapContainers
+    .where("portfolioPageId")
+    .equals(page.id)
+    .toArray();
+  const container = getLargestBaseMapContainer(containers);
+  if (!container) return "";
+  const record = await db.baseMaps.get(container.baseMapId);
+  return getPortfolioPageScaleLabel({
+    page,
+    container,
+    printZone: getBaseMapRecordPrintZone(record),
+  });
 }
 
 export default function useDownloadPortfolioPdf() {
@@ -350,6 +372,7 @@ export default function useDownloadPortfolioPdf() {
           type: "PLAN",
           layout,
           pageTitle: page.title || "",
+          pageScale: await getPageScaleLabel(page),
           freeTexts,
           titleFormat,
           titleText: getPortfolioPageTitleText(titleFormat, {
@@ -498,6 +521,7 @@ export default function useDownloadPortfolioPdf() {
               bindings: {
                 ...baseBindings,
                 "page.title": meta.pageTitle,
+                "page.scale": meta.pageScale || "",
                 pageNum,
               },
               labelOverrides: metadata,

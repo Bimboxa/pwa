@@ -34,12 +34,14 @@ const EDIT_BUTTON_GAP = 8;
 // enlarged edit dialog. Static drawing is delegated to TitleBlockSvg, fed by
 // the shared computeTitleBlockLayout engine (same one used by the vector PDF
 // export). The whole [data-portfolio-header] group is hidden at export, so
-// the button never leaks into the rasterized page.
+// the button never leaks into the rasterized page. `scaleLabel` ("1:50")
+// binds the optional `page.scale` cell (see getPortfolioPageScaleLabel).
 export default function PortfolioHeaderSvg({
   page,
   layout,
   pageIndex,
   totalPages,
+  scaleLabel,
 }) {
   const dispatch = useDispatch();
 
@@ -75,6 +77,7 @@ export default function PortfolioHeaderSvg({
     "project.name": project?.name || "",
     "portfolio.name": portfolio?.name || "",
     "page.title": page?.title || "",
+    "page.scale": scaleLabel || "",
     pageNum: totalPages
       ? `p. ${(pageIndex ?? 0) + 1} / ${totalPages}`
       : `p. ${(pageIndex ?? 0) + 1}`,
@@ -199,6 +202,7 @@ export default function PortfolioHeaderSvg({
         layout={layout}
         pageIndex={pageIndex}
         totalPages={totalPages}
+        scaleLabel={scaleLabel}
       />
     </g>
   );

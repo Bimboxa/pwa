@@ -40,6 +40,9 @@ import getPageLayout from "../utils/getPageLayout";
 import computePageFrame from "../utils/computePageFrame";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+import getPortfolioPageScaleLabel, {
+  getLargestBaseMapContainer,
+} from "../utils/getPortfolioPageScaleLabel";
 import getPovImageInfo from "Features/pov/utils/getPovImageInfo";
 
 import db from "App/db/db";
@@ -114,6 +117,19 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   const selectedBaseMap = useBaseMap({ id: selectedContainer?.baseMapId });
   const isFraming =
     framingContainerId === selectedContainer?.id && showEditButton;
+
+  // printed scale of the page (title block « Echelle » cell): from the
+  // largest base map container when it is a full-page scaled print zone
+  const largestContainer = useMemo(
+    () => getLargestBaseMapContainer(containers),
+    [containers]
+  );
+  const largestBaseMap = useBaseMap({ id: largestContainer?.baseMapId });
+  const scaleLabel = getPortfolioPageScaleLabel({
+    page,
+    container: largestContainer,
+    printZone: largestBaseMap?.getPrintZone?.(),
+  });
 
   // handlers
 
@@ -451,6 +467,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
           layout={layout}
           pageIndex={pageIndex}
           totalPages={totalPages}
+          scaleLabel={scaleLabel}
         />
         <PortfolioTitleBarSvg
           page={page}

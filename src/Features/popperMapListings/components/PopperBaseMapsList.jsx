@@ -9,6 +9,8 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Tune from "@mui/icons-material/Tune";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
+import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
+import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
@@ -25,11 +27,14 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 // ("Détacher la liste" icon of the bottom band of its "Fonds de plan" side):
 // a second floating panel with the very same structure (draggable header,
 // properties, bottom band with the "auto" height button, the attach icon,
-// the collapse toggle and the resize handle), showing the base maps only. Mounted by the
-// editors right next to PopperMapListings (same gates);
-// renders nothing while the list is attached. In 2D it is hidden — not
-// unmounted, so it keeps its drag position and collapsed state — while a
-// paste / subtract / drawing helper replaces the annotations popper.
+// the collapse toggle and the resize handle), showing the base maps list and
+// its tools section (SectionBaseMapsTools — the attached "Commandes" of the
+// BaseMaps module, where the header also gets the new-folder "+" and the
+// footer the commands detach icon). Mounted by the editors right next to
+// PopperMapListings (same gates); renders nothing while the list is
+// attached. In 2D it is hidden — not unmounted, so it keeps its drag
+// position and collapsed state — while a paste / subtract / drawing helper
+// replaces the annotations popper.
 // ---------------------------------------------------------------------------
 
 const POPPER_WIDTH = 290;
@@ -55,6 +60,9 @@ export default function PopperBaseMapsList() {
   );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isThreedEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   // Same helper chain as PopperMapListings (2D only).
   const helperActive = useSelector(
     (s) =>
@@ -88,6 +96,7 @@ export default function PopperBaseMapsList() {
   // Same rule as the annotations popper: no properties panel in the Viewer
   // (read-only legend) and BaseMaps modules.
   const showProperties = viewerKey !== "THREED" && viewerKey !== "BASE_MAPS";
+  const isBaseMapsModule = viewerKey === "BASE_MAPS";
 
   // handlers
 
@@ -177,11 +186,14 @@ export default function PopperBaseMapsList() {
             </IconButton>
           </Tooltip>
         )}
+
+        {isBaseMapsModule && <IconButtonCreateBaseMapListing />}
       </Box>
 
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionBaseMapsList />
+          <SectionBaseMapsTools />
         </Box>
       )}
 
@@ -194,6 +206,9 @@ export default function PopperBaseMapsList() {
         onToggleCollapsed={() => setCollapsed((c) => !c)}
       >
         <IconButtonToggleDetached target="BASE_MAPS" />
+        {isBaseMapsModule && isThreedEditor && (
+          <IconButtonToggleDetached target="TOOLS" />
+        )}
       </PanelFooter>
     </Paper>
   );

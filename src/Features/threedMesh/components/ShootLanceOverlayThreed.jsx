@@ -73,6 +73,7 @@ export default function ShootLanceOverlayThreed() {
     measureHasStart,
     measureLiveM,
     measureCount,
+    freeClimb,
   } = useSyncExternalStore(subscribeShoot, getShootState);
 
   // Firing flag re-derived when the spray ends (recoil animation stops).
@@ -149,6 +150,7 @@ export default function ShootLanceOverlayThreed() {
           targetDistM={targetDistM}
           measureHasStart={measureHasStart}
           measureCount={measureCount}
+          freeClimb={freeClimb}
         />
       )}
     </Box>
@@ -297,6 +299,7 @@ function HudPanel({
   targetDistM,
   measureHasStart,
   measureCount,
+  freeClimb,
 }) {
   return (
     <Box
@@ -372,7 +375,7 @@ function HudPanel({
         <JetBody jetMode={jetMode} spreadDeg={spreadDeg} />
       )}
 
-      <Legend />
+      <Legend freeClimb={freeClimb} />
     </Box>
   );
 }
@@ -449,7 +452,10 @@ function MeasureBody({ targetDistM, measureHasStart, measureCount }) {
   );
 }
 
-function Legend() {
+// Movement keys + the C toggle: with free climb on, obstacles no longer
+// block and the walker stands on the highest surface (walls, roofs) — the
+// chip makes the state obvious at a glance.
+function Legend({ freeClimb }) {
   return (
     <Box
       sx={{
@@ -473,6 +479,31 @@ function Legend() {
       <Hint>monter / descendre</Hint>
       <Key>R</Key>
       <Hint>course</Hint>
+      <Key>C</Key>
+      <Hint>{freeClimb ? "franchissement libre" : "collisions actives"}</Hint>
+      {freeClimb && (
+        <Box
+          key="free-climb"
+          component="span"
+          sx={{
+            px: 0.75,
+            height: 16,
+            display: "inline-flex",
+            alignItems: "center",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            color: "#07111a",
+            bgcolor: ACCENT,
+            boxShadow: `0 0 8px ${ACCENT_DIM}`,
+            borderRadius: "3px",
+            animation: "hudPop 160ms ease-out",
+          }}
+        >
+          Libre
+        </Box>
+      )}
     </Box>
   );
 }

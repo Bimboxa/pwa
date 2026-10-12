@@ -247,6 +247,22 @@ export function resolvePrintZone({ printZone, createdFrom, imageSize }) {
   return createDefaultPrintZone({ imageSize });
 }
 
+// Print zone of a raw db.baseMaps record (no BaseMap instance): reference
+// frame (refWidth / refHeight) first, legacy image size otherwise — same
+// image size rule as BaseMap.getImageSize.
+export function getBaseMapRecordPrintZone(record) {
+  if (!record) return null;
+  const imageSize =
+    record.refWidth > 0 && record.refHeight > 0
+      ? { width: record.refWidth, height: record.refHeight }
+      : record.image?.imageSize;
+  return resolvePrintZone({
+    printZone: record.printZone,
+    createdFrom: record.createdFrom,
+    imageSize,
+  });
+}
+
 // "50", "100", "1234.5" — same display rule as FieldBaseMapBlueprintScale.
 export function formatPrintZoneScale(scale) {
   if (!(scale > 0)) return "";

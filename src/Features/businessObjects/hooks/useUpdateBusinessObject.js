@@ -39,6 +39,10 @@ export default function useUpdateBusinessObject() {
       // [{annotationTemplateId, formula}] — custom quantity formulas per
       // annotation template (see utils/qtyFormula), replaced as a whole
       qtyFormulas,
+      // [annotationTemplateId] — templates whose annotations all feed the
+      // object ("Lien par modèle", see utils/linkedTemplateIds), replaced
+      // as a whole
+      linkedTemplateIds,
       // {[fieldId]: value} — listing-model field values (Fiche tab), merged
       // into businessObject.fieldValues; an empty value drops the key
       fieldValues,
@@ -64,6 +68,8 @@ export default function useUpdateBusinessObject() {
     if (globalLayerId !== undefined)
       updates.globalLayerId = globalLayerId || null;
     if (Array.isArray(qtyFormulas)) updates.qtyFormulas = qtyFormulas;
+    if (Array.isArray(linkedTemplateIds))
+      updates.linkedTemplateIds = linkedTemplateIds;
     if (status != null) {
       const closed = status === BUSINESS_OBJECT_STATUS.CLOSED;
       updates.status = closed

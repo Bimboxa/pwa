@@ -10,7 +10,9 @@
 // - `targetDistM`: crosshair-to-surface distance (null = aiming the void);
 // - `measureHasStart` / `measureLiveM` / `measureCount`: measure tool state
 //   (pending first point, live length from it to the crosshair, number of
-//   committed measures).
+//   committed measures);
+// - `freeClimb`: C toggle of the WalkModeController — obstacles no longer
+//   block and the ground is the highest surface under the walker.
 
 // Order of the HUD tabs; the first one is the default tool on walk entry.
 export const WALK_TOOLS = ["MEASURE", "LANCE"];
@@ -25,6 +27,7 @@ const INITIAL_STATE = {
   measureHasStart: false,
   measureLiveM: null,
   measureCount: 0,
+  freeClimb: false,
 };
 
 let _state = { ...INITIAL_STATE };

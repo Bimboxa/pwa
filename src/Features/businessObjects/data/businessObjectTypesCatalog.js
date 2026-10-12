@@ -27,10 +27,28 @@ const STANDARD_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cet ouvrage",
   linkTo: "Lier à un ouvrage",
   listLabel: "Liste d'ouvrages",
+  // creation button of the module's listing selector (empty state)
+  createListing: "Créer une liste d'ouvrages",
   // whole-resource link button of the RESOURCES panel
   linkResourceTo: "Lier à l'ouvrage actif",
   // heading of the objects linked to a selected annotation
   linkedObjects: "Ouvrages liés",
+};
+
+// Quantities: a DPGF-like list of quantities (QUANTITY type).
+const QUANTITY_STRINGS = {
+  objectLabel: "Quantité",
+  newObject: "Nouvelle quantité",
+  newChildPrefix: "Nouvelle sous-quantité de",
+  editObject: "Modifier la quantité",
+  addChild: "Ajouter une sous-quantité",
+  empty: "Aucune quantité",
+  noLinkedAnnotations: "Aucune annotation liée à cette quantité",
+  linkTo: "Lier à une quantité",
+  listLabel: "Liste de quantités",
+  createListing: "Créer une liste de quantités",
+  linkResourceTo: "Lier à la quantité active",
+  linkedObjects: "Quantités liées",
 };
 
 // Locations ("Localisations"): the zones of a plan (levels, rooms, areas...).
@@ -44,6 +62,7 @@ const LOCATION_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cette localisation",
   linkTo: "Lier à une localisation",
   listLabel: "Liste de localisations",
+  createListing: "Créer une liste de localisations",
   linkResourceTo: "Lier à la localisation active",
   linkedObjects: "Localisations liées",
 };
@@ -73,6 +92,12 @@ const STANDARD_FEATURES = { hoursBudget: false, color: true };
 // main POLYGON annotation links (and cuts) the annotations lying inside it
 // (hooks/useAssignBusinessObjectToAnnotations); main annotations also take
 // the object's color.
+// autoNumbering: the rows always render in the flat 3-column "codes" layout,
+// column 1 = the tree numbering (1, 1.1, 1.2…) computed at display time
+// (getBusinessObjectsTreeDisplayMeta) — never written to `code`; goes with
+// `code: false` (no code field, no "Renuméroter").
+// defaultPropertiesTab: tab of the object properties panel opened when an
+// object of the type is selected ("PROPS" = Infos | "QTY" = Quantités).
 const FEATURE_DEFAULTS = {
   hoursBudget: false,
   color: false,
@@ -86,6 +111,8 @@ const FEATURE_DEFAULTS = {
   locateByDefault: false,
   singleObjectPerAnnotation: false,
   assignByGeometry: false,
+  autoNumbering: false,
+  defaultPropertiesTab: "PROPS",
 };
 
 const BUSINESS_OBJECT_TYPES = [
@@ -138,6 +165,27 @@ const BUSINESS_OBJECT_TYPES = [
     },
   },
   {
+    // Quantities: a simplified STANDARD — same fields minus the color and
+    // the stored code (the rows are numbered from their tree position at
+    // display time), objects not located, the "Quantités" tab opens first.
+    // Module key BUSINESS_OBJECTS_QUANTITY (knownModuleKeys rule, like
+    // NOMENCLATURE), no module hotkey.
+    key: "QUANTITY",
+    defaultLabel: "Quantités",
+    defaultIconKey: "inventory",
+    editors: ["MAP", "THREED"],
+    strings: QUANTITY_STRINGS,
+    features: {
+      color: false,
+      code: false,
+      autoNumbering: true,
+      defaultPropertiesTab: "QTY",
+      locate: false,
+      assignByGeometry: false,
+      status: false,
+    },
+  },
+  {
     // Planning: hierarchical TASKS carrying an hours ratio. Same tree panel,
     // with the ratio / rolled-up hours in the rows and a total band. Module
     // key BUSINESS_OBJECTS_PLANNING (knownModuleKeys rule, like
@@ -156,6 +204,7 @@ const BUSINESS_OBJECT_TYPES = [
       noLinkedAnnotations: "Aucune annotation liée à cette tâche",
       linkTo: "Lier à une tâche",
       listLabel: "Liste de tâches",
+      createListing: "Créer une liste de tâches",
       linkResourceTo: "Lier à la tâche active",
       linkedObjects: "Tâches liées",
     },
@@ -193,6 +242,7 @@ const BUSINESS_OBJECT_TYPES = [
       noLinkedAnnotations: "Aucune annotation liée à ce point",
       linkTo: "Lier à un point",
       listLabel: "Liste de points",
+      createListing: "Créer une liste de points",
       linkResourceTo: "Lier au point actif",
       linkedObjects: "Points liés",
     },

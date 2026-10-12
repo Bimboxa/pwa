@@ -15,6 +15,9 @@ const PANEL_BY_TYPE_KEY = {
   // Issues: the same panel, the type's features (status) drive the row
   // checkbox and the Ouverts / Tous filter.
   ISSUE: PanelBusinessObjects,
+  // Quantities: the same panel, the type's features (autoNumbering) drive
+  // the computed numbering column.
+  QUANTITY: PanelBusinessObjects,
 };
 
 export default function PanelBusinessObjectsByType({ typeKey }) {

@@ -117,7 +117,6 @@ const THREED_MESH_BRUSH_SHORTCUTS = [
   { key: "Esc", label: "Quitter le pinceau" },
 ];
 
-
 // ---------------------------------------------------------------------------
 // SectionRepairModes — localized-repair type selector (Auto / L / T / Lissage),
 // one selectable line per mode with its keyboard shortcut at the end.

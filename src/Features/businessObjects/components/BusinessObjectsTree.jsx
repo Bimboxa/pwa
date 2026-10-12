@@ -162,11 +162,14 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   );
 
   // Listing with codes (stored `code` of the objects — imported, typed or
-  // written by "Renuméroter"): 3-column DPGF-like rendering (code / label /
+  // written by "Renuméroter") or type numbering its rows at display time
+  // (feature autoNumbering): 3-column DPGF-like rendering (code / label /
   // quantity). The level metadata is computed on the FULL tree.
+  const hasAutoNumbering = Boolean(type.features?.autoNumbering);
   const showCodes = useMemo(
-    () => (businessObjects ?? []).some((o) => Boolean(o.code)),
-    [businessObjects]
+    () =>
+      hasAutoNumbering || (businessObjects ?? []).some((o) => Boolean(o.code)),
+    [businessObjects, hasAutoNumbering]
   );
   const displayMetaById = useMemo(() => {
     const metas = getBusinessObjectsTreeDisplayMeta(flatTree);

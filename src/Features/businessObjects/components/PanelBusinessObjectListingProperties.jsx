@@ -73,8 +73,16 @@ import {
   isBusinessObjectsModuleKey,
 } from "../utils/businessObjectModuleKeys";
 
+// QUANTITY shares the STANDARD fields: converting back and forth is lossless
+// (a stored code is only hidden under QUANTITY).
 const LISTING_TYPES = BUSINESS_OBJECT_TYPES.filter((type) =>
-  ["STANDARD", "NOMENCLATURE", "PINNED_OBJECTS", "LOCATIONS"].includes(type.key)
+  [
+    "STANDARD",
+    "NOMENCLATURE",
+    "PINNED_OBJECTS",
+    "LOCATIONS",
+    "QUANTITY",
+  ].includes(type.key)
 );
 
 // Right-panel properties of a business-objects listing, reached with the back

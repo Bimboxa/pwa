@@ -36,6 +36,7 @@ import { createShootSprayController } from "Features/threedMesh/services/shootSp
 import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 
 import WalkModeController from "../js/WalkModeController";
+import { createWalkCollisionProbe } from "../services/walkCollisionProbe";
 import { createWalkMeasureController } from "../services/walkMeasureController";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
 import { WALK_MODE_TOGGLE_KEY, toggleWalkMode } from "../utils/walkModeToggle";
@@ -229,6 +230,11 @@ export default function useWalkMode() {
       },
     });
     const measure = createWalkMeasureController({ sceneManager, editor });
+    // Ground + obstacles of the scene geometry (base map planes, annotation
+    // solids, mailles). Built before enter() so the landing already targets
+    // the right surface; refreshed by the controller's tick afterwards.
+    const collisionProbe = createWalkCollisionProbe({ sceneManager });
+    collisionProbe.refresh();
 
     // Walk tool, walk-local (resets to the laser meter on every entry).
     // Mirrored into the shootAimStore for the HUD / weapon image.
@@ -236,7 +242,7 @@ export default function useWalkMode() {
 
     // Seed the HUD (ShootLanceOverlayThreed) before any key press.
     resetShoot();
-    emitShoot({ ...spray.getJetState(), tool });
+    emitShoot({ ...spray.getJetState(), tool, freeClimb: false });
 
     // Point under the screen-center crosshair (real surface — meshes AND
     // scan base maps — or void). The scan picking data is built on demand
@@ -330,6 +336,7 @@ export default function useWalkMode() {
       sceneManager,
       groundY: groundYRef.current,
       sampleGroundY: groundSamplerRef.current,
+      collisionProbe,
       onRequestExit: () => dispatch(setWalkModeActive(false)),
       // Space pressed. Lance: continuous jet while held, the recoil/shake
       // animation of the weapon overlay runs for the whole hold (firingUntil
@@ -398,6 +405,8 @@ export default function useWalkMode() {
       onCycleJetMode: () => emitShoot(spray.cycleJetMode()),
       onSprayWiden: () => emitShoot(spray.scaleSpread(SPREAD_STEP_FACTOR)),
       onSprayNarrow: () => emitShoot(spray.scaleSpread(1 / SPREAD_STEP_FACTOR)),
+      // C: free climb on / off, mirrored into the HUD legend.
+      onToggleFreeClimb: (freeClimb) => emitShoot({ freeClimb }),
     });
     controller.enter();
     controllerRef.current = controller;
@@ -420,6 +429,7 @@ export default function useWalkMode() {
       controllerRef.current = null;
       clearInterval(distIntervalId);
       controller.exit();
+      collisionProbe.dispose();
       spray.dispose();
       measure.dispose();
       resetShoot();
