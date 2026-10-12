@@ -10,12 +10,13 @@ import {
   RAISE_OFFSET,
 } from "../constants/baseMapsGridConstants";
 
-const PLUS_SIZE = 72;
-const REST_FILL = "rgba(0,0,0,0.06)";
+const PLUS_SIZE = 56;
+const REST_COLOR = theme.palette.grey[400];
 
 // Empty frame closing the grid (bottom-right slot): its "+" opens the
-// "create a base map" section. At rest, a "+" on a grey slot of the table;
-// under the pointer the slot turns into a white paper rising off the table.
+// "create a base map" section. At rest, a light dashed frame with a "+" in
+// the middle (no fill, the table shows through); under the pointer the slot
+// turns into a white paper rising off the table.
 // The click is handled by the table (see LayerBaseMapsGrid), which tells a
 // click from a pan started on the frame.
 export default function AddBaseMapSheetSvg({ sheet, visible, disabled }) {
@@ -32,9 +33,7 @@ export default function AddBaseMapSheetSvg({ sheet, visible, disabled }) {
   const raised = hovered && !disabled;
   const cx = sheet.width / 2;
   const cy = sheet.height / 2;
-  const color = raised
-    ? theme.palette.text.primary
-    : theme.palette.text.secondary;
+  const color = raised ? theme.palette.text.primary : REST_COLOR;
   const lift = `${LIFT_DURATION_MS}ms ease`;
 
   // render
@@ -75,16 +74,16 @@ export default function AddBaseMapSheetSvg({ sheet, visible, disabled }) {
           width={sheet.width}
           height={sheet.height}
           rx={raised ? 0 : 8}
-          fill={REST_FILL}
-          stroke={theme.palette.text.secondary}
-          strokeWidth={1.5}
-          strokeDasharray="8 6"
+          fill="none"
+          stroke={REST_COLOR}
+          strokeWidth={1}
+          strokeDasharray="6 6"
           vectorEffect="non-scaling-stroke"
           style={{ opacity: raised ? 0 : 1, transition: `opacity ${lift}` }}
         />
         <g
           stroke={color}
-          strokeWidth={6}
+          strokeWidth={2}
           strokeLinecap="round"
           style={{ transition: `stroke ${lift}` }}
         >
