@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelectedMainBaseMapId";
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import { SMART_DETECT_UI_MODES } from "Features/mapEditor/utils/getEffectiveDetectionMode";
 
 // Drops the whole drawing session: no tool armed, no in-progress smartDetect
 // state. Shared by setEnabledDrawingMode(null) and the MODULE switch (see the
@@ -376,6 +377,16 @@ export const mapEditorSlice = createSlice({
       state.showLayerScreenCursor = true;
       // Reset the localized-repair override whenever a tool is (re)selected.
       state.repairMode = "AUTO";
+      // Switching to a tool whose helper has no « Détection auto » card: drop
+      // the detection armed by the previous tool, so no detection runs
+      // without its switch being visible.
+      if (!SMART_DETECT_UI_MODES.includes(drawingMode)) {
+        state.smartDetectEnabled = false;
+        state.smartDetectMode = "HOVER";
+        state.smartDetectionPresent = false;
+        state.stripDetectionMultiple = false;
+        state.loupeAspect = "SQUARE";
+      }
     },
     setDrawingHasFirstPoint: (state, action) => {
       state.drawingHasFirstPoint = action.payload;

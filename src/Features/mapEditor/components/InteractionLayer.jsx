@@ -181,7 +181,7 @@ import getOpeningStrokeFromHost from 'Features/mapEditor/utils/getOpeningStrokeF
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getAxisFrameFromDirection from 'Features/mapEditor/utils/getAxisFrameFromDirection';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
-import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
+import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES, SMART_DETECT_UI_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import pasteAnnotationService from 'Features/mapEditor/services/pasteAnnotationService';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
@@ -4823,6 +4823,8 @@ const InteractionLayer = forwardRef(({
           // Not applicable to surface drawing: POLYGON_CLICK only uses hover
           // polygon detection (detectPolygonFromAnnotations), not line detection.
           if (enabledDrawingModeRef.current === "POLYGON_CLICK") break;
+          // Only where the helper shows the « Détection auto » card.
+          if (!SMART_DETECT_UI_MODES.includes(enabledDrawingModeRef.current)) break;
           if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
             e.preventDefault();
             const meterByPx = meterByPxRef.current ?? 0;
@@ -4891,6 +4893,9 @@ const InteractionLayer = forwardRef(({
           // POLYLINE annotations, Escape aborts. Polyline clic-clic only —
           // matches the "Vectoriser" row visibility in CardSmartDetect.
           if (enabledDrawingModeRef.current !== "POLYLINE_CLICK") break;
+          // Only where the helper shows the « Détection auto » card (the
+          // card is hidden in POLYLINE_CLICK → V is inert there for now).
+          if (!SMART_DETECT_UI_MODES.includes(enabledDrawingModeRef.current)) break;
           if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
             e.preventDefault();
             const meterByPx = meterByPxRef.current ?? 0;
@@ -5031,7 +5036,9 @@ const InteractionLayer = forwardRef(({
           // keep S inert so the two hotkey sets stay distinct.
           if (SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) break;
           // HOVER smart-detect (formerly bound to A): toggle the loupe-based
-          // detection that runs as the cursor moves.
+          // detection that runs as the cursor moves — only where the helper
+          // shows the « Détection auto » card.
+          if (!SMART_DETECT_UI_MODES.includes(enabledDrawingModeRef.current)) break;
           if (showSmartDetectRef.current) {
             dispatch(setSmartDetectMode("HOVER"));
             dispatch(toggleSmartDetectEnabled());

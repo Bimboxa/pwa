@@ -26,6 +26,17 @@ export const SEGMENT_SNAP_MODES = [
   "STRIP_SEGMENT",
 ];
 
+// Modes that expose the detection in the drawing helper (« Détection auto »
+// card). Elsewhere the detection stays off: arming another mode resets it
+// (mapEditorSlice.setEnabledDrawingMode) and the S / A / V hotkeys are
+// inert (InteractionLayer), so the UI never hides a running detection.
+export const SMART_DETECT_UI_MODES = [
+  "CUT_RECTANGLE",
+  "RECTANGLE",
+  "POLYGON_CLICK",
+  ...SEGMENT_SNAP_MODES,
+];
+
 export default function getEffectiveDetectionMode({
   enabledDrawingMode,
   smartDetectEnabled,

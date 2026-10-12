@@ -35,7 +35,9 @@ import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionDrawingConstraints from "./SectionDrawingConstraints";
-import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
+import getEffectiveDetectionMode, {
+  SMART_DETECT_UI_MODES,
+} from "Features/mapEditor/utils/getEffectiveDetectionMode";
 import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScene3dPickingStatus";
 import SectionMeshBrushPaintedTotal from "Features/meshPaint/components/SectionMeshBrushPaintedTotal";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -113,21 +115,6 @@ const THREED_MESH_BRUSH_SHORTCUTS = [
   { key: "Esc", label: "Quitter le pinceau" },
 ];
 
-// Modes where the "Détection auto" card makes sense — the base drawing
-// tool has a backing detection algorithm (see getEffectiveDetectionMode).
-const SMART_DETECT_CAPABLE_MODES = [
-  "POLYLINE_RECTANGLE",
-  "POLYGON_RECTANGLE",
-  "CUT_RECTANGLE",
-  "RECTANGLE",
-  "STRIP",
-  "POLYLINE_CLICK",
-  "POLYGON_CLICK",
-  // SEGMENT tool → dark-band snapping (SEGMENT_SNAP, hover-only)
-  "SEGMENT",
-  "POLYLINE_SEGMENT",
-  "STRIP_SEGMENT",
-];
 
 // ---------------------------------------------------------------------------
 // SectionRepairModes — localized-repair type selector (Auto / L / T / Lissage),
@@ -310,7 +297,7 @@ export default function SectionDrawingHelperContent() {
     isSurfaceCutDraft(s.annotations.newAnnotation)
   );
   const showSmartDetectCard =
-    !isSurfaceCut && SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
+    !isSurfaceCut && SMART_DETECT_UI_MODES.includes(enabledDrawingMode);
   const showAutoMerge =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK";

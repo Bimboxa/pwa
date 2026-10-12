@@ -7,7 +7,7 @@ import {
   setSegmentSnapDirection,
 } from "Features/mapEditor/mapEditorSlice";
 
-import { Box, Checkbox, Paper, Typography } from "@mui/material";
+import { Box, Checkbox, Paper, Switch, Typography } from "@mui/material";
 import { keyframes } from "@emotion/react";
 
 import ShortcutBadge from "./ShortcutBadge";
@@ -20,6 +20,11 @@ const detectionPulse = keyframes`
 `;
 
 export default function CardSmartDetect() {
+  // strings
+
+  const surfaceHoverS = "Activer au survol d'une zone fermée";
+  const segmentHoverS = "Activer au survol d'un segment de même épaisseur";
+
   // data
 
   const dispatch = useDispatch();
@@ -54,6 +59,12 @@ export default function CardSmartDetect() {
   // hover-only detection, with R toggling the proposed H/V orientation.
   const isSegmentSnapMode = SEGMENT_SNAP_MODES.includes(enabledDrawingMode);
 
+  // Surface / segment modes only detect on hover: the « Espace » validation
+  // row is meaningful once their switch is on. The rectangle modes keep it
+  // visible (the global A detection validates with Espace too).
+  const showValidateRow =
+    isSurfaceMode || isSegmentSnapMode ? hoverActive : true;
+
   // handlers
 
   // "Globale" — direct trigger isn't possible from a click (we'd need a
@@ -68,6 +79,16 @@ export default function CardSmartDetect() {
   const handleSelectHover = () => {
     dispatch(setSmartDetectMode("HOVER"));
     dispatch(setSmartDetectEnabled(true));
+  };
+
+  // Surface / segment hover switch — same effect as the S / J hotkeys
+  // (InteractionLayer): on arms the HOVER mode, off stops the detection.
+  const handleHoverSwitchChange = (e) => {
+    if (e.target.checked) {
+      handleSelectHover();
+    } else {
+      dispatch(setSmartDetectEnabled(false));
+    }
   };
 
   // "Vectoriser" — same pattern as "Globale": the row only arms the mode,
@@ -134,12 +155,21 @@ export default function CardSmartDetect() {
         />
       )}
 
-      <ModeRow
-        label="Au survol"
-        shortcut={isSegmentSnapMode ? "J" : "S"}
-        active={hoverActive}
-        onClick={handleSelectHover}
-      />
+      {isSurfaceMode || isSegmentSnapMode ? (
+        <SwitchRow
+          label={isSegmentSnapMode ? segmentHoverS : surfaceHoverS}
+          shortcut={isSegmentSnapMode ? "J" : "S"}
+          checked={hoverActive}
+          onChange={handleHoverSwitchChange}
+        />
+      ) : (
+        <ModeRow
+          label="Au survol"
+          shortcut="S"
+          active={hoverActive}
+          onClick={handleSelectHover}
+        />
+      )}
 
       {isPolylineClickMode && (
         <ModeRow
@@ -191,47 +221,70 @@ export default function CardSmartDetect() {
         </Box>
       )}
 
-      <Box
-        sx={{
-          mt: 0.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-        }}
-      >
-        <Typography variant="body2" sx={{ flex: 1 }}>
-          Valider la sélection
-        </Typography>
+      {showValidateRow && (
         <Box
-          component="span"
           sx={{
-            display: "inline-flex",
+            mt: 0.5,
+            display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            minWidth: 56,
-            height: 22,
-            px: 0.5,
-            borderRadius: "6px",
-            border: "1px solid",
-            borderColor: smartDetectionPresent ? "#00aa00" : "text.disabled",
-            backgroundColor: smartDetectionPresent
-              ? undefined
-              : (theme) => theme.palette.action.hover,
-            borderBottomWidth: "3px",
-            color: smartDetectionPresent ? "#000" : "text.primary",
-            fontFamily: "monospace",
-            fontWeight: "bold",
-            fontSize: "0.7rem",
-            lineHeight: 1,
-            animation: smartDetectionPresent
-              ? `${detectionPulse} 0.8s ease-in-out infinite`
-              : "none",
+            gap: 1,
           }}
         >
-          Espace
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            Valider la sélection
+          </Typography>
+          <Box
+            component="span"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 56,
+              height: 22,
+              px: 0.5,
+              borderRadius: "6px",
+              border: "1px solid",
+              borderColor: smartDetectionPresent ? "#00aa00" : "text.disabled",
+              backgroundColor: smartDetectionPresent
+                ? undefined
+                : (theme) => theme.palette.action.hover,
+              borderBottomWidth: "3px",
+              color: smartDetectionPresent ? "#000" : "text.primary",
+              fontFamily: "monospace",
+              fontWeight: "bold",
+              fontSize: "0.7rem",
+              lineHeight: 1,
+              animation: smartDetectionPresent
+                ? `${detectionPulse} 0.8s ease-in-out infinite`
+                : "none",
+            }}
+          >
+            Espace
+          </Box>
         </Box>
-      </Box>
+      )}
     </Paper>
+  );
+}
+
+// Switch + shortcut badge row (surface / segment hover detection).
+function SwitchRow({ label, shortcut, checked, onChange }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 0.5,
+        py: 0.25,
+      }}
+    >
+      <Typography variant="body2" sx={{ flex: 1 }}>
+        {label}
+      </Typography>
+      <ShortcutBadge>{shortcut}</ShortcutBadge>
+      <Switch size="small" checked={checked} onChange={onChange} />
+    </Box>
   );
 }
 
