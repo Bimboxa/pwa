@@ -8,13 +8,14 @@ import {
   CircularProgress,
   Dialog,
   IconButton,
+  InputBase,
   MenuItem,
   Select,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -40,9 +41,10 @@ import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
 
 /*
  * Recap modal of the Krto about to be created. Left column: the form (name +
- * the configuration tags as read-only chips), the baseMap listings (dossiers
- * created — removable — and the project's — toggled with an eye), the
- * configuration pages to create — each with a target dossier select — the
+ * the configuration tags as read-only chips), the baseMap listings (the
+ * project's — toggled with an eye — then the new ones — removable, the
+ * user-added ones renamed inline), the configuration pages to create — each
+ * with a target dossier select — the
  * optional modules and the create button. Right: the annotation templates
  * panel and the configuration's illustration (loaded lazily).
  */
@@ -93,9 +95,9 @@ export default function DialogKrtoRecap({
   const portfolioCaptionS =
     "Active le module Carnet de plans (portfolio de pages).";
   const baseMapsS = "Fonds de plan";
-  const addS = "+ Ajouter";
-  const createdSectionS = "Dossiers créés";
-  const projectSectionS = "Dossiers du projet";
+  const addS = "Ajouter un dossier";
+  const createdSectionS = "Nouveaux dossiers";
+  const projectSectionS = "Dossiers existants";
   const pagesSectionS = "Fonds de plan à créer";
   const noFolderS = "Aucun dossier";
   const newListingPlaceholderS = "Nom du dossier";
@@ -267,21 +269,24 @@ export default function DialogKrtoRecap({
 
   // render
 
-  function renderSubSectionTitle(label, { mt = 0 } = {}) {
+  // sub-section caption, with an optional action node right after the label
+  function renderSubSectionTitle(label, { mt = 0, action = null } = {}) {
     return (
-      <Typography
-        variant="caption"
-        sx={{
-          display: "block",
-          mt,
-          mb: 0.5,
-          color: "text.secondary",
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-        }}
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, mt, mb: 0.5 }}
       >
-        {label}
-      </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          }}
+        >
+          {label}
+        </Typography>
+        {action}
+      </Box>
     );
   }
 
@@ -406,91 +411,53 @@ export default function DialogKrtoRecap({
     p: 1.5,
   };
 
-  const hasCreatedRows = newListingRows.length > 0 || extraListings.length > 0;
+  // "+" next to the "Nouveaux dossiers" caption — always reachable, even
+  // when no new dossier is listed yet
+  const addListingButton = (
+    <Tooltip title={addS}>
+      <IconButton
+        size="small"
+        onClick={handleAddListing}
+        sx={{ p: 0.25, color: "secondary.main" }}
+      >
+        <AddIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  );
 
-  // "Fonds de plan" section — dossiers created for the Krto (removable),
-  // the project's dossiers (visibility eye), then the pages to create with
-  // their target dossier.
+  // the editable name band of a user-added dossier: dense like the sibling
+  // rows, grey to read as a field, highlighted on hover / focus
+  const newListingNameSx = {
+    flexGrow: 1,
+    minWidth: 0,
+    px: 1,
+    py: 0.125,
+    borderRadius: 1,
+    fontSize: "0.875rem",
+    bgcolor: (theme) => alpha(theme.palette.text.primary, 0.06),
+    border: "1px solid transparent",
+    transition: "background-color .15s, border-color .15s",
+    "&:hover": {
+      bgcolor: (theme) => alpha(theme.palette.text.primary, 0.1),
+    },
+    "&.Mui-focused": {
+      bgcolor: "background.paper",
+      borderColor: "secondary.main",
+    },
+    "& .MuiInputBase-input": { p: 0 },
+  };
+
+  // "Fonds de plan" section — the project's dossiers (visibility eye), the
+  // new dossiers (removable, user-added ones renamed inline), then the pages
+  // to create with their target dossier.
   const baseMapsSectionNode = (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="body1" sx={{ fontWeight: 700 }}>
-          {baseMapsS}
-        </Typography>
-        <Button
-          size="small"
-          color="secondary"
-          onClick={handleAddListing}
-          sx={{ minWidth: 0 }}
-        >
-          {addS}
-        </Button>
-      </Box>
+      <Typography variant="body1" sx={{ fontWeight: 700 }}>
+        {baseMapsS}
+      </Typography>
 
       <Box sx={sectionCardSx}>
-        {hasCreatedRows && renderSubSectionTitle(createdSectionS)}
-        {newListingRows.map((row) => (
-          <Box
-            key={row.name}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              py: 0.25,
-            }}
-          >
-            <FolderOutlinedIcon
-              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
-            />
-            <Typography variant="body2" noWrap sx={{ flexGrow: 1 }}>
-              {row.name}
-            </Typography>
-            <IconButton
-              size="small"
-              onClick={() => handleRemoveNewListing(row.name)}
-              sx={{ color: "text.secondary", p: 0.25 }}
-            >
-              <CloseIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Box>
-        ))}
-        {extraListings.map((listing, index) => (
-          <Box
-            key={index}
-            sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.5 }}
-          >
-            <FolderOutlinedIcon
-              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
-            />
-            <TextField
-              value={listing.name}
-              onChange={(e) =>
-                handleExtraListingNameChange(index, e.target.value)
-              }
-              placeholder={newListingPlaceholderS}
-              size="small"
-              fullWidth
-            />
-            <IconButton
-              size="small"
-              onClick={() => handleRemoveExtraListing(index)}
-              sx={{ color: "text.secondary", p: 0.25 }}
-            >
-              <CloseIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Box>
-        ))}
-
-        {existingListings.length > 0 &&
-          renderSubSectionTitle(projectSectionS, {
-            mt: hasCreatedRows ? 1 : 0,
-          })}
+        {existingListings.length > 0 && renderSubSectionTitle(projectSectionS)}
         {existingListings.map((listing) => {
           const hidden = (hiddenExistingListingIds ?? []).includes(listing.id);
           return (
@@ -534,10 +501,69 @@ export default function DialogKrtoRecap({
           );
         })}
 
-        {pages.length > 0 &&
-          renderSubSectionTitle(pagesSectionS, {
-            mt: hasCreatedRows || existingListings.length > 0 ? 1 : 0,
-          })}
+        {renderSubSectionTitle(createdSectionS, {
+          mt: existingListings.length > 0 ? 1 : 0,
+          action: addListingButton,
+        })}
+        {newListingRows.map((row) => (
+          <Box
+            key={row.name}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              py: 0.25,
+            }}
+          >
+            <FolderOutlinedIcon
+              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
+            />
+            <Typography variant="body2" noWrap sx={{ flexGrow: 1 }}>
+              {row.name}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => handleRemoveNewListing(row.name)}
+              sx={{ color: "text.secondary", p: 0.25 }}
+            >
+              <CloseIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Box>
+        ))}
+        {extraListings.map((listing, index) => (
+          <Box
+            key={index}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              py: 0.25,
+            }}
+          >
+            <FolderOutlinedIcon
+              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
+            />
+            <InputBase
+              value={listing.name}
+              onChange={(e) =>
+                handleExtraListingNameChange(index, e.target.value)
+              }
+              placeholder={newListingPlaceholderS}
+              autoFocus={index === extraListings.length - 1}
+              fullWidth
+              sx={newListingNameSx}
+            />
+            <IconButton
+              size="small"
+              onClick={() => handleRemoveExtraListing(index)}
+              sx={{ color: "text.secondary", p: 0.25 }}
+            >
+              <CloseIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Box>
+        ))}
+
+        {pages.length > 0 && renderSubSectionTitle(pagesSectionS, { mt: 1 })}
         {pages.map((page) => renderPageRow(page))}
       </Box>
     </Box>
