@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -12,14 +12,21 @@ import {
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 
-import { Box, Typography, IconButton, Tooltip, Tabs, Tab } from "@mui/material";
-import { ArrowBack as Back, SelectAll } from "@mui/icons-material";
+import { Box, Typography, IconButton, Tabs, Tab } from "@mui/material";
+import { ArrowBack as Back } from "@mui/icons-material";
 
 import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import useUpdateAnnotationTemplate from "../hooks/useUpdateAnnotationTemplate";
 import useAnnotationsV2 from "../hooks/useAnnotationsV2";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
+import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import IconButtonMoreActionsAnnotationTemplate from "./IconButtonMoreActionsAnnotationTemplate";
+import SectionAnnotationTemplateKeyQties from "./SectionAnnotationTemplateKeyQties";
+import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
+import computeAnnotationTemplateQties from "../utils/computeAnnotationTemplateQties";
+import mergePaintedQtiesIntoTemplateQties from "../utils/mergePaintedQtiesIntoTemplateQties";
 
 export default function PanelAnnotationTemplateProperties() {
   const dispatch = useDispatch();
@@ -49,25 +56,73 @@ export default function PanelAnnotationTemplateProperties() {
   const openedPanel = useSelector((s) => s.listings.openedPanel);
   const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
-  const allAnnotations = useAnnotationsV2({
-    caller: "PanelAnnotationTemplateProperties",
+  // Base maps shown beside the main one, mirrored from PopperMapListings so
+  // the counts match the legend: the sheets of the SCOPE grid while it is
+  // displayed, else the extra base maps of the 3D scene.
+  const baseMap = useMainBaseMap();
+  const isScopeGridOpen = useSelector(selectBaseMapsGridScopeOpen);
+  const scopeSheetIds = useSelector(
+    (s) => s.baseMapsGrid.scopeSheets.baseMapIds
+  );
+  const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
+  const extraBaseMapIds = useMemo(() => {
+    if (!isScopeGridOpen) return extraBaseMapIdsIn3d;
+    return scopeSheetIds.filter((id) => id !== baseMap?.id);
+  }, [isScopeGridOpen, extraBaseMapIdsIn3d, scopeSheetIds, baseMap?.id]);
+
+  // Same scope for the annotations and the painted parts (« Pinceau »), so
+  // the key quantities below cover one consistent set. `withQties` computes
+  // each annotation's qties with its own base map's meterByPx.
+  const scopeOptions = {
     excludeListingsIds: hiddenListingsIds,
-    hideBaseMapAnnotations,
     filterByMainBaseMap: true,
+    extraBaseMapIds,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: viewerKey === "MAP",
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+  };
+
+  const allAnnotations = useAnnotationsV2({
+    caller: "PanelAnnotationTemplateProperties",
+    hideBaseMapAnnotations,
+    withQties: true,
+    ...scopeOptions,
   });
+
+  const painted = usePaintedPartsQties(scopeOptions);
 
   // helper
 
   const label = selectedAnnotationTemplate?.label ?? "-?-";
 
-  const matchingAnnotations =
-    allAnnotations?.filter(
-      (a) => a.annotationTemplateId === selectedAnnotationTemplate?.id
-    ) ?? [];
-  const matchCount = matchingAnnotations.length;
+  const matchingAnnotations = useMemo(
+    () =>
+      allAnnotations?.filter(
+        (a) => a.annotationTemplateId === selectedAnnotationTemplate?.id
+      ) ?? [],
+    [allAnnotations, selectedAnnotationTemplate?.id]
+  );
+
+  // Key quantities of the template: same aggregates as the Dessin / Viewer
+  // panels (mesh cells and foreign footprints excluded, painted parts added).
+  const qties = useMemo(() => {
+    const templateId = selectedAnnotationTemplate?.id;
+    if (!templateId) return null;
+    const templateById = { [templateId]: selectedAnnotationTemplate };
+    const base = computeAnnotationTemplateQties(
+      matchingAnnotations,
+      templateById
+    );
+    const merged = mergePaintedQtiesIntoTemplateQties(
+      base,
+      painted?.qtiesByTemplateId,
+      templateById
+    );
+    return merged?.[templateId] ?? null;
+  }, [matchingAnnotations, selectedAnnotationTemplate, painted]);
+
+  const matchCount = qties?.count ?? 0;
+  const showKeyQties = matchCount > 0 || (qties?.paintedListedCount ?? 0) > 0;
 
   // handler
 
@@ -144,25 +199,13 @@ export default function PanelAnnotationTemplateProperties() {
         />
       </Box>
 
-      {matchCount > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            px: 1.5,
-            py: 0.5,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {matchCount} annotation{matchCount > 1 ? "s" : ""}
-          </Typography>
-          <Tooltip title="Sélectionner les annotations">
-            <IconButton size="small" onClick={handleSelectAll}>
-              <SelectAll fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+      {showKeyQties && (
+        <SectionAnnotationTemplateKeyQties
+          annotationTemplate={selectedAnnotationTemplate}
+          qties={qties}
+          count={matchCount}
+          onSelectAll={handleSelectAll}
+        />
       )}
 
       <Tabs
