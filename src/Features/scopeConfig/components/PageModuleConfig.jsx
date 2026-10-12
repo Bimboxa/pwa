@@ -17,6 +17,7 @@ import {
   selectModuleIconKeysByKey,
   selectDisabledBaseMapSourceKeys,
   selectLayersMode,
+  selectIsLoupeEnabled,
 } from "../utils/scopeConfigSelectors";
 
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
@@ -50,12 +51,15 @@ export default function PageModuleConfig({ module, tools }) {
   );
 
   const layersMode = useSelector(selectLayersMode);
+  // Dessin-only: loupe card of the 2D drawing helper (per scope).
+  const loupeEnabled = useSelector(selectIsLoupeEnabled);
 
   const {
     toggleModule,
     toggleToolInModule,
     toggleBaseMapSource,
     setLayersMode,
+    setLoupeEnabled,
     setModuleLabel,
     setModuleIconKey,
   } = useScopeConfigActions();
@@ -243,6 +247,19 @@ export default function PageModuleConfig({ module, tools }) {
             onChange={() =>
               setLayersMode(layersMode === "GLOBAL" ? "BASE_MAP" : "GLOBAL")
             }
+          />
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Loupe
+          </Typography>
+
+          <RowSwitchConfig
+            label="Activer"
+            caption="Affiche la loupe (aperçu agrandi sous le curseur) dans l'aide au dessin 2D."
+            checked={loupeEnabled}
+            onChange={() => setLoupeEnabled(!loupeEnabled)}
           />
         </>
       )}

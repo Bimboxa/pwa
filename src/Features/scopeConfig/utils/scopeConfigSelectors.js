@@ -238,3 +238,11 @@ export function selectLayersMode(s) {
   const mode = selectSelectedScopeConfig(s)?.layersMode;
   return LAYERS_MODES.includes(mode) ? mode : DEFAULT_LAYERS_MODE;
 }
+
+// Loupe of the 2D drawing helper (CardLoupe). Off by default: the card is
+// hidden, the image detection keeps running in a hidden container.
+export const DEFAULT_LOUPE_ENABLED = false;
+
+export function selectIsLoupeEnabled(s) {
+  return selectSelectedScopeConfig(s)?.loupeEnabled ?? DEFAULT_LOUPE_ENABLED;
+}

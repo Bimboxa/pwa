@@ -29,8 +29,10 @@ import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintCon
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import { selectIsFaceCutDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
+import { selectIsLoupeEnabled } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
+import SmartDetectContainer from "Features/smartDetect/components/SmartDetectContainer";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
@@ -187,6 +189,18 @@ function SectionRepairModes() {
 // PopperDrawingHelper and the Dessin left panel.
 // ---------------------------------------------------------------------------
 
+// Loupe card, or (loupe disabled in the Dessin module configuration) a hidden
+// container so SmartDetectLayer stays mounted — the RECTANGLE / SMART_DETECT
+// OpenCV detection runs in it (canvas drawImage + toDataURL work unrendered).
+function LoupeSlot({ enabled }) {
+  if (enabled) return <CardLoupe />;
+  return (
+    <Box sx={{ display: "none" }}>
+      <SmartDetectContainer />
+    </Box>
+  );
+}
+
 export default function SectionDrawingHelperContent() {
   const dispatch = useDispatch();
 
@@ -208,6 +222,8 @@ export default function SectionDrawingHelperContent() {
   // Tourner in the 3D editor): its own helper body, no drawing state.
   const activeThreedTool = useSelector(selectActiveThreedTool);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
+  // Configuration > Dessin > Loupe: false hides the loupe card (2D only).
+  const loupeEnabled = useSelector(selectIsLoupeEnabled);
   // Dessin module toggled to its 3D editor: the drawing state drives a 3D
   // mode. The 2D-only helpers (loupe, 2D shortcuts, image detection) must
   // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
@@ -340,9 +356,13 @@ export default function SectionDrawingHelperContent() {
   if (!isThreedToggledEditor && isTransformToolMode(enabledDrawingMode)) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column" }}>
-        <Box sx={{ p: 1, pb: 0 }}>
-          <CardLoupe />
-        </Box>
+        {loupeEnabled ? (
+          <Box sx={{ p: 1, pb: 0 }}>
+            <CardLoupe />
+          </Box>
+        ) : (
+          <LoupeSlot enabled={false} />
+        )}
         <SectionTransformToolHelper2d mode={enabledDrawingMode} />
       </Box>
     );
@@ -355,7 +375,9 @@ export default function SectionDrawingHelperContent() {
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
         enabledDrawingMode !== "LOCALIZED_REPAIR" &&
         enabledDrawingMode !== "JOIN_ANNOTATIONS" &&
-        enabledDrawingMode !== "CHAT_REPAIR" && <CardLoupe />}
+        enabledDrawingMode !== "CHAT_REPAIR" && (
+          <LoupeSlot enabled={loupeEnabled} />
+        )}
       {isThreedToggledEditor && (
         <Box
           sx={{

@@ -96,6 +96,12 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
+  // Loupe of the 2D drawing helper (scopeConfigSelectors.selectIsLoupeEnabled)
+  const setLoupeEnabled = useCallback(
+    (loupeEnabled) => upsert(() => ({ loupeEnabled: Boolean(loupeEnabled) })),
+    [upsert]
+  );
+
   // Per-scope module label override (left band + panel headers). An empty /
   // whitespace label removes the override — the appConfig / hardcoded default
   // applies again.
@@ -147,6 +153,7 @@ export default function useScopeConfigActions() {
     toggleToolInModule,
     toggleBaseMapSource,
     setLayersMode,
+    setLoupeEnabled,
     setModuleLabel,
     setModuleIconKey,
     setModuleOrder,
