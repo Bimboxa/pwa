@@ -3,12 +3,13 @@ import { useMemo } from "react";
 import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Divider, IconButton, Tooltip, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 import FieldsListingNameAvatar from "./FieldsListingNameAvatar";
 
 // ---------------------------------------------------------------------------
@@ -165,27 +166,57 @@ export default function SectionPresetListingsPreview({
                     border: (theme) => `1px solid ${theme.palette.divider}`,
                   }}
                 >
-                  {listing.annotationTemplatesLibrary?.map((template, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        mb: 0.5,
-                        ml: 1,
-                        width: 1,
-                      }}
-                    >
-                      <AnnotationTemplateIcon
-                        template={template}
-                        size={20}
-                        spriteImage={spriteImage}
-                      />
-                      <Typography variant="body2" sx={{ ml: 1 }}>
-                        {template.label}
-                      </Typography>
-                    </Box>
-                  ))}
+                  {groupAnnotationTemplatesByGroupLabel(
+                    listing.annotationTemplatesLibrary
+                  ).map((item, i) => {
+                    if (item.isGroupDivider) {
+                      return (
+                        <Divider key={`divider-${i}`} sx={{ mx: 1, my: 0.5 }} />
+                      );
+                    }
+                    if (item.isGroupHeader) {
+                      return (
+                        <Typography
+                          key={`group-${i}`}
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            pl: 1,
+                            pt: i > 0 ? 1 : 0.25,
+                            pb: 0.5,
+                            color: "text.secondary",
+                            textTransform: "uppercase",
+                            fontWeight: 600,
+                            fontSize: "0.7rem",
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          {item.groupLabel}
+                        </Typography>
+                      );
+                    }
+                    return (
+                      <Box
+                        key={i}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          mb: 0.5,
+                          ml: 1,
+                          width: 1,
+                        }}
+                      >
+                        <AnnotationTemplateIcon
+                          template={item}
+                          size={20}
+                          spriteImage={spriteImage}
+                        />
+                        <Typography variant="body2" sx={{ ml: 1 }}>
+                          {item.label}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
                 </Box>
               </Box>
             );

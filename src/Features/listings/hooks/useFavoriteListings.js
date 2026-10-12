@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnotationTemplatesByOrder";
+
 // ---------------------------------------------------------------------------
 // useFavoriteListings — favorite listings ("bibliothèques favorites"): a copy
 // of a listing + its annotation templates, kept in localStorage so it can be
@@ -99,7 +101,11 @@ export default function useFavoriteListings() {
       ...prev.filter((f) => f.sourceListingId !== listing.id),
       {
         ...cleanListing(listing),
-        annotationTemplates: (annotationTemplates ?? []).map(cleanTemplate),
+        // sorted (orderIndex + groups consolidated) while ids are still there:
+        // the array order is what the re-creation follows
+        annotationTemplates: sortAnnotationTemplatesByOrder(
+          annotationTemplates ?? []
+        ).map(cleanTemplate),
       },
     ]);
   }, []);
