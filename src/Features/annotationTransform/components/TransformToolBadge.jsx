@@ -4,14 +4,15 @@ import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLeng
 
 import {
   getTransformCopyCount,
-  getTransformMoveLength,
   useTransformSession,
 } from "../services/transformSessionStore";
-import { formatMoveBadge, formatRotateBadge } from "../utils/copyBuffer";
 import {
-  formatUserAngle,
-  parseAngleBufferToPixelDeg,
-} from "../utils/rotateAngle";
+  formatAngleValueBuffer,
+  formatMoveBadge,
+  formatMoveLengthBuffer,
+  formatRotateBadge,
+} from "../utils/copyBuffer";
+import { formatUserAngle } from "../utils/rotateAngle";
 
 // ---------------------------------------------------------------------------
 // TransformToolBadge — value badge of the 2D « Déplacer » / « Tourner »
@@ -21,7 +22,9 @@ import {
 // MOVE: the travelled distance and the copy count ("1.300 m ×3") next to
 // the cursor. ROTATE 3/3: the angle and the copy count ("45° ×3") at the
 // end of the current axis (the cursor when mouse-driven, the typed angle's
-// axis otherwise).
+// axis otherwise). A typed value shows the RAW buffer, locked, from its
+// first character ("-", "1.") — same as the segment-length badge — so the
+// constraint mode is visible at once.
 //
 // projectToViewport(pixelPoint) → viewport px — the parent's camera mapping,
 // read through a ref so the badge follows the latest camera without
@@ -56,13 +59,21 @@ export default function TransformToolBadge({
     let point = cursor;
 
     if (kind === "MOVE") {
-      const lengthM =
-        baseMapMeterByPx > 0
-          ? Math.hypot(cursor.x - anchor.x, cursor.y - anchor.y) *
-            baseMapMeterByPx
-          : undefined;
-      text = formatMoveBadge({ lengthM, count: copyCount });
-      locked = getTransformMoveLength(session) != null;
+      const typed = formatMoveLengthBuffer(session.copyBuffer);
+      if (typed !== "—") {
+        text = formatRotateBadge({
+          angleLabel: `${typed} m`,
+          count: copyCount,
+        });
+        locked = true;
+      } else {
+        const lengthM =
+          baseMapMeterByPx > 0
+            ? Math.hypot(cursor.x - anchor.x, cursor.y - anchor.y) *
+              baseMapMeterByPx
+            : undefined;
+        text = formatMoveBadge({ lengthM, count: copyCount });
+      }
     } else if (kind === "ROTATE" && reference) {
       const rx = reference.x - anchor.x;
       const ry = reference.y - anchor.y;
@@ -71,11 +82,12 @@ export default function TransformToolBadge({
         x: anchor.x + rx * Math.cos(rad) - ry * Math.sin(rad),
         y: anchor.y + rx * Math.sin(rad) + ry * Math.cos(rad),
       };
+      const typed = formatAngleValueBuffer(session.angleBuffer);
       text = formatRotateBadge({
-        angleLabel: formatUserAngle(angleDeg),
+        angleLabel: typed ? `${typed}°` : formatUserAngle(angleDeg),
         count: copyCount,
       });
-      locked = parseAngleBufferToPixelDeg(session.angleBuffer) != null;
+      locked = typed !== "";
     }
 
     const screen = text ? projectRef.current?.(point) : null;

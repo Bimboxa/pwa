@@ -11,6 +11,7 @@ import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 import {
+  formatAngleValueBuffer,
   formatRotateBadge,
   parseTypedAngleDeg,
 } from "Features/annotationTransform/utils/copyBuffer";
@@ -152,11 +153,16 @@ export default function RotateAnnotationOverlayThreed() {
         labelEl.style.display = "none";
         return;
       }
+      // A typed angle shows the raw buffer from its first character ("-"),
+      // bold, so the constraint mode is visible at once.
+      const typed = formatAngleValueBuffer(grab?.angleBuffer ?? "");
       labelEl.textContent = formatRotateBadge({
-        angleLabel: `${((phi * 180) / Math.PI).toFixed(1)}°`,
+        angleLabel: typed
+          ? `${typed}°`
+          : `${((phi * 180) / Math.PI).toFixed(1)}°`,
         count: getGrabCopyCount(grab),
       });
-      labelEl.style.fontWeight = grab?.angleBuffer ? "700" : "600";
+      labelEl.style.fontWeight = typed ? "700" : "600";
       labelEl.setAttribute("x", screen.sx + 12);
       labelEl.setAttribute("y", screen.sy - 12);
       labelEl.style.display = "block";
