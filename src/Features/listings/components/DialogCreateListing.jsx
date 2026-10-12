@@ -196,6 +196,7 @@ export default function DialogCreateListing({
               onAvatarStringChange={setAvatarString}
               namePlaceholder={emptyNamePlaceholderS}
               onEnter={handleCreateEmpty}
+              size={36}
             >
               <Button
                 variant="contained"

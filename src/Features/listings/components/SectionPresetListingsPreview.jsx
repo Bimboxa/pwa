@@ -31,6 +31,7 @@ export default function SectionPresetListingsPreview({
   const count = selectedKeys?.length ?? 0;
   const addListingsS = `Ajouter les ${count} listes`;
   const emptyS = "Sélectionnez une ou plusieurs listes";
+  const namePlaceholderS = "Nom de la liste";
 
   // data
 
@@ -119,7 +120,9 @@ export default function SectionPresetListingsPreview({
                     onAvatarStringChange={(avatarString) =>
                       handleOverrideChange(listing, { avatarString })
                     }
-                    sx={{ mb: 1 }}
+                    namePlaceholder={namePlaceholderS}
+                    size={28}
+                    sx={{ mb: 0.75 }}
                   />
                 ) : (
                   <Typography

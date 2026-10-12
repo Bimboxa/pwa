@@ -8,7 +8,6 @@ import {
   CircularProgress,
   Dialog,
   IconButton,
-  InputBase,
   MenuItem,
   Select,
   Tooltip,
@@ -31,6 +30,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import SectionKrtoPreview from "./SectionKrtoPreview";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import InputBaseBand from "Features/layout/components/InputBaseBand";
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
 import getPageLabel from "../utils/getPageLabel";
 import resolveCarnetDetailLibraryKeys from "../services/resolveCarnetDetailLibraryKeys";
@@ -425,28 +425,6 @@ export default function DialogKrtoRecap({
     </Tooltip>
   );
 
-  // the editable name band of a user-added dossier: dense like the sibling
-  // rows, grey to read as a field, highlighted on hover / focus
-  const newListingNameSx = {
-    flexGrow: 1,
-    minWidth: 0,
-    px: 1,
-    py: 0.125,
-    borderRadius: 1,
-    fontSize: "0.875rem",
-    bgcolor: (theme) => alpha(theme.palette.text.primary, 0.06),
-    border: "1px solid transparent",
-    transition: "background-color .15s, border-color .15s",
-    "&:hover": {
-      bgcolor: (theme) => alpha(theme.palette.text.primary, 0.1),
-    },
-    "&.Mui-focused": {
-      bgcolor: "background.paper",
-      borderColor: "secondary.main",
-    },
-    "& .MuiInputBase-input": { p: 0 },
-  };
-
   // "Fonds de plan" section — the project's dossiers (visibility eye), the
   // new dossiers (removable, user-added ones renamed inline), then the pages
   // to create with their target dossier.
@@ -543,7 +521,7 @@ export default function DialogKrtoRecap({
             <FolderOutlinedIcon
               sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
             />
-            <InputBase
+            <InputBaseBand
               value={listing.name}
               onChange={(e) =>
                 handleExtraListingNameChange(index, e.target.value)
@@ -551,7 +529,6 @@ export default function DialogKrtoRecap({
               placeholder={newListingPlaceholderS}
               autoFocus={index === extraListings.length - 1}
               fullWidth
-              sx={newListingNameSx}
             />
             <IconButton
               size="small"
