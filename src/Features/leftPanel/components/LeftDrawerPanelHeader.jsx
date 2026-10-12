@@ -7,7 +7,7 @@ import { Close } from "@mui/icons-material";
 // top bar (ButtonToggleLeftPanelDock).
 //
 // `onClose` (optional) adds a close cross on the right: the floated variants
-// of a panel (e.g. the SCOPE module's PanelSelectorListingFloating) have no
+// of a floated panel have no
 // dock toggle to fold them, so the cross is their way back.
 export default function LeftDrawerPanelHeader({ title, children, onClose }) {
   // strings

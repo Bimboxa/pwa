@@ -8,6 +8,9 @@ export const DEFAULT_EDITOR_KEY_BY_MODULE = {
   MAP: "MAP",
   THREED: "THREED",
   ZONES: "MAP",
+  // SCOPE is a MODULE key only (like ZONES): its 2D editor is the shared
+  // "MAP" instance (pinned base maps grid), its 3D editor the shared one.
+  SCOPE: "MAP",
   // PHOTOS is a MODULE key only (like ZONES): its single editor is the
   // shared "MAP" instance.
   PHOTOS: "MAP",
@@ -29,6 +32,7 @@ const KNOWN_MODULE_KEYS = [
   "POINT_OF_VIEW",
   "ZONES",
   "PHOTOS",
+  "SCOPE",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 // "BASE_MAPS" is both a module key and the key of that module's own 2D editor.

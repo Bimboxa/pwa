@@ -69,12 +69,15 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       shortLabel: scopeModuleLabel,
       icon: <IconAnnotatedPlan />,
       bgcolor: theme.palette.viewers.scope,
-      // Overview of the scope: the listings on the left, the base maps and
-      // their quantities in the editor. Optional core module (enabled unless the
+      // Overview of the scope: the listings on the left, the base maps laid
+      // on a table in the editor. Optional core module (enabled unless the
       // scopeConfig row disables it, OPTIONAL_CORE_MODULE_KEYS) and
       // pinned first (PINNED_TOP_MODULE_KEYS) — the entry point of a scope.
       // No hotkey: Ctrl+S is the browser save dialog, not reliably cancelable.
-      // 2D-only: the module hosts its own viewer, no map editor.
+      // Multi-editor: the shared 2D / 3D editors, always displayed in their
+      // base maps grid ("table à plans") mode, PINNED — the grid cannot be
+      // closed while the module is selected (selectBaseMapsGridPinned).
+      editors: ["MAP", "THREED"],
     },
     {
       key: "BASE_MAPS",

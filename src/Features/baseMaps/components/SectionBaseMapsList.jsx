@@ -23,6 +23,12 @@ import {
   toggleBaseMapVisibleIn2d,
   toggleBaseMapAnnotationsIn2d,
 } from "Features/viewers/viewersSlice";
+import {
+  setBaseMapsGridSelectedBaseMapId,
+  toggleBaseMapsGridImageHidden,
+  toggleBaseMapsGridAnnotationsHidden,
+} from "Features/baseMapsGrid/baseMapsGridSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box, Typography } from "@mui/material";
 
@@ -39,6 +45,7 @@ import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnota
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import reorderBaseMapInListing from "../utils/reorderBaseMapInListing";
 import areBaseMapsParallel from "../js/areBaseMapsParallel";
+import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
 
@@ -66,9 +73,17 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   editor only shows the edited base map).
 // - "3D" button (scan base maps only): hiddenScene3dBaseMapIdsIn3d, a 3D
 //   state toggled from either editor.
+// - SCOPE module (pinned base maps grid): the rows are the SHEETS of the
+//   table (baseMapsGrid.scopeSheets — the base maps concerned by the content
+//   filter), no main base map: a click selects the sheet (table highlight +
+//   BASE_MAP item of the properties panel); the eye and the badge toggle the
+//   image / annotations of THAT sheet (baseMapsGrid.hidden*BaseMapIds, the
+//   same states under both editors — the 3D eyes / modes are not involved).
+//   `countByBaseMapIdOverride`: counts narrowed like the legend (the popper
+//   passes them).
 // ---------------------------------------------------------------------------
 
-export default function SectionBaseMapsList() {
+export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const dispatch = useDispatch();
 
   // strings
@@ -112,6 +127,21 @@ export default function SectionBaseMapsList() {
   const hideEmpty = useSelector(
     (s) => s.popperMapListings.hideEmptyBaseMapsInList
   );
+  // SCOPE module with its grid displayed (see the header comment); with the
+  // grid left, the rows get their regular semantics back.
+  const pinned = useSelector(selectBaseMapsGridScopeOpen);
+  const scopeSheetIds = useSelector(
+    (s) => s.baseMapsGrid.scopeSheets.baseMapIds
+  );
+  const gridSelectedBaseMapId = useSelector(
+    (s) => s.baseMapsGrid.selectedBaseMapId
+  );
+  const gridHiddenImageIds = useSelector(
+    (s) => s.baseMapsGrid.hiddenImageBaseMapIds
+  );
+  const gridHiddenAnnotationsIds = useSelector(
+    (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
+  );
 
   // state
 
@@ -140,22 +170,25 @@ export default function SectionBaseMapsList() {
   // less base maps, unless they are shown in 3D (image or annotations) or
   // overlaid in 2D.
   const groups = useMemo(() => {
-    const enabled = baseMaps.filter(
-      (bm) =>
-        (!disabledListingIds.includes(bm.listingId) ||
-          bm.id === mainBaseMap?.id) &&
-        (!overlaysIn2d ||
-          !mainBaseMap ||
-          bm.id === mainBaseMap.id ||
-          areBaseMapsParallel(bm, mainBaseMap)) &&
-        (!hideEmpty ||
-          bm.id === mainBaseMap?.id ||
-          (annotationsCountByBaseMapId[bm.id] ?? 0) > 0 ||
-          (overlaysIn2d
-            ? visibleIdsIn2d.includes(bm.id) ||
-              annotationsIdsIn2d.includes(bm.id)
-            : visibleIds.includes(bm.id) ||
-              Boolean(annotationsModeByBaseMapId?.[bm.id])))
+    // pinned grid: the sheets of the table, nothing else
+    const sheetIdSet = pinned ? new Set(scopeSheetIds) : null;
+    const enabled = baseMaps.filter((bm) =>
+      sheetIdSet
+        ? sheetIdSet.has(bm.id)
+        : (!disabledListingIds.includes(bm.listingId) ||
+            bm.id === mainBaseMap?.id) &&
+          (!overlaysIn2d ||
+            !mainBaseMap ||
+            bm.id === mainBaseMap.id ||
+            areBaseMapsParallel(bm, mainBaseMap)) &&
+          (!hideEmpty ||
+            bm.id === mainBaseMap?.id ||
+            (annotationsCountByBaseMapId[bm.id] ?? 0) > 0 ||
+            (overlaysIn2d
+              ? visibleIdsIn2d.includes(bm.id) ||
+                annotationsIdsIn2d.includes(bm.id)
+              : visibleIds.includes(bm.id) ||
+                Boolean(annotationsModeByBaseMapId?.[bm.id])))
     );
     const byListing = new Map();
     for (const bm of enabled) {
@@ -193,6 +226,8 @@ export default function SectionBaseMapsList() {
     overlaysIn2d,
     visibleIdsIn2d,
     annotationsIdsIn2d,
+    pinned,
+    scopeSheetIds,
   ]);
 
   const mainVersions = mainBaseMap?.versions ?? [];
@@ -200,6 +235,7 @@ export default function SectionBaseMapsList() {
     mainVersions.find((v) => v.isActive) || mainVersions[0] || null;
 
   function getRowProps(map) {
+    if (pinned) return getPinnedRowProps(map);
     const isMain = map.id === mainBaseMap?.id;
     // Overlay on the main base map (2D): both scales are needed to place it.
     const canOverlayIn2d =
@@ -272,6 +308,37 @@ export default function SectionBaseMapsList() {
     return { isMain, imageEye, annotationsBadge, scanButton, versionChip };
   }
 
+  // Pinned grid rows (see the header comment).
+  function getPinnedRowProps(map) {
+    const imageEye = {
+      on: !gridHiddenImageIds.includes(map.id),
+      onToggle: () => dispatch(toggleBaseMapsGridImageHidden(map.id)),
+    };
+    const annotationsBadge = {
+      count:
+        countByBaseMapIdOverride?.[map.id] ??
+        annotationsCountByBaseMapId[map.id] ??
+        0,
+      on: !gridHiddenAnnotationsIds.includes(map.id),
+      onToggle: () => dispatch(toggleBaseMapsGridAnnotationsHidden(map.id)),
+    };
+    const scanButton = map.scene3d
+      ? {
+          on: !hiddenScanIds.includes(map.id),
+          disabled: getScene3dDisplay3d(map) !== "MESH",
+          onToggle: () => dispatch(toggleScene3dHiddenIn3d(map.id)),
+        }
+      : null;
+    return {
+      // highlighted row = the sheet selected on the table
+      isMain: map.id === gridSelectedBaseMapId,
+      imageEye,
+      annotationsBadge,
+      scanButton,
+      versionChip: null,
+    };
+  }
+
   // handlers
 
   // Reorder inside the listing. The new sortIndex is computed against EVERY
@@ -292,6 +359,19 @@ export default function SectionBaseMapsList() {
   }
 
   function handleSelect(map) {
+    if (pinned) {
+      // the sheet on the table + the item of the properties panel — never
+      // the main base map (the anchor of the 3D table)
+      dispatch(setBaseMapsGridSelectedBaseMapId(map.id));
+      dispatch(
+        setSelectedItem({
+          id: map.id,
+          type: "BASE_MAP",
+          listingId: map.listingId,
+        })
+      );
+      return;
+    }
     selectMainBaseMap(map.id);
     // Keep the listing selection in sync: baseMap creation & url params
     // still read selectedBaseMapsListingId.

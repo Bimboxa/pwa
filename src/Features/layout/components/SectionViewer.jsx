@@ -16,8 +16,8 @@ import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/
 import PanelBaseMaps from "Features/baseMapEditor/components/PanelBaseMaps";
 import PanelPlanningBottom from "Features/planning/components/PanelPlanningBottom";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
-import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
+import ScopeGridSheetsController from "Features/listingViewer/components/ScopeGridSheetsController";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
@@ -81,7 +81,12 @@ export default function SectionViewer() {
   // editor, only the objects drawer is module-specific (and type-specific).
   const businessObjectTypeKey =
     getBusinessObjectTypeKeyFromModuleKey(viewerKey);
-  const showScope = viewerKey === "SCOPE";
+  // SCOPE is multi-editor (T toggle) and owns no editor of its own: it
+  // displays the shared 2D / 3D editors in their PINNED base maps grid mode
+  // (selectBaseMapsGridPinned); the scope content is the "Contenu" side of
+  // PopperMapListings. The sheets of the grid follow that content selection
+  // (ScopeGridSheetsController).
+  const isScopeModule = viewerKey === "SCOPE";
   const showAdmin = viewerKey === "ADMIN";
 
   return (
@@ -171,6 +176,7 @@ export default function SectionViewer() {
       {/* ChatGPT relay: live jobs are applied whether or not the "Assistant
           IA" panel is open (renders nothing). */}
       <AssistantRelayRuntime />
+      {isScopeModule && <ScopeGridSheetsController />}
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
       </PanelShowable>
@@ -215,10 +221,6 @@ export default function SectionViewer() {
 
       {isBaseMapsModule && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
-      </PanelShowable>}
-
-      {showScope && <PanelShowable show={showScope} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainListingViewer />
       </PanelShowable>}
 
       {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>

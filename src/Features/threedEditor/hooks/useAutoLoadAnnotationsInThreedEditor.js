@@ -14,6 +14,8 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
+import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
+import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -94,7 +96,36 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // annotationsModeByBaseMapIdIn3d) — calibrated ones are then reconstructed
   // on their photoPlan's world pose, the rest silently bail in
   // AnnotationsManager (no baseMap group in the scene).
-  const extraBaseMapIds = useExtraBaseMapIdsIn3d();
+  const chipExtraBaseMapIds = useExtraBaseMapIdsIn3d();
+
+  // Pinned base maps grid (SCOPE module): every sheet of the table
+  // (baseMapsGrid.scopeSheets, driven by the scope content selection) shows
+  // its annotations, whatever its chip mode; narrowed to the listing selected
+  // in the scope panel (useScopeGridAnnotationsFilter).
+  const gridPinned = useSelector(selectBaseMapsGridScopeOpen);
+  const scopeFilter = useScopeGridAnnotationsFilter();
+  const scopeSheetIds = useSelector((s) => s.baseMapsGrid.scopeSheets.baseMapIds);
+  const sheetIdsKey = useMemo(() => {
+    if (!gridPinned) return "";
+    return scopeSheetIds
+      .filter((id) => id !== mainBaseMap?.id)
+      .sort()
+      .join(",");
+  }, [gridPinned, scopeSheetIds, mainBaseMap?.id]);
+  const extraBaseMapIds = useMemo(() => {
+    if (!gridPinned) return chipExtraBaseMapIds;
+    return [...new Set([...chipExtraBaseMapIds, ...sheetIdsKey.split(",")])]
+      .filter(Boolean);
+  }, [gridPinned, chipExtraBaseMapIds, sheetIdsKey]);
+  const scopeAnnotationIdSet = gridPinned ? scopeFilter.annotationIdSet : null;
+  // badge of the "Fonds de plan" rows: annotations of a sheet switched off
+  const hiddenSheetIds = useSelector(
+    (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
+  );
+  const hiddenSheetIdSet = useMemo(
+    () => (gridPinned && hiddenSheetIds.length ? new Set(hiddenSheetIds) : null),
+    [gridPinned, hiddenSheetIds]
+  );
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
@@ -103,6 +134,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
     extraBaseMapIds,
+    filterByListingId: gridPinned ? scopeFilter.filterByListingId : undefined,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: !isBaseMapsModule,
@@ -170,13 +202,30 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   // "Afficher les mailles": ON → replace parents that have mesh cells by their
   // cells (hide the parent, keep the cells); OFF → hide mesh cells, show parents.
+  // Pinned grid narrowed to a business-objects listing: only the annotations
+  // linked to its objects (the listing owns none — a post-filter, after the
+  // stale-result guard above; element references are kept, so the 3D diff
+  // rebuilds nothing for the kept ones).
   const annotationsForThreed = useMemo(() => {
     if (!annotations) return annotations;
-    if (showMeshCells) {
-      return annotations.filter((a) => !parentIdSet.has(a.id));
+    let result = annotations;
+    if (scopeAnnotationIdSet) {
+      result = result.filter((a) => scopeAnnotationIdSet.has(a.id));
     }
-    return annotations.filter((a) => !a.isMeshCell);
-  }, [annotations, showMeshCells, parentIdSet]);
+    if (hiddenSheetIdSet) {
+      result = result.filter((a) => !hiddenSheetIdSet.has(a.baseMapId));
+    }
+    if (showMeshCells) {
+      return result.filter((a) => !parentIdSet.has(a.id));
+    }
+    return result.filter((a) => !a.isMeshCell);
+  }, [
+    annotations,
+    showMeshCells,
+    parentIdSet,
+    scopeAnnotationIdSet,
+    hiddenSheetIdSet,
+  ]);
 
   // What the scene is built from: the shrink-exempt hosts swapped for their
   // tagged copies (the hook still returns the plain resolved annotations).
@@ -252,7 +301,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       }
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
-        if (bm?.image?.imageUrlClient) {
+        // Pinned grid: every sheet gets its group / registry entry (the
+        // annotations are built in it), image or not.
+        if (bm?.image?.imageUrlClient || (gridPinned && bm)) {
           threedEditor.ensureBaseMapLoaded(bm);
         }
       });
@@ -295,6 +346,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,
+    gridPinned,
   ]);
 
   return annotationsForThreed;

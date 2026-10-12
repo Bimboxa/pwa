@@ -48,6 +48,10 @@ const viewersInitialState = {
   // the base maps grid and the 3D scene. Per-scope local state, same
   // lifecycle as hideBaseMapImageInViewer.
   baseMapsImageMode: BASE_MAPS_IMAGE_MODE.FULL,
+  // The SCOPE module (pinned base maps grid) lands on the light grey image
+  // mode: the mode in force before entering it, restored when leaving it
+  // (null while outside the module).
+  baseMapsImageModeBeforeScope: null,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
   // unmount the component — don't re-arm the fit; reset when the scope
@@ -64,8 +68,20 @@ export const viewersSlice = createSlice({
   initialState: viewersInitialState,
   reducers: {
     setSelectedViewerKey: (state, action) => {
+      const previousKey = state.selectedViewerKey;
       state.selectedViewerKey = action.payload;
       setInitSelectedModuleKey(action.payload);
+      // SCOPE module: light grey base map images by default (the drawings
+      // are the subject of the grid); the previous mode comes back on exit.
+      if (action.payload === "SCOPE" && previousKey !== "SCOPE") {
+        state.baseMapsImageModeBeforeScope = state.baseMapsImageMode;
+        state.baseMapsImageMode = BASE_MAPS_IMAGE_MODE.FADED;
+      } else if (action.payload !== "SCOPE" && previousKey === "SCOPE") {
+        if (state.baseMapsImageModeBeforeScope) {
+          state.baseMapsImageMode = state.baseMapsImageModeBeforeScope;
+        }
+        state.baseMapsImageModeBeforeScope = null;
+      }
     },
     setModuleEditorKey: (state, action) => {
       const { moduleKey, editorKey } = action.payload;
@@ -118,6 +134,14 @@ export const viewersSlice = createSlice({
       state.annotationsBaseMapIdsIn2d = saved?.annotationsBaseMapIdsIn2d ?? [];
       state.baseMapsImageMode =
         visibility?.baseMapsImageMode ?? BASE_MAPS_IMAGE_MODE.FULL;
+      // The restored module may be SCOPE (page reload): same light grey
+      // default, the restored mode is what comes back on exit.
+      if (state.selectedViewerKey === "SCOPE") {
+        state.baseMapsImageModeBeforeScope = state.baseMapsImageMode;
+        state.baseMapsImageMode = BASE_MAPS_IMAGE_MODE.FADED;
+      } else {
+        state.baseMapsImageModeBeforeScope = null;
+      }
     });
   },
 });

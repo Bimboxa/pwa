@@ -10,6 +10,8 @@ import {
 } from "../services/syncCamerasOnViewerSwitch";
 import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
+import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
+import { getActiveBaseMapsGrid } from "Features/baseMapsGrid/services/baseMapsGridRegistry";
 
 // Toggles the 2D/3D editor displayed inside the current multi-editor module
 // (Dessin, Zones, Viewer), reusing the MAP <-> THREED camera sync but
@@ -49,6 +51,11 @@ export default function useToggleModuleEditor() {
       });
     } else {
       if (disable3D) return;
+      // Base maps grid open over the 2D editor (pinned in the SCOPE module):
+      // the editor camera was parked when the grid opened — pose it on the
+      // GRID camera first, so the 3D start pose matches what is on screen.
+      const gridCamera = getActiveBaseMapsGrid()?.getEditorCameraFromGrid?.();
+      if (gridCamera) getActiveMapEditor()?.setCameraMatrix?.(gridCamera);
       switchMapToThreed({
         dispatch,
         baseMap,

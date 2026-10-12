@@ -10,7 +10,8 @@ import selectIsBaseMapsLegendPopper from "./selectIsBaseMapsLegendPopper";
 // - "SELECT" (read-only legend): "Maillage" toggle, 3D family viewers, the
 //   shared ?mode=viewer lock, the ZONES module (drawing goes through the
 //   dedicated "Nouvelle zone" section), the BaseMaps module legend
-//   (selectIsBaseMapsLegendPopper).
+//   (selectIsBaseMapsLegendPopper), the SCOPE module (pinned base maps
+//   grid, read-only).
 // - "EDIT": business-objects module WITHOUT an active object — template rows
 //   edit the template instead of drawing (a new annotation could not be
 //   attached to any object); the cut / opening tools stay available.
@@ -22,6 +23,7 @@ export default function selectEffectiveInteractionMode(state) {
     isThreedFamilyViewerKey(viewerKey) ||
     state.urlParams.viewerMode ||
     viewerKey === "ZONES" ||
+    viewerKey === "SCOPE" ||
     selectIsBaseMapsLegendPopper(state)
   )
     return "SELECT";

@@ -231,7 +231,7 @@ export default function PanelSelectionProperties() {
     // fallbacks, which would map it to the base map panel.
     type = "BASE_MAP_VERSION";
   } else if (
-    (isMapViewer || isThreedViewer || isBaseMapsViewer) &&
+    (isMapViewer || isThreedViewer || isBaseMapsViewer || isScopeViewer) &&
     selectedItem?.type === "BASE_MAP"
   ) {
     // 3D viewer: clicking a baseMap plane selects it as a BASE_MAP item

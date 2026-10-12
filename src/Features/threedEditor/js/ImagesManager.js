@@ -328,6 +328,10 @@ export default class ImagesManager {
   // Same record-before-creation contract as setBaseMapVisible.
   setBaseMapImageVisible(baseMapId, visible) {
     this.imageVisibleByBaseMapId[baseMapId] = visible;
+    // Base maps grid open: the manager drives the image of its sheets
+    // (BaseMapsGridManager.setImageOnById); the recorded state is restored
+    // when the sheet is released.
+    if (this.sceneManager.baseMapsGridManager?.isSheet(baseMapId)) return;
     const group = this.imagesMap[baseMapId];
     const meshWrap = group?.userData?.meshWrap;
     if (meshWrap) meshWrap.visible = visible;

@@ -13,17 +13,23 @@ import { getSheetsRows } from "./getAlignedSheetsLayout";
 // grid (same arrangement in both). Positions are in paper points: the
 // hand-made ones (`positions`, see useBaseMapsGridLayout) win over the auto
 // layout. Pure.
+// `baseMapIds` (pinned grid of the SCOPE module): an explicit set of base
+// maps, possibly across listings, instead of the base maps of `listingId`.
 //
 // Returns { items: [{ baseMap, sheet }], addSheet } — `addSheet` is the "+"
 // placeholder frame closing the grid.
 export default function composeBaseMapsGridSheets({
   baseMaps,
   listingId,
+  baseMapIds,
   positions,
 }) {
   const storedPositions = positions ?? {};
+  const idSet = baseMapIds ? new Set(baseMapIds) : null;
   const listingBaseMaps =
-    baseMaps?.filter((baseMap) => baseMap.listingId === listingId) ?? [];
+    baseMaps?.filter((baseMap) =>
+      idSet ? idSet.has(baseMap.id) : baseMap.listingId === listingId
+    ) ?? [];
   const sized = listingBaseMaps
     .map((baseMap) => ({ baseMap, sheet: getBaseMapSheet({ baseMap }) }))
     .filter((item) => item.sheet);

@@ -107,6 +107,7 @@ import OverlayBaseMapsTransformLayer from "Features/baseMapOverlays/components/O
 import useBaseMapOverlays from "Features/baseMapOverlays/hooks/useBaseMapOverlays";
 import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
+import BaseMapsGridPinnedController from "Features/baseMapsGrid/components/BaseMapsGridPinnedController";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
 import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
@@ -3005,6 +3006,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 stacks UNDER PopperMapListings, which stays usable over it. */}
           {baseMapsGridMounted && !imageModeActive && (
             <LayerBaseMapsGrid forViewerKey={forViewerKey} />
+          )}
+          {/* Pinned grid (SCOPE module): the shared "MAP" instance keeps
+                its grid open (re-opened after every reducer close). */}
+          {isMapViewer && isActiveViewer && (
+            <BaseMapsGridPinnedController
+              imageModeActive={imageModeActive}
+              showBgImage={showBgImage}
+            />
           )}
 
           {/* Export rapide only — the POV and capture-tool save bars carry

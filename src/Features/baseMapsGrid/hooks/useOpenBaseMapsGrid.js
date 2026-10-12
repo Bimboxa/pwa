@@ -5,6 +5,7 @@ import {
   setBaseMapsGridPhase,
   setBaseMapsGridListingId,
   setBaseMapsGridSelectedBaseMapId,
+  setBaseMapsGridOpenFitAll,
 } from "../baseMapsGridSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
@@ -24,6 +25,11 @@ import {
 // until the sheet of the main base map covers about half of the viewport,
 // then the grid layer takes over (it mounts aligned on that camera and fades
 // the table + the other sheets in, see LayerBaseMapsGrid).
+// `zoom: false` skips the zoom-out: the grid takes over on the current
+// editor camera (SCOPE module, see BaseMapsGridPinnedController).
+// `fitAll: true`: once revealed, the grid flies to the whole table instead
+// of staying on the main base map's sheet (SCOPE module landing: every base
+// map in sight, whichever is the main one — if any).
 export default function useOpenBaseMapsGrid() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -39,45 +45,49 @@ export default function useOpenBaseMapsGrid() {
 
   // main
 
-  return useCallback(() => {
-    const { phase } = store.getState().baseMapsGrid;
-    if (phase !== BASE_MAPS_GRID_PHASE.CLOSED) return;
+  return useCallback(
+    ({ zoom = true, fitAll = false } = {}) => {
+      const { phase } = store.getState().baseMapsGrid;
+      if (phase !== BASE_MAPS_GRID_PHASE.CLOSED) return;
 
-    // no drawing on the editor hidden under the table
-    dispatch(setEnabledDrawingMode(null));
-    dispatch(setBaseMapsGridListingId(baseMap?.listingId ?? null));
-    dispatch(setBaseMapsGridSelectedBaseMapId(baseMap?.id ?? null));
+      // no drawing on the editor hidden under the table
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setBaseMapsGridListingId(baseMap?.listingId ?? null));
+      dispatch(setBaseMapsGridSelectedBaseMapId(baseMap?.id ?? null));
+      dispatch(setBaseMapsGridOpenFitAll(fitAll));
 
-    dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_ZOOM));
+      dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_ZOOM));
 
-    // A module / scope switch closes the grid: a flight landing afterwards
-    // must not re-open it.
-    const takeOver = () => {
-      const current = store.getState().baseMapsGrid.phase;
-      if (current !== BASE_MAPS_GRID_PHASE.OPENING_ZOOM) return;
-      dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_FADE));
-    };
+      // A module / scope switch closes the grid: a flight landing afterwards
+      // must not re-open it.
+      const takeOver = () => {
+        const current = store.getState().baseMapsGrid.phase;
+        if (current !== BASE_MAPS_GRID_PHASE.OPENING_ZOOM) return;
+        dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_FADE));
+      };
 
-    const mapEditor = getActiveMapEditor();
-    const from = mapEditor?.getCameraMatrix?.();
-    const viewport = mapEditor?.getViewportSize?.();
-    const to = getEditorCameraForSheetRatio({
-      printZone: baseMap?.getPrintZone?.(),
-      viewport,
-      ratio: SHEET_VIEWPORT_RATIO,
-    });
-    if (!from || !to) {
-      takeOver();
-      return;
-    }
+      const mapEditor = getActiveMapEditor();
+      const from = mapEditor?.getCameraMatrix?.();
+      const viewport = mapEditor?.getViewportSize?.();
+      const to = getEditorCameraForSheetRatio({
+        printZone: baseMap?.getPrintZone?.(),
+        viewport,
+        ratio: SHEET_VIEWPORT_RATIO,
+      });
+      if (!zoom || !from || !to) {
+        takeOver();
+        return;
+      }
 
-    cancelFlightRef.current = flyCameraMatrix({
-      from,
-      to,
-      center: { x: viewport.width / 2, y: viewport.height / 2 },
-      durationMs: ZOOM_DURATION_MS,
-      onTick: (matrix) => mapEditor.setCameraMatrix?.(matrix),
-      onDone: takeOver,
-    });
-  }, [baseMap, dispatch, store]);
+      cancelFlightRef.current = flyCameraMatrix({
+        from,
+        to,
+        center: { x: viewport.width / 2, y: viewport.height / 2 },
+        durationMs: ZOOM_DURATION_MS,
+        onTick: (matrix) => mapEditor.setCameraMatrix?.(matrix),
+        onDone: takeOver,
+      });
+    },
+    [baseMap, dispatch, store]
+  );
 }
