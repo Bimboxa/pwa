@@ -53,12 +53,14 @@ fantômes jusqu'à la construction des copies (`holdCopyGhostsUntilBuilt`).
 Trois clics, tout en **local du fond de plan** (rotation autour de la
 normale du plan, local +Z — identique pour un plan horizontal ou vertical) :
 
-1. **Pivot** : un sommet d'annotation (cette annotation tourne, règle de
-   sélection implicite) ou, si les annotations à tourner sont sélectionnées,
-   n'importe quel point comme pour un tracé : arête, point d'un plan de fond
-   de plan (croix), sinon point libre sur le plan du fond de plan sélectionné
-   en 2D (`computePivotSnap`) — la sélection tourne autour du point cliqué,
-   dans le repère de son fond de plan.
+1. **Pivot** : la cascade du 1er point d'un tracé (`computeSnapTarget`,
+   `computePivotSnap`) : un sommet (celui d'une annotation fait tourner cette
+   annotation, règle de sélection implicite), sinon une arête, sinon un point
+   du plan de fond de plan sous le curseur — ou du plan du fond de plan
+   sélectionné en 2D hors de tout plan — **aligné sur les sommets existants**
+   le long des axes du plan (marqueurs rouges, bras pleins dans la couleur de
+   l'axe). Hors sommet d'annotation, la sélection tourne autour du point
+   cliqué, dans le repère de son fond de plan.
    Le grab (`rotateAnnotationSessionStore`) mémorise `pivotLocal`, les poses
    de départ, l'index cible sans les roots emportés et un instantané des
    annotations résolues (`carriedAnnotations`, pour les fantômes).

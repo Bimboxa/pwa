@@ -6,6 +6,10 @@ import { Plane, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
+import computeSnapTarget from "Features/threedDrawing/utils/computeSnapTarget";
+import buildUserAxesPlaneHit from "Features/threedDrawing/utils/buildUserAxesPlaneHit";
 
 import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
 
@@ -19,7 +23,6 @@ import {
   parseTypedAngleDeg,
 } from "Features/annotationTransform/utils/copyBuffer";
 
-import useAnnotationsOnlyVertexSnap from "../hooks/useAnnotationsOnlyVertexSnap";
 import applyRotateAnnotationsPose from "../utils/applyRotateAnnotationsPose";
 import { getGrabCopyCount } from "../services/moveCopyGhostsThreed";
 import {
@@ -32,6 +35,8 @@ const COLOR_EDGE = "#2e7d32";
 const COLOR_PLANE = "#1565c0";
 const COLOR_CROSS = "#90a4ae";
 const COLOR_FREE = "#000000";
+const COLOR_LOCK = "#ff1744";
+const ALIGN_MARKER_FILL = "rgba(255, 23, 68, 0.15)";
 const COLOR_PIVOT = "#e65100";
 const COLOR_REF_LINE = "#9e9e9e";
 const COLOR_CURRENT_LINE = "#e65100";
@@ -39,6 +44,9 @@ const COLOR_CURRENT_LINE = "#e65100";
 const SNAP_CIRCLE_RADIUS_PX = 6;
 const SNAP_CIRCLE_STROKE_PX = 2;
 const PIVOT_CIRCLE_RADIUS_PX = 4;
+// Vertices the pivot cursor is aligned with (one marker per cross arm).
+const ALIGN_MARKERS_COUNT = 2;
+const ALIGN_LEADER_EPS_M = 5e-3;
 
 // A bearing difference lands in (-2π, 2π): bring the angle back to
 // (-π, π] so the readout stays between -180° and +180°.
@@ -54,10 +62,13 @@ function normalizeAngle(phi) {
 // map group's LOCAL XY frame (bearing = atan2(dy_local, dx_local)): the
 // rotation happens around the plane's normal (local +Z), so the same math
 // serves HORIZONTAL and VERTICAL maps. CAD-style 3 clicks:
-// 1. pivot phase: a vertex of an annotation (that annotation is turned, with
-//    the implicit-selection rule), else — like a polyline being drawn — an
-//    edge, a point of a base map plane (cross) or a free point on the
-//    2D-selected base map's plane: the SELECTION is then turned around it;
+// 1. pivot phase: the drawing cascade of a polyline's first point
+//    (computeSnapTarget): a vertex (an annotation's: that annotation is
+//    turned, with the implicit-selection rule), else an edge, else a point
+//    of a base map plane — or of the 2D-selected base map's plane when the
+//    cursor is off every plan — aligned with the existing vertices along
+//    the plane's axes (markers + solid arms): the SELECTION is then turned
+//    around it;
 // 2. reference phase: dashed helper line from the pivot to the cursor
 //    (global snap — the reference axis usually anchors on a point of the
 //    rotated annotation itself, which hasn't moved yet);
@@ -70,13 +81,15 @@ export default function RotateAnnotationOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.rotateAnnotationMode.active);
 
   const { findNearestSnap } = useVertexSnap({ active });
-  const { findNearestSnap: findNearestAnnotationSnap } =
-    useAnnotationsOnlyVertexSnap({ active });
   // Free pivot fallback plane: the 2D-selected base map (read in the
   // pointer handler through a ref, no re-attach).
   const mainBaseMapId = useMainBaseMap()?.id ?? null;
   const mainBaseMapIdRef = useRef(mainBaseMapId);
   mainBaseMapIdRef.current = mainBaseMapId;
+  // User axes of the gizmo frame: the alignment arms and their colours.
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
+  const yawDegRef = useRef(yawDeg);
+  yawDegRef.current = yawDeg;
 
   const snapCircleRef = useRef(null);
   const pivotCircleRef = useRef(null);
@@ -86,6 +99,8 @@ export default function RotateAnnotationOverlayThreed() {
   const arcRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
+  const alignMarkerRefs = useRef([]);
+  const alignLeaderRefs = useRef([]);
   // Angle badge: the same DrawingLengthBadge as the move tool and the 2D
   // tools (pill, padlock when the angle is typed).
   const badgeRef = useRef(null);
@@ -195,7 +210,41 @@ export default function RotateAnnotationOverlayThreed() {
       ].forEach((r) => {
         if (r.current) r.current.style.display = "none";
       });
+      updateAlignMarkers(null, null);
       updateAngleLabel(null, null);
+    }
+
+    // Vertices the pivot cursor is aligned with: a marker on each, plus a
+    // dashed leader down to its footprint in the plane when it is off it
+    // (e.g. a wall-top vertex) — same helpers as the drawing overlay.
+    function updateAlignMarkers(snap, rect) {
+      const vertices = snap?.alignFrom ?? [];
+      for (let i = 0; i < ALIGN_MARKERS_COUNT; i++) {
+        const marker = alignMarkerRefs.current[i];
+        const leader = alignLeaderRefs.current[i];
+        const vertex = vertices[i];
+        const at = vertex && rect ? toScreen(vertex.position, rect) : null;
+        if (marker) {
+          if (at) {
+            marker.setAttribute("cx", at.sx);
+            marker.setAttribute("cy", at.sy);
+          }
+          marker.style.display = at ? "block" : "none";
+        }
+        if (!leader) continue;
+        const isOffPlane =
+          at &&
+          vertex.footprint &&
+          vertex.position.distanceTo(vertex.footprint) > ALIGN_LEADER_EPS_M;
+        const foot = isOffPlane ? toScreen(vertex.footprint, rect) : null;
+        if (foot) {
+          leader.setAttribute("x1", at.sx);
+          leader.setAttribute("y1", at.sy);
+          leader.setAttribute("x2", foot.sx);
+          leader.setAttribute("y2", foot.sy);
+        }
+        leader.style.display = foot ? "block" : "none";
+      }
     }
 
     // World point at `bearing` and `radius` from the pivot, in the base map
@@ -318,49 +367,65 @@ export default function RotateAnnotationOverlayThreed() {
       return target;
     }
 
-    // Pivot pick (phase 1): annotation vertex, else edge, else a base map
-    // plane hit, else a free point on the 2D-selected base map's plane.
-    function computePivotSnap(canvasSize) {
-      const vertexSnap = findNearestAnnotationSnap(ndc, camera, canvasSize, 12);
-      if (vertexSnap) return vertexSnap;
-      const edgeSnap = findNearestEdgeSnap(
-        getMeshAdjacency(),
-        ndc,
-        camera,
-        canvasSize,
-        12
-      );
-      if (edgeSnap) return edgeSnap;
-      const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
-        preferredBaseMapId: mainBaseMapIdRef.current,
-      });
-      if (planeHitTarget) {
-        return {
-          position: planeHitTarget.position,
-          kind: "PLANE",
-          baseMapId: planeHitTarget.baseMapId,
-          axisA: planeHitTarget.axisA,
-          axisB: planeHitTarget.axisB,
-        };
-      }
-      const group = mainBaseMapIdRef.current
-        ? editor?.sceneManager?.imagesManager?.getGroup(
-            mainBaseMapIdRef.current
-          )
+    // Off every plan: the 2D-selected base map's plane, with the user axes
+    // as cross arms (alignment helpers keep working there).
+    function intersectMainBaseMapPlane(mNdc, userAxes) {
+      const baseMapId = mainBaseMapIdRef.current;
+      const group = baseMapId
+        ? editor?.sceneManager?.imagesManager?.getGroup(baseMapId)
         : null;
       if (!group) return null;
       group.updateWorldMatrix(true, false);
-      raycaster.setFromCamera(ndc, camera);
+      raycaster.setFromCamera(mNdc, camera);
       group.getWorldQuaternion(groupQuat);
       planeNormal.set(0, 0, 1).applyQuaternion(groupQuat);
       fallbackPlane.setFromNormalAndCoplanarPoint(
         planeNormal,
         group.getWorldPosition(new Vector3())
       );
-      if (raycaster.ray.intersectPlane(fallbackPlane, planeHit)) {
-        return { position: planeHit.clone(), kind: "FREE" };
-      }
-      return null;
+      if (!raycaster.ray.intersectPlane(fallbackPlane, planeHit)) return null;
+      return buildUserAxesPlaneHit(planeHit, planeNormal, userAxes, {
+        baseMapId,
+      });
+    }
+
+    // Pivot pick (phase 1): the first-point cascade of the drawing overlay
+    // (computeSnapTarget) — vertex (global index, so an annotation vertex
+    // still grabs its annotation), edge, base map plane under the cursor
+    // (else the 2D-selected base map's plane), the plane hit aligned with
+    // the existing vertices along the plane's axes (alignFrom markers,
+    // locked arms).
+    function computePivotSnap(canvasSize) {
+      const userAxes = getUserAxesWorldDirections(yawDegRef.current);
+      return computeSnapTarget({
+        mouseNdc: ndc,
+        camera,
+        canvasSize,
+        lastVertex: undefined,
+        inProgressPolyline: [],
+        findNearestVertex: (mNdc, cam, sz, options) =>
+          findNearestSnap(mNdc, cam, sz, 12, options),
+        findNearestEdge: (mNdc, cam, sz, options) =>
+          findNearestEdgeSnap(
+            getMeshAdjacency(),
+            mNdc,
+            cam,
+            sz,
+            undefined,
+            options
+          ),
+        intersectPlane: (mNdc) =>
+          intersectBaseMapPlane(editor, mNdc, camera, {
+            preferredBaseMapId: mainBaseMapIdRef.current,
+          }) ?? intersectMainBaseMapPlane(mNdc, userAxes),
+        alignAdjacency: getMeshAdjacency(),
+        axes: userAxes.map((a) => ({ key: a.key, dir: a.dir })),
+      });
+    }
+
+    function colorForSnap(snap) {
+      if (snap?.lockedAxes?.A || snap?.lockedAxes?.B) return COLOR_LOCK;
+      return colorForKind(snap?.kind);
     }
 
     function colorForKind(kind) {
@@ -373,14 +438,16 @@ export default function RotateAnnotationOverlayThreed() {
             : COLOR_FREE;
     }
 
-    // Cross helper of a PLANE hit: the two dashed lines through the point,
-    // parallel to the plane's edges, ending on its borders.
+    // Cross helper of a plane hit: the two dashed lines through the point,
+    // parallel to the plane's edges, ending on its borders. An arm running
+    // through an aligned vertex (pivot phase) is drawn solid, in the colour
+    // of the user axis it follows when known, else the lock colour.
     function updateCross(target, rect) {
-      const show = target?.kind === "PLANE" && target.axisA && target.axisB;
+      const show = Boolean(target?.axisA && target?.axisB);
       [
-        [crossARef, target?.axisA],
-        [crossBRef, target?.axisB],
-      ].forEach(([ref, axis]) => {
+        [crossARef, target?.axisA, "A"],
+        [crossBRef, target?.axisB, "B"],
+      ].forEach(([ref, axis, key]) => {
         const el = ref.current;
         if (!el) return;
         const a = show ? toScreen(axis[0], rect) : null;
@@ -393,6 +460,13 @@ export default function RotateAnnotationOverlayThreed() {
         el.setAttribute("y1", a.sy);
         el.setAttribute("x2", b.sx);
         el.setAttribute("y2", b.sy);
+        const locked = Boolean(target.lockedAxes?.[key]);
+        const armAxis = locked ? target.axisKeys?.[key] : null;
+        el.style.stroke = locked
+          ? (AXIS_COLORS[armAxis] ?? COLOR_LOCK)
+          : COLOR_CROSS;
+        if (locked) el.removeAttribute("stroke-dasharray");
+        else el.setAttribute("stroke-dasharray", "5 4");
         el.style.display = "block";
       });
     }
@@ -415,9 +489,10 @@ export default function RotateAnnotationOverlayThreed() {
           snapCircleRef,
           snap?.position ?? null,
           rect,
-          colorForKind(snap?.kind)
+          colorForSnap(snap)
         );
         updateCross(snap, rect);
+        updateAlignMarkers(snap, rect);
         editor.renderScene?.();
         return;
       }
@@ -532,7 +607,7 @@ export default function RotateAnnotationOverlayThreed() {
       dom.removeEventListener("pointerleave", onPointerLeave);
       setLastRotateAnnotationSnap(null);
     };
-  }, [active, findNearestSnap, findNearestAnnotationSnap]);
+  }, [active, findNearestSnap]);
 
   if (!active) return null;
   return (
@@ -568,6 +643,27 @@ export default function RotateAnnotationOverlayThreed() {
           strokeDasharray="5 4"
           style={{ display: "none" }}
         />
+        {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+          <line
+            key={`leader-${i}`}
+            ref={(el) => (alignLeaderRefs.current[i] = el)}
+            stroke={COLOR_LOCK}
+            strokeWidth="1"
+            strokeDasharray="5 4"
+            style={{ display: "none" }}
+          />
+        ))}
+        {Array.from({ length: ALIGN_MARKERS_COUNT }).map((_, i) => (
+          <circle
+            key={`marker-${i}`}
+            ref={(el) => (alignMarkerRefs.current[i] = el)}
+            r={SNAP_CIRCLE_RADIUS_PX}
+            stroke={COLOR_LOCK}
+            strokeWidth="1"
+            fill={ALIGN_MARKER_FILL}
+            style={{ display: "none" }}
+          />
+        ))}
         <line
           ref={axisLineRef}
           stroke={COLOR_PIVOT}
