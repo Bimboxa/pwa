@@ -11,9 +11,14 @@ import { nanoid } from "@reduxjs/toolkit";
  *
  * A single oldId → newId map is shared across the main contour and every cut,
  * so a point referenced in several places yields exactly one new record.
+ * Pass `ctx.idMap` to share that map across several annotations duplicated
+ * together (multiple copy of a selection): a point shared by two sources
+ * stays shared by their duplicates.
+ *
+ * Cuts get a fresh `id` too (they are addressed by id in the editor).
  *
  * @param {object} annotation fully-built cloned annotation (pixel-space refs)
- * @param {object} ctx { imageSize, projectId, baseMapId, listingId }
+ * @param {object} ctx { imageSize, projectId, baseMapId, listingId, idMap? }
  * @returns {{ annotation: object, pointRecords: object[] }}
  */
 export default function duplicateAnnotationPoints(annotation, ctx) {
@@ -23,7 +28,7 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
   const width = imageSize?.width;
   const height = imageSize?.height;
 
-  const idMap = new Map(); // oldId → newId
+  const idMap = ctx?.idMap instanceof Map ? ctx.idMap : new Map(); // oldId → newId
   const pointRecords = [];
 
   // Remap one array of point refs, minting new points as needed.
@@ -116,9 +121,14 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
   if (Array.isArray(annotation.cuts)) {
     nextAnnotation.cuts = annotation.cuts.map((cut) =>
       cut && Array.isArray(cut.points)
-        ? { ...cut, points: remapRefs(cut.points) }
+        ? { ...cut, id: nanoid(), points: remapRefs(cut.points) }
         : cut
     );
+  }
+
+  // Inner Steiner points (POLYGON) are db.points refs too.
+  if (Array.isArray(annotation.innerPoints)) {
+    nextAnnotation.innerPoints = remapRefs(annotation.innerPoints);
   }
 
   if (Array.isArray(annotation.guideLines)) {

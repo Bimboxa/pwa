@@ -12,14 +12,24 @@ Le geste est le même en 2D et en 3D :
 
 - **Déplacer** : clic sur un point d'une annotation (elle suit la souris), clic
   sur la destination.
-  En 2D : `Maj` verrouille le déplacement sur l'axe horizontal ou vertical
-  passant par le point cliqué (l'aimantation est alors ignorée), et le point
-  cliqué reste une cible d'alignement du réticule.
+  `Maj` verrouille le déplacement sur un axe passant par le point cliqué,
+  l'aimantation est alors ignorée : en 2D l'axe horizontal ou vertical de
+  l'image (le point cliqué reste une cible d'alignement du réticule), en 3D
+  l'axe utilisateur X / Y / Z du gizmo le plus proche du curseur
+  (`computeAxisLockSnap`, ligne et longueur dans la couleur de l'axe ; un
+  verrou Z change l'altitude, persistée en `offsetZ`).
+  **Copie multiple** : pendant le déplacement, `x` puis des chiffres (`x3`)
+  conservent l'originale en place et créent N copies le long du vecteur
+  point saisi → point cliqué, la copie i à `i ×` le vecteur (le clic pose la
+  1re copie). `⌫` efface la saisie (`x3` → `x` → déplacement simple). L'aperçu
+  montre toutes les copies ; la carte « Copie multiple » du helper affiche le
+  buffer. Refusée sur un axe de révolution.
 - **Tourner** : 1/3 clic sur le centre de rotation (un point de l'annotation),
   2/3 clic sur un point qui fixe l'axe de référence, 3/3 rotation à la souris
   (`Maj` : pas de 15° en 2D) ou angle tapé au clavier, clic ou `Entrée` pour
   valider.
-- `Échap` annule dans l'ordre : l'angle tapé, la saisie en cours, puis l'outil.
+- `Échap` annule dans l'ordre : l'angle / les copies tapés, la saisie en
+  cours, puis l'outil.
 - L'outil reste armé après une validation.
 
 Ce dossier porte la version **2D** et l'aide partagée ; la version 3D reste dans
@@ -116,6 +126,32 @@ anti-horaire (même convention qu'en 3D) — voir `utils/rotateAngle.js`.
 Ne jamais écrire de `x/y` directement dans `annotation.points`
 (cf. `docs/annotations/POINTS_STORAGE.md`).
 
+### Copie multiple
+
+- Buffer : `utils/copyBuffer.js` (`appendToCopyBuffer`, `parseCopyCount`,
+  `MAX_COPIES`). 2D : `transformSessionStore.copyBuffer` (phase
+  `"MOVE_COPY"` → les originales restent visibles et aimantables). 3D :
+  `threedEditor.moveAnnotationMode.copyBuffer`, miroir `grab.copyBuffer`.
+- Écriture : `services/createTranslatedAnnotationCopiesService.js`, partagé
+  2D / 3D. Chaque copie part de la **ligne stockée** de sa source (jamais de
+  l'objet hydraté), sur laquelle on greffe la géométrie : points résolus
+  translatés (`applyDeltaPosToAnnotation`) puis re-frappés en nouveaux
+  `db.points` (`duplicateAnnotationPoints` avec une `idMap` partagée par
+  copie : un sommet commun à deux murs emportés reste commun à leurs
+  copies). Suivent aussi `rotationCenter`, `offsetZ` (+ i × dz en 3D), le
+  `mesh3d` / `mesh3dSource` (affine de translation), les rels de catégories,
+  le calque actif, les libellés auto-numérotés. **Non copiés** (comme
+  « Dupliquer ») : ouvertures collées, parties peintes ; `meshLines`
+  abandonnées. Un seul `withUndoGroup`, une seule transaction.
+- Aperçu 3D : `threedAnnotationMove/services/moveCopyGhostsThreed.js` —
+  un objet neuf par (copie, annotation) via `createAnnotationObject3D`
+  (jamais un `clone()` du root : `Object3D.copy` sérialise `userData`, qui
+  porte matériaux et callbacks), `userData = { isCopyGhost: true }` (ignoré
+  par `buildIndex` et le picking), enfant du groupe du fond de plan. Les
+  originaux restent à leur pose de saisie ; après le drop les fantômes
+  tiennent lieu des copies jusqu'à leur construction
+  (`subscribeAnnotationReady`, fallback 2,5 s).
+
 ## Glossaire français → code
 
 | Français              | Code                                  |
@@ -126,6 +162,7 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
 | axe de référence      | `session.reference`                   |
 | annotations emportées | `session.carriedAnnotationIds`        |
 | angle tapé            | `session.angleBuffer`                 |
+| copies tapées         | `session.copyBuffer`, `"MOVE_COPY"`   |
 | aperçu                | `TransformToolPreviewLayer`           |
 
 ## Limites (V1)
@@ -136,5 +173,6 @@ Ne jamais écrire de `x/y` directement dans `annotation.points`
 ## Tests
 
 ```bash
-node --test src/Features/annotationTransform/utils/annotationTransform.test.mjs
+node --test src/Features/annotationTransform/utils/*.test.mjs
+node --test src/Features/threedAnnotationMove/utils/*.test.mjs
 ```

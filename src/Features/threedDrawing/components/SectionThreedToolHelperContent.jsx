@@ -9,6 +9,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import SectionTransformToolHelper from "Features/annotationTransform/components/SectionTransformToolHelper";
+import SectionMultiCopy from "Features/annotationTransform/components/SectionMultiCopy";
 
 import {
   getMoveToolHint,
@@ -21,6 +22,7 @@ import { parseRotateAngleBuffer } from "Features/threedBaseMapMove/utils/applyRo
 import applyRotateAnnotationsPose from "Features/threedAnnotationMove/utils/applyRotateAnnotationsPose";
 import { getRotateAnnotationGrab } from "Features/threedAnnotationMove/services/rotateAnnotationSessionStore";
 import getVertexOffsetFieldLabel from "Features/threedVertexOffset/utils/getVertexOffsetFieldLabel";
+import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
 
 // Shortcuts of the 3D « Extruder » (useExtrudePointerHandlers).
 const EXTRUDE_SHORTCUTS = [
@@ -67,6 +69,9 @@ export default function SectionThreedToolHelperContent({ tool }) {
   );
   const moveCarriedCount = useSelector(
     (s) => s.threedEditor.moveAnnotationMode.carriedAnnotationIds.length
+  );
+  const moveCopyBuffer = useSelector(
+    (s) => s.threedEditor.moveAnnotationMode.copyBuffer
   );
   const vertexOffsetField = useSelector(
     (s) => s.threedEditor.vertexOffsetMode.armedField
@@ -203,9 +208,14 @@ export default function SectionThreedToolHelperContent({ tool }) {
   if (tool === "MOVE_ANNOTATION") {
     return (
       <SectionTransformToolHelper
-        hint={getMoveToolHint({ carriedCount: moveCarriedCount })}
+        hint={getMoveToolHint({
+          carriedCount: moveCarriedCount,
+          copyCount: parseCopyCount(moveCopyBuffer),
+        })}
         shortcuts={MOVE_TOOL_SHORTCUTS}
-      />
+      >
+        <SectionMultiCopy copyBuffer={moveCopyBuffer} />
+      </SectionTransformToolHelper>
     );
   }
 

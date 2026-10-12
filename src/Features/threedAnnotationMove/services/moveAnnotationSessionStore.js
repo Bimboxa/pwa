@@ -3,8 +3,9 @@
 // pointer handlers (read it on click) — same pattern as
 // moveBaseMapSessionStore.
 
-// { position: Vector3, kind: "VERTEX" | "EDGE" | "PLANE" | "FREE",
-//   meshKey?, baseMapId?, axisA?, axisB? } | null
+// { position: Vector3, kind: "VERTEX" | "EDGE" | "PLANE" | "AXIS" | "FREE",
+//   meshKey?, baseMapId?, axisA?, axisB?, axis? ("X" | "Y" | "Z" of an AXIS
+//   snap — Shift ortho lock) } | null
 let lastSnap = null;
 
 // The in-progress grab:
@@ -18,6 +19,9 @@ let lastSnap = null;
 //   rootStartPoses: Map<id, {position: Vector3, rotZ}>, // at grab time
 //   targetVerts,                 // target-only snap index (carried roots
 //   targetAdjacency,             // excluded), built fresh at grab time
+//   copyBuffer,                  // « copie multiple » typed buffer ("x3")
+//   ghosts,                      // copy previews (moveCopyGhostsThreed)
+//   lastDelta,                   // last local delta applied (pose replay)
 // } | null
 let grab = null;
 

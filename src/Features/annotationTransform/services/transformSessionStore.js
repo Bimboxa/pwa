@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 import { parseAngleBufferToPixelDeg } from "../utils/rotateAngle";
+import { parseCopyCount } from "../utils/copyBuffer";
 
 // Session state of the 2D « Déplacer » / « Tourner » tools — a plain module
 // store (same model as the 3D tools' session stores), read through
@@ -15,6 +16,8 @@ import { parseAngleBufferToPixelDeg } from "../utils/rotateAngle";
 //   cursor: last cursor position (snapped when a snap is active)
 //   angleDeg: ROTATE = current pixel-space angle (y down: clockwise positive)
 //   angleBuffer: ROTATE = typed angle (user degrees), "" when mouse-driven
+//   copyBuffer: MOVE = typed « copie multiple » buffer ("x3"), "" = plain
+//     move (see utils/copyBuffer)
 //   committing: the write is in flight — the preview stays until the
 //     annotations come back from the db
 const EMPTY = Object.freeze({
@@ -25,6 +28,7 @@ const EMPTY = Object.freeze({
   cursor: null,
   angleDeg: 0,
   angleBuffer: "",
+  copyBuffer: "",
   committing: false,
 });
 
@@ -59,11 +63,19 @@ export function useTransformSession() {
   return useSyncExternalStore(subscribe, getTransformSession);
 }
 
+// Number of copies the MOVE session asks for (0 = plain move).
+export function getTransformCopyCount(session = state) {
+  return session.kind === "MOVE" ? parseCopyCount(session.copyBuffer) : 0;
+}
+
 // Coarse phase of the session, for subscribers that must NOT re-render on
 // every cursor move (InteractionLayer): "IDLE" (nothing grabbed) | "MOVE"
-// (destination pending) | "ROTATE_REFERENCE" (2/3) | "ROTATE_TURN" (3/3).
+// (destination pending) | "MOVE_COPY" (destination of the 1st copy pending —
+// the originals stay in place, visible and snappable) | "ROTATE_REFERENCE"
+// (2/3) | "ROTATE_TURN" (3/3).
 function getTransformPhase() {
-  if (state.kind === "MOVE") return "MOVE";
+  if (state.kind === "MOVE")
+    return getTransformCopyCount() > 0 ? "MOVE_COPY" : "MOVE";
   if (state.kind === "ROTATE")
     return state.reference ? "ROTATE_TURN" : "ROTATE_REFERENCE";
   return "IDLE";
@@ -82,4 +94,11 @@ export function setRotateAngleBuffer(angleBuffer) {
     angleBuffer,
     ...(angleDeg != null ? { angleDeg } : {}),
   });
+}
+
+// MOVE — typed « copie multiple » buffer (keyboard). Ignored outside a
+// pending move.
+export function setMoveCopyBuffer(copyBuffer) {
+  if (state.kind !== "MOVE" || state.committing) return;
+  setTransformSession({ copyBuffer });
 }
