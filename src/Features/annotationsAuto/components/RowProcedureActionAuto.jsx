@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useListingProcedureSourceIds from "../hooks/useListingProcedureSourceIds";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
 import getProceduresForAnnotation from "../utils/getProceduresForAnnotation";
@@ -53,41 +54,74 @@ export default function RowProcedureActionAuto({
 
   return (
     <>
-      {linkedProcedures.map((procedure) => {
-        // An output of this procedure redirects to its source: play / reset /
-        // refresh on a generated row (e.g. the CHATEAU_EAU_V1 "Ligne" riding
-        // the Axe template) must operate on the annotation it was created
-        // from, not relaunch the procedure with itself as source.
-        const sourceId =
-          annotation?.autoCreatedByProcedureKey === procedure.key &&
-          annotation?.autoCreatedFrom
-            ? annotation.autoCreatedFrom
-            : annotation?.id;
-        return (
-          <Box key={procedure.key}>
-            {hasProcedureParams(procedure) && (
-              <SectionProcedureParams
-                procedure={procedure}
-                row
-                hideHelperText
-                sx={{
-                  px: 1.25,
-                  py: 0.25,
-                  bgcolor: (theme) =>
-                    lighten(theme.palette.secondary.main, 0.93),
-                }}
-              />
-            )}
-
-            <RowProcedureLauncher
-              procedure={procedure}
-              baseMapId={annotation?.baseMapId}
-              sourceAnnotationIds={[sourceId]}
-              sx={{ borderBottom: "1px solid", borderColor: "divider" }}
-            />
-          </Box>
-        );
-      })}
+      {linkedProcedures.map((procedure) => (
+        <RowProcedureActionAutoBand
+          key={procedure.key}
+          annotation={annotation}
+          procedure={procedure}
+        />
+      ))}
     </>
+  );
+}
+
+// One procedure band. Sources of the launch:
+//  - by default this single annotation — or, for an output of this
+//    procedure, its source: play / reset / refresh on a generated row (e.g.
+//    the CHATEAU_EAU_V1 "Ligne" riding the Axe template) must operate on the
+//    annotation it was created from, not relaunch the procedure with itself
+//    as source;
+//  - for a procedure flagged `sourcesFromListing` (registry), EVERY source
+//    of its listing on this base map (useListingProcedureSourceIds — the
+//    same set as the listing « Dessin auto » band): the run needs the whole
+//    set (e.g. the six château d'eau walls) and reset / refresh must sweep
+//    the outputs tagged with any of them.
+function RowProcedureActionAutoBand({ annotation, procedure }) {
+  // data
+
+  const fromListing = procedure.sourcesFromListing === true;
+  const getListingSourceIds = useListingProcedureSourceIds({
+    listingId: annotation?.listingId,
+    baseMapId: annotation?.baseMapId,
+    enabled: fromListing,
+  });
+
+  // helpers
+
+  const ownSourceId =
+    annotation?.autoCreatedByProcedureKey === procedure.key &&
+    annotation?.autoCreatedFrom
+      ? annotation.autoCreatedFrom
+      : annotation?.id;
+  const listingSourceIds = fromListing ? getListingSourceIds(procedure) : [];
+  const sourceAnnotationIds =
+    fromListing && listingSourceIds.length > 0
+      ? listingSourceIds
+      : [ownSourceId];
+
+  // render
+
+  return (
+    <Box>
+      {hasProcedureParams(procedure) && (
+        <SectionProcedureParams
+          procedure={procedure}
+          row
+          hideHelperText
+          sx={{
+            px: 1.25,
+            py: 0.25,
+            bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.93),
+          }}
+        />
+      )}
+
+      <RowProcedureLauncher
+        procedure={procedure}
+        baseMapId={annotation?.baseMapId}
+        sourceAnnotationIds={sourceAnnotationIds}
+        sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+      />
+    </Box>
   );
 }

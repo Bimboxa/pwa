@@ -24,6 +24,24 @@ const LIBRARY_LOADERS = import.meta.glob(
 //
 // The library templates come straight from the source library (not from Dexie),
 // which is fine: matchAnnotationTemplate only inspects `mappingCategories`.
+// Registry entries chained to a procedure (chainedProcedureKeys, transitive,
+// registry order, no duplicates).
+function collectChainedProcedures(procedure, procedures) {
+  const out = [];
+  const seen = new Set(procedure ? [procedure.key] : []);
+  const queue = [...(procedure?.chainedProcedureKeys ?? [])];
+  while (queue.length > 0) {
+    const key = queue.shift();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const entry = procedures.find((p) => p.key === key);
+    if (!entry) continue;
+    out.push(entry);
+    queue.push(...(entry.chainedProcedureKeys ?? []));
+  }
+  return out;
+}
+
 export default function useSystemDefinition(object) {
   const appConfig = useAppConfig();
   const configCode = import.meta.env.VITE_CONFIG_CODE;
@@ -111,10 +129,32 @@ export default function useSystemDefinition(object) {
         }
       : null);
 
-  // Generated templates: one per created category, in the procedure's order.
-  const generatedTemplates = (procedure?.createdMappingCategories ?? [])
+  // Generated templates: one per created category, in the procedure's order —
+  // then those of the procedures chained to it (registry
+  // `chainedProcedureKeys`, e.g. the château d'eau surfaces drawn on top of
+  // the walls): the système pre-creates the whole pipeline's templates.
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
+  const chainedProcedures = collectChainedProcedures(procedure, procedures);
+  const createdCategories = [
+    ...new Set(
+      [procedure, ...chainedProcedures].flatMap(
+        (p) => p?.createdMappingCategories ?? []
+      )
+    ),
+  ];
+  const generatedTemplates = createdCategories
     .map((category) => matchAnnotationTemplate(templates, [category]))
     .filter(Boolean);
 
-  return { procedure, mainTemplate, generatedTemplates, loading };
+  // Procedures launched from the listing (the chained ones): written on the
+  // target listing's procedureKeys when the système is materialized.
+  const listingProcedureKeys = chainedProcedures.map((p) => p.key);
+
+  return {
+    procedure,
+    mainTemplate,
+    generatedTemplates,
+    listingProcedureKeys,
+    loading,
+  };
 }

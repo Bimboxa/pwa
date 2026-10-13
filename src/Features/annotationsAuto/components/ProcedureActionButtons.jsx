@@ -92,6 +92,8 @@ export default function ProcedureActionButtons({
         projectId,
         procedureKey,
         sourceAnnotationIds: sourceIds,
+        chainedProcedureKeys: procedure?.chainedProcedureKeys,
+        procedures: appConfig?.automatedAnnotationsProcedures,
       }),
     [sourceKey, projectId, procedureKey, annotationsUpdatedAt]
   );
@@ -155,6 +157,8 @@ export default function ProcedureActionButtons({
       projectId,
       procedureKey,
       sourceAnnotationIds: sourceIds,
+      chainedProcedureKeys: procedure?.chainedProcedureKeys,
+      procedures: appConfig?.automatedAnnotationsProcedures,
     });
     const ids = outputs.map((a) => a.id);
     if (ids.length === 0) return;

@@ -11,6 +11,8 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 import { buildRevolutionAxisDraft } from "Features/revolutionAxes/utils/buildRevolutionAxisDrafts";
 
+import ensureListingProcedureKeys from "Features/annotationsAuto/services/ensureListingProcedureKeys";
+
 import findObjectTemplateInListing from "../services/findObjectTemplateInListing";
 import useEnsureSystemTemplatesInListing, {
   getSystemTemplateModelId,
@@ -28,8 +30,19 @@ export default function usePlaceSystemFromLibrary() {
   const dispatch = useDispatch();
   const ensureTemplates = useEnsureSystemTemplatesInListing();
 
-  return async ({ object, mainTemplate, generatedTemplates, listingId }) => {
+  return async ({
+    object,
+    mainTemplate,
+    generatedTemplates,
+    listingId,
+    listingProcedureKeys,
+  }) => {
     if (!object || !listingId || !mainTemplate) return;
+
+    // procedures chained to the système's procedure (useSystemDefinition
+    // listingProcedureKeys) are launched from the listing's « Dessin auto »
+    // band: link them on the target listing.
+    await ensureListingProcedureKeys(listingId, listingProcedureKeys);
 
     // Revolution-axis source (useSystemDefinition stand-in, e.g. Château
     // d'eau): an axis belongs to its base map + scope — no source template.

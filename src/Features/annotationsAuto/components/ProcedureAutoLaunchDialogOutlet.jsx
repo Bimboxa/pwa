@@ -16,6 +16,7 @@ import useCreateListingForObjects from "Features/objectsLibrary/hooks/useCreateL
 import useEnsureSystemTemplatesInListing from "Features/objectsLibrary/hooks/useEnsureSystemTemplatesInListing";
 import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
 import getProcedureOutputs from "../services/getProcedureOutputs";
+import ensureListingProcedureKeys from "../services/ensureListingProcedureKeys";
 
 // strings
 
@@ -117,6 +118,9 @@ export default function ProcedureAutoLaunchDialogOutlet() {
         templates: systemSetup.templates,
         listingId,
       });
+      // chained procedures (e.g. the château d'eau surfaces) are launched
+      // from the listing: link them so its « Dessin auto » band shows them
+      await ensureListingProcedureKeys(listingId, entry?.chainedProcedureKeys);
       return true;
     } catch (e) {
       console.error("[ProcedureAutoLaunchDialogOutlet] system setup failed", e);
@@ -135,6 +139,8 @@ export default function ProcedureAutoLaunchDialogOutlet() {
       projectId,
       procedureKey,
       sourceAnnotationIds: [sourceAnnotationId],
+      chainedProcedureKeys: entry?.chainedProcedureKeys,
+      procedures: appConfig?.automatedAnnotationsProcedures,
     });
     if (previousOutputs.length > 0) {
       await deleteAnnotations(previousOutputs.map((a) => a.id));

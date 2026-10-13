@@ -124,12 +124,18 @@ export default function PanelObjectsLibrary() {
 
   // "Dessiner" from the système dialog: create the source + generated templates
   // (with the dialog edits) in the target listing, then arm drawing of the source.
-  async function handlePlaceSystem({ object, mainDraft, generatedDrafts }) {
+  async function handlePlaceSystem({
+    object,
+    mainDraft,
+    generatedDrafts,
+    listingProcedureKeys,
+  }) {
     await placeSystem({
       object,
       mainTemplate: mainDraft,
       generatedTemplates: generatedDrafts,
       listingId: targetListingId,
+      listingProcedureKeys,
     });
     setDialogObject(null);
     dispatch(setSelectedMenuItemKey(null));

@@ -130,6 +130,8 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
       projectId,
       procedureKey: procedure.key,
       sourceAnnotationIds,
+      chainedProcedureKeys: procedure.chainedProcedureKeys,
+      procedures,
     });
   }
 

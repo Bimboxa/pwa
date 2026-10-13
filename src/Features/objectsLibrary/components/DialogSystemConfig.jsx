@@ -67,8 +67,13 @@ export default function DialogSystemConfig({
 }) {
   // data
 
-  const { procedure, mainTemplate, generatedTemplates, loading } =
-    useSystemDefinition(object);
+  const {
+    procedure,
+    mainTemplate,
+    generatedTemplates,
+    listingProcedureKeys,
+    loading,
+  } = useSystemDefinition(object);
 
   // state
 
@@ -101,7 +106,7 @@ export default function DialogSystemConfig({
   }
 
   function handlePlace() {
-    onPlace({ object, mainDraft, generatedDrafts });
+    onPlace({ object, mainDraft, generatedDrafts, listingProcedureKeys });
   }
 
   // render
