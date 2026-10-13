@@ -15,9 +15,6 @@ import useListingItemsCountById from "Features/listings/hooks/useListingItemsCou
 import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
-import { Box, Button, Typography } from "@mui/material";
-import { Add as AddIcon } from "@mui/icons-material";
-
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import ListListings from "Features/listings/components/ListListings";
@@ -29,6 +26,9 @@ import DialogChooseListingSource from "Features/listings/components/DialogChoose
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
 import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 
+// Families listed even when the scope has none of their listings yet.
+const PINNED_TYPES = ["BASE_MAP", "LOCATED_ENTITY"];
+
 // Listing selector of the SCOPE module: every listing of the scope whatever
 // its nature (base maps, annotations, business objects, exports...), grouped
 // by family (base maps first, then annotations, then one group per business
@@ -38,6 +38,12 @@ import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 // the group already answers. A click selects the listing — which narrows the
 // recap editor and sends the listing properties to the right panel; there is
 // no subview to drill into.
+//
+// The base maps and annotation listings groups are always on screen, even
+// empty (PINNED_TYPES): a fresh Krto has no listing at all, and the panel
+// must still offer the two things it starts with. An empty annotation
+// listings group shows a secondary "+ Liste de modèles d'annotations" button
+// under its header (same chooser as the header's "+").
 //
 // A base map folder hidden in the scope (eye of its row,
 // scope.baseMapsSettings.disabledListingIds) stays listed — greyed, eye off —
@@ -74,8 +80,7 @@ export default function SelectorListingForViewer({
   // dossier"), configurable per organization through strings.scope.
   const titleS =
     appConfig?.strings?.scope?.contentTitle ?? "Contenu du dossier";
-  const createListingS = "Nouvelle liste";
-  const emptyS = "Aucune liste dans ce repérage.";
+  const createAnnotationListingS = "Liste de modèles d'annotations";
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: listings, loading } = useListingsByScope({
@@ -86,8 +91,7 @@ export default function SelectorListingForViewer({
   // state
 
   // Creation dialog to display: null, or {kind, typeKey} — the group's "+"
-  // pins the family, the panel "+" opens the generic business-object dialog
-  // with its own type selector.
+  // (or the empty annotation listings group's button) pins the family.
   const [createTarget, setCreateTarget] = useState(null);
 
   // helpers
@@ -98,6 +102,7 @@ export default function SelectorListingForViewer({
       getListingGroupsByEntityModelType({
         listings,
         entityModelTypes,
+        pinnedTypes: PINNED_TYPES,
       }),
     [listings, entityModelTypes]
   );
@@ -105,7 +110,6 @@ export default function SelectorListingForViewer({
   const itemsCountById = useListingItemsCountById(listings, {
     excludeBaseMapIds: disabledBaseMapIds,
   });
-  const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
   const annotationsCount = useMemo(
     () => getAnnotationListingsCount(listings, itemsCountById),
@@ -155,8 +159,16 @@ export default function SelectorListingForViewer({
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
-  function handleCloseCreate() {
+  // The annotation listings chooser (DialogChooseListingSource) relays the
+  // listing DialogCreateListing hands to onClose; the other close paths
+  // (cross, backdrop) pass nothing or an event — hence the shape guard.
+  function handleCloseCreate(created) {
     setCreateTarget(null);
+    if (created?.id && created?.entityModel) handleListingCreated(created);
+  }
+
+  function handleCreateAnnotationListingClick() {
+    setCreateTarget({ kind: "LOCATED_ENTITY" });
   }
 
   // A family without a creation dialog of its own (exports, zonings, legends…
@@ -183,32 +195,6 @@ export default function SelectorListingForViewer({
 
       {loading ? (
         <ListListings loading />
-      ) : isEmpty ? (
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-            p: 2,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary" align="center">
-            {emptyS}
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateTarget({ kind: "BUSINESS_OBJECT" })}
-            sx={{ textTransform: "none", fontWeight: 600 }}
-          >
-            {createListingS}
-          </Button>
-        </Box>
       ) : (
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
           {groups.map((group) => (
@@ -217,12 +203,22 @@ export default function SelectorListingForViewer({
               group={group}
               selection={selection}
               itemsCountById={itemsCountById}
+              // "Afficher toutes les listes" only once there is a list to
+              // show: on the empty group the create button takes its place.
               allListingsRow={
-                group.type === "LOCATED_ENTITY"
+                group.type === "LOCATED_ENTITY" && group.listings.length > 0
                   ? {
                       selected: showAllListings,
                       itemsCount: annotationsCount,
                       onClick: handleAllListingsClick,
+                    }
+                  : undefined
+              }
+              emptyAction={
+                group.type === "LOCATED_ENTITY"
+                  ? {
+                      label: createAnnotationListingS,
+                      onClick: handleCreateAnnotationListingClick,
                     }
                   : undefined
               }

@@ -66,12 +66,16 @@ export function getListingTypeLabel({ type, entityModelTypes } = {}) {
 
 // listings: [listing], entityModelTypes: appConfig.features.entityModelTypes
 // ([{type, name}], optional — org override of the labels).
-// => [{type, label, listings}], groups without listings omitted.
+// pinnedTypes: [type] (optional) — families always returned, with an empty
+// `listings` when the scope has none, so a panel can keep their header (and
+// its "+") on screen (SCOPE panel: base maps and annotation listings).
+// => [{type, label, listings}], groups without listings omitted unless pinned.
 export default function getListingGroupsByEntityModelType({
   listings,
   entityModelTypes,
+  pinnedTypes,
 } = {}) {
-  if (!listings?.length) return [];
+  if (!listings?.length && !pinnedTypes?.length) return [];
 
   // label overrides from the org appConfig
 
@@ -86,7 +90,9 @@ export default function getListingGroupsByEntityModelType({
 
   const listingsByType = new Map();
 
-  listings.forEach((listing) => {
+  pinnedTypes?.forEach((type) => listingsByType.set(type, []));
+
+  listings?.forEach((listing) => {
     const type = listing?.entityModel?.type ?? UNKNOWN_TYPE_KEY;
     if (!listingsByType.has(type)) listingsByType.set(type, []);
     listingsByType.get(type).push(listing);
