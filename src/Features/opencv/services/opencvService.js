@@ -299,6 +299,13 @@ class CV {
       timeout: 120000,
     });
   }
+  detectWallCenterlinesAsync(payload) {
+    return this._dispatch({
+      msg: "detectWallCenterlinesAsync",
+      payload,
+      timeout: 120000,
+    });
+  }
 }
 
 // Export the same instant everywhere

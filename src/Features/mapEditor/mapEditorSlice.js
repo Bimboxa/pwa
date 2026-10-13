@@ -294,6 +294,7 @@ const mapEditorInitialState = {
   loupeAspect: "SQUARE", // "SQUARE" | "LANDSCAPE" | "PORTRAIT"
   smartDetectMode: "HOVER", // "HOVER" (loupe-based, S) | "GLOBAL" (whole-plan, A) | "VECTOR" (wall vectorization, V)
   globalDetectionRunning: false, // true while the mocked global-detection async run is in flight
+  wallVectorizationRequestId: 0, // bumped by the « Lancer la détection » button (CardWallVectorization); InteractionLayer runs the V vectorization on change
 
   // strip detection multi-band (used by STRIP + smart, POLYLINE_CLICK + smart)
   stripDetectionMultiple: false, // false → only the band closest to the loupe center; true → all parallel bands
@@ -894,6 +895,9 @@ export const mapEditorSlice = createSlice({
     setGlobalDetectionRunning: (state, action) => {
       state.globalDetectionRunning = action.payload;
     },
+    requestWallVectorization: (state) => {
+      state.wallVectorizationRequestId += 1;
+    },
 
     // loupe aspect
     setLoupeAspect: (state, action) => {
@@ -1149,6 +1153,7 @@ export const {
   setSmartDetectionPresent,
   setSmartDetectMode,
   setGlobalDetectionRunning,
+  requestWallVectorization,
 
   // loupe aspect
   setLoupeAspect,

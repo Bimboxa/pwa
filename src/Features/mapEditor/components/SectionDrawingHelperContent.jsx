@@ -34,6 +34,7 @@ import { selectIsLoupeEnabled } from "Features/scopeConfig/utils/scopeConfigSele
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
 import SmartDetectContainer from "Features/smartDetect/components/SmartDetectContainer";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
+import CardWallVectorization from "Features/smartDetect/components/CardWallVectorization";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionDrawingConstraints from "./SectionDrawingConstraints";
@@ -313,6 +314,17 @@ export default function SectionDrawingHelperContent() {
   );
   const showSmartDetectCard =
     !isSurfaceCut && SMART_DETECT_UI_MODES.includes(enabledDrawingMode);
+  // « Détection auto » of the plain clic-clic polyline (wall vectorization,
+  // V): not for the tools sharing POLYLINE_CLICK — the ruler (RULER draft)
+  // and the openings (isOpening), nor the surface cut.
+  const isPlainPolylineDraft = useSelector((s) => {
+    const na = s.annotations.newAnnotation;
+    return na?.type === "POLYLINE" && !na?.isOpening;
+  });
+  const showWallVectorizationCard =
+    enabledDrawingMode === "POLYLINE_CLICK" &&
+    !isSurfaceCut &&
+    isPlainPolylineDraft;
   const showAutoMerge =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK";
@@ -607,6 +619,9 @@ export default function SectionDrawingHelperContent() {
       <SectionDrawingConstraints />
       {/* 2D image detection: meaningless in the 3D editor */}
       {showSmartDetectCard && !isThreedToggledEditor && <CardSmartDetect />}
+      {showWallVectorizationCard && !isThreedToggledEditor && (
+        <CardWallVectorization />
+      )}
       {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
       {showAutoMerge && (
         <Paper

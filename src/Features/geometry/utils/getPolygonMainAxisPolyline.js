@@ -319,6 +319,9 @@ function estimateWidthFromClearance(mask, rows, cols, toX, toY, rings) {
 }
 
 // Zhang-Suen thinning, in place. mask cells are 0/1; border cells stay 0.
+// Twin of public/opencv/utils/skeletonUtils.js (worker global copy —
+// importScripts cannot load ES modules): keep zhangSuenThin / neighbors /
+// pruneSpurs in sync with it.
 function zhangSuenThin(mask, rows, cols) {
   const at = (r, c) => mask[r * cols + c];
   const toDelete = [];
