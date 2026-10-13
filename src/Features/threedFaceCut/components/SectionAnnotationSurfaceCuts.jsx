@@ -7,6 +7,8 @@ import ContentCutOffIcon from "@mui/icons-material/LayersClear";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
+import { isSurfaceCutRemoval } from "../utils/surfaceCutsFrame";
+
 // "Découpes de surface" section of the annotation properties panel: shown
 // on a surface host (lathe, shell…) cut by « Découpe horizontale /
 // verticale » in 3D (annotation.surfaceCuts), with the action that removes
@@ -23,15 +25,19 @@ export default function SectionAnnotationSurfaceCuts({ annotation }) {
     n > 1
       ? `${n} découpes en 3D (Coupe face).`
       : "1 découpe en 3D (Coupe face).";
+  const removedS = (n) =>
+    n > 1 ? `${n} pièces supprimées.` : "1 pièce supprimée.";
   const descriptionS =
-    "La surface est affichée en pièces, chacune peut être peinte séparément.";
+    "La surface est affichée en pièces, chacune peut être sélectionnée, supprimée ou peinte séparément.";
   const clearS = "Supprimer les découpes";
   const doneS = "Découpes supprimées (Ctrl+Z pour annuler)";
   const failedS = "Suppression impossible";
 
   // data
 
-  const count = annotation?.surfaceCuts?.length ?? 0;
+  const entries = annotation?.surfaceCuts ?? [];
+  const removedCount = entries.filter(isSurfaceCutRemoval).length;
+  const count = entries.length - removedCount;
 
   // handlers
 
@@ -47,7 +53,7 @@ export default function SectionAnnotationSurfaceCuts({ annotation }) {
 
   // render
 
-  if (!annotation?.id || !count) return null;
+  if (!annotation?.id || !entries.length) return null;
 
   return (
     <Box
@@ -64,7 +70,9 @@ export default function SectionAnnotationSurfaceCuts({ annotation }) {
         {titleS}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {countS(count)} {descriptionS}
+        {count > 0 ? `${countS(count)} ` : ""}
+        {removedCount > 0 ? `${removedS(removedCount)} ` : ""}
+        {descriptionS}
       </Typography>
       <Button
         variant="outlined"

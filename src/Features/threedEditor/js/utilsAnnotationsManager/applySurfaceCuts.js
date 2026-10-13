@@ -11,6 +11,7 @@ import {
 
 import applySurfaceCutsToSoups from "Features/threedFaceCut/utils/applySurfaceCutsToSoups";
 import {
+  SURFACE_CUT_REMOVE,
   getSurfaceCutsKey,
   surfaceCutToLocal,
 } from "Features/threedFaceCut/utils/surfaceCutsFrame";
@@ -28,9 +29,11 @@ import {
 // seed, pieces = connected components, seams carried), and each source mesh
 // that got split is replaced, under its own parent, by one Mesh per piece:
 // - userData = the source's (role, revolutionAxis — re-based —, half view
-//   flags…) + surfaceCutPiece (index) + surfaceCutSeams (local segments);
-//   buildHostPartIndexFromObject reads surfaceCutPiece to keep the pieces
-//   apart in the Pinceau's part index;
+//   flags…) + surfaceCutPiece (index) + surfaceCutSeams (local segments) +
+//   surfaceCutPieceSurface (m²); buildHostPartIndexFromObject reads
+//   surfaceCutPiece to keep the pieces apart in the Pinceau's part index,
+//   the piece selection (surfacePieceParts) addresses the index;
+// - a piece the user deleted (a REMOVE entry of surfaceCuts) is not built.
 // - material: a clone per piece (highlights tint materials);
 // - black outline: an EdgesGeometry per piece (its boundary edges included:
 //   the seams draw themselves) when the source had grid edges, tagged like
@@ -90,6 +93,21 @@ function bakeSoup(mesh, matrix) {
     out[3 * i + 2] = v.z;
   }
   return out;
+}
+
+// Area (m²) of a triangle soup.
+function soupSurface(positions) {
+  let total = 0;
+  const a = new Vector3();
+  const b = new Vector3();
+  const c = new Vector3();
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    a.set(positions[i], positions[i + 1], positions[i + 2]);
+    b.set(positions[i + 3], positions[i + 4], positions[i + 5]);
+    c.set(positions[i + 6], positions[i + 7], positions[i + 8]);
+    total += b.sub(a).cross(c.sub(a)).length() / 2;
+  }
+  return total;
 }
 
 // The source's real material (see applyAnnotationMaterialState).
@@ -170,9 +188,13 @@ export default function applySurfaceCuts(root, annotation, metrics) {
   const meshes = collectSolidMeshes(root);
   if (!meshes.length) return false;
 
+  // Plane cuts ({plane, seed}) and removals ({remove: point}), in order.
   const localCuts = cuts
     .map((cut) => surfaceCutToLocal(cut, metrics))
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((cut) =>
+      cut.kind === SURFACE_CUT_REMOVE ? { remove: cut.point } : cut
+    );
   if (!localCuts.length) return false;
 
   const relMatrices = meshes.map((mesh) => getMatrixRelativeTo(mesh, root));
@@ -193,10 +215,11 @@ export default function applySurfaceCuts(root, annotation, metrics) {
 
   let pieceIndex = 0;
   for (let sourceIndex = 0; sourceIndex < meshes.length; sourceIndex++) {
-    const pieces = result.pieces.filter(
-      (p) => p.sourceIndex === sourceIndex && p.touched
-    );
-    if (!pieces.length) continue;
+    // A source is replaced when a cut touched it or a removal took it
+    // (an untouched, removed source is simply taken down).
+    const all = result.pieces.filter((p) => p.sourceIndex === sourceIndex);
+    if (!all.some((p) => p.touched || p.removed)) continue;
+    const pieces = all.filter((p) => !p.removed);
     const mesh = meshes[sourceIndex];
     const parent = mesh.parent ?? root;
     const toParent = getMatrixRelativeTo(parent, root).invert();
@@ -249,6 +272,7 @@ export default function applySurfaceCuts(root, annotation, metrics) {
         role: "SOLID",
         surfaceCutPiece: pieceIndex++,
         surfaceCutSeams: piece.seams,
+        surfaceCutPieceSurface: piece.surface ?? soupSurface(piece.positions),
         ...(revolutionAxis ? { revolutionAxis } : {}),
       };
       parent.add(pieceMesh);

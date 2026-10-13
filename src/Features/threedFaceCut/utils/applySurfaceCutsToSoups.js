@@ -9,6 +9,12 @@ import cutShellByPlaneNear from "../../threedMesh/utils/cutShellByPlaneNear.js";
 // A cut whose plane no longer meets any piece (the host's profile or axis
 // changed since) is ignored.
 //
+// A REMOVAL entry ({ remove: point }) drops the piece holding that point (a
+// point on its surface: the nearest triangle within REMOVE_TOL_M), in
+// sequence with the cuts — the piece the user deleted, as it was when
+// deleted. The dropped piece is returned with `removed: true` so the caller
+// takes its source mesh down.
+//
 // Slivers: a cut crossing a previous seam clips the facets around the
 // crossing into tiny triangles, and one thinner than the seam tolerance has
 // all its edges "on seams" — splitTrisIntoComponents then isolates it. Such
@@ -23,7 +29,72 @@ const SLIVER_WIDTH_M = 2e-3;
 const SLIVER_MAX_TRIS = 2;
 const WELD_M = 1e-4;
 
+// A removal point further than this from every triangle of a piece is not
+// on it (stale after a profile edit: ignored).
+const REMOVE_TOL_M = 0.02;
+
 const dist3 = (p, q) => Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
+
+// Squared distance from a point to a triangle (closest point on it).
+function distSqPointToTriangle(p, a, b, c) {
+  const ab = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  const ac = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
+  const ap = { x: p.x - a.x, y: p.y - a.y, z: p.z - a.z };
+  const d1 = ab.x * ap.x + ab.y * ap.y + ab.z * ap.z;
+  const d2 = ac.x * ap.x + ac.y * ap.y + ac.z * ap.z;
+  const closest = (q) => (p.x - q.x) ** 2 + (p.y - q.y) ** 2 + (p.z - q.z) ** 2;
+  if (d1 <= 0 && d2 <= 0) return closest(a);
+  const bp = { x: p.x - b.x, y: p.y - b.y, z: p.z - b.z };
+  const d3 = ab.x * bp.x + ab.y * bp.y + ab.z * bp.z;
+  const d4 = ac.x * bp.x + ac.y * bp.y + ac.z * bp.z;
+  if (d3 >= 0 && d4 <= d3) return closest(b);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+    const v = d1 / (d1 - d3);
+    return closest({ x: a.x + ab.x * v, y: a.y + ab.y * v, z: a.z + ab.z * v });
+  }
+  const cp = { x: p.x - c.x, y: p.y - c.y, z: p.z - c.z };
+  const d5 = ab.x * cp.x + ab.y * cp.y + ab.z * cp.z;
+  const d6 = ac.x * cp.x + ac.y * cp.y + ac.z * cp.z;
+  if (d6 >= 0 && d5 <= d6) return closest(c);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+    const w = d2 / (d2 - d6);
+    return closest({ x: a.x + ac.x * w, y: a.y + ac.y * w, z: a.z + ac.z * w });
+  }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+    const w = (d4 - d3) / (d4 - d3 + (d5 - d6));
+    return closest({
+      x: b.x + (c.x - b.x) * w,
+      y: b.y + (c.y - b.y) * w,
+      z: b.z + (c.z - b.z) * w,
+    });
+  }
+  const denom = 1 / (va + vb + vc);
+  const v = vb * denom;
+  const w = vc * denom;
+  return closest({
+    x: a.x + ab.x * v + ac.x * w,
+    y: a.y + ab.y * v + ac.y * w,
+    z: a.z + ab.z * v + ac.z * w,
+  });
+}
+
+// Smallest distance from a point to the triangles of a soup.
+function distanceToSoup(point, positions) {
+  let best = Infinity;
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    const d = distSqPointToTriangle(
+      point,
+      { x: positions[i], y: positions[i + 1], z: positions[i + 2] },
+      { x: positions[i + 3], y: positions[i + 4], z: positions[i + 5] },
+      { x: positions[i + 6], y: positions[i + 7], z: positions[i + 8] }
+    );
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
 
 function vertexKeys(positions) {
   const keys = new Set();
@@ -113,12 +184,13 @@ function traceDistance(segments, seed) {
  * @param {object} args
  * @param {[{positions: ArrayLike<number>, seams?: Array}]} args.soups - one
  *   flat triangle soup (9 numbers per triangle) per source mesh
- * @param {[{plane: {normal, constant}, seed: {x,y,z}}]} args.cuts - local
- *   cuts, in order
+ * @param {[{plane: {normal, constant}, seed: {x,y,z}} | {remove: {x,y,z}}]}
+ *   args.cuts - local cuts and removals, in order
  * @returns {{pieces: [{positions, seams, sourceIndex, touched: boolean,
- *   surface?: number}], applied: number}} — touched: produced by a cut (an
- *   untouched piece is its source soup, unchanged); applied: cuts that
- *   split something.
+ *   surface?: number, removed?: boolean}], applied: number}} — touched:
+ *   produced by a cut (an untouched piece is its source soup, unchanged);
+ *   removed: deleted by a removal (kept in the list, never displayed);
+ *   applied: cuts and removals that did something.
  */
 export default function applySurfaceCutsToSoups({ soups, cuts }) {
   let pieces = (soups || [])
@@ -132,10 +204,24 @@ export default function applySurfaceCutsToSoups({ soups, cuts }) {
   let applied = 0;
 
   for (const cut of cuts || []) {
+    if (cut?.remove) {
+      let best = null;
+      pieces.forEach((piece, i) => {
+        if (piece.removed) return;
+        const d = distanceToSoup(cut.remove, piece.positions);
+        if (d <= REMOVE_TOL_M && (!best || d < best.d)) best = { i, d };
+      });
+      if (best) {
+        pieces[best.i] = { ...pieces[best.i], removed: true };
+        applied += 1;
+      }
+      continue;
+    }
     if (!cut?.plane?.normal || !cut.seed) continue;
     let best = null;
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
+      if (piece.removed) continue;
       const result = cutShellByPlaneNear({
         positions: piece.positions,
         plane: cut.plane,

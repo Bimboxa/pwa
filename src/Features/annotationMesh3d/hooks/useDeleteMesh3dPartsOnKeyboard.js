@@ -12,6 +12,9 @@ import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools"
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
+import removeSurfacePiecesService from "Features/threedFaceCut/services/removeSurfacePiecesService";
+import { getSelectedSurfacePieces } from "Features/threedFaceCut/utils/surfacePieceParts";
+
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
 import getMesh3dPartsDeleteMessage from "../utils/getMesh3dPartsDeleteMessage";
 import { getSelectedMesh3dParts } from "../utils/mesh3dPartIds";
@@ -28,7 +31,8 @@ const isEditableTarget = (el) => {
 };
 
 // Delete / Backspace in the 3D editor while faces / edges of a mesh annotation
-// are selected: deletes THOSE parts, not the annotation. Escape drops the
+// (or pieces of a cut surface host) are selected: deletes THOSE parts, not
+// the annotation. Escape drops the
 // part selection (back to the whole annotation, like the toolbar's close
 // button) — the step after leaving the vertex offset mode.
 //
@@ -39,6 +43,10 @@ const isEditableTarget = (el) => {
 export default function useDeleteMesh3dPartsOnKeyboard() {
   const dispatch = useDispatch();
   const store = useStore();
+
+  // strings
+
+  const pieceNotFoundS = "Pièce introuvable";
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -77,7 +85,11 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
           item,
           state.selection.selectedPartIds
         );
-        if (!parts.length) return;
+        const pieces = getSelectedSurfacePieces(
+          item,
+          state.selection.selectedPartIds
+        );
+        if (!parts.length && !pieces.length) return;
         e.preventDefault();
         e.stopPropagation();
         dispatch(setSelectedPartIds([]));
@@ -100,6 +112,32 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
       }
 
       const selectedItem = state.selection.selectedItems[0];
+      // Pieces of a cut surface host (lathe, shell…): removed from the host.
+      const pieces = getSelectedSurfacePieces(
+        selectedItem,
+        state.selection.selectedPartIds
+      );
+      if (pieces.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        removeSurfacePiecesService({
+          editor: getActiveThreedEditor(),
+          annotationId: selectedItem.nodeId,
+          pieceIndices: pieces.map((part) => part.pieceIndex),
+          dispatch,
+        })
+          .then((result) => {
+            if (!result.ok) {
+              dispatch(
+                setToaster({ message: pieceNotFoundS, severity: "warning" })
+              );
+            }
+          })
+          .catch((err) =>
+            console.error("[threedFaceCut] piece delete failed", err)
+          );
+        return;
+      }
       const parts = getSelectedMesh3dParts(
         selectedItem,
         state.selection.selectedPartIds

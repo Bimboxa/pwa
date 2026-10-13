@@ -1,4 +1,5 @@
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
+import { getSurfaceCutsRemovedM2 } from "Features/threedFaceCut/utils/surfaceCutsFrame";
 import { computeSlopedStripQty } from "Features/geometry/utils/buildSlopedStripMesh";
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
@@ -363,7 +364,19 @@ function computeInlineExtrusionSurface(
 // length. Faces / edges are measured individually (selection, « Pinceau »).
 export const QTIES_REASON_MESH_3D = "MESH_3D";
 
-export default function getAnnotationQties({
+// Pieces of a cut surface host deleted by the user (surfaceCuts REMOVE
+// entries, see removeSurfacePiecesService) leave the quantities: their area,
+// as recorded when removed, comes off the surface.
+export default function getAnnotationQties(args) {
+  const qties = computeAnnotationQties(args);
+  const removedM2 = getSurfaceCutsRemovedM2(args?.annotation?.surfaceCuts);
+  if (!(removedM2 > 0) || !qties?.enabled || !Number.isFinite(qties.surface)) {
+    return qties;
+  }
+  return { ...qties, surface: Math.max(0, qties.surface - removedM2) };
+}
+
+function computeAnnotationQties({
   annotation,
   meterByPx,
   profileLengthMeters,

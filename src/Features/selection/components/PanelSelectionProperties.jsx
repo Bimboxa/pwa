@@ -29,6 +29,7 @@ import PanelPropertiesBaseMapsList from "Features/popperMapListings/components/P
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
+import PanelPropertiesLayoutLine from "Features/annotations/components/PanelPropertiesLayoutLine";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
 import PanelPhotoProperties from "Features/photos/components/PanelPhotoProperties";
@@ -44,6 +45,8 @@ import PanelPropertiesModuleDefault from "Features/viewers/components/PanelPrope
 import PanelProcedureProperties from "Features/annotationsAuto/components/PanelProcedureProperties";
 import PanelPropertiesMesh3dParts from "Features/annotationMesh3d/components/PanelPropertiesMesh3dParts";
 import { getSelectedMesh3dParts } from "Features/annotationMesh3d/utils/mesh3dPartIds";
+import PanelPropertiesSurfacePieces from "Features/threedFaceCut/components/PanelPropertiesSurfacePieces";
+import { getSelectedSurfacePieces } from "Features/threedFaceCut/utils/surfacePieceParts";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import getModuleRootPanelType from "../utils/getModuleRootPanelType";
 
@@ -102,6 +105,12 @@ export default function PanelSelectionProperties() {
     // own panel (measures, deletion). Viewer-agnostic — the Dessin module
     // toggled to 3D keeps the "MAP" module key.
     type = "MESH3D_PARTS";
+  } else if (
+    getSelectedSurfacePieces(selectedItem, selectedPartIds).length > 0
+  ) {
+    // Pieces of a cut surface host (lathe, shell…) sub-selected in the 3D
+    // editor: area + deletion.
+    type = "SURFACE_PIECES";
   } else if (selectedItem?.type === "PROCEDURE") {
     // Automated procedure opened from a listing's "Dessin auto" section or
     // from the listing properties: description, templates, parameters.
@@ -194,6 +203,14 @@ export default function PanelSelectionProperties() {
     // The guideLine (ramp axis) is sub-selected: show its dedicated panel
     // exposing the slope (%) and a "..." menu with Supprimer.
     type = "GUIDE";
+  } else if (
+    isCanvasViewer &&
+    selectedItem?.type === "NODE" &&
+    String(selectedItem?.partId || "").split("::")[1] === "LAYOUT_LINE"
+  ) {
+    // A layout line (ligne de calepinage) is sub-selected: label, density,
+    // render mode and the bars with their lengths.
+    type = "LAYOUT_LINE";
   } else if (isRoot) {
     // Nothing selected: the module's own default panel (Dessin, Fonds de
     // plan, scope, portfolio header, business-objects listing, or the generic
@@ -315,6 +332,8 @@ export default function PanelSelectionProperties() {
 
       {type === "MESH3D_PARTS" && <PanelPropertiesMesh3dParts />}
 
+      {type === "SURFACE_PIECES" && <PanelPropertiesSurfacePieces />}
+
       {type === "ANNOTATION_LABEL" && <PanelAnnotationLabelProperties />}
 
       {type === "ANNOTATION_TEMPLATE" && <PanelAnnotationTemplateProperties />}
@@ -359,6 +378,8 @@ export default function PanelSelectionProperties() {
       {type === "SEGMENT" && <PanelPropertiesSegment />}
 
       {type === "GUIDE" && <PanelPropertiesGuideline />}
+
+      {type === "LAYOUT_LINE" && <PanelPropertiesLayoutLine />}
 
       {type === "POINTS_AND_SEGMENTS" && <PanelPropertiesPointsAndSegments />}
 
