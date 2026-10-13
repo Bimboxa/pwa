@@ -14,11 +14,14 @@ import { isPointBasedAnnotationType } from "./annotationTransformTypes";
 //   carried annotation (same selection dispatches as the 3D click).
 // The grabbed annotation itself is already validated by the caller
 // (point-based type, resolved base map).
+// isCarriableType: the type filter of the selection members — the 3D list
+// by default, the wider 2D one (COTE / RULER / FREE_TEXT) for the 2D tools.
 export default function getCarriedAnnotationIdsFromSelection({
   grabbed,
   selectedItems,
   allAnnotations,
   dispatch,
+  isCarriableType = isPointBasedAnnotationType,
 }) {
   const selectionIds = (selectedItems ?? [])
     .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
@@ -60,7 +63,7 @@ export default function getCarriedAnnotationIdsFromSelection({
       continue;
     }
     const ann = allAnnotations?.find((a) => a.id === id);
-    if (!ann || !isPointBasedAnnotationType(ann.type)) {
+    if (!ann || !isCarriableType(ann.type)) {
       excludedType += 1;
       continue;
     }

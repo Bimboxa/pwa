@@ -13,7 +13,9 @@ import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
 
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
+import getFreeTextMoveUpdates from "../utils/getFreeTextMoveUpdates";
 import getPixelRotationAffine from "../utils/pixelRotationAffine";
+import { isFreeTextType } from "../utils/transform2dTypes";
 
 // « Copie multiple » of the « Déplacer » / « Tourner » tools (2D and 3D): N
 // transformed copies of the carried annotations, copy i at i × the
@@ -33,6 +35,10 @@ import getPixelRotationAffine from "../utils/pixelRotationAffine";
 // resolved pixel points are transformed (applyDeltaPosToAnnotation) and
 // re-minted as fresh db.points (duplicateAnnotationPoints, one id map per
 // copy so a vertex shared by two carried walls stays shared by their copies).
+//
+// FREE_TEXT sources (no db.points) get their inline targetPoint / labelPoint
+// translated instead (getFreeTextMoveUpdates) — MOVE only, a ROTATE skips
+// them (the tool never carries them in a rotation).
 //
 // Also carried: the isMesh3d mesh and its source snapshot (same pixel
 // affine), the mapping-category rels, the active layer, the listing's
@@ -125,6 +131,8 @@ export default async function createTransformedAnnotationCopiesService({
     for (const resolved of annotations) {
       const stored = storedById.get(resolved.id);
       if (!stored) continue;
+      const isFreeText = isFreeTextType(stored.type);
+      if (isFreeText && !deltaPx) continue;
 
       const transformed = applyDeltaPosToAnnotation(
         resolved,
@@ -154,7 +162,7 @@ export default async function createTransformedAnnotationCopiesService({
       const copy = {
         ...base,
         id: nanoid(),
-        points: remapped.points,
+        ...(Array.isArray(remapped.points) ? { points: remapped.points } : {}),
         ...(Array.isArray(remapped.cuts) ? { cuts: remapped.cuts } : {}),
         ...(Array.isArray(remapped.innerPoints)
           ? { innerPoints: remapped.innerPoints }
@@ -173,6 +181,18 @@ export default async function createTransformedAnnotationCopiesService({
           : {}),
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };
+
+      if (isFreeText) {
+        // `transformed` already carries the translated pixel points: a zero
+        // delta normalizes them back to the stored shape.
+        const freeTextUpdate = getFreeTextMoveUpdates({
+          annotations: [transformed],
+          deltaPx: { x: 0, y: 0 },
+          imageSize,
+        }).get(transformed.id);
+        if (!freeTextUpdate) continue;
+        Object.assign(copy, freeTextUpdate);
+      }
 
       if (deltaPx) {
         if (stored.rotationCenter) {

@@ -1,4 +1,7 @@
 import { useRef, useLayoutEffect, useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+
+import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import usePendingAnnotationUpdates, {
@@ -63,6 +66,11 @@ export default function NodeFreeTextStatic({
   // data
 
   const updateAnnotation = useUpdateAnnotation();
+  // « Déplacer » / « Tourner » armed: a click on the (selected) box is the
+  // tool's grab and must reach the viewport, not the text editing.
+  const transformToolArmed = useSelector((s) =>
+    isTransformToolMode(s.mapEditor?.enabledDrawingMode)
+  );
 
   // helpers
 
@@ -589,7 +597,9 @@ export default function NodeFreeTextStatic({
                 // covers the interior) shows the move arrows.
                 cursor: dragged ? "grabbing" : "move",
               }}
-              onMouseDown={(e) => selected && e.stopPropagation()}
+              onMouseDown={(e) =>
+                selected && !transformToolArmed && e.stopPropagation()
+              }
             >
               <div
                 style={{

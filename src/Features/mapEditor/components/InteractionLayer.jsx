@@ -1755,11 +1755,24 @@ const InteractionLayer = forwardRef(({
     // « Déplacer » / « Tourner »: any annotation offers its points to the
     // grab — the grab selects it, and the restriction below would then
     // reduce the candidates to the carried annotation itself.
-    annotationsForSnap = transformSnapExcludedIds.length
-      ? (annotations ?? []).filter(
-          (a) => !transformSnapExcludedIds.includes(a.id)
-        )
-      : annotations;
+    // A FREE_TEXT has no db.points: for these tools only, it offers the
+    // centre of its box (labelPoint) and, with a connector, its target
+    // (id-less `_snapPoints`, same channel as the revolution axes). The box
+    // itself is also grabbable by a plain click (handleWorldClick).
+    annotationsForSnap = (annotations ?? [])
+      .filter(
+        (a) =>
+          !transformSnapExcludedIds.length ||
+          !transformSnapExcludedIds.includes(a.id)
+      )
+      .map((a) => {
+        if (a.type !== "FREE_TEXT" || !a.labelPoint) return a;
+        const snapPoints = [{ x: a.labelPoint.x, y: a.labelPoint.y }];
+        if (a.hasConnector && a.targetPoint) {
+          snapPoints.push({ x: a.targetPoint.x, y: a.targetPoint.y });
+        }
+        return { ...a, _snapPoints: snapPoints };
+      });
   } else if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
     annotationsForSnap = [selectedAnnotation];
   }
@@ -5890,13 +5903,34 @@ const InteractionLayer = forwardRef(({
     // --- MOVE_ANNOTATION / ROTATE_ANNOTATION: grab a point of an annotation,
     // then move / rotate relative to it (useAnnotationTransformTool) ---
     if (isTransformToolMode(enabledDrawingMode)) {
+      const transformLocalPos = toLocalCoords(worldPos);
+      let transformSnap = transformToolSnapRef.current;
+      // A FREE_TEXT box is grabbable anywhere (it has no vertices): a click
+      // that landed on its node, away from any snap, grabs it at the clicked
+      // point (same contract as a snap: x / y + annotationId).
+      if (!transformSnap) {
+        const target = event?.target ?? event?.evt?.target;
+        const freeTextNode = target?.closest?.(
+          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"]'
+        );
+        const freeTextId = freeTextNode?.dataset?.nodeId;
+        if (freeTextId) {
+          transformSnap = {
+            x: transformLocalPos.x,
+            y: transformLocalPos.y,
+            type: "NODE",
+            annotationId: freeTextId,
+            annotationType: "FREE_TEXT",
+          };
+        }
+      }
       onTransformToolClickRef.current?.({
         mode: enabledDrawingMode,
-        localPos: toLocalCoords(worldPos),
+        localPos: transformLocalPos,
         rawLocalPos: transformToolRawPosRef.current,
         orthoAngleDeg: orthoSnapAngleOffsetRef.current || 0,
         shiftKey: Boolean(event.shiftKey || event.evt?.shiftKey),
-        snap: transformToolSnapRef.current,
+        snap: transformSnap,
       });
       return;
     }
@@ -8409,10 +8443,14 @@ const InteractionLayer = forwardRef(({
     // ring on the plan, both bars of the T on an elevation), so without this
     // they would swallow the point instead of letting it through — and they are
     // exactly the thing one wants to draw onto.
+    // « Déplacer » / « Tourner »: every click is the tool's (grab,
+    // destination, pivot…) — a FREE_TEXT box or a label chip must not start
+    // the legacy drag instead.
     if (
       draggableGroup &&
       enabledDrawingModeRef.current &&
-      isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType)
+      (isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType) ||
+        isTransformToolMode(enabledDrawingModeRef.current))
     ) {
       draggableGroup = null;
     }

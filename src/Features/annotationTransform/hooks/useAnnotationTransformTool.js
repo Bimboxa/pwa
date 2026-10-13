@@ -5,7 +5,6 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
-import { isPointBasedAnnotationType } from "Features/threedAnnotationMove/utils/annotationTransformTypes";
 import getCarriedAnnotationIdsFromSelection from "Features/threedAnnotationMove/utils/getCarriedAnnotationIdsFromSelection";
 
 import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/moveRevolutionAxisCenterService";
@@ -33,10 +32,12 @@ import {
   getRotatePixelAngleDeg,
 } from "../utils/rotateAngle";
 import { appendToMoveBuffer, appendToRotateBuffer } from "../utils/copyBuffer";
+import { isTransformable2dType } from "../utils/transform2dTypes";
 import {
   MULTI_COPY_UNSUPPORTED_MESSAGE,
   ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE,
   TRANSFORM_UNSUPPORTED_GRAB_MESSAGE,
+  getTransformUnsupportedTypeMessage,
 } from "../constants/transformToolStrings";
 
 // The preview stays this long at most after a commit, waiting for the
@@ -73,6 +74,9 @@ const isEditableTarget = (el) => {
 //   angle around the pivot.
 // The grabbed annotation carries the whole selection when it belongs to it
 // (getCarriedAnnotationIdsFromSelection — shared with the 3D tools).
+// Accepted types (isTransformable2dType): the point-based list shared with
+// the 3D tools, plus COTE / RULER (db.points too) and, for a move only,
+// FREE_TEXT (inline targetPoint / labelPoint, grabbed on its box).
 // A revolution axis is moved alone, from its centre or one of the ends of its
 // contour (not turned). The rotation pivot may be a free point of the base
 // map when the annotations to turn are selected (the selection is carried).
@@ -127,11 +131,10 @@ export default function useAnnotationTransformTool({
         .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
         .map((i) => i.nodeId ?? i.id);
       const snapAnnotationId = snap?.annotationId ?? snap?.previewAnnotationId;
+      const isCarriableType = (type) => isTransformable2dType(kind, type);
       const selectedCarriable = selectedIds.filter((id) => {
         const a = annotationsRef.current?.find((ann) => ann.id === id);
-        return (
-          a && !isForeignFootprintId(id) && isPointBasedAnnotationType(a.type)
-        );
+        return a && !isForeignFootprintId(id) && isCarriableType(a.type);
       });
       const annotationId = selectedCarriable.length
         ? selectedCarriable.includes(snapAnnotationId)
@@ -157,16 +160,10 @@ export default function useAnnotationTransformTool({
       // — its own blue handles do that.
       const isRevolutionAxisMove =
         kind === "MOVE" && annotation.type === "REVOLUTION_AXIS";
-      if (
-        !isRevolutionAxisMove &&
-        !isPointBasedAnnotationType(annotation.type)
-      ) {
+      if (!isRevolutionAxisMove && !isCarriableType(annotation.type)) {
         dispatch(
           setToaster({
-            message:
-              kind === "MOVE"
-                ? "Ce type d'annotation ne peut pas être déplacé ici (tracé à points requis)"
-                : "Ce type d'annotation ne peut pas être tourné ici (tracé à points requis)",
+            message: getTransformUnsupportedTypeMessage(kind),
             severity: "warning",
           })
         );
@@ -186,6 +183,7 @@ export default function useAnnotationTransformTool({
             selectedItems,
             allAnnotations: annotationsRef.current,
             dispatch,
+            isCarriableType,
           });
       if (!carriedAnnotationIds.length) return;
 

@@ -57,6 +57,19 @@ Réutilisées depuis `threedAnnotationMove/utils/` :
 - **Types acceptés** (`annotationTransformTypes.js`) : tracés à points —
   POLYLINE, POLYGON, STRIP, LINEAR_LAYOUT. Les autres types sont refusés avec
   un message.
+  **En 2D** (`utils/transform2dTypes.js`, `isTransformable2dType`) s'y
+  ajoutent COTE et RULER (leurs sommets sont aussi des `db.points`, le
+  pipeline d'écriture est le même, les offsets de cotation suivent) pour
+  « Déplacer » et « Tourner », et FREE_TEXT pour « Déplacer » seulement :
+  sa géométrie est inline (`targetPoint` / `labelPoint` normalisés), écrite
+  par `utils/getFreeTextMoveUpdates.js` dans le même groupe d'annulation.
+  Un texte se saisit par le centre de sa boîte (et sa cible s'il a un
+  connecteur), aimantés pour ces outils seulement (`_snapPoints` posés dans
+  `annotationsForSnap`), ou par un clic n'importe où dans la boîte
+  (`handleWorldClick` : repli sur le nœud `data-annotation-type="FREE_TEXT"`
+  sous le curseur ; `handleMouseDown` annule le drag legacy des groupes
+  `draggable` quand l'outil est armé, et `NodeFreeTextStatic` laisse alors
+  remonter le mousedown d'un texte sélectionné). La liste 3D ne change pas.
 - **Axe de révolution** : « Déplacer » l'accepte, seul (jamais avec la
   sélection), saisi par son centre ou une extrémité de son contour (bouts du
   diamètre, ou bouts du secteur en révolution partielle). Seul son centre sur
@@ -255,8 +268,9 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
 
 ## Limites (V1)
 
-- Tracés à points uniquement (pas de marqueur, label, image, rectangle,
-  ouverture seule).
+- Tracés à points, cotes, règles et textes (2D) uniquement : pas de
+  marqueur, label, image, rectangle, ouverture seule. Un texte ne se tourne
+  pas.
 
 ## Tests
 

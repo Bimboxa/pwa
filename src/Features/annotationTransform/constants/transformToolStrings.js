@@ -52,6 +52,14 @@ export const ROTATE_TOOL_SHORTCUTS = [
 export const TRANSFORM_UNSUPPORTED_GRAB_MESSAGE =
   "Sélectionnez un point d'une annotation";
 
+// Grab on an annotation whose type the tool does not transform (2D: see
+// annotationTransform/utils/transform2dTypes).
+export function getTransformUnsupportedTypeMessage(kind) {
+  return kind === "ROTATE"
+    ? "Ce type d'annotation ne peut pas être tourné ici"
+    : "Ce type d'annotation ne peut pas être déplacé ici";
+}
+
 // ROTATE 1/3, free click (no annotation point) without a selection.
 export const ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE =
   "Sélectionnez les annotations à tourner, ou cliquez un point de l'annotation";
