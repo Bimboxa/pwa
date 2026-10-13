@@ -80,6 +80,7 @@ import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectB
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
+import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
@@ -1665,6 +1666,15 @@ export default function PopperMapListings() {
   const mirrors3dFilters =
     (isThreedViewer && !isViewer2d) || isPovThreed || isBaseMapsLegendThreed;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
+  // Dessin module (2D or its 3D toggle): the footer switch "Fond de plan
+  // sélectionné seul" (panelDrawing.viewerAnnotationsScope, shared with the
+  // Dessin / Viewer panels' chips) scopes the annotations set — and so every
+  // displayed quantity and counter — to the main base map, or to the whole
+  // repérage ("ALL", the default). The legend poppers of the other modules
+  // keep their own base map scoping.
+  const isDessinPopper = viewerKey === "MAP";
+  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
+  const isAllScope = isDessinPopper && viewerScope === "ALL";
   // Raw popperMapListings.interactionMode overridden by the module / display
   // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
   // ?mode=viewer and the ZONES module force a read-only SELECT legend; a
@@ -1738,7 +1748,8 @@ export default function PopperMapListings() {
   // module — soloing must not remove rows from the tree), `keepHiddenTemplates` keeps
   // eye-hidden templates' annotations so their rows stay in the tree (greyed)
   // and can be re-enabled. In 3D, the 3D-specific filters are mirrored so the
-  // set matches what the scene actually shows.
+  // set matches what the scene actually shows. In the Dessin module, the
+  // "ALL" scope widens the set to every base map of the selected scope.
   const allAnnotationsInclHidden = useAnnotationsV2({
     caller: "PopperMapListings",
     enabled:
@@ -1749,7 +1760,8 @@ export default function PopperMapListings() {
       isPovViewer ||
       isThreedViewer ||
       isScopeModule,
-    filterByMainBaseMap: true,
+    filterByMainBaseMap: !isAllScope,
+    ...(isAllScope ? { filterBySelectedScope: true } : {}),
     hideBaseMapAnnotations: true,
     withQties: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
@@ -2033,7 +2045,7 @@ export default function PopperMapListings() {
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer,
-    filterByMainBaseMap: true,
+    filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     onlyIsForBaseMapsListings:
@@ -2778,9 +2790,10 @@ export default function PopperMapListings() {
           </Box>
         )}
 
-      {/* Bottom band (collapsed included): "auto" height, detach icon of the
-          base maps / commandes sides, collapse / expand toggle, resize handle
-          in its reserved right margin. */}
+      {/* Bottom band (collapsed included): the Dessin "Fond de plan
+          sélectionné seul" switch at the far left, "auto" height, detach icon
+          of the base maps / commandes sides, collapse / expand toggle, resize
+          handle in its reserved right margin. */}
       <PanelFooter
         onResizeMouseDown={handleResizeMouseDown}
         onResetSize={resetSize}
@@ -2814,6 +2827,11 @@ export default function PopperMapListings() {
               imageUrl1={mergeResult.objectUrl}
               imageUrl2={baseMap?.getUrl?.()}
             />
+        startContent={
+          isDessinPopper && !isBaseMapsListOnly ? (
+            <SwitchSelectedBaseMapOnly />
+          ) : null
+        }
             <Box
               sx={{
                 position: "absolute",

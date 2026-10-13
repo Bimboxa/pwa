@@ -7,14 +7,15 @@ import PanelResizeHandle from "./PanelResizeHandle";
 // ---------------------------------------------------------------------------
 // PanelFooter — dedicated bottom band of a floating panel (PopperMapListings,
 // PopperDrawingTools, PopperBaseMapsList), rendered collapsed or not. From
-// left to right: the "auto" button (usePanelResize.fitContent: the panel's
-// height goes back to CSS auto and follows its content, capped by the
-// available height, until the next manual resize), the optional actions
-// passed as children (the detach / attach icon), the collapse / expand
-// toggle, and the resize handle in a reserved right margin (no overlap with
-// the panel's last row any more). Collapsed, only the actions and the toggle
-// remain — the latter with an explicit "Déplier" label (nothing to fit or
-// resize).
+// left to right: the optional `startContent` pushed to the far left (the
+// Dessin popper's "Fond de plan sélectionné seul" switch), the "auto" button
+// (usePanelResize.fitContent: the panel's height goes back to CSS auto and
+// follows its content, capped by the available height, until the next manual
+// resize), the optional actions passed as children (the detach / attach
+// icon), the collapse / expand toggle, and the resize handle in a reserved
+// right margin (no overlap with the panel's last row any more). Collapsed,
+// only the actions and the toggle remain — the latter with an explicit
+// "Déplier" label (nothing to fit or resize).
 // ---------------------------------------------------------------------------
 
 export default function PanelFooter({
@@ -24,6 +25,7 @@ export default function PanelFooter({
   isAutoHeight = false,
   collapsed = false,
   onToggleCollapsed,
+  startContent = null,
   children,
 }) {
   // strings
@@ -53,6 +55,19 @@ export default function PanelFooter({
         bgcolor: "panel.headerBg",
       }}
     >
+      {!collapsed && startContent && (
+        <Box
+          sx={{
+            mr: "auto",
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {startContent}
+        </Box>
+      )}
+
       {!collapsed && (
         <Tooltip title={fitContentS} arrow placement="top">
           <Box

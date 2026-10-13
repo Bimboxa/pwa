@@ -11,10 +11,11 @@ const panelDrawingSlice = createSlice({
     detailTemplateId: null,
     detailView: "ANNOTATIONS", // "ANNOTATIONS" | "PROPERTIES" | "ANNOTATION"
     detailAnnotationId: null,
-    // Viewer module: annotations scope of the panel — the active base map
-    // only, or the whole repérage (all base maps). Drives useAnnotationsV2
+    // Annotations scope of the Dessin / Viewer panels and of the Dessin popper
+    // (PopperMapListings footer switch): the active base map only, or the
+    // whole repérage (all base maps, the default). Drives useAnnotationsV2
     // and thus every displayed quantity.
-    viewerAnnotationsScope: "BASE_MAP", // "BASE_MAP" | "ALL"
+    viewerAnnotationsScope: "ALL", // "BASE_MAP" | "ALL"
     // Viewer module: content of the panel — the annotations, or the business
     // objects of one type (business object type key). A stale key falls back
     // to the annotations at read time (useViewerPanelTabs).
@@ -49,7 +50,7 @@ const panelDrawingSlice = createSlice({
         : "ANNOTATIONS";
     },
     setViewerAnnotationsScope(state, action) {
-      state.viewerAnnotationsScope = action.payload ?? "BASE_MAP";
+      state.viewerAnnotationsScope = action.payload ?? "ALL";
     },
     setViewerPanelTab(state, action) {
       state.viewerPanelTab = action.payload ?? "ANNOTATIONS";
