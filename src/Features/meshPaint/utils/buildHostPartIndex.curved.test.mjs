@@ -114,3 +114,17 @@ test("triGroups: the pieces of a cut surface host never join into one surface", 
     assert.equal(parts.size, 1);
   }
 });
+
+test("triGroups: every island keeps its piece, whatever its normal orientation", () => {
+  // Full turn: half the islands have a non-canonical normal and get flipped.
+  const triangles = cylinderTriangles({ segments: 32 });
+  const triCount = triangles.length / 9;
+  const triGroups = Int32Array.from({ length: triCount }, (_, t) =>
+    t < triCount / 2 ? 0 : 1
+  );
+  const cut = buildHostPartIndex({ triangles, triGroups });
+  assert.ok(
+    cut.islands.every((island) => island.part === 0 || island.part === 1)
+  );
+  assert.deepEqual(sizes(cut.getSurfaces(25)), [16, 16]);
+});

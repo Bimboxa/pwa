@@ -1038,6 +1038,9 @@ export default function buildHostPartIndex({
   for (let island of rawIslands) {
     const area = faceArea(island);
     if (!(area > MIN_ISLAND_AREA_M2)) continue;
+    // flipFace / orientFaceLoops rebuild the face: the piece tag is kept
+    // aside (a lathe has every normal orientation, half its islands flip).
+    const part = island.part ?? -1;
     if (isInside) {
       const inner = getIslandInteriorPoint(island);
       const side = inner ? probeNormalSide(inner, island.normal, isInside) : 1;
@@ -1058,7 +1061,7 @@ export default function buildHostPartIndex({
       normal: island.normal,
       centroid: faceCentroid(island),
       area,
-      part: island.part ?? -1,
+      part,
     });
   }
 
