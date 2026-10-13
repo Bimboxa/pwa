@@ -54,11 +54,19 @@ export function selectIsFaceCutDrawActive(s) {
   );
 }
 
+// DISC draft: only its centre / radius tool has a 3D flow (2 clicks on the
+// centre's plane — useDrawingPointerHandlers / DrawingOverlayThreed).
+export function isDiscDraftFor3d(na, enabledDrawingMode) {
+  return na?.type === "DISC" && enabledDrawingMode === "POLYGON_CIRCLE_RADIUS";
+}
+
 export function selectIsTemplateFaceDrawActive(s) {
   const na = s.annotations.newAnnotation;
   return (
     FACE_DRAW_TOOL_KEYS.has(s.mapEditor.enabledDrawingMode) &&
-    (na?.type === "POLYGON" || na?.type === "POLYLINE") &&
+    (na?.type === "POLYGON" ||
+      na?.type === "POLYLINE" ||
+      isDiscDraftFor3d(na, s.mapEditor.enabledDrawingMode)) &&
     !na?.isOpening &&
     Boolean(na?.annotationTemplateId) &&
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))

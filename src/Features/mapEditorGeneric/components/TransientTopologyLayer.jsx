@@ -10,6 +10,7 @@ import NodeRulerStatic from './NodeRulerStatic';
 import NodeOpeningStatic from './NodeOpeningStatic';
 import NodeLinearLayoutStatic from './NodeLinearLayoutStatic';
 import NodeBaseMapLinkStatic from './NodeBaseMapLinkStatic';
+import NodeDiscStatic from './NodeDiscStatic';
 
 import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
@@ -495,6 +496,14 @@ export default function TransientTopologyLayer({
                         baseMapMeterByPx={baseMapMeterByPx}
                         selected={true}
                         isTransient={true}
+                    />}
+
+                    {/* DISC: one of its opening vertices is being dragged */}
+                    {ann.type === "DISC" && <NodeDiscStatic
+                        annotation={ann}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        containerK={containerK}
+                        selected={true}
                     />}
 
                     {ann.type === "LINEAR_LAYOUT" && <NodeLinearLayoutStatic

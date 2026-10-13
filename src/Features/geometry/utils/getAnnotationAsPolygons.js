@@ -4,6 +4,10 @@ import getPolylineContourPoints from "Features/geometry/utils/getPolylineContour
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  getDiscRingPx,
+  getDiscSector,
+} from "Features/annotations/utils/discGeometry";
 
 // Tessellation count for S-C-S arcs — matches getStripePolygons so POLYGON /
 // POLYLINE / STRIP footprints follow the curve identically.
@@ -34,6 +38,24 @@ export default function getAnnotationAsPolygons(annotation, options = {}) {
       points: expandArcsInPath(c.points ?? [], ARC_SAMPLES, true),
     }));
     return [{ points: expandedPoints, cuts: expandedCuts }];
+  }
+
+  // DISC: centre + radiusM (+ sector) → sampled plan ring, openings kept.
+  if (type === "DISC") {
+    const mbp = annotation._planMeterByPx ?? meterByPx;
+    const radiusM = Number(annotation.radiusM) || 0;
+    if (!annotation.point || !(mbp > 0) || !(radiusM > 0)) return [];
+    const ring = getDiscRingPx({
+      centerPx: annotation.point,
+      radiusPx: radiusM / mbp,
+      sector: getDiscSector(annotation),
+    });
+    if (ring.length < 3) return [];
+    const expandedCuts = (annotation.cuts ?? []).map((c) => ({
+      ...c,
+      points: expandArcsInPath(c.points ?? [], ARC_SAMPLES, true),
+    }));
+    return [{ points: ring, cuts: expandedCuts }];
   }
 
   if (type === "STRIP") {

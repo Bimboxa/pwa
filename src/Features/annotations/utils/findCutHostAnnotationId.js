@@ -1,7 +1,8 @@
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
 
-const HOST_TYPES = ["POLYGON"];
+// DISC: same hole model as a POLYGON (cuts = db.points rings).
+const HOST_TYPES = ["POLYGON", "DISC"];
 
 const isFinitePt = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
 

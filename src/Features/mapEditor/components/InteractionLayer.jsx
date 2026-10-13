@@ -5562,7 +5562,8 @@ const InteractionLayer = forwardRef(({
       if (hit) {
         const { nodeId, annotationType } =
           hit.dataset;
-        if (annotationType === "POLYGON" && !cutHostId) {
+        // DISC hosts openings like a POLYGON (holes in db.points rings).
+        if (["POLYGON", "DISC"].includes(annotationType) && !cutHostId) {
           setCutHostId(nodeId)
         }
       }

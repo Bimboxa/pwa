@@ -31,6 +31,8 @@ const THREED_TOGGLED_DRAWABLE_SHAPES = [
   "POLYLINE",
   "COTE",
   "RULER",
+  // DISC: 2-click centre / radius on a base map plane (3D circle preview).
+  "DISC",
 ];
 
 // ---------------------------------------------------------------------------

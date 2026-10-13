@@ -84,6 +84,43 @@ export function getDiscSurfaceM2({
   return surface * fraction;
 }
 
+/**
+ * Plan ring of a disc / sector in SCREEN pixels (y down), from its resolved
+ * centre: the polygon footprint used by the hit-tests / polygonization
+ * (getAnnotationAsPolygons). A sector ring starts and ends at the centre.
+ */
+export function getDiscRingPx({ centerPx, radiusPx, sector, segments = 48 }) {
+  if (!centerPx || !(radiusPx > 0)) return [];
+  const { start, span, isSector } = sector;
+  const n = Math.max(3, Math.round((segments * span) / TWO_PI));
+  const ring = [];
+  if (isSector) ring.push({ x: centerPx.x, y: centerPx.y });
+  // Full disc: the last sample would duplicate the first.
+  const last = isSector ? n : n - 1;
+  for (let i = 0; i <= last; i++) {
+    const a = start + (span * i) / n;
+    ring.push({
+      x: centerPx.x + radiusPx * Math.cos(a),
+      y: centerPx.y - radiusPx * Math.sin(a),
+    });
+  }
+  return ring;
+}
+
+/**
+ * Local stretch of the dome surface vs the plan at distance r from the
+ * centre: sqrt(1 + (dz/dr)²) for z = H·sqrt(1 − (r/R)²). Infinite at the
+ * rim (vertical tangent) — capped.
+ */
+export function getDomeStretchAt(radiusM, heightM, r) {
+  const R = Number(radiusM) || 0;
+  const H = Number(heightM) || 0;
+  if (R <= 0 || H <= 0) return 1;
+  const rr = Math.min(Math.abs(r), R * 0.999);
+  const dzdr = (H / R) * (rr / Math.sqrt(R * R - rr * rr));
+  return Math.min(10, Math.sqrt(1 + dzdr * dzdr));
+}
+
 export function isDiscDome(annotation) {
   return annotation?.shape3D?.key === "DISC_DOME";
 }

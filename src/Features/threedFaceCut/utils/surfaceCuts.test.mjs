@@ -59,6 +59,10 @@ test("isSurfaceCutHost: generated / profiled shapes only", () => {
   assert.equal(isSurfaceCutHost({ shape3D: { key: "REVOLUTION" } }), true);
   assert.equal(isSurfaceCutHost({ shape3D: { key: "SHELL_DOME" } }), true);
   assert.equal(
+    isSurfaceCutHost({ type: "DISC", shape3D: { key: "DISC_DOME" } }),
+    true
+  );
+  assert.equal(
     isSurfaceCutHost({
       type: "POLYGON",
       profileLines: [

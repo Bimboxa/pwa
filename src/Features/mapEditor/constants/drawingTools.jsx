@@ -160,6 +160,8 @@ const DRAWING_TOOLS = [
     annotationType: "DISC",
     behavior: "CIRCLE",
     drawingMode: "POLYGON_CIRCLE",
+    // No 3-point flow in the 3D editor (centre / radius only there).
+    editor: "2D",
   },
   {
     key: "CIRCLE",

@@ -16,6 +16,9 @@ const SURFACE_SHAPE_KEYS = new Set([
   "EXTRUSION_PROFILE",
   "SHELL_DOME",
   "SHELL_TENT",
+  // DISC « Coupole »: a lathe of the dome profile (buildDiscObject3D), its
+  // mesh carries the revolutionAxis the V cut needs for the meridian plane.
+  "DISC_DOME",
 ]);
 
 const hasLines = (lines) => lines?.some((l) => l?.points?.length >= 2);

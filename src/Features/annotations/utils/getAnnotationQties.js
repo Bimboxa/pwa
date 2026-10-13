@@ -7,6 +7,7 @@ import triangulateAnnotationGeometry, {
 import {
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
+  expandArcsInPath,
   expandArcsInPathWithHiddenMap,
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
@@ -14,6 +15,7 @@ import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileAr
 import {
   getDiscSector,
   getDiscSurfaceM2,
+  getDomeStretchAt,
   isDiscDome,
 } from "Features/annotations/utils/discGeometry";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
@@ -422,16 +424,36 @@ function computeAnnotationQties({
       const r = Number(annotation.radiusM) || 0;
       if (!(r > 0)) return { enabled: true, length: 0, surface: 0 };
       const { span } = getDiscSector(annotation);
-      return {
-        enabled: true,
-        length: r * span,
-        surface: getDiscSurfaceM2({
-          radiusM: r,
-          span,
-          heightM: Number(annotation.height) || 0,
-          isDome: isDiscDome(annotation),
-        }),
-      };
+      const heightM = Number(annotation.height) || 0;
+      const isDome = isDiscDome(annotation);
+      let surface = getDiscSurfaceM2({ radiusM: r, span, heightM, isDome });
+      // Openings: plane area of each hole (a dome hole is stretched by the
+      // local slope at its centroid).
+      for (const cut of annotation.cuts ?? []) {
+        const ring = expandArcsInPath(cut?.points ?? [], 12, true);
+        if (ring.length < 3) continue;
+        let areaPx2 = 0;
+        let sx = 0;
+        let sy = 0;
+        for (let i = 0; i < ring.length; i++) {
+          const a = ring[i];
+          const b = ring[(i + 1) % ring.length];
+          areaPx2 += a.x * b.y - b.x * a.y;
+          sx += a.x;
+          sy += a.y;
+        }
+        let holeM2 = (Math.abs(areaPx2) / 2) * meterByPx * meterByPx;
+        if (isDome && annotation.point) {
+          const rM =
+            Math.hypot(
+              sx / ring.length - annotation.point.x,
+              sy / ring.length - annotation.point.y
+            ) * meterByPx;
+          holeM2 *= getDomeStretchAt(r, heightM, rM);
+        }
+        surface -= holeM2;
+      }
+      return { enabled: true, length: r * span, surface: Math.max(0, surface) };
     }
 
     if (annotation.type === "POINT") {
