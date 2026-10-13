@@ -16,6 +16,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
+import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapListing";
 
 import db from "App/db/db";
 import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
@@ -37,6 +38,7 @@ export default function useCreateBaseMapFromDxf() {
   const { value: createdBy } = useUserEmail();
   const triggerInitialSave = useTriggerInitialScopeSaveIfNeeded();
   const logAppEvent = useLogAppEvent();
+  const ensureBaseMapListing = useEnsureBaseMapListing();
 
   return async ({
     file,
@@ -45,8 +47,12 @@ export default function useCreateBaseMapFromDxf() {
     hiddenLayers,
     name,
     unit,
-    listing: baseMapsListing,
+    listing: baseMapsListingArg,
   }) => {
+    // first project listing, created when the project has none yet
+    const baseMapsListing = await ensureBaseMapListing({
+      listing: baseMapsListingArg,
+    });
     if (
       !scopeId ||
       !projectId ||

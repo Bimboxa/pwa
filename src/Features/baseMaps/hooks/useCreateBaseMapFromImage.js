@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
-import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapListing";
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
@@ -26,7 +26,7 @@ import db from "App/db/db";
 export default function useCreateBaseMapFromImage() {
   const dispatch = useDispatch();
 
-  const projectBaseMapListings = useProjectBaseMapListings();
+  const ensureBaseMapListing = useEnsureBaseMapListing();
   const createEntity = useCreateEntity();
   const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
   const logAppEvent = useLogAppEvent();
@@ -44,7 +44,8 @@ export default function useCreateBaseMapFromImage() {
     source = "image",
     selectOnCreate = true,
   }) {
-    const listing = listingArg ?? projectBaseMapListings?.[0];
+    // first project listing, created when the project has none yet
+    const listing = await ensureBaseMapListing({ listing: listingArg });
     if (!listing) return null;
 
     const entity = {

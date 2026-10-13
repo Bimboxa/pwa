@@ -2,13 +2,11 @@ import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
-import useCreateListings from "Features/listings/hooks/useCreateListings";
-import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
+import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapListing";
 
 import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntityPureDataAndFilesDataByKey";
 
@@ -19,27 +17,24 @@ export default function useCreateBaseMaps() {
     const dispatch = useDispatch();
 
     const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
-    const projectId = useSelector((s) => s.projects.selectedProjectId);
     const projectBaseMapListings = useProjectBaseMapListings();
-    const createListings = useCreateListings();
-    const defaultProps = useDefaultBaseMapsListingProps();
+    const ensureBaseMapListing = useEnsureBaseMapListing();
     const { value: userEmail } = useUserEmail();
 
     return async (baseMaps, options) => {
 
         // options.listing lets callers target an explicit listing (e.g. one
         // just created, not yet visible in the redux-selected listing).
-        let listing =
-            options?.listing ??
-            projectBaseMapListings.find((l) => l.id === listingId);
-
+        // Fallback: first project listing, created (named from the
+        // create-base-map section) when the project has none yet.
+        const listing = await ensureBaseMapListing({
+            listing:
+                options?.listing ??
+                projectBaseMapListings.find((l) => l.id === listingId),
+        });
         if (!listing) {
-            console.error("ERROR - No baseMap listing found => create new listing");
-            const [created] = await createListings({
-                listings: [{ ...defaultProps, projectId }],
-            });
-            listing = created;
-            dispatch(setSelectedBaseMapsListingId(listing?.id));
+            console.error("ERROR - No baseMap listing found (no project selected)");
+            return [];
         }
 
         const table = listing.table ?? listing?.entityModel?.defaultTable;

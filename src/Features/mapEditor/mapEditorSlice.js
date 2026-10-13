@@ -26,6 +26,9 @@ const mapEditorInitialState = {
 
   // main map
   selectedBaseMapsListingId: null,
+  // Name typed in the create-base-map section for the base map folder to
+  // create when the project has none yet (null = default listing name).
+  newBaseMapListingName: null,
   selectedBaseMapId: null,
   loadedMainBaseMapId: null,
   //
@@ -353,6 +356,9 @@ export const mapEditorSlice = createSlice({
     //
     setSelectedBaseMapsListingId: (state, action) => {
       state.selectedBaseMapsListingId = action.payload;
+    },
+    setNewBaseMapListingName: (state, action) => {
+      state.newBaseMapListingName = action.payload;
     },
     setSelectedMainBaseMapId: (state, action) => {
       console.log("[STATE] selectedBaseMapId", action.payload);
@@ -980,6 +986,7 @@ export const {
   setShowCreateBaseMapSection,
   //
   setSelectedBaseMapsListingId,
+  setNewBaseMapListingName,
   setSelectedMainBaseMapId,
   setLoadedMainBaseMapId,
   //

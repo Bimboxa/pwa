@@ -353,14 +353,7 @@ export default function DialogCreateBaseMapFromDxf({
         <Button
           variant="contained"
           onClick={handleCreate}
-          disabled={
-            creating ||
-            !drawing ||
-            !frame ||
-            !unit ||
-            !name.trim() ||
-            !listing?.id
-          }
+          disabled={creating || !drawing || !frame || !unit || !name.trim()}
           startIcon={
             creating ? (
               <CircularProgress size={18} color="inherit" />

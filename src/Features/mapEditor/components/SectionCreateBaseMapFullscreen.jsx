@@ -1,7 +1,10 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedBaseMapsListingId } from "../mapEditorSlice";
+import {
+  setSelectedBaseMapsListingId,
+  setNewBaseMapListingName,
+} from "../mapEditorSlice";
 import {
   setOpenBaseMapCreator,
   setPdfFile,
@@ -9,6 +12,7 @@ import {
 import { setToaster } from "Features/layout/layoutSlice";
 
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 import useOpenBaseMapCreatorFromResource from "Features/baseMapCreator/hooks/useOpenBaseMapCreatorFromResource";
 
@@ -71,6 +75,8 @@ export default function SectionCreateBaseMapFullscreen({
   const dropTitleS = "Glisser-déposer un plan ici";
   const dropSubtitleSuffixS = "le format est reconnu automatiquement";
   const storeInS = "Ranger dans";
+  const newListingLabelS = "Nouveau dossier";
+  const newListingHelperS = "Le dossier sera créé avec le premier fond de plan";
   const orCreateFromS = "OU CRÉER DEPUIS";
   const closeS = "Fermer";
 
@@ -102,7 +108,6 @@ export default function SectionCreateBaseMapFullscreen({
   const unsupportedS = "Format non pris en charge";
   const sourceDisabledS =
     "Source désactivée pour ce dossier (Configuration > Fonds de plan)";
-  const noListingS = "Aucune liste de fonds de plan";
   const blankA3NameS = "Page blanche A3";
 
   // refs
@@ -125,12 +130,16 @@ export default function SectionCreateBaseMapFullscreen({
   // data
 
   const listings = useProjectBaseMapListings();
+  const defaultListingName =
+    useDefaultBaseMapsListingProps().name ?? "Fonds de plan";
   const createBaseMapFromImage = useCreateBaseMapFromImage();
   const openBaseMapCreatorFromResource = useOpenBaseMapCreatorFromResource();
 
   const selectedBaseMapsListingId = useSelector(
     (s) => s.mapEditor.selectedBaseMapsListingId
   );
+  // name of the folder to create with the first base map (no listing yet)
+  const newListingName = useSelector((s) => s.mapEditor.newBaseMapListingName);
   // per-scope creation sources (Configuration > Fonds de plan)
   const disabledSourceKeys = useSelector(selectDisabledBaseMapSourceKeys);
 
@@ -157,16 +166,16 @@ export default function SectionCreateBaseMapFullscreen({
     listingProp ??
     listings?.[0];
 
+  // no base map folder in the project yet: the creation services create one
+  // (useEnsureBaseMapListing) named after the text field below
+  const hasNoListing =
+    Array.isArray(listings) && listings.length === 0 && !listingProp;
+
   const selectedImageUrl = imageFile ? URL.createObjectURL(imageFile) : null;
 
   const createDisabled = !(name.length > 0 && Boolean(imageFile));
 
   async function _createBaseMap(file) {
-    if (!listing) {
-      dispatch(setToaster({ message: noListingS, isError: true }));
-      return;
-    }
-
     const _entity = await createBaseMapFromImage({
       file,
       name,
@@ -286,12 +295,11 @@ export default function SectionCreateBaseMapFullscreen({
     dispatch(setSelectedBaseMapsListingId(listingId));
   }
 
-  async function handleCreateBlankA3() {
-    if (!listing) {
-      dispatch(setToaster({ message: noListingS, isError: true }));
-      return;
-    }
+  function handleNewListingNameChange(e) {
+    dispatch(setNewBaseMapListingName(e.target.value));
+  }
 
+  async function handleCreateBlankA3() {
     const { pixelWidth, pixelHeight, meterByPx } = getBlankBaseMapGeometry({
       format: "paysage",
       size: "A3",
@@ -428,6 +436,45 @@ export default function SectionCreateBaseMapFullscreen({
                   selectedListingId={listing?.id}
                   onSelect={handleListingSelect}
                 />
+              </Box>
+            )}
+
+            {/* No folder yet: name of the one created with the base map */}
+
+            {hasNoListing && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    gap: 1,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    {storeInS}
+                  </Typography>
+                  <TextField
+                    size="small"
+                    label={newListingLabelS}
+                    placeholder={defaultListingName}
+                    value={newListingName ?? defaultListingName}
+                    onChange={handleNewListingNameChange}
+                    sx={{ minWidth: 260 }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ color: "text.disabled" }}>
+                  {newListingHelperS}
+                </Typography>
               </Box>
             )}
 
