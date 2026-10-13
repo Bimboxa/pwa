@@ -43,6 +43,8 @@ const UP = { x: 0, y: 1, z: 0 };
 const AXIS_EPS_M = 1e-3;
 // A boundary coordinate this close to an extremal one is extremal too.
 const EXTREMAL_TOL_M = 1e-6;
+// Boundary vertices within this distance along the normal share a level.
+const SNAP_LEVEL_TOL_M = 1e-4;
 
 /**
  * @param {object} args
@@ -165,19 +167,30 @@ export default function computeSurfaceAxisCut({
   let constant;
   let locked = false;
   let snapped = false;
+  const cursorDist = dot(normal, hitPoint);
   if (Number.isFinite(typedDistance) && typedDistance !== null) {
     constant = refDist + dir * typedDistance;
     locked = true;
   } else {
-    constant = dot(normal, hitPoint);
+    constant = cursorDist;
     const tol =
       typeof snapToleranceM === "function"
         ? snapToleranceM(normal)
         : snapToleranceM;
     if (tol > 0) {
+      // Levels shared by several boundary vertices only: a rim, the seam of
+      // a previous cut along this axis. The vertices of a seam across the
+      // axis each sit at their own level (every lathe row), and a plane
+      // snapped exactly on a vertex row crosses no triangle.
+      const counts = new Map();
+      for (const d of dists) {
+        const key = Math.round(d / SNAP_LEVEL_TOL_M);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
       let best = null;
       for (const d of dists) {
         if (d - minD < EXTREMAL_TOL_M || maxD - d < EXTREMAL_TOL_M) continue;
+        if ((counts.get(Math.round(d / SNAP_LEVEL_TOL_M)) || 0) < 2) continue;
         const gap = Math.abs(d - constant);
         if (gap <= tol && (best === null || gap < Math.abs(best - constant))) {
           best = d;
@@ -190,8 +203,16 @@ export default function computeSurfaceAxisCut({
     }
   }
 
-  const plane = { normal, constant };
-  const cut = cutShellByPlaneNear({ positions, plane, hitPoint, seams });
+  let plane = { normal, constant };
+  let cut = cutShellByPlaneNear({ positions, plane, hitPoint, seams });
+  // A snapped plane lying exactly on a vertex row cuts nothing: fall back
+  // on the cursor's plane.
+  if (!cut && snapped) {
+    constant = cursorDist;
+    snapped = false;
+    plane = { normal, constant };
+    cut = cutShellByPlaneNear({ positions, plane, hitPoint, seams });
+  }
   if (!cut) return null;
 
   return {

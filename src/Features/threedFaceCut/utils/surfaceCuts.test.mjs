@@ -350,3 +350,65 @@ test("H cut on a closed surface (torus): the reference is its lowest vertex, no 
   near(r.plane.constant, 0.4);
   near(r.distance, 1.4);
 });
+
+test("H hover near a vertical seam vertex: no snap on a lone level, the cursor plane always draws", () => {
+  // Wedge between two meridians: its seams hold a vertex at every lathe row.
+  const soup = cylinderSoup({ turn: 1, segments: 32, h: 2 });
+  const { pieces } = applySurfaceCutsToSoups({
+    soups: [{ positions: soup }],
+    cuts: [
+      { plane: meridianPlane(0.1), seed: onRing(1, 0.1) },
+      { plane: meridianPlane(0.9), seed: onRing(1, 0.9) },
+    ],
+  });
+  const wedge = pieces.find(
+    (p) => p.positions.length < soup.length / 2 && p.seams.length >= 2
+  );
+  assert.ok(wedge);
+  // Vertex rows of this cylinder sit at y = 0 and 2 only, but the seams add
+  // clip vertices at the diagonals' heights: hover 5 mm off one of them with
+  // a 5 cm tolerance.
+  const seamYs = wedge.seams
+    .flat()
+    .map((p) => p.y)
+    .filter((y) => y > 0.1 && y < 1.9);
+  assert.ok(seamYs.length >= 1);
+  const r = computeSurfaceAxisCut({
+    positions: wedge.positions,
+    hitPoint: onRing(seamYs[0] + 0.005, 0.5),
+    axis: "H",
+    viewDir: VIEW_FROM_X,
+    snapToleranceM: 0.05,
+  });
+  assert.ok(r);
+  assert.equal(r.snapped, false);
+  near(r.plane.constant, seamYs[0] + 0.005);
+});
+
+test("H hover on a band whose only shared levels are its rims: no snap, the cursor plane is used", () => {
+  const soup = cylinderSoup({ turn: 0.5, h: 3 });
+  const { pieces } = applySurfaceCutsToSoups({
+    soups: [{ positions: soup }],
+    cuts: [
+      {
+        plane: { normal: { x: 0, y: 1, z: 0 }, constant: 1 },
+        seed: onRing(1, 1),
+      },
+    ],
+  });
+  const top = pieces.find((p) =>
+    p.positions.some((v, i) => i % 3 === 1 && v > 2.5)
+  );
+  // Its levels (1 and 3) are extremal: never snapped on, even within reach.
+  const r = computeSurfaceAxisCut({
+    positions: top.positions,
+    hitPoint: onRing(1.2, 1),
+    axis: "H",
+    viewDir: VIEW_FROM_X,
+    snapToleranceM: 0.5,
+  });
+  assert.ok(r);
+  assert.equal(r.snapped, false);
+  near(r.plane.constant, 1.2);
+  near(r.distance, 0.2);
+});
