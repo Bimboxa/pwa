@@ -1,5 +1,6 @@
 // Load utility functions and handlers
 self.importScripts("./utils/workerUtils.js");
+self.importScripts("./utils/skeletonUtils.js");
 self.importScripts("./handlers/getPixelsCountByColorAsync.js");
 self.importScripts("./handlers/imageProcessing.js");
 self.importScripts("./handlers/highlightDifferences.js");
@@ -33,6 +34,7 @@ self.importScripts("./handlers/detectSimilarPolylinesAsync.js");
 self.importScripts("./handlers/vectoriseWallsAsync.js");
 self.importScripts("./handlers/detectFloorPlanFeaturesAsync.js");
 self.importScripts("./handlers/detectWallSegmentsAsync.js");
+self.importScripts("./handlers/detectWallCenterlinesAsync.js");
 /**
  * This exists to capture all the events that are thrown out of the worker
  * into the worker. Without this, there would be no communication possible
@@ -146,6 +148,9 @@ onmessage = function (e) {
 
     case "detectWallSegmentsAsync":
       return detectWallSegmentsAsync(e.data);
+
+    case "detectWallCenterlinesAsync":
+      return detectWallCenterlinesAsync(e.data);
 
     default:
       break;

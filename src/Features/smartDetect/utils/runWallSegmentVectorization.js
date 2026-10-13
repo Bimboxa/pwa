@@ -1,29 +1,32 @@
-// Orchestrator for the "Vectoriser" smart-detect mode (V shortcut).
+// Orchestrator for the "Vectoriser" smart-detect run (V shortcut / « Lancer
+// la détection » button of the clic-clic polyline helper).
 //
-// Vectorizes the horizontal / vertical black wall lines of the baseMap into
-// 2-point POLYLINE segments, following a two-phase "global detection →
-// local optimization" pipeline (see the worker handler for details):
+// Vectorizes the black wall bands of the baseMap into 2-point POLYLINE
+// segments:
 //
 //   1. Resolve the active stroke width from the in-progress annotation
-//      (template or toolbar override) and convert it to image-pixels — it
-//      constrains the morphology kernels (phase 1) and the per-pixel
-//      refinement window (phase 2).
+//      (template or toolbar override) and convert it to image-pixels — the
+//      worker only keeps the bands whose thickness matches it (± tolerance).
 //   2. Build an exclusion mask of existing annotations so already-annotated
-//      walls are ignored (and phase-2 extension stops at them).
-//   3. Dispatch detectWallSegmentsAsync to the OpenCV worker.
+//      walls are ignored.
+//   3. Dispatch the worker handler picked by `engine`:
+//        - "CENTERLINES" (default): detectWallCenterlinesAsync — thickness
+//          filter → skeleton → ordered chains → RDP split + total-least-
+//          squares fit → collinear merge → corner join. Any angle.
+//        - "SEGMENTS": detectWallSegmentsAsync — the former fixed-width
+//          H / V-only detector, kept for comparison (no UI caller).
 //   4. Convert each detected wall (image-pixel coords) into the same feature
 //      shape as runGlobalFloorPlanDetection (polygon in local-viewport px
 //      for the transient flash layer, 2-point centerline in image-px for the
-//      bulk-create hook) — so the A-key display / Space-commit plumbing is
-//      reused as-is.
+//      bulk-create hook) — so the display / Space-commit plumbing is reused
+//      as-is.
 //
-// Unlike the "Globale" (A) mode, features carry NO per-feature strokeWidth
-// override: the committed segments must have exactly the thickness picked in
-// the bottom toolbar / template (the bulk-create hook then falls back to the
-// sourceAnnotation props). The worker's measured thickness is only used to
-// validate and re-center the segment axis on the black band; the preview
-// polygon is built with the target thickness so the green flash shows the
-// exact footprint of the annotations about to be drawn.
+// Features carry NO per-feature strokeWidth override: the committed
+// segments must have exactly the thickness picked in the bottom toolbar /
+// template (the bulk-create hook then falls back to the sourceAnnotation
+// props). The worker's measured thickness is only used to gate the bands;
+// the preview polygon is built with the target thickness so the green
+// flash shows the exact footprint of the annotations about to be drawn.
 //
 // Cancellation is best-effort: the worker call itself cannot be aborted
 // once dispatched, but `signal.aborted` is checked before / after to skip
@@ -46,6 +49,8 @@ export default async function runWallSegmentVectorization({
   imageScale,
   imageOffset,
   meterByPx,
+  engine = "CENTERLINES",
+  orthoSnapAngleOffsetDeg = 0,
 }) {
   if (signal?.aborted) throw new DOMException("aborted", "AbortError");
 
@@ -90,7 +95,7 @@ export default async function runWallSegmentVectorization({
 
   if (signal?.aborted) throw new DOMException("aborted", "AbortError");
 
-  const result = await cv.detectWallSegmentsAsync({
+  const payload = {
     imageUrl,
     targetThickness: targetThicknessPx,
     tolerance,
@@ -98,7 +103,15 @@ export default async function runWallSegmentVectorization({
     exclusionMaskBuffer: mask.buffer,
     maskWidth: imageSize.width,
     maskHeight: imageSize.height,
-  });
+  };
+
+  const result =
+    engine === "SEGMENTS"
+      ? await cv.detectWallSegmentsAsync(payload)
+      : await cv.detectWallCenterlinesAsync({
+          ...payload,
+          orthoSnapAngleOffsetDeg,
+        });
 
   if (signal?.aborted) throw new DOMException("aborted", "AbortError");
 
@@ -113,22 +126,20 @@ export default async function runWallSegmentVectorization({
   // Preview rectangle uses the TARGET thickness (not the measured one):
   // the committed annotations keep the toolbar / template strokeWidth, so
   // the green flash must show that exact footprint, centered on the black
-  // band (the worker re-centered the axis in its optimization phase).
-  const segmentToFeature = (wall, isHorizontal) => {
+  // band. Oriented rectangle: half thickness along the unit normal.
+  const segmentToFeature = (wall) => {
     const half = targetThicknessPx / 2;
-    const rectImg = isHorizontal
-      ? [
-          { x: wall.x1, y: wall.y1 - half },
-          { x: wall.x2, y: wall.y2 - half },
-          { x: wall.x2, y: wall.y2 + half },
-          { x: wall.x1, y: wall.y1 + half },
-        ]
-      : [
-          { x: wall.x1 - half, y: wall.y1 },
-          { x: wall.x2 - half, y: wall.y2 },
-          { x: wall.x2 + half, y: wall.y2 },
-          { x: wall.x1 + half, y: wall.y1 },
-        ];
+    const dx = wall.x2 - wall.x1;
+    const dy = wall.y2 - wall.y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = (-dy / len) * half;
+    const ny = (dx / len) * half;
+    const rectImg = [
+      { x: wall.x1 + nx, y: wall.y1 + ny },
+      { x: wall.x2 + nx, y: wall.y2 + ny },
+      { x: wall.x2 - nx, y: wall.y2 - ny },
+      { x: wall.x1 - nx, y: wall.y1 - ny },
+    ];
     return {
       kind: "WALL",
       closeLine: false,
@@ -142,13 +153,12 @@ export default async function runWallSegmentVectorization({
     };
   };
 
-  const features = [];
-  for (const w of result.horizontalWalls || []) {
-    features.push(segmentToFeature(w, true));
-  }
-  for (const w of result.verticalWalls || []) {
-    features.push(segmentToFeature(w, false));
-  }
+  const walls = [
+    ...(result.walls || []),
+    ...(result.horizontalWalls || []),
+    ...(result.verticalWalls || []),
+  ];
+  const features = walls.map(segmentToFeature);
 
   return { features, imageSize: result.imageSize ?? imageSize };
 }

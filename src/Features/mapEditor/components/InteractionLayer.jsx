@@ -3220,6 +3220,83 @@ const InteractionLayer = forwardRef(({
     onCommitDetectedFeaturesRef.current = onCommitDetectedFeatures;
   }, [onCommitDetectedFeatures]);
 
+  // ── Wall vectorization (V key / « Lancer la détection » button) ─────────
+  // Vectorizes the black wall bands of the baseMap whose thickness matches
+  // the drawn stroke width into 2-point segments
+  // (runWallSegmentVectorization → detectWallCenterlinesAsync worker).
+  // Plain clic-clic polyline only (not the ruler / openings / surface cut
+  // sharing POLYLINE_CLICK). Shares the GLOBAL plumbing: spinner + abort
+  // controller during the run, green flash via transientDetectedStripsRef,
+  // Space commits, Escape aborts / drops. Returns true when a run started.
+  const launchWallVectorization = () => {
+    if (enabledDrawingModeRef.current !== "POLYLINE_CLICK") return false;
+    if (!showSmartDetectRef.current || globalDetectionRunningRef.current) return false;
+    const na = newAnnotationRef.current;
+    if (!na || na.type !== "POLYLINE" || na.isOpening || isSurfaceCutDraft(na)) return false;
+    const meterByPx = meterByPxRef.current ?? 0;
+    const imageScale = baseMapImageScaleRef.current || 1;
+    const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const baseMap = calibrationBaseMapRef.current;
+    if (!baseMap || !(meterByPx > 0)) {
+      console.warn("[smartDetect] vector run skipped — missing baseMap / scale");
+      return false;
+    }
+    dispatch(setGlobalDetectionRunning(true));
+    screenCursorRef.current?.showSpinner();
+    const controller = new AbortController();
+    globalDetectionAbortRef.current = controller;
+    runWallSegmentVectorization({
+      signal: controller.signal,
+      baseMap,
+      annotations: annotationsRef.current || [],
+      newAnnotation: na,
+      imageScale,
+      imageOffset,
+      meterByPx,
+      orthoSnapAngleOffsetDeg: orthoSnapAngleOffsetRef.current || 0,
+    })
+      .then(({ features }) => {
+        if (controller.signal.aborted) return;
+        screenCursorRef.current?.hideSpinner();
+        globalDetectionAbortRef.current = null;
+        dispatch(setGlobalDetectionRunning(false));
+        if (!features?.length) {
+          console.log("[smartDetect] vector run: no segments detected");
+          detectedGlobalFeaturesRef.current = null;
+          transientDetectedStripsRef.current?.clear();
+          syncSmartDetectionPresent();
+          return;
+        }
+        detectedGlobalFeaturesRef.current = { features, sourceAnnotation: na };
+        transientDetectedStripsRef.current?.updateStrips(
+          features.map((f) => ({ polygon: f.polygon })),
+        );
+        syncSmartDetectionPresent();
+      })
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        console.warn("[smartDetect] vector run failed", err);
+        screenCursorRef.current?.hideSpinner();
+        globalDetectionAbortRef.current = null;
+        dispatch(setGlobalDetectionRunning(false));
+      });
+    return true;
+  };
+  const launchWallVectorizationRef = useRef(launchWallVectorization);
+  useEffect(() => {
+    launchWallVectorizationRef.current = launchWallVectorization;
+  });
+
+  // The helper card button bumps the request id (mapEditorSlice
+  // requestWallVectorization) — same run as the V key.
+  const wallVectorizationRequestId = useSelector(
+    (s) => s.mapEditor.wallVectorizationRequestId,
+  );
+  useEffect(() => {
+    if (!wallVectorizationRequestId) return;
+    launchWallVectorizationRef.current?.();
+  }, [wallVectorizationRequestId]);
+
   const onCommitLocalizedRepairRef = useRef(onCommitLocalizedRepair);
   useEffect(() => {
     onCommitLocalizedRepairRef.current = onCommitLocalizedRepair;
@@ -4954,74 +5031,18 @@ const InteractionLayer = forwardRef(({
           break;
 
         case "v":
-          // VECTOR smart-detect: vectorizes the H / V black wall lines of
-          // the baseMap into 2-point segments (runWallSegmentVectorization,
-          // two-phase "global detection → local optimization" pipeline).
+          // VECTOR smart-detect: vectorizes the black wall bands of the
+          // baseMap into 2-point segments of the drawn thickness
+          // (runWallSegmentVectorization → detectWallCenterlinesAsync).
           // Shares the GLOBAL plumbing: spinner + abort controller during
           // the worker run, results flash green via
           // transientDetectedStripsRef, Space commits them all as new
-          // POLYLINE annotations, Escape aborts. Polyline clic-clic only —
-          // matches the "Vectoriser" row visibility in CardSmartDetect.
-          if (enabledDrawingModeRef.current !== "POLYLINE_CLICK") break;
-          // Only where the helper shows the « Détection auto » card (the
-          // card is hidden in POLYLINE_CLICK → V is inert there for now).
-          if (!SMART_DETECT_UI_MODES.includes(enabledDrawingModeRef.current)) break;
-          if (showSmartDetectRef.current && !globalDetectionRunningRef.current) {
-            e.preventDefault();
-            const meterByPx = meterByPxRef.current ?? 0;
-            const imageScale = baseMapImageScaleRef.current || 1;
-            const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
-            const baseMap = calibrationBaseMapRef.current;
-            const na = newAnnotationRef.current;
-            if (!baseMap || !(meterByPx > 0) || !na) {
-              console.warn(
-                "[smartDetect] vector run skipped — missing baseMap / scale / annotation template",
-              );
-              break;
-            }
-            dispatch(setSmartDetectMode("VECTOR"));
-            dispatch(setGlobalDetectionRunning(true));
-            screenCursorRef.current?.showSpinner();
-            const controller = new AbortController();
-            globalDetectionAbortRef.current = controller;
-            runWallSegmentVectorization({
-              signal: controller.signal,
-              baseMap,
-              annotations: annotationsRef.current || [],
-              newAnnotation: na,
-              imageScale,
-              imageOffset,
-              meterByPx,
-            })
-              .then(({ features }) => {
-                if (controller.signal.aborted) return;
-                screenCursorRef.current?.hideSpinner();
-                globalDetectionAbortRef.current = null;
-                dispatch(setGlobalDetectionRunning(false));
-                if (!features?.length) {
-                  console.log("[smartDetect] vector run: no segments detected");
-                  detectedGlobalFeaturesRef.current = null;
-                  transientDetectedStripsRef.current?.clear();
-                  syncSmartDetectionPresent();
-                  return;
-                }
-                detectedGlobalFeaturesRef.current = {
-                  features,
-                  sourceAnnotation: na,
-                };
-                transientDetectedStripsRef.current?.updateStrips(
-                  features.map((f) => ({ polygon: f.polygon })),
-                );
-                syncSmartDetectionPresent();
-              })
-              .catch((err) => {
-                if (err?.name === "AbortError") return;
-                console.warn("[smartDetect] vector run failed", err);
-                screenCursorRef.current?.hideSpinner();
-                globalDetectionAbortRef.current = null;
-                dispatch(setGlobalDetectionRunning(false));
-              });
-          }
+          // POLYLINE annotations, Escape aborts. Plain clic-clic polyline
+          // only — matches the « Détection auto » card visibility
+          // (CardWallVectorization in SectionDrawingHelperContent). The
+          // card's « Lancer la détection » button goes through the same
+          // launcher (wallVectorizationRequestId effect).
+          if (launchWallVectorization()) e.preventDefault();
           break;
 
         case "f":
