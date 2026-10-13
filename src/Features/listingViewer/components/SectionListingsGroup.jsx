@@ -2,7 +2,14 @@ import { useDispatch } from "react-redux";
 
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 
-import { Box, IconButton, List, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  List,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import RowListingInGroup from "./RowListingInGroup";
@@ -34,11 +41,19 @@ import { generateKeyBetween } from "fractional-indexing";
 // `allListingsRow` ({selected, itemsCount, onClick}, annotation listings
 // group only) pins an "Afficher toutes les listes" row above the listings;
 // it is not one of the sortable items.
+//
+// `emptyAction` ({label, onClick}, optional): a group pinned on screen while
+// it has no listing yet (getListingGroupsByEntityModelType pinnedTypes) shows
+// this secondary "+ label" button under its header — the invitation to
+// create the first one, the header's "+" being easy to miss on an empty
+// panel. Nothing is rendered without it: an empty group is then its header
+// alone.
 export default function SectionListingsGroup({
   group,
   selection,
   itemsCountById,
   allListingsRow,
+  emptyAction,
   onListingClick,
   onCreateClick,
 }) {
@@ -125,6 +140,21 @@ export default function SectionListingsGroup({
           </Tooltip>
         )}
       </Box>
+
+      {emptyAction && listings.length === 0 && (
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={emptyAction.onClick}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            {emptyAction.label}
+          </Button>
+        </Box>
+      )}
 
       <DndContext
         sensors={sensors}
