@@ -412,7 +412,6 @@ export default function ListingAvatarsBar({
         <DialogChooseListingSource
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
-          isForBaseMaps={false}
         />
       )}
     </Box>

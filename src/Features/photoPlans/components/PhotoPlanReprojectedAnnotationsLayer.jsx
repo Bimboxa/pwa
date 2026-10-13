@@ -26,7 +26,6 @@ function ReprojectedPlanAnnotations({ plan, photoSize, containerK }) {
     filterByBaseMapId: plan.flattenedBaseMapId,
     sortByOrderIndex: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
   });
 
   const mapped = useMemo(() => {

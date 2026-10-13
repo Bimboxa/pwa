@@ -44,7 +44,6 @@ export default function IconButtonConvertAnnotation({
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
   const baseMap = useMainBaseMap();
   const layers = useLayers({

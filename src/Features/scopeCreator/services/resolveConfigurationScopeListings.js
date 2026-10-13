@@ -14,36 +14,18 @@ export default async function resolveConfigurationScopeListings({
   projectId,
   extraLibraryKeys,
   excludedLibraryKeys,
-  initSystemAnnotationTemplates,
 }) {
   // helpers — extraLibraryKeys: creation options (e.g. "Carnet de détail"
   // adds the DIVERS library) on top of the configuration's own keys; also
   // usable with configuration null (generic scope + options).
-  // excludedLibraryKeys: libraries removed by the user in the recap modal
-  // (never applies to the system isForBaseMaps listings below).
-  // initSystemAnnotationTemplates: create the system isForBaseMaps listings
-  // (baseMap annotation templates). Explicit arg > configuration field
-  // (annotations.initSystemAnnotationTemplates) > false.
+  // excludedLibraryKeys: libraries removed by the user in the recap modal.
 
   const libraryKeys = [
     ...(configuration?.annotations?.libraryKeys ?? []),
     ...(extraLibraryKeys ?? []),
   ].filter((key) => !(excludedLibraryKeys ?? []).includes(key));
 
-  // system isForBaseMaps listings — opt-in
-
-  const withSystem =
-    initSystemAnnotationTemplates ??
-    configuration?.annotations?.initSystemAnnotationTemplates ??
-    false;
-
-  const isForBaseMapsKeys = withSystem
-    ? Object.values(appConfig?.presetListingsObject ?? {})
-        .filter((l) => l.isForBaseMaps)
-        .map((l) => l.key)
-    : [];
-
-  const allKeys = [...new Set([...libraryKeys, ...isForBaseMapsKeys])];
+  const allKeys = [...new Set(libraryKeys)];
 
   // edge case — no listings to create
 

@@ -349,7 +349,6 @@ export default function SectionPopperListings({
           <DialogChooseListingSource
             open={openCreateListing}
             onClose={() => setOpenCreateListing(false)}
-            isForBaseMaps={false}
           />
         )}
       </Box>
@@ -447,7 +446,6 @@ export default function SectionPopperListings({
         <DialogChooseListingSource
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
-          isForBaseMaps={false}
         />
       )}
     </Box>

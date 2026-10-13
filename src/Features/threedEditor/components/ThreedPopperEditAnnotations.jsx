@@ -14,7 +14,6 @@ export default function ThreedPopperEditAnnotations() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
   });
 
   return (

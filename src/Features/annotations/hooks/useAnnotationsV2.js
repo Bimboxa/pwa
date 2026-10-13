@@ -11,7 +11,6 @@ const _listingsCache = {
   key: null,
   listings: null,
   listingsMap: null,
-  forBaseMapsListingIds: null,
 };
 // Invalidate cache when listings table changes
 db.listings.hook("creating", () => {
@@ -651,8 +650,6 @@ export default function useAnnotationsV2(options) {
     // scene (template.showIn3d), unless the row was drawn from the 3D viewer
     // (isDrawnIn3d). 3D viewer only — 2D keeps showing them.
     const excludeDimensionsHiddenIn3d = options?.excludeDimensionsHiddenIn3d;
-    const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
-    const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
     // In the 3D viewer, keep non-soloed annotations in the result (instead of
     // removing them) so ThreedSelectionDimmer can render them translucent
     // rather than hiding them outright (zone solo — zonings module).
@@ -1104,38 +1101,20 @@ export default function useAnnotationsV2(options) {
       ];
       const _t2a = performance.now();
       const listingsCacheKey = listingsIds.sort().join(",");
-      let listings, listingsMap, forBaseMapsListingIds;
+      let listings, listingsMap;
       if (_listingsCache.key === listingsCacheKey) {
         // Cache hit — skip DB query
         listings = _listingsCache.listings;
         listingsMap = _listingsCache.listingsMap;
-        forBaseMapsListingIds = _listingsCache.forBaseMapsListingIds;
       } else {
         // Cache miss — fetch from DB and update cache
         listings = await db.listings.where("id").anyOf(listingsIds).toArray();
         listingsMap = getItemsByKey(listings, "id");
-        forBaseMapsListingIds = new Set(
-          listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-        );
         _listingsCache.key = listingsCacheKey;
         _listingsCache.listings = listings;
         _listingsCache.listingsMap = listingsMap;
-        _listingsCache.forBaseMapsListingIds = forBaseMapsListingIds;
       }
       const _t2b = performance.now();
-
-      if (excludeIsForBaseMapsListings) {
-        _annotations = _annotations.filter(
-          (a) =>
-            isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
-        );
-      }
-
-      if (onlyIsForBaseMapsListings) {
-        _annotations = _annotations.filter((a) =>
-          forBaseMapsListingIds.has(a.listingId)
-        );
-      }
 
       // -- SCOPE FILTER --
 
@@ -1377,7 +1356,7 @@ export default function useAnnotationsV2(options) {
           // size: the annotation cannot be resolved — dropped by the
           // `.filter(Boolean)` closing this map. NEVER return `[]` here: an
           // empty array survives as an element, the listing-name pass below
-          // turns it into an id-less `{ isForBaseMaps }` object that defeats
+          // turns it into an id-less `{}` object that defeats
           // the identity stabilization on every run (a fresh array reference
           // per consumer render → effect loops in the 3D editor).
           if (!imageSize) return null;
@@ -1837,14 +1816,13 @@ export default function useAnnotationsV2(options) {
         }
       }
 
-      // -- LISTING NAME + TAG isForBaseMaps (single pass) --
+      // -- LISTING NAME (single pass, always a fresh object per row) --
 
       _annotations = _annotations.map((a) => ({
         ...a,
         ...(withListingName && {
           listingName: listingsMap[a?.listingId]?.name || "-?-",
         }),
-        isForBaseMaps: forBaseMapsListingIds.has(a.listingId),
       }));
 
       // -- SORT --
@@ -2437,7 +2415,6 @@ export default function useAnnotationsV2(options) {
         const photoAnns = _annotations.filter(
           (a) =>
             a &&
-            !a.isForBaseMaps &&
             !a.isBaseMapAnnotation &&
             baseMapById[a.baseMapId]?.isPhoto
         );
@@ -2454,7 +2431,7 @@ export default function useAnnotationsV2(options) {
           );
 
           // Resolve each plan's source polygon once per run (direct db read:
-          // the source lives in an isForBaseMaps listing, invisible here).
+          // the source may live outside this query's rows).
           const plansByBaseMap = {};
           for (const plan of plans) {
             // Whole-photo plan (no source polygon): zone = full image.
@@ -2693,8 +2670,6 @@ export default function useAnnotationsV2(options) {
       baseMapId,
       extraBaseMapIdsKey,
       excludeListingsIds?.join("-"),
-      excludeIsForBaseMapsListings,
-      onlyIsForBaseMapsListings,
       baseMapAnnotationsOnly,
       hideBaseMapAnnotations,
       baseMapsUpdatedAt,

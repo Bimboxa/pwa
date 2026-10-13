@@ -5,8 +5,7 @@ import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConf
  * compact dialog default entry). Same shape as a Data/<org>/configurations
  * item, minus key / card fields — it never shows in the card selector.
  *
- * - no annotation listing at all: no library and no system isForBaseMaps
- *   preset listing (initSystemAnnotationTemplates false);
+ * - no annotation listing at all (no library);
  * - baseMap listing "Fonds de plan" created as a fallback only when the
  *   project has no baseMap listing yet; otherwise the scope works with the
  *   project's existing listings (all kept visible — hiding them would leave
@@ -19,7 +18,7 @@ const EMPTY_SCOPE_CONFIGURATION = {
     disableExistingListings: false,
     listings: [{ name: "Fonds de plan", fallback: true, items: [] }],
   },
-  annotations: { libraryKeys: [], initSystemAnnotationTemplates: false },
+  annotations: { libraryKeys: [] },
   scopeConfig: {
     enabledModuleKeys: [],
     disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],

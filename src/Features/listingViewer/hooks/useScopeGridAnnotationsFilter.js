@@ -13,7 +13,7 @@ const INACTIVE = {
 // What the sheets of the SCOPE module's grid (2D and 3D) draw: the
 // annotations of the listing selected in the scope panel. Inactive outside
 // the module and in the "Afficher toutes les listes" mode. Per listing kind:
-//   - annotation listing (LOCATED_ENTITY, not isForBaseMaps) -> the
+//   - annotation listing (LOCATED_ENTITY) -> the
 //     annotations of that listing (filterByListingId);
 //   - business-objects listing -> the annotations LINKED to its objects
 //     (annotationIdSet, from the rels — the listing owns no annotation);
@@ -27,8 +27,7 @@ export default function useScopeGridAnnotationsFilter() {
   const { listing } = useScopeListing();
 
   const type = isScopeModule ? listing?.entityModel?.type : null;
-  const isAnnotationListing =
-    type === "LOCATED_ENTITY" && !listing?.isForBaseMaps;
+  const isAnnotationListing = type === "LOCATED_ENTITY";
   const isBusinessObjectListing = type === "BUSINESS_OBJECT";
 
   const { value: rels } = useRelsBusinessObjectAnnotation({

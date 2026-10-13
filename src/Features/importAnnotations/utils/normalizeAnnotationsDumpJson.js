@@ -56,7 +56,6 @@ const SCRUBBED_FIELDS = new Set([
   "templateLabel",
   "baseMapName",
   "listingName",
-  "isForBaseMaps",
   "qties",
   "corruptedPointIds",
   "imageSize",

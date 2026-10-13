@@ -47,7 +47,6 @@ export default function useSelectedAnnotationsByProcedure() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
   });
 
   // helpers

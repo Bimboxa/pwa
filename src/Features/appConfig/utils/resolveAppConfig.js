@@ -253,10 +253,6 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // (DialogAddListingsFromScope)
   //     annotations: {
   //       libraryKeys,              // annotationTemplatesLibraries keys
-  //       initSystemAnnotationTemplates,  // true => system annotation
-  //                                 // templates: the isForBaseMaps preset
-  //                                 // listings (default false; the generic
-  //                                 // scope always seeds them)
   //     },
   //     scopeConfig: {             // absent => org default modules/tools
   //       enabledModuleKeys,        // non-core modules to enable (keys of

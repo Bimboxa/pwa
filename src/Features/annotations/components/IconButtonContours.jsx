@@ -28,7 +28,6 @@ export default function IconButtonContours({ annotations, accentColor }) {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // state

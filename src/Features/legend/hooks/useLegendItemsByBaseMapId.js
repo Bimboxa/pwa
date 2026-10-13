@@ -14,7 +14,6 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     filterByBaseMapId: baseMapId,
     filterBySelectedScope: true,
     withListingName: true,
-    excludeIsForBaseMapsListings: true,
     sortByOrderIndex: true,
   });
 

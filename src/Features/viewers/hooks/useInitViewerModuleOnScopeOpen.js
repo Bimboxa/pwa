@@ -61,7 +61,6 @@ export default function useInitViewerModuleOnScopeOpen() {
     excludeListingsIds: hiddenListingsIds,
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
   });
 

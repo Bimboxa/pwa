@@ -80,7 +80,6 @@ export default function PanelViewerAnnotations({ header }) {
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
@@ -100,7 +99,6 @@ export default function PanelViewerAnnotations({ header }) {
   const painted = usePaintedPartsQties({
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     keepHiddenTemplates: true,
     ...(isThreedEditor && !isAllScope
       ? {
@@ -116,7 +114,6 @@ export default function PanelViewerAnnotations({ header }) {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // helpers - quantities + legend scope

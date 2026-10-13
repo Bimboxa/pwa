@@ -34,7 +34,6 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // state

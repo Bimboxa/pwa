@@ -17,8 +17,8 @@ const baseMapEditorInitialState = {
   // nothing and the tree renders.
   detailBaseMapId: null,
   // "Afficher les annotations" switch of the left panel: when ON, the
-  // drawing annotations also show in the module's 2D / 3D editors (on top
-  // of the isForBaseMaps working annotations).
+  // scope annotations show in the module's 2D / 3D editors (OFF = bare base
+  // maps).
   showAnnotations: false,
   // versions
   selectedVersionId: null,

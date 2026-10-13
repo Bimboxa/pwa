@@ -71,7 +71,6 @@ export default function PanelPrint() {
     filterBySelectedScope: true,
     withQties: true,
     withListingName: true,
-    excludeIsForBaseMapsListings: true,
     hideBaseMapAnnotations: true,
     keepHiddenTemplates: true,
   });
@@ -81,7 +80,6 @@ export default function PanelPrint() {
   // template's row in the aggregated export.
   const painted = usePaintedPartsQties({
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     keepHiddenTemplates: true,
   });
 

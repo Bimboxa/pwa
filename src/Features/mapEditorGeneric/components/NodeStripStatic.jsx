@@ -42,7 +42,6 @@ function NodeStripStatic({
     hovered,
     selected,
     baseMapMeterByPx,
-    baseMapImageScale = 1,
     containerK,
     forceHideLabel,
     isTransient,
@@ -67,7 +66,6 @@ function NodeStripStatic({
     const segmentDragEnabled = useSelector(
         (s) => s.mapEditor.segmentDragEnabled
     );
-    const isForBaseMaps = mergedAnnotation.isForBaseMaps;
 
     const clipIdRef = useRef(`strip-hatching-${Math.random().toString(36).substr(2, 9)}`);
 
@@ -409,9 +407,7 @@ function NodeStripStatic({
             {!selected && directorSegments.map((seg, i) => {
                 if (seg.isHidden) return null;
 
-                const aestheticStrokeWidth = isForBaseMaps
-                    ? STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT * (baseMapImageScale || 1)
-                    : STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT;
+                const aestheticStrokeWidth = STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT;
 
                 // Segment-select modes (CUT_SEGMENT / TECHNICAL_RETURN) make the
                 // strip clickable per-segment even when it is not selected, so the
@@ -438,7 +434,7 @@ function NodeStripStatic({
                                 stroke="rgba(0,0,0,0)"
                                 strokeWidth={22}
                                 fill="none"
-                                vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                                vectorEffect="non-scaling-stroke"
                                 style={{ pointerEvents: "stroke" }}
                             />
                             {/* visible director, highlighted neon-green on hover */}
@@ -447,7 +443,7 @@ function NodeStripStatic({
                                 fill="none"
                                 stroke={isHovered && !isTransient ? SEGMENT_HOVER_COLOR : directorColor}
                                 strokeWidth={isHovered && !isTransient ? aestheticStrokeWidth + 2 : aestheticStrokeWidth}
-                                vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                                vectorEffect="non-scaling-stroke"
                                 style={{ pointerEvents: "none" }}
                             />
                         </g>
@@ -461,7 +457,7 @@ function NodeStripStatic({
                         fill="none"
                         stroke={directorColor}
                         strokeWidth={aestheticStrokeWidth}
-                        vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                        vectorEffect="non-scaling-stroke"
                         style={{ pointerEvents: "none" }}
                     />
                 );
@@ -506,7 +502,7 @@ function NodeStripStatic({
                                 stroke="rgba(0,0,0,0)"
                                 strokeWidth={22}
                                 fill="none"
-                                vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                                vectorEffect="non-scaling-stroke"
                                 style={{ pointerEvents: 'stroke' }}
                             />
                         )}
@@ -519,7 +515,7 @@ function NodeStripStatic({
                             strokeDasharray={style.dash}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                            vectorEffect="non-scaling-stroke"
                             style={{ pointerEvents: "none" }}
                         />
                     </g>
@@ -549,7 +545,7 @@ function NodeStripStatic({
                             stroke="rgba(0,0,0,0)"
                             strokeWidth={14}
                             fill="none"
-                            vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                            vectorEffect="non-scaling-stroke"
                             style={{ pointerEvents: 'stroke' }}
                         />
                         <path
@@ -557,7 +553,7 @@ function NodeStripStatic({
                             fill="none"
                             stroke={style.stroke}
                             strokeWidth={style.strokeWidth}
-                            vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                            vectorEffect="non-scaling-stroke"
                             style={{ pointerEvents: "none" }}
                         />
                     </g>

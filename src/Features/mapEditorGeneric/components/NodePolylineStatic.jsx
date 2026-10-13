@@ -131,7 +131,6 @@ function NodePolylineStatic({
   hovered,
   selected,
   baseMapMeterByPx,
-  baseMapImageScale = 1,
   containerK,
   forceHideLabel,
   isTransient,
@@ -298,28 +297,18 @@ function NodePolylineStatic({
 
   // --- CALCUL ÉPAISSEUR TRAIT ---
   const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-  const isForBaseMaps = mergedAnnotation.isForBaseMaps;
-  const scalesWithZoom = isCmUnit || isForBaseMaps;
+  const scalesWithZoom = isCmUnit;
 
   const computedStrokeWidth = useMemo(() => {
     if (type === "POLYGON") return 0.5;
     if (isCmUnit) return (strokeWidth * 0.01) / baseMapMeterByPx;
-    if (isForBaseMaps) return strokeWidth * (baseMapImageScale || 1);
     // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed on screen
     return strokeWidth;
-  }, [
-    strokeWidth,
-    strokeWidthUnit,
-    baseMapMeterByPx,
-    isCmUnit,
-    isForBaseMaps,
-    baseMapImageScale,
-    type,
-  ]);
+  }, [strokeWidth, strokeWidthUnit, baseMapMeterByPx, isCmUnit, type]);
 
   // Hit-area stroke width for pointer detection — always computed in screen
   // pixels so the trigger distance is zoom-independent.
-  // - `scalesWithZoom` (CM / isForBaseMaps): visible stroke grows with zoom,
+  // - `scalesWithZoom` (CM): visible stroke grows with zoom,
   //   so hit = visibleScreenPx + padding. The visible width in screen px is
   //   `computedStrokeWidth * --map-zoom * containerK`, hence the CSS calc.
   // - `!scalesWithZoom` (PX): visible stroke is already fixed on screen via

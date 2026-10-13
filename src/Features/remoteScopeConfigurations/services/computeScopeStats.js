@@ -7,8 +7,8 @@ import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templa
 // configuration (Push body) and displayed as badges on dashboard scope rows.
 // Counts match what the user sees in the app, not the raw zip content:
 // - annotationsCount: non-deleted annotations, excluding technical
-//   pseudo-annotations (base-map annotations, isForBaseMaps listings,
-//   profile-template annotations) and the annotations hosted on the base
+//   pseudo-annotations (base-map annotations, profile-template
+//   annotations) and the annotations hosted on the base
 //   maps of the folders hidden in the scope. Bg-image text annotations are
 //   synthesized at read time (no db row) so a Dexie count naturally excludes
 //   them.
@@ -33,9 +33,6 @@ export default async function computeScopeStats(scopeId) {
     scopeId
   );
   const listingIds = new Set(relevantListings.map((l) => l.id));
-  const forBaseMapsListingIds = new Set(
-    relevantListings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-  );
 
   const profileTemplateIds = new Set(
     (
@@ -66,7 +63,6 @@ export default async function computeScopeStats(scopeId) {
       !a.deletedAt &&
       (listingIds.has(a.listingId) ||
         isScopeBoundAnnotationInScope(a, scopeId)) &&
-      !forBaseMapsListingIds.has(a.listingId) &&
       !a.isBaseMapAnnotation &&
       !profileTemplateIds.has(a.annotationTemplateId) &&
       !disabledBaseMapIds.has(a.baseMapId)

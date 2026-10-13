@@ -105,7 +105,6 @@ export default function PanelDrawing() {
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
@@ -125,7 +124,6 @@ export default function PanelDrawing() {
   const painted = usePaintedPartsQties({
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     keepHiddenTemplates: true,
     ...(isThreedEditor && !isAllScope
       ? {
@@ -150,7 +148,6 @@ export default function PanelDrawing() {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // helpers - listings (rank order from the selector)

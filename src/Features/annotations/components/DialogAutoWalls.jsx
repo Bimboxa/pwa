@@ -62,7 +62,6 @@ export default function DialogAutoWalls({
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   const templates = useMemo(

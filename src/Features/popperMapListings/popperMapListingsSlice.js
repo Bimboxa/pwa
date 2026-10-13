@@ -31,7 +31,6 @@ const popperMapListingsSlice = createSlice({
     // tools via the on-map overlay (cote / segment-drag / angle padlock).
     interactionMode: null,
     collapsed: false,
-    showInBaseMapsViewer: false,
     // Header toggle of the popper and of the docked PanelDrawing:
     // "ANNOTATIONS" | "PHOTOS" (Viewer module with photos) | "BASE_MAPS"
     // (base maps list). In redux (not local state) because the map editor
@@ -68,9 +67,6 @@ const popperMapListingsSlice = createSlice({
     },
     setInteractionMode(state, action) {
       state.interactionMode = action.payload;
-    },
-    setShowInBaseMapsViewer(state, action) {
-      state.showInBaseMapsViewer = action.payload;
     },
     setViewerContentMode(state, action) {
       state.viewerContentMode = CONTENT_MODES.includes(action.payload)
@@ -138,7 +134,6 @@ export const {
   setShowLayers,
   setInteractionMode,
   setCollapsed,
-  setShowInBaseMapsViewer,
   setViewerContentMode,
   setListingSelectorMode,
   setHideEmptyBaseMapsInList,

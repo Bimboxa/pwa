@@ -22,7 +22,6 @@ import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/se
  * Options (useAnnotationsV2 names):
  *   enabled, filterByMainBaseMap, filterByBaseMapId, extraBaseMapIds,
  *   filterBySelectedScope, excludeListingsIds (OWN listing),
- *   excludeIsForBaseMapsListings, onlyIsForBaseMapsListings,
  *   keepHiddenTemplates (OWN template eye), excludeProfileTemplates.
  *   Layers (HOST layer) and the POV freeze always apply, like in
  *   useAnnotationsV2. Other useAnnotationsV2 options are ignored.
@@ -55,8 +54,6 @@ export default function usePaintedPartsQties(options) {
   const filterByMainBaseMap = options?.filterByMainBaseMap;
   const filterByBaseMapId = options?.filterByBaseMapId;
   const filterBySelectedScope = options?.filterBySelectedScope;
-  const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
-  const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
   const keepHiddenTemplates = options?.keepHiddenTemplates;
   const excludeProfileTemplates = options?.excludeProfileTemplates;
 
@@ -163,8 +160,6 @@ export default function usePaintedPartsQties(options) {
         ...fromKey(disabledHostIdsKey),
       ],
       excludeListingsIds: fromKey(excludeListingsIdsKey),
-      excludeIsForBaseMapsListings: Boolean(excludeIsForBaseMapsListings),
-      onlyIsForBaseMapsListings: Boolean(onlyIsForBaseMapsListings),
       keepHiddenTemplates: Boolean(keepHiddenTemplates),
       excludeProfileTemplates: Boolean(excludeProfileTemplates),
       disabledAnnotationTemplates: fromKey(disabledTemplatesKey),
@@ -190,8 +185,6 @@ export default function usePaintedPartsQties(options) {
     excludeBaseMapIdsKey,
     disabledHostIdsKey,
     excludeListingsIdsKey,
-    excludeIsForBaseMapsListings,
-    onlyIsForBaseMapsListings,
     keepHiddenTemplates,
     excludeProfileTemplates,
     disabledTemplatesKey,

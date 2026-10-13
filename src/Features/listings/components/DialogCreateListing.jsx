@@ -24,7 +24,6 @@ import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 export default function DialogCreateListing({
   open,
   onClose,
-  isForBaseMaps,
   onCreateEmpty,
   onAddPresets,
   mode,
@@ -82,7 +81,6 @@ export default function DialogCreateListing({
         entityModel: defaultEntityModel,
         entityModelKey: defaultEntityModel.key,
       }),
-      ...(isForBaseMaps && { isForBaseMaps: true }),
     };
     const [created] = await createListings({
       listings: [newListing],
@@ -108,7 +106,6 @@ export default function DialogCreateListing({
     const created = await createListingsFromPresets({
       presetListingsKeys: selectedKeys,
       scope,
-      isForBaseMaps,
       overridesByKey: presetOverrides,
     });
 
@@ -194,7 +191,6 @@ export default function DialogCreateListing({
                 <SectionPresetListingsSelector
                   selectedKeys={selectedKeys}
                   onChange={setSelectedKeys}
-                  isForBaseMaps={isForBaseMaps}
                 />
               </Box>
 

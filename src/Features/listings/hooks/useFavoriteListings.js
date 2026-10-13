@@ -83,7 +83,6 @@ function cleanListing(listing) {
     autoNumberAnnotations: listing.autoNumberAnnotations,
     autoNumberPrefix: listing.autoNumberPrefix,
     autoNumberPadStart: listing.autoNumberPadStart,
-    isForBaseMaps: listing.isForBaseMaps,
   };
 }
 

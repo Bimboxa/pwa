@@ -34,11 +34,7 @@ import buildListingFromFavorite from "../utils/buildListingFromFavorite";
 // Each favorite row has a "..." menu to rename or delete the favorite.
 // ---------------------------------------------------------------------------
 
-export default function DialogCreateListingsFromFavorites({
-  open,
-  onClose,
-  isForBaseMaps,
-}) {
+export default function DialogCreateListingsFromFavorites({ open, onClose }) {
   const dispatch = useDispatch();
 
   // strings
@@ -74,20 +70,15 @@ export default function DialogCreateListingsFromFavorites({
   // helpers
 
   const favoriteItems = useMemo(() => {
-    return favoriteListings
-      .filter((fav) =>
-        isForBaseMaps ? fav.isForBaseMaps === true : !fav.isForBaseMaps
-      )
-      .map((fav) => ({
-        key: `fav_${fav.sourceListingId}`,
-        sourceListingId: fav.sourceListingId,
-        name: fav.name,
-        fullName: fav.name,
-        avatarString: fav.avatarString,
-        annotationTemplatesLibrary: fav.annotationTemplates ?? [],
-        isForBaseMaps: fav.isForBaseMaps,
-      }));
-  }, [favoriteListings, isForBaseMaps]);
+    return favoriteListings.map((fav) => ({
+      key: `fav_${fav.sourceListingId}`,
+      sourceListingId: fav.sourceListingId,
+      name: fav.name,
+      fullName: fav.name,
+      avatarString: fav.avatarString,
+      annotationTemplatesLibrary: fav.annotationTemplates ?? [],
+    }));
+  }, [favoriteListings]);
 
   const hasFavorites = favoriteItems.length > 0;
 
@@ -110,7 +101,6 @@ export default function DialogCreateListingsFromFavorites({
         if (!fav) return null;
         return buildListingFromFavorite(fav, {
           projectId,
-          isForBaseMaps,
           override: overridesByKey[key],
         });
       })
@@ -250,7 +240,6 @@ export default function DialogCreateListingsFromFavorites({
               <SectionPresetListingsSelector
                 selectedKeys={selectedKeys}
                 onChange={setSelectedKeys}
-                isForBaseMaps={isForBaseMaps}
                 listings={favoriteItems}
                 showKeywordFilters={false}
                 renderItemActions={renderItemActions}

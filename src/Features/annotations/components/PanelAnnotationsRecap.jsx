@@ -273,7 +273,6 @@ export default function PanelAnnotationsRecap() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
@@ -289,7 +288,6 @@ export default function PanelAnnotationsRecap() {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // helpers - recap scope (annotations of the displayed base maps)

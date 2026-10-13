@@ -105,19 +105,7 @@ test("profile templates are excluded from 3D (opt-out)", () => {
   );
 });
 
-test("isForBaseMaps partition of the OWN listing", () => {
-  const forBaseMaps = makeCtx({
-    listingById: { lP: { id: "lP", scopeId: "s1", isForBaseMaps: true } },
-  });
-  assert.equal(getMeshPaintVisibility(makeItem(), forBaseMaps), HIDDEN);
-  assert.equal(
-    getMeshPaintVisibility(makeItem(), {
-      ...forBaseMaps,
-      isBaseMapsModule: true,
-    }),
-    VISIBLE
-  );
-  // Base maps module: drawing listings only when "Afficher les annotations".
+test("base maps module: annotations only with the show-annotations switch", () => {
   assert.equal(
     getMeshPaintVisibility(makeItem(), makeCtx({ isBaseMapsModule: true })),
     HIDDEN

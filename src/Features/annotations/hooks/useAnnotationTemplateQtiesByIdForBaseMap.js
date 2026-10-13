@@ -16,7 +16,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds } = {}) {
   // data
 
-  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, excludeIsForBaseMapsListings: true, withQties: true });
+  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, withQties: true });
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
 
   if (disabledAnnotationTemplates?.length) {
@@ -39,7 +39,6 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
     enabled: Boolean(baseMapId),
     filterByBaseMapId: baseMapId,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     viewBox,
     disabledAnnotationTemplates,
     disabledLayerIds,

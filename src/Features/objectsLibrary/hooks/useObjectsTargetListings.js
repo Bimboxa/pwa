@@ -10,7 +10,6 @@ import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 export default function useObjectsTargetListings() {
   const { value: listings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   return useMemo(() => listings ?? [], [listings]);

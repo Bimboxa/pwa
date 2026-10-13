@@ -52,11 +52,9 @@ export default function ElevationBaseMapViewer({
     filterByBaseMapId: baseMapId,
     withQties: true,
     sortByOrderIndex: true,
-    // Drop the baseMap's own annotations (title-block / cartouche items in
-    // isForBaseMaps listings, and isBaseMapAnnotation labels) — same as the main
-    // MAP viewer. Revolution axes are exempt from these filters, so they stay.
+    // Drop the baseMap's own annotations (isBaseMapAnnotation labels) — same
+    // as the main MAP viewer. Revolution axes are exempt, so they stay.
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
   });
 
   // The elevation viewer shows geometry (wall profiles, revolution axes) — not

@@ -39,9 +39,6 @@ function buildSplitSegmentSkeleton(parent) {
     overrideFields: parent.overrideFields,
     ...(parent.layerId ? { layerId: parent.layerId } : {}),
     ...(parent.hidden !== undefined ? { hidden: parent.hidden } : {}),
-    ...(parent.isForBaseMaps !== undefined
-      ? { isForBaseMaps: parent.isForBaseMaps }
-      : {}),
   };
 }
 
