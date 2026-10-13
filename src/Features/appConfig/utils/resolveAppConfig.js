@@ -243,9 +243,22 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // assetPath relative to Data/<orgaCode>/;
   //                                 // the page is rasterized at scope
   //                                 // creation and kept as a PDF_PAGE
-  //                                 // resource (regenerable base map)
+  //                                 // resource (regenerable base map) — or
+  //                                 // points at the whole PDF when that PDF
+  //                                 // is listed in `resources` below
   //       ]}],
+  //                                 // every item may carry a 3D placement:
+  //                                 // position: { x, y, z } (meters,
+  //                                 // Three.js frame, Y up, centre of the
+  //                                 // image), angleDeg, orientation
+  //                                 // ("HORIZONTAL" default | "VERTICAL")
   //     },
+  //     resources: [{ assetPath, name }],
+  //                                 // PDFs (relative to Data/<orgaCode>/)
+  //                                 // kept as PROJECT resources at scope
+  //                                 // creation (kind PDF_SOURCE, dedup on
+  //                                 // content); `name` = row name, default
+  //                                 // the file name
   //     sourceConfigurationKeys,    // optional [configurationKey]: Krto
   //                                 // configurations whose scopes of the
   //                                 // project are suggested first in the
@@ -317,6 +330,19 @@ export default async function resolveAppConfig(appConfig) {
                   `[resolveAppConfig] Configuration "${item.key}": base map asset not found at ${assetKey}`
                 );
               }
+            }
+          }
+
+          for (const resource of item.resources ?? []) {
+            if (!resource?.assetPath) continue;
+            const assetKey = `../../../Data/${orgaCode}/${resource.assetPath}`;
+            const assetLoader = DATA_PDF_URL_LOADERS[assetKey];
+            if (assetLoader) {
+              resource.assetUrl = await assetLoader();
+            } else {
+              console.warn(
+                `[resolveAppConfig] Configuration "${item.key}": resource asset not found at ${assetKey} (PDF only)`
+              );
             }
           }
 

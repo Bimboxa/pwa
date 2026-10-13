@@ -30,6 +30,18 @@ const FORMAT_BY_PAGE_ORIENTATION = {
 const DEFAULT_PDF_PAGE_DPI = 150;
 const DEFAULT_PDF_PAGE_SCALE = 50;
 
+// optional 3D placement of an item -> baseMap fields (useCreateBaseMaps
+// writes them only when `position` is set)
+function getItemPlacement(item) {
+  const { x, y, z } = item?.position ?? {};
+  if (![x, y, z].every((v) => Number.isFinite(v))) return {};
+  return {
+    position: { x, y, z },
+    orientation: item.orientation ?? "HORIZONTAL",
+    angleDeg: Number.isFinite(item.angleDeg) ? item.angleDeg : 0,
+  };
+}
+
 /*
  * Create the baseMap listings (and their BLANK_PAGE / ASSET / PDF_PAGE
  * baseMap items) declared by a Krto creation configuration
@@ -43,7 +55,13 @@ const DEFAULT_PDF_PAGE_SCALE = 50;
  * (renderTempBaseMapImage) and kept as a PDF_PAGE resource of the project
  * (ensurePdfPageResources) referenced by createdFrom, so the base map can be
  * regenerated from the PDF later. One PDF is fetched / opened once, whatever
- * the number of items pointing at it.
+ * the number of items pointing at it. When the PDF is itself declared in
+ * configuration.resources (kept as a whole-PDF project resource by
+ * useCreateConfigurationResources), no per-page resource is created: the
+ * base maps point at that single row with their page number (`wholePdf`).
+ * Items may carry a 3D placement (`position` in meters, Three.js frame,
+ * Y up, centre of the image; `angleDeg`, `orientation`) written as is on
+ * the baseMap row (useCreateBaseMaps) — e.g. sheets laid side by side.
  */
 export default function useCreateConfigurationBaseMaps() {
   const createListings = useCreateListings();
@@ -136,6 +154,11 @@ export default function useCreateConfigurationBaseMaps() {
       }
     }
 
+    // PDFs declared as project resources: pages reference the whole PDF
+    const wholePdfAssetPaths = new Set(
+      (configuration?.resources ?? []).map((r) => r?.assetPath).filter(Boolean)
+    );
+
     const debugAuth = getDebugAuthFromLocalStorage();
     const createdBy = {
       idMaster: userProfile?.idMaster ?? debugAuth?.userIdMaster ?? null,
@@ -170,6 +193,7 @@ export default function useCreateConfigurationBaseMaps() {
               projectId,
               createdBy,
               failures,
+              wholePdf: wholePdfAssetPaths.has(assetPath),
             });
             if (failures.length > 0) {
               console.warn(
@@ -253,6 +277,7 @@ export default function useCreateConfigurationBaseMaps() {
                   dpi: dpi ?? null,
                   blueprintScale: blueprintScale || null,
                 },
+                ...getItemPlacement(item),
               });
             } catch (error) {
               console.error(
@@ -287,6 +312,7 @@ export default function useCreateConfigurationBaseMaps() {
                 pixelWidth,
                 pixelHeight,
               }),
+              ...getItemPlacement(item),
             });
           } else if (item.type === "ASSET" && item.assetUrl) {
             try {
@@ -298,6 +324,7 @@ export default function useCreateConfigurationBaseMaps() {
                 name: item.name,
                 imageFile,
                 meterByPx: item.meterByPx,
+                ...getItemPlacement(item),
               });
             } catch (error) {
               console.error(

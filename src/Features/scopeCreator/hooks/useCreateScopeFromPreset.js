@@ -27,6 +27,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useCreateConfigurationBaseMaps from "./useCreateConfigurationBaseMaps";
+import useCreateConfigurationResources from "./useCreateConfigurationResources";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
@@ -62,6 +63,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
   const createScope = useCreateScope();
   const createListings = useCreateListings();
   const createConfigurationBaseMaps = useCreateConfigurationBaseMaps();
+  const createConfigurationResources = useCreateConfigurationResources();
 
   // state
 
@@ -343,6 +345,13 @@ export default function useCreateScopeFromPreset({ projectId }) {
       }
     }
 
+    // configuration PDFs kept as project resources — before the base maps,
+    // whose PDF_PAGE items of the same PDFs point at these rows
+    const configurationResources = configuration?.resources ?? [];
+    if (usesConfigurationFlow && configurationResources.length > 0) {
+      await createConfigurationResources({ configuration, projectId });
+    }
+
     if (usesConfigurationFlow && baseMapsListingConfigs.length > 0) {
       const baseMapsSection = {
         disableExistingListings:
@@ -355,7 +364,10 @@ export default function useCreateScopeFromPreset({ projectId }) {
         createdItemsCount,
         reusedListingIds,
       } = await createConfigurationBaseMaps({
-        configuration: { baseMaps: baseMapsSection },
+        configuration: {
+          baseMaps: baseMapsSection,
+          resources: configurationResources,
+        },
         scope,
         projectId,
         existingListings: baseMapsListings,

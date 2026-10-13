@@ -13,6 +13,118 @@ const isVisibleFromProject = (r, projectId) =>
   r.projectId === projectId || getResourceVisibility(r) === "GLOBAL";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
 
+// Same content already kept in ANOTHER project: copy it into this one
+// (cheaper than re-extracting, and the panel lists a project's rows).
+async function duplicateFromOtherProject({ sourceKey, projectId, createdBy }) {
+  const twins = (
+    await db.resources.where("sourceKey").equals(sourceKey).toArray()
+  ).filter(
+    (r) => !r.deletedAt && r.fileName && !isVisibleFromProject(r, projectId)
+  );
+  for (const twin of twins) {
+    const copy = await duplicateResourceToProject(twin, {
+      projectId,
+      createdBy,
+    });
+    if (copy) return copy;
+  }
+  return null;
+}
+
+// The WHOLE PDF as ONE project resource (kind = "PDF_SOURCE", visibility =
+// "PROJECT", sourceKey = sha256(bytes)@full), stored in db.files under the
+// standard resource convention. Dedup on sourceKey within the project (a
+// twin of another project is copied, a metadata row without its file is
+// re-attached), so the same PDF added twice (even in two sessions) stays one
+// row. Used as the fallback of ensurePdfPageResources, by its `wholePdf`
+// mode and to seed the resources of a Krto creation configuration.
+// Pass `bytes` / `hash` when already computed. Throws on failure.
+export async function ensurePdfSourceResource({
+  pdfFile,
+  pdfDocument,
+  projectId,
+  createdBy,
+  bytes = null,
+  hash = null,
+}) {
+  if (!pdfFile || !projectId) return null;
+  const pdfBytes = bytes ?? (await pdfFile.arrayBuffer());
+  const pdfHash = hash ?? (await getArrayBufferSha256(pdfBytes, pdfFile));
+  const pdfFileName = pdfFile.name ?? "document.pdf";
+  const pageCount = pdfDocument?.numPages ?? null;
+
+  const sourceKey = `${pdfHash}@full`;
+  const existing = (
+    await db.resources.where("sourceKey").equals(sourceKey).toArray()
+  ).filter(
+    (r) => !r.deletedAt && r.fileName && isVisibleFromProject(r, projectId)
+  );
+  for (const r of existing) {
+    const fileRecord = await db.files.get(r.fileName);
+    if (fileRecord?.fileArrayBuffer) return r;
+  }
+  const twinCopy = await duplicateFromOtherProject({
+    sourceKey,
+    projectId,
+    createdBy,
+  });
+  if (twinCopy) return twinCopy;
+  if (existing[0]) {
+    // metadata row without its file (post-Krto import): re-attach
+    const r = existing[0];
+    await db.transaction("rw", db.resources, db.files, async () => {
+      await db.files.put({
+        fileName: r.fileName,
+        fileMime: "application/pdf",
+        srcFileName: r.name,
+        fileArrayBuffer: pdfBytes.slice(0),
+        projectId: r.projectId,
+        fileType: "PDF",
+      });
+      await db.resources.update(r.id, { fileSize: pdfBytes.byteLength });
+    });
+    return { ...r, fileSize: pdfBytes.byteLength };
+  }
+  const id = nanoid();
+  const name = pdfFileName;
+  const fileName = `resource_${id}_${name}`;
+  let thumbnail = null;
+  try {
+    if (pdfDocument) {
+      thumbnail = await getPdfPageThumbnailDataUrl(pdfDocument, 1, 0);
+    }
+  } catch (e) {
+    console.warn("[resources] page thumbnail failed", e);
+  }
+  const resource = {
+    id,
+    projectId,
+    name,
+    fileName,
+    fileSize: pdfBytes.byteLength,
+    fileMime: "application/pdf",
+    fileType: "PDF",
+    thumbnail,
+    createdBy,
+    kind: "PDF_SOURCE",
+    visibility: "PROJECT",
+    sourceKey,
+    source: { pdfFileName, pageCount },
+  };
+  await db.transaction("rw", db.resources, db.files, async () => {
+    await db.files.put({
+      fileName,
+      fileMime: "application/pdf",
+      srcFileName: name,
+      fileArrayBuffer: pdfBytes.slice(0),
+      projectId,
+      fileType: "PDF",
+    });
+    await db.resources.add(resource);
+  });
+  return resource;
+}
+
 // Persists the PDF pages a base map is cut from as project resources
 // (kind = "PDF_PAGE", visibility = "PROJECT"): one single-page PDF per source
 // page, extracted with pdf-lib and stored in db.files under the standard
@@ -23,11 +135,17 @@ import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThu
 //
 // Never throws. When pdf-lib cannot re-read the PDF (unusual xref, broken
 // objects…), the WHOLE source PDF is kept instead as ONE resource (kind
-// "PDF_SOURCE", sourceKey = hash@full) shared by every page; the returned
-// entry then carries `pageInResource` = the original page number (1 for an
-// extracted page). Only when even that fails is the page absent from the
-// map — the base map creation must not fail because its source could not
-// be kept. `failures` collects the errors for the caller's feedback.
+// "PDF_SOURCE", sourceKey = hash@full, ensurePdfSourceResource) shared by
+// every page; the returned entry then carries `pageInResource` = the
+// original page number (1 for an extracted page). Only when even that fails
+// is the page absent from the map — the base map creation must not fail
+// because its source could not be kept. `failures` collects the errors for
+// the caller's feedback.
+//
+// `wholePdf: true` takes that whole-PDF path on purpose for every page (no
+// per-page extraction): the panel then lists the source PDF once and the
+// base maps point at it with their page number — used when the PDF is itself
+// a resource of the project (Krto creation configurations).
 export default async function ensurePdfPageResources({
   pdfFile,
   pdfDocument,
@@ -35,6 +153,7 @@ export default async function ensurePdfPageResources({
   projectId,
   createdBy,
   failures = [],
+  wholePdf = false,
 }) {
   const result = new Map();
   const pages = [...new Set((pageNumbers ?? []).filter((p) => p >= 1))];
@@ -66,98 +185,37 @@ export default async function ensurePdfPageResources({
     return srcDoc;
   };
 
-  // Same content already kept in ANOTHER project: copy it into this one
-  // (cheaper than re-extracting, and the panel lists a project's rows).
-  const duplicateFromOtherProject = async (sourceKey) => {
-    const twins = (
-      await db.resources.where("sourceKey").equals(sourceKey).toArray()
-    ).filter((r) => !r.deletedAt && r.fileName && !isVisibleFromProject(r, projectId));
-    for (const twin of twins) {
-      const copy = await duplicateResourceToProject(twin, { projectId, createdBy });
-      if (copy) return copy;
-    }
-    return null;
-  };
-
-  // Fallback: the whole PDF as one resource (see header). Created once.
-  let fullResource = null;
-  const getFullResource = async () => {
-    if (fullResource) return fullResource;
-    const sourceKey = `${hash}@full`;
-    const existing = (
-      await db.resources.where("sourceKey").equals(sourceKey).toArray()
-    ).filter((r) => !r.deletedAt && r.fileName && isVisibleFromProject(r, projectId));
-    for (const r of existing) {
-      const fileRecord = await db.files.get(r.fileName);
-      if (fileRecord?.fileArrayBuffer) {
-        fullResource = r;
-        return r;
-      }
-    }
-    const twinCopy = await duplicateFromOtherProject(sourceKey);
-    if (twinCopy) {
-      fullResource = twinCopy;
-      return twinCopy;
-    }
-    if (existing[0]) {
-      // metadata row without its file (post-Krto import): re-attach
-      const r = existing[0];
-      await db.transaction("rw", db.resources, db.files, async () => {
-        await db.files.put({
-          fileName: r.fileName,
-          fileMime: "application/pdf",
-          srcFileName: r.name,
-          fileArrayBuffer: bytes.slice(0),
-          projectId: r.projectId,
-          fileType: "PDF",
-        });
-        await db.resources.update(r.id, { fileSize: bytes.byteLength });
-      });
-      fullResource = { ...r, fileSize: bytes.byteLength };
-      return fullResource;
-    }
-    const id = nanoid();
-    const name = pdfFileName;
-    const fileName = `resource_${id}_${name}`;
-    let thumbnail = null;
-    try {
-      if (pdfDocument) {
-        thumbnail = await getPdfPageThumbnailDataUrl(pdfDocument, 1, 0);
-      }
-    } catch (e) {
-      console.warn("[resources] page thumbnail failed", e);
-    }
-    const resource = {
-      id,
-      projectId,
-      name,
-      fileName,
-      fileSize: bytes.byteLength,
-      fileMime: "application/pdf",
-      fileType: "PDF",
-      thumbnail,
-      createdBy,
-      kind: "PDF_SOURCE",
-      visibility: "PROJECT",
-      sourceKey,
-      source: { pdfFileName, pageCount },
-    };
-    await db.transaction("rw", db.resources, db.files, async () => {
-      await db.files.put({
-        fileName,
-        fileMime: "application/pdf",
-        srcFileName: name,
-        fileArrayBuffer: bytes.slice(0),
+  // The whole PDF as one resource (see header). Created once.
+  let fullResourcePromise = null;
+  const getFullResource = () => {
+    if (!fullResourcePromise) {
+      fullResourcePromise = ensurePdfSourceResource({
+        pdfFile,
+        pdfDocument,
         projectId,
-        fileType: "PDF",
+        createdBy,
+        bytes,
+        hash,
       });
-      await db.resources.add(resource);
-    });
-    fullResource = resource;
-    return resource;
+    }
+    return fullResourcePromise;
   };
 
   for (const pageNumber of pages) {
+    if (wholePdf) {
+      try {
+        const full = await getFullResource();
+        result.set(pageNumber, { ...full, pageInResource: pageNumber });
+      } catch (e) {
+        console.error(
+          `[resources] ensurePdfPageResources: whole PDF not kept, page ${pageNumber} skipped`,
+          e
+        );
+        failures.push(e);
+      }
+      continue;
+    }
+
     const sourceKey = `${hash}@p${pageNumber}`;
     try {
       // 1. Reuse an existing live resource with the same content key.
@@ -197,7 +255,11 @@ export default async function ensurePdfPageResources({
       }
 
       // 2. Same page already kept in another project: copy it here.
-      const twinCopy = await duplicateFromOtherProject(sourceKey);
+      const twinCopy = await duplicateFromOtherProject({
+        sourceKey,
+        projectId,
+        createdBy,
+      });
       if (twinCopy) {
         result.set(pageNumber, { ...twinCopy, pageInResource: 1 });
         continue;
@@ -218,7 +280,11 @@ export default async function ensurePdfPageResources({
           const viewport = page.getViewport({ scale: 1 });
           pageWidthPt = viewport.width;
           pageHeightPt = viewport.height;
-          thumbnail = await getPdfPageThumbnailDataUrl(pdfDocument, pageNumber, 0);
+          thumbnail = await getPdfPageThumbnailDataUrl(
+            pdfDocument,
+            pageNumber,
+            0
+          );
         } catch (e) {
           console.warn("[resources] page thumbnail failed", e);
         }
@@ -300,5 +366,8 @@ async function extractPage(srcDoc, pageNumber) {
   }
   const saved = await dest.save({ useObjectStreams: false });
   // Uint8Array → standalone ArrayBuffer (no shared offset).
-  return saved.buffer.slice(saved.byteOffset, saved.byteOffset + saved.byteLength);
+  return saved.buffer.slice(
+    saved.byteOffset,
+    saved.byteOffset + saved.byteLength
+  );
 }
