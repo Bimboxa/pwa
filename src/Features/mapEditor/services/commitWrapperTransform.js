@@ -5,6 +5,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
 import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
+import applyAffineToSurfaceCuts from "Features/threedFaceCut/utils/applyAffineToSurfaceCuts";
 import {
   attachMeshPaintPointsUpdatedAt,
   getLiveMeshPaintsByHostIds,
@@ -148,11 +149,14 @@ async function commitWrapperTransformWrites({
   }
 
   // 3b. isMesh3d annotations: the affine map their projection went through
-  //     (the mesh follows it in 4c').
+  //     (the mesh follows it in 4c'). Surface hosts cut by « Découpe
+  //     horizontale / verticale » (surfaceCuts) need the same map.
   const meshAffineById = new Map();
   for (const annId of selectedAnnotationIds) {
     const ann = allAnnotations.find((a) => a.id === annId);
-    if (!ann?.isMesh3d || !ann.mesh3d?.vertices?.length) continue;
+    const hasMesh = Boolean(ann?.isMesh3d && ann.mesh3d?.vertices?.length);
+    const hasSurfaceCuts = Boolean(ann?.surfaceCuts?.length);
+    if (!hasMesh && !hasSurfaceCuts) continue;
     const pairs = [];
     const collect = (pt) => {
       const to = pointUpdates.get(pt?.id);
@@ -300,17 +304,30 @@ async function commitWrapperTransformWrites({
     }
 
     // 4c'. isMesh3d annotations: carry the mesh along with its projection.
+    //      Surface cuts (cut lathes / shells) follow their host the same way.
     for (const [annId, affine] of meshAffineById) {
       const ann = allAnnotations.find((a) => a.id === annId);
+      const hasMesh = Boolean(ann?.isMesh3d && ann.mesh3d?.vertices?.length);
       ops.push(
         db.annotations.update(annId, {
-          mesh3d: applyAffineToMesh3d(ann.mesh3d, affine, imageSize),
+          ...(hasMesh
+            ? { mesh3d: applyAffineToMesh3d(ann.mesh3d, affine, imageSize) }
+            : {}),
           // The snapshot of the original geometry follows too: a reset
           // restores it where the mesh now stands.
-          ...(ann.mesh3dSource
+          ...(hasMesh && ann.mesh3dSource
             ? {
                 mesh3dSource: applyAffineToMesh3dSource(
                   ann.mesh3dSource,
+                  affine,
+                  imageSize
+                ),
+              }
+            : {}),
+          ...(ann?.surfaceCuts?.length
+            ? {
+                surfaceCuts: applyAffineToSurfaceCuts(
+                  ann.surfaceCuts,
                   affine,
                   imageSize
                 ),

@@ -46,7 +46,7 @@ export function buildFacePlaneHit(
 // Raycast the pointer against the annotation solids and return the closest
 // face hit, in the same shape as intersectBaseMapPlane so computeSnapTarget
 // treats a face like a plan: { position, normal, axisA, axisB, isFace: true,
-// nodeId, baseMapId, distance } | null.
+// nodeId, baseMapId, distance, object, faceIndex } | null.
 //
 // This is what lets a point land anywhere ON a face (mesh drawing mode) —
 // the vertex / edge snaps only reach its corners and borders.
@@ -100,6 +100,10 @@ export default function intersectAnnotationFace(editor, ndc, camera) {
       nodeId: owner.userData.nodeId,
       baseMapId: owner.userData.baseMapId ?? null,
       distance: hit.distance,
+      // The hit mesh itself (a piece of a cut surface host, see
+      // applySurfaceCuts) and its triangle, for the surface tools.
+      object: hit.object,
+      faceIndex: hit.faceIndex,
     });
   }
   return null;

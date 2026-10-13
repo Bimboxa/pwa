@@ -40,6 +40,7 @@ import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 
 import createFlatMesh3dAnnotationService from "Features/annotationMesh3d/services/createFlatMesh3dAnnotationService";
 import cutFaceAlongPathService from "Features/threedFaceCut/services/cutFaceAlongPathService";
+import cutSurfaceAlongPlaneService from "Features/threedFaceCut/services/cutSurfaceAlongPlaneService";
 import {
   clearFaceCutHoverCache,
   getFaceCutAxisHover,
@@ -139,6 +140,8 @@ export default function useDrawingPointerHandlers() {
       "Aucune face coupée : le tracé doit aller d'un bord à l'autre de la face (ou y faire une boucle).",
     NOT_ON_SELECTED_FACE:
       "Aucune face coupée : le tracé doit rester sur la face sélectionnée.",
+    NO_BASE_MAP:
+      "Aucune face coupée : le fond de plan de l'annotation n'est pas affiché.",
   };
   const faceCutFailedS = "La coupe de la face n'a pas pu être enregistrée.";
 
@@ -651,10 +654,47 @@ export default function useDrawingPointerHandlers() {
       return true;
     }
 
+    // « Découpe horizontale / verticale » on a SURFACE host (lathe, shell…):
+    // the plane previewed on the hovered piece is stored on the annotation
+    // (cutSurfaceAlongPlaneService); the 3D build replays it.
+    async function cutSurface(surfaceCut) {
+      try {
+        const result = await cutSurfaceAlongPlaneService({
+          editor,
+          ...surfaceCut,
+          updateAnnotationFn: updateAnnotation,
+        });
+        console.log(
+          `[threedDrawing] surface cut: ${result.kind}${result.annotationId ? ` ${result.annotationId}` : ""}`
+        );
+        if (result.kind === "NONE") {
+          const message =
+            noFaceCutByReasonS[result.reason] ??
+            noFaceCutByReasonS.NOT_EDITABLE;
+          dispatch(setToaster({ message, severity: "warning" }));
+        }
+      } catch (err) {
+        console.error("[threedDrawing] surface cut failed", err);
+        dispatch(
+          setToaster({
+            message: err?.message || faceCutFailedS,
+            severity: "error",
+          })
+        );
+      }
+      finishCommit();
+    }
+
     // « Découpe horizontale / verticale »: the line previewed on the hovered
     // face (FaceCutAxisOverlayThreed) cuts it.
     async function cutFaceAlongAxis() {
       const hover = getFaceCutAxisHover();
+      if (hover?.surfaceCut) {
+        lastAxisCutTimeRef.current = performance.now();
+        await cutSurface(hover.surfaceCut);
+        clearFaceCutHoverCache();
+        return;
+      }
       if (!hover?.chordWorld) return;
       if (hover.endsOnHole) {
         dispatch(

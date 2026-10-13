@@ -100,9 +100,9 @@ const FACE_CUT_MESSAGES = {
   FACE_CUT_RECTANGLE:
     "Cliquez les 2 angles du rectangle sur une face (X / Y pour saisir les dimensions)",
   FACE_CUT_HORIZONTAL:
-    "Survolez une face : cliquez pour la couper à l'horizontale (un mur devient un maillage)",
+    "Survolez une face : cliquez pour la couper à l'horizontale (un mur devient un maillage, une surface courbe est découpée en pièces)",
   FACE_CUT_VERTICAL:
-    "Survolez une face : cliquez pour la couper à la verticale",
+    "Survolez une face : cliquez pour la couper à la verticale (une révolution se coupe le long d'un méridien)",
 };
 // Tool launched on a selected face: every tool cuts that face only.
 const FACE_CUT_LOCKED_MESSAGE =

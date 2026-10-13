@@ -8,6 +8,10 @@
 //   notCuttable,     // its faces cannot be edited (carved, generated…)
 //   chordWorld,      // [{x, y, z, nodeId} x2] the cut line on the face, or
 //                    // null when the (typed) line misses it
+//   surfaceCut,      // SURFACE host (isSurfaceCutHost) only, chordWorld
+//                    // null: { annotationId, axis, plane: {normal,
+//                    // constant} (world), seed: {x, y, z} (world) } for
+//                    // cutSurfaceAlongPlaneService
 //   endsOnHole,      // an end of the chord lies on a hole: refused
 //   distance,        // m, from the reference corner to the line
 //   snapped, locked, // line on a vertex / edge middle; on the typed distance
@@ -54,6 +58,27 @@ export function getCachedFaceCutContext(annotationId, load) {
   return _contexts.get(annotationId);
 }
 
+const _surfaceContexts = new Map(); // mesh uuid -> context
+
+// The surface-cut context of a hovered SOLID mesh of a surface host (its
+// world triangle soup, boundary vertices, revolution axis), built once per
+// cache life.
+export function getCachedSurfaceCutContext(mesh, load) {
+  const key = mesh?.uuid;
+  if (!key) return null;
+  if (!_surfaceContexts.has(key)) {
+    let ctx = null;
+    try {
+      ctx = load();
+    } catch (err) {
+      console.error("[threedFaceCut] surface context failed", err);
+    }
+    _surfaceContexts.set(key, ctx);
+  }
+  return _surfaceContexts.get(key);
+}
+
 export function clearFaceCutHoverCache() {
   _contexts.clear();
+  _surfaceContexts.clear();
 }

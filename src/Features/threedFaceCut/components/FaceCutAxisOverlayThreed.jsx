@@ -31,13 +31,18 @@ import {
 import {
   clearFaceCutHoverCache,
   getCachedFaceCutContext,
+  getCachedSurfaceCutContext,
   getFaceCutAxisHover,
   setFaceCutAxisHover,
   subscribeFaceCutAxisHover,
 } from "../services/faceCutAxisStore";
 import computeFaceAxisCut from "../utils/computeFaceAxisCut";
+import computeSurfaceAxisCut, {
+  getSurfaceBoundaryPoints,
+} from "../utils/computeSurfaceAxisCut";
 import { getFaceCutAxis } from "../utils/faceCutTools";
 import getFaceCutBasisWorld from "../utils/getFaceCutBasisWorld";
+import isSurfaceCutHost from "../utils/isSurfaceCutHost";
 import resolveFaceCutLockedFace, {
   intersectLockedFace,
 } from "../utils/resolveFaceCutLockedFace";
@@ -84,6 +89,14 @@ function formatDistance(m) {
 // bound to that face — the cursor ray meets its plane (the plane's extension
 // included: the chord is always inside the face), the face index is the
 // selected one, nothing else is raycast.
+//
+// SURFACE host (isSurfaceCutHost: lathe, shell, swept profile): no planar
+// face to chord — the hovered SOLID mesh (the whole surface, or one of the
+// pieces of a previous cut) is cut by a plane (computeSurfaceAxisCut:
+// horizontal, or the meridian / the line-of-sight vertical plane), its trace
+// on the piece drawn as the dashed line, the reference / guide markers and
+// the chip as on a face. The store then carries `surfaceCut` (plane + seed)
+// for cutSurfaceAlongPlaneService.
 export default function FaceCutAxisOverlayThreed() {
   const store = useStore();
 
@@ -207,6 +220,201 @@ export default function FaceCutAxisOverlayThreed() {
         .normalize();
     }
 
+    // --- surface hosts ---------------------------------------------------
+
+    // World triangle soup of a SOLID mesh (9 numbers per triangle).
+    function bakeWorldSoup(mesh) {
+      const geometry = mesh.geometry;
+      const position = geometry?.getAttribute?.("position");
+      if (!position) return null;
+      const index = geometry.getIndex();
+      const count = index ? index.count : position.count;
+      const usable = count - (count % 3);
+      const out = new Float64Array(3 * usable);
+      const v = new Vector3();
+      for (let i = 0; i < usable; i++) {
+        v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
+          mesh.matrixWorld
+        );
+        out[3 * i] = v.x;
+        out[3 * i + 1] = v.y;
+        out[3 * i + 2] = v.z;
+      }
+      return out;
+    }
+
+    // Soup, boundary vertices and revolution axis (world) of a hovered
+    // piece — cached per mesh while the tool is armed.
+    function buildSurfaceCutContext(mesh) {
+      mesh.updateWorldMatrix(true, false);
+      const positions = bakeWorldSoup(mesh);
+      if (!positions?.length) return null;
+      const boundaryPoints = getSurfaceBoundaryPoints(positions);
+      const axisData = mesh.userData?.revolutionAxis;
+      let revolutionAxis = null;
+      if (axisData?.center) {
+        const point = mesh.localToWorld(
+          new Vector3(
+            axisData.center.x,
+            axisData.center.y,
+            axisData.center.z ?? 0
+          )
+        );
+        const dir = (
+          axisData.axisAlongNormal ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0)
+        )
+          .transformDirection(mesh.matrixWorld)
+          .normalize();
+        revolutionAxis = {
+          point: { x: point.x, y: point.y, z: point.z },
+          dir: { x: dir.x, y: dir.y, z: dir.z },
+        };
+      }
+      // Seams of a piece (parent-local, the piece carries no transform of
+      // its own) → world.
+      const seams = (mesh.userData?.surfaceCutSeams || []).map(([p, q]) =>
+        [p, q].map((point) => {
+          const w = mesh.localToWorld(new Vector3(point.x, point.y, point.z));
+          return { x: w.x, y: w.y, z: w.z };
+        })
+      );
+      return { positions, boundaryPoints, revolutionAxis, seams };
+    }
+
+    function logSurfaceHover(reason, hit, extra = {}) {
+      console.debug("[threedFaceCut] surface hover: " + reason, {
+        annotationId: hit?.nodeId,
+        mesh: hit?.object?.uuid,
+        piece: hit?.object?.userData?.surfaceCutPiece ?? null,
+        ...extra,
+      });
+    }
+
+    // The trace is drawn a hair toward the camera so it never z-fights with
+    // the surface it runs on.
+    function liftToCamera(p) {
+      const d = camera
+        .getWorldPosition(new Vector3())
+        .sub(new Vector3(p.x, p.y, p.z));
+      const len = d.length();
+      if (len === 0) return { ...p };
+      d.multiplyScalar(DRAFT_LIFT_M / len);
+      return { x: p.x + d.x, y: p.y + d.y, z: p.z + d.z };
+    }
+
+    // MESH3D_SNAP_PX along the plane normal, in meters at the hit.
+    function getSurfaceSnapToleranceM(hitPosition, rect) {
+      return (normal) => {
+        const a = toScreen(hitPosition, rect);
+        const b = toScreen(
+          {
+            x: hitPosition.x + normal.x,
+            y: hitPosition.y + normal.y,
+            z: hitPosition.z + normal.z,
+          },
+          rect
+        );
+        const pxPerMeter = Math.hypot(a.x - b.x, a.y - b.y);
+        return pxPerMeter > 1e-6 ? MESH3D_SNAP_PX / pxPerMeter : 0;
+      };
+    }
+
+    function runSurfaceHover(hit, rect) {
+      const ctx = getCachedSurfaceCutContext(hit.object, () =>
+        buildSurfaceCutContext(hit.object)
+      );
+      if (!ctx) {
+        logSurfaceHover("no context (empty geometry?)", hit);
+        showNothing();
+        return;
+      }
+      const s = store.getState();
+      const viewDir = getViewRayWorld(hit.position);
+      const result = computeSurfaceAxisCut({
+        positions: ctx.positions,
+        boundaryPoints: ctx.boundaryPoints,
+        hitPoint: { x: hit.position.x, y: hit.position.y, z: hit.position.z },
+        axis,
+        side: s.threedEditor.drawingMode.faceCutSide,
+        viewDir: { x: viewDir.x, y: viewDir.y, z: viewDir.z },
+        revolutionAxis: ctx.revolutionAxis,
+        typedDistance: parseRectBuffer(s.mapEditor.constraintBuffer),
+        snapToleranceM: getSurfaceSnapToleranceM(hit.position, rect),
+        seams: ctx.seams,
+      });
+      if (!result) {
+        logSurfaceHover("plane misses the piece", hit, {
+          axis,
+          typed: s.mapEditor.constraintBuffer,
+          triangles: ctx.positions.length / 9,
+          boundary: ctx.boundaryPoints.length,
+        });
+        showNothing();
+        return;
+      }
+
+      clearDraft();
+      const color = result.snapped || result.locked ? COLOR_LOCK : COLOR_LINE;
+      const line = buildSegments(
+        result.segments.map(([p, q]) => ({
+          a: liftToCamera(p),
+          b: liftToCamera(q),
+        })),
+        makeLineMaterial({
+          color,
+          linewidth: LINEWIDTH,
+          dashed: true,
+          dashSize: getDashSize(camera.position.distanceTo(hit.position)),
+          resolution: getCanvasResolution(editor),
+        })
+      );
+      if (line) {
+        line.renderOrder = 1002;
+        root.add(line);
+        draft.push(line);
+      }
+      const refWorld = liftToCamera(result.ref);
+      const guideWorld = liftToCamera(result.guide);
+      const markers = buildDrawingVertexMarkers(
+        [refWorld, guideWorld],
+        COLOR_MARKER
+      );
+      if (markers) {
+        markers.renderOrder = 1003;
+        root.add(markers);
+        draft.push(markers);
+      }
+      const mid = toScreen(
+        {
+          x: (refWorld.x + guideWorld.x) / 2,
+          y: (refWorld.y + guideWorld.y) / 2,
+          z: (refWorld.z + guideWorld.z) / 2,
+        },
+        rect
+      );
+      setFaceCutAxisHover({
+        nodeId: hit.nodeId,
+        notCuttable: false,
+        chordWorld: null,
+        surfaceCut: {
+          annotationId: hit.nodeId,
+          axis,
+          plane: result.plane,
+          seed: { x: hit.position.x, y: hit.position.y, z: hit.position.z },
+        },
+        endsOnHole: false,
+        distance: result.distance,
+        snapped: result.snapped,
+        locked: result.locked,
+        chip: {
+          x: mid.x,
+          y: mid.y + 18,
+          text: formatDistance(result.distance),
+        },
+      });
+      render();
+    }
+
     async function runHover() {
       const mNdc = lastNdcRef.current;
       if (!mNdc) return;
@@ -230,6 +438,16 @@ export default function FaceCutAxisOverlayThreed() {
       if (!hit?.nodeId) {
         showNothing();
         return;
+      }
+      // Surface host: the hit piece is cut by a plane (no planar face).
+      if (!lock && hit.object) {
+        const source = sceneManager.annotationsManager?.getAnnotationSource?.(
+          hit.nodeId
+        );
+        if (isSurfaceCutHost(source)) {
+          runSurfaceHover(hit, rect);
+          return;
+        }
       }
       const ctx = await getCachedFaceCutContext(hit.nodeId, () =>
         getEditableMesh3d({
