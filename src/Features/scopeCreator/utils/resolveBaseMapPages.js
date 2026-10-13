@@ -6,6 +6,13 @@
  *
  * Folder keys never get parsed by the consumers: they look the folder up
  * with folders.find((f) => f.targetKey === page.targetKey).
+ *
+ * renamedListingNames ({ [declaredName]: typedName }) renames the dossiers
+ * the configuration declares and that get created (recap modal, inline).
+ * The declared name stays the stable key (removedListingNames, pageKey,
+ * pageTargets) and the one matched against the project listings — so a row
+ * never turns into a reused listing while being typed; the typed name
+ * (trimmed, else the declared one) is the created listing's name.
  */
 
 export const getNewFolderKey = (name) => `new:${name}`;
@@ -35,8 +42,10 @@ export default function resolveBaseMapPages({
   extraBaseMapListings,
   hiddenExistingListingIds,
   pageTargets,
+  renamedListingNames,
 }) {
   const _listingConfigs = listingConfigs ?? [];
+  const _renamedListingNames = renamedListingNames ?? {};
   const _existingListings = existingListings ?? [];
   const _removedListingNames = removedListingNames ?? [];
   const _removedPageKeys = removedPageKeys ?? [];
@@ -58,28 +67,34 @@ export default function resolveBaseMapPages({
   // produces no folder (removed, or fallback dropped by existing listings)
   const folderKeyByListingName = {};
 
-  for (const listingConfig of _listingConfigs) {
-    if (_removedListingNames.includes(listingConfig.name)) continue;
-    if (listingConfig.fallback && _existingListings.length > 0) continue;
-    const existing = matchExistingListing(listingConfig, _existingListings);
+  for (const declaredConfig of _listingConfigs) {
+    const originalName = declaredConfig.name;
+    if (_removedListingNames.includes(originalName)) continue;
+    if (declaredConfig.fallback && _existingListings.length > 0) continue;
+    const existing = matchExistingListing(declaredConfig, _existingListings);
     if (existing) {
       const targetKey = getExistingFolderKey(existing.id);
-      folderKeyByListingName[listingConfig.name] = targetKey;
+      folderKeyByListingName[originalName] = targetKey;
       pushFolder({
         targetKey,
         kind: "existing",
         name: existing.name,
-        listingConfig,
+        originalName,
+        listingConfig: declaredConfig,
         existing,
         declared: true,
       });
     } else {
-      const targetKey = getNewFolderKey(listingConfig.name);
-      folderKeyByListingName[listingConfig.name] = targetKey;
+      const name = _renamedListingNames[originalName]?.trim() || originalName;
+      // the config the hook creates from — carries the typed name
+      const listingConfig = { ...declaredConfig, name };
+      const targetKey = getNewFolderKey(name);
+      folderKeyByListingName[originalName] = targetKey;
       pushFolder({
         targetKey,
         kind: "new",
-        name: listingConfig.name,
+        name,
+        originalName,
         listingConfig,
         declared: true,
       });

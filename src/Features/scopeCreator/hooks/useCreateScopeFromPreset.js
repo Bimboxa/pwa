@@ -53,7 +53,10 @@ export default function useCreateScopeFromPreset({ projectId }) {
   // data
 
   const appConfig = useAppConfig();
-  const baseMapsListings = useProjectBaseMapListings({ projectId, includeDisabled: true });
+  const baseMapsListings = useProjectBaseMapListings({
+    projectId,
+    includeDisabled: true,
+  });
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
 
   const createScope = useCreateScope();
@@ -91,6 +94,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // configuration / generic baseMap listings removed in the recap modal
     // (keyed by listing name): neither created nor reused.
     removedBaseMapListingNames,
+    // configuration / generic baseMap listings renamed inline in the recap
+    // modal ({ declaredName: typedName }) — see resolveBaseMapPages.
+    renamedBaseMapListingNames,
     // target dossier chosen in the recap modal for each configuration page
     // ({ "listingName::itemName": folderKey }) — see resolveBaseMapPages.
     baseMapPageTargets,
@@ -266,10 +272,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
     let configurationItemsCount = 0;
     let configReusedListingIds = [];
 
+    // generic ("vide") scope: the recap flow (eyes provided — it hides the
+    // project listings by default) always proposes the generic dossier; the
+    // compact dialog (no eyes) only when the project has no listing.
     const genericDefaultListings =
       usesConfigurationFlow &&
       !configuration &&
-      (!baseMapsListings || baseMapsListings.length === 0)
+      (!baseMapsListings ||
+        baseMapsListings.length === 0 ||
+        hiddenExistingListingIds != null)
         ? [{ name: GENERIC_BASE_MAP_LISTING_NAME, items: [] }]
         : [];
 
@@ -282,6 +293,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
       extraBaseMapListings,
       hiddenExistingListingIds,
       pageTargets: baseMapPageTargets,
+      renamedListingNames: renamedBaseMapListingNames,
     });
 
     // pages grouped by target dossier, as bare configuration items

@@ -23,10 +23,10 @@ export default function SectionSelectKrtoConfiguration({
   // strings
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
-  const genericLabelS = `${scopeS} générique`;
+  const genericLabelS = appConfig?.strings?.scope?.newEmpty ?? `${scopeS} vide`;
   const genericHelperS = "Structure vide, à construire librement.";
-  const genericCodeS = "VIERGE";
-  const genericChipS = "Vierge";
+  const genericCodeS = "VIDE";
+  const genericChipS = "Vide";
 
   // helpers
 

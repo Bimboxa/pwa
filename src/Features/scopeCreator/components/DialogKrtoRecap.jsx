@@ -42,8 +42,8 @@ import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
 /*
  * Recap modal of the Krto about to be created. Left column: the form (name +
  * the configuration tags as read-only chips), the baseMap listings (the
- * project's — toggled with an eye — then the new ones — removable, the
- * user-added ones renamed inline), the configuration pages to create — each
+ * project's — toggled with an eye — then the new ones — renamed inline and
+ * removable), the configuration pages to create — each
  * with a target dossier select — the
  * optional modules and the create button. Right: the annotation templates
  * panel and the configuration's illustration (loaded lazily).
@@ -64,6 +64,8 @@ export default function DialogKrtoRecap({
   onRemovedPageKeysChange,
   removedListingNames,
   onRemovedListingNamesChange,
+  renamedListingNames,
+  onRenamedListingNamesChange,
   baseMapPageTargets,
   onBaseMapPageTargetsChange,
   extraAnnotationListings,
@@ -108,7 +110,10 @@ export default function DialogKrtoRecap({
   // data
 
   const appConfig = useAppConfig();
-  const existingBaseMapListings = useProjectBaseMapListings({ projectId, includeDisabled: true });
+  const existingBaseMapListings = useProjectBaseMapListings({
+    projectId,
+    includeDisabled: true,
+  });
 
   // the configuration's illustration — resolved only once the recap is open
   const { url: recapImageUrl, loading: recapImageLoading } = useDataImageUrl({
@@ -120,7 +125,10 @@ export default function DialogKrtoRecap({
   // helpers — title
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
-  const titleS = configuration?.name ?? `${scopeS} générique`;
+  const titleS =
+    configuration?.name ??
+    appConfig?.strings?.scope?.newEmpty ??
+    `${scopeS} vide`;
 
   // helpers — configuration tags (ouvrage + usage keyword families)
 
@@ -166,9 +174,11 @@ export default function DialogKrtoRecap({
 
   const existingListings = existingBaseMapListings ?? [];
 
+  // generic ("vide") scope: the project listings are hidden by default (see
+  // the eyes init below), so the generic dossier is always proposed
   const configListingRows = configuration?.baseMaps?.listings?.length
     ? configuration.baseMaps.listings
-    : !configuration && existingListings.length === 0
+    : !configuration
       ? [{ name: GENERIC_BASE_MAP_LISTING_NAME, items: [] }]
       : [];
 
@@ -177,17 +187,13 @@ export default function DialogKrtoRecap({
   }
 
   const _removedListingNames = removedListingNames ?? [];
-
-  const newListingRows = configListingRows.filter(
-    (listingConfig) =>
-      !findExistingListing(listingConfig) &&
-      !_removedListingNames.includes(listingConfig.name)
-  );
+  const _renamedListingNames = renamedListingNames ?? {};
 
   const extraListings = extraBaseMapListings ?? [];
 
   // visibility eyes init — the configuration's disableExistingListings flag
-  // hides the existing listings it does not reuse; the user then toggles.
+  // (always on for the generic "vide" scope) hides the existing listings it
+  // does not reuse; the user then toggles.
   // Reads the unfiltered configListingRows on purpose (removed dossiers are
   // unmatched by construction, so they never count as reused).
   useEffect(() => {
@@ -198,7 +204,10 @@ export default function DialogKrtoRecap({
         configListingRows.find((c) => findExistingListing(c) === l)
       )
       .map((l) => l.id);
-    const initial = configuration?.baseMaps?.disableExistingListings
+    const hideExisting = configuration
+      ? Boolean(configuration.baseMaps?.disableExistingListings)
+      : true;
+    const initial = hideExisting
       ? existingListings
           .filter((l) => !reusedIds.includes(l.id))
           .map((l) => l.id)
@@ -221,7 +230,11 @@ export default function DialogKrtoRecap({
     extraBaseMapListings: extraListings,
     hiddenExistingListingIds,
     pageTargets: baseMapPageTargets,
+    renamedListingNames: _renamedListingNames,
   });
+  // declared dossiers that will be created (not matched, not removed, not a
+  // dropped fallback) — renamed inline, keyed by their declared name
+  const newListingRows = folders.filter((f) => f.kind === "new" && f.declared);
   const folderOptions = [
     ...folders.filter((f) => f.kind === "new"),
     ...folders.filter((f) => f.kind === "existing"),
@@ -237,8 +250,15 @@ export default function DialogKrtoRecap({
     onHiddenExistingListingIdsChange(next);
   }
 
-  function handleRemoveNewListing(name) {
-    onRemovedListingNamesChange([..._removedListingNames, name]);
+  function handleRemoveNewListing(originalName) {
+    onRemovedListingNamesChange([..._removedListingNames, originalName]);
+  }
+
+  function handleRenameNewListing(originalName, value) {
+    onRenamedListingNamesChange({
+      ..._renamedListingNames,
+      [originalName]: value,
+    });
   }
 
   function handleRemovePage(pageKey) {
@@ -426,8 +446,8 @@ export default function DialogKrtoRecap({
   );
 
   // "Fonds de plan" section — the project's dossiers (visibility eye), the
-  // new dossiers (removable, user-added ones renamed inline), then the pages
-  // to create with their target dossier.
+  // new dossiers (renamed inline, removable), then the pages to create with
+  // their target dossier.
   const baseMapsSectionNode = (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Typography variant="body1" sx={{ fontWeight: 700 }}>
@@ -485,7 +505,7 @@ export default function DialogKrtoRecap({
         })}
         {newListingRows.map((row) => (
           <Box
-            key={row.name}
+            key={row.originalName}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -496,12 +516,17 @@ export default function DialogKrtoRecap({
             <FolderOutlinedIcon
               sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
             />
-            <Typography variant="body2" noWrap sx={{ flexGrow: 1 }}>
-              {row.name}
-            </Typography>
+            <InputBaseBand
+              value={_renamedListingNames[row.originalName] ?? row.originalName}
+              onChange={(e) =>
+                handleRenameNewListing(row.originalName, e.target.value)
+              }
+              placeholder={newListingPlaceholderS}
+              fullWidth
+            />
             <IconButton
               size="small"
-              onClick={() => handleRemoveNewListing(row.name)}
+              onClick={() => handleRemoveNewListing(row.originalName)}
               sx={{ color: "text.secondary", p: 0.25 }}
             >
               <CloseIcon sx={{ fontSize: 16 }} />

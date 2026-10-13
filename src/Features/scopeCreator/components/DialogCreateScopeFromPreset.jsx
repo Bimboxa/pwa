@@ -91,9 +91,10 @@ export default function DialogCreateScopeFromPreset({
   const pageTitleS = "Partir d'une configuration";
   const pageSubtitleS = `Chaque configuration pré-remplit le ${scopeS} — vous ajusterez ensuite`;
   const searchPlaceholderS = "Rechercher une configuration";
-  const genericButtonS = `${scopeS} vierge`;
+  const genericButtonS =
+    appConfig?.strings?.scope?.newEmpty ?? `${scopeS} vide`;
   const configLabelS = "Configuration de départ";
-  const genericLabelS = `${scopeS} générique`;
+  const genericLabelS = genericButtonS;
   const genericHelperS = "Structure vide, à construire librement";
   const nameLabelS = `Nom du ${scopeS}`;
   const nameHelperS = "Pré-rempli d'après la configuration.";
@@ -151,6 +152,9 @@ export default function DialogCreateScopeFromPreset({
   // resolveBaseMapPages) — unset or unavailable => declaring dossier.
   const [baseMapPageTargets, setBaseMapPageTargets] = useState({});
   const [removedListingNames, setRemovedListingNames] = useState([]);
+  // configuration / generic baseMap listings renamed inline in the recap
+  // modal ({ declaredName: typedName }).
+  const [renamedListingNames, setRenamedListingNames] = useState({});
   const [extraAnnotationListings, setExtraAnnotationListings] = useState([]);
   // preset libraries added via the "Nouvelle liste" dialog
   const [extraLibraryKeys, setExtraLibraryKeys] = useState([]);
@@ -199,6 +203,7 @@ export default function DialogCreateScopeFromPreset({
     // keyed by names of the current configuration — reset on switch
     setBaseMapPageTargets({});
     setRemovedListingNames([]);
+    setRenamedListingNames({});
     setExtraAnnotationListings([]);
     setExtraLibraryKeys([]);
     setHiddenExistingListingIds(null);
@@ -227,6 +232,7 @@ export default function DialogCreateScopeFromPreset({
         excludedLibraryKeys,
         removedBaseMapItemKeys: removedPageKeys,
         removedBaseMapListingNames: removedListingNames,
+        renamedBaseMapListingNames: renamedListingNames,
         baseMapPageTargets,
         hiddenExistingListingIds,
       });
@@ -473,6 +479,8 @@ export default function DialogCreateScopeFromPreset({
                 onRemovedPageKeysChange={setRemovedPageKeys}
                 removedListingNames={removedListingNames}
                 onRemovedListingNamesChange={setRemovedListingNames}
+                renamedListingNames={renamedListingNames}
+                onRenamedListingNamesChange={setRenamedListingNames}
                 baseMapPageTargets={baseMapPageTargets}
                 onBaseMapPageTargetsChange={setBaseMapPageTargets}
                 extraAnnotationListings={extraAnnotationListings}

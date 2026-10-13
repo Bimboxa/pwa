@@ -35,7 +35,7 @@ const GENERIC_KEY = "__GENERIC__";
 // select. Entries: "vide" (default — EMPTY_SCOPE_CONFIGURATION: no annotation
 // listing, one "Fonds de plan" listing, core modules only), "générique"
 // (system listings + default baseMap listings, same as the card selector's
-// "vierge" pill), then
+// "vide" card), then
 // the org configurations (simpleModeKeys subset) or, for orgs without Krto
 // configurations, the legacy preset scopes (presetScopeKeys subset).
 // features.scopeCreator.simpleMode {showEmpty, showGeneric, presetScopeKeys}
