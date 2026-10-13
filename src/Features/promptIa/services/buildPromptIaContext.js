@@ -1,8 +1,10 @@
+import resolveAnnotationTypeFromDrawingShape from "Features/annotations/utils/resolveAnnotationTypeFromDrawingShape";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import {
   buildExistingAnnotations,
   getVisibleListingTemplates,
 } from "Features/chat/utils/buildAutoDetectionContext";
+import { SUPPORTED_TYPES } from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 
 // Wall junctions: the overlap the PWA "Joindre" tool and the Auto pipeline
 // use when a wall end enters another wall's band (computeJoinAnnotationEnds).
@@ -46,6 +48,10 @@ const TEMPLATE_KEYS = [
   "stripOrientation",
   "fillColor",
   "fillOpacity",
+  // POINT: dot variant and size
+  "variant",
+  "size",
+  "sizeUnit",
   // 3D defaults (metres): extrusion height, lift above the plan
   "height",
   "offsetZ",
@@ -67,12 +73,23 @@ export function summarizeTemplateForPrompt(t) {
     if (t[key] !== undefined && t[key] !== null && t[key] !== "")
       out[key] = t[key];
   }
-  // Preset bubble templates only carry `drawingShape`: the output contract
-  // is keyed on `type`.
-  if (!out.type && t.drawingShape === "DETAIL") out.type = "DETAIL";
+  // Project templates only carry `drawingShape`: the output contract is
+  // keyed on `type` (the model copies the template as-is, the import
+  // validates `type`).
+  if (!out.type) {
+    const type = resolveAnnotationTypeFromDrawingShape(t);
+    if (type) out.type = type;
+  }
   if (typeof t.description === "string" && t.description.trim())
     out.description = t.description.trim();
   return out;
+}
+
+// Templates the model can actually use: the import places only
+// SUPPORTED_TYPES, so a MARKER / LABEL / OBJECT_3D template copied back
+// as-is would reject the whole result.
+export function isPromptIaTemplate(t) {
+  return SUPPORTED_TYPES.includes(resolveAnnotationTypeFromDrawingShape(t));
 }
 
 const round4 = (v) => Math.round(v * 10000) / 10000;
@@ -213,7 +230,9 @@ export default function buildPromptIaContext({
     meterByPx > 0 ? Math.round(meterByPx * refWidth * 1000) / 1000 : null;
 
   const visible = mode.fromTemplates
-    ? getVisibleListingTemplates(templates, listing?.id)
+    ? getVisibleListingTemplates(templates, listing?.id).filter(
+        isPromptIaTemplate
+      )
     : [];
   const visibleIds = new Set(visible.map((t) => t.id));
   const existing = mode.fromTemplates

@@ -1,5 +1,7 @@
 // Pure helpers for the text pasted back from an external AI chat (Prompt IA).
 
+import resolveAnnotationTypeFromDrawingShape from "../../annotations/utils/resolveAnnotationTypeFromDrawingShape.js";
+
 const IMAGE_SPACE = "image";
 const PDF_SPACE = "pdf_user_space";
 export const COORDINATE_SPACES = [IMAGE_SPACE, PDF_SPACE];
@@ -61,6 +63,8 @@ function findBalancedEnd(s, start) {
  * - keeps the ids of templates that exist in the project (the import then
  *   reuses those rows: `preserveIds`), and gives every other template a fresh
  *   id so an author id like "tpl_mur" never reaches the database;
+ * - fills the `type` of a template copied from the project with only its
+ *   `drawingShape` (the import validator is keyed on `type`);
  * - drops import-time metadata that is not a template row field;
  * - same id rule for the detail baseMaps of `baseMaps`: an entry whose id is
  *   an existing detail baseMap is dropped (nothing to create, the bubbles
@@ -97,6 +101,10 @@ export function normalizePromptIaPayload(
         if (!t || typeof t !== "object" || !t.id) return t;
         const { incomplete, ...row } = t;
         void incomplete;
+        if (!row.type) {
+          const type = resolveAnnotationTypeFromDrawingShape(row);
+          if (type) row.type = type;
+        }
         if (existing.has(t.id)) {
           reusedTemplateIds.push(t.id);
           return row;

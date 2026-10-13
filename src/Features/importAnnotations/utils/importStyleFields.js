@@ -43,6 +43,10 @@ export const STYLE_FIELDS = [
   "arrowStep",
   "arrowRight",
   "arrowLeft",
+  // POINT (dot variant and size)
+  "variant",
+  "size",
+  "sizeUnit",
   // FREE_TEXT
   "hasBackground",
   "textColor",

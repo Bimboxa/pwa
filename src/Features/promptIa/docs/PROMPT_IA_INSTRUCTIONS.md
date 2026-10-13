@@ -155,6 +155,10 @@ liste par source, puis un rapport d'écarts — sections « Sources CAO / BIM »
 - **COTE** — ligne de cote : exactement 2 points, `unit` (`"MM"|"CM"|"M"`),
   `decimals`, `showUnitLabel: true`. Retranscris la valeur écrite à
   l'identique.
+- **POINT** — élément ponctuel (EP, regard, équipement, point singulier) :
+  pas de `points` ; `point` = **centre** de l'élément, dans l'espace de
+  coordonnées annoncé par `coordinateSpace` (mêmes règles que les autres
+  annotations) ; `label` optionnel.
 - **FREE_TEXT** — texte posé sur le plan : pas de `points` ; `textContent` et
   `labelPoint` = **centre** de la boîte de texte ; optionnel `targetPoint` +
   `hasConnector: true`. Style sur le template : `fontSize` en points comme si
@@ -761,8 +765,8 @@ Exemple (un massif dans chaque source, un écart) :
 
 ## Schéma de sortie
 
-Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`,
-`DETAIL`.
+Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `POINT`,
+`FREE_TEXT`, `DETAIL`.
 Clés racine autorisées : `version`, `coordinateSpace`, `image`,
 `annotationTemplates`, `annotations`, `baseMaps`, `listings`, `issues`,
 `note`. Quand le résultat ne contient que des fonds de détail, ou que des
