@@ -16,6 +16,10 @@ import {
   getLinearLayoutSpacing,
   getLinearLayoutTickOffsets,
 } from "Features/annotations/utils/getLinearLayoutBars";
+import computeLayoutLineBars, {
+  getLayoutLineRingsPx,
+  LAYOUT_LINE_DEFAULTS,
+} from "Features/annotations/utils/computeLayoutLineBars";
 import {
   computeVertexFrames,
   buildSweepArraysForProfile,
@@ -886,6 +890,32 @@ function computeAnnotationQties({
         }
       });
       result.lengthDeveloped = lengthDeveloped;
+    }
+
+    // Layout lines (lignes de calepinage): Σ of the bars' lengths, in
+    // meters — a POLYGON-only quantity ("C" main quantity key), kept apart
+    // from the perimeter `length`.
+    if (
+      annotation.type === "POLYGON" &&
+      Array.isArray(annotation.layoutLines) &&
+      annotation.layoutLines.length > 0
+    ) {
+      const { outerRing, cutRings } = getLayoutLineRingsPx(annotation);
+      result.layoutLength = annotation.layoutLines.reduce((acc, raw) => {
+        const l = { ...LAYOUT_LINE_DEFAULTS, ...raw };
+        if ((l.points?.length ?? 0) < 2) return acc;
+        const layout = computeLayoutLineBars({
+          linePoints: l.points,
+          outerRing,
+          cutRings,
+          meterByPx,
+          densityMode: l.densityMode,
+          densityValue: l.densityValue,
+          layoutAlign: l.layoutAlign,
+          coverWholeSurface: l.coverWholeSurface,
+        });
+        return acc + (layout?.totalLengthM || 0);
+      }, 0);
     }
 
     return result;

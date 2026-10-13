@@ -184,7 +184,18 @@ export default function usePointDrag({
             const inProfile = ann.profileLines?.some((l) =>
               l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
             );
-            return inMain || inCuts || inInner || inGuide || inIso || inProfile;
+            const inLayout = ann.layoutLines?.some((l) =>
+              l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
+            );
+            return (
+              inMain ||
+              inCuts ||
+              inInner ||
+              inGuide ||
+              inIso ||
+              inProfile ||
+              inLayout
+            );
           })
           .map((ann) => ann.id);
 

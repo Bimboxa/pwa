@@ -75,6 +75,7 @@ export default function DatagridAnnotations({
                 height: annotation.height,
                 length: annotation.qties?.enabled ? annotation.qties.length : 0,
                 surface: annotation.qties?.enabled ? annotation.qties.surface : 0,
+                layoutLength: annotation.qties?.enabled ? annotation.qties.layoutLength ?? 0 : 0,
                 points: annotation.points,
                 x: annotation.x,
                 y: annotation.y,
@@ -117,6 +118,7 @@ export default function DatagridAnnotations({
             },
             { field: "length", headerName: "Longueur", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m") },
             { field: "surface", headerName: "Surface", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m²") },
+            { field: "layoutLength", headerName: "Calepinage", width: 120, type: "number", valueFormatter: (value) => formatNumber(value, "m") },
         );
         cols.push({
             field: "actions",

@@ -166,6 +166,9 @@ export function formatTemplateQtiesLine(stats, annotationsCount) {
       `${formatQtyValue(stats?.length ?? 0)} ml`,
       `${formatQtyValue(stats?.surface ?? 0)} m²`
     );
+    // Layout lines (calepinage) total — only when some polygon carries one.
+    if ((stats?.layoutLength ?? 0) > 0)
+      items.push(`${formatQtyValue(stats.layoutLength)} ml calep.`);
   } else {
     if ((stats?.paintedEdgesCount ?? 0) > 0)
       items.push(`${formatQtyValue(stats?.length ?? 0)} ml`);

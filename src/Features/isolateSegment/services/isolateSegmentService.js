@@ -31,6 +31,7 @@ const KEPT_ONLY_FIELDS = [
   "guideLines",
   "isoHeightLines",
   "profileLines",
+  "layoutLines",
   "innerPoints",
   "meshLines",
   "meshLinesBySegment",

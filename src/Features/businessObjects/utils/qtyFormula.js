@@ -7,15 +7,16 @@ import getBusinessObjectQtyKind from "./getBusinessObjectQtyKind.js";
 // whole template, counted once whatever the number of linked annotations.
 //
 // Syntax: numbers (decimal "." or ","), the variables S (surface, m²),
-// L (length, ml) and U (unit count) — case-insensitive —, + - * /,
-// parentheses and the unary minus. E.g. "S * 1.1", "L * 2,5 + U".
+// L (length, ml), U (unit count) and C (longueur de calepinage, ml) —
+// case-insensitive —, + - * /, parentheses and the unary minus.
+// E.g. "S * 1.1", "L * 2,5 + U".
 //
 // Only the custom formulas are stored (businessObject.qtyFormulas =
 // [{annotationTemplateId, formula}], annotationTemplateId null = annotations
 // without template); the default one is deduced from the object's unit
 // (getDefaultQtyFormula), which is the former implicit rule.
 
-const VARIABLES = ["S", "L", "U"];
+const VARIABLES = ["S", "L", "U", "C"];
 
 const DEFAULT_FORMULA_BY_KIND = { SURFACE: "S", LENGTH: "L", COUNT: "U" };
 
@@ -167,6 +168,7 @@ export function getAnnotationFormulaVariables(annotation) {
     S: 0,
     L: 0,
     U: Number.isFinite(qty?.count) ? qty.count : 1,
+    C: 0,
   };
   if (qty?.enabled) {
     const length =
@@ -175,6 +177,7 @@ export function getAnnotationFormulaVariables(annotation) {
       qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
     if (Number.isFinite(length)) variables.L = length;
     if (Number.isFinite(surface)) variables.S = surface;
+    if (Number.isFinite(qty.layoutLength)) variables.C = qty.layoutLength;
   }
   return variables;
 }

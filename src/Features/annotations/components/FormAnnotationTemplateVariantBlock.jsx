@@ -287,6 +287,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, isProfile });
   }
 
+  // POLYGON: enables the "Calepinage" feature (layout lines on the drawn
+  // polygons + the "C" main quantity). Off = nothing layout-related shown.
+  function handleHasLayoutLinesChange(hasLayoutLines) {
+    onChange({ ...annotationTemplate, hasLayoutLines });
+  }
+
   function handleIsExtChange(isExt) {
     onChange({ ...annotationTemplate, isExt });
   }
@@ -688,6 +694,7 @@ export default function FormAnnotationTemplateVariantBlock({
               onChange={handleMainQtyKeyChange}
               label={qtyS}
               drawingShape={drawingShape}
+              withLayoutLength={Boolean(annotationTemplate?.hasLayoutLines)}
             />
           )}
         </>
@@ -734,6 +741,16 @@ export default function FormAnnotationTemplateVariantBlock({
               label="Masquer la pente"
               value={Boolean(annotationTemplate?.hideSlope)}
               onChange={handleHideSlopeChange}
+              options={{ type: "switch", showAsField: true }}
+            />
+          )}
+
+          {/* Layout lines feature toggle (POLYGON) */}
+          {drawingShape === "POLYGON" && (
+            <FieldCheck
+              label="Calepinage"
+              value={Boolean(annotationTemplate?.hasLayoutLines)}
+              onChange={handleHasLayoutLinesChange}
               options={{ type: "switch", showAsField: true }}
             />
           )}

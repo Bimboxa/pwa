@@ -39,7 +39,12 @@ const ON_EDGE_M = 1e-6;
 
 // Fields holding point ids along a line of the polygon: they stay on the
 // main piece, the new pieces start without them.
-const LINE_FIELDS = ["guideLines", "isoHeightLines", "profileLines"];
+const LINE_FIELDS = [
+  "guideLines",
+  "isoHeightLines",
+  "profileLines",
+  "layoutLines",
+];
 
 // Why a surface was not cut, least telling first (the toaster shows the
 // most telling one over the candidates).

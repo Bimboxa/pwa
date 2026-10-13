@@ -40,6 +40,7 @@ export default function computeAnnotationTemplateQties(
         length: 0,
         surface: 0,
         unit: 0,
+        layoutLength: 0,
         mesh3dCount: 0,
         mainQtyLabel: "-",
       };
@@ -69,6 +70,8 @@ export default function computeAnnotationTemplateQties(
       const surface = qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
       if (Number.isFinite(length)) stats.length += length;
       if (Number.isFinite(surface)) stats.surface += surface;
+      if (Number.isFinite(qty.layoutLength))
+        stats.layoutLength += qty.layoutLength;
     }
 
     return acc;
@@ -80,6 +83,7 @@ export default function computeAnnotationTemplateQties(
     if (stats.mesh3dCount > 0) {
       stats.length = null;
       stats.surface = null;
+      stats.layoutLength = null;
     }
     const template = annotationTemplateById?.[templateId];
     if (!template) {

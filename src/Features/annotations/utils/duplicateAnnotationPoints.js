@@ -157,5 +157,14 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
     );
   }
 
+  // Layout lines (lignes de calepinage) share the same ref shape.
+  if (Array.isArray(annotation.layoutLines)) {
+    nextAnnotation.layoutLines = annotation.layoutLines.map((l) =>
+      l && Array.isArray(l.points)
+        ? { ...l, points: remapGuideLineRefs(l.points) }
+        : l
+    );
+  }
+
   return { annotation: nextAnnotation, pointRecords };
 }

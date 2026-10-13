@@ -8,6 +8,10 @@ import {
   MESH_3D_QTY_LABEL,
 } from "../utils/getAnnotationTemplateMainQtyLabel";
 import {
+  getAnnotationType,
+  resolveDrawingShape,
+} from "../constants/drawingShapeConfig";
+import {
   formatQtyValue,
   formatTemplateQtiesTooltip,
   getMesh3dQtiesNotice,
@@ -71,9 +75,17 @@ export default function SectionAnnotationTemplateKeyQties({
   const unit = qties?.unit ?? 0;
   const length = qties?.length ?? 0;
   const surface = qties?.surface ?? 0;
+  const layoutLength = qties?.layoutLength ?? 0;
 
   const showLength = mainQtyKey === "L" || length > 0;
   const showSurface = mainQtyKey === "S" || surface > 0;
+  // Layout length only for POLYGON templates with the Calepinage feature on.
+  const isPolygonTemplate =
+    getAnnotationType(resolveDrawingShape(annotationTemplate)) === "POLYGON";
+  const showLayoutLength =
+    isPolygonTemplate &&
+    Boolean(annotationTemplate?.hasLayoutLines) &&
+    (mainQtyKey === "C" || layoutLength > 0);
 
   const paintedTooltip = formatTemplateQtiesTooltip(qties) ?? "";
   const paintedCountLabel = getPaintedPartsCountLabel(qties);
@@ -117,6 +129,14 @@ export default function SectionAnnotationTemplateKeyQties({
               value={formatQtyValue(surface)}
               unit="m²"
               isMain={mainQtyKey === "S"}
+            />
+          )}
+          {showLayoutLength && (
+            <QtyCell
+              value={formatQtyValue(layoutLength)}
+              unit="ml calep."
+              isMain={mainQtyKey === "C"}
+              tooltip="Longueur de calepinage"
             />
           )}
         </>

@@ -113,21 +113,33 @@ test("annotation variables", () => {
     getAnnotationFormulaVariables({
       qties: { enabled: true, length: 3, surface: 8, surfaceDeveloped: 9 },
     }),
-    { S: 9, L: 3, U: 1 }
+    { S: 9, L: 3, U: 1, C: 0 }
   );
   assert.deepEqual(
     getAnnotationFormulaVariables({
       qties: { enabled: false, length: 3, surface: 8 },
     }),
-    { S: 0, L: 0, U: 1 }
+    { S: 0, L: 0, U: 1, C: 0 }
   );
   assert.deepEqual(
     getAnnotationFormulaVariables({
       qties: { enabled: true, length: 3, surface: 0, count: 6 },
     }),
-    { S: 0, L: 3, U: 6 }
+    { S: 0, L: 3, U: 6, C: 0 }
   );
-  assert.deepEqual(getAnnotationFormulaVariables({}), { S: 0, L: 0, U: 1 });
+  assert.deepEqual(getAnnotationFormulaVariables({}), {
+    S: 0,
+    L: 0,
+    U: 1,
+    C: 0,
+  });
+  // C = longueur de calepinage (layout lines of a POLYGON)
+  assert.deepEqual(
+    getAnnotationFormulaVariables({
+      qties: { enabled: true, length: 3, surface: 8, layoutLength: 12.5 },
+    }),
+    { S: 8, L: 3, U: 1, C: 12.5 }
+  );
 });
 
 test("set formula for a template", () => {

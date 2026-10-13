@@ -70,6 +70,7 @@ import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
+import ToolbarEditLayoutLine from "./ToolbarEditLayoutLine";
 import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/ToolbarEditMesh3dParts";
 import useSelectedMesh3dParts from "Features/annotationMesh3d/hooks/useSelectedMesh3dParts";
 
@@ -589,6 +590,11 @@ export default function ToolbarEditAnnotation({
         {/* Profile line edit row — open Élévation panel / delete */}
         {hasPart && part.kind === "PROFILE" && (
           <ToolbarEditProfileLine accentColor={accentColor} />
+        )}
+
+        {/* Layout line edit row — label / bars / delete */}
+        {hasPart && part.kind === "LAYOUT_LINE" && (
+          <ToolbarEditLayoutLine accentColor={accentColor} />
         )}
 
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}

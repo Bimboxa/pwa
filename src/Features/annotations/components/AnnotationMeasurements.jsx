@@ -21,6 +21,7 @@ export default function AnnotationMeasurements({
   surface,
   length,
   units,
+  layoutLength,
   part,
   mesh3d,
 }) {
@@ -48,6 +49,8 @@ export default function AnnotationMeasurements({
   // Unit count — only set for types whose qties carry one (LINEAR_LAYOUT:
   // number of bars).
   let computedUnits = units;
+  // Layout lines total (lignes de calepinage, POLYGON only).
+  let computedLayoutLength = layoutLength;
   let enabled = true;
   // Mesh 3D annotation (or group holding one): "⚠ 3D" instead of the
   // surface / length. A selected face / edge (hasPart) keeps its own measure.
@@ -75,6 +78,8 @@ export default function AnnotationMeasurements({
     computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
     if (!hasPart && Number.isFinite(qties?.count)) computedUnits = qties.count;
+    if (!hasPart && Number.isFinite(qties?.layoutLength))
+      computedLayoutLength = qties.layoutLength;
 
     // Subtract the developed surface removed by a 3D boolean subtraction.
     if (!hasPart && subtractedSurfaceM2 > 0 && computedSurface != null) {
@@ -102,8 +107,13 @@ export default function AnnotationMeasurements({
 
   const showLength = !isMesh3d && computedLength != null && computedLength > 0;
   const showUnits = computedUnits != null && computedUnits > 0;
+  const showLayoutLength =
+    !isMesh3d && computedLayoutLength != null && computedLayoutLength > 0;
 
-  if (!enabled || (!isMesh3d && !showSurface && !showLength && !showUnits))
+  if (
+    !enabled ||
+    (!isMesh3d && !showSurface && !showLength && !showUnits && !showLayoutLength)
+  )
     return null;
 
   return (
@@ -141,6 +151,16 @@ export default function AnnotationMeasurements({
         >
           {computedLength.toFixed(2)} ml
         </Typography>
+      )}
+      {showLayoutLength && (
+        <Tooltip title="Longueur de calepinage">
+          <Typography
+            variant="caption"
+            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          >
+            {computedLayoutLength.toFixed(2)} ml calep.
+          </Typography>
+        </Tooltip>
       )}
     </Box>
   );

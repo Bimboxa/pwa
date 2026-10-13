@@ -168,6 +168,9 @@ export default async function createTransformedAnnotationCopiesService({
         ...(Array.isArray(remapped.profileLines)
           ? { profileLines: remapped.profileLines }
           : {}),
+        ...(Array.isArray(remapped.layoutLines)
+          ? { layoutLines: remapped.layoutLines }
+          : {}),
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };
 

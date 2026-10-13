@@ -201,6 +201,16 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 });
             }
 
+            // F'. layoutLines points (same resolved ref shape as guideLines)
+            // so the layout-line vertices are snappable / draggable too.
+            if (Array.isArray(ann.layoutLines)) {
+                ann.layoutLines.forEach((l) => {
+                    if (l?.points?.length) {
+                        pointArraysToCheck.push({ list: l.points, cutIndex: undefined, source: "LAYOUT" });
+                    }
+                });
+            }
+
             // G. Revolution axis anchors — the centre and the two diameter
             // ends, resolved by useAnnotationsV2 (they are derived from
             // radius/direction scalars, not stored as db.points). Deliberately

@@ -59,6 +59,7 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
           length: 0,
           surface: 0,
           unit: 0,
+          layoutLength: 0,
           mesh3dCount: 0,
           mainQtyLabel: "-",
         };
@@ -89,6 +90,9 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
         if (Number.isFinite(surface)) {
           stats.surface += surface;
         }
+        if (Number.isFinite(qty.layoutLength)) {
+          stats.layoutLength += qty.layoutLength;
+        }
       }
 
       return acc;
@@ -101,6 +105,7 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       if (stats.mesh3dCount > 0) {
         stats.length = null;
         stats.surface = null;
+        stats.layoutLength = null;
       }
       const template = annotationTemplateById?.[templateId];
       if (!template) {

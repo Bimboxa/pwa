@@ -48,7 +48,7 @@ function partitionPartIds(partIds) {
 // on a single resolved object instead of decoding partId strings themselves.
 //
 // Returns: {
-//   kind: "NONE" | "SEGMENT" | "SEGMENTS" | "CUT_SEG" | "CUT" | "POINT" | "GUIDE" | "ISO",
+//   kind: "NONE" | "SEGMENT" | "SEGMENTS" | "CUT_SEG" | "CUT" | "POINT" | "GUIDE" | "ISO" | "PROFILE" | "LAYOUT_LINE",
 //   captionFr: string,           // "Segment" / "Segments" / "Ouverture" / "Point" / "Guide"
 //   label: string,               // user-facing detail (e.g. "Segment 3", "Ouverture #1", "2 segments")
 //   pointRefs: [{id, ...}],       // ordered DB-style refs spanning the part (used for clone)
@@ -178,6 +178,24 @@ export default function useSelectedAnnotationPart() {
         kind: "PROFILE",
         captionFr: "Profil",
         label: `Profil (${linePx.length} points)`,
+        pointRefs: linePx,
+        geometryPx: linePx,
+        targetAnnotationType: "POLYLINE",
+      };
+    }
+
+    // --- LAYOUT_LINE (one layoutLine — ligne de calepinage) -------------------
+    if (effectivePartType === "LAYOUT_LINE") {
+      const idx = Number(String(partId || "").split("::")[2]);
+      const line = Number.isInteger(idx)
+        ? annotation.layoutLines?.[idx]
+        : null;
+      const linePx = line?.points || [];
+      if (linePx.length < 2) return { kind: "NONE" };
+      return {
+        kind: "LAYOUT_LINE",
+        captionFr: "Calepinage",
+        label: `Calepinage (${linePx.length} points)`,
         pointRefs: linePx,
         geometryPx: linePx,
         targetAnnotationType: "POLYLINE",
@@ -405,6 +423,10 @@ function findPointInAnnotation(annotation, pointId) {
     {
       ring: (annotation.profileLines || []).flatMap((l) => l?.points || []),
       label: "Point profil",
+    },
+    {
+      ring: (annotation.layoutLines || []).flatMap((l) => l?.points || []),
+      label: "Point calepinage",
     },
   ];
   for (const { ring, label } of rings) {

@@ -327,6 +327,9 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
   (annotation?.profileLines ?? []).forEach((l) =>
     (l?.points ?? []).forEach(push)
   );
+  (annotation?.layoutLines ?? []).forEach((l) =>
+    (l?.points ?? []).forEach(push)
+  );
   return refs;
 };
 
@@ -1633,6 +1636,22 @@ export default function useAnnotationsV2(options) {
                 ),
               }));
             }
+            // layoutLines (lignes de calepinage) share the guideLine ref
+            // shape ({pointId, type}); density / alignment / label meta
+            // passes through.
+            if (Array.isArray(annotation.layoutLines)) {
+              _annotation.layoutLines = annotation.layoutLines.map((l) => ({
+                ...l,
+                points: _splitResolved(
+                  resolveGuideLine({
+                    guideLine: l?.points,
+                    pointsIndex,
+                    imageSize,
+                  }),
+                  corruptedIds
+                ),
+              }));
+            }
             // profileLines and isoHeightLines COEXIST: both constrain the
             // same surface (the shell build merges them as constraint lines).
             // Only the guideLine ramp is exclusive with them.
@@ -2259,6 +2278,7 @@ export default function useAnnotationsV2(options) {
               segmentFlags: undefined,
               guideLines: undefined,
               profileLines: undefined,
+              layoutLines: undefined,
               isProfile: undefined,
               rotation: undefined,
               rotationCenter: undefined,

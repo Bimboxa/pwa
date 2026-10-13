@@ -211,6 +211,7 @@ export default function TransientTopologyLayer({
             if (ann.guideLines?.some(gl => gl?.points?.some(g => movedRef(g)))) return true;
             if (ann.isoHeightLines?.some(l => l?.points?.some(g => movedRef(g)))) return true;
             if (ann.profileLines?.some(l => l?.points?.some(g => movedRef(g)))) return true;
+            if (ann.layoutLines?.some(l => l?.points?.some(g => movedRef(g)))) return true;
             return false;
         });
 
@@ -396,6 +397,14 @@ export default function TransientTopologyLayer({
             // F. profileLines (same resolved ref shape as guideLines)
             if (_ann.profileLines?.some(l => l?.points?.some(g => movedRef(g)))) {
                 _ann.profileLines = _ann.profileLines.map(l => ({
+                    ...l,
+                    points: (l?.points || []).map(moveRef),
+                }));
+            }
+
+            // G. layoutLines (same resolved ref shape as guideLines)
+            if (_ann.layoutLines?.some(l => l?.points?.some(g => movedRef(g)))) {
+                _ann.layoutLines = _ann.layoutLines.map(l => ({
                     ...l,
                     points: (l?.points || []).map(moveRef),
                 }));

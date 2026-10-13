@@ -133,6 +133,13 @@ export default function DatagridAnnotationsAggregated({
         valueFormatter: (value) => formatNumber(value, "m²"),
       },
       {
+        field: "layoutLength",
+        headerName: "Calepinage",
+        width: 120,
+        type: "number",
+        valueFormatter: (value) => formatNumber(value, "m"),
+      },
+      {
         field: "paintedCount",
         headerName: "Parties peintes",
         width: 130,

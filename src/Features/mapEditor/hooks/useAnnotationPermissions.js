@@ -137,7 +137,18 @@ export default function useAnnotationPermissions({ annotations }) {
         const inProfile = ann.profileLines?.some((l) =>
           l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
-        if (inMain || inCuts || inInner || inGuide || inIso || inProfile) {
+        const inLayout = ann.layoutLines?.some((l) =>
+          l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
+        );
+        if (
+          inMain ||
+          inCuts ||
+          inInner ||
+          inGuide ||
+          inIso ||
+          inProfile ||
+          inLayout
+        ) {
           matched.push(ann);
           if (isEditorRef.current || canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);

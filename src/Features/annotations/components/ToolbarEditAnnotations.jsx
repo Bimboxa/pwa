@@ -249,6 +249,7 @@ export default function ToolbarEditAnnotations({
         if (qties?.enabled) {
           existing.totalSurface += qties.surface || 0;
           existing.totalLength += qties.length || 0;
+          existing.totalLayoutLength += qties.layoutLength || 0;
           existing.totalUnits += unitCount;
         }
       } else {
@@ -261,6 +262,7 @@ export default function ToolbarEditAnnotations({
           hasMesh3d: Boolean(annotation.isMesh3d),
           totalSurface: qties?.enabled ? qties.surface || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
+          totalLayoutLength: qties?.enabled ? qties.layoutLength || 0 : 0,
           totalUnits: unitCount,
           hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
             annotation.type
@@ -866,6 +868,7 @@ function TemplateGroupRow({ group, onRemove }) {
     count,
     totalSurface,
     totalLength,
+    totalLayoutLength,
     totalUnits,
     hasSurface,
     hasMesh3d,
@@ -919,6 +922,9 @@ function TemplateGroupRow({ group, onRemove }) {
             !hasMesh3d && hasSurface && totalSurface > 0 ? totalSurface : null
           }
           length={!hasMesh3d && totalLength > 0 ? totalLength : null}
+          layoutLength={
+            !hasMesh3d && totalLayoutLength > 0 ? totalLayoutLength : null
+          }
           units={totalUnits > 0 ? totalUnits : null}
           mesh3d={hasMesh3d}
         />

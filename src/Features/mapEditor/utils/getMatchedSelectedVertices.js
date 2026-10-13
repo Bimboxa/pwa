@@ -40,6 +40,7 @@ export default function getMatchedSelectedVertices({
         ...(ann.guideLines ?? []),
         ...(ann.isoHeightLines ?? []),
         ...(ann.profileLines ?? []),
+        ...(ann.layoutLines ?? []),
       ].some((l) =>
         l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
       );

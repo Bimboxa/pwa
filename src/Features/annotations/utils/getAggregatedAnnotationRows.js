@@ -68,6 +68,7 @@ export default function getAggregatedAnnotationRows({
         unit: 0,
         length: 0,
         surface: 0,
+        layoutLength: 0,
         paintedCount: 0,
         // Template visual props (from first annotation in group)
         type: annotation.type,
@@ -94,6 +95,8 @@ export default function getAggregatedAnnotationRows({
         row.length += annotation.qties.length;
       if (Number.isFinite(annotation.qties.surface))
         row.surface += annotation.qties.surface;
+      if (Number.isFinite(annotation.qties.layoutLength))
+        row.layoutLength += annotation.qties.layoutLength;
     }
   }
 

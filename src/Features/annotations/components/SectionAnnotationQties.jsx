@@ -87,6 +87,9 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   const length =
     qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
   const showLength = length > 0;
+  // Layout lines (lignes de calepinage) total, POLYGON only.
+  const layoutLength = qties?.layoutLength;
+  const showLayoutLength = layoutLength > 0;
 
   // Projected (planar footprint) surface. Only worth showing alongside the
   // developed surface when a slope makes the two differ — otherwise it would
@@ -149,6 +152,9 @@ export default function SectionAnnotationQties({ annotation, layout }) {
             },
           ]
         : []),
+      ...(showLayoutLength
+        ? [{ label: "Calepinage", value: `${layoutLength.toFixed(2)} ml` }]
+        : []),
     ];
     if (rows.length === 0) return null;
     return (
@@ -194,6 +200,11 @@ export default function SectionAnnotationQties({ annotation, layout }) {
       {showProjectedSurface && (
         <Typography variant="caption" color="text.secondary">
           Surface projetée : {projectedSurface?.toFixed?.(2) ?? 0} m²
+        </Typography>
+      )}
+      {showLayoutLength && (
+        <Typography variant="caption" color="text.secondary">
+          Calepinage : {layoutLength.toFixed(2)} ml
         </Typography>
       )}
     </Box>

@@ -467,6 +467,13 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
                 points: transformPoints(line.points),
             }));
         }
+
+        if (_annotation.layoutLines) {
+            _annotation.layoutLines = _annotation.layoutLines.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
     }
 
     return _annotation;

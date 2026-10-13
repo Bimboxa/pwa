@@ -26,6 +26,7 @@ import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
 import IconButtonAddSlope from "./IconButtonAddSlope";
 import IconButtonAddIsoHeightLine from "./IconButtonAddIsoHeightLine";
 import IconButtonAddProfileLine from "./IconButtonAddProfileLine";
+import IconButtonAddLayoutLine from "./IconButtonAddLayoutLine";
 import IconButtonAutoSlope from "./IconButtonAutoSlope";
 
 // Edit tools of a single annotation. Rendered inside
@@ -170,6 +171,9 @@ export default function EditAnnotationTools({
       )}
       {["POLYGON", "POLYLINE"].includes(selectedAnnotation?.type) && (
         <IconButtonAddProfileLine accentColor={accentColor} />
+      )}
+      {selectedAnnotation?.type === "POLYGON" && (
+        <IconButtonAddLayoutLine accentColor={accentColor} />
       )}
       {selectedAnnotation?.type === "POLYGON" && (
         <IconButtonAutoSlope accentColor={accentColor} />

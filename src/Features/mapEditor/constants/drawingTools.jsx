@@ -13,6 +13,7 @@ import {
   Timeline as GuideLineIcon,
   SsidChart as IsoHeightLineIcon,
   ShowChart as ProfileLineIcon,
+  ViewWeek as LayoutLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
   Adjust as RevolutionPlacementIcon,
@@ -474,6 +475,17 @@ const DRAWING_TOOLS = [
     annotationType: "PROFILE_LINE",
     behavior: "CLICK",
   },
+  // ADD_LAYOUT_LINE tool — draw a layout line (ligne de calepinage) on the
+  // selected POLYGON. Multi-click, finish with Enter, cancel with Escape.
+  // Bars are distributed along the line, orthogonal to it, clipped to the
+  // polygon contour (holes deducted).
+  {
+    key: "ADD_LAYOUT_LINE",
+    label: "Ajouter une ligne de calepinage",
+    Icon: LayoutLineIcon,
+    annotationType: "LAYOUT_LINE",
+    behavior: "CLICK",
+  },
   // RAMP tool (Rampe) — draw a median line, commit a centered band POLYGON
   // whose slope is derived from a delta-H value. The drawn line is stored as a
   // guideLine on the polygon so the slope renders in 2D and ramps in 3D.
@@ -609,6 +621,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   GUIDE_LINE: ["ADD_GUIDE_LINE"],
   ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
+  LAYOUT_LINE: ["ADD_LAYOUT_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
   JOIN_ANNOTATIONS: ["JOIN_ANNOTATIONS"],
   MOVE_ANNOTATION: ["MOVE_ANNOTATION"],

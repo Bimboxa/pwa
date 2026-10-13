@@ -264,7 +264,12 @@ export default async function regenerateBaseMapFromPdfPageService({
         next.cuts = next.cuts.map((c) => ({ ...c, points: remapRefs(c?.points, "id") }));
         changed = true;
       }
-      for (const key of ["guideLines", "isoHeightLines", "profileLines"]) {
+      for (const key of [
+        "guideLines",
+        "isoHeightLines",
+        "profileLines",
+        "layoutLines",
+      ]) {
         if (Array.isArray(next[key])) {
           next[key] = next[key].map((l) => ({
             ...l,

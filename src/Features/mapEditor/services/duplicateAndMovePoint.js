@@ -44,6 +44,7 @@ export default async function duplicateAndMovePoint({ originalPointId, annotatio
             "guideLines",
             "isoHeightLines",
             "profileLines",
+            "layoutLines",
             "point",
             ...SEGMENT_FLAG_FIELDS.map(({ idField }) => idField),
         ];

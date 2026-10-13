@@ -8,19 +8,34 @@ import {
 
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
-export default function FieldQty({ value, onChange, label, drawingShape }) {
+import { getAnnotationType } from "Features/annotations/constants/drawingShapeConfig";
+
+// withLayoutLength: the template has the "Calepinage" feature enabled
+// (hasLayoutLines) — the "C" key is offered only then, and only for POLYGON.
+export default function FieldQty({
+  value,
+  onChange,
+  label,
+  drawingShape,
+  withLayoutLength = false,
+}) {
   // helper — order: U, L, S ; face shows the short key, tooltip the full label
 
   const allOptions = [
     { key: "U", short: "U", tooltip: "Unité" },
     { key: "L", short: "L", tooltip: "Longueur" },
     { key: "S", short: "S", tooltip: "Surface" },
+    // Longueur de calepinage: Σ of the bars of the polygon's layout lines.
+    { key: "C", short: "C", tooltip: "Longueur calepinage" },
   ];
 
-  const valueOptions =
-    drawingShape === "POINT"
-      ? allOptions.filter((o) => o.key !== "S")
-      : allOptions;
+  // "C" only for POLYGON templates with the Calepinage feature enabled.
+  const isPolygon = getAnnotationType(drawingShape) === "POLYGON";
+  const valueOptions = allOptions.filter((o) => {
+    if (o.key === "C") return isPolygon && withLayoutLength;
+    if (o.key === "S") return drawingShape !== "POINT";
+    return true;
+  });
 
   // handlers
 

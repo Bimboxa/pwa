@@ -27,7 +27,7 @@ export default function accumulateAnnotationQties(
   annotation,
   formulasByTemplateId
 ) {
-  const { S, L, U } = getAnnotationFormulaVariables(annotation);
+  const { S, L, U, C } = getAnnotationFormulaVariables(annotation);
   stats.count += U;
   stats.length += L;
   stats.surface += S;
@@ -37,13 +37,13 @@ export default function accumulateAnnotationQties(
   if (formula) {
     if (!stats.formula) stats.formula = { value: 0, ...createEmptyQties() };
     if (!formula.isConstant) {
-      stats.formula.value += formula.evaluate({ S, L, U });
+      stats.formula.value += formula.evaluate({ S, L, U, C });
     } else {
       const key = getQtyFormulaKey(annotation?.annotationTemplateId);
       if (!stats.formula.constantKeys) stats.formula.constantKeys = {};
       if (!stats.formula.constantKeys[key]) {
         stats.formula.constantKeys[key] = true;
-        stats.formula.value += formula.evaluate({ S, L, U });
+        stats.formula.value += formula.evaluate({ S, L, U, C });
       }
     }
     stats.formula.count += U;

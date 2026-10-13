@@ -18,13 +18,18 @@ const unitMap = {
   CUBIC_METER: "m³",
 };
 
-// "U" | "L" | "S": template.mainQtyKey, else from its type.
+// "U" | "L" | "S" | "C": template.mainQtyKey, else from its type.
+// "C" = longueur de calepinage (Σ bars of the POLYGON layout lines, ml).
 export function getAnnotationTemplateMainQtyKey(annotationTemplate) {
   const { type, mainQtyKey } = annotationTemplate ?? {};
   let defaultMainQtyKey = "U";
   if (["POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(type))
     defaultMainQtyKey = "L";
   if (["POLYGON"].includes(type)) defaultMainQtyKey = "S";
+  // "C" needs the Calepinage feature (template.hasLayoutLines): a template
+  // that turned it off falls back to its default key.
+  if (mainQtyKey === "C" && !annotationTemplate?.hasLayoutLines)
+    return defaultMainQtyKey;
   return mainQtyKey ?? defaultMainQtyKey;
 }
 
@@ -32,7 +37,7 @@ export function getAnnotationTemplateMainQtyKey(annotationTemplate) {
 // override still knows the unit when the label is MESH_3D_QTY_LABEL.
 export function getAnnotationTemplateMainQtyUnit(annotationTemplate) {
   const qtyKey = getAnnotationTemplateMainQtyKey(annotationTemplate);
-  if (qtyKey === "L") return unitMap.METER;
+  if (qtyKey === "L" || qtyKey === "C") return unitMap.METER;
   if (qtyKey === "S") return unitMap.SQUARE_METER;
   return unitMap.UNIT;
 }
@@ -47,6 +52,7 @@ export default function getAnnotationTemplateMainQtyLabel(
   let qty = qties?.unit;
   if (qtyKey === "L") qty = qties?.length;
   else if (qtyKey === "S") qty = qties?.surface;
+  else if (qtyKey === "C") qty = qties?.layoutLength;
 
   if (qtyKey !== "U" && (qties?.mesh3dCount ?? 0) > 0) return MESH_3D_QTY_LABEL;
 

@@ -60,6 +60,10 @@ import getGuideLineStairsLayout, {
   isStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
+import computeLayoutLineBars, {
+  getLayoutLineRingsPx,
+  LAYOUT_LINE_DEFAULTS,
+} from "Features/annotations/utils/computeLayoutLineBars";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
@@ -87,6 +91,10 @@ const CIRCULATION_ARROW_GAP_PX = 4;
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
 // independent band is what the user can rely on to click a specific edge.
 const POLYGON_HIT_STROKE_WIDTH_PX = 10;
+
+// layoutLines (lignes de calepinage): half-length of a tick in screen px
+// (counter-scaled like the vertices). The color is per line (`color`).
+const LAYOUT_TICK_HALF_SCREEN_PX = 7;
 // Screen width of the line standing for a mesh sheet with no plan area.
 const MESH3D_SEGMENT_STROKE_PX = 3;
 
@@ -1497,6 +1505,79 @@ function NodePolylineStatic({
       .filter(Boolean);
   }, [type, mergedAnnotation.profileLines, annotationId]);
 
+  // layoutLines (lignes de calepinage): arc-expanded contour rings (outer +
+  // cuts), computed only when the polygon carries layout lines.
+  const hasLayoutLines =
+    type === "POLYGON" &&
+    Array.isArray(mergedAnnotation.layoutLines) &&
+    mergedAnnotation.layoutLines.length > 0;
+  const layoutRings = useMemo(() => {
+    if (!hasLayoutLines) return null;
+    return getLayoutLineRingsPx(mergedAnnotation);
+  }, [hasLayoutLines, mergedAnnotation]);
+
+  // layoutLines: per-line polyline + bars (orthogonal chords clipped to the
+  // contour, holes deducted) from the shared util, so the ticks / bars drawn
+  // here always match the lengths listed in the properties panel. Each line
+  // carries an indexed partId so it can be selected / deleted independently.
+  const layoutLinesData = useMemo(() => {
+    if (!hasLayoutLines || !layoutRings) return [];
+    return mergedAnnotation.layoutLines
+      .map((raw, index) => {
+        const l = { ...LAYOUT_LINE_DEFAULTS, ...raw };
+        const layout = computeLayoutLineBars({
+          linePoints: l.points,
+          outerRing: layoutRings.outerRing,
+          cutRings: layoutRings.cutRings,
+          meterByPx: baseMapMeterByPx,
+          densityMode: l.densityMode,
+          densityValue: l.densityValue,
+          layoutAlign: l.layoutAlign,
+          coverWholeSurface: l.coverWholeSurface,
+        });
+        if (!layout?.polyline || layout.polyline.length < 2) return null;
+        const bars = layout.bars;
+        const sampleBar =
+          bars.length > 0
+            ? bars[Math.min(Math.floor(bars.length / 5), bars.length - 1)]
+            : null;
+        // Label lines: the user label, then (option) the density + bar
+        // count — same wording as the standalone LINEAR_LAYOUT label.
+        const densityValueNum = parseFloat(l.densityValue);
+        const densityText = Number.isFinite(densityValueNum)
+          ? l.densityMode === "PER_METER"
+            ? `${densityValueNum} ${l.densityUnitLabel ?? ""}`.trim()
+            : `esp. ${densityValueNum} cm`
+          : "";
+        const barsText = `${layout.barCount} barre${layout.barCount > 1 ? "s" : ""}`;
+        const labelLines = [l.label || ""];
+        if (l.showDensityInLabel) {
+          labelLines.push([densityText, barsText].filter(Boolean).join(" · "));
+        }
+        return {
+          index,
+          partId: `${annotationId}::LAYOUT_LINE::${index}`,
+          polyline: layout.polyline,
+          mid: layout.mid,
+          bars,
+          extensions: layout.extensions,
+          sampleBar,
+          barCount: layout.barCount,
+          totalLengthM: layout.totalLengthM,
+          labelLines: labelLines.filter(Boolean),
+          renderMode: l.renderMode,
+          color: l.color || LAYOUT_LINE_DEFAULTS.color,
+        };
+      })
+      .filter(Boolean);
+  }, [
+    hasLayoutLines,
+    layoutRings,
+    mergedAnnotation.layoutLines,
+    baseMapMeterByPx,
+    annotationId,
+  ]);
+
   // Inline "Extrusion" band (POLYLINE + profileLines): plan footprint of the
   // swept profile — ONE thick stroke along the guide, offset to the center of
   // the profile's transverse extents, width = the extents (image px, scales
@@ -1678,6 +1759,9 @@ function NodePolylineStatic({
     ...(mergedAnnotation.isoHeightLines || [])
       .flatMap((l) => l?.points || [])
       .map((p) => ({ point: p, cutIndex: undefined, source: "ISO" })),
+    ...(mergedAnnotation.layoutLines || [])
+      .flatMap((l) => l?.points || [])
+      .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
   ];
 
   let pointEntriesToRender = [];
@@ -1721,6 +1805,9 @@ function NodePolylineStatic({
       ...(mergedAnnotation.isoHeightLines || [])
         .flatMap((l) => l?.points || [])
         .map((p) => ({ point: p, cutIndex: undefined, source: "ISO" })),
+      ...(mergedAnnotation.layoutLines || [])
+        .flatMap((l) => l?.points || [])
+        .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
     ];
   } else {
     pointEntriesToRender = allPointEntries;
@@ -2198,6 +2285,138 @@ function NodePolylineStatic({
           />
         ))}
 
+      {/* layoutLines (lignes de calepinage): ALWAYS visible — they are part
+                of the plan drawing. Blue axis, screen-sized ticks at each bar
+                position (oriented along the bar), the bars themselves (one
+                sample bar in TICKS mode, every bar in ALL_BARS mode) clipped
+                to the contour with the holes left blank, and the line label
+                kept upright at the midpoint. */}
+      {layoutLinesData.map((line) => {
+        const isSelectedLayout =
+          selected && !disableVertexEditing && selectedPartId === line.partId;
+        const isHoveredLayout =
+          selected &&
+          !disableVertexEditing &&
+          effectiveHoveredPartId === line.partId;
+        // Selection / hover keep the line's own color: only the stroke
+        // width and opacity change.
+        const layoutStroke = line.color;
+        const isLayoutHighlighted = isSelectedLayout || isHoveredLayout;
+        const barsToDraw =
+          line.renderMode === "ALL_BARS"
+            ? line.bars
+            : line.sampleBar
+              ? [line.sampleBar]
+              : [];
+        // Upright label (NodeCoteStatic pattern): flip past ±90°.
+        let labelAngleDeg = line.mid?.angleDeg ?? 0;
+        if (labelAngleDeg > 90) labelAngleDeg -= 180;
+        else if (labelAngleDeg < -90) labelAngleDeg += 180;
+        return (
+          <g key={`layout-${line.partId}`} style={{ pointerEvents: "none" }}>
+            {/* bars (pieces only — holes stay blank) */}
+            {barsToDraw.map((bar) =>
+              bar.pieces.map((piece, pi) => (
+                <line
+                  key={`layout-bar-${line.partId}-${bar.index}-${pi}`}
+                  x1={piece.a.x}
+                  y1={piece.a.y}
+                  x2={piece.b.x}
+                  y2={piece.b.y}
+                  stroke={layoutStroke}
+                  strokeWidth={1}
+                  strokeOpacity={0.8}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))
+            )}
+            {/* axis */}
+            <polyline
+              points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke={layoutStroke}
+              strokeWidth={isLayoutHighlighted ? 3 : 1.5}
+              strokeOpacity={isLayoutHighlighted ? 1 : 0.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* dashed axis extensions (coverWholeSurface): from each line
+                end to the furthest extended bar */}
+            {line.extensions.map((ext, ei) => (
+              <line
+                key={`layout-ext-${line.partId}-${ei}`}
+                x1={ext.a.x}
+                y1={ext.a.y}
+                x2={ext.b.x}
+                y2={ext.b.y}
+                stroke={layoutStroke}
+                strokeWidth={1}
+                strokeOpacity={0.7}
+                strokeDasharray="4 4"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            {/* ticks (real-world positions, constant screen length, along
+                the bar direction) */}
+            {line.bars.map((bar) => {
+              const tickAngle =
+                (Math.atan2(bar.dir.y, bar.dir.x) * 180) / Math.PI;
+              return (
+                <g
+                  key={`layout-tick-${line.partId}-${bar.index}`}
+                  transform={`translate(${bar.point.x}, ${bar.point.y}) rotate(${tickAngle})`}
+                >
+                  <g style={{ transform: vertexScaleTransform }}>
+                    <line
+                      x1={-LAYOUT_TICK_HALF_SCREEN_PX}
+                      y1={0}
+                      x2={LAYOUT_TICK_HALF_SCREEN_PX}
+                      y2={0}
+                      stroke={layoutStroke}
+                      strokeWidth={1.5}
+                    />
+                  </g>
+                </g>
+              );
+            })}
+            {/* label lines above the midpoint, upright, constant screen
+                size: user label (bold) then the optional density line */}
+            {line.labelLines.length > 0 && line.mid && (
+              <g
+                transform={`translate(${line.mid.point.x}, ${line.mid.point.y}) rotate(${labelAngleDeg})`}
+              >
+                <g style={{ transform: vertexScaleTransform }}>
+                  {line.labelLines.map((text, li) => (
+                    <text
+                      key={li}
+                      x={0}
+                      y={-10 - (line.labelLines.length - 1 - li) * 14}
+                      textAnchor="middle"
+                      dominantBaseline="alphabetic"
+                      fontSize={li === 0 ? 12 : 11}
+                      fontWeight={li === 0 ? "bold" : "normal"}
+                      fontStyle={li === 0 ? "normal" : "italic"}
+                      fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                      fill={printMode ? "#000000" : layoutStroke}
+                      style={{
+                        userSelect: "none",
+                        paintOrder: "stroke",
+                        stroke: "white",
+                        strokeWidth: 3,
+                        strokeLinejoin: "round",
+                      }}
+                    >
+                      {text}
+                    </text>
+                  ))}
+                </g>
+              </g>
+            )}
+          </g>
+        );
+      })}
+
       {/* profileLines: shell cross-sections, drawn while the annotation is
                 selected. Long-dashed teal (vs iso lines dashed purple), with
                 square markers on interior vertices. The vertical profile is
@@ -2295,6 +2514,34 @@ function NodePolylineStatic({
             </g>
           );
         })}
+
+      {/* layoutLines hit areas while the annotation is selected: a wide
+                transparent stroke along the axis carrying the partId so the
+                line can be sub-selected (properties panel) / hovered. */}
+      {selected &&
+        !disableVertexEditing &&
+        layoutLinesData.map((line) => (
+          <g
+            key={`layout-hit-${line.partId}`}
+            onMouseEnter={(e) => {
+              e.stopPropagation();
+              if (!isTransient) setHoveredPartId(line.partId);
+            }}
+            onMouseLeave={() => setHoveredPartId(null)}
+            data-part-id={line.partId}
+            data-part-type="LAYOUT_LINE"
+            data-node-id={annotationId}
+            style={{ cursor: getPartCursor(line.partId) }}
+          >
+            <polyline
+              points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        ))}
 
       {/* Slope arrow along the MIDDLE of the guideLine, following the
                 curve and pointing uphill (replaces the centroid arrow when a

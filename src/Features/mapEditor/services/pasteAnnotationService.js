@@ -186,6 +186,7 @@ export default async function pasteAnnotationService({
       guideLines: _srcGuideLines,
       isoHeightLines: _srcIsoHeightLines,
       profileLines: _srcProfileLines,
+      layoutLines: _srcLayoutLines,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
 
@@ -419,6 +420,28 @@ export default async function pasteAnnotationService({
               ...(typeof lPoints[i]?.height === "number"
                 ? { height: lPoints[i].height }
                 : {}),
+            })),
+          };
+        });
+      }
+
+      // Layout lines (lignes de calepinage): same rigid transform + fresh
+      // db.points, meta (density / alignment / label) carried from the
+      // snapshot.
+      if (item.baseLayoutLines?.length) {
+        clonedAnnotation.layoutLines = item.baseLayoutLines.map((l) => {
+          const { points: lPoints, ...meta } = l;
+          const lTransformed = applyPasteTransformToPoints(
+            lPoints,
+            sourceCenter,
+            targetCenter,
+            transform
+          );
+          return {
+            ...meta,
+            points: lTransformed.map((pt) => ({
+              pointId: normalize(pt, sourceAnnotation),
+              type: "square",
             })),
           };
         });

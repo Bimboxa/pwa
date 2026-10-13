@@ -62,6 +62,9 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
     const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     const showLength = Boolean(qties?.enabled) && length > 0;
     const showSurface = Boolean(qties?.enabled) && surface > 0;
+    const layoutLength = qties?.layoutLength;
+    const showLayoutLength =
+        !qtiesOverride && Boolean(qties?.enabled) && layoutLength > 0;
     const qtiesOverrideLabel =
         qtiesOverride && (showLength || showSurface)
             ? QTIES_OVERRIDE_LABELS[qtiesOverrideType]
@@ -208,6 +211,16 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
                     </Typography>
                     <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
                         {surface.toFixed(2)} m²
+                    </Typography>
+                </Box>
+            )}
+            {showLayoutLength && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                        Calepinage
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
+                        {layoutLength.toFixed(2)} ml
                     </Typography>
                 </Box>
             )}

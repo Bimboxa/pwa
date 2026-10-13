@@ -56,10 +56,12 @@ import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
 import useHandleCommitIsoHeightLine from "../hooks/useHandleCommitIsoHeightLine";
 import useHandleCommitProfileLine from "../hooks/useHandleCommitProfileLine";
+import useHandleCommitLayoutLine from "../hooks/useHandleCommitLayoutLine";
 import useHandleCommitRamp from "../hooks/useHandleCommitRamp";
 import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import useDeleteProfileLine from "Features/annotations/hooks/useDeleteProfileLine";
+import useDeleteLayoutLine from "Features/annotations/hooks/useDeleteLayoutLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleSurfaceCutCommit from "Features/surfaceCut/hooks/useHandleSurfaceCutCommit";
 import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
@@ -974,10 +976,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const handleCommitGuideLine = useHandleCommitGuideLine();
   const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
   const handleCommitProfileLine = useHandleCommitProfileLine();
+  const handleCommitLayoutLine = useHandleCommitLayoutLine();
   const handleCommitRamp = useHandleCommitRamp();
   const deleteGuideLine = useDeleteGuideLine();
   const deleteIsoHeightLine = useDeleteIsoHeightLine();
   const deleteProfileLine = useDeleteProfileLine();
+  const deleteLayoutLine = useDeleteLayoutLine();
   const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation();
   const saveTempAnnotations = useSaveTempAnnotations();
   const createAnnotationsFromDetectedStrips =
@@ -2491,6 +2495,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // Same for profileLines (shell cross-sections).
   const handleDeleteProfileLine = deleteProfileLine;
 
+  // Same for layoutLines (lignes de calepinage).
+  const handleDeleteLayoutLine = deleteLayoutLine;
+
   // snapping
 
   //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -2650,6 +2657,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               onDeleteGuideLine={handleDeleteGuideLine}
               onDeleteIsoHeightLine={handleDeleteIsoHeightLine}
               onDeleteProfileLine={handleDeleteProfileLine}
+              onDeleteLayoutLine={handleDeleteLayoutLine}
               onAnnotationMoveCommit={handleAnnotationMoveCommit}
               onSegmentSplit={handleSegmentSplit}
               onCutSegment={handleCutSegment}
@@ -2666,6 +2674,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               onCommitGuideLine={handleCommitGuideLine}
               onCommitIsoHeightLine={handleCommitIsoHeightLine}
               onCommitProfileLine={handleCommitProfileLine}
+              onCommitLayoutLine={handleCommitLayoutLine}
               onCommitRamp={handleCommitRamp}
               onProjectionSnapInsert={handleProjectionSnapInsert}
               snappingEnabled={isSnappingEnabled}
