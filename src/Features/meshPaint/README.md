@@ -236,6 +236,7 @@ Une ligne par partie peinte.
 - **Parent des overlays** : ne jamais placer une peinture sous la racine de son hôte, car un hôte masqué n'est pas construit du tout.
 - **Immutabilité des lignes** : les formes locales sont mises en cache par objet ligne (WeakMap). Ne jamais modifier une ligne Dexie en place.
 - **Type de partie ≠ forme du modèle** : ne jamais filtrer les lignes `meshPaints` sur `partType` vs `drawingShape` du modèle (une facette peinte par un modèle Ligne disparaîtrait) ; la seule garde est « le modèle peut peindre » (`canTemplatePaint`).
+- **Pièces d'une surface découpée** : une révolution, une coque ou un profil balayé coupés par « Découpe horizontale / verticale » (Coupe face, 3D — `annotation.surfaceCuts`, rejoués par `applySurfaceCuts`) sont affichés en plusieurs meshes `SOLID` tagués `userData.surfaceCutPiece`. `buildHostPartIndexFromObject` les transmet à `buildHostPartIndex` (`triGroups`) : deux pièces ne partagent jamais un groupe de plan, un îlot ni une surface lisse, chacune est donc une cible du Pinceau à part entière. Une peinture courbe posée avant une découpe suit la tessellation de l'hôte : couper **avant** de peindre.
 
 ## Tests
 

@@ -94,7 +94,7 @@ const ORIENT_EPS = 1e-9;
 
 // --- parsing ---
 
-function parseTriangles(triangles) {
+function parseTriangles(triangles, triGroups) {
   const triCount = Math.floor((triangles?.length || 0) / 9);
   const idByKey = new Map();
   const positions = []; // welded representative positions
@@ -154,6 +154,9 @@ function parseTriangles(triangles) {
         },
         1 / 3
       ),
+      // Piece of a cut surface host (-1: none): triangles of different
+      // pieces never share a plane group, an island or a surface.
+      part: Number.isInteger(triGroups?.[t]) ? triGroups[t] : -1,
       group: null,
     });
   }
@@ -206,7 +209,7 @@ function buildPlaneGroups(tris) {
   };
   const createGroup = (tri) => {
     const n = tri.normal;
-    const group = { n, d: dot(n, tri.centroid), tris: [] };
+    const group = { n, d: dot(n, tri.centroid), tris: [], part: tri.part };
     groups.push(group);
     const key = cellKey(...cellOf(n, 1));
     if (!groupsByCell.has(key)) groupsByCell.set(key, []);
@@ -237,6 +240,7 @@ function buildPlaneGroups(tris) {
   for (const tri of reliable) {
     let match = null;
     for (const group of lookupByNormal(tri)) {
+      if (group.part !== tri.part) continue;
       if (Math.abs(dot(tri.normal, group.n)) < COS_FACE) continue;
       if (Math.abs(dot(group.n, tri.centroid) - group.d) > PLANE_TOL_M)
         continue;
@@ -257,6 +261,7 @@ function buildPlaneGroups(tris) {
     let bestDist = PLANE_TOL_M;
     for (const id of tri.ids) {
       for (const group of groupsByVertex.get(id) || []) {
+        if (group.part !== tri.part) continue;
         const d = maxPlaneDistance(tri, group);
         if (d <= bestDist) {
           bestDist = d;
@@ -318,12 +323,13 @@ function islandsFromGroups(groups) {
     }
     const merged = faces.length > 1 ? coalesceCoplanarFaces(faces) : faces;
     for (const face of merged) {
-      islands.push(
-        orientFaceLoops({
+      islands.push({
+        ...orientFaceLoops({
           polygons: [{ contour: face.contour, holes: face.holes || [] }],
           normal: group.n,
-        })
-      );
+        }),
+        part: group.part,
+      });
     }
   }
   return islands;
@@ -707,6 +713,10 @@ function buildIslandPairs(tris, edgeMap, positions, islands) {
             ? [sides[k], sides[l]]
             : [sides[l], sides[k]];
         if (s1.index === s2.index) continue;
+        // Pieces of a cut surface host never join into one surface.
+        const part1 = islands[s1.index].part ?? -1;
+        const part2 = islands[s2.index].part ?? -1;
+        if (part1 >= 0 && part2 >= 0 && part1 !== part2) continue;
         const key = `${s1.index}_${s2.index}`;
         const cos = -dot(s1.u, s2.u);
         const known = pairs.get(key);
@@ -956,6 +966,9 @@ export function probeNormalSide(point, normal, isInside) {
  * @param {ArrayLike<number>} args.triangles - local meters, 9 per triangle
  * @param {Array<{contour, holes}>} [args.exactFaces] - isMesh3d faces (same
  *   frame): the islands are exactly these faces
+ * @param {ArrayLike<number>} [args.triGroups] - per triangle, the piece of a
+ *   cut surface host it belongs to (-1 / absent: none): triangles of two
+ *   pieces never share a plane group, an island or a smooth surface
  * @returns {{islands: Array<{polygons, normal, centroid, area}>,
  *   chains: Array<{points: [V, V], length, sides: V[]}>, isClosed: boolean,
  *   box: {min: V, max: V}, hash: string,
@@ -968,8 +981,12 @@ export function probeNormalSide(point, normal, isInside) {
  *   orientation per surface, open hosts); curves: polylines (closed: first
  *   point repeated) with the sides common to all their chains.
  */
-export default function buildHostPartIndex({ triangles, exactFaces } = {}) {
-  const { tris, positions, box } = parseTriangles(triangles);
+export default function buildHostPartIndex({
+  triangles,
+  exactFaces,
+  triGroups,
+} = {}) {
+  const { tris, positions, box } = parseTriangles(triangles, triGroups);
   const groups = buildPlaneGroups(tris);
 
   // Topology (every grouped triangle, needles included: they bridge
@@ -1041,6 +1058,7 @@ export default function buildHostPartIndex({ triangles, exactFaces } = {}) {
       normal: island.normal,
       centroid: faceCentroid(island),
       area,
+      part: island.part ?? -1,
     });
   }
 

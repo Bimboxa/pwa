@@ -95,3 +95,22 @@ test("open arc sheet: top and bottom arcs are open curves", () => {
   assert.equal(arcs.length, 2);
   for (const arc of arcs) assert.equal(arc.points.length, 9);
 });
+
+test("triGroups: the pieces of a cut surface host never join into one surface", () => {
+  // Half a turn split at mid-sweep into two pieces (a vertical surface cut).
+  const triangles = cylinderTriangles({ segments: 16, sweep: Math.PI });
+  const triCount = triangles.length / 9;
+  const triGroups = Int32Array.from({ length: triCount }, (_, t) =>
+    t < triCount / 2 ? 0 : 1
+  );
+  const whole = buildHostPartIndex({ triangles });
+  assert.equal(whole.getSurfaces(25).surfaces.length, 1);
+  const cut = buildHostPartIndex({ triangles, triGroups });
+  assert.equal(cut.islands.length, 16);
+  assert.deepEqual(sizes(cut.getSurfaces(25)), [8, 8]);
+  // Each surface holds the islands of one piece only.
+  for (const surface of cut.getSurfaces(25).surfaces) {
+    const parts = new Set(surface.map((i) => cut.islands[i].part));
+    assert.equal(parts.size, 1);
+  }
+});

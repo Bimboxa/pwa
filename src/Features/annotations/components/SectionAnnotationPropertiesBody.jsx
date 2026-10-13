@@ -19,6 +19,7 @@ import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/com
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 import SectionAnnotationMesh3d from "Features/annotationMesh3d/components/SectionAnnotationMesh3d";
+import SectionAnnotationSurfaceCuts from "Features/threedFaceCut/components/SectionAnnotationSurfaceCuts";
 
 // The label options ("Etiquette") are no longer a tab here: clicking the
 // label chip selects it (ANNOTATION_LABEL) and opens its own panel
@@ -138,6 +139,9 @@ export default function SectionAnnotationPropertiesBody({
             {/* Mesh 3D — annotation converted to a mesh: revert to its
                 original 2D geometry. Self-hiding otherwise. */}
             <SectionAnnotationMesh3d annotation={annotation} />
+            {/* Surface cuts (3D « Découpe horizontale / verticale » on a
+                lathe / shell): remove them all. Self-hiding otherwise. */}
+            <SectionAnnotationSurfaceCuts annotation={annotation} />
           </>
         )}
 

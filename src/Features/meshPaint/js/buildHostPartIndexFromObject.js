@@ -82,8 +82,13 @@ function getHalfViewAxis(mesh) {
   return axis?.center ? axis : null;
 }
 
+// Pieces of a cut surface host (applySurfaceCuts, userData.surfaceCutPiece)
+// are tagged per triangle in `triGroups` so the part index keeps them apart
+// (-1: the mesh is no piece); null when the host has no piece.
 function collectTriangles(meshes, groupInverse) {
   const out = [];
+  const groups = [];
+  let hasPieces = false;
   const v = new Vector3();
   for (const mesh of meshes) {
     const geometry = mesh.geometry;
@@ -93,12 +98,17 @@ function collectTriangles(meshes, groupInverse) {
     const toLocal = getLocalMatrix(mesh, groupInverse);
     const count = index ? index.count : position.count;
     const usable = count - (count % 3);
+    const piece = Number.isInteger(mesh.userData?.surfaceCutPiece)
+      ? mesh.userData.surfaceCutPiece
+      : -1;
+    if (piece >= 0) hasPieces = true;
     for (let i = 0; i < usable; i++) {
       v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
         toLocal
       );
       out.push(v.x, v.y, v.z);
     }
+    for (let t = 0; t < usable / 3; t++) groups.push(piece);
     // Hidden half: the displayed one turned 180° about the axis.
     const axis = getHalfViewAxis(mesh);
     if (!axis) continue;
@@ -110,8 +120,12 @@ function collectTriangles(meshes, groupInverse) {
       v.applyMatrix4(toLocal);
       out.push(v.x, v.y, v.z);
     }
+    for (let t = 0; t < usable / 3; t++) groups.push(piece);
   }
-  return Float64Array.from(out);
+  return {
+    triangles: Float64Array.from(out),
+    triGroups: hasPieces ? Int32Array.from(groups) : null,
+  };
 }
 
 /**
@@ -253,7 +267,7 @@ export function getHostPartData({ root, group, source, baseMap }) {
     return cached.data;
   }
 
-  const triangles = collectTriangles(meshes, groupInverse);
+  const { triangles, triGroups } = collectTriangles(meshes, groupInverse);
   if (triangles.length < 9) return null;
   // A carved host (glued openings, subtractions: CSG on the displayed
   // faces) is read from its carved soup: its stored mesh3d faces have no
@@ -281,6 +295,7 @@ export function getHostPartData({ root, group, source, baseMap }) {
           ...buildHostPartIndex({
             triangles,
             exactFaces: exactFaces ?? undefined,
+            triGroups: triGroups ?? undefined,
           }),
           hash,
         };

@@ -15,6 +15,7 @@ import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFram
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
 import applyWireframeSettings from "./utilsAnnotationsManager/applyWireframeSettings";
 import applyHatchFill from "./utilsAnnotationsManager/applyHatchFill";
+import applySurfaceCuts from "./utilsAnnotationsManager/applySurfaceCuts";
 
 import {
   getShape3DKey,
@@ -255,6 +256,16 @@ export default class AnnotationsManager {
       // basemap-local meter frame (see getBaseMapForRender).
       const baseMapForRender = getBaseMapForRender(baseMap);
 
+      // Surface hosts cut by « Découpe horizontale / verticale »
+      // (annotation.surfaceCuts): the displayed solid is partitioned into
+      // pieces BEFORE the finishing passes, on every (re)build — initial,
+      // async load, post-carve (see applySurfaceCuts).
+      const finishHostRoot = (root) => {
+        if (!root) return;
+        applySurfaceCuts(root, annotation, baseMapForRender);
+        finishRoot(root);
+      };
+
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
         resolution,
@@ -262,13 +273,13 @@ export default class AnnotationsManager {
           // Late-arriving children (GLB scene, async profile sweep) — the map
           // holds the current root (it may have been swapped by a carve).
           // Coalesced render: many GLBs resolving in one frame = one draw.
-          finishRoot(this.annotationsObjectsMap[annotation.id]);
+          finishHostRoot(this.annotationsObjectsMap[annotation.id]);
           this.sceneManager.requestRender();
           this._notifyAnnotationReady(annotation.id);
         },
       });
       if (!object) return;
-      finishRoot(object);
+      finishHostRoot(object);
 
       // Mesh cells carry an in-scene card (name + surface). Only cells reach
       // this builder when "Afficher les mailles" is on, so keying off
@@ -497,7 +508,7 @@ export default class AnnotationsManager {
             );
 
             // The carve may have swapped in a freshly-built source object.
-            finishRoot(this.annotationsObjectsMap[annotation.id]);
+            finishHostRoot(this.annotationsObjectsMap[annotation.id]);
             this.sceneManager.requestRender();
             // Not pending any more BEFORE the listeners run: they read the
             // final geometry.

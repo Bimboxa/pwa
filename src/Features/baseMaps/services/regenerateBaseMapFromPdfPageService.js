@@ -332,6 +332,21 @@ export default async function regenerateBaseMapFromPdfPageService({
       next.mesh3dSource = mapMesh3dSourcePoints(next.mesh3dSource, N);
       changed = true;
     }
+    // Surface cuts of a cut lathe / shell: [nx, ny, zAbs] points (the plane
+    // normal is a local-meter direction, frame-invariant).
+    if (Array.isArray(next.surfaceCuts) && next.surfaceCuts.length) {
+      const mapCutPoint = (p) => {
+        if (!Array.isArray(p)) return p;
+        const np = N({ x: p[0], y: p[1] });
+        return [np.x, np.y, p[2]];
+      };
+      next.surfaceCuts = next.surfaceCuts.map((cut) =>
+        cut
+          ? { ...cut, point: mapCutPoint(cut.point), seed: mapCutPoint(cut.seed) }
+          : cut
+      );
+      changed = true;
+    }
     // POLYGON mesh lines are normalized; POLYLINE ones are {u, z} (invariant)
     const mapMeshLines = (lines) =>
       Array.isArray(lines)

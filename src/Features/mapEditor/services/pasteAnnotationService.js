@@ -9,6 +9,7 @@ import db from "App/db/db";
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
 import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
+import applyAffineToSurfaceCuts from "Features/threedFaceCut/utils/applyAffineToSurfaceCuts";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
@@ -256,15 +257,20 @@ export default async function pasteAnnotationService({
 
       // isMesh3d: the points are the plan projection of the stored mesh —
       // send the mesh through the same map (fitted on the contour), from the
-      // source image frame to the active one.
-      if (sourceAnnotation.isMesh3d && sourceAnnotation.mesh3d?.vertices) {
+      // source image frame to the active one. The surface cuts of a cut
+      // lathe / shell (surfaceCuts) follow the same map.
+      const hasMesh3d = Boolean(
+        sourceAnnotation.isMesh3d && sourceAnnotation.mesh3d?.vertices
+      );
+      const hasSurfaceCuts = Boolean(sourceAnnotation.surfaceCuts?.length);
+      if (hasMesh3d || hasSurfaceCuts) {
         const affine = fitAffine2d(
           item.basePoints.map((from, i) => ({ from, to: transformed[i] }))
         );
         const sourceImageSize = await getSourceImageSize(
           sourceAnnotation.baseMapId
         );
-        if (affine && sourceImageSize) {
+        if (affine && sourceImageSize && hasMesh3d) {
           clonedAnnotation.mesh3d = applyAffineToMesh3d(
             sourceAnnotation.mesh3d,
             affine,
@@ -279,6 +285,17 @@ export default async function pasteAnnotationService({
               imageSize
             );
           }
+        }
+        if (hasSurfaceCuts) {
+          clonedAnnotation.surfaceCuts =
+            affine && sourceImageSize
+              ? applyAffineToSurfaceCuts(
+                  sourceAnnotation.surfaceCuts,
+                  affine,
+                  sourceImageSize,
+                  { targetImageSize: imageSize }
+                )
+              : [];
         }
       }
 
