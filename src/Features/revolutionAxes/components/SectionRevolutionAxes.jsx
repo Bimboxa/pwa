@@ -4,14 +4,11 @@ import { Box, List, Typography, useTheme } from "@mui/material";
 
 import RowRevolutionAxis from "./RowRevolutionAxis";
 import DialogAssociateSystemToAxis from "./DialogAssociateSystemToAxis";
-import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVerticalBaseMapsByListing";
+import useCreateRevolutionAxisBaseMap from "../hooks/useCreateRevolutionAxisBaseMap";
 import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
-import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
-import pickVerticalBaseMapListing from "../utils/pickVerticalBaseMapListing";
 import getRevolutionAxisProcedures, {
   splitRevolutionAxisProcedures,
 } from "../utils/getRevolutionAxisProcedures";
@@ -22,6 +19,9 @@ import getRevolutionAxisProcedures, {
 // map). One row per axis
 // (RowRevolutionAxis): navigation to the perpendicular base map the profiles
 // are drawn on, eye / solo of everything linked to the axis, 3D half-view.
+// "Créer un fond de plan…" of a row creates the automatic A3 coupe page of the
+// axis (same hook as the "Fond de plan" button of the axis overlay): page
+// sized to the axis, axis posed at its base point, page selected.
 export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
   // strings
 
@@ -31,17 +31,17 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
 
   const items = useRevolutionAxesOfBaseMap(baseMap?.id);
   const hasItems = items.length > 0;
-  const { value: baseMaps } = useBaseMaps({ includeDetails: true, includeDisabledListings: true });
+  const { value: baseMaps } = useBaseMaps({
+    includeDetails: true,
+    includeDisabledListings: true,
+  });
   const { groups: verticalBaseMapGroups } = useVerticalBaseMapsByListing();
-  const baseMapListings = useProjectBaseMapListings();
   const appConfig = useAppConfig();
-  const { startPlaceAxis } = useStartRevolutionAxisTools();
+  const { createForAxis, creating } = useCreateRevolutionAxisBaseMap();
   const theme = useTheme();
 
   // state
 
-  // Axis waiting for the vertical base map being created (blank page dialog).
-  const [axisToLink, setAxisToLink] = useState(null);
   // Axis whose system picker is open ("Associer un système…" of the row menu).
   const [axisToAssociate, setAxisToAssociate] = useState(null);
 
@@ -61,29 +61,6 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
       getRevolutionAxisProcedures(appConfig?.automatedAnnotationsProcedures),
     [appConfig?.automatedAnnotationsProcedures]
   );
-
-  // Listing of a created vertical base map (shared rule with the overlay's
-  // automatic A3 page): the first listing that already holds vertical base
-  // maps, else the plan's own listing.
-  const createListing = useMemo(
-    () =>
-      pickVerticalBaseMapListing({
-        listings: baseMapListings,
-        verticalBaseMapGroups,
-        planListingId: baseMap?.listingId,
-      }),
-    [baseMapListings, verticalBaseMapGroups, baseMap?.listingId]
-  );
-
-  // handlers
-
-  // The dialog selects the created base map (selectOnCreate): arming the
-  // placement click right after links the axis to it.
-  const handleBaseMapCreated = (entity) => {
-    const axis = axisToLink;
-    setAxisToLink(null);
-    if (entity?.id && axis) startPlaceAxis(axis);
-  };
 
   // render
 
@@ -145,19 +122,12 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
             verticalBaseMapGroups={verticalBaseMapGroups}
             procedures={procedures}
             spriteImage={spriteImage}
-            onCreateBaseMap={setAxisToLink}
+            creatingBaseMap={creating}
+            onCreateBaseMap={createForAxis}
             onAssociateSystem={setAxisToAssociate}
           />
         ))}
       </List>
-
-      <DialogCreateBlankBaseMap
-        open={Boolean(axisToLink)}
-        onClose={() => setAxisToLink(null)}
-        listing={createListing}
-        defaultOrientation="VERTICAL"
-        onCreated={handleBaseMapCreated}
-      />
 
       {axisToAssociate && (
         <DialogAssociateSystemToAxis

@@ -12,6 +12,7 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import {
   Box,
+  CircularProgress,
   Divider,
   IconButton,
   ListItemButton,
@@ -60,8 +61,10 @@ const MENU_PAPER_SX = {
 // - half-view (hover): "Demi-vue 3D" of the axis (persisted on the axis, but
 //   a view setting anyone may switch — setRevolutionAxisHalfViewService);
 // - arrow: on the plan, goes to the vertical base map the profiles are drawn
-//   on — or, when the axis is not linked yet, picks / creates one and arms the
-//   placement click that links it; on a vertical base map, back to the plan;
+//   on — or, when the axis is not linked yet, picks an existing one (arms the
+//   placement click that links it) or creates the automatic A3 coupe page of
+//   the axis (no click: the axis is posed at its base point, the page is
+//   selected); on a vertical base map, back to the plan;
 // - "…" (hover): the systems of the axis — relaunch of the ones ASSOCIATED
 //   to it (params dialog, replace-on-rerun) and "Associer un système…" while
 //   some remain available (getRevolutionAxisProcedures).
@@ -74,6 +77,7 @@ export default function RowRevolutionAxis({
   verticalBaseMapGroups,
   procedures,
   spriteImage,
+  creatingBaseMap = false,
   onCreateBaseMap,
   onAssociateSystem,
 }) {
@@ -474,9 +478,17 @@ export default function RowRevolutionAxis({
           )),
         ])}
         <Divider />
-        <MenuItem dense onClick={handleCreateBaseMap}>
+        <MenuItem
+          dense
+          onClick={handleCreateBaseMap}
+          disabled={creatingBaseMap}
+        >
           <ListItemIcon sx={{ minWidth: 28 }}>
-            <Add sx={{ fontSize: 16 }} />
+            {creatingBaseMap ? (
+              <CircularProgress size={14} />
+            ) : (
+              <Add sx={{ fontSize: 16 }} />
+            )}
           </ListItemIcon>
           <ListItemText primaryTypographyProps={{ variant: "body2" }}>
             {createS}
