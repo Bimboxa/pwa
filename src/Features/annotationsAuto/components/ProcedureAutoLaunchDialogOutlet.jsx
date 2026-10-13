@@ -6,6 +6,7 @@ import db from "App/db/db";
 
 import { setPendingProcedureLaunch } from "../annotationsAutoSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
@@ -45,6 +46,11 @@ const PREPARE_TEMPLATES_ERROR =
  * already holds one of that name), the missing templates are created in it
  * (useEnsureSystemTemplatesInListing) — so cancelling the cotes dialog
  * leaves the scope untouched.
+ *
+ * Once the run is done the selection is cleared: the source axis was the
+ * selected item while the cotes dialog was open (toolbar Play / drawing
+ * commit / association flow) and it must not stay highlighted — with its
+ * edit toolbar — over the freshly drawn system.
  */
 export default function ProcedureAutoLaunchDialogOutlet() {
   const dispatch = useDispatch();
@@ -143,6 +149,7 @@ export default function ProcedureAutoLaunchDialogOutlet() {
       procedureParams,
     });
     notifyProcedureRunResult(dispatch, result);
+    dispatch(clearSelection());
   }
 
   // render
