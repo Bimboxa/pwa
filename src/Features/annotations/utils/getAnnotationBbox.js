@@ -18,6 +18,23 @@ export default function getAnnotationBBox(annotation) {
         };
     }
 
+    // DISC: centre ± radius (px via the plan scale resolved by useAnnotationsV2)
+    else if (
+        annotation.type === 'DISC' &&
+        annotation.point &&
+        Number.isFinite(annotation._planMeterByPx) &&
+        annotation._planMeterByPx > 0 &&
+        Number(annotation.radiusM) > 0
+    ) {
+        const r = Number(annotation.radiusM) / annotation._planMeterByPx;
+        return {
+            x: annotation.point.x - r,
+            y: annotation.point.y - r,
+            width: 2 * r,
+            height: 2 * r
+        };
+    }
+
     // 3. Cas POINT / MARKER / LABEL (Point central +/- taille arbitraire)
     else if (annotation.point || annotation.targetPoint) {
         const pt = annotation.point || annotation.targetPoint;

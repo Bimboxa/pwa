@@ -153,7 +153,9 @@ import db from "App/db/db";
 import cleanSegments from "Features/annotations/utils/cleanSegments";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
-import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
+import getPolylinePointsFromCircle, {
+  getCircleFrom3Points,
+} from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getPolylinePointsFromCircleCenterRadius from "Features/geometry/utils/getPolylinePointsFromCircleCenterRadius";
 import getPolylinePointsFromArc from "Features/geometry/utils/getPolylinePointsFromArc";
 import splitArcOnInsert from "Features/geometry/utils/splitArcOnInsert";
@@ -1229,6 +1231,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // handlers - circle
 
   const handleCommitDrawingFromCircle = (points) => {
+    if (type === "DISC") {
+      const [p0, p1, p2] = points ?? [];
+      const circle = p0 && p1 && p2 && getCircleFrom3Points(p0, p1, p2);
+      // Collinear clicks: no circle, nothing to commit.
+      if (!circle) return;
+      return handleCommitDrawingFromDisc({ x: circle.cx, y: circle.cy }, circle.r);
+    }
     const circlePoints = getPolylinePointsFromCircle(points);
     const options = {};
     if (type === "POLYLINE") options.closeLine = true;
@@ -1236,10 +1245,45 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   };
 
   const handleCommitDrawingFromCircleRadius = (points) => {
+    if (type === "DISC") {
+      const [center, edge] = points ?? [];
+      if (!center || !edge) return;
+      return handleCommitDrawingFromDisc(
+        center,
+        Math.hypot(edge.x - center.x, edge.y - center.y)
+      );
+    }
     const circlePoints = getPolylinePointsFromCircleCenterRadius(points);
     const options = {};
     if (type === "POLYLINE") options.closeLine = true;
     handleCommitDrawing(circlePoints, options);
+  };
+
+  // handlers - disc
+
+  // A DISC is stored like a revolution axis — its CENTRE as its single point
+  // + `radiusM` — never polygonized (see DRAWING_SHAPE_CONFIG.DISC). The
+  // centre is passed as a bare {x, y}: the first click may carry snap
+  // metadata (existingPointId / snapSegment) which would make the disc SHARE
+  // a db.points row with another annotation, or insert its centre into the
+  // snapped ring.
+  const handleCommitDrawingFromDisc = (center, radiusPx) => {
+    const meterByPx = baseMap?.getMeterByPx?.();
+    if (!Number.isFinite(meterByPx) || meterByPx <= 0) {
+      dispatch(
+        setToaster({
+          message: "Le fond de plan n'a pas d'échelle : impossible de créer un disque.",
+          severity: "warning",
+        })
+      );
+      return;
+    }
+    if (!(radiusPx > 0)) return;
+    // Same 6-decimal rounding as the revolution axis commit.
+    const radiusM = Math.round(radiusPx * meterByPx * 1e6) / 1e6;
+    handleCommitDrawing([{ x: center.x, y: center.y }], {
+      revolutionAxisProps: { radiusM, partialRevolution: false },
+    });
   };
 
   // handlers - revolution axis (plan view)
@@ -2001,8 +2045,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       // Revolution axis handles: the centre never moves, only the two
       // derived scalars. Same math as applyDeltaPosToAnnotation so the
       // transient preview and the committed value agree.
+      // A DISC shares the handles (radius / sector bounds), without the
+      // orientation nor the elevation re-pose of the axis.
       if (
-        annotation.type === "REVOLUTION_AXIS" &&
+        (annotation.type === "REVOLUTION_AXIS" ||
+          annotation.type === "DISC") &&
         (partType?.startsWith("REVOLUTION_RIM::") ||
           partType?.startsWith("REVOLUTION_ANGLE::"))
       ) {
@@ -2011,7 +2058,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           ? // Same 6-decimal rounding as the drawing commit.
             {
               radiusM: Math.round(next.radiusM * 1e6) / 1e6,
-              directionDeg: next.directionDeg,
+              ...(annotation.type === "REVOLUTION_AXIS" && {
+                directionDeg: next.directionDeg,
+              }),
             }
           : // A sector end handle sets its bound AND the radius.
             {
@@ -2023,7 +2072,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             };
         await db.annotations.update(annotation.id, updates);
         // Orientation drives the pose of every elevation this axis places.
-        if (partType.startsWith("REVOLUTION_RIM::")) {
+        if (
+          annotation.type === "REVOLUTION_AXIS" &&
+          partType.startsWith("REVOLUTION_RIM::")
+        ) {
           await resyncRevolutionAxisPlacementsService({
             axisId: annotation.id,
             dispatch,
@@ -2043,6 +2095,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         annotation.type === "MARKER" ||
         annotation.type === "POINT" ||
         annotation.type === "DETAIL" ||
+        annotation.type === "DISC" ||
         annotation.type === "REVOLUTION_AXIS" ||
         annotation.type === "REVOLUTION_AXIS_PLACEMENT"
       ) {

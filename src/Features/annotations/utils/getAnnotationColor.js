@@ -18,7 +18,7 @@ export default function getAnnotationColor(annotation) {
       : (annotation.fillColor ?? annotation.strokeColor);
   }
 
-  if (["MARKER", "POLYGON"].includes(annotation.type)) {
+  if (["MARKER", "POLYGON", "DISC"].includes(annotation.type)) {
     return annotation.fillColor;
   } else if (
     [

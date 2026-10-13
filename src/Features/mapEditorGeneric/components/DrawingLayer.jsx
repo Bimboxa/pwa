@@ -201,7 +201,8 @@ const DrawingLayer = forwardRef(
     const fillColor = isOpening ? OPENING_COLOR : rawFillColor;
 
     // Détection des types
-    const isPolygon = type === "POLYGON";
+    // DISC previews like a filled circle too (its stroke is the fill colour).
+    const isPolygon = type === "POLYGON" || type === "DISC";
 
     // --- STYLE DE TRAIT (preview) ---
     // POLYLINE / segment previews mirror the annotation's stroke (width,

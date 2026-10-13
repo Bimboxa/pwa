@@ -222,6 +222,7 @@ const SNAP_THRESHOLD_ABSOLUTE = 12;
 const MARKER_LIKE_SNAP_DRAG_TYPES = [
   "REVOLUTION_AXIS",
   "REVOLUTION_AXIS_PLACEMENT",
+  "DISC",
 ];
 const isMarkerLikeSnapDragType = (type) =>
   MARKER_LIKE_SNAP_DRAG_TYPES.includes(type);
@@ -8007,7 +8008,7 @@ const InteractionLayer = forwardRef(({
           // circle, REVOLUTION_ANGLE::<START|END> on a partial revolution —
           // see NodeRevolutionAxisStatic); the centre moves the whole axis.
           let partType = null;
-          if (draggedAnn.type === "REVOLUTION_AXIS") {
+          if (["REVOLUTION_AXIS", "DISC"].includes(draggedAnn.type)) {
             partType =
               (draggedAnn._snapPoints ?? []).find(
                 (p) => p.x === snap.x && p.y === snap.y

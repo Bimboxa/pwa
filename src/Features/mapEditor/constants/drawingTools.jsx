@@ -140,6 +140,26 @@ const DRAWING_TOOLS = [
     annotationType: "POLYGON",
     behavior: "CIRCLE_RADIUS",
   },
+  // DISC tools: same click gestures (and live preview) as the POLYGON circle
+  // tools — `drawingMode` delegates to them — but the commit keeps the DISC
+  // type and stores centre + radiusM instead of polygonizing
+  // (handleCommitDrawingFromDisc in MainMapEditorV3).
+  {
+    key: "DISC_CIRCLE_RADIUS",
+    label: "Cercle centre/rayon",
+    Icon: IconPolygonCircleRadius,
+    annotationType: "DISC",
+    behavior: "CIRCLE_RADIUS",
+    drawingMode: "POLYGON_CIRCLE_RADIUS",
+  },
+  {
+    key: "DISC_CIRCLE",
+    label: "Cercle (3 points)",
+    Icon: IconPolygonCircle,
+    annotationType: "DISC",
+    behavior: "CIRCLE",
+    drawingMode: "POLYGON_CIRCLE",
+  },
   {
     key: "CIRCLE",
     label: "Cercle",

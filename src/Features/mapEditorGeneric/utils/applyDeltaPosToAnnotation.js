@@ -179,8 +179,11 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
     //
     // Pixel space is y-DOWN while `directionDeg` and the sector angles live in
     // the plan LOCAL metre frame (y up) — hence the atan2(-dy, dx).
+    // A DISC shares the handles (no directionDeg → theta = 0, no ROTATE
+    // handle is ever rendered for it).
     if (
-        _annotation.type === "REVOLUTION_AXIS" &&
+        (_annotation.type === "REVOLUTION_AXIS" ||
+            _annotation.type === "DISC") &&
         (partType?.startsWith("REVOLUTION_RIM::") ||
             partType?.startsWith("REVOLUTION_ANGLE::"))
     ) {
@@ -267,10 +270,11 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         return _annotation;
     }
 
-    // MARKER / POINT / revolution axis + placement (single-point annotations)
+    // MARKER / POINT / DISC / revolution axis + placement (single-point annotations)
     if (
         _annotation.type === "MARKER" ||
         _annotation.type === "POINT" ||
+        _annotation.type === "DISC" ||
         _annotation.type === "REVOLUTION_AXIS" ||
         _annotation.type === "REVOLUTION_AXIS_PLACEMENT"
     ) {

@@ -24,7 +24,7 @@ export function getAnnotationTemplateMainQtyKey(annotationTemplate) {
   let defaultMainQtyKey = "U";
   if (["POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(type))
     defaultMainQtyKey = "L";
-  if (["POLYGON"].includes(type)) defaultMainQtyKey = "S";
+  if (["POLYGON", "DISC"].includes(type)) defaultMainQtyKey = "S";
   return mainQtyKey ?? defaultMainQtyKey;
 }
 

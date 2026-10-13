@@ -19,7 +19,7 @@ export default function getAnnotationMainQtyLabel(annotation, qties) {
 
   let variant = "LENGTH"; // SURFACE, "COUNT"
 
-  if (["POLYGON", "RECTANGLE"].includes(type)) {
+  if (["POLYGON", "RECTANGLE", "DISC"].includes(type)) {
     variant = "SURFACE";
   } else if (
     type === "DETAIL" ||

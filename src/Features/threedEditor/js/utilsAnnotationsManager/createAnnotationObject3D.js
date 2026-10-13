@@ -58,6 +58,7 @@ import buildStairsFromGuideLine from "./buildStairsFromGuideLine";
 import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
+import buildDiscObject3D from "./buildDiscObject3D";
 import attachFatLineRaycast from "./attachFatLineRaycast";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
@@ -1213,6 +1214,19 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         axisGroup.add(circle);
       }
       object = axisGroup;
+      break;
+    }
+    case "DISC": {
+      // Extruded disc / sector by default, « Coupole » (DISC_DOME) solid of
+      // revolution otherwise — see buildDiscObject3D.
+      object = buildDiscObject3D({
+        annotation,
+        baseMap,
+        height,
+        verticalLift,
+        material,
+        isDome: shape3DKey === "DISC_DOME",
+      });
       break;
     }
     case "REVOLUTION_AXIS_PLACEMENT":

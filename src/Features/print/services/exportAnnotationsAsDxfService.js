@@ -33,6 +33,7 @@ const SKIPPED_TYPES = [
   "REVOLUTION_AXIS",
   "REVOLUTION_AXIS_PLACEMENT",
   "BASE_MAP_LINK",
+  "DISC",
 ];
 
 const FALLBACK_LAYER_NAME = "Annotations";

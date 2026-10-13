@@ -143,6 +143,16 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "DISC",
+    label: "Disque",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="8" fill="currentColor" />
+        <circle cx="10" cy="10" r="1.5" fill="#fff" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "OPENING",
     label: "Ouverture",
     icon: (

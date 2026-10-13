@@ -209,6 +209,41 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "rectangle",
   },
+  // DISC — a disc (or a sector of it) stored as a CENTRE (`point`, a
+  // db.points ref) + scalars: `radiusM`, `partialRevolution` and the two
+  // sector bounds `revolutionAngleStartDeg` / `revolutionAngleEndDeg` (plan
+  // LOCAL metre frame, y up, CCW — same contract as REVOLUTION_AXIS, see
+  // getRevolutionAxisPlanFrame). Drawn ONLY with the two circle tools; the
+  // commit turns the clicks into centre + radius instead of polygonizing
+  // (handleCommitDrawingFromDisc). 3D: extruded disc by default, or a
+  // « Coupole » (shape3D DISC_DOME, see buildDiscObject3D).
+  DISC: {
+    label: "Disque",
+    annotationType: "DISC",
+    tools: ["DISC_CIRCLE_RADIUS", "DISC_CIRCLE"],
+    configurableProps: [
+      "fillColor",
+      "fillOpacity",
+      "height",
+      "color3D",
+      "opacity3D",
+      "material3d",
+    ],
+    defaults: {
+      fillColor: secondary,
+      fillOpacity: 0.8,
+      fillType: "SOLID",
+      strokeColor: secondary,
+      strokeWidth: 1,
+      strokeOpacity: 1,
+      // Geometry (radiusM is written at commit from the clicks; the value
+      // here only matters for a scale-less fallback).
+      radiusM: 1,
+      partialRevolution: false,
+      offsetZ: 0,
+    },
+    shapeCategory: "circle",
+  },
   // OPENING — a door / window glued on a host wall (2-point POLYLINE, see
   // NodeOpeningStatic). `openingType` picks the architectural symbol drawn in
   // the wall gap: NONE (plain gap), DOOR (leaf + swing arc) or WINDOW (thin
@@ -582,6 +617,7 @@ const TYPE_TO_SHAPE = {
   BASE_MAP_LINK: "BASE_MAP_LINK",
   COTE: "COTE",
   RULER: "RULER",
+  DISC: "DISC",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",
   REVOLUTION_AXIS_PLACEMENT: "REVOLUTION_AXIS_PLACEMENT",
 };
@@ -635,6 +671,7 @@ const GEOMETRY_KIND_BY_TYPE = {
   MARKER: "POINT",
   POINT: "POINT",
   DETAIL: "POINT",
+  DISC: "POINT",
   REVOLUTION_AXIS: "POINT",
   REVOLUTION_AXIS_PLACEMENT: "POINT",
   LABEL: "LABEL",

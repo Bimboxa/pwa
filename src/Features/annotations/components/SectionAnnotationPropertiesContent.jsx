@@ -28,6 +28,7 @@ import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLabelSize from "./FieldAnnotationLabelSize";
 import FieldAnnotationDetailSize from "./FieldAnnotationDetailSize";
+import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationOpening from "./FieldAnnotationOpening";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
@@ -198,6 +199,15 @@ export default function SectionAnnotationPropertiesContent({
         {type === "IMAGE" && <FieldAnnotationImage annotation={annotation} />}
         {type === "IMAGE" && <FieldAnnotationOpacity annotation={annotation} />}
         <SectionAnnotationTransform annotation={annotation} />
+        {/* DISC: radius + partial revolution (sector bounds). */}
+        {type === "DISC" && (
+          <WhiteSectionGeneric>
+            <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+              Disque
+            </Typography>
+            <FieldsAnnotationDisc annotation={annotation} />
+          </WhiteSectionGeneric>
+        )}
         {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
             template form, without the override padlock. */}
         {type === "LINEAR_LAYOUT" && (

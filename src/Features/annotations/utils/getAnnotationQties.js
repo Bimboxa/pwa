@@ -11,6 +11,11 @@ import {
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import {
+  getDiscSector,
+  getDiscSurfaceM2,
+  isDiscDome,
+} from "Features/annotations/utils/discGeometry";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import {
   getLinearLayoutSpacing,
@@ -405,6 +410,25 @@ function computeAnnotationQties({
 
     // FREE_TEXT is a pure text box: it describes the drawing, no quantities.
     if (annotation.type === "FREE_TEXT") return { enabled: false };
+
+    // DISC: surface of its 3D shape — the plane disc / sector area, or the
+    // developed area of the « Coupole » (Pappus on the dome profile); length
+    // = the arc of the rim.
+    if (annotation.type === "DISC") {
+      const r = Number(annotation.radiusM) || 0;
+      if (!(r > 0)) return { enabled: true, length: 0, surface: 0 };
+      const { span } = getDiscSector(annotation);
+      return {
+        enabled: true,
+        length: r * span,
+        surface: getDiscSurfaceM2({
+          radiusM: r,
+          span,
+          heightM: Number(annotation.height) || 0,
+          isDome: isDiscDome(annotation),
+        }),
+      };
+    }
 
     if (annotation.type === "POINT") {
       // REVOLUTION: the point sweeps a circle around the referenced axis
