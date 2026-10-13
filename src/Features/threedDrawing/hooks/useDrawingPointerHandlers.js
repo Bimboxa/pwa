@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector, useStore } from "react-redux";
+import { Vector3 } from "three";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -61,6 +62,10 @@ import commitDrawnPolylineService, {
   POLYLINE_COMMIT_NO_2D_ENCODING,
   commitDrawnPolyline,
 } from "../services/commitDrawnPolylineService";
+import commitDrawnDiscService, {
+  DISC_COMMIT_NOT_PARALLEL,
+  DISC_COMMIT_NO_SCALE,
+} from "../services/commitDrawnDiscService";
 import { getLastSnap } from "../services/lastSnapStore";
 import {
   DEFAULT_RECT_SIDE_AXES,
@@ -232,8 +237,43 @@ export default function useDrawingPointerHandlers() {
       const na = newAnnotationRef.current;
       return Boolean(
         na?.annotationTemplateId &&
-        (na?.type === "POLYGON" || na?.type === "POLYLINE")
+        (na?.type === "POLYGON" ||
+          na?.type === "POLYLINE" ||
+          na?.type === "DISC")
       );
+    }
+
+    // DISC draft with the centre / radius tool: its own 2-click flow.
+    function isDiscDraw() {
+      return (
+        behavior === "CIRCLE_RADIUS" &&
+        newAnnotationRef.current?.type === "DISC" &&
+        hasTemplate()
+      );
+    }
+
+    async function commitDisc(center, rim) {
+      const { annotation, reason } = await commitDrawnDiscService({
+        center,
+        rim,
+        baseMaps: baseMaps || [],
+        projectId,
+        listingId,
+        templateProps: newAnnotationRef.current,
+        layerId: activeLayerIdRef.current ?? null,
+        createAnnotationFn: createAnnotation,
+        preferredBaseMapId: mainBaseMapId ?? null,
+      });
+      if (!annotation) {
+        const message =
+          reason === DISC_COMMIT_NOT_PARALLEL
+            ? "Un disque se dessine parallèlement à son fond de plan : placez le centre sur un plan."
+            : reason === DISC_COMMIT_NO_SCALE
+              ? "Le fond de plan n'a pas d'échelle : impossible de créer un disque."
+              : null;
+        if (message) dispatch(setToaster({ message, severity: "warning" }));
+      }
+      return annotation;
     }
 
     // Templated face: encoded on its plan when it can be — else (a vertical
@@ -1072,6 +1112,41 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      // DISC: 1st click = the centre (stamped with its plan, like a
+      // rectangle anchor), 2nd click = a rim point on the centre's plane
+      // (the overlay locks the plane and previews the circle) → commit.
+      if (isDiscDraw()) {
+        if (inProgressPolyline.length === 0) {
+          dispatch(pushDrawingVertex(toRectangleAnchor(snap)));
+          return;
+        }
+        const center = inProgressPolyline[0];
+        const rim = snap.position;
+        const radius = new Vector3(center.x, center.y, center.z).distanceTo(
+          rim
+        );
+        if (!(radius > 1e-3)) return; // stay armed
+        // The typed radius was applied to this point (preview snap): consumed.
+        releaseLengthConstraint();
+        try {
+          const created = await commitDisc(center, {
+            x: rim.x,
+            y: rim.y,
+            z: rim.z,
+          });
+          if (created) {
+            console.log(
+              `[threedDrawing] disc annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
+            );
+            warnIfOffMainBaseMap(created);
+            finishCommit();
+          }
+        } catch (err) {
+          console.error("[threedDrawing] disc commit failed", err);
+        }
+        return;
+      }
+
       const newVertex = {
         x: snap.position.x,
         y: snap.position.y,
@@ -1183,8 +1258,8 @@ export default function useDrawingPointerHandlers() {
         return;
       }
       if (e.key === "Enter") {
-        // Rectangle: keys never commit (2D parity — the 2nd click does).
-        if (behavior === "RECTANGLE") return;
+        // Rectangle / disc: keys never commit (2D parity — the 2nd click does).
+        if (behavior === "RECTANGLE" || isDiscDraw()) return;
         const committed = await commitInProgressAsAnnotation();
         if (!committed) dispatch(flushInProgressAsTrait3D());
       } else if (e.key === "Escape") {
@@ -1192,6 +1267,11 @@ export default function useDrawingPointerHandlers() {
           if (behavior === "RECTANGLE") {
             dispatch(cancelInProgressPolyline());
             releaseRectDims();
+            return;
+          }
+          // Disc: Escape drops the centre (nothing committable yet).
+          if (isDiscDraw()) {
+            dispatch(cancelInProgressPolyline());
             return;
           }
           // 2D parity: Escape mid-drawing commits too; an uncommittable

@@ -1,11 +1,4 @@
-import {
-  DoubleSide,
-  EdgesGeometry,
-  Group,
-  LineBasicMaterial,
-  LineSegments,
-  Mesh,
-} from "three";
+import { DoubleSide, Group, Mesh } from "three";
 import { liveQuery } from "dexie";
 
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
@@ -13,6 +6,7 @@ import {
   computeVertexFrames,
   buildSweepGeometryForProfile,
 } from "./sweepGeometry";
+import buildGridEdgeLines from "./buildGridEdgeLines";
 
 // Extrudes a 2D profile (one or more polyline annotations sharing an
 // `isProfile=true` annotationTemplate) along a guide polyline. Hidden guide
@@ -29,12 +23,6 @@ import {
 // change (added / soft-deleted / repositioned). The unsubscribe hook is
 // stored in `userData.dispose` for the AnnotationsManager to call on cleanup.
 
-const EDGE_MATERIAL = new LineBasicMaterial({
-  color: 0x000000,
-  transparent: true,
-  opacity: 0.5,
-});
-
 export default function buildExtrudedProfileMesh(
   guidePointsLocal,
   profileTemplateId,
@@ -43,7 +31,9 @@ export default function buildExtrudedProfileMesh(
   hiddenSegmentsIdx = [],
   extrusionOrientation = 1,
   closeLine = false,
-  onResolved
+  onResolved,
+  // EdgesGeometry threshold of the black grid lines (Wireframe settings).
+  gridEdgeThresholdDeg = 1
 ) {
   if (!guidePointsLocal || guidePointsLocal.length < 2) return null;
   if (!profileTemplateId) return null;
@@ -73,6 +63,7 @@ export default function buildExtrudedProfileMesh(
       material,
       extrusionOrientation,
       closeLine,
+      gridEdgeThresholdDeg,
     });
     if (swept) placeholder.add(swept);
     // Notify the caller that the swept meshes now exist (built asynchronously),
@@ -114,6 +105,7 @@ export function sweepProfileAlongGuide({
   material,
   extrusionOrientation = 1,
   closeLine = false,
+  gridEdgeThresholdDeg = 1,
 }) {
   const hidden = new Set(hiddenSegmentsIdx ?? []);
   // Flip the profile to the other side of the guide (180° about the guide
@@ -157,22 +149,13 @@ export function sweepProfileAlongGuide({
     group.add(subMesh);
     // Tagged + per-call material so the carve pipeline can strip and rebuild
     // the grid from the carved geometry — see subtractAnnotationGeometries.
-    const gridEdges = new LineSegments(
-      new EdgesGeometry(subGeom),
-      EDGE_MATERIAL.clone()
+    group.add(
+      buildGridEdgeLines(subGeom, {
+        thresholdDeg: gridEdgeThresholdDeg,
+        sourceMesh: subMesh,
+      })
     );
-    gridEdges.userData = {
-      isGridEdge: true,
-      gridEdgeKind: "EDGES",
-      // Runtime ref for the "Wireframe" threshold rebuild — see
-      // applyWireframeSettings.
-      sourceMesh: subMesh,
-    };
-    gridEdges.raycast = () => {};
-    group.add(gridEdges);
   }
 
   return group.children.length > 0 ? group : null;
 }
-
-

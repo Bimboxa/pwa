@@ -1,7 +1,6 @@
 import {
   BufferAttribute,
   BufferGeometry,
-  EdgesGeometry,
   LineBasicMaterial,
   LineSegments,
   Matrix4,
@@ -15,6 +14,7 @@ import {
   getSurfaceCutsKey,
   surfaceCutToLocal,
 } from "Features/threedFaceCut/utils/surfaceCutsFrame";
+import buildGridEdgeLines from "./buildGridEdgeLines";
 
 // « Découpe horizontale / verticale » of a SURFACE host (lathe, shell, swept
 // profile — isSurfaceCutHost): the stored cut planes (annotation.surfaceCuts)
@@ -231,6 +231,9 @@ export default function applySurfaceCuts(root, annotation, metrics) {
       ? {
           material: staleEdges[0].material,
           kind: staleEdges[0].userData.gridEdgeKind ?? "EDGES",
+          // Pieces keep the threshold the source lines were built with (the
+          // current Wireframe setting) — no re-threshold in finishRoot.
+          thresholdDeg: staleEdges[0].userData.appliedThresholdDeg ?? 1,
         }
       : null;
     for (const line of staleEdges) {
@@ -278,18 +281,13 @@ export default function applySurfaceCuts(root, annotation, metrics) {
       parent.add(pieceMesh);
 
       if (edgeInfo) {
-        const edges = new LineSegments(
-          new EdgesGeometry(geometry, 1),
-          edgeInfo.material.clone()
+        pieceMesh.add(
+          buildGridEdgeLines(geometry, {
+            thresholdDeg: edgeInfo.thresholdDeg,
+            material: edgeInfo.material.clone(),
+            sourceMesh: pieceMesh,
+          })
         );
-        edges.userData = {
-          isGridEdge: true,
-          gridEdgeKind: "EDGES",
-          sourceMesh: pieceMesh,
-          appliedThresholdDeg: 1,
-        };
-        edges.raycast = () => {};
-        pieceMesh.add(edges);
       } else {
         const seams = buildSeamLines(piece.seams, toParent);
         if (seams) pieceMesh.add(seams);

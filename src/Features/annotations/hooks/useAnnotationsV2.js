@@ -1475,6 +1475,19 @@ export default function useAnnotationsV2(options) {
               if (!_isResolved(_annotation.point) && _annotation.point?.id)
                 corruptedIds.push(_annotation.point.id);
             }
+            // DISC: its openings are db.points rings like a POLYGON's holes.
+            if (_annotation.type === "DISC" && annotation.cuts?.length) {
+              _annotation.cuts = (
+                resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize }) ??
+                []
+              )
+                .map((cut) => ({
+                  ...cut,
+                  points: _splitResolved(cut?.points, corruptedIds),
+                }))
+                // a hole with < 3 points is degenerate (breaks triangulation)
+                .filter((cut) => (cut?.points?.length ?? 0) >= 3);
+            }
             // DETAIL: the bubble is sized in page points of the print zone
             // (same pt→image-px scale as FREE_TEXT, see NodeDetailStatic).
             if (_annotation.type === "DETAIL") {

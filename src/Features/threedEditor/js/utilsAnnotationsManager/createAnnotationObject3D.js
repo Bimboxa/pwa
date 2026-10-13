@@ -857,6 +857,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         verticalLift,
         innerPts,
         {
+          gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           isoLines: hasGuideLineRamp,
           isoHeightChords,
           ...(shellProfiles.length
@@ -879,7 +880,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         height,
         material,
         undefined,
-        verticalLift
+        verticalLift,
+        [],
+        { gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg }
       );
       break;
     }
@@ -915,6 +918,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             // Watertight volume (closed toward the axis) instead of the
             // open lathe shell — see shape3DConfig.isRevolutionSolid.
             solid: annotation.shape3D?.solid === true,
+            gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           });
           // Display-only half-view (not the annotation's own partial
           // revolution): the real surface is the full turn.
@@ -954,7 +958,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           // added to the placeholder — lets AnnotationsManager re-render and
           // re-notify "annotation ready" so post-creation passes (clipping
           // planes, selection dim) reach the freshly-added meshes.
-          options?.onAsyncLoaded
+          options?.onAsyncLoaded,
+          options?.gridEdgeThresholdDeg
         );
         break;
       }
@@ -996,6 +1001,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             verticalLift,
             hiddenSegmentsIdx: expandedHidden,
             closeLine: !!annotation.closeLine,
+            gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           });
           if (object) break;
         }
@@ -1063,7 +1069,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           // added to the placeholder — lets AnnotationsManager re-render and
           // re-notify "annotation ready" so post-creation passes (clipping
           // planes, selection dim) reach the freshly-added meshes.
-          options?.onAsyncLoaded
+          options?.onAsyncLoaded,
+          options?.gridEdgeThresholdDeg
         );
         break;
       }
@@ -1226,6 +1233,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         verticalLift,
         material,
         isDome: shape3DKey === "DISC_DOME",
+        gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
       });
       break;
     }

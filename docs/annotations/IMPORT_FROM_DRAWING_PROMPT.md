@@ -17,7 +17,7 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 
 - les coordonnées sont **normalisées dans `[0..1]`** par rapport à l'image source
   (origine en haut à gauche, `x`→droite, `y`→bas) ;
-- types supportés : **POLYLINE, POLYGON (avec ouvertures `cuts`), COTE, STRIP, FREE_TEXT** ;
+- types supportés : **POLYLINE, POLYGON (avec ouvertures `cuts`), COTE, STRIP, POINT (un seul `point`), FREE_TEXT** ;
 - les courbes sont encodées en **triplet S-C-S** — un point de contrôle avec
   `"type":"circle"` entre deux sommets normaux (`"square"`), conformément à
   `Features/geometry/utils/arcSampling.js` ;
@@ -81,6 +81,8 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 >   points ; règle `"unit"` (`"MM"|"CM"|"M"`), `"decimals"`, et
 >   `"showUnitLabel": true`. **Retranscris la valeur écrite à l'identique** (voir
 >   « Cohérence »).
+> - **POINT** — un élément ponctuel (regard, EP, équipement). Pas de `points` :
+>   `"point": {"x","y"}` = **centre** de l'élément ; `"label"` optionnel.
 > - **FREE_TEXT** — un texte posé sur le dessin (titre, note). Pas de `points` :
 >   `"textContent"` et `"labelPoint": {"x","y"}` = **centre** de la boîte de
 >   texte ; `"targetPoint"` + `"hasConnector": true` pour un trait de rappel.

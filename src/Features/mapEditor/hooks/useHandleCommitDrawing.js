@@ -268,12 +268,19 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             _updatedAnnotation = _cutHostId
                 ? { ...(await db.annotations.get(_cutHostId)) }
                 : null;
-            if (_updatedAnnotation?.type !== "POLYGON") return; // openings only apply to POLYGON hosts
+            // Openings only apply to POLYGON hosts — and to DISC hosts, whose
+            // openings are always appended as holes (a disc has no editable
+            // contour to notch).
+            if (!["POLYGON", "DISC"].includes(_updatedAnnotation?.type)) return;
 
             // When the drawn opening touches or exits the host polygon's outer
             // boundary, we modify the outer contour (carving a notch) instead
             // of appending a hole. See [annotations] issue #224.
-            if (_updatedAnnotation?.id && rawPoints?.length >= 3) {
+            if (
+                _updatedAnnotation?.type === "POLYGON" &&
+                _updatedAnnotation?.id &&
+                rawPoints?.length >= 3
+            ) {
                 const contourResult = await applyOpeningOnPolygon({
                     host: _updatedAnnotation,
                     // Keep the arc `type` so a circular opening (CUT_CIRCLE) that

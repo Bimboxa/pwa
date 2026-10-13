@@ -40,9 +40,11 @@ import {
   setDisplayedBaseMapListingId,
 } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLeftPanelDocked } from "Features/leftPanel/leftPanelSlice";
+import { setAutoBaseMapVisibility } from "Features/popperMapListings/popperMapListingsSlice";
 
 import {
   Box,
+  Divider,
   IconButton,
   InputBase,
   Paper,
@@ -58,8 +60,10 @@ import PopoverBaseMapVersions from "./PopoverBaseMapVersions";
 import IconButtonMoreActionsBaseMap from "Features/baseMapEditor/components/IconButtonMoreActionsBaseMap";
 import IconButtonMoreActionsBaseMapListing from "Features/baseMapEditor/components/IconButtonMoreActionsBaseMapListing";
 import DialogCreateBaseMapVersion from "Features/baseMapEditor/components/DialogCreateBaseMapVersion";
+import RowPanelOptionCheckbox from "Features/layout/components/RowPanelOptionCheckbox";
 
 import db from "App/db/db";
+import useHideOtherBaseMaps from "../hooks/useHideOtherBaseMaps";
 import createBaseMapVersionFromSource from "../services/createBaseMapVersionFromSource";
 import useBaseMaps from "../hooks/useBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
@@ -141,9 +145,16 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const othersS = "Autres";
   const versionS = "Version";
   const newBaseMapS = "Nouveau fond de plan";
+  const autoVisibilityS = "Visibilité auto";
+  const autoVisibilityTooltipS =
+    "Au changement de fond de plan : masque l'image et les annotations des autres fonds de plan.";
 
   // data
 
+  const autoBaseMapVisibility = useSelector(
+    (s) => s.popperMapListings.autoBaseMapVisibility
+  );
+  const hideOtherBaseMaps = useHideOtherBaseMaps();
   const { value: baseMaps = [] } = useBaseMaps({});
   const listings = useProjectBaseMapListings() ?? [];
   const mainBaseMap = useMainBaseMap();
@@ -536,6 +547,9 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
       return;
     }
     selectMainBaseMap(map.id);
+    // "Visibilité auto": the selected base map shown fully, every other
+    // one hidden (image + annotations) in the displayed editor.
+    if (autoBaseMapVisibility) hideOtherBaseMaps();
     // Keep the listing selection in sync: baseMap creation & url params
     // still read selectedBaseMapsListingId.
     if (map.listingId) dispatch(setSelectedBaseMapsListingId(map.listingId));
@@ -726,6 +740,19 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
           document.body
         )}
       </DndContext>
+      {/* "Visibilité auto" — not with the pinned grid (the rows are sheets,
+          a click never changes the main base map there). */}
+      {!pinned && (
+        <>
+          <Divider />
+          <RowPanelOptionCheckbox
+            label={autoVisibilityS}
+            tooltip={autoVisibilityTooltipS}
+            checked={autoBaseMapVisibility}
+            onChange={(checked) => dispatch(setAutoBaseMapVisibility(checked))}
+          />
+        </>
+      )}
       {isViewerModule && (
         <PopoverBaseMapVersions
           baseMap={mainBaseMap}

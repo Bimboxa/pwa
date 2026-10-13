@@ -203,6 +203,7 @@ import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/compone
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
+import getGridEdgeThresholdDeg from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 import {
   getMesh3dSprites,
   getMesh3dFaceMeshes,
@@ -346,6 +347,7 @@ export default function MainThreedEditor() {
   // "Wireframe" section of the 3D view settings: grid-edge lines visibility +
   // EdgesGeometry dihedral threshold, synced live to the AnnotationsManager.
   const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const showTessellation = useSelector((s) => s.threedEditor.showTessellation);
   const wireframeAngleDeg = useSelector(
     (s) => s.threedEditor.wireframeAngleDeg
   );
@@ -790,9 +792,12 @@ export default function MainThreedEditor() {
     if (!editor || !rendererIsReady) return;
     editor.sceneManager?.annotationsManager?.setWireframeSettings({
       visible: showWireframe,
-      thresholdDeg: wireframeAngleDeg,
+      thresholdDeg: getGridEdgeThresholdDeg({
+        showTessellation,
+        wireframeAngleDeg,
+      }),
     });
-  }, [showWireframe, wireframeAngleDeg, rendererIsReady]);
+  }, [showWireframe, showTessellation, wireframeAngleDeg, rendererIsReady]);
 
   // Sync renderMode → RenderModeManager (tone mapping / shadows /
   // environment). The annotation materials rebuild independently through

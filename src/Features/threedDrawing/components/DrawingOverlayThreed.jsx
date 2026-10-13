@@ -175,6 +175,11 @@ export default function DrawingOverlayThreed() {
   const isPolygonDraft = useSelector(
     (s) => s.annotations.newAnnotation?.type === "POLYGON"
   );
+  // A disc (centre / radius tool): the rim point stays on the centre's plane
+  // and the cursor previews the circle.
+  const isDiscDraft = useSelector(
+    (s) => s.annotations.newAnnotation?.type === "DISC"
+  );
   // Template-less drawing ("Dessin" tool in 3D) and "Coupe face": points
   // also land on annotation faces.
   const isMeshDraw = useSelector(
@@ -363,6 +368,14 @@ export default function DrawingOverlayThreed() {
       behavior === "RECTANGLE" && inProgressPolyline.length >= 1
         ? inProgressPolyline[0]
         : null;
+    // DISC: the first vertex is the centre; the second click (the rim) is
+    // bound to the centre's plane, like the next points of a polygon.
+    const discCenter =
+      isDiscDraft &&
+      behavior === "CIRCLE_RADIUS" &&
+      inProgressPolyline.length >= 1
+        ? inProgressPolyline[0]
+        : null;
     const isFaceCut = isFaceCutDrawingMode(enabledDrawingMode);
     // "Coupe face" rectangle: anchored on a face, it lives on that face's
     // plane, its sides along the face's frame (getFaceCutBasisWorld).
@@ -418,8 +431,15 @@ export default function DrawingOverlayThreed() {
     // A polygon with 3+ points: its plane, the next points are locked on it
     // (a face is planar). Not for "Coupe face" (bound to its face already)
     // nor for rectangles.
-    const draftPlane =
-      isPolygonDraft && !isFaceCut && behavior !== "RECTANGLE"
+    const discSupportNormal = discCenter ? getSupportNormal(discCenter) : null;
+    const draftPlane = discCenter
+      ? discSupportNormal
+        ? {
+            point: new Vector3(discCenter.x, discCenter.y, discCenter.z),
+            normal: discSupportNormal,
+          }
+        : null
+      : isPolygonDraft && !isFaceCut && behavior !== "RECTANGLE"
         ? computeDraftPlane(inProgressPolyline)
         : null;
     const draftThreePlane = draftPlane
@@ -890,6 +910,51 @@ export default function DrawingOverlayThreed() {
       return sideAxes;
     }
 
+    // DISC: the dashed radius from the centre to the cursor, then the circle
+    // through the cursor in the centre's plane (the draft plane; a free
+    // centre without support falls back on the horizontal through it).
+    function updateCirclePreview(snap, segmentAxis) {
+      const root = rootRef.current;
+      if (!root) return;
+      clearPreviewLine();
+      const snapPos = snap?.position;
+      if (!snapPos || !discCenter) return;
+      const c = new Vector3(discCenter.x, discCenter.y, discCenter.z);
+      const v = snapPos.clone().sub(c);
+      const r = v.length();
+      if (r < 1e-4) return;
+      const n = (draftPlane?.normal ?? new Vector3(0, 1, 0))
+        .clone()
+        .normalize();
+      const u = v.clone().addScaledVector(n, -v.dot(n));
+      if (u.length() < 1e-6) return;
+      u.normalize();
+      const w = new Vector3().crossVectors(n, u).normalize();
+      const CIRCLE_SEGMENTS = 64;
+      const points = [{ x: c.x, y: c.y, z: c.z }];
+      for (let i = 0; i <= CIRCLE_SEGMENTS; i++) {
+        const a = (i / CIRCLE_SEGMENTS) * Math.PI * 2;
+        const p = c
+          .clone()
+          .addScaledVector(u, r * Math.cos(a))
+          .addScaledVector(w, r * Math.sin(a));
+        points.push({ x: p.x, y: p.y, z: p.z });
+      }
+      const mat = makeLineMaterial({
+        color: colorForSnap(snap, segmentAxis),
+        linewidth: LINEWIDTH_PREVIEW,
+        dashed: true,
+        dashSize: getDashSize(camera.position.distanceTo(snapPos)),
+        resolution: getCanvasResolution(editor),
+      });
+      const line = buildConnectedPolyline(points, mat);
+      if (line) {
+        line.renderOrder = 1002;
+        root.add(line);
+        previewLineRef.current = line;
+      }
+    }
+
     function updateRectanglePreview(snap, rect) {
       const root = rootRef.current;
       if (!root) return;
@@ -968,7 +1033,7 @@ export default function DrawingOverlayThreed() {
       if (
         !last ||
         !snap?.position ||
-        !SEGMENT_DRAWING_MODES.includes(enabledDrawingMode)
+        !(SEGMENT_DRAWING_MODES.includes(enabledDrawingMode) || discCenter)
       ) {
         segmentLengthPxRef.current = 0;
         badge?.hide();
@@ -1072,7 +1137,8 @@ export default function DrawingOverlayThreed() {
         updateRectanglePreview(snap, rect);
       } else {
         hideRectDimBadges();
-        updatePreviewLine(snap, segmentAxis);
+        if (discCenter) updateCirclePreview(snap, segmentAxis);
+        else updatePreviewLine(snap, segmentAxis);
       }
       updateLengthBadge(snap, last, e, rect, Boolean(constrained), segmentAxis);
       editor.sceneManager.renderScene?.();
@@ -1120,6 +1186,7 @@ export default function DrawingOverlayThreed() {
     meterByPx,
     yawDeg,
     isPolygonDraft,
+    isDiscDraft,
   ]);
 
   // Typed length changed (digit / Backspace / consumed by a click): re-run

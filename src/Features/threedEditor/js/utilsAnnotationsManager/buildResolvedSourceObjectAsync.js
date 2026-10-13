@@ -3,7 +3,9 @@ import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResol
 import { expandArcsInPathWithHiddenMap } from "Features/geometry/utils/arcSampling";
 
 import pixelToWorld from "./pixelToWorld";
-import createAnnotationObject3D, { makeMaterial } from "./createAnnotationObject3D";
+import createAnnotationObject3D, {
+  makeMaterial,
+} from "./createAnnotationObject3D";
 import { sweepProfileAlongGuide } from "./buildExtrudedProfileMesh";
 
 const GUIDE_ARC_SAMPLES = 6;
@@ -57,6 +59,7 @@ export default async function buildResolvedSourceObjectAsync(
       material,
       extrusionOrientation: annotation.extrusionOrientation,
       closeLine: !!annotation.closeLine,
+      gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
     });
     if (!group) return null;
 

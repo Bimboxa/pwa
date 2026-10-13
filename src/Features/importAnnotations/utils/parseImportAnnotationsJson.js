@@ -20,6 +20,8 @@
 //                     "offsetTop": <m>?, "offsetBottom": <m>? } ],
 //       "cuts": [ { "points": [ ...>= 3 points ] } ]   // POLYGON holes, optional
 //     },
+//     { "id": "p1", "type": "POINT", "annotationTemplateId": "tpl_pt",
+//       "point": { "x": 0..1, "y": 0..1 }, "label": "..."? },  // CENTRE
 //     { "id": "t1", "type": "FREE_TEXT", "annotationTemplateId": "tpl_txt",
 //       "textContent": "...",
 //       "labelPoint": { "x": 0..1, "y": 0..1 },        // CENTRE of the text box
@@ -84,14 +86,18 @@ import normalizeAnnotationsDumpJson from "./normalizeAnnotationsDumpJson";
 import {
   validateDetailAnnotation,
   validateImportBaseMaps,
+  validatePointAnnotation,
 } from "./validateDetailImport";
 
-const SUPPORTED_TYPES = [
+// Annotation / template types the inline import can place. Also the filter
+// of the templates offered to the Prompt IA model (buildPromptIaContext).
+export const SUPPORTED_TYPES = [
   "POLYLINE",
   "POLYGON",
   "COTE",
   "RULER",
   "STRIP",
+  "POINT",
   "FREE_TEXT",
   "IMAGE",
   "DETAIL",
@@ -426,6 +432,11 @@ export default function parseImportAnnotationsJson(text) {
     }
     if (ann.type === "DETAIL") {
       const err = validateDetailAnnotation(ann);
+      if (err) return { ok: false, error: err };
+      continue;
+    }
+    if (ann.type === "POINT") {
+      const err = validatePointAnnotation(ann);
       if (err) return { ok: false, error: err };
       continue;
     }

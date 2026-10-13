@@ -141,3 +141,38 @@ test("normalizePromptIaPayload leaves payloads without baseMaps untouched", () =
   assert.equal("baseMaps" in r.payload, false);
   assert.deepEqual(r.reusedBaseMapIds, []);
 });
+
+// Templates copied as-is from a listing: the project rows only carry
+// `drawingShape` (the validator wants `type`), and the listing may hold a
+// POINT model next to a template with an explicit type.
+test("normalizePromptIaPayload fills the type of templates copied with only a drawingShape", () => {
+  const r = normalizePromptIaPayload(
+    {
+      version: "1.0",
+      image: { width: 1631, height: 3000, widthMeters: 68.392 },
+      annotationTemplates: [
+        { id: "existing-gc", label: "GC", drawingShape: "POLYLINE" },
+        { id: "existing-ep", label: "EP", drawingShape: "POINT", fillColor: "#1e88e5" },
+        { id: "existing-sol", label: "Sol", drawingShape: "SURFACE_2D" },
+        { id: "tpl_a_verifier", label: "À vérifier", type: "POLYLINE", drawingShape: "OPENING" },
+        { id: "tpl_unknown", label: "?", drawingShape: "NOPE" },
+      ],
+      annotations: [
+        { id: "p1", type: "POINT", annotationTemplateId: "existing-ep", point: { x: 0.1, y: 0.2 } },
+      ],
+    },
+    {
+      existingTemplateIds: ["existing-gc", "existing-ep", "existing-sol"],
+      newId: () => "n",
+    }
+  );
+  assert.equal(r.error, undefined);
+  assert.deepEqual(
+    r.payload.annotationTemplates.map((t) => t.type),
+    ["POLYLINE", "POINT", "POLYGON", "POLYLINE", undefined]
+  );
+  // style of the copied template is kept
+  assert.equal(r.payload.annotationTemplates[1].fillColor, "#1e88e5");
+  assert.deepEqual(r.reusedTemplateIds, ["existing-gc", "existing-ep", "existing-sol"]);
+  assert.equal(r.payload.annotations[0].annotationTemplateId, "existing-ep");
+});

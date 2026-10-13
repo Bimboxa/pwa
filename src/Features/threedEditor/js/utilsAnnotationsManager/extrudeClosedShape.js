@@ -7,7 +7,6 @@ import {
   Float32BufferAttribute,
   Mesh,
   Group,
-  EdgesGeometry,
   LineSegments,
   LineBasicMaterial,
   DoubleSide,
@@ -24,6 +23,7 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
+import buildGridEdgeLines from "./buildGridEdgeLines";
 
 // Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
 // surface so mesh and quantities agree): a full circle reads as ~24 segments,
@@ -388,25 +388,17 @@ export default function extrudeClosedShape(
     edges.userData.sourceMesh = solidMesh;
     group.add(edges);
   } else if (!isPerVertexZPath) {
-    const edges = new LineSegments(
-      new EdgesGeometry(geometry),
-      new LineBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: 0.5,
+    // Tagged so the carve pipeline can strip and rebuild the outline from the
+    // carved geometry — see subtractAnnotationGeometries. Built at the
+    // current Wireframe threshold (options.gridEdgeThresholdDeg) so the
+    // sampled arcs of a circle POLYGON / DISC follow the « maillage » toggle
+    // without a rebuild.
+    group.add(
+      buildGridEdgeLines(geometry, {
+        thresholdDeg: options.gridEdgeThresholdDeg ?? 1,
+        sourceMesh: solidMesh,
       })
     );
-    // Tagged so the carve pipeline can strip and rebuild the outline from the
-    // carved geometry — see subtractAnnotationGeometries.
-    edges.userData = {
-      isGridEdge: true,
-      gridEdgeKind: "EDGES",
-      // Runtime ref for the "Wireframe" threshold rebuild — see
-      // applyWireframeSettings.
-      sourceMesh: solidMesh,
-    };
-    edges.raycast = () => {};
-    group.add(edges);
   }
 
   return group;

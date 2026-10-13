@@ -1,7 +1,8 @@
-// Validation of the "carnet de détails" part of the inline import JSON:
-// DETAIL annotations (a bubble with an arrow) and the root `baseMaps` block
-// (detail baseMaps to create from an attached PDF). Pure module (no imports)
-// so it runs under `node --test`. Messages are French: they are shown in the
+// Validation of the single-point annotations of the inline import JSON —
+// POINT (a dot on the plan) and the "carnet de détails" part: DETAIL
+// annotations (a bubble with an arrow) and the root `baseMaps` block (detail
+// baseMaps to create from an attached PDF). Pure module (no imports) so it
+// runs under `node --test`. Messages are French: they are shown in the
 // panel and sent back to the model.
 //
 // Mirrored by the relay's zod schema (reperage-mcp/shared/inlineJson.ts).
@@ -16,6 +17,21 @@ function isRatio(value) {
     value >= 0 &&
     value <= 1
   );
+}
+
+// POINT: a single `point` (centre of the element), no `points`.
+export function validatePointAnnotation(ann) {
+  const p = ann?.point;
+  if (typeof p?.x !== "number" || typeof p?.y !== "number") {
+    return "Un POINT doit avoir un `point` (centre de l'élément) avec x/y numériques.";
+  }
+  if (!isRatio(p.x) || !isRatio(p.y)) {
+    return "Les coordonnées des points doivent être normalisées dans [0..1].";
+  }
+  if (Array.isArray(ann.points) && ann.points.length > 0) {
+    return "Un POINT n'a pas de `points` (utiliser `point`).";
+  }
+  return null;
 }
 
 // DETAIL: a single `point` (tip of the arrow), no `points`.

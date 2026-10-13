@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   validateDetailAnnotation,
   validateImportBaseMaps,
+  validatePointAnnotation,
 } from "./validateDetailImport.js";
 
 const bubble = {
@@ -73,5 +74,19 @@ test("baseMaps entries are checked one by one", () => {
       Array.from({ length: 201 }, (_, i) => ({ ...baseMap, id: `b${i}` }))
     ),
     /200/
+  );
+});
+
+test("a POINT needs a single normalized point and no points array", () => {
+  const dot = { id: "p1", type: "POINT", point: { x: 0.25, y: 0.75 } };
+  assert.equal(validatePointAnnotation(dot), null);
+  assert.equal(validatePointAnnotation({ ...dot, label: "EP 1" }), null);
+  assert.equal(validatePointAnnotation({ ...dot, points: [] }), null);
+  assert.match(validatePointAnnotation({ ...dot, point: undefined }), /`point`/);
+  assert.match(validatePointAnnotation({ ...dot, point: { x: "a", y: 0 } }), /`point`/);
+  assert.match(validatePointAnnotation({ ...dot, point: { x: 1.2, y: 0 } }), /\[0\.\.1\]/);
+  assert.match(
+    validatePointAnnotation({ ...dot, points: [{ x: 0, y: 0 }] }),
+    /n'a pas de `points`/
   );
 });

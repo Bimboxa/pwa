@@ -1,22 +1,10 @@
-import {
-  Group,
-  Mesh,
-  DoubleSide,
-  EdgesGeometry,
-  LineSegments,
-  LineBasicMaterial,
-} from "three";
+import { Group, Mesh, DoubleSide } from "three";
 
 import {
   computeVertexFrames,
   buildSweepGeometryForProfile,
 } from "./sweepGeometry";
-
-const EDGE_MATERIAL = new LineBasicMaterial({
-  color: 0x000000,
-  transparent: true,
-  opacity: 0.5,
-});
+import buildGridEdgeLines from "./buildGridEdgeLines";
 
 // "Extrusion" (inline profile) — the simple default sweep for a POLYLINE
 // carrying `profileLines`: the cross-section drawn ON the annotation (plan
@@ -44,6 +32,8 @@ export default function buildInlineExtrusionMesh({
   verticalLift = 0,
   hiddenSegmentsIdx = [],
   closeLine = false,
+  // EdgesGeometry threshold of the black grid lines (Wireframe settings).
+  gridEdgeThresholdDeg = 1,
 }) {
   if (!guidePointsLocal || guidePointsLocal.length < 2) return null;
   const section = (crossSection || []).filter(
@@ -76,18 +66,11 @@ export default function buildInlineExtrusionMesh({
   group.add(mesh);
   // Tagged + per-call material so the carve pipeline can strip and rebuild the
   // grid from the carved geometry — see subtractAnnotationGeometries.
-  const gridEdges = new LineSegments(
-    new EdgesGeometry(geom),
-    EDGE_MATERIAL.clone()
+  group.add(
+    buildGridEdgeLines(geom, {
+      thresholdDeg: gridEdgeThresholdDeg,
+      sourceMesh: mesh,
+    })
   );
-  gridEdges.userData = {
-    isGridEdge: true,
-    gridEdgeKind: "EDGES",
-    // Runtime ref for the "Wireframe" threshold rebuild — see
-    // applyWireframeSettings.
-    sourceMesh: mesh,
-  };
-  gridEdges.raycast = () => {};
-  group.add(gridEdges);
   return group;
 }
