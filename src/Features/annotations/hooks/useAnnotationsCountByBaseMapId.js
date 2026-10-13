@@ -21,7 +21,6 @@ export default function useAnnotationsCountByBaseMapId() {
     excludeListingsIds: hiddenListingsIds,
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
   });
 

@@ -75,7 +75,6 @@ export default function useAnnotationsAutoRun() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
   });
 
   return async ({

@@ -420,9 +420,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     (s) => s.baseMapEditor.versionCompareEnabled
   );
   const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
-  const showDrawingToolsInBaseMaps = useSelector(
-    (s) => s.popperMapListings.showInBaseMapsViewer
-  );
   const compareSliderRef = useRef(null);
 
   // reset compare when leaving BASE_MAPS viewer
@@ -608,18 +605,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   track("newAnnotation", newAnnotation?.id);
   const rawAnnotations = useAnnotationsV2({
     caller: "MainMapEditorV3",
-    enabled: isActiveViewer,
+    // BaseMaps module: the "Afficher les annotations" switch of the Fond de
+    // plan panel loads the scope annotations; OFF = bare base map.
+    enabled:
+      isActiveViewer && !(viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps),
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations,
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    // "Afficher les annotations" switch of the Fond de plan panel: ON
-    // lifts the isForBaseMaps-only restriction so the drawing
-    // annotations show too.
-    onlyIsForBaseMapsListings:
-      viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps,
     // Read-only outlines of subtraction targets hosted by another base map
     // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
     withForeignFootprints: true,
@@ -3008,9 +3002,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             !dessinPanelDocked &&
             !viewerPanelDocked &&
             !isPhotosModule &&
-            (forViewerKey !== "BASE_MAPS" ||
-              showDrawingToolsInBaseMaps ||
-              !leftPanelDocked) && (
+            (forViewerKey !== "BASE_MAPS" || !leftPanelDocked) && (
               /* Rendered in the layout-level host (over the top bar,
                        under the editors' panels). */
               <PortalEditorFloatingPanels>

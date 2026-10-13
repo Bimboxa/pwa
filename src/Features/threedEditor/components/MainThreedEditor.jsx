@@ -306,8 +306,7 @@ export default function MainThreedEditor() {
   // pointer handlers work right away (see the effect below, which also re-arms
   // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
-  // BaseMap module in 3D: no drawing listings panel (the module edits the
-  // isForBaseMaps annotations from its 2D editor only) — with the left panel
+  // BaseMap module in 3D: no drawing listings panel — with the left panel
   // folded, the popper shows as a read-only legend + base maps list.
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"

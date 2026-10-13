@@ -34,8 +34,6 @@ import {
   InputBase,
   Divider,
   Tooltip,
-  FormControlLabel,
-  Checkbox,
   Chip,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
@@ -95,13 +93,6 @@ import {
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectIsBaseMapsLegendPopper from "Features/popperMapListings/utils/selectIsBaseMapsLegendPopper";
 
-import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
-import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
-import DialogGeneric from "Features/layout/components/DialogGeneric";
-import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/ButtonMergeListingAnnotations";
 import {
   setNewAnnotation,
   setSoloAnnotationTemplateId,
@@ -1628,10 +1619,10 @@ export default function PopperMapListings() {
   const isViewer2d = useSelector(
     (s) => viewerKey === "THREED" && selectEffectiveViewerKey(s) === "MAP"
   );
-  // BaseMaps module with the left panel folded: same read-only legend as
-  // the Viewer module, over what the module's editor displays — the
-  // isForBaseMaps drawings, plus the scope annotations when the panel's
-  // "Afficher les annotations" switch loads them (isBaseMapsLegendAll).
+  // BaseMaps module (always a read-only legend, like the Viewer module),
+  // shown with the left panel folded, over what the module's editor
+  // displays — the scope annotations when the panel's "Afficher les
+  // annotations" switch loads them (isBaseMapsLegendAll), nothing otherwise.
   const isBaseMapsLegend = useSelector(selectIsBaseMapsLegendPopper);
   const isBaseMapsLegendAll = useSelector(
     (s) => isBaseMapsLegend && s.baseMapEditor.showAnnotations
@@ -1755,7 +1746,7 @@ export default function PopperMapListings() {
     caller: "PopperMapListings",
     enabled:
       viewerKey === "MAP" ||
-      viewerKey === "BASE_MAPS" ||
+      isBaseMapsLegendAll ||
       viewerKey === "ZONES" ||
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
@@ -1765,9 +1756,6 @@ export default function PopperMapListings() {
     ...(isAllScope ? { filterBySelectedScope: true } : {}),
     hideBaseMapAnnotations: true,
     withQties: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    onlyIsForBaseMapsListings:
-      viewerKey === "BASE_MAPS" && !isBaseMapsLegendAll,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     ...(mirrors3dFilters
@@ -1892,9 +1880,7 @@ export default function PopperMapListings() {
       ? activeBusinessObject.label
       : isBaseMapsListOnly
         ? "Fonds de plan"
-        : isBaseMapsViewer && !isBaseMapsLegend
-          ? "Dessins sur fond de plan"
-          : "Annotations";
+        : "Annotations";
 
   // Header toggle "Annotations | Fonds de plan" (ToggleContentMode) — plus a
   // "Photos" side in the Viewer module when the project has photos, which
@@ -1985,15 +1971,7 @@ export default function PopperMapListings() {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    ...(isBaseMapsLegendAll
-      ? {}
-      : isBaseMapsViewer
-        ? { filterByIsForBaseMaps: true }
-        : { excludeIsForBaseMaps: true }),
   });
-
-  const createVersion = useCreateBaseMapVersion();
-  const replaceVersionImage = useReplaceVersionImage();
 
   // state
 
@@ -2001,9 +1979,6 @@ export default function PopperMapListings() {
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
 
-  const [mergeResult, setMergeResult] = useState(null);
-  const [openMergeCompare, setOpenMergeCompare] = useState(false);
-  const [mergeCreateNewVersion, setMergeCreateNewVersion] = useState(true);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
   const paperRef = useRef(null);
   const {
@@ -2050,16 +2025,13 @@ export default function PopperMapListings() {
   const painted = usePaintedPartsQties({
     enabled:
       viewerKey === "MAP" ||
-      viewerKey === "BASE_MAPS" ||
+      isBaseMapsLegendAll ||
       viewerKey === "ZONES" ||
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer,
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    onlyIsForBaseMapsListings:
-      viewerKey === "BASE_MAPS" && !isBaseMapsLegendAll,
     keepHiddenTemplates: true,
     annotationTemplates,
     ...(mirrors3dFilters
@@ -2149,9 +2121,7 @@ export default function PopperMapListings() {
   // the legend narrows to it (the grid draws that listing only, see
   // useScopeGridAnnotationsFilter); "Afficher toutes les listes" shows all.
   const scopeFilterListing =
-    isScopeGridOpen &&
-    scopeListing?.entityModel?.type === "LOCATED_ENTITY" &&
-    !scopeListing?.isForBaseMaps
+    isScopeGridOpen && scopeListing?.entityModel?.type === "LOCATED_ENTITY"
       ? scopedListings?.find((l) => l.id === scopeListing.id)
       : null;
   const displayedListings = returnListing
@@ -2215,64 +2185,6 @@ export default function PopperMapListings() {
     );
   }
 
-  function handleMergeResult(file, listingName) {
-    const objectUrl = URL.createObjectURL(file);
-    setMergeResult({
-      file,
-      label: `Fusion ${listingName || "annotations"}`,
-      objectUrl,
-    });
-    setOpenMergeCompare(true);
-    setMergeCreateNewVersion(true);
-  }
-
-  function handleCloseMergeCompare() {
-    if (mergeResult?.objectUrl) URL.revokeObjectURL(mergeResult.objectUrl);
-    setMergeResult(null);
-    setOpenMergeCompare(false);
-  }
-
-  async function handleSaveMerge() {
-    const activeVersion = baseMap?.getActiveVersion?.();
-    if (!mergeResult?.file || !baseMap?.id || !activeVersion?.id) return;
-
-    const originalTransform = baseMap.getActiveVersionTransform();
-    const originalImageSize = baseMap.getActiveImageSize();
-    let transform;
-    if (originalImageSize && mergeResult.objectUrl) {
-      const newSize = await new Promise((resolve) => {
-        const img = new window.Image();
-        img.onload = () =>
-          resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        img.onerror = () => resolve(null);
-        img.src = mergeResult.objectUrl;
-      });
-      if (newSize && newSize.width > 0) {
-        const scale =
-          (originalImageSize.width * (originalTransform.scale || 1)) /
-          newSize.width;
-        transform = { ...originalTransform, scale };
-      }
-    }
-
-    if (mergeCreateNewVersion) {
-      await createVersion(baseMap.id, mergeResult.file, {
-        label: mergeResult.label,
-        transform,
-      });
-    } else {
-      await replaceVersionImage(
-        baseMap.id,
-        activeVersion.id,
-        mergeResult.file,
-        {
-          transform,
-        }
-      );
-    }
-    handleCloseMergeCompare();
-  }
-
   // render
 
   // Helper chain of the drawing modules (Dessin in 2D and in its 3D editor):
@@ -2294,8 +2206,8 @@ export default function PopperMapListings() {
     return <PopperDrawingHelper />;
   }
 
-  // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend)
-  // or popperMapListings.showInBaseMapsViewer (see MainMapEditorV3)
+  // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend,
+  // see MainMapEditorV3)
 
   // Default geometry: 2/3 of the available height while the "Commandes"
   // popper sits below (its 1/3, see PopperDrawingTools), the whole height
@@ -2369,9 +2281,7 @@ export default function PopperMapListings() {
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
             showTools={showToolsSide}
-            annotationsLabel={
-              isBaseMapsViewer && !isBaseMapsLegend ? "Dessins" : "Annotations"
-            }
+            annotationsLabel="Annotations"
           />
         ) : (
           <Typography
@@ -2735,30 +2645,15 @@ export default function PopperMapListings() {
                         isExpanded
                         alwaysExpanded
                         hideCaret
-                        // The selector above already names the listing — keep
-                        // the band only in BASE_MAPS (it hosts the merge action).
-                        hideHeader={!isBaseMapsViewer}
+                        // The selector above already names the listing.
+                        hideHeader
                         annotationCount={
-                          isBaseMapsViewer
-                            ? annotationsByListingId?.[activeListing.id]
-                                ?.length || 0
-                            : listingCountsById?.[activeListing.id] || 0
+                          listingCountsById?.[activeListing.id] || 0
                         }
                         annotations={annotationsByListingId?.[activeListing.id]}
                         annotationTemplateById={annotationTemplateById}
                         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
-                        extraAction={
-                          isBaseMapsViewer ? (
-                            <ButtonMergeListingAnnotations
-                              listingId={activeListing.id}
-                              baseMap={baseMap}
-                              onResult={(file) =>
-                                handleMergeResult(file, activeListing.name)
-                              }
-                            />
-                          ) : undefined
-                        }
                       />
                     )}
 
@@ -2843,60 +2738,6 @@ export default function PopperMapListings() {
           <IconButtonToggleDetached target="TOOLS" />
         )}
       </PanelFooter>
-
-      {/* Create listing dialog */}
-
-      {/* Merge compare dialog */}
-      {openMergeCompare && mergeResult && (
-        <DialogGeneric
-          open={openMergeCompare}
-          vh={90}
-          onClose={handleCloseMergeCompare}
-        >
-          <BoxFlexVStretch sx={{ width: 1, height: 1, position: "relative" }}>
-            <SectionCompareTwoImages
-              imageUrl1={mergeResult.objectUrl}
-              imageUrl2={baseMap?.getUrl?.()}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 8,
-                right: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                bgcolor: "white",
-                borderRadius: 1,
-                px: 1.5,
-                py: 0.5,
-                boxShadow: 2,
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={mergeCreateNewVersion}
-                    onChange={(e) => setMergeCreateNewVersion(e.target.checked)}
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="caption" color="text.primary">
-                    Nouvelle version
-                  </Typography>
-                }
-              />
-              <ButtonGeneric
-                label="Enregistrer"
-                variant="contained"
-                color="secondary"
-                onClick={handleSaveMerge}
-              />
-            </Box>
-          </BoxFlexVStretch>
-        </DialogGeneric>
-      )}
     </Paper>
   );
 }

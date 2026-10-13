@@ -41,10 +41,9 @@ export default function PanelImportAnnotations() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   // Same listing set as the MAP viewer's PopperMapListings: scoped
-  // LOCATED_ENTITY listings, excluding the "isForBaseMaps" ones.
+  // LOCATED_ENTITY listings.
   const { value: listings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
   const mainBaseMap = useMainBaseMap();
   // Project-wide (no listing filter), like useAnnotationsV2 — used to show

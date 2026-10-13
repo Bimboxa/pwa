@@ -39,7 +39,6 @@ export default function useAnnotationTemplateCandidates(annotation, options) {
     const { value: listings } = useListings({
         filterByScopeId: selectedScopeId,
         filterByEntityModelType: "LOCATED_ENTITY",
-        excludeIsForBaseMaps: true,
     });
 
     const currentTemplate = annotationTemplates?.find((t) => t.id === annotation?.annotationTemplateId);

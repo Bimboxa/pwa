@@ -53,7 +53,6 @@ export default function SectionDrawingListings() {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // Same scope as PanelDrawing counts (main base map, scope listings,
@@ -64,7 +63,6 @@ export default function SectionDrawingListings() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
   });

@@ -41,14 +41,12 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const dispatch = useDispatch();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isActiveViewer = isThreedFamilyViewerKey(selectedViewerKey);
-  // BaseMap module in 3D: show the isForBaseMaps annotations (the content the
-  // module edits) instead of the drawing ones — same partition as the 2D
-  // MainMapEditorV3 instances.
+  // BaseMap module in 3D: same gate as the 2D MainMapEditorV3 instances.
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
-  // "Afficher les annotations" switch of the Fond de plan panel: ON lifts
-  // the isForBaseMaps-only restriction so the drawing annotations load too.
+  // "Afficher les annotations" switch of the Fond de plan panel: ON loads
+  // the scope annotations (OFF = bare base maps).
   const showAnnotationsInBaseMaps = useSelector(
     (s) => s.baseMapEditor.showAnnotations
   );
@@ -129,7 +127,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
-    enabled: isActiveViewer,
+    enabled: isActiveViewer && !(isBaseMapsModule && !showAnnotationsInBaseMaps),
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
@@ -137,8 +135,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     filterByListingId: gridPinned ? scopeFilter.filterByListingId : undefined,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: !isBaseMapsModule,
-    onlyIsForBaseMapsListings: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeProfileTemplates: true,
     // COTE / RULER only when template.showIn3d or row.isDrawnIn3d.
     excludeDimensionsHiddenIn3d: true,

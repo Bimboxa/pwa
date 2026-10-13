@@ -34,7 +34,6 @@ export default function IconButtonCloseEnvelope({ annotations, accentColor }) {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // state

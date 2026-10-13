@@ -32,7 +32,6 @@ export default function SectionDuplicates() {
     caller: "SectionDuplicates",
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
   });
   const layers = useLayers({

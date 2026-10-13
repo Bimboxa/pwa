@@ -9305,7 +9305,6 @@ const InteractionLayer = forwardRef(({
               baseMapImageSize={baseMapImageSize}
               baseMapImageScale={baseMapImageScale}
               pagePxPerPt={pagePxPerPt}
-              isForBaseMaps={newAnnotation?.isForBaseMaps}
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}
               onRectanglePreview={handleRectanglePreview}

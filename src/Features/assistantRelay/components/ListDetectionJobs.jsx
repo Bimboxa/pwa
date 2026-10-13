@@ -35,7 +35,6 @@ export default function ListDetectionJobs({ realtimeStatus }) {
   // Same listing set as the "Import annotations" panel.
   const { value: listings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
   const { importJob, rejectJob, canImport } = useImportDetectionJob();
 

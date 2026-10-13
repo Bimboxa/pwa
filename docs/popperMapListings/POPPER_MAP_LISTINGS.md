@@ -23,8 +23,8 @@ PopperMapListings (Paper, elevation 4)
 
 ## Viewer Modes
 
-- **MAP viewer**: shows regular listings (excludes `isForBaseMaps`), optional SectionLayers
-- **BASE_MAPS viewer**: shows `isForBaseMaps` listings only, simplified template display (no ListingRow wrapper)
+- **MAP viewer**: shows the scope's annotation listings, optional SectionLayers
+- **BASE_MAPS viewer**: read-only legend (`selectIsBaseMapsLegendPopper`), shown when the left panel is folded; the annotations side only exists while the module's "Afficher les annotations" switch is ON (base maps list only otherwise)
 
 ## Visibility System
 

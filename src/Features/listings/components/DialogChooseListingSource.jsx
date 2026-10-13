@@ -19,13 +19,7 @@ import DialogCreateListingsFromFavorites from "./DialogCreateListingsFromFavorit
 // list), "Depuis une bibliothèque" (pre-configured lists), "Depuis mes
 // favoris" (listings saved as favorites, heart icon) or "Depuis un autre
 // Krto" (link listings of another scope of the project — read-only here).
-// Base map listings (isForBaseMaps) skip the chooser: linking only concerns
-// the drawing (LOCATED_ENTITY) listings.
-export default function DialogChooseListingSource({
-  open,
-  onClose,
-  isForBaseMaps = false,
-}) {
+export default function DialogChooseListingSource({ open, onClose }) {
   // strings
 
   const appConfig = useAppConfig();
@@ -45,7 +39,7 @@ export default function DialogChooseListingSource({
   // state
 
   // "CHOOSE" | "EMPTY" | "PRESETS" | "FAVORITES" | "FROM_SCOPE"
-  const [step, setStep] = useState(isForBaseMaps ? "EMPTY" : "CHOOSE");
+  const [step, setStep] = useState("CHOOSE");
 
   // handlers
 
@@ -57,22 +51,13 @@ export default function DialogChooseListingSource({
 
   if (step === "EMPTY" || step === "PRESETS") {
     return (
-      <DialogCreateListing
-        open={open}
-        onClose={handleClose}
-        isForBaseMaps={isForBaseMaps}
-        mode={isForBaseMaps ? undefined : step}
-      />
+      <DialogCreateListing open={open} onClose={handleClose} mode={step} />
     );
   }
 
   if (step === "FAVORITES") {
     return (
-      <DialogCreateListingsFromFavorites
-        open={open}
-        onClose={handleClose}
-        isForBaseMaps={isForBaseMaps}
-      />
+      <DialogCreateListingsFromFavorites open={open} onClose={handleClose} />
     );
   }
 

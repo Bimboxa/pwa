@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { generateKeyBetween } from "fractional-indexing";
 
@@ -91,16 +91,10 @@ export default function FieldSortableListings() {
   // data
 
   const { value: scope } = useSelectedScope();
-  const isBaseMapsViewer = useSelector(
-    (s) => s.viewers.activeViewerKey === "BASE_MAPS"
-  );
 
   const { value: listings } = useListings({
     filterByScopeId: scope?.id,
     filterByEntityModelType: "LOCATED_ENTITY",
-    ...(isBaseMapsViewer
-      ? { filterByIsForBaseMaps: true }
-      : { excludeIsForBaseMaps: true }),
   });
 
   const sensors = useSensors(

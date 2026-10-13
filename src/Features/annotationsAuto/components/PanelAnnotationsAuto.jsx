@@ -72,7 +72,6 @@ export default function PanelAnnotationsAuto() {
   const { value: candidatesListings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // helpers

@@ -327,23 +327,6 @@ test("base maps, POV freeze, base map annotation hosts", () => {
   ]);
 });
 
-test("isForBaseMaps partition on the OWN listing", () => {
-  const forBaseMaps = {
-    ...listings,
-    Lfin: { ...listings.Lfin, isForBaseMaps: true },
-  };
-  assert.deepEqual(
-    ids(
-      resolve(
-        { excludeIsForBaseMapsListings: true },
-        { listingById: forBaseMaps }
-      )
-    ),
-    []
-  );
-  assert.deepEqual(ids(resolve({ onlyIsForBaseMapsListings: true })), []);
-});
-
 test("view box in reference image pixels (unknown metrics → kept)", () => {
   // r1: x 0..2 m → px 500..700, y = 1 m → py 200; r2: (1,1)→(4,5) m →
   // px 600..900, py -200..200; r3: x -4..-2 m → px 100..300.

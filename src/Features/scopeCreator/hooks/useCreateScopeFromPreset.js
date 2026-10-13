@@ -97,8 +97,8 @@ export default function useCreateScopeFromPreset({ projectId }) {
     hiddenExistingListingIds,
     // empty: create a bare scope from the built-in EMPTY_SCOPE_CONFIGURATION
     // ("Krto vide" button / select entry): no annotation listing at all (no
-    // library, initSystemAnnotationTemplates false), a fallback "Fonds de
-    // plan" baseMap listing when the project has none, core modules only.
+    // library), a fallback "Fonds de plan" baseMap listing when the project
+    // has none, core modules only.
     empty,
   }) {
     // Krto creation configuration (card selector) — when absent, the legacy
@@ -130,14 +130,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
       }),
     ];
 
-    // system annotation templates (isForBaseMaps preset listings at creation):
-    // only the generic scope (no configuration) seeds them by default; a
-    // configuration opts in through annotations.initSystemAnnotationTemplates
-    // (EMPTY config: false).
-    const initSystemAnnotationTemplates = configuration
-      ? (configuration.annotations?.initSystemAnnotationTemplates ?? false)
-      : true;
-
     const newListings = usesConfigurationFlow
       ? await resolveConfigurationScopeListings({
           configuration,
@@ -145,7 +137,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
           projectId,
           extraLibraryKeys: allExtraLibraryKeys,
           excludedLibraryKeys,
-          initSystemAnnotationTemplates,
         })
       : await resolvePresetScopeListings({
           presetScopeKey,
@@ -425,11 +416,8 @@ export default function useCreateScopeFromPreset({ projectId }) {
     dispatch(setLandOnDrawScopeId(scope.id));
     dispatch(setSelectedScopeId(scope.id));
     dispatch(setSelectedProjectId(projectId));
-    // land on the first chosen annotation listing (never the system
-    // isForBaseMaps one when a real listing exists)
-    const firstAnnotationListing =
-      newListings?.find((l) => !l.isForBaseMaps) ?? newListings?.[0];
-    dispatch(setSelectedListingId(firstAnnotationListing?.id));
+    // land on the first chosen annotation listing
+    dispatch(setSelectedListingId(newListings?.[0]?.id));
 
     // reinitialize the per-scope save counter so the stale-changes timer
     // can't inherit the previously selected scope's timestamp.

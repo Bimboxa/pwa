@@ -40,7 +40,6 @@ export default function BaseMapContainerSvg({
     caller: "BaseMapContainerSvg",
     filterByBaseMapId: container.baseMapId,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     sortByOrderIndex: true,
   });
 

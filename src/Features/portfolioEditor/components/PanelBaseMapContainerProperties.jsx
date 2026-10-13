@@ -72,7 +72,6 @@ function PanelBaseMapContainerPropertiesInner() {
     caller: "PanelBaseMapContainerProperties",
     filterByBaseMapId: container?.baseMapId,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
   });
   const viewBoxAnnotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
 

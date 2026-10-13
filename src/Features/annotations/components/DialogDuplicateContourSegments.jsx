@@ -79,7 +79,6 @@ export default function DialogDuplicateContourSegments({
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   const templates = useMemo(

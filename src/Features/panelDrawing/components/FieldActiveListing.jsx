@@ -467,7 +467,6 @@ export default function FieldActiveListing({
         <DialogChooseListingSource
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
-          isForBaseMaps={false}
         />
       )}
     </Box>

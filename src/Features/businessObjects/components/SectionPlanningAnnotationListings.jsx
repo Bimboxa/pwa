@@ -41,10 +41,9 @@ export default function SectionPlanningAnnotationListings() {
   // data
 
   // same listing set as the MAP viewer's PopperMapListings: scoped
-  // LOCATED_ENTITY listings, excluding the "isForBaseMaps" ones.
+  // LOCATED_ENTITY listings.
   const { value: listings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
   const updateListing = useUpdateListing();
 

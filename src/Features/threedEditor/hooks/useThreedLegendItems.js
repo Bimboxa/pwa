@@ -74,13 +74,12 @@ export default function useThreedLegendItems(annotations) {
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const painted = usePaintedPartsQties({
-    enabled: !hideAnnotationsIn3d,
+    enabled:
+      !hideAnnotationsIn3d && !(isBaseMapsModule && !showAnnotationsInBaseMaps),
     filterByMainBaseMap: true,
     extraBaseMapIds,
     filterBySelectedScope: true,
     excludeListingsIds: hiddenListingsIds,
-    excludeIsForBaseMapsListings: !isBaseMapsModule,
-    onlyIsForBaseMapsListings: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeProfileTemplates: true,
     excludeBaseMapIds:
       hideMainAnnotationsIn3d && mainBaseMapId ? [mainBaseMapId] : null,

@@ -95,7 +95,6 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
     filterByProjectId: projectId,
     filterByScopeId: sourceScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   const sourceListings = useMemo(() => {

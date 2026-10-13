@@ -22,7 +22,7 @@ import usePhotoPlanByAnnotation from "../hooks/usePhotoPlanByAnnotation";
 import useCreatePhotoPlan from "../hooks/useCreatePhotoPlan";
 
 // "Plan photo" section of the annotation properties panel: promotes a POLYGON
-// drawn on a photo baseMap (BASE_MAPS module) to a photoPlan record, then
+// drawn on a photo baseMap (Dessin module) to a photoPlan record, then
 // edits it (name / real-world plane orientation / delete). Self-hiding.
 export default function SectionAnnotationPhotoPlan({ annotation }) {
   const dispatch = useDispatch();

@@ -9,8 +9,7 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 // The photoPlans of a photo baseMap with their SOURCE polygon resolved to
 // pixel space, arcs tessellated: [{ plan, ringPx, holesPx }]. Shared by the
 // map-editor mask layer, the chips band and the flatten overlay (direct db
-// reads — the source polygons live in isForBaseMaps listings, invisible to
-// the MAP module's annotation feed).
+// reads — independent of the MAP module's annotation feed filters).
 
 const ARC_SAMPLES = 12;
 export default function usePhotoPlanZones({ baseMapId, imageSize } = {}) {

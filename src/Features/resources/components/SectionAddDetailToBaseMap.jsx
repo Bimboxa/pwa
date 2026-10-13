@@ -11,7 +11,6 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { alpha, Box, Button, Typography } from "@mui/material";
 import { West } from "@mui/icons-material";
 
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationTemplatesBySelectedListing from "Features/annotations/hooks/useAnnotationTemplatesBySelectedListing";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
@@ -23,8 +22,8 @@ const INTERCEPTOR_KEY = "PDF_PAGE_DETAIL";
 // Bottom section of the resource PDF viewer (Dessin + Fonds de plan
 // modules): one row per DETAIL annotationTemplate of the selected listing,
 // with an "Ajouter au fond de plan" button arming the ONE_CLICK draw of that
-// template. In the BASE_MAPS module the listing must be isForBaseMaps —
-// annotations of other listings are filtered out of that module's editor.
+// template. In the BASE_MAPS module only while "Afficher les annotations" is
+// ON — otherwise the placed detail would be invisible in that module's editor.
 // The armed newAnnotation carries a PDF_PAGE_DETAIL commitInterceptor with
 // the viewed page context: the placement click either links the annotation
 // to the page's existing detail baseMap, or opens the creation dialog first
@@ -47,8 +46,10 @@ export default function SectionAddDetailToBaseMap({
   const moduleKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isDrawingModule = moduleKey === "MAP";
   const isBaseMapsModule = moduleKey === "BASE_MAPS";
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const { value: selectedListing } = useSelectedListing();
   const templates = useAnnotationTemplatesBySelectedListing({
     sortByLabel: true,
   });
@@ -149,7 +150,7 @@ export default function SectionAddDetailToBaseMap({
   // render
 
   if (!isDrawingModule && !isBaseMapsModule) return null;
-  if (isBaseMapsModule && !selectedListing?.isForBaseMaps) return null;
+  if (isBaseMapsModule && !showAnnotationsInBaseMaps) return null;
   if (detailTemplates.length === 0) return null;
 
   return (

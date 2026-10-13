@@ -30,7 +30,6 @@ export default function useIsolateAnnotationTemplate(template) {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   const siblingTemplates = useAnnotationTemplates({

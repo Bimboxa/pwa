@@ -55,7 +55,6 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
   });
   // Painted parts only: the templates are not queried until one is hovered.
   const templates = useAnnotationTemplates({ skip: !state.paint });

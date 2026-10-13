@@ -18,15 +18,13 @@ export default function useVisibleAnnotations() {
 
   const rawAnnotations = useAnnotationsV2({
     caller: "useVisibleAnnotations",
+    // Mirrors MainMapEditorV3: in the BaseMaps module the panel's "Afficher
+    // les annotations" switch loads the scope annotations (OFF = none).
+    enabled: !(viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps),
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations,
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    // Mirrors MainMapEditorV3: the panel's "Afficher les annotations"
-    // switch lifts the isForBaseMaps-only restriction.
-    onlyIsForBaseMapsListings:
-      viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps,
   });
 
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);

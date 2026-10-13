@@ -7,7 +7,7 @@
 
 export default function buildListingFromFavorite(
   fav,
-  { projectId, isForBaseMaps, override } = {}
+  { projectId, override } = {}
 ) {
   const avatarString = override
     ? override.avatarString?.trim()
@@ -28,6 +28,5 @@ export default function buildListingFromFavorite(
     autoNumberPrefix: fav.autoNumberPrefix,
     autoNumberPadStart: fav.autoNumberPadStart,
     annotationTemplatesLibrary: fav.annotationTemplates,
-    ...(isForBaseMaps && { isForBaseMaps: true }),
   };
 }

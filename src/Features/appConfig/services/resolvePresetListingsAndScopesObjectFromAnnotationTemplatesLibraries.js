@@ -1,4 +1,7 @@
 export default function resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries, presetScopeItems) {
+    // legacy: the base-map annotation libraries (isForBaseMaps) are no
+    // longer supported — a Data/<org> still shipping one is ignored.
+    libraries = libraries?.filter((library) => !library.isForBaseMaps);
 
     // listings — one per library (unchanged)
 
@@ -17,7 +20,6 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             ...(library.avatarString && { avatarString: library.avatarString }),
             // procedures launched at listing level (listing.procedureKeys)
             ...(library.procedureKeys?.length && { procedureKeys: library.procedureKeys }),
-            ...(library.isForBaseMaps && { isForBaseMaps: true }),
         }
 
         return listing;

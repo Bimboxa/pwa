@@ -113,12 +113,9 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
   if (has(ctx.hiddenListingIds, row.listingId)) return HIDDEN;
 
   const listing = getById(ctx.listingById, row.listingId);
-  // isForBaseMaps partition (excludeIsForBaseMapsListings /
-  // onlyIsForBaseMapsListings of the 3D load).
-  const isForBaseMaps = Boolean(listing?.isForBaseMaps);
-  if (!ctx.isBaseMapsModule && isForBaseMaps) return HIDDEN;
-  if (ctx.isBaseMapsModule && !ctx.showAnnotationsInBaseMaps && !isForBaseMaps)
-    return HIDDEN;
+  // BaseMaps module: nothing unless "Afficher les annotations" is ON (same
+  // gate as the 3D annotations load).
+  if (ctx.isBaseMapsModule && !ctx.showAnnotationsInBaseMaps) return HIDDEN;
   if (!isListingInScope(listing, ctx)) return HIDDEN;
 
   // --- base map: the main one, or an extra one whose annotations are on ---

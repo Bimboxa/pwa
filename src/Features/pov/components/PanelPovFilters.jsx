@@ -236,7 +236,6 @@ export default function PanelPovFilters() {
     caller: "PanelPovFilters",
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     ...(isThreed
@@ -252,7 +251,6 @@ export default function PanelPovFilters() {
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
-    excludeIsForBaseMaps: true,
   });
 
   // helpers - legend scope (annotations of the displayed base maps)

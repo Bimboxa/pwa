@@ -104,9 +104,7 @@ const DrawingLayer = forwardRef(
       containerK,
       meterByPx,
       baseMapImageSize,
-      baseMapImageScale = 1,
       pagePxPerPt,
-      isForBaseMaps = false,
       orthoSnapAngleOffset = 0,
       rampWidthM = 1,
       onRectanglePreview,
@@ -220,26 +218,17 @@ const DrawingLayer = forwardRef(
       enabledDrawingMode !== "RAMP";
     const previewIsCmUnit =
       previewUsesAnnotationStyle && strokeWidthUnit === "CM" && meterByPx > 0;
-    const previewScalesWithZoom =
-      previewUsesAnnotationStyle && (previewIsCmUnit || isForBaseMaps);
+    const previewScalesWithZoom = previewUsesAnnotationStyle && previewIsCmUnit;
     const previewStrokeWidth = useMemo(() => {
       if (!previewUsesAnnotationStyle) return 2;
       const raw = strokeWidth ?? 2;
       // Mirror NodePolylineStatic.computedStrokeWidth. When the width scales
-      // with zoom (CM / isForBaseMaps), vectorEffect is dropped below so the
-      // SVG-space stroke grows with the zoom transform, like the committed path.
+      // with zoom (CM), vectorEffect is dropped below so the SVG-space stroke
+      // grows with the zoom transform, like the committed path.
       if (previewIsCmUnit) return (raw * 0.01) / meterByPx;
-      if (isForBaseMaps) return raw * (baseMapImageScale || 1);
       // PX mode: raw value, vectorEffect="non-scaling-stroke" keeps it fixed.
       return raw;
-    }, [
-      previewUsesAnnotationStyle,
-      strokeWidth,
-      previewIsCmUnit,
-      meterByPx,
-      isForBaseMaps,
-      baseMapImageScale,
-    ]);
+    }, [previewUsesAnnotationStyle, strokeWidth, previewIsCmUnit, meterByPx]);
     const previewVectorEffect = previewScalesWithZoom
       ? undefined
       : "non-scaling-stroke";

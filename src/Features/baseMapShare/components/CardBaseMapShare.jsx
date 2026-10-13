@@ -30,7 +30,6 @@ export default function CardBaseMapShare() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const openedPanel = useSelector((s) => s.listings.openedPanel);
   const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
@@ -41,8 +40,6 @@ export default function CardBaseMapShare() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
   });
 
   const annotationIds = useMemo(

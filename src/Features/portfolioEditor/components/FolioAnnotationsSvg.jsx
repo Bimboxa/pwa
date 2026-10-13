@@ -18,7 +18,6 @@ export default function FolioAnnotationsSvg({ baseMap, rect }) {
     caller: "FolioAnnotationsSvg",
     filterByBaseMapId: baseMap?.id,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     sortByOrderIndex: true,
     enabled: !!baseMap?.id,
   });

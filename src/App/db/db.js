@@ -257,7 +257,7 @@ db.version(30).stores({
 });
 
 db.version(31).stores({
-  // {id, projectId, scopeId, listingId (source polygon's isForBaseMaps listing),
+  // {id, projectId, scopeId, listingId (source polygon's listing),
   //  baseMapId (the PHOTO baseMap), annotationId (source POLYGON on the photo),
   //  name, orientation ("HORIZONTAL"|"VERTICAL" — real-world plane orientation),
   //  calibrationInputs: null | { uSegments, vSegments, photoTargets, planTargets,

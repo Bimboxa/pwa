@@ -47,7 +47,6 @@ export default function useScopeGridSheets() {
     filterBySelectedScope: true,
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: true,
-    excludeIsForBaseMapsListings: true,
     // Plan footprints of revolved annotations: the plan hosting the axis
     // gets its sheet too.
     withRevolutionFootprints: true,

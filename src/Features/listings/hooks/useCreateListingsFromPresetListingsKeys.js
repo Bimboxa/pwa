@@ -17,12 +17,7 @@ export default function useCreateListingsFromPresetListingsKeys() {
   // overridesByKey: { [presetKey]: { name, avatarString } } — user edits made
   // before creation (DialogCreateListing). Only applies to the requested keys,
   // not to the annotationTemplates listings added as dependencies below.
-  const create = async ({
-    presetListingsKeys,
-    scope,
-    isForBaseMaps,
-    overridesByKey,
-  }) => {
+  const create = async ({ presetListingsKeys, scope, overridesByKey }) => {
     let listings = resolvedPresetListings.filter(({ key }) =>
       presetListingsKeys.includes(key)
     );
@@ -50,10 +45,6 @@ export default function useCreateListingsFromPresetListingsKeys() {
     );
 
     listings = [...listings, ...atListings];
-
-    if (isForBaseMaps) {
-      listings = listings.map((l) => ({ ...l, isForBaseMaps: true }));
-    }
 
     listings = await createListings({ listings, scope });
 

@@ -37,7 +37,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 export default function SectionPresetListingsSelector({
   selectedKeys,
   onChange,
-  isForBaseMaps,
   listings,
   showKeywordFilters = true,
   renderItemActions,
@@ -103,12 +102,6 @@ export default function SectionPresetListingsSelector({
   const filteredListings = useMemo(() => {
     let items = candidates?.filter((l) => l.annotationTemplatesLibrary) ?? [];
 
-    if (isForBaseMaps) {
-      items = items.filter((l) => l.isForBaseMaps === true);
-    } else {
-      items = items.filter((l) => !l.isForBaseMaps);
-    }
-
     if (searchText) {
       const search = searchText.toLowerCase();
       items = items.filter(
@@ -127,7 +120,7 @@ export default function SectionPresetListingsSelector({
     });
 
     return items;
-  }, [candidates, searchText, activeFilters, isForBaseMaps]);
+  }, [candidates, searchText, activeFilters]);
 
   // handlers
 

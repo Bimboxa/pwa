@@ -22,10 +22,7 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import SectionPresetListingsSelector from "./SectionPresetListingsSelector";
 import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 
-export default function PanelCreateListingsV3({
-  onListingCreated,
-  isForBaseMaps,
-}) {
+export default function PanelCreateListingsV3({ onListingCreated }) {
   const dispatch = useDispatch();
 
   // strings
@@ -59,7 +56,6 @@ export default function PanelCreateListingsV3({
     const listings = await createListingsFromPresets({
       presetListingsKeys: selectedKeys,
       scope,
-      isForBaseMaps,
     });
     if (listings?.length > 0) {
       dispatch(setSelectedListingId(listings[0].id));
@@ -90,7 +86,6 @@ export default function PanelCreateListingsV3({
       table:
         tempListing?.table ?? resolvedEntityModel?.defaultTable ?? "entities",
       entityModel: resolvedEntityModel,
-      ...(isForBaseMaps && { isForBaseMaps: true }),
     };
     if (newListing.entityModel) {
       newListing.entityModelKey = newListing.entityModel?.key;
@@ -155,7 +150,6 @@ export default function PanelCreateListingsV3({
             <SectionPresetListingsSelector
               selectedKeys={selectedKeys}
               onChange={setSelectedKeys}
-              isForBaseMaps={isForBaseMaps}
             />
           </WhiteSectionGeneric>
         </Box>

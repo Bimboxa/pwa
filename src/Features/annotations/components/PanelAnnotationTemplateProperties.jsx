@@ -52,7 +52,6 @@ export default function PanelAnnotationTemplateProperties() {
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const openedPanel = useSelector((s) => s.listings.openedPanel);
   const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
 
@@ -78,8 +77,6 @@ export default function PanelAnnotationTemplateProperties() {
     filterByMainBaseMap: true,
     extraBaseMapIds,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: viewerKey === "MAP",
-    onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
   };
 
   const allAnnotations = useAnnotationsV2({

@@ -23,14 +23,12 @@ export default function useAssignZoneToAnnotations() {
   // data — same filter set as useVisibleAnnotations, but solo-proof so an
   // active zone SOLO doesn't shrink the candidate set.
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const annotations = useAnnotationsV2({
     caller: "useAssignZoneToAnnotations",
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     ignoreSolo: true,
   });
   const baseMap = useMainBaseMap();

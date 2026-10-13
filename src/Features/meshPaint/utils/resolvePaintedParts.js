@@ -108,8 +108,6 @@ function toNormal(n) {
  *   all).
  * @param {Array|Set} [params.filters.excludeBaseMapIds]
  * @param {Array|Set} [params.filters.excludeListingsIds] - OWN listing.
- * @param {boolean} [params.filters.excludeIsForBaseMapsListings]
- * @param {boolean} [params.filters.onlyIsForBaseMapsListings]
  * @param {boolean} [params.filters.keepHiddenTemplates] - OWN template eye.
  * @param {boolean} [params.filters.excludeProfileTemplates]
  * @param {Array|Set} [params.filters.disabledAnnotationTemplates]
@@ -177,9 +175,6 @@ export default function resolvePaintedParts({
 
     // -- OWN listing --
     if (excludeListingsIds?.has(row.listingId)) continue;
-    if (filters.excludeIsForBaseMapsListings && listing?.isForBaseMaps)
-      continue;
-    if (filters.onlyIsForBaseMapsListings && !listing?.isForBaseMaps) continue;
 
     // -- OWN template --
     if (!filters.keepHiddenTemplates && template?.hidden) continue;

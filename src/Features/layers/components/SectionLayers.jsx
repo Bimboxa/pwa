@@ -43,8 +43,7 @@ export default function SectionLayers({ baseMapId }) {
   );
   // SectionLayers is only rendered in the MAP viewer (see PopperMapListings),
   // so the per-layer counts must mirror MainMapEditorV3 / useAnnotationsV2 in
-  // that viewer: exclude isForBaseMaps listings and hidden listings, keep the
-  // scope filter. Layer visibility (hiddenLayerIds) is intentionally NOT
+  // that viewer: exclude hidden listings, keep the scope filter. Layer visibility (hiddenLayerIds) is intentionally NOT
   // applied — each row shows the size of its own layer regardless of toggle.
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
@@ -65,8 +64,8 @@ export default function SectionLayers({ baseMapId }) {
       .toArray();
     let filtered = annotations.filter((a) => !a.deletedAt);
 
-    // Resolve the listings referenced by these annotations to know which are
-    // isForBaseMaps and which belong to the current scope.
+    // Resolve the listings referenced by these annotations to know which
+    // belong to the current scope.
     const listingIds = [
       ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
     ];
@@ -74,14 +73,6 @@ export default function SectionLayers({ baseMapId }) {
       ? await db.listings.where("id").anyOf(listingIds).toArray()
       : [];
     const listingsMap = new Map(listings.map((l) => [l.id, l]));
-    const forBaseMapsListingIds = new Set(
-      listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-    );
-
-    // exclude isForBaseMaps listings (MAP viewer)
-    filtered = filtered.filter(
-      (a) => isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
-    );
 
     // exclude hidden listings (mirrors excludeListingsIds: hiddenListingsIds)
     if (hiddenListingsIds?.length) {

@@ -47,7 +47,11 @@ export default function useBaseMapsGridAnnotations({
 
   const annotations = useAnnotationsV2({
     caller: "useBaseMapsGridAnnotations",
-    enabled: Boolean(firstId) && !hideAnnotations,
+    // BaseMaps module: nothing unless "Afficher les annotations" is ON.
+    enabled:
+      Boolean(firstId) &&
+      !hideAnnotations &&
+      !(isBaseMapsViewer && !showAnnotationsInBaseMaps),
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: openedPanel !== "BASE_MAP_DETAIL",
     filterByBaseMapId: firstId,
@@ -55,8 +59,6 @@ export default function useBaseMapsGridAnnotations({
     filterByListingId,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: !isBaseMapsViewer,
-    onlyIsForBaseMapsListings: isBaseMapsViewer && !showAnnotationsInBaseMaps,
   });
 
   return useMemo(() => {

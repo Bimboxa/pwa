@@ -45,7 +45,6 @@ export default function SectionMeshBrushPaintedTotal() {
     enabled: Boolean(templateId),
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
-    excludeIsForBaseMapsListings: true,
     keepHiddenTemplates: true,
     ...(!isAllScope
       ? {
