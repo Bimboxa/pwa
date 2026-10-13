@@ -160,6 +160,11 @@ import VertexOffsetOverlayThreed from "Features/threedVertexOffset/components/Ve
 import useVertexOffsetPointerHandlers from "Features/threedVertexOffset/hooks/useVertexOffsetPointerHandlers";
 import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
 import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
+import SurfacePiecesHighlightThreed from "Features/threedFaceCut/components/SurfacePiecesHighlightThreed";
+import {
+  getSelectedSurfacePieces,
+  getSurfacePiecePartId,
+} from "Features/threedFaceCut/utils/surfacePieceParts";
 import {
   MESH3D_EDGE_HOVER_WIDTH_PX,
   MESH3D_PART_HOVER_COLOR,
@@ -1278,6 +1283,15 @@ export default function MainThreedEditor() {
                     ? getMesh3dEdgePartId(nodeId, edge.a, edge.b)
                     : getMesh3dFacePartId(nodeId, faceIndex);
                 }
+              } else if (
+                Number.isInteger(intersect.object.userData?.surfaceCutPiece)
+              ) {
+                // Piece of a cut surface host (applySurfaceCuts): the hit
+                // mesh carries its index.
+                meshPartId = getSurfacePiecePartId(
+                  nodeId,
+                  intersect.object.userData.surfaceCutPiece
+                );
               } else {
                 const displayed = getDisplayedMesh3d(threedEditor, nodeId);
                 const faceIndex = displayed
@@ -2360,14 +2374,20 @@ export default function MainThreedEditor() {
         : -1;
       if (located >= 0) hoveredFaceIndex = located;
     }
+    const hoveredPiece = hitIntersect?.object?.userData?.surfaceCutPiece;
     const isSelectedMeshFace =
-      hoveredFaceIndex !== undefined &&
-      isMesh3dFaceSelected(
-        selectedItem,
-        selectedPartIds,
-        hitId,
-        hoveredFaceIndex
-      );
+      (hoveredFaceIndex !== undefined &&
+        isMesh3dFaceSelected(
+          selectedItem,
+          selectedPartIds,
+          hitId,
+          hoveredFaceIndex
+        )) ||
+      (Number.isInteger(hoveredPiece) &&
+        selectedItem?.nodeId === hitId &&
+        getSelectedSurfacePieces(selectedItem, selectedPartIds).some(
+          (part) => part.pieceIndex === hoveredPiece
+        ));
     const overlayIntersect =
       mesh3dIntersect ||
       (hit && !isLineHit && !meshPart?.edge && !isSelectedMeshFace
@@ -2864,6 +2884,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <FaceCutAxisOverlayThreed />}
       <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
+      <SurfacePiecesHighlightThreed
+        enabled={isThreedViewer && rendererIsReady}
+      />
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
       )}

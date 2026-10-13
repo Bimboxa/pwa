@@ -10,9 +10,15 @@ import computeSurfaceAxisCut, {
 import isSurfaceCutHost from "./isSurfaceCutHost.js";
 import {
   getSurfaceCutsKey,
+  getSurfaceCutsRemovedM2,
   localToSurfaceCut,
   surfaceCutToLocal,
 } from "./surfaceCutsFrame.js";
+import {
+  getSelectedSurfacePieces,
+  getSurfacePiecePartId,
+  parseSurfacePiecePartId,
+} from "./surfacePieceParts.js";
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(
@@ -411,4 +417,69 @@ test("H hover on a band whose only shared levels are its rims: no snap, the curs
   assert.equal(r.snapped, false);
   near(r.plane.constant, 1.2);
   near(r.distance, 0.2);
+});
+
+test("removal: the piece holding the point is dropped, a stale point is ignored, later cuts skip it", () => {
+  const soup = cylinderSoup({ turn: 0.5, h: 2 });
+  const planeH = { normal: { x: 0, y: 1, z: 0 }, constant: 1 };
+  const { pieces, applied } = applySurfaceCutsToSoups({
+    soups: [{ positions: soup }],
+    cuts: [
+      { plane: planeH, seed: onRing(1, 1) },
+      // A point on the top band's surface (radius 1, y = 1.5).
+      { remove: onRing(1.5, 1) },
+      // Off the surface by 10 cm: ignored.
+      { remove: { x: 1.1 * Math.cos(1), y: 0.5, z: 1.1 * Math.sin(1) } },
+      // A second H cut aimed at the bottom band.
+      {
+        plane: { normal: { x: 0, y: 1, z: 0 }, constant: 0.5 },
+        seed: onRing(0.5, 1),
+      },
+    ],
+  });
+  assert.equal(applied, 3);
+  const removed = pieces.filter((p) => p.removed);
+  const kept = pieces.filter((p) => !p.removed);
+  assert.equal(removed.length, 1);
+  assert.ok(removed[0].positions.some((v, i) => i % 3 === 1 && v > 1.5));
+  assert.equal(kept.length, 2);
+  assert.ok(
+    kept.every((p) => p.positions.every((v, i) => i % 3 !== 1 || v <= 1 + 1e-9))
+  );
+});
+
+test("surfaceCutsFrame: a REMOVE entry converts to a local point and counts its area", () => {
+  const cuts = [
+    {
+      id: "a",
+      axis: "H",
+      point: [0.5, 0.5, 1],
+      normal: [0, 0, 1],
+      seed: [0.5, 0.5, 1],
+    },
+    { id: "b", kind: "REMOVE", point: [0.5, 0.5, 2], surface: 1.25 },
+    { id: "c", kind: "REMOVE", point: [0.4, 0.5, 2], surface: 0.5 },
+  ];
+  assert.equal(getSurfaceCutsRemovedM2(cuts), 1.75);
+  const local = surfaceCutToLocal(cuts[1], METRICS);
+  assert.equal(local.kind, "REMOVE");
+  near(local.point.z, 2);
+  assert.notEqual(getSurfaceCutsKey(cuts), getSurfaceCutsKey(cuts.slice(0, 2)));
+  assert.equal(surfaceCutToLocal({ kind: "REMOVE" }, METRICS), null);
+});
+
+test("surfacePieceParts: ids round trip, selection filtered on the selected annotation", () => {
+  const id = getSurfacePiecePartId("a1", 3);
+  assert.deepEqual(parseSurfacePiecePartId(id), {
+    annotationId: "a1",
+    partType: "SURFACE_PIECE",
+    pieceIndex: 3,
+  });
+  assert.equal(parseSurfacePiecePartId("a1::MESH3D_FACE::3"), null);
+  const item = { type: "NODE", nodeId: "a1", partId: id };
+  assert.equal(getSelectedSurfacePieces(item, []).length, 1);
+  assert.equal(
+    getSelectedSurfacePieces(item, [id, getSurfacePiecePartId("a2", 1)]).length,
+    1
+  );
 });

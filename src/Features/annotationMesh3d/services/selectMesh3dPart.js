@@ -3,6 +3,8 @@ import {
   setSubSelection,
 } from "Features/selection/selectionSlice";
 
+import { isSurfacePiecePartId } from "Features/threedFaceCut/utils/surfacePieceParts";
+
 import {
   MESH3D_FACE_PART,
   getMesh3dEdgePartId,
@@ -12,8 +14,9 @@ import {
 
 const getPartType = (partId) => (partId ? partId.split("::")[1] : null);
 
-// Selects a face / edge of the currently selected mesh annotation, as a
-// sub-selection of that annotation (selection slice parts, like the 2D
+// Selects a face / edge of the currently selected mesh annotation (or a piece
+// of a cut surface host, surfacePieceParts), as a sub-selection of that
+// annotation (selection slice parts, like the 2D
 // segments): a single part sits in selectedItems[0].partId, several in
 // selectedPartIds with one of them as the representative.
 //
@@ -34,7 +37,7 @@ export default function selectMesh3dPart({
   const single = selectedItems[0]?.partId;
   const current = (
     selectedPartIds.length ? selectedPartIds : single ? [single] : []
-  ).filter(isMesh3dPartId);
+  ).filter((id) => isMesh3dPartId(id) || isSurfacePiecePartId(id));
   const next = current.includes(partId)
     ? current.filter((id) => id !== partId)
     : [...current, partId];
