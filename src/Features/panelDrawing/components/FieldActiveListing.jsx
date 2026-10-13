@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { generateKeyBetween } from "fractional-indexing";
-
-import {
-  setHiddenListingsIds,
-  triggerListingsUpdate,
-} from "Features/listings/listingsSlice";
+import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 import { setAutoListingVisibility } from "Features/panelDrawing/panelDrawingSlice";
 
 import {
@@ -43,17 +38,15 @@ import {
   useSortable,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
+import useReorderListings from "Features/listings/hooks/useReorderListings";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
 import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
-
-import db from "App/db/db";
 
 // ---------------------------------------------------------------------------
 // FieldActiveListing — "LISTE ACTIVE" select-style field of the Dessin panel.
@@ -66,8 +59,8 @@ import db from "App/db/db";
 // ---------------------------------------------------------------------------
 
 // -- Sortable row: a listing MenuItem with a left drag handle. Dragging
-// rewrites the `rank` of every displayed listing (fractional indexing, same
-// scheme as FieldSortableListings); clicking anywhere else selects as before.
+// rewrites the `rank` of every displayed listing (useReorderListings);
+// clicking anywhere else selects as before.
 
 function SortableMenuItemListing({
   listing,
@@ -238,6 +231,7 @@ export default function FieldActiveListing({
   );
 
   const selectListing = useSelectActiveListing(listings);
+  const reorderListings = useReorderListings();
   const { isLinkedListing, getSourceScope } = useLinkedListings();
 
   // state
@@ -281,31 +275,7 @@ export default function FieldActiveListing({
     );
   };
 
-  const handleDragEnd = async ({ active, over }) => {
-    if (!active || !over || active.id === over.id) return;
-    try {
-      const oldIdx = listings.findIndex((l) => l.id === active.id);
-      const newIdx = listings.findIndex((l) => l.id === over.id);
-      if (oldIdx === -1 || newIdx === -1) return;
-
-      const reordered = arrayMove([...listings], oldIdx, newIdx);
-      let prev = null;
-      const updates = [];
-      for (const l of reordered) {
-        // Linked listings (other scope) are never ranked from here: their
-        // rank belongs to the source scope's order (and the row is not
-        // sortable anyway — the selector appends them after the own ones).
-        if (isLinkedListing(l.id)) continue;
-        const rank = generateKeyBetween(prev, null);
-        updates.push(db.listings.update(l.id, { rank }));
-        prev = rank;
-      }
-      await Promise.all(updates);
-      dispatch(triggerListingsUpdate());
-    } catch (e) {
-      console.error("[FieldActiveListing] DnD reorder error:", e);
-    }
-  };
+  const handleDragEnd = (event) => reorderListings(event, listings);
 
   const handleAddListing = () => {
     setMenuAnchor(null);

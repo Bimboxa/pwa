@@ -7,12 +7,14 @@ const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 
 // Header toggle of the popper / PanelDrawing: "OBJECTS" (the objects and
 // listings of a business-objects module, popper only) | "CONTENT" (scope
-// content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module
-// with photos) | "BASE_MAPS" (base maps list) | "TOOLS" ("Commandes": the
-// drawing tools, popper only, while they are attached).
+// content, SCOPE module only) | "LISTINGS" ("Listes": the annotation
+// listings of the Dessin module, popper only) | "ANNOTATIONS" | "PHOTOS"
+// (Viewer module with photos) | "BASE_MAPS" (base maps list) | "TOOLS"
+// ("Commandes": the drawing tools, popper only, while they are attached).
 const CONTENT_MODES = [
   "OBJECTS",
   "CONTENT",
+  "LISTINGS",
   "ANNOTATIONS",
   "PHOTOS",
   "BASE_MAPS",
@@ -40,6 +42,10 @@ const popperMapListingsSlice = createSlice({
     // base maps without annotations — except the main one and those whose
     // image / annotations are currently shown in 3D.
     hideEmptyBaseMapsInList: false,
+    // "Visibilité auto" option of the base maps list: selecting a base map
+    // as main hides the image / annotations of every other base map in the
+    // displayed editor (useHideOtherBaseMaps).
+    autoBaseMapVisibility: false,
     // "Détacher la liste" (icon of the "Fonds de plan" title row): the base
     // maps list lives in its own popper (PopperBaseMapsList) instead of the
     // "Fonds de plan" side of the annotations popper, which then has no such
@@ -95,6 +101,9 @@ const popperMapListingsSlice = createSlice({
     setHideEmptyBaseMapsInList(state, action) {
       state.hideEmptyBaseMapsInList = Boolean(action.payload);
     },
+    setAutoBaseMapVisibility(state, action) {
+      state.autoBaseMapVisibility = Boolean(action.payload);
+    },
     setListingSelectorMode(state, action) {
       state.listingSelectorMode = LISTING_SELECTOR_MODES.includes(
         action.payload
@@ -108,10 +117,13 @@ const popperMapListingsSlice = createSlice({
     // on the annotations when the module is entered (the content is one tab
     // away), and leaves the "Contenu" side when the module is left (the
     // other modules have no such side).
-    // Same rule for the "Objets" side of the business-objects modules.
+    // Same rule for the "Objets" side of the business-objects modules and
+    // for the "Listes" side of the Dessin module.
     builder.addCase("viewers/setSelectedViewerKey", (state, action) => {
       if (action.payload === "SCOPE") state.viewerContentMode = "ANNOTATIONS";
       else if (state.viewerContentMode === "CONTENT")
+        state.viewerContentMode = "ANNOTATIONS";
+      if (state.viewerContentMode === "LISTINGS" && action.payload !== "MAP")
         state.viewerContentMode = "ANNOTATIONS";
       if (
         state.viewerContentMode === "OBJECTS" &&
@@ -130,6 +142,7 @@ export const {
   setViewerContentMode,
   setListingSelectorMode,
   setHideEmptyBaseMapsInList,
+  setAutoBaseMapVisibility,
   setBaseMapsListDetached,
   setToolsDetached,
 } = popperMapListingsSlice.actions;

@@ -74,13 +74,14 @@ import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
+import SectionPopperListings from "Features/popperMapListings/components/SectionPopperListings";
 import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
-import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
 import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
+import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
@@ -1665,7 +1666,6 @@ export default function PopperMapListings() {
   );
   const mirrors3dFilters =
     (isThreedViewer && !isViewer2d) || isPovThreed || isBaseMapsLegendThreed;
-  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   // Dessin module (2D or its 3D toggle): the footer switch "Fond de plan
   // sélectionné seul" (panelDrawing.viewerAnnotationsScope, shared with the
   // Dessin / Viewer panels' chips) scopes the annotations set — and so every
@@ -1675,6 +1675,7 @@ export default function PopperMapListings() {
   const isDessinPopper = viewerKey === "MAP";
   const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
   const isAllScope = isDessinPopper && viewerScope === "ALL";
+  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   // Raw popperMapListings.interactionMode overridden by the module / display
   // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
   // ?mode=viewer and the ZONES module force a read-only SELECT legend; a
@@ -1939,6 +1940,11 @@ export default function PopperMapListings() {
     moduleTypeKey ?? undefined
   );
   const showObjectsToggle = isBusinessObjectsModule && Boolean(moduleTypeKey);
+  // "Listes" side (Dessin module, 2D or its 3D editor): the annotation
+  // listings as rows (SectionPopperListings) — not in the legend poppers,
+  // where every listing is shown at once, nor in locate-object mode.
+  const showListingsToggle =
+    isDessinPopper && !isLegendPopper && !isLocateBusinessObjectMode;
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
@@ -1946,11 +1952,14 @@ export default function PopperMapListings() {
       showPhotosToggle ||
       showToolsSide ||
       showObjectsToggle ||
+      showListingsToggle ||
       isScopeModule);
   const showObjectsBody =
     showObjectsToggle && showContentToggle && popperContentMode === "OBJECTS";
   const showScopeContentBody =
     isScopeModule && showContentToggle && popperContentMode === "CONTENT";
+  const showListingsBody =
+    showListingsToggle && showContentToggle && popperContentMode === "LISTINGS";
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
   const showBaseMapsBody =
     isBaseMapsListOnly ||
@@ -1965,6 +1974,7 @@ export default function PopperMapListings() {
     !showBaseMapsBody &&
     !showToolsBody &&
     !showScopeContentBody &&
+    !showListingsBody &&
     !showObjectsBody;
   // Side title row with the properties button: not in the Viewer / SCOPE
   // modules nor the BaseMaps module (read-only legends, no popper properties
@@ -2355,6 +2365,7 @@ export default function PopperMapListings() {
             showObjects={showObjectsToggle}
             objectsLabel={objectsLabel}
             showContent={isScopeModule}
+            showListings={showListingsToggle}
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
             showTools={showToolsSide}
@@ -2495,6 +2506,20 @@ export default function PopperMapListings() {
       {!collapsed && showScopeContentBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionPopperScopeContent />
+        </Box>
+      )}
+
+      {/* "Listes" side (Dessin module): the annotation listings as rows
+          replace the whole body — same listings, active listing and counts
+          as the selector of the annotations side. */}
+      {!collapsed && showListingsBody && (
+        <Box sx={{ overflow: "auto", flex: 1 }}>
+          <SectionPopperListings
+            listings={displayedListings}
+            activeListing={activeListing}
+            countsByListingId={listingCountsById}
+            showAddListing={canAddListing}
+          />
         </Box>
       )}
 
@@ -2758,6 +2783,7 @@ export default function PopperMapListings() {
         !showBaseMapsBody &&
         !showToolsBody &&
         !showScopeContentBody &&
+        !showListingsBody &&
         !showObjectsBody && (
           <Box
             sx={{
@@ -2801,6 +2827,11 @@ export default function PopperMapListings() {
         isAutoHeight={isAutoHeight}
         collapsed={collapsed}
         onToggleCollapsed={() => dispatch(setCollapsed(!collapsed))}
+        startContent={
+          isDessinPopper && !isBaseMapsListOnly ? (
+            <SwitchSelectedBaseMapOnly />
+          ) : null
+        }
       >
         {showBaseMapsBody && !isBaseMapsListOnly && (
           <IconButtonToggleDetached target="BASE_MAPS" />
@@ -2827,11 +2858,6 @@ export default function PopperMapListings() {
               imageUrl1={mergeResult.objectUrl}
               imageUrl2={baseMap?.getUrl?.()}
             />
-        startContent={
-          isDessinPopper && !isBaseMapsListOnly ? (
-            <SwitchSelectedBaseMapOnly />
-          ) : null
-        }
             <Box
               sx={{
                 position: "absolute",

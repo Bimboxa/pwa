@@ -110,6 +110,14 @@ export const viewersSlice = createSlice({
           ? state.annotationsBaseMapIdsIn2d.filter((i) => i !== id)
           : [...state.annotationsBaseMapIdsIn2d, id];
     },
+    // Bulk replacement of the 2D overlays ("Visibilité auto" of the base
+    // maps list: every other base map hidden at once).
+    setVisibleBaseMapIdsIn2d: (state, action) => {
+      state.visibleBaseMapIdsIn2d = action.payload ?? [];
+    },
+    setAnnotationsBaseMapIdsIn2d: (state, action) => {
+      state.annotationsBaseMapIdsIn2d = action.payload ?? [];
+    },
     setBaseMapsImageMode: (state, action) => {
       state.baseMapsImageMode = isBaseMapsImageMode(action.payload)
         ? action.payload
@@ -154,6 +162,8 @@ export const {
   setHideAnnotationsInViewer,
   toggleBaseMapVisibleIn2d,
   toggleBaseMapAnnotationsIn2d,
+  setVisibleBaseMapIdsIn2d,
+  setAnnotationsBaseMapIdsIn2d,
   setBaseMapsImageMode,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,
