@@ -1,9 +1,8 @@
-import { Box3, Matrix4, Mesh, Raycaster, Vector2, Vector3 } from "three";
+import { Box3, Matrix4, Raycaster, Vector2, Vector3 } from "three";
 
 import {
   filterIntersectionsByClipping,
   getActiveClippingPlane,
-  isWorldPointVisible,
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import { getFaceRegion } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import {
@@ -22,7 +21,6 @@ import {
   getHostPartData,
   getHostSolidMeshes,
 } from "Features/meshPaint/js/buildHostPartIndexFromObject";
-import { getMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
 import { probeNormalSide } from "Features/meshPaint/utils/buildHostPartIndex";
 import {
   getClipKey,
@@ -33,6 +31,14 @@ import getPaintHostRefusal, {
   PAINT_REFUSAL,
 } from "Features/meshPaint/utils/getPaintHostRefusal";
 import { localGeometryToPaint } from "Features/meshPaint/utils/meshPaintFrame";
+import {
+  getOccluder,
+  getSegmentScreenHit,
+  makeAccept,
+  pickPaintEdge,
+  pickPaintFace,
+  PAINT_FACE_WIN_M,
+} from "Features/meshPaint/services/pickDisplayedMeshPaint";
 import orientFaceTowardRay from "Features/meshPaint/utils/orientFaceTowardRay";
 import pickFaceContainingPoint, {
   locatePointOnPlanarFace,
@@ -57,8 +63,9 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
 //   clipping- then visibility-filtered. The first annotation root or maille
 //   hit decides; mailles are occluders (refused under the cursor).
 // - Existing paints win (a paint is removable even when its host is hidden):
-//   FACE paints are raycast explicitly (FrontSide skins: hit only from the
-//   painted side), EDGE paints by screen distance.
+//   picked by services/pickDisplayedMeshPaint (FACE paints raycast
+//   explicitly — FrontSide skins: hit only from the painted side —, EDGE
+//   paints by screen distance).
 // - FACE: plane-mode region of the hit triangle (getFaceRegion at
 //   BRUSH_FACE_ANGLE_DEG) → planar islands (buildMeshDataFromRegion; a
 //   region that is not planar enough falls back on the facets of the host
@@ -78,12 +85,6 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
 // to the stored form with the frame metrics of the base map
 // (getMeshPaintMetrics: a base map without scale cannot be painted).
 
-// A vertex / edge further than this (m) behind the surface under the cursor
-// is hidden by it (computeSnapTarget's rule; absorbs the 1 mm lifts).
-const OCCLUSION_EPS_M = 5e-3;
-// A face paint wins over the surface hit when it is at most this much behind
-// it (it is lifted 1 mm in front of its host).
-const PAINT_FACE_WIN_M = 0.002;
 // An edge paint wins over a host edge closer by at most this much.
 const PAINT_EDGE_WIN_PX = 1.5;
 // Screen-distance bonus of the host under the cursor (edge ties).
@@ -129,47 +130,8 @@ function getFrame(group) {
   };
 }
 
-/**
- * Screen distance (px) from the cursor to a world segment, clipped by the
- * camera near plane, with the world point under the closest screen point
- * (perspective-correct, see findNearestEdgeSnap).
- */
-export function getSegmentScreenHit(a, b, camera, rect, cursor) {
-  const va = a.clone().applyMatrix4(camera.matrixWorldInverse);
-  const vb = b.clone().applyMatrix4(camera.matrixWorldInverse);
-  if (camera.isPerspectiveCamera) {
-    const zNear = -(camera.near || 0.01) * 1.001;
-    const aIn = va.z <= zNear;
-    const bIn = vb.z <= zNear;
-    if (!aIn && !bIn) return null;
-    if (!aIn) va.lerp(vb, (zNear - va.z) / (vb.z - va.z));
-    if (!bIn) vb.lerp(va, (zNear - vb.z) / (va.z - vb.z));
-  }
-  const wa = va.clone().applyMatrix4(camera.matrixWorld);
-  const wb = vb.clone().applyMatrix4(camera.matrixWorld);
-  const pa = wa.clone().project(camera);
-  const pb = wb.clone().project(camera);
-  if (pa.z > 1 && pb.z > 1) return null; // beyond the far plane
-  const ax = ((pa.x + 1) / 2) * rect.width;
-  const ay = ((1 - pa.y) / 2) * rect.height;
-  const bx = ((pb.x + 1) / 2) * rect.width;
-  const by = ((1 - pb.y) / 2) * rect.height;
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  let t = 0;
-  if (lenSq > 1e-9) {
-    t = ((cursor.x - ax) * dx + (cursor.y - ay) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-  }
-  const distancePx = Math.hypot(ax + t * dx - cursor.x, ay + t * dy - cursor.y);
-  // Clip-space w = view depth (perspective), 1 (orthographic).
-  const wA = camera.isPerspectiveCamera ? -va.z : 1;
-  const wB = camera.isPerspectiveCamera ? -vb.z : 1;
-  const denom = (1 - t) * wB + t * wA;
-  const s = Math.abs(denom) > 1e-12 ? (t * wA) / denom : t;
-  return { distancePx, point: wa.clone().lerp(wb, s) };
-}
+// Re-exported for the callers that imported it from here.
+export { getSegmentScreenHit };
 
 // Screen rectangle of an object's world box contains the cursor (± margin).
 // A box entirely behind the near plane is never near; one crossing it is
@@ -270,28 +232,6 @@ export function createMeshBrushPicker(sceneManager) {
     return null;
   }
 
-  // Plane of the surface under the cursor, facing the camera.
-  function getOccluder(sceneHit) {
-    const intersect = sceneHit?.intersect;
-    if (!intersect?.face?.normal) return null;
-    intersect.object.updateWorldMatrix(true, false);
-    const normal = intersect.face.normal
-      .clone()
-      .transformDirection(intersect.object.matrixWorld);
-    if (normal.dot(raycaster.ray.direction) > 0) normal.negate();
-    return { point: intersect.point.clone(), normal };
-  }
-
-  function makeAccept(clippingPlane, occluder) {
-    const offset = new Vector3();
-    return (point) => {
-      if (!isWorldPointVisible(clippingPlane, point)) return false;
-      if (!occluder) return true;
-      offset.copy(point).sub(occluder.point);
-      return offset.dot(occluder.normal) >= -OCCLUSION_EPS_M;
-    };
-  }
-
   function paintTarget(object) {
     const userData = object.userData;
     return {
@@ -304,61 +244,6 @@ export function createMeshBrushPicker(sceneManager) {
       clip: userData.clip ?? null,
       previewKey: `P:${userData.meshPaintId}:${getClipKey(userData.clip)}`,
     };
-  }
-
-  function getPickablePaints(partType) {
-    const out = [];
-    for (const object of getMeshPaintObjects().values()) {
-      const userData = object?.userData;
-      if (userData?.partType !== partType) continue;
-      // Forced on screen by a panel highlight only: not a target.
-      if (userData.visibility === "HIDDEN") continue;
-      if (!isObjectChainVisible(object)) continue;
-      out.push(object);
-    }
-    return out;
-  }
-
-  function pickPaintFace(clippingPlane) {
-    const hits = [];
-    for (const object of getPickablePaints(FACE)) {
-      if (!object.isMesh) continue;
-      object.updateWorldMatrix(true, false);
-      // The paint's own raycast is disabled (generic pickers skip it).
-      Mesh.prototype.raycast.call(object, raycaster, hits);
-    }
-    hits.sort((a, b) => a.distance - b.distance);
-    return filterIntersectionsByClipping(hits, clippingPlane)[0] ?? null;
-  }
-
-  function pickPaintEdge({ camera, rect, cursor, accept }) {
-    let best = null;
-    for (const object of getPickablePaints(EDGE)) {
-      const points = object.userData.localGeometry?.points ?? [];
-      if (points.length < 2) continue;
-      object.updateWorldMatrix(true, false);
-      const world = points.map((p) =>
-        new Vector3(p.x, p.y, p.z).applyMatrix4(object.matrixWorld)
-      );
-      // Every displayed segment (a curve has several).
-      const clip = object.userData.clip ?? null;
-      for (let i = 0; i + 1 < world.length; i++) {
-        if (!isSegmentDisplayed(points[i], points[i + 1], clip)) continue;
-        const hit = getSegmentScreenHit(
-          world[i],
-          world[i + 1],
-          camera,
-          rect,
-          cursor
-        );
-        if (!hit || hit.distancePx > BRUSH_EDGE_PICK_PX) continue;
-        if (!accept(hit.point)) continue;
-        if (!best || hit.distancePx < best.distancePx) {
-          best = { object, distancePx: hit.distancePx };
-        }
-      }
-    }
-    return best;
   }
 
   // Host context shared by the face and edge picks (null: not a host in its
@@ -688,7 +573,7 @@ export function createMeshBrushPicker(sceneManager) {
     const sceneHit = getSceneHit(clippingPlane);
 
     if (partType === FACE) {
-      const paintHit = pickPaintFace(clippingPlane);
+      const paintHit = pickPaintFace(raycaster, clippingPlane);
       if (
         paintHit &&
         paintHit.distance <=
@@ -706,7 +591,10 @@ export function createMeshBrushPicker(sceneManager) {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     };
-    const accept = makeAccept(clippingPlane, getOccluder(sceneHit));
+    const accept = makeAccept(
+      clippingPlane,
+      getOccluder(sceneHit?.intersect, raycaster.ray.direction)
+    );
     const screen = { camera, rect, cursor, accept };
     const paintEdge = pickPaintEdge(screen);
     const { best, hostHitRefusal } = pickHostEdge({

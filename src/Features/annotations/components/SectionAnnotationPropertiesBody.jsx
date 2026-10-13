@@ -19,6 +19,7 @@ import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/com
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 import SectionAnnotationMesh3d from "Features/annotationMesh3d/components/SectionAnnotationMesh3d";
+import SectionAnnotationPaintedParts from "Features/meshPaint/components/SectionAnnotationPaintedParts";
 import SectionAnnotationSurfaceCuts from "Features/threedFaceCut/components/SectionAnnotationSurfaceCuts";
 
 // The label options ("Etiquette") are no longer a tab here: clicking the
@@ -139,6 +140,10 @@ export default function SectionAnnotationPropertiesBody({
             {/* Mesh 3D — annotation converted to a mesh: revert to its
                 original 2D geometry. Self-hiding otherwise. */}
             <SectionAnnotationMesh3d annotation={annotation} />
+            {/* Parties peintes (« Pinceau » 3D): the paints and the brush-made
+                2D annotations hosted by this annotation, grouped by painting
+                template. Self-hiding otherwise. */}
+            <SectionAnnotationPaintedParts annotation={annotation} />
             {/* Surface cuts (3D « Découpe horizontale / verticale » on a
                 lathe / shell): remove them all. Self-hiding otherwise. */}
             <SectionAnnotationSurfaceCuts annotation={annotation} />

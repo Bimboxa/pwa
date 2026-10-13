@@ -57,6 +57,18 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 - L'annotation créée porte `autoCreatedFrom` (l'hôte) et `autoGenKind: "MESH_BRUSH"`, appartient à la liste du modèle armé et au calque de l'hôte. Elle est **indépendante de l'hôte** : déplacer l'hôte ne la déplace pas (une peinture, elle, suit). Elle se supprime comme toute annotation (pas de bascule au re-clic) ; une fois en place, elle couvre la facette et le survol répond « Annotation du modèle actif ».
 - Un clic = une étape d'undo (`withUndoGroup`). Après création, l'exemption de rétrécissement de session de l'hôte est retirée (`removeShrinkExemptAnnotationIds`) : la bande est collée au parement, l'hôte redevient rétréci.
 
+**Sélection et survol d'une partie peinte (éditeur 3D, Pinceau non armé)**
+
+- Le survol d'une peinture affiche son propre retour (ligne verte sur une arête, pointillé bleu sur une facette) et un tooltip « modèle peintre · Arête · 3,20 ml » / « Face · 12,40 m² · peint sur <hôte> » (`ThreedHoverTooltip.setPaint`). L'hôte n'est pas survolé.
+- Le clic sur une peinture **sélectionne l'hôte** (une peinture n'a pas de panneau propre) et **surligne la peinture** (`meshPaint.highlightedPaintId` : pointillé / ligne fluo en 3D, ligne surlignée et défilée dans la section « Parties peintes » du panneau de l'hôte). Tout autre clic 3D retire ce surlignage ; Maj / clic droit sur une peinture valent un clic simple.
+- Une **annotation 2D créée par le Pinceau** (ligne plate POLYLINE sans hauteur posée sur une face) est une annotation ordinaire : au clic / survol, une ligne épaisse (`Line2`) posée sur une face **gagne** sur cette face à égalité de distance (`threedEditor/js/utilsAnnotationsManager/preferLineHits.js`, tolérance = 2 × celle de `attachFatLineRaycast`), y compris sur l'arête mesh / le segment de l'annotation déjà sélectionnée.
+- Picking des peintures : `services/pickDisplayedMeshPaint.js` (arête par distance écran `BRUSH_EDGE_PICK_PX`, facette par raycast explicite des peaux, `PAINT_FACE_WIN_M`), partagé avec `meshBrushPick`. Les objets de peinture restent invisibles au raycast générique.
+
+**Section « Parties peintes » du panneau d'une annotation hôte** (`components/SectionAnnotationPaintedParts.jsx`, `hooks/useHostPaintedParts.js`)
+
+- Liste, **regroupées par modèle peintre** (icône, libellé, « 2 facettes · 12,40 m² · 1 arête · 3,20 ml »), les peintures de l'hôte (`RowTemplatePaintedPart`, clic = cadrage 3D, suppression au survol) et les annotations 2D que le Pinceau a créées sur lui (`autoCreatedFrom` = hôte, `autoGenKind: "MESH_BRUSH"`, `RowHostBrushAnnotation`, clic = sélection de l'annotation).
+- Auto-masquée sans partie. Le surlignage posé depuis la liste est retiré au démontage de la liste ; celui posé par un clic 3D survit au changement de panneau.
+
 **Surfaces courbes et courbes**
 
 - Le seuil de lissage est le réglage « Sélection de face » de la vue 3D. À 0, le Pinceau ne voit que des facettes planes et des arêtes droites.
@@ -156,7 +168,7 @@ Une ligne par partie peinte.
 
 **Sélection de la cible et validation du clic**
 
-- `services/meshBrushPick.js` choisit la cible. Les peintures existantes sont prioritaires, ce qui permet d'en retirer une même si son hôte est masqué.
+- `services/meshBrushPick.js` choisit la cible. Les peintures existantes sont prioritaires (`services/pickDisplayedMeshPaint.js`), ce qui permet d'en retirer une même si son hôte est masqué.
 - `hooks/useMeshBrushPointerHandlers.js` :
   - survol en rAF ;
   - un appui qui bouge de moins de 4 px vaut un clic, sinon c'est une rotation de caméra ;
@@ -212,6 +224,7 @@ Une ligne par partie peinte.
 **Consommateurs des quantités branchés**
 
 - Panneau Dessin : lignes de modèles, compteurs de liste, et liste « Parties peintes » de la vue détail (`panelDrawing/components/SectionTemplatePaintedParts.jsx`, `RowTemplatePaintedPart.jsx`).
+- Panneau de l'annotation hôte : section « Parties peintes » par modèle (`components/SectionAnnotationPaintedParts.jsx`).
 - Panneau Viewer (`PanelViewerAnnotations`).
 - `PopperMapListings`.
 - Légende 3D (`useThreedLegendItems`), y compris une ligne pour les modèles uniquement peints.
@@ -232,7 +245,7 @@ Une ligne par partie peinte.
 ## Pièges
 
 - **Nouveau service qui réécrit des coordonnées** dans le repère d'un fond de plan : il doit aussi traiter `db.meshPaints`, comme il traite `mesh3d`.
-- **Drapeau des overlays** : les objets de peinture portent `isPaintOverlay`, pas `isHoverOverlay`. Picking, index de snap (`useVertexSnap`), contours de coupe et traits « aquarelle » l'ignorent ; l'export 3D le garde.
+- **Drapeau des overlays** : les objets de peinture portent `isPaintOverlay`, pas `isHoverOverlay`. Picking générique, index de snap (`useVertexSnap`), contours de coupe et traits « aquarelle » l'ignorent (leur `raycast` est désactivé) ; seul `services/pickDisplayedMeshPaint.js` les cible (Pinceau, survol / clic de l'éditeur) ; l'export 3D le garde.
 - **Parent des overlays** : ne jamais placer une peinture sous la racine de son hôte, car un hôte masqué n'est pas construit du tout.
 - **Immutabilité des lignes** : les formes locales sont mises en cache par objet ligne (WeakMap). Ne jamais modifier une ligne Dexie en place.
 - **Type de partie ≠ forme du modèle** : ne jamais filtrer les lignes `meshPaints` sur `partType` vs `drawingShape` du modèle (une facette peinte par un modèle Ligne disparaîtrait) ; la seule garde est « le modèle peut peindre » (`canTemplatePaint`).

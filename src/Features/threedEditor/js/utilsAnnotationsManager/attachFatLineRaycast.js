@@ -3,8 +3,8 @@ import { Vector3 } from "three";
 // Picking tolerance for screen-space fat lines, as a fraction of the camera→hit
 // distance (≈0.008 rad ≈ a handful of screen px at the editor's FOV), with a
 // 2 cm floor so very near lines stay pickable.
-const PICK_ANGULAR = 0.008;
-const PICK_MIN_M = 0.02;
+export const PICK_ANGULAR = 0.008;
+export const PICK_MIN_M = 0.02;
 
 // Reused temporaries (avoid per-call allocation — raycast runs on every move).
 const _a = new Vector3();

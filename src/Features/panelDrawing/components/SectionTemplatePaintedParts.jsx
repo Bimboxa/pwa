@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -53,6 +53,13 @@ export default function SectionTemplatePaintedParts({
     selectLinkedListingSourceForSelectedScope
   );
 
+  // state
+
+  // Highlight requested from THIS list (row click): the only one the list
+  // drops when it unmounts — a 3D click on a paint (MainThreedEditor) sets
+  // the highlight while the panels switch to the host, and must survive.
+  const ownHighlightRef = useRef(false);
+
   // helpers
 
   const getLabel = (part) =>
@@ -96,13 +103,14 @@ export default function SectionTemplatePaintedParts({
 
   useEffect(() => {
     return () => {
-      dispatch(setHighlightedMeshPaintId(null));
+      if (ownHighlightRef.current) dispatch(setHighlightedMeshPaintId(null));
     };
   }, []);
 
   // handlers
 
   const handleFocus = (part) => {
+    ownHighlightRef.current = true;
     dispatch(requestMeshPaintFocus(part.id));
   };
 

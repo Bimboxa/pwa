@@ -51,6 +51,7 @@ import clipPaintGeometry, {
   getClipKey,
 } from "Features/meshPaint/utils/clipPaintGeometry";
 import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
+import getMeshPaintPartQties from "Features/meshPaint/utils/getMeshPaintPartQties";
 import getMeshPaintVisibility, {
   MESH_PAINT_VISIBILITY,
 } from "Features/meshPaint/utils/getMeshPaintVisibility";
@@ -159,6 +160,10 @@ function syncClippingPlanes(material, planes) {
 // - Highlight (meshPaint.highlightedPaintId): selected-part stipple / line,
 //   shown even when the paint is otherwise HIDDEN; framed once per
 //   meshPaint.focusNonce (focusMeshPaintInThreed).
+// - Picking: the objects disable their own raycast (the generic scene
+//   pickers never see a paint); pickDisplayedMeshPaint finds them for the
+//   « Pinceau » and for the plain hover / click of the editor, through the
+//   userData below (part, host, template, qties, hoverPositions).
 //
 // Displayed objects are published to meshPaintObjectsStore (brush picking,
 // framing). Every GPU resource created here is disposed on rebuild / unmount.
@@ -440,6 +445,9 @@ export default function ThreedMeshPaints() {
     const mesh = new Mesh(geometry, material);
     mesh.renderOrder = PAINT_FACE_RENDER_ORDER;
     mesh.raycast = () => {};
+    // Front skin alone: the plain hover stipple of the painted part
+    // (buildMeshPaintHoverHelper).
+    mesh.userData.hoverPositions = front.positions;
     if (!dimmed && renderMode === "PHOTOREAL") {
       mesh.receiveShadow = true;
       if (material.userData?.material3dNeedsBoxUvs) {
@@ -748,6 +756,8 @@ export default function ThreedMeshPaints() {
         baseMapId: row.baseMapId,
         visibility,
         status: item.status,
+        // Hover tooltip of the plain editor (same figures as the panels).
+        qties: getMeshPaintPartQties(row, getMeshPaintMetrics(baseMap)),
       });
       entry.object.name = `MeshPaint-${row.id}`;
 

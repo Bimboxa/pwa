@@ -148,6 +148,9 @@ import ThreedMeshPaints from "Features/meshPaint/components/ThreedMeshPaints";
 import MeshBrushThreed from "Features/meshPaint/components/MeshBrushThreed";
 import MeshPaintsResyncThreed from "Features/meshPaint/components/MeshPaintsResyncThreed";
 import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
+import { setHighlightedMeshPaintId } from "Features/meshPaint/meshPaintSlice";
+import pickDisplayedMeshPaint from "Features/meshPaint/services/pickDisplayedMeshPaint";
+import buildMeshPaintHoverHelper from "Features/meshPaint/services/buildMeshPaintHoverHelper";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
@@ -206,6 +209,10 @@ import {
 } from "Features/threedMesh/services/mesh3dObjectsStore";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import { filterIntersectionsByHatchGaps } from "Features/threedEditor/js/utilsAnnotationsManager/hatchPick";
+import preferLineHits, {
+  getAnnotationNodeId,
+  isLineObject,
+} from "Features/threedEditor/js/utilsAnnotationsManager/preferLineHits";
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
 import ThreedInitialFitOnLanding from "./ThreedInitialFitOnLanding";
 
@@ -251,6 +258,10 @@ export default function MainThreedEditor() {
   // Mesh annotations: the hover addresses one face / edge ("F3", "E2_7").
   const lastHoveredPartKeyRef = useRef(null);
   const meshEdgeHoverRef = useRef({ helper: null, key: null });
+  // Hovered painted part (« Pinceau », db.meshPaints): its own helper (green
+  // line / blue stipple) — the paint objects are never hit by the generic
+  // raycast, pickDisplayedMeshPaint finds them.
+  const paintHoverRef = useRef({ helper: null, key: null });
   const tooltipApiRef = useRef(null);
   // Lasso (shift+drag) state
   const lassoStartRef = useRef(null); // { x, y } in client coords, or null
@@ -676,12 +687,78 @@ export default function MainThreedEditor() {
     threedEditorRef.current?.renderScene?.();
   }, []);
 
+  // Hovered painted part (thick green line / blue stipple on the paint).
+  const clearPaintHover = useCallback(() => {
+    const { helper } = paintHoverRef.current;
+    if (!helper) return;
+    helper.dispose();
+    paintHoverRef.current = { helper: null, key: null };
+    threedEditorRef.current?.renderScene?.();
+  }, []);
+
   // Face-level hover feedback: the face stipple, or the edge line of a mesh
-  // annotation.
+  // annotation, or the painted part helper.
   const clearFaceHoverOverlay = useCallback(() => {
     clearFaceStipple();
     clearMeshEdgeHover();
-  }, [clearFaceStipple, clearMeshEdgeHover]);
+    clearPaintHover();
+  }, [clearFaceStipple, clearMeshEdgeHover, clearPaintHover]);
+
+  // Generic scene raycast of the hover / click / double-click: mesh hits
+  // only — three's raycaster detects plain Line / LineSegments within
+  // `params.Line.threshold` (1 unit by default), so the black edge outlines
+  // of extrudeClosedShape / extrudePolylineWall would otherwise win well
+  // before the cursor reaches a surface; fat lines (Line2) ARE meshes and
+  // carry their own raycast (attachFatLineRaycast). Hits cut away by the
+  // clipping plane and hits on hidden objects are dropped; `hatchGaps` lets
+  // the ray through the gaps of a hatched fill; `preferLines` moves a flat
+  // line drawn on a face ahead of that face at a distance tie
+  // (preferLineHits).
+  const raycastScene = useCallback(
+    (event, rect, { hatchGaps = true, preferLines = true } = {}) => {
+      const sceneManager = threedEditorRef.current?.sceneManager;
+      const camera = sceneManager?.camera;
+      const scene = sceneManager?.scene;
+      if (!camera || !scene) return [];
+      const clippingPlane = getActiveClippingPlane(sceneManager);
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      let intersects = filterIntersectionsByVisibility(
+        filterIntersectionsByClipping(
+          raycasterRef.current
+            .intersectObjects(scene.children, true)
+            .filter((i) => i.object?.isMesh),
+          clippingPlane
+        )
+      );
+      if (hatchGaps) {
+        intersects = filterIntersectionsByHatchGaps(
+          intersects,
+          camera,
+          rect.height
+        );
+      }
+      return preferLines ? preferLineHits(intersects) : intersects;
+    },
+    []
+  );
+
+  // Painted part under the cursor (after raycastScene: the raycaster is set
+  // from the cursor). The nearest face hit is the occluder of hidden edges.
+  const pickPaintUnderCursor = useCallback((event, rect, intersects) => {
+    const sceneManager = threedEditorRef.current?.sceneManager;
+    const camera = sceneManager?.camera;
+    if (!camera) return null;
+    return pickDisplayedMeshPaint({
+      raycaster: raycasterRef.current,
+      camera,
+      rect,
+      cursor: { x: event.clientX - rect.left, y: event.clientY - rect.top },
+      clippingPlane: getActiveClippingPlane(sceneManager),
+      sceneHit: intersects.find((i) => !isLineObject(i.object)) ?? null,
+    });
+  }, []);
 
   // Sync showGrid → sceneManager.grid.visible (and re-render)
   useEffect(() => {
@@ -1046,10 +1123,89 @@ export default function MainThreedEditor() {
         }
       }
 
+      // Scene hits: the subtraction pick keeps the full surface of hatched
+      // fills, like every tool.
+      const isSubtractionPick = Boolean(
+        subtractSourceAnnotationIdRef.current ||
+        subtractTargetAnnotationIdRef.current
+      );
+      const intersects = raycastScene(event, rect, {
+        hatchGaps: !isSubtractionPick,
+      });
+
+      // Painted part (« Pinceau », db.meshPaints) clicked: a paint has no
+      // panel of its own — its HOST is selected and the paint highlighted
+      // (3D stipple / line + its row in the host's « Parties peintes »
+      // section). Shift / right click are plain clicks here.
+      const paintHit = isSubtractionPick
+        ? null
+        : pickPaintUnderCursor(event, rect, intersects);
+      if (paintHit) {
+        const hostId = paintHit.hostAnnotationId;
+        const annotationsManager = sceneManager.annotationsManager;
+        const hostObject = annotationsManager?.annotationsObjectsMap?.[hostId];
+        const hostSource = annotationsManager?.getAnnotationSource?.(hostId);
+        const hostData = hostObject?.userData ?? {};
+        const annotationType = hostData.annotationType ?? hostSource?.type;
+        const listingId = hostData.listingId ?? hostSource?.listingId;
+        const annotationTemplateId =
+          hostData.annotationTemplateId ?? hostSource?.annotationTemplateId;
+        const position = { x: event.clientX, y: event.clientY };
+        clearFaceStipple();
+        dispatch(
+          setSelectedNode({
+            id: hostId,
+            nodeId: hostId,
+            nodeType: "ANNOTATION",
+            annotationType,
+            listingId,
+          })
+        );
+        dispatch(
+          setSelectedItem({
+            id: hostId,
+            nodeId: hostId,
+            type: "NODE",
+            nodeType: "ANNOTATION",
+            annotationType,
+            listingId,
+            annotationTemplateId,
+          })
+        );
+        dispatch(setShowAnnotationsProperties(true));
+        dispatch(clearSubSelection());
+        dispatch(setHighlightedMeshPaintId(paintHit.paintId));
+        if (paintHit.point) {
+          dispatch(
+            setAnnotationOverlayAnchor({
+              annotationId: hostId,
+              space: "WORLD_3D",
+              x: paintHit.point.x,
+              y: paintHit.point.y,
+              z: paintHit.point.z,
+            })
+          );
+        }
+        dispatch(setAnnotationToolbarPosition(position));
+        dispatch(setAnnotationsToolbarPosition(position));
+        return;
+      }
+      // Any other click drops the paint highlight set by a previous one.
+      if (store.getState().meshPaint?.highlightedPaintId) {
+        dispatch(setHighlightedMeshPaintId(null));
+      }
+
+      // A flat line of ANOTHER annotation drawn on the selected one (a
+      // painted edge turned into a 2D annotation…) wins over the selected
+      // annotation's own edge / segment under the cursor.
+      const soloId = getSoloSelectedAnnotationId();
+      const lineOfOtherWins =
+        isLineObject(intersects[0]?.object) &&
+        getAnnotationNodeId(intersects[0].object) !== soloId;
+
       // Sub-element click on the currently-selected annotation: vertex/edge
       // sub-selection takes precedence over the regular face click.
-      const soloId = getSoloSelectedAnnotationId();
-      if (soloId) {
+      if (soloId && !lineOfOtherWins) {
         const annoObject =
           sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
         // Mesh annotation: an edge under the cursor becomes a selection PART
@@ -1123,40 +1279,6 @@ export default function MainThreedEditor() {
             return;
           }
         }
-      }
-
-      // Calculate mouse position in normalized device coordinates (-1 to +1)
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      // Update raycaster with camera and mouse position
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
-
-      // Get all objects in the scene that intersect with the ray.
-      // Filter out non-mesh hits (Line / LineSegments). Three.js raycaster
-      // detects lines within `params.Line.threshold` (1 unit by default),
-      // so the black edge outlines added by extrudeClosedShape /
-      // extrudePolylineWall would otherwise trigger selection well before
-      // the cursor reaches the actual surface.
-      let intersects = filterIntersectionsByVisibility(
-        filterIntersectionsByClipping(
-          raycasterRef.current
-            .intersectObjects(scene.children, true)
-            .filter((i) => i.object?.isMesh),
-          clippingPlane
-        )
-      );
-      // Hatched fills: a selection click goes through the gaps between the
-      // lines. The subtraction pick keeps the full surface, like every tool.
-      if (
-        !subtractSourceAnnotationIdRef.current &&
-        !subtractTargetAnnotationIdRef.current
-      ) {
-        intersects = filterIntersectionsByHatchGaps(
-          intersects,
-          camera,
-          rect.height
-        );
       }
 
       // Find the first annotation object (check userData). Basemap image hits
@@ -1442,6 +1564,8 @@ export default function MainThreedEditor() {
       getSoloSelectedAnnotationId,
       store,
       clearFaceStipple,
+      raycastScene,
+      pickPaintUnderCursor,
     ]
   );
 
@@ -1487,22 +1611,7 @@ export default function MainThreedEditor() {
       const rect = rendererElement.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
 
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
-
-      const intersects = filterIntersectionsByHatchGaps(
-        filterIntersectionsByVisibility(
-          filterIntersectionsByClipping(
-            raycasterRef.current
-              .intersectObjects(scene.children, true)
-              .filter((i) => i.object?.isMesh),
-            getActiveClippingPlane(sceneManager)
-          )
-        ),
-        camera,
-        rect.height
-      );
+      const intersects = raycastScene(event, rect);
 
       // Double-click on a face of an annotation: selects the face WITH all
       // its edges (no camera move). The two clicks of the gesture already
@@ -1592,6 +1701,7 @@ export default function MainThreedEditor() {
       dispatch,
       store,
       clearFaceStipple,
+      raycastScene,
     ]
   );
 
@@ -2085,11 +2195,80 @@ export default function MainThreedEditor() {
     // path below to ignore geometry hidden by the cut.
     const clippingPlane = getActiveClippingPlane(sceneManager);
 
+    // Scene hits. Hatched fills: the hover goes through the gaps between the
+    // lines, but only when nothing is being drawn / picked (this hover keeps
+    // running while a drawing or a dimension is in progress, where the full
+    // surface is the support).
+    const isPlainHover =
+      !drawingActiveRef.current &&
+      !dimensionActiveRef.current &&
+      !subtractSourceAnnotationIdRef.current &&
+      !subtractTargetAnnotationIdRef.current;
+    const intersects = raycastScene(event, rect, { hatchGaps: isPlainHover });
+
+    // Painted part under the cursor: its own helper + tooltip (painting
+    // template, « Arête · 3,20 ml »), no host hover / sub-element hover.
+    const paintHit = isPlainHover
+      ? pickPaintUnderCursor(event, rect, intersects)
+      : null;
+    if (paintHit) {
+      if (prevHoveredObjectRef.current) {
+        const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+        applyAnnotationMaterialState(
+          prevHoveredObjectRef.current,
+          getStateForId(prevId, false)
+        );
+        prevHoveredObjectRef.current = null;
+        threedEditor.renderScene?.();
+      }
+      lastHoveredIdRef.current = null;
+      lastHoveredPartKeyRef.current = null;
+      clearSubHoverHelper();
+      clearFaceStipple();
+      clearMeshEdgeHover();
+      const paintKey = `${paintHit.paintId}:${paintHit.object.userData.clip ? JSON.stringify(paintHit.object.userData.clip) : ""}`;
+      if (paintKey !== paintHoverRef.current.key) {
+        clearPaintHover();
+        const helper = buildMeshPaintHoverHelper(paintHit.object, {
+          domElement,
+        });
+        if (helper) {
+          helper.attach(scene);
+          paintHoverRef.current = { helper, key: paintKey };
+          threedEditor.renderScene?.();
+        }
+      }
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (containerRect) {
+        const { qties, partType, annotationTemplateId, hostAnnotationId } =
+          paintHit.object.userData;
+        tooltipApiRef.current?.setPaint(
+          {
+            paintId: paintHit.paintId,
+            partType,
+            annotationTemplateId,
+            hostAnnotationId,
+            qties: qties ?? null,
+          },
+          event.clientX - containerRect.left + 15,
+          event.clientY - containerRect.top + 15
+        );
+      }
+      return;
+    }
+    clearPaintHover();
+
+    // A flat line of ANOTHER annotation drawn on the selected one wins over
+    // the selected annotation's own edge / segment under the cursor.
+    const soloId = getSoloSelectedAnnotationId();
+    const lineOfOtherWins =
+      isLineObject(intersects[0]?.object) &&
+      getAnnotationNodeId(intersects[0].object) !== soloId;
+
     // Sub-element hover (vertex / edge of the currently-selected annotation).
     // Runs before the regular face hover so the user gets fluo-green vertex /
     // edge feedback immediately after selecting a face.
-    const soloId = getSoloSelectedAnnotationId();
-    if (soloId) {
+    if (soloId && !lineOfOtherWins) {
       const annoObject =
         sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
       if (annoObject?.userData?.vertexRefs?.length) {
@@ -2164,39 +2343,6 @@ export default function MainThreedEditor() {
       subHoverHelperRef.current = null;
       subHoverKeyRef.current = null;
       threedEditor.renderScene?.();
-    }
-
-    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    raycasterRef.current.setFromCamera(mouseRef.current, camera);
-
-    // Filter out non-mesh hits (edge LineSegments) — see handleClick — hits
-    // hidden by the active clipping plane (so the cursor never picks clipped-away
-    // geometry, and a clipped front face doesn't shadow the object behind it),
-    // and hits on hidden objects (Masquer les annotations).
-    let intersects = filterIntersectionsByVisibility(
-      filterIntersectionsByClipping(
-        raycasterRef.current
-          .intersectObjects(scene.children, true)
-          .filter((i) => i.object?.isMesh),
-        clippingPlane
-      )
-    );
-    // Hatched fills: the hover goes through the gaps between the lines, but
-    // only when nothing is being drawn / picked (this hover keeps running
-    // while a drawing or a dimension is in progress, where the full surface
-    // is the support).
-    if (
-      !drawingActiveRef.current &&
-      !dimensionActiveRef.current &&
-      !subtractSourceAnnotationIdRef.current &&
-      !subtractTargetAnnotationIdRef.current
-    ) {
-      intersects = filterIntersectionsByHatchGaps(
-        intersects,
-        camera,
-        rect.height
-      );
     }
 
     let hit = null;
@@ -2437,6 +2583,9 @@ export default function MainThreedEditor() {
     clearFaceHoverOverlay,
     clearFaceStipple,
     clearMeshEdgeHover,
+    clearPaintHover,
+    raycastScene,
+    pickPaintUnderCursor,
   ]);
 
   // Handle pointer move (drag tracking + schedule hover raycast)
