@@ -25,7 +25,7 @@ export function getAnnotationTemplateMainQtyKey(annotationTemplate) {
   let defaultMainQtyKey = "U";
   if (["POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(type))
     defaultMainQtyKey = "L";
-  if (["POLYGON"].includes(type)) defaultMainQtyKey = "S";
+  if (["POLYGON", "DISC"].includes(type)) defaultMainQtyKey = "S";
   // "C" needs the Calepinage feature (template.hasLayoutLines): a template
   // that turned it off falls back to its default key.
   if (mainQtyKey === "C" && !annotationTemplate?.hasLayoutLines)

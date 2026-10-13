@@ -98,13 +98,13 @@ export default function useAnnotationDrag({
         ann.bbox?.height !== snap.bboxH ||
         ann.rotation !== snap.rotation;
     } else if (
-      ann.type === "REVOLUTION_AXIS" &&
+      (ann.type === "REVOLUTION_AXIS" || ann.type === "DISC") &&
       snap.partType?.startsWith("REVOLUTION_RIM::")
     ) {
       hasChanged =
         ann.radiusM !== snap.radiusM || ann.directionDeg !== snap.directionDeg;
     } else if (
-      ann.type === "REVOLUTION_AXIS" &&
+      (ann.type === "REVOLUTION_AXIS" || ann.type === "DISC") &&
       snap.partType?.startsWith("REVOLUTION_ANGLE::")
     ) {
       hasChanged =
@@ -117,6 +117,7 @@ export default function useAnnotationDrag({
       ann.type === "MARKER" ||
       ann.type === "POINT" ||
       ann.type === "DETAIL" ||
+      ann.type === "DISC" ||
       ann.type === "REVOLUTION_AXIS" ||
       ann.type === "REVOLUTION_AXIS_PLACEMENT"
     ) {

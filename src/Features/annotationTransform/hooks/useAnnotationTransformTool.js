@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
+import db from "App/db/db";
 import { setToaster } from "Features/layout/layoutSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
@@ -158,8 +160,10 @@ export default function useAnnotationTransformTool({
       // A revolution axis can be MOVED (alone): the move re-positions it on
       // its plan (moveRevolutionAxisCenterService). It cannot be turned here
       // — its own blue handles do that.
+      // Same for a DISC (centre + radius): moved alone, never turned.
       const isRevolutionAxisMove =
-        kind === "MOVE" && annotation.type === "REVOLUTION_AXIS";
+        kind === "MOVE" &&
+        (annotation.type === "REVOLUTION_AXIS" || annotation.type === "DISC");
       if (!isRevolutionAxisMove && !isCarriableType(annotation.type)) {
         dispatch(
           setToaster({
@@ -221,13 +225,25 @@ export default function useAnnotationTransformTool({
       // Keep the preview on the final pose until the db answers.
       setTransformSession({ committing: true });
       try {
-        const axis =
+        const single =
           transform.kind === "MOVE" && annotationIds.length === 1
-            ? annotationsRef.current?.find(
-                (a) => a.id === annotationIds[0] && a.type === "REVOLUTION_AXIS"
-              )
+            ? annotationsRef.current?.find((a) => a.id === annotationIds[0])
             : null;
-        if (axis) {
+        const axis = single?.type === "REVOLUTION_AXIS" ? single : null;
+        const disc = single?.type === "DISC" ? single : null;
+        if (disc) {
+          // The centre is the disc's own db.points row: moved in place.
+          if (!imageSize?.width || !imageSize?.height)
+            throw new Error("no image size");
+          const row = await db.points.get(disc.point?.id);
+          if (row) {
+            await db.points.update(row.id, {
+              x: row.x + transform.deltaPx.x / imageSize.width,
+              y: row.y + transform.deltaPx.y / imageSize.height,
+            });
+            dispatch(triggerAnnotationsUpdate());
+          }
+        } else if (axis) {
           if (!imageSize?.width || !imageSize?.height)
             throw new Error("no image size");
           await moveRevolutionAxisCenterService({

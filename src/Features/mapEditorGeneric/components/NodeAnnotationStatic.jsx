@@ -18,6 +18,7 @@ import NodeBaseMapLinkStatic from "./NodeBaseMapLinkStatic";
 import NodeRulerStatic from "./NodeRulerStatic";
 import NodePhotoStatic from "./NodePhotoStatic";
 import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
+import NodeDiscStatic from "./NodeDiscStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
@@ -190,6 +191,11 @@ function NodeAnnotationStatic({
       return (
         <NodeRevolutionAxisStatic {...props} annotation={resolvedAnnotation} />
       );
+
+    // DISC: filled disc / sector from a centre + radiusM (+ sector angles),
+    // with the revolution-axis handles once selected.
+    case "DISC":
+      return <NodeDiscStatic {...props} annotation={resolvedAnnotation} />;
 
     case "REVOLUTION_AXIS_PLACEMENT":
       return (

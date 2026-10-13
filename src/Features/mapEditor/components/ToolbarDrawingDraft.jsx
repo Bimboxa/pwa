@@ -250,7 +250,10 @@ export default function ToolbarDrawingDraft() {
     ? (selectedCutToolKey ?? enabledDrawingMode)
     : toolGroupType === SURFACE_CUT_TOOL_TYPE
       ? (selectedSurfaceCutToolKey ?? tools[0]?.key)
-      : enabledDrawingMode;
+      : // Tools delegating their gesture to another mode (`drawingMode`,
+        // e.g. DISC_CIRCLE → POLYGON_CIRCLE) are matched on that mode.
+        (tools.find((t) => (t.drawingMode ?? t.key) === enabledDrawingMode)
+          ?.key ?? enabledDrawingMode);
 
   const colorPopoverTitle = isFreeText
     ? "Couleur du texte"

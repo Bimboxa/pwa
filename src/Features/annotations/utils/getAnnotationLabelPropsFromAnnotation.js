@@ -14,7 +14,7 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     // or template one.
     const label = getAnnotationOwnLabel(annotation);
     let { points, point } = annotation;
-    if (["POINT", "MARKER"].includes(annotation.type)) points = [point];
+    if (["POINT", "MARKER", "DISC"].includes(annotation.type)) points = [point];
 
     if (!points) return null;
 

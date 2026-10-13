@@ -25,6 +25,10 @@ const hasShellProfiles = (annotation) =>
 const SHAPE_3D_CONFIG = {
   POLYLINE: [],
   STRIP: [],
+  // DISC: default = the extruded disc / sector; « Coupole » = a solid of
+  // revolution of a quarter ellipse (vertical tangent at the rim, horizontal
+  // at the apex, height = annotation.height) — see buildDiscObject3D.
+  DISC: [{ key: "DISC_DOME", label: "Coupole" }],
   POLYGON: [
     {
       key: "SHELL_DOME",
@@ -49,6 +53,7 @@ export const SHAPE_3D_KEYS = {
   EXTRUSION_PROFILE: "EXTRUSION_PROFILE",
   SHELL_DOME: "SHELL_DOME",
   SHELL_TENT: "SHELL_TENT",
+  DISC_DOME: "DISC_DOME",
 };
 
 // Annotation types that support EXTRUSION_PROFILE (dynamic profile shapes).

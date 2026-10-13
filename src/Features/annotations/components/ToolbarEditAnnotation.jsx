@@ -63,6 +63,7 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
 import FieldAnnotationRevolutionSolidSwitch from "./FieldAnnotationRevolutionSolidSwitch";
+import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
@@ -689,6 +690,22 @@ export default function ToolbarEditAnnotation({
                 />
               )}
             <Shape3DSelector annotation={selectedAnnotation} />
+          </Box>
+        )}
+
+        {/* Row 2a - DISC geometry: radius, partial revolution + sector bounds */}
+        {!hasPart && selectedAnnotation?.type === "DISC" && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              px: 1.25,
+              py: 0.25,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <FieldsAnnotationDisc annotation={selectedAnnotation} compact />
           </Box>
         )}
 

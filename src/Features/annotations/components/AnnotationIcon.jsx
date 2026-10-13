@@ -40,6 +40,16 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
     case "POLYGON":
       return <PolygonIcon {...annotation} size={size} />;
 
+    // DISC: a filled circle in the fill colour (same chip as a POINT).
+    case "DISC":
+      return (
+        <PointAnnotationIcon
+          fillColor={annotation.fillColor}
+          variant="CIRCLE"
+          size={size}
+        />
+      );
+
     case "RECTANGLE":
       return <RectangleIcon {...annotation} size={size} />;
 

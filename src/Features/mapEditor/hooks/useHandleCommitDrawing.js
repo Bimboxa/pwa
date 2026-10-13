@@ -846,14 +846,16 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 newAnnotation?.type === "MARKER" ||
                 newAnnotation?.type === "POINT" ||
                 newAnnotation?.type === "DETAIL" ||
+                newAnnotation?.type === "DISC" ||
                 isRevolutionHelper
             ) {
                 _newAnnotation.point = { id: finalPointIds[0] };
             }
 
-            // Revolution axis: the 2nd click is stored as scalars, not a point
-            // (see handleCommitDrawingFromRevolutionAxis / the storage contract
-            // in getRevolutionAxisPlanFrame).
+            // Revolution axis / disc: the 2nd click is stored as scalars, not
+            // a point (see handleCommitDrawingFromRevolutionAxis /
+            // handleCommitDrawingFromDisc and the storage contract in
+            // getRevolutionAxisPlanFrame).
             if (options?.revolutionAxisProps) {
                 Object.assign(_newAnnotation, options.revolutionAxisProps);
             }

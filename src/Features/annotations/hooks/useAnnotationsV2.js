@@ -434,6 +434,7 @@ import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttach
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
 import getRevolutionPhi from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
 import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
+import getRevolutionHandleSnapPoints from "Features/annotations/utils/getRevolutionHandleSnapPoints";
 
 // Length of the synthesized lathe-axis segment, in reference-frame pixels. The
 // value is arbitrary: both ends share the same x (all buildRevolutionMesh reads
@@ -1429,6 +1430,7 @@ export default function useAnnotationsV2(options) {
           else if (
             _annotation.type === "POINT" ||
             _annotation.type === "DETAIL" ||
+            _annotation.type === "DISC" ||
             isRevolutionHelperType(_annotation.type)
           ) {
             // A row without a point ref must not reach resolvePoints: throwing
@@ -1910,45 +1912,25 @@ export default function useAnnotationsV2(options) {
       if (_annotations?.length) {
         const axisRefCache = new Map();
         for (const a of _annotations) {
-          if (a?.type === "REVOLUTION_AXIS") {
+          if (a?.type === "REVOLUTION_AXIS" || a?.type === "DISC") {
             const meterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
             a._planMeterByPx = meterByPx;
+            // A DISC has no diameter orientation: its rim handles sit on the
+            // horizontal diameter (direction 0).
             const frame =
               a.point &&
               getRevolutionAxisPlanFrame({
                 centerPx: a.point,
                 radiusM: a.radiusM,
-                directionDeg: a.directionDeg,
-                invertHalf: a.invertHalf,
+                directionDeg: a.type === "DISC" ? 0 : a.directionDeg,
+                invertHalf: a.type === "DISC" ? false : a.invertHalf,
                 meterByPx,
               });
-            if (frame) {
-              // The ends of what is DRAWN: the two diameter ends of a full
-              // circle, the two sector ends of a partial revolution. Each
-              // carries the handle part type a drag started on it drives
-              // (InteractionLayer, snap-marker mousedown).
-              const ends = a.partialRevolution
-                ? [
-                    ["START", a.revolutionAngleStartDeg],
-                    ["END", a.revolutionAngleEndDeg],
-                  ].map(([key, deg]) => {
-                    const t = (Number(deg) || 0) * DEG_TO_RAD;
-                    return {
-                      x: frame.centerPx.x + frame.radiusPx * Math.cos(t),
-                      y: frame.centerPx.y - frame.radiusPx * Math.sin(t),
-                      partType: `REVOLUTION_ANGLE::${key}`,
-                    };
-                  })
-                : frame.rimPx.map((p, i) => ({
-                    x: p.x,
-                    y: p.y,
-                    partType: `REVOLUTION_RIM::${i}`,
-                  }));
-              a._snapPoints = [
-                { x: frame.centerPx.x, y: frame.centerPx.y },
-                ...ends,
-              ];
-            }
+            // The ends of what is DRAWN (diameter ends / sector ends), each
+            // tagged with the handle part type it drives — see
+            // getRevolutionHandleSnapPoints.
+            const snapPoints = getRevolutionHandleSnapPoints(a, frame);
+            if (snapPoints) a._snapPoints = snapPoints;
           } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {
             const axisId = a.revolutionAxisId;
             if (!axisId) continue;
