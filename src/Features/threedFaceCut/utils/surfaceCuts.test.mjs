@@ -4,6 +4,7 @@ import { test } from "node:test";
 import applyAffineToSurfaceCuts from "./applyAffineToSurfaceCuts.js";
 import applySurfaceCutsToSoups from "./applySurfaceCutsToSoups.js";
 import computeSurfaceAxisCut, {
+  getSurfaceBoundaryPoints,
   getSurfaceCutNormal,
 } from "./computeSurfaceAxisCut.js";
 import isSurfaceCutHost from "./isSurfaceCutHost.js";
@@ -315,4 +316,37 @@ test("applyAffineToSurfaceCuts: a rotated / scaled host keeps its cut planes thr
   near(n.x * (q.x - p.x) + n.y * (q.y - p.y) + n.z * (q.z - p.z), 0, 1e-9);
   near(cut.point[2], 1.5);
   near(Math.hypot(n.x, n.y, n.z), 1);
+});
+
+test("H cut on a closed surface (torus): the reference is its lowest vertex, no boundary needed", () => {
+  // Tube around the Y axis: ring radius 3, tube radius 1 (closed, no boundary).
+  const out = [];
+  const N = 24;
+  const M = 12;
+  const at = (i, j) => {
+    const a = (i / N) * Math.PI * 2;
+    const b = (j / M) * Math.PI * 2;
+    const r = 3 + Math.cos(b);
+    return [r * Math.cos(a), Math.sin(b), r * Math.sin(a)];
+  };
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < M; j++) {
+      out.push(...at(i, j), ...at(i + 1, j), ...at(i + 1, j + 1));
+      out.push(...at(i, j), ...at(i + 1, j + 1), ...at(i, j + 1));
+    }
+  }
+  assert.equal(getSurfaceBoundaryPoints(out).length, 0);
+  const r = computeSurfaceAxisCut({
+    positions: out,
+    hitPoint: { x: 4, y: 0.3, z: 0.1 },
+    axis: "H",
+    viewDir: VIEW_FROM_X,
+    // (1.5 would land exactly on a vertex row — y = sin 30° — which no
+    // triangle crosses.)
+    typedDistance: 1.4,
+  });
+  assert.ok(r);
+  near(r.ref.y, -1);
+  near(r.plane.constant, 0.4);
+  near(r.distance, 1.4);
 });

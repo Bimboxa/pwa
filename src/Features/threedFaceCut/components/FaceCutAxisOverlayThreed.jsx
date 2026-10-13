@@ -270,7 +270,24 @@ export default function FaceCutAxisOverlayThreed() {
           dir: { x: dir.x, y: dir.y, z: dir.z },
         };
       }
-      return { positions, boundaryPoints, revolutionAxis };
+      // Seams of a piece (parent-local, the piece carries no transform of
+      // its own) → world.
+      const seams = (mesh.userData?.surfaceCutSeams || []).map(([p, q]) =>
+        [p, q].map((point) => {
+          const w = mesh.localToWorld(new Vector3(point.x, point.y, point.z));
+          return { x: w.x, y: w.y, z: w.z };
+        })
+      );
+      return { positions, boundaryPoints, revolutionAxis, seams };
+    }
+
+    function logSurfaceHover(reason, hit, extra = {}) {
+      console.debug("[threedFaceCut] surface hover: " + reason, {
+        annotationId: hit?.nodeId,
+        mesh: hit?.object?.uuid,
+        piece: hit?.object?.userData?.surfaceCutPiece ?? null,
+        ...extra,
+      });
     }
 
     // The trace is drawn a hair toward the camera so it never z-fights with
@@ -307,6 +324,7 @@ export default function FaceCutAxisOverlayThreed() {
         buildSurfaceCutContext(hit.object)
       );
       if (!ctx) {
+        logSurfaceHover("no context (empty geometry?)", hit);
         showNothing();
         return;
       }
@@ -322,8 +340,15 @@ export default function FaceCutAxisOverlayThreed() {
         revolutionAxis: ctx.revolutionAxis,
         typedDistance: parseRectBuffer(s.mapEditor.constraintBuffer),
         snapToleranceM: getSurfaceSnapToleranceM(hit.position, rect),
+        seams: ctx.seams,
       });
       if (!result) {
+        logSurfaceHover("plane misses the piece", hit, {
+          axis,
+          typed: s.mapEditor.constraintBuffer,
+          triangles: ctx.positions.length / 9,
+          boundary: ctx.boundaryPoints.length,
+        });
         showNothing();
         return;
       }

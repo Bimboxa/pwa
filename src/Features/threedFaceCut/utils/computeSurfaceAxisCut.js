@@ -26,12 +26,11 @@ import {
 // (S) reads on screen.
 //
 // Reference ("Hauteur / Distance de coupe", like computeFaceAxisCut on a
-// planar face): the piece's boundary vertex furthest AGAINST the cut
-// direction — the lowest one for H, the leftmost (rightmost on the RIGHT
-// side) for V; the typed distance locks the plane that far from it, else the
-// plane goes through the cursor and snaps on the boundary vertices'
-// coordinates along the normal (never on the extremal ones: a plane there
-// does not cut).
+// planar face): the piece's vertex furthest AGAINST the cut direction — the
+// lowest one for H, the leftmost (rightmost on the RIGHT side) for V; the
+// typed distance locks the plane that far from it, else the plane goes
+// through the cursor and snaps on the boundary vertices' coordinates along
+// the normal (never on the extremal ones: a plane there does not cut).
 //
 // Trace = cutShellByPlaneNear: only the chain of crossed facets holding the
 // hovered point (a plane meets a wrapped surface in several places), pieces
@@ -111,6 +110,8 @@ export function getSurfaceBoundaryPoints(positions) {
  * @param {{point, dir} | null} [args.revolutionAxis]
  * @param {number|null} [args.typedDistance] - m, locks the plane
  * @param {number | ((normal) => number)} [args.snapToleranceM]
+ * @param {[[p, q]]} [args.seams] - seams the piece carries (previous cuts
+ *   that only opened it): the pieces are split along them too
  * @returns {{plane: {normal, constant}, segments: [[p, q]], pieces,
  *   ref: {x,y,z}, guide: {x,y,z}, distance: number, snapped: boolean,
  *   locked: boolean} | null} — null when the plane misses the piece
@@ -125,6 +126,7 @@ export default function computeSurfaceAxisCut({
   revolutionAxis = null,
   typedDistance = null,
   snapToleranceM = 0,
+  seams = [],
 }) {
   if (!positions?.length || !hitPoint) return null;
   const normal = getSurfaceCutNormal({
@@ -136,19 +138,29 @@ export default function computeSurfaceAxisCut({
   if (!normal) return null;
   const dir = axis === "H" ? 1 : side === "RIGHT" ? -1 : 1;
 
+  // Reference = the piece's extremal vertex against the cut direction (its
+  // lowest point for H): over every vertex, so a closed surface (torus, a
+  // ring opened by a seam only) has one too. Snap candidates = the
+  // boundary vertices' coordinates (seams, rims), never every lathe row.
   const boundary = boundaryPoints ?? getSurfaceBoundaryPoints(positions);
-  if (boundary.length < 2) return null;
+  let ref = null;
+  let refDist = dir * Infinity;
+  for (let i = 0; i + 2 < positions.length; i += 3) {
+    const p = { x: positions[i], y: positions[i + 1], z: positions[i + 2] };
+    const d = dot(normal, p);
+    if (dir * d < dir * refDist) {
+      ref = p;
+      refDist = d;
+    }
+  }
+  if (!ref) return null;
   const dists = boundary.map((p) => dot(normal, p));
-  let refIndex = 0;
   let minD = Infinity;
   let maxD = -Infinity;
-  dists.forEach((d, i) => {
-    if (dir * d < dir * dists[refIndex]) refIndex = i;
+  for (const d of dists) {
     if (d < minD) minD = d;
     if (d > maxD) maxD = d;
-  });
-  const ref = boundary[refIndex];
-  const refDist = dists[refIndex];
+  }
 
   let constant;
   let locked = false;
@@ -179,7 +191,7 @@ export default function computeSurfaceAxisCut({
   }
 
   const plane = { normal, constant };
-  const cut = cutShellByPlaneNear({ positions, plane, hitPoint });
+  const cut = cutShellByPlaneNear({ positions, plane, hitPoint, seams });
   if (!cut) return null;
 
   return {

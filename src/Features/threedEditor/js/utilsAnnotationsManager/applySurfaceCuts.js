@@ -92,6 +92,10 @@ function bakeSoup(mesh, matrix) {
   return out;
 }
 
+// The source's real material (see applyAnnotationMaterialState).
+const sourceMaterialOf = (mesh) =>
+  mesh.userData?.originalMaterial ?? mesh.material;
+
 function findGridEdges(root, sourceMesh) {
   const lines = [];
   root.traverse((child) => {
@@ -228,13 +232,20 @@ export default function applySurfaceCuts(root, annotation, metrics) {
 
     for (const piece of pieces) {
       const geometry = buildPieceGeometry(piece.positions, toParent);
-      const pieceMesh = new Mesh(geometry, mesh.material.clone());
+      // The source may be wearing a highlight override at this point
+      // (applyAnnotationMaterialState swaps the material in place and keeps
+      // the original in userData): clone the real one.
+      const pieceMesh = new Mesh(geometry, sourceMaterialOf(mesh).clone());
       pieceMesh.castShadow = mesh.castShadow;
       pieceMesh.receiveShadow = mesh.receiveShadow;
       pieceMesh.renderOrder = mesh.renderOrder;
       pieceMesh.layers.mask = mesh.layers.mask;
+      // The source's cached original material (applyAnnotationMaterialState)
+      // must not reach the pieces: each one owns its clone.
+      const sourceUserData = { ...(mesh.userData ?? {}) };
+      delete sourceUserData.originalMaterial;
       pieceMesh.userData = {
-        ...(mesh.userData ?? {}),
+        ...sourceUserData,
         role: "SOLID",
         surfaceCutPiece: pieceIndex++,
         surfaceCutSeams: piece.seams,
@@ -263,7 +274,9 @@ export default function applySurfaceCuts(root, annotation, metrics) {
 
     for (const line of staleEdges) line.material?.dispose?.();
     mesh.geometry?.dispose?.();
-    mesh.material?.dispose?.();
+    // Never dispose a highlight singleton worn by the source.
+    if (mesh.material === sourceMaterialOf(mesh)) mesh.material?.dispose?.();
+    mesh.userData?.originalMaterial?.dispose?.();
     parent.remove(mesh);
   }
   return true;
