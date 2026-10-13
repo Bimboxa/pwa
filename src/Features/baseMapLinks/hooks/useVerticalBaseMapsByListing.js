@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
-import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 
 // VERTICAL base maps (élévations / coupes) of the project, grouped by listing
 // in the project listings order — same grouping as ElevationBaseMapSelector,
@@ -12,19 +11,13 @@ import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabl
 export default function useVerticalBaseMapsByListing() {
   const { value: allBaseMaps = [] } = useBaseMaps({});
   const listings = useProjectBaseMapListings() ?? [];
-  const { disabledListingIds } = useDisabledBaseMapListingIds();
 
-  // Filter the baseMaps (not the listings): filtering listings alone would
-  // dump the disabled listings' baseMaps into the "Autres" leftover group.
   const baseMaps = useMemo(
     () =>
       (allBaseMaps ?? []).filter(
-        (bm) =>
-          !bm?.isPhoto &&
-          bm?.orientation === "VERTICAL" &&
-          !disabledListingIds.includes(bm?.listingId)
+        (bm) => !bm?.isPhoto && bm?.orientation === "VERTICAL"
       ),
-    [allBaseMaps, disabledListingIds]
+    [allBaseMaps]
   );
 
   const groups = useMemo(() => {

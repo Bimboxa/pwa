@@ -71,7 +71,7 @@ export default function RevolutionAxisDraftOverlayThreed() {
   );
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const mainBaseMapId = useMainBaseMap()?.id;
-  const { value: baseMaps } = useBaseMaps({ includeDetails: true });
+  const { value: baseMaps } = useBaseMaps({ includeDetails: true, includeDisabledListings: true });
 
   const color =
     getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main;

@@ -66,7 +66,6 @@ import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
-import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMoveBaseMapToListing from "../hooks/useMoveBaseMapToListing";
@@ -147,7 +146,6 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
 
   const { value: baseMaps = [] } = useBaseMaps({});
   const listings = useProjectBaseMapListings() ?? [];
-  const { disabledListingIds } = useDisabledBaseMapListingIds();
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
   const updateEntity = useUpdateEntity();
@@ -228,10 +226,9 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
   const listParallelOnly = overlaysIn2d && !isBaseMapsModule;
   const mainMeterByPx = mainBaseMap?.getMeterByPx?.();
 
-  // Per-scope disabled listings leave the list — except the current main
-  // base map, whose row hosts the eye / badge and must stay reachable. The
-  // "hide empty" list option (properties panel) also drops the annotation-
-  // less base maps, unless they are shown in 3D (image or annotations) or
+  // The folders hidden in the scope are already out (useBaseMaps). The
+  // "hide empty" list option (properties panel) drops the annotation-less
+  // base maps, unless they are shown in 3D (image or annotations) or
   // overlaid in 2D.
   const groups = useMemo(() => {
     // pinned grid: the sheets of the table, nothing else
@@ -239,9 +236,7 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     const enabled = baseMaps.filter((bm) =>
       sheetIdSet
         ? sheetIdSet.has(bm.id)
-        : (!disabledListingIds.includes(bm.listingId) ||
-            bm.id === mainBaseMap?.id) &&
-          (!listParallelOnly ||
+        : (!listParallelOnly ||
             !mainBaseMap ||
             bm.id === mainBaseMap.id ||
             areBaseMapsParallel(bm, mainBaseMap)) &&
@@ -281,7 +276,6 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
     return ordered;
   }, [
     baseMaps,
-    disabledListingIds,
     listings,
     mainBaseMap,
     othersS,

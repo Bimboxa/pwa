@@ -37,7 +37,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "../hooks/useBaseMaps";
 import useDetailBaseMaps from "../hooks/useDetailBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
-import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
 
@@ -66,7 +65,6 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
     const { value: baseMaps = [] } = useBaseMaps({});
     const detailBaseMaps = useDetailBaseMaps() ?? [];
     const listings = useProjectBaseMapListings() ?? [];
-    const { disabledListingIds } = useDisabledBaseMapListingIds();
     const updateEntity = useUpdateEntity();
 
     const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
@@ -96,16 +94,9 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
 
     // --- Helpers ---
 
-    // Filter the baseMaps (not the listings): filtering listings alone would
-    // dump the disabled listings' baseMaps into the "Autres" leftover group.
-    const enabledBaseMaps = useMemo(
-        () => baseMaps.filter((bm) => !disabledListingIds.includes(bm?.listingId)),
-        [baseMaps, disabledListingIds]
-    );
-
     const groups = useMemo(() => {
         const byListing = new Map();
-        for (const bm of enabledBaseMaps) {
+        for (const bm of baseMaps) {
             const key = bm.listingId ?? "__none__";
             if (!byListing.has(key)) byListing.set(key, []);
             byListing.get(key).push(bm);
@@ -127,7 +118,7 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
             ordered.push({ listing: { id: "__DETAILS__", name: "Détails" }, baseMaps: detailBaseMaps });
         }
         return ordered;
-    }, [enabledBaseMaps, listings, detailBaseMaps]);
+    }, [baseMaps, listings, detailBaseMaps]);
 
     // --- Handlers ---
     const handleOpen = (event) => setAnchorEl(event.currentTarget);

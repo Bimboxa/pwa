@@ -20,7 +20,7 @@ export default function useRevolutionAxisLinkedBaseMaps(axis) {
   // data
 
   const items = useRevolutionAxesOfBaseMap(axis?.baseMapId);
-  const { value: baseMaps } = useBaseMaps({ includeDetails: true });
+  const { value: baseMaps } = useBaseMaps({ includeDetails: true, includeDisabledListings: true });
 
   // helpers
 

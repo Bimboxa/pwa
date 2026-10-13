@@ -12,7 +12,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListingItemsCountById from "Features/listings/hooks/useListingItemsCountById";
-import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
+import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
 import { Box, Button, Typography } from "@mui/material";
@@ -39,9 +39,12 @@ import getAnnotationListingsCount from "../utils/getAnnotationListingsCount";
 // recap editor and sends the listing properties to the right panel; there is
 // no subview to drill into.
 //
-// A base map folder hidden from the Fond de plan module (eye of the tree,
-// scope.baseMapsSettings.disabledListingIds) is left out here too: the scope
-// content follows what the base map module shows.
+// A base map folder hidden in the scope (eye of its row,
+// scope.baseMapsSettings.disabledListingIds) stays listed — greyed, eye off —
+// so it can be shown again: this panel is the one place where the scope's
+// folders are hidden / revealed. The annotation listing counts leave out the
+// annotations hosted on the hidden folders' base maps, which do not exist
+// for the scope.
 //
 // `showAllListings` (listings.scopeModuleShowAllListings) is the "Afficher
 // toutes les listes" row of the annotation listings group: the editor then
@@ -78,7 +81,7 @@ export default function SelectorListingForViewer({
   const { value: listings, loading } = useListingsByScope({
     filterByProjectId: projectId,
   });
-  const { disabledListingIds } = useDisabledBaseMapListingIds();
+  const { disabledIds: disabledBaseMapIds } = useDisabledBaseMapIds();
 
   // state
 
@@ -90,31 +93,23 @@ export default function SelectorListingForViewer({
   // helpers
 
   const entityModelTypes = appConfig?.features?.entityModelTypes;
-  // Only base map folders can be disabled; the guard keeps the other
-  // families untouched whatever the array holds.
-  const visibleListings = useMemo(() => {
-    if (!listings || disabledListingIds.length === 0) return listings;
-    return listings.filter(
-      (l) =>
-        l?.entityModel?.type !== "BASE_MAP" ||
-        !disabledListingIds.includes(l.id)
-    );
-  }, [listings, disabledListingIds]);
   const rawGroups = useMemo(
     () =>
       getListingGroupsByEntityModelType({
-        listings: visibleListings,
+        listings,
         entityModelTypes,
       }),
-    [visibleListings, entityModelTypes]
+    [listings, entityModelTypes]
   );
   const groups = useListingGroupsWithIcons(rawGroups);
-  const itemsCountById = useListingItemsCountById(visibleListings);
+  const itemsCountById = useListingItemsCountById(listings, {
+    excludeBaseMapIds: disabledBaseMapIds,
+  });
   const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
   const annotationsCount = useMemo(
-    () => getAnnotationListingsCount(visibleListings, itemsCountById),
-    [visibleListings, itemsCountById]
+    () => getAnnotationListingsCount(listings, itemsCountById),
+    [listings, itemsCountById]
   );
 
   // handlers

@@ -17,8 +17,10 @@ const EMPTY_IDS = [];
 //     listes" -> every base map of the project carrying at least one
 //     annotation kept by the filter (useScopeGridAnnotationsFilter),
 //     whatever its folder.
-// Folders hidden by the eye of the scope panel (listings.hiddenListingsIds)
-// or from the Fond de plan module (disabledListingIds) are left out.
+// Folders hidden by the eye of the scope panel
+// (scope.baseMapsSettings.disabledListingIds) are already out of useBaseMaps
+// and useAnnotationsV2; a hidden folder selected in the panel shows an empty
+// table (no "+" frame either).
 // Returns { baseMapIds, addListingId (the "+" frame, folder only), ready }.
 export default function useScopeGridSheets() {
   // data
@@ -63,19 +65,14 @@ export default function useScopeGridSheets() {
   }, [annotations, isBaseMapListing, filter.annotationIdSet]);
 
   return useMemo(() => {
-    const hiddenFolderIds = new Set([
-      ...hiddenListingsIds,
-      ...disabledListingIds,
-    ]);
-    const visibleBaseMaps = (baseMaps ?? []).filter(
-      (baseMap) => !hiddenFolderIds.has(baseMap.listingId)
-    );
+    const visibleBaseMaps = baseMaps ?? [];
     if (isBaseMapListing) {
+      const folderHidden = disabledListingIds.includes(listing.id);
       return {
         baseMapIds: visibleBaseMaps
           .filter((baseMap) => baseMap.listingId === listing.id)
           .map((baseMap) => baseMap.id),
-        addListingId: hiddenFolderIds.has(listing.id) ? null : listing.id,
+        addListingId: folderHidden ? null : listing.id,
         ready: baseMaps !== undefined,
       };
     }
@@ -91,7 +88,6 @@ export default function useScopeGridSheets() {
     };
   }, [
     baseMaps,
-    hiddenListingsIds,
     disabledListingIds,
     isBaseMapListing,
     listing?.id,

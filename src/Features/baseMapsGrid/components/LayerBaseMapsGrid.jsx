@@ -151,7 +151,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
   );
 
-  const listings = useProjectBaseMapListings({ excludeDisabled: true });
+  const listings = useProjectBaseMapListings();
   const { value: baseMaps } = useBaseMaps();
   const spriteImage = useAnnotationSpriteImage();
   // same counts as the base map chips (whole scope, solo ignored)

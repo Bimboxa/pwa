@@ -19,6 +19,7 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 export default function useSubtractedSurfaceM2(annotation) {
   const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps({
     includeDetails: true,
+    includeDisabledListings: true,
   });
   const [removedM2, setRemovedM2] = useState(0);
 

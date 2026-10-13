@@ -113,7 +113,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   }, [annotations, details, isDetailsPortfolio]);
 
   const { value: baseMaps } = useBaseMaps();
-  const baseMapsListings = useProjectBaseMapListings({ excludeDisabled: true });
+  const baseMapsListings = useProjectBaseMapListings();
 
   // base map tree order: listings by rank, then baseMaps by sortIndex
   const orderedBaseMaps = useMemo(() => {

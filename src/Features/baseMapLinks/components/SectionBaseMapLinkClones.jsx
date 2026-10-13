@@ -23,7 +23,7 @@ export default function SectionBaseMapLinkClones({
   // data
 
   const items = useBaseMapLinksToBaseMap(baseMap?.id);
-  const { value: baseMaps } = useBaseMaps({ includeDetails: true });
+  const { value: baseMaps } = useBaseMaps({ includeDetails: true, includeDisabledListings: true });
 
   // helpers
 

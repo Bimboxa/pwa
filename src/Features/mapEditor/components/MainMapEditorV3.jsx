@@ -452,7 +452,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
   // baseMaps
 
-  const { value: baseMaps } = useBaseMaps();
+  // Only read for "the project has no base map at all" (create section):
+  // the folders hidden in the scope must not make it show up.
+  const { value: baseMaps } = useBaseMaps({ includeDisabledListings: true });
   track("baseMaps.length", baseMaps?.length);
 
   // baseMap

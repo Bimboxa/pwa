@@ -8,15 +8,21 @@ import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templa
 // Counts match what the user sees in the app, not the raw zip content:
 // - annotationsCount: non-deleted annotations, excluding technical
 //   pseudo-annotations (base-map annotations, isForBaseMaps listings,
-//   profile-template annotations). Bg-image text annotations are synthesized
-//   at read time (no db row) so a Dexie count naturally excludes them.
+//   profile-template annotations) and the annotations hosted on the base
+//   maps of the folders hidden in the scope. Bg-image text annotations are
+//   synthesized at read time (no db row) so a Dexie count naturally excludes
+//   them.
 // - baseMapsCount: non-deleted real baseMaps — isDetail baseMaps (rendered on
-//   the fly from PDFs, hidden from pickers) are excluded.
+//   the fly from PDFs, hidden from pickers) and the base maps of the hidden
+//   folders (scope.baseMapsSettings.disabledListingIds) are excluded.
 // The listing perimeter is the one createKrtoZip exports (shared util).
 export default async function computeScopeStats(scopeId) {
   const scope = await db.scopes.get(scopeId);
   if (!scope) throw new Error(`Scope ${scopeId} not found`);
   const projectId = scope.projectId;
+  const disabledListingIds = new Set(
+    scope.baseMapsSettings?.disabledListingIds ?? []
+  );
 
   const allProjectListings = await db.listings
     .where("projectId")
@@ -42,6 +48,17 @@ export default async function computeScopeStats(scopeId) {
       .map((t) => t.id)
   );
 
+  const allBaseMaps = (
+    await db.baseMaps.where("projectId").equals(projectId).toArray()
+  ).filter((bm) => !bm.deletedAt);
+  // Base maps of the hidden folders: their annotations do not exist for the
+  // scope either.
+  const disabledBaseMapIds = new Set(
+    allBaseMaps
+      .filter((bm) => disabledListingIds.has(bm.listingId))
+      .map((bm) => bm.id)
+  );
+
   const annotationsCount = (
     await db.annotations.where("projectId").equals(projectId).toArray()
   ).filter(
@@ -51,13 +68,15 @@ export default async function computeScopeStats(scopeId) {
         isScopeBoundAnnotationInScope(a, scopeId)) &&
       !forBaseMapsListingIds.has(a.listingId) &&
       !a.isBaseMapAnnotation &&
-      !profileTemplateIds.has(a.annotationTemplateId)
+      !profileTemplateIds.has(a.annotationTemplateId) &&
+      !disabledBaseMapIds.has(a.baseMapId)
   ).length;
 
-  const baseMapsCount = (
-    await db.baseMaps.where("projectId").equals(projectId).toArray()
-  ).filter(
-    (bm) => !bm.deletedAt && !bm.isDetail && listingIds.has(bm.listingId)
+  const baseMapsCount = allBaseMaps.filter(
+    (bm) =>
+      !bm.isDetail &&
+      listingIds.has(bm.listingId) &&
+      !disabledListingIds.has(bm.listingId)
   ).length;
 
   return { annotationsCount, baseMapsCount };

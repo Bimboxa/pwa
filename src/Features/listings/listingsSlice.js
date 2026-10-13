@@ -27,10 +27,11 @@ const listingsInitialState = {
   //
   openListingSyncDetail: false,
   //
-  // Listings hidden from the editors (eye of the Dessin panel / avatars /
-  // SCOPE-module base map folders). Per-scope local state: re-hydrated from
-  // localStorage on every scope selection (scopeVisibilityPersistMiddleware
-  // saves it), so ids never leak from one scope to the next.
+  // Annotation listings hidden from the editors (eye of the Dessin panel /
+  // avatars). Per-scope local state: re-hydrated from localStorage on every
+  // scope selection (scopeVisibilityPersistMiddleware saves it), so ids never
+  // leak from one scope to the next. Base map FOLDERS are hidden elsewhere:
+  // scope.baseMapsSettings.disabledListingIds (eye of the SCOPE module).
   hiddenListingsIds: [],
   //
   // SCOPE module (Krto) in "all listings" mode: the recap editor shows every

@@ -76,7 +76,7 @@ export default function BaseMapSelectorPopover({
 }) {
   // data
 
-  const baseMapsListings = useProjectBaseMapListings({ excludeDisabled: true });
+  const baseMapsListings = useProjectBaseMapListings();
   const povs = usePovs();
 
   // state

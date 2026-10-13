@@ -26,7 +26,11 @@ export default function PanelBaseMapListingProperties({ listing }) {
 
   // data
 
-  const { value: baseMaps } = useBaseMaps({ filterByListingId: listing?.id });
+  const { value: baseMaps } = useBaseMaps({
+    filterByListingId: listing?.id,
+    // the properties of a hidden folder still list its base maps
+    includeDisabledListings: true,
+  });
   const { guardEditRecord } = useCanEditRecord();
 
   // state

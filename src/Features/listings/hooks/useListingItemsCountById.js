@@ -18,19 +18,34 @@ const TABLE_BY_ENTITY_MODEL_TYPE = {
   BLUEPRINT: "blueprints",
 };
 
+// Tables whose rows are hosted by a base map (`baseMapId`): the ones
+// `excludeBaseMapIds` applies to.
+const HOSTED_TABLES = new Set(["annotations", "photos"]);
+
 const EMPTY = {};
 
 // {listingId: number of items} for the given listings — the count shown at the
 // end of a listing row. One indexed pass per table (streamed with `each`, so a
 // listing with thousands of annotations does not materialize them), and
 // soft-deleted rows are skipped.
-export default function useListingItemsCountById(listings) {
+//
+// `excludeBaseMapIds` (Set): rows hosted by one of these base maps are not
+// counted — the base maps of the folders hidden in the scope, whose
+// annotations do not exist for the scope (see useDisabledBaseMapIds).
+export default function useListingItemsCountById(listings, options) {
+  const excludeBaseMapIds = options?.excludeBaseMapIds;
+
   const idsKey = (listings ?? [])
     .map((l) => `${l.id}:${l?.entityModel?.type}`)
     .join(",");
+  const excludeKey = excludeBaseMapIds?.size
+    ? [...excludeBaseMapIds].sort().join(",")
+    : "";
 
   const countById = useLiveQuery(async () => {
     if (!listings?.length) return EMPTY;
+
+    const excluded = excludeKey ? new Set(excludeKey.split(",")) : null;
 
     // table -> the listing ids to count in it
     const idsByTable = {};
@@ -47,17 +62,19 @@ export default function useListingItemsCountById(listings) {
         ids.forEach((id) => {
           counts[id] = 0;
         });
+        const hosted = excluded && HOSTED_TABLES.has(table);
         await db[table]
           .where("listingId")
           .anyOf(ids)
           .each((row) => {
             if (row?.deletedAt) return;
+            if (hosted && row?.baseMapId && excluded.has(row.baseMapId)) return;
             counts[row.listingId] = (counts[row.listingId] ?? 0) + 1;
           });
       })
     );
     return counts;
-  }, [idsKey]);
+  }, [idsKey, excludeKey]);
 
   return countById ?? EMPTY;
 }

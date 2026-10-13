@@ -17,7 +17,7 @@ export default function SelectorMapsListingVariantChips({
 }) {
   const dispatch = useDispatch();
 
-  const baseMapsListings = useProjectBaseMapListings({ excludeDisabled: true });
+  const baseMapsListings = useProjectBaseMapListings();
   const id = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
 
   const options = [

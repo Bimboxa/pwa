@@ -5,6 +5,8 @@ import db from "App/db/db";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
+import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
+
 import BaseMap from "../js/BaseMap";
 
 export default function useBaseMaps(options) {
@@ -17,6 +19,12 @@ export default function useBaseMaps(options) {
   // in bulk would trigger one full PDF render each. Opt in only for
   // by-id joins (an annotation drawn ON a detail resolving its baseMap).
   const includeDetails = options?.includeDetails ?? false;
+  // Base maps of the folders hidden in the selected scope
+  // (scope.baseMapsSettings.disabledListingIds, eye of the SCOPE module) are
+  // excluded by default: a hidden folder does not exist for the scope. Opt in
+  // only for by-id joins (an annotation resolving its own base map's frame)
+  // and for the flows that manage the folders themselves.
+  const includeDisabledListings = options?.includeDisabledListings ?? false;
 
   // data
 
@@ -24,6 +32,7 @@ export default function useBaseMaps(options) {
   const baseMapsUpdatedAt = useSelector(
     (s) => s.entities.entitiesTableUpdatedAt?.["baseMaps"]
   );
+  const disabledListingIdsKey = useSelector(selectDisabledBaseMapListingIdsKey);
 
   // helpers
 
@@ -33,6 +42,8 @@ export default function useBaseMaps(options) {
     options != null && // options exists (not null/undefined)
     Object.prototype.hasOwnProperty.call(options, "filterByProjectId") && // prop is present
     options.filterByProjectId === null; // and its value is exactly null
+
+  const disabledKey = includeDisabledListings ? "" : disabledListingIdsKey;
 
   // main
 
@@ -52,6 +63,12 @@ export default function useBaseMaps(options) {
 
     if (!includeDetails) {
       records = records.filter((r) => !r.isDetail);
+    }
+
+    // hidden folders of the selected scope
+    if (disabledKey) {
+      const disabledListingIds = new Set(disabledKey.split(","));
+      records = records.filter((r) => !disabledListingIds.has(r.listingId));
     }
 
     // filter by listing
@@ -102,6 +119,7 @@ export default function useBaseMaps(options) {
     filterByListingId,
     filterByProjectId,
     includeDetails,
+    disabledKey,
   ]);
 
   // return — memoize to keep stable reference

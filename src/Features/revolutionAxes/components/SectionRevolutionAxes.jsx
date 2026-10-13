@@ -31,9 +31,9 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
 
   const items = useRevolutionAxesOfBaseMap(baseMap?.id);
   const hasItems = items.length > 0;
-  const { value: baseMaps } = useBaseMaps({ includeDetails: true });
+  const { value: baseMaps } = useBaseMaps({ includeDetails: true, includeDisabledListings: true });
   const { groups: verticalBaseMapGroups } = useVerticalBaseMapsByListing();
-  const baseMapListings = useProjectBaseMapListings({ excludeDisabled: true });
+  const baseMapListings = useProjectBaseMapListings();
   const appConfig = useAppConfig();
   const { startPlaceAxis } = useStartRevolutionAxisTools();
   const theme = useTheme();

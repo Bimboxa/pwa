@@ -30,7 +30,7 @@ export default function DialogCreateBaseMapVersion({ open, onClose, onConfirm })
   // data
 
   const listings = useProjectBaseMapListings({});
-  const { value: baseMaps } = useBaseMaps({});
+  const { value: baseMaps } = useBaseMaps({ includeDisabledListings: true });
 
   // state
 

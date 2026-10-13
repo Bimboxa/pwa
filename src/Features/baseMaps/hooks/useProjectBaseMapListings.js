@@ -7,7 +7,10 @@ export default function useProjectBaseMapListings(options) {
   // options
 
   const projectId = options?.projectId;
-  const excludeDisabled = options?.excludeDisabled;
+  // Folders hidden in the selected scope (eye of the SCOPE module) are left
+  // out by default: they do not exist for the scope. The scope creation recap
+  // opts in — its eyes are what defines the hidden folders.
+  const includeDisabled = options?.includeDisabled ?? false;
 
   // data
 
@@ -38,10 +41,8 @@ export default function useProjectBaseMapListings(options) {
 
   // result
 
-  // Selectors opt in to hide the scope's disabled listings; creation flows
-  // keep seeing every listing.
   const result =
-    excludeDisabled && disabledListingIds.length > 0
+    !includeDisabled && disabledListingIds.length > 0
       ? sorted?.filter((l) => !disabledListingIds.includes(l.id))
       : sorted;
 

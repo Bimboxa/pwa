@@ -11,6 +11,7 @@ import aggregatePaintedPartsByTemplate from "Features/meshPaint/utils/aggregateP
 import { getMeshPaintMetricsByBaseMapId } from "Features/meshPaint/utils/getMeshPaintMetrics";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
+import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
 
 /**
  * Painted parts (« Pinceau » 3D, db.meshPaints) of the selected project with
@@ -75,6 +76,10 @@ export default function usePaintedPartsQties(options) {
 
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  // Folders hidden in the scope: parts painted on annotations hosted by
+  // their base maps do not exist for the scope (same rule as
+  // useAnnotationsV2), merged into `excludeBaseMapIds` below.
+  const disabledListingIdsKey = useSelector(selectDisabledBaseMapListingIdsKey);
   // Listings linked into the selected scope (their paints pass the scope
   // filter, like their annotations) — content key.
   const linkedListingSourceByListingId = useSelector(
@@ -108,7 +113,7 @@ export default function usePaintedPartsQties(options) {
   // the live query re-runs when the first paint lands.
   const { value: ownBaseMaps } = useBaseMaps(
     hasRows && !givenBaseMaps
-      ? { includeDetails: true }
+      ? { includeDetails: true, includeDisabledListings: true }
       : { filterByProjectId: null }
   );
   const baseMaps = givenBaseMaps ?? ownBaseMaps;
@@ -130,6 +135,16 @@ export default function usePaintedPartsQties(options) {
     [baseMaps]
   );
 
+  const disabledHostIdsKey = useMemo(() => {
+    if (!disabledListingIdsKey) return "";
+    const disabled = new Set(disabledListingIdsKey.split(","));
+    return toKey(
+      (baseMaps ?? [])
+        .filter((bm) => disabled.has(bm?.listingId))
+        .map((bm) => bm.id)
+    );
+  }, [baseMaps, disabledListingIdsKey]);
+
   // helpers - filters
 
   const filters = useMemo(() => {
@@ -143,7 +158,10 @@ export default function usePaintedPartsQties(options) {
       scopeId: filterBySelectedScope ? (selectedScopeId ?? null) : null,
       linkedListingIds: fromKey(linkedListingIdsKey),
       baseMapIds,
-      excludeBaseMapIds: fromKey(excludeBaseMapIdsKey),
+      excludeBaseMapIds: [
+        ...fromKey(excludeBaseMapIdsKey),
+        ...fromKey(disabledHostIdsKey),
+      ],
       excludeListingsIds: fromKey(excludeListingsIdsKey),
       excludeIsForBaseMapsListings: Boolean(excludeIsForBaseMapsListings),
       onlyIsForBaseMapsListings: Boolean(onlyIsForBaseMapsListings),
@@ -170,6 +188,7 @@ export default function usePaintedPartsQties(options) {
     selectedScopeId,
     linkedListingIdsKey,
     excludeBaseMapIdsKey,
+    disabledHostIdsKey,
     excludeListingsIdsKey,
     excludeIsForBaseMapsListings,
     onlyIsForBaseMapsListings,

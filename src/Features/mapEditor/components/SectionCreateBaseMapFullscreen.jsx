@@ -124,7 +124,7 @@ export default function SectionCreateBaseMapFullscreen({
 
   // data
 
-  const listings = useProjectBaseMapListings({ excludeDisabled: true });
+  const listings = useProjectBaseMapListings();
   const createBaseMapFromImage = useCreateBaseMapFromImage();
   const openBaseMapCreatorFromResource = useOpenBaseMapCreatorFromResource();
 

@@ -53,7 +53,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
   // data
 
   const appConfig = useAppConfig();
-  const baseMapsListings = useProjectBaseMapListings({ projectId });
+  const baseMapsListings = useProjectBaseMapListings({ projectId, includeDisabled: true });
   const defaultBaseMapsListingProps = useDefaultBaseMapsListingProps();
 
   const createScope = useCreateScope();

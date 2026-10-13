@@ -31,7 +31,6 @@ import FieldSlider from "Features/form/components/FieldSlider";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -92,17 +91,13 @@ export default function PanelPropertiesBaseMapsList() {
 
   const { value: baseMaps = [] } = useBaseMaps({});
   const mainBaseMap = useMainBaseMap();
-  const { disabledListingIds } = useDisabledBaseMapListingIds();
 
   // helpers
 
   const scopeName = scope?.name ?? "-?-";
 
   // Non-main base maps of the scope (same set as the list).
-  const otherBaseMaps = baseMaps.filter(
-    (bm) =>
-      bm.id !== mainBaseMap?.id && !disabledListingIds.includes(bm.listingId)
-  );
+  const otherBaseMaps = baseMaps.filter((bm) => bm.id !== mainBaseMap?.id);
   // Common display mode of the others (null when mixed).
   const modes = new Set(
     otherBaseMaps.map(

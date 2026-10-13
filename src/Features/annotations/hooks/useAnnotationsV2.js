@@ -338,6 +338,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
@@ -673,6 +674,13 @@ export default function useAnnotationsV2(options) {
     const selectedListingId = useSelector((s) => s.listings.selectedListingId);
     const { value: scope } = useSelectedScope();
     const baseMap = useMainBaseMap();
+    // Folders hidden in the scope (scope.baseMapsSettings.disabledListingIds,
+    // eye of the SCOPE module): the annotations hosted on their base maps do
+    // not exist for the scope. Redux mirror of the scope row, reduced to a
+    // string dep (see linkedListingIdsKey below for the rationale).
+    const disabledListingIdsKey = useSelector(
+      selectDisabledBaseMapListingIdsKey
+    );
 
     const annotationTemplates = useAnnotationTemplates();
     const annotationTemplatesMap = useMemo(
@@ -810,6 +818,10 @@ export default function useAnnotationsV2(options) {
     const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps({
       // by-id join: annotations drawn ON a detail baseMap must resolve it
       includeDetails: true,
+      // ...and the hidden folders' base maps stay resolvable too: their
+      // annotations are dropped below (isHostDisabled), but a kept row may
+      // still relate to one (foreign targets, revolution arcs, clones).
+      includeDisabledListings: true,
     });
     const baseMapById = useMemo(
       () => getItemsByKey(baseMaps, "id"),
@@ -999,6 +1011,24 @@ export default function useAnnotationsV2(options) {
                 .toArray()
             ).filter((r) => !r.deletedAt)
         );
+      }
+
+      // -- HIDDEN FOLDERS --
+      // Per instance, on the copy `_annRowsFromShared` returned (the shared
+      // cache rows are never mutated / filtered in place). A row is dropped
+      // when its HOST base map belongs to a hidden folder — base-map
+      // annotations, templateless rows and revolution helpers included: they
+      // fall with their plan. Rows with no host (none expected) pass. Detail
+      // base maps belong to no folder (listingId null): never hidden.
+      const disabledListingIdSet = disabledListingIdsKey
+        ? new Set(disabledListingIdsKey.split(","))
+        : null;
+      const isHostDisabled = (id) =>
+        Boolean(disabledListingIdSet) &&
+        Boolean(id) &&
+        disabledListingIdSet.has(baseMapById[id]?.listingId);
+      if (disabledListingIdSet) {
+        _annotations = _annotations.filter((a) => !isHostDisabled(a.baseMapId));
       }
 
       const _t1 = performance.now();
@@ -2007,7 +2037,10 @@ export default function useAnnotationsV2(options) {
         if (missingTargetIds.size > 0) {
           const rows = (
             await db.annotations.bulkGet([...missingTargetIds])
-          ).filter((r) => r && !r.deletedAt && r.baseMapId);
+          ).filter(
+            (r) =>
+              r && !r.deletedAt && r.baseMapId && !isHostDisabled(r.baseMapId)
+          );
           _foreignTargetsById = await resolveRowsAgainstOwnBaseMap(
             rows,
             baseMapById
@@ -2034,7 +2067,12 @@ export default function useAnnotationsV2(options) {
           if (!ids?.length) continue;
           const foreign = ids
             .map((id) => byId.get(id) ?? _foreignTargetsById?.get(id))
-            .filter((t) => t?.baseMapId && t.baseMapId !== a?.baseMapId);
+            .filter(
+              (t) =>
+                t?.baseMapId &&
+                t.baseMapId !== a?.baseMapId &&
+                !isHostDisabled(t.baseMapId)
+            );
           if (foreign.length > 0) a._foreignSubtractionTargets = foreign;
         }
       }
@@ -2096,7 +2134,8 @@ export default function useAnnotationsV2(options) {
         const allowedHostIds = baseMapId
           ? new Set([baseMapId, ...extraBaseMapIds])
           : null;
-        const isHostAllowed = (id) => !allowedHostIds || allowedHostIds.has(id);
+        const isHostAllowed = (id) =>
+          (!allowedHostIds || allowedHostIds.has(id)) && !isHostDisabled(id);
 
         // Axes: resolved rows of the query, then raw rows reached via the
         // loaded arcs (centre resolved below).
@@ -2154,7 +2193,9 @@ export default function useAnnotationsV2(options) {
           const verticalIds = queryAxisIds.size
             ? Object.values(baseMapById)
                 .filter(
-                  (bm) => getBaseMapTransform(bm)?.orientation === "VERTICAL"
+                  (bm) =>
+                    getBaseMapTransform(bm)?.orientation === "VERTICAL" &&
+                    !isHostDisabled(bm.id)
                 )
                 .map((bm) => bm.id)
             : [];
@@ -2595,7 +2636,7 @@ export default function useAnnotationsV2(options) {
       // guarantees no annotation write path can ever reach a real row. The
       // db.photos read is inside the liveQuery on purpose — localization
       // commits re-render for free.
-      if (withPhotos && baseMap?.id) {
+      if (withPhotos && baseMap?.id && !isHostDisabled(baseMap.id)) {
         const imageSize =
           baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
         if (imageSize?.width) {
@@ -2632,6 +2673,7 @@ export default function useAnnotationsV2(options) {
     }, [
       enabled,
       scope?.id,
+      disabledListingIdsKey,
       baseMap?.id,
       projectId,
       listingId,

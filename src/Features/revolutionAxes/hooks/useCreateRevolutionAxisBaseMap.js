@@ -30,7 +30,7 @@ export default function useCreateRevolutionAxisBaseMap() {
   // data
 
   const createBaseMapFromImage = useCreateBaseMapFromImage();
-  const listings = useProjectBaseMapListings({ excludeDisabled: true });
+  const listings = useProjectBaseMapListings();
   const { groups: verticalBaseMapGroups } = useVerticalBaseMapsByListing();
 
   // state

@@ -1,7 +1,3 @@
-import { useDispatch, useSelector } from "react-redux";
-
-import { setHiddenListingsIds } from "Features/listings/listingsSlice";
-
 import {
   Box,
   IconButton,
@@ -19,6 +15,7 @@ import IconButtonMoreActionsListing from "Features/listings/components/IconButto
 import { ChipScopeStat } from "Features/dashboard/components/ChipsScopeStats";
 import ListingFamilyAvatar from "./ListingFamilyAvatar";
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
+import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -27,8 +24,11 @@ import { CSS } from "@dnd-kit/utilities";
 // base map listing, initials avatar for an annotation listing — see
 // ListingFamilyAvatar), name, and on the right the items count as a chip with
 // the family icon (same chip as the dashboard scope rows) plus the row
-// actions. `showVisibility` adds the eye — base map folders only, where it
-// hides that folder's plans from the recap editor.
+// actions. `showVisibility` adds the eye — base map folders only: it hides
+// the folder in the scope (scope.baseMapsSettings.disabledListingIds), and a
+// hidden folder, its base maps and the annotations hosted on them are left
+// out of every module. The eye is always shown (not just on hover): it is
+// the one place where the scope's folders are hidden / revealed.
 //
 // The drag handle and the actions are laid over the row, not beside it, so the
 // ListItemButton spans the whole width and the hover / selection tint reaches
@@ -48,20 +48,17 @@ export default function RowListingInGroup({
   showVisibility = false,
   onClick,
 }) {
-  const dispatch = useDispatch();
-
   // strings
 
   const dragS = "Glisser pour réordonner";
-  const showS = "Afficher";
-  const hideS = "Masquer";
+  const showS = "Afficher le dossier dans ce repérage";
+  const hideS = "Masquer le dossier dans ce repérage";
   const fromS = "Depuis";
 
   // data
 
-  const hiddenListingsIds = useSelector(
-    (s) => s.listings.hiddenListingsIds || []
-  );
+  const { disabledListingIds, toggleListingDisabled } =
+    useDisabledBaseMapListingIds();
 
   // Listing linked from another scope ("Depuis un autre Krto"): read-only
   // reference row — not sortable, flagged in palette.listingFromOtherScope
@@ -81,7 +78,7 @@ export default function RowListingInGroup({
 
   // helpers
 
-  const hidden = hiddenListingsIds.includes(listing.id);
+  const hidden = showVisibility && disabledListingIds.includes(listing.id);
 
   // Room the button keeps on the right for the actions overlay: count chip
   // and "⋮", plus the eye when the family has one.
@@ -91,13 +88,7 @@ export default function RowListingInGroup({
 
   function handleToggleVisibility(e) {
     e.stopPropagation();
-    dispatch(
-      setHiddenListingsIds(
-        hidden
-          ? hiddenListingsIds.filter((id) => id !== listing.id)
-          : [...hiddenListingsIds, listing.id]
-      )
-    );
+    toggleListingDisabled(listing.id);
   }
 
   // render
@@ -225,29 +216,33 @@ export default function RowListingInGroup({
           alignItems: "center",
         }}
       >
+        {/* The eye is always visible: it is the scope's folder switch, not a
+            hover action, and a hidden folder must read as such at a glance. */}
+        {showVisibility && (
+          <Tooltip title={hidden ? showS : hideS}>
+            <IconButton
+              size="small"
+              onClick={handleToggleVisibility}
+              sx={{ color: hidden ? "text.disabled" : "text.secondary" }}
+            >
+              {hidden ? (
+                <VisibilityOff sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
         <Box
           className="rowListingActions"
           sx={{
             display: "flex",
             alignItems: "center",
             pr: 0.5,
-            // The eye stays visible once off, so a hidden folder is readable
-            // without hovering every row.
-            opacity: hidden ? 1 : 0,
+            opacity: 0,
             transition: "opacity 0.15s ease",
           }}
         >
-          {showVisibility && (
-            <Tooltip title={hidden ? showS : hideS}>
-              <IconButton size="small" onClick={handleToggleVisibility}>
-                {hidden ? (
-                  <VisibilityOff sx={{ fontSize: 16 }} />
-                ) : (
-                  <Visibility sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-          )}
           <IconButtonMoreActionsListing listing={listing} size="small" />
         </Box>
 

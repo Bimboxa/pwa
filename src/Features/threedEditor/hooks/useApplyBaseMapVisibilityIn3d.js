@@ -86,7 +86,7 @@ export default function useApplyBaseMapVisibilityIn3d({
       const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
         bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
-      const isDisabled = bm.id !== mainId && disabledIds.has(bm.id);
+      const isDisabled = disabledIds.has(bm.id);
       const shouldParticipate = !isDisabled && (eyeOn || annoOn);
 
       if (shouldParticipate) {

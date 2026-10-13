@@ -21,7 +21,11 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
   const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId, withQties: true });
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } =
-    useBaseMaps({ filterByProjectId: projectId, includeDetails: true }) ?? {};
+    useBaseMaps({
+      filterByProjectId: projectId,
+      includeDetails: true,
+      includeDisabledListings: true,
+    }) ?? {};
   // Parts painted in 3D (« Pinceau »): same scope (whole project, hidden
   // painting templates dropped), added to their painting template's totals.
   const painted = usePaintedPartsQties({

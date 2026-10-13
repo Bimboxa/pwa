@@ -108,7 +108,7 @@ export default function DialogKrtoRecap({
   // data
 
   const appConfig = useAppConfig();
-  const existingBaseMapListings = useProjectBaseMapListings({ projectId });
+  const existingBaseMapListings = useProjectBaseMapListings({ projectId, includeDisabled: true });
 
   // the configuration's illustration — resolved only once the recap is open
   const { url: recapImageUrl, loading: recapImageLoading } = useDataImageUrl({
