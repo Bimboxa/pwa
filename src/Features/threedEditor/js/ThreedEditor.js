@@ -6,6 +6,8 @@ import getBaseMapTransform, {
 } from "Features/baseMaps/js/getBaseMapTransform";
 
 import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
+import getBaseMapPlaneFrame from "./utilsImagesManager/getBaseMapPlaneFrame";
+import getBaseMapZoomOutView from "./utilsImagesManager/getBaseMapZoomOutView";
 
 export default class ThreedEditor {
   constructor({ containerEl, onRendererIsReady }) {
@@ -183,6 +185,28 @@ export default class ThreedEditor {
   fitToBox3Facing = (box, normal, side) => {
     if (!this.sceneIsInitialized) return Promise.resolve(null);
     return this.sceneManager.controlsManager.fitToBox3Facing(box, normal, side);
+  };
+
+  // Zoom out of the Dessin module: frame the given base map plane head-on
+  // with the image upright, slightly tilted (horizontal plan) or shifted to
+  // the right (vertical plan) — see getBaseMapZoomOutView. The box is the
+  // image plane alone (annotations and scan excluded, like the double-click
+  // on a base map). Resolves false when the base map is not framable (not
+  // loaded, no scale) so the caller can fall back to fitToAnnotations.
+  fitToBaseMap = async (baseMapId) => {
+    if (!this.sceneIsInitialized || !baseMapId) return false;
+    const imagesManager = this.sceneManager.imagesManager;
+    const group = imagesManager?.getGroup(baseMapId);
+    const baseMap = imagesManager?.baseMapsMap?.[baseMapId];
+    const frame = getBaseMapPlaneFrame(group);
+    if (!frame || !baseMap) return false;
+
+    const view = getBaseMapZoomOutView(getBaseMapTransform(baseMap));
+    await this.sceneManager.controlsManager.fitToBox3FromAngles({
+      box: frame.box,
+      ...view,
+    });
+    return true;
   };
 
   // annotations

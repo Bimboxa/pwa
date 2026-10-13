@@ -490,6 +490,88 @@ export default class ControlsManager {
     return appliedSide;
   };
 
+  // Frame a world-space Box3 from an explicit view direction (azimuth /
+  // polar, camera-controls Y-up convention), WITHOUT the nearest-axis
+  // snapping of cameraControls.fitToBox (it rounds theta and phi to the
+  // closest PI/2 before fitting, so a tilted or shifted view is impossible
+  // with it). The box center lands on the screen center; the distance is the
+  // smallest one that keeps every corner of the box inside the frustum with
+  // `padding` metres of margin. Single smooth transition (setLookAt).
+  // Invariant at rest: the orbit target IS the box center (focal offset
+  // zeroed), so the following orbit / dolly gestures pivot on what is seen
+  // at the screen center — for a base map plane, the center of the image.
+  fitToBox3FromAngles = async ({
+    box,
+    azimuthRad,
+    polarRad,
+    padding = 0.5,
+  }) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera || !box || box.isEmpty()) return;
+    if (!Number.isFinite(azimuthRad) || !Number.isFinite(polarRad)) return;
+
+    // Same pole guard as animateToTopDown: camera-controls degenerates at an
+    // exactly vertical look direction.
+    const polar = Math.min(Math.PI - 0.001, Math.max(0.001, polarRad));
+    const dir = new Vector3(
+      Math.sin(polar) * Math.sin(azimuthRad),
+      Math.cos(polar),
+      Math.sin(polar) * Math.cos(azimuthRad)
+    ).normalize();
+
+    // Camera basis for that direction (forward = -dir, world up = +Y).
+    const forward = dir.clone().negate();
+    const right = new Vector3().crossVectors(forward, new Vector3(0, 1, 0));
+    if (right.lengthSq() < 1e-12) right.set(1, 0, 0);
+    right.normalize();
+    const up = new Vector3().crossVectors(right, forward).normalize();
+
+    const vFovRad = (camera.getEffectiveFOV() * Math.PI) / 180;
+    const tanHalfV = Math.tan(vFovRad / 2);
+    const tanHalfH = tanHalfV * camera.aspect;
+
+    const center = box.getCenter(new Vector3());
+    const corner = new Vector3();
+    let distance = 0;
+    for (let i = 0; i < 8; i++) {
+      corner.set(
+        i & 1 ? box.max.x : box.min.x,
+        i & 2 ? box.max.y : box.min.y,
+        i & 4 ? box.max.z : box.min.z
+      );
+      corner.sub(center);
+      const depth = corner.dot(dir); // toward the camera
+      const x = Math.abs(corner.dot(right)) + padding;
+      const y = Math.abs(corner.dot(up)) + padding;
+      distance = Math.max(distance, depth + x / tanHalfH, depth + y / tanHalfV);
+    }
+    if (!Number.isFinite(distance) || distance <= 0) return;
+
+    const position = center.clone().addScaledVector(dir, distance);
+
+    const prevEnabled = controls.enabled;
+    try {
+      controls.enabled = false; // ignore user input mid-flight
+      // A stale focal offset (orbit-around-cursor setOrbitPoint calls) would
+      // shift the framed center off the screen center.
+      controls.setFocalOffset(0, 0, 0, false);
+      await controls.setLookAt(
+        position.x,
+        position.y,
+        position.z,
+        center.x,
+        center.y,
+        center.z,
+        true
+      );
+    } finally {
+      controls.enabled = prevEnabled;
+    }
+    this.syncCameraNow();
+    this.sceneManager.requestRender?.();
+  };
+
   // Top-down framing of every annotation in the scene: pivot to a vertical
   // look-down view around the annotations' center, then fit the box with the
   // settled orientation (fitToBox frames along the current view direction).
