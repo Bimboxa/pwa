@@ -19,6 +19,7 @@ import {
 import { isNavigationPreset } from "Features/threedEditor/constants/navigationPresets";
 import { normalizeAxesYawDeg } from "Features/threedEditor/constants/axesDisplay";
 import { isViewDistance } from "Features/threedEditor/constants/viewDistances";
+import { DEFAULT_CREASE_THRESHOLD_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 
 // Closes the base maps grid (3D "table à plans"): every other 3D tool mode
 // calls it when it arms, the grid poses being incompatible with them.
@@ -85,13 +86,16 @@ const threedEditorInitialState = {
   // surface across its facets without crossing a real crease.
   faceSelectionAngleDeg: 25,
   // "Wireframe" section: black grid-edge lines drawn on annotation meshes
-  // (EdgesGeometry overlays). showWireframe toggles them; wireframeAngleDeg is
-  // the EdgesGeometry dihedral threshold (degrees) — 1 (three's default) draws
-  // every lathe/sweep facet seam, higher values keep only silhouettes and
-  // real creases. Synced live by MainThreedEditor →
-  // AnnotationsManager.setWireframeSettings.
+  // (EdgesGeometry overlays). showWireframe toggles them. showTessellation
+  // (« Afficher le maillage 3D », off by default) draws every facet seam of
+  // the curved surfaces (1° threshold: the full lathe / arc grid, also drawn
+  // over the « Pinceau » paints); otherwise wireframeAngleDeg is the crease
+  // tolerance (degrees) — only silhouettes, free borders and real folds stay.
+  // Effective threshold: getGridEdgeThresholdDeg, synced live by
+  // MainThreedEditor → AnnotationsManager.setWireframeSettings.
   showWireframe: true,
-  wireframeAngleDeg: 1,
+  showTessellation: false,
+  wireframeAngleDeg: DEFAULT_CREASE_THRESHOLD_DEG,
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
@@ -449,6 +453,9 @@ export const threedEditorSlice = createSlice({
     },
     setShowWireframe: (state, action) => {
       state.showWireframe = action.payload;
+    },
+    setShowTessellation: (state, action) => {
+      state.showTessellation = action.payload;
     },
     setWireframeAngleDeg: (state, action) => {
       state.wireframeAngleDeg = action.payload;
@@ -1344,6 +1351,7 @@ export const {
   setAntiAliasingShrink,
   setFaceSelectionAngleDeg,
   setShowWireframe,
+  setShowTessellation,
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,

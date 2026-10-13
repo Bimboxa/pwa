@@ -189,14 +189,18 @@ export default function subtractAnnotationGeometries(
     // Skipped by headless callers (quantities) via options.rebuildEdges.
     // The carved geometry is a triangle soup with T-junctions, so a raw
     // EdgesGeometry would slash diagonals across flat faces: buildWallEdges
-    // coalesces coplanar faces first. "EDGES" lines keep the 1° default
-    // threshold of EdgesGeometry so arc facets stay drawn as before.
+    // coalesces coplanar faces first. "EDGES" lines take the current
+    // Wireframe threshold (options.gridEdgeThresholdDeg, 1° when absent) so
+    // the carved object needs no re-threshold in finishRoot.
     // Attached as a CHILD of the carved mesh: the carved geometry is in the
     // mesh's local frame, so an identity-transform child lands exactly on the
     // surface — and it is found again by the purge on a later re-carve.
     if (options.rebuildEdges && removedEdgeInfo) {
       const { kind, material } = removedEdgeInfo;
-      const seamDihedralDeg = kind === "WALL_PLANAR" ? undefined : 1;
+      const seamDihedralDeg =
+        kind === "WALL_PLANAR"
+          ? undefined
+          : (options.gridEdgeThresholdDeg ?? 1);
       for (const sourceMesh of sourceMeshes) {
         const edges = buildWallEdges(sourceMesh.geometry, {
           kind,

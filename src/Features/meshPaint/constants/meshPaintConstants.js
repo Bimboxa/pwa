@@ -63,6 +63,10 @@ export const INSIDE_PROBE_M = 0.005;
 
 // --- rendering ---
 export const PAINT_FACE_LIFT_M = 0.001;
+// Lift of the grid lines drawn over a painted curved face when « Afficher le
+// maillage 3D » is on (buildPaintFacetEdges): above the front skin, as a
+// factor of PAINT_FACE_LIFT_M.
+export const PAINT_GRID_LIFT_FACTOR = 1.5;
 export const PAINT_EDGE_WIDTH_PX = 4;
 export const PAINT_FACE_RENDER_ORDER = 2;
 export const PAINT_EDGE_RENDER_ORDER = 996;

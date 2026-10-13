@@ -20,6 +20,7 @@ import {
   setAntiAliasingShrink,
   setFaceSelectionAngleDeg,
   setShowWireframe,
+  setShowTessellation,
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
@@ -48,6 +49,7 @@ export default function PanelThreedProperties() {
     (s) => s.threedEditor.faceSelectionAngleDeg
   );
   const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const showTessellation = useSelector((s) => s.threedEditor.showTessellation);
   const wireframeAngleDeg = useSelector(
     (s) => s.threedEditor.wireframeAngleDeg
   );
@@ -150,23 +152,38 @@ export default function PanelThreedProperties() {
             color="text.secondary"
             sx={{ display: "block", mb: 1 }}
           >
-            Arêtes noires dessinées sur les objets 3D. L&apos;angle de tolérance
-            masque les arêtes entre facettes quasi-coplanaires : 1° dessine tout
-            le maillage d&apos;une révolution, une valeur plus élevée ne garde
-            que les silhouettes et les vrais plis.
+            Arêtes noires dessinées sur les objets 3D. « Afficher le maillage 3D
+            » trace toutes les facettes des surfaces courbes (révolutions,
+            coupoles, arcs), y compris sur les zones peintes au Pinceau. Sinon,
+            l&apos;angle de tolérance masque les arêtes entre facettes
+            quasi-coplanaires : seules les silhouettes et les vrais plis
+            restent.
           </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={showWireframe}
+                onChange={(e) => dispatch(setShowWireframe(e.target.checked))}
+              />
+            }
+            label={<Typography variant="body2">Afficher les arêtes</Typography>}
+          />
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <FormControlLabel
               sx={{ flexGrow: 1 }}
               control={
                 <Switch
                   size="small"
-                  checked={showWireframe}
-                  onChange={(e) => dispatch(setShowWireframe(e.target.checked))}
+                  checked={showTessellation}
+                  disabled={!showWireframe}
+                  onChange={(e) =>
+                    dispatch(setShowTessellation(e.target.checked))
+                  }
                 />
               }
               label={
-                <Typography variant="body2">Afficher les arêtes</Typography>
+                <Typography variant="body2">Afficher le maillage 3D</Typography>
               }
             />
             <TextField
@@ -174,7 +191,7 @@ export default function PanelThreedProperties() {
               type="number"
               label="Angle (°)"
               value={wireframeAngleDeg}
-              disabled={!showWireframe}
+              disabled={!showWireframe || showTessellation}
               onChange={(e) => {
                 const v = parseFloat(e.target.value);
                 if (Number.isNaN(v)) return;

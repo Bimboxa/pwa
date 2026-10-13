@@ -24,6 +24,7 @@ import {
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
 import ensureMaterial3dMaps from "Features/photorealRender/utils/ensureMaterial3dMaps";
 import { applySketchEdges } from "./postfx/aquarelleMaterials";
+import { DEFAULT_CREASE_THRESHOLD_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 
 export default class AnnotationsManager {
   constructor({ sceneManager }) {
@@ -32,10 +33,16 @@ export default class AnnotationsManager {
     this.annotationsObjectsMap = {};
     this._annotationReadyCallbacks = new Set();
     // "Wireframe" 3D view settings (black grid-edge lines): visibility +
-    // EdgesGeometry dihedral threshold. Builders emit edges at the 1° default;
-    // finishRoot re-applies the current settings on every (re)build, async
-    // load and post-carve, and setWireframeSettings syncs live changes.
-    this.wireframeSettings = { visible: true, thresholdDeg: 1 };
+    // EdgesGeometry dihedral threshold (getGridEdgeThresholdDeg). The
+    // threshold is handed to the builders (options.gridEdgeThresholdDeg) so
+    // the lines come out right on the first build; finishRoot re-applies the
+    // current settings on every (re)build, async load and post-carve (a
+    // no-op when the applied threshold matches), and setWireframeSettings
+    // syncs live changes.
+    this.wireframeSettings = {
+      visible: true,
+      thresholdDeg: DEFAULT_CREASE_THRESHOLD_DEG,
+    };
     // Build provenance for the incremental diff: id -> { sourceRef (the
     // resolved annotation the object was built from — reference-stable across
     // runs thanks to stabilizeAnnotationsIdentity), epochKey (build options),
@@ -269,6 +276,7 @@ export default class AnnotationsManager {
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
         resolution,
+        gridEdgeThresholdDeg: this.wireframeSettings.thresholdDeg,
         onAsyncLoaded: () => {
           // Late-arriving children (GLB scene, async profile sweep) — the map
           // holds the current root (it may have been swapped by a carve).
@@ -449,7 +457,8 @@ export default class AnnotationsManager {
             const tempFrames = [];
             const targetObjects3D = targetObjects.map(
               ({ object: o, baseMapId, transform }) => {
-                const isForeign = baseMapId && baseMapId !== annotation.baseMapId;
+                const isForeign =
+                  baseMapId && baseMapId !== annotation.baseMapId;
                 if (!isForeign) {
                   sourceParent.add(o);
                   return o;
@@ -488,6 +497,7 @@ export default class AnnotationsManager {
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
               rebuildEdges: true,
+              gridEdgeThresholdDeg: this.wireframeSettings.thresholdDeg,
             });
 
             carveOperands.forEach((o) => {

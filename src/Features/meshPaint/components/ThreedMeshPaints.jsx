@@ -6,6 +6,8 @@ import {
   BufferGeometry,
   FrontSide,
   Group,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   MeshBasicMaterial,
 } from "three";
@@ -36,6 +38,9 @@ import { makeMaterial } from "Features/threedEditor/js/utilsAnnotationsManager/c
 import { buildStippleOverlayFromPositions } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getGridEdgeThresholdDeg, {
+  TESSELLATION_THRESHOLD_DEG,
+} from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 import {
   MESH_PAINT_PART_TYPES,
   MESH_PAINT_STATUS,
@@ -43,6 +48,7 @@ import {
   PAINT_EDGE_WIDTH_PX,
   PAINT_FACE_LIFT_M,
   PAINT_FACE_RENDER_ORDER,
+  PAINT_GRID_LIFT_FACTOR,
 } from "Features/meshPaint/constants/meshPaintConstants";
 import { getHostHalfView } from "Features/meshPaint/js/buildHostPartIndexFromObject";
 import { setMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
@@ -55,7 +61,9 @@ import getMeshPaintPartQties from "Features/meshPaint/utils/getMeshPaintPartQtie
 import getMeshPaintVisibility, {
   MESH_PAINT_VISIBILITY,
 } from "Features/meshPaint/utils/getMeshPaintVisibility";
+import buildPaintFacetEdges from "Features/meshPaint/utils/buildPaintFacetEdges";
 import { paintGeometryToLocal } from "Features/meshPaint/utils/meshPaintFrame";
+import { isCurvedFace } from "Features/meshPaint/utils/meshPaintGeometry";
 import resolveMeshPaints from "Features/meshPaint/utils/resolveMeshPaints";
 import triangulatePaintFace from "Features/meshPaint/utils/triangulatePaintFace";
 
@@ -189,6 +197,20 @@ export default function ThreedMeshPaints() {
   // render options (same switches as the annotation objects)
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
+  // "Wireframe" settings: the host's grid (every facet seam at the 1°
+  // tessellation threshold) is hidden under an opaque paint, so a curved
+  // paint draws its own facet boundaries when « Afficher le maillage 3D » is
+  // on (same rule as MainThreedEditor → getGridEdgeThresholdDeg). At the
+  // crease threshold nothing is drawn: the paint stays uniform.
+  const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const showTessellation = useSelector((s) => s.threedEditor.showTessellation);
+  const wireframeAngleDeg = useSelector(
+    (s) => s.threedEditor.wireframeAngleDeg
+  );
+  const showPaintGrid =
+    showWireframe &&
+    getGridEdgeThresholdDeg({ showTessellation, wireframeAngleDeg }) <=
+      TESSELLATION_THRESHOLD_DEG;
 
   // visibility inputs (mirror of useAutoLoadAnnotationsInThreedEditor +
   // ThreedAnnotationsVisibility + ThreedSelectionDimmer)
@@ -466,6 +488,32 @@ export default function ThreedMeshPaints() {
       if (overlay) mesh.add(overlay);
     }
 
+    // « Afficher le maillage 3D »: the facet grid over the paint (front side
+    // only, above the skin). Per-object material: disposed with the object.
+    if (showPaintGrid && !dimmed && isCurvedFace(displayed)) {
+      const gridPositions = buildPaintFacetEdges(displayed, {
+        lift: PAINT_FACE_LIFT_M * PAINT_GRID_LIFT_FACTOR,
+      });
+      if (gridPositions.length) {
+        const gridGeometry = new BufferGeometry();
+        gridGeometry.setAttribute(
+          "position",
+          new BufferAttribute(gridPositions, 3)
+        );
+        const grid = new LineSegments(
+          gridGeometry,
+          new LineBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.5,
+          })
+        );
+        grid.renderOrder = PAINT_FACE_RENDER_ORDER;
+        grid.raycast = () => {};
+        mesh.add(grid);
+      }
+    }
+
     return {
       object: mesh,
       materialKey,
@@ -706,6 +754,7 @@ export default function ThreedMeshPaints() {
         getClipKey(clip),
         dimmed ? "dim" : "",
         highlighted ? "hl" : "",
+        showPaintGrid ? "grid" : "",
       ].join("|");
 
       let entry = prevEntries.get(row.id);
@@ -815,6 +864,7 @@ export default function ThreedMeshPaints() {
     visibilityCtx,
     renderMode,
     disableOpacity,
+    showPaintGrid,
     highlightedPaintId,
     annotationsLoadTick,
     baseMapsLoadTick,
