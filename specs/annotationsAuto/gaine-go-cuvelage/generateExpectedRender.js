@@ -1,9 +1,9 @@
 /* global process */
 // Generates expected-render.svg next to this spec, from the REAL
-// implementation output: gaineGoV1 replayed on the seuil of the reference
-// example (plan view of the generated GO gaine: Sol, U wall band, slab
+// implementation output: gaineGoV1 replayed on the two input polygons of the
+// reference example (plan view: floor with its slope line, U wall band, slab
 // underside, trémie and its walls), then gaineCuvelageV1 replayed on a
-// duplicate of that Sol for three water levels. Regenerate it whenever the
+// duplicate of the floor for three water levels. Regenerate it whenever the
 // builders change.
 //
 // Run from the repo root:
@@ -97,19 +97,29 @@ const cvgTemplates = [
     mappingCategories: ["CVG:SOUS_FACE"],
   },
 ];
-const seuilExample = example.handDrawnGo.find((a) => a.role === "seuil");
-const seuil = {
-  id: "seuil1",
-  type: "STRIP",
+const floorExample = example.inputs.find((a) => a.role === "floor");
+const tremieExample = example.inputs.find((a) => a.role === "tremie");
+const floor = {
+  id: "floor1",
+  type: "POLYGON",
   listingId: GO,
-  annotationTemplateId: "tplSeuil",
-  strokeWidth: 20,
-  strokeWidthUnit: "CM",
-  stripOrientation: seuilExample.stripOrientation,
-  points: seuilExample.points,
+  annotationTemplateId: "tplSol",
+  points: floorExample.points,
+  hiddenSegmentsIdx: floorExample.hiddenSegmentsIdx,
+  offsetZ: floorExample.offsetZ ?? 0,
+  closeLine: true,
+};
+const tremie = {
+  id: "tremie1",
+  type: "POLYGON",
+  listingId: GO,
+  annotationTemplateId: "tplTremie",
+  points: tremieExample.points,
+  closeLine: true,
+  isAdjacencyOnly: true,
 };
 const go = gaineGoV1({
-  sourceAnnotations: [seuil],
+  sourceAnnotations: [floor, tremie],
   templatesByListingId: new Map([[GO, goTemplates]]),
   imageSize,
   meterByPx,
@@ -117,7 +127,9 @@ const go = gaineGoV1({
 });
 if (go.error) throw new Error(go.error);
 
-const pxById = new Map(seuil.points.map((p) => [p.id, p]));
+const pxById = new Map(
+  [...floor.points, ...tremie.points].map((p) => [p.id, p])
+);
 for (const p of go.points) {
   pxById.set(p.id, { x: p.x * imageSize.width, y: p.y * imageSize.height });
 }
@@ -129,7 +141,13 @@ const resolve = (a, index = pxById) => ({
     y: index.get(r.id).y,
   })),
 });
-const goRows = go.annotations.map((a) => resolve(a));
+const tremieZ = go.annotationPatches.find((p) => p.id === "tremie1").changes
+  .offsetZ;
+const goRows = [
+  resolve(floor),
+  resolve({ ...tremie, offsetZ: tremieZ }),
+  ...go.annotations.map((a) => resolve(a)),
+];
 const goSol = goRows.find((a) => a.annotationTemplateId === "tplSol");
 const cvgSol = {
   ...goSol,
@@ -141,6 +159,8 @@ const cvgSol = {
 const adjacency = goRows
   .filter((a) => a.annotationTemplateId !== "tplSol")
   .map((a) => ({ ...a, isAdjacencyOnly: true }));
+const slopeLine = go.annotationPatches.find((p) => p.id === "floor1").changes
+  .guideLines[0];
 
 function runCuvelage(waterRel) {
   const r = gaineCuvelageV1({
@@ -194,9 +214,9 @@ const pathOf = (pts, oy, close) =>
   `M ${pts.map((p) => toSvg(p, oy)).join(" L ")}${close ? " Z" : ""}`;
 
 const COLORS = {
-  tplSol: "#ebcb79",
+  tplSol: "#bdbdbd",
   tplSousFace: "#8491a7",
-  tplTremie: "#4fe3d7",
+  tplTremie: "#4fc3f7",
   tplVoile: "#8491a7",
   tplCvgParoi: "#70aac6",
   tplCvgSousFace: "#e85426",
@@ -236,6 +256,11 @@ panels.forEach((panel, i) => {
       const p = a.points[Math.floor(a.points.length / 2)];
       out += `<text x="${((p.x - minX) * SCALE + 24).toFixed(1)}" y="${((p.y - minY) * SCALE + oy - 6).toFixed(1)}" fill="${color}">${label}</text>\n`;
     }
+  }
+  if (panel.kind === "go") {
+    const g = slopeLine.points.map((r) => pxById.get(r.pointId));
+    out += `<path d="${pathOf(g, oy, false)}" fill="none" stroke="#e85426" stroke-width="2" stroke-dasharray="8 4"/>\n`;
+    out += `<text x="${((g[1].x - minX) * SCALE + 24).toFixed(1)}" y="${((g[1].y - minY) * SCALE + oy - 6).toFixed(1)}" fill="#e85426">pente ${slopeLine.slopePct.toFixed(2)} %</text>\n`;
   }
   if (panel.kind === "cvg" && panel.rows.length === 0) {
     out += `<text x="40" y="${oy + 40}" fill="#999">(aucune annotation)</text>\n`;
