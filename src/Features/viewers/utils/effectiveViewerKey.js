@@ -23,6 +23,13 @@ export const selectActive2dEditorKey = (s) =>
 export const selectIsPovViewer = (s) =>
   s.viewers.selectedViewerKey === "POINT_OF_VIEW";
 
+// SCOPE module (Krto): consultation of the whole scope content. The listing
+// eyes of the Dessin panel ("Visibilité auto", listings.hiddenListingsIds)
+// never apply there — useAnnotationsV2 / usePaintedPartsQties drop every
+// caller's `excludeListingsIds` while the module is selected.
+export const selectIsScopeModule = (s) =>
+  s.viewers.selectedViewerKey === "SCOPE";
+
 export const selectEffectiveViewerKey = (s) => {
   const moduleKey = s.viewers.selectedViewerKey;
   // POINT_OF_VIEW keeps its own editor mode until it migrates to

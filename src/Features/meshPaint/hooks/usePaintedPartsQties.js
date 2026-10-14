@@ -9,7 +9,10 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import resolvePaintedParts from "Features/meshPaint/utils/resolvePaintedParts";
 import aggregatePaintedPartsByTemplate from "Features/meshPaint/utils/aggregatePaintedPartsByTemplate";
 import { getMeshPaintMetricsByBaseMapId } from "Features/meshPaint/utils/getMeshPaintMetrics";
-import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectIsScopeModule,
+  selectPovFreezeCreatedBefore,
+} from "Features/viewers/utils/effectiveViewerKey";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
 
@@ -61,7 +64,12 @@ export default function usePaintedPartsQties(options) {
   // literals.
   const extraBaseMapIdsKey = toKey(options?.extraBaseMapIds);
   const excludeBaseMapIdsKey = toKey(options?.excludeBaseMapIds);
-  const excludeListingsIdsKey = toKey(options?.excludeListingsIds);
+  // SCOPE module: the Dessin listing eyes never apply (same rule as
+  // useAnnotationsV2).
+  const ignoreHiddenListings = useSelector(selectIsScopeModule);
+  const excludeListingsIdsKey = ignoreHiddenListings
+    ? ""
+    : toKey(options?.excludeListingsIds);
   const disabledTemplatesKey = toKey(options?.disabledAnnotationTemplates);
   const disabledLayerIdsKey = toKey(options?.disabledLayerIds);
   const viewBox = options?.viewBox;

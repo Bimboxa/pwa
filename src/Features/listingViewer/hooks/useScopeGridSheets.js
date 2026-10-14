@@ -45,6 +45,8 @@ export default function useScopeGridSheets() {
 
   // Annotations of the whole scope, narrowed to the selected annotation
   // listing (the business-objects narrowing is an id set, applied below).
+  // `excludeListingsIds` is inert here: useAnnotationsV2 drops it under the
+  // SCOPE module (the Dessin listing eyes never remove a sheet).
   const annotations = useAnnotationsV2({
     caller: "useScopeGridSheets",
     enabled: !isBaseMapListing,

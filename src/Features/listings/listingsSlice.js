@@ -32,6 +32,9 @@ const listingsInitialState = {
   // scope selection (scopeVisibilityPersistMiddleware saves it), so ids never
   // leak from one scope to the next. Base map FOLDERS are hidden elsewhere:
   // scope.baseMapsSettings.disabledListingIds (eye of the SCOPE module).
+  // Ignored by the SCOPE module itself: useAnnotationsV2 and
+  // usePaintedPartsQties drop their `excludeListingsIds` there, so the
+  // module shows the whole scope whatever the Dessin eyes.
   hiddenListingsIds: [],
   //
   // SCOPE module (Krto) in "all listings" mode: the recap editor shows every

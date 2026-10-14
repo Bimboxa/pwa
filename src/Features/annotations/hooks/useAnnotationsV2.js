@@ -418,7 +418,10 @@ const PLAY_STYLE_TODO = {
   strokeOpacity: 0.35,
 };
 import useMainBusinessObjectLabelByAnnotationId from "Features/businessObjects/hooks/useMainBusinessObjectLabelByAnnotationId";
-import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectIsScopeModule,
+  selectPovFreezeCreatedBefore,
+} from "Features/viewers/utils/effectiveViewerKey";
 import {
   getShape3DKey,
   TYPES_SUPPORTING_REVOLUTION,
@@ -632,7 +635,15 @@ export default function useAnnotationsV2(options) {
     const filterByMainBaseMap = options?.filterByMainBaseMap;
     const filterBySelectedListing = options?.filterBySelectedListing;
 
-    const excludeListingsIds = options?.excludeListingsIds;
+    // SCOPE module: the Dessin listing eyes (listings.hiddenListingsIds, what
+    // every caller passes here) never apply — the module shows the whole
+    // scope, narrowed only by its own content selection
+    // (useScopeGridAnnotationsFilter), its sheet badges and the hidden
+    // folders. Leaving the module re-applies them (liveQuery dep below).
+    const ignoreHiddenListings = useSelector(selectIsScopeModule);
+    const excludeListingsIds = ignoreHiddenListings
+      ? undefined
+      : options?.excludeListingsIds;
 
     const withListingName = options?.withListingName;
     const withQties = options?.withQties;
