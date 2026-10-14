@@ -1,9 +1,6 @@
-import { useMemo } from "react";
-
 import { MenuItem, TextField, Typography } from "@mui/material";
 
-import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
-import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useRevolutionAxisOptions from "../hooks/useRevolutionAxisOptions";
 
 // strings
 
@@ -26,40 +23,9 @@ export default function FieldRevolutionAxisSelect({
 }) {
   // data
 
-  const axes = useRevolutionAxes();
-  const { value: baseMaps } = useBaseMaps({
-    includeDetails: true,
-    includeDisabledListings: true,
-  });
+  const options = useRevolutionAxisOptions();
 
   // helpers
-
-  const baseMapNameById = useMemo(() => {
-    const acc = new Map();
-    for (const bm of baseMaps ?? []) acc.set(bm.id, bm.name);
-    return acc;
-  }, [baseMaps]);
-
-  const options = useMemo(
-    () =>
-      [...axes]
-        .sort((a, b) =>
-          String(a.label ?? "").localeCompare(
-            String(b.label ?? ""),
-            undefined,
-            {
-              numeric: true,
-            }
-          )
-        )
-        .map((axis) => ({
-          id: axis.id,
-          label: [axis.label ?? "Axe", baseMapNameById.get(axis.baseMapId)]
-            .filter(Boolean)
-            .join(" · "),
-        })),
-    [axes, baseMapNameById]
-  );
 
   const safeValue = options.some((o) => o.id === value) ? value : "";
 

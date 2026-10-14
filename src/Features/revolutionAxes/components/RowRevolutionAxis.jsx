@@ -127,9 +127,8 @@ export default function RowRevolutionAxis({
   const isHalfView = axis.halfViewIn3d !== false;
   const color = axis.strokeColor ?? "#1976d2";
   const planBaseMap = baseMapById[axis.baseMapId];
-  const label = isOnPlan
-    ? (axis.label ?? "Axe")
-    : [axis.label ?? "Axe", planBaseMap?.name].filter(Boolean).join(" · ");
+  const label = axis.label ?? "Axe";
+  const planName = isOnPlan ? null : planBaseMap?.name;
 
   const linkedBaseMaps = placements
     .map((p) => baseMapById[p.baseMapId])
@@ -142,7 +141,6 @@ export default function RowRevolutionAxis({
     }))
     .filter((g) => g.baseMaps.length > 0);
   const isMenuOpen = Boolean(linkMenuAnchor || moreMenuAnchor);
-  const showActions = isHovered || isMenuOpen;
 
   const navigateTitle = !isOnPlan
     ? goToPlanS
@@ -293,23 +291,40 @@ export default function RowRevolutionAxis({
             </Box>
           </Tooltip>
           <Tooltip title={selectS} arrow placement="top" enterDelay={800}>
-            <Typography
-              variant="body2"
-              color={isHidden ? "text.disabled" : "panel.textPrimary"}
-              sx={{
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                userSelect: "none",
-              }}
-            >
-              {label}
-            </Typography>
+            <Box sx={{ minWidth: 0, userSelect: "none" }}>
+              <Typography
+                variant="body2"
+                color={isHidden ? "text.disabled" : "panel.textPrimary"}
+                sx={{
+                  lineHeight: 1.3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {label}
+              </Typography>
+              {planName && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: "block",
+                    fontSize: "10px",
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {planName}
+                </Typography>
+              )}
+            </Box>
           </Tooltip>
         </Box>
 
-        {/* Right side: actions on hover OR count, then the navigation arrow */}
+        {/* Right side: count, actions, then the navigation arrow */}
         <Box
           sx={{
             display: "flex",
@@ -320,74 +335,69 @@ export default function RowRevolutionAxis({
             flexShrink: 0,
           }}
         >
-          {showActions ? (
-            <>
-              {associatedProcedures.length > 0 && (
-                <Tooltip title={moreS} arrow placement="top">
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenMore}
-                    sx={{ p: 0.5, color: "panel.iconMuted" }}
-                  >
-                    <MoreHoriz sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              )}
-              <Tooltip
-                title={isHalfView ? halfViewOnS : halfViewOffS}
-                arrow
-                placement="top"
+          <Typography
+            align="right"
+            noWrap
+            sx={{
+              fontSize: "10px",
+              minWidth: "32px",
+              fontFamily: "monospace",
+              fontWeight: 500,
+              mr: 0.5,
+            }}
+            color={
+              isHidden
+                ? "text.disabled"
+                : linkedCount > 0
+                  ? "secondary.main"
+                  : "panel.countEmpty"
+            }
+          >
+            {`${linkedCount} u`}
+          </Typography>
+          {associatedProcedures.length > 0 && (
+            <Tooltip title={moreS} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={handleOpenMore}
+                sx={{ p: 0.5, color: "panel.iconMuted" }}
               >
-                <IconButton
-                  size="small"
-                  onClick={handleToggleHalfView}
-                  sx={{
-                    p: 0.5,
-                    color: isHalfView ? "secondary.main" : "panel.iconMuted",
-                  }}
-                >
-                  <Contrast sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
-                <IconButton
-                  size="small"
-                  onClick={handleToggleHidden}
-                  sx={{
-                    p: 0.5,
-                    color: isHidden ? "secondary.main" : "panel.iconMuted",
-                  }}
-                >
-                  {isHidden ? (
-                    <VisibilityOff sx={{ fontSize: 16 }} />
-                  ) : (
-                    <Visibility sx={{ fontSize: 16 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-            </>
-          ) : (
-            <Typography
-              align="right"
-              noWrap
-              sx={{
-                fontSize: "10px",
-                minWidth: "32px",
-                fontFamily: "monospace",
-                fontWeight: 500,
-                mr: 0.5,
-              }}
-              color={
-                isHidden
-                  ? "text.disabled"
-                  : linkedCount > 0
-                    ? "secondary.main"
-                    : "panel.countEmpty"
-              }
-            >
-              {`${linkedCount} u`}
-            </Typography>
+                <MoreHoriz sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
           )}
+          <Tooltip
+            title={isHalfView ? halfViewOnS : halfViewOffS}
+            arrow
+            placement="top"
+          >
+            <IconButton
+              size="small"
+              onClick={handleToggleHalfView}
+              sx={{
+                p: 0.5,
+                color: isHalfView ? "secondary.main" : "panel.iconMuted",
+              }}
+            >
+              <Contrast sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
+            <IconButton
+              size="small"
+              onClick={handleToggleHidden}
+              sx={{
+                p: 0.5,
+                color: isHidden ? "secondary.main" : "panel.iconMuted",
+              }}
+            >
+              {isHidden ? (
+                <VisibilityOff sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
           <Tooltip title={navigateTitle} arrow placement="right">
             <IconButton
               size="small"

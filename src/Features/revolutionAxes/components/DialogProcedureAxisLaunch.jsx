@@ -21,38 +21,26 @@ import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
 import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
   ListSubheader,
   MenuItem,
-  Radio,
-  RadioGroup,
   TextField,
   Typography,
 } from "@mui/material";
 
-import FieldRevolutionAxisSelect from "./FieldRevolutionAxisSelect";
+import ChipsRevolutionAxes from "./ChipsRevolutionAxes";
 
 // strings
 
 const STEP_TITLE = "Axe et fond de plan";
-const AXIS_HELPER = "L'ouvrage est généré en révolution autour de cet axe.";
-const LINKED_TITLE = "Fond de plan vertical";
-const LINKED_ONE_PREFIX = "Fond de plan vertical : ";
-const LINKED_DESCRIPTION =
-  "Le dessin est généré sur le fond de plan vertical où l'axe est posé.";
-const NO_LINKED_DESCRIPTION =
-  "L'axe n'est posé sur aucun fond de plan vertical.";
-const CREATE_LABEL =
-  "Créer un fond de plan vertical (page blanche à l'échelle)";
-const EXISTING_LABEL = "Utiliser un fond de plan vertical existant";
-const EXISTING_SELECT_LABEL = "Fond de plan vertical";
-const EXISTING_HELPER =
-  "L'axe y sera posé automatiquement au lancement (base en bas au milieu).";
-const NO_EXISTING = "Aucun fond de plan vertical disponible.";
+const AXIS_LABEL = "Axe";
+const BASE_MAP_LABEL = "Fond de plan vertical";
+const CREATE_LABEL = "Nouvelle page à l'échelle";
+const NO_NAME = "Sans nom";
 const CANCEL = "Annuler";
 const NEXT = "Définir la géométrie";
 const CREATE = "Créer";
@@ -61,6 +49,16 @@ const DELETE = "Supprimer";
 const deletedS = (n) => `${n} annotation(s) supprimée(s)`;
 
 const EMPTY = [];
+const CREATE_VALUE = "__create__";
+
+const sectionLabelSx = {
+  display: "block",
+  mb: 0.75,
+  fontSize: 10,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  lineHeight: 1.4,
+};
 
 /**
  * Launch dialog of a revolution-axis system (château d'eau GO, réservoir)
@@ -68,11 +66,12 @@ const EMPTY = [];
  * steps:
  *
  * 1. « Axe et fond de plan »: the axis of the scope to generate around
- *    (FieldRevolutionAxisSelect) and the vertical page the drawing lands on:
- *    the page the axis is already posed on (one of its placements), else a
- *    page created at launch (blank, sized by the system — the cotes dialog's
- *    own section) or an existing vertical base map the run poses the axis on
- *    (createRevolutionRunOutputs creates the missing placement);
+ *    (ChipsRevolutionAxes, first axis preselected) and the vertical page the
+ *    drawing lands on: chips of the pages the axis is already posed on (its
+ *    placements), else one select between a page created at launch (blank,
+ *    sized by the system — the cotes dialog's own section) and an existing
+ *    vertical base map the run poses the axis on (createRevolutionRunOutputs
+ *    creates the missing placement);
  * 2. the registry `paramsDialog` of the system (DialogProcedureRevolutionSection
  *    through its thin wrapper), fed with `setup = { listingId,
  *    verticalBaseMapId }`, whose confirm persists the cotes + the listing on
@@ -251,6 +250,16 @@ export default function DialogProcedureAxisLaunch({
     }
   }
 
+  function handleBaseMapChange(e) {
+    const value = e.target.value;
+    if (value === CREATE_VALUE) {
+      setMode("create");
+    } else {
+      setMode("existing");
+      setExistingBaseMapId(value);
+    }
+  }
+
   async function handleDelete() {
     if (busy || !axis) return;
     setBusy(true);
@@ -314,104 +323,83 @@ export default function DialogProcedureAxisLaunch({
         </Typography>
         {STEP_TITLE}
       </DialogTitle>
-      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <DialogContent
+        sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}
+      >
         <Box sx={{ pt: 1 }}>
-          <FieldRevolutionAxisSelect
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={sectionLabelSx}
+          >
+            {AXIS_LABEL}
+          </Typography>
+          <ChipsRevolutionAxes
             value={axisId}
-            onChange={(id) => setAxisId(id ?? "")}
-            helperText={AXIS_HELPER}
+            onChange={setAxisId}
+            autoSelectFirst
           />
         </Box>
 
         {axis && (
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-              {LINKED_TITLE}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={sectionLabelSx}
+            >
+              {BASE_MAP_LABEL}
             </Typography>
             {hasLinked ? (
-              <>
-                {linkedBaseMaps.length === 1 ? (
-                  <Typography variant="body2">
-                    {LINKED_ONE_PREFIX}
-                    {linkedBaseMaps[0].name ?? "Sans nom"}
-                  </Typography>
-                ) : (
-                  <TextField
-                    select
-                    size="small"
-                    fullWidth
-                    label={EXISTING_SELECT_LABEL}
-                    value={linkedBaseMapId}
-                    onChange={(e) => setLinkedBaseMapId(e.target.value)}
-                  >
-                    {linkedBaseMaps.map((bm) => (
-                      <MenuItem key={bm.id} value={bm.id} dense>
-                        {bm.name ?? "Sans nom"}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 0.5 }}
-                >
-                  {LINKED_DESCRIPTION}
-                </Typography>
-              </>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  flexWrap: "nowrap",
+                  overflowX: "auto",
+                }}
+              >
+                {linkedBaseMaps.map((bm) => {
+                  const selected = bm.id === linkedBaseMapId;
+                  return (
+                    <Chip
+                      key={bm.id}
+                      size="small"
+                      label={bm.name ?? NO_NAME}
+                      color={selected ? "primary" : "default"}
+                      variant={selected ? "filled" : "outlined"}
+                      onClick={() => setLinkedBaseMapId(bm.id)}
+                      sx={{ flexShrink: 0 }}
+                    />
+                  );
+                })}
+              </Box>
             ) : (
-              <>
-                <Typography variant="body2" color="text.secondary">
-                  {NO_LINKED_DESCRIPTION}
-                </Typography>
-                <RadioGroup
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value)}
-                >
-                  <FormControlLabel
-                    value="create"
-                    control={<Radio size="small" />}
-                    label={
-                      <Typography variant="body2">{CREATE_LABEL}</Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    value="existing"
-                    control={<Radio size="small" />}
-                    disabled={existingGroups.length === 0}
-                    label={
-                      <Typography variant="body2">
-                        {existingGroups.length === 0
-                          ? `${EXISTING_LABEL} — ${NO_EXISTING}`
-                          : EXISTING_LABEL}
-                      </Typography>
-                    }
-                  />
-                </RadioGroup>
-                {mode === "existing" && existingGroups.length > 0 && (
-                  <TextField
-                    select
-                    size="small"
-                    fullWidth
-                    label={EXISTING_SELECT_LABEL}
-                    value={existingBaseMapId}
-                    onChange={(e) => setExistingBaseMapId(e.target.value)}
-                    helperText={EXISTING_HELPER}
-                    sx={{ mt: 1 }}
-                  >
-                    {existingGroups.flatMap((g) => [
-                      <ListSubheader key={`h-${g.listing.id}`}>
-                        {g.listing.name}
-                      </ListSubheader>,
-                      ...g.baseMaps.map((bm) => (
-                        <MenuItem key={bm.id} value={bm.id} dense>
-                          {bm.name ?? "Sans nom"}
-                        </MenuItem>
-                      )),
-                    ])}
-                  </TextField>
-                )}
-              </>
+              <TextField
+                select
+                size="small"
+                fullWidth
+                value={
+                  mode === "existing" && existingBaseMapId
+                    ? existingBaseMapId
+                    : CREATE_VALUE
+                }
+                onChange={handleBaseMapChange}
+              >
+                <MenuItem value={CREATE_VALUE} dense>
+                  {CREATE_LABEL}
+                </MenuItem>
+                {existingGroups.flatMap((g) => [
+                  <ListSubheader key={`h-${g.listing.id}`}>
+                    {g.listing.name}
+                  </ListSubheader>,
+                  ...g.baseMaps.map((bm) => (
+                    <MenuItem key={bm.id} value={bm.id} dense>
+                      {bm.name ?? NO_NAME}
+                    </MenuItem>
+                  )),
+                ])}
+              </TextField>
             )}
           </Box>
         )}
