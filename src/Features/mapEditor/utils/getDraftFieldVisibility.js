@@ -48,9 +48,9 @@ export default function getDraftFieldVisibility(
   // hides the generic height / offset / thickness fields.
   const isRampTool = enabledDrawingMode === "RAMP";
 
-  // The « Pinceau » (3D) paints existing parts with the template itself: no
-  // drawn geometry, so no draft field (nor colour — the paint takes the
-  // template's) applies.
+  // The « Pinceau » paints existing parts (3D) or converts / duplicates
+  // existing annotations (2D) with the template itself: no drawn geometry, so
+  // no draft field (nor colour — the result takes the template's) applies.
   const isMeshBrushTool = isMeshBrushDrawingMode(enabledDrawingMode);
 
   // Purely annotative shapes (callout bubble, free text) have no 3D body:

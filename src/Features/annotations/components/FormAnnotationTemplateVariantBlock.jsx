@@ -127,7 +127,11 @@ export default function FormAnnotationTemplateVariantBlock({
 
   // helpers — which field groups to show based on configurable props
 
-  const shapeTools = getDrawingToolsByShape(drawingShape);
+  // The « Pinceau » converts / paints existing annotations: a row click must
+  // draw, so it is never a template's default tool.
+  const shapeTools = getDrawingToolsByShape(drawingShape).filter(
+    (tool) => !tool.neverDefaultTool
+  );
   const toolOptions = shapeTools.map(({ key, label, Icon }) => ({
     key,
     label,

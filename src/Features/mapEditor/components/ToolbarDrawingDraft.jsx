@@ -36,6 +36,7 @@ import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlic
 import { REMEMBERABLE_DRAFT_KEYS } from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
+import { DRAWING_TOOLS_EDITOR_3D } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 
 import {
   getDrawingToolByKey,
@@ -81,6 +82,8 @@ export default function ToolbarDrawingDraft() {
   const changeShapeS = "Changer de type d'annotation";
   const drawS = "Dessiner";
   const paintS = "Peindre avec";
+  const convertS = "Convertir avec";
+  const duplicateS = "Dupliquer avec";
 
   // state
 
@@ -113,6 +116,17 @@ export default function ToolbarDrawingDraft() {
   // "3D" in the Dessin module's 3D editor: the tool toggle then offers the
   // 3D-only tools (« Pinceau ») — same list as the template row's picker.
   const toolsEditor = useSelector(selectDrawingToolsEditor);
+  // « Pinceau » in 2D: the clicked annotation is converted to the template,
+  // or duplicated with it (drawing helper switch, D).
+  const templateBrushDuplicateTarget = useSelector(
+    (s) => s.mapEditor.templateBrushDuplicateTarget
+  );
+  const brushActionS =
+    toolsEditor === DRAWING_TOOLS_EDITOR_3D
+      ? paintS
+      : templateBrushDuplicateTarget
+        ? duplicateS
+        : convertS;
   // Drawn template ("Dessiner …" block) — mirrors ToolbarStartDrawTemplate so
   // arming a draw from it doesn't shift the toolbar. Absent for tool groups
   // (openings / splits), which carry no template.
@@ -414,7 +428,7 @@ export default function ToolbarDrawingDraft() {
                   fontSize: "0.65rem",
                 }}
               >
-                {isMeshBrushTool ? paintS : drawS}
+                {isMeshBrushTool ? brushActionS : drawS}
               </Typography>
               <Typography
                 variant="body2"

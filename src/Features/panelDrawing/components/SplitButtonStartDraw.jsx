@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -13,6 +13,8 @@ import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
+import { DRAWING_TOOLS_EDITOR_3D } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 
 // ---------------------------------------------------------------------------
 // SplitButtonStartDraw — split button of a template row, tinted with the
@@ -58,9 +60,13 @@ export default function SplitButtonStartDraw({
 
   const ActiveToolIcon = activeTool?.Icon;
   const disabled = !canDrawInCurrentEditor;
-  // « Pinceau » (3D): the row paints parts instead of drawing.
+  // « Pinceau »: the row paints parts (3D) or converts annotations (2D)
+  // instead of drawing.
+  const toolsEditor = useSelector(selectDrawingToolsEditor);
   const actionLabel = isMeshBrushDrawingMode(activeTool?.key)
-    ? "Peindre"
+    ? toolsEditor === DRAWING_TOOLS_EDITOR_3D
+      ? "Peindre"
+      : "Convertir"
     : "Dessiner";
   const templateColor =
     annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999";

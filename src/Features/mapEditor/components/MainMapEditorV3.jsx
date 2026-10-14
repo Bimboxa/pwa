@@ -134,6 +134,7 @@ import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotati
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
 import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
+import useTemplateBrushClick from "Features/meshPaint/hooks/useTemplateBrushClick";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
@@ -997,6 +998,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const createAnnotationsFromDetectedFeatures =
     useCreateAnnotationsFromDetectedFeatures();
   const handleCommitLocalizedRepair = useCommitLocalizedRepair();
+  // « Pinceau » armed in 2D: convert / duplicate the clicked annotation.
+  const handleTemplateBrushClick = useTemplateBrushClick();
   const createAnnotationFromSurfaceDrop = useCreateAnnotationFromSurfaceDrop();
 
   const handleCommitDetectedFeatures = async ({
@@ -2693,6 +2696,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               onCommitSimilarStrips={handleCommitSimilarStrips}
               onCommitDetectedFeatures={handleCommitDetectedFeatures}
               onCommitLocalizedRepair={handleCommitLocalizedRepair}
+              onTemplateBrushClick={handleTemplateBrushClick}
               baseMapImageSize={
                 baseMap?.getImageSize?.() || baseMap?.getImageSize?.()
               }

@@ -57,6 +57,11 @@ const mapEditorInitialState = {
   // edge…) is created as a 2D annotation of the armed template instead of a
   // db.meshPaints row (commitMeshBrush2dService).
   meshBrushCreate2dIfPossible: true,
+  // « Pinceau » in the 2D editor (template brush): when true, a clicked
+  // annotation keeps its template and a DUPLICATE carrying the armed template
+  // is created instead (drawing helper switch « Dupliquer l'annotation
+  // cible », hotkey D). Persistent across arms, like defaultOffsetOnCommit.
+  templateBrushDuplicateTarget: false,
   // RAMP tool — transient params shown in the bottom drawing toolbar while the
   // "Rampe" tool is active. Not persisted on the annotation/template.
   rampWidthM: 1, // band width in meters, centered on the drawn median line
@@ -426,6 +431,9 @@ export const mapEditorSlice = createSlice({
     },
     setMeshBrushCreate2dIfPossible: (state, action) => {
       state.meshBrushCreate2dIfPossible = Boolean(action.payload);
+    },
+    setTemplateBrushDuplicateTarget: (state, action) => {
+      state.templateBrushDuplicateTarget = Boolean(action.payload);
     },
     setRampWidthM: (state, action) => {
       state.rampWidthM = action.payload;
@@ -1009,6 +1017,7 @@ export const {
   setJoinMergeIfPossible,
   setMeshBrushPartMode,
   setMeshBrushCreate2dIfPossible,
+  setTemplateBrushDuplicateTarget,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,

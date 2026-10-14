@@ -275,6 +275,10 @@ export default function useDrawingToolHotkeys() {
       // the smart-detect switch is active, let A run detection instead of
       // switching to the Arc tool.
       if (e.key.toLowerCase() === "a" && s.mapEditor.smartDetectEnabled) return;
+      // "P" doubles as the loupe size key (InteractionLayer, D then P): when
+      // the smart-detect switch is active, let it resize the loupe instead of
+      // arming the « Pinceau ».
+      if (e.key.toLowerCase() === "p" && s.mapEditor.smartDetectEnabled) return;
 
       if (hasFirstPoint) return;
 

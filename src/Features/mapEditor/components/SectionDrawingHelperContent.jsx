@@ -21,9 +21,11 @@ import {
   setMeshBrushCreate2dIfPossible,
   setMeshBrushPartMode,
   setRepairMode,
+  setTemplateBrushDuplicateTarget,
 } from "Features/mapEditor/mapEditorSlice";
 import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
 import { selectMeshBrushPartType } from "Features/meshPaint/utils/meshBrushSelectors";
+import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
@@ -115,6 +117,14 @@ const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
 // Shortcuts of the « Pinceau » (useMeshBrushPointerHandlers).
 const THREED_MESH_BRUSH_SHORTCUTS = [
   { key: "Clic", label: "Peindre / retirer la peinture" },
+  { key: "Esc", label: "Quitter le pinceau" },
+];
+
+// Shortcuts of the « Pinceau » armed in the 2D editor (template brush:
+// InteractionLayer MESH_BRUSH branch + useTemplateBrushClick).
+const TEMPLATE_BRUSH_2D_SHORTCUTS = [
+  { key: "Clic", label: "Appliquer le modèle / dupliquer" },
+  { key: "D", label: "Dupliquer l'annotation cible" },
   { key: "Esc", label: "Quitter le pinceau" },
 ];
 
@@ -212,6 +222,13 @@ export default function SectionDrawingHelperContent() {
   const meshBrushFaceS = "Facette";
   const meshBrushEdgeS = "Arête";
   const meshBrushCreate2dS = "Créer une annotation 2D si possible";
+  const templateBrushConvertS =
+    "Cliquez sur une annotation pour lui appliquer le modèle";
+  const templateBrushDuplicateS =
+    "Cliquez sur une annotation pour la dupliquer avec le modèle";
+  const templateBrushSwitchS = "Dupliquer l'annotation cible";
+  const templateBrushHiddenS =
+    "Le modèle actif est masqué : les annotations converties ou dupliquées ne seront pas visibles.";
   const surfaceCutS =
     "Tracez un trait à travers la surface : elle est coupée en autant d'annotations que de morceaux";
 
@@ -243,11 +260,19 @@ export default function SectionDrawingHelperContent() {
   const meshBrushCreate2dIfPossible = useSelector(
     (s) => s.mapEditor.meshBrushCreate2dIfPossible
   );
-  // A paint is shown only when its own template and listing are visible:
-  // warn when the armed template (or its listing) is hidden.
-  const isMeshBrushTemplateHidden = useSelector((s) => {
-    if (!selectMeshBrushPartType(s)) return false;
+  // « Pinceau » armed in the 2D editor (template brush): the click converts
+  // the annotation to the armed template, or duplicates it with that
+  // template when the switch below is on (hotkey D, InteractionLayer).
+  const isTemplateBrush2d =
+    !isThreedToggledEditor && isMeshBrushDrawingMode(enabledDrawingMode);
+  const templateBrushDuplicateTarget = useSelector(
+    (s) => s.mapEditor.templateBrushDuplicateTarget
+  );
+  // The armed template (or its listing) is hidden: a paint would not show
+  // (3D), a converted / duplicated annotation would vanish (2D) — warn.
+  const isArmedTemplateHidden = useSelector((s) => {
     const na = s.annotations.newAnnotation;
+    if (!na?.annotationTemplateId) return false;
     return (
       selectHiddenAnnotationTemplateIdSet(s).has(na.annotationTemplateId) ||
       Boolean(
@@ -255,6 +280,7 @@ export default function SectionDrawingHelperContent() {
       )
     );
   });
+  const isMeshBrushTemplateHidden = isMeshBrush && isArmedTemplateHidden;
   // Lines and cotes can land their points on a scan base map: show the
   // status of its picking data (being prepared / ready). Not the brush: it
   // paints annotation parts only.
@@ -343,6 +369,7 @@ export default function SectionDrawingHelperContent() {
     Boolean(enabledDrawingMode) &&
     ![
       "REASSIGN_TEMPLATE",
+      "MESH_BRUSH",
       "LOCALIZED_REPAIR",
       "JOIN_ANNOTATIONS",
       "CHAT_REPAIR",
@@ -384,6 +411,7 @@ export default function SectionDrawingHelperContent() {
       {!isThreedToggledEditor &&
         !isSegmentSelectMode &&
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
+        !isTemplateBrush2d &&
         enabledDrawingMode !== "LOCALIZED_REPAIR" &&
         enabledDrawingMode !== "JOIN_ANNOTATIONS" &&
         enabledDrawingMode !== "CHAT_REPAIR" && (
@@ -494,6 +522,70 @@ export default function SectionDrawingHelperContent() {
         >
           Cliquez sur une annotation pour modifier son modèle
         </Box>
+      )}
+      {isTemplateBrush2d && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {templateBrushDuplicateTarget
+            ? templateBrushDuplicateS
+            : templateBrushConvertS}
+        </Box>
+      )}
+      {isTemplateBrush2d && isArmedTemplateHidden && (
+        <Alert severity="warning" sx={{ py: 0, fontSize: "0.8125rem" }}>
+          {templateBrushHiddenS}
+        </Alert>
+      )}
+      {isTemplateBrush2d && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Typography variant="caption" color="text.secondary">
+              {templateBrushSwitchS}
+            </Typography>
+            <Box
+              sx={{
+                px: 0.5,
+                py: 0,
+                borderRadius: 0.5,
+                bgcolor: "action.hover",
+                color: "text.secondary",
+                fontSize: "0.65rem",
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              D
+            </Box>
+          </Box>
+          <Switch
+            size="small"
+            checked={Boolean(templateBrushDuplicateTarget)}
+            onChange={(e) =>
+              dispatch(setTemplateBrushDuplicateTarget(e.target.checked))
+            }
+          />
+        </Paper>
       )}
       {isSurfaceCut && !isThreedToggledEditor && (
         <Box
@@ -755,9 +847,11 @@ export default function SectionDrawingHelperContent() {
         shortcuts={
           isThreedToggledEditor
             ? threedShortcuts
-            : isSurfaceCut
-              ? SURFACE_CUT_SHORTCUTS
-              : undefined
+            : isTemplateBrush2d
+              ? TEMPLATE_BRUSH_2D_SHORTCUTS
+              : isSurfaceCut
+                ? SURFACE_CUT_SHORTCUTS
+                : undefined
         }
       />
     </Box>

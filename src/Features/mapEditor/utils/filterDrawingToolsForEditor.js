@@ -3,10 +3,14 @@
 //
 // A DRAWING_TOOLS entry may declare:
 //   - `editor: "2D" | "3D"`: the only editor that offers it (none: both). The
-//     « Pinceau » (MESH_BRUSH) is a 3D-only tool: the hidden 2D
-//     InteractionLayer has no meaning for its mode.
+//     "Coupe face" tools are 3D-only; the « Pinceau » (MESH_BRUSH) is offered
+//     in BOTH editors (paints parts in 3D, converts / duplicates annotations
+//     in 2D).
 //   - `requiresTemplate: true`: never offered to a template-less draft (the
 //     "Dessin" tool, hotkey D).
+//   - `neverDefaultTool: true`: hidden from the template form's « Outil par
+//     défaut » select (FormAnnotationTemplateVariantBlock) — a row click must
+//     draw, not arm the brush.
 //
 // The editor defaults to "2D", so a caller that passes nothing (the template
 // form's « Outil par défaut » select, the legacy 2D toolbar) never sees a
@@ -39,7 +43,9 @@ export default filterDrawingToolsForEditor;
 // then template.defaultTool…) that BELONGS to `tools`, else the first tool.
 // Membership matters: a 3D-only tool remembered in
 // mapEditor.selectedToolKeyByTemplateId (shared by both editors) falls back
-// to another tool in the 2D editor, and is picked again back in 3D.
+// to another tool in the 2D editor, and is picked again back in 3D. (The
+// « Pinceau » is offered in both editors, so a brush remembered in 3D arms
+// the 2D template brush on the next row click.)
 export function pickDrawingTool(tools, keys = []) {
   const list = tools ?? [];
   for (const key of keys) {
