@@ -7,7 +7,7 @@ import db from "App/db/db";
 import {
   getEffectiveOwner,
   isScopeEditor,
-  normalizeOwnerId,
+  isScopeReadOnlyForUser,
 } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import getUserTrigram from "Features/auth/utils/getUserTrigram";
@@ -32,15 +32,13 @@ export default function useReadOnlyScope() {
   const userProfile = useSelector((state) => state.auth.userProfile);
   const currentUserId = getUserIdMaster(userProfile);
 
+  const trigram = getUserTrigram(userProfile);
   const owner = getEffectiveOwner(scope);
-  const isEditor = isScopeEditor(scope, getUserTrigram(userProfile));
-  const isReadOnly = Boolean(
-    scope &&
-      scope.isPublic !== true &&
-      owner !== null &&
-      owner !== normalizeOwnerId(currentUserId) &&
-      !isEditor
-  );
+  const isEditor = isScopeEditor(scope, trigram);
+  const isReadOnly = isScopeReadOnlyForUser(scope, {
+    userId: currentUserId,
+    trigram,
+  });
 
   // Owner identity fallback: old scopes miss createdByTrigram/createdBy, but
   // the Krto zip ships a usersDirectory table (idMaster ⇔ trigram, populated

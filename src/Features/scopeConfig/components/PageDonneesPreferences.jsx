@@ -49,8 +49,12 @@ export default function PageDonneesPreferences({ onClose }) {
   const configurationS = "Configuration";
   const configurationsManagementS = "Gestion des configurations";
   const configurationsManagementHelperS = `Active le sélecteur de configurations à la création d'un ${scopeS.toLowerCase()}`;
+  const scopeModuleLabel =
+    modules.find((m) => m.key === "SCOPE")?.label ?? scopeS;
   const defaultModuleS = "Module par défaut";
-  const defaultModuleHelperS = `Module affiché à l'ouverture d'un ${scopeS.toLowerCase()}`;
+  // A read-only scope (someone else's private Krto) lands on the Scope
+  // module whatever this preference (useLandingViewerModuleOnScopeOpen).
+  const defaultModuleHelperS = `Module affiché à l'ouverture d'un ${scopeS.toLowerCase()} que vous pouvez modifier. Un ${scopeS.toLowerCase()} en lecture seule s'ouvre sur le module « ${scopeModuleLabel} ».`;
   const dataS = "Données";
   const dataHelperS = "Projets et plans stockés sur cet appareil.";
 

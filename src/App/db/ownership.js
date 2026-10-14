@@ -87,6 +87,26 @@ export function isScopeEditor(scope, trigram) {
 }
 
 /**
+ * Scope read-only rule — single source for the DB hard guard
+ * (getActiveReadOnlyScopeId in db.js) and the UI (useReadOnlyScope, the
+ * scope-open landing): a PRIVATE scope (`isPublic !== true`) owned by someone
+ * else is read-only for the current user, unless they were granted edit
+ * rights via scope.editorsTrigrams. A missing record, a public scope or a
+ * legacy ownerless scope resolve to false (nothing to protect).
+ *
+ * @param {object|null|undefined} scope
+ * @param {{ userId: string|number|null|undefined, trigram: string|null|undefined }} user
+ * @returns {boolean}
+ */
+export function isScopeReadOnlyForUser(scope, { userId, trigram }) {
+  if (!scope || scope.isPublic === true) return false;
+  const owner = getEffectiveOwner(scope);
+  if (owner === null) return false;
+  if (owner === normalizeOwnerId(userId)) return false;
+  return !isScopeEditor(scope, trigram);
+}
+
+/**
  * Thrown by the DB layer when a user tries to modify/delete a record owned by
  * someone else. Caught by UI handlers to surface a toast instead of crashing.
  */

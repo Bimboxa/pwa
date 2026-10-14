@@ -11,10 +11,9 @@ import {
 } from "./undoManager";
 import {
   canEditRecord,
-  getEffectiveOwner,
   isScopeEditor,
+  isScopeReadOnlyForUser,
   LinkedListingReadOnlyError,
-  normalizeOwnerId,
   NoScopeSelectedError,
   OwnershipError,
   ReadOnlyScopeError,
@@ -604,14 +603,13 @@ function getActiveReadOnlyScopeId() {
   const state = store.getState();
   const scopeId = state?.scopes?.selectedScopeId;
   const scope = scopeId ? state?.scopes?.scopesById?.[scopeId] : null;
-  if (!scope || scope.isPublic === true) return null;
-  const owner = getEffectiveOwner(scope);
-  if (owner === null) return null; // legacy ownerless scope: free for all
-  const currentUser = normalizeOwnerId(getUserIdMaster(state.auth.userProfile));
-  if (owner === currentUser) return null;
-  // Granted editors (scope.editorsTrigrams) write like the creator does.
-  if (isScopeEditor(scope, getUserTrigram(state.auth.userProfile))) return null;
-  return scopeId;
+  const profile = state.auth.userProfile;
+  return isScopeReadOnlyForUser(scope, {
+    userId: getUserIdMaster(profile),
+    trigram: getUserTrigram(profile),
+  })
+    ? scopeId
+    : null;
 }
 
 // Editor bypass: the current user was granted edit rights on the selected
