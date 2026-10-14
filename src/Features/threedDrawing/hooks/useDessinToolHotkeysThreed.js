@@ -35,8 +35,10 @@ const isEditableTarget = (el) => {
 // Scoped to "Dessin module + 3D editor active". useRightPanelToolHotkeys
 // yields "E" (Élévation) in that exact context so listener order never
 // decides; "M" and "R" have no other owner in 3D ("R" = run in walk mode
-// and OBJECT_3D placement, both of which make this hook inert). Inert while
-// a draw is armed (a draw owns its own letters) and in walk mode. Mounted
+// and OBJECT_3D placement, both of which make this hook inert; "R" =
+// « Recommencer à chaque clic » while « Déplacer » is active, this hook
+// yields it). Inert while a draw is armed (a draw owns its own letters) and
+// in walk mode. Mounted
 // from MainThreedEditor — NOT from the tool rows, which unmount as soon as
 // the drawing helper swaps in (the letters must keep toggling the active
 // mode off).
@@ -60,6 +62,9 @@ export default function useDessinToolHotkeysThreed() {
       if (s.threedEditor.walkMode.active) return;
       // A draw owns its own letters.
       if (s.mapEditor.enabledDrawingMode) return;
+      // « Déplacer » owns R (« Recommencer à chaque clic ») while active —
+      // M / Escape leave the mode.
+      if (letter === "r" && s.threedEditor.moveAnnotationMode.active) return;
 
       if (letter === "e") {
         dispatch(setExtrudeModeActive(!s.threedEditor.extrudeMode.active));

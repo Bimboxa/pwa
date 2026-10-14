@@ -366,9 +366,14 @@ const threedEditorInitialState = {
     active: false,
     // Annotations currently carried (empty = waiting for the grab click).
     carriedAnnotationIds: [],
-    // Typed `<distance>[*<copies>]` buffer ("1.3*3") while carrying — see
+    // Typed `<distance>[*<copies>]` buffer ("1.3*3") — while carrying, or
+    // typed ahead of the grab (the next grab picks it up) — see
     // annotationTransform/utils/copyBuffer. "" = plain move.
     copyBuffer: "",
+    // « Recommencer à chaque clic » (R): the grab survives the drop — the
+    // same copies again, or the moved annotations grabbed again at the
+    // destination. Dropped with the mode.
+    repeat: false,
   },
   // "Tourner" mode for ANNOTATIONS (Dessin/MAP module), CAD-style 3 clicks:
   // 1st snapped click sets the pivot on an annotation (and picks the carried
@@ -1099,6 +1104,7 @@ export const threedEditorSlice = createSlice({
       state.moveAnnotationMode.active = !!action.payload;
       state.moveAnnotationMode.carriedAnnotationIds = [];
       state.moveAnnotationMode.copyBuffer = "";
+      state.moveAnnotationMode.repeat = false;
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
@@ -1200,14 +1206,20 @@ export const threedEditorSlice = createSlice({
       if (!state.mergeFacesMode.active) return;
       state.mergeFacesMode.seed = action.payload ?? null;
     },
+    // Grab / drop / cancel. The typed buffer is NOT reset here: typed ahead
+    // of the grab it is picked up by the grab, and « Recommencer à chaque
+    // clic » keeps it across the drops — the pointer handlers clear it
+    // explicitly (setMoveAnnotationCopyBuffer("")) when the carry ends.
     setMoveAnnotationCarriedIds: (state, action) => {
       state.moveAnnotationMode.carriedAnnotationIds = action.payload ?? [];
-      // Grab / drop / cancel: the typed copies never outlive the carry.
-      state.moveAnnotationMode.copyBuffer = "";
     },
     setMoveAnnotationCopyBuffer: (state, action) => {
       if (!state.moveAnnotationMode.active) return;
       state.moveAnnotationMode.copyBuffer = action.payload ?? "";
+    },
+    setMoveAnnotationRepeat: (state, action) => {
+      if (!state.moveAnnotationMode.active) return;
+      state.moveAnnotationMode.repeat = !!action.payload;
     },
     setRotateAnnotationModeActive: (state, action) => {
       state.rotateAnnotationMode.active = !!action.payload;
@@ -1433,6 +1445,7 @@ export const {
   setMoveAnnotationModeActive,
   setMoveAnnotationCarriedIds,
   setMoveAnnotationCopyBuffer,
+  setMoveAnnotationRepeat,
   setIsolateFaceModeActive,
   setMergeFacesModeActive,
   setMergeFacesSeed,

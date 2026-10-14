@@ -284,8 +284,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     yieldWhen: isolateSegmentHotkeyYieldWhen,
   });
   // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
-  // drawing (this editor stays mounted under the 3D one)
-  useToolGroupHotkey("c", "FACE_CUT", { threed: true });
+  // drawing (this editor stays mounted under the 3D one); "C" is « Copier »
+  // of the 3D « Déplacer » while that mode is active — the hotkey yields
+  const faceCutHotkeyYieldWhen = useMemo(
+    () => (s) => Boolean(s.threedEditor?.moveAnnotationMode?.active),
+    []
+  );
+  useToolGroupHotkey("c", "FACE_CUT", {
+    threed: true,
+    yieldWhen: faceCutHotkeyYieldWhen,
+  });
   // hotkeys — start a templateless draw (D = Dessin) when not drawing
   useTemplatelessDrawHotkey();
   // hotkeys — start a revolution axis (A = Axe de révolution) on a plan,
@@ -608,7 +616,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // BaseMaps module: the "Afficher les annotations" switch of the Fond de
     // plan panel loads the scope annotations; OFF = bare base map.
     enabled:
-      isActiveViewer && !(viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps),
+      isActiveViewer &&
+      !(viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps),
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations,
     filterByMainBaseMap: true,
@@ -1236,7 +1245,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       const circle = p0 && p1 && p2 && getCircleFrom3Points(p0, p1, p2);
       // Collinear clicks: no circle, nothing to commit.
       if (!circle) return;
-      return handleCommitDrawingFromDisc({ x: circle.cx, y: circle.cy }, circle.r);
+      return handleCommitDrawingFromDisc(
+        { x: circle.cx, y: circle.cy },
+        circle.r
+      );
     }
     const circlePoints = getPolylinePointsFromCircle(points);
     const options = {};
@@ -1272,7 +1284,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     if (!Number.isFinite(meterByPx) || meterByPx <= 0) {
       dispatch(
         setToaster({
-          message: "Le fond de plan n'a pas d'échelle : impossible de créer un disque.",
+          message:
+            "Le fond de plan n'a pas d'échelle : impossible de créer un disque.",
           severity: "warning",
         })
       );
@@ -2048,8 +2061,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       // A DISC shares the handles (radius / sector bounds), without the
       // orientation nor the elevation re-pose of the axis.
       if (
-        (annotation.type === "REVOLUTION_AXIS" ||
-          annotation.type === "DISC") &&
+        (annotation.type === "REVOLUTION_AXIS" || annotation.type === "DISC") &&
         (partType?.startsWith("REVOLUTION_RIM::") ||
           partType?.startsWith("REVOLUTION_ANGLE::"))
       ) {

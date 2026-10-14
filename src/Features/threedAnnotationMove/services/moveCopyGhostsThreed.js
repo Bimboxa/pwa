@@ -131,7 +131,14 @@ export function poseCopyGhostsRotated(grab, phi) {
 // After the drop: the ghosts keep standing for the written copies until the
 // AnnotationsManager has built them (annotation-ready notifications carry
 // ARRAYS of ids), or the fallback delay. Takes the ghosts over from the grab.
-export function holdCopyGhostsUntilBuilt(editor, grab, newAnnotationIds) {
+// onReleased (optional) runs once the ghosts are released — the copies are
+// built (or given up on): a surviving grab refreshes its drop targets.
+export function holdCopyGhostsUntilBuilt(
+  editor,
+  grab,
+  newAnnotationIds,
+  onReleased
+) {
   const ghosts = grab?.ghosts ?? [];
   grab.ghosts = [];
   if (!ghosts.length) return;
@@ -150,6 +157,7 @@ export function holdCopyGhostsUntilBuilt(editor, grab, newAnnotationIds) {
       ghost.object.parent?.remove(ghost.object);
       disposeObject(ghost.object);
     }
+    onReleased?.();
     editor?.renderScene?.();
   };
 

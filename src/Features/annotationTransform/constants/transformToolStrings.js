@@ -10,12 +10,38 @@ export const TRANSFORM_TOOL_LABELS = {
   MERGE_FACES: "Fusionner des faces",
 };
 
-export function getMoveToolHint({ carriedCount, copyCount = 0 }) {
-  if (carriedCount === 0) return "Cliquez un point de l'annotation à déplacer";
-  if (copyCount > 0)
-    return `Cliquez la destination de la 1re copie (×${copyCount}, l'originale reste en place)`;
+// copyCount: the `*N` of the buffer — armed (nothing grabbed yet): the
+// buffer the next grab will pick up; carrying: the pending copies.
+// repeat: « Recommencer à chaque clic » — copies: the grab survives each
+// click; no copies: the moved annotations are grabbed again at the
+// destination.
+export function getMoveToolHint({
+  carriedCount,
+  copyCount = 0,
+  repeat = false,
+}) {
+  if (carriedCount === 0) {
+    if (copyCount > 0)
+      return `Cliquez un point de l'annotation à copier (×${copyCount})`;
+    return "Cliquez un point de l'annotation à déplacer";
+  }
+  if (copyCount > 0) {
+    const base = `Cliquez la destination de la 1re copie (×${copyCount}, l'originale reste en place)`;
+    return repeat ? `${base} — recommence à chaque clic` : base;
+  }
+  if (repeat)
+    return "Cliquez le point de destination — l'annotation reste saisie pour le déplacement suivant";
   return "Cliquez le point de destination";
 }
+
+// « Recommencer à chaque clic » / « Copier » rows of the move helper
+// (SectionMoveRepeatOptions), 2D and 3D.
+export const MOVE_REPEAT_LABEL = "Recommencer à chaque clic";
+export const MOVE_REPEAT_HINT =
+  "Après le clic, la saisie continue : une copie de plus par clic, ou l'annotation reste saisie à sa nouvelle place";
+export const MOVE_COPY_BUTTON_LABEL = "Copier";
+export const MOVE_COPY_BUTTON_HINT =
+  "Une copie par clic (×1, l'originale reste en place) — coche « Recommencer à chaque clic »";
 
 export function getRotateToolHint({
   carriedCount,
