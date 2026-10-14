@@ -18,6 +18,7 @@ import {
   scaleDeltaToLength,
   withCopyCountPart,
   withCopyCountText,
+  withDefaultCopyCount,
 } from "./copyBuffer.js";
 
 test("digits feed the distance, * opens the count, digits then feed it", () => {
@@ -101,6 +102,26 @@ test("chip labels and badges", () => {
   );
   assert.equal(formatRotateBadge({ angleLabel: "45°", count: 0 }), "45°");
   assert.equal(formatRotateBadge({ angleLabel: "45°", count: 3 }), "45° ×3");
+  // « Recommencer à chaque clic »
+  assert.equal(
+    formatMoveBadge({ lengthM: 1.3, count: 1, repeat: true }),
+    "1.300 m ×1 ↻"
+  );
+  assert.equal(formatMoveBadge({ count: 0, repeat: true }), "↻");
+  assert.equal(
+    formatRotateBadge({ angleLabel: "1.3 m", count: 1, repeat: true }),
+    "1.3 m ×1 ↻"
+  );
+});
+
+test("withDefaultCopyCount (« Copier ») asks for one copy unless some are typed", () => {
+  assert.equal(withDefaultCopyCount(""), "*1");
+  assert.equal(withDefaultCopyCount("*"), "*1");
+  assert.equal(withDefaultCopyCount("*0"), "*1");
+  assert.equal(withDefaultCopyCount("1.3"), "1.3*1");
+  assert.equal(withDefaultCopyCount("1.3*3"), "1.3*3");
+  assert.equal(withDefaultCopyCount("*4"), "*4");
+  assert.equal(withDefaultCopyCount(undefined), "*1");
 });
 
 test("raw parts and the copy-count field", () => {

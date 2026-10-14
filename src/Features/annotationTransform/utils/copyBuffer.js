@@ -142,6 +142,16 @@ export function withCopyCountPart(valueText, buffer) {
   return countPart === null ? value : `${value}*${countPart}`;
 }
 
+// « Copier » (C): the buffer with a copy count of 1 when it asks for none
+// ("", "*", "*0", "1.3" → "*1", "1.3*1"); a buffer that already asks for
+// copies is kept as is (the typed distance always is).
+export function withDefaultCopyCount(buffer) {
+  const current = buffer ?? "";
+  return parseCopyCount(current) > 0
+    ? current
+    : withCopyCountText("1", current);
+}
+
 // Rescales a move delta ({x, y} or {x, y, z}) to the typed length (same
 // unit as the delta); unchanged without a length or on a degenerate delta.
 export function scaleDeltaToLength(delta, length) {
@@ -155,20 +165,27 @@ export function scaleDeltaToLength(delta, length) {
     : { x: delta.x * k, y: delta.y * k, z: z * k };
 }
 
+// « Recommencer à chaque clic » marker of the badges.
+export const REPEAT_BADGE_MARK = "↻";
+
 // Badge text that follows the cursor: "1.300 m", "1.300 m ×3" — `axis`
-// (3D Shift lock) prefixes it.
-export function formatMoveBadge({ lengthM, count, axis }) {
+// (3D Shift lock) prefixes it, `repeat` (« Recommencer à chaque clic »)
+// appends the ↻ mark.
+export function formatMoveBadge({ lengthM, count, axis, repeat = false }) {
   const parts = [];
   if (axis) parts.push(axis);
   if (Number.isFinite(lengthM)) parts.push(`${lengthM.toFixed(3)} m`);
   if (count > 0) parts.push(`×${count}`);
+  if (repeat) parts.push(REPEAT_BADGE_MARK);
   return parts.join(" ");
 }
 
-// Angle label of the « Tourner » tools: "45°", "45° ×3".
-export function formatRotateBadge({ angleLabel, count }) {
+// Angle label of the « Tourner » tools: "45°", "45° ×3" (the 2D MOVE badge
+// reuses it for a typed distance, with the same `repeat` mark).
+export function formatRotateBadge({ angleLabel, count, repeat = false }) {
   const parts = [];
   if (angleLabel) parts.push(angleLabel);
   if (count > 0) parts.push(`×${count}`);
+  if (repeat) parts.push(REPEAT_BADGE_MARK);
   return parts.join(" ");
 }

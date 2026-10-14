@@ -43,6 +43,16 @@ Le geste est le même en 2D et en 3D :
   dans le champ Angle de la carte, qui conserve la queue `*N`). Le badge
   d'angle affiche le `×N` (verrouillé dès le 1er caractère tapé) ; la carte
   « Angle - Copies multiples » du helper affiche et édite le buffer.
+- **Déplacer — « Recommencer à chaque clic »** (`R`, interrupteur de la
+  carte du helper) : après le clic de destination, la saisie continue —
+  avec des copies (`*N`), l'originale et son point saisi restent en main et
+  chaque clic pose N copies de plus ; sans copies, l'annotation déplacée est
+  re-saisie à sa destination (le clic suivant la déplace encore ; une
+  distance tapée s'applique à chaque clic). L'option tombe en quittant
+  l'outil. **« Copier »** (`C`, bouton de la carte) : écrit `*1` si aucune
+  copie n'est tapée (la distance tapée est conservée) et coche
+  « Recommencer » — armé ou en transport. Le buffer peut être tapé **avant**
+  la saisie (chiffres, `*`, `⌫`) : la saisie suivante le reprend.
 - `Échap` annule dans l'ordre : l'angle / les copies tapés, la saisie en
   cours, puis l'outil.
 - L'outil reste armé après une validation.
@@ -97,6 +107,9 @@ ancré), titré du nom de l'outil (`selectTransformToolTitle`).
   elle écrit le même buffer que le clavier (`setMoveCopyBuffer` /
   `setRotateAngleBuffer` en 2D, `setMoveCopyBufferService` /
   `setRotateAngleBufferService` en 3D).
+- `SectionMoveRepeatOptions` : carte « Recommencer à chaque clic » (`R`,
+  interrupteur) / « Copier » (`C`, bouton) de « Déplacer », 2D et 3D, sous
+  la carte Distance ; le bouton est inerte sur un axe de révolution.
 - `SectionTransformToolHelper2d` : conteneur 2D, lit le store de session.
 - `threedDrawing/components/SectionThreedToolHelperContent` : conteneur 3D,
   lit `threedEditor` (Extruder, Déplacer, Tourner).
@@ -131,6 +144,15 @@ Même schéma qu'un groupe d'outils classique (cf. `surfaceCut/README.md`) :
 `services/transformSessionStore.js` : store module simple lu via
 `useSyncExternalStore` (pas de slice Redux). Un mouvement de souris ne
 re-rend que l'aperçu et l'aide. Positions en pixels du fond de plan.
+
+Deux niveaux de remise à zéro : `resetTransformSession()` lâche la saisie
+(annulation, fin de commit, clic nul) mais garde `repeat` ;
+`resetTransformTool()` (sortie de l'outil) efface tout, buffer tapé à
+l'avance et `repeat` compris. `endTransformCommit()` est le point unique de
+fin d'écriture (couche d'aperçu quand les annotations reviennent, timer de
+repli) : il lâche la saisie, ou — « Recommencer à chaque clic » — la garde
+telle quelle (copies) ou re-saisit à la destination (`anchor = cursor`).
+`copiesRefused` (axe de révolution, disque) fait ignorer la queue `*N`.
 
 ### Clavier
 
@@ -208,7 +230,33 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
   pas ces touches.
 - **Non copiés** (comme « Dupliquer ») : ouvertures collées, parties
   peintes ; `meshLines` abandonnées. Un seul `withUndoGroup`, une seule
-  transaction : un `Ctrl+Z` retire toutes les copies.
+  transaction : un `Ctrl+Z` retire toutes les copies (un par clic en mode
+  « Recommencer à chaque clic »).
+
+#### « Recommencer à chaque clic » (`R`) et « Copier » (`C`) — Déplacer
+
+- `repeat` : 2D `transformSessionStore.repeat`, 3D
+  `threedEditor.moveAnnotationMode.repeat` ; conservé d'une saisie à
+  l'autre, remis à `false` en quittant l'outil. Le badge ajoute `↻`.
+- Au dépôt avec `repeat` : copies → la saisie survit (2D : `committing`
+  retombe seulement ; 3D : la saisie reste, un **nouveau** jeu de fantômes
+  est bâti pour les copies suivantes, l'ancien tient lieu des copies écrites,
+  puis l'index cible est rafraîchi quand elles sont construites) ; sans
+  copies → re-saisie à la destination (2D : `anchor = cursor` ; 3D : différée
+  jusqu'à la reconstruction des objets, `rearmMoveAnnotationAfterCommit`).
+- « Copier » : `withDefaultCopyCount` (`*1` sauf copies déjà tapées) +
+  `repeat = true` — 2D `armMoveCopy()`, 3D `armMoveCopyThreedService`.
+  Refusé (toast) sur un axe de révolution.
+- Buffer tapé à l'avance (outil armé, rien de saisi) : 2D
+  `setMoveCopyBuffer` accepte `kind === null`, la saisie reprend
+  `state.copyBuffer` ; 3D `moveAnnotationMode.copyBuffer` reste posé sans
+  saisie (`setMoveAnnotationCarriedIds` ne l'efface plus — les handlers le
+  vident explicitement à la fin d'un transport sans `repeat`), la saisie le
+  reprend et bâtit aussitôt les fantômes.
+- Touches : en 2D, `R` / `C` n'ont pas d'autre propriétaire tant que
+  `MOVE_ANNOTATION` est armé. En 3D, `useDessinToolHotkeysThreed` cède `R`
+  et `useToolGroupHotkey("c", "FACE_CUT")` cède `C` tant que
+  `moveAnnotationMode.active`.
 
 #### Mécanique
 

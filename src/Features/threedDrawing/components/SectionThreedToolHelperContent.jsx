@@ -1,12 +1,15 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import {
   clearExtrudeValueBuffer,
   clearVertexOffsetValueBuffer,
   setExtrudeValueBuffer,
+  setMoveAnnotationCopyBuffer,
+  setMoveAnnotationRepeat,
   setVertexOffsetValueBuffer,
 } from "Features/threedEditor/threedEditorSlice";
 
+import SectionMoveRepeatOptions from "Features/annotationTransform/components/SectionMoveRepeatOptions";
 import SectionTransformToolHelper from "Features/annotationTransform/components/SectionTransformToolHelper";
 import SectionTypedConstraint from "Features/annotationTransform/components/SectionTypedConstraint";
 
@@ -19,6 +22,11 @@ import {
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import setRotateAngleBufferService from "Features/threedAnnotationMove/services/setRotateAngleBufferService";
 import setMoveCopyBufferService from "Features/threedAnnotationMove/services/setMoveCopyBufferService";
+import armMoveCopyThreedService from "Features/threedAnnotationMove/services/armMoveCopyThreedService";
+import {
+  getMoveAnnotationGrab,
+  replayMoveOverlay,
+} from "Features/threedAnnotationMove/services/moveAnnotationSessionStore";
 import getVertexOffsetFieldLabel from "Features/threedVertexOffset/utils/getVertexOffsetFieldLabel";
 import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
 
@@ -54,6 +62,7 @@ const MERGE_FACES_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
 
 export default function SectionThreedToolHelperContent({ tool }) {
   const dispatch = useDispatch();
+  const store = useStore();
 
   // data
 
@@ -70,6 +79,9 @@ export default function SectionThreedToolHelperContent({ tool }) {
   );
   const moveCopyBuffer = useSelector(
     (s) => s.threedEditor.moveAnnotationMode.copyBuffer
+  );
+  const moveRepeat = useSelector(
+    (s) => s.threedEditor.moveAnnotationMode.repeat
   );
   const vertexOffsetField = useSelector(
     (s) => s.threedEditor.vertexOffsetMode.armedField
@@ -123,11 +135,29 @@ export default function SectionThreedToolHelperContent({ tool }) {
     dispatch(setVertexOffsetValueBuffer(text));
   }
 
-  // The card's fields write the same buffers as the keyboard.
+  // The card's fields write the same buffers as the keyboard — for
+  // « Déplacer » before the grab too (typed ahead in the slice).
   function handleMoveBuffer(buffer) {
+    if (!getMoveAnnotationGrab()) {
+      dispatch(setMoveAnnotationCopyBuffer(buffer));
+      return;
+    }
     setMoveCopyBufferService({
       editor: getActiveThreedEditor(),
       buffer,
+      dispatch,
+    });
+  }
+
+  function handleToggleMoveRepeat() {
+    dispatch(setMoveAnnotationRepeat(!moveRepeat));
+    replayMoveOverlay();
+  }
+
+  function handleMoveCopy() {
+    armMoveCopyThreedService({
+      editor: getActiveThreedEditor(),
+      store,
       dispatch,
     });
   }
@@ -211,11 +241,13 @@ export default function SectionThreedToolHelperContent({ tool }) {
   }
 
   if (tool === "MOVE_ANNOTATION") {
+    const moveGrab = getMoveAnnotationGrab();
     return (
       <SectionTransformToolHelper
         hint={getMoveToolHint({
           carriedCount: moveCarriedCount,
           copyCount: parseCopyCount(moveCopyBuffer),
+          repeat: moveRepeat,
         })}
         shortcuts={MOVE_TOOL_SHORTCUTS}
       >
@@ -223,7 +255,12 @@ export default function SectionThreedToolHelperContent({ tool }) {
           variant="MOVE"
           buffer={moveCopyBuffer}
           onChangeBuffer={handleMoveBuffer}
-          disabled={moveCarriedCount === 0}
+        />
+        <SectionMoveRepeatOptions
+          repeat={moveRepeat}
+          onToggleRepeat={handleToggleMoveRepeat}
+          onCopy={handleMoveCopy}
+          copyDisabled={Boolean(moveGrab?.isRevolutionAxis)}
         />
       </SectionTransformToolHelper>
     );

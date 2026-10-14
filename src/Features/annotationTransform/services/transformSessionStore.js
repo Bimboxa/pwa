@@ -2,9 +2,11 @@ import { useSyncExternalStore } from "react";
 
 import { parseAngleBufferToPixelDeg } from "../utils/rotateAngle";
 import {
+  getBufferValuePart,
   parseCopyCount,
   parseMoveLength,
   scaleDeltaToLength,
+  withDefaultCopyCount,
 } from "../utils/copyBuffer";
 
 // Session state of the 2D « Déplacer » / « Tourner » tools — a plain module
@@ -25,7 +27,12 @@ import {
 //   angleBuffer: ROTATE = typed `<angle>[*<copies>]` buffer ("45*3", user
 //     degrees), "" when mouse-driven without copies (see utils/copyBuffer)
 //   copyBuffer: MOVE = typed `<distance>[*<copies>]` buffer ("1.3*3"), ""
-//     = plain move (see utils/copyBuffer)
+//     = plain move (see utils/copyBuffer). It may be typed BEFORE the grab
+//     (kind null, « Déplacer » armed): the next grab picks it up.
+//   copiesRefused: MOVE = the carried annotation is never copied (revolution
+//     axis, disc) — the `*N` tail is dropped
+//   repeat: MOVE « Recommencer à chaque clic » (R) — survives the grabs and
+//     the commits, dropped when the tool is left (resetTransformTool)
 //   committing: the write is in flight — the preview stays until the
 //     annotations come back from the db
 const EMPTY = Object.freeze({
@@ -39,6 +46,8 @@ const EMPTY = Object.freeze({
   angleDeg: 0,
   angleBuffer: "",
   copyBuffer: "",
+  copiesRefused: false,
+  repeat: false,
   committing: false,
 });
 
@@ -58,10 +67,70 @@ export function setTransformSession(patch) {
   emit();
 }
 
+// Same, with « Recommencer à chaque clic » on (a stable snapshot for
+// useSyncExternalStore).
+const EMPTY_REPEAT = Object.freeze({ ...EMPTY, repeat: true });
+
+// Drops the grab (cancel, commit done, no-op click): the tool stays armed,
+// « Recommencer à chaque clic » is kept.
 export function resetTransformSession() {
+  const next = state.repeat ? EMPTY_REPEAT : EMPTY;
+  if (state === next) return;
+  state = next;
+  emit();
+}
+
+// Leaving the tool (Escape, another tool, module switch): everything goes,
+// the repeat option included.
+export function resetTransformTool() {
   if (state === EMPTY) return;
   state = EMPTY;
   emit();
+}
+
+// « Recommencer à chaque clic » (R / the helper's switch) — MOVE only.
+export function setTransformRepeat(repeat) {
+  const next = Boolean(repeat);
+  if (state.repeat === next) return;
+  setTransformSession({ repeat: next });
+}
+
+export function toggleTransformRepeat() {
+  setTransformRepeat(!state.repeat);
+}
+
+// « Copier » (C / the helper's button): one copy per click unless copies
+// are already typed, and « Recommencer à chaque clic » on. Armed or
+// carrying; a no-op on an annotation that is never copied.
+export function armMoveCopy() {
+  if (state.kind === "ROTATE" || state.committing) return;
+  if (state.copiesRefused) return;
+  setMoveCopyBuffer(withDefaultCopyCount(state.copyBuffer));
+  setTransformRepeat(true);
+}
+
+// End of a commit (the annotations came back from the db, or the fallback
+// timer): the grab is dropped — unless « Recommencer à chaque clic »:
+// with copies the grab survives as is (the originals never moved, the
+// anchor is still theirs); without, the moved annotations are grabbed again
+// at the destination (the last cursor), the typed buffer kept.
+export function endTransformCommit() {
+  if (!state.committing) return;
+  if (state.kind === "MOVE" && state.repeat) {
+    if (getTransformCopyCount() > 0) {
+      setTransformSession({ committing: false });
+      return;
+    }
+    const anchor = state.cursor ?? state.anchor;
+    setTransformSession({
+      committing: false,
+      anchor,
+      cursor: anchor,
+      rawCursor: anchor,
+    });
+    return;
+  }
+  resetTransformSession();
 }
 
 function subscribe(listener) {
@@ -139,13 +208,24 @@ export function setRotateAngleBuffer(angleBuffer) {
   });
 }
 
-// MOVE — typed `<distance>[*<copies>]` buffer (keyboard). Ignored outside a
-// pending move. The destination follows the new distance at once.
+// MOVE — typed `<distance>[*<copies>]` buffer (keyboard or the helper's
+// fields): while carrying (the destination follows the new distance at
+// once), or before the grab (« Déplacer » armed: the next grab picks it
+// up). Ignored while turning or writing; the `*N` tail is dropped on an
+// annotation that is never copied.
 export function setMoveCopyBuffer(copyBuffer) {
-  if (state.kind !== "MOVE" || state.committing) return;
-  const next = { ...state, copyBuffer };
+  if (state.kind === "ROTATE" || state.committing) return;
+  const buffer = state.copiesRefused
+    ? getBufferValuePart(copyBuffer ?? "")
+    : (copyBuffer ?? "");
+  if (state.kind !== "MOVE") {
+    if (buffer !== state.copyBuffer)
+      setTransformSession({ copyBuffer: buffer });
+    return;
+  }
+  const next = { ...state, copyBuffer: buffer };
   setTransformSession({
-    copyBuffer,
+    copyBuffer: buffer,
     cursor: constrainMoveCursor(next, state.rawCursor ?? state.cursor),
   });
 }

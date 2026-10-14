@@ -5,19 +5,28 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import {
   setMoveAnnotationModeActive,
   setMoveAnnotationCarriedIds,
+  setMoveAnnotationCopyBuffer,
+  setMoveAnnotationRepeat,
   bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
-import { appendToMoveBuffer } from "Features/annotationTransform/utils/copyBuffer";
+import {
+  appendToMoveBuffer,
+  getBufferValuePart,
+} from "Features/annotationTransform/utils/copyBuffer";
 import { MULTI_COPY_UNSUPPORTED_MESSAGE } from "Features/annotationTransform/constants/transformToolStrings";
 import setMoveCopyBufferService from "../services/setMoveCopyBufferService";
+import armMoveCopyThreedService from "../services/armMoveCopyThreedService";
+import buildMoveAnnotationGrab, {
+  refreshMoveAnnotationGrabTargets,
+} from "../services/buildMoveAnnotationGrab";
+import rearmMoveAnnotationAfterCommit from "../services/rearmMoveAnnotationAfterCommit";
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMoveFrom3d";
@@ -28,6 +37,7 @@ import applyMoveAnnotationsPose, {
 } from "../utils/applyMoveAnnotationsPose";
 import commitAnnotationsTransformFrom3d from "../services/commitAnnotationsTransformFrom3d";
 import {
+  buildCopyGhosts,
   disposeCopyGhosts,
   getGrabCopyCount,
   getGrabMoveLength,
@@ -37,8 +47,8 @@ import {
 import {
   getLastMoveAnnotationSnap,
   getMoveAnnotationGrab,
-  setMoveAnnotationGrab,
   clearMoveAnnotationGrab,
+  replayMoveOverlay,
 } from "../services/moveAnnotationSessionStore";
 
 // Mirrors useMoveBaseMapPointerHandlers.
@@ -90,8 +100,14 @@ function restoreCarriedAnnotations() {
 // Typed buffer while carrying (`<distance>[*<copies>]`): digits constrain
 // the distance along the current direction; `*` + digits ("*3") keep the
 // originals in place and preview N copies (moveCopyGhostsThreed), the drop
-// writes the copies (createTransformedAnnotationCopiesService). Shift (ortho
-// lock) is handled by the overlay.
+// writes the copies (createTransformedAnnotationCopiesService). The buffer
+// may be typed ahead of the grab (slice), the grab picks it up.
+// « Recommencer à chaque clic » (R, slice `repeat`): the grab survives the
+// drop — the same copies again (fresh ghosts), or the moved annotations
+// grabbed again at the destination once rebuilt
+// (rearmMoveAnnotationAfterCommit); « Copier » (C): one copy per click,
+// repeat on (armMoveCopyThreedService). Shift (ortho lock) is handled by the
+// overlay.
 export default function useMoveAnnotationPointerHandlers({ annotations }) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -183,63 +199,67 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         if (!canEditAnnotation(id)) return;
       }
 
-      const annotationsObjectsMap =
-        editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
-      const roots = [];
-      const rootStartPoses = new Map();
-      const carriedIds = [];
-      for (const id of annotationIds) {
-        const root = annotationsObjectsMap[id];
-        if (!root) {
-          // Not built in 3D (async load) — can't preview it, leave it out.
-          console.warn("[threedAnnotationMove] no 3D object for", id);
-          continue;
-        }
-        roots.push(root);
-        rootStartPoses.set(id, {
-          position: root.position.clone(),
-          rotZ: root.rotation.z,
-        });
-        carriedIds.push(id);
-      }
-      if (!carriedIds.length) return;
+      // The buffer typed ahead of the grab is picked up — minus its `*N`
+      // tail on a revolution axis (moved alone, never copied).
+      const armedBuffer =
+        store.getState().threedEditor.moveAnnotationMode.copyBuffer ?? "";
+      const copyBuffer = isRevolutionAxis
+        ? getBufferValuePart(armedBuffer)
+        : armedBuffer;
+      if (isRevolutionAxis && armedBuffer.includes("*")) toastCopiesRefused();
 
-      const group = resolved.group;
-      group.updateWorldMatrix(true, false);
-      const startLocal = group.worldToLocal(snap.position.clone());
-
-      // Fresh target-only snap index, excluding every carried annotation
-      // root: the carried geometry must never screen the drop targets, and a
-      // grab-time rebuild guarantees up-to-date world positions.
-      const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
-        editor?.sceneManager?.scene,
-        { excludeSubtrees: roots }
-      );
-
-      setMoveAnnotationGrab({
+      const carriedIds = buildMoveAnnotationGrab({
+        editor,
+        annotationIds,
         baseMapId: resolved.baseMapId,
-        annotationIds: carriedIds,
-        startWorld: snap.position.clone(),
-        startLocal: { x: startLocal.x, y: startLocal.y, z: startLocal.z },
+        group: resolved.group,
+        snapPosition: snap.position,
         isRevolutionAxis,
-        rootStartPoses,
-        targetVerts,
-        targetAdjacency,
-        copyBuffer: "",
-        ghosts: [],
-        // Resolved snapshot of the carried annotations (copy ghosts).
-        carriedAnnotations: (annotationsRef.current ?? []).filter((a) =>
-          carriedIds.includes(a.id)
-        ),
-        lastDelta: ZERO_DELTA,
+        copyBuffer,
+        annotations: annotationsRef.current,
       });
+      if (!carriedIds.length) return;
       dispatch(setMoveAnnotationCarriedIds(carriedIds));
+      if (copyBuffer !== armedBuffer)
+        dispatch(setMoveAnnotationCopyBuffer(copyBuffer));
+      // Copies typed ahead: the ghosts stand in from the first pointer move.
+      const grab = getMoveAnnotationGrab();
+      if (grab && getGrabCopyCount(grab) > 0) {
+        buildCopyGhosts(editor, grab, grab.carriedAnnotations);
+        poseCopyGhosts(grab, ZERO_DELTA);
+        editor?.renderScene?.();
+      }
+    }
+
+    function toastCopiesRefused() {
+      dispatch(
+        setToaster({
+          message: MULTI_COPY_UNSUPPORTED_MESSAGE,
+          severity: "warning",
+        })
+      );
     }
 
     // Typed buffer → slice, ghosts, immediate re-pose (shared with the
     // helper's fields).
     function setCopyBuffer(grab, buffer) {
       setMoveCopyBufferService({ editor, buffer, dispatch });
+    }
+
+    // Typed ahead of the grab: the slice only (the grab picks it up).
+    function setArmedCopyBuffer(buffer) {
+      dispatch(setMoveAnnotationCopyBuffer(buffer));
+    }
+
+    function isRepeatOn() {
+      return Boolean(store.getState().threedEditor.moveAnnotationMode.repeat);
+    }
+
+    // The carry ends (drop, cancel): the typed buffer goes with it.
+    function endCarry() {
+      clearMoveAnnotationGrab();
+      dispatch(setMoveAnnotationCarriedIds([]));
+      dispatch(setMoveAnnotationCopyBuffer(""));
     }
 
     async function dropCopiesAtSnap(grab, snap) {
@@ -254,8 +274,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       );
       if (!delta || !metrics) {
         disposeCopyGhosts(grab);
-        clearMoveAnnotationGrab();
-        dispatch(setMoveAnnotationCarriedIds([]));
+        endCarry();
         return;
       }
       poseCopyGhosts(grab, delta);
@@ -263,8 +282,16 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       // AnnotationsManager has built them.
       const ghostsHolder = { ghosts: grab.ghosts };
       grab.ghosts = [];
-      clearMoveAnnotationGrab();
-      dispatch(setMoveAnnotationCarriedIds([]));
+      // « Recommencer à chaque clic »: the grab survives as is (the originals
+      // are still at their grab pose) with a fresh set of ghosts for the next
+      // copies, posed at the last delta until the pointer moves.
+      const repeat = isRepeatOn();
+      if (repeat) {
+        buildCopyGhosts(editor, grab, grab.carriedAnnotations);
+        poseCopyGhosts(grab, grab.lastDelta ?? delta);
+      } else {
+        endCarry();
+      }
 
       const { meterByPx, imageWidth, imageHeight } = metrics;
       let newAnnotationIds = [];
@@ -288,7 +315,12 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       } catch (err) {
         console.error("[threedAnnotationMove] copies persist failed", err);
       }
-      holdCopyGhostsUntilBuilt(editor, ghostsHolder, newAnnotationIds);
+      holdCopyGhostsUntilBuilt(editor, ghostsHolder, newAnnotationIds, () => {
+        // The written copies are built: they become drop targets of the
+        // surviving grab.
+        if (repeat && getMoveAnnotationGrab() === grab)
+          refreshMoveAnnotationGrabTargets(editor, grab);
+      });
       if (newAnnotationIds.length) dispatch(bumpSnapIndexEpoch());
     }
 
@@ -306,8 +338,12 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         includeZ: snap.kind !== "FREE",
         lengthM: getGrabMoveLength(grab),
       });
+      // « Recommencer à chaque clic »: the moved annotations are grabbed
+      // again at the destination once rebuilt (the buffer is kept).
+      const rearm = isRepeatOn() && Boolean(delta);
       clearMoveAnnotationGrab();
       dispatch(setMoveAnnotationCarriedIds([]));
+      if (!rearm) dispatch(setMoveAnnotationCopyBuffer(""));
       if (!delta) return;
       try {
         if (grab.isRevolutionAxis) {
@@ -318,19 +354,32 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
             deltaLocal: delta,
             dispatch,
           });
-          return;
+        } else {
+          await commitAnnotationsTransformFrom3d({
+            editor,
+            annotationIds: grab.annotationIds,
+            baseMapId: grab.baseMapId,
+            transform: { kind: "MOVE", deltaLocal: delta },
+            allAnnotations: annotationsRef.current,
+            projectId: store.getState().projects.selectedProjectId,
+            dispatch,
+          });
         }
-        await commitAnnotationsTransformFrom3d({
-          editor,
-          annotationIds: grab.annotationIds,
-          baseMapId: grab.baseMapId,
-          transform: { kind: "MOVE", deltaLocal: delta },
-          allAnnotations: annotationsRef.current,
-          projectId: store.getState().projects.selectedProjectId,
-          dispatch,
-        });
       } catch (err) {
         console.error("[threedAnnotationMove] persist failed", err);
+        return;
+      }
+      if (rearm) {
+        rearmMoveAnnotationAfterCommit({
+          editor,
+          store,
+          dispatch,
+          annotationIds: grab.annotationIds,
+          baseMapId: grab.baseMapId,
+          dropWorld: snap.position.clone(),
+          copyBuffer: grab.copyBuffer ?? "",
+          getAnnotations: () => annotationsRef.current,
+        });
       }
     }
 
@@ -366,6 +415,9 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
     function onKeyDown(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const grab = getMoveAnnotationGrab();
+      // Armed (nothing grabbed): the buffer typed ahead, in the slice.
+      const armedBuffer =
+        store.getState().threedEditor.moveAnnotationMode.copyBuffer ?? "";
       const consume = () => {
         e.preventDefault();
         e.stopPropagation();
@@ -381,29 +433,54 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
           restoreCarriedAnnotations();
           dispatch(setMoveAnnotationCarriedIds([]));
           consume();
+        } else if (armedBuffer) {
+          // Drop the buffer typed ahead before leaving the mode.
+          setArmedCopyBuffer("");
+          consume();
         } else {
           dispatch(setMoveAnnotationModeActive(false));
         }
         return;
       }
 
-      if (!grab || isEditableTarget(e.target)) return;
+      if (isEditableTarget(e.target)) return;
+
+      // « Recommencer à chaque clic » (R) / « Copier » (C), armed or
+      // carrying.
+      if (/^[rRcC]$/.test(e.key)) {
+        consume();
+        if (e.repeat) return;
+        if (e.key === "r" || e.key === "R") {
+          dispatch(setMoveAnnotationRepeat(!isRepeatOn()));
+          // The badge shows / drops the ↻ mark at once.
+          replayMoveOverlay();
+        } else if (grab?.isRevolutionAxis) {
+          toastCopiesRefused();
+        } else {
+          armMoveCopyThreedService({ editor, store, dispatch });
+        }
+        return;
+      }
 
       if (e.key === "Backspace" || e.key === "Delete") {
         consume();
-        if (grab.copyBuffer) setCopyBuffer(grab, grab.copyBuffer.slice(0, -1));
+        if (grab) {
+          if (grab.copyBuffer)
+            setCopyBuffer(grab, grab.copyBuffer.slice(0, -1));
+        } else if (armedBuffer) {
+          setArmedCopyBuffer(armedBuffer.slice(0, -1));
+        }
         return;
       }
 
       if (/^[0-9.,*]$/.test(e.key)) {
         consume();
+        if (!grab) {
+          setArmedCopyBuffer(appendToMoveBuffer(armedBuffer, e.key));
+          return;
+        }
         if (grab.isRevolutionAxis && e.key === "*") {
-          dispatch(
-            setToaster({
-              message: MULTI_COPY_UNSUPPORTED_MESSAGE,
-              severity: "warning",
-            })
-          );
+          toastCopiesRefused();
           return;
         }
         setCopyBuffer(grab, appendToMoveBuffer(grab.copyBuffer, e.key));

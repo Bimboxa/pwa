@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useStore } from "react-redux";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -54,8 +54,10 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // rescales the move along the current direction; « copie multiple » keeps
 // the originals at their grab pose, the copy ghosts (moveCopyGhostsThreed)
 // follow instead. The badge under the cursor shows the travelled distance
-// (bold when typed) and the copy count.
+// (bold when typed), the copy count and the ↻ mark of « Recommencer à
+// chaque clic » (slice `repeat`).
 export default function MoveAnnotationOverlayThreed() {
+  const store = useStore();
   const active = useSelector((s) => s.threedEditor.moveAnnotationMode.active);
   const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
 
@@ -179,6 +181,9 @@ export default function MoveAnnotationOverlayThreed() {
         lengthM,
         count: getGrabCopyCount(grab),
         axis: snap.kind === "AXIS" ? snap.axis : null,
+        repeat: Boolean(
+          store.getState().threedEditor.moveAnnotationMode.repeat
+        ),
       });
       badge.update?.({
         x: screen.sx,
@@ -324,7 +329,7 @@ export default function MoveAnnotationOverlayThreed() {
       setMoveOverlayReplay(null);
       setLastMoveAnnotationSnap(null);
     };
-  }, [active, findNearestSnap]);
+  }, [active, findNearestSnap, store]);
 
   if (!active) return null;
   return (

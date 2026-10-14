@@ -3,8 +3,8 @@ import { useEffect, useRef } from "react";
 import TransientAnnotationLayer from "Features/mapEditorGeneric/components/TransientAnnotationLayer";
 
 import {
+  endTransformCommit,
   getTransformCopyCount,
-  resetTransformSession,
   useTransformSession,
 } from "../services/transformSessionStore";
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
@@ -38,11 +38,12 @@ export default function TransformToolPreviewLayer({
 
   // The annotations came back from the db after a commit: the preview has
   // done its job (a fallback timer in useAnnotationTransformTool covers a
-  // write that changes nothing).
+  // write that changes nothing). endTransformCommit drops the grab, or
+  // keeps / re-arms it on « Recommencer à chaque clic ».
   const committingRef = useRef(session.committing);
   committingRef.current = session.committing;
   useEffect(() => {
-    if (committingRef.current) resetTransformSession();
+    if (committingRef.current) endTransformCommit();
   }, [annotations]);
 
   // helpers

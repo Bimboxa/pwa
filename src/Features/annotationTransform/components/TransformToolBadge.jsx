@@ -64,6 +64,7 @@ export default function TransformToolBadge({
         text = formatRotateBadge({
           angleLabel: `${typed} m`,
           count: copyCount,
+          repeat: session.repeat,
         });
         locked = true;
       } else {
@@ -72,7 +73,11 @@ export default function TransformToolBadge({
             ? Math.hypot(cursor.x - anchor.x, cursor.y - anchor.y) *
               baseMapMeterByPx
             : undefined;
-        text = formatMoveBadge({ lengthM, count: copyCount });
+        text = formatMoveBadge({
+          lengthM,
+          count: copyCount,
+          repeat: session.repeat,
+        });
       }
     } else if (kind === "ROTATE" && reference) {
       const rx = reference.x - anchor.x;

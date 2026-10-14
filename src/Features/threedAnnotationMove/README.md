@@ -47,6 +47,27 @@ par le clavier et la carte du helper) : la distance rescale le delta
 (`buildCopyGhosts`) ; le drop écrit les copies par
 `createTransformedAnnotationCopiesService({ kind: "MOVE" })` et tient les
 fantômes jusqu'à la construction des copies (`holdCopyGhostsUntilBuilt`).
+Le buffer peut être tapé **avant** la saisie (slice
+`moveAnnotationMode.copyBuffer`) : `grabAtSnap` le reprend et bâtit les
+fantômes aussitôt.
+
+La construction de la saisie est dans `services/buildMoveAnnotationGrab.js`
+(roots, `rootStartPoses`, `startLocal`, index cible sans les roots,
+instantané des annotations), partagée par le clic de saisie et la re-saisie.
+
+**« Recommencer à chaque clic »** (`R`, slice `moveAnnotationMode.repeat`,
+`useDessinToolHotkeysThreed` cède `R` tant que le mode est actif) : au drop
+de copies la saisie survit (les originaux n'ont pas bougé) avec un nouveau
+jeu de fantômes posé au dernier delta, l'ancien tenant lieu des copies
+écrites ; l'index cible est rafraîchi quand elles sont construites
+(`refreshMoveAnnotationGrabTargets`, callback de
+`holdCopyGhostsUntilBuilt`). Au drop simple, les objets sont reconstruits
+par le commit (roots neufs à l'identité) : la re-saisie est **différée**
+(`services/rearmMoveAnnotationAfterCommit.js`, `subscribeAnnotationReady`
+des ids emportés, repli 2,5 s) puis rebâtie au point de dépôt avec le buffer
+conservé. **« Copier »** (`C`, `useToolGroupHotkey("c", "FACE_CUT")` cède
+la touche) : `services/armMoveCopyThreedService.js` — `*1` sauf copies déjà
+tapées, `repeat = true`.
 
 ## Tourner
 
@@ -113,7 +134,8 @@ leur pose de départ, fantômes jetés) → sortie du mode.
 - `hooks/` : les deux handlers pointeur + clavier, `useAnnotationsOnlyVertexSnap`.
 - `services/` : stores de session, commits 3D → 2D, fantômes,
   `setMoveCopyBufferService` / `setRotateAngleBufferService` (buffers tapés,
-  clavier + carte du helper).
+  clavier + carte du helper), `buildMoveAnnotationGrab`,
+  `rearmMoveAnnotationAfterCommit`, `armMoveCopyThreedService`.
 - `utils/` : poses (`applyMoveAnnotationsPose`, `applyRotateAnnotationsPose`),
   `computeAxisLockSnap`, `getCarriedAnnotationIdsFromSelection`,
   `resolveAnnotationFromSnap`, `annotationTransformTypes` (partagés avec la

@@ -14,14 +14,18 @@ import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/mo
 import commitAnnotationsTransform2d from "../services/commitAnnotationsTransform2d";
 import createTransformedAnnotationCopiesService from "../services/createTransformedAnnotationCopiesService";
 import {
+  armMoveCopy,
   constrainMoveCursor,
+  endTransformCommit,
   getTransformCopyCount,
   getTransformSession,
   resetTransformSession,
+  resetTransformTool,
   setMoveCopyBuffer,
   setMoveCursor,
   setRotateAngleBuffer,
   setTransformSession,
+  toggleTransformRepeat,
 } from "../services/transformSessionStore";
 import {
   MOVE_ANNOTATION_MODE,
@@ -33,7 +37,11 @@ import {
   getOrthoConstrainedPoint,
   getRotatePixelAngleDeg,
 } from "../utils/rotateAngle";
-import { appendToMoveBuffer, appendToRotateBuffer } from "../utils/copyBuffer";
+import {
+  appendToMoveBuffer,
+  appendToRotateBuffer,
+  getBufferValuePart,
+} from "../utils/copyBuffer";
 import { isTransformable2dType } from "../utils/transform2dTypes";
 import {
   MULTI_COPY_UNSUPPORTED_MESSAGE,
@@ -68,7 +76,11 @@ const isEditableTarget = (el) => {
 //   carrying, digits ("1.3") constrain the distance along the cursor
 //   direction and `*` + digits ("*3") turn the move into a « copie
 //   multiple »: the originals stay, N copies land along the vector (copy i
-//   at i × it) — "1.3*3": 3 copies with a 1.30 m pitch.
+//   at i × it) — "1.3*3": 3 copies with a 1.30 m pitch. The buffer may be
+//   typed before the grab (the next grab picks it up). « Recommencer à
+//   chaque clic » (R): after the click the grab survives — same anchor and
+//   copies, or the moved annotations grabbed again at the destination;
+//   « Copier » (C): one copy per click, repeat on.
 //   Tourner: click the pivot on an annotation, click a point fixing the
 //   reference axis, turn with the mouse (Shift: 15° steps) or type the angle,
 //   click / Enter to validate. `*` + digits ("45*3") turn the rotation into
@@ -109,16 +121,19 @@ export default function useAnnotationTransformTool({
   baseMapRef.current = baseMap;
   const projectIdRef = useRef(projectId);
   projectIdRef.current = projectId;
+  const enabledDrawingModeRef = useRef(enabledDrawingMode);
+  enabledDrawingModeRef.current = enabledDrawingMode;
 
   // helpers
 
-  // A revolution axis is carried alone (grab): the copy buffer refuses it.
-  const isRevolutionAxisCarried = useCallback((session) => {
-    const ids = session.carriedAnnotationIds;
-    if (ids.length !== 1) return false;
-    const a = annotationsRef.current?.find((ann) => ann.id === ids[0]);
-    return a?.type === "REVOLUTION_AXIS";
-  }, []);
+  const toastCopiesRefused = useCallback(() => {
+    dispatch(
+      setToaster({
+        message: MULTI_COPY_UNSUPPORTED_MESSAGE,
+        severity: "warning",
+      })
+    );
+  }, [dispatch]);
 
   // snap: the clicked point ({x, y} in the pixel frame) with the snapped
   // annotation's id when the click landed on one (annotationId /
@@ -197,6 +212,16 @@ export default function useAnnotationTransformTool({
         if (!canEditAnnotation(id)) return;
       }
 
+      // MOVE: the buffer typed ahead of the grab is picked up — minus its
+      // `*N` tail on an annotation that is never copied (axis, disc).
+      const armedBuffer =
+        kind === "MOVE" ? getTransformSession().copyBuffer : "";
+      const copiesRefused = kind === "MOVE" && isRevolutionAxisMove;
+      const copyBuffer = copiesRefused
+        ? getBufferValuePart(armedBuffer)
+        : armedBuffer;
+      if (copiesRefused && armedBuffer.includes("*")) toastCopiesRefused();
+
       const anchor = { x: snap.x, y: snap.y };
       setTransformSession({
         kind,
@@ -208,11 +233,12 @@ export default function useAnnotationTransformTool({
         meterByPx: baseMapRef.current?.getMeterByPx?.() ?? null,
         angleDeg: 0,
         angleBuffer: "",
-        copyBuffer: "",
+        copyBuffer,
+        copiesRefused,
         committing: false,
       });
     },
-    [dispatch, store, canEditAnnotation]
+    [dispatch, store, canEditAnnotation, toastCopiesRefused]
   );
 
   const commit = useCallback(
@@ -298,9 +324,9 @@ export default function useAnnotationTransformTool({
         resetTransformSession();
         return;
       }
-      setTimeout(() => {
-        if (getTransformSession().committing) resetTransformSession();
-      }, COMMIT_PREVIEW_FALLBACK_MS);
+      // The preview layer ends the commit as soon as the annotations come
+      // back; this covers a write that changes nothing.
+      setTimeout(endTransformCommit, COMMIT_PREVIEW_FALLBACK_MS);
     },
     [dispatch, store]
   );
@@ -430,10 +456,11 @@ export default function useAnnotationTransformTool({
 
   // effects
 
-  // Leaving the tool (Escape, another tool, module switch) drops the session.
+  // Leaving the tool (Escape, another tool, module switch) drops the session,
+  // the typed-ahead buffer and « Recommencer à chaque clic » included.
   useEffect(() => {
     if (!active) return undefined;
-    return () => resetTransformSession();
+    return () => resetTransformTool();
   }, [active, enabledDrawingMode]);
 
   // Keyboard — capture phase, ahead of InteractionLayer's own listener: its
@@ -448,6 +475,10 @@ export default function useAnnotationTransformTool({
       const editable = isEditableTarget(e.target);
       const rotating = session.kind === "ROTATE" && Boolean(session.reference);
       const moving = session.kind === "MOVE";
+      // « Déplacer » armed, nothing grabbed: the buffer is typed ahead.
+      const armedMove =
+        session.kind === null &&
+        enabledDrawingModeRef.current === MOVE_ANNOTATION_MODE;
       const consume = () => {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -463,7 +494,7 @@ export default function useAnnotationTransformTool({
           setTransformSession({ angleBuffer: "" });
           return consume();
         }
-        if (moving && session.copyBuffer !== "") {
+        if ((moving || armedMove) && session.copyBuffer !== "") {
           setMoveCopyBuffer("");
           return consume();
         }
@@ -483,25 +514,30 @@ export default function useAnnotationTransformTool({
       // The helper's angle field owns its own typing.
       if (editable) return undefined;
 
+      // « Recommencer à chaque clic » (R) / « Copier » (C) of « Déplacer »,
+      // armed or carrying.
+      if ((moving || armedMove) && /^[rRcC]$/.test(e.key)) {
+        if (e.repeat) return consume();
+        if (e.key === "r" || e.key === "R") toggleTransformRepeat();
+        else if (session.copiesRefused) toastCopiesRefused();
+        else armMoveCopy();
+        return consume();
+      }
+
       if (e.key === "Backspace") {
         if (rotating && session.angleBuffer !== "")
           setRotateAngleBuffer(session.angleBuffer.slice(0, -1));
-        if (moving && session.copyBuffer !== "")
+        if ((moving || armedMove) && session.copyBuffer !== "")
           setMoveCopyBuffer(session.copyBuffer.slice(0, -1));
         return consume();
       }
 
       // Typed distance (digits) / « copie multiple » (`*` then digits)
-      // while a move is pending. A revolution axis is moved alone, never
-      // copied.
-      if (moving && /^[0-9.,*]$/.test(e.key)) {
-        if (isRevolutionAxisCarried(session) && e.key === "*") {
-          dispatch(
-            setToaster({
-              message: MULTI_COPY_UNSUPPORTED_MESSAGE,
-              severity: "warning",
-            })
-          );
+      // while a move is pending, or ahead of the grab. A revolution axis is
+      // moved alone, never copied.
+      if ((moving || armedMove) && /^[0-9.,*]$/.test(e.key)) {
+        if (session.copiesRefused && e.key === "*") {
+          toastCopiesRefused();
           return consume();
         }
         setMoveCopyBuffer(appendToMoveBuffer(session.copyBuffer, e.key));
@@ -524,7 +560,7 @@ export default function useAnnotationTransformTool({
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [active, commitRotation, isRevolutionAxisCarried, dispatch]);
+  }, [active, commitRotation, toastCopiesRefused]);
 
   return {
     onTransformToolClick: handleClick,
