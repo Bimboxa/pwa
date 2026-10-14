@@ -1,0 +1,291 @@
+{
+  "imageSize": {
+    "width": 6095,
+    "height": 3060
+  },
+  "meterByPx": 0.011813953488372091,
+  "params": {
+    "H1": 0.9,
+    "H2": 1.4,
+    "E1": 0.05,
+    "L1": 5.485,
+    "L2": 0.842
+  },
+  "handDrawnGo": [
+    {
+      "role": "seuil",
+      "label": "Seuil gaine",
+      "type": "STRIP",
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "stripOrientation": -1,
+      "points": [
+        {
+          "id": "liX7aNLacKj9rPTYOdNIP",
+          "x": 5540.192,
+          "y": 1979.405
+        },
+        {
+          "id": "GVW1dGs6Kt6P67a_eOxqx",
+          "x": 5540.192,
+          "y": 2104.257
+        }
+      ]
+    },
+    {
+      "role": "sol",
+      "label": "Sol",
+      "type": "POLYGON",
+      "mappingCategories": ["OUVRAGE:SOL"],
+      "points": [
+        {
+          "id": "liX7aNLacKj9rPTYOdNIP",
+          "x": 5540.192,
+          "y": 1979.405,
+          "offsetTop": 0.05
+        },
+        {
+          "id": "AN7KAuQc0_fxcTr0f1t91",
+          "x": 6004.488,
+          "y": 1979.405
+        },
+        {
+          "id": "hN1KRO8ONi0hYdCKBgL3i",
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "id": "GVW1dGs6Kt6P67a_eOxqx",
+          "x": 5540.192,
+          "y": 2104.257,
+          "offsetTop": 0.05
+        }
+      ]
+    },
+    {
+      "role": "voileU",
+      "label": "Voile béton",
+      "type": "STRIP",
+      "mappingCategories": ["TOPO:FRONTIERE_SOL"],
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "height": 0.9,
+      "points": [
+        {
+          "id": "GVW1dGs6Kt6P67a_eOxqx",
+          "x": 5540.192,
+          "y": 2104.257
+        },
+        {
+          "id": "hN1KRO8ONi0hYdCKBgL3i",
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "id": "AN7KAuQc0_fxcTr0f1t91",
+          "x": 6004.488,
+          "y": 1979.405
+        },
+        {
+          "id": "liX7aNLacKj9rPTYOdNIP",
+          "x": 5540.192,
+          "y": 1979.405
+        }
+      ]
+    },
+    {
+      "role": "voileTremie",
+      "label": "Voile béton",
+      "type": "STRIP",
+      "mappingCategories": ["TOPO:FRONTIERE_SOL"],
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "height": 0.5,
+      "offsetZ": 0.9,
+      "stripOrientation": 1,
+      "closeLine": true,
+      "points": [
+        {
+          "id": "QI4O191UFfODcCCnAJSI6",
+          "x": 5933.238,
+          "y": 1977.44
+        },
+        {
+          "id": "mMbpJicLEzXzYWpYilRTm",
+          "x": 6004.488,
+          "y": 1977.44
+        },
+        {
+          "id": "hN1KRO8ONi0hYdCKBgL3i",
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "id": "4XDcPialFNGlPzeXoilLT",
+          "x": 5933.238,
+          "y": 2106.135
+        }
+      ]
+    },
+    {
+      "role": "sousFace",
+      "label": "Sous-face dalle",
+      "type": "POLYGON",
+      "mappingCategories": ["TOPO:SOUS_FACE_PLANCHER"],
+      "offsetZ": 0.9,
+      "points": [
+        {
+          "id": "8-iBNV_rIC0sdRK7d1sk0",
+          "x": 5540.192,
+          "y": 1979.405
+        },
+        {
+          "id": "GVW1dGs6Kt6P67a_eOxqx",
+          "x": 5540.192,
+          "y": 2104.257
+        },
+        {
+          "id": "LMibnUykf6CdwG_FFLjTP",
+          "x": 5933.238,
+          "y": 2104.257
+        },
+        {
+          "id": "QI4O191UFfODcCCnAJSI6",
+          "x": 5933.238,
+          "y": 1977.44
+        }
+      ]
+    },
+    {
+      "role": "tremie",
+      "label": "Trémie ventilation",
+      "type": "POLYGON",
+      "mappingCategories": ["TOPO:TREMIE"],
+      "offsetZ": 0.9,
+      "points": [
+        {
+          "id": "QI4O191UFfODcCCnAJSI6",
+          "x": 5933.238,
+          "y": 1977.44
+        },
+        {
+          "id": "mMbpJicLEzXzYWpYilRTm",
+          "x": 6004.488,
+          "y": 1977.44
+        },
+        {
+          "id": "hN1KRO8ONi0hYdCKBgL3i",
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "id": "4XDcPialFNGlPzeXoilLT",
+          "x": 5933.238,
+          "y": 2106.135
+        }
+      ]
+    }
+  ],
+  "expectedCuvelage": [
+    {
+      "role": "sol",
+      "label": "Sol",
+      "type": "POLYGON",
+      "points": [
+        {
+          "x": 5540.192,
+          "y": 1979.405
+        },
+        {
+          "x": 6004.488,
+          "y": 1979.405
+        },
+        {
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "x": 5540.192,
+          "y": 2106.135
+        }
+      ]
+    },
+    {
+      "role": "paroiU",
+      "label": "Paroi",
+      "type": "POLYLINE",
+      "height": 0.9,
+      "points": [
+        {
+          "x": 5540.192,
+          "y": 2104.257
+        },
+        {
+          "x": 6004.488,
+          "y": 2104.257
+        },
+        {
+          "x": 6004.488,
+          "y": 1979.405
+        },
+        {
+          "x": 5540.192,
+          "y": 1979.405
+        }
+      ]
+    },
+    {
+      "role": "paroiTremie",
+      "label": "Paroi",
+      "type": "POLYLINE",
+      "height": 0.5,
+      "offsetZ": 0.9,
+      "points": [
+        {
+          "x": 5933.238,
+          "y": 2106.135
+        },
+        {
+          "x": 6004.488,
+          "y": 2106.135
+        },
+        {
+          "x": 6004.488,
+          "y": 1979.405
+        },
+        {
+          "x": 5933.238,
+          "y": 1977.44
+        },
+        {
+          "x": 5933.238,
+          "y": 2106.135
+        }
+      ]
+    },
+    {
+      "role": "sousFace",
+      "label": "Sous-face dalle",
+      "type": "POLYGON",
+      "offsetZ": 0.9,
+      "points": [
+        {
+          "x": 5540.192,
+          "y": 1979.405
+        },
+        {
+          "x": 5933.238,
+          "y": 1979.405
+        },
+        {
+          "x": 5933.238,
+          "y": 2106.135
+        },
+        {
+          "x": 5540.192,
+          "y": 2106.135
+        }
+      ]
+    }
+  ]
+}
