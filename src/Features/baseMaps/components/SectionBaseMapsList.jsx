@@ -108,10 +108,12 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   state toggled from either editor.
 // - SCOPE module (pinned base maps grid): the rows are the SHEETS of the
 //   table (baseMapsGrid.scopeSheets — the base maps concerned by the content
-//   filter), no main base map: a click selects the sheet (table highlight +
-//   BASE_MAP item of the properties panel); the eye and the badge toggle the
-//   image / annotations of THAT sheet (baseMapsGrid.hidden*BaseMapIds, the
-//   same states under both editors — the 3D eyes / modes are not involved).
+//   filter; every base map while the scope has no annotation at all, see
+//   useScopeGridSheets), no main base map: a click selects the sheet (table
+//   highlight + BASE_MAP item of the properties panel); the eye and the
+//   badge toggle the image / annotations of THAT sheet
+//   (baseMapsGrid.hidden*BaseMapIds, the same states under both editors —
+//   the 3D eyes / modes are not involved).
 //   `countByBaseMapIdOverride`: counts narrowed like the legend (the popper
 //   passes them).
 // - BaseMaps module (`editable`): the list is also the module's editing

@@ -16,7 +16,12 @@ const EMPTY_IDS = [];
 //   - annotation listing / business-objects listing / "Afficher toutes les
 //     listes" -> every base map of the project carrying at least one
 //     annotation kept by the filter (useScopeGridAnnotationsFilter),
-//     whatever its folder.
+//     whatever its folder;
+//   - "Afficher toutes les listes" in a scope WITHOUT any annotation (a
+//     fresh Krto) -> every base map of the project, so the table and the
+//     "Fonds de plan" rows are not empty; the annotated-only rule takes
+//     over with the first annotation. A selected but empty listing keeps
+//     an empty table (its filter band says why).
 // Folders hidden by the eye of the scope panel
 // (scope.baseMapsSettings.disabledListingIds) are already out of useBaseMaps
 // and useAnnotationsV2; a hidden folder selected in the panel shows an empty
@@ -78,10 +83,16 @@ export default function useScopeGridSheets() {
     const annotatedIds = new Set(
       annotatedBaseMapIdsKey ? annotatedBaseMapIdsKey.split(",") : []
     );
+    // Scope without any annotation, all-listings mode: every base map. Not
+    // before the annotations are loaded — the table would be laid for all
+    // of them, then re-laid for the annotated ones.
+    const fallbackAll =
+      !listing?.id && annotations !== undefined && annotatedIds.size === 0;
     return {
-      baseMapIds: visibleBaseMaps
-        .filter((baseMap) => annotatedIds.has(baseMap.id))
-        .map((baseMap) => baseMap.id),
+      baseMapIds: (fallbackAll
+        ? visibleBaseMaps
+        : visibleBaseMaps.filter((baseMap) => annotatedIds.has(baseMap.id))
+      ).map((baseMap) => baseMap.id),
       addListingId: null,
       ready: baseMaps !== undefined && annotations !== undefined,
     };
