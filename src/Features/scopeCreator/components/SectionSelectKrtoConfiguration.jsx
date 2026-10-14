@@ -34,13 +34,12 @@ export default function SectionSelectKrtoConfiguration({
 
   const items = krtoConfigurations?.items ?? [];
 
-  // name of the configurations a source-fed configuration needs
-  // (sourceConfigurationKeys), shown as « Pré-requis » chips on its card
+  // name of the configuration a configuration requires first
+  // (prerequisiteConfigurationKey), shown as a warning line on its card
   const nameByKey = Object.fromEntries(items.map((i) => [i.key, i.name]));
-  function getPrerequisiteNames(item) {
-    return (item.sourceConfigurationKeys ?? [])
-      .map((key) => nameByKey[key])
-      .filter(Boolean);
+  function getPrerequisiteName(item) {
+    const key = item.prerequisiteConfigurationKey;
+    return key ? (nameByKey[key] ?? null) : null;
   }
 
   const search = searchText?.trim().toLowerCase() ?? "";
@@ -101,7 +100,7 @@ export default function SectionSelectKrtoConfiguration({
           code={item.code}
           chipLabel={item.chipLabel}
           prerequisiteLabel={prerequisiteS}
-          prerequisiteNames={getPrerequisiteNames(item)}
+          prerequisiteName={getPrerequisiteName(item)}
           selected={selectedKey === item.key}
           onClick={() => onSelect(item.key)}
         />

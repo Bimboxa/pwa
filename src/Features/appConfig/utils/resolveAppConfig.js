@@ -264,6 +264,11 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // project are suggested first in the
   //                                 // « Depuis un autre Krto » dialog
   //                                 // (DialogAddListingsFromScope)
+  //     prerequisiteConfigurationKey, // optional configurationKey: the Krto
+  //                                 // configuration the user must have
+  //                                 // created first; shown as a warning
+  //                                 // « Pré-requis : <name> » line on the
+  //                                 // selector card
   //     annotations: {
   //       libraryKeys,              // annotationTemplatesLibraries keys
   //     },

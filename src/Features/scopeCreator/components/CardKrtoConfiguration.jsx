@@ -1,4 +1,5 @@
-import { Box, Chip, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { alpha } from "@mui/material/styles";
 
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
@@ -10,16 +11,10 @@ export default function CardKrtoConfiguration({
   code,
   chipLabel,
   prerequisiteLabel,
-  prerequisiteNames,
+  prerequisiteName,
   selected,
   onClick,
 }) {
-  // helpers
-
-  // configurations fed by a source Krto: one warning chip per source
-  // configuration (« Pré-requis : <name> »)
-  const prerequisites = prerequisiteNames?.filter(Boolean) ?? [];
-
   // render
 
   return (
@@ -132,24 +127,27 @@ export default function CardKrtoConfiguration({
           {description}
         </Typography>
 
-        {prerequisites.length > 0 && (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
-            {prerequisites.map((prerequisiteName) => (
-              <Chip
-                key={prerequisiteName}
-                size="small"
-                color="warning"
-                label={`${prerequisiteLabel} : ${prerequisiteName}`}
-                sx={{
-                  height: "auto",
-                  fontWeight: 600,
-                  "& .MuiChip-label": {
-                    whiteSpace: "normal",
-                    py: 0.25,
-                  },
-                }}
-              />
-            ))}
+        {/* prerequisite one-liner: « ⚠ Pré-requis : <configuration name> » */}
+        {prerequisiteName && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              mt: 1,
+              color: "warning.main",
+              minWidth: 0,
+            }}
+          >
+            <WarningAmberRoundedIcon sx={{ fontSize: 16, flexShrink: 0 }} />
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ fontWeight: 600, color: "inherit" }}
+              title={`${prerequisiteLabel} : ${prerequisiteName}`}
+            >
+              {prerequisiteLabel} : {prerequisiteName}
+            </Typography>
           </Box>
         )}
       </Box>
