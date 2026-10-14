@@ -5,6 +5,7 @@ import { Vector3 } from "three";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import commitDrawnRevolutionAxisService from "Features/revolutionAxes/services/commitDrawnRevolutionAxisService";
 import {
   appendToConstraintBuffer,
   appendToRectXBuffer,
@@ -73,7 +74,10 @@ import {
 } from "../services/rectangleFrameStore";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
-import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
+import {
+  isRevolutionAxisDraftFor3d,
+  isTemplatelessDraft,
+} from "../utils/templateFaceDrawSelectors";
 
 // Pointer movement (in CSS px) above which a press-release pair is treated as
 // a camera drag and NOT as a vertex commit. Mirrors the threshold used by
@@ -124,6 +128,13 @@ const DOUBLE_CLICK_MS = 500;
 // while a face is selected, every tool is bound to that face
 // (resolveFaceCutLockedFace): the path is drawn on it and only it is cut.
 //
+// Revolution axis drawn from 3D (REVOLUTION_AXIS draft, REVOLUTION_AXIS_PLAN
+// tool — isRevolutionAxisDraftFor3d): the DISC two-click flow without a
+// template — 1st click = the centre, on a HORIZONTAL base map plane only;
+// 2nd click = a rim point on that plane (radius + diameter direction) →
+// commitDrawnRevolutionAxisService, then the tool disarms (one-shot, like
+// the 2D tool). Enter is ignored, Escape drops the centre / exits the tool.
+//
 // Template-less and face-cut clicks and keys run one at a time, in order (a
 // commit awaits the db): each step reads the live drawing state from the
 // store.
@@ -149,6 +160,8 @@ export default function useDrawingPointerHandlers() {
       "Aucune face coupée : le fond de plan de l'annotation n'est pas affiché.",
   };
   const faceCutFailedS = "La coupe de la face n'a pas pu être enregistrée.";
+  const axisNoScopeS = "Sélectionnez un scope avant de dessiner un axe";
+  const axisNotOnPlanS = "Placez le centre de l'axe sur un plan horizontal";
 
   const active = useSelector((s) => s.threedEditor.drawingMode.active);
   const inProgressPolyline = useSelector(
@@ -188,14 +201,19 @@ export default function useDrawingPointerHandlers() {
   // A "Coupe face" tool left or switched (toolbar, Tab, letters — the 2D
   // switch helpers clear nothing in 3D): the path in progress, the rectangle
   // anchor and the typed dimensions / distance belong to the previous tool.
+  // Same for the axis tool (A) armed over a path in progress, or left for a
+  // template: its centre is not a polygon vertex, nor the reverse.
   const prevModeRef = useRef(enabledDrawingMode);
   useEffect(() => {
     const prev = prevModeRef.current;
     prevModeRef.current = enabledDrawingMode;
     if (prev === enabledDrawingMode) return;
+    const isAxisMode = (mode) => mode === "REVOLUTION_AXIS_PLAN";
     if (
       !isFaceCutDrawingMode(prev) &&
-      !isFaceCutDrawingMode(enabledDrawingMode)
+      !isFaceCutDrawingMode(enabledDrawingMode) &&
+      !isAxisMode(prev) &&
+      !isAxisMode(enabledDrawingMode)
     )
       return;
     dispatch(cancelInProgressPolyline());
@@ -250,6 +268,30 @@ export default function useDrawingPointerHandlers() {
         newAnnotationRef.current?.type === "DISC" &&
         hasTemplate()
       );
+    }
+
+    // REVOLUTION_AXIS draft (A): the disc's 2-click flow, no template.
+    function isAxisDraw() {
+      return (
+        behavior === "CIRCLE_RADIUS" &&
+        isRevolutionAxisDraftFor3d(newAnnotationRef.current, enabledDrawingMode)
+      );
+    }
+
+    // Plan REVOLUTION_AXIS row from the centre's base map (its image frame
+    // and scale) — colour / ht. / Offset from the armed draft.
+    async function commitAxis(center, rim) {
+      const host = (baseMaps || []).find((bm) => bm.id === center.baseMapId);
+      return await commitDrawnRevolutionAxisService({
+        center,
+        edge: rim,
+        host,
+        projectId,
+        scopeId,
+        draft: newAnnotationRef.current,
+        layerId: activeLayerIdRef.current ?? null,
+        createAnnotationFn: createAnnotation,
+      });
     }
 
     async function commitDisc(center, rim) {
@@ -1112,6 +1154,77 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      // REVOLUTION_AXIS: the disc's two clicks — the centre must sit on a
+      // HORIZONTAL base map plane (the axis is a plan row); the 2nd click
+      // commits the axis and disarms the tool (one-shot, 2D parity).
+      if (isAxisDraw()) {
+        if (inProgressPolyline.length === 0) {
+          if (!scopeId) {
+            dispatch(
+              setToaster({ message: axisNoScopeS, severity: "warning" })
+            );
+            return;
+          }
+          const horizontalBaseMaps = (baseMaps || []).filter(
+            (bm) => bm.orientation !== "VERTICAL"
+          );
+          const centerBaseMapId =
+            snap.baseMapId ??
+            (snap.faceNormal
+              ? null
+              : (resolveBaseMapForPoint(snap.position, horizontalBaseMaps)
+                  ?.baseMap?.id ?? null));
+          const onHorizontalPlan =
+            Boolean(centerBaseMapId) &&
+            horizontalBaseMaps.some((bm) => bm.id === centerBaseMapId);
+          if (!onHorizontalPlan) {
+            dispatch(
+              setToaster({ message: axisNotOnPlanS, severity: "warning" })
+            );
+            return;
+          }
+          dispatch(
+            pushDrawingVertex(
+              toDrawingVertex(snap, { baseMapId: centerBaseMapId })
+            )
+          );
+          return;
+        }
+        const center = inProgressPolyline[0];
+        const rim = snap.position;
+        const radius = new Vector3(center.x, center.y, center.z).distanceTo(
+          rim
+        );
+        if (!(radius > 1e-3)) return; // stay armed
+        // The typed radius was applied to this point (preview snap): consumed.
+        releaseLengthConstraint();
+        try {
+          const created = await commitAxis(center, {
+            x: rim.x,
+            y: rim.y,
+            z: rim.z,
+          });
+          if (created) {
+            console.log(
+              `[threedDrawing] revolution axis created: ${created.id} on baseMap ${created.baseMapId}`
+            );
+            warnIfOffMainBaseMap(created);
+            finishCommit();
+            // One-shot tool (2D parity): clearing the 2D drawing state makes
+            // the bridge close the 3D mode.
+            dispatch(setEnabledDrawingMode(null));
+            dispatch(setNewAnnotation({}));
+          } else {
+            console.warn("[threedDrawing] revolution axis commit refused", {
+              hostId: center.baseMapId,
+            });
+          }
+        } catch (err) {
+          console.error("[threedDrawing] revolution axis commit failed", err);
+        }
+        return;
+      }
+
       // DISC: 1st click = the centre (stamped with its plan, like a
       // rectangle anchor), 2nd click = a rim point on the centre's plane
       // (the overlay locks the plane and previews the circle) → commit.
@@ -1258,8 +1371,9 @@ export default function useDrawingPointerHandlers() {
         return;
       }
       if (e.key === "Enter") {
-        // Rectangle / disc: keys never commit (2D parity — the 2nd click does).
-        if (behavior === "RECTANGLE" || isDiscDraw()) return;
+        // Rectangle / disc / axis: keys never commit (2D parity — the 2nd
+        // click does).
+        if (behavior === "RECTANGLE" || isDiscDraw() || isAxisDraw()) return;
         const committed = await commitInProgressAsAnnotation();
         if (!committed) dispatch(flushInProgressAsTrait3D());
       } else if (e.key === "Escape") {
@@ -1269,8 +1383,8 @@ export default function useDrawingPointerHandlers() {
             releaseRectDims();
             return;
           }
-          // Disc: Escape drops the centre (nothing committable yet).
-          if (isDiscDraw()) {
+          // Disc / axis: Escape drops the centre (nothing committable yet).
+          if (isDiscDraw() || isAxisDraw()) {
             dispatch(cancelInProgressPolyline());
             return;
           }
@@ -1286,9 +1400,10 @@ export default function useDrawingPointerHandlers() {
           return;
         }
         const na = newAnnotationRef.current;
-        if (na?.annotationTemplateId) {
-          // Template-driven mode, nothing in progress: exit entirely by
-          // clearing the 2D drawing state (the bridge deactivates the mode).
+        if (na?.annotationTemplateId || isAxisDraw()) {
+          // Template-driven mode (or the template-less axis), nothing in
+          // progress: exit entirely by clearing the 2D drawing state (the
+          // bridge deactivates the mode).
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
         } else {

@@ -3,20 +3,18 @@ import { useSelector } from "react-redux";
 import { Box, Paper, Typography } from "@mui/material";
 
 import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingModes";
-import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 
 import SectionRectangleDimsConstraint from "Features/annotations/components/SectionRectangleDimsConstraint";
 import SectionSegmentLengthConstraint from "Features/annotations/components/SectionSegmentLengthConstraint";
 import SectionCircleRadiusConstraint from "Features/annotations/components/SectionCircleRadiusConstraint";
 import SectionFaceCutAxisConstraint from "Features/threedFaceCut/components/SectionFaceCutAxisConstraint";
-import SectionRevolutionAxisRadiusConstraintThreed from "Features/revolutionAxes/components/SectionRevolutionAxisRadiusConstraintThreed";
 
 // ---------------------------------------------------------------------------
 // SectionDrawingConstraints — « Contraintes » card of the drawing helper
 // (SectionDrawingHelperContent): the typed length / dimension constraints of
 // the armed drawing mode — the rectangle sides (X / Y), the segment being
-// drawn, the circle radius, the "Coupe face" axis cut distance, the 3D
-// revolution axis radius. Each body reads the keyboard buffers the editors
+// drawn, the circle radius (disc and revolution axis, in 2D and 3D), the
+// "Coupe face" axis cut distance. Each body reads the keyboard buffers the editors
 // feed (mapEditor.rectXBuffer / rectYBuffer / constraintBuffer, …): nothing
 // is typed here. Null when the armed mode has no constraint UI.
 // ---------------------------------------------------------------------------
@@ -53,11 +51,6 @@ export default function SectionDrawingConstraints() {
   // data
 
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  // Revolution axis drawn from the 3D editor: the live radius comes from the
-  // 3D overlay, not from the 2D preview SectionCircleRadiusConstraint polls.
-  const isRevolutionAxisDraw3d = useSelector(
-    selectIsRevolutionAxisDrawThreedActive
-  );
 
   // helpers
 
@@ -80,11 +73,7 @@ export default function SectionDrawingConstraints() {
   ) : showSegmentLength ? (
     <SectionSegmentLengthConstraint />
   ) : showCircleRadius ? (
-    isRevolutionAxisDraw3d ? (
-      <SectionRevolutionAxisRadiusConstraintThreed />
-    ) : (
-      <SectionCircleRadiusConstraint />
-    )
+    <SectionCircleRadiusConstraint />
   ) : null;
 
   // render

@@ -15,6 +15,7 @@ import {
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
+import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 
 import {
   selectIsFaceCutDrawActive,
@@ -44,6 +45,11 @@ function isThreedOnlyDrawingMode(enabledDrawingMode) {
 // (selectIsFaceCutDrawActive) ride the same bridge: same machinery,
 // different commit.
 //
+// The revolution axis drawn from the 3D editor
+// (selectIsRevolutionAxisDrawThreedActive) rides it too: a template-less
+// two-click draft on the DISC flow (centre, then a rim point on the centre's
+// plane) with its own commit (commitDrawnRevolutionAxisService).
+//
 // The « Pinceau » (selectIsMeshBrushActive) rides it too, for the
 // `drawingMode.active` guards only (no selection / lasso / hover tooltip
 // clicks, hidden 2D InteractionLayer keys, delete hotkeys, label drags,
@@ -58,7 +64,8 @@ export default function useTemplateFaceDrawBridge() {
       selectIsTemplateFaceDrawActive(s) ||
       selectIsThreedTemplatelessDrawActive(s) ||
       selectIsFaceCutDrawActive(s) ||
-      selectIsMeshBrushActive(s)
+      selectIsMeshBrushActive(s) ||
+      selectIsRevolutionAxisDrawThreedActive(s)
   );
   // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the
   // 2D editor has no use for its drawing mode).

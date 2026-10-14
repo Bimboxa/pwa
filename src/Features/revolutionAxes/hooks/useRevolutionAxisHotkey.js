@@ -23,8 +23,8 @@ const isEditableTarget = (el) => {
 // Global shortcut to START the drawing of a revolution axis ("Axe de
 // révolution" tool row): "a" → draw a new axis on the current plan, or — in
 // the Dessin module's 3D editor — on a horizontal base map plane of the scene
-// (the same 2D state is bridged into revolutionAxisDrawMode, see
-// useRevolutionAxisDrawThreedBridge).
+// (the same 2D state is bridged into the 3D drawing mode, see
+// useTemplateFaceDrawBridge / selectIsRevolutionAxisDrawThreedActive).
 //
 // Same contract as useToolGroupHotkey: fires UPSTREAM only (no draw armed —
 // once a draw runs, "a" keeps its in-draw meanings), in the Dessin module, on

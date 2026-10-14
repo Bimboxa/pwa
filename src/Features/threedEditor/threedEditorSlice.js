@@ -40,13 +40,6 @@ function closeVertexOffsetMode(state) {
 
 // Leaves the « Isoler une face » mode (isolateSegment): every other 3D tool
 // mode calls it when it arms.
-// Revolution axis draw (3D): one-shot 2-click tool, closed by every other
-// 3D mode like the dimension draft (the 2D drawing state that requested it
-// is cleared by useRevolutionAxisDrawThreedBridge).
-function closeRevolutionAxisDrawMode(state) {
-  state.revolutionAxisDrawMode.active = false;
-  state.revolutionAxisDrawMode.centerPoint = null;
-}
 
 function closeIsolateFaceMode(state) {
   state.isolateFaceMode.active = false;
@@ -239,17 +232,6 @@ const threedEditorInitialState = {
     active: false,
     // First clicked endpoint, world space, while the second is pending.
     startPoint: null, // {x, y, z} | null
-  },
-  // Revolution axis draw (3D): two clicks on a HORIZONTAL base map plane —
-  // centre, then radius + diameter direction — committed as a plan
-  // REVOLUTION_AXIS (commitDrawnRevolutionAxisService). Requested by the
-  // regular 2D drawing state (REVOLUTION_AXIS_PLAN draft) when the Dessin
-  // module shows its 3D editor (useRevolutionAxisDrawThreedBridge).
-  // Mutually exclusive with every other 3D tool mode.
-  revolutionAxisDrawMode: {
-    active: false,
-    // First click, world space + the hit base map, while the second is pending.
-    centerPoint: null, // {x, y, z, baseMapId} | null
   },
   // Meshing ("maillage") mode: create mailles from hovered faces and cut
   // them with vertical / horizontal / free lines. Mutually exclusive with
@@ -595,7 +577,6 @@ export const threedEditorSlice = createSlice({
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
@@ -706,7 +687,6 @@ export const threedEditorSlice = createSlice({
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
@@ -735,46 +715,6 @@ export const threedEditorSlice = createSlice({
     clearDimensionDraft: (state) => {
       state.dimensionMode.startPoint = null;
     },
-    setRevolutionAxisDrawModeActive: (state, action) => {
-      state.revolutionAxisDrawMode.active = action.payload;
-      if (!action.payload) {
-        state.revolutionAxisDrawMode.centerPoint = null;
-      } else {
-        // Mutually exclusive with every other 3D tool mode (same set as the
-        // dimension mode).
-        closeBaseMapsGrid(state);
-        closeIsolateFaceMode(state);
-        closeMergeFacesMode(state);
-        closeVertexOffsetMode(state);
-        state.drawingMode.active = false;
-        state.drawingMode.inProgressPolyline = [];
-        state.drawingMode.trait3DSegments = [];
-        state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
-        state.meshingMode.active = false;
-        state.meshingMode.tool = "SELECT";
-        state.walkMode.active = false;
-        state.extrudeMode.active = false;
-        state.extrudeMode.targetAnnotationId = null;
-        state.moveBaseMapMode.active = false;
-        state.moveBaseMapMode.carriedBaseMapId = null;
-        state.rotateBaseMapMode.active = false;
-        state.rotateBaseMapMode.carriedBaseMapId = null;
-        state.moveAnnotationMode.active = false;
-        state.moveAnnotationMode.carriedAnnotationIds = [];
-        state.rotateAnnotationMode.active = false;
-        state.rotateAnnotationMode.carriedAnnotationIds = [];
-        state.rotateAnnotationMode.referenceSet = false;
-        state.rotateAnnotationMode.angleBuffer = "";
-      }
-    },
-    setRevolutionAxisDrawCenter: (state, action) => {
-      state.revolutionAxisDrawMode.centerPoint = action.payload;
-    },
-    clearRevolutionAxisDraft: (state) => {
-      state.revolutionAxisDrawMode.centerPoint = null;
-    },
     setMeshingModeActive: (state, action) => {
       state.meshingMode.active = action.payload;
       if (!action.payload) {
@@ -785,7 +725,6 @@ export const threedEditorSlice = createSlice({
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
@@ -847,7 +786,6 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -909,7 +847,6 @@ export const threedEditorSlice = createSlice({
       // Mutually exclusive with every other 3D tool mode.
       closeIsolateFaceMode(state);
       closeMergeFacesMode(state);
-      closeRevolutionAxisDrawMode(state);
       closeBaseMapsGrid(state);
       state.drawingMode.active = false;
       state.drawingMode.inProgressPolyline = [];
@@ -966,7 +903,6 @@ export const threedEditorSlice = createSlice({
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
@@ -997,7 +933,6 @@ export const threedEditorSlice = createSlice({
       // Mutually exclusive with every other 3D tool mode.
       closeIsolateFaceMode(state);
       closeMergeFacesMode(state);
-      closeRevolutionAxisDrawMode(state);
       closeVertexOffsetMode(state);
       state.drawingMode.active = false;
       state.drawingMode.inProgressPolyline = [];
@@ -1031,7 +966,6 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1067,7 +1001,6 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1114,7 +1047,6 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1181,7 +1113,6 @@ export const threedEditorSlice = createSlice({
       if (payload) {
         // Mutually exclusive with every other 3D tool mode (own block).
         closeIsolateFaceMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1235,7 +1166,6 @@ export const threedEditorSlice = createSlice({
         // Mutually exclusive with every other 3D tool mode.
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
-        closeRevolutionAxisDrawMode(state);
         closeBaseMapsGrid(state);
         closeVertexOffsetMode(state);
         state.drawingMode.active = false;
@@ -1413,9 +1343,6 @@ export const {
   setDimensionModeActive,
   setDimensionStartPoint,
   clearDimensionDraft,
-  setRevolutionAxisDrawModeActive,
-  setRevolutionAxisDrawCenter,
-  clearRevolutionAxisDraft,
   setMeshingModeActive,
   setMeshingTool,
   setMeshingOffset,

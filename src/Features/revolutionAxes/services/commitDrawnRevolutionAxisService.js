@@ -9,7 +9,8 @@ import isRevolutionHelperInScope, {
 import { buildRevolutionAxisDraft } from "../utils/buildRevolutionAxisDrafts";
 
 // 3D two-click revolution axis (centre, then radius + diameter direction on a
-// HORIZONTAL base map plane) → the SAME plan REVOLUTION_AXIS row the 2D
+// HORIZONTAL base map plane — the disc flow of useDrawingPointerHandlers /
+// DrawingOverlayThreed) → the SAME plan REVOLUTION_AXIS row the 2D
 // REVOLUTION_AXIS_PLAN tool commits (MainMapEditorV3
 // handleCommitDrawingFromRevolutionAxis + useHandleCommitDrawing):
 //   - centre = one db.points row (normalized against the host image size),
