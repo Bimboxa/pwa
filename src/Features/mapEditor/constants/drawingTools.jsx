@@ -593,16 +593,21 @@ const DRAWING_TOOLS = [
     behavior: "ONE_CLICK",
     drawingMode: "REVOLUTION_AXIS_PLACEMENT",
   },
-  // MESH_BRUSH tool (« Pinceau », Dessin module 3D editor only): a click on a
-  // 3D annotation object paints the clicked facet side (Surface template) or
-  // edge (Ligne template) with the armed template — db.meshPaints, see
-  // Features/meshPaint. 3D-only (`editor`), so the editor-filtered lists
-  // never offer it in 2D nor as a template's defaultTool; never offered to a
-  // template-less draft (`requiresTemplate`). The draft keeps the template's
-  // type (annotationType null). Distinct from the 2D "BRUSH" key, which the
-  // hidden 2D InteractionLayer reacts to (raster mask → polygons). Kept last
-  // so it shows at the end of the POLYGON / POLYLINE tool lists. Paint-roller
-  // icon (the 2D BRUSH keeps the brush one); direct-access letter P
+  // MESH_BRUSH tool (« Pinceau », Dessin module), one key for both editors:
+  //   - 3D editor: a click on a 3D annotation object paints the clicked facet
+  //     side (Surface template) or edge (Ligne template) with the armed
+  //     template — db.meshPaints, see Features/meshPaint;
+  //   - 2D editor: a click on an annotation CONVERTS it to the armed template
+  //     (useChangeAnnotationTemplate), or DUPLICATES it with that template
+  //     when the drawing helper's « Dupliquer l'annotation cible » switch (D)
+  //     is on — see Features/meshPaint/hooks/useTemplateBrushClick.
+  // Never offered to a template-less draft (`requiresTemplate`), never a
+  // template's « Outil par défaut » (`neverDefaultTool`: a row click must
+  // draw, not arm a brush). The draft keeps the template's type
+  // (annotationType null). Distinct from the 2D "BRUSH" key, which the hidden
+  // 2D InteractionLayer reacts to (raster mask → polygons). Kept last so it
+  // shows at the end of the POLYGON / POLYLINE tool lists. Paint-roller icon
+  // (the 2D BRUSH keeps the brush one); direct-access letter P
   // (DRAWING_TOOL_HOTKEYS).
   {
     key: MESH_BRUSH_TOOL_KEY,
@@ -610,8 +615,8 @@ const DRAWING_TOOLS = [
     Icon: RollerIcon,
     annotationType: null,
     behavior: "MESH_BRUSH",
-    editor: "3D",
     requiresTemplate: true,
+    neverDefaultTool: true,
   },
 ];
 

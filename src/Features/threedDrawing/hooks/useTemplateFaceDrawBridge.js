@@ -22,14 +22,13 @@ import {
   selectIsThreedTemplatelessDrawActive,
 } from "../utils/templateFaceDrawSelectors";
 
-// Drawing modes that only exist in the 3D editor ("Coupe face", « Pinceau »):
-// leaving the 3D editor (or the Dessin module) disarms them — the hidden 2D
-// InteractionLayer has no use for their mode.
+// Drawing modes that only exist in the 3D editor ("Coupe face"): leaving
+// the 3D editor (or the Dessin module) disarms them — the hidden 2D
+// InteractionLayer has no use for their mode. Not the « Pinceau »: armed, it
+// survives the 2D ↔ 3D toggle (T) — it paints parts in 3D and converts /
+// duplicates annotations in 2D (template brush, InteractionLayer).
 function isThreedOnlyDrawingMode(enabledDrawingMode) {
-  return (
-    isFaceCutDrawingMode(enabledDrawingMode) ||
-    isMeshBrushDrawingMode(enabledDrawingMode)
-  );
+  return isFaceCutDrawingMode(enabledDrawingMode);
 }
 
 // Bridges the template-driven face-draw request (derived from the regular 2D
@@ -61,8 +60,8 @@ export default function useTemplateFaceDrawBridge() {
       selectIsFaceCutDrawActive(s) ||
       selectIsMeshBrushActive(s)
   );
-  // "Coupe face" and « Pinceau » are 3D-only tools: leaving the 3D editor
-  // disarms them (the 2D editor has no use for their drawing mode).
+  // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the
+  // 2D editor has no use for its drawing mode).
   const isThreedOnlyMode = useSelector((s) =>
     isThreedOnlyDrawingMode(s.mapEditor.enabledDrawingMode)
   );

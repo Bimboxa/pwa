@@ -1,7 +1,9 @@
 // Leaf module (no imports): shared by the pure utils (node-testable), the
 // services and the 3D layer of the « Pinceau » (MESH_BRUSH) tool.
 
-// Drawing tool key of the 3D brush. Distinct from the 2D "BRUSH" tool (raster
+// Drawing tool key of the « Pinceau » (3D: paints parts, db.meshPaints; 2D:
+// template brush converting / duplicating clicked annotations, see
+// hooks/useTemplateBrushClick). Distinct from the 2D "BRUSH" tool (raster
 // mask → polygons), which the hidden 2D InteractionLayer still reacts to.
 export const MESH_BRUSH_TOOL_KEY = "MESH_BRUSH";
 

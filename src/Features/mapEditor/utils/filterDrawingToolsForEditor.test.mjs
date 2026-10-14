@@ -16,8 +16,10 @@ const POLYGON_RECTANGLE = {
   annotationType: "POLYGON",
 };
 const RAMP = { key: "RAMP", annotationType: "POLYGON" };
-const MESH_BRUSH = {
-  key: "MESH_BRUSH",
+// A synthetic 3D-only tool (the real « Pinceau » is offered in both editors
+// since the 2D template brush; the "Coupe face" tools are the 3D-only ones).
+const THREED_ONLY = {
+  key: "THREED_ONLY",
   annotationType: null,
   editor: "3D",
   requiresTemplate: true,
@@ -25,11 +27,11 @@ const MESH_BRUSH = {
 const TWO_D_ONLY = { key: "TWO_D_ONLY", editor: "2D" };
 const TEMPLATE_ONLY = { key: "TEMPLATE_ONLY", requiresTemplate: true };
 
-const POLYGON_TOOLS = [POLYGON_CLICK, POLYGON_RECTANGLE, RAMP, MESH_BRUSH];
+const POLYGON_TOOLS = [POLYGON_CLICK, POLYGON_RECTANGLE, RAMP, THREED_ONLY];
 
 const keysOf = (tools) => tools.map((t) => t.key);
 
-test("default editor is 2D: the 3D-only brush is never offered", () => {
+test("default editor is 2D: the 3D-only tool is never offered", () => {
   assert.deepEqual(keysOf(filterDrawingToolsForEditor(POLYGON_TOOLS)), [
     "POLYGON_CLICK",
     "POLYGON_RECTANGLE",
@@ -42,10 +44,10 @@ test("default editor is 2D: the 3D-only brush is never offered", () => {
   ]);
 });
 
-test("3D editor offers the brush, last (order kept)", () => {
+test("3D editor offers the 3D-only tool, last (order kept)", () => {
   assert.deepEqual(
     keysOf(filterDrawingToolsForEditor(POLYGON_TOOLS, { editor: "3D" })),
-    ["POLYGON_CLICK", "POLYGON_RECTANGLE", "RAMP", "MESH_BRUSH"]
+    ["POLYGON_CLICK", "POLYGON_RECTANGLE", "RAMP", "THREED_ONLY"]
   );
 });
 
@@ -91,10 +93,10 @@ test("null / undefined inputs", () => {
     []
   );
   assert.equal(isDrawingToolAvailable(null), false);
-  assert.equal(isDrawingToolAvailable(MESH_BRUSH), false);
-  assert.equal(isDrawingToolAvailable(MESH_BRUSH, { editor: "3D" }), true);
+  assert.equal(isDrawingToolAvailable(THREED_ONLY), false);
+  assert.equal(isDrawingToolAvailable(THREED_ONLY, { editor: "3D" }), true);
   assert.equal(
-    isDrawingToolAvailable(MESH_BRUSH, { editor: "3D", templateless: true }),
+    isDrawingToolAvailable(THREED_ONLY, { editor: "3D", templateless: true }),
     false
   );
 });
@@ -103,16 +105,16 @@ test("pickDrawingTool: membership, then fallback order", () => {
   const tools2d = filterDrawingToolsForEditor(POLYGON_TOOLS, { editor: "2D" });
   const tools3d = filterDrawingToolsForEditor(POLYGON_TOOLS, { editor: "3D" });
 
-  // A brush remembered for the template falls back in 2D (to defaultTool,
-  // then to the first tool), and is picked again in 3D.
-  assert.equal(pickDrawingTool(tools2d, ["MESH_BRUSH", "RAMP"]).key, "RAMP");
+  // A 3D-only tool remembered for the template falls back in 2D (to
+  // defaultTool, then to the first tool), and is picked again in 3D.
+  assert.equal(pickDrawingTool(tools2d, ["THREED_ONLY", "RAMP"]).key, "RAMP");
   assert.equal(
-    pickDrawingTool(tools2d, ["MESH_BRUSH", undefined]).key,
+    pickDrawingTool(tools2d, ["THREED_ONLY", undefined]).key,
     "POLYGON_CLICK"
   );
   assert.equal(
-    pickDrawingTool(tools3d, ["MESH_BRUSH", "RAMP"]).key,
-    "MESH_BRUSH"
+    pickDrawingTool(tools3d, ["THREED_ONLY", "RAMP"]).key,
+    "THREED_ONLY"
   );
 
   // Unknown / foreign keys are skipped.
@@ -128,8 +130,8 @@ test("pickDrawingTool: membership, then fallback order", () => {
   assert.equal(pickDrawingTool(tools3d).key, "POLYGON_CLICK");
 
   // Empty list → null.
-  assert.equal(pickDrawingTool([], ["MESH_BRUSH"]), null);
-  assert.equal(pickDrawingTool(null, ["MESH_BRUSH"]), null);
+  assert.equal(pickDrawingTool([], ["THREED_ONLY"]), null);
+  assert.equal(pickDrawingTool(null, ["THREED_ONLY"]), null);
 });
 
 test("getDrawingToolsEditor: 3D only in the Dessin module's 3D editor", () => {

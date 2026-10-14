@@ -145,8 +145,9 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_ARC",
       "STRIP",
       "STRIP_SEGMENT",
-      // 3D-only « Pinceau » (paints edges): kept last so tools[0] — the
-      // default tool of new templates — never changes.
+      // « Pinceau » (paints edges in 3D, converts / duplicates annotations
+      // in 2D): kept last so tools[0] — the default tool of new templates —
+      // never changes.
       MESH_BRUSH_TOOL_KEY,
     ],
     configurableProps: [
@@ -184,8 +185,9 @@ const DRAWING_SHAPE_CONFIG = {
       "STRIP",
       "STRIP_SEGMENT",
       "RAMP",
-      // 3D-only « Pinceau » (paints facets): kept last so tools[0] — the
-      // default tool of new templates — never changes.
+      // « Pinceau » (paints facets in 3D, converts / duplicates annotations
+      // in 2D): kept last so tools[0] — the default tool of new templates —
+      // never changes.
       MESH_BRUSH_TOOL_KEY,
     ],
     configurableProps: [

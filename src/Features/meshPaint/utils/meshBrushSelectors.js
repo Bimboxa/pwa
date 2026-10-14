@@ -15,7 +15,9 @@ import {
 
 // Editor whose drawing tools the tool lists offer (getDrawingToolsByShape
 // `editor` option): "3D" in the Dessin module shown in its 3D editor — the
-// only place 3D-only tools (the brush) are offered and armed — else "2D".
+// only place 3D-only tools ("Coupe face") are offered and armed, and where
+// the « Pinceau » paints parts (in 2D it converts / duplicates annotations) —
+// else "2D".
 export function selectDrawingToolsEditor(s) {
   return getDrawingToolsEditor({
     moduleKey: s.viewers.selectedViewerKey,

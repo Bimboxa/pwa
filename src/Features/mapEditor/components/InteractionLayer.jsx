@@ -37,6 +37,7 @@ import {
   setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
   setDefaultOffsetOnCommit,
+  setTemplateBrushDuplicateTarget,
   setRepairMode,
   setSegmentSnapDirection,
   clearConstraintBuffer,
@@ -462,6 +463,7 @@ const InteractionLayer = forwardRef(({
   onCommitSimilarStrips,
   onCommitDetectedFeatures,
   onCommitLocalizedRepair,
+  onTemplateBrushClick,
   onCommitImageDrop,
   onMapClickInSelectMode,
   basePose,
@@ -681,6 +683,8 @@ const InteractionLayer = forwardRef(({
   const repairMode = useSelector((s) => s.mapEditor.repairMode);
   const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
   const defaultOffsetOnCommit = useSelector((s) => s.mapEditor.defaultOffsetOnCommit);
+  // « Pinceau » 2D: D toggles « Dupliquer l'annotation cible ».
+  const templateBrushDuplicateTarget = useSelector((s) => s.mapEditor.templateBrushDuplicateTarget);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
   // Strip detection orientation is now derived from the loupe aspect (set via F):
   // LANDSCAPE → "H", PORTRAIT → "V", SQUARE → "H" (fallback). The standalone
@@ -2103,8 +2107,10 @@ const InteractionLayer = forwardRef(({
   const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "ISOLATE_SEGMENT"];
   // Drawing modes whose action is a single click on existing geometry — show a
   // pointer cursor and hide the ScreenCursor crosshair.
-  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", ...TRANSFORM_TOOL_MODES];
+  // MESH_BRUSH: the « Pinceau » armed in 2D converts / duplicates the clicked
+  // annotation (template brush) — same click-on-geometry interaction.
+  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", ...TRANSFORM_TOOL_MODES];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -3180,6 +3186,11 @@ const InteractionLayer = forwardRef(({
     defaultOffsetOnCommitRef.current = defaultOffsetOnCommit;
   }, [defaultOffsetOnCommit]);
 
+  const templateBrushDuplicateTargetRef = useRef(templateBrushDuplicateTarget);
+  useEffect(() => {
+    templateBrushDuplicateTargetRef.current = templateBrushDuplicateTarget;
+  }, [templateBrushDuplicateTarget]);
+
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
@@ -3301,6 +3312,13 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onCommitLocalizedRepairRef.current = onCommitLocalizedRepair;
   }, [onCommitLocalizedRepair]);
+
+  // « Pinceau » armed in 2D (MESH_BRUSH): convert / duplicate the clicked
+  // annotation (useTemplateBrushClick, wired by MainMapEditorV3).
+  const onTemplateBrushClickRef = useRef(onTemplateBrushClick);
+  useEffect(() => {
+    onTemplateBrushClickRef.current = onTemplateBrushClick;
+  }, [onTemplateBrushClick]);
 
   const onCommitPointsFromSurfaceDropRef = useRef(onCommitPointsFromSurfaceDrop);
   useEffect(() => {
@@ -4360,6 +4378,27 @@ const InteractionLayer = forwardRef(({
         }
       }
 
+      // --- « Pinceau » armed in 2D (template brush): D toggles the
+      // « Dupliquer l'annotation cible » switch of the drawing helper.
+      // Before the switch below so the loupe D (case 'd') never runs for the
+      // brush. Active viewer only: the hidden 2D layer under the 3D editor
+      // must not react (there the brush paints parts).
+      if (
+        isActiveViewerRef.current &&
+        !pasteClipboardRef.current &&
+        (e.key === "d" || e.key === "D") &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        enabledDrawingModeRef.current === "MESH_BRUSH"
+      ) {
+        e.preventDefault();
+        dispatch(
+          setTemplateBrushDuplicateTarget(!templateBrushDuplicateTargetRef.current)
+        );
+        return;
+      }
+
       // --- SEGMENT tool hover detection: D ("direction") cycles the
       // detection direction auto → vertical → horizontal → auto. The Redux
       // state drives both the panel row and the displayed candidate (via the
@@ -4740,7 +4779,8 @@ const InteractionLayer = forwardRef(({
           // "Offset par défaut" toggle — any active drawing mode. Ctrl/Cmd+Z
           // (undo / pop last point) is handled earlier, before this switch.
           if (e.ctrlKey || e.metaKey || e.altKey) break;
-          if (enabledDrawingModeRef.current) {
+          // Not for the 2D « Pinceau »: its helper hides the switch.
+          if (enabledDrawingModeRef.current && enabledDrawingModeRef.current !== "MESH_BRUSH") {
             e.preventDefault();
             dispatch(setDefaultOffsetOnCommit(!defaultOffsetOnCommitRef.current));
           }
@@ -5791,6 +5831,27 @@ const InteractionLayer = forwardRef(({
           });
         }
       }
+      return;
+    }
+
+    // --- MESH_BRUSH in the 2D editor (template brush): click on an
+    // annotation to convert it to the armed template, or (switch « Dupliquer
+    // l'annotation cible », D) to duplicate it with that template —
+    // useTemplateBrushClick (rules + toaster). Edit rights on the target are
+    // needed to convert it only; a duplicate leaves it untouched.
+    if (enabledDrawingMode === "MESH_BRUSH") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      const nodeId = hit?.dataset?.nodeId;
+      if (!nodeId || isForeignFootprintId(nodeId)) return;
+      const annotation = annotations?.find((a) => a.id === nodeId);
+      if (!annotation) return;
+      if (
+        !templateBrushDuplicateTargetRef.current &&
+        !permissions.canEditAnnotation(annotation.id)
+      )
+        return;
+      onTemplateBrushClickRef.current?.(annotation);
       return;
     }
 
