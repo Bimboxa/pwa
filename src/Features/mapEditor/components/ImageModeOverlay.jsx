@@ -24,6 +24,7 @@ import {
 } from "../mapEditorSlice";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
+import CaptureTitleBlockOverlay from "./CaptureTitleBlockOverlay";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
@@ -82,6 +83,10 @@ export default function ImageModeOverlay({
     povFramingActive || captureToolActive ? povLogoUrl : watermarkLogoUrl;
   const showBorder = useSelector((s) => s.mapEditor.imageModeBorder);
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
+  // Cartouche at the bottom-right of the frame — capture tool only.
+  const showTitleBlock = useSelector((s) =>
+    Boolean(s.mapEditor.imageModeTitleBlock?.visible)
+  );
   const titleText = usePovTitleText();
 
   // When the right panel is open it floats over the viewport without
@@ -365,6 +370,12 @@ export default function ImageModeOverlay({
             />
           );
         })()}
+
+      {/* CARTOUCHE (title block) — bottom-right of the capture rect, sized
+          from the exported page (CaptureTitleBlockOverlay). */}
+      {captureToolActive && showTitleBlock && (
+        <CaptureTitleBlockOverlay rect={rect} />
+      )}
 
       {/* LEGEND OVERLAY (inside the capture rect) */}
       {overlay.visible !== false && (

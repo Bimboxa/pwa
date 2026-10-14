@@ -42,6 +42,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
+import useCapturePageFormat from "../hooks/useCapturePageFormat";
 import { selectCaptureRightInset } from "../utils/captureRightInset";
 import { getActiveMapEditor } from "../services/mapEditorRegistry";
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
@@ -104,8 +105,9 @@ export default function ButtonSaveCapture() {
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   // Output format picked in the panel's Capture tab (SectionCaptureExport).
   const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
-  // PDF page size (A4 / A3) — same on-screen frame, bigger pdf-lib page.
-  const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
+  // PDF page size: the print zone's A0..A4 format when the frame follows the
+  // zone, else the panel's A4 / A3 choice (useCapturePageFormat).
+  const { format: pageFormat } = useCapturePageFormat();
   // The capture drawer floats over the host's right side; every capture must
   // crop the same inset rect as the displayed frame (selectCaptureRightInset).
   const rightInset = useSelector(selectCaptureRightInset);
@@ -395,9 +397,11 @@ export default function ButtonSaveCapture() {
     }
   }
 
-  // Fit the content inside the capture rect, centered. 2D: whole baseMap
-  // image, same camera math as restorePovViewService.getCamera2dTarget but
-  // fitting both dimensions (the image aspect ratio is arbitrary);
+  // Fit the content inside the capture rect, centered. 2D: the base map's
+  // PRINT ZONE (the printed sheet, in reference image px — with the
+  // "BASE_MAP" frame ratio the frame then IS the sheet), falling back to the
+  // whole image when the base map has no resolvable zone. Same camera math
+  // as restorePovViewService.getCamera2dTarget but fitting both dimensions;
   // `frameBounds.rect` and the camera matrix share the same host-local
   // coordinate space. 3D: position-only camera move (orientation kept) that
   // maximizes the scene objects in the frame.
@@ -407,29 +411,35 @@ export default function ButtonSaveCapture() {
       return;
     }
     const mapEditor = getActiveMapEditor();
+    const zone = baseMap?.getPrintZone?.();
     const imageSize = baseMap?.getImageSize?.();
+    const box = zone
+      ? { x: zone.x, y: zone.y, width: zone.width, height: zone.height }
+      : imageSize
+        ? { x: 0, y: 0, width: imageSize.width, height: imageSize.height }
+        : null;
     const { rect } = frameBounds;
     if (
       !mapEditor ||
-      !imageSize?.width ||
-      !imageSize?.height ||
+      !box?.width ||
+      !box?.height ||
       !basePose?.k ||
       !rect?.width
     )
       return;
 
     const k = Math.min(
-      rect.width / (imageSize.width * basePose.k),
-      rect.height / (imageSize.height * basePose.k)
+      rect.width / (box.width * basePose.k),
+      rect.height / (box.height * basePose.k)
     );
     const x =
       rect.left +
       rect.width / 2 -
-      (basePose.x + (basePose.k * imageSize.width) / 2) * k;
+      (basePose.x + basePose.k * (box.x + box.width / 2)) * k;
     const y =
       rect.top +
       rect.height / 2 -
-      (basePose.y + (basePose.k * imageSize.height) / 2) * k;
+      (basePose.y + basePose.k * (box.y + box.height / 2)) * k;
     mapEditor.setCameraMatrix?.({ x, y, k });
   }
 

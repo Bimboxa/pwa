@@ -2,6 +2,7 @@ import * as htmlToImage from "html-to-image";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
+import getPageDimensions from "Features/portfolioEditor/utils/getPageDimensions";
 
 import getCaptureRectBounds from "./getCaptureRectBounds";
 import {
@@ -10,14 +11,19 @@ import {
 } from "./captureBorderConstants";
 
 // Page sizes (pdf-lib points) matched to the capture aspect ratio so the
-// cropped image fills the PDF page with minimal margins. A4 and A3 share the
-// same √2 aspect ratio — only the page dimensions differ (A4: 595×842,
-// A3: 842×1191). Exported for flows exporting an already-stored capture
-// (POV transformed image).
+// cropped image fills the PDF page with minimal margins. `pageFormat` is any
+// ISO A format known to getPageDimensions (A0..A4 — the capture tool follows
+// the base map's print zone sheet when the frame is locked on it, A4 / A3
+// otherwise); every A format shares the √2 ratio so only the page dimensions
+// differ. Exported for flows exporting an already-stored capture (POV
+// transformed image).
 export function getPdfPageSize(aspectRatio, pageFormat = "A4") {
-  const [shortSide, longSide] = pageFormat === "A3" ? [842, 1191] : [595, 842];
+  const { width: longSide, height: shortSide } = getPageDimensions(
+    pageFormat,
+    "landscape"
+  );
   // Numeric ratio (the "BASE_MAP" frame option): pick the page orientation
-  // matching the image — imageToPdfAsync then fits it inside with margins.
+  // matching the frame — imageToPdfAsync then fits it inside with margins.
   if (typeof aspectRatio === "number") {
     return aspectRatio >= 1
       ? { pageWidth: longSide, pageHeight: shortSide }
@@ -56,7 +62,8 @@ export function getPdfPageSize(aspectRatio, pageFormat = "A4") {
  * @param {number} [opts.rightInset] width occluded by an open right panel; the
  *   capture rect is centered within the visible zone (must match the overlay).
  * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
- * @param {"A4"|"A3"} [opts.pageFormat] PDF page size (same aspect ratio)
+ * @param {"A0"|"A1"|"A2"|"A3"|"A4"} [opts.pageFormat] PDF page size (same
+ *   √2 aspect ratio)
  * @param {boolean} [opts.roundedBorderMask] make every pixel outside the
  *   rounded border (imageModeBorder overlay) transparent in the output.
  * @param {boolean} [opts.excludeDecor] hide the `data-capture-decor` elements

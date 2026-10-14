@@ -23,17 +23,22 @@ export function getPageMargins(pageFrame) {
 }
 
 // Bottom-right cartouche rect for a page of arbitrary dimensions (PDF points,
-// SVG top-left coords). Shared by the A3 landscape layout and folio pages
-// (screen + PDF export). Returns null when the page is too small.
+// SVG top-left coords). Shared by the A3 landscape layout, folio pages
+// (screen + PDF export) and the capture frame cartouche. `widthRatio` =
+// share of the inner width (default 0.4, always capped at the A3 value; the
+// capture uses a wider share so the narrow variant stays legible on A4
+// pages, where the carnet switches to TOP_FULL instead). Returns null when
+// the page is too small.
 export function getCartoucheRectBottomRight(
   pageDims,
   titleBlockHeight,
-  pageFrame = null
+  pageFrame = null,
+  { widthRatio = 0.4 } = {}
 ) {
   const m = getPageMargins(pageFrame);
   const fullWidth = pageDims.width - m.left - m.right;
   const cartoucheWidth = Math.min(
-    Math.round(fullWidth * 0.4),
+    Math.round(fullWidth * widthRatio),
     MAX_CARTOUCHE_WIDTH_PT
   );
   if (

@@ -19,3 +19,19 @@ export function clearActiveMapEditor(mapEditor) {
 export function getActiveMapEditor() {
   return activeMapEditor;
 }
+
+// Camera change bus: MainMapEditorV3 notifies on every pan / zoom of the
+// active editor (onCameraChangeExternal) and components living outside its
+// React tree (e.g. the capture frame cartouche reading the frame in image
+// px) subscribe here instead of forcing a MainMapEditorV3 re-render per
+// camera frame. Subscribers debounce on their side.
+const cameraListeners = new Set();
+
+export function subscribeMapEditorCamera(listener) {
+  cameraListeners.add(listener);
+  return () => cameraListeners.delete(listener);
+}
+
+export function notifyMapEditorCameraChange() {
+  cameraListeners.forEach((listener) => listener());
+}

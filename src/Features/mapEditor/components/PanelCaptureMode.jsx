@@ -9,6 +9,7 @@ import { useSelector } from "react-redux";
 import captureMapAsPng from "../utils/captureMapAsPng";
 import { selectCaptureRightInset } from "../utils/captureRightInset";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
+import useCapturePageFormat from "../hooks/useCapturePageFormat";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -25,6 +26,9 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
   // Resolved value (preset key or the base map's numeric ratio) — must match
   // the frame drawn by ImageModeOverlay.
   const aspectRatio = useCaptureAspectRatio();
+  // PDF page: the print zone sheet when the frame follows the base map, else
+  // the A4 / A3 pick of SectionCaptureFormat.
+  const { format: pageFormat } = useCapturePageFormat();
   // Label auto-layout only applies to the 2D map (in 3D the labels are baked
   // into the WebGL snapshot).
   const isThreed = isThreedFamilyViewerKey(viewerKey);
@@ -58,6 +62,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
         format: mode, // "pdf" | "png"
         fileName,
         aspectRatio,
+        pageFormat,
         pixelRatio,
         whiteBackground,
         roundedBorderMask,

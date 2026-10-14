@@ -5,6 +5,8 @@ import {
   setImageModePageFormat,
 } from "../mapEditorSlice";
 
+import useCapturePageFormat from "../hooks/useCapturePageFormat";
+
 import {
   Box,
   Typography,
@@ -27,6 +29,10 @@ export default function SectionCaptureFormat() {
 
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
   const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
+  // Frame locked on the base map: the PDF page follows the print zone sheet
+  // (A0..A4), shown here disabled.
+  const { format: resolvedPageFormat, locked: pageFormatLocked } =
+    useCapturePageFormat();
 
   function handleAspectRatioChange(_, value) {
     if (!value) return;
@@ -66,7 +72,7 @@ export default function SectionCaptureFormat() {
           <ToggleButton value="PORTRAIT">
             <CropPortrait sx={{ fontSize: 18 }} />
           </ToggleButton>
-          {/* frame locked on the active base map's image ratio */}
+          {/* frame locked on the active base map's print zone sheet */}
           <ToggleButton value="BASE_MAP" title="Fond de plan">
             <Wallpaper sx={{ fontSize: 18 }} />
           </ToggleButton>
@@ -86,19 +92,34 @@ export default function SectionCaptureFormat() {
         <Typography variant="caption" color="text.secondary">
           Page PDF
         </Typography>
-        <ToggleButtonGroup
-          value={pageFormat}
-          exclusive
-          onChange={handlePageFormatChange}
-          size="small"
-        >
-          <ToggleButton value="A4" sx={{ px: 1.5 }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 600 }}>A4</Typography>
-          </ToggleButton>
-          <ToggleButton value="A3" sx={{ px: 1.5 }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 600 }}>A3</Typography>
-          </ToggleButton>
-        </ToggleButtonGroup>
+        {pageFormatLocked ? (
+          <ToggleButtonGroup value={resolvedPageFormat} exclusive size="small">
+            <ToggleButton
+              value={resolvedPageFormat}
+              disabled
+              title="Format de la zone d'impression"
+              sx={{ px: 1.5 }}
+            >
+              <Typography sx={{ fontSize: 12, fontWeight: 600 }}>
+                {resolvedPageFormat}
+              </Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : (
+          <ToggleButtonGroup
+            value={pageFormat}
+            exclusive
+            onChange={handlePageFormatChange}
+            size="small"
+          >
+            <ToggleButton value="A4" sx={{ px: 1.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600 }}>A4</Typography>
+            </ToggleButton>
+            <ToggleButton value="A3" sx={{ px: 1.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600 }}>A3</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        )}
       </Box>
     </Box>
   );
