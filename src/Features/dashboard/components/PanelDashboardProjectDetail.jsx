@@ -21,12 +21,8 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
-import { setToaster } from "Features/layout/layoutSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useCreateScopeFromPreset from "Features/scopeCreator/hooks/useCreateScopeFromPreset";
-import getDefaultScopeName from "Features/scopeCreator/utils/getDefaultScopeName";
-import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useReorderScopes from "Features/scopes/hooks/useReorderScopes";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
@@ -86,17 +82,6 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const userProfile = useSelector((s) => s.auth.userProfile);
-  // device preference (Configuration > Données & préférences): full creation
-  // flow (vide / pré-configuré) vs single button + compact dialog.
-  const configurationsManagement = useSelector(
-    (s) => s.appConfig.configurationsManagement
-  );
-
-  const { createScopeFromPreset, isCreating } = useCreateScopeFromPreset({
-    projectId: item?.projectId,
-  });
-
   // link/detach only make sense when a référentiel is configured (edx)
   const hasReferentiel = Boolean(appConfig?.features?.masterProjects);
 
@@ -119,11 +104,6 @@ export default function PanelDashboardProjectDetail({ item }) {
     `Créez le premier ${scopeS} pour commencer le repérage.`;
   const createFirstScopeS =
     appConfig?.strings?.scope?.createFirstScope ?? `Créer le premier ${scopeS}`;
-  const newPreconfiguredS =
-    appConfig?.strings?.scope?.newPreconfigured ??
-    "Plan de repérage pré-configuré";
-  const newEmptyS =
-    appConfig?.strings?.scope?.newEmpty ?? "Plan de repérage vide";
   const newScopeS =
     appConfig?.strings?.scope?.new ?? "Créer un plan de repérage";
 
@@ -237,31 +217,6 @@ export default function PanelDashboardProjectDetail({ item }) {
     if (!item?.projectId) return;
     dispatch(setSelectedProjectId(item.projectId));
     dispatch(setOpenScopeCreator(true));
-  }
-
-  async function handleNewEmptyKrto() {
-    if (!item?.projectId || isCreating) return;
-    dispatch(setSelectedProjectId(item.projectId));
-    const trigram =
-      userProfile?.trigram ?? getDebugAuthFromLocalStorage()?.trigram ?? null;
-    try {
-      // bare scope (scopeCreator/data/emptyScopeConfiguration)
-      await createScopeFromPreset({
-        name: getDefaultScopeName({ trigram }),
-        empty: true,
-      });
-    } catch (error) {
-      console.error(
-        "[PanelDashboardProjectDetail] empty scope creation failed",
-        error
-      );
-      dispatch(
-        setToaster({
-          message: "Erreur lors de la création — réessayez.",
-          isError: true,
-        })
-      );
-    }
   }
 
   async function handleDetach() {
@@ -410,38 +365,15 @@ export default function PanelDashboardProjectDetail({ item }) {
             </Tooltip>
           )}
         </Box>
-        {configurationsManagement ? (
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<Add />}
-              onClick={handleNewEmptyKrto}
-              disabled={!item.projectId || isCreating}
-            >
-              {newEmptyS}
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<Add />}
-              onClick={handleNewKrto}
-              disabled={!item.projectId}
-            >
-              {newPreconfiguredS}
-            </Button>
-          </Box>
-        ) : (
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<Add />}
-            onClick={handleNewKrto}
-            disabled={!item.projectId}
-          >
-            {newScopeS}
-          </Button>
-        )}
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<Add />}
+          onClick={handleNewKrto}
+          disabled={!item.projectId}
+        >
+          {newScopeS}
+        </Button>
       </Box>
 
       {/* krtos list */}
