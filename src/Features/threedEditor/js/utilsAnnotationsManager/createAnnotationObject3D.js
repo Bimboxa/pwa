@@ -68,6 +68,7 @@ import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusi
 import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
+import isAntiAliasingShrinkEnabled from "./isAntiAliasingShrinkEnabled";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height (the in-progress trait of DrawingOverlayThreed is
@@ -172,14 +173,8 @@ const ANTI_ALIASING_SHRINK_MM = 10;
 // shrinks partially instead of collapsing / inverting.
 const SHRINK_MIN_HALF_WIDTH_RATIO = 0.15;
 
-// Hosts of painted parts (« Pinceau ») and annotations being converted to a
-// mesh are built WITHOUT the shrink: their faces are measured and kept as is
-// (useAutoLoadAnnotationsInThreedEditor tags them `_noAntiAliasingShrink`).
-function isShrinkEnabled(options, annotation) {
-  return Boolean(
-    options?.antiAliasingShrink && !annotation?._noAntiAliasingShrink
-  );
-}
+// Setting gate (toggle + per-annotation exemption): isAntiAliasingShrinkEnabled.
+const isShrinkEnabled = isAntiAliasingShrinkEnabled;
 
 // Convert the mm setting to pixels for a given baseMap scale (0 when off).
 function getAntiAliasingShrinkPx(options, meterByPx, annotation) {
@@ -755,8 +750,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   // The basemap's lay-flat rotation now sits on the parent group, so local Z
   // becomes world Y once the group transform applies. The floor's own world
   // height is owned by the group's position, so verticalLift is purely the
-  // per-annotation offsetZ (plus the template "Delta offset 3D" on POLYGON).
-  const verticalLift = getAnnotationVerticalLift(annotation);
+  // per-annotation offsetZ (plus the template "Delta offset 3D" on POLYGON
+  // while the anti-aliasing toggle is on).
+  const verticalLift = getAnnotationVerticalLift(annotation, options);
   const material = makeMaterial(annotation, options);
 
   let object = null;
@@ -765,7 +761,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // isMesh3d: the solid is the stored face mesh — annotation.points only
       // holds its plan projection (2D display), never the 3D geometry.
       if (annotation.isMesh3d && annotation.mesh3d?.faces?.length) {
-        object = buildMesh3dAnnotationObject(annotation, baseMap, material);
+        object = buildMesh3dAnnotationObject(
+          annotation,
+          baseMap,
+          material,
+          options
+        );
         break;
       }
       const pts = pointsToLocal(annotation.points || [], baseMap);

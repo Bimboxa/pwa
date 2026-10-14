@@ -114,6 +114,7 @@ import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkey
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
+import ButtonToggleAntiAliasingShrink from "./ButtonToggleAntiAliasingShrink";
 import AxesGizmoThreed from "./AxesGizmoThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
@@ -2924,9 +2925,10 @@ export default function MainThreedEditor() {
         <SectionMainBaseMapControlsFloating zIndex={10} />
       )}
       {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): full
-          screen, base map image display mode, zoom out, base maps grid
-          button. The Maillage module (meshing-only) keeps the full screen
-          and zoom out alone. */}
+          screen, base map image display mode, « Séparer les surfaces en
+          contact » toggle (3D only), zoom out, base maps grid button. The
+          Maillage module (meshing-only) keeps the full screen and zoom out
+          alone. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           data-capture-hide
@@ -2943,6 +2945,7 @@ export default function MainThreedEditor() {
         >
           <ButtonFullScreen />
           {!isMeshesViewer && <SelectorBaseMapsImageMode />}
+          {!isMeshesViewer && <ButtonToggleAntiAliasingShrink />}
           <ButtonZoomOutThreed />
           {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}
         </Box>

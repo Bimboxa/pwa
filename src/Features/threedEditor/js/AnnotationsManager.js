@@ -119,6 +119,14 @@ export default class AnnotationsManager {
     return this._buildStateById.get(id)?.sourceRef ?? null;
   }
 
+  // The loader options of the last createAnnotationsObjects pass (shrink
+  // toggle, shading…): what the displayed objects were built with. For the
+  // tools that must reproduce a displayed value outside the build pipeline
+  // (getAnnotationVerticalLift of a face handle / an editable mesh).
+  getBuildOptions() {
+    return this._buildOptions ?? null;
+  }
+
   // Subscribe to "annotation ready" notifications. The callback receives the
   // ready ids as an ARRAY: the whole batch for a bulk createAnnotationsObjects
   // pass, a single id for async completions (GLB load, CSG carve) — so
@@ -173,6 +181,7 @@ export default class AnnotationsManager {
   }
 
   _createAnnotationsObjectsCore(annotations, options) {
+    this._buildOptions = options ?? null;
     const epochKey = getBuildEpochKey(options);
 
     // Canvas pixel size, needed by screen-space fat lines (LineMaterial) such as

@@ -27,7 +27,9 @@ const LABEL_LIFT_M = 0.05;
 // [offsetZ + offsetBottom, offsetZ + height + offsetTop], so the band mid is
 // offsetZ + height/2 + mean((offsetBottom + offsetTop) / 2)). Flat annotations
 // (height 0) keep the small lift so the leader hovers above the surface.
-function getAnnotationLabelZ(annotation) {
+// `options`: the 3D build options (the « Delta offset 3D » of a POLYGON only
+// lifts the label while the anti-aliasing toggle is on, like its mesh).
+function getAnnotationLabelZ(annotation, options) {
   const height = Number(annotation.height) || 0;
   const pts = annotation.points || [];
   let bandMid = 0;
@@ -38,7 +40,7 @@ function getAnnotationLabelZ(annotation) {
     bandMid = sum / pts.length;
   }
   return (
-    getAnnotationVerticalLift(annotation) +
+    getAnnotationVerticalLift(annotation, options) +
     height / 2 +
     bandMid +
     (height > 0 ? 0 : LABEL_LIFT_M)
@@ -112,6 +114,11 @@ export default function ThreedAnnotationLabels({ annotations }) {
   const annotationsLoadTick = useSelector(
     (s) => s.threedEditor.annotationsLoadTick
   );
+  // « Séparer les surfaces en contact »: the labels follow the POLYGON
+  // « Delta offset 3D » lift of their mesh (getAnnotationLabelZ).
+  const antiAliasingShrink = useSelector(
+    (s) => s.threedEditor.antiAliasingShrink
+  );
 
   const groupsRef = useRef([]);
 
@@ -154,7 +161,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
 
       const label2 = pixelToWorld(labelProps.labelPoint, baseMapForRender);
       const target2 = pixelToWorld(labelProps.targetPoint, baseMapForRender);
-      const labelZ = getAnnotationLabelZ(annotation);
+      const labelZ = getAnnotationLabelZ(annotation, { antiAliasingShrink });
       // Card lift above the anchor (default 1 m, see getAnnotationLabelLiftM).
       const liftM = getAnnotationLabelLiftM(annotation);
       const labelLocal = { x: label2.x, y: label2.y, z: labelZ + liftM };
@@ -248,7 +255,12 @@ export default function ThreedAnnotationLabels({ annotations }) {
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [labelAnnotations, selectedAnnotationId, annotationsLoadTick]);
+  }, [
+    labelAnnotations,
+    selectedAnnotationId,
+    annotationsLoadTick,
+    antiAliasingShrink,
+  ]);
 
   return null;
 }

@@ -8,26 +8,26 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 
 ## Vocabulaire (français → code)
 
-| Terme employé ici                                                      | Nom dans le code                                                                                               |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Pinceau (l'outil)                                                      | clé d'outil `MESH_BRUSH` (`MESH_BRUSH_TOOL_KEY`). À ne pas confondre avec l'outil 2D `"BRUSH"` (masque raster) |
-| Partie peinte, peinture                                                | une ligne de la table Dexie `db.meshPaints` (« paint »)                                                        |
-| Modèle                                                                 | `annotationTemplate` ; le modèle qui peint est `annotationTemplateId`                                          |
-| Liste                                                                  | `listing` ; la liste du modèle qui peint est `listingId`                                                       |
-| Hôte (l'annotation peinte)                                             | `hostAnnotationId`                                                                                             |
-| Facette                                                                | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                   |
-| Arête                                                                  | `partType: "EDGE"` : une arête vive droite (`chain`)                                                           |
-| Surface courbe                                                         | `partType: "FACE"`, géométrie `{ vertices, facets, angleDeg }` : des facettes voisines lisses (`getSurfaces`)  |
-| Courbe                                                                 | `partType: "EDGE"` à plus de 2 points : des arêtes enchaînées dans un même plan (`getCurves`)                  |
-| Seuil de lissage                                                       | `angleDeg` ; au clic, c'est le réglage « Sélection de face » (`threedEditor.faceSelectionAngleDeg`)            |
-| Côté peint                                                             | le signe de `geometry.normal`, qui pointe vers le côté peint                                                   |
-| Fond de plan                                                           | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                       |
-| Calque                                                                 | `layer` (`host.layerId`)                                                                                       |
-| Orpheline                                                              | `sync.state: "ORPHAN"`                                                                                         |
-| En conflit                                                             | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                           |
-| « À vérifier »                                                         | `isStale`                                                                                                      |
-| Rétrécissement anti-crénelage (« Réduire le crénelage des parements ») | réglage `threedEditor.antiAliasingShrink` ; exemption par annotation : `_noAntiAliasingShrink`                 |
-| Recalage                                                               | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                         |
+| Terme employé ici                                                   | Nom dans le code                                                                                                                                                 |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pinceau (l'outil)                                                   | clé d'outil `MESH_BRUSH` (`MESH_BRUSH_TOOL_KEY`). À ne pas confondre avec l'outil 2D `"BRUSH"` (masque raster)                                                   |
+| Partie peinte, peinture                                             | une ligne de la table Dexie `db.meshPaints` (« paint »)                                                                                                          |
+| Modèle                                                              | `annotationTemplate` ; le modèle qui peint est `annotationTemplateId`                                                                                            |
+| Liste                                                               | `listing` ; la liste du modèle qui peint est `listingId`                                                                                                         |
+| Hôte (l'annotation peinte)                                          | `hostAnnotationId`                                                                                                                                               |
+| Facette                                                             | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                                                                     |
+| Arête                                                               | `partType: "EDGE"` : une arête vive droite (`chain`)                                                                                                             |
+| Surface courbe                                                      | `partType: "FACE"`, géométrie `{ vertices, facets, angleDeg }` : des facettes voisines lisses (`getSurfaces`)                                                    |
+| Courbe                                                              | `partType: "EDGE"` à plus de 2 points : des arêtes enchaînées dans un même plan (`getCurves`)                                                                    |
+| Seuil de lissage                                                    | `angleDeg` ; au clic, c'est le réglage « Sélection de face » (`threedEditor.faceSelectionAngleDeg`)                                                              |
+| Côté peint                                                          | le signe de `geometry.normal`, qui pointe vers le côté peint                                                                                                     |
+| Fond de plan                                                        | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                                                                         |
+| Calque                                                              | `layer` (`host.layerId`)                                                                                                                                         |
+| Orpheline                                                           | `sync.state: "ORPHAN"`                                                                                                                                           |
+| En conflit                                                          | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                                                                             |
+| « À vérifier »                                                      | `isStale`                                                                                                                                                        |
+| Rétrécissement anti-crénelage (« Séparer les surfaces en contact ») | réglage `threedEditor.antiAliasingShrink` (OFF par défaut, couvre aussi le « Delta offset 3D » des POLYGON) ; exemption par annotation : `_noAntiAliasingShrink` |
+| Recalage                                                            | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                                                                           |
 
 ## Règles fonctionnelles (V1)
 

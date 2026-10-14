@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 import db from "App/db/db";
 
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 
@@ -59,7 +60,12 @@ export default async function getEditableMesh3d({
     return {
       annotation,
       mesh,
-      baseOffsetZ: Number(annotation.offsetZ) || 0,
+      // The displayed mesh sits at the render lift: offsetZ plus, while the
+      // anti-aliasing toggle is on, the template « Delta offset 3D ».
+      baseOffsetZ: getAnnotationVerticalLift(
+        annotation,
+        sceneManager.annotationsManager?.getBuildOptions?.()
+      ),
       metrics,
       baseMapGroup,
       isConversion: false,

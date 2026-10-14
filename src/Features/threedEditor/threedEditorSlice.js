@@ -77,9 +77,14 @@ const threedEditorInitialState = {
   // ensureBaseMapLoaded). Consumed by what depends on the base map groups
   // alone — the picking data of the scan base maps (usePrepareScene3dPicking).
   baseMapsLoadTick: 0,
-  // When true, CM-width POLYLINE footprints are contracted by 10 mm before
-  // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
-  antiAliasingShrink: true,
+  // « Séparer les surfaces en contact » (top-right toggle of the 3D view +
+  // switch of the 3D settings panel), OFF by default = geometry at its drawn
+  // dimensions. ON: CM-width POLYLINE and STRIP footprints are contracted by
+  // 10 mm per side and their top face lowered by 5 mm before extrusion
+  // (createAnnotationObject3D), and POLYGON rows get their template « Delta
+  // offset 3D » lift (getAnnotationVerticalLift) — both kill the
+  // coplanar-face aliasing of touching elements. Session-only.
+  antiAliasingShrink: false,
   // Max dihedral angle (degrees) joining two adjacent facets into the same
   // "face" when hovering / picking a surface in 3D (see faceHoverHighlight).
   // 0 = strictly coplanar facets only; 25 follows a revolution or swept

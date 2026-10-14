@@ -86,12 +86,14 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
 export default function buildMesh3dAnnotationObject(
   annotation,
   baseMap,
-  material
+  material,
+  options
 ) {
   const mesh = mesh3dToLocal(annotation?.mesh3d, baseMap);
   if (!mesh.vertices.length || !mesh.faces.length) return null;
 
-  const lift = getAnnotationVerticalLift(annotation) + MESH3D_Z_FIGHT_OFFSET;
+  const lift =
+    getAnnotationVerticalLift(annotation, options) + MESH3D_Z_FIGHT_OFFSET;
   const group = new Group();
 
   // A sheet has no thickness: it must read from both sides, like the flat

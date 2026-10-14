@@ -39,7 +39,12 @@ export default function getFaceVertexHandles({
   const metrics = getBaseMapForRender(baseMap);
   if (!face || !source || !metrics) return [];
 
-  const lift = getAnnotationVerticalLift(source);
+  // Same lift as the displayed object (the « Delta offset 3D » follows the
+  // anti-aliasing toggle; `source` carries the shrink exemption tag).
+  const lift = getAnnotationVerticalLift(
+    source,
+    annotationsManager.getBuildOptions?.()
+  );
   const height = Number(source.height) || 0;
   const isPolygon = source.type === "POLYGON";
   const points = (source.points || [])

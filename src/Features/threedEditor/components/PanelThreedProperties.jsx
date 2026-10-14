@@ -133,7 +133,7 @@ export default function PanelThreedProperties() {
             }
             label={
               <Typography variant="body2">
-                Réduire le crénelage des parements
+                Séparer les surfaces en contact
               </Typography>
             }
           />
