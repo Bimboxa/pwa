@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setHiddenListingsIds,
-  setSelectedListingId,
-} from "Features/listings/listingsSlice";
+import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
@@ -24,13 +21,15 @@ import AvatarListing from "Features/listings/components/AvatarListing";
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
 
 // ---------------------------------------------------------------------------
 // SectionDrawingListings — "Listes d'annotations" card of the Dessin module
 // default panel: one row per listing of the scope with its annotations count
 // (scoped to the main base map, like PanelDrawing) and a visibility eye.
 // Clicking a row selects the listing (its properties panel opens) and makes
-// it the active listing of the Dessin panel — same as the popper ListingRow.
+// it the active listing of the Dessin panel, with the "Visibilité auto" rule
+// of the listing selectors (useSelectActiveListing).
 // ---------------------------------------------------------------------------
 
 export default function SectionDrawingListings() {
@@ -70,6 +69,7 @@ export default function SectionDrawingListings() {
   // helpers - listings (rank order from the selector, same as PanelDrawing)
 
   const displayedListings = useMemo(() => listings ?? [], [listings]);
+  const selectListing = useSelectActiveListing(displayedListings);
 
   // helpers - counts (mesh cells excluded, like computeAnnotationTemplateQties)
 
@@ -85,7 +85,7 @@ export default function SectionDrawingListings() {
   // handlers
 
   function handleSelectListing(listing) {
-    dispatch(setSelectedListingId(listing.id));
+    selectListing(listing.id);
     dispatch(
       setSelectedItem({
         id: listing.id,

@@ -26,8 +26,9 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // switch) and, at the end of the row, its annotations count as a pill that
 // toggles the listing visibility (same badge as the base map selector of the
 // top bar).
-// Click = select the listing (unhides it, the other listings are untouched),
-// double click = select the listing and hide all the others.
+// Click = select the listing with the "Visibilité auto" rule (with the option
+// on: hide every other listing and unhide all its templates; off: only unhide
+// it), double click = select the listing and always hide all the others.
 // The annotations count stays visible above the avatar (top right, "+99"
 // above 99, nothing when 0). Hover = a visibility toggle (top left) plus a
 // bottom tooltip with the listing name.
@@ -117,9 +118,9 @@ export default function ListingAvatarsBar({
   };
 
   // The two clicks of a double click also run handleClick: harmless, it
-  // only selects / unhides the same listing.
+  // selects the same listing with the same visibility rule.
   const handleClick = (listingId) => {
-    selectListing(listingId, { hideOthers: false });
+    selectListing(listingId);
   };
 
   const handleDoubleClick = (listingId) => {

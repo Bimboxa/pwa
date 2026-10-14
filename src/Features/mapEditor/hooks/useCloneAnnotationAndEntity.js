@@ -158,8 +158,15 @@ export default function useCloneAnnotationAndEntity() {
             const annotationId = nanoid();
 
             // B. Annotation record
+            // Strip the read-time fields (useAnnotationsV2 / useSelectedAnnotation)
+            // so the source template is not persisted on the copy: a stale
+            // `annotationTemplate` survived later template switches.
+            const annotationCleaned = { ...annotation };
+            delete annotationCleaned.annotationTemplate;
+            delete annotationCleaned.annotationTemplateProps;
+            delete annotationCleaned.annotationLabel;
             const clonedAnnotation = {
-                ...annotation,
+                ...annotationCleaned,
                 ...newAnnotation, // Apply new type/styles from store
                 id: annotationId,
                 projectId,

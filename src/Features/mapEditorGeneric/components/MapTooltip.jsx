@@ -1,5 +1,6 @@
 // components/MapTooltip.jsx
 import { forwardRef } from 'react';
+import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Paper, Typography, Box } from "@mui/material";
 
@@ -42,6 +43,13 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
         [detailBaseMapId]
     );
 
+    // data - listing name (annotations carry listingId only)
+    const listingName = useSelector((s) =>
+        annotation?.listingId
+            ? s.listings.listingsById?.[annotation.listingId]?.name ?? null
+            : null
+    );
+
     // helper - template label
     const templateLabel = annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
 
@@ -69,6 +77,11 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
         qtiesOverride && (showLength || showSurface)
             ? QTIES_OVERRIDE_LABELS[qtiesOverrideType]
             : null;
+
+    // helper - height (effective annotation height in meters: the template
+    // value when locked, else the annotation's own; hidden when absent or 0)
+    const height = Number(annotation?.height);
+    const showHeight = Number.isFinite(height) && height > 0;
 
     // helper - PLANNING module: hours this annotation represents for each
     // applicable task of the active listing (empty everywhere else)
@@ -169,10 +182,20 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
                     }}
                 />
             )}
-            {/* Template (icon + label) */}
+            {/* Listing the annotation belongs to */}
+            {listingName && (
+                <Typography variant="caption" noWrap sx={{ display: 'block', color: 'grey.500' }}>
+                    {listingName}
+                </Typography>
+            )}
+            {/* Template (icon + label). The icon reads the merged annotation:
+                it carries exactly the colors / fillType the 2D & 3D renderers
+                use (template value when locked, own value otherwise). Never
+                `annotation.annotationTemplate`: a stale copy of the source
+                template that the clone flow used to persist on the row. */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <AnnotationTemplateIcon
-                    template={annotation?.annotationTemplate || annotation}
+                    template={annotation}
                     size={16}
                     spriteImage={spriteImage}
                 />
@@ -186,6 +209,17 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qti
                 <Typography variant="caption" sx={{ display: 'block' }}>
                     {annotationLabel}
                 </Typography>
+            )}
+            {/* Height (annotation property, so above the part quantities) */}
+            {showHeight && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                        Hauteur
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
+                        {height.toFixed(2)} m
+                    </Typography>
+                </Box>
             )}
             {/* Hovered part caption (3D face / edge of a mesh annotation) */}
             {qtiesOverrideLabel && (

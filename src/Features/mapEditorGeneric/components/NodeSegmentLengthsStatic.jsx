@@ -21,6 +21,7 @@ import applySegmentLengthEditService from "Features/annotations/services/applySe
 import { typeOf } from "Features/geometry/utils/arcSampling";
 import ButtonCloneAnnotation from "Features/annotations/components/ButtonCloneAnnotation";
 import OverlayButtonHollowOutAnnotation from "Features/annotations/components/OverlayButtonHollowOutAnnotation";
+import OverlayButtonToggleStripType from "Features/annotations/components/OverlayButtonToggleStripType";
 import OverlayButtonMoreAnnotationTools from "Features/annotations/components/OverlayButtonMoreAnnotationTools";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import getAnnotationHasEditTools from "Features/annotations/utils/getAnnotationHasEditTools";
@@ -434,12 +435,17 @@ export default function NodeSegmentLengthsStatic({
   //   a menu (icon + label); single selection only, like the move button.
   const showMoreButton =
     !simple && !hasMultiSelection && getAnnotationHasEditTools(annotation);
-  // - "Dupliquer" / "Evider" (POLYGON, hotkey E): the two actions pulled out
-  //   of the "Plus d'outils" menu, right before it. ToolbarEditAnnotation
-  //   drops its own copies for these annotations
-  //   (getAnnotationHasOverlayActions).
+  // - "Dupliquer" / "Basculer ligne ↔ bande" (open POLYLINE / STRIP) /
+  //   "Evider" (POLYGON, hotkey E): the actions pulled out of the
+  //   "Plus d'outils" menu, right before it. ToolbarEditAnnotation drops its
+  //   own copies for these annotations (getAnnotationHasOverlayActions).
   const showCloneButton =
     !simple && !hasMultiSelection && getAnnotationHasOverlayActions(annotation);
+  // Same condition as the menu entry (EditAnnotationTools).
+  const showToggleStripButton =
+    showCloneButton &&
+    ["POLYLINE", "STRIP"].includes(annotation?.type) &&
+    !annotation?.closeLine;
   const showHollowOutButton =
     showCloneButton && annotation?.type === "POLYGON";
   const overlayButtonCount =
@@ -448,6 +454,7 @@ export default function NodeSegmentLengthsStatic({
     Number(showSegmentDragButton) +
     Number(showAnglesButton) +
     Number(showCloneButton) +
+    Number(showToggleStripButton) +
     Number(showHollowOutButton) +
     Number(showMoreButton) +
     (extraButtons ? extraButtonCount : 0);
@@ -842,6 +849,12 @@ export default function NodeSegmentLengthsStatic({
                     key={annotationId}
                     variant="overlay"
                     accentColor={getAnnotationColor(annotation) || "#6366F1"}
+                    overlayColor={ACCENT_COLOR}
+                  />
+                )}
+                {showToggleStripButton && (
+                  <OverlayButtonToggleStripType
+                    annotation={annotation}
                     overlayColor={ACCENT_COLOR}
                   />
                 )}
