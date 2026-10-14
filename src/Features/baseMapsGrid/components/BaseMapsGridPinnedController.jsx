@@ -31,6 +31,10 @@ export default function BaseMapsGridPinnedController({
   const pinned = useSelector(selectBaseMapsGridPinned);
   const wanted = useSelector((s) => s.baseMapsGrid.scopeGridWanted);
   const isOpen = useSelector(selectBaseMapsGridOpen);
+  // A close right after this effect opened the grid (same effects pass, e.g.
+  // a second scope-change dispatch) leaves isOpen / wanted unchanged: the
+  // epoch makes the effect run again.
+  const closeEpoch = useSelector((s) => s.baseMapsGrid.closeEpoch);
   const effectiveKey = useSelector(selectEffectiveViewerKey);
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const { value: baseMaps } = useBaseMaps();
@@ -75,6 +79,7 @@ export default function BaseMapsGridPinnedController({
     pinned,
     wanted,
     isOpen,
+    closeEpoch,
     effectiveKey,
     imageModeActive,
     showBgImage,

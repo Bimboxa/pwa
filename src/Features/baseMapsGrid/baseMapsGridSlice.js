@@ -29,12 +29,18 @@ const initialState = {
   // leaves it (double-click on a sheet, G, Escape, close button, nav
   // sprite); opening it again (G, grid button) wants it again.
   scopeGridWanted: true,
+  // Bumped by every reducer close of an opened (or opening) grid: the SCOPE
+  // keeper (BaseMapsGridPinnedController) depends on it, so an open → close
+  // round trip inside one effects pass (open values unchanged in between)
+  // still re-runs it.
+  closeEpoch: 0,
 };
 
 const toggleId = (ids, id) =>
   ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id];
 
 const closeGrid = (state) => {
+  if (state.phase !== BASE_MAPS_GRID_PHASE.CLOSED) state.closeEpoch += 1;
   state.phase = BASE_MAPS_GRID_PHASE.CLOSED;
   state.selectedBaseMapId = null;
   state.openFitAll = false;
@@ -45,11 +51,8 @@ export const baseMapsGridSlice = createSlice({
   initialState,
   reducers: {
     setBaseMapsGridPhase: (state, action) => {
-      state.phase = action.payload;
-      if (action.payload === BASE_MAPS_GRID_PHASE.CLOSED) {
-        state.selectedBaseMapId = null;
-        state.openFitAll = false;
-      }
+      if (action.payload === BASE_MAPS_GRID_PHASE.CLOSED) closeGrid(state);
+      else state.phase = action.payload;
       if (
         action.payload === BASE_MAPS_GRID_PHASE.OPENING_ZOOM ||
         action.payload === BASE_MAPS_GRID_PHASE.OPENING_FADE
@@ -80,6 +83,13 @@ export const baseMapsGridSlice = createSlice({
         state.hiddenAnnotationsBaseMapIds,
         action.payload
       );
+    },
+    // « Supprimer les filtres » (SCOPE module « Contenu » tab): every sheet
+    // shown again (image + annotations), no sheet selected.
+    resetBaseMapsGridSheetFilters: (state) => {
+      state.hiddenImageBaseMapIds = [];
+      state.hiddenAnnotationsBaseMapIds = [];
+      state.selectedBaseMapId = null;
     },
     setBaseMapsGridScopeSheets: (state, action) => {
       const {
@@ -127,6 +137,7 @@ export const {
   setBaseMapsGridOpenFitAll,
   toggleBaseMapsGridImageHidden,
   toggleBaseMapsGridAnnotationsHidden,
+  resetBaseMapsGridSheetFilters,
 } = baseMapsGridSlice.actions;
 
 export const selectBaseMapsGridOpen = (s) =>

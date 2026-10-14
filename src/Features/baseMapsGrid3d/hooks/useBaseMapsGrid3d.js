@@ -43,6 +43,9 @@ export default function useBaseMapsGrid3d() {
   // data
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
+  const closeEpoch = useSelector(
+    (s) => s.threedEditor.baseMapsGridMode.closeEpoch
+  );
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const pinned = useSelector(selectBaseMapsGridPinned);
@@ -157,7 +160,16 @@ export default function useBaseMapsGrid3d() {
     if (!pinned || !scopeGridWanted || active || !canOpen || !hasSheets) return;
     if (failedOpenKeyRef.current === openKey) return;
     dispatch(setBaseMapsGridModeActive(true));
-  }, [pinned, scopeGridWanted, active, canOpen, hasSheets, openKey, dispatch]);
+  }, [
+    pinned,
+    scopeGridWanted,
+    active,
+    closeEpoch,
+    canOpen,
+    hasSheets,
+    openKey,
+    dispatch,
+  ]);
 
   // effects - open / close
 
