@@ -17,7 +17,9 @@ const initialState = {
   running: false,
   // {procedureKey, sourceAnnotationId} | null — armed by the drawing commit
   // when the source template links a procedure flagged launchOnSourceCreated;
-  // consumed by ProcedureAutoLaunchDialogOutlet (params dialog auto-open).
+  // consumed by ProcedureAutoLaunchDialogOutlet (params dialog auto-open,
+  // replace-on-rerun). Revolution-axis systems are launched from their
+  // listing (DialogProcedureAxisLaunch), never through this.
   pendingProcedureLaunch: null,
 };
 

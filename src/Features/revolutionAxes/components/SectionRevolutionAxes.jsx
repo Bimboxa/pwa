@@ -3,14 +3,14 @@ import { useMemo, useState } from "react";
 import { Box, List, Typography, useTheme } from "@mui/material";
 
 import RowRevolutionAxis from "./RowRevolutionAxis";
-import DialogAssociateSystemToAxis from "./DialogAssociateSystemToAxis";
+import DialogProcedureAxisLaunch from "./DialogProcedureAxisLaunch";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVerticalBaseMapsByListing";
 import useCreateRevolutionAxisBaseMap from "../hooks/useCreateRevolutionAxisBaseMap";
 import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
 import getRevolutionAxisProcedures, {
-  splitRevolutionAxisProcedures,
+  getAxisSystemListingId,
 } from "../utils/getRevolutionAxisProcedures";
 
 // "Axes de révolution" section of PopperMapListings — pinned right below the
@@ -42,8 +42,8 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
 
   // state
 
-  // Axis whose system picker is open ("Associer un système…" of the row menu).
-  const [axisToAssociate, setAxisToAssociate] = useState(null);
+  // { axis, procedure } whose launch dialog is open (row menu relaunch).
+  const [launch, setLaunch] = useState(null);
 
   // helpers
 
@@ -54,8 +54,8 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
   }, [baseMaps]);
 
   // Systems an axis can source without a template (registry
-  // sourceAnnotationTypes + params dialog); each row splits them into the
-  // ones associated to its axis and the ones still available.
+  // sourceAnnotationTypes + params dialog); each row lists the ones launched
+  // on its axis from a listing (association mark).
   const procedures = useMemo(
     () =>
       getRevolutionAxisProcedures(appConfig?.automatedAnnotationsProcedures),
@@ -124,18 +124,20 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
             spriteImage={spriteImage}
             creatingBaseMap={creating}
             onCreateBaseMap={createForAxis}
-            onAssociateSystem={setAxisToAssociate}
+            onLaunchProcedure={(axis, procedure) =>
+              setLaunch({ axis, procedure })
+            }
           />
         ))}
       </List>
 
-      {axisToAssociate && (
-        <DialogAssociateSystemToAxis
-          axis={axisToAssociate}
-          procedures={
-            splitRevolutionAxisProcedures(axisToAssociate, procedures).available
-          }
-          onClose={() => setAxisToAssociate(null)}
+      {launch && (
+        <DialogProcedureAxisLaunch
+          open
+          procedure={launch.procedure}
+          listingId={getAxisSystemListingId(launch.axis, launch.procedure.key)}
+          initialAxisId={launch.axis.id}
+          onClose={() => setLaunch(null)}
         />
       )}
     </Box>

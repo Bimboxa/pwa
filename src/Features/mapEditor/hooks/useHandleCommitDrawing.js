@@ -770,10 +770,6 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 // ... props de style
             };
 
-            // Draft-only instruction (see the procedure auto-launch below):
-            // never persisted on the row.
-            delete _newAnnotation.launchProcedureKeyOnCreated;
-
             // OPENING dropped on a POLYLINE / STRIP wall: its thickness is the
             // wall's, not the template's.
             if (openingStrokeFromHost) Object.assign(_newAnnotation, openingStrokeFromHost);
@@ -1300,32 +1296,6 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 console.error(
                     "[useHandleCommitDrawing] procedure auto-launch lookup failed",
                     e
-                );
-            }
-        }
-
-
-        // Same auto-open for a template-less source: a revolution axis armed
-        // by a "Système" of the library (usePlaceSystemFromLibrary) carries
-        // the procedure to launch on its draft.
-        if (
-            !_updatedAnnotation &&
-            _newAnnotation?.id &&
-            _newAnnotation.type === "REVOLUTION_AXIS" &&
-            newAnnotation?.launchProcedureKeyOnCreated
-        ) {
-            const entry = (appConfig?.automatedAnnotationsProcedures ?? []).find(
-                (p) =>
-                    p.key === newAnnotation.launchProcedureKeyOnCreated &&
-                    p.paramsDialog
-            );
-            if (entry) {
-                dispatch(setEnabledDrawingMode(null));
-                dispatch(
-                    setPendingProcedureLaunch({
-                        procedureKey: entry.key,
-                        sourceAnnotationId: _newAnnotation.id,
-                    })
                 );
             }
         }

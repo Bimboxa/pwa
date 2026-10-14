@@ -8,27 +8,24 @@ import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
 import useListingProcedureSourceIds from "../hooks/useListingProcedureSourceIds";
+import useProcedureOutputs from "../hooks/useProcedureOutputs";
+import useRunProcedureReplacing from "../hooks/useRunProcedureReplacing";
 import getProcedureOutputs from "../services/getProcedureOutputs";
+import setListingProcedureParams from "../services/setListingProcedureParams";
+import {
+  getAxisParamOfProcedure,
+  getAxisSystemListingId,
+} from "Features/revolutionAxes/utils/getRevolutionAxisProcedures";
 
-import {
-  Box,
-  CircularProgress,
-  IconButton,
-  Menu,
-  MenuItem,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import { lighten } from "@mui/material/styles";
-import {
-  DeleteSweep,
-  ExpandMore,
-  PlayArrow,
-  Refresh,
-} from "@mui/icons-material";
+import { Box, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
+import { ExpandMore } from "@mui/icons-material";
 
 import DialogProcedureLaunch from "./DialogProcedureLaunch";
+import RowProcedureRun from "./RowProcedureRun";
+import DialogProcedureAxisLaunch from "Features/revolutionAxes/components/DialogProcedureAxisLaunch";
+import FieldRevolutionAxisSelect from "Features/revolutionAxes/components/FieldRevolutionAxisSelect";
 import DialogPromptIa from "Features/promptIa/components/DialogPromptIa";
 import getPromptIaOutputs from "Features/promptIa/services/getPromptIaOutputs";
 import {
@@ -36,19 +33,30 @@ import {
   isPromptIaProcedure,
 } from "Features/promptIa/utils/promptIaProcedure";
 
+const EMPTY = [];
+
 /**
  * "Dessin auto" section of a listing, for the procedures linked to it
  * (`listing.procedureKeys`, edited in the listing properties), on one line:
  * active procedure name — launch button — procedure selector (only when the
- * listing links several procedures).
+ * listing links several procedures). Three launch flavours:
  *
- * The launch button opens DialogProcedureLaunch (procedure properties, number
- * of source annotations concerned, launch buttons). While the procedure has
- * live outputs from the base map's sources, it reads "update" instead of
- * "play" and a delete button sweeps those outputs (same scope as the reset of
- * ProcedureActionButtons: getProcedureOutputs).
+ * - revolution-axis system (registry `sourceAnnotationTypes` REVOLUTION_AXIS
+ *   + `paramsDialog` — château d'eau GO, réservoir): the play button opens
+ *   DialogProcedureAxisLaunch (axis + vertical page, then cotes; create /
+ *   update / delete per axis live in that dialog). The line reads "update"
+ *   as soon as one axis launched from this listing carries outputs;
+ * - listing parameters (registry `listingParams`, e.g. the axis the château
+ *   d'eau surfaces revolve around): the parameters are edited right under
+ *   the line (listing.procedureParams[key]) and the play button runs the
+ *   procedure straight away, replace-on-rerun, the axis as source;
+ * - otherwise the play button opens DialogProcedureLaunch (procedure
+ *   properties, number of source annotations concerned, launch buttons),
+ *   sources from useListingProcedureSourceIds.
  *
- * Sources of the run: useListingProcedureSourceIds.
+ * While the procedure has live outputs from its sources, the line reads
+ * "update" instead of "play" and a delete button sweeps those outputs (same
+ * scope as the reset of ProcedureActionButtons: getProcedureOutputs).
  *
  * A listing whose Prompt IA is enabled (listing.promptIaEnabled) also lists
  * the virtual "Prompt IA" procedure: no sources, its play button opens
@@ -63,11 +71,11 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
 
   // strings
 
-  const captionS = "Dessin auto";
   const launchS = "Lancer la procédure";
   const openPromptIaS = "Ouvrir le Prompt IA";
   const updateS = "Mettre à jour (supprimer puis relancer)";
   const selectS = "Choisir la procédure";
+  const missingParamsS = "Choisissez d'abord les paramètres de la procédure";
 
   // data
 
@@ -84,13 +92,15 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     (s) => s.annotations.annotationsUpdatedAt
   );
   const deleteAnnotations = useDeleteAnnotations();
+  const runReplacing = useRunProcedureReplacing();
+  const axes = useRevolutionAxes();
 
   // state
 
   const [activeKey, setActiveKey] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [launchOpen, setLaunchOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   // helpers
 
@@ -107,44 +117,56 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   const isPromptIa = isPromptIaProcedure(procedure);
   const showSelector = linkedProcedures.length > 1;
 
-  // data - sources of the active procedure (none for the Prompt IA)
+  const isAxisSystem =
+    !isPromptIa &&
+    Boolean(procedure?.paramsDialog) &&
+    (procedure?.sourceAnnotationTypes ?? []).includes("REVOLUTION_AXIS");
+  const axisParam = !isPromptIa ? getAxisParamOfProcedure(procedure) : null;
+  const listingParams = procedure?.listingParams ?? EMPTY;
+  const hasListingParams = !isPromptIa && listingParams.length > 0;
+  const paramValues = listing?.procedureParams?.[procedure?.key] ?? {};
+  const missingRequiredParam = listingParams.some(
+    (p) => p.required !== false && !paramValues[p.key]
+  );
+
+  // data - sources of the active procedure
+  //  - axis system: the axes launched from this listing (association mark);
+  //  - listing params: the chosen axis;
+  //  - default: useListingProcedureSourceIds; none for the Prompt IA.
 
   const getSourceAnnotationIds = useListingProcedureSourceIds({
     listingId,
     baseMapId,
-    enabled: hasRegistryProcedures,
+    enabled: hasRegistryProcedures && !isAxisSystem && !hasListingParams,
   });
 
-  const sourceAnnotationIds =
-    procedure && !isPromptIa ? getSourceAnnotationIds(procedure) : [];
-  const sourceKey = sourceAnnotationIds.join(",");
-
-  // data - live outputs of the active procedure from these sources, or of
-  // the Prompt IA on the base map (display only: the delete re-reads them
-  // from Dexie at call time).
-
-  function readOutputs() {
-    if (!procedure) return [];
-    if (isPromptIa) return getPromptIaOutputs({ listingId, baseMapId });
-    return getProcedureOutputs({
-      projectId,
-      procedureKey: procedure.key,
-      sourceAnnotationIds,
-      chainedProcedureKeys: procedure.chainedProcedureKeys,
-      procedures,
-    });
+  let sourceAnnotationIds = EMPTY;
+  if (isAxisSystem) {
+    sourceAnnotationIds = axes
+      .filter((a) => getAxisSystemListingId(a, procedure.key) === listingId)
+      .map((a) => a.id);
+  } else if (hasListingParams) {
+    const axisId = axisParam ? paramValues[axisParam.key] : null;
+    sourceAnnotationIds = axisId ? [axisId] : EMPTY;
+  } else if (procedure && !isPromptIa) {
+    sourceAnnotationIds = getSourceAnnotationIds(procedure);
   }
 
-  const createdAnnotations = useLiveQuery(readOutputs, [
-    projectId,
-    listingId,
-    baseMapId,
-    procedure?.key,
-    isPromptIa,
-    sourceKey,
-    annotationsUpdatedAt,
-  ]);
-  const createdCount = createdAnnotations?.length ?? 0;
+  // data - live outputs (display only: the delete / relaunch re-read them
+  // from Dexie at call time)
+
+  const procedureOutputs = useProcedureOutputs({
+    procedureKey: isPromptIa ? null : procedure?.key,
+    sourceAnnotationIds,
+  });
+  const promptIaOutputs = useLiveQuery(
+    () => (isPromptIa ? getPromptIaOutputs({ listingId, baseMapId }) : EMPTY),
+    [isPromptIa, listingId, baseMapId, annotationsUpdatedAt]
+  );
+  const createdAnnotations = isPromptIa
+    ? (promptIaOutputs ?? EMPTY)
+    : procedureOutputs;
+  const createdCount = createdAnnotations.length;
   const hasOutputs = createdCount > 0;
   const deleteS = isPromptIa
     ? `Supprimer les ${createdCount} annotation(s) créée(s) par le Prompt IA (non modifiées depuis)`
@@ -158,10 +180,18 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   }
 
   async function handleDelete() {
-    if (deleting) return;
-    setDeleting(true);
+    if (busy) return;
+    setBusy(true);
     try {
-      const outputs = await readOutputs();
+      const outputs = isPromptIa
+        ? await getPromptIaOutputs({ listingId, baseMapId })
+        : await getProcedureOutputs({
+            projectId,
+            procedureKey: procedure.key,
+            sourceAnnotationIds,
+            chainedProcedureKeys: procedure.chainedProcedureKeys,
+            procedures,
+          });
       const ids = outputs.map((a) => a.id);
       if (ids.length === 0) return;
       await deleteAnnotations(ids);
@@ -169,104 +199,86 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
         setToaster({ message: `${ids.length} annotation(s) supprimée(s)` })
       );
     } finally {
-      setDeleting(false);
+      setBusy(false);
     }
+  }
+
+  async function handlePlay() {
+    if (busy) return;
+    if (!hasListingParams) {
+      setLaunchOpen(true);
+      return;
+    }
+    if (missingRequiredParam) {
+      dispatch(setToaster({ message: missingParamsS, severity: "warning" }));
+      return;
+    }
+    setBusy(true);
+    try {
+      await runReplacing({
+        procedureKey: procedure.key,
+        sourceAnnotationIds,
+        procedureParams: { ...paramValues, listingId },
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleParamChange(paramKey, value) {
+    await setListingProcedureParams(listingId, procedure.key, {
+      [paramKey]: value,
+    });
   }
 
   // render
 
   if (!hasProcedures) return null;
 
+  const playTitle = isPromptIa ? openPromptIaS : hasOutputs ? updateS : launchS;
+
   return (
     // white band around the tinted section
     <Box sx={{ bgcolor: "background.paper", px: 1, py: 0.75, ...sx }}>
-      <Box
-        sx={{
-          bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.85),
-          borderRadius: 1,
-          overflow: "hidden",
-        }}
-      >
-        {/* active procedure + play + selector */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 0.5,
-            pl: 1.25,
-            pr: 0.5,
-            py: 0.25,
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: "block",
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                lineHeight: 1.4,
-              }}
-            >
-              {captionS}
-            </Typography>
-            <Typography variant="body2" noWrap sx={{ fontWeight: "bold" }}>
-              {procedure.label}
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            {deleting && <CircularProgress size={14} sx={{ mr: 0.5 }} />}
-            {hasOutputs && (
-              <Tooltip title={deleteS}>
-                <span>
-                  <IconButton
-                    size="small"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                  >
-                    <DeleteSweep sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            )}
-            <Tooltip
-              title={
-                isPromptIa ? openPromptIaS : hasOutputs ? updateS : launchS
-              }
-            >
-              <span>
-                <IconButton
-                  size="small"
-                  color="secondary"
-                  onClick={() => setLaunchOpen(true)}
-                  // the Prompt IA zip is built from the displayed base map
-                  disabled={deleting || (isPromptIa && !baseMapId)}
-                >
-                  {hasOutputs && !isPromptIa ? (
-                    <Refresh sx={{ fontSize: 20 }} />
-                  ) : (
-                    <PlayArrow sx={{ fontSize: 20 }} />
-                  )}
-                </IconButton>
-              </span>
+      <RowProcedureRun
+        label={procedure.label}
+        hasOutputs={hasOutputs}
+        busy={busy}
+        // the Prompt IA zip is built from the displayed base map
+        playDisabled={isPromptIa && !baseMapId}
+        playTitle={playTitle}
+        deleteTitle={deleteS}
+        onPlay={handlePlay}
+        // per-axis delete lives in the axis launch dialog
+        onDelete={isAxisSystem ? null : handleDelete}
+        actions={
+          showSelector ? (
+            <Tooltip title={selectS}>
+              <IconButton
+                size="small"
+                onClick={(e) => setMenuAnchorEl(e.currentTarget)}
+              >
+                <ExpandMore sx={{ fontSize: 18 }} />
+              </IconButton>
             </Tooltip>
-            {showSelector && (
-              <Tooltip title={selectS}>
-                <IconButton
-                  size="small"
-                  onClick={(e) => setMenuAnchorEl(e.currentTarget)}
-                >
-                  <ExpandMore sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-        </Box>
-      </Box>
+          ) : null
+        }
+      >
+        {hasListingParams
+          ? listingParams.map((param) =>
+              param.type === "REVOLUTION_AXIS" ? (
+                <FieldRevolutionAxisSelect
+                  key={param.key}
+                  value={paramValues[param.key] ?? ""}
+                  onChange={(id) => handleParamChange(param.key, id)}
+                  label={param.label}
+                  disabled={busy}
+                  sx={{ bgcolor: "background.paper", borderRadius: 1 }}
+                />
+              ) : null
+            )
+          : null}
+      </RowProcedureRun>
 
       {showSelector && (
         <Menu
@@ -299,7 +311,17 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
         />
       )}
 
-      {launchOpen && !isPromptIa && (
+      {launchOpen && isAxisSystem && (
+        <DialogProcedureAxisLaunch
+          key={procedure.key}
+          open={launchOpen}
+          onClose={() => setLaunchOpen(false)}
+          procedure={procedure}
+          listingId={listingId}
+        />
+      )}
+
+      {launchOpen && !isPromptIa && !isAxisSystem && (
         <DialogProcedureLaunch
           // per-procedure instance: no dialog state carried over when the
           // active procedure changes

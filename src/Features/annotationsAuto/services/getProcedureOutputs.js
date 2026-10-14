@@ -10,8 +10,10 @@ import db from "App/db/db";
  * Chained procedures (registry `chainedProcedureKeys`, e.g. the château d'eau
  * surfaces drawn on top of the château d'eau walls): the outputs of a chained
  * procedure built FROM this procedure's outputs (their `autoCreatedFrom` is
- * one of them) are swept along — they would be stale once the walls are
- * redrawn. Cascades through the chain (a chained procedure's own chain too).
+ * one of them) OR from the same sources (the surfaces launched from their
+ * own listing are tagged with the axis, like the walls) are swept along —
+ * they would be stale once the walls are redrawn. Cascades through the chain
+ * (a chained procedure's own chain too).
  *
  * Project-wide, not source-base-map-wide: a procedure may output on another
  * map (the revolution-section systems draw on the vertical page from a plan
@@ -54,13 +56,14 @@ export default async function getProcedureOutputs({
 
   const outputs = outputsOf(procedureKey, sourceIds, false);
   const seen = new Set(outputs.map((a) => a.id));
-  // breadth-first through the chain: each level's outputs source the next
+  // breadth-first through the chain: each level's outputs (plus the original
+  // sources) source the next
   const queue = [{ key: procedureKey, rows: [...outputs] }];
   while (queue.length > 0) {
     const level = queue.shift();
     const chained = chainOf(level.key);
-    if (chained.length === 0 || level.rows.length === 0) continue;
-    const ids = level.rows.map((a) => a.id);
+    if (chained.length === 0) continue;
+    const ids = [...level.rows.map((a) => a.id), ...sourceIds];
     for (const key of chained) {
       const rows = outputsOf(key, ids, true).filter((a) => !seen.has(a.id));
       for (const a of rows) {

@@ -28,10 +28,11 @@ import resyncRevolutionAxisPlacementsService from "Features/elevation/services/r
 // Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
 // geometry model (centre + scalars), so the template-centric
 // ToolbarEditAnnotation does not apply: name, radius / height / offset Z, the
-// annotations revolved around the axis (per template) and the systems of the
-// axis (SectionRevolutionAxisSystems: one launcher band per ASSOCIATED
-// system — château d'eau, réservoir — and the "Associer un système à l'axe"
-// band while some remain available).
+// annotations revolved around the axis (per template) and the procedures
+// bound to the axis from a listing « Dessin auto » band
+// (SectionRevolutionAxisSystems: one launcher line per system launched on
+// the axis — château d'eau GO, réservoir — and per listing procedure bound
+// to it — château d'eau étanchéité; nothing while the axis is bound to none).
 //
 // The axis ACTIONS (invert halves, partial / total, 3D half-view, coupe base
 // map, delete) live in the quick-action row above the axis on the map
