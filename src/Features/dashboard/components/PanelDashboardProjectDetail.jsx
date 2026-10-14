@@ -3,6 +3,20 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
@@ -14,6 +28,7 @@ import useCreateScopeFromPreset from "Features/scopeCreator/hooks/useCreateScope
 import getDefaultScopeName from "Features/scopeCreator/utils/getDefaultScopeName";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
+import useReorderScopes from "Features/scopes/hooks/useReorderScopes";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
 import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import useDeleteProject from "Features/projects/hooks/useDeleteProject";
@@ -178,7 +193,24 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const count = rows.length;
 
+  // helpers - drag & drop reorder (local scopes only: a remote-only
+  // configuration has no scope record to rank, it stays after the local ones)
+
+  const reorderScopes = useReorderScopes();
+
+  const sensors = useSensors(
+    // 5px activation distance keeps plain clicks (open / star / trash) working.
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const sortableScopeIds = rows.filter((r) => r.isLocal).map((r) => r.scopeId);
+
   // handlers
+
+  const handleDragEnd = (event) => reorderScopes(event, item?.scopes);
 
   function handleToggleFavorite(row) {
     toggleFavorite({
@@ -474,15 +506,27 @@ export default function PanelDashboardProjectDetail({ item }) {
               bgcolor: "white",
             }}
           >
-            {rows.map((row) => (
-              <ListItemDashboardScope
-                key={row.scopeId}
-                row={row}
-                onToggleFavorite={handleToggleFavorite}
-                onOpen={handleOpen}
-                onDelete={(r) => setDeleteScopeId(r.scopeId)}
-              />
-            ))}
+            <DndContext
+              id="dashboard-scopes-dnd"
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortableScopeIds}
+                strategy={verticalListSortingStrategy}
+              >
+                {rows.map((row) => (
+                  <ListItemDashboardScope
+                    key={row.scopeId}
+                    row={row}
+                    onToggleFavorite={handleToggleFavorite}
+                    onOpen={handleOpen}
+                    onDelete={(r) => setDeleteScopeId(r.scopeId)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </Box>
         )}
       </Box>

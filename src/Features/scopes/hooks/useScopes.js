@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import db from "App/db/db";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import sortScopes from "Features/scopes/utils/sortScopes";
 
 export default function useScopes(options) {
   const [loading, setLoading] = useState(true);
@@ -33,13 +34,15 @@ export default function useScopes(options) {
       const projectById = getItemsByKey(projects, "id");
       scopes = scopes.map((s) => ({ ...s, project: projectById[s.projectId] }));
     }
-    // sort
+    // sort — default: user order (sortIndex, then name), see sortScopes
     if (sortByClientRef) {
       scopes = scopes.sort((a, b) => {
         const aClientRef = a.clientRef || "";
         const bClientRef = b.clientRef || "";
         return aClientRef.localeCompare(bClientRef);
       });
+    } else {
+      scopes = sortScopes(scopes);
     }
     setLoading(false);
     setUpdatedAt(Date.now());
