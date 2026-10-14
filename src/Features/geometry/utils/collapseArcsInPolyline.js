@@ -93,7 +93,13 @@ function fitRun(pts, s, e, thicknessPx, sourceArcCircles, requireSourceMatch) {
   // arc), reject any run that does not match — keeps straight junction stubs
   // and corners from being mis-fitted as arcs.
   if (requireSourceMatch && !fromSource) return null;
-  const tol = fromSource ? Math.max(baseTol, 0.6 * thicknessPx) : baseTol;
+  // A run matched to a known source circle is trusted up to 1 % of its
+  // radius: the chord sagitta of a coarsely tessellated large circle (e.g. a
+  // 7.5° chord of a 1000 px disc ≈ 2 px) must not break the run, while a
+  // genuinely long chord (tens of degrees) still fails the sagitta check.
+  const tol = fromSource
+    ? Math.max(baseTol, 0.6 * thicknessPx, 0.01 * circle.r)
+    : baseTol;
 
   for (let k = s; k <= e; k++) {
     const p = pts[k];

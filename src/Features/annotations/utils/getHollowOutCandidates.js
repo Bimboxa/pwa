@@ -21,7 +21,9 @@ const toRing = (points) => {
 
 const toGeom = (shape, expandArcs) => [
   toRing(
-    expandArcs ? expandArcsInPath(shape.points, ARC_SAMPLES, true) : shape.points
+    expandArcs
+      ? expandArcsInPath(shape.points, ARC_SAMPLES, true)
+      : shape.points
   ),
   ...(shape.cuts ?? [])
     .map((c) =>
@@ -36,9 +38,10 @@ const toGeom = (shape, expandArcs) => [
 
 /**
  * Annotations whose footprint actually carves the given POLYGON ("Evider"):
- * visible POLYGON / POLYLINE / STRIP of the same base map (the annotation
- * itself excluded), bbox pre-filter, then a real footprint ∩ polygon test —
- * a polyline without thickness has no footprint and never cuts.
+ * visible POLYGON / POLYLINE / STRIP / DISC of the same base map (the
+ * annotation itself excluded), bbox pre-filter, then a real footprint ∩
+ * polygon test — a polyline without thickness has no footprint and never
+ * cuts. A DISC (disc or sector) cuts with its sampled plan ring.
  *
  * Pure: `annotation` and `visibleAnnotations` are pixel-resolved
  * (useAnnotationsV2).
@@ -67,7 +70,9 @@ export default function getHollowOutCandidates({
   return (visibleAnnotations ?? []).filter((a) => {
     if (!a || a.id === annotation.id) return false;
     if (a.baseMapId !== annotation.baseMapId) return false;
-    if (!["POLYGON", "POLYLINE", "STRIP"].includes(a.type)) return false;
+    if (!["POLYGON", "POLYLINE", "STRIP", "DISC"].includes(a.type)) {
+      return false;
+    }
 
     const footprints = getAnnotationAsPolygons(a, { meterByPx }).filter(
       (s) => s?.points?.length >= 3

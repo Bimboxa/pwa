@@ -959,7 +959,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 a.baseMapId === _newAnnotation.baseMapId &&
                 a.annotationTemplateId &&
                 a.annotationTemplateId !== _newAnnotation.annotationTemplateId &&
-                ["POLYGON", "POLYLINE", "STRIP"].includes(a.type)
+                ["POLYGON", "POLYLINE", "STRIP", "DISC"].includes(a.type)
             );
 
             if (candidateRaws.length > 0) {
