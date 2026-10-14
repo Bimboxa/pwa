@@ -57,16 +57,17 @@ se redessinait encore à la main pour chaque hauteur d'eau.
   gaine, `L2` longueur de la trémie. Largeur `W` = longueur du seuil. Épaisseur
   des voiles = `strokeWidth` du modèle « Voile béton » (20 cm).
 - **FR-02** La gaine s'étend depuis l'arête stockée du seuil **du côté de sa
-  bande** (`d = stripOrientation × (-uy, ux)`).
+  bande** (`d = stripOrientation × (-uy, ux)`). Toutes les altitudes sont
+  relatives à l'`offsetZ` du seuil (sol à `z0`, dalle / trémie à `z0 + H1`).
 - **FR-03** Sorties GO (points partagés, les deux lignes du seuil réutilisées) :
 
-  | Sortie          | Modèle                               | Géométrie                 | Champs                                           |
-  | --------------- | ------------------------------------ | ------------------------- | ------------------------------------------------ |
-  | Sol             | « Sol » `OUVRAGE:SOL`                | `[P1, A, B, P2]`          | refs P1/P2 `offsetTop: E1`                       |
-  | Voile U         | « Voile béton » `TOPO:FRONTIERE_SOL` | STRIP `[P2, B, A, P1]`    | `height: H1`, bande extérieure, `isExt`          |
-  | Sous-face dalle | `TOPO:SOUS_FACE_PLANCHER`            | `[P1, P2, B', A']`        | `offsetZ: H1`                                    |
-  | Trémie          | `TOPO:TREMIE`                        | `[A', A, B, B']`          | `offsetZ: H1`                                    |
-  | Voiles trémie   | « Voile béton »                      | STRIP fermé sur la trémie | `offsetZ: H1`, `height: H2−H1`, bande intérieure |
+  | Sortie          | Modèle                               | Géométrie                 | Champs                                                                                                             |
+  | --------------- | ------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+  | Sol             | « Sol » `OUVRAGE:SOL`                | `[P1, A, B, P2]`          | refs P1/P2 `offsetTop: E1`                                                                                         |
+  | Voile U         | « Voile béton » `TOPO:FRONTIERE_SOL` | STRIP `[P2, B, A, P1]`    | `height: H1`, bande extérieure, `isExt`                                                                            |
+  | Sous-face dalle | `TOPO:SOUS_FACE_PLANCHER`            | `[P1, P2, B', A']`        | `offsetZ: H1`                                                                                                      |
+  | Trémie          | `TOPO:TREMIE`                        | `[A', A, B, B']`          | `offsetZ: H1`                                                                                                      |
+  | Voiles trémie   | « Voile béton »                      | STRIP fermé sur la trémie | `offsetZ: H1`, `height: H2−H1`, bande **extérieure** (prolongement des voiles périphériques au-dessus de la dalle) |
 
 - **FR-04** Erreurs bloquantes (dialog et procédure) : `L2 > L1`, `H2 ≤ H1`,
   seuil de longueur nulle, paramètre ≤ 0, modèle manquant.
@@ -112,8 +113,9 @@ y vers le bas). Le dialog reçoit la ligne brute du seuil : W est résolu via
 Builder pur px. Pièges : l'orientation du U est décidée géométriquement
 (normale du premier segment vs centroïde du sol) ; l'anneau des voiles de
 trémie est forcé en aire signée positive (formule d'`offsetPolygon`) car le
-rendu 2D (`offsetPolygon`, normalisé) et les détecteurs de frontières
-(`offsetControlPolyline`, non normalisé) ne coïncident que dans ce sens ; les
+rendu 2D (`offsetPolygon`, normalisé : +1 = toujours vers l'extérieur) et les
+détecteurs de frontières (`offsetControlPolyline`, non normalisé) ne
+coïncident que dans ce sens ; les
 refs du STRIP restent `{id}` purs (un `offsetTop` sur un STRIP bascule le 3D en
 ruban). Sorties via `createRunOutputCollector` (extension `seedPoints` pour
 réutiliser les deux lignes du seuil), `type:"STRIP"` forcé après `baseProps`.
@@ -146,6 +148,10 @@ pleines.
 - `L2 = L1` : pas de sous-face (la trémie couvre toute la gaine).
 - Pied des parois de cuvelage = `offsetZ` du Sol : la pente E1 est ignorée
   (aucune paroi sur l'arête du seuil de toute façon).
+- Le modèle « Seuil gaine » verrouille ses couleurs 2D sur l'orange de la
+  charte (`theme.palette.secondary.main`) ; les sols / sous-faces du GO portent
+  un `deltaOffsetZ3d` de ±5 mm (rendu 3D seulement) pour ne pas se confondre
+  avec les copies du cuvelage.
 - Relancer le GO gaine régénère son Sol mais pas la copie cuvelage (à
   redupliquer). Les deux procédures ne sont volontairement **pas chaînées**.
 - Listing GO masqué → « Aucun voile « Frontière sol » visible… ».
