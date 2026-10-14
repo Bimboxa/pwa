@@ -27,10 +27,21 @@ export default function SectionSelectKrtoConfiguration({
   const genericHelperS = "Structure vide, à construire librement.";
   const genericCodeS = "VIDE";
   const genericChipS = "Vide";
+  const prerequisiteS =
+    appConfig?.strings?.scope?.sourcePrerequisite ?? "Pré-requis";
 
   // helpers
 
   const items = krtoConfigurations?.items ?? [];
+
+  // name of the configurations a source-fed configuration needs
+  // (sourceConfigurationKeys), shown as « Pré-requis » chips on its card
+  const nameByKey = Object.fromEntries(items.map((i) => [i.key, i.name]));
+  function getPrerequisiteNames(item) {
+    return (item.sourceConfigurationKeys ?? [])
+      .map((key) => nameByKey[key])
+      .filter(Boolean);
+  }
 
   const search = searchText?.trim().toLowerCase() ?? "";
 
@@ -89,6 +100,8 @@ export default function SectionSelectKrtoConfiguration({
           imageUrl={item.imageUrl}
           code={item.code}
           chipLabel={item.chipLabel}
+          prerequisiteLabel={prerequisiteS}
+          prerequisiteNames={getPrerequisiteNames(item)}
           selected={selectedKey === item.key}
           onClick={() => onSelect(item.key)}
         />

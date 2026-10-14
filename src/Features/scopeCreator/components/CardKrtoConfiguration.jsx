@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Chip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
@@ -9,9 +9,17 @@ export default function CardKrtoConfiguration({
   imageUrl,
   code,
   chipLabel,
+  prerequisiteLabel,
+  prerequisiteNames,
   selected,
   onClick,
 }) {
+  // helpers
+
+  // configurations fed by a source Krto: one warning chip per source
+  // configuration (« Pré-requis : <name> »)
+  const prerequisites = prerequisiteNames?.filter(Boolean) ?? [];
+
   // render
 
   return (
@@ -123,6 +131,27 @@ export default function CardKrtoConfiguration({
         >
           {description}
         </Typography>
+
+        {prerequisites.length > 0 && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+            {prerequisites.map((prerequisiteName) => (
+              <Chip
+                key={prerequisiteName}
+                size="small"
+                color="warning"
+                label={`${prerequisiteLabel} : ${prerequisiteName}`}
+                sx={{
+                  height: "auto",
+                  fontWeight: 600,
+                  "& .MuiChip-label": {
+                    whiteSpace: "normal",
+                    py: 0.25,
+                  },
+                }}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );
