@@ -8,6 +8,9 @@ import { setPovViewerMode } from "Features/pov/povSlice";
 import getInitScopeId from "Features/init/services/getInitScopeId";
 import { DEFAULT_EDITOR_KEY_BY_MODULE } from "Features/init/services/getInitEditorKeyByModule";
 import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
+import { isScopeReadOnlyForUser } from "App/db/ownership";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import getUserTrigram from "Features/auth/utils/getUserTrigram";
 
 // Last scope whose landing was applied. Module-scoped so it survives
 // LayoutDesktop remounts (dashboard round-trips); initialized from the
@@ -16,10 +19,15 @@ import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
 // re-landing on the default module. Must be read at import time, before any
 // setSelectedScopeId dispatch rewrites initScopeId.
 //
-// The default-module landing only applies to a scope OPEN (dashboard → scope,
-// which remounts LayoutDesktop and this hook). Switching scope from the top
-// bar while the layout stays mounted keeps the current module: the user asked
-// for another scope, not for another module.
+// The landing only applies to a scope OPEN (dashboard → scope, which remounts
+// LayoutDesktop and this hook). Switching scope from the top bar while the
+// layout stays mounted keeps the current module: the user asked for another
+// scope, not for another module.
+//
+// Landing module: a scope the user can edit (own, public, or granted via
+// editorsTrigrams) lands on the device's default module (Dessin by default);
+// a READ-ONLY scope (someone else's private Krto) always lands on the Scope
+// module — the overview table, the right place when nothing can be drawn.
 let lastLandedScopeId = getInitScopeId();
 
 export default function useLandingViewerModuleOnScopeOpen() {
@@ -30,6 +38,19 @@ export default function useLandingViewerModuleOnScopeOpen() {
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
+  // Read-only rule (same as useReadOnlyScope / the DB guard). The scope
+  // record is mirrored from Dexie by dexieSyncService and may land AFTER
+  // this hook's first run when the Krto was just downloaded by
+  // PageScopeLoader: the landing waits for it (see the effect).
+  const scope = useSelector((s) =>
+    selectedScopeId ? s.scopes.scopesById?.[selectedScopeId] : undefined
+  );
+  const userProfile = useSelector((s) => s.auth.userProfile);
+  const hasScopeRecord = Boolean(scope);
+  const isReadOnlyScope = isScopeReadOnlyForUser(scope, {
+    userId: getUserIdMaster(userProfile),
+    trigram: getUserTrigram(userProfile),
+  });
   // Device preference (Configuration > Données & préférences): the module a
   // scope lands on when opened from the dashboard. Dessin by default.
   const defaultModuleKey = useSelector(
@@ -72,25 +93,34 @@ export default function useLandingViewerModuleOnScopeOpen() {
     if (!selectedScopeId) return;
     const isNewScope = selectedScopeId !== lastLandedScopeId;
     const isScopeOpen = !hasSeenScopeInMountRef.current;
+    const wantsLanding =
+      isNewScope && isScopeOpen && (!wants3dViewer || disable3D);
+    // The landing module depends on the scope record (read-only rule): wait
+    // for dexieSyncService to mirror it, keeping the "scope open" event
+    // pending — lastLandedScopeId / the ref are NOT consumed yet.
+    if (wantsLanding && !isNewScopeDrawLanding && !hasScopeRecord) return;
     lastLandedScopeId = selectedScopeId;
     hasSeenScopeInMountRef.current = true;
 
-    // With 3D disabled a 3D-family default module lands on Dessin instead.
-    const landingModuleKey =
-      disable3D && isThreedFamilyViewerKey(defaultModuleKey)
+    // Read-only scope: the Scope module, whatever the device preference.
+    // Editable scope: the device preference — with 3D disabled a 3D-family
+    // default module lands on Dessin instead.
+    const landingModuleKey = isReadOnlyScope
+      ? "SCOPE"
+      : disable3D && isThreedFamilyViewerKey(defaultModuleKey)
         ? "MAP"
         : defaultModuleKey;
 
     if (isNewScopeDrawLanding) {
       // Freshly created scope: straight to drawing.
       landOnModule("MAP");
-    } else if (isNewScope && isScopeOpen && (!wants3dViewer || disable3D)) {
-      // Default landing module on scope OPEN (device preference), on its
-      // default editor. Skipped on refresh / same-scope reopen, where the
-      // previous context is kept, on the ?viewer=3d deep link, and on a
-      // top-bar scope switch (layout still mounted: the current module
-      // stays). A module disabled on the opened scope is corrected by
-      // useEnsureEnabledModule once scopeConfig hydrates.
+    } else if (wantsLanding) {
+      // Landing module on scope OPEN, on its default editor. Skipped on
+      // refresh / same-scope reopen, where the previous context is kept, on
+      // the ?viewer=3d deep link, and on a top-bar scope switch (layout
+      // still mounted: the current module stays). A module disabled on the
+      // opened scope is corrected by useEnsureEnabledModule once scopeConfig
+      // hydrates.
       landOnModule(landingModuleKey);
     } else if (
       disable3D &&
@@ -108,6 +138,8 @@ export default function useLandingViewerModuleOnScopeOpen() {
     disable3D,
     isNewScopeDrawLanding,
     defaultModuleKey,
+    hasScopeRecord,
+    isReadOnlyScope,
     dispatch,
   ]);
 }
