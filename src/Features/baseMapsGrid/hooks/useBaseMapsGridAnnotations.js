@@ -15,6 +15,8 @@ const EMPTY = {};
 // the base maps overlaid on it in the 2D editor have their own toggles.
 // `filterByListingId` / `annotationIdSet`: the SCOPE module narrows the
 // sheets to the listing selected in its panel (useScopeGridAnnotationsFilter).
+// In that module the hidden listings passed below are inert (useAnnotationsV2
+// drops `excludeListingsIds` under SCOPE): the Dessin eyes never narrow it.
 export default function useBaseMapsGridAnnotations({
   baseMapIds,
   forViewerKey,
