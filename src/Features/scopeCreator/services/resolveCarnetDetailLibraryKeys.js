@@ -2,7 +2,7 @@
  * Libraries added by the "Carnet de détail" creation option.
  * The option guarantees a DETAIL (callout bubble) annotation template: it
  * adds the DIVERS library unless one of the configuration's own libraries
- * already provides a DETAIL template (e.g. DECOUVERTE_AUTRES), in which case
+ * already provides a DETAIL template (e.g. ANNOTATIONS_LIBRES), in which case
  * DIVERS would only duplicate the drawing aids (dimension, ruler, text).
  */
 
