@@ -115,6 +115,8 @@ export default function FieldAnnotationHeight({
         alignItems: "center",
         gap: 0.5,
         p: 0.5,
+        // Inline in the drawing toolbar: never squeeze the label / unit.
+        flexShrink: 0,
         ...(disabled && { pointerEvents: "none" }),
       }}
     >

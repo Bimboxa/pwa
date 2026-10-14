@@ -237,6 +237,8 @@ function ToolbarContent({ template }) {
         display: "flex",
         alignItems: "center",
         gap: 0.5,
+        // Same as ToolbarDrawingDraft: size on the content, never squeeze.
+        width: "max-content",
         maxWidth: "calc(100vw - 32px)",
         overflowX: "auto",
         zIndex: 110,
@@ -267,7 +269,7 @@ function ToolbarContent({ template }) {
           <Typography
             variant="body2"
             noWrap
-            sx={{ fontWeight: 600, lineHeight: 1.2, maxWidth: 160 }}
+            sx={{ fontWeight: 600, lineHeight: 1.2 }}
           >
             {template.label}
           </Typography>

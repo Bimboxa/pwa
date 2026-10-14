@@ -90,14 +90,6 @@ export default function getDraftFieldVisibility(
     !isMeshBrushTool &&
     (drawingShape === "OPENING" || drawingShape === "LINEAR_LAYOUT") &&
     !isFieldOverridden("width");
-  // "Couche" (material layer) toggle: plain STRIP drafts only (opening bands
-  // are part of isToolGroup and excluded with the other generic fields).
-  const showIsLayer =
-    !isToolGroup &&
-    !isRampTool &&
-    !isMeshBrushTool &&
-    newAnnotation?.type === "STRIP";
-
   // Text size (page pt) of a free text draft.
   const showFontSize =
     !isToolGroup &&
@@ -117,7 +109,6 @@ export default function getDraftFieldVisibility(
     showOffset,
     showHeight,
     showWidth,
-    showIsLayer,
     showFontSize,
   };
 }

@@ -63,7 +63,6 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
 import FieldAnnotationFontSizeInline from "Features/annotations/components/FieldAnnotationFontSizeInline";
-import FieldCheck from "Features/form/components/FieldCheck";
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -166,7 +165,6 @@ export default function ToolbarDrawingDraft() {
     showOffset,
     showHeight,
     showWidth,
-    showIsLayer,
     showFontSize,
   } = getDraftFieldVisibility(newAnnotation, enabledDrawingMode);
 
@@ -179,7 +177,6 @@ export default function ToolbarDrawingDraft() {
     showOffset ||
     showHeight ||
     showWidth ||
-    showIsLayer ||
     showFontSize ||
     isRampTool;
 
@@ -386,6 +383,10 @@ export default function ToolbarDrawingDraft() {
         display: "flex",
         alignItems: "center",
         gap: 0.5,
+        // An absolute box centred with left: 50% only gets half its parent as
+        // shrink-to-fit width: size on the content instead, the viewport cap
+        // + overflowX then scroll rather than ellipsize the labels.
+        width: "max-content",
         maxWidth: "calc(100vw - 32px)",
         overflowX: "auto",
         zIndex: 110,
@@ -418,7 +419,7 @@ export default function ToolbarDrawingDraft() {
               <Typography
                 variant="body2"
                 noWrap
-                sx={{ fontWeight: 600, lineHeight: 1.2, maxWidth: 160 }}
+                sx={{ fontWeight: 600, lineHeight: 1.2 }}
               >
                 {drawnTemplate.label}
               </Typography>
@@ -466,7 +467,6 @@ export default function ToolbarDrawingDraft() {
                 sx={{
                   fontWeight: 600,
                   lineHeight: 1.2,
-                  maxWidth: 160,
                   color: "text.primary",
                 }}
               >
@@ -601,14 +601,6 @@ export default function ToolbarDrawingDraft() {
         <FieldAnnotationFontSizeInline
           value={newAnnotation?.fontSize}
           onChange={handleFieldChange}
-        />
-      )}
-      {showIsLayer && (
-        <FieldCheck
-          value={Boolean(newAnnotation?.isLayer)}
-          onChange={(checked) => handleFieldChange({ isLayer: checked })}
-          label="Couche"
-          options={{ type: "switch", showAsInline: true }}
         />
       )}
       {isRampTool && (
