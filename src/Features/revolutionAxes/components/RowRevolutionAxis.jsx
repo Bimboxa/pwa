@@ -5,7 +5,6 @@ import {
   setSoloRevolutionAxisId,
   triggerAnnotationsUpdate,
 } from "Features/annotations/annotationsSlice";
-import { setPendingProcedureLaunch } from "Features/annotationsAuto/annotationsAutoSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { toggleRevolutionAxisHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -65,9 +64,9 @@ const MENU_PAPER_SX = {
 //   placement click that links it) or creates the automatic A3 coupe page of
 //   the axis (no click: the axis is posed at its base point, the page is
 //   selected); on a vertical base map, back to the plan;
-// - "…" (hover): the systems of the axis — relaunch of the ones ASSOCIATED
-//   to it (params dialog, replace-on-rerun) and "Associer un système…" while
-//   some remain available (getRevolutionAxisProcedures).
+// - "…" (hover): the systems launched on the axis from a listing « Dessin
+//   auto » band (procedureParams[key].listingId) — relaunch of each one
+//   (DialogProcedureAxisLaunch on that listing, axis preselected).
 export default function RowRevolutionAxis({
   axis,
   placements,
@@ -79,7 +78,7 @@ export default function RowRevolutionAxis({
   spriteImage,
   creatingBaseMap = false,
   onCreateBaseMap,
-  onAssociateSystem,
+  onLaunchProcedure,
 }) {
   const dispatch = useDispatch();
 
@@ -100,7 +99,6 @@ export default function RowRevolutionAxis({
   const noVerticalS = "Aucun fond de plan vertical";
   const createS = "Créer un fond de plan…";
   const moreS = "Plus d'actions";
-  const associateS = "Associer un système…";
 
   // data
 
@@ -122,8 +120,10 @@ export default function RowRevolutionAxis({
 
   const isOnPlan = axis.baseMapId === baseMap?.id;
   const placementHere = placements.find((p) => p.baseMapId === baseMap?.id);
-  const { associated: associatedProcedures, available: availableProcedures } =
-    splitRevolutionAxisProcedures(axis, procedures);
+  const { associated: associatedProcedures } = splitRevolutionAxisProcedures(
+    axis,
+    procedures
+  );
   const isHalfView = axis.halfViewIn3d !== false;
   const color = axis.strokeColor ?? "#1976d2";
   const planBaseMap = baseMapById[axis.baseMapId];
@@ -231,17 +231,7 @@ export default function RowRevolutionAxis({
 
   const handleLaunchProcedure = (procedure) => {
     closeMenus();
-    dispatch(
-      setPendingProcedureLaunch({
-        procedureKey: procedure.key,
-        sourceAnnotationId: axis.id,
-      })
-    );
-  };
-
-  const handleAssociateSystem = () => {
-    closeMenus();
-    onAssociateSystem?.(axis);
+    onLaunchProcedure?.(axis, procedure);
   };
 
   // render
@@ -332,7 +322,7 @@ export default function RowRevolutionAxis({
         >
           {showActions ? (
             <>
-              {procedures.length > 0 && (
+              {associatedProcedures.length > 0 && (
                 <Tooltip title={moreS} arrow placement="top">
                   <IconButton
                     size="small"
@@ -496,8 +486,7 @@ export default function RowRevolutionAxis({
         </MenuItem>
       </Menu>
 
-      {/* Systems of the axis: relaunch of the associated ones, association
-          of the remaining ones */}
+      {/* Systems launched on the axis: relaunch of each one */}
       <Menu
         anchorEl={moreMenuAnchor}
         open={Boolean(moreMenuAnchor)}
@@ -520,19 +509,6 @@ export default function RowRevolutionAxis({
             </ListItemText>
           </MenuItem>
         ))}
-        {associatedProcedures.length > 0 && availableProcedures.length > 0 && (
-          <Divider />
-        )}
-        {availableProcedures.length > 0 && (
-          <MenuItem dense onClick={handleAssociateSystem}>
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              <Add sx={{ fontSize: 16 }} />
-            </ListItemIcon>
-            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-              {associateS}
-            </ListItemText>
-          </MenuItem>
-        )}
       </Menu>
     </>
   );
