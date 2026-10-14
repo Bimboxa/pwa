@@ -124,9 +124,6 @@ import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinTo
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
-import useRevolutionAxisDrawThreedBridge from "Features/revolutionAxes/hooks/useRevolutionAxisDrawThreedBridge";
-import useRevolutionAxisDrawThreedPointerHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisDrawThreedPointerHandlers";
-import RevolutionAxisDraftOverlayThreed from "Features/revolutionAxes/components/RevolutionAxisDraftOverlayThreed";
 import {
   clearSubSelection,
   setMeshingModeActive,
@@ -419,16 +416,6 @@ export default function MainThreedEditor() {
     dimensionActiveRef.current = dimensionActive;
   }, [dimensionActive]);
 
-  // Same pattern for the revolution axis draw (two clicks on a plan) —
-  // useRevolutionAxisDrawThreedPointerHandlers owns the pointer while active.
-  const revolutionAxisDrawActive = useSelector(
-    (s) => s.threedEditor.revolutionAxisDrawMode.active
-  );
-  const revolutionAxisDrawActiveRef = useRef(revolutionAxisDrawActive);
-  useEffect(() => {
-    revolutionAxisDrawActiveRef.current = revolutionAxisDrawActive;
-  }, [revolutionAxisDrawActive]);
-
   // Maillage module: meshing is forced on. Arming a cote (COTE template row in
   // PopperMapListings) switches meshing off via the slice's mutual exclusion,
   // so meshing is re-armed as soon as the cote mode ends — otherwise the
@@ -611,8 +598,6 @@ export default function MainThreedEditor() {
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
   useTemplateCoteDrawBridge();
-  useRevolutionAxisDrawThreedBridge();
-  useRevolutionAxisDrawThreedPointerHandlers();
   useCoteLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useAnnotationLabelDragHandlers({ rendererIsReady });
@@ -986,8 +971,6 @@ export default function MainThreedEditor() {
       if (drawingActiveRef.current) return;
       // Dimension mode owns the pointer; useDimensionPointerHandlers handles it.
       if (dimensionActiveRef.current) return;
-      // Revolution axis draw owns the pointer too.
-      if (revolutionAxisDrawActiveRef.current) return;
       // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
       if (meshingActiveRef.current) return;
       // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
@@ -1588,7 +1571,6 @@ export default function MainThreedEditor() {
       if (editorModeRef.current === "BASEMAP_POSITION") return;
       if (drawingActiveRef.current) return;
       if (dimensionActiveRef.current) return;
-      if (revolutionAxisDrawActiveRef.current) return;
       if (meshingActiveRef.current) return;
       if (extrudeActiveRef.current) return;
       if (isolateFaceActiveRef.current) return;
@@ -3053,7 +3035,6 @@ export default function MainThreedEditor() {
         <ThreedAnnotationLabels annotations={annotations} />
       )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
-      {isThreedViewer && <RevolutionAxisDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && <RotateBaseMapOverlayThreed />}
       {isThreedViewer && <MoveAnnotationOverlayThreed />}

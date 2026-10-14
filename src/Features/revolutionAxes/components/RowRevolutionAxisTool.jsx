@@ -24,8 +24,9 @@ import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
 //   EXISTING axis of the scope instead (one click, which poses the base map in
 //   3D): directly when there is a single axis, through a menu otherwise.
 // - 3D editor (`isThreedEditor`): the row always draws — the two clicks land
-//   on a horizontal base map plane of the scene (useRevolutionAxisDrawThreed*
-//   hooks); the 2D main base map's orientation is irrelevant there.
+//   on a horizontal base map plane of the scene (the disc two-click flow of
+//   DrawingOverlayThreed / useDrawingPointerHandlers); the 2D main base
+//   map's orientation is irrelevant there.
 // ---------------------------------------------------------------------------
 
 const SX_BY_VARIANT = {

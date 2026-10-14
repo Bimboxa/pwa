@@ -4,8 +4,10 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // Drawing a revolution axis from the 3D editor is fully derived state: the
 // "Axe de révolution" tool row arms the regular 2D drawing state
 // (REVOLUTION_AXIS draft + REVOLUTION_AXIS_PLAN mode); when the Dessin
-// module shows its 3D editor, that same state requests the 3D two-click
-// axis mode instead. Mirrors selectIsTemplateCoteDrawActive.
+// module shows its 3D editor, that same state requests the 3D drawing mode
+// (useTemplateFaceDrawBridge → threedEditor.drawingMode.active), where the
+// axis rides the DISC two-click flow of DrawingOverlayThreed /
+// useDrawingPointerHandlers. Mirrors selectIsTemplateFaceDrawActive.
 export function selectIsRevolutionAxisDrawThreedActive(s) {
   const na = s.annotations.newAnnotation;
   return (

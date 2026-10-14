@@ -89,7 +89,7 @@ const TOOL_ITEMS = [
     Icon: Adjust,
     shortcut: "A",
     // Both editors: on the plan (2D) and on a horizontal base map plane of
-    // the 3D editor (RevolutionAxisDraftOverlayThreed, two clicks too).
+    // the 3D editor (the disc two-click flow of DrawingOverlayThreed).
     isRevolutionAxis: true,
   },
   {

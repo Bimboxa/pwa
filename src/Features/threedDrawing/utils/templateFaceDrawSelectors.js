@@ -60,6 +60,17 @@ export function isDiscDraftFor3d(na, enabledDrawingMode) {
   return na?.type === "DISC" && enabledDrawingMode === "POLYGON_CIRCLE_RADIUS";
 }
 
+// REVOLUTION_AXIS draft (the "Axe de révolution" row / A): a template-less
+// draft on the same two-click flow as the disc — centre on a HORIZONTAL base
+// map plane, then a rim point on that plane (radius + diameter direction).
+// Requested through selectIsRevolutionAxisDrawThreedActive.
+export function isRevolutionAxisDraftFor3d(na, enabledDrawingMode) {
+  return (
+    na?.type === "REVOLUTION_AXIS" &&
+    enabledDrawingMode === "REVOLUTION_AXIS_PLAN"
+  );
+}
+
 export function selectIsTemplateFaceDrawActive(s) {
   const na = s.annotations.newAnnotation;
   return (

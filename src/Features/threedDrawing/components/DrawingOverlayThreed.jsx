@@ -175,10 +175,16 @@ export default function DrawingOverlayThreed() {
   const isPolygonDraft = useSelector(
     (s) => s.annotations.newAnnotation?.type === "POLYGON"
   );
-  // A disc (centre / radius tool): the rim point stays on the centre's plane
+  // A disc (centre / radius tool), or a revolution axis drawn from 3D (same
+  // two clicks, template-less): the rim point stays on the centre's plane
   // and the cursor previews the circle.
-  const isDiscDraft = useSelector(
-    (s) => s.annotations.newAnnotation?.type === "DISC"
+  const isCenterRadiusDraft = useSelector((s) => {
+    const type = s.annotations.newAnnotation?.type;
+    return type === "DISC" || type === "REVOLUTION_AXIS";
+  });
+  // The axis centre lands on a base map plane only (never on a face).
+  const isAxisDraft = useSelector(
+    (s) => s.annotations.newAnnotation?.type === "REVOLUTION_AXIS"
   );
   // Template-less drawing ("Dessin" tool in 3D) and "Coupe face": points
   // also land on annotation faces.
@@ -368,10 +374,11 @@ export default function DrawingOverlayThreed() {
       behavior === "RECTANGLE" && inProgressPolyline.length >= 1
         ? inProgressPolyline[0]
         : null;
-    // DISC: the first vertex is the centre; the second click (the rim) is
-    // bound to the centre's plane, like the next points of a polygon.
+    // DISC / REVOLUTION_AXIS: the first vertex is the centre; the second
+    // click (the rim) is bound to the centre's plane, like the next points
+    // of a polygon.
     const discCenter =
-      isDiscDraft &&
+      isCenterRadiusDraft &&
       behavior === "CIRCLE_RADIUS" &&
       inProgressPolyline.length >= 1
         ? inProgressPolyline[0]
@@ -641,7 +648,9 @@ export default function DrawingOverlayThreed() {
       const surface = intersectSurfaces(mNdc, {
         // The first point of any drawing lands on a plan or on a visible
         // face; the next ones on faces too for the template-less drawing.
-        withFaces: isMeshDraw || inProgressPolyline.length === 0,
+        // Not the axis centre: a plan only.
+        withFaces:
+          !isAxisDraft && (isMeshDraw || inProgressPolyline.length === 0),
         // Not for rectangles (they live on a plane).
         withScan: canDrawOnScan && behavior !== "RECTANGLE",
       });
@@ -1186,7 +1195,8 @@ export default function DrawingOverlayThreed() {
     meterByPx,
     yawDeg,
     isPolygonDraft,
-    isDiscDraft,
+    isCenterRadiusDraft,
+    isAxisDraft,
   ]);
 
   // Typed length changed (digit / Backspace / consumed by a click): re-run
