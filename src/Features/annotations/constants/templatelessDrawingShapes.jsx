@@ -2,10 +2,12 @@ import DRAWING_SHAPES from "./drawingShapes.jsx";
 
 // Annotation types offered by the "Dessin" tool (templateless annotations),
 // in menu order. Technical shapes (revolution axis, base map link, opening,
-// linear layout, circulation, 3D object) stay template-driven.
+// linear layout, circulation, 3D object) stay template-driven. DISC rides the
+// generic commit (handleCommitDrawingFromDisc keeps centre + radiusM).
 const TEMPLATELESS_DRAWING_SHAPE_KEYS = [
   "POLYLINE",
   "POLYGON",
+  "DISC",
   "MARKER",
   "POINT",
   "LABEL",
