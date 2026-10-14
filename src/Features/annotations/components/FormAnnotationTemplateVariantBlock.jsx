@@ -289,6 +289,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   // POLYGON: enables the "Calepinage" feature (layout lines on the drawn
   // polygons + the "C" main quantity). Off = nothing layout-related shown.
+  function handleDeltaOffsetZ3dChange(deltaOffsetZ3d) {
+    onChange({ ...annotationTemplate, deltaOffsetZ3d });
+  }
+
   function handleHasLayoutLinesChange(hasLayoutLines) {
     onChange({ ...annotationTemplate, hasLayoutLines });
   }
@@ -753,6 +757,30 @@ export default function FormAnnotationTemplateVariantBlock({
               onChange={handleHasLayoutLinesChange}
               options={{ type: "switch", showAsField: true }}
             />
+          )}
+
+          {/* Delta offset 3D (POLYGON) — render-only lift added to offsetZ in
+              3D so two superposed floors do not z-fight. Template-owned, no
+              padlock: never copied onto the annotations. */}
+          {drawingShape === "POLYGON" && (
+            <WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: "bold", flex: 1 }}
+                >
+                  Delta offset 3D
+                </Typography>
+                <FieldAnnotationHeight
+                  annotation={annotationTemplate}
+                  field="deltaOffsetZ3d"
+                  label=""
+                  onChange={(updated) =>
+                    handleDeltaOffsetZ3dChange(updated.deltaOffsetZ3d)
+                  }
+                />
+              </Box>
+            </WhiteSectionGeneric>
           )}
 
           {/* 3D-only color / opacity overrides + material preset */}

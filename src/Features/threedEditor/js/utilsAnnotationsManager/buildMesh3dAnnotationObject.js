@@ -12,6 +12,7 @@ import {
 
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 import {
   getFaceArea,
   getFaceLoops,
@@ -90,7 +91,7 @@ export default function buildMesh3dAnnotationObject(
   const mesh = mesh3dToLocal(annotation?.mesh3d, baseMap);
   if (!mesh.vertices.length || !mesh.faces.length) return null;
 
-  const lift = (Number(annotation.offsetZ) || 0) + MESH3D_Z_FIGHT_OFFSET;
+  const lift = getAnnotationVerticalLift(annotation) + MESH3D_Z_FIGHT_OFFSET;
   const group = new Group();
 
   // A sheet has no thickness: it must read from both sides, like the flat

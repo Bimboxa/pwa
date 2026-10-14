@@ -15,6 +15,7 @@ import createAnnotationLabelSprite from "../services/createAnnotationLabelSprite
 import createAnnotationLabelAnchorSprite from "../services/createAnnotationLabelAnchorSprite";
 import { setAnnotationLabelObjects } from "../services/annotationLabelObjectsStore";
 import getAnnotationLabelLiftM from "../utils/getAnnotationLabelLiftM";
+import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 
 // Lift of the label objects off the annotation surface (meters) — keeps the
 // leader visible above the basemap texture / a flat annotation.
@@ -32,11 +33,12 @@ function getAnnotationLabelZ(annotation) {
   let bandMid = 0;
   if (pts.length > 0) {
     let sum = 0;
-    for (const p of pts) sum += ((p.offsetBottom ?? 0) + (p.offsetTop ?? 0)) / 2;
+    for (const p of pts)
+      sum += ((p.offsetBottom ?? 0) + (p.offsetTop ?? 0)) / 2;
     bandMid = sum / pts.length;
   }
   return (
-    (Number(annotation.offsetZ) || 0) +
+    getAnnotationVerticalLift(annotation) +
     height / 2 +
     bandMid +
     (height > 0 ? 0 : LABEL_LIFT_M)

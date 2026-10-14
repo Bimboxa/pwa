@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d" || key === "color3D" || key === "opacity3D") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -104,13 +104,15 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
         result.hideSlope = annotationTemplateProps.hideSlope;
     }
 
-    // material3d (PHOTOREAL material preset), color3D and opacity3D are
+    // material3d (PHOTOREAL material preset), color3D, opacity3D and
+    // deltaOffsetZ3d ("Delta offset 3D", render-only lift added to offsetZ by
+    // the 3D builders) are
     // template-owned 3D rendering choices (no per-annotation UI, so not gated
     // by overrideFields). They are fully derived from the template: a value on
     // the template wins, and an unset (null/undefined) template value CLEARS
     // any stale copy the row may carry (older template switches used to stamp
     // them on the row), so the 3D really falls back to the 2D color/opacity.
-    for (const key of ["material3d", "color3D", "opacity3D"]) {
+    for (const key of ["material3d", "color3D", "opacity3D", "deltaOffsetZ3d"]) {
         const value = annotationTemplateProps[key];
         if (value !== null && value !== undefined) {
             result[key] = value;

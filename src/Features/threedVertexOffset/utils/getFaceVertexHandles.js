@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 import { mesh3dLocalToWorld } from "Features/annotationMesh3d/services/getEditableMesh3d";
 import getDisplayedMesh3d from "Features/annotationMesh3d/services/getDisplayedMesh3d";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
 
 // A face vertex belongs to a point when it sits ON it in plan: a PX wall quad
@@ -38,7 +39,7 @@ export default function getFaceVertexHandles({
   const metrics = getBaseMapForRender(baseMap);
   if (!face || !source || !metrics) return [];
 
-  const lift = Number(source.offsetZ) || 0;
+  const lift = getAnnotationVerticalLift(source);
   const height = Number(source.height) || 0;
   const isPolygon = source.type === "POLYGON";
   const points = (source.points || [])

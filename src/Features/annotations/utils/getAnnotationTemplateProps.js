@@ -45,6 +45,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
 
     hideSlope: annotationTemplate?.hideSlope,
 
+    // 3D-only vertical delta added to offsetZ at render time (POLYGON);
+    // template-owned, never copied onto the annotation's offsetZ.
+    deltaOffsetZ3d: annotationTemplate?.deltaOffsetZ3d,
+
     color3D: annotationTemplate?.color3D,
     opacity3D: annotationTemplate?.opacity3D,
 

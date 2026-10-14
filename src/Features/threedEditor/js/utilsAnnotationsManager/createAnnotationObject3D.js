@@ -67,6 +67,7 @@ import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileAr
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
+import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height (the in-progress trait of DrawingOverlayThreed is
@@ -754,8 +755,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   // The basemap's lay-flat rotation now sits on the parent group, so local Z
   // becomes world Y once the group transform applies. The floor's own world
   // height is owned by the group's position, so verticalLift is purely the
-  // per-annotation offsetZ.
-  const verticalLift = Number(annotation.offsetZ) || 0;
+  // per-annotation offsetZ (plus the template "Delta offset 3D" on POLYGON).
+  const verticalLift = getAnnotationVerticalLift(annotation);
   const material = makeMaterial(annotation, options);
 
   let object = null;
