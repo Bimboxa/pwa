@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Divider,
   IconButton,
   TextField,
   Typography,
@@ -9,6 +10,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
 
 /*
@@ -152,22 +154,51 @@ export default function SectionKrtoPreview({
                   <CloseIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Box>
-              {library.templates.map((template, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    py: 0.5,
-                  }}
-                >
-                  <AnnotationTemplateIcon template={template} size={16} />
-                  <Typography variant="body2" noWrap>
-                    {template.label}
-                  </Typography>
-                </Box>
-              ))}
+              {groupAnnotationTemplatesByGroupLabel(library.templates).map(
+                (item, index) => {
+                  if (item.isGroupDivider) {
+                    return (
+                      <Divider key={`divider-${index}`} sx={{ my: 0.5 }} />
+                    );
+                  }
+                  if (item.isGroupHeader) {
+                    return (
+                      <Typography
+                        key={`group-${index}`}
+                        variant="caption"
+                        sx={{
+                          display: "block",
+                          pt: index > 0 ? 1 : 0.25,
+                          pb: 0.5,
+                          color: "text.secondary",
+                          textTransform: "uppercase",
+                          fontWeight: 600,
+                          fontSize: "0.7rem",
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        {item.groupLabel}
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        py: 0.5,
+                      }}
+                    >
+                      <AnnotationTemplateIcon template={item} size={16} />
+                      <Typography variant="body2" noWrap>
+                        {item.label}
+                      </Typography>
+                    </Box>
+                  );
+                }
+              )}
             </Box>
           ))}
 
