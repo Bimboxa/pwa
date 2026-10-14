@@ -7,6 +7,11 @@
 // Cell model: every cell is a value cell carrying its own `label`, rendered
 // as a small uppercase caption band at the top of the cell, with the value
 // vertically centered in the remaining band below.
+//
+// Modes: "PORTFOLIO" (Carnet de plans page, default) | "CAPTURE" (single
+// screen capture of the Capture tool — no portfolio name, no page number).
+// A cell listing `modes` is only laid out in those modes; the colSpan
+// truncation below then widens a neighbour over a cell filtered out.
 
 // Text paddings, shared by both renderers (px == pt).
 export const PAD_VALUE_LEFT = 8;
@@ -83,7 +88,7 @@ function resolveCellValue(cell, { values, bindings }) {
 export default function computeTitleBlockLayout(
   manifest,
   rect,
-  { variant, values, bindings, labelOverrides } = {}
+  { variant, values, bindings, labelOverrides, mode = "PORTFOLIO" } = {}
 ) {
   const isNarrow = variant === "BOTTOM_RIGHT";
   const style = manifest.style || {};
@@ -140,16 +145,18 @@ export default function computeTitleBlockLayout(
     });
   }
 
-  // visible cells: a `hideIfEmpty` cell is dropped when its resolved value
-  // is empty (e.g. the page scale, only known on full-page print zones).
-  // A cell's colSpan is then truncated at the next visible cell of its row,
-  // so a wide cell yields its extra columns to an optional neighbour only
-  // while that neighbour is shown.
+  // visible cells: a cell declaring `modes` is dropped outside them, and a
+  // `hideIfEmpty` cell is dropped when its resolved value is empty (e.g. the
+  // page scale, only known on full-page print zones). A cell's colSpan is
+  // then truncated at the next visible cell of its row, so a wide cell
+  // yields its extra columns to an optional neighbour only while that
+  // neighbour is shown.
   const textCtx = { values, bindings };
   const visibleCells = [];
   for (const cell of cells) {
     const colIdx = colIndexByKey[cell.col];
     if (colIdx == null || cell.row == null || rowY[cell.row] == null) continue;
+    if (cell.modes && !cell.modes.includes(mode)) continue;
     const text = resolveCellValue(cell, textCtx);
     if (cell.hideIfEmpty && !text) continue;
     visibleCells.push({ cell, colIdx, text, span: cell.colSpan ?? 1 });

@@ -38,6 +38,7 @@ import theme from "Styles/theme";
 import {
   setActiveMapEditor,
   clearActiveMapEditor,
+  notifyMapEditorCameraChange,
 } from "../services/mapEditorRegistry";
 
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
@@ -2745,6 +2746,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               onCameraChangeExternal={() => {
                 compareSliderRef.current?.updateClipRect?.();
                 notifyCameraChange();
+                notifyMapEditorCameraChange();
               }}
             >
               {/* Print zone world group: everything posed with basePose

@@ -16,10 +16,15 @@
 //   `legacyKey` = portfolio.metadata key used by pre-titleBlock portfolios.
 // - cells: grid content, one value cell per entry. `bind` tokens resolved at
 //   render time: project.name | portfolio.name | page.title | page.scale |
-//   pageNum | field:<fieldKey>. `fallbackBind` = binding rendered while a
-//   field: bind has no stored value (live default, e.g. chantier ->
-//   project.name). `page.scale` = printed scale label ("1:50"), only bound
-//   on pages whose largest base map fills the page with a scaled print zone.
+//   page.format | pageNum | field:<fieldKey>. `fallbackBind` = binding
+//   rendered while a field: bind has no stored value (live default, e.g.
+//   chantier -> project.name). `page.scale` = printed scale label ("1:50"),
+//   only bound on pages whose largest base map fills the page with a scaled
+//   print zone (carnet) or when the capture frame is the scaled print zone.
+//   `page.format` = sheet format ("A3", no orientation), capture only.
+//   `modes` = layout modes the cell belongs to ("PORTFOLIO" = Carnet de
+//   plans page, "CAPTURE" = Capture tool frame); absent = every mode. Two
+//   cells may share a slot with disjoint modes (Folio / Titre).
 //   `hideIfEmpty` drops the cell when its value is empty; a colSpan cell
 //   stops at the next visible cell of its row, so it widens back over a
 //   hidden optional neighbour (see getPortfolioPageScaleLabel).
@@ -52,11 +57,17 @@ const defaultTitleBlockManifest = {
     { key: "date", label: "Date", mappedTo: "todayS", legacyKey: "date" },
   ],
   cells: [
-    // row 0: FOLIO (page title, spans main+mid) | DATE
-    { row: 0, col: "main", colSpan: 2, label: "Folio", bind: "page.title", bold: true },
+    // row 0: FOLIO / TITRE (page title, spans main+mid) | [ECHELLE] | DATE
+    // Echelle only shows on full-page scaled print zones (carnet) or when
+    // the capture frame is the scaled print zone; FOLIO then shrinks to the
+    // main column (colSpan truncated at the next visible cell).
+    { row: 0, col: "main", colSpan: 2, label: "Folio", bind: "page.title", bold: true, modes: ["PORTFOLIO"] },
+    { row: 0, col: "main", colSpan: 2, label: "Titre", bind: "page.title", bold: true, modes: ["CAPTURE"] },
+    { row: 0, col: "mid", label: "Echelle", bind: "page.scale", hideIfEmpty: true },
     { row: 0, col: "meta", label: "Date", bind: "field:date", legacyLabelKey: "labelDate" },
-    // row 1: DOCUMENT | AUTEUR | RÉFÉRENCE
-    { row: 1, col: "main", label: "Document", bind: "portfolio.name", legacyLabelKey: "labelPortfolio" },
+    // row 1: DOCUMENT (carnet) / FORMAT (capture) | AUTEUR | RÉFÉRENCE
+    { row: 1, col: "main", label: "Document", bind: "portfolio.name", legacyLabelKey: "labelPortfolio", modes: ["PORTFOLIO"] },
+    { row: 1, col: "main", label: "Format", bind: "page.format", modes: ["CAPTURE"] },
     { row: 1, col: "mid", label: "Auteur", bind: "field:author", legacyLabelKey: "labelAuteur" },
     { row: 1, col: "meta", label: "Référence", bind: "field:reference" },
     // row 2: CHANTIER | NUMÉRO | PAGE
@@ -68,7 +79,9 @@ const defaultTitleBlockManifest = {
       fallbackBind: "project.name",
       legacyLabelKey: "labelChantier",
     },
-    { row: 2, col: "mid", label: "Numéro", bind: "field:refInterne", legacyLabelKey: "labelRefInterne" },
+    // Numéro widens over the Page column in CAPTURE mode (colSpan truncated
+    // at the visible Page cell in PORTFOLIO mode).
+    { row: 2, col: "mid", colSpan: 2, label: "Numéro", bind: "field:refInterne", legacyLabelKey: "labelRefInterne" },
     {
       row: 2,
       col: "meta",
@@ -77,6 +90,7 @@ const defaultTitleBlockManifest = {
       bold: true,
       align: "right",
       legacyLabelKey: "labelPage",
+      modes: ["PORTFOLIO"],
     },
   ],
   logoSlot: {

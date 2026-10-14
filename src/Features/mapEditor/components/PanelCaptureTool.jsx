@@ -20,6 +20,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import PanelPovFilters from "Features/pov/components/PanelPovFilters";
 import SectionPovCadrage from "Features/pov/components/SectionPovCadrage";
 import SectionCaptureLabels from "./SectionCaptureLabels";
+import SectionCaptureTitleBlock from "./SectionCaptureTitleBlock";
 import SectionCaptureExport from "./SectionCaptureExport";
 import ToolbarCaptureCondensed from "./ToolbarCaptureCondensed";
 
@@ -147,6 +148,10 @@ export default function PanelCaptureTool() {
 
       {tab === "CADRAGE" && (
         <SectionPovCadrage>
+          {/* cartouche at the bottom-right of the frame */}
+          <WhiteSectionGeneric>
+            <SectionCaptureTitleBlock />
+          </WhiteSectionGeneric>
           {/* display-only label auto-layout (2D map only) */}
           {!isThreed && (
             <WhiteSectionGeneric>

@@ -142,6 +142,11 @@ const mapEditorInitialState = {
     visible: true,
     fontSize: 12,
   },
+  // cartouche (title block) at the bottom-right of the capture frame, in
+  // "CAPTURE" mode (see computeTitleBlockLayout) — capture tool only
+  imageModeTitleBlock: {
+    visible: false,
+  },
   imageModeLabelsAutoLayout: false, // when true, labels are auto-arranged (display-only) to avoid overlaps
   imageModeLabelsInMargin: false, // when true (and autoLayout on), labels are packed in a band inside the capture rect border
   // legend overlay: position/size in pixels relative to the capture rect.
@@ -564,6 +569,12 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeTitle: (state, action) => {
       state.imageModeTitle = { ...state.imageModeTitle, ...action.payload };
+    },
+    setImageModeTitleBlock: (state, action) => {
+      state.imageModeTitleBlock = {
+        ...state.imageModeTitleBlock,
+        ...action.payload,
+      };
     },
     setImageModeLabelsAutoLayout: (state, action) => {
       state.imageModeLabelsAutoLayout = action.payload;
@@ -1063,6 +1074,7 @@ export const {
   setImageModeWhiteBackground,
   setImageModeBorder,
   setImageModeTitle,
+  setImageModeTitleBlock,
   setImageModeLabelsAutoLayout,
   setImageModeLabelsInMargin,
   //
