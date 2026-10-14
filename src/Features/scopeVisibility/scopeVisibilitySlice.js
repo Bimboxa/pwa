@@ -66,6 +66,11 @@ export const scopeVisibilitySlice = createSlice({
         hidden
       );
     },
+    setHiddenRevolutionAxisIds: (state, action) => {
+      state.hiddenRevolutionAxisIds = [
+        ...new Set((action.payload ?? []).filter(Boolean)),
+      ];
+    },
     toggleRevolutionAxisHidden: (state, action) => {
       const id = action.payload;
       if (!id) return;
@@ -92,6 +97,7 @@ export const {
   setHiddenAnnotationTemplateIds,
   setAnnotationTemplatesHidden,
   toggleAnnotationTemplateHidden,
+  setHiddenRevolutionAxisIds,
   toggleRevolutionAxisHidden,
 } = scopeVisibilitySlice.actions;
 

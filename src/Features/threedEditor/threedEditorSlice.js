@@ -24,6 +24,7 @@ import { DEFAULT_CREASE_THRESHOLD_DEG } from "Features/threedEditor/utils/getGri
 // Closes the base maps grid (3D "table à plans"): every other 3D tool mode
 // calls it when it arms, the grid poses being incompatible with them.
 function closeBaseMapsGrid(state) {
+  if (state.baseMapsGridMode.active) state.baseMapsGridMode.closeEpoch += 1;
   state.baseMapsGridMode.active = false;
 }
 
@@ -386,6 +387,10 @@ const threedEditorInitialState = {
   // other 3D tool modes.
   baseMapsGridMode: {
     active: false,
+    // Bumped by every close of an active grid: the SCOPE keeper
+    // (useBaseMapsGrid3d) depends on it, so an open → close round trip
+    // inside one effects pass still re-runs it.
+    closeEpoch: 0,
   },
   // First-person walk mode (P in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -928,8 +933,11 @@ export const threedEditorSlice = createSlice({
     },
     setBaseMapsGridModeActive: (state, action) => {
       const active = !!action.payload;
-      state.baseMapsGridMode.active = active;
-      if (!active) return;
+      if (!active) {
+        closeBaseMapsGrid(state);
+        return;
+      }
+      state.baseMapsGridMode.active = true;
       // Mutually exclusive with every other 3D tool mode.
       closeIsolateFaceMode(state);
       closeMergeFacesMode(state);
