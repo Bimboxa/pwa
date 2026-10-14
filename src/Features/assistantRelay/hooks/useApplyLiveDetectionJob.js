@@ -76,6 +76,7 @@ export default function useApplyLiveDetectionJob() {
   const mainBaseMap = useMainBaseMap();
   const { value: listings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
+    includeDisabledListings: true,
   });
   const deleteAnnotations = useDeleteAnnotations();
   const { value: scope } = useSelectedScope();

@@ -1,3 +1,12 @@
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  setScopeModuleShowAllListings,
+  toggleAnnotationListingDisabled,
+} from "Features/listings/listingsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { selectDisabledAnnotationListingIds } from "Features/listings/selectors/selectDisabledAnnotationListingIds";
+
 import {
   Box,
   IconButton,
@@ -24,11 +33,17 @@ import { CSS } from "@dnd-kit/utilities";
 // base map listing, initials avatar for an annotation listing — see
 // ListingFamilyAvatar), name, and on the right the items count as a chip with
 // the family icon (same chip as the dashboard scope rows) plus the row
-// actions. `showVisibility` adds the eye — base map folders only: it hides
-// the folder in the scope (scope.baseMapsSettings.disabledListingIds), and a
-// hidden folder, its base maps and the annotations hosted on them are left
-// out of every module. The eye is always shown (not just on hover): it is
-// the one place where the scope's folders are hidden / revealed.
+// actions. `showVisibility` adds the eye, always shown (not just on hover):
+// it is the one place where the scope's folders / annotation listings are
+// hidden / revealed.
+// - Base map folder: scope.baseMapsSettings.disabledListingIds (scope row) —
+//   the folder, its base maps and the annotations hosted on them are left
+//   out of every module.
+// - Annotation listing: listings.disabledAnnotationListingIds (Redux only,
+//   reset on scope change) — the listing and its annotations are left out of
+//   every other module, as if temporarily removed. A hidden annotation
+//   listing cannot be selected (the eye is its only action), and hiding the
+//   selected one puts the module back on « Afficher toutes les listes ».
 //
 // The drag handle and the actions are laid over the row, not beside it, so the
 // ListItemButton spans the whole width and the hover / selection tint reaches
@@ -51,14 +66,23 @@ export default function RowListingInGroup({
   // strings
 
   const dragS = "Glisser pour réordonner";
-  const showS = "Afficher le dossier dans ce repérage";
-  const hideS = "Masquer le dossier dans ce repérage";
+  const isAnnotationListing = familyType === "LOCATED_ENTITY";
+  const showS = isAnnotationListing
+    ? "Afficher la liste dans ce repérage"
+    : "Afficher le dossier dans ce repérage";
+  const hideS = isAnnotationListing
+    ? "Masquer la liste dans ce repérage"
+    : "Masquer le dossier dans ce repérage";
   const fromS = "Depuis";
 
   // data
 
+  const dispatch = useDispatch();
   const { disabledListingIds, toggleListingDisabled } =
     useDisabledBaseMapListingIds();
+  const disabledAnnotationListingIds = useSelector(
+    selectDisabledAnnotationListingIds
+  );
 
   // Listing linked from another scope ("Depuis un autre Krto"): read-only
   // reference row — not sortable, flagged in palette.listingFromOtherScope
@@ -78,7 +102,11 @@ export default function RowListingInGroup({
 
   // helpers
 
-  const hidden = showVisibility && disabledListingIds.includes(listing.id);
+  const hidden =
+    showVisibility &&
+    (isAnnotationListing
+      ? disabledAnnotationListingIds.includes(listing.id)
+      : disabledListingIds.includes(listing.id));
 
   // Room the button keeps on the right for the actions overlay: count chip
   // and "⋮", plus the eye when the family has one.
@@ -88,7 +116,22 @@ export default function RowListingInGroup({
 
   function handleToggleVisibility(e) {
     e.stopPropagation();
-    toggleListingDisabled(listing.id);
+    if (!isAnnotationListing) {
+      toggleListingDisabled(listing.id);
+      return;
+    }
+    // Hiding the selected listing: back to the whole scope rather than a
+    // jump to whichever listing useAutoSelectListing picks next.
+    if (!hidden && selected) {
+      dispatch(setScopeModuleShowAllListings(true));
+      dispatch(setSelectedItem(null));
+    }
+    dispatch(toggleAnnotationListingDisabled(listing.id));
+  }
+
+  function handleClick() {
+    if (hidden && isAnnotationListing) return;
+    onClick(listing);
   }
 
   // render
@@ -156,7 +199,7 @@ export default function RowListingInGroup({
       </Tooltip>
 
       <ListItemButton
-        onClick={() => onClick(listing)}
+        onClick={handleClick}
         sx={{
           py: 1,
           pl: 3,

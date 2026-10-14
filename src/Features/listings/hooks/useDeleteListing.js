@@ -12,7 +12,9 @@ import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 export default function useDeleteListing() {
   const dispatch = useDispatch();
 
-  const { value: listings } = useListingsByScope();
+  const { value: listings } = useListingsByScope({
+    includeDisabledListings: true,
+  });
   const deleteRemoteListing = useDeleteRemoteListing();
   const currentUserId = useSelector((state) =>
     getUserIdMaster(state.auth.userProfile)

@@ -37,6 +37,16 @@ const listingsInitialState = {
   // module shows the whole scope whatever the Dessin eyes.
   hiddenListingsIds: [],
   //
+  // Annotation listings DISABLED in the selected scope (eye of their row in
+  // the SCOPE module « Contenu » tab): stronger than hiddenListingsIds — the
+  // listing is left out of every other module (pickers, editors, 3D,
+  // procedures, exports) as if temporarily removed. Redux only, on purpose:
+  // never written to the scope row, the Krto zip or localStorage; reset on
+  // every scope selection. Applied centrally by the listings selector
+  // (makeGetListingsByOptions, opt-out includeDisabledListings) and by
+  // useAnnotationsV2 / usePaintedPartsQties.
+  disabledAnnotationListingIds: [],
+  //
   // SCOPE module (Krto) in "all listings" mode: the recap editor shows every
   // base map and the annotations of every listing of the scope. A flag of
   // its own, not selectedListingId === null: the selected listing is the
@@ -111,6 +121,16 @@ export const listingsSlice = createSlice({
         (id) => id !== action.payload
       );
     },
+    toggleAnnotationListingDisabled: (state, action) => {
+      const id = action.payload;
+      state.disabledAnnotationListingIds =
+        state.disabledAnnotationListingIds.includes(id)
+          ? state.disabledAnnotationListingIds.filter((i) => i !== id)
+          : [...state.disabledAnnotationListingIds, id];
+    },
+    setDisabledAnnotationListingIds: (state, action) => {
+      state.disabledAnnotationListingIds = action.payload ?? [];
+    },
     setScopeModuleShowAllListings: (state, action) => {
       state.scopeModuleShowAllListings = Boolean(action.payload);
     },
@@ -123,6 +143,7 @@ export const listingsSlice = createSlice({
       (state, action) => {
         state.hiddenListingsIds =
           getInitScopeVisibility(action.payload)?.hiddenListingsIds ?? [];
+        state.disabledAnnotationListingIds = [];
         state.scopeModuleShowAllListings = true;
       }
     );
@@ -150,6 +171,9 @@ export const {
   hideListingId,
   showListingId,
   setHiddenListingsIds,
+  //
+  toggleAnnotationListingDisabled,
+  setDisabledAnnotationListingIds,
   //
   setScopeModuleShowAllListings,
 } = listingsSlice.actions;

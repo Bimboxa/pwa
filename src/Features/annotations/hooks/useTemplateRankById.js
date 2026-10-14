@@ -12,7 +12,9 @@ import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnot
  * @returns {Map<string, number>} templateId -> rank
  */
 export default function useTemplateRankById() {
-  const { value: listings } = useListingsByScope();
+  const { value: listings } = useListingsByScope({
+    includeDisabledListings: true,
+  });
   const templates = useAnnotationTemplatesByProject();
 
   return useMemo(() => {

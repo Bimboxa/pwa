@@ -47,6 +47,7 @@ export const makeGetListingsByOptions = (options) =>
       (state) => state.scopes.scopesById,
       (state) => state.appConfig.value?.presetScopesObject,
       (state) => state.listings.linkedListingSourceByScopeId,
+      (state) => state.listings.disabledAnnotationListingIds,
     ],
     (
       listingsUpdatedAt,
@@ -54,7 +55,8 @@ export const makeGetListingsByOptions = (options) =>
       entityModelsObject,
       scopesById,
       presetScopesObject,
-      linkedListingSourceByScopeId
+      linkedListingSourceByScopeId,
+      disabledAnnotationListingIds
     ) => {
       // options
 
@@ -65,6 +67,7 @@ export const makeGetListingsByOptions = (options) =>
       const filterByEntityModelType = options?.filterByEntityModelType;
       const relsZoneEntityListings = options?.relsZoneEntityListings;
       const baseMapsOnly = options?.baseMapsOnly;
+      const includeDisabledListings = options?.includeDisabledListings;
 
       // edge case
 
@@ -138,6 +141,17 @@ export const makeGetListingsByOptions = (options) =>
           }
         }
         listings = linked.length > 0 ? [...own, ...linked] : own;
+
+        // Annotation listings disabled in the scope (eye of the SCOPE module
+        // « Contenu » tab, Redux only): absent from every scoped list, as if
+        // temporarily removed. Opt-out `includeDisabledListings` for the
+        // « Contenu » tab itself (the row stays, greyed, to be re-shown) and
+        // the management flows that must see the whole scope.
+        if (!includeDisabledListings && disabledAnnotationListingIds?.length) {
+          listings = listings.filter(
+            (l) => !disabledAnnotationListingIds.includes(l.id)
+          );
+        }
       }
 
       // filter by entity model type

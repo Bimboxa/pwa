@@ -15,6 +15,8 @@ const SYNCED_ACTION_TYPES = new Set([
   "listings/setHiddenListingsIds",
   "listings/hideListingId",
   "listings/showListingId",
+  "listings/toggleAnnotationListingDisabled",
+  "listings/setDisabledAnnotationListingIds",
   "layers/toggleLayerVisibility",
   "layers/toggleShowAnnotationsWithoutLayer",
   "layers/triggerLayersUpdate",

@@ -30,6 +30,7 @@ export default function useDeleteUnusedAnnotationTemplates() {
   // the scope's LOCATED_ENTITY listings (resolved entityModel)
   const { value: scopeListings } = useListingsByScope({
     filterByEntityModelType: "LOCATED_ENTITY",
+    includeDisabledListings: true,
   });
   const deleteListing = useDeleteListing();
 

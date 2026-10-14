@@ -16,7 +16,10 @@ export default function useDownloadScopeData() {
   // data
 
   const {value: scope} = useSelectedScope({withProject: true});
-  const {value: listings = []} = useListings({filterByScopeId: scope?.id});
+  const {value: listings = []} = useListings({
+    filterByScopeId: scope?.id,
+    includeDisabledListings: true,
+  });
 
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.

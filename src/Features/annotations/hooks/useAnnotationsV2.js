@@ -338,6 +338,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
+import { selectDisabledAnnotationListingIdsKey } from "Features/listings/selectors/selectDisabledAnnotationListingIds";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
@@ -641,9 +642,21 @@ export default function useAnnotationsV2(options) {
     // (useScopeGridAnnotationsFilter), its sheet badges and the hidden
     // folders. Leaving the module re-applies them (liveQuery dep below).
     const ignoreHiddenListings = useSelector(selectIsScopeModule);
-    const excludeListingsIds = ignoreHiddenListings
+    // Annotation listings disabled in the scope (eye of the SCOPE module
+    // « Contenu » tab, Redux only): their annotations do not exist for the
+    // scope — always excluded, SCOPE module included, whatever the caller.
+    const disabledAnnotationListingIdsKey = useSelector(
+      selectDisabledAnnotationListingIdsKey
+    );
+    const callerExcludeListingsIds = ignoreHiddenListings
       ? undefined
       : options?.excludeListingsIds;
+    const excludeListingsIds = disabledAnnotationListingIdsKey
+      ? [
+          ...(callerExcludeListingsIds ?? []),
+          ...disabledAnnotationListingIdsKey.split(","),
+        ]
+      : callerExcludeListingsIds;
 
     const withListingName = options?.withListingName;
     const withQties = options?.withQties;

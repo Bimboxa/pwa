@@ -95,6 +95,7 @@ export default function FieldSortableListings() {
   const { value: listings } = useListings({
     filterByScopeId: scope?.id,
     filterByEntityModelType: "LOCATED_ENTITY",
+    includeDisabledListings: true,
   });
 
   const sensors = useSensors(

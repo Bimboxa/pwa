@@ -72,10 +72,11 @@ export default function SectionListingsGroup({
 
   const listings = group.listings ?? [];
   const ids = listings.map((l) => l.id);
-  // A base map folder can be hidden from the recap editor (local eye, on top
-  // of the folders already hidden from the Fond de plan module); the other
-  // families have no such notion here.
-  const showVisibility = group.type === "BASE_MAP";
+  // Base map folders (scope.baseMapsSettings.disabledListingIds) and
+  // annotation listings (listings.disabledAnnotationListingIds, Redux only)
+  // can be hidden from the scope; the other families have no such notion.
+  const showVisibility =
+    group.type === "BASE_MAP" || group.type === "LOCATED_ENTITY";
 
   // handlers
 

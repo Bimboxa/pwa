@@ -9,6 +9,8 @@ import {
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
+import { selectDisabledAnnotationListingIds } from "Features/listings/selectors/selectDisabledAnnotationListingIds";
+
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListingItemsCountById from "Features/listings/hooks/useListingItemsCountById";
@@ -52,6 +54,11 @@ const PINNED_TYPES = ["BASE_MAP", "LOCATED_ENTITY"];
 // annotations hosted on the hidden folders' base maps, which do not exist
 // for the scope.
 //
+// Same for an annotation listing hidden in the scope (eye of its row,
+// listings.disabledAnnotationListingIds, Redux only): it stays listed —
+// greyed, eye off, with its own count — and is left out of the "Afficher
+// toutes les listes" total, like it is left out of every other module.
+//
 // `showAllListings` (listings.scopeModuleShowAllListings) is the "Afficher
 // toutes les listes" row of the annotation listings group: the editor then
 // shows the whole scope, and no listing row reads as selected — the caller
@@ -85,7 +92,11 @@ export default function SelectorListingForViewer({
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: listings, loading } = useListingsByScope({
     filterByProjectId: projectId,
+    includeDisabledListings: true,
   });
+  const disabledAnnotationListingIds = useSelector(
+    selectDisabledAnnotationListingIds
+  );
   const { disabledIds: disabledBaseMapIds } = useDisabledBaseMapIds();
 
   // state
@@ -112,8 +123,12 @@ export default function SelectorListingForViewer({
   });
   const selection = selectedListingId ? [selectedListingId] : [];
   const annotationsCount = useMemo(
-    () => getAnnotationListingsCount(listings, itemsCountById),
-    [listings, itemsCountById]
+    () =>
+      getAnnotationListingsCount(
+        listings?.filter((l) => !disabledAnnotationListingIds.includes(l.id)),
+        itemsCountById
+      ),
+    [listings, itemsCountById, disabledAnnotationListingIds]
   );
 
   // handlers

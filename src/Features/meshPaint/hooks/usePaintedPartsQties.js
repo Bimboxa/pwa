@@ -15,6 +15,7 @@ import {
 } from "Features/viewers/utils/effectiveViewerKey";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
+import { selectDisabledAnnotationListingIds } from "Features/listings/selectors/selectDisabledAnnotationListingIds";
 
 /**
  * Painted parts (« Pinceau » 3D, db.meshPaints) of the selected project with
@@ -67,9 +68,16 @@ export default function usePaintedPartsQties(options) {
   // SCOPE module: the Dessin listing eyes never apply (same rule as
   // useAnnotationsV2).
   const ignoreHiddenListings = useSelector(selectIsScopeModule);
-  const excludeListingsIdsKey = ignoreHiddenListings
-    ? ""
-    : toKey(options?.excludeListingsIds);
+  // Annotation listings disabled in the scope (SCOPE « Contenu » eye, Redux
+  // only): always excluded, SCOPE module included (same rule as
+  // useAnnotationsV2).
+  const disabledAnnotationListingIds = useSelector(
+    selectDisabledAnnotationListingIds
+  );
+  const excludeListingsIdsKey = toKey([
+    ...(ignoreHiddenListings ? [] : (options?.excludeListingsIds ?? [])),
+    ...disabledAnnotationListingIds,
+  ]);
   const disabledTemplatesKey = toKey(options?.disabledAnnotationTemplates);
   const disabledLayerIdsKey = toKey(options?.disabledLayerIds);
   const viewBox = options?.viewBox;

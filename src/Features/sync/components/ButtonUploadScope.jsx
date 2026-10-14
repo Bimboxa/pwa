@@ -31,7 +31,7 @@ export default function ButtonUploadScope() {
 
   const {value: scope} = useSelectedScope({withProject: true});
   const {value: accessToken} = useRemoteToken();
-  const {value: listings} = useListingsByScope();
+  const {value: listings} = useListingsByScope({includeDisabledListings: true});
 
   // TODO : add listings & relScopItem ? to the context
   // TODO : override syncFilesPath to add the items if they do not exists on dropbox.
