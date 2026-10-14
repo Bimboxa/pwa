@@ -14,6 +14,7 @@ import createMesh3dLabelTargetHandle from "Features/threedMesh/services/createMe
 import createAnnotationLabelSprite from "../services/createAnnotationLabelSprite";
 import createAnnotationLabelAnchorSprite from "../services/createAnnotationLabelAnchorSprite";
 import { setAnnotationLabelObjects } from "../services/annotationLabelObjectsStore";
+import getAnnotationLabelLiftM from "../utils/getAnnotationLabelLiftM";
 
 // Lift of the label objects off the annotation surface (meters) — keeps the
 // leader visible above the basemap texture / a flat annotation.
@@ -152,7 +153,9 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const label2 = pixelToWorld(labelProps.labelPoint, baseMapForRender);
       const target2 = pixelToWorld(labelProps.targetPoint, baseMapForRender);
       const labelZ = getAnnotationLabelZ(annotation);
-      const labelLocal = { x: label2.x, y: label2.y, z: labelZ };
+      // Card lift above the anchor (default 1 m, see getAnnotationLabelLiftM).
+      const liftM = getAnnotationLabelLiftM(annotation);
+      const labelLocal = { x: label2.x, y: label2.y, z: labelZ + liftM };
       const targetLocal = { x: target2.x, y: target2.y, z: labelZ };
 
       const isSelected = annotation.id === selectedAnnotationId;
@@ -184,14 +187,19 @@ export default function ThreedAnnotationLabels({ annotations }) {
         meterByPx: baseMapForRender.meterByPx,
         labelLocal,
         targetLocal,
+        liftM,
         leader: null,
       });
 
-      // Leader only when the two ends are apart (the drag hook adds a
-      // temporary one as soon as a drag separates them).
+      // Leader anchor → card, only when the two ends are apart (the default
+      // lift keeps them apart; a card dragged down onto its anchor has none
+      // — the drag hook then adds a temporary one as soon as they separate).
       const apart =
-        Math.hypot(labelLocal.x - targetLocal.x, labelLocal.y - targetLocal.y) >
-        1e-6;
+        Math.hypot(
+          labelLocal.x - targetLocal.x,
+          labelLocal.y - targetLocal.y,
+          labelLocal.z - targetLocal.z
+        ) > 1e-6;
       if (apart) {
         const leader = createMesh3dLabelLeader({
           from: targetLocal,

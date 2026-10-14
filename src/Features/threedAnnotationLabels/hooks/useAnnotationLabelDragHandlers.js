@@ -19,8 +19,21 @@ import {
   setSelectedItem,
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
+import {
+  closestPointOnAxis,
+  ndcDistance,
+} from "Features/threedDrawing/utils/computeSnapTarget";
+import {
+  buildSegments,
+  disposeObject,
+  getCanvasResolution,
+  getDashSize,
+  makeLineMaterial,
+} from "Features/threedDrawing/utils/drawingOverlayLines";
+import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { clearSubSelection } from "Features/threedEditor/threedEditorSlice";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import createMesh3dLabelLeader, {
   setMesh3dLabelLeaderEnds,
 } from "Features/threedMesh/services/createMesh3dLabelLeader";
@@ -42,6 +55,15 @@ const DRAG_THRESHOLD_PX = 4;
 // intersection runs away to infinity, so the move is ignored.
 const MIN_RAY_PLANE_DOT = 0.05;
 
+// Screen distance (CSS px) under which the cursor is "on" a user axis
+// through the grab point — the drawing's axis lock (computeSnapTarget).
+const AXIS_THRESHOLD_PX = 20;
+
+// Axis line drawn while the move is locked on an axis: half-length (m, at
+// least) and screen thickness.
+const AXIS_LINE_MIN_EXTENT_M = 5;
+const AXIS_LINE_WIDTH_PX = 1.5;
+
 const round2 = (v) => Math.round(v * 100) / 100;
 
 /**
@@ -49,10 +71,15 @@ const round2 = (v) => Math.round(v * 100) / 100;
  * leader) in the 3D view — near-copy of useMesh3dLabelDragHandlers:
  * - pointerdown on a card selects the annotation on pointerup (shift+click
  *   toggles);
- * - dragging the card / target handle moves it WITHIN THE BASEMAP PLANE;
+ * - dragging the card / target handle moves it WITHIN THE BASEMAP PLANE, or
+ *   ALONG A USER AXIS (X / Y / Z of the gizmo frame, drawing parity) when
+ *   the cursor is close to one on screen — the axis is drawn in its colour.
+ *   The vertical axis lets the card leave the plane (its lift above the
+ *   anchor, `labelLift3d`); the target handle stays in the plane;
  * - pointerup converts the in-plane displacement to image-px deltas and
  *   persists it through getAnnotationLabelDeltaFromDeltaPos — the exact 2D
- *   commit path (MainMapEditorV3), so both views share the same labelDelta.
+ *   commit path (MainMapEditorV3), so both views share the same labelDelta;
+ *   the out-of-plane displacement goes to `labelLift3d` (meters).
  */
 export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
   const dispatch = useDispatch();
@@ -76,6 +103,12 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
     (meshingActive && meshingTool !== "SELECT")
   );
 
+  // Yaw of the displayed axes frame: the axis locks follow the gizmo axes
+  // (same as the 3D drawing). Read in the handlers through a ref.
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings?.yawDeg ?? 0);
+  const yawDegRef = useRef(yawDeg);
+  yawDegRef.current = yawDeg;
+
   // Currently-selected annotation id — a label is only draggable once its
   // annotation (or the label itself, ANNOTATION_LABEL) is selected (same
   // rule as the 2D editor).
@@ -83,7 +116,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
   const selectedAnnotationIdRef = useRef(null);
   selectedAnnotationIdRef.current =
     selectedItems.length === 1
-      ? getSelectedAnnotationIds(selectedItems)[0] ?? null
+      ? (getSelectedAnnotationIds(selectedItems)[0] ?? null)
       : null;
 
   const dragRef = useRef(null);
@@ -117,6 +150,70 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       return raycaster.ray.intersectPlane(plane, hit) ? hit : null;
     }
 
+    // Cursor snapped on the user axis through the grab point closest to it
+    // on screen (within AXIS_THRESHOLD_PX): { position, axis } or null.
+    function pickOnAxes(e, drag) {
+      if (!drag.axes.length || !setRayFromEvent(e)) return null;
+      const rect = dom.getBoundingClientRect();
+      const canvasSize = { width: rect.width, height: rect.height };
+      const { origin, direction } = raycaster.ray;
+      let best = null;
+      let bestDist = AXIS_THRESHOLD_PX;
+      for (const ax of drag.axes) {
+        const pt = closestPointOnAxis(origin, direction, drag.startHit, ax.dir);
+        if (!pt) continue;
+        const { distance, behind } = ndcDistance(pt, ndc, camera, canvasSize);
+        if (behind || distance >= bestDist) continue;
+        bestDist = distance;
+        best = { position: pt, axis: ax.key };
+      }
+      return best;
+    }
+
+    function removeAxisLine(drag) {
+      if (!drag?.axisLine) return;
+      drag.axisLine.parent?.remove(drag.axisLine);
+      disposeObject(drag.axisLine);
+      drag.axisLine = null;
+      drag.axis = null;
+    }
+
+    // Dashed line along the locked axis through the dragged object, in the
+    // axis colour (drawing overlay look). Static for a given axis.
+    function updateAxisLine(drag, axis) {
+      if (!axis) {
+        removeAxisLine(drag);
+        return;
+      }
+      if (drag.axis === axis && drag.axisLine) return;
+      removeAxisLine(drag);
+      const dir = drag.axes.find((a) => a.key === axis)?.dir;
+      if (!dir) return;
+      const distance = camera.position.distanceTo(drag.startWorld);
+      const extent = Math.max(AXIS_LINE_MIN_EXTENT_M, distance * 2);
+      const mat = makeLineMaterial({
+        color: AXIS_COLORS[axis],
+        linewidth: AXIS_LINE_WIDTH_PX,
+        dashed: true,
+        dashSize: getDashSize(distance),
+        resolution: getCanvasResolution(editor),
+      });
+      const line = buildSegments(
+        [
+          {
+            a: drag.startWorld.clone().addScaledVector(dir, -extent),
+            b: drag.startWorld.clone().addScaledVector(dir, extent),
+          },
+        ],
+        mat
+      );
+      if (!line) return;
+      line.renderOrder = 1003;
+      sceneManager.scene.add(line);
+      drag.axisLine = line;
+      drag.axis = axis;
+    }
+
     function endDrag() {
       const drag = dragRef.current;
       dragRef.current = null;
@@ -128,6 +225,8 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
           drag.tempLeader.geometry?.dispose();
           drag.tempLeader.material?.dispose();
         }
+        removeAxisLine(drag);
+        sceneManager.renderScene?.();
       }
       window.removeEventListener("pointermove", onWindowPointerMove);
       window.removeEventListener("pointerup", onWindowPointerUp);
@@ -175,11 +274,20 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       const planeNormal = new Vector3(0, 0, 1).transformDirection(
         group.matrixWorld
       );
+      const startWorld = dragged.getWorldPosition(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
         planeNormal,
-        dragged.getWorldPosition(new Vector3())
+        startWorld
       );
       const startHit = pickOnPlane(e, plane);
+
+      // Axis locks: the user axes of the gizmo frame. The target handle
+      // stays on the annotation — only the axes lying in the basemap plane.
+      const userAxes = getUserAxesWorldDirections(yawDegRef.current);
+      const axes =
+        kind === "LABEL"
+          ? userAxes
+          : userAxes.filter((a) => Math.abs(a.dir.dot(planeNormal)) < 1e-3);
 
       const controls = sceneManager.controlsManager?.orbitControls;
       const prevControlsEnabled = controls?.enabled ?? true;
@@ -204,11 +312,16 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
         sprite,
         group,
         plane,
+        startWorld,
         startHit,
         startLocal,
         fixedEnd,
+        axes,
+        axis: null,
+        axisLine: null,
         deltaLocal: null,
         meterByPx: sprite.userData.meterByPx || 0.01,
+        liftM: sprite.userData.liftM || 0,
         leader: sprite.userData.leader || null,
         tempLeader: null,
         prevControlsEnabled,
@@ -237,21 +350,27 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       // orbit started on an unselected card doesn't select it on pointerup.
       if (drag.clickOnly) return;
 
-      const hit = pickOnPlane(e, drag.plane);
+      // Axis lock first (through the cursor's grab point, so the card keeps
+      // its grab offset), else free move in the basemap plane.
+      const axisHit = pickOnAxes(e, drag);
+      const hit = axisHit?.position ?? pickOnPlane(e, drag.plane);
       if (!hit) return;
+      updateAxisLine(drag, axisHit?.axis ?? null);
 
       // World displacement since pointerdown → basemap-local (groups are
-      // unscaled, so the length is preserved through the rotation).
-      const vWorld = hit.sub(drag.startHit);
+      // unscaled, so the length is preserved through the rotation). z is
+      // the lift above the plane (vertical axis lock on a horizontal map).
+      const vWorld = hit.clone().sub(drag.startHit);
       const len = vWorld.length();
       const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
       const vLocal = vWorld.transformDirection(inv).multiplyScalar(len);
-      drag.deltaLocal = { x: vLocal.x, y: vLocal.y };
+      if (drag.kind === "TARGET") vLocal.z = 0;
+      drag.deltaLocal = { x: vLocal.x, y: vLocal.y, z: vLocal.z };
 
       const position = new Vector3(
         drag.startLocal.x + vLocal.x,
         drag.startLocal.y + vLocal.y,
-        drag.startLocal.z
+        drag.startLocal.z + vLocal.z
       );
       drag.dragged.position.copy(position);
 
@@ -261,7 +380,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       }
 
       // Leader line: reuse the one built by ThreedAnnotationLabels, or add a
-      // temporary one when both ends still sat on the barycenter.
+      // temporary one when both ends still sat on the same point.
       if (!drag.leader && !drag.tempLeader && drag.dragged.parent) {
         drag.tempLeader = createMesh3dLabelLeader({
           from: drag.fixedEnd,
@@ -334,7 +453,13 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
           deltaPos,
           drag.partType
         );
-        await db.annotations.update(drag.annotationId, { labelDelta });
+        const changes = { labelDelta };
+        // Card moved out of the plane (vertical axis lock): its lift above
+        // the anchor, 3D only.
+        if (drag.kind === "LABEL" && Math.abs(drag.deltaLocal.z) > 1e-4) {
+          changes.labelLift3d = round2(drag.liftM + drag.deltaLocal.z);
+        }
+        await db.annotations.update(drag.annotationId, changes);
         dispatch(triggerAnnotationsUpdate());
       } catch (err) {
         console.error(

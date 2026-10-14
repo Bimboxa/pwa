@@ -60,7 +60,10 @@ export default function EditedObjectLayer({
       if (selectedNode && selectedNode.nodeId?.startsWith("label::")) {
         const annotationId = selectedNode.nodeId.replace("label::", "");
         const found = annotations.find((a) => a.id === annotationId);
-        target = [getAnnotationLabelPropsFromAnnotation(found)];
+        // The label's annotation may live in another editor instance (3D
+        // viewer, other base map): nothing to edit here.
+        const labelProps = getAnnotationLabelPropsFromAnnotation(found);
+        target = labelProps ? [labelProps] : [];
       } else {
         target = annotations.filter(
           (a) =>
