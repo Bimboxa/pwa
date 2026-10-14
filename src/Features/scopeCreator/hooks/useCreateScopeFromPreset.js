@@ -9,7 +9,11 @@ import { setOpenScopeCreator } from "../scopeCreatorSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setLandOnDrawScopeId } from "Features/viewers/viewersSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
+import {
+  setSelectedListingId,
+  triggerListingsUpdate,
+} from "Features/listings/listingsSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import {
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
@@ -23,6 +27,7 @@ import {
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
@@ -34,6 +39,9 @@ import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import resolveCarnetDetailLibraryKeys from "../services/resolveCarnetDetailLibraryKeys";
 import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
+import applySourceScopeService, {
+  SOURCE_SCOPE_MODES,
+} from "../services/applySourceScopeService";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
 import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import resolveConfigurationScopeConfig from "../utils/resolveConfigurationScopeConfig";
@@ -54,6 +62,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
   // data
 
   const appConfig = useAppConfig();
+  const { value: userEmail } = useUserEmail();
   const baseMapsListings = useProjectBaseMapListings({
     projectId,
     includeDisabled: true,
@@ -103,6 +112,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // ({ "listingName::itemName": folderKey }) — see resolveBaseMapPages.
     baseMapPageTargets,
     hiddenExistingListingIds,
+    // « Krto source » (configurations with sourceConfigurationKeys):
+    // { scopeId, mode } — the drawing listings of that scope are linked
+    // read-only (LINK) or copied with their annotations (COPY) right after
+    // the creation; null / no scopeId => nothing.
+    sourceScope,
     // empty: create a bare scope from the built-in EMPTY_SCOPE_CONFIGURATION
     // ("Krto vide" button / select entry): no annotation listing at all (no
     // library), a fallback "Fonds de plan" baseMap listing when the project
@@ -241,6 +255,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // scope.metaData.categories = every tag of the configuration (arrays per
     // keyword family); none for the generic / empty scope.
     const categories = empty ? null : getConfigurationCategories(configuration);
+    const sourceScopeId = sourceScope?.scopeId ?? null;
+    const sourceScopeMode = sourceScope?.mode ?? SOURCE_SCOPE_MODES.LINK;
+    const metaData = {
+      ...(categories && { categories }),
+      // trace of the « Krto source » choice (informative)
+      ...(sourceScopeId && {
+        sourceScope: { scopeId: sourceScopeId, mode: sourceScopeMode },
+      }),
+    };
 
     const scope = await createScope({
       id: scopeId,
@@ -250,7 +273,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
       newEntities,
       presetScopeKey: configuration?.key ?? presetScopeKey,
       configurationKey: empty ? null : (configuration?.key ?? null),
-      metaData: categories ? { categories } : null,
+      metaData: Object.keys(metaData).length > 0 ? metaData : null,
     });
     console.log("debug_25_09 [scope] created scope", scope, baseMapsListings);
     if (!scope) {
@@ -435,6 +458,25 @@ export default function useCreateScopeFromPreset({ projectId }) {
       });
     }
 
+    // « Krto source »: link (read-only) or copy the drawing listings of the
+    // chosen scope into the new one. The new scope is already selected (the
+    // copy passes the linked-listing write guard); runs before the initial
+    // save so the snapshot carries the rel rows / the copies.
+    let sourceListingsCount = 0;
+    if (sourceScopeId) {
+      sourceListingsCount = await applySourceScopeService({
+        hostScope: scope,
+        sourceScopeId,
+        mode: sourceScopeMode,
+        appConfig,
+        createdBy: userEmail,
+      });
+      if (sourceListingsCount > 0) {
+        dispatch(triggerListingsUpdate());
+        dispatch(triggerAnnotationsUpdate());
+      }
+    }
+
     // selector — a freshly created scope lands on the Dessin module (2D),
     // not the Viewer (flag consumed by the LayoutDesktop landing effect).
     dispatch(setLandOnDrawScopeId(scope.id));
@@ -457,7 +499,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // some -> auto-save right after scope creation (the initial snapshot then
     // includes the configuration content: baseMaps, scopeConfig, disabled ids).
     // Case 1 (no baseMaps yet) keeps being handled when baseMaps are added.
-    if (baseMapsListings?.length > 0 || configurationItemsCount > 0) {
+    if (
+      baseMapsListings?.length > 0 ||
+      configurationItemsCount > 0 ||
+      sourceListingsCount > 0
+    ) {
       dispatch(setPendingInitialSaveScopeId(scope.id));
     }
 

@@ -37,8 +37,9 @@ export function getAnnotationLayerKey(annotation, liveLayerIds) {
 
 // Every copy is born as a fresh record of the current user: the db "creating"
 // audit hook re-stamps createdAt / createdByUserIdMaster once these fields are
-// removed (it runs even under withSystemWrite).
-function prepareCopy(record, createdBy) {
+// removed (it runs even under withSystemWrite). Shared with
+// copyListingsToScopeService (« Krto source » copy at scope creation).
+export function prepareCopy(record, createdBy) {
   const copy = { ...record };
   delete copy.createdAt;
   delete copy.updatedAt;
@@ -57,7 +58,7 @@ const notDeleted = (r) => r && !r.deletedAt;
 // (idMaster) and state models are Supabase rows with a global primary key,
 // so they get fresh ids (the `state` fields follow). Listing refs are
 // remapped through the listing id map.
-function copyNotesAppConfig(notesApp, listingIdMap) {
+export function copyNotesAppConfig(notesApp, listingIdMap) {
   if (!notesApp) return undefined;
   const stateModelIdMap = {};
   (notesApp.stateModels ?? []).forEach((sm) => {
@@ -166,7 +167,9 @@ export default async function duplicateScopeService({
       .where("scopeId")
       .equals(scope.id)
       .toArray()
-      .then((rows) => rows.filter((r) => notDeleted(r) && r.visibility === "SCOPE")),
+      .then((rows) =>
+        rows.filter((r) => notDeleted(r) && r.visibility === "SCOPE")
+      ),
   ]);
 
   const liveLayerIds = new Set(sourceLayers.map((l) => l.id));

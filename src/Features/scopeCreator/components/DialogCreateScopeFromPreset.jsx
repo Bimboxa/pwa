@@ -163,6 +163,10 @@ export default function DialogCreateScopeFromPreset({
   // it from the configuration.
   const [hiddenExistingListingIds, setHiddenExistingListingIds] =
     useState(null);
+  // « Krto source » section of the recap (configurations with
+  // sourceConfigurationKeys): { scopeId, mode: "LINK" | "COPY" } — null until
+  // the recap preselects the most recent suggested scope.
+  const [sourceScope, setSourceScope] = useState(null);
 
   // handlers
 
@@ -207,6 +211,7 @@ export default function DialogCreateScopeFromPreset({
     setExtraAnnotationListings([]);
     setExtraLibraryKeys([]);
     setHiddenExistingListingIds(null);
+    setSourceScope(null);
     setRecapOpen(true);
   }
 
@@ -235,6 +240,7 @@ export default function DialogCreateScopeFromPreset({
         renamedBaseMapListingNames: renamedListingNames,
         baseMapPageTargets,
         hiddenExistingListingIds,
+        sourceScope,
       });
     } catch (error) {
       console.error("[DialogCreateScopeFromPreset] creation failed", error);
@@ -489,6 +495,8 @@ export default function DialogCreateScopeFromPreset({
                 onExtraLibraryKeysChange={setExtraLibraryKeys}
                 hiddenExistingListingIds={hiddenExistingListingIds}
                 onHiddenExistingListingIdsChange={setHiddenExistingListingIds}
+                sourceScope={sourceScope}
+                onSourceScopeChange={setSourceScope}
                 onCreate={handleCreate}
                 isCreating={isCreating}
                 canCreate={Boolean(name.trim()) && Boolean(projectId)}
