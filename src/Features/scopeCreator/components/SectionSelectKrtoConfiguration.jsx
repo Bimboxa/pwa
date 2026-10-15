@@ -5,9 +5,12 @@ import useKrtoConfigurations from "../hooks/useKrtoConfigurations";
 
 import CardKrtoConfiguration from "./CardKrtoConfiguration";
 
+import { EMPTY_SCOPE_USAGE_KEYWORD } from "../data/emptyScopeConfiguration";
+
 /*
  * Card grid of the configuration selector, filtered by the left nav
- * (activeFilter = {family, keyword}) and the header search text.
+ * (activeFilter = {family, keyword}) and the header search text. The built-in
+ * "vide" card belongs to the EMPTY_SCOPE_USAGE_KEYWORD usage.
  */
 export default function SectionSelectKrtoConfiguration({
   selectedKey,
@@ -26,7 +29,7 @@ export default function SectionSelectKrtoConfiguration({
   const genericLabelS = appConfig?.strings?.scope?.newEmpty ?? `${scopeS} vide`;
   const genericHelperS = "Structure vide, à construire librement.";
   const genericCodeS = "VIDE";
-  const genericChipS = "Vide";
+  const genericChipS = EMPTY_SCOPE_USAGE_KEYWORD;
   const prerequisiteS =
     appConfig?.strings?.scope?.sourcePrerequisite ?? "Pré-requis";
 
@@ -66,11 +69,36 @@ export default function SectionSelectKrtoConfiguration({
   });
 
   const showGeneric =
-    !activeFilter?.type &&
+    (!activeFilter?.type || activeFilter.type === EMPTY_SCOPE_USAGE_KEYWORD) &&
     !activeFilter?.ouvrage &&
-    matchesSearch([genericLabelS, genericHelperS]);
+    matchesSearch([genericLabelS, genericHelperS, EMPTY_SCOPE_USAGE_KEYWORD]);
+
+  // the "vide" card opens the group of its usage keyword (end of the grid
+  // when no card of that group is visible)
+  const genericIndex = filteredItems.findIndex((item) =>
+    (item.keywords?.type ?? []).includes(EMPTY_SCOPE_USAGE_KEYWORD)
+  );
+  const genericPosition =
+    genericIndex === -1 ? filteredItems.length : genericIndex;
 
   // render
+
+  function renderItem(item) {
+    return (
+      <CardKrtoConfiguration
+        key={item.key}
+        name={item.name}
+        description={item.description}
+        imageUrl={item.imageUrl}
+        code={item.code}
+        chipLabel={item.chipLabel}
+        prerequisiteLabel={prerequisiteS}
+        prerequisiteName={getPrerequisiteName(item)}
+        selected={selectedKey === item.key}
+        onClick={() => onSelect(item.key)}
+      />
+    );
+  }
 
   return (
     <Box
@@ -81,6 +109,7 @@ export default function SectionSelectKrtoConfiguration({
         alignContent: "start",
       }}
     >
+      {filteredItems.slice(0, genericPosition).map(renderItem)}
       {showGeneric && (
         <CardKrtoConfiguration
           name={genericLabelS}
@@ -91,20 +120,7 @@ export default function SectionSelectKrtoConfiguration({
           onClick={() => onSelect(null)}
         />
       )}
-      {filteredItems.map((item) => (
-        <CardKrtoConfiguration
-          key={item.key}
-          name={item.name}
-          description={item.description}
-          imageUrl={item.imageUrl}
-          code={item.code}
-          chipLabel={item.chipLabel}
-          prerequisiteLabel={prerequisiteS}
-          prerequisiteName={getPrerequisiteName(item)}
-          selected={selectedKey === item.key}
-          onClick={() => onSelect(item.key)}
-        />
-      ))}
+      {filteredItems.slice(genericPosition).map(renderItem)}
     </Box>
   );
 }

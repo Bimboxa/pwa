@@ -1,6 +1,8 @@
 import { Box, ButtonBase, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
+import { EMPTY_SCOPE_USAGE_KEYWORD } from "../data/emptyScopeConfiguration";
+
 /*
  * Left vertical nav of the configuration selector. Two sections (USAGE = the
  * "type" keyword family, OUVRAGE = the "ouvrage" family) with per-entry
@@ -33,10 +35,14 @@ export default function MenuKrtoConfigurationsFilter({
     return keywords;
   }
 
+  // the built-in "vide" card counts in « Toutes » and in its usage keyword
   function getCount(familyKey, keyword) {
-    return _items.filter((item) =>
+    const count = _items.filter((item) =>
       (item.keywords?.[familyKey] ?? []).includes(keyword)
     ).length;
+    const isEmptyScopeUsage =
+      familyKey === "type" && keyword === EMPTY_SCOPE_USAGE_KEYWORD;
+    return isEmptyScopeUsage ? count + 1 : count;
   }
 
   const sections = [
@@ -104,7 +110,7 @@ export default function MenuKrtoConfigurationsFilter({
       {renderRow({
         key: "__ALL__",
         label: allS,
-        count: _items.length,
+        count: _items.length + 1,
         active: !activeFilter?.type,
         onClick: () => onChange({ ...activeFilter, type: null }),
       })}

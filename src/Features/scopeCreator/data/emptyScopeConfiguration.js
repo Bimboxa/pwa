@@ -13,6 +13,10 @@ import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConf
  * - only the two core modules (Fonds de plan, Dessin) enabled, app default
  *   tools.
  */
+// « Usage » keyword (keywords.type) the built-in "vide" card is listed under
+// in the selector: shown and counted with the configurations tagged with it.
+export const EMPTY_SCOPE_USAGE_KEYWORD = "Générique";
+
 const EMPTY_SCOPE_CONFIGURATION = {
   baseMaps: {
     disableExistingListings: false,
