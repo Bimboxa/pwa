@@ -8,11 +8,14 @@ import { setToaster } from "Features/layout/layoutSlice";
 import commitDrawnRevolutionAxisService from "Features/revolutionAxes/services/commitDrawnRevolutionAxisService";
 import {
   appendToConstraintBuffer,
+  appendToPatternRepeatBuffer,
   appendToRectXBuffer,
   appendToRectYBuffer,
   clearConstraintBuffer,
+  clearPatternRepeatBuffer,
   clearRectDims,
   deleteLastConstraintBuffer,
+  deleteLastPatternRepeatBuffer,
   deleteLastRectXBuffer,
   deleteLastRectYBuffer,
   setEnabledDrawingMode,
@@ -25,6 +28,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
+  appendDrawingVertices,
   bumpSnapIndexEpoch,
   cancelInProgressPolyline,
   flushInProgressAsTrait3D,
@@ -39,6 +43,12 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
+import {
+  getPatternSegmentCount,
+  parsePatternRepeatCount,
+  repeatDrawingPattern,
+} from "Features/mapEditor/utils/patternRepeat";
+import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRepeatDrawingModes";
 
 import createFlatMesh3dAnnotationService from "Features/annotationMesh3d/services/createFlatMesh3dAnnotationService";
 import cutFaceAlongPathService from "Features/threedFaceCut/services/cutFaceAlongPathService";
@@ -229,8 +239,16 @@ export default function useDrawingPointerHandlers() {
       dispatch(clearRectDims());
       dispatch(setRectHasFirstPoint(false));
       dispatch(clearConstraintBuffer());
+      dispatch(clearPatternRepeatBuffer());
     }
   }, [active, dispatch]);
+  // A `*N` typed for the path just ended / dropped (commit, Escape, cut).
+  useEffect(() => {
+    if (!active || inProgressPolyline.length > 0) return;
+    if (store.getState().mapEditor.patternRepeatBuffer) {
+      dispatch(clearPatternRepeatBuffer());
+    }
+  }, [active, inProgressPolyline.length, store, dispatch]);
   // Serialized template-less / face-cut steps (clicks and keys).
   const queueRef = useRef(Promise.resolve());
   // Last click that ended the path in progress (commit or cut): the second
@@ -369,6 +387,35 @@ export default function useDrawingPointerHandlers() {
 
     function isFaceCutDraw() {
       return isFaceCutDrawingMode(enabledDrawingMode);
+    }
+
+    // « Répétition du motif » (`*N`, utils/patternRepeat — 2D parity):
+    // click-drawn POLYLINE / POLYGON paths, template or template-less.
+    function isPatternRepeatDraw() {
+      return (
+        PATTERN_REPEAT_DRAWING_MODES.includes(enabledDrawingMode) &&
+        behavior !== "RECTANGLE" &&
+        !isFaceCutDraw() &&
+        !isDiscDraw() &&
+        !isAxisDraw()
+      );
+    }
+
+    // Click / Enter with a `*N` typed: the repeated vertices are appended,
+    // nothing at the cursor. Returns the path after it (unchanged when
+    // nothing repeats: "*0", closed pattern), or null when no repetition
+    // was pending.
+    function applyPendingPatternRepeat() {
+      const buffer = store.getState().mapEditor.patternRepeatBuffer;
+      if (!buffer) return null;
+      dispatch(clearPatternRepeatBuffer());
+      const { inProgress } = getLiveDrawing();
+      if (!isPatternRepeatDraw()) return inProgress;
+      const count = parsePatternRepeatCount(buffer);
+      const repeated = count ? repeatDrawingPattern(inProgress, count) : [];
+      if (repeated.length === 0) return inProgress;
+      dispatch(appendDrawingVertices(repeated));
+      return [...inProgress, ...repeated];
     }
 
     // One step at a time, in order: a click landing while the previous
@@ -862,7 +909,12 @@ export default function useDrawingPointerHandlers() {
     // templates need 3+ points and go through the face classification;
     // POLYLINE templates commit as an OPEN polyline from 2 points — CLOSED
     // (3+ points) when the path came back on its first point.
-    async function commitInProgressAsAnnotation({ closed = false } = {}) {
+    // `points`: the path when it changed in this same step (a `*N` appended
+    // by Enter) — `inProgressPolyline` is this render's snapshot.
+    async function commitInProgressAsAnnotation({
+      closed = false,
+      points = null,
+    } = {}) {
       if (!hasTemplate()) {
         console.warn(
           "[threedDrawing] commit skipped: no armed POLYGON/POLYLINE template"
@@ -870,7 +922,7 @@ export default function useDrawingPointerHandlers() {
         return false;
       }
       const na = newAnnotationRef.current;
-      const pts = inProgressPolyline;
+      const pts = points ?? inProgressPolyline;
       try {
         let created = null;
         if (na.type === "POLYGON" && pts.length >= 3) {
@@ -929,6 +981,45 @@ export default function useDrawingPointerHandlers() {
       if (e.key === "Backspace") {
         e.preventDefault();
         dispatch(deleteLastConstraintBuffer());
+        return true;
+      }
+      return false;
+    }
+
+    // Keys of « Répétition du motif »: "*" opens the count (only with a
+    // pattern to repeat: one segment at least, not closed), then digits / Backspace / Escape act on it —
+    // not on the typed length. Enter is left to the callers (validate, then
+    // end the path). True when consumed.
+    function onPatternRepeatKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (!isPatternRepeatDraw()) return false;
+      if (e.key === "*") {
+        if (getPatternSegmentCount(getLiveDrawing().inProgress) === 0) {
+          return false;
+        }
+        e.preventDefault();
+        dispatch(appendToPatternRepeatBuffer("*"));
+        return true;
+      }
+      if (!store.getState().mapEditor.patternRepeatBuffer) return false;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        dispatch(appendToPatternRepeatBuffer(e.key));
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        dispatch(deleteLastPatternRepeatBuffer());
+        return true;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        dispatch(clearPatternRepeatBuffer());
+        return true;
+      }
+      // No typed length while a repetition is pending.
+      if (/^[.,;]$/.test(e.key)) {
+        e.preventDefault();
         return true;
       }
       return false;
@@ -1086,6 +1177,16 @@ export default function useDrawingPointerHandlers() {
       if (faceCutAxis) {
         if (clickTime - lastAxisCutTimeRef.current < DOUBLE_CLICK_MS) return;
         await enqueue(cutFaceAlongAxis);
+        return;
+      }
+      // A pending `*N`: this click validates the repeated vertices only
+      // (wherever it lands).
+      if (
+        isPatternRepeatDraw() &&
+        store.getState().mapEditor.patternRepeatBuffer
+      ) {
+        if (isTemplatelessDraw()) await enqueue(applyPendingPatternRepeat);
+        else applyPendingPatternRepeat();
         return;
       }
       if (!snap?.position) {
@@ -1333,11 +1434,14 @@ export default function useDrawingPointerHandlers() {
         onRectangleDimsKey(e)
       )
         return;
+      if (onPatternRepeatKey(e)) return;
       if (onLengthKey(e)) return;
       if (isTemplatelessDraw()) {
         if (e.key === "Enter") {
           if (behavior === "RECTANGLE") return;
           await enqueue(async () => {
+            // A pending `*N` is appended first, then the path ends.
+            applyPendingPatternRepeat();
             const { inProgress } = getLiveDrawing();
             if (inProgress.length >= 2) await endPath(inProgress);
           });
@@ -1374,7 +1478,11 @@ export default function useDrawingPointerHandlers() {
         // Rectangle / disc / axis: keys never commit (2D parity — the 2nd
         // click does).
         if (behavior === "RECTANGLE" || isDiscDraw() || isAxisDraw()) return;
-        const committed = await commitInProgressAsAnnotation();
+        // A pending `*N` is appended first, then the path ends.
+        const repeatedPath = applyPendingPatternRepeat();
+        const committed = await commitInProgressAsAnnotation({
+          points: repeatedPath,
+        });
         if (!committed) dispatch(flushInProgressAsTrait3D());
       } else if (e.key === "Escape") {
         if (inProgressPolyline.length > 0) {

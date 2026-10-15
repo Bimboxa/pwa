@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelectedMainBaseMapId";
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 import { SMART_DETECT_UI_MODES } from "Features/mapEditor/utils/getEffectiveDetectionMode";
+import { appendToPatternRepeatBuffer as appendKeyToPatternRepeatBuffer } from "Features/mapEditor/utils/patternRepeat";
 
 // Drops the whole drawing session: no tool armed, no in-progress smartDetect
 // state. Shared by setEnabledDrawingMode(null) and the MODULE switch (see the
@@ -246,6 +247,11 @@ const mapEditorInitialState = {
   // state — moved to Redux so the bottom bar can read it.
   constraintBuffer: "",
 
+  // « Répétition du motif » buffer ("*" / "*3", utils/patternRepeat.js):
+  // typed while a click-drawn path is in progress (2D and 3D editors), the
+  // next click / Enter appends the repeated pattern. Dropped with the mode.
+  patternRepeatBuffer: "",
+
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
@@ -383,6 +389,7 @@ export const mapEditorSlice = createSlice({
     },
     setEnabledDrawingMode: (state, action) => {
       const drawingMode = action.payload;
+      state.patternRepeatBuffer = "";
       // On quitting a drawing mode, reset the in-progress smartDetect session
       // state so a subsequently relaunched tool starts clean (no inherited
       // detection mode / flags).
@@ -803,6 +810,23 @@ export const mapEditorSlice = createSlice({
       state.constraintBuffer = "";
     },
 
+    // « Répétition du motif » buffer — payload = the typed key. One typed
+    // buffer at a time: opening a repetition drops the typed length.
+    appendToPatternRepeatBuffer: (state, action) => {
+      const next = appendKeyToPatternRepeatBuffer(
+        state.patternRepeatBuffer,
+        action.payload
+      );
+      if (next && !state.patternRepeatBuffer) state.constraintBuffer = "";
+      state.patternRepeatBuffer = next;
+    },
+    deleteLastPatternRepeatBuffer: (state) => {
+      state.patternRepeatBuffer = state.patternRepeatBuffer.slice(0, -1);
+    },
+    clearPatternRepeatBuffer: (state) => {
+      state.patternRepeatBuffer = "";
+    },
+
     // selected tool per template
     setSelectedToolKeyForTemplate: (state, action) => {
       const { templateId, toolKey } = action.payload;
@@ -1125,6 +1149,9 @@ export const {
   appendToConstraintBuffer,
   deleteLastConstraintBuffer,
   clearConstraintBuffer,
+  appendToPatternRepeatBuffer,
+  deleteLastPatternRepeatBuffer,
+  clearPatternRepeatBuffer,
 
   // rectangle
   setDrawingRectanglePoints,

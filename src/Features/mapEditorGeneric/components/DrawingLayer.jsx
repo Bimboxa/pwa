@@ -5,6 +5,7 @@ import React, {
   useRef,
   useMemo,
   useEffect,
+  useState,
 } from "react";
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
@@ -162,6 +163,12 @@ const DrawingLayer = forwardRef(
 
     // Sync ref immediately during render (not in useEffect which runs after paint)
     const pointsRef = useRef(points);
+    // « Répétition du motif » (`*N` typed while drawing): ghost of the
+    // repeated points, from the last placed point. While shown, the next
+    // click appends them instead of a point at the cursor, so the rubber
+    // band is hidden.
+    const [patternRepeatPoints, setPatternRepeatPoints] = useState(null);
+    const patternRepeatActiveRef = useRef(false);
     pointsRef.current = points;
 
     const meterByPxRef = useRef(meterByPx);
@@ -374,6 +381,20 @@ const DrawingLayer = forwardRef(
         if (!currentPoints || currentPoints.length === 0) return;
 
         const lastPoint = currentPoints[currentPoints.length - 1];
+
+        // Pending pattern repetition: no rubber band (the click validates
+        // the ghost, it places no point at the cursor).
+        if (patternRepeatActiveRef.current) {
+          if (previewLineRef.current)
+            previewLineRef.current.style.display = "none";
+          if (previewArcPathRef.current)
+            previewArcPathRef.current.style.display = "none";
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewStripRef.current)
+            previewStripRef.current.style.display = "none";
+          return;
+        }
 
         // ------------------------------------------------
         // CAS 1 : RECTANGLE (1er point fixe -> Curseur)
@@ -955,6 +976,24 @@ const DrawingLayer = forwardRef(
         }
       },
 
+      // Ghost of a pending « Répétition du motif » — [lastPlacedPoint,
+      // ...repeatedPoints], or null to drop it.
+      setPatternRepeatPreview: (ghostPoints) => {
+        const active = Array.isArray(ghostPoints) && ghostPoints.length >= 2;
+        patternRepeatActiveRef.current = active;
+        setPatternRepeatPoints(active ? ghostPoints : null);
+        if (active) {
+          if (previewLineRef.current)
+            previewLineRef.current.style.display = "none";
+          if (previewArcPathRef.current)
+            previewArcPathRef.current.style.display = "none";
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewStripRef.current)
+            previewStripRef.current.style.display = "none";
+        }
+      },
+
       clearPreview: () => {
         onRectanglePreviewRef.current?.(null);
         if (previewLineRef.current)
@@ -1002,6 +1041,18 @@ const DrawingLayer = forwardRef(
         ? "M " + expanded.map((p) => `${p.x} ${p.y}`).join(" L ")
         : "";
     }, [points]);
+
+    const patternRepeatPath = useMemo(() => {
+      if (!patternRepeatPoints) return "";
+      const expanded = expandArcsInPath(
+        patternRepeatPoints,
+        ARC_SAMPLES,
+        false
+      );
+      return expanded.length > 1
+        ? "M " + expanded.map((p) => `${p.x} ${p.y}`).join(" L ")
+        : "";
+    }, [patternRepeatPoints]);
 
     // Scale pour les points fixes
     const scaleTransform = useMemo(() => {
@@ -1243,6 +1294,35 @@ const DrawingLayer = forwardRef(
               }}
             />
           ))}
+
+        {/* D2. Pending « Répétition du motif » ghost (dashed, translucent):
+            the points the next click / Enter appends. */}
+        {patternRepeatPoints && (
+          <g style={{ pointerEvents: "none" }}>
+            <path
+              d={patternRepeatPath}
+              stroke={effectiveStrokeColor || "blue"}
+              strokeWidth={previewStrokeWidth}
+              strokeOpacity={0.55}
+              strokeDasharray="6 4"
+              fill="none"
+              vectorEffect={previewVectorEffect}
+            />
+            {patternRepeatPoints.slice(1).map((p, i) => (
+              <circle
+                key={i}
+                r={3}
+                cx={0}
+                cy={0}
+                fill={effectiveStrokeColor || "blue"}
+                fillOpacity={0.55}
+                style={{
+                  transform: `translate(${p.x}px, ${p.y}px) ${scaleTransform}`,
+                }}
+              />
+            ))}
+          </g>
+        )}
 
         {/* E. Zone Closing — now handled in InteractionLayer via screen-distance check */}
 

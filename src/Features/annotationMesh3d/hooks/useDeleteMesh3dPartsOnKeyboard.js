@@ -104,10 +104,12 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
         return;
       }
       // While drawing, the selected face is where the line is cut into:
-      // swallow the key (nor the parts nor the annotation get deleted).
+      // nor the parts nor the annotation get deleted. The key still reaches
+      // the drawing (useDrawingPointerHandlers, bubble phase): Backspace
+      // erases the typed length / `*N` repetition count — the other delete
+      // hooks stand down while drawing.
       if (state.threedEditor.drawingMode.active) {
         e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
