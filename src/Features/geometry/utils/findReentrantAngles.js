@@ -11,7 +11,10 @@
  * forming the angle is shorter than `minSegmentLengthPx` (a small décrochage).
  *
  * @param {Object} params
- * @param {Array} params.polylines - [{ id, points: [{x,y,id,type?}...], height, closeLine }] in pixel coords
+ * @param {Array} params.polylines - [{ id, points: [{x,y,id,type?,offsetBottom?,offsetTop?}...], height, closeLine }] in pixel coords.
+ *   Per-vertex offsets follow the 3D wall convention (extrudePolylineWall):
+ *   bottom = offsetZ + offsetBottom, top = offsetZ + height + offsetTop — so
+ *   slope walls (height 0, vertical carried by the vertices) form angles too.
  * @param {Array} params.polygons  - [{ id, points: [{x,y,id}...], cuts: [{points}...] }] in pixel coords
  * @param {number} [params.angleThreshold=160] - max angle (degrees) to consider reentrant
  * @param {number} [params.epsilon=2] - tolerance in pixels for point-on-segment detection
@@ -38,8 +41,11 @@ export default function findReentrantAngles({
   const offsetZByPolylineId = new Map(
     polylines.map((pl) => [pl.id, pl.offsetZ ?? 0])
   );
-  // Vertical [bottom, top] of a wall, null when its height is unknown.
-  const verticalOf = (id) => {
+  // Vertical [bottom, top] of a wall at a vertex, null when its height is
+  // unknown. A slope-wall vertex carries its own vertical (seg.vertical).
+  const verticalOf = (seg) => {
+    if (seg.vertical) return seg.vertical;
+    const id = seg.polylineId;
     const h = heightByPolylineId.get(id);
     if (h == null) return null;
     const z = offsetZByPolylineId.get(id) ?? 0;
@@ -88,6 +94,16 @@ export default function findReentrantAngles({
 
       const entry = vertexMap.get(key);
       if (p.type === "circle") entry.isCircle = true;
+      // Vertical at this vertex (wall of known height only).
+      const z = polyline.offsetZ ?? 0;
+      const vertical =
+        Number.isFinite(polyline.height) &&
+        (Number.isFinite(p.offsetBottom) || Number.isFinite(p.offsetTop))
+          ? {
+              bottom: z + (p.offsetBottom ?? 0),
+              top: z + polyline.height + (p.offsetTop ?? 0),
+            }
+          : null;
       if (polyline.height != null) {
         entry.heights.push(polyline.height);
       }
@@ -106,6 +122,7 @@ export default function findReentrantAngles({
           len: Math.hypot(dx, dy),
           toCircle: prev.type === "circle",
           polylineId: polyline.id,
+          ...(vertical ? { vertical } : {}),
         });
       }
 
@@ -121,6 +138,7 @@ export default function findReentrantAngles({
           len: Math.hypot(dx, dy),
           toCircle: next.type === "circle",
           polylineId: polyline.id,
+          ...(vertical ? { vertical } : {}),
         });
       }
     }
@@ -186,8 +204,8 @@ export default function findReentrantAngles({
             isPointInsidePolygonWithCuts(testPoint, pg)
           )
         ) {
-          const vi = verticalOf(segs[i].polylineId);
-          const vj = verticalOf(segs[j].polylineId);
+          const vi = verticalOf(segs[i]);
+          const vj = verticalOf(segs[j]);
           if (vi && vj) {
             const bottom = Math.max(vi.bottom, vj.bottom);
             const top = Math.min(vi.top, vj.top);
