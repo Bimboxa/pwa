@@ -10,6 +10,11 @@ import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingMo
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
 import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
+import {
+  parsePatternRepeatCount,
+  repeatDrawingPattern,
+} from "Features/mapEditor/utils/patternRepeat";
+import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRepeatDrawingModes";
 import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
 import { setRectSideAxes } from "Features/mapEditor/mapEditorSlice";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
@@ -91,6 +96,8 @@ const ALIGN_LEADER_EPS_M = 5e-3;
 const LINEWIDTH_PREVIEW = 1.5;
 const LINEWIDTH_IN_PROGRESS = 2;
 const LINEWIDTH_TRAIT = 2;
+// Pending « Répétition du motif » ghost: the in-progress colour, see-through.
+const PATTERN_REPEAT_OPACITY = 0.55;
 
 // Pixel radius of the snap-helper circle, matching the 2D SnappingLayer.
 const SNAP_CIRCLE_RADIUS_PX = 6;
@@ -204,6 +211,11 @@ export default function DrawingOverlayThreed() {
   // preview snap is rescaled to it on the next move — and right away through
   // the rerun effect below.
   const constraintBuffer = useSelector((s) => s.mapEditor.constraintBuffer);
+  // « Répétition du motif » count (`*N`, see useDrawingPointerHandlers): the
+  // ghost of the repeated vertices replaces the rubber band.
+  const patternRepeatBuffer = useSelector(
+    (s) => s.mapEditor.patternRepeatBuffer
+  );
   // Typed X / Y dimensions of a rectangle (template, "Dessin" or "Coupe
   // face") and the axis being typed: the preview and its side badges follow
   // them (re-run of the pointer-move effect, which reads the store).
@@ -227,6 +239,7 @@ export default function DrawingOverlayThreed() {
   const traitLinesRef = useRef(null);
   const inProgressLinesRef = useRef(null);
   const inProgressMarkersRef = useRef(null);
+  const patternRepeatGhostRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
   const crossARef = useRef(null);
@@ -280,6 +293,7 @@ export default function DrawingOverlayThreed() {
       traitLinesRef.current = null;
       inProgressLinesRef.current = null;
       inProgressMarkersRef.current = null;
+      patternRepeatGhostRef.current = null;
       previewLineRef.current = null;
       // No stale snap for the next tool's click.
       setLastSnap(null);
@@ -354,6 +368,59 @@ export default function DrawingOverlayThreed() {
     }
     getActiveThreedEditor()?.sceneManager?.renderScene?.();
   }, [inProgressPolyline, active]);
+
+  // Pending « Répétition du motif »: dashed, see-through ghost of the
+  // vertices the next click / Enter appends, from the last placed point.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (patternRepeatGhostRef.current) {
+      root.remove(patternRepeatGhostRef.current);
+      disposeObject(patternRepeatGhostRef.current);
+      patternRepeatGhostRef.current = null;
+    }
+    const count = parsePatternRepeatCount(patternRepeatBuffer);
+    const repeated =
+      count && PATTERN_REPEAT_DRAWING_MODES.includes(enabledDrawingMode)
+        ? repeatDrawingPattern(inProgressPolyline, count)
+        : [];
+    if (repeated.length > 0) {
+      const editor = getActiveThreedEditor();
+      const ghostPoints = [
+        inProgressPolyline[inProgressPolyline.length - 1],
+        ...repeated,
+      ];
+      const ghost = new Group();
+      ghost.name = "PatternRepeatGhost";
+      const camera = editor?.sceneManager?.camera;
+      const last = ghostPoints[0];
+      const mat = makeLineMaterial({
+        color: COLOR_IN_PROGRESS,
+        linewidth: LINEWIDTH_IN_PROGRESS,
+        dashed: true,
+        dashSize: getDashSize(
+          camera?.position?.distanceTo?.(new Vector3(last.x, last.y, last.z))
+        ),
+        resolution: getCanvasResolution(editor),
+      });
+      mat.opacity = PATTERN_REPEAT_OPACITY;
+      const line = buildConnectedPolyline(ghostPoints, mat);
+      if (line) {
+        line.renderOrder = 1000;
+        ghost.add(line);
+      }
+      const markers = buildDrawingVertexMarkers(repeated, COLOR_IN_PROGRESS);
+      if (markers) {
+        markers.renderOrder = 1001;
+        markers.material.transparent = true;
+        markers.material.opacity = PATTERN_REPEAT_OPACITY;
+        ghost.add(markers);
+      }
+      root.add(ghost);
+      patternRepeatGhostRef.current = ghost;
+    }
+    getActiveThreedEditor()?.sceneManager?.renderScene?.();
+  }, [patternRepeatBuffer, inProgressPolyline, enabledDrawingMode, active]);
 
   // pointer-move: snap detection + hover marker + plane cross + alignment
   // markers (SVG, screen-space) + dashed preview segment or rectangle loop
@@ -1142,14 +1209,31 @@ export default function DrawingOverlayThreed() {
       updateSnapCircle(snap, rect, segmentAxis);
       updateCross(snap, rect);
       updateAlignMarkers(snap, rect);
+      // Pending `*N`: the click appends the repeated vertices, not the
+      // cursor — no rubber band, the badge shows the count.
+      const repeatCount =
+        last && PATTERN_REPEAT_DRAWING_MODES.includes(enabledDrawingMode)
+          ? parsePatternRepeatCount(
+              store.getState().mapEditor.patternRepeatBuffer
+            )
+          : 0;
       if (anchor) {
         updateRectanglePreview(snap, rect);
       } else {
         hideRectDimBadges();
         if (discCenter) updateCirclePreview(snap, segmentAxis);
+        else if (repeatCount) clearPreviewLine();
         else updatePreviewLine(snap, segmentAxis);
       }
       updateLengthBadge(snap, last, e, rect, Boolean(constrained), segmentAxis);
+      if (repeatCount && badgeRef.current) {
+        badgeRef.current.update({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          text: `×${repeatCount}`,
+          locked: true,
+        });
+      }
       editor.sceneManager.renderScene?.();
     }
 
@@ -1207,7 +1291,7 @@ export default function DrawingOverlayThreed() {
   // this one redraws the free preview from it.
   useEffect(() => {
     rerunRef.current?.();
-  }, [constraintBuffer]);
+  }, [constraintBuffer, patternRepeatBuffer]);
 
   if (!active) return null;
   return (

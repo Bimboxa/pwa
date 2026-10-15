@@ -40,6 +40,7 @@ import CardWallVectorization from "Features/smartDetect/components/CardWallVecto
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionDrawingConstraints from "./SectionDrawingConstraints";
+import SectionDrawingPatternRepeat from "./SectionDrawingPatternRepeat";
 import getEffectiveDetectionMode, {
   SMART_DETECT_UI_MODES,
 } from "Features/mapEditor/utils/getEffectiveDetectionMode";
@@ -709,6 +710,9 @@ export default function SectionDrawingHelperContent() {
       {/* Typed length / dimension constraints of the armed mode (rectangle
           sides, segment length, radius, cut distance) — null otherwise. */}
       <SectionDrawingConstraints />
+      {/* `*N` repetition of the pattern just drawn (click-drawn paths,
+          2D and 3D) — null otherwise. */}
+      <SectionDrawingPatternRepeat />
       {/* 2D image detection: meaningless in the 3D editor */}
       {showSmartDetectCard && !isThreedToggledEditor && <CardSmartDetect />}
       {showWallVectorizationCard && !isThreedToggledEditor && (

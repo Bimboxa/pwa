@@ -41,6 +41,9 @@ import {
   setRepairMode,
   setSegmentSnapDirection,
   clearConstraintBuffer,
+  appendToPatternRepeatBuffer,
+  deleteLastPatternRepeatBuffer,
+  clearPatternRepeatBuffer,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
@@ -206,6 +209,8 @@ import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
 import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
+import { getPatternSegmentCount, parsePatternRepeatCount, repeatDrawingPattern } from "Features/mapEditor/utils/patternRepeat";
+import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRepeatDrawingModes";
 import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
 import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
@@ -3396,6 +3401,41 @@ const InteractionLayer = forwardRef(({
     lastSmartROI,
   });
 
+  // --- « RÉPÉTITION DU MOTIF » (`*N` typed while drawing, utils/patternRepeat) ---
+
+  const patternRepeatBuffer = useSelector((s) => s.mapEditor.patternRepeatBuffer);
+
+  // Points a pending `*N` would append (null when none). Reads the store,
+  // not a mirrored ref: the keydown / click handlers run right after a
+  // dispatch, before the next render.
+  const getPendingPatternRepeat = () => {
+    const count = parsePatternRepeatCount(
+      store.getState().mapEditor.patternRepeatBuffer
+    );
+    if (!count) return null;
+    if (!PATTERN_REPEAT_DRAWING_MODES.includes(enabledDrawingModeRef.current)) return null;
+    const repeated = repeatDrawingPattern(drawingPointsRef.current, count);
+    return repeated.length > 0 ? repeated : null;
+  };
+
+  // Click / Enter with a `*N` typed: append the repeated points (no point at
+  // the cursor, the drawing goes on). True when a repetition was pending —
+  // the click is then consumed, even when nothing repeats ("*0", closed
+  // pattern).
+  const applyPendingPatternRepeat = () => {
+    if (!store.getState().mapEditor.patternRepeatBuffer) return false;
+    const repeated = getPendingPatternRepeat();
+    dispatch(clearPatternRepeatBuffer());
+    drawingLayerRef.current?.setPatternRepeatPreview?.(null);
+    if (!repeated) return true;
+    const nextPoints = [...drawingPointsRef.current, ...repeated];
+    setDrawingPoints(nextPoints);
+    drawingPointsRef.current = nextPoints;
+    // Bypasses the render cycle — the mousemove preview reads the ref.
+    drawingLayerRef.current?.setPoints?.(nextPoints);
+    return true;
+  };
+
   // --- TYPED LENGTH ON THE RUBBER BAND + LIVE LENGTH NEXT TO THE CURSOR ---
 
   // Applies the typed length (constraintBuffer) to the preview candidate.
@@ -3438,6 +3478,14 @@ const InteractionLayer = forwardRef(({
     const mode = enabledDrawingModeRef.current;
     if (!SEGMENT_DRAWING_MODES.includes(mode)) {
       badge.hide();
+      return;
+    }
+    // Pending « Répétition du motif »: the badge shows the count instead.
+    const repeatCount = parsePatternRepeatCount(
+      store.getState().mapEditor.patternRepeatBuffer
+    );
+    if (repeatCount && PATTERN_REPEAT_DRAWING_MODES.includes(mode)) {
+      badge.update({ x: viewportPos.x, y: viewportPos.y, text: `×${repeatCount}`, locked: true });
       return;
     }
     const locked =
@@ -3540,12 +3588,38 @@ const InteractionLayer = forwardRef(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [constraintBuffer]);
 
+  // `*N` typed / erased / validated: ghost of the repeated points, the
+  // badge shows the count; back to the rubber band once dropped. Gated on
+  // the active viewer: the 3D editor types into the same buffer.
+  useEffect(() => {
+    const layer = drawingLayerRef.current;
+    if (!layer?.setPatternRepeatPreview) return;
+    const repeated = isActiveViewerRef.current ? getPendingPatternRepeat() : null;
+    const pts = drawingPointsRef.current;
+    layer.setPatternRepeatPreview(
+      repeated ? [pts[pts.length - 1], ...repeated] : null
+    );
+    if (!isActiveViewerRef.current || !pts?.length) return;
+    const previewPos = lastPreviewPosRef.current;
+    if (!repeated && previewPos) layer.updatePreview(previewPos);
+    updateSegmentLengthMetrics(
+      pts[pts.length - 1],
+      previewPos,
+      lastMouseScreenPosRef.current?.viewportPos
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patternRepeatBuffer]);
+
   // No segment in progress (Enter / double-click / Escape commit, tool
   // change): the badge must not linger until the next mouse move.
   useEffect(() => {
     if (drawingPoints.length === 0) {
       segmentLengthBadgeRef.current?.hide();
       hideRectDimBadges();
+      // A `*N` typed for the drawing just ended / dropped.
+      if (isActiveViewerRef.current && store.getState().mapEditor.patternRepeatBuffer) {
+        dispatch(clearPatternRepeatBuffer());
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawingPoints.length]);
@@ -4594,6 +4668,13 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Pending « Répétition du motif »: Escape only drops it.
+          if (enabledDrawingMode && store.getState().mapEditor.patternRepeatBuffer) {
+            dispatch(clearPatternRepeatBuffer());
+            e.stopPropagation();
+            return;
+          }
+
           if (selectedPartId) {
             dispatch(setSubSelection({ partId: null }));
             e.stopPropagation();
@@ -5289,6 +5370,8 @@ const InteractionLayer = forwardRef(({
             commitPolyline();
             break;
           }
+          // A pending `*N` is appended first, then the drawing ends.
+          applyPendingPatternRepeat();
           commitInProgressDrawing();
 
           if (enabledDrawingModeRef.current === "SMART_DETECT") {
@@ -5324,7 +5407,11 @@ const InteractionLayer = forwardRef(({
           if (!isActiveViewerRef.current) break;
           // When drawing with a constraint buffer, Backspace erases from buffer
           if (enabledDrawingMode && e.key === 'Backspace') {
-            deleteFromBuffer();
+            if (store.getState().mapEditor.patternRepeatBuffer) {
+              dispatch(deleteLastPatternRepeatBuffer());
+            } else {
+              deleteFromBuffer();
+            }
             break;
           }
           console.log("Action: Delete Selected");
@@ -5494,7 +5581,22 @@ const InteractionLayer = forwardRef(({
           viewportRef.current?.panBy(panByXMap[e.key], panByYMap[e.key]);
           break;
 
-        default:
+        default: {
+          // « Répétition du motif »: "*" opens the count (only with a pattern
+          // to repeat: one segment at least, not closed), digits then feed
+          // it — not the length.
+          const repeatBuffer = store.getState().mapEditor.patternRepeatBuffer;
+          if (
+            PATTERN_REPEAT_DRAWING_MODES.includes(enabledDrawingMode) &&
+            (e.key === "*"
+              ? getPatternSegmentCount(drawingPointsRef.current) > 0
+              : Boolean(repeatBuffer))
+          ) {
+            if (e.key === "*" || /^[0-9]$/.test(e.key)) {
+              dispatch(appendToPatternRepeatBuffer(e.key));
+            }
+            break;
+          }
           // Digit / dot / comma / semicolon → append to constraint buffer while
           // drawing. ";" chains several lengths ("6;0.2;2"): one click then
           // places that many collinear segments (see parseConstraintLengths).
@@ -5503,6 +5605,7 @@ const InteractionLayer = forwardRef(({
             appendToBuffer(char);
           }
           break;
+        }
       }
     };
 
@@ -6053,6 +6156,9 @@ const InteractionLayer = forwardRef(({
     }
 
     if (MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)) {
+      // A pending `*N`: this click validates the repeated points only.
+      if (applyPendingPatternRepeat()) return;
+
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
       // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
@@ -7903,6 +8009,12 @@ const InteractionLayer = forwardRef(({
     // Mode Dessin
     // =======================================================
     if (enabledDrawingMode) {
+
+      // A pending `*N`: this click validates the repeated points only.
+      if (applyPendingPatternRepeat()) {
+        screenCursorRef.current?.triggerFlash();
+        return;
+      }
 
       // SPLIT at vertex: if clicking a VERTEX snap on a POLYLINE/STRIP, split immediately
       if (["CLICK", "SPLIT_CLICK"].includes(enabledDrawingMode)

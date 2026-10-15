@@ -629,6 +629,10 @@ export const threedEditorSlice = createSlice({
     pushDrawingVertex: (state, action) => {
       state.drawingMode.inProgressPolyline.push(action.payload);
     },
+    // « Répétition du motif » (`*N`): the repeated vertices at once.
+    appendDrawingVertices: (state, action) => {
+      state.drawingMode.inProgressPolyline.push(...action.payload);
+    },
     cancelInProgressPolyline: (state) => {
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.axisLock = null;
@@ -1334,6 +1338,7 @@ export const {
   setSelectAnnotationInThreed,
   setDrawingModeActive,
   pushDrawingVertex,
+  appendDrawingVertices,
   cancelInProgressPolyline,
   toggleFaceCutSide,
   flushInProgressAsTrait3D,
