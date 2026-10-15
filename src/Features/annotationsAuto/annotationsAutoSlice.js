@@ -21,6 +21,11 @@ const initialState = {
   // replace-on-rerun). Revolution-axis systems are launched from their
   // listing (DialogProcedureAxisLaunch), never through this.
   pendingProcedureLaunch: null,
+  // {[listingId]: procedureKey} — procedure shown in the "Dessin auto" band of
+  // a listing (SectionListingProcedures) and preferred by the annotation
+  // toolbar band (RowProcedureActionAuto); a missing key falls back to the
+  // first linked procedure.
+  activeProcedureKeyByListingId: {},
 };
 
 export const annotationsAutoSlice = createSlice({
@@ -67,6 +72,11 @@ export const annotationsAutoSlice = createSlice({
     setPendingProcedureLaunch: (state, action) => {
       state.pendingProcedureLaunch = action.payload;
     },
+    setListingActiveProcedureKey: (state, action) => {
+      const { listingId, procedureKey } = action.payload;
+      if (!listingId) return;
+      state.activeProcedureKeyByListingId[listingId] = procedureKey;
+    },
     reset: () => initialState,
   },
 });
@@ -84,6 +94,7 @@ export const {
   setProcedureOption,
   setRunning,
   setPendingProcedureLaunch,
+  setListingActiveProcedureKey,
   reset,
 } = annotationsAutoSlice.actions;
 

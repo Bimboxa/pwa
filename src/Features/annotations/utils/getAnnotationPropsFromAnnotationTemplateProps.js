@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -102,6 +102,11 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // (not a per-annotation style override, so not gated by overrideFields).
     if (annotationTemplateProps.hideSlope !== null && annotationTemplateProps.hideSlope !== undefined) {
         result.hideSlope = annotationTemplateProps.hideSlope;
+    }
+
+    // slopeFontSize (« Pente » text size) follows the same template-level rule.
+    if (annotationTemplateProps.slopeFontSize !== null && annotationTemplateProps.slopeFontSize !== undefined) {
+        result.slopeFontSize = annotationTemplateProps.slopeFontSize;
     }
 
     // material3d (PHOTOREAL material preset), color3D, opacity3D and

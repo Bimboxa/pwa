@@ -44,6 +44,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     hiddenInLegend: annotationTemplate?.hiddenInLegend,
 
     hideSlope: annotationTemplate?.hideSlope,
+    slopeFontSize: annotationTemplate?.slopeFontSize,
 
     // 3D-only vertical delta added to offsetZ at render time (POLYGON);
     // template-owned, never copied onto the annotation's offsetZ.

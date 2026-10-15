@@ -30,6 +30,7 @@ import {
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import addAnnotationSubtraction from "Features/annotations/services/addAnnotationSubtraction";
+import bakeSubtractionPickService from "Features/annotationMesh3d/services/bakeSubtractionPickService";
 import {
   clearItemPartSelection,
   setSelectedItem,
@@ -1336,6 +1337,22 @@ export default function MainThreedEditor() {
                     severity: "warning",
                   })
                 );
+                return;
+              }
+              // « Soustraire définitivement »: baked right away from the
+              // resolved annotations the scene objects were built from, no
+              // relation is created.
+              if (store.getState().mapEditor.subtractPermanently) {
+                const sceneManager = threedEditorRef.current?.sceneManager;
+                const annotationsManager = sceneManager?.annotationsManager;
+                bakeSubtractionPickService({
+                  pivot: annotationsManager?.getAnnotationSource(pivotId),
+                  picked: [annotationsManager?.getAnnotationSource(nodeId)],
+                  isReverse: !pickSourceId,
+                  baseMapsById: sceneManager?.imagesManager?.baseMapsMap,
+                  buildOptions: annotationsManager?.getBuildOptions(),
+                  dispatch,
+                });
                 return;
               }
               const projectId = store.getState().projects.selectedProjectId;

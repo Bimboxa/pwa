@@ -11,6 +11,9 @@ import ProcedureActionButtons from "./ProcedureActionButtons";
  * (with the configured water level as secondary text below it) on the left,
  * play / reset / refresh on the right. Shared by the "Auto" popper, the
  * annotation toolbar rows and the "Dessin auto" panel.
+ *
+ * `actions` (optional) is rendered after the buttons (e.g. a procedure
+ * selector).
  */
 export default function RowProcedureLauncher({
   procedure,
@@ -19,6 +22,7 @@ export default function RowProcedureLauncher({
   sourceListingId = null,
   standardRun = false,
   disabled = false,
+  actions = null,
   sx,
 }) {
   // data
@@ -83,6 +87,7 @@ export default function RowProcedureLauncher({
         standardRun={standardRun}
         disabled={disabled}
       />
+      {actions}
     </Box>
   );
 }

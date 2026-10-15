@@ -18,6 +18,7 @@ import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDescription from "./FieldAnnotationTemplateDescription";
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
+import FieldAnnotationTemplateSlope from "./FieldAnnotationTemplateSlope";
 import FieldAnnotationTemplateLabelSize from "./FieldAnnotationTemplateLabelSize";
 import FieldAnnotationTemplateDetailSize from "./FieldAnnotationTemplateDetailSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
@@ -307,10 +308,6 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleOverrideFieldsChange(newOverrideFields) {
     onChange({ ...annotationTemplate, overrideFields: newOverrideFields });
-  }
-
-  function handleHideSlopeChange(hideSlope) {
-    onChange({ ...annotationTemplate, hideSlope });
   }
 
   function handleShowIn3dChange(showIn3d) {
@@ -743,13 +740,11 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
-          {/* Slope indicator toggle (POLYGON) */}
+          {/* Slope indicator « Pente » (POLYGON): visibility + font size */}
           {hasHideSlope && drawingShape === "POLYGON" && (
-            <FieldCheck
-              label="Masquer la pente"
-              value={Boolean(annotationTemplate?.hideSlope)}
-              onChange={handleHideSlopeChange}
-              options={{ type: "switch", showAsField: true }}
+            <FieldAnnotationTemplateSlope
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
             />
           )}
 
