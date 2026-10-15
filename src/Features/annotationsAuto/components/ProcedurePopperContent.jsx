@@ -6,6 +6,7 @@ import db from "App/db/db";
 import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
+import matchAnnotationTemplate from "../utils/matchAnnotationTemplate";
 
 import { Paper, Box, Typography, Divider } from "@mui/material";
 
@@ -75,9 +76,7 @@ export default function ProcedurePopperContent({
       (t) => t.listingId === sourceTemplate?.listingId
     );
     for (const tag of createdTags) {
-      const template = listingTemplates.find((t) =>
-        t.mappingCategories?.includes(tag)
-      );
+      const template = matchAnnotationTemplate(listingTemplates, [tag]);
       if (template && !seen.has(template.id)) {
         seen.add(template.id);
         createdTemplates.push(template);

@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 import hasProcedureParams from "../utils/hasProcedureParams";
+import matchAnnotationTemplate from "../utils/matchAnnotationTemplate";
 
 import { Box, Typography } from "@mui/material";
 
@@ -100,7 +101,15 @@ export default function SectionsProcedureProperties({
   const sourceCategories = procedure?.sourceMappingCategories ?? [];
   const createdCategories = procedure?.createdMappingCategories ?? [];
   const sourceTemplates = getTemplatesByCategories(sourceCategories);
-  const createdTemplates = getTemplatesByCategories(createdCategories);
+  // created = the template each category resolves to (same rule as the
+  // procedures), not every template carrying it
+  const createdTemplates = [
+    ...new Set(
+      createdCategories
+        .map((c) => matchAnnotationTemplate(listingTemplates, [c]))
+        .filter(Boolean)
+    ),
+  ];
   const sourceIds = sourceAnnotationIds ?? [];
   const sourceCount = sourceIds.length;
   const sourceCountS =
