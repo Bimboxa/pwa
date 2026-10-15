@@ -5,6 +5,10 @@ const UNDO_TABLES = new Set([
   // Painted mesh parts (Features/meshPaint). Re-sync writes run in a
   // tx.derivedWrite transaction and push no entry.
   "meshPaints",
+  // Subtraction relations: « Soustraire définitivement » deletes the baked
+  // ones in the same undo step as the host's mesh write, so one Ctrl+Z
+  // restores the host AND its live subtraction.
+  "relAnnotationSubtractions",
 ]);
 const MAX_UNDO = 50;
 

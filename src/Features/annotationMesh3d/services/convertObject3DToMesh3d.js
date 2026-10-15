@@ -3,6 +3,7 @@ import { Matrix4, Vector3 } from "three";
 import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 
+import buildMesh3dFromCarvedTriangles from "../utils/buildMesh3dFromCarvedTriangles";
 import buildMesh3dFromTriangles from "../utils/buildMesh3dFromTriangles";
 import { getMesh3dSignedVolume } from "../utils/getMesh3dQties";
 import isMesh3dClosed from "../utils/isMesh3dClosed";
@@ -25,15 +26,22 @@ const MAX_FACES = 2000;
 // of a PX polyline wall, a sloped band...) is returned as it is instead of
 // null — for a display-only use (face selection, getDisplayedMesh3d), never
 // for a write: its winding is not normalized.
+//
+// options.carved: the object IS the output of a CSG subtraction (the
+// « Soustraire définitivement » bake): its coplanar triangles only share
+// partial edges (T-junctions), so the faces are rebuilt by a 2D union per
+// plane (buildMesh3dFromCarvedTriangles) instead of by edge connectivity.
 export default function convertObject3DToMesh3d(
   object,
   baseMapGroup,
-  { allowOpen = false } = {}
+  { allowOpen = false, carved = false } = {}
 ) {
   if (!object || !baseMapGroup) return null;
   const solids = getSolidMeshesFromObject3D(object);
   if (!solids.length) return null;
-  if (solids.some((mesh) => mesh.userData?.hasSubtraction)) return null;
+  if (!carved && solids.some((mesh) => mesh.userData?.hasSubtraction)) {
+    return null;
+  }
 
   baseMapGroup.updateWorldMatrix(true, false);
   const worldToLocal = new Matrix4().copy(baseMapGroup.matrixWorld).invert();
@@ -58,7 +66,9 @@ export default function convertObject3DToMesh3d(
   }
   if (positions.length < 9) return null;
 
-  const mesh = buildMesh3dFromTriangles({ positions });
+  const mesh = carved
+    ? buildMesh3dFromCarvedTriangles({ positions })
+    : buildMesh3dFromTriangles({ positions });
   if (!mesh || mesh.faces.length > MAX_FACES) return null;
 
   if (isMesh3dClosed(mesh)) {

@@ -261,6 +261,7 @@ const mapEditorInitialState = {
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
   subtractTargetAnnotationId: null, // annotation being SUBTRACTED; clicked annotations become the carved sources
+  subtractPermanently: false, // « Soustraire définitivement » (S): the picks are baked into the host mesh, no relation is kept
 
   // ortho snap
   orthoSnapAngleOffset: 0, // degrees
@@ -838,6 +839,8 @@ export const mapEditorSlice = createSlice({
       state.subtractSourceAnnotationId = action.payload;
       state.subtractTargetAnnotationId = null; // the two directions are exclusive
       state.showLayerScreenCursor = Boolean(action.payload);
+      // Destructive option: off again every time a mode is armed.
+      if (action.payload) state.subtractPermanently = false;
     },
 
     // reverse subtraction pick mode — the pivot annotation is the one being
@@ -846,6 +849,15 @@ export const mapEditorSlice = createSlice({
       state.subtractTargetAnnotationId = action.payload;
       state.subtractSourceAnnotationId = null; // the two directions are exclusive
       state.showLayerScreenCursor = Boolean(action.payload);
+      if (action.payload) state.subtractPermanently = false;
+    },
+
+    // « Soustraire définitivement » switch of the subtraction pick modes.
+    setSubtractPermanently: (state, action) => {
+      state.subtractPermanently = Boolean(action.payload);
+    },
+    toggleSubtractPermanently: (state) => {
+      state.subtractPermanently = !state.subtractPermanently;
     },
 
     // ortho snap
@@ -1155,6 +1167,8 @@ export const {
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
   setSubtractTargetAnnotationId,
+  setSubtractPermanently,
+  toggleSubtractPermanently,
 
   // ortho snap
   setOrthoSnapAngleOffset,

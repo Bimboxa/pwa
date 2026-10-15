@@ -114,6 +114,7 @@ import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
+import bakeSubtractionPickService from 'Features/annotationMesh3d/services/bakeSubtractionPickService';
 import toggleAnnotationBusinessObjectLinkService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectLinkService';
 import { setLinkingBusinessObjectId, triggerRelsBusinessObjectAnnotationUpdate, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
 import toggleAnnotationWorkPackageLinkService from 'Features/businessObjects/services/toggleAnnotationWorkPackageLinkService';
@@ -668,6 +669,8 @@ const InteractionLayer = forwardRef(({
   const subtractSourceAnnotationId = useSelector((s) => s.mapEditor.subtractSourceAnnotationId);
   // Reverse subtraction pick mode (this annotation carves the clicked ones)
   const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
+  // « Soustraire définitivement »: the picks are baked into the host mesh
+  const subtractPermanently = useSelector((s) => s.mapEditor.subtractPermanently);
   // Business-object link mode (clicks toggle links to this "Ouvrages" object)
   const linkingBusinessObjectId = useSelector((s) => s.businessObjects.linkingBusinessObjectId);
   // Work-package link mode (clicks move annotations into this PLANNING package)
@@ -5643,6 +5646,15 @@ const InteractionLayer = forwardRef(({
               severity: "warning",
             })
           );
+        } else if (subtractPermanently) {
+          // Baked right away: no relation is created.
+          await bakeSubtractionPickService({
+            pivot: annotations?.find((a) => a.id === subtractSourceAnnotationId),
+            picked: [annotations?.find((a) => a.id === targetId)],
+            isReverse: false,
+            baseMapsById: { [calibrationBaseMap?.id]: calibrationBaseMap },
+            dispatch,
+          });
         } else {
           const relId = await addAnnotationSubtraction({
             projectId: selectedProjectId,
@@ -5691,7 +5703,16 @@ const InteractionLayer = forwardRef(({
         }
       }
       // Empty-space clicks do nothing, like the forward mode.
-      if (sourceIds.length > 0) {
+      if (sourceIds.length > 0 && subtractPermanently) {
+        // Baked right away: no relation is created.
+        await bakeSubtractionPickService({
+          pivot: annotations?.find((a) => a.id === subtractTargetAnnotationId),
+          picked: sourceIds.map((id) => annotations?.find((a) => a.id === id)),
+          isReverse: true,
+          baseMapsById: { [calibrationBaseMap?.id]: calibrationBaseMap },
+          dispatch,
+        });
+      } else if (sourceIds.length > 0) {
         const { addedIds } = await addAnnotationSubtractions({
           projectId: selectedProjectId,
           pairs: sourceIds.map((sourceAnnotationId) => ({

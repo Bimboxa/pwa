@@ -14,7 +14,6 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import SectionAnnotationQties from "./SectionAnnotationQties";
 import SectionAnnotationPentes from "./SectionAnnotationPentes";
 import SectionAnnotationCalepinage from "./SectionAnnotationCalepinage";
-import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
 import SectionAnnotationOpenings from "./SectionAnnotationOpenings";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import SectionAnnotationTransform from "./SectionAnnotationTransform";
@@ -238,10 +237,6 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {type === "STRIP" && <FieldAnnotationIsLayer annotation={annotation} />}
       </Box>
-
-      {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (
-        <SectionAnnotationSubtractions annotation={annotation} />
-      )}
 
       <SectionAnnotationOpenings annotation={annotation} />
     </>
