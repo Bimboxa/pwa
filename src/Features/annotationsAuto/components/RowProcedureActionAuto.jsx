@@ -76,7 +76,8 @@ export default function RowProcedureActionAuto({
 
   // helpers
 
-  const pickedKey = picked?.annotationId === annotation?.id ? picked.key : null;
+  const pickedKey =
+    picked && picked.annotationId === annotation?.id ? picked.key : null;
   const findLinked = (key) =>
     key ? linkedProcedures.find((p) => p.key === key) : null;
   const procedure =
