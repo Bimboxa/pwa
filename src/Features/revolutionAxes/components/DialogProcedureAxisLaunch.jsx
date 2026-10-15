@@ -8,14 +8,10 @@ import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVerticalBaseMapsByListing";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import useRunProcedureReplacing from "Features/annotationsAuto/hooks/useRunProcedureReplacing";
 import useProcedureOutputs from "Features/annotationsAuto/hooks/useProcedureOutputs";
 import getProcedureOutputs from "Features/annotationsAuto/services/getProcedureOutputs";
-import isRevolutionHelperInScope, {
-  getScopeIdByListingId,
-} from "Features/annotations/utils/isRevolutionHelperInScope";
 import useRevolutionAxesOfBaseMap from "../hooks/useRevolutionAxesOfBaseMap";
 
 import {
@@ -26,8 +22,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  ListSubheader,
-  MenuItem,
   TextField,
   Typography,
 } from "@mui/material";
@@ -39,7 +33,7 @@ import ChipsRevolutionAxes from "./ChipsRevolutionAxes";
 const STEP_TITLE = "Axe et fond de plan";
 const AXIS_LABEL = "Axe";
 const BASE_MAP_LABEL = "Fond de plan vertical";
-const CREATE_LABEL = "Nouvelle page à l'échelle";
+const BASE_MAP_NAME_LABEL = "Nom du fond de plan à créer";
 const NO_NAME = "Sans nom";
 const CANCEL = "Annuler";
 const NEXT = "Définir la géométrie";
@@ -49,7 +43,8 @@ const DELETE = "Supprimer";
 const deletedS = (n) => `${n} annotation(s) supprimée(s)`;
 
 const EMPTY = [];
-const CREATE_VALUE = "__create__";
+
+const getDefaultBaseMapName = (axis) => `Coupe ${axis?.label ?? "Axe"}`;
 
 const sectionLabelSx = {
   display: "block",
@@ -68,13 +63,12 @@ const sectionLabelSx = {
  * 1. « Axe et fond de plan »: the axis of the scope to generate around
  *    (ChipsRevolutionAxes, first axis preselected) and the vertical page the
  *    drawing lands on: chips of the pages the axis is already posed on (its
- *    placements), else one select between a page created at launch (blank,
- *    sized by the system — the cotes dialog's own section) and an existing
- *    vertical base map the run poses the axis on (createRevolutionRunOutputs
- *    creates the missing placement);
+ *    placements), else the name of the page created at launch (blank, sized
+ *    by the system — the cotes dialog's own section), « Coupe <axe> » by
+ *    default;
  * 2. the registry `paramsDialog` of the system (DialogProcedureRevolutionSection
  *    through its thin wrapper), fed with `setup = { listingId,
- *    verticalBaseMapId }`, whose confirm persists the cotes + the listing on
+ *    verticalBaseMapId, baseMapName }`, whose confirm persists the cotes + the listing on
  *    the axis (association mark) and runs the system in replace-on-rerun mode
  *    (useRunProcedureReplacing). « Créer » / « Mettre à jour » + « Supprimer »
  *    according to the axis's live outputs.
@@ -93,7 +87,6 @@ export default function DialogProcedureAxisLaunch({
 
   // data
 
-  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -107,7 +100,6 @@ export default function DialogProcedureAxisLaunch({
     includeDetails: true,
     includeDisabledListings: true,
   });
-  const { groups: verticalGroups } = useVerticalBaseMapsByListing();
 
   const paramsDialogLoader = procedure?.paramsDialog;
   const ParamsDialog = useMemo(
@@ -119,10 +111,10 @@ export default function DialogProcedureAxisLaunch({
 
   const [step, setStep] = useState(1);
   const [axisId, setAxisId] = useState(initialAxisId ?? "");
-  // "linked" (page the axis is posed on) | "create" | "existing"
+  // "linked" (page the axis is posed on) | "create"
   const [mode, setMode] = useState("create");
   const [linkedBaseMapId, setLinkedBaseMapId] = useState("");
-  const [existingBaseMapId, setExistingBaseMapId] = useState("");
+  const [baseMapName, setBaseMapName] = useState("");
   const [busy, setBusy] = useState(false);
 
   // data - selected axis (live row: the cotes dialog reads procedureParams)
@@ -142,44 +134,6 @@ export default function DialogProcedureAxisLaunch({
       .map((p) => byId.get(p.baseMapId))
       .filter((bm) => bm && !bm.deletedAt && bm.orientation === "VERTICAL");
   }, [axisItems, baseMaps, axisId]);
-
-  // vertical base maps already holding a placement of ANOTHER live axis of
-  // the scope (one placement per page per scope): not offered
-  const blockedBaseMapIds = useLiveQuery(async () => {
-    if (!projectId) return new Set();
-    const rows = (
-      await db.annotations.where("projectId").equals(projectId).toArray()
-    ).filter((a) => !a.deletedAt && a.type === "REVOLUTION_AXIS_PLACEMENT");
-    const scopeIdByListingId = await getScopeIdByListingId(rows);
-    const inScope = rows.filter((p) =>
-      isRevolutionHelperInScope(p, { scopeId, scopeIdByListingId })
-    );
-    const axisIds = [
-      ...new Set(inScope.map((p) => p.revolutionAxisId).filter(Boolean)),
-    ];
-    const axisRows = axisIds.length
-      ? await db.annotations.bulkGet(axisIds)
-      : [];
-    const alive = new Set(
-      (axisRows ?? []).filter((r) => r && !r.deletedAt).map((r) => r.id)
-    );
-    return new Set(
-      inScope
-        .filter((p) => p.revolutionAxisId && alive.has(p.revolutionAxisId))
-        .map((p) => p.baseMapId)
-    );
-  }, [projectId, scopeId, annotationsUpdatedAt]);
-
-  const existingGroups = useMemo(
-    () =>
-      (verticalGroups ?? [])
-        .map((g) => ({
-          listing: g.listing,
-          baseMaps: g.baseMaps.filter((bm) => !blockedBaseMapIds?.has(bm.id)),
-        }))
-        .filter((g) => g.baseMaps.length > 0),
-    [verticalGroups, blockedBaseMapIds]
-  );
 
   const outputs = useProcedureOutputs({
     procedureKey: procedure?.key,
@@ -204,9 +158,14 @@ export default function DialogProcedureAxisLaunch({
         return (stored ?? linkedBaseMaps[0]).id;
       });
     } else {
-      setMode((prev) => (prev === "linked" ? "create" : prev));
+      setMode("create");
     }
   }, [axisId, hasLinked, linkedBaseMaps, storedBaseMapId]);
+
+  // Name of the page created at launch follows the axis
+  useEffect(() => {
+    if (axis?.id) setBaseMapName(getDefaultBaseMapName(axis));
+  }, [axis?.id]);
 
   // Preselected axis already posed: straight to the cotes
   const [autoSkipped, setAutoSkipped] = useState(false);
@@ -216,21 +175,19 @@ export default function DialogProcedureAxisLaunch({
     setStep(2);
   }, [autoSkipped, initialAxisId, axis, hasLinked]);
 
-  const verticalBaseMapId =
-    mode === "linked"
-      ? linkedBaseMapId || null
-      : mode === "existing"
-        ? existingBaseMapId || null
-        : null;
+  const verticalBaseMapId = mode === "linked" ? linkedBaseMapId || null : null;
+  const createdBaseMapName = mode === "create" ? baseMapName.trim() : null;
 
   const canGoNext =
     Boolean(axis) &&
     !axis?.deletedAt &&
-    (mode === "create" || Boolean(verticalBaseMapId));
+    (mode === "create"
+      ? Boolean(createdBaseMapName)
+      : Boolean(verticalBaseMapId));
 
   const setup = useMemo(
-    () => ({ listingId, verticalBaseMapId }),
-    [listingId, verticalBaseMapId]
+    () => ({ listingId, verticalBaseMapId, baseMapName: createdBaseMapName }),
+    [listingId, verticalBaseMapId, createdBaseMapName]
   );
 
   // handlers
@@ -247,16 +204,6 @@ export default function DialogProcedureAxisLaunch({
     } finally {
       setBusy(false);
       onClose?.();
-    }
-  }
-
-  function handleBaseMapChange(e) {
-    const value = e.target.value;
-    if (value === CREATE_VALUE) {
-      setMode("create");
-    } else {
-      setMode("existing");
-      setExistingBaseMapId(value);
     }
   }
 
@@ -376,30 +323,14 @@ export default function DialogProcedureAxisLaunch({
               </Box>
             ) : (
               <TextField
-                select
                 size="small"
                 fullWidth
-                value={
-                  mode === "existing" && existingBaseMapId
-                    ? existingBaseMapId
-                    : CREATE_VALUE
-                }
-                onChange={handleBaseMapChange}
-              >
-                <MenuItem value={CREATE_VALUE} dense>
-                  {CREATE_LABEL}
-                </MenuItem>
-                {existingGroups.flatMap((g) => [
-                  <ListSubheader key={`h-${g.listing.id}`}>
-                    {g.listing.name}
-                  </ListSubheader>,
-                  ...g.baseMaps.map((bm) => (
-                    <MenuItem key={bm.id} value={bm.id} dense>
-                      {bm.name ?? NO_NAME}
-                    </MenuItem>
-                  )),
-                ])}
-              </TextField>
+                label={BASE_MAP_NAME_LABEL}
+                value={baseMapName}
+                onChange={(e) => setBaseMapName(e.target.value)}
+                error={baseMapName.trim().length === 0}
+                sx={{ mt: 1 }}
+              />
             )}
           </Box>
         )}
