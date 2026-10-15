@@ -59,6 +59,8 @@ const VERTICAL_FACE_MAX_NORMAL_Z = 0.05;
 //   is opened there).
 // Otherwise — another face, a host of openings / subtractions, a mesh
 // annotation — the annotation's mesh is split (converted to a mesh first).
+// A cut bound to a selected face (`target`) always splits the mesh: the plan
+// encodings above would cut the whole solid, not that face only.
 //
 // vertices: drawn world points [{x, y, z, nodeId?}]; closed: the path loops
 // back to its first point. target (resolveFaceCutLockedFace, or null):
@@ -138,7 +140,9 @@ export default async function cutFaceAlongPathService({
       continue;
     }
 
-    if (ctx.isConversion && (await canSplitIn2d(ctx.annotation))) {
+    // Bound to a selected face: only that face is cut, never the whole
+    // solid a plan split would cut through.
+    if (!target && ctx.isConversion && (await canSplitIn2d(ctx.annotation))) {
       const normal = getFaceNormal(
         ctx.mesh.vertices,
         ctx.mesh.faces[split.faceIndex]
