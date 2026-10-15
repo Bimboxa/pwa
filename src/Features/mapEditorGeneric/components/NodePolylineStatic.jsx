@@ -56,6 +56,7 @@ const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
+import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import getGuideLineStairsLayout, {
   isStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -86,6 +87,11 @@ const CIRCULATION_ARROW_HALF_HEIGHT_PX = 9;
 const CIRCULATION_ARROW_SHAFT_PX = 9;
 const CIRCULATION_ARROW_SHAFT_HALF_PX = 3;
 const CIRCULATION_ARROW_GAP_PX = 4;
+
+// SLOPE indicator ink, in page pt of the base map's print zone (see
+// getCotePageScale): label + arrow glyphs stay FIXED relative to the plan.
+const SLOPE_FONT_SIZE_PT = 14;
+const SLOPE_TEXT_HALO_PT = 3;
 
 // For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
@@ -1233,6 +1239,10 @@ function NodePolylineStatic({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
+  // Slope ink (label + arrow glyphs) is sized in page pt of the print zone,
+  // hence FIXED relative to the base map — same rule as COTE / FREE_TEXT.
+  const slopeScaleTransform = `scale(${getCotePageScale(mergedAnnotation)})`;
+
   // --- CIRCULATION ARROWS ---
   // Anchors every `arrowStep` meters along the path (centred distribution).
   // Glyph size is constant on screen (vertexScaleTransform), like vertices.
@@ -2077,10 +2087,10 @@ function NodePolylineStatic({
                 `getPolygonSlope` returns a downhill unit vector by convention,
                 so we negate the components when computing the arrow rotation.
                 Visible on POLYGON unless the template sets `hideSlope`, and
-                a measurable gradient (rounded slope >= 1%). Arrow + text are
-                wrapped in `vertexScaleTransform` so they keep a constant
-                on-screen size in both Map and Portfolio viewers, matching
-                the technique used by NodeCoteStatic. */}
+                a measurable gradient (rounded slope >= 1%). Arrow glyphs + text
+                are wrapped in `slopeScaleTransform` (page pt of the print
+                zone) so they keep a fixed size relative to the base map,
+                matching the technique used by NodeCoteStatic. */}
       {/* STAIRS NOSINGS — transverse strokes separating the steps of an
                 `isStairs` guideLine, clipped to the polygon outline. Always
                 visible (part of the plan drawing), annotation color. */}
@@ -2558,7 +2568,7 @@ function NodePolylineStatic({
                 />
                 <g transform={`translate(${gl.head.x}, ${gl.head.y})`}>
                   <g transform={`rotate(${gl.angleDeg})`}>
-                    <g style={{ transform: vertexScaleTransform }}>
+                    <g transform={slopeScaleTransform}>
                       <polygon
                         points={`0,0 ${-headLen},${-headW / 2} ${-headLen},${headW / 2}`}
                         fill={arrowColor}
@@ -2567,20 +2577,20 @@ function NodePolylineStatic({
                   </g>
                 </g>
                 <g transform={`translate(${gl.mid.x}, ${gl.mid.y})`}>
-                  <g style={{ transform: vertexScaleTransform }}>
+                  <g transform={slopeScaleTransform}>
                     <text
                       x={0}
                       y={-12}
                       textAnchor="middle"
                       dominantBaseline="alphabetic"
-                      fontSize={14}
+                      fontSize={SLOPE_FONT_SIZE_PT}
                       fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
                       fill={arrowColor}
                       style={{
                         userSelect: "none",
                         paintOrder: "stroke",
                         stroke: "white",
-                        strokeWidth: 3,
+                        strokeWidth: SLOPE_TEXT_HALO_PT,
                         strokeLinejoin: "round",
                       }}
                     >
@@ -2603,9 +2613,9 @@ function NodePolylineStatic({
         (() => {
           const angleDeg =
             (Math.atan2(-slope.dirY, -slope.dirX) * 180) / Math.PI;
-          const L = 40; // arrow total length in screen pixels
-          const headLen = 8; // arrowhead length in screen pixels
-          const headW = 6; // arrowhead width in screen pixels
+          const L = 40; // arrow total length in page pt
+          const headLen = 8; // arrowhead length in page pt
+          const headW = 6; // arrowhead width in page pt
           const arrowColor = "#000";
           return (
             <g
@@ -2613,7 +2623,7 @@ function NodePolylineStatic({
               style={{ pointerEvents: "none" }}
             >
               <g transform={`rotate(${angleDeg})`}>
-                <g style={{ transform: vertexScaleTransform }}>
+                <g transform={slopeScaleTransform}>
                   <line
                     x1={-L / 2}
                     y1={0}
@@ -2628,20 +2638,20 @@ function NodePolylineStatic({
                   />
                 </g>
               </g>
-              <g style={{ transform: vertexScaleTransform }}>
+              <g transform={slopeScaleTransform}>
                 <text
                   x={0}
                   y={-8}
                   textAnchor="middle"
                   dominantBaseline="alphabetic"
-                  fontSize={14}
+                  fontSize={SLOPE_FONT_SIZE_PT}
                   fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
                   fill={arrowColor}
                   style={{
                     userSelect: "none",
                     paintOrder: "stroke",
                     stroke: "white",
-                    strokeWidth: 3,
+                    strokeWidth: SLOPE_TEXT_HALO_PT,
                     strokeLinejoin: "round",
                   }}
                 >
