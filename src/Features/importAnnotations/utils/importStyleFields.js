@@ -14,6 +14,7 @@ export const STYLE_FIELDS = [
   // exterior-side flag (guides, COTE:EXT classification)
   "isExt",
   "hideSlope",
+  "slopeFontSize",
   "fillColor",
   "fillOpacity",
   "fillType",

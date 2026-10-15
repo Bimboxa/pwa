@@ -57,6 +57,7 @@ const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
+import { getSlopeFontSizePt } from "Features/annotations/constants/slopeFontSizeConstants";
 import getGuideLineStairsLayout, {
   isStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -90,6 +91,8 @@ const CIRCULATION_ARROW_GAP_PX = 4;
 
 // SLOPE indicator ink, in page pt of the base map's print zone (see
 // getCotePageScale): label + arrow glyphs stay FIXED relative to the plan.
+// Drawn at the reference font size, then scaled to the template's
+// `slopeFontSize` (getSlopeFontSizePt) so the arrow grows with the text.
 const SLOPE_FONT_SIZE_PT = 14;
 const SLOPE_TEXT_HALO_PT = 3;
 
@@ -1241,7 +1244,9 @@ function NodePolylineStatic({
 
   // Slope ink (label + arrow glyphs) is sized in page pt of the print zone,
   // hence FIXED relative to the base map — same rule as COTE / FREE_TEXT.
-  const slopeScaleTransform = `scale(${getCotePageScale(mergedAnnotation)})`;
+  const slopeFontScale =
+    getSlopeFontSizePt(mergedAnnotation.slopeFontSize) / SLOPE_FONT_SIZE_PT;
+  const slopeScaleTransform = `scale(${getCotePageScale(mergedAnnotation) * slopeFontScale})`;
 
   // --- CIRCULATION ARROWS ---
   // Anchors every `arrowStep` meters along the path (centred distribution).
