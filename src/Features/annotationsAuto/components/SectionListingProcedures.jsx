@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { setToaster } from "Features/layout/layoutSlice";
+import { setListingActiveProcedureKey } from "../annotationsAutoSlice";
 
 import db from "App/db/db";
 
@@ -94,10 +95,13 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   const deleteAnnotations = useDeleteAnnotations();
   const runReplacing = useRunProcedureReplacing();
   const axes = useRevolutionAxes();
+  // shared with the annotation toolbar band (RowProcedureActionAuto)
+  const activeKey = useSelector(
+    (s) => s.annotationsAuto.activeProcedureKeyByListingId[listingId]
+  );
 
   // state
 
-  const [activeKey, setActiveKey] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [launchOpen, setLaunchOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -175,7 +179,7 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   // handlers
 
   function handleSelect(key) {
-    setActiveKey(key);
+    dispatch(setListingActiveProcedureKey({ listingId, procedureKey: key }));
     setMenuAnchorEl(null);
   }
 
