@@ -70,6 +70,8 @@ const pageFormatOption = (format) => ({
   value: format,
   label: format,
   icon: <Typography sx={pageFormatIconSx}>{format}</Typography>,
+  // The text icon already says it all: the menu only shows the label.
+  hideMenuIcon: true,
 });
 const PAGE_FORMAT_OPTIONS = [pageFormatOption("A4"), pageFormatOption("A3")];
 const LOCKED_PAGE_FORMAT_OPTIONS = ["A4", "A3", "A2", "A1", "A0"].map(
@@ -185,7 +187,7 @@ function ToolbarSelect({
             disabled={option.disabled}
             onClick={() => handleSelect(option)}
           >
-            <ListItemIcon>{option.icon}</ListItemIcon>
+            {!option.hideMenuIcon && <ListItemIcon>{option.icon}</ListItemIcon>}
             <ListItemText>{option.label}</ListItemText>
           </MenuItem>
         ))}

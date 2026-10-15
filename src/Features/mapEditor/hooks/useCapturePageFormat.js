@@ -25,7 +25,7 @@ export default function useCapturePageFormat() {
   }
 
   return {
-    format: pageFormat || "A4",
+    format: pageFormat || "A3",
     orientation: aspectRatio === "PORTRAIT" ? "portrait" : "landscape",
     locked: false,
   };
