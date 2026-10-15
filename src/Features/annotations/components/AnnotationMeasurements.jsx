@@ -16,6 +16,7 @@ import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
 // mesh3d: a group total (multi-selection) that holds a mesh 3D annotation —
 // no surface / length total, the "⚠ 3D" marker is shown instead.
+// angles: corner count (POLYLINE / STRIP), opt-in — only shown when passed.
 export default function AnnotationMeasurements({
   annotation,
   surface,
@@ -24,6 +25,7 @@ export default function AnnotationMeasurements({
   layoutLength,
   part,
   mesh3d,
+  angles,
 }) {
   // data
 
@@ -109,10 +111,17 @@ export default function AnnotationMeasurements({
   const showUnits = computedUnits != null && computedUnits > 0;
   const showLayoutLength =
     !isMesh3d && computedLayoutLength != null && computedLayoutLength > 0;
+  // 2D geometry property — shown even for a mesh 3D annotation.
+  const showAngles = Number.isFinite(angles);
 
   if (
     !enabled ||
-    (!isMesh3d && !showSurface && !showLength && !showUnits && !showLayoutLength)
+    (!isMesh3d &&
+      !showSurface &&
+      !showLength &&
+      !showUnits &&
+      !showLayoutLength &&
+      !showAngles)
   )
     return null;
 
@@ -151,6 +160,16 @@ export default function AnnotationMeasurements({
         >
           {computedLength.toFixed(2)} ml
         </Typography>
+      )}
+      {showAngles && (
+        <Tooltip title="Nombre d'angles">
+          <Typography
+            variant="caption"
+            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          >
+            {angles} {angles > 1 ? "angles" : "angle"}
+          </Typography>
+        </Tooltip>
       )}
       {showLayoutLength && (
         <Tooltip title="Longueur de calepinage">

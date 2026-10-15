@@ -78,6 +78,7 @@ import useSelectedMesh3dParts from "Features/annotationMesh3d/hooks/useSelectedM
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationHasOverlayActions from "../utils/getAnnotationHasOverlayActions";
 import getCloneAnnotationPartState from "../utils/getCloneAnnotationPartState";
+import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 
 // `hasOverlayRow`: the host editor renders the quick-action row above the
 // selected annotation (2D map editor — NodeSegmentLengthsStatic, 3D editor —
@@ -760,6 +761,9 @@ export default function ToolbarEditAnnotation({
             <AnnotationMeasurements
               annotation={selectedAnnotation}
               part={part}
+              angles={
+                hasPart ? null : getAnnotationAnglesCount(selectedAnnotation)
+              }
             />
           </Box>
         )}

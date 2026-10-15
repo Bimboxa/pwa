@@ -24,6 +24,7 @@ import {
 } from "../constants/drawingShapeConfig";
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
+import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import getAnnotationTypeOnTemplateChange from "../utils/getAnnotationTypeOnTemplateChange";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
@@ -242,6 +243,9 @@ export default function ToolbarEditAnnotations({
       const unitCount =
         qties?.enabled && Number.isFinite(qties.count) ? qties.count : 0;
 
+      // Corner count — null for types other than POLYLINE / STRIP.
+      const anglesCount = getAnnotationAnglesCount(annotation);
+
       if (existing) {
         existing.annotationIds.push(annotation.id);
         existing.count += 1;
@@ -251,6 +255,10 @@ export default function ToolbarEditAnnotations({
           existing.totalLength += qties.length || 0;
           existing.totalLayoutLength += qties.layoutLength || 0;
           existing.totalUnits += unitCount;
+        }
+        if (anglesCount != null) {
+          existing.hasAngles = true;
+          existing.totalAngles += anglesCount;
         }
       } else {
         groups.set(key, {
@@ -264,6 +272,8 @@ export default function ToolbarEditAnnotations({
           totalLength: qties?.enabled ? qties.length || 0 : 0,
           totalLayoutLength: qties?.enabled ? qties.layoutLength || 0 : 0,
           totalUnits: unitCount,
+          hasAngles: anglesCount != null,
+          totalAngles: anglesCount ?? 0,
           hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
             annotation.type
           ),
@@ -870,6 +880,8 @@ function TemplateGroupRow({ group, onRemove }) {
     totalLength,
     totalLayoutLength,
     totalUnits,
+    hasAngles,
+    totalAngles,
     hasSurface,
     hasMesh3d,
   } = group;
@@ -927,6 +939,7 @@ function TemplateGroupRow({ group, onRemove }) {
           }
           units={totalUnits > 0 ? totalUnits : null}
           mesh3d={hasMesh3d}
+          angles={hasAngles ? totalAngles : null}
         />
       </Box>
 
