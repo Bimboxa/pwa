@@ -43,7 +43,7 @@ Conséquences de la clé commune : l'outil mémorisé par modèle (`selectedTool
 | Orpheline                                                           | `sync.state: "ORPHAN"`                                                                                                                                           |
 | En conflit                                                          | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                                                                             |
 | « À vérifier »                                                      | `isStale`                                                                                                                                                        |
-| Rétrécissement anti-crénelage (« Séparer les surfaces en contact ») | réglage `threedEditor.antiAliasingShrink` (OFF par défaut, couvre aussi le « Delta offset 3D » des POLYGON) ; exemption par annotation : `_noAntiAliasingShrink` |
+| Rétrécissement anti-crénelage (« Séparer les surfaces en contact ») | réglage `threedEditor.antiAliasingShrink` (ON par défaut, couvre aussi le « Delta offset 3D » des POLYGON) ; exemption par annotation : `_noAntiAliasingShrink` |
 | Recalage                                                            | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                                                                           |
 
 ## Règles fonctionnelles (V1)
