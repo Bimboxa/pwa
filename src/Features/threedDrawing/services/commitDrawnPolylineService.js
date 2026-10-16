@@ -4,38 +4,12 @@ import createAnnotationService from "Features/annotations/services/createAnnotat
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
+import dedupeAdjacentVertices from "../utils/dedupeAdjacentVertices";
 import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
 
-const POINT_DEDUPE_EPS = 5e-4; // 0.05% of normalized space
 const OFFSET_EPS_M = 5e-3; // 5 mm — parallel-to-plane tolerance
-
-function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
-  const out = [];
-  for (const p of points) {
-    const last = out[out.length - 1];
-    if (
-      last &&
-      Math.abs(last.x - p.x) < POINT_DEDUPE_EPS &&
-      Math.abs(last.y - p.y) < POINT_DEDUPE_EPS
-    ) {
-      continue;
-    }
-    out.push(p);
-  }
-  // An OPEN polyline may legitimately end near its start — only collapse the
-  // last==first duplicate when the line is explicitly closed.
-  if (
-    collapseClosingDuplicate &&
-    out.length > 1 &&
-    Math.abs(out[0].x - out[out.length - 1].x) < POINT_DEDUPE_EPS &&
-    Math.abs(out[0].y - out[out.length - 1].y) < POINT_DEDUPE_EPS
-  ) {
-    out.pop();
-  }
-  return out;
-}
 
 // Sibling of commitDrawnFaceService for OPEN polylines (and closed ones via
 // `closeLine`): ordered 3D vertices → host baseMap → 2D POLYLINE annotation.
@@ -45,7 +19,10 @@ function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
 //     offsetZ = mean, and (2D parity) the template's extrusion `height` is
 //     applied, like the same template drawn in the 2D editor
 //   - otherwise → per-vertex offsetBottom relative to the lowest vertex
-//     (same convention as the face service's OBLIQUE branch)
+//     (same convention as the face service's OBLIQUE branch). A vertical
+//     segment (two consecutive vertices at the same plan position) is kept
+//     as two consecutive refs to the same db.points id with different
+//     offsetBottom — extrudePolylineWall draws it as a vertical line.
 //
 // Inputs mirror commitDrawnFaceService; `verticesInOrder` items are
 // {x, y, z, baseMapId?} — a unanimous carried baseMapId wins, then the
@@ -63,11 +40,7 @@ export default async function commitDrawnPolylineService(args) {
 }
 
 // Same commit, with the reason of a failure: { annotation } or
-// { annotation: null, reason }. reason POLYLINE_COMMIT_NO_2D_ENCODING (template-
-// less line only): two consecutive vertices stand at the same plan position
-// at different heights — a vertical stretch the plan points cannot hold.
-export const POLYLINE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
-
+// { annotation: null, reason }.
 export async function commitDrawnPolyline({
   verticesInOrder,
   baseMaps,
@@ -115,26 +88,6 @@ export async function commitDrawnPolyline({
   if (projected.some((p) => !p))
     return abort(`projection on base map ${host.id} failed`);
 
-  // Template-less line: a vertical stretch would silently collapse in the
-  // dedupe below — refuse it instead of committing another line.
-  if (isTemplateless) {
-    const count = closeLine ? projected.length : projected.length - 1;
-    for (let i = 0; i < count; i++) {
-      const p = projected[i];
-      const q = projected[(i + 1) % projected.length];
-      if (
-        Math.abs(p.x - q.x) < POINT_DEDUPE_EPS &&
-        Math.abs(p.y - q.y) < POINT_DEDUPE_EPS &&
-        Math.abs(p.offset - q.offset) > OFFSET_EPS_M
-      ) {
-        return abort(
-          "vertical stretch, no plan encoding",
-          POLYLINE_COMMIT_NO_2D_ENCODING
-        );
-      }
-    }
-  }
-
   const offsets = projected.map((p) => p.offset);
   const minO = Math.min(...offsets);
   const maxO = Math.max(...offsets);
@@ -170,7 +123,7 @@ export async function commitDrawnPolyline({
     };
   }
 
-  projectedPoints = dedupeAdjacent(projectedPoints, {
+  projectedPoints = dedupeAdjacentVertices(projectedPoints, {
     collapseClosingDuplicate: closeLine,
   });
   if (projectedPoints.length < 2)

@@ -80,6 +80,18 @@ import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dS
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
 
+// A vertical segment drawn in 3D is stored as two consecutive refs to the
+// same point id: one plan position, so one handle (and one React key).
+function uniqueVertexEntries(entries) {
+  const seen = new Set();
+  return entries.filter(({ point, cutIndex, source }) => {
+    const key = `${source ?? ""}|${cutIndex ?? ""}|${point?.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // CIRCULATION arrow glyph (screen px). Each direction is a full arrow
 // (shaft + head); with both directions the two arrows sit back to back,
 // separated by a small gap.
@@ -2041,8 +2053,8 @@ function NodePolylineStatic({
                 they can be selected but not vertex-edited. */}
       {selected &&
         !disableVertexEditing &&
-        pointEntriesToRender.map(({ point, cutIndex, source }) =>
-          renderVertex(point, cutIndex, source)
+        uniqueVertexEntries(pointEntriesToRender).map(
+          ({ point, cutIndex, source }) => renderVertex(point, cutIndex, source)
         )}
 
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.

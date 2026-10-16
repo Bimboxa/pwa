@@ -249,13 +249,16 @@ export default function NodeSegmentLengthsStatic({
 
   const items = useMemo(() => {
     if (!labelsActive) return [];
+    // A vertical segment drawn in 3D (two consecutive refs to the same point
+    // id) has no plan length: no label, and its start id stays free for the
+    // next segment (lock / editor keys).
     return getSegmentLengthItems({
       points,
       closed,
       meterByPx: baseMapMeterByPx,
       unit,
       decimals,
-    });
+    }).filter((it) => !it.startPointId || it.startPointId !== it.endPointId);
   }, [labelsActive, points, closed, baseMapMeterByPx, unit, decimals]);
 
   const straightItems = useMemo(() => {
@@ -334,9 +337,13 @@ export default function NodeSegmentLengthsStatic({
 
       // Locks are stored by point id; the solver works on indexes into the
       // very array the service reads (annotation.points === points).
-      const indexByPointId = new Map();
+      // A point id can sit at two consecutive indexes (vertical segment
+      // drawn in 3D): a locked point locks both.
+      const indexesByPointId = new Map();
       points.forEach((p, i) => {
-        if (p?.id) indexByPointId.set(p.id, i);
+        if (!p?.id) return;
+        if (!indexesByPointId.has(p.id)) indexesByPointId.set(p.id, []);
+        indexesByPointId.get(p.id).push(i);
       });
       const lockedSegmentIndexes = new Set();
       for (const it of items) {
@@ -345,8 +352,9 @@ export default function NodeSegmentLengthsStatic({
       }
       const lockedPointIndexes = new Set();
       for (const id of Object.keys(lockedPointIds)) {
-        if (lockedPointIds[id] && indexByPointId.has(id))
-          lockedPointIndexes.add(indexByPointId.get(id));
+        if (!lockedPointIds[id]) continue;
+        for (const i of indexesByPointId.get(id) ?? [])
+          lockedPointIndexes.add(i);
       }
 
       const result = await applySegmentLengthEditService({
@@ -670,6 +678,8 @@ export default function NodeSegmentLengthsStatic({
         (interactionMode !== "EDIT" || straightItems.length > 0) &&
         points.map((pt, i) => {
         if (!pt?.id || typeOf(pt) === "circle") return null;
+        // One padlock per plan position (vertical segment drawn in 3D).
+        if (i > 0 && points[i - 1]?.id === pt.id) return null;
         const isLocked = Boolean(lockedPointIds[pt.id]);
         return (
           <g

@@ -68,15 +68,23 @@ export function segmentIdxToPointIds(idxArray, points, { closed = false } = {}) 
  * Start point ids → segment indices on `ringPoints` (typically the RESOLVED
  * ring). Ids not found are dropped; on an open path the last point starts no
  * segment, so its id is dropped too. Result is sorted ascending.
+ *
+ * A vertical segment drawn in 3D is stored as two consecutive refs to the
+ * same point id (A, A, Q: A→A vertical, A→Q in plan). Both segments then
+ * start at A: the id maps to the LAST segment-starting ref of the run (A→Q,
+ * the one with a plan length) — a vertical segment cannot carry a flag alone.
  */
 export function segmentPointIdsToIdx(idArray, ringPoints, { closed = false } = {}) {
   if (!Array.isArray(idArray) || !Array.isArray(ringPoints)) return [];
+  const segmentCount = closed ? ringPoints.length : ringPoints.length - 1;
   const posById = new Map();
   ringPoints.forEach((p, i) => {
     const id = _pointId(p);
-    if (id && !posById.has(id)) posById.set(id, i);
+    if (!id) return;
+    const continuesRun =
+      i > 0 && i < segmentCount && _pointId(ringPoints[i - 1]) === id;
+    if (!posById.has(id) || continuesRun) posById.set(id, i);
   });
-  const segmentCount = closed ? ringPoints.length : ringPoints.length - 1;
   const out = new Set();
   for (const id of idArray) {
     const pos = posById.get(id);

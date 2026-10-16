@@ -108,6 +108,13 @@ function computeDevelopedPerimeter(
 function computeWallQty(points, meterByPx, hiddenSegmentsIdx = [], height = 0) {
   const pts = (points || []).filter((p) => p && typeof p.x === "number");
   const n = pts.length;
+  // A 3D line (no vertex carries any wall height, e.g. a polyline drawn in
+  // 3D with per-vertex offsetBottom and height 0) still has a length: its
+  // bottom line, vertical segments (same plan position, different
+  // offsetBottom) included.
+  const isLine = pts.every(
+    (p) => height + (p.offsetTop ?? 0) - (p.offsetBottom ?? 0) < 1e-9
+  );
   let length = 0;
   let surface = 0;
   for (let i = 0; i < n - 1; i++) {
@@ -118,11 +125,12 @@ function computeWallQty(points, meterByPx, hiddenSegmentsIdx = [], height = 0) {
     const bottomB = b.offsetBottom ?? 0;
     const hA = Math.max(0, height + (a.offsetTop ?? 0) - bottomA);
     const hB = Math.max(0, height + (b.offsetTop ?? 0) - bottomB);
-    if (hA < 1e-9 && hB < 1e-9) continue; // no wall on this segment
+    const hasWall = hA >= 1e-9 || hB >= 1e-9;
+    if (!hasWall && !isLine) continue; // no wall on this segment
     const dx = (b.x - a.x) * meterByPx;
     const dy = (b.y - a.y) * meterByPx;
     length += Math.hypot(dx, dy, bottomB - bottomA);
-    surface += Math.hypot(dx, dy) * ((hA + hB) / 2);
+    if (hasWall) surface += Math.hypot(dx, dy) * ((hA + hB) / 2);
   }
   return { length, surface };
 }

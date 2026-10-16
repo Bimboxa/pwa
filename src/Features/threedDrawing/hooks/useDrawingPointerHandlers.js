@@ -70,7 +70,6 @@ import {
   commitDrawnFace,
 } from "../services/commitDrawnFaceService";
 import commitDrawnPolylineService, {
-  POLYLINE_COMMIT_NO_2D_ENCODING,
   commitDrawnPolyline,
 } from "../services/commitDrawnPolylineService";
 import commitDrawnDiscService, {
@@ -154,8 +153,6 @@ export default function useDrawingPointerHandlers() {
 
   // strings
 
-  const noPlanEncodingS =
-    "Trait non enregistré : un tronçon vertical ne peut pas être porté par le plan.";
   const noFaceCutByReasonS = {
     NO_ANNOTATION: "Aucune face coupée : le tracé n'est sur aucune annotation.",
     NOT_EDITABLE:
@@ -480,7 +477,7 @@ export default function useDrawingPointerHandlers() {
     async function commitScanPath(vertices) {
       if (vertices.length < 2) return false;
       try {
-        const { annotation: created, reason } = await commitDrawnPolyline({
+        const { annotation: created } = await commitDrawnPolyline({
           verticesInOrder: vertices,
           baseMaps: baseMaps || [],
           projectId,
@@ -490,14 +487,7 @@ export default function useDrawingPointerHandlers() {
           createAnnotationFn: createAnnotation,
           preferredBaseMapId: mainBaseMapId ?? null,
         });
-        if (!created) {
-          if (reason === POLYLINE_COMMIT_NO_2D_ENCODING) {
-            dispatch(
-              setToaster({ message: noPlanEncodingS, severity: "warning" })
-            );
-          }
-          return false;
-        }
+        if (!created) return false;
         console.log(
           `[threedDrawing] scan polyline created: ${created.id} on baseMap ${created.baseMapId}`
         );
@@ -549,17 +539,12 @@ export default function useDrawingPointerHandlers() {
           }
         } else {
           if (points.length < 2) return false;
-          const { annotation, reason } = await commitDrawnPolyline({
+          const { annotation } = await commitDrawnPolyline({
             ...common,
             verticesInOrder: points,
             closeLine: closed,
           });
           created = annotation;
-          if (!created && reason === POLYLINE_COMMIT_NO_2D_ENCODING) {
-            dispatch(
-              setToaster({ message: noPlanEncodingS, severity: "warning" })
-            );
-          }
         }
       } catch (err) {
         console.error("[threedDrawing] template-less commit failed", err);
