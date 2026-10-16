@@ -20,6 +20,8 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             ...(library.avatarString && { avatarString: library.avatarString }),
             // procedures launched at listing level (listing.procedureKeys)
             ...(library.procedureKeys?.length && { procedureKeys: library.procedureKeys }),
+            // Prompt IA enabled by default on the created listing (listing.promptIaEnabled)
+            ...(library.promptIaEnabled && { promptIaEnabled: true }),
         }
 
         return listing;
