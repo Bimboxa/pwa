@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { useDispatch, useStore } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import {
-  setExtrudeModeActive,
-  setIsolateFaceModeActive,
-  setRotateAnnotationModeActive,
   setMoveBaseMapModeActive,
   setRotateBaseMapModeActive,
 } from "Features/threedEditor/threedEditorSlice";
@@ -12,28 +9,20 @@ import {
 import { Box, ListItemButton, Typography } from "@mui/material";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
-import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { activateMoveTool } from "Features/threedVertexOffset/utils/resolveVertexOffsetTarget";
-import activateMergeFacesTool from "Features/threedMergeFaces/utils/activateMergeFacesTool";
 
-// MOVE_ANNOTATION goes through activateMoveTool: a selected face arms the
-// vertex offset mode instead of the whole-annotation move. MERGE_FACES
-// through activateMergeFacesTool: a selected face is the seed of the merge.
 const ACTION_BY_THREED_TOOL = {
-  EXTRUDE: setExtrudeModeActive,
-  ROTATE_ANNOTATION: setRotateAnnotationModeActive,
-  ISOLATE_FACE: setIsolateFaceModeActive,
   MOVE_BASE_MAP: setMoveBaseMapModeActive,
   ROTATE_BASE_MAP: setRotateBaseMapModeActive,
 };
 
 // ---------------------------------------------------------------------------
-// RowThreedTool — « Outils de dessin » row of a threedEditor tool (TOOL_ITEMS
-// `threedTool`: Extruder / Déplacer / Tourner / Isoler une face) in the Dessin module's 3D
-// editor. Click arms the mode; the drawing helper then replaces the list
-// (selectActiveThreedTool). Also the rows of the base maps "Outils" section
-// (SectionBaseMapsTools: MOVE_BASE_MAP / ROTATE_BASE_MAP). `variant`: "popper" (PopperMapListings' ToolRow
-// look) or "panel" (RowPanelDrawingTool look).
+// RowThreedTool — row of a threedEditor base map placement tool of the
+// BaseMaps module's "Outils" section (SectionBaseMapsTools: MOVE_BASE_MAP /
+// ROTATE_BASE_MAP, 3D editor). Click arms the mode. `variant`: "popper"
+// (PopperMapListings row look) or "panel" (docked panel row look). The
+// annotation tools of the Dessin module (Extruder / Déplacer / Tourner /
+// Isoler une face / Fusionner des faces) are commands of the unified
+// commands toolbar (Features/commandsToolbar).
 // ---------------------------------------------------------------------------
 
 export default function RowThreedTool({
@@ -44,7 +33,6 @@ export default function RowThreedTool({
   variant = "popper",
 }) {
   const dispatch = useDispatch();
-  const store = useStore();
 
   // state
 
@@ -57,22 +45,6 @@ export default function RowThreedTool({
   // handlers
 
   function handleClick() {
-    if (threedTool === "MOVE_ANNOTATION") {
-      activateMoveTool({
-        dispatch,
-        state: store.getState(),
-        editor: getActiveThreedEditor(),
-      });
-      return;
-    }
-    if (threedTool === "MERGE_FACES") {
-      activateMergeFacesTool({
-        dispatch,
-        state: store.getState(),
-        editor: getActiveThreedEditor(),
-      });
-      return;
-    }
     const action = ACTION_BY_THREED_TOOL[threedTool];
     if (action) dispatch(action(true));
   }

@@ -1,48 +1,33 @@
 import { useState, useRef } from "react";
 import { useSelector } from "react-redux";
-import { useLiveQuery } from "dexie-react-hooks";
 
 import { Box, Paper, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
-import SectionPopperDrawingTools from "./SectionPopperDrawingTools";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
 import { ListBaseMapsCommands } from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 
-import db from "App/db/db";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import usePanelResize from "Features/layout/hooks/usePanelResize";
-import useTemplatelessCount from "../hooks/useTemplatelessCount";
-import selectShowDrawingTools from "../utils/selectShowDrawingTools";
-import selectEffectiveInteractionMode from "../utils/selectEffectiveInteractionMode";
-import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
-import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
-import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
 // ---------------------------------------------------------------------------
-// PopperDrawingTools — the "Commandes" of the displayed module detached from
+// PopperDrawingTools — the "Commandes" of the BaseMaps module detached from
 // PopperMapListings ("Détacher les commandes" icon of its bottom band —
 // detached by default): a floating panel with the same structure (draggable
 // header, bottom band with the "auto" height button, the attach icon, the
-// collapse toggle and the resize handle) listing the command rows:
-// - drawing modules (Dessin, Zones, business objects…): the drawing tools
-//   (SectionPopperDrawingTools), offered per selectShowDrawingTools, attached
-//   on the "Commandes" side of the annotations popper;
-// - BaseMaps module: the base maps placement tools Déplacer / Tourner
-//   (ListBaseMapsCommands), 3D editor only, attached as the "Commandes"
-//   section under the base maps list (SectionBaseMapsTools).
+// collapse toggle and the resize handle) listing the base maps placement
+// tools Déplacer / Tourner (ListBaseMapsCommands), 3D editor only, attached
+// as the "Commandes" section under the base maps list (SectionBaseMapsTools).
+// The annotation drawing commands of the other modules live in the unified
+// commands toolbar (Features/commandsToolbar).
 // Mounted by both editors (2D and 3D) right next to PopperMapListings, under
 // it by default (2/3 - 1/3 of the available height); renders nothing while
-// the commands are attached or do not apply. Hidden — not unmounted, so it
-// keeps its drag position, size and collapsed state — while a paste /
-// subtract / drawing helper replaces the annotations popper (same chain as
-// PopperMapListings: an armed draw, or an armed threedEditor tool in the
-// Dessin module's 3D editor).
+// the commands are attached or do not apply (keeps its drag position, size
+// and collapsed state).
 // ---------------------------------------------------------------------------
 
 const POPPER_WIDTH = 320;
@@ -59,73 +44,12 @@ export default function PopperDrawingTools() {
 
   const detached = useSelector((s) => s.popperMapListings.toolsDetached);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
-  const isZonesViewer = viewerKey === "ZONES";
-  // Displayed editor (the Dessin module toggled to 3D): picks the tools
-  // offered, like PopperMapListings.
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const templatelessCount = useTemplatelessCount();
-
-  // Business-objects modules: same gates as PopperMapListings (no tools in
-  // locate mode, edit-only tools without an active object).
-  const isBusinessObjectsModule = isBusinessObjectsModuleKey(viewerKey);
-  const activeBusinessObjectId = useSelector(
-    (s) => s.businessObjects?.activeBusinessObjectId ?? null
-  );
-  const businessObjectsUpdatedAt = useSelector(
-    (s) => s.businessObjects?.businessObjectsUpdatedAt
-  );
-  const activeBusinessObject = useLiveQuery(async () => {
-    if (!isBusinessObjectsModule || !activeBusinessObjectId) return null;
-    const o = await db.businessObjects.get(activeBusinessObjectId);
-    return o && !o.deletedAt ? o : null;
-  }, [
-    isBusinessObjectsModule,
-    activeBusinessObjectId,
-    businessObjectsUpdatedAt,
-  ]);
-  const activeBusinessObjectListing = useSelector((s) =>
-    activeBusinessObject?.listingId
-      ? (s.listings.listingsById?.[activeBusinessObject.listingId] ?? null)
-      : null
-  );
-  const isLocateBusinessObjectMode =
-    isBusinessObjectsModule &&
-    Boolean(activeBusinessObject) &&
-    canLocateBusinessObjects(activeBusinessObjectListing);
-  const isBusinessObjectsModuleNoObject =
-    isBusinessObjectsModule && !activeBusinessObject;
-
-  const showDrawingTools = selectShowDrawingTools({
-    effectiveInteractionMode,
-    isZonesViewer,
-    isBusinessObjectsModuleNoObject,
-    isLocateBusinessObjectMode,
-  });
   // BaseMaps module: the module's commands are the base maps placement
   // tools, 3D editor only (nothing in 2D, like SectionBaseMapsTools).
-  const isBaseMapsCommands = viewerKey === "BASE_MAPS";
-  const showCommands = isBaseMapsCommands ? isThreedEditor : showDrawingTools;
-
-  // Helper chain of PopperMapListings: a helper replaces the annotations
-  // popper in the drawing modules (off in the 3D-family modules and in the
-  // BaseMaps module displaying its 3D editor).
-  const helperActive = useSelector(
-    (s) =>
-      !isThreedFamilyViewerKey(s.viewers.selectedViewerKey) &&
-      !(
-        s.viewers.selectedViewerKey === "BASE_MAPS" &&
-        isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-      ) &&
-      Boolean(
-        s.mapEditor.pasteClipboard ||
-        selectSubtractPickAnnotationId(s) ||
-        s.mapEditor.enabledDrawingMode ||
-        selectActiveThreedTool(s)
-      )
-  );
+  const showCommands = viewerKey === "BASE_MAPS" && isThreedEditor;
 
   // state
 
@@ -167,7 +91,7 @@ export default function PopperDrawingTools() {
                 : "calc(100% - 50px)",
             }
           : { maxHeight: DEFAULT_MAX_HEIGHT }),
-        display: helperActive ? "none" : "flex",
+        display: "flex",
         flexDirection: "column",
         overflow: "hidden",
         borderRadius: 3,
@@ -212,15 +136,7 @@ export default function PopperDrawingTools() {
 
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          {isBaseMapsCommands ? (
-            <ListBaseMapsCommands />
-          ) : (
-            <SectionPopperDrawingTools
-              templatelessCount={templatelessCount}
-              isThreedEditor={isThreedEditor}
-              viewerKey={viewerKey}
-            />
-          )}
+          <ListBaseMapsCommands />
         </Box>
       )}
 

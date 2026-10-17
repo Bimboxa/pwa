@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import db from "App/db/db";
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
-import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
+import selectShowDrawingTools from "../utils/selectShowDrawingTools";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 

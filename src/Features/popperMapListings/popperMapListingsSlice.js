@@ -9,8 +9,8 @@ const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 // listings of a business-objects module, popper only) | "CONTENT" (scope
 // content, SCOPE module only) | "LISTINGS" ("Listes": the annotation
 // listings of the Dessin module, popper only) | "ANNOTATIONS" | "PHOTOS"
-// (Viewer module with photos) | "BASE_MAPS" (base maps list) | "TOOLS"
-// ("Commandes": the drawing tools, popper only, while they are attached).
+// (Viewer module with photos) | "BASE_MAPS" (base maps list). The drawing
+// commands live in the unified commands toolbar (Features/commandsToolbar).
 const CONTENT_MODES = [
   "OBJECTS",
   "CONTENT",
@@ -18,7 +18,6 @@ const CONTENT_MODES = [
   "ANNOTATIONS",
   "PHOTOS",
   "BASE_MAPS",
-  "TOOLS",
 ];
 
 const popperMapListingsSlice = createSlice({
@@ -84,15 +83,11 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode = "BASE_MAPS";
       }
     },
-    // Same rule for the drawing tools ("Commandes" side).
+    // BaseMaps module: its base map placement commands (Déplacer / Tourner,
+    // 3D editor) leave the "Fonds de plan" side for PopperDrawingTools and
+    // back (SectionBaseMapsTools).
     setToolsDetached(state, action) {
-      const detached = Boolean(action.payload);
-      state.toolsDetached = detached;
-      if (detached && state.viewerContentMode === "TOOLS") {
-        state.viewerContentMode = "ANNOTATIONS";
-      } else if (!detached) {
-        state.viewerContentMode = "TOOLS";
-      }
+      state.toolsDetached = Boolean(action.payload);
     },
     setHideEmptyBaseMapsInList(state, action) {
       state.hideEmptyBaseMapsInList = Boolean(action.payload);

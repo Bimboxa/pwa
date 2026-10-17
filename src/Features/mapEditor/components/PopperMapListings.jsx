@@ -79,9 +79,7 @@ import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectB
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
-import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
-import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -107,7 +105,6 @@ import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionB
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import {
-  isTemplatelessAnnotationInScope,
   TEMPLATELESS_LABEL,
   TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
@@ -1710,9 +1707,6 @@ export default function PopperMapListings() {
     isBusinessObjectsModule &&
     Boolean(activeBusinessObject) &&
     canLocateBusinessObjects(activeBusinessObjectListing);
-  const isBusinessObjectsModuleNoObject =
-    isBusinessObjectsModule && !activeBusinessObject;
-
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
@@ -1778,16 +1772,6 @@ export default function PopperMapListings() {
         }
       : {}),
   });
-
-  // "Dessin" tool row counter: annotations drawn without template in the
-  // selected scope (eye-hidden ones included, like the template rows).
-  const templatelessCount = useMemo(
-    () =>
-      (allAnnotationsInclHidden ?? []).filter((a) =>
-        isTemplatelessAnnotationInScope(a, selectedScopeId)
-      ).length,
-    [allAnnotationsInclHidden, selectedScopeId]
-  );
 
   // visible-only set for counts and qties (matches what's on screen).
   // SCOPE module narrowed to a business-objects listing: only the
@@ -1911,13 +1895,6 @@ export default function PopperMapListings() {
     (s) => s.popperMapListings.baseMapsListDetached
   );
   const toolsDetached = useSelector((s) => s.popperMapListings.toolsDetached);
-  const showDrawingTools = selectShowDrawingTools({
-    effectiveInteractionMode,
-    isZonesViewer,
-    isBusinessObjectsModuleNoObject,
-    isLocateBusinessObjectMode,
-  });
-  const showToolsSide = showDrawingTools && !toolsDetached;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   // "Objets" side (business-objects modules, far left of the toggle,
   // labelled after the module): the module's listings and objects tree.
@@ -1936,7 +1913,6 @@ export default function PopperMapListings() {
     !isBaseMapsListOnly &&
     (!baseMapsListDetached ||
       showPhotosToggle ||
-      showToolsSide ||
       showObjectsToggle ||
       showListingsToggle ||
       isScopeModule);
@@ -1952,13 +1928,10 @@ export default function PopperMapListings() {
     (showContentToggle &&
       !baseMapsListDetached &&
       popperContentMode === "BASE_MAPS");
-  const showToolsBody =
-    showContentToggle && showToolsSide && popperContentMode === "TOOLS";
   // Annotations side (the standard body): no other side displayed.
   const showStandardBody =
     !collapsed &&
     !showBaseMapsBody &&
-    !showToolsBody &&
     !showScopeContentBody &&
     !showListingsBody &&
     !showObjectsBody;
@@ -2209,13 +2182,14 @@ export default function PopperMapListings() {
   // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend,
   // see MainMapEditorV3)
 
-  // Default geometry: 2/3 of the available height while the "Commandes"
-  // popper sits below (its 1/3, see PopperDrawingTools), the whole height
-  // otherwise — until the user resizes (explicit width / height, reset on a
-  // double-click of the handle).
-  const defaultMaxHeight = toolsDetached
-    ? "calc((100% - 130px - 12px) * 2 / 3)"
-    : "calc(100% - 130px)";
+  // Default geometry: 2/3 of the available height while the BaseMaps module's
+  // "Commandes" popper sits below (its 1/3, see PopperDrawingTools), the whole
+  // height otherwise — until the user resizes (explicit width / height, reset
+  // on a double-click of the handle).
+  const defaultMaxHeight =
+    toolsDetached && isBaseMapsViewer && isThreedEditor
+      ? "calc((100% - 130px - 12px) * 2 / 3)"
+      : "calc(100% - 130px)";
 
   return (
     <Paper
@@ -2280,7 +2254,6 @@ export default function PopperMapListings() {
             showListings={showListingsToggle}
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
-            showTools={showToolsSide}
             annotationsLabel="Annotations"
           />
         ) : (
@@ -2318,10 +2291,8 @@ export default function PopperMapListings() {
                 color: "panel.textLight",
                 p: 0.25,
                 cursor: "pointer",
-                visibility:
-                  showToolsBody || showObjectsBody ? "hidden" : "visible",
-                pointerEvents:
-                  showToolsBody || showObjectsBody ? "none" : "auto",
+                visibility: showObjectsBody ? "hidden" : "visible",
+                pointerEvents: showObjectsBody ? "none" : "auto",
               }}
             >
               <Tune sx={{ fontSize: 16 }} />
@@ -2440,18 +2411,6 @@ export default function PopperMapListings() {
             countByBaseMapIdOverride={scopeCountByBaseMapId}
           />
           <SectionBaseMapsTools />
-        </Box>
-      )}
-
-      {/* "Commandes" side (tools attached): the drawing tools replace the
-          whole body. */}
-      {!collapsed && showToolsBody && (
-        <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionPopperDrawingTools
-            templatelessCount={templatelessCount}
-            isThreedEditor={isThreedEditor}
-            viewerKey={viewerKey}
-          />
         </Box>
       )}
 
@@ -2676,7 +2635,6 @@ export default function PopperMapListings() {
           at the bottom (collapsed panel included). */}
       {(soloTemplateId || soloRevolutionAxisId) &&
         !showBaseMapsBody &&
-        !showToolsBody &&
         !showScopeContentBody &&
         !showListingsBody &&
         !showObjectsBody && (
@@ -2731,7 +2689,6 @@ export default function PopperMapListings() {
         {showBaseMapsBody && !isBaseMapsListOnly && (
           <IconButtonToggleDetached target="BASE_MAPS" />
         )}
-        {showToolsBody && <IconButtonToggleDetached target="TOOLS" />}
         {/* BaseMaps module: the base maps commands (3D editor) detach from
             the "Fonds de plan" side. */}
         {showBaseMapsBody && isBaseMapsViewer && isThreedEditor && (
