@@ -20,14 +20,16 @@ selected annotation in 2D / 3D).
 
 Dock, floating position and the last-used command of every group persist in
 localStorage (`services/commandsToolbarLocalStorage.js`, hydrated in the
-slice). Default dock: TOP (a floating toolbar paints over the edit poppers —
-`PanelShowable` is a stacking context).
+slice). Default dock: LEFT (vertical strip). A floating toolbar paints over
+the edit poppers (`PanelShowable` is a stacking context).
 
-Visibility (`hooks/useShowCommandsToolbar.js`): modules MAP / ZONES /
-business objects / THREED / MESHES displaying the 2D map or the 3D editor;
-hidden under capture framing, walk mode, PDF editor, base maps grid, create
-base map section. Buttons and hotkeys share this visibility. The BaseMaps
-module keeps its own base map placement commands (`SectionBaseMapsTools`).
+Visibility (`hooks/useShowCommandsToolbar.js`): the editing modules MAP /
+ZONES / business objects / BASE_MAPS displaying a 2D map editor or the 3D
+editor; never in the read-only Viewer / Maillage modules; hidden under
+capture framing, walk mode, PDF editor, base maps grid, create base map
+section. Buttons and hotkeys share this visibility. The layout is per module
+(`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
+module shows its two base map placement commands alone.
 
 ## Command contract
 
@@ -50,8 +52,8 @@ export default {
 
 Rules (asserted in dev by `commands/index.js`):
 
-- unique keys; every command appears exactly once in
-  `constants/toolbarLayout.js`;
+- unique keys; every command appears in at least one layout of
+  `constants/toolbarLayout.js`, at most once per layout;
 - a command with a `hotkey` has a pure `run` (the window listener calls it
   outside React); a popup-owning command exposes `Button` (`{ command, ctx,
   deps, state, hotkeyLabel }`) and **never returns null** — it renders

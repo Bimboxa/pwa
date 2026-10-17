@@ -9,15 +9,16 @@ import {
 // from localStorage and written back on every change:
 // - dock: "TOP" | "BOTTOM" | "LEFT" (in-flow strip reserving its space on
 //   that edge of the editors area) | "FLOATING" (absolute layer over the
-//   editors, dragged freely). Default TOP: a floating toolbar paints over the
-//   edit poppers of the editors (PanelShowable is a stacking context).
+//   editors, dragged freely). Default LEFT (vertical strip against the left
+//   edge) until the user moves it; a floating toolbar paints over the edit
+//   poppers of the editors (PanelShowable is a stacking context).
 // - position: floating offset in px from the editors area's top-left corner.
 // - lastUsedByGroup: command (or variant) key shown as the primary slot of
 //   every UI group of constants/toolbarLayout.js.
 const persisted = loadCommandsToolbarLayout();
 
 const initialState = {
-  dock: persisted.dock ?? "TOP",
+  dock: persisted.dock ?? "LEFT",
   position: persisted.position ?? { x: 24, y: 24 },
   lastUsedByGroup: persisted.lastUsedByGroup ?? {},
 };

@@ -134,7 +134,6 @@ import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLo
 import useTemplateBrushClick from "Features/meshPaint/hooks/useTemplateBrushClick";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
-import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
@@ -2963,10 +2962,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                        under the editors' panels). */
               <PortalEditorFloatingPanels>
                 <PopperMapListings />
-                {/* Base maps list / drawing tools ("Commandes")
-                           detached from the popper above. */}
+                {/* Base maps list detached from the popper above. */}
                 <PopperBaseMapsList />
-                <PopperDrawingTools />
               </PortalEditorFloatingPanels>
             )}
 

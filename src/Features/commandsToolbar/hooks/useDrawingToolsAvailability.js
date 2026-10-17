@@ -9,7 +9,7 @@ import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBu
 
 // Whether the drawing-tool commands (Dessin, Ouverture, cuts, Joindre, Axe,
 // Déplacer, Tourner…) apply in the displayed module: the gates the
-// "Commandes" rows of PopperMapListings / PopperDrawingTools used
+// former "Commandes" rows of PopperMapListings used
 // (selectShowDrawingTools), including the business-objects module ones that
 // need the active object's listing (locate mode: no tools; no active object:
 // edit-only tools).

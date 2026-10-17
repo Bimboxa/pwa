@@ -1,4 +1,4 @@
-import TOOLBAR_LAYOUT from "../constants/toolbarLayout";
+import { TOOLBAR_LAYOUTS } from "../constants/toolbarLayout";
 
 import drawPolylineCommand from "./drawPolyline/drawPolylineCommand";
 import drawPolygonCommand from "./drawPolygon/drawPolygonCommand";
@@ -63,6 +63,8 @@ import assignBusinessObjectCommand from "./assignBusinessObject/assignBusinessOb
 import toggleSegmentCotesCommand from "./toggleSegmentCotes/toggleSegmentCotesCommand";
 import toggleSegmentDragCommand from "./toggleSegmentDrag/toggleSegmentDragCommand";
 import toggleAnglesLockedCommand from "./toggleAnglesLocked/toggleAnglesLockedCommand";
+import moveBaseMapCommand from "./moveBaseMap/moveBaseMapCommand";
+import rotateBaseMapCommand from "./rotateBaseMap/rotateBaseMapCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -146,6 +148,9 @@ export const COMMANDS = [
   toggleSegmentCotesCommand,
   toggleSegmentDragCommand,
   toggleAnglesLockedCommand,
+  // base map placement (3D)
+  moveBaseMapCommand,
+  rotateBaseMapCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(
@@ -169,21 +174,31 @@ if (import.meta.env.DEV) {
       console.error(`[commandsToolbar] ${c.key} has no getState()`);
     }
   });
-  const laidOut = [];
-  TOOLBAR_LAYOUT.forEach((entry) => {
-    if (typeof entry === "string") laidOut.push(entry);
-    else if (entry?.type === "group") laidOut.push(...entry.commandKeys);
+  const everywhere = new Set();
+  Object.entries(TOOLBAR_LAYOUTS).forEach(([name, layout]) => {
+    const laidOut = [];
+    layout.forEach((entry) => {
+      if (typeof entry === "string") laidOut.push(entry);
+      else if (entry?.type === "group") laidOut.push(...entry.commandKeys);
+    });
+    laidOut.forEach((k) => everywhere.add(k));
+    const unknown = laidOut.filter((k) => !COMMANDS_BY_KEY[k]);
+    const repeated = laidOut.filter((k, i) => laidOut.indexOf(k) !== i);
+    if (unknown.length)
+      console.error(
+        `[commandsToolbar] layout ${name}: unknown commands`,
+        unknown
+      );
+    if (repeated.length)
+      console.error(
+        `[commandsToolbar] layout ${name}: commands laid out twice`,
+        repeated
+      );
   });
-  const unknown = laidOut.filter((k) => !COMMANDS_BY_KEY[k]);
-  const missing = keys.filter((k) => !laidOut.includes(k));
-  const repeated = laidOut.filter((k, i) => laidOut.indexOf(k) !== i);
-  if (unknown.length)
-    console.error("[commandsToolbar] layout names unknown commands", unknown);
+  const missing = keys.filter((k) => !everywhere.has(k));
   if (missing.length)
     console.error(
-      "[commandsToolbar] commands missing from the layout",
+      "[commandsToolbar] commands missing from every layout",
       missing
     );
-  if (repeated.length)
-    console.error("[commandsToolbar] commands laid out twice", repeated);
 }

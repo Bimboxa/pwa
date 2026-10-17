@@ -1,14 +1,16 @@
-// Display order of the unified commands toolbar — pure UI configuration.
+// Display order of the unified commands toolbar — pure UI configuration,
+// per module (getToolbarLayout): the editing modules share DEFAULT_LAYOUT,
+// the BaseMaps module shows its two base map placement commands alone.
 // Entries:
 //   "COMMAND_KEY"                               one button (CommandSlot)
 //   { type: "divider" }                         separator
 //   { type: "group", key, label, commandKeys }  split button: the last-used
 //     command of the group as primary slot, the others in its menu.
 // A command with `variants` (Ouverture, Coupe face…) is a split button on its
-// own. Every command of the registry must appear exactly once (asserted in
-// dev by commands/index.js). The code stays one folder per command: a group
+// own. Every command of the registry must appear in at least one layout, at
+// most once per layout (asserted in dev by commands/index.js). The code stays one folder per command: a group
 // only decides how the buttons are packed on screen.
-const TOOLBAR_LAYOUT = [
+const DEFAULT_LAYOUT = [
   // « Dessin » — the templateless annotation types, one button each
   { type: "divider" },
   "DRAW_POLYLINE",
@@ -108,6 +110,20 @@ const TOOLBAR_LAYOUT = [
   "TOGGLE_SEGMENT_COTES",
   "TOGGLE_SEGMENT_DRAG",
   "TOGGLE_ANGLES_LOCKED",
+  { type: "divider" },
+  // base map placement (3D editor)
+  "MOVE_BASE_MAP",
+  "ROTATE_BASE_MAP",
 ];
 
-export default TOOLBAR_LAYOUT;
+// « Fonds de plan » module: the base map placement commands only.
+const BASE_MAPS_LAYOUT = ["MOVE_BASE_MAP", "ROTATE_BASE_MAP"];
+
+export const TOOLBAR_LAYOUTS = {
+  DEFAULT: DEFAULT_LAYOUT,
+  BASE_MAPS: BASE_MAPS_LAYOUT,
+};
+
+export default function getToolbarLayout(moduleKey) {
+  return moduleKey === "BASE_MAPS" ? BASE_MAPS_LAYOUT : DEFAULT_LAYOUT;
+}

@@ -1,5 +1,5 @@
 // DOM host of the editors' floating panels (PopperMapListings,
-// PopperBaseMapsList, PopperDrawingTools and the helpers that replace them),
+// PopperBaseMapsList and the helpers that replace them),
 // rendered by
 // LayoutDesktop and filled through PortalEditorFloatingPanels.
 //

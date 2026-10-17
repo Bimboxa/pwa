@@ -13,7 +13,7 @@ import {
 import CommandGroupButton from "./CommandGroupButton";
 import CommandSlot from "./CommandSlot";
 import { COMMANDS_BY_KEY } from "../commands";
-import TOOLBAR_LAYOUT from "../constants/toolbarLayout";
+import getToolbarLayout from "../constants/toolbarLayout";
 import useCommandsContext from "../hooks/useCommandsContext";
 import useCommandsHotkeys from "../hooks/useCommandsHotkeys";
 import useToolbarDockDrag from "../hooks/useToolbarDockDrag";
@@ -254,7 +254,7 @@ export default function CommandsToolbar({ dock, containerRef }) {
         }}
       >
         {grip}
-        {TOOLBAR_LAYOUT.map(renderEntry)}
+        {getToolbarLayout(ctx.viewerKey).map(renderEntry)}
       </Paper>
       {/* Dock preview while dragging near an edge */}
       {isDragging && snapDock && (

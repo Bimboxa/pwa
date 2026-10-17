@@ -103,6 +103,12 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const moveAnnotationModeActive = useSelector(
     (s) => s.threedEditor.moveAnnotationMode.active
   );
+  const moveBaseMapModeActive = useSelector(
+    (s) => s.threedEditor.moveBaseMapMode.active
+  );
+  const rotateBaseMapModeActive = useSelector(
+    (s) => s.threedEditor.rotateBaseMapMode.active
+  );
 
   // data — view toggles (mapEditorSlice)
 
@@ -234,6 +240,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       templatelessDrawingShape,
       activeThreedTool,
       moveAnnotationModeActive,
+      moveBaseMapModeActive,
+      rotateBaseMapModeActive,
       pasteClipboard,
       subtractPickAnnotationId,
       subtractSourceAnnotationId,
@@ -285,6 +293,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       templatelessDrawingShape,
       activeThreedTool,
       moveAnnotationModeActive,
+      moveBaseMapModeActive,
+      rotateBaseMapModeActive,
       pasteClipboard,
       subtractPickAnnotationId,
       subtractSourceAnnotationId,

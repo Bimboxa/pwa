@@ -101,7 +101,6 @@ import {
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
-import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import {
@@ -1602,9 +1601,6 @@ export default function PopperMapListings() {
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
   // Displayed editor (the Dessin module toggled to 3D): picks the drawing
   // tools offered (Coupe face in 3D, the plan cut / join tools in 2D).
-  const isThreedEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
@@ -1883,18 +1879,12 @@ export default function PopperMapListings() {
   );
   // "Détacher la liste": the base maps list lives in its own popper
   // (PopperBaseMapsList, mounted next to this one by the editors) — this one
-  // loses its "Fonds de plan" side. Same for the drawing tools ("Détacher
-  // les commandes", detached by default: PopperDrawingTools under this one)
-  // and the "Commandes" side. The toggle goes altogether when no second side
-  // remains. In the BaseMaps module the same flag drives the base maps
-  // commands (Déplacer / Tourner, 3D editor): attached as the "Commandes"
-  // section under the list (SectionBaseMapsTools), detached in
-  // PopperDrawingTools — the detach icon sits in the bottom band of the
-  // "Fonds de plan" side.
+  // loses its "Fonds de plan" side. The toggle goes altogether when no
+  // second side remains. (The drawing / base map placement commands live in
+  // the unified commands toolbar, Features/commandsToolbar.)
   const baseMapsListDetached = useSelector(
     (s) => s.popperMapListings.baseMapsListDetached
   );
-  const toolsDetached = useSelector((s) => s.popperMapListings.toolsDetached);
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   // "Objets" side (business-objects modules, far left of the toggle,
   // labelled after the module): the module's listings and objects tree.
@@ -2182,14 +2172,9 @@ export default function PopperMapListings() {
   // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend,
   // see MainMapEditorV3)
 
-  // Default geometry: 2/3 of the available height while the BaseMaps module's
-  // "Commandes" popper sits below (its 1/3, see PopperDrawingTools), the whole
-  // height otherwise — until the user resizes (explicit width / height, reset
-  // on a double-click of the handle).
-  const defaultMaxHeight =
-    toolsDetached && isBaseMapsViewer && isThreedEditor
-      ? "calc((100% - 130px - 12px) * 2 / 3)"
-      : "calc(100% - 130px)";
+  // Default geometry: the whole available height — until the user resizes
+  // (explicit width / height, reset on a double-click of the handle).
+  const defaultMaxHeight = "calc(100% - 130px)";
 
   return (
     <Paper
@@ -2410,7 +2395,6 @@ export default function PopperMapListings() {
           <SectionBaseMapsList
             countByBaseMapIdOverride={scopeCountByBaseMapId}
           />
-          <SectionBaseMapsTools />
         </Box>
       )}
 
@@ -2687,12 +2671,7 @@ export default function PopperMapListings() {
         }
       >
         {showBaseMapsBody && !isBaseMapsListOnly && (
-          <IconButtonToggleDetached target="BASE_MAPS" />
-        )}
-        {/* BaseMaps module: the base maps commands (3D editor) detach from
-            the "Fonds de plan" side. */}
-        {showBaseMapsBody && isBaseMapsViewer && isThreedEditor && (
-          <IconButtonToggleDetached target="TOOLS" />
+          <IconButtonToggleDetached />
         )}
       </PanelFooter>
     </Paper>

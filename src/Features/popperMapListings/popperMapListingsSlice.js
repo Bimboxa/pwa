@@ -49,13 +49,6 @@ const popperMapListingsSlice = createSlice({
     // "Fonds de plan" side of the annotations popper, which then has no such
     // side.
     baseMapsListDetached: false,
-    // "Détacher les commandes": the module's commands live in their own
-    // popper (PopperDrawingTools, under the annotations popper by default)
-    // instead of the "Commandes" side of the annotations popper (drawing
-    // tools) — or, in the BaseMaps module, instead of the "Commandes" section
-    // under the base maps list (Déplacer / Tourner the base map). Detached by
-    // default.
-    toolsDetached: true,
   },
   reducers: {
     setShowLayers(state, action) {
@@ -82,12 +75,6 @@ const popperMapListingsSlice = createSlice({
       } else if (!detached) {
         state.viewerContentMode = "BASE_MAPS";
       }
-    },
-    // BaseMaps module: its base map placement commands (Déplacer / Tourner,
-    // 3D editor) leave the "Fonds de plan" side for PopperDrawingTools and
-    // back (SectionBaseMapsTools).
-    setToolsDetached(state, action) {
-      state.toolsDetached = Boolean(action.payload);
     },
     setHideEmptyBaseMapsInList(state, action) {
       state.hideEmptyBaseMapsInList = Boolean(action.payload);
@@ -134,7 +121,6 @@ export const {
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
-  setToolsDetached,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

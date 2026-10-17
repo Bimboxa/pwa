@@ -10,22 +10,26 @@ import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 
 // Whether the unified commands toolbar is shown (buttons AND hotkeys share
-// this one visibility): the modules editing annotations (Dessin, Zones, the
-// business-objects modules, the Viewer family) while they display the 2D map
-// or the 3D editor, and nothing covers / freezes the editor (capture framing,
-// walk mode, PDF editor, base maps grid, "create a base map" section). Hidden
-// in the BaseMaps module (its own base map placement commands) and in the
-// POV / Krto / Portfolio / Table / Admin modules.
+// this one visibility): the editing modules (Dessin, Zones, the
+// business-objects modules, Fonds de plan — with its own layout) while they
+// display a 2D map editor or the 3D editor, and nothing covers / freezes the
+// editor (capture framing, walk mode, PDF editor, base maps grid, "create a
+// base map" section). Never in the read-only Viewer / Maillage modules nor in
+// the POV / Krto / Portfolio / Table / Admin modules.
 export function selectShowCommandsToolbar(s) {
   const moduleKey = s.viewers.selectedViewerKey;
   const moduleOk =
     moduleKey === "MAP" ||
     moduleKey === "ZONES" ||
-    isThreedFamilyViewerKey(moduleKey) ||
+    moduleKey === "BASE_MAPS" ||
     isBusinessObjectsModuleKey(moduleKey);
   if (!moduleOk) return false;
   const effectiveKey = selectEffectiveViewerKey(s);
-  if (effectiveKey !== "MAP" && !isThreedFamilyViewerKey(effectiveKey))
+  if (
+    effectiveKey !== "MAP" &&
+    effectiveKey !== "BASE_MAPS" &&
+    !isThreedFamilyViewerKey(effectiveKey)
+  )
     return false;
   if (selectCaptureFramingActive(s)) return false;
   if (s.threedEditor.walkMode.active) return false;
