@@ -5,7 +5,7 @@ const appConfigSlice = createSlice({
   initialState: {
     appVersion: "1.3.34",
     configCode: null, // updated by useInitAppConfig
-    newVersionAvailable: null, // { version, description } | null
+    newVersionAvailable: null, // { version, description, mainWarningMessage } | null
     newVersionDialogOpen: false,
     value: null,
     openAppConfig: false,

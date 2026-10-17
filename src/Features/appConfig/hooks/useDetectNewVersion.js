@@ -44,6 +44,7 @@ export default function useDetectNewVersion() {
           setNewVersionAvailable({
             version: remote.version,
             description: remote.description ?? "",
+            mainWarningMessage: remote.mainWarningMessage ?? "",
           })
         );
 

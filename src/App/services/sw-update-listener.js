@@ -18,7 +18,11 @@ export function setupSWUpdateListener() {
       // have set (with version + description).
       if (!state.appConfig.newVersionAvailable) {
         store.dispatch(
-          setNewVersionAvailable({ version: "?", description: "" })
+          setNewVersionAvailable({
+            version: "?",
+            description: "",
+            mainWarningMessage: "",
+          })
         );
         store.dispatch(setNewVersionDialogOpen(true));
       }
