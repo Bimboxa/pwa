@@ -1,8 +1,7 @@
-import { OpenWith } from "@mui/icons-material";
-
 import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
 
 import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
+import IconResizeFrame from "Features/icons/IconResizeFrame";
 
 import { EDITOR_2D } from "../../constants/commandEditors";
 import { getSelectionGate } from "../../utils/selectionCommandState";
@@ -13,7 +12,7 @@ import { getSelectionGate } from "../../utils/selectionCommandState";
 export default {
   key: "WRAPPER_MODE",
   label: "Déplacer / Redimensionner",
-  Icon: OpenWith,
+  Icon: IconResizeFrame,
   editors: [EDITOR_2D],
   getState(ctx) {
     const gate = getSelectionGate(ctx);
