@@ -30,7 +30,7 @@ function CommandButton({
   hotkeyLabel,
   state,
   onClick,
-  accentColor = "primary.main",
+  accentColor = "secondary.main",
   size = "small",
   sx,
 }) {
@@ -119,14 +119,16 @@ function CommandButton({
       disabled={!enabled}
       sx={{
         position: "relative",
-        color: active ? accentColor : "text.secondary",
-        bgcolor: active ? "action.selected" : "transparent",
+        // Three states: available = secondary color, armed / toggled on =
+        // inverted (secondary background, white icon), not relevant = grey.
+        color: active ? "secondary.contrastText" : accentColor,
+        bgcolor: active ? accentColor : "transparent",
         "& .MuiSvgIcon-root": { fontSize: 18 },
         "&:hover": {
-          color: accentColor,
-          bgcolor: "action.hover",
+          color: active ? "secondary.contrastText" : "secondary.dark",
+          bgcolor: active ? "secondary.dark" : "action.hover",
         },
-        "&.Mui-disabled": { color: "text.disabled" },
+        "&.Mui-disabled": { color: "text.disabled", opacity: 0.6 },
         ...sx,
       }}
     >

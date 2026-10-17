@@ -64,7 +64,7 @@ export default function CommandGroupButton({
             width: 14,
             height: 30,
             borderRadius: "4px",
-            color: open ? "primary.main" : "text.disabled",
+            color: open ? "secondary.main" : "text.disabled",
             "& .MuiSvgIcon-root": { fontSize: 16 },
           }}
         >
