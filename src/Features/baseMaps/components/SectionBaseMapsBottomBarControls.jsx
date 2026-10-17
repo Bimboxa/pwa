@@ -5,6 +5,7 @@ import { Box } from "@mui/material";
 import SelectorBaseMapsImageMode from "./SelectorBaseMapsImageMode";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
+import ButtonToggleAntiAliasingShrink from "Features/threedEditor/components/ButtonToggleAntiAliasingShrink";
 
 import {
   selectCaptureFramingActive,
@@ -13,8 +14,9 @@ import {
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Bottom bar controls of the displayed editor: the base map image display
-// mode (hidden / faded / as is) and the base maps grid button (2D grid layer,
-// or the 3D "lay the base maps flat" mode) — formerly the top-right row of
+// mode (hidden / faded / as is), the « Séparer les surfaces en contact »
+// toggle (3D editor only) and the base maps grid button (2D grid layer, or
+// the 3D "lay the base maps flat" mode) — formerly the top-right rows of
 // the editors. Rendered for the 2D map editors and the 3D editor; the
 // Maillage module (meshing-only) has neither; nothing under a capture / POV
 // framing. The hotkey badges hang above the buttons (bottom edge). The
@@ -56,6 +58,7 @@ export default function SectionBaseMapsBottomBarControls() {
       }}
     >
       <SelectorBaseMapsImageMode />
+      {is3dEditor && <ButtonToggleAntiAliasingShrink />}
       {is3dEditor ? <ButtonOpenBaseMapsGrid3d /> : <ButtonOpenBaseMapsGrid />}
     </Box>
   );

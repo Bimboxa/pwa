@@ -5,7 +5,8 @@ import { setAntiAliasingShrink } from "Features/threedEditor/threedEditorSlice";
 import ButtonBaseMapsGrid from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
 import IconSeparateSurfaces from "Features/icons/IconSeparateSurfaces";
 
-// Top-right toggle of the 3D view: « Séparer les surfaces en contact ». OFF
+// Bottom bar toggle of the 3D view (SectionBaseMapsBottomBarControls):
+// « Séparer les surfaces en contact ». OFF
 // (default) renders every element at its drawn dimensions; ON applies the
 // render-only anti-aliasing tweaks — the 10 mm footprint / 5 mm top shrink
 // of CM POLYLINE and STRIP elements and the POLYGON « Delta offset 3D » lift

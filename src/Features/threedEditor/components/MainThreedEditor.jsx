@@ -108,7 +108,6 @@ import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkey
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
-import ButtonToggleAntiAliasingShrink from "./ButtonToggleAntiAliasingShrink";
 import AxesGizmoThreed from "./AxesGizmoThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
@@ -2849,27 +2848,10 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
-      {/* Top-right row: « Séparer les surfaces en contact » toggle (3D
-          only). The base map image mode and the base maps grid button live
+      {/* No top-right row any more: the base map image mode, the base maps
+          grid button and the « Séparer les surfaces en contact » toggle live
           in the bottom bar (SectionBaseMapsBottomBarControls), the zoom out
           next to the 2D/3D toggle below. */}
-      {isThreedViewer && !captureFramingActive && !isMeshesViewer && (
-        <Box
-          data-capture-hide
-          sx={{
-            position: "absolute",
-            right: rightPanelOpen ? `${rightPanelWidth + 24}px` : "24px",
-            top: "14px",
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            transition: "right 0.2s ease",
-          }}
-        >
-          <ButtonToggleAntiAliasingShrink />
-        </Box>
-      )}
       {/* Orientation gizmo, under the top-right row (3D view settings
           "Gizmo d'orientation"). Hidden with the row under a capture
           framing, in walk mode (HUD) and in the POV viewer. */}
