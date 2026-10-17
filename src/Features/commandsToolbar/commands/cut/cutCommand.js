@@ -1,4 +1,4 @@
-import { StopCircle } from "@mui/icons-material";
+import IconOpeningRectangle from "Features/icons/IconOpeningRectangle";
 
 import createToolGroupCommand from "../../utils/createToolGroupCommand";
 
@@ -7,6 +7,6 @@ import createToolGroupCommand from "../../utils/createToolGroupCommand";
 export default createToolGroupCommand({
   key: "CUT",
   label: "Ouverture",
-  Icon: StopCircle,
+  Icon: IconOpeningRectangle,
   hotkey: { key: "o" },
 });
