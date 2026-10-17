@@ -5272,26 +5272,6 @@ const InteractionLayer = forwardRef(({
           }
           break;
 
-        // "Evider": open the carve dialog (preview + per-template switches,
-        // DialogHollowOutAnnotation) for the selected POLYGON — same action as
-        // the overlay button above the annotation, so the guards mirror its
-        // visibility (single selected POLYGON annotation node).
-        case "e":
-        case "E": {
-          if (!isActiveViewerRef.current) break;
-          if (e.ctrlKey || e.metaKey || e.altKey) break;
-          if (enabledDrawingModeRef.current) break;
-          if (pasteClipboardRef.current) break;
-          if (selectedNode?.nodeType !== "ANNOTATION") break;
-          if (selectedAnnotationsForCopyRef.current?.length !== 1) break;
-          const annToCarve = selectedAnnotationRef.current;
-          if (annToCarve?.type !== "POLYGON" || annToCarve.isMesh3d) break;
-          if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
-          e.preventDefault();
-          dispatch(setHollowOutDialogAnnotationId(annToCarve.id));
-          break;
-        }
-
         // Selected DOOR opening (no drawing tool): Tab swaps the hinge end
         // (p1 ⇄ p2, i.e. left ⇄ right jamb). preventDefault keeps the
         // browser's focus traversal out of the editor. While a drawing tool

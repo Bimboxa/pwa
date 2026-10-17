@@ -97,7 +97,6 @@ const mapEditorInitialState = {
   // "WORLD_3D"; the row falls back to the annotation's bbox when the anchor
   // is not its own (selection from a panel, from the 2D editor...). In 2D
   // the row is anchored on the geometry (bbox top-center) instead.
-  annotationOverlayAnchor: null, // { annotationId, space, x, y, z? }
   tempAnnotationToolbarPosition: null,
   toolbarDragOffset: { x: 0, y: 0 },
   //
@@ -640,9 +639,6 @@ export const mapEditorSlice = createSlice({
     setAnnotationToolbarPosition: (state, action) => {
       state.annotationToolbarPosition = action.payload;
     },
-    setAnnotationOverlayAnchor: (state, action) => {
-      state.annotationOverlayAnchor = action.payload;
-    },
     setToolbarDragOffset: (state, action) => {
       state.toolbarDragOffset = action.payload;
     },
@@ -1095,7 +1091,6 @@ export const {
   setCanTransformNode,
   setAnnotationToolbarPosition,
   setToolbarDragOffset,
-  setAnnotationOverlayAnchor,
   setAnnotationsToolbarPosition,
   setTempAnnotationToolbarPosition,
   //

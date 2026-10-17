@@ -1,31 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { IconButton, Tooltip } from "@mui/material";
-import {
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
-  OpenWith as MoveResizeIcon,
-  Straighten as StraightenIcon,
-} from "@mui/icons-material";
-import IconSegmentDrag from "Features/icons/IconSegmentDrag";
-
-import {
-  setAnglesLocked,
-  setSegmentDragEnabled,
-  setShowSegmentCotes,
-  setWrapperMode,
-} from "Features/mapEditor/mapEditorSlice";
+import { Lock as LockIcon, LockOpen as LockOpenIcon } from "@mui/icons-material";
 
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
 import { typeOf } from "Features/geometry/utils/arcSampling";
-import ButtonCloneAnnotation from "Features/annotations/components/ButtonCloneAnnotation";
-import OverlayButtonHollowOutAnnotation from "Features/annotations/components/OverlayButtonHollowOutAnnotation";
-import OverlayButtonToggleStripType from "Features/annotations/components/OverlayButtonToggleStripType";
-import OverlayButtonMoreAnnotationTools from "Features/annotations/components/OverlayButtonMoreAnnotationTools";
-import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
-import getAnnotationHasEditTools from "Features/annotations/utils/getAnnotationHasEditTools";
-import getAnnotationHasOverlayActions from "Features/annotations/utils/getAnnotationHasOverlayActions";
 
 // Inline length editor footprint, screen px. A <foreignObject> hit-tests only
 // within its own box, so it must comfortably contain input + padlock.
@@ -34,9 +14,13 @@ const FIELD_H_PX = 30;
 
 const ACCENT_COLOR = "#2196f3";
 
-// Overlay toolbar geometry, screen px: MUI small IconButton with p: 0.5
-// around an 18px icon ≈ 34px, plus the flex gap. Exported: the quick-action
-// rows of other nodes (NodeRevolutionAxisOverlayStatic) share the geometry.
+// Overlay row geometry, screen px: MUI small IconButton with p: 0.5 around an
+// 18px icon ≈ 34px, plus the flex gap. The row only hosts the buttons a host
+// node passes (`extraButtons`, e.g. the "Lier à un fond de plan" action of a
+// BASE_MAP_LINK): the annotation commands and the view toggles live in the
+// unified commands toolbar (Features/commandsToolbar). Exported: the
+// quick-action rows of other nodes (NodeRevolutionAxisOverlayStatic) share the
+// geometry.
 export const OVERLAY_BUTTON_PX = 34;
 export const OVERLAY_GAP_PX = 4;
 export const OVERLAY_H_PX = 40;
@@ -112,24 +96,19 @@ export default function NodeSegmentLengthsStatic({
   );
 
   // Global angle lock (mapEditorSlice, default unlocked): vertex / segment
-  // drags preserve the joint angles. The padlock rendered above the
-  // annotation toggles it for the whole session.
+  // drags preserve the joint angles — toggled from the commands toolbar.
   const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
 
-  // "No mode" overlay toggles (mapEditorSlice, session-wide like anglesLocked).
+  // "No mode" cotes toggle (mapEditorSlice, session-wide, commands toolbar).
   const showSegmentCotes = useSelector((s) => s.mapEditor.showSegmentCotes);
-  const segmentDragEnabled = useSelector(
-    (s) => s.mapEditor.segmentDragEnabled
-  );
 
-  // Move / resize wrapper (mapEditorSlice): the 4-arrow toggle above the
-  // annotation shows the transform frame (body drag, resize + rotation
-  // handles) rendered by EditedObjectLayer. Reset on selection change.
+  // Move / resize wrapper (mapEditorSlice, commands toolbar): the transform
+  // frame rendered by EditedObjectLayer pushes the overlay row further up so
+  // the rotation handle stays reachable.
   const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
-  // Multi-selection: the no-mode overlay targets ONE annotation — with
-  // several selected, each node would grow its own toolbar. Hide it (cotes
-  // included) until the selection is back to a single annotation.
+  // Multi-selection: the no-mode overlay row targets ONE annotation — with
+  // several selected, each node would grow its own row.
   const hasMultiSelection = useSelector(
     (s) => (s.selection?.selectedItems?.length ?? 0) > 1
   );
@@ -427,45 +406,9 @@ export default function NodeSegmentLengthsStatic({
 
   if (!overlayActive) return null;
 
-  // Which overlay buttons are rendered — drives the foreignObject width so
-  // the group stays centered on the bbox whatever the mode.
-  // - move / resize: point-based annotations only (openings have no wrapper);
-  //   multi-selection is handled by the top toolbar.
-  // - angle padlock: EDIT keeps its historical gating (scale + at least one
-  //   straight segment), no-mode always.
-  const showMoveButton = !simple && !hasMultiSelection;
-  const showCotesButton = isNoMode && hasScale;
-  const showSegmentDragButton = isNoMode && !simple;
-  const showAnglesButton =
-    !simple &&
-    (interactionMode !== "EDIT" || (hasScale && straightItems.length > 0));
-  // - "Plus d'outils": the whole edit-tool row of the annotation toolbar as
-  //   a menu (icon + label); single selection only, like the move button.
-  const showMoreButton =
-    !simple && !hasMultiSelection && getAnnotationHasEditTools(annotation);
-  // - "Dupliquer" / "Basculer ligne ↔ bande" (open POLYLINE / STRIP) /
-  //   "Evider" (POLYGON, hotkey E): the actions pulled out of the
-  //   "Plus d'outils" menu, right before it. ToolbarEditAnnotation drops its
-  //   own copies for these annotations (getAnnotationHasOverlayActions).
-  const showCloneButton =
-    !simple && !hasMultiSelection && getAnnotationHasOverlayActions(annotation);
-  // Same condition as the menu entry (EditAnnotationTools).
-  const showToggleStripButton =
-    showCloneButton &&
-    ["POLYLINE", "STRIP"].includes(annotation?.type) &&
-    !annotation?.closeLine;
-  const showHollowOutButton =
-    showCloneButton && annotation?.type === "POLYGON";
-  const overlayButtonCount =
-    Number(showMoveButton) +
-    Number(showCotesButton) +
-    Number(showSegmentDragButton) +
-    Number(showAnglesButton) +
-    Number(showCloneButton) +
-    Number(showToggleStripButton) +
-    Number(showHollowOutButton) +
-    Number(showMoreButton) +
-    (extraButtons ? extraButtonCount : 0);
+  // Only the host's extra buttons remain in the row — drives the
+  // foreignObject width so the group stays centered on the bbox.
+  const overlayButtonCount = extraButtons ? extraButtonCount : 0;
   const overlayWidth =
     overlayButtonCount * OVERLAY_BUTTON_PX +
     Math.max(0, overlayButtonCount - 1) * OVERLAY_GAP_PX;
@@ -714,16 +657,13 @@ export default function NodeSegmentLengthsStatic({
         );
       })}
 
-      {/* Overlay above the annotation (session-wide toggles, mapEditorSlice).
-          Up to 4 toggles: move / resize wrapper, show/hide cotes (no-mode),
-          enable segment drag (no-mode), ANGLE padlock — preserves the joint
-          angles during vertex / segment drags and typed length edits
-          (default: unlocked). Rendered as HTML buttons in a foreignObject so
-          they get real MUI Tooltips. While the wrapper is active the group
-          is pushed further up so the rotation handle stays reachable.
-          Rendered LAST in this node (after the padlocks) so it paints above
-          the cotes / padlocks; the host node renders this component last
-          for the same reason. */}
+      {/* Overlay row above the annotation: the host node's extra buttons
+          only (BASE_MAP_LINK link / flip) — the commands and the view toggles
+          moved to the unified commands toolbar. HTML buttons in a
+          foreignObject so they get real MUI Tooltips. While the wrapper is
+          active the group is pushed further up so the rotation handle stays
+          reachable. Rendered LAST in this node (after the padlocks) so it
+          paints above the cotes / padlocks. */}
       {showToolbar && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
@@ -746,140 +686,6 @@ export default function NodeSegmentLengthsStatic({
                   gap: OVERLAY_GAP_PX,
                 }}
               >
-                {showMoveButton && (
-                  <Tooltip
-                    placement="top"
-                    arrow
-                    title={
-                      wrapperMode
-                        ? "Désactiver déplacer / redimensionner"
-                        : "Déplacer / Redimensionner"
-                    }
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={() => dispatch(setWrapperMode(!wrapperMode))}
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.9)",
-                        border: `1px solid ${ACCENT_COLOR}`,
-                        color: wrapperMode ? ACCENT_COLOR : "text.disabled",
-                        "&:hover": { bgcolor: "white" },
-                        p: 0.5,
-                      }}
-                    >
-                      <MoveResizeIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {showCotesButton && (
-                  <Tooltip
-                    placement="top"
-                    arrow
-                    title="Afficher / Masquer les cotes"
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={() =>
-                        dispatch(setShowSegmentCotes(!showSegmentCotes))
-                      }
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.9)",
-                        border: `1px solid ${ACCENT_COLOR}`,
-                        color: showSegmentCotes
-                          ? ACCENT_COLOR
-                          : "text.disabled",
-                        "&:hover": { bgcolor: "white" },
-                        p: 0.5,
-                      }}
-                    >
-                      <StraightenIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {showSegmentDragButton && (
-                  <Tooltip
-                    placement="top"
-                    arrow
-                    title={
-                      segmentDragEnabled
-                        ? "Déplacement de segment activé : glisser un segment le déplace. Cliquer pour désactiver."
-                        : "Déplacement de segment désactivé : survoler un segment permet d'y ajouter un point. Cliquer pour activer."
-                    }
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={() =>
-                        dispatch(setSegmentDragEnabled(!segmentDragEnabled))
-                      }
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.9)",
-                        border: `1px solid ${ACCENT_COLOR}`,
-                        color: segmentDragEnabled
-                          ? ACCENT_COLOR
-                          : "text.disabled",
-                        "&:hover": { bgcolor: "white" },
-                        p: 0.5,
-                      }}
-                    >
-                      <IconSegmentDrag sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {showAnglesButton && (
-                <Tooltip
-                  placement="top"
-                  arrow
-                  title={
-                    anglesLocked
-                      ? "Angles verrouillés : déplacer un point ou un segment, ou modifier une cote, conserve tous les angles (un rectangle reste un rectangle). Cliquer pour libérer les angles."
-                      : "Angles libres : déplacer un point ou un segment, ou modifier une cote, peut déformer les angles. Cliquer pour verrouiller les angles."
-                  }
-                >
-                  <IconButton
-                    size="small"
-                    onClick={() => dispatch(setAnglesLocked(!anglesLocked))}
-                    sx={{
-                      bgcolor: "rgba(255,255,255,0.9)",
-                      border: `1px solid ${ACCENT_COLOR}`,
-                      color: anglesLocked ? ACCENT_COLOR : "text.disabled",
-                      "&:hover": { bgcolor: "white" },
-                      p: 0.5,
-                    }}
-                  >
-                    {anglesLocked ? (
-                      <LockIcon sx={{ fontSize: 18 }} />
-                    ) : (
-                      <LockOpenIcon sx={{ fontSize: 18 }} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                )}
-                {showCloneButton && (
-                  <ButtonCloneAnnotation
-                    key={annotationId}
-                    variant="overlay"
-                    accentColor={getAnnotationColor(annotation) || "#6366F1"}
-                    overlayColor={ACCENT_COLOR}
-                  />
-                )}
-                {showToggleStripButton && (
-                  <OverlayButtonToggleStripType
-                    annotation={annotation}
-                    overlayColor={ACCENT_COLOR}
-                  />
-                )}
-                {showHollowOutButton && (
-                  <OverlayButtonHollowOutAnnotation
-                    annotation={annotation}
-                    overlayColor={ACCENT_COLOR}
-                  />
-                )}
-                {showMoreButton && (
-                  <OverlayButtonMoreAnnotationTools
-                    annotation={annotation}
-                    overlayColor={ACCENT_COLOR}
-                  />
-                )}
                 {extraButtons}
               </div>
             </foreignObject>

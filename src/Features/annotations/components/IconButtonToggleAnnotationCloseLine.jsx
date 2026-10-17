@@ -1,12 +1,14 @@
+import { IconButton, Tooltip } from "@mui/material";
 import {
   CloseFullscreen as CloseLineIcon,
   OpenInFull as OpenLineIcon,
 } from "@mui/icons-material";
 
-import ToolbarToolButton from "./ToolbarToolButton";
-
 import db from "App/db/db";
 
+// « Fermer / Ouvrir la ligne » of a BASE MAP annotation
+// (ToolbarEditAnnotationVariantBaseMapAnnotation). Regular annotations use
+// the TOGGLE_CLOSE_LINE command of the unified commands toolbar.
 export default function IconButtonToggleAnnotationCloseLine({
   annotation,
   accentColor,
@@ -24,17 +26,23 @@ export default function IconButtonToggleAnnotationCloseLine({
   };
 
   return (
-    <ToolbarToolButton
-      icon={
-        !annotation.closeLine ? (
+    <Tooltip title={title}>
+      <IconButton
+        size="small"
+        onClick={handleToggleCloseLine}
+        sx={{
+          color: "text.disabled",
+          ...(accentColor && {
+            "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
+          }),
+        }}
+      >
+        {!annotation.closeLine ? (
           <CloseLineIcon fontSize="small" />
         ) : (
           <OpenLineIcon fontSize="small" />
-        )
-      }
-      label={title}
-      onClick={handleToggleCloseLine}
-      accentColor={accentColor}
-    />
+        )}
+      </IconButton>
+    </Tooltip>
   );
 }

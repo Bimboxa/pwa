@@ -14,6 +14,45 @@ import mergeFacesCommand from "./mergeFaces/mergeFacesCommand";
 import extrudeCommand from "./extrude/extrudeCommand";
 import moveAnnotationCommand from "./moveAnnotation/moveAnnotationCommand";
 import rotateAnnotationCommand from "./rotateAnnotation/rotateAnnotationCommand";
+import wrapperModeCommand from "./wrapperMode/wrapperModeCommand";
+import cloneCommand from "./clone/cloneCommand";
+import mergeCommand from "./merge/mergeCommand";
+import dilateCommand from "./dilate/dilateCommand";
+import splitInSegmentsCommand from "./splitInSegments/splitInSegmentsCommand";
+import settingOutCommand from "./settingOut/settingOutCommand";
+import convertCommand from "./convert/convertCommand";
+import reentrantAnglesCommand from "./reentrantAngles/reentrantAnglesCommand";
+import cleanSegmentsCommand from "./cleanSegments/cleanSegmentsCommand";
+import curvatureCommand from "./curvature/curvatureCommand";
+import toggleStripTypeCommand from "./toggleStripType/toggleStripTypeCommand";
+import toggleCloseLineCommand from "./toggleCloseLine/toggleCloseLineCommand";
+import flipStripCommand from "./flipStrip/flipStripCommand";
+import flipExtrusionCommand from "./flipExtrusion/flipExtrusionCommand";
+import anchorCommand from "./anchor/anchorCommand";
+import detectSimilarStripsCommand from "./detectSimilarStrips/detectSimilarStripsCommand";
+import repairCommand from "./repair/repairCommand";
+import simplifyCommand from "./simplify/simplifyCommand";
+import arcifyCommand from "./arcify/arcifyCommand";
+import hollowOutCommand from "./hollowOut/hollowOutCommand";
+import subtractCommand from "./subtract/subtractCommand";
+import subtractFromCommand from "./subtractFrom/subtractFromCommand";
+import addGuideLineCommand from "./addGuideLine/addGuideLineCommand";
+import addSlopeCommand from "./addSlope/addSlopeCommand";
+import autoSlopeCommand from "./autoSlope/autoSlopeCommand";
+import addIsoHeightLineCommand from "./addIsoHeightLine/addIsoHeightLineCommand";
+import addProfileLineCommand from "./addProfileLine/addProfileLineCommand";
+import addLayoutLineCommand from "./addLayoutLine/addLayoutLineCommand";
+import vectoriseCommand from "./vectorise/vectoriseCommand";
+import contoursCommand from "./contours/contoursCommand";
+import closeEnvelopeCommand from "./closeEnvelope/closeEnvelopeCommand";
+import closeWallFootprintCommand from "./closeWallFootprint/closeWallFootprintCommand";
+import autoWallsCommand from "./autoWalls/autoWallsCommand";
+import slopeWallsCommand from "./slopeWalls/slopeWallsCommand";
+import assignZoneCommand from "./assignZone/assignZoneCommand";
+import assignBusinessObjectCommand from "./assignBusinessObject/assignBusinessObjectCommand";
+import toggleSegmentCotesCommand from "./toggleSegmentCotes/toggleSegmentCotesCommand";
+import toggleSegmentDragCommand from "./toggleSegmentDrag/toggleSegmentDragCommand";
+import toggleAnglesLockedCommand from "./toggleAnglesLocked/toggleAnglesLockedCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -44,6 +83,47 @@ export const COMMANDS = [
   extrudeCommand,
   moveAnnotationCommand,
   rotateAnnotationCommand,
+  // selection
+  wrapperModeCommand,
+  cloneCommand,
+  mergeCommand,
+  dilateCommand,
+  splitInSegmentsCommand,
+  settingOutCommand,
+  convertCommand,
+  reentrantAnglesCommand,
+  cleanSegmentsCommand,
+  curvatureCommand,
+  toggleStripTypeCommand,
+  toggleCloseLineCommand,
+  flipStripCommand,
+  flipExtrusionCommand,
+  anchorCommand,
+  detectSimilarStripsCommand,
+  repairCommand,
+  simplifyCommand,
+  arcifyCommand,
+  hollowOutCommand,
+  subtractCommand,
+  subtractFromCommand,
+  addGuideLineCommand,
+  addSlopeCommand,
+  autoSlopeCommand,
+  addIsoHeightLineCommand,
+  addProfileLineCommand,
+  addLayoutLineCommand,
+  vectoriseCommand,
+  contoursCommand,
+  closeEnvelopeCommand,
+  closeWallFootprintCommand,
+  autoWallsCommand,
+  slopeWallsCommand,
+  assignZoneCommand,
+  assignBusinessObjectCommand,
+  // 2D view toggles
+  toggleSegmentCotesCommand,
+  toggleSegmentDragCommand,
+  toggleAnglesLockedCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

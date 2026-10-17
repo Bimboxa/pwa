@@ -25,7 +25,6 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
-  setAnnotationOverlayAnchor,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -87,7 +86,6 @@ import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/Sec
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
-import ThreedAnnotationOverlayActions from "./ThreedAnnotationOverlayActions";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
@@ -1162,17 +1160,6 @@ export default function MainThreedEditor() {
         dispatch(setShowAnnotationsProperties(true));
         dispatch(clearSubSelection());
         dispatch(setHighlightedMeshPaintId(paintHit.paintId));
-        if (paintHit.point) {
-          dispatch(
-            setAnnotationOverlayAnchor({
-              annotationId: hostId,
-              space: "WORLD_3D",
-              x: paintHit.point.x,
-              y: paintHit.point.y,
-              z: paintHit.point.z,
-            })
-          );
-        }
         dispatch(setAnnotationToolbarPosition(position));
         dispatch(setAnnotationsToolbarPosition(position));
         return;
@@ -1438,19 +1425,6 @@ export default function MainThreedEditor() {
                   additive: event.shiftKey,
                 });
                 dispatch(clearSubSelection());
-                // The face quick-action row (ThreedAnnotationOverlayActions:
-                // « Fusionner ») sits just above the clicked point.
-                if (intersect.point) {
-                  dispatch(
-                    setAnnotationOverlayAnchor({
-                      annotationId: nodeId,
-                      space: "WORLD_3D",
-                      x: intersect.point.x,
-                      y: intersect.point.y,
-                      z: intersect.point.z,
-                    })
-                  );
-                }
                 return;
               }
             }
@@ -1487,19 +1461,6 @@ export default function MainThreedEditor() {
               // Mirror the 2D InteractionLayer: the flag drives the properties
               // panel back chain (annotation → annotationTemplate → listing).
               dispatch(setShowAnnotationsProperties(true));
-              // Quick-action row (ThreedAnnotationOverlayActions) just above
-              // the clicked point, like the 2D editor.
-              if (intersect.point) {
-                dispatch(
-                  setAnnotationOverlayAnchor({
-                    annotationId: nodeId,
-                    space: "WORLD_3D",
-                    x: intersect.point.x,
-                    y: intersect.point.y,
-                    z: intersect.point.z,
-                  })
-                );
-              }
             }
             // Selection of a face clears any prior vertex/edge sub-selection.
             dispatch(clearSubSelection());
@@ -2876,7 +2837,6 @@ export default function MainThreedEditor() {
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}
-      {isThreedViewer && <ThreedAnnotationOverlayActions />}
       {/* Right click on an annotation: "change template" menu */}
       {isThreedViewer && <PopperContextMenu viewerKey="THREED" />}
       {/* "Evider" dialog requested from the toolbar above (the 2D editors
