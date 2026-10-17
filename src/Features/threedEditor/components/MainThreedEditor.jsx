@@ -2955,7 +2955,7 @@ export default function MainThreedEditor() {
           }}
         >
           <ButtonToggleWalkMode />
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
             <ButtonZoomOutThreed shortcutPlacement="top" />
             <ButtonToggleThreedViewer />
           </Box>

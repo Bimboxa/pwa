@@ -17,7 +17,9 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // or the 3D "lay the base maps flat" mode) — formerly the top-right row of
 // the editors. Rendered for the 2D map editors and the 3D editor; the
 // Maillage module (meshing-only) has neither; nothing under a capture / POV
-// framing. The hotkey badges hang above the buttons (bottom edge).
+// framing. The hotkey badges hang above the buttons (bottom edge). The
+// buttons are flat here (no elevation, a thin border): they belong to the
+// bar, they do not float over the editor like the in-editor rows.
 export default function SectionBaseMapsBottomBarControls() {
   // data
 
@@ -41,7 +43,17 @@ export default function SectionBaseMapsBottomBarControls() {
   return (
     <Box
       data-capture-hide
-      sx={{ display: "flex", alignItems: "center", gap: 1, px: 0.5 }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 0.5,
+        "& > .MuiPaper-root": {
+          boxShadow: "none",
+          border: "1px solid",
+          borderColor: "divider",
+        },
+      }}
     >
       <SelectorBaseMapsImageMode />
       {is3dEditor ? <ButtonOpenBaseMapsGrid3d /> : <ButtonOpenBaseMapsGrid />}

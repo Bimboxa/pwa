@@ -116,7 +116,9 @@ export default function UILayerDesktop({
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
-                    gap: 1,
+                    // room for the Z badge of the zoom out and the T badge
+                    // of the toggle, which face each other
+                    gap: 2.5,
                     transition: "right 0.2s ease",
                 }}
             >
