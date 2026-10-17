@@ -2,7 +2,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // The threedEditor tool armed from the « Outils de dessin » rows of the
-// Dessin module's 3D editor (TOOL_ITEMS `threedTool`): "EXTRUDE" |
+// Dessin module's 3D editor (commandsToolbar commands): "EXTRUDE" |
 // "MOVE_ANNOTATION" | "VERTEX_OFFSET" (Déplacer armed on a selected face) |
 // "ROTATE_ANNOTATION" | "ISOLATE_FACE" (Isoler une face) | "MERGE_FACES"
 // (Fusionner des faces), or null. Drives the drawing helper

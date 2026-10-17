@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useSelector } from "react-redux";
 
 import BoxCenter from "./BoxCenter";
@@ -30,6 +31,9 @@ import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
 import AssistantRelayRuntime from "Features/assistantRelay/components/AssistantRelayRuntime";
 import LayerCreateBaseMap from "Features/mapEditor/components/LayerCreateBaseMap";
 import LayerPdfEditor from "Features/pdfEditor/components/LayerPdfEditor";
+import CommandsToolbar from "Features/commandsToolbar/components/CommandsToolbar";
+import useShowCommandsToolbar from "Features/commandsToolbar/hooks/useShowCommandsToolbar";
+import { selectCommandsToolbarDock } from "Features/commandsToolbar/commandsToolbarSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
   selectEffectiveViewerKey,
@@ -87,6 +91,20 @@ export default function SectionViewer() {
   // PopperMapListings. The sheets of the grid follow that content selection
   // (ScopeGridSheetsController).
   const isScopeModule = viewerKey === "SCOPE";
+
+  // Unified commands toolbar (Features/commandsToolbar): docked TOP / BOTTOM /
+  // LEFT it is an in-flow strip of the editors area — the editors shrink —
+  // FLOATING it is an absolute layer inside the inner editors box (which it
+  // measures to clamp / dock, hence the ref).
+  const showCommandsToolbar = useShowCommandsToolbar();
+  const commandsToolbarDock = useSelector(selectCommandsToolbarDock);
+  const editorsAreaRef = useRef(null);
+  const toolbarBefore =
+    showCommandsToolbar &&
+    (commandsToolbarDock === "TOP" || commandsToolbarDock === "LEFT");
+  const toolbarAfter = showCommandsToolbar && commandsToolbarDock === "BOTTOM";
+  const toolbarFloating =
+    showCommandsToolbar && commandsToolbarDock === "FLOATING";
   const showAdmin = viewerKey === "ADMIN";
 
   return (
@@ -172,87 +190,142 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      <Box sx={{ flex: 1, minWidth: 0, height: 1, position: "relative" }}>
-      {/* ChatGPT relay: live jobs are applied whether or not the "Assistant
-          IA" panel is open (renders nothing). */}
-      <AssistantRelayRuntime />
-      {isScopeModule && <ScopeGridSheetsController />}
-      <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
-        {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
-      </PanelShowable>
-      <PanelShowable
-        show={showThreed}
-        sx={{ position: "absolute", zIndex: 0 }}
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          height: 1,
+          position: "relative",
+          display: "flex",
+          flexDirection: commandsToolbarDock === "LEFT" ? "row" : "column",
+        }}
       >
+        {toolbarBefore && (
+          <CommandsToolbar
+            dock={commandsToolbarDock}
+            containerRef={editorsAreaRef}
+          />
+        )}
         <Box
-          sx={{
-            width: 1,
-            height: 1,
-            display: "flex",
-            position: "relative",
-            overflow: "hidden",
-          }}
+          ref={editorsAreaRef}
+          sx={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}
         >
-          {showMeshes && (
-            <LeftDrawerPanel width={280} viewerKey="MESHES">
-              <PanelMeshesViewer />
-            </LeftDrawerPanel>
+          {/* ChatGPT relay: live jobs are applied whether or not the "Assistant
+          IA" panel is open (renders nothing). */}
+          <AssistantRelayRuntime />
+          {isScopeModule && <ScopeGridSheetsController />}
+          <PanelShowable
+            show={showMap}
+            sx={{ position: "absolute", zIndex: 0 }}
+          >
+            {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
+          </PanelShowable>
+          <PanelShowable
+            show={showThreed}
+            sx={{ position: "absolute", zIndex: 0 }}
+          >
+            <Box
+              sx={{
+                width: 1,
+                height: 1,
+                display: "flex",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {showMeshes && (
+                <LeftDrawerPanel width={280} viewerKey="MESHES">
+                  <PanelMeshesViewer />
+                </LeftDrawerPanel>
+              )}
+              <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
+                <MainThreedEditor />
+              </Box>
+            </Box>
+          </PanelShowable>
+
+          <PanelShowable
+            show={showLeaflet}
+            sx={{ position: "absolute", zIndex: 0 }}
+          >
+            {/* <MainLeafletEditor /> */}
+          </PanelShowable>
+
+          {showTable && (
+            <PanelShowable
+              show={showTable}
+              sx={{ position: "absolute", zIndex: 0 }}
+            >
+              <TableViewer />
+            </PanelShowable>
           )}
-          <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
-            <MainThreedEditor />
-          </Box>
-        </Box>
-      </PanelShowable>
 
-      <PanelShowable
-        show={showLeaflet}
-        sx={{ position: "absolute", zIndex: 0 }}
-      >
-        {/* <MainLeafletEditor /> */}
-      </PanelShowable>
+          {showPortfolio && (
+            <PanelShowable
+              show={showPortfolio}
+              sx={{ position: "absolute", zIndex: 0 }}
+            >
+              <MainPortfolioEditor />
+            </PanelShowable>
+          )}
 
-      {showTable && <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
-        <TableViewer />
-      </PanelShowable>}
+          {isBaseMapsModule && (
+            <PanelShowable
+              show={showBaseMaps}
+              sx={{ position: "absolute", zIndex: 0 }}
+            >
+              <MainBaseMapViewer />
+            </PanelShowable>
+          )}
 
-      {showPortfolio && <PanelShowable show={showPortfolio} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainPortfolioEditor />
-      </PanelShowable>}
+          {showAdmin && (
+            <PanelShowable
+              show={showAdmin}
+              sx={{ position: "absolute", zIndex: 0 }}
+            >
+              <ViewerAdmin />
+            </PanelShowable>
+          )}
 
-      {isBaseMapsModule && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainBaseMapViewer />
-      </PanelShowable>}
-
-      {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
-        <ViewerAdmin />
-      </PanelShowable>}
-
-      {/* POV: floating button at the bottom of the displayed editor (replaces
+          {/* POV: floating button at the bottom of the displayed editor (replaces
           the 3D bottom toolbar, hidden under POV) — "Créer une vue" while
           browsing, the save bar once the frame is armed. */}
-      {isPov &&
-        (povFramingActive ? (
-          <ButtonSavePov />
-        ) : (
-          !captureToolActive && <ButtonCreatePovView />
-        ))}
+          {isPov &&
+            (povFramingActive ? (
+              <ButtonSavePov />
+            ) : (
+              !captureToolActive && <ButtonCreatePovView />
+            ))}
 
-      {/* Capture tool: save bar under the frame, in every module (fixed
+          {/* Capture tool: save bar under the frame, in every module (fixed
           positioning — it measures the capture host itself) */}
-      {captureToolActive && <ButtonSaveCapture />}
+          {captureToolActive && <ButtonSaveCapture />}
 
-      {/* PLANNING module: time planning overlaying the bottom of the editors
+          {/* PLANNING module: time planning overlaying the bottom of the editors
           (the editor keeps its size; see PanelPlanningBottom) */}
-      {businessObjectTypeKey === "PLANNING" && <PanelPlanningBottom />}
+          {businessObjectTypeKey === "PLANNING" && <PanelPlanningBottom />}
 
-      {/* PDF editor: layer sliding up over the displayed editor, under the
+          {/* PDF editor: layer sliding up over the displayed editor, under the
           right tools panel (opened by the business objects' document links) */}
-      <LayerPdfEditor />
+          <LayerPdfEditor />
 
-      {/* "Create a base map" fullscreen section: overlay of the editors area
+          {/* "Create a base map" fullscreen section: overlay of the editors area
           so it shows over the displayed editor, 2D or 3D (the 2D editors
           slide off-screen in 3D). Hosts both triggers (see the component). */}
-      <LayerCreateBaseMap />
+          <LayerCreateBaseMap />
+          {toolbarFloating && (
+            <CommandsToolbar
+              dock={commandsToolbarDock}
+              containerRef={editorsAreaRef}
+            />
+          )}
+        </Box>
+        {toolbarAfter && (
+          <CommandsToolbar
+            dock={commandsToolbarDock}
+            containerRef={editorsAreaRef}
+          />
+        )}
       </Box>
     </BoxCenter>
   );

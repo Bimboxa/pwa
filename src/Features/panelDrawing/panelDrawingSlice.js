@@ -3,7 +3,6 @@ import { createSlice } from "@reduxjs/toolkit";
 const panelDrawingSlice = createSlice({
   name: "panelDrawing",
   initialState: {
-    toolsSectionCollapsed: false,
     // Template whose detail is open in the panel (#311). null = the main
     // templates list. detailView picks the open subview: the annotations
     // list, the template properties, or one annotation's properties
@@ -29,9 +28,6 @@ const panelDrawingSlice = createSlice({
     autoListingVisibility: true,
   },
   reducers: {
-    setToolsSectionCollapsed(state, action) {
-      state.toolsSectionCollapsed = action.payload;
-    },
     setDetailTemplateId(state, action) {
       state.detailTemplateId = action.payload ?? null;
       // Opening a template lands on its properties; the annotations list is
@@ -67,7 +63,6 @@ const panelDrawingSlice = createSlice({
 });
 
 export const {
-  setToolsSectionCollapsed,
   setDetailTemplateId,
   setDetailView,
   setDetailAnnotationId,

@@ -8,34 +8,22 @@ import {
   clearSelection,
 } from "Features/selection/selectionSlice";
 
-import { setWrapperMode } from "Features/mapEditor/mapEditorSlice";
-
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
 import useUpdateAnnotations from "../hooks/useUpdateAnnotations";
-import useMergeAnnotations from "../hooks/useMergeAnnotations";
-import useCloneAnnotationsAndEntities from "Features/mapEditor/hooks/useCloneAnnotationsAndEntities";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import {
-  resolveDrawingShape,
-  resolveDrawingShapeFromType,
-  getAnnotationType,
-} from "../constants/drawingShapeConfig";
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import getAnnotationTypeOnTemplateChange from "../utils/getAnnotationTypeOnTemplateChange";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
-import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 import {
   Box,
   Button,
-  Checkbox,
   Divider,
-  FormControlLabel,
   IconButton,
   Menu,
   Paper,
@@ -47,10 +35,7 @@ import {
   Close as RemoveIcon,
   TableChart as TableChartIcon,
   BugReport as BugReportIcon,
-  CallMerge as MergeIcon,
   ArrowDropDown as ArrowDropDownIcon,
-  VerticalAlignTop as TopIcon,
-  VerticalAlignBottom as BottomIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -59,23 +44,16 @@ import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
 import Shape3DBatchSelector from "./Shape3DBatchSelector";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
-import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
-import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
-import IconButtonSettingOut from "./IconButtonSettingOut";
-import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
-import IconButtonCleanSegments from "./IconButtonCleanSegments";
-import IconButtonCurvature from "./IconButtonCurvature";
-import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
-import IconButtonVectorisation from "./IconButtonVectorisation";
-import IconButtonContours from "./IconButtonContours";
-import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
-import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
+// Properties toolbar of SEVERAL selected annotations (template groups,
+// batch height / offset / isExt / 3D shape, layer, delete). The annotation
+// COMMANDS (Dupliquer, Fusionner, Découper…) live in the unified commands
+// toolbar (Features/commandsToolbar).
 export default function ToolbarEditAnnotations({
   allAnnotations,
   onDragStart,
@@ -85,18 +63,13 @@ export default function ToolbarEditAnnotations({
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
-  const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
   const deleteAnnotations = useDeleteAnnotations();
-  const mergeAnnotations = useMergeAnnotations();
-  const cloneAnnotationsAndEntities = useCloneAnnotationsAndEntities();
   const baseMap = useMainBaseMap();
 
   // Template candidates based on first selected annotation
   const firstAnnotation = allAnnotations.find((a) =>
     selectedItems.some((item) => item.nodeId === a.id)
   );
-  const { candidates: cloneCandidates, listings: cloneListings } =
-    useAnnotationTemplateCandidates(firstAnnotation) ?? {};
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
     useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ??
     {};
@@ -105,10 +78,6 @@ export default function ToolbarEditAnnotations({
   // state
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
-  const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
-  const [selectedCloneType, setSelectedCloneType] = useState(null);
-  const [stripElevation, setStripElevation] = useState("TOP");
-  const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [pendingHeight, setPendingHeight] = useState(null);
   const [pendingOffsetZ, setPendingOffsetZ] = useState(null);
@@ -157,23 +126,6 @@ export default function ToolbarEditAnnotations({
   const canApplyOffsetZ =
     typeof pendingOffsetZ === "number" && Number.isFinite(pendingOffsetZ);
 
-  const hasStrips = annotations.some((a) => a.type === "STRIP");
-
-  const hasPolylines = annotations.some((a) => a.type === "POLYLINE");
-
-  const hasPolylinesAndPolygons =
-    annotations.some((a) => a.type === "POLYLINE") &&
-    annotations.some((a) => a.type === "POLYGON");
-
-  const hasPolylinesOrPolygons = annotations.some(
-    (a) => a.type === "POLYLINE" || a.type === "POLYGON"
-  );
-
-  // Tools shared by open lines and bands (cut, contours, close-envelope).
-  const hasPolylinesOrStrips = annotations.some(
-    (a) => a.type === "POLYLINE" || a.type === "STRIP"
-  );
-
   // Batch isExt (exterior-side flag) only targets polylines / strips;
   // the switch shows ON when ALL targets are flagged. Toggling only stages
   // the value (pendingIsExt); "Appliquer" persists it.
@@ -185,46 +137,6 @@ export default function ToolbarEditAnnotations({
   const canApplyIsExt =
     typeof pendingIsExt === "boolean" && pendingIsExt !== allTargetsAreExt;
   const canApplyBatch = canApplyHeight || canApplyIsExt || canApplyOffsetZ;
-
-  const hasPolygons = annotations.some((a) => a.type === "POLYGON");
-
-  // Closed shapes can be dilated/contracted (same rule as the single-edit toolbar).
-  const closedShapeAnnotations = annotations.filter(
-    (a) => a.type === "POLYGON" || (a.type === "POLYLINE" && a.closeLine)
-  );
-
-  // The "Clean segments" action accepts any POLYLINE selection (>=2 pts):
-  // multi-point polylines are split into 2-pt segments by the hook before
-  // cleaning. We only require at least 2 annotations (otherwise nothing to
-  // clean) AND that they are all POLYLINEs.
-  const allArePolylines =
-    annotations.length >= 2 &&
-    annotations.every((a) => a.type === "POLYLINE" && a.points?.length >= 2);
-
-  // "Aligner" (clean segments) also accepts bands: strips are aligned on their
-  // centerline, then re-derived as strips. Allows mixed strip + polyline.
-  const allAreAlignable =
-    annotations.length >= 2 &&
-    annotations.every(
-      (a) => ["POLYLINE", "STRIP"].includes(a.type) && a.points?.length >= 2
-    );
-
-  // helpers - can merge
-
-  const canMerge = useMemo(() => {
-    if (annotations.length < 2) return null;
-    const templateIds = new Set(
-      annotations.map((a) => a.annotationTemplateId).filter(Boolean)
-    );
-    if (templateIds.size !== 1) return null;
-    const shapes = new Set(
-      annotations.map((a) => resolveDrawingShapeFromType(a.type))
-    );
-    if (shapes.size !== 1) return null;
-    const shape = [...shapes][0];
-    if (shape !== "POLYLINE" && shape !== "POLYGON") return null;
-    return { shape, annotations };
-  }, [annotations]);
 
   // helpers - group by annotationTemplateId with aggregated quantities
 
@@ -341,55 +253,6 @@ export default function ToolbarEditAnnotations({
     }
   }
 
-  // helpers - clone
-
-  const cloneTypeOptions = getCloneTypeOptions(firstAnnotation?.type);
-
-  const showStripElevation =
-    selectedCloneType === "STRIP" && firstAnnotation?.type === "POLYLINE";
-
-  const filteredCloneCandidates = (() => {
-    if (!cloneCandidates || !selectedCloneType) return cloneCandidates;
-    if (selectedCloneType === "STRIP") return cloneCandidates;
-    const targetDrawingShape = resolveDrawingShapeFromType(selectedCloneType);
-    if (!targetDrawingShape) return cloneCandidates;
-    return cloneCandidates.filter(
-      (t) => resolveDrawingShape(t) === targetDrawingShape
-    );
-  })();
-
-  function handleCloneClick(event) {
-    setSelectedCloneType(firstAnnotation?.type);
-    setCloneAnchorEl(event.currentTarget);
-  }
-
-  function handleCloneClose() {
-    setCloneAnchorEl(null);
-  }
-
-  async function handleCloneTemplateChange(annotationTemplateId) {
-    const template = filteredCloneCandidates?.find(
-      (t) => t.id === annotationTemplateId
-    );
-    const newAnnotation = {
-      ...getAnnotationTemplateProps(template),
-      annotationTemplateId: template?.id,
-      label: template?.label,
-      listingId: template?.listingId,
-    };
-    const resolvedShape = resolveDrawingShape(template);
-    const resolvedType = getAnnotationType(resolvedShape);
-    if (resolvedType) newAnnotation.type = resolvedType;
-    if (selectedCloneType) newAnnotation.type = selectedCloneType;
-
-    await cloneAnnotationsAndEntities(annotations, {
-      newAnnotation,
-      ...(showStripElevation ? { stripElevation } : {}),
-      keepOriginalPoints,
-    });
-    handleCloneClose();
-  }
-
   function handleTemplateDropdownClick(event) {
     event.stopPropagation();
     setTemplateAnchorEl(event.currentTarget);
@@ -440,16 +303,6 @@ export default function ToolbarEditAnnotations({
     });
     await updateAnnotations(updates);
     handleTemplateDropdownClose();
-  }
-
-  async function handleMergeClick() {
-    if (!canMerge) return;
-    await mergeAnnotations(canMerge.annotations, { shape: canMerge.shape });
-    dispatch(clearSelection());
-  }
-
-  function handleResizeClick() {
-    dispatch(setWrapperMode(!wrapperMode));
   }
 
   async function handleDeleteClick() {
@@ -660,103 +513,9 @@ export default function ToolbarEditAnnotations({
         <Box sx={{ flexShrink: 0 }}>
           <ToolbarAnnotationActions
             accentColor="#6366F1"
-            onClone={handleCloneClick}
-            onResize={handleResizeClick}
-            resizeActive={wrapperMode}
+            hideClone
+            hideResize
             onDelete={handleDeleteClick}
-            extraActions={
-              <>
-                {canMerge && (
-                  <Tooltip title="Fusionner les annotations">
-                    <IconButton
-                      size="small"
-                      onClick={handleMergeClick}
-                      sx={{
-                        color: "text.disabled",
-                        "&:hover": {
-                          color: "#6366F1",
-                          bgcolor: "#6366F1" + "18",
-                        },
-                      }}
-                    >
-                      <MergeIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {hasPolylinesAndPolygons && (
-                  <IconButtonReentrantAngles
-                    annotations={annotations}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {hasPolylines && (
-                  <IconButtonSettingOut
-                    annotations={annotations.filter(
-                      (a) => a.type === "POLYLINE"
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {(hasPolylinesOrPolygons || hasStrips) && (
-                  <IconButtonSplitInSegments
-                    annotations={annotations.filter((a) =>
-                      ["POLYLINE", "POLYGON", "STRIP"].includes(a.type)
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {allAreAlignable && (
-                  <IconButtonCleanSegments
-                    annotations={annotations}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {allArePolylines && (
-                  <IconButtonCurvature
-                    annotations={annotations}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {hasPolygons && (
-                  <IconButtonConvertAnnotation
-                    annotations={annotations.filter(
-                      (a) => a.type === "POLYGON"
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {hasPolygons && (
-                  <IconButtonVectorisation
-                    annotations={annotations.filter(
-                      (a) => a.type === "POLYGON"
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {(hasPolylinesOrStrips || hasPolygons) && (
-                  <IconButtonContours
-                    annotations={annotations.filter((a) =>
-                      ["POLYLINE", "STRIP", "POLYGON"].includes(a.type)
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {hasPolylinesOrStrips && (
-                  <IconButtonCloseEnvelope
-                    annotations={annotations.filter((a) =>
-                      ["POLYLINE", "STRIP"].includes(a.type)
-                    )}
-                    accentColor="#6366F1"
-                  />
-                )}
-                {closedShapeAnnotations.length > 0 && (
-                  <IconButtonDilateAnnotation
-                    annotations={closedShapeAnnotations}
-                    accentColor="#6366F1"
-                  />
-                )}
-              </>
-            }
             layerChip={
               annotations.length > 0 ? (
                 <ChipLayerSelector
@@ -771,67 +530,6 @@ export default function ToolbarEditAnnotations({
           {/* Zones band (ZONES module): link the selection to zones */}
           <SectionZonesBandInToolbar annotations={annotations} />
         </Box>
-
-        {/* Clone template selector menu */}
-        <Menu
-          open={Boolean(cloneAnchorEl)}
-          anchorEl={cloneAnchorEl}
-          onClose={handleCloneClose}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          {cloneTypeOptions && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                Type de l'annotation dupliquée
-              </Typography>
-              <ToggleSingleSelectorGeneric
-                selectedKey={selectedCloneType}
-                options={cloneTypeOptions}
-                onChange={(v) =>
-                  setSelectedCloneType(v ?? firstAnnotation?.type)
-                }
-              />
-            </Box>
-          )}
-          {showStripElevation && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                Position de la bande
-              </Typography>
-              <ToggleSingleSelectorGeneric
-                selectedKey={stripElevation}
-                options={[
-                  { key: "TOP", label: "Haut", icon: <TopIcon /> },
-                  { key: "BOTTOM", label: "Bas", icon: <BottomIcon /> },
-                ]}
-                onChange={(v) => setStripElevation(v ?? "TOP")}
-              />
-            </Box>
-          )}
-          <Box sx={{ px: 2, py: 0.5 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={keepOriginalPoints}
-                  onChange={(e) => setKeepOriginalPoints(e.target.checked)}
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Conserver les points d'origine
-                </Typography>
-              }
-            />
-          </Box>
-          <SelectorAnnotationTemplateVariantDense
-            selectedAnnotationTemplateId={firstAnnotation?.annotationTemplateId}
-            onChange={handleCloneTemplateChange}
-            annotationTemplates={filteredCloneCandidates}
-            listings={cloneListings}
-          />
-        </Menu>
 
         {/* Template change menu (same type) */}
         <Menu

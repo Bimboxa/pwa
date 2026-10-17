@@ -1,0 +1,268 @@
+import { useState } from "react";
+
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  setSimplifyPolynomial,
+  setSimplifyOuterContour,
+} from "Features/smartDetect/smartDetectSlice";
+
+import { Box, Popover } from "@mui/material";
+
+import FieldCheck from "Features/form/components/FieldCheck";
+import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+  centerlineToStripEdge,
+} from "Features/annotations/utils/convertStripPolyline";
+
+import CommandButton from "../../components/CommandButton";
+
+import * as turf from "@turf/turf";
+import db from "App/db/db";
+
+// Toolbar button of « Simplifier la géométrie » (commandsToolbar): popover
+// with the two options + « Appliquer ».
+export default function ButtonSimplify({ command, ctx, state, hotkeyLabel }) {
+  // data
+
+  const annotation = ctx.selectedAnnotation;
+  const baseMap = ctx.baseMap;
+  const dispatch = useDispatch();
+  const simplifyPolynomial = useSelector(
+    (s) => s.smartDetect.simplifyPolynomial
+  );
+  const simplifyOuterContour = useSelector(
+    (s) => s.smartDetect.simplifyOuterContour
+  );
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+
+  // state
+
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  // helpers
+
+  const open = Boolean(anchorEl);
+
+  // handlers
+
+  function handleClick(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
+  }
+
+  function handleClose() {
+    setAnchorEl(null);
+  }
+
+  async function handleApply() {
+    if (!annotation?.points?.length) return;
+
+    const refImageSize = baseMap?.getImageSize?.();
+    if (!refImageSize) return;
+    const { width: refW, height: refH } = refImageSize;
+
+    // STRIP: simplify the band centerline, then re-derive the stored edge.
+    if (annotation.type === "STRIP") {
+      await simplifyStrip(refW, refH);
+      return;
+    }
+
+    // Build GeoJSON coords from annotation points (already in ref pixel space)
+    const coords = annotation.points.map((p) => [p.x, p.y]);
+
+    // Build turf geometry
+    const isPolygon = annotation.type === "POLYGON";
+    let geometry;
+    if (isPolygon) {
+      // Close the ring for polygon
+      const ring = [...coords, coords[0]];
+      geometry = turf.polygon([ring]);
+    } else {
+      geometry = turf.lineString(coords);
+    }
+
+    // Truncate to remove decimal noise (we work in pixels)
+    geometry = turf.truncate(geometry, { precision: 2 });
+
+    // Apply polynomial simplification
+    if (simplifyPolynomial) {
+      geometry = turf.simplify(geometry, {
+        tolerance: 1,
+        highQuality: true,
+      });
+    }
+
+    // Apply outer contour extraction (buffer in then out to remove interior walls)
+    if (simplifyOuterContour && isPolygon) {
+      const buffered = turf.buffer(geometry, -2, { units: "degrees" });
+      if (buffered) {
+        const expanded = turf.buffer(buffered, 2, { units: "degrees" });
+        if (expanded) {
+          // Handle MultiPolygon: take the largest polygon
+          if (expanded.geometry.type === "MultiPolygon") {
+            let maxArea = -1;
+            let largest = null;
+            for (const polyCoords of expanded.geometry.coordinates) {
+              const poly = turf.polygon(polyCoords);
+              const area = turf.area(poly);
+              if (area > maxArea) {
+                maxArea = area;
+                largest = polyCoords;
+              }
+            }
+            if (largest) {
+              geometry = turf.polygon(largest);
+            }
+          } else {
+            geometry = expanded;
+          }
+        }
+      }
+    }
+
+    // Extract result coordinates
+    let newCoords;
+    if (isPolygon) {
+      // Remove closing duplicate point from ring
+      const ring = geometry.geometry.coordinates[0];
+      newCoords = ring.slice(0, -1);
+    } else {
+      newCoords = geometry.geometry.coordinates;
+    }
+
+    // Guard against degenerate results
+    const minPoints = isPolygon ? 3 : 2;
+    if (newCoords.length < minPoints) return;
+
+    // Build new points array with normalized ratios
+    const newPoints = newCoords.map((coord, i) => {
+      const original = annotation.points[i] || {};
+      return {
+        ...(i < annotation.points.length ? original : {}),
+        x: coord[0] / refW,
+        y: coord[1] / refH,
+      };
+    });
+
+    // Build updates
+    const updates = { points: newPoints };
+
+    // If outer contour was applied, clear cuts (interior walls removed)
+    if (simplifyOuterContour) {
+      updates.cuts = [];
+    }
+
+    // Persist to Dexie
+    await db.annotations.update(annotation.id, updates);
+
+    // Sync db.points entries (resolvePoints prioritizes db.points)
+    const allPoints = [
+      ...newPoints,
+      ...(updates.cuts?.flatMap((c) => c.points) ?? []),
+    ];
+    const pointIds = allPoints.map((p) => p.id).filter(Boolean);
+    if (pointIds.length > 0) {
+      const existingDbPoints = await db.points
+        .where("id")
+        .anyOf(pointIds)
+        .toArray();
+      if (existingDbPoints.length > 0) {
+        const dbPointsById = Object.fromEntries(
+          existingDbPoints.map((p) => [p.id, p])
+        );
+        const pointUpdates = allPoints
+          .filter((p) => dbPointsById[p.id])
+          .map((p) => ({ ...dbPointsById[p.id], x: p.x, y: p.y }));
+        await db.points.bulkPut(pointUpdates);
+      }
+    }
+
+    handleClose();
+  }
+
+  async function simplifyStrip(refW, refH) {
+    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+    const Wpx = getStripWidthPx(annotation, meterByPx);
+    const orientation = annotation.stripOrientation ?? 1;
+
+    const centerline = stripEdgeToCenterline(
+      annotation.points.map((p) => ({ x: p.x, y: p.y })),
+      Wpx,
+      orientation
+    );
+
+    let geometry = turf.lineString(centerline.map((p) => [p.x, p.y]));
+    geometry = turf.truncate(geometry, { precision: 2 });
+    if (simplifyPolynomial) {
+      geometry = turf.simplify(geometry, { tolerance: 1, highQuality: true });
+    }
+
+    const newCenterCoords = geometry.geometry.coordinates;
+    if (newCenterCoords.length < 2) return;
+
+    const edge = centerlineToStripEdge(
+      newCenterCoords.map((c) => ({ x: c[0], y: c[1] })),
+      Wpx,
+      orientation
+    );
+
+    const records = edge.map((p) => ({
+      id: p.id,
+      x: p.x / refW,
+      y: p.y / refH,
+      projectId,
+      baseMapId: annotation.baseMapId,
+      listingId: annotation.listingId,
+    }));
+    const refs = records.map((r) => ({ id: r.id }));
+
+    await db.transaction("rw", db.annotations, db.points, async () => {
+      await db.points.bulkAdd(records);
+      await db.annotations.update(annotation.id, { points: refs });
+    });
+
+    handleClose();
+  }
+
+  // render
+
+  return (
+    <>
+      <CommandButton
+        commandKey={command.key}
+        label={command.label}
+        Icon={command.Icon}
+        hotkeyLabel={hotkeyLabel}
+        state={{ ...state, active: open }}
+        onClick={handleClick}
+      />
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
+        slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5 } } }}
+      >
+        <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          <FieldCheck
+            value={simplifyPolynomial}
+            onChange={(v) => dispatch(setSimplifyPolynomial(v))}
+            label="Réduction polynomiale"
+            options={{ type: "check", showAsInline: true }}
+          />
+          <FieldCheck
+            value={simplifyOuterContour}
+            onChange={(v) => dispatch(setSimplifyOuterContour(v))}
+            label="Contour périphérique"
+            options={{ type: "check", showAsInline: true }}
+          />
+          <ButtonInPanelV2 label="Appliquer" onClick={handleApply} />
+        </Box>
+      </Popover>
+    </>
+  );
+}

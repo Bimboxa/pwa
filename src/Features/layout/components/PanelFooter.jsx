@@ -6,7 +6,7 @@ import PanelResizeHandle from "./PanelResizeHandle";
 
 // ---------------------------------------------------------------------------
 // PanelFooter — dedicated bottom band of a floating panel (PopperMapListings,
-// PopperDrawingTools, PopperBaseMapsList), rendered collapsed or not. From
+// PopperBaseMapsList), rendered collapsed or not. From
 // left to right: the optional `startContent` pushed to the far left (the
 // Dessin popper's "Fond de plan sélectionné seul" switch), the "auto" button
 // (usePanelResize.fitContent: the panel's height goes back to CSS auto and

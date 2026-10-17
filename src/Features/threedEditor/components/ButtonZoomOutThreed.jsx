@@ -22,13 +22,12 @@ import ButtonBaseMapsGrid from "Features/baseMapsGrid/components/ButtonBaseMapsG
 // scale) — it encompasses all annotations currently shown in the scene (the
 // useAnnotationsV2 set); with no annotation it frames a 10 m cube at the
 // world center (see ControlsManager.fitToAnnotations).
-// Positioned by its parent — the top-right overlay row of MainThreedEditor,
-// between the base map image mode selector and the base maps grid button,
-// outside the bottom-toolbar swap so it stays available whatever toolbar is
-// active (drawing, meshing, extrude, …). "Z" hotkey while a 3D editor is
+// Positioned by its parent — the bottom-right row of MainThreedEditor, left
+// of the 2D/3D toggle, outside the bottom-toolbar swap so it stays available
+// whatever toolbar is active (drawing, meshing, extrude, …). "Z" hotkey while a 3D editor is
 // displayed, except in walk mode (its own keyboard: Z = forward) and while
 // drawing (Z = rectangle dimension / axis key).
-export default function ButtonZoomOutThreed() {
+export default function ButtonZoomOutThreed({ shortcutPlacement }) {
   // strings
 
   const titleS = "Zoom out";
@@ -70,6 +69,7 @@ export default function ButtonZoomOutThreed() {
       title={titleS}
       icon={<ZoomOutMapIcon />}
       shortcut={ZOOM_OUT_HOTKEY}
+      shortcutPlacement={shortcutPlacement}
       onClick={handleClick}
     />
   );

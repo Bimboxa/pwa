@@ -9,8 +9,8 @@ const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
 // listings of a business-objects module, popper only) | "CONTENT" (scope
 // content, SCOPE module only) | "LISTINGS" ("Listes": the annotation
 // listings of the Dessin module, popper only) | "ANNOTATIONS" | "PHOTOS"
-// (Viewer module with photos) | "BASE_MAPS" (base maps list) | "TOOLS"
-// ("Commandes": the drawing tools, popper only, while they are attached).
+// (Viewer module with photos) | "BASE_MAPS" (base maps list). The drawing
+// commands live in the unified commands toolbar (Features/commandsToolbar).
 const CONTENT_MODES = [
   "OBJECTS",
   "CONTENT",
@@ -18,7 +18,6 @@ const CONTENT_MODES = [
   "ANNOTATIONS",
   "PHOTOS",
   "BASE_MAPS",
-  "TOOLS",
 ];
 
 const popperMapListingsSlice = createSlice({
@@ -50,13 +49,6 @@ const popperMapListingsSlice = createSlice({
     // "Fonds de plan" side of the annotations popper, which then has no such
     // side.
     baseMapsListDetached: false,
-    // "Détacher les commandes": the module's commands live in their own
-    // popper (PopperDrawingTools, under the annotations popper by default)
-    // instead of the "Commandes" side of the annotations popper (drawing
-    // tools) — or, in the BaseMaps module, instead of the "Commandes" section
-    // under the base maps list (Déplacer / Tourner the base map). Detached by
-    // default.
-    toolsDetached: true,
   },
   reducers: {
     setShowLayers(state, action) {
@@ -82,16 +74,6 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode = "ANNOTATIONS";
       } else if (!detached) {
         state.viewerContentMode = "BASE_MAPS";
-      }
-    },
-    // Same rule for the drawing tools ("Commandes" side).
-    setToolsDetached(state, action) {
-      const detached = Boolean(action.payload);
-      state.toolsDetached = detached;
-      if (detached && state.viewerContentMode === "TOOLS") {
-        state.viewerContentMode = "ANNOTATIONS";
-      } else if (!detached) {
-        state.viewerContentMode = "TOOLS";
       }
     },
     setHideEmptyBaseMapsInList(state, action) {
@@ -139,7 +121,6 @@ export const {
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
-  setToolsDetached,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

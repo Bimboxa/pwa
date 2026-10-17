@@ -25,7 +25,6 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
-  setAnnotationOverlayAnchor,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -81,13 +80,8 @@ import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import CursorAltitudeThreed from "./CursorAltitudeThreed";
 import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonToggleCursorAltitude";
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
-import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
-import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
-import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/SectionMainBaseMapControlsFloating";
-import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
-import ThreedAnnotationOverlayActions from "./ThreedAnnotationOverlayActions";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
@@ -106,22 +100,18 @@ import {
 } from "Features/contextMenu/contextMenuSlice";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
-import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
-import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
-import ButtonToggleAntiAliasingShrink from "./ButtonToggleAntiAliasingShrink";
 import AxesGizmoThreed from "./AxesGizmoThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import FaceCutAxisOverlayThreed from "Features/threedFaceCut/components/FaceCutAxisOverlayThreed";
-import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
@@ -325,14 +315,6 @@ export default function MainThreedEditor() {
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
-  // Full screen hides the docked panel (LeftDrawerPanel) while keeping the
-  // docked state: the drawing helper then floats again (see render).
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
-  const drawingHelperArmed = useSelector(
-    (s) =>
-      Boolean(s.mapEditor.enabledDrawingMode) ||
-      selectActiveThreedTool(s) != null
-  );
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -585,7 +567,6 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
-  useDessinToolHotkeysThreed();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
@@ -1164,17 +1145,6 @@ export default function MainThreedEditor() {
         dispatch(setShowAnnotationsProperties(true));
         dispatch(clearSubSelection());
         dispatch(setHighlightedMeshPaintId(paintHit.paintId));
-        if (paintHit.point) {
-          dispatch(
-            setAnnotationOverlayAnchor({
-              annotationId: hostId,
-              space: "WORLD_3D",
-              x: paintHit.point.x,
-              y: paintHit.point.y,
-              z: paintHit.point.z,
-            })
-          );
-        }
         dispatch(setAnnotationToolbarPosition(position));
         dispatch(setAnnotationsToolbarPosition(position));
         return;
@@ -1440,19 +1410,6 @@ export default function MainThreedEditor() {
                   additive: event.shiftKey,
                 });
                 dispatch(clearSubSelection());
-                // The face quick-action row (ThreedAnnotationOverlayActions:
-                // « Fusionner ») sits just above the clicked point.
-                if (intersect.point) {
-                  dispatch(
-                    setAnnotationOverlayAnchor({
-                      annotationId: nodeId,
-                      space: "WORLD_3D",
-                      x: intersect.point.x,
-                      y: intersect.point.y,
-                      z: intersect.point.z,
-                    })
-                  );
-                }
                 return;
               }
             }
@@ -1489,19 +1446,6 @@ export default function MainThreedEditor() {
               // Mirror the 2D InteractionLayer: the flag drives the properties
               // panel back chain (annotation → annotationTemplate → listing).
               dispatch(setShowAnnotationsProperties(true));
-              // Quick-action row (ThreedAnnotationOverlayActions) just above
-              // the clicked point, like the 2D editor.
-              if (intersect.point) {
-                dispatch(
-                  setAnnotationOverlayAnchor({
-                    annotationId: nodeId,
-                    space: "WORLD_3D",
-                    x: intersect.point.x,
-                    y: intersect.point.y,
-                    z: intersect.point.z,
-                  })
-                );
-              }
             }
             // Selection of a face clears any prior vertex/edge sub-selection.
             dispatch(clearSubSelection());
@@ -2855,30 +2799,14 @@ export default function MainThreedEditor() {
              poppers keep their state. */
           <PortalEditorFloatingPanels hidden={walkActive}>
             <PopperMapListings />
-            {/* Base maps list / drawing tools ("Commandes") detached from
-                the popper above. */}
+            {/* Base maps list detached from the popper above. */}
             <PopperBaseMapsList />
-            <PopperDrawingTools />
-          </PortalEditorFloatingPanels>
-        )}
-      {/* Docked Dessin panel hidden by full screen: the drawing helper (and
-          its « Contraintes » card) floats like in the undocked layout — the
-          helper only, not the listings / commands poppers. */}
-      {isThreedViewer &&
-        dessinPanelDocked &&
-        isFullScreen &&
-        drawingHelperArmed &&
-        !captureFramingActive &&
-        !subtractPickActive && (
-          <PortalEditorFloatingPanels hidden={walkActive}>
-            <PopperDrawingHelper />
           </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}
-      {isThreedViewer && <ThreedAnnotationOverlayActions />}
       {/* Right click on an annotation: "change template" menu */}
       {isThreedViewer && <PopperContextMenu viewerKey="THREED" />}
       {/* "Evider" dialog requested from the toolbar above (the 2D editors
@@ -2917,38 +2845,10 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
-      {/* Full screen only: the main base map controls of the (hidden) top
-          bar float at the top center of the editor (Dessin / BaseMaps
-          modules displaying the 3D editor). */}
-      {isThreedViewer && !captureFramingActive && (
-        <SectionMainBaseMapControlsFloating zIndex={10} />
-      )}
-      {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): full
-          screen, base map image display mode, « Séparer les surfaces en
-          contact » toggle (3D only), zoom out, base maps grid button. The
-          Maillage module (meshing-only) keeps the full screen and zoom out
-          alone. */}
-      {isThreedViewer && !captureFramingActive && (
-        <Box
-          data-capture-hide
-          sx={{
-            position: "absolute",
-            right: rightPanelOpen ? `${rightPanelWidth + 24}px` : "24px",
-            top: "14px",
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            transition: "right 0.2s ease",
-          }}
-        >
-          <ButtonFullScreen />
-          {!isMeshesViewer && <SelectorBaseMapsImageMode />}
-          {!isMeshesViewer && <ButtonToggleAntiAliasingShrink />}
-          <ButtonZoomOutThreed />
-          {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}
-        </Box>
-      )}
+      {/* No top-right row any more: the base map image mode, the base maps
+          grid button and the « Séparer les surfaces en contact » toggle live
+          in the bottom bar (SectionBaseMapsBottomBarControls), the zoom out
+          next to the 2D/3D toggle below. */}
       {/* Orientation gizmo, under the top-right row (3D view settings
           "Gizmo d'orientation"). Hidden with the row under a capture
           framing, in walk mode (HUD) and in the POV viewer. */}
@@ -3015,9 +2915,10 @@ export default function MainThreedEditor() {
       {/* Bottom-right group (walk toggle stacked above the 3D side of the
           2D/3D toggle) sits outside the swap of bottom toolbars so it stays
           available in every module (Maillage included). Hidden while a
-          capture/POV framing owns the screen. The zoom out moved to the
-          top-right row. The column gap leaves room for the "T" badge of the
-          toggle when it sits on the right side. */}
+          capture/POV framing owns the screen. The zoom out sits left of the
+          2D/3D toggle (same row as in the 2D editor). The column gap leaves
+          room for the "T" badge of the toggle when it sits on the right
+          side. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           sx={{
@@ -3033,7 +2934,10 @@ export default function MainThreedEditor() {
           }}
         >
           <ButtonToggleWalkMode />
-          <ButtonToggleThreedViewer />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
+            <ButtonZoomOutThreed shortcutPlacement="top" />
+            <ButtonToggleThreedViewer />
+          </Box>
         </Box>
       )}
       {isThreedViewer && <DrawingOverlayThreed />}

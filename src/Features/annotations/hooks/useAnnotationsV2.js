@@ -2782,7 +2782,7 @@ export default function useAnnotationsV2(options) {
             mainBusinessObjectId: main.businessObjectId,
             // zone of an object (locations): the object's color wins over
             // the template's, and the polygon offers "Affecter les
-            // annotations à l'intérieur" (EditAnnotationTools)
+            // annotations à l'intérieur" (ASSIGN_BUSINESS_OBJECT command)
             ...(main.color !== null && main.color !== undefined
               ? {
                   canAssignMainBusinessObject: true,

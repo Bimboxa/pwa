@@ -79,9 +79,7 @@ import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectB
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
-import SectionPopperDrawingTools from "Features/popperMapListings/components/SectionPopperDrawingTools";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
-import selectShowDrawingTools from "Features/popperMapListings/utils/selectShowDrawingTools";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -103,11 +101,9 @@ import {
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
-import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import {
-  isTemplatelessAnnotationInScope,
   TEMPLATELESS_LABEL,
   TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
@@ -1605,9 +1601,6 @@ export default function PopperMapListings() {
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
   // Displayed editor (the Dessin module toggled to 3D): picks the drawing
   // tools offered (Coupe face in 3D, the plan cut / join tools in 2D).
-  const isThreedEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
@@ -1710,9 +1703,6 @@ export default function PopperMapListings() {
     isBusinessObjectsModule &&
     Boolean(activeBusinessObject) &&
     canLocateBusinessObjects(activeBusinessObjectListing);
-  const isBusinessObjectsModuleNoObject =
-    isBusinessObjectsModule && !activeBusinessObject;
-
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
@@ -1778,16 +1768,6 @@ export default function PopperMapListings() {
         }
       : {}),
   });
-
-  // "Dessin" tool row counter: annotations drawn without template in the
-  // selected scope (eye-hidden ones included, like the template rows).
-  const templatelessCount = useMemo(
-    () =>
-      (allAnnotationsInclHidden ?? []).filter((a) =>
-        isTemplatelessAnnotationInScope(a, selectedScopeId)
-      ).length,
-    [allAnnotationsInclHidden, selectedScopeId]
-  );
 
   // visible-only set for counts and qties (matches what's on screen).
   // SCOPE module narrowed to a business-objects listing: only the
@@ -1899,25 +1879,12 @@ export default function PopperMapListings() {
   );
   // "Détacher la liste": the base maps list lives in its own popper
   // (PopperBaseMapsList, mounted next to this one by the editors) — this one
-  // loses its "Fonds de plan" side. Same for the drawing tools ("Détacher
-  // les commandes", detached by default: PopperDrawingTools under this one)
-  // and the "Commandes" side. The toggle goes altogether when no second side
-  // remains. In the BaseMaps module the same flag drives the base maps
-  // commands (Déplacer / Tourner, 3D editor): attached as the "Commandes"
-  // section under the list (SectionBaseMapsTools), detached in
-  // PopperDrawingTools — the detach icon sits in the bottom band of the
-  // "Fonds de plan" side.
+  // loses its "Fonds de plan" side. The toggle goes altogether when no
+  // second side remains. (The drawing / base map placement commands live in
+  // the unified commands toolbar, Features/commandsToolbar.)
   const baseMapsListDetached = useSelector(
     (s) => s.popperMapListings.baseMapsListDetached
   );
-  const toolsDetached = useSelector((s) => s.popperMapListings.toolsDetached);
-  const showDrawingTools = selectShowDrawingTools({
-    effectiveInteractionMode,
-    isZonesViewer,
-    isBusinessObjectsModuleNoObject,
-    isLocateBusinessObjectMode,
-  });
-  const showToolsSide = showDrawingTools && !toolsDetached;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   // "Objets" side (business-objects modules, far left of the toggle,
   // labelled after the module): the module's listings and objects tree.
@@ -1936,7 +1903,6 @@ export default function PopperMapListings() {
     !isBaseMapsListOnly &&
     (!baseMapsListDetached ||
       showPhotosToggle ||
-      showToolsSide ||
       showObjectsToggle ||
       showListingsToggle ||
       isScopeModule);
@@ -1952,13 +1918,10 @@ export default function PopperMapListings() {
     (showContentToggle &&
       !baseMapsListDetached &&
       popperContentMode === "BASE_MAPS");
-  const showToolsBody =
-    showContentToggle && showToolsSide && popperContentMode === "TOOLS";
   // Annotations side (the standard body): no other side displayed.
   const showStandardBody =
     !collapsed &&
     !showBaseMapsBody &&
-    !showToolsBody &&
     !showScopeContentBody &&
     !showListingsBody &&
     !showObjectsBody;
@@ -2209,13 +2172,9 @@ export default function PopperMapListings() {
   // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend,
   // see MainMapEditorV3)
 
-  // Default geometry: 2/3 of the available height while the "Commandes"
-  // popper sits below (its 1/3, see PopperDrawingTools), the whole height
-  // otherwise — until the user resizes (explicit width / height, reset on a
-  // double-click of the handle).
-  const defaultMaxHeight = toolsDetached
-    ? "calc((100% - 130px - 12px) * 2 / 3)"
-    : "calc(100% - 130px)";
+  // Default geometry: the whole available height — until the user resizes
+  // (explicit width / height, reset on a double-click of the handle).
+  const defaultMaxHeight = "calc(100% - 130px)";
 
   return (
     <Paper
@@ -2280,7 +2239,6 @@ export default function PopperMapListings() {
             showListings={showListingsToggle}
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
-            showTools={showToolsSide}
             annotationsLabel="Annotations"
           />
         ) : (
@@ -2318,10 +2276,8 @@ export default function PopperMapListings() {
                 color: "panel.textLight",
                 p: 0.25,
                 cursor: "pointer",
-                visibility:
-                  showToolsBody || showObjectsBody ? "hidden" : "visible",
-                pointerEvents:
-                  showToolsBody || showObjectsBody ? "none" : "auto",
+                visibility: showObjectsBody ? "hidden" : "visible",
+                pointerEvents: showObjectsBody ? "none" : "auto",
               }}
             >
               <Tune sx={{ fontSize: 16 }} />
@@ -2438,19 +2394,6 @@ export default function PopperMapListings() {
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionBaseMapsList
             countByBaseMapIdOverride={scopeCountByBaseMapId}
-          />
-          <SectionBaseMapsTools />
-        </Box>
-      )}
-
-      {/* "Commandes" side (tools attached): the drawing tools replace the
-          whole body. */}
-      {!collapsed && showToolsBody && (
-        <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionPopperDrawingTools
-            templatelessCount={templatelessCount}
-            isThreedEditor={isThreedEditor}
-            viewerKey={viewerKey}
           />
         </Box>
       )}
@@ -2676,7 +2619,6 @@ export default function PopperMapListings() {
           at the bottom (collapsed panel included). */}
       {(soloTemplateId || soloRevolutionAxisId) &&
         !showBaseMapsBody &&
-        !showToolsBody &&
         !showScopeContentBody &&
         !showListingsBody &&
         !showObjectsBody && (
@@ -2729,13 +2671,7 @@ export default function PopperMapListings() {
         }
       >
         {showBaseMapsBody && !isBaseMapsListOnly && (
-          <IconButtonToggleDetached target="BASE_MAPS" />
-        )}
-        {showToolsBody && <IconButtonToggleDetached target="TOOLS" />}
-        {/* BaseMaps module: the base maps commands (3D editor) detach from
-            the "Fonds de plan" side. */}
-        {showBaseMapsBody && isBaseMapsViewer && isThreedEditor && (
-          <IconButtonToggleDetached target="TOOLS" />
+          <IconButtonToggleDetached />
         )}
       </PanelFooter>
     </Paper>

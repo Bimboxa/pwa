@@ -1,6 +1,6 @@
 # annotationTransform — « Déplacer » / « Tourner » une annotation à partir d'un point
 
-Outils de la section « Outils de dessin » (popper et panneau Dessin) :
+Commandes de la toolbar unifiée des commandes (`Features/commandsToolbar`) :
 
 | Outil    | Touche | 2D (plan)                          | 3D (éditeur 3D du module Dessin)    |
 | -------- | ------ | ---------------------------------- | ----------------------------------- |
@@ -114,17 +114,17 @@ ancré), titré du nom de l'outil (`selectTransformToolTitle`).
 - `threedDrawing/components/SectionThreedToolHelperContent` : conteneur 3D,
   lit `threedEditor` (Extruder, Déplacer, Tourner).
 - En 3D, le helper s'ouvre sur `selectActiveThreedTool` (pas de
-  `enabledDrawingMode`) ; les lignes d'outils sont des `RowThreedTool`
-  (`TOOL_ITEMS.threedTool`).
+  `enabledDrawingMode`) ; les boutons sont les commandes `MOVE_ANNOTATION` /
+  `ROTATE_ANNOTATION` de la toolbar unifiée (`Features/commandsToolbar`).
 
 ## Version 2D — câblage
 
 Même schéma qu'un groupe d'outils classique (cf. `surfaceCut/README.md`) :
 
-1. `mapEditor/constants/toolItems.js` : lignes « Déplacer » / « Tourner ».
+1. `commandsToolbar/commands/moveAnnotation` et `rotateAnnotation` : commandes « Déplacer » / « Tourner » (bouton + raccourci M / R, `plainOnly`).
 2. `mapEditor/constants/drawingTools.jsx` : `DRAWING_TOOLS` +
    `DRAWING_TOOLS_BY_TYPE`.
-3. `MainMapEditorV3` : `useToolGroupHotkey("m" | "r", …, { plainOnly: true })`
+3. Raccourcis M / R : métadonnées `hotkey` des deux commandes (`useCommandsHotkeys`)
    (`Maj+M` reste l'édition rapide des points) et `useAnnotationTransformTool`.
 4. `InteractionLayer` : le clic (`handleWorldClick` **et**
    `handleMarkerMouseDown`, le marqueur de snap capte le clic) et le mouvement
@@ -254,8 +254,8 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
   vident explicitement à la fin d'un transport sans `repeat`), la saisie le
   reprend et bâtit aussitôt les fantômes.
 - Touches : en 2D, `R` / `C` n'ont pas d'autre propriétaire tant que
-  `MOVE_ANNOTATION` est armé. En 3D, `useDessinToolHotkeysThreed` cède `R`
-  et `useToolGroupHotkey("c", "FACE_CUT")` cède `C` tant que
+  `MOVE_ANNOTATION` est armé. En 3D, la commande `ROTATE_ANNOTATION` cède `R`
+  et la commande `FACE_CUT` cède `C` (`hotkey.yieldWhen`) tant que
   `moveAnnotationMode.active`.
 
 #### Mécanique

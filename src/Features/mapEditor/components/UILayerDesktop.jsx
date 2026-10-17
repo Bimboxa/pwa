@@ -17,10 +17,6 @@ import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import ButtonZoomOutMap from "./ButtonZoomOutMap";
-import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
-import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
-import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/SectionMainBaseMapControlsFloating";
-import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 
 
 export default function UILayerDesktop({
@@ -76,13 +72,6 @@ export default function UILayerDesktop({
                 <ButtonRunningTransform />
             </Box>
 
-            {/* Full screen only: the main base map controls of the (hidden)
-                top bar float at the top center of the editor. */}
-            <SectionMainBaseMapControlsFloating zIndex={1} />
-
-
-
-
             {/* ToolbarMapEditorV3 removed — harmonize icon buttons (#67) */}
 
             {showEditScale && <Box
@@ -118,32 +107,6 @@ export default function UILayerDesktop({
 
 
 
-            {/* Top-right row, same order as the row of the opened base maps
-                grid (LayerBaseMapsGrid, which covers this one while open):
-                full screen, base map image display mode, zoom out, base maps
-                grid ("table of plans"). Mirrored in the 3D editor. */}
-            <Box
-                data-capture-hide
-                sx={{
-                    position: "absolute",
-                    right: panelOpen ? `${panelWidth + 24}px` : "24px",
-                    top: "14px",
-                    zIndex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    transition: "right 0.2s ease",
-                }}
-            >
-                <ButtonFullScreen />
-                <SelectorBaseMapsImageMode />
-                <ButtonZoomOutMap
-                    onResetCamera={onResetCamera}
-                    isActiveViewer={isActiveViewer}
-                />
-                <ButtonOpenBaseMapsGrid />
-            </Box>
-
             <Box
                 data-capture-hide
                 sx={{
@@ -153,16 +116,23 @@ export default function UILayerDesktop({
                     zIndex: 1,
                     display: "flex",
                     alignItems: "center",
-                    gap: 1,
+                    // room for the Z badge of the zoom out and the T badge
+                    // of the toggle, which face each other
+                    gap: 2.5,
                     transition: "right 0.2s ease",
                 }}
             >
-                {/* 2D editor settings moved to the right-panel SETTINGS tool
-                    (PanelEditorSettings), the clipping-plane toggle to its
-                    "Plan de coupes" section, and SelectorOrthoSnap to the
-                    bottom-left cluster and the zoom out to the top-right row —
-                    only the 2D/3D toggle stays here so its position matches
-                    the 3D editor. */}
+                {/* Zoom out + 2D/3D toggle, same row as in the 3D editor. The
+                    base map image mode and the base maps grid button live in
+                    the bottom bar (SectionBaseMapsBottomBarControls); the 2D
+                    editor settings in the right-panel SETTINGS tool, the
+                    clipping-plane toggle in its "Plan de coupes" section,
+                    SelectorOrthoSnap in the bottom-left cluster. */}
+                <ButtonZoomOutMap
+                    onResetCamera={onResetCamera}
+                    isActiveViewer={isActiveViewer}
+                    shortcutPlacement="top"
+                />
                 <ButtonToggleThreedViewer />
                 {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now
                     automatically active when PopperMapListings is in DRAW mode,

@@ -5,7 +5,6 @@ import { setSubSelection } from "Features/selection/selectionSlice";
 
 import { nanoid } from "@reduxjs/toolkit";
 
-import useSelectedAnnotation from "./useSelectedAnnotation";
 import useUpdateAnnotation from "./useUpdateAnnotation";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -21,10 +20,11 @@ const DEFAULT_SLOPE_PCT = 10;
 // sub-selects it so the toolbar switches to the guide line row.
 // Same storage as the manual ADD_GUIDE_LINE tool: normalized points in
 // db.points, `guideLines: [{ points: [{pointId, type}], slopePct }]`.
-export default function useAddSlopeGuideLine() {
+// `selectedAnnotation`: the resolved selected annotation (the caller holds it —
+// commandsToolbar ctx — so this hook does not re-resolve the selection).
+export default function useAddSlopeGuideLine(selectedAnnotation) {
   const dispatch = useDispatch();
 
-  const selectedAnnotation = useSelectedAnnotation();
   const baseMap = useMainBaseMap();
   const updateAnnotation = useUpdateAnnotation();
 

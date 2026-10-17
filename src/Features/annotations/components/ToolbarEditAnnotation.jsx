@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import db from "App/db/db";
 
@@ -53,8 +53,6 @@ import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
 import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
-import ButtonCloneAnnotation from "./ButtonCloneAnnotation";
-import EditAnnotationTools from "./EditAnnotationTools";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
@@ -67,7 +65,6 @@ import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
-import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
@@ -76,18 +73,13 @@ import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/Toolbar
 import useSelectedMesh3dParts from "Features/annotationMesh3d/hooks/useSelectedMesh3dParts";
 
 import getAnnotationColor from "../utils/getAnnotationColor";
-import getAnnotationHasOverlayActions from "../utils/getAnnotationHasOverlayActions";
-import getCloneAnnotationPartState from "../utils/getCloneAnnotationPartState";
 import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 
-// `hasOverlayRow`: the host editor renders the quick-action row above the
-// selected annotation (2D map editor — NodeSegmentLengthsStatic, 3D editor —
-// ThreedAnnotationOverlayActions). Pass false in a host without that row: the
-// toolbar is then the only place for these actions.
-export default function ToolbarEditAnnotation({
-  onDragStart,
-  hasOverlayRow = true,
-}) {
+// Properties toolbar of ONE selected annotation (template, measurements,
+// height / offset / 3D shape fields, layer, delete). The annotation COMMANDS
+// (Dupliquer, Évider, Découper, Simplifier…) live in the unified commands
+// toolbar (Features/commandsToolbar).
+export default function ToolbarEditAnnotation({ onDragStart }) {
   const dispatch = useDispatch();
 
   // data
@@ -109,12 +101,6 @@ export default function ToolbarEditAnnotation({
       variant: "sameType",
     }) ?? {};
 
-  // Same raw mode as NodeSegmentLengthsStatic: its overlay row only exists
-  // in EDIT and in "no mode".
-  const interactionMode = useSelector(
-    (s) => s.popperMapListings?.interactionMode
-  );
-
   // state
 
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
@@ -123,24 +109,9 @@ export default function ToolbarEditAnnotation({
 
   const isMixedPart = hasPart && part.kind === "MIXED";
 
-  // "Dupliquer" + the edit tools live in the quick-action row above the
-  // annotation when it has one (overlay "Dupliquer" / "Evider" / "Plus
-  // d'outils"); the toolbar keeps them only as a fallback: annotation types
-  // without that row, interaction modes that hide it.
-  const hasOverlayActions =
-    hasOverlayRow &&
-    getAnnotationHasOverlayActions(selectedAnnotation) &&
-    (interactionMode == null || interactionMode === "EDIT");
-  const { disabled: cloneDisabled, tooltip: cloneTooltip } =
-    getCloneAnnotationPartState(part);
-  const showCloneInToolbar =
-    !hasOverlayActions && !(hasPart && part.kind === "POINT");
-  const showArcifySelectedPoints =
-    isMixedPart && ["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type);
-  // Whole annotation: layer chip + delete at least. Sub-selection: only the
-  // part actions, none of which may remain once "Dupliquer" is on the overlay.
-  const showActionsRow =
-    !hasPart || showCloneInToolbar || showArcifySelectedPoints;
+  // Whole annotation: layer chip + delete. A sub-selection has no row (its
+  // actions are commands of the unified toolbar).
+  const showActionsRow = !hasPart;
 
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
 
@@ -153,9 +124,6 @@ export default function ToolbarEditAnnotation({
   const isPolylineOrStrip = ["POLYLINE", "STRIP"].includes(
     selectedAnnotation?.type
   );
-  const isClosedShape =
-    selectedAnnotation?.type === "POLYGON" ||
-    (selectedAnnotation?.type === "POLYLINE" && selectedAnnotation?.closeLine);
 
   // True iff any vertex on the contour, any cut, or any innerPoint carries
   // a non-zero offsetBottom / offsetTop — i.e. the annotation has per-vertex
@@ -652,14 +620,14 @@ export default function ToolbarEditAnnotation({
             )}
             {selectedAnnotation?.type === "POLYGON" &&
               !selectedAnnotation?.isMesh3d && (
-              <FieldAnnotationHeight
-                annotation={selectedAnnotation}
-                onChange={handleEdgeHeightChange}
-                field="edgeHeight"
-                label="ht. côté"
-                disabled={isLocked("edgeHeight")}
-              />
-            )}
+                <FieldAnnotationHeight
+                  annotation={selectedAnnotation}
+                  onChange={handleEdgeHeightChange}
+                  field="edgeHeight"
+                  label="ht. côté"
+                  disabled={isLocked("edgeHeight")}
+                />
+              )}
             <FieldAnnotationHeight
               annotation={selectedAnnotation}
               onChange={handleOffsetZChange}
@@ -779,34 +747,6 @@ export default function ToolbarEditAnnotation({
             hideResize
             onDelete={handleDeleteClick}
             hideDelete={hasPart}
-            extraActions={
-              <>
-                {showCloneInToolbar && (
-                  <ButtonCloneAnnotation
-                    key={selectedAnnotation?.id}
-                    variant="toolbar"
-                    accentColor={accentColor}
-                    disabled={cloneDisabled}
-                    tooltip={cloneTooltip}
-                  />
-                )}
-                {hasPart ? (
-                  showArcifySelectedPoints ? (
-                    <IconButtonArcifySelectedPoints
-                      annotation={selectedAnnotation}
-                      pointIds={part.pointIds}
-                      accentColor={accentColor}
-                    />
-                  ) : null
-                ) : !hasOverlayActions ? (
-                  <EditAnnotationTools
-                    selectedAnnotation={selectedAnnotation}
-                    accentColor={accentColor}
-                    isClosedShape={isClosedShape}
-                  />
-                ) : null}
-              </>
-            }
             layerChip={
               !hasPart &&
               selectedAnnotation &&
@@ -843,9 +783,7 @@ export default function ToolbarEditAnnotation({
             listings={sameTypeListings}
           />
         </Menu>
-
       </Paper>
-
     </Box>
   );
 }

@@ -5,7 +5,6 @@ import { setSubSelection } from "Features/selection/selectionSlice";
 
 import { nanoid } from "@reduxjs/toolkit";
 
-import useSelectedAnnotation from "./useSelectedAnnotation";
 import useAnnotationsV2 from "./useAnnotationsV2";
 import useUpdateAnnotation from "./useUpdateAnnotation";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -21,10 +20,11 @@ import db from "App/db/db";
 // any existing guideLines, and aligns offsetZ on the low neighbor's top.
 // Per-vertex offsetTop is NOT written — it is derived at resolve time by
 // applyGuideLineRampToRings.
-export default function useApplyAutoSlope() {
+// `selectedAnnotation`: the resolved selected annotation (the caller holds it —
+// commandsToolbar ctx — so this hook does not re-resolve the selection).
+export default function useApplyAutoSlope(selectedAnnotation) {
   const dispatch = useDispatch();
 
-  const selectedAnnotation = useSelectedAnnotation();
   const annotations = useAnnotationsV2({
     filterByMainBaseMap: true,
     caller: "useApplyAutoSlope",

@@ -1,5 +1,3 @@
-import { useSelector } from "react-redux";
-
 import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
@@ -22,13 +20,11 @@ import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToo
 import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
 import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLandingViewerModuleOnScopeOpen";
 import useEnsureEnabledModule from "Features/viewers/hooks/useEnsureEnabledModule";
-import useExitFullScreenOnNonEditorModule from "../hooks/useExitFullScreenOnNonEditorModule";
-import useBrowserFullScreenSync from "../hooks/useBrowserFullScreenSync";
 
 export default function LayoutDesktop() {
-  // hotkeys — switch module (D = Dessin, F = Fonds de plan, V = Points de vue).
-  // Mounted here (not in VerticalMenuViewers) so they survive full screen,
-  // where the viewers band is unmounted.
+  // hotkeys — switch module (Ctrl+D = Dessin, Ctrl+F = Fonds de plan…).
+  // Mounted here (not in VerticalMenuViewers) so they do not depend on the
+  // band's rendering.
   useViewerSwitchHotkeys();
   // "T" — toggle the 2D/3D editor inside the current module. Mounted here
   // (not in ButtonToggleThreedViewer) since the button is conditional.
@@ -48,24 +44,9 @@ export default function LayoutDesktop() {
   // Falls back to an enabled module when the selected one gets disabled from
   // the Configuration dialog (or was restored disabled at boot).
   useEnsureEnabledModule();
-  // Full screen (ButtonFullScreen) is left automatically when the displayed
-  // editor has no top-right row to leave it from (Krto, Portfolio, …).
-  useExitFullScreenOnNonEditorModule();
-  // Browser full screen (Fullscreen API) follows the mode, and leaving the
-  // browser full screen (Escape) leaves the mode.
-  useBrowserFullScreenSync();
-
-  // data
-
-  // Full screen: only the displayed editor and the right tools band stay. The
-  // left dock hides itself (LeftDrawerPanel), the bottom bar turns into a
-  // floating drawing bar (BottomBarDesktop), the base map controls of the top
-  // bar move to the top center of the editor (SectionMainBaseMapControlsFloating).
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
-
   return (
     <BoxFlexV sx={{ position: "relative" }}>
-      {!isFullScreen && <TopBarDesktop />}
+      <TopBarDesktop />
       <Box
         sx={{
           display: "flex",
@@ -75,7 +56,7 @@ export default function LayoutDesktop() {
           position: "relative",
         }}
       >
-        {!isFullScreen && <VerticalMenuViewers />}
+        <VerticalMenuViewers />
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>

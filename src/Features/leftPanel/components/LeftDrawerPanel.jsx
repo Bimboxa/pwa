@@ -3,14 +3,11 @@ import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 
 // Left module dock. Rendered in flow only while pinned open from the top bar
-// (ButtonToggleLeftPanelDock); hidden otherwise. No hover reveal. Hidden in
-// full screen too (ButtonFullScreen) — the docked state is kept, the dock is
-// back as it was when the mode is left.
+// (ButtonToggleLeftPanelDock); hidden otherwise. No hover reveal.
 export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
   // data
 
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // helpers
@@ -19,7 +16,7 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
 
   // render
 
-  if (!leftPanelDocked || !isActiveViewer || isFullScreen) return null;
+  if (!leftPanelDocked || !isActiveViewer) return null;
 
   return (
     <Box

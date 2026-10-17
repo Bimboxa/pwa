@@ -9,7 +9,6 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Tune from "@mui/icons-material/Tune";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
-import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
 import PanelFooter from "Features/layout/components/PanelFooter";
@@ -27,10 +26,10 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 // ("Détacher la liste" icon of the bottom band of its "Fonds de plan" side):
 // a second floating panel with the very same structure (draggable header,
 // properties, bottom band with the "auto" height button, the attach icon,
-// the collapse toggle and the resize handle), showing the base maps list and
-// its tools section (SectionBaseMapsTools — the attached "Commandes" of the
-// BaseMaps module, where the header also gets the new-folder "+" and the
-// footer the commands detach icon). Mounted by the editors right next to
+// the collapse toggle and the resize handle), showing the base maps list
+// (in the BaseMaps module the header also gets the new-folder "+"). The base
+// map placement commands live in the unified commands toolbar. Mounted by the
+// editors right next to
 // PopperMapListings (same gates); renders nothing while the list is
 // attached. In 2D it is hidden — not unmounted, so it keeps its drag
 // position and collapsed state — while a paste / subtract / drawing helper
@@ -60,9 +59,6 @@ export default function PopperBaseMapsList() {
   );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const isThreedEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   // Same helper chain as PopperMapListings (2D only).
   const helperActive = useSelector(
     (s) =>
@@ -193,7 +189,6 @@ export default function PopperBaseMapsList() {
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionBaseMapsList />
-          <SectionBaseMapsTools />
         </Box>
       )}
 
@@ -205,10 +200,7 @@ export default function PopperBaseMapsList() {
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((c) => !c)}
       >
-        <IconButtonToggleDetached target="BASE_MAPS" />
-        {isBaseMapsModule && isThreedEditor && (
-          <IconButtonToggleDetached target="TOOLS" />
-        )}
+        <IconButtonToggleDetached />
       </PanelFooter>
     </Paper>
   );

@@ -12,6 +12,7 @@ import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNav
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
 import ToolbarStartDrawTemplate from "Features/panelDrawing/components/ToolbarStartDrawTemplate";
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
+import SectionBaseMapsBottomBarControls from "Features/baseMaps/components/SectionBaseMapsBottomBarControls";
 
 // The typed length / dimension constraints of the drawing modes (rectangle
 // sides, segment length, radius, cut distance) live in the drawing helper's
@@ -21,34 +22,9 @@ export default function BottomBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const helperMessage = useHelperMessageInBottomBar();
 
   // render
-
-  // Full screen (ButtonFullScreen): no bar. Only the draft / start-draw
-  // toolbars survive, floating at the bottom center of the editors: they
-  // position themselves over their host (bottom: calc(100% + 8px)), i.e. 8px
-  // over the edge. Dropped there: sign-in, app version, config,
-  // documentation, helper message, bg-position helper, coupled navigation
-  // switch and the read-only scope strip.
-  if (isFullScreen) {
-    return (
-      <Box
-        data-capture-hide
-        sx={{
-          position: "absolute",
-          bottom: 8,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 400,
-        }}
-      >
-        <ToolbarDrawingDraft />
-        <ToolbarStartDrawTemplate />
-      </Box>
-    );
-  }
 
   return (
     <Box
@@ -86,8 +62,10 @@ export default function BottomBarDesktop() {
         </Box>
       )}
 
-      <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <HelperClickInBgPosition />
+        {/* Base map image mode + base maps grid of the displayed editor */}
+        <SectionBaseMapsBottomBarControls />
         <SwitchCoupledNavigation />
       </Box>
     </Box>

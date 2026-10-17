@@ -6,7 +6,7 @@ Réunit deux annotations qui se touchent par des faces coplanaires en **une seul
 
 | Terme employé ici             | Nom dans le code                                                                                                                                                                         |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fusionner des faces (l'outil) | mode `threedEditor.mergeFacesMode` ; ligne `MERGE_FACES` des « Outils de dessin » (`toolItems`, `RowThreedTool`) ; bouton « Fusionner » de la rangée overlay (`OverlayButtonMergeFaces`) |
+| Fusionner des faces (l'outil) | mode `threedEditor.mergeFacesMode` ; commande `MERGE_FACES` de la toolbar unifiée des commandes (`commandsToolbar/commands/mergeFaces`) — une face sélectionnée est la graine |
 | Face de départ                | `mergeFacesMode.seed` : `{ annotationId, baseMapId, plane: { point, normal } }` (repère local du fond de plan, z absolu)                                                                 |
 | Annotation de départ          | `seedAnnotationId` : elle garde son id, son modèle, sa liste, ses rels, et reçoit le mesh union                                                                                          |
 | Annotation absorbée           | `otherAnnotationId` : supprimée (soft delete) par `useDeleteAnnotations`                                                                                                                 |

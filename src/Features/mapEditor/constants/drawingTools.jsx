@@ -43,6 +43,13 @@ import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
+import IconOpeningPolygon from "Features/icons/IconOpeningPolygon";
+import IconOpeningRectangle from "Features/icons/IconOpeningRectangle";
+import IconOpeningCircle from "Features/icons/IconOpeningCircle";
+import IconOpeningPolyline from "Features/icons/IconOpeningPolyline";
+import IconOpeningPolylineSegment from "Features/icons/IconOpeningPolylineSegment";
+import IconOpeningStrip from "Features/icons/IconOpeningStrip";
+import IconOpeningStripSegment from "Features/icons/IconOpeningStripSegment";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
@@ -195,21 +202,21 @@ const DRAWING_TOOLS = [
   {
     key: "CUT_CLICK",
     label: "Polyligne fermée",
-    Icon: IconPolygonClick,
+    Icon: IconOpeningPolygon,
     annotationType: "CUT",
     behavior: "CLICK",
   },
   {
     key: "CUT_RECTANGLE",
     label: "Rectangle",
-    Icon: IconPolylineRectangle,
+    Icon: IconOpeningRectangle,
     annotationType: "CUT",
     behavior: "RECTANGLE",
   },
   {
     key: "CUT_CIRCLE",
     label: "Cercle",
-    Icon: IconPolylineCircle,
+    Icon: IconOpeningCircle,
     annotationType: "CUT",
     behavior: "CIRCLE",
   },
@@ -221,7 +228,7 @@ const DRAWING_TOOLS = [
   {
     key: "CUT_POLYLINE",
     label: "Polyligne",
-    Icon: IconPolylineClick,
+    Icon: IconOpeningPolyline,
     annotationType: "POLYLINE",
     behavior: "CLICK",
     drawingMode: "POLYLINE_CLICK",
@@ -230,7 +237,7 @@ const DRAWING_TOOLS = [
   {
     key: "CUT_POLYLINE_SEGMENT",
     label: "Polyligne (2 clics)",
-    Icon: IconPolylineSegment,
+    Icon: IconOpeningPolylineSegment,
     annotationType: "POLYLINE",
     behavior: "SEGMENT",
     drawingMode: "POLYLINE_SEGMENT",
@@ -239,7 +246,7 @@ const DRAWING_TOOLS = [
   {
     key: "CUT_STRIP",
     label: "Bande",
-    Icon: IconStrip,
+    Icon: IconOpeningStrip,
     annotationType: "STRIP",
     behavior: "STRIP",
     drawingMode: "STRIP",
@@ -248,7 +255,7 @@ const DRAWING_TOOLS = [
   {
     key: "CUT_STRIP_SEGMENT",
     label: "Bande (2 clics)",
-    Icon: IconStripSegment,
+    Icon: IconOpeningStripSegment,
     annotationType: "STRIP",
     behavior: "SEGMENT",
     drawingMode: "STRIP_SEGMENT",

@@ -7,11 +7,10 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
-import SectionBaseMapsTools from "Features/threedBaseMapMove/components/SectionBaseMapsTools";
 import FieldActiveListing from "./FieldActiveListing";
 import ChipsViewerScope from "./ChipsViewerScope";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
-import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
+import RowTemplatelessVisibility from "./RowTemplatelessVisibility";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
 import SectionPanelPasteHelper from "./SectionPanelPasteHelper";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
@@ -325,7 +324,6 @@ export default function PanelDrawing() {
           </LeftDrawerPanelHeader>
           <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
             <SectionBaseMapsList />
-            <SectionBaseMapsTools variant="panel" />
           </Box>
         </>
       ) : (
@@ -365,12 +363,9 @@ export default function PanelDrawing() {
             )}
           </Box>
 
-          {/* Cut / split tools are 2D drawing modes; the 3D editor only
-              keeps "Dessin" (mesh drawing). */}
-          <SectionPanelDrawingTools
-            templatelessCount={templatelessCount}
-            isThreedEditor={isThreedEditor}
-          />
+          {/* Annotations drawn without template: count, solo and eye (the
+              "Dessin" command itself lives in the commands toolbar). */}
+          <RowTemplatelessVisibility count={templatelessCount} />
         </>
       )}
     </Box>

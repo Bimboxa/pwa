@@ -4,9 +4,8 @@ import { useStore } from "react-redux";
 import { setSelectedMenuItemKey } from "../rightPanelSlice";
 import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+import { isLetterClaimed } from "Features/commandsToolbar/utils/hotkeyClaims";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -34,8 +33,8 @@ const isEditableTarget = (el) => {
 //   - inert while a draw / paste / subtract is active (those own their own letters,
 //     e.g. "B" = STRIP and "v" = smart-detect vectorize while drawing) and in
 //     walk mode;
-//   - "E" yields (without consuming) while a POLYGON is selected on the 2D
-//     map: the InteractionLayer "Évider" handler keeps it;
+//   - a letter claimed by an enabled command of the unified commands toolbar
+//     (hotkeyClaims: E Évider / Extruder, A Axe…) yields without consuming;
 //   - toggles: pressing the letter of the already-open tool closes it. CAPTURE
 //     toggles the capture MODE explicitly (frame + panel move together, but the
 //     mode flag is dispatched here too so the toggle never depends on the
@@ -73,26 +72,11 @@ export default function useRightPanelToolHotkeys() {
       if (s.mapEditor.enabledDrawingMode) return;
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
-      // "E" keeps its "Évider" meaning while a POLYGON is selected on the 2D
-      // map — yield without consuming so InteractionLayer's handler fires
-      // (mirror of its own guards).
-      if (
-        letter === "e" &&
-        s.viewers.selectedViewerKey === "MAP" &&
-        selectEffectiveViewerKey(s) === "MAP" &&
-        s.mapEditor.selectedNode?.nodeType === "ANNOTATION" &&
-        s.mapEditor.selectedNode?.annotationType === "POLYGON"
-      )
-        return;
-      // "E" belongs to the 3D « Extruder » tool while the Dessin
-      // module shows its 3D editor — yield without consuming
-      // (useDessinToolHotkeysThreed fires instead).
-      if (
-        letter === "e" &&
-        s.viewers.selectedViewerKey === "MAP" &&
-        isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-      )
-        return;
+      // A letter claimed by an enabled command of the unified commands
+      // toolbar (E = Évider in 2D / Extruder in 3D, A = Axe de révolution…)
+      // belongs to it — yield without consuming (useCommandsHotkeys fires,
+      // whatever the listener registration order).
+      if (isLetterClaimed(letter)) return;
 
       // The PDF editor layer covers the editor: nothing to frame under it.
       if (targetKey === "CAPTURE" && selectPdfEditorOpen(s)) return;
