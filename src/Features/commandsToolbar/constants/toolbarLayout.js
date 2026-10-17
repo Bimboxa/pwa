@@ -9,8 +9,21 @@
 // dev by commands/index.js). The code stays one folder per command: a group
 // only decides how the buttons are packed on screen.
 const TOOLBAR_LAYOUT = [
+  // « Dessin » — the templateless annotation types, one button each
+  { type: "divider" },
+  "DRAW_POLYLINE",
+  "DRAW_POLYGON",
+  "DRAW_DISC",
+  "DRAW_MARKER",
+  "DRAW_POINT",
+  "DRAW_LABEL",
+  "DRAW_FREE_TEXT",
+  "DRAW_DETAIL",
+  "DRAW_IMAGE",
+  "DRAW_COTE",
+  "DRAW_RULER",
+  { type: "divider" },
   // drawing tools
-  "DRAW",
   "CUT",
   "REVOLUTION_AXIS",
   { type: "divider" },

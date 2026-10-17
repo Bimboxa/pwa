@@ -39,7 +39,7 @@ export default {
   label: "Évider (…)",            // tooltip + menu text
   Icon: IconHollowOut,            // component (or `icon` element on variants)
   editors: ["2D", "3D"],          // default both; elsewhere disabled with a reason
-  hotkey: { key: "e", editors: ["2D"], plainOnly, yieldWhen(state, ctx) },
+  hotkey: { key: "e", editors: ["2D"], plainOnly, yieldWhen(state, ctx), showBadgeWhen(ctx) },
   getState: (ctx) => ({ enabled, reason?, active? }),   // PURE
   run: (ctx, { dispatch, store, getThreedEditor }, variantKey?) => void,
   Button: ButtonHollowOut,        // OR a component for popup / hook commands
@@ -90,6 +90,11 @@ walk, no docked template detail), whose `getState` is enabled and whose
 publishes the claimed letters (`utils/hotkeyClaims.js`);
 `useRightPanelToolHotkeys` yields on them (E = Évider 2D / Extruder 3D,
 A = Axe…).
+
+Several commands may share a letter: each one yields (`yieldWhen`) when it is
+not the one to fire and badges the letter only then (`showBadgeWhen`) — the
+11 « Dessiner — … » commands (`utils/createTemplatelessDrawCommand.js`) share
+« D », which draws the last-used templateless type.
 
 ## Adding a command
 

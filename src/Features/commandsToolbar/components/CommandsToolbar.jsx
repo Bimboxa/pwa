@@ -29,6 +29,9 @@ function getHotkeyLabel(command, ctx) {
   const hotkey = command.hotkey;
   if (!hotkey?.key) return null;
   if (hotkey.editors && !hotkey.editors.includes(ctx.editor)) return null;
+  // A letter shared by several commands (D = the last-used « Dessin » type)
+  // is badged on the one that would fire.
+  if (hotkey.showBadgeWhen && !hotkey.showBadgeWhen(ctx)) return null;
   return hotkey.key.toUpperCase();
 }
 
@@ -39,6 +42,7 @@ function toSlotItem(command, ctx, deps) {
     command,
     label: command.label,
     Icon: command.Icon,
+    icon: command.icon,
     hotkeyLabel: getHotkeyLabel(command, ctx),
     state: getCommandState(command, ctx),
     Button: command.Button,

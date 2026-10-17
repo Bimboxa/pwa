@@ -1,6 +1,16 @@
 import TOOLBAR_LAYOUT from "../constants/toolbarLayout";
 
-import drawCommand from "./draw/drawCommand";
+import drawPolylineCommand from "./drawPolyline/drawPolylineCommand";
+import drawPolygonCommand from "./drawPolygon/drawPolygonCommand";
+import drawDiscCommand from "./drawDisc/drawDiscCommand";
+import drawMarkerCommand from "./drawMarker/drawMarkerCommand";
+import drawPointCommand from "./drawPoint/drawPointCommand";
+import drawLabelCommand from "./drawLabel/drawLabelCommand";
+import drawFreeTextCommand from "./drawFreeText/drawFreeTextCommand";
+import drawDetailCommand from "./drawDetail/drawDetailCommand";
+import drawImageCommand from "./drawImage/drawImageCommand";
+import drawCoteCommand from "./drawCote/drawCoteCommand";
+import drawRulerCommand from "./drawRuler/drawRulerCommand";
 import cutCommand from "./cut/cutCommand";
 import revolutionAxisCommand from "./revolutionAxis/revolutionAxisCommand";
 import splitLineCommand from "./splitLine/splitLineCommand";
@@ -69,7 +79,19 @@ import toggleAnglesLockedCommand from "./toggleAnglesLocked/toggleAnglesLockedCo
 // - registry order = hotkey resolution order (first enabled match wins).
 // ---------------------------------------------------------------------------
 export const COMMANDS = [
-  drawCommand,
+  // « Dessin » — one command per templateless annotation type (hotkey D on
+  // the last-used one)
+  drawPolylineCommand,
+  drawPolygonCommand,
+  drawDiscCommand,
+  drawMarkerCommand,
+  drawPointCommand,
+  drawLabelCommand,
+  drawFreeTextCommand,
+  drawDetailCommand,
+  drawImageCommand,
+  drawCoteCommand,
+  drawRulerCommand,
   cutCommand,
   revolutionAxisCommand,
   splitLineCommand,
