@@ -47,7 +47,6 @@ import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
 import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
-import useRevolutionAxisHotkey from "Features/revolutionAxes/hooks/useRevolutionAxisHotkey";
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
@@ -76,9 +75,7 @@ import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLay
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import moveOpeningAlongHostService from "Features/annotations/services/moveOpeningAlongHostService";
-import isOpeningAnnotation, {
-  getOpeningType,
-} from "Features/annotations/utils/isOpeningAnnotation";
+import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -201,9 +198,6 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useSyncLinkBusinessObjectDraft from "Features/businessObjects/hooks/useSyncLinkBusinessObjectDraft";
-import useOpeningHotkey from "../hooks/useOpeningHotkey";
-import useTemplatelessDrawHotkey from "../hooks/useTemplatelessDrawHotkey";
-import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
 import useAnnotationTransformTool from "Features/annotationTransform/hooks/useAnnotationTransformTool";
 
 const contextDimmedStyle = {
@@ -257,50 +251,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // business-objects modules — a draw linking to the ACTIVE object follows
   // it (disarmed when no object is active any more)
   useSyncLinkBusinessObjectDraft();
-  // hotkeys — start an opening draw (O) when not drawing
-  useOpeningHotkey();
-  // hotkeys — start segment removal (X = Retirer un segment) when not drawing
-  useToolGroupHotkey("x", "SPLIT_LINE");
-  // hotkeys — start polyline cut (C = Couper un segment) when not drawing
-  useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
-  // hotkeys — start a surface cut (F = Couper une surface) when not drawing
-  useToolGroupHotkey("f", "SURFACE_CUT");
-  // hotkeys — start wall-ends join (J = Joindre) when not drawing
-  useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
-  // hotkeys — start a move / rotate of an annotation from one of its points
-  // (M = Déplacer, R = Tourner) when not drawing; Shift+M stays the quick
-  // point editing toggle
-  useToolGroupHotkey("m", "MOVE_ANNOTATION", { plainOnly: true });
-  useToolGroupHotkey("r", "ROTATE_ANNOTATION", { plainOnly: true });
-  // hotkeys — start a segment isolation (S = Isoler un segment) when not
-  // drawing; "S" stays the door-side flip of a single selected DOOR
-  // opening (InteractionLayer's own "s" handler) — the hotkey yields to it
-  // (the ref is refreshed below, once the annotations are resolved)
-  const isolateSegmentYieldRef = useRef(false);
-  const isolateSegmentHotkeyYieldWhen = useMemo(
-    () => () => isolateSegmentYieldRef.current,
-    []
-  );
-  useToolGroupHotkey("s", "ISOLATE_SEGMENT", {
-    plainOnly: true,
-    yieldWhen: isolateSegmentHotkeyYieldWhen,
-  });
-  // hotkeys — start a face cut in the 3D editor (C = Coupe face) when not
-  // drawing (this editor stays mounted under the 3D one); "C" is « Copier »
-  // of the 3D « Déplacer » while that mode is active — the hotkey yields
-  const faceCutHotkeyYieldWhen = useMemo(
-    () => (s) => Boolean(s.threedEditor?.moveAnnotationMode?.active),
-    []
-  );
-  useToolGroupHotkey("c", "FACE_CUT", {
-    threed: true,
-    yieldWhen: faceCutHotkeyYieldWhen,
-  });
-  // hotkeys — start a templateless draw (D = Dessin) when not drawing
-  useTemplatelessDrawHotkey();
-  // hotkeys — start a revolution axis (A = Axe de révolution) on a plan,
-  // or on a horizontal base map plane of the 3D editor, when not drawing
-  useRevolutionAxisHotkey();
+  // The plain-letter tool hotkeys (D O X C S F J A M R…) are driven by the
+  // unified commands toolbar (Features/commandsToolbar — useCommandsHotkeys).
 
   // const
 
@@ -657,16 +609,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         return { ...a, strokeColor: shaded, fillColor: shaded };
       });
   }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
-
-  // "S" → « Isoler un segment » yields while the selection is a DOOR
-  // opening (see the hotkey above).
-  const selectedNodeId =
-    selectedNode?.nodeType === "ANNOTATION" ? selectedNode.nodeId : null;
-  isolateSegmentYieldRef.current = useMemo(() => {
-    if (!selectedNodeId) return false;
-    const selected = annotations?.find((a) => a.id === selectedNodeId);
-    return isOpeningAnnotation(selected) && getOpeningType(selected) === "DOOR";
-  }, [annotations, selectedNodeId]);
 
   // Altimetry under the cursor: have the height map of a scan base map
   // ready before the first pointer move (see InteractionLayer).

@@ -121,7 +121,6 @@ import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleTh
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import FaceCutAxisOverlayThreed from "Features/threedFaceCut/components/FaceCutAxisOverlayThreed";
-import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
@@ -585,7 +584,6 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
-  useDessinToolHotkeysThreed();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();

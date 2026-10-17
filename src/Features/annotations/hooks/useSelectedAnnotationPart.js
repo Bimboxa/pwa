@@ -67,223 +67,247 @@ export default function useSelectedAnnotationPart() {
   const baseMap = useMainBaseMap();
   const meterByPx = baseMap?.meterByPx;
 
-  return useMemo(() => {
-    if (!annotation || !selectedItem) return { kind: "NONE" };
-
-    const { partId, partType, pointId } = selectedItem;
-    const effectivePartType =
-      partType ||
-      (selectedPartIds.length > 0
-        ? decodePartId(selectedPartIds[0])?.ringKey === "MAIN"
-          ? "SEG"
-          : "CUT_SEG"
-        : null);
-
-    // --- MIXED selection: points AND segments simultaneously ---------------
-    // Detect this BEFORE the single-kind branches so heterogeneous lasso
-    // selections (points + segments together) get the sectioned UI.
-    const partition = partitionPartIds(selectedPartIds);
-    const totalPartsSelected =
-      partition.segments.length + partition.cutSegments.length + partition.cuts.length;
-    const hasMultiplePoints = selectedPointIds.length >= 1;
-    const isMixed =
-      (hasMultiplePoints && totalPartsSelected > 0) ||
-      (selectedPointIds.length >= 2 && totalPartsSelected === 0) ||
-      (partition.cuts.length > 0 && (partition.segments.length + partition.cutSegments.length) > 0);
-
-    if (isMixed) {
-      const groups = buildGroups({
+  return useMemo(
+    () =>
+      resolveSelectedAnnotationPart({
         annotation,
-        pointIds: selectedPointIds,
-        partition,
+        selectedItem,
+        selectedPartIds,
+        selectedPointIds,
         meterByPx,
-      });
-      const totalCount = groups.reduce((acc, g) => acc + g.count, 0);
-      return {
-        kind: "MIXED",
-        captionFr: "Multi-sélection",
-        label: groups
-          .map((g) => `${g.count} ${g.captionFr.toLowerCase()}${g.count > 1 ? "s" : ""}`)
+      }),
+    [annotation, selectedItem, selectedPartIds, selectedPointIds, meterByPx]
+  );
+}
+
+// Pure resolution of the sub-selection of an ALREADY resolved annotation —
+// shared with useCommandsContext (commandsToolbar), which holds the resolved
+// annotations and must not re-resolve them through useSelectedAnnotation.
+export function resolveSelectedAnnotationPart({
+  annotation,
+  selectedItem,
+  selectedPartIds,
+  selectedPointIds,
+  meterByPx,
+}) {
+  if (!annotation || !selectedItem) return { kind: "NONE" };
+
+  const { partId, partType, pointId } = selectedItem;
+  const effectivePartType =
+    partType ||
+    (selectedPartIds.length > 0
+      ? decodePartId(selectedPartIds[0])?.ringKey === "MAIN"
+        ? "SEG"
+        : "CUT_SEG"
+      : null);
+
+  // --- MIXED selection: points AND segments simultaneously ---------------
+  // Detect this BEFORE the single-kind branches so heterogeneous lasso
+  // selections (points + segments together) get the sectioned UI.
+  const partition = partitionPartIds(selectedPartIds);
+  const totalPartsSelected =
+    partition.segments.length +
+    partition.cutSegments.length +
+    partition.cuts.length;
+  const hasMultiplePoints = selectedPointIds.length >= 1;
+  const isMixed =
+    (hasMultiplePoints && totalPartsSelected > 0) ||
+    (selectedPointIds.length >= 2 && totalPartsSelected === 0) ||
+    (partition.cuts.length > 0 &&
+      partition.segments.length + partition.cutSegments.length > 0);
+
+  if (isMixed) {
+    const groups = buildGroups({
+      annotation,
+      pointIds: selectedPointIds,
+      partition,
+      meterByPx,
+    });
+    const totalCount = groups.reduce((acc, g) => acc + g.count, 0);
+    return {
+      kind: "MIXED",
+      captionFr: "Multi-sélection",
+      label:
+        groups
+          .map(
+            (g) =>
+              `${g.count} ${g.captionFr.toLowerCase()}${g.count > 1 ? "s" : ""}`
+          )
           .join(", ") || `${totalCount} éléments`,
-        groups,
-        pointIds: selectedPointIds,
-        partIds: selectedPartIds,
-        targetAnnotationType: null,
-      };
-    }
+      groups,
+      pointIds: selectedPointIds,
+      partIds: selectedPartIds,
+      targetAnnotationType: null,
+    };
+  }
 
-    if (!effectivePartType || effectivePartType === "MAIN") {
-      return { kind: "NONE" };
-    }
-
-    // --- VERTEX (single point) -------------------------------------------------
-    if (effectivePartType === "VERTEX" || pointId || selectedPointIds.length > 0) {
-      const id = pointId || selectedPointIds[0];
-      if (!id) return { kind: "NONE" };
-      const found = findPointInAnnotation(annotation, id);
-      if (!found) return { kind: "NONE" };
-      return {
-        kind: "POINT",
-        captionFr: "Point",
-        label: found.label,
-        pointRefs: [found.ref],
-        geometryPx: [found.pointPx],
-        targetAnnotationType: null,
-      };
-    }
-
-    // --- GUIDE (one guideLine of the ordered sequence) ------------------------
-    if (effectivePartType === "GUIDE" || effectivePartType === "GUIDE_LINE") {
-      const idx = Number(String(partId || "").split("::")[2]);
-      const gl = Number.isInteger(idx) ? annotation.guideLines?.[idx] : null;
-      const guidePx = gl?.points || [];
-      if (guidePx.length < 2) return { kind: "NONE" };
-      return {
-        kind: "GUIDE",
-        captionFr: "Guide",
-        label: `Guide (${guidePx.length} points)`,
-        pointRefs: guidePx,
-        geometryPx: guidePx,
-        targetAnnotationType: "POLYLINE",
-      };
-    }
-
-    // --- ISO (one isoHeightLine — constant-height contour line) ---------------
-    if (effectivePartType === "ISO_HEIGHT_LINE") {
-      const idx = Number(String(partId || "").split("::")[2]);
-      const line = Number.isInteger(idx)
-        ? annotation.isoHeightLines?.[idx]
-        : null;
-      const linePx = line?.points || [];
-      if (linePx.length < 2) return { kind: "NONE" };
-      return {
-        kind: "ISO",
-        captionFr: "Courbe de niveau",
-        label: `Courbe de niveau (${linePx.length} points)`,
-        pointRefs: linePx,
-        geometryPx: linePx,
-        targetAnnotationType: "POLYLINE",
-      };
-    }
-
-    // --- PROFILE (one profileLine — shell cross-section) ----------------------
-    if (effectivePartType === "PROFILE_LINE") {
-      const idx = Number(String(partId || "").split("::")[2]);
-      const line = Number.isInteger(idx)
-        ? annotation.profileLines?.[idx]
-        : null;
-      const linePx = line?.points || [];
-      if (linePx.length < 2) return { kind: "NONE" };
-      return {
-        kind: "PROFILE",
-        captionFr: "Profil",
-        label: `Profil (${linePx.length} points)`,
-        pointRefs: linePx,
-        geometryPx: linePx,
-        targetAnnotationType: "POLYLINE",
-      };
-    }
-
-    // --- LAYOUT_LINE (one layoutLine — ligne de calepinage) -------------------
-    if (effectivePartType === "LAYOUT_LINE") {
-      const idx = Number(String(partId || "").split("::")[2]);
-      const line = Number.isInteger(idx)
-        ? annotation.layoutLines?.[idx]
-        : null;
-      const linePx = line?.points || [];
-      if (linePx.length < 2) return { kind: "NONE" };
-      return {
-        kind: "LAYOUT_LINE",
-        captionFr: "Calepinage",
-        label: `Calepinage (${linePx.length} points)`,
-        pointRefs: linePx,
-        geometryPx: linePx,
-        targetAnnotationType: "POLYLINE",
-      };
-    }
-
-    // --- CUT (whole opening) --------------------------------------------------
-    if (effectivePartType === "CUT") {
-      // partId form: "{annotationId}::CUT::{cutIdx}"
-      const cutIdx = Number(partId?.split("::")[2]);
-      if (!Number.isFinite(cutIdx)) return { kind: "NONE" };
-      const cut = annotation.cuts?.[cutIdx];
-      const cutPoints = cut?.points || [];
-      if (cutPoints.length < 3) return { kind: "NONE" };
-      return {
-        kind: "CUT",
-        captionFr: "Ouverture",
-        label: `Ouverture #${cutIdx + 1}`,
-        pointRefs: cutPoints,
-        geometryPx: cutPoints,
-        targetAnnotationType: "POLYGON",
-        cutIdx,
-      };
-    }
-
-    // --- SEGMENT / SEGMENTS (single or chain on main or cut ring) -------------
-    if (effectivePartType === "SEG" || effectivePartType === "CUT_SEG") {
-      // Multi-selection takes priority when 2+ parts are queued.
-      const effectivePartIds =
-        selectedPartIds.length >= 2
-          ? selectedPartIds
-          : partId
-            ? [partId]
-            : [];
-
-      if (effectivePartIds.length === 0) return { kind: "NONE" };
-
-      const chain = getContiguousSegmentChain(annotation, effectivePartIds);
-
-      if (effectivePartIds.length === 1) {
-        // Single segment — resolve directly so we still get geometry when the
-        // single-item path of the chain util returns "contiguous: true" with 2 pts.
-        const refs = chain.contiguous ? chain.pointRefs : null;
-        if (!refs || refs.length < 2) return { kind: "NONE" };
-        const isCut = effectivePartType === "CUT_SEG";
-        const segIdx = chain.startSegIdx;
-        return {
-          kind: isCut ? "CUT_SEG" : "SEGMENT",
-          captionFr: "Segment",
-          label: `Segment ${segIdx + 1}`,
-          pointRefs: refs,
-          geometryPx: refs,
-          targetAnnotationType: "POLYLINE",
-          contiguous: true,
-          ringKey: chain.ringKey,
-        };
-      }
-
-      // Multi-segment — always compute the full set of contiguous chains so
-      // the toolbar / clone hook can batch-create one polyline per chain.
-      // Hidden segments are excluded from the chains: a select-all
-      // (double-click / lasso) grabs every segment partId, but hidden
-      // segments must not spawn annotations on duplicate / wall generation —
-      // chains break at each hidden segment instead.
-      const visiblePartIds = effectivePartIds.filter((id) => {
-        const d = decodePartId(id);
-        return d && !isSegmentHidden(annotation, d.ringKey, d.segIdx);
-      });
-      const chains = getContiguousSegmentChains(annotation, visiblePartIds);
-      const contiguous = chains.length === 1;
-
-      return {
-        kind: "SEGMENTS",
-        captionFr: "Segments",
-        label: contiguous
-          ? `${effectivePartIds.length} segments`
-          : `${effectivePartIds.length} segments (${chains.length} chaînes)`,
-        pointRefs: contiguous ? chains[0]?.pointRefs ?? [] : [],
-        geometryPx: contiguous ? chains[0]?.pointRefs ?? [] : [],
-        targetAnnotationType: "POLYLINE",
-        contiguous,
-        chains,
-        ringKey: contiguous ? chains[0]?.ringKey : null,
-      };
-    }
-
+  if (!effectivePartType || effectivePartType === "MAIN") {
     return { kind: "NONE" };
-  }, [annotation, selectedItem, selectedPartIds, selectedPointIds, meterByPx]);
+  }
+
+  // --- VERTEX (single point) -------------------------------------------------
+  if (
+    effectivePartType === "VERTEX" ||
+    pointId ||
+    selectedPointIds.length > 0
+  ) {
+    const id = pointId || selectedPointIds[0];
+    if (!id) return { kind: "NONE" };
+    const found = findPointInAnnotation(annotation, id);
+    if (!found) return { kind: "NONE" };
+    return {
+      kind: "POINT",
+      captionFr: "Point",
+      label: found.label,
+      pointRefs: [found.ref],
+      geometryPx: [found.pointPx],
+      targetAnnotationType: null,
+    };
+  }
+
+  // --- GUIDE (one guideLine of the ordered sequence) ------------------------
+  if (effectivePartType === "GUIDE" || effectivePartType === "GUIDE_LINE") {
+    const idx = Number(String(partId || "").split("::")[2]);
+    const gl = Number.isInteger(idx) ? annotation.guideLines?.[idx] : null;
+    const guidePx = gl?.points || [];
+    if (guidePx.length < 2) return { kind: "NONE" };
+    return {
+      kind: "GUIDE",
+      captionFr: "Guide",
+      label: `Guide (${guidePx.length} points)`,
+      pointRefs: guidePx,
+      geometryPx: guidePx,
+      targetAnnotationType: "POLYLINE",
+    };
+  }
+
+  // --- ISO (one isoHeightLine — constant-height contour line) ---------------
+  if (effectivePartType === "ISO_HEIGHT_LINE") {
+    const idx = Number(String(partId || "").split("::")[2]);
+    const line = Number.isInteger(idx)
+      ? annotation.isoHeightLines?.[idx]
+      : null;
+    const linePx = line?.points || [];
+    if (linePx.length < 2) return { kind: "NONE" };
+    return {
+      kind: "ISO",
+      captionFr: "Courbe de niveau",
+      label: `Courbe de niveau (${linePx.length} points)`,
+      pointRefs: linePx,
+      geometryPx: linePx,
+      targetAnnotationType: "POLYLINE",
+    };
+  }
+
+  // --- PROFILE (one profileLine — shell cross-section) ----------------------
+  if (effectivePartType === "PROFILE_LINE") {
+    const idx = Number(String(partId || "").split("::")[2]);
+    const line = Number.isInteger(idx) ? annotation.profileLines?.[idx] : null;
+    const linePx = line?.points || [];
+    if (linePx.length < 2) return { kind: "NONE" };
+    return {
+      kind: "PROFILE",
+      captionFr: "Profil",
+      label: `Profil (${linePx.length} points)`,
+      pointRefs: linePx,
+      geometryPx: linePx,
+      targetAnnotationType: "POLYLINE",
+    };
+  }
+
+  // --- LAYOUT_LINE (one layoutLine — ligne de calepinage) -------------------
+  if (effectivePartType === "LAYOUT_LINE") {
+    const idx = Number(String(partId || "").split("::")[2]);
+    const line = Number.isInteger(idx) ? annotation.layoutLines?.[idx] : null;
+    const linePx = line?.points || [];
+    if (linePx.length < 2) return { kind: "NONE" };
+    return {
+      kind: "LAYOUT_LINE",
+      captionFr: "Calepinage",
+      label: `Calepinage (${linePx.length} points)`,
+      pointRefs: linePx,
+      geometryPx: linePx,
+      targetAnnotationType: "POLYLINE",
+    };
+  }
+
+  // --- CUT (whole opening) --------------------------------------------------
+  if (effectivePartType === "CUT") {
+    // partId form: "{annotationId}::CUT::{cutIdx}"
+    const cutIdx = Number(partId?.split("::")[2]);
+    if (!Number.isFinite(cutIdx)) return { kind: "NONE" };
+    const cut = annotation.cuts?.[cutIdx];
+    const cutPoints = cut?.points || [];
+    if (cutPoints.length < 3) return { kind: "NONE" };
+    return {
+      kind: "CUT",
+      captionFr: "Ouverture",
+      label: `Ouverture #${cutIdx + 1}`,
+      pointRefs: cutPoints,
+      geometryPx: cutPoints,
+      targetAnnotationType: "POLYGON",
+      cutIdx,
+    };
+  }
+
+  // --- SEGMENT / SEGMENTS (single or chain on main or cut ring) -------------
+  if (effectivePartType === "SEG" || effectivePartType === "CUT_SEG") {
+    // Multi-selection takes priority when 2+ parts are queued.
+    const effectivePartIds =
+      selectedPartIds.length >= 2 ? selectedPartIds : partId ? [partId] : [];
+
+    if (effectivePartIds.length === 0) return { kind: "NONE" };
+
+    const chain = getContiguousSegmentChain(annotation, effectivePartIds);
+
+    if (effectivePartIds.length === 1) {
+      // Single segment — resolve directly so we still get geometry when the
+      // single-item path of the chain util returns "contiguous: true" with 2 pts.
+      const refs = chain.contiguous ? chain.pointRefs : null;
+      if (!refs || refs.length < 2) return { kind: "NONE" };
+      const isCut = effectivePartType === "CUT_SEG";
+      const segIdx = chain.startSegIdx;
+      return {
+        kind: isCut ? "CUT_SEG" : "SEGMENT",
+        captionFr: "Segment",
+        label: `Segment ${segIdx + 1}`,
+        pointRefs: refs,
+        geometryPx: refs,
+        targetAnnotationType: "POLYLINE",
+        contiguous: true,
+        ringKey: chain.ringKey,
+      };
+    }
+
+    // Multi-segment — always compute the full set of contiguous chains so
+    // the toolbar / clone hook can batch-create one polyline per chain.
+    // Hidden segments are excluded from the chains: a select-all
+    // (double-click / lasso) grabs every segment partId, but hidden
+    // segments must not spawn annotations on duplicate / wall generation —
+    // chains break at each hidden segment instead.
+    const visiblePartIds = effectivePartIds.filter((id) => {
+      const d = decodePartId(id);
+      return d && !isSegmentHidden(annotation, d.ringKey, d.segIdx);
+    });
+    const chains = getContiguousSegmentChains(annotation, visiblePartIds);
+    const contiguous = chains.length === 1;
+
+    return {
+      kind: "SEGMENTS",
+      captionFr: "Segments",
+      label: contiguous
+        ? `${effectivePartIds.length} segments`
+        : `${effectivePartIds.length} segments (${chains.length} chaînes)`,
+      pointRefs: contiguous ? (chains[0]?.pointRefs ?? []) : [],
+      geometryPx: contiguous ? (chains[0]?.pointRefs ?? []) : [],
+      targetAnnotationType: "POLYLINE",
+      contiguous,
+      chains,
+      ringKey: contiguous ? chains[0]?.ringKey : null,
+    };
+  }
+
+  return { kind: "NONE" };
 }
 
 // Build the sections shown by the mixed-selection UI. Each group describes a
@@ -407,10 +431,10 @@ function sumCutsMetrics({ annotation, cutPartIds, meterByPx }) {
 function findPointInAnnotation(annotation, pointId) {
   const rings = [
     { ring: annotation.points, label: "Sommet" },
-    ...((annotation.cuts || []).map((c, i) => ({
+    ...(annotation.cuts || []).map((c, i) => ({
       ring: c?.points,
       label: `Sommet ouverture #${i + 1}`,
-    }))),
+    })),
     { ring: annotation.innerPoints, label: "Point intérieur" },
     {
       ring: (annotation.guideLines || []).flatMap((g) => g?.points || []),
@@ -433,7 +457,11 @@ function findPointInAnnotation(annotation, pointId) {
     if (!Array.isArray(ring)) continue;
     const idx = ring.findIndex((p) => p && p.id === pointId);
     if (idx >= 0) {
-      return { ref: ring[idx], pointPx: ring[idx], label: `${label} ${idx + 1}` };
+      return {
+        ref: ring[idx],
+        pointPx: ring[idx],
+        label: `${label} ${idx + 1}`,
+      };
     }
   }
   return null;
