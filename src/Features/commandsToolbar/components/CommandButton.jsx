@@ -119,6 +119,9 @@ function CommandButton({
       disabled={!enabled}
       sx={{
         position: "relative",
+        // Square with rounded corners (not the round MUI default): the hover
+        // / active background then reads as a tile of the toolbar.
+        borderRadius: "8px",
         // Three states: available = secondary color, armed / toggled on =
         // inverted (secondary background, white icon), not relevant = grey.
         color: active ? "secondary.contrastText" : accentColor,
