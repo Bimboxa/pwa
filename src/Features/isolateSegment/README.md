@@ -1,6 +1,6 @@
 # isolateSegment — « Isoler un segment » (2D) / « Isoler une face » (3D)
 
-Commande du panneau « Outils de dessin » du module Dessin, touche **S** dans
+Commande de la toolbar unifiée des commandes (`Features/commandsToolbar`), touche **S** dans
 les deux éditeurs. Un clic sur un segment d'une polyligne / bande (2D) ou sur
 une face d'un mur / d'une bande extrudés (3D) découpe l'annotation d'origine
 **aux deux extrémités de ce segment** : le segment devient une annotation à
@@ -67,12 +67,12 @@ les faces fusionnent les segments colinéaires et échantillonnent les arcs.
 
 ### Câblage 2D
 
-`mapEditor/constants/toolItems.js` (ligne, S, `editor: "2D"`),
+`commandsToolbar/commands/isolateSegment/isolateSegmentCommand.js` (commande, S, 2D),
 `mapEditor/constants/drawingTools.jsx` (`ISOLATE_SEGMENT`, `behavior:
 "CUT_SEGMENT"`), `InteractionLayer` (`SEGMENT_SELECT_MODES`, branche de clic
 copiée de `CUT_SEGMENT`, prop `onIsolateSegment`), `StaticMapContent`
 (`selectMode = "SEGMENT"`), `SectionDrawingHelperContent` (bandeau),
-`MainMapEditorV3` (`useToolGroupHotkey("s", "ISOLATE_SEGMENT", { plainOnly,
+`useCommandsHotkeys` (`hotkey: { key: "s", plainOnly,
 yieldWhen })` + hook).
 
 **Touche S** : `InteractionLayer` inverse déjà le sens d'ouverture d'une porte
@@ -82,8 +82,8 @@ une ouverture `DOOR`.
 ### Câblage 3D
 
 `threedEditorSlice` (`isolateFaceMode`, `setIsolateFaceModeActive`,
-`closeIsolateFaceMode` appelé par chaque autre mode), `toolItems.js`
-(`threedTool: "ISOLATE_FACE"`), `RowThreedTool`, `useDessinToolHotkeysThreed`
+`closeIsolateFaceMode` appelé par chaque autre mode), la commande
+`ISOLATE_FACE` de la toolbar unifiée (`commandsToolbar/commands/isolateFace`, S en 3D)
 (S bascule), `selectActiveThreedTool` → `"ISOLATE_FACE"`,
 `TRANSFORM_TOOL_LABELS` (titre du helper), `SectionThreedToolHelperContent`
 (consigne), `MainThreedEditor` (`isolateFaceActiveRef` : clic, double-clic,
