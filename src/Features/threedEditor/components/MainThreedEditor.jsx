@@ -80,10 +80,6 @@ import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import CursorAltitudeThreed from "./CursorAltitudeThreed";
 import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonToggleCursorAltitude";
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
-import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
-import SelectorBaseMapsImageMode from "Features/baseMaps/components/SelectorBaseMapsImageMode";
-import SectionMainBaseMapControlsFloating from "Features/baseMaps/components/SectionMainBaseMapControlsFloating";
-import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
@@ -104,7 +100,6 @@ import {
 } from "Features/contextMenu/contextMenuSlice";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
-import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PopperDrawingTools from "Features/popperMapListings/components/PopperDrawingTools";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
@@ -322,14 +317,6 @@ export default function MainThreedEditor() {
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
-  // Full screen hides the docked panel (LeftDrawerPanel) while keeping the
-  // docked state: the drawing helper then floats again (see render).
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
-  const drawingHelperArmed = useSelector(
-    (s) =>
-      Boolean(s.mapEditor.enabledDrawingMode) ||
-      selectActiveThreedTool(s) != null
-  );
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -2820,19 +2807,6 @@ export default function MainThreedEditor() {
             <PopperDrawingTools />
           </PortalEditorFloatingPanels>
         )}
-      {/* Docked Dessin panel hidden by full screen: the drawing helper (and
-          its « Contraintes » card) floats like in the undocked layout — the
-          helper only, not the listings / commands poppers. */}
-      {isThreedViewer &&
-        dessinPanelDocked &&
-        isFullScreen &&
-        drawingHelperArmed &&
-        !captureFramingActive &&
-        !subtractPickActive && (
-          <PortalEditorFloatingPanels hidden={walkActive}>
-            <PopperDrawingHelper />
-          </PortalEditorFloatingPanels>
-        )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
@@ -2875,18 +2849,11 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
-      {/* Full screen only: the main base map controls of the (hidden) top
-          bar float at the top center of the editor (Dessin / BaseMaps
-          modules displaying the 3D editor). */}
-      {isThreedViewer && !captureFramingActive && (
-        <SectionMainBaseMapControlsFloating zIndex={10} />
-      )}
-      {/* Top-right row, mirror of the 2D editors' (UILayerDesktop): full
-          screen, base map image display mode, « Séparer les surfaces en
-          contact » toggle (3D only), zoom out, base maps grid button. The
-          Maillage module (meshing-only) keeps the full screen and zoom out
-          alone. */}
-      {isThreedViewer && !captureFramingActive && (
+      {/* Top-right row: « Séparer les surfaces en contact » toggle (3D
+          only). The base map image mode and the base maps grid button live
+          in the bottom bar (SectionBaseMapsBottomBarControls), the zoom out
+          next to the 2D/3D toggle below. */}
+      {isThreedViewer && !captureFramingActive && !isMeshesViewer && (
         <Box
           data-capture-hide
           sx={{
@@ -2900,11 +2867,7 @@ export default function MainThreedEditor() {
             transition: "right 0.2s ease",
           }}
         >
-          <ButtonFullScreen />
-          {!isMeshesViewer && <SelectorBaseMapsImageMode />}
-          {!isMeshesViewer && <ButtonToggleAntiAliasingShrink />}
-          <ButtonZoomOutThreed />
-          {!isMeshesViewer && <ButtonOpenBaseMapsGrid3d />}
+          <ButtonToggleAntiAliasingShrink />
         </Box>
       )}
       {/* Orientation gizmo, under the top-right row (3D view settings
@@ -2973,9 +2936,10 @@ export default function MainThreedEditor() {
       {/* Bottom-right group (walk toggle stacked above the 3D side of the
           2D/3D toggle) sits outside the swap of bottom toolbars so it stays
           available in every module (Maillage included). Hidden while a
-          capture/POV framing owns the screen. The zoom out moved to the
-          top-right row. The column gap leaves room for the "T" badge of the
-          toggle when it sits on the right side. */}
+          capture/POV framing owns the screen. The zoom out sits left of the
+          2D/3D toggle (same row as in the 2D editor). The column gap leaves
+          room for the "T" badge of the toggle when it sits on the right
+          side. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
           sx={{
@@ -2991,7 +2955,10 @@ export default function MainThreedEditor() {
           }}
         >
           <ButtonToggleWalkMode />
-          <ButtonToggleThreedViewer />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ButtonZoomOutThreed shortcutPlacement="top" />
+            <ButtonToggleThreedViewer />
+          </Box>
         </Box>
       )}
       {isThreedViewer && <DrawingOverlayThreed />}

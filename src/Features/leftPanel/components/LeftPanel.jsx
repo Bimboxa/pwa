@@ -17,13 +17,11 @@ export default function LeftPanel() {
 
   const openLeftPanel = useSelector((s) => s.leftPanel.openLeftPanel);
   const panelWidth = useSelector((s) => s.leftPanel.width);
-  const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // helpers
 
   let width = openLeftPanel ? panelWidth : 0;
-  if (isFullScreen) width = 0;
   if (selectedViewerKey === "MAP") width = 0;
   if (selectedViewerKey === "PHOTOS") width = 0;
   if (selectedViewerKey === "THREED") width = 0;
@@ -48,7 +46,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && !isBusinessObjectsModuleKey(selectedViewerKey) && selectedViewerKey !== "SCOPE" && selectedViewerKey !== "ADMIN" && (
+      {selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && !isBusinessObjectsModuleKey(selectedViewerKey) && selectedViewerKey !== "SCOPE" && selectedViewerKey !== "ADMIN" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>

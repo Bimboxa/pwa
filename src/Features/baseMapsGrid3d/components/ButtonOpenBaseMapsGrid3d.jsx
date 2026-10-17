@@ -11,7 +11,8 @@ import { BASE_MAPS_GRID_HOTKEY } from "Features/baseMapsGrid/hooks/useOpenBaseMa
 import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import selectCanOpenBaseMapsGrid3d from "../utils/selectCanOpenBaseMapsGrid3d";
 
-// Top-right button of the 3D editors: lays the base maps flat like the
+// Bottom bar button of the 3D editors (SectionBaseMapsBottomBarControls):
+// lays the base maps flat like the
 // sheets of the 2D grid, and sends them back to their real poses.
 export default function ButtonOpenBaseMapsGrid3d() {
   const dispatch = useDispatch();
@@ -43,6 +44,7 @@ export default function ButtonOpenBaseMapsGrid3d() {
       active={active}
       disabled={!active && !canOpen}
       shortcut={BASE_MAPS_GRID_HOTKEY}
+      shortcutPlacement="top"
       onClick={handleClick}
     />
   );

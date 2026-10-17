@@ -12,7 +12,7 @@ import { BASE_MAPS_IMAGE_MODE_OPTIONS } from "Features/baseMaps/constants/baseMa
 // grey, the annotations stand out) or as is. Same global state as the
 // "Fonds de plan" module panel (SectionBaseMapsImageMode): it applies to
 // every 2D editor, to the 3D scene and to the base maps grid. Floating
-// 3-button group of the top-right row of the editors (same look as
+// 3-button group of the bottom bar (SectionBaseMapsBottomBarControls, same look as
 // ButtonBaseMapsGrid: 36 px buttons, MUI action color, the selected mode
 // gets the action color as background).
 export default function SelectorBaseMapsImageMode() {

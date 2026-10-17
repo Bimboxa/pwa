@@ -23,8 +23,6 @@ const layoutInitialState = {
   //
   toaster: {}, // {triggeredAt,isError,message}
   //
-  isFullScreen: false,
-  //
   coupledNavigationEnabled: loadCoupledNavigationEnabled(),
 };
 
@@ -59,9 +57,6 @@ export const layoutSlice = createSlice({
         triggeredAt: Date.now(),
       };
     },
-    setIsFullScreen: (state, action) => {
-      state.isFullScreen = action.payload;
-    },
     setCoupledNavigationEnabled: (state, action) => {
       state.coupledNavigationEnabled = Boolean(action.payload);
       storeCoupledNavigationEnabled(state.coupledNavigationEnabled);
@@ -81,8 +76,6 @@ export const {
   setOpenChat,
   //
   setToaster,
-  //
-  setIsFullScreen,
   //
   setCoupledNavigationEnabled,
 } = layoutSlice.actions;

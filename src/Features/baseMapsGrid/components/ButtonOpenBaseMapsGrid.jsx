@@ -11,7 +11,8 @@ import { GridView } from "@mui/icons-material";
 
 import ButtonBaseMapsGrid from "./ButtonBaseMapsGrid";
 
-// Top-right button of the 2D map editors: opens the base maps grid.
+// Bottom bar button of the 2D map editors (SectionBaseMapsBottomBarControls):
+// opens the base maps grid.
 export default function ButtonOpenBaseMapsGrid() {
   // strings
 
@@ -39,6 +40,7 @@ export default function ButtonOpenBaseMapsGrid() {
       icon={<GridView />}
       disabled={isOpen}
       shortcut={BASE_MAPS_GRID_HOTKEY}
+      shortcutPlacement="top"
       onClick={openGrid}
     />
   );

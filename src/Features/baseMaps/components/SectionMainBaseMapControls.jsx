@@ -24,7 +24,7 @@ import FieldBaseMapZInTopBar from "./FieldBaseMapZInTopBar";
 // and, while a versions calibration runs in the BaseMaps module, its
 // Annuler / Calibrer buttons. Rendered in the center of the top bar, and —
 // in full screen, where the top bar is gone — at the top center of the
-// displayed editor (SectionMainBaseMapControlsFloating). Visibility rule:
+// displayed editor. Visibility rule:
 // useShowMainBaseMapControls.
 export default function SectionMainBaseMapControls() {
   const dispatch = useDispatch();

@@ -8,7 +8,8 @@ import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 // `active`: the button stands for the displayed state (grid opened) — the
 // action color becomes the background, the icon turns white.
 // `shortcut`: key reminder, same badge as the "T" of the 2D/3D toggle — hung
-// UNDER the button here, since the button sits against the top edge.
+// UNDER the button by default (a button against the top edge), ABOVE it with
+// `shortcutPlacement="top"` (bottom rows / bottom bar).
 export const FLOATING_BUTTON_PADDING = "6px";
 
 export default function ButtonBaseMapsGrid({
@@ -17,6 +18,7 @@ export default function ButtonBaseMapsGrid({
   active,
   disabled,
   shortcut,
+  shortcutPlacement = "bottom",
   onClick,
 }) {
   // render
@@ -34,10 +36,11 @@ export default function ButtonBaseMapsGrid({
         <Box
           sx={{
             position: "absolute",
-            bottom: -14,
+            ...(shortcutPlacement === "top"
+              ? { top: -14, transformOrigin: "top right" }
+              : { bottom: -14, transformOrigin: "bottom right" }),
             right: -6,
             transform: "scale(0.75)",
-            transformOrigin: "bottom right",
             pointerEvents: "none",
             zIndex: 1,
             bgcolor: "background.paper",

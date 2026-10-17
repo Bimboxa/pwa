@@ -15,7 +15,6 @@ import LeftPanelOverviewInEditor from "Features/leftPanel/components/LeftPanelOv
 import ButtonCreateBlueprint from "Features/blueprints/components/ButtonCreateBlueprint";
 import ButtonBlueprintInMapEditor from "Features/blueprints/components/ButtonBlueprintInMapEditor";
 import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
-import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ButtonEditScale from "./ButtonEditScale";
 import ButtonEditLatLng from "./ButtonEditLatLng";
 import selectPlanningBottomInset from "Features/planning/utils/selectPlanningBottomInset";
@@ -56,7 +55,6 @@ export default function LayerMapEditorDesktop({ svgElement }) {
           zIndex: 10000,
         }}
       >
-        <ButtonFullScreen />
       </Box> */}
 
 
