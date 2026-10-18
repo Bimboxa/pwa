@@ -80,6 +80,7 @@ import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsLis
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
+import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -106,6 +107,7 @@ import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThr
 import {
   TEMPLATELESS_LABEL,
   TEMPLATELESS_TEMPLATE_ID,
+  isTemplatelessAnnotationInScope,
 } from "Features/annotations/utils/templatelessAnnotations";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -889,6 +891,10 @@ function AnnotationTemplatesForListing({
   // Listing linked from another scope: read-only rows, no reorder, no
   // "Nouveau modèle".
   readOnly = false,
+  // Dessin popper only: the annotations drawn without template (« Dessin »
+  // command) of the popper's set — the « Annotations sans modèle » row below
+  // "Nouveau modèle". Undefined in the legends (no row).
+  templatelessAnnotations,
 }) {
   // data
 
@@ -1090,6 +1096,15 @@ function AnnotationTemplatesForListing({
         </ListItemButton>
       )}
 
+      {/* « Annotations sans modèle » (« Dessin » command draws, scope-level)
+          right below the add row — same gates */}
+      {!isThreedViewer &&
+        !visibleTemplateIds &&
+        !readOnly &&
+        templatelessAnnotations && (
+          <RowTemplatelessAnnotations annotations={templatelessAnnotations} />
+        )}
+
       {/* procedures linked to the listing ("Dessin auto"), below the add
           row — hidden in 3D (read-only), while SELECT-filtering and for a
           listing linked from another scope */}
@@ -1133,6 +1148,8 @@ function ListingRow({
   // The FieldActiveListing selector already names the active listing: skip
   // the redundant header band and render the templates only.
   hideHeader = false,
+  // See AnnotationTemplatesForListing.
+  templatelessAnnotations,
 }) {
   const dispatch = useDispatch();
 
@@ -1205,6 +1222,7 @@ function ListingRow({
         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
         visibleTemplateIds={visibleTemplateIds}
         readOnly={isLinked}
+        templatelessAnnotations={templatelessAnnotations}
       />
     );
   }
@@ -1366,6 +1384,7 @@ function ListingRow({
           paintedQtiesByTemplateId={paintedQtiesByTemplateId}
           visibleTemplateIds={visibleTemplateIds}
           readOnly={isLinked}
+          templatelessAnnotations={templatelessAnnotations}
         />
       )}
     </Box>
@@ -1768,6 +1787,17 @@ export default function PopperMapListings() {
         }
       : {}),
   });
+
+  // « Annotations sans modèle » row (Dessin popper): the annotations drawn
+  // without template in the selected scope, eye-hidden ones included like
+  // the template rows — the same scoping as every counter of the panel.
+  const templatelessAnnotations = useMemo(
+    () =>
+      (allAnnotationsInclHidden ?? []).filter((a) =>
+        isTemplatelessAnnotationInScope(a, selectedScopeId)
+      ),
+    [allAnnotationsInclHidden, selectedScopeId]
+  );
 
   // visible-only set for counts and qties (matches what's on screen).
   // SCOPE module narrowed to a business-objects listing: only the
@@ -2597,8 +2627,23 @@ export default function PopperMapListings() {
                         annotationTemplateById={annotationTemplateById}
                         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
+                        templatelessAnnotations={templatelessAnnotations}
                       />
                     )}
+
+              {/* Dessin popper without any listing: the « Annotations sans
+                  modèle » row stands alone (the « Dessin » command needs no
+                  listing), same gates as below "Nouveau modèle". */}
+              {!isLocateBusinessObjectMode &&
+                !isLegendPopper &&
+                !activeListing &&
+                isDessinPopper &&
+                !isThreedViewer &&
+                !visibleTemplateIds && (
+                  <RowTemplatelessAnnotations
+                    annotations={templatelessAnnotations}
+                  />
+                )}
 
               {/* Coupes / élévations liées — on a VERTICAL base map targeted
                 by BASE_MAP_LINK marks: one row per link to draw its clone
