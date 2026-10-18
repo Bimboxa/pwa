@@ -18,16 +18,14 @@ const ACCENT_COLOR = "#2196f3";
 // 18px icon ≈ 34px, plus the flex gap. The row only hosts the buttons a host
 // node passes (`extraButtons`, e.g. the "Lier à un fond de plan" action of a
 // BASE_MAP_LINK): the annotation commands and the view toggles live in the
-// unified commands toolbar (Features/commandsToolbar). Exported: the
-// quick-action rows of other nodes (NodeRevolutionAxisOverlayStatic) share the
-// geometry.
-export const OVERLAY_BUTTON_PX = 34;
-export const OVERLAY_GAP_PX = 4;
-export const OVERLAY_H_PX = 40;
+// unified commands toolbar (Features/commandsToolbar).
+const OVERLAY_BUTTON_PX = 34;
+const OVERLAY_GAP_PX = 4;
+const OVERLAY_H_PX = 40;
 // Distance between the bbox top edge and the overlay bottom edge. Must clear
 // the wrapper's rotation handle (AnnotationEditingWrapper, 50px above the
 // bbox) when the move / resize wrapper is active.
-export const OVERLAY_OFFSET_PX = 50;
+const OVERLAY_OFFSET_PX = 50;
 const OVERLAY_OFFSET_WRAPPER_PX = 94;
 
 // Below this on-screen segment length (px) the label starts fading out; fully

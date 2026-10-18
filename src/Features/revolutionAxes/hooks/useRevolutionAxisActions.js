@@ -11,8 +11,8 @@ import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfV
 const DEFAULT_ANGLE_START_DEG = 0;
 const DEFAULT_ANGLE_END_DEG = 180;
 
-// Actions of a plan REVOLUTION_AXIS shared by its quick-action overlay
-// (NodeRevolutionAxisOverlayStatic) and its edit toolbar.
+// Actions of a plan REVOLUTION_AXIS, consumed by the actions row of its edit
+// toolbar (RowRevolutionAxisActions).
 //
 // `invertHalf` changes the pose of every vertical base map this axis places,
 // so it runs the resync service after writing. The 3D half-view is a view

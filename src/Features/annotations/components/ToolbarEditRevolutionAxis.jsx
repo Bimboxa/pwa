@@ -23,20 +23,20 @@ import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import SectionRevolutionAxisLinkedAnnotations from "Features/revolutionAxes/components/SectionRevolutionAxisLinkedAnnotations";
 import SectionRevolutionAxisSystems from "Features/revolutionAxes/components/SectionRevolutionAxisSystems";
+import RowRevolutionAxisActions from "Features/revolutionAxes/components/RowRevolutionAxisActions";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
 // Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
 // geometry model (centre + scalars), so the template-centric
 // ToolbarEditAnnotation does not apply: name, radius / height / offset Z, the
-// annotations revolved around the axis (per template) and the procedures
+// annotations revolved around the axis (per template), the procedures
 // bound to the axis from a listing « Dessin auto » band
 // (SectionRevolutionAxisSystems: one launcher line per system launched on
 // the axis — château d'eau GO, réservoir — and per listing procedure bound
-// to it — château d'eau étanchéité; nothing while the axis is bound to none).
-//
-// The axis ACTIONS (invert halves, partial / total, 3D half-view, coupe base
-// map, delete) live in the quick-action row above the axis on the map
-// (NodeRevolutionAxisOverlayStatic), like a polyline's Dupliquer / Evider.
+// to it — château d'eau étanchéité; nothing while the axis is bound to none)
+// and, last, the actions row (RowRevolutionAxisActions: invert halves,
+// partial / total, 3D half-view, coupe base map, delete) — the counterpart
+// of the « Actions » row of the standard toolbar.
 //
 // `offsetZ` changes the pose of every vertical base map this axis places, so
 // it runs the resync service after writing.
@@ -227,6 +227,14 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
         {/* Row 5 - systems of the axis: launcher bands of the associated
             ones + "Associer un système à l'axe". */}
         <SectionRevolutionAxisSystems axisId={selectedAnnotation.id} />
+
+        {/* Row 6 - actions (toggles + coupe base map + delete) */}
+        <Box sx={{ borderTop: "1px solid", borderColor: "divider" }}>
+          <RowRevolutionAxisActions
+            axis={selectedAnnotation}
+            accentColor={accentColor}
+          />
+        </Box>
       </Paper>
     </Box>
   );
