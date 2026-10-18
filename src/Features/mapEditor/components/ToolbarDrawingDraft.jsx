@@ -298,14 +298,19 @@ export default function ToolbarDrawingDraft() {
           toolKey: tool?.key ?? mode,
         })
       );
-    } else if (isTemplatelessAnnotation(newAnnotation) && mode) {
-      // "Dessin" tool: remember the drawing mode per annotation type
-      dispatch(
-        setSelectedToolKeyForTemplate({
-          templateId: getDraftSessionKey(newAnnotation),
-          toolKey: tool?.key ?? mode,
-        })
-      );
+    } else if (mode) {
+      // Template drafts are keyed by template id, templateless ("Dessin")
+      // drafts per annotation type: re-arming the same template / tool
+      // restores the last tool (useDrawFromTemplate, hotkeys parity).
+      const templateId = getDraftSessionKey(newAnnotation);
+      if (templateId) {
+        dispatch(
+          setSelectedToolKeyForTemplate({
+            templateId,
+            toolKey: tool?.key ?? mode,
+          })
+        );
+      }
     }
   }
 
