@@ -28,6 +28,8 @@ import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
 import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
+import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
+import ToolbarStartDrawTemplate from "Features/panelDrawing/components/ToolbarStartDrawTemplate";
 import AssistantRelayRuntime from "Features/assistantRelay/components/AssistantRelayRuntime";
 import LayerCreateBaseMap from "Features/mapEditor/components/LayerCreateBaseMap";
 import LayerPdfEditor from "Features/pdfEditor/components/LayerPdfEditor";
@@ -286,6 +288,14 @@ export default function SectionViewer() {
               <ViewerAdmin />
             </PanelShowable>
           )}
+
+          {/* Drawing toolbars, floating at the bottom of the displayed editor
+          (2D or 3D) and centred on its visible width — not on the full-width
+          bottom bar, which the in-flow Dessin panel would offset them from.
+          Draft properties + tool variants once a draw is armed; the Dessin
+          panel's template tool picker otherwise (null once a draw is armed). */}
+          <ToolbarDrawingDraft />
+          <ToolbarStartDrawTemplate />
 
           {/* POV: floating button at the bottom of the displayed editor (replaces
           the 3D bottom toolbar, hidden under POV) — "Créer une vue" while

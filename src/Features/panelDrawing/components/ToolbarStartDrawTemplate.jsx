@@ -1,14 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  Paper,
-  Box,
-  Divider,
-  Popover,
-  Typography,
-  IconButton,
-} from "@mui/material";
+import { Box, Divider, Popover, Typography, IconButton } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { CompactPicker } from "react-color";
 
@@ -16,6 +9,7 @@ import { setDraftPropsForTemplate } from "Features/mapEditor/mapEditorSlice";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
+import PaperEditorBottomToolbar from "Features/layout/components/PaperEditorBottomToolbar";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -34,8 +28,9 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import theme from "Styles/theme";
 
 // ---------------------------------------------------------------------------
-// ToolbarStartDrawTemplate — floating toolbar above the bottom bar while the
-// Dessin panel shows a template's annotations list (2D editor, no drawing
+// ToolbarStartDrawTemplate — floating toolbar at the bottom of the displayed
+// editor (PaperEditorBottomToolbar, mounted in SectionViewer's editors area)
+// while the Dessin panel shows a template's annotations list (2D editor, no drawing
 // mode armed): same controls as ToolbarDrawingDraft (color when not locked
 // by the template, tool variants, height / thickness / offset / width
 // fields) operating on a PREVIEW draft. Edits are persisted per template
@@ -224,26 +219,7 @@ function ToolbarContent({ template }) {
   if (options.length === 0) return null;
 
   return (
-    <Paper
-      elevation={6}
-      sx={{
-        position: "absolute",
-        bottom: "calc(100% + 8px)",
-        left: "50%",
-        transform: "translateX(-50%)",
-        borderRadius: 2,
-        px: 1,
-        py: 0.5,
-        display: "flex",
-        alignItems: "center",
-        gap: 0.5,
-        // Same as ToolbarDrawingDraft: size on the content, never squeeze.
-        width: "max-content",
-        maxWidth: "calc(100vw - 32px)",
-        overflowX: "auto",
-        zIndex: 110,
-      }}
-    >
+    <PaperEditorBottomToolbar>
       <Box
         sx={{
           display: "flex",
@@ -390,7 +366,7 @@ function ToolbarContent({ template }) {
           <CompactPicker color={color} onChange={handleColorChange} />
         </Box>
       </Popover>
-    </Paper>
+    </PaperEditorBottomToolbar>
   );
 }
 

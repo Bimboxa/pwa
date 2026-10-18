@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import {
-  Paper,
   Box,
   ButtonBase,
   Divider,
@@ -61,6 +60,7 @@ import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
+import PaperEditorBottomToolbar from "Features/layout/components/PaperEditorBottomToolbar";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
 import FieldAnnotationFontSizeInline from "Features/annotations/components/FieldAnnotationFontSizeInline";
@@ -389,28 +389,7 @@ export default function ToolbarDrawingDraft() {
   if (isTemplateCoteDraw3d) return null;
 
   return (
-    <Paper
-      elevation={6}
-      sx={{
-        position: "absolute",
-        bottom: "calc(100% + 8px)",
-        left: "50%",
-        transform: "translateX(-50%)",
-        borderRadius: 2,
-        px: 1,
-        py: 0.5,
-        display: "flex",
-        alignItems: "center",
-        gap: 0.5,
-        // An absolute box centred with left: 50% only gets half its parent as
-        // shrink-to-fit width: size on the content instead, the viewport cap
-        // + overflowX then scroll rather than ellipsize the labels.
-        width: "max-content",
-        maxWidth: "calc(100vw - 32px)",
-        overflowX: "auto",
-        zIndex: 110,
-      }}
-    >
+    <PaperEditorBottomToolbar>
       {drawnTemplate && (
         <>
           <Box
@@ -683,6 +662,6 @@ export default function ToolbarDrawingDraft() {
           onClose={() => setColorAnchorEl(null)}
         />
       </Popover>
-    </Paper>
+    </PaperEditorBottomToolbar>
   );
 }
