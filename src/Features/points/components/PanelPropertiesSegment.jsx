@@ -21,6 +21,7 @@ import setIsoContourSegmentHeightService from "Features/points/services/setIsoCo
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
+import useSegmentsHidden from "Features/points/hooks/useSegmentsHidden";
 
 function ReadOnlyOffset({ label, value }) {
   return (
@@ -79,6 +80,7 @@ export default function PanelPropertiesSegment() {
   const { checked: isExtEdge, toggle: toggleExtEdge } = useSegmentsExtEdge();
   const { checked: isIntEdge, toggle: toggleIntEdge } = useSegmentsIntEdge();
   const { checked: isNotch, toggle: toggleNotch } = useSegmentsNotch();
+  const { checked: isHidden, toggle: toggleHidden } = useSegmentsHidden();
 
   // handlers
 
@@ -130,6 +132,16 @@ export default function PanelPropertiesSegment() {
 
       <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", flexDirection: "column" }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={!!isHidden}
+                onChange={() => toggleHidden()}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Segment masqué</Typography>}
+          />
           <FormControlLabel
             control={
               <Checkbox

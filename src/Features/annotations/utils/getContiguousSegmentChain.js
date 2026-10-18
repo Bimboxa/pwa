@@ -30,7 +30,12 @@ function decodePartId(partId) {
 //   - N contiguous segments i, i+1, …, i+N-1 → N+1 points
 //
 // Returns { contiguous: bool, ringKey, pointRefs?: [{id, ...}] }.
-// Wraparound (closed shapes) is not supported in this initial pass.
+//
+// On closed rings (POLYGON main contour, polyline with `closeLine`, every
+// cut) the last segment (N-1 → 0) is a valid segment: its end point is taken
+// modulo N. A selection whose sorted indices straddle the seam ([N-1, 0]) is
+// still reported non-contiguous here — the multi-segment path goes through
+// getContiguousSegmentChains, which handles the wraparound.
 export default function getContiguousSegmentChain(annotation, partIds) {
   if (!annotation || !Array.isArray(partIds) || partIds.length === 0) {
     return { contiguous: false };
@@ -52,27 +57,35 @@ export default function getContiguousSegmentChain(annotation, partIds) {
   }
 
   let ringPoints;
+  let isClosed;
   if (ringKey === "MAIN") {
     ringPoints = annotation.points || [];
+    isClosed = annotation.type === "POLYGON" || annotation.closeLine === true;
   } else {
     const cutIdx = Number(ringKey.split("::")[1]);
     ringPoints = annotation.cuts?.[cutIdx]?.points || [];
+    isClosed = true; // cuts are always closed rings
   }
-  if (ringPoints.length === 0) return { contiguous: false, ringKey };
+  const N = ringPoints.length;
+  if (N < 2) return { contiguous: false, ringKey };
 
   const startIdx = sorted[0].segIdx;
-  const endIdx = sorted[sorted.length - 1].segIdx + 1;
-  if (startIdx < 0 || endIdx > ringPoints.length) {
+  const lastSegIdx = sorted[sorted.length - 1].segIdx;
+  // Segment i spans points[i] → points[(i+1) % N]; on an open ring the last
+  // valid segment is N-2, on a closed ring it is N-1 (the seam).
+  const maxSegIdx = isClosed ? N - 1 : N - 2;
+  if (startIdx < 0 || lastSegIdx > maxSegIdx) {
     return { contiguous: false, ringKey };
   }
 
-  const pointRefs = ringPoints.slice(startIdx, endIdx + 1);
+  const pointRefs = [ringPoints[startIdx]];
+  for (const { segIdx } of sorted) pointRefs.push(ringPoints[(segIdx + 1) % N]);
   return {
     contiguous: true,
     ringKey,
     pointRefs,
     startSegIdx: startIdx,
-    endSegIdx: sorted[sorted.length - 1].segIdx,
+    endSegIdx: lastSegIdx,
   };
 }
 
