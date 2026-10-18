@@ -18,7 +18,7 @@ import getAnnotationQties from "../utils/getAnnotationQties";
 // A segment is hidden when its index is in its ring's effective
 // hiddenSegmentsIdx (recomputed by useAnnotationsV2 on the resolved ring —
 // same index space as the partIds).
-function isSegmentHidden(annotation, ringKey, segIdx) {
+export function isSegmentHidden(annotation, ringKey, segIdx) {
   const list =
     ringKey === "MAIN"
       ? annotation?.hiddenSegmentsIdx
@@ -267,6 +267,9 @@ export function resolveSelectedAnnotationPart({
       if (!refs || refs.length < 2) return { kind: "NONE" };
       const isCut = effectivePartType === "CUT_SEG";
       const segIdx = chain.startSegIdx;
+      const cutIdx = isCut
+        ? Number(String(chain.ringKey).split("::")[1])
+        : null;
       return {
         kind: isCut ? "CUT_SEG" : "SEGMENT",
         captionFr: "Segment",
@@ -276,6 +279,13 @@ export function resolveSelectedAnnotationPart({
         targetAnnotationType: "POLYLINE",
         contiguous: true,
         ringKey: chain.ringKey,
+        // Ring-local index of the segment (same space as hiddenSegmentsIdx
+        // & co.) + its cut index (null on the main ring) + the raw partId,
+        // so consumers don't have to decode the partId string themselves.
+        segIdx,
+        cutIdx,
+        partId: effectivePartIds[0],
+        hidden: isSegmentHidden(annotation, chain.ringKey, segIdx),
       };
     }
 

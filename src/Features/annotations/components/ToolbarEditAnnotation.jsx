@@ -69,6 +69,7 @@ import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
 import ToolbarEditLayoutLine from "./ToolbarEditLayoutLine";
+import ToolbarEditSegment from "./ToolbarEditSegment";
 import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/ToolbarEditMesh3dParts";
 import useSelectedMesh3dParts from "Features/annotationMesh3d/hooks/useSelectedMesh3dParts";
 
@@ -108,6 +109,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // helpers
 
   const isMixedPart = hasPart && part.kind === "MIXED";
+  // Single segment (main or cut ring): the segment row carries the length,
+  // so the generic measurements row is skipped for it.
+  const isSegmentPart =
+    hasPart && (part.kind === "SEGMENT" || part.kind === "CUT_SEG");
 
   // Whole annotation: layer chip + delete. A sub-selection has no row (its
   // actions are commands of the unified toolbar).
@@ -567,6 +572,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <ToolbarEditLayoutLine accentColor={accentColor} />
         )}
 
+        {/* Segment edit row — length / visible switch */}
+        {isSegmentPart && (
+          <ToolbarEditSegment annotation={selectedAnnotation} part={part} />
+        )}
+
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
         {isMixedPart && (
           <Box
@@ -713,8 +723,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           </Box>
         )}
 
-        {/* Row 3 - Measurements (right-aligned) — hidden in MIXED, group rows carry per-kind qties */}
-        {!isMixedPart && (
+        {/* Row 3 - Measurements (right-aligned) — hidden in MIXED (group rows
+            carry per-kind qties) and for a single segment (its row has the length) */}
+        {!isMixedPart && !isSegmentPart && (
           <Box
             sx={{
               display: "flex",
