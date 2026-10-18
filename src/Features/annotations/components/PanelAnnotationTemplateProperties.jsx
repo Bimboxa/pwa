@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import useAnnotationTemplatesBySelectedListing from "../hooks/useAnnotationTemplatesBySelectedListing";
+import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 
 import {
   selectSelectedItem,
@@ -41,7 +41,9 @@ export default function PanelAnnotationTemplateProperties() {
 
   // data
 
-  const annotationTemplates = useAnnotationTemplatesBySelectedListing();
+  // Project-wide: the selected template may belong to a visible listing that
+  // is not the active one (back from an annotation of another listing).
+  const annotationTemplates = useAnnotationTemplates();
 
   const selectedItem = useSelector(selectSelectedItem);
 
