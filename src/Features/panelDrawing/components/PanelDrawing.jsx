@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
@@ -42,12 +42,6 @@ import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThr
 // ---------------------------------------------------------------------------
 
 export default function PanelDrawing() {
-  // strings
-
-  const descriptionS =
-    "Repérez les ouvrages du plan avec les modèles de la liste active : " +
-    "chaque tracé alimente ses quantités.";
-
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -332,12 +326,6 @@ export default function PanelDrawing() {
           <LeftDrawerPanelHeader>
             <ToggleContentMode />
           </LeftDrawerPanelHeader>
-          <Typography
-            variant="caption"
-            sx={{ px: 2, pb: 1, color: "text.secondary" }}
-          >
-            {descriptionS}
-          </Typography>
 
           {baseMap && !baseMap.meterByPx && (
             <WarningBaseMapNotToScale sx={{ mx: 1.5, mt: 0 }} />

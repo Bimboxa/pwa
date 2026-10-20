@@ -172,6 +172,10 @@ export default function BandActiveListing({
           userSelect: "none",
           borderBottom: "1px solid",
           borderColor: "panel.border",
+          // Same tinted background on both hosts (the docked panel's and
+          // the white popper's): the header and the listings panel read as
+          // one block above the white templates list.
+          bgcolor: "background.default",
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
@@ -314,6 +318,7 @@ export default function BandActiveListing({
             overflow: "auto",
             borderBottom: "1px solid",
             borderColor: "panel.border",
+            bgcolor: "background.default",
           }}
         >
           <SectionPopperListings
