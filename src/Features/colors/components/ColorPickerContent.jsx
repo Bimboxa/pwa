@@ -21,6 +21,10 @@ import useColorPalettes from "../hooks/useColorPalettes";
 // null rather than "" (only in that nullable mode, i.e. when `placeholder` is
 // given — the fill/stroke pickers keep their behaviour). `header` renders
 // above the palettes (an explicit "inherit" option, for instance).
+//
+// `disabled` greys out the palettes and the hex input (the colour is locked,
+// e.g. by the annotation's template) while `children` — the opacity row of
+// the fill / stroke pickers — keep their own enabled state.
 export default function ColorPickerContent({
   color,
   placeholder,
@@ -28,11 +32,14 @@ export default function ColorPickerContent({
   onClose,
   header,
   children,
+  disabled = false,
 }) {
   const sections = useColorPalettes();
   const current = (color ?? "").toLowerCase();
 
   const nullable = placeholder !== undefined && placeholder !== null;
+
+  const disabledSx = disabled ? { opacity: 0.4, pointerEvents: "none" } : {};
 
   function handleHexChange(value) {
     onColorChange(nullable && value === "" ? null : value);
@@ -53,7 +60,12 @@ export default function ColorPickerContent({
       {sections.map((section) => (
         <Box
           key={section.key}
-          sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+            ...disabledSx,
+          }}
         >
           <Typography
             variant="caption"
@@ -109,8 +121,10 @@ export default function ColorPickerContent({
           value={color ?? ""}
           placeholder={placeholder ?? undefined}
           onChange={(e) => handleHexChange(e.target.value)}
+          disabled={disabled}
           sx={{
             flex: 1,
+            ...disabledSx,
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 1,

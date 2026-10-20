@@ -4,19 +4,15 @@ import {
   Box,
   Typography,
   Popover,
-  IconButton,
   InputBase,
   ButtonBase,
   Button,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
-import {
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
-} from "@mui/icons-material";
 
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
+import StyleGroupLock from "./StyleGroupLock";
 import { STROKE_WIDTH_FIELDS } from "Features/form/utils/styleFieldGroups";
 
 const WIDTH_UNITS = [
@@ -56,11 +52,6 @@ export default function FieldStrokeWidthCompact({
 
   const unitLabel = strokeWidthUnit === "CM" ? "cm" : "px";
 
-  const showOverrides = typeof onOverrideFieldsChange === "function";
-  const allLocked =
-    Array.isArray(overrideFields) &&
-    STROKE_WIDTH_FIELDS.every((f) => overrideFields.includes(f));
-
   const widthDisabled =
     Array.isArray(disabledFields) && disabledFields.includes("strokeWidth");
 
@@ -74,13 +65,6 @@ export default function FieldStrokeWidthCompact({
   }
   function handleUnitChange(e, unit) {
     if (unit !== null) onChange({ ...value, strokeWidthUnit: unit });
-  }
-  function handleToggleGlobalOverride() {
-    const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
-    const next = allLocked
-      ? current.filter((f) => !STROKE_WIDTH_FIELDS.includes(f))
-      : Array.from(new Set([...current, ...STROKE_WIDTH_FIELDS]));
-    onOverrideFieldsChange(next);
   }
 
   // render
@@ -131,20 +115,13 @@ export default function FieldStrokeWidthCompact({
           </Typography>
         </ButtonBase>
 
-        {showOverrides && (
-          <IconButton
-            size="small"
-            onClick={handleToggleGlobalOverride}
-            title="Verrouiller l'épaisseur pour le modèle"
-            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
-          >
-            {allLocked ? (
-              <LockIcon fontSize="small" />
-            ) : (
-              <LockOpenIcon fontSize="small" />
-            )}
-          </IconButton>
-        )}
+        <StyleGroupLock
+          fields={STROKE_WIDTH_FIELDS}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={onOverrideFieldsChange}
+          disabledFields={disabledFields}
+          lockTitle="Verrouiller l'épaisseur pour le modèle"
+        />
       </Box>
 
       {/* width popover — presets + numeric + unit */}

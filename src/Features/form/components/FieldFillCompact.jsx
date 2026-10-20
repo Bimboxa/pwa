@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   Popover,
-  IconButton,
   Slider,
   ButtonBase,
   ToggleButtonGroup,
@@ -13,12 +12,11 @@ import {
 import {
   Texture as HatchingIcon,
   Square as SolidIcon,
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
+import StyleGroupLock from "./StyleGroupLock";
 import { FILL_FIELDS } from "Features/form/utils/styleFieldGroups";
 
 const FILL_TYPES = [
@@ -55,11 +53,6 @@ export default function FieldFillCompact({
 
   const opacityPct = Math.round((fillOpacity ?? 1) * 100);
 
-  const showOverrides = typeof onOverrideFieldsChange === "function";
-  const allLocked =
-    Array.isArray(overrideFields) &&
-    FILL_FIELDS.every((f) => overrideFields.includes(f));
-
   const isDisabled = (field) =>
     Array.isArray(disabledFields) && disabledFields.includes(field);
   const colorDisabled = isDisabled("fillColor");
@@ -79,13 +72,6 @@ export default function FieldFillCompact({
   function handleOpacityChange(pct) {
     const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
     onChange({ ...value, fillOpacity: clamped / 100 });
-  }
-  function handleToggleGlobalOverride() {
-    const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
-    const next = allLocked
-      ? current.filter((f) => !FILL_FIELDS.includes(f))
-      : Array.from(new Set([...current, ...FILL_FIELDS]));
-    onOverrideFieldsChange(next);
   }
 
   // render
@@ -136,7 +122,11 @@ export default function FieldFillCompact({
         <ButtonBase
           onClick={(e) => setAnchorEl(e.currentTarget)}
           disabled={colorDisabled && opacityDisabled}
-          title="Couleur et opacité"
+          title={
+            colorDisabled
+              ? "Couleur verrouillée par le modèle (opacité modifiable)"
+              : "Couleur et opacité"
+          }
           sx={{
             display: "flex",
             alignItems: "center",
@@ -167,20 +157,13 @@ export default function FieldFillCompact({
           </Typography>
         </ButtonBase>
 
-        {showOverrides && (
-          <IconButton
-            size="small"
-            onClick={handleToggleGlobalOverride}
-            title="Verrouiller couleur, motif et opacité pour le modèle"
-            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
-          >
-            {allLocked ? (
-              <LockIcon fontSize="small" />
-            ) : (
-              <LockOpenIcon fontSize="small" />
-            )}
-          </IconButton>
-        )}
+        <StyleGroupLock
+          fields={FILL_FIELDS}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={onOverrideFieldsChange}
+          disabledFields={disabledFields}
+          lockTitle="Verrouiller couleur, motif et opacité pour le modèle"
+        />
       </Box>
 
       {/* colour + opacity popover */}
@@ -196,6 +179,7 @@ export default function FieldFillCompact({
           color={fillColor}
           onColorChange={handleColorChange}
           onClose={() => setAnchorEl(null)}
+          disabled={colorDisabled}
         >
           <Box
             sx={{

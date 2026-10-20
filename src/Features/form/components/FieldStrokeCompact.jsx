@@ -16,12 +16,11 @@ import {
   HorizontalRule as SolidLineIcon,
   LineStyle as DashedLineIcon,
   MoreHoriz as MoreIcon,
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
+import StyleGroupLock from "./StyleGroupLock";
 import { STRIP_DASH_DEFAULTS } from "Features/geometry/utils/getStripePolygons";
 import { STROKE_FIELDS } from "Features/form/utils/styleFieldGroups";
 
@@ -73,11 +72,6 @@ export default function FieldStrokeCompact({
   const opacityPct = Math.round((strokeOpacity ?? 1) * 100);
   const unitLabel = strokeWidthUnit === "CM" ? "cm" : "px";
 
-  const showOverrides = typeof onOverrideFieldsChange === "function";
-  const allLocked =
-    Array.isArray(overrideFields) &&
-    STROKE_FIELDS.every((f) => overrideFields.includes(f));
-
   const isDisabled = (field) =>
     Array.isArray(disabledFields) && disabledFields.includes(field);
   const colorDisabled = isDisabled("strokeColor");
@@ -104,13 +98,6 @@ export default function FieldStrokeCompact({
       .replace(",", ".")
       .replace(/[^0-9.]/g, "");
     onChange({ ...value, [field]: cleaned === "" ? null : Number(cleaned) });
-  }
-  function handleToggleGlobalOverride() {
-    const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
-    const next = allLocked
-      ? current.filter((f) => !STROKE_FIELDS.includes(f))
-      : Array.from(new Set([...current, ...STROKE_FIELDS]));
-    onOverrideFieldsChange(next);
   }
 
   // render
@@ -171,7 +158,11 @@ export default function FieldStrokeCompact({
         <ButtonBase
           onClick={(e) => setAnchorColor(e.currentTarget)}
           disabled={colorDisabled && opacityDisabled}
-          title="Couleur et opacité"
+          title={
+            colorDisabled
+              ? "Couleur verrouillée par le modèle (opacité modifiable)"
+              : "Couleur et opacité"
+          }
           sx={{
             flexShrink: 0,
             display: "flex",
@@ -207,20 +198,13 @@ export default function FieldStrokeCompact({
           </Typography>
         </ButtonBase>
 
-        {showOverrides && (
-          <IconButton
-            size="small"
-            onClick={handleToggleGlobalOverride}
-            title="Verrouiller le contour pour le modèle"
-            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
-          >
-            {allLocked ? (
-              <LockIcon fontSize="small" />
-            ) : (
-              <LockOpenIcon fontSize="small" />
-            )}
-          </IconButton>
-        )}
+        <StyleGroupLock
+          fields={STROKE_FIELDS}
+          overrideFields={overrideFields}
+          onOverrideFieldsChange={onOverrideFieldsChange}
+          disabledFields={disabledFields}
+          lockTitle="Verrouiller le contour pour le modèle"
+        />
       </Box>
 
       {/* dash popover — coloured band length / gap (in the stroke width unit) */}
@@ -322,6 +306,7 @@ export default function FieldStrokeCompact({
           color={strokeColor}
           onColorChange={handleColorChange}
           onClose={() => setAnchorColor(null)}
+          disabled={colorDisabled}
         >
           <Box
             sx={{
