@@ -470,6 +470,7 @@ const InteractionLayer = forwardRef(({
   onCommitLocalizedRepair,
   onTemplateBrushClick,
   onCommitImageDrop,
+  onCommitImageFileDrop,
   onMapClickInSelectMode,
   basePose,
   onBaseMapPoseChange,
@@ -9008,6 +9009,52 @@ const InteractionLayer = forwardRef(({
     if (onCommitImageDrop) onCommitImageDrop({ imageUrl, x, y, idMaster });
   };
 
+  // Native HTML5 drop of image files (Finder / another window) → IMAGE
+  // annotations centred on the drop point. Only image files are claimed:
+  // during dragover only `items` (kinds + types) are readable, and a drag
+  // without an image keeps the browser default (a dropped PDF is not
+  // intercepted). The dnd-kit DropZoneLayer (pointer events, internal drags)
+  // is untouched. Nothing while editing the base map image.
+  const hasImageFileItem = (dataTransfer) =>
+    Array.from(dataTransfer?.items ?? []).some(
+      (item) => item.kind === "file" && item.type?.startsWith("image/")
+    );
+
+  const handleNativeDragOver = (e) => {
+    if (imageModeEnabledRef.current) return;
+    if (!onCommitImageFileDrop) return;
+    if (!hasImageFileItem(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleNativeDrop = (e) => {
+    if (imageModeEnabledRef.current) return;
+    if (!onCommitImageFileDrop) return;
+    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
+      f.type?.startsWith("image/")
+    );
+    if (files.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+    if (!worldPos) return;
+    const localPos = toLocalCoords(worldPos);
+    if (!Number.isFinite(localPos?.x) || !Number.isFinite(localPos?.y)) return;
+
+    // Several files land in a cascade: 24 screen px per image, in image px.
+    const zoom = viewportRef.current?.getZoom() || 1;
+    const cascadeStepPx = 24 / (zoom * getTargetScale());
+
+    onCommitImageFileDrop({
+      files,
+      x: localPos.x,
+      y: localPos.y,
+      cascadeStepPx,
+    });
+  };
+
   // render
 
   const targetPose = getTargetPose();
@@ -9060,6 +9107,8 @@ const InteractionLayer = forwardRef(({
       onDoubleClick={handleDoubleClick}
       onMouseLeave={handleMouseLeave}
       onContextMenu={handleContextMenu}
+      onDragOver={handleNativeDragOver}
+      onDrop={handleNativeDrop}
       sx={{
         width: 1, height: 1, // A. Le curseur de base du conteneur
         cursor: getCursorStyle(),

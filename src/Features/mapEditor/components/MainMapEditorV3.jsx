@@ -187,6 +187,8 @@ import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRect
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import usePrepareScene3dHeightMaps from "Features/scene3d/hooks/usePrepareScene3dHeightMaps";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import getImageDropDraftFromFile from "Features/imageAnnotations/utils/getImageDropDraftFromFile";
+import { getTemplatelessDraftKey } from "Features/annotations/utils/templatelessAnnotations";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
@@ -413,6 +415,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
   // baseMap
   const baseMap = useMainBaseMap();
+  // Last toolbar edits of the "Dessin" IMAGE draft, reused by image file drops.
+  const templatelessImageDraftProps = useSelector(
+    (s) => s.mapEditor.draftPropsByTemplateId?.[getTemplatelessDraftKey("IMAGE")]
+  );
   track("baseMap", baseMap?.id);
 
   const editorBaseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
@@ -1167,6 +1173,65 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       newAnnotation: { type: "MARKER", images },
       skipTemplateCreation: true,
     });
+  };
+
+  // Native drop of image files on the 2D editor (InteractionLayer
+  // handleNativeDrop): one templateless IMAGE annotation per file, centred on
+  // the drop point (the 1-click → bbox conversion and the db.files write are
+  // the regular IMAGE commit path). Direct _handleCommitDrawing call with the
+  // draft as option: the armed tool / newAnnotation in the store are left
+  // untouched. Sequential so the commits do not interleave their writes.
+  const handleCommitImageFileDrop = async ({ files, x, y, cascadeStepPx }) => {
+    if (!baseMap) {
+      dispatch(
+        setToaster({
+          message: "Sélectionnez un fond de plan pour y déposer une image.",
+          isError: true,
+        })
+      );
+      return;
+    }
+    const step = Number.isFinite(cascadeStepPx) ? cascadeStepPx : 0;
+    let lastCreated = null;
+    let createdCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      let draft;
+      try {
+        draft = await getImageDropDraftFromFile(
+          files[i],
+          templatelessImageDraftProps
+        );
+      } catch (error) {
+        console.error("[handleCommitImageFileDrop] unreadable image", error);
+      }
+      if (!draft) continue;
+      const result = await _handleCommitDrawing(
+        [{ x: x + i * step, y: y + i * step }],
+        { newAnnotation: draft, skipTemplateCreation: true }
+      );
+      if (result?.annotation) {
+        lastCreated = result.annotation;
+        createdCount += 1;
+      }
+    }
+    // Single image: select it right away so the IMAGE overlay (scale /
+    // change image) is at hand.
+    if (createdCount === 1 && lastCreated) {
+      dispatch(
+        setSelectedItem({
+          id: lastCreated.id,
+          nodeId: lastCreated.id,
+          type: "NODE",
+          nodeType: "ANNOTATION",
+          annotationType: "IMAGE",
+          listingId: null,
+          annotationTemplateId: undefined,
+          pointId: null,
+          partId: null,
+          partType: null,
+        })
+      );
+    }
   };
 
   // handlers - rectangle
@@ -2633,6 +2698,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               }}
               onCommitSplitAtVertex={handlePolylineSplitAtVertex}
               onCommitImageDrop={handleCommitImageDrop}
+              onCommitImageFileDrop={handleCommitImageFileDrop}
               onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
               onCommitSimilarStrips={handleCommitSimilarStrips}
               onCommitDetectedFeatures={handleCommitDetectedFeatures}

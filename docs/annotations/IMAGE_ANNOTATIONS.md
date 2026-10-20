@@ -30,6 +30,14 @@ bbox centre. No `db.points` row is involved (geometry kind `BBOX`, like
   arms the `IMAGE_PICK` commit interceptor (`getImagePickDraftProps`) whose
   dialog (`DialogPickImageOnCommit`) asks for the file. The ghost under the
   cursor (`DrawingLayer`) uses the fresh blob URL or the persisted thumbnail.
+- **Drop**: a native drop of image files on the 2D editor (`InteractionLayer.
+  handleNativeDrop` → `MainMapEditorV3.handleCommitImageFileDrop` →
+  `getImageDropDraftFromFile`) creates one templateless IMAGE annotation per
+  file, centred on the drop point (several files cascade by 24 screen px),
+  through the same 1-click commit. Only `image/*` files are claimed during
+  dragover; other files keep the browser default. A single dropped image is
+  selected right away. The dnd-kit `DropZoneLayer` (internal `EXTERNAL_IMAGE`
+  drags → MARKER) is a separate path.
 - **Selection** (`NodeImageStatic`): drag = move, round handle = rotate (angle
   badge), corner handles = homothetic resize. The overlay toolbar
   (`NodeImageToolbarOverlay`, rendered outside the rotate group) offers:
