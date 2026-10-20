@@ -2,6 +2,11 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import {
+  setLastSyncedRemoteConfigurationVersion,
+  setLastSyncAt,
+  selectIsLocallyDirty,
+} from "../remoteScopeConfigurationsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -11,11 +16,11 @@ import useAllScopeConfigurations from "../hooks/useAllScopeConfigurations";
 import restoreScopeConfigurationService from "../services/restoreScopeConfigurationService";
 
 import {
-  Button,
   IconButton,
   Tooltip,
   Popover,
   Box,
+  Chip,
   Typography,
   List,
   ListItem,
@@ -26,10 +31,17 @@ import {
 } from "@mui/material";
 import {
   History as HistoryIcon,
-  Restore as RestoreIcon,
+  CloudDownload as CloudDownloadIcon,
+  Computer as ComputerIcon,
 } from "@mui/icons-material";
 
 import DialogConfirmRestore from "./DialogConfirmRestore";
+
+// Version history of the selected scope, fetched from the cloud on every
+// open. The version synced on this device (lastSyncedRemoteConfigurationVersion,
+// persisted per scope in localStorage) is flagged "Sur ce poste"; every other
+// version gets a cloud-download button that replaces the local data with that
+// version (confirmed in DialogConfirmRestore).
 
 export default function ButtonHistoryScope() {
   // data
@@ -39,6 +51,10 @@ export default function ButtonHistoryScope() {
   const appConfig = useAppConfig();
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const jwt = useSelector((s) => s.auth.jwt);
+  const lastSyncedVersion = useSelector(
+    (s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion
+  );
+  const isLocallyDirty = useSelector(selectIsLocallyDirty);
 
   const getAllVersions = useAllScopeConfigurations();
 
@@ -47,6 +63,10 @@ export default function ButtonHistoryScope() {
   const noBackupS =
     appConfig?.strings?.scope?.noBackup ??
     "Aucune sauvegarde pour ce plan de repérage.";
+  const localS = "Sur ce poste";
+  const localDirtyS = "Sur ce poste · modifiée";
+  const downloadS = "Télécharger depuis le cloud";
+  const redownloadS = "Re-télécharger (écrase les modifications locales)";
 
   // state
 
@@ -60,6 +80,14 @@ export default function ButtonHistoryScope() {
 
   const open = Boolean(anchorEl);
 
+  function isLocalVersion(v) {
+    return (
+      v?.version != null &&
+      lastSyncedVersion != null &&
+      Number(v.version) === Number(lastSyncedVersion)
+    );
+  }
+
   // handlers
 
   async function handleOpen(e) {
@@ -68,7 +96,7 @@ export default function ButtonHistoryScope() {
     setLoading(true);
     try {
       const items = await getAllVersions({ scopeId });
-      // Tri décroissant par version (la plus récente en haut)
+      // newest first
       const sorted = [...items].sort(
         (a, b) => (b.version ?? 0) - (a.version ?? 0)
       );
@@ -104,6 +132,14 @@ export default function ButtonHistoryScope() {
       // Single, controlled refresh after the batched import (the import itself
       // intentionally does not dispatch per-record).
       dispatch(triggerAnnotationsUpdate());
+      // The local data now equals the downloaded server version: it becomes
+      // the version synced on this device, with no pending local change.
+      if (versionToRestore?.version != null) {
+        dispatch(
+          setLastSyncedRemoteConfigurationVersion(versionToRestore.version)
+        );
+      }
+      dispatch(setLastSyncAt(Date.now()));
       setVersionToRestore(null);
       setAnchorEl(null);
     } catch (err) {
@@ -182,23 +218,44 @@ export default function ButtonHistoryScope() {
             {versions.map((v, idx) => {
               const author = v.createdBy?.trigram || "—";
               const date = formatDateTime(v.createdAt);
+              const isLocal = isLocalVersion(v);
+              const showDownload = !isLocal || isLocallyDirty;
+              const downloadTooltipS = isLocal ? redownloadS : downloadS;
               return (
                 <Box key={v.id ?? idx}>
                   {idx > 0 && <Divider component="li" />}
                   <ListItem
                     secondaryAction={
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<RestoreIcon />}
-                        onClick={() => handleClickRestore(v)}
-                      >
-                        Restaurer
-                      </Button>
+                      showDownload ? (
+                        <Tooltip title={downloadTooltipS}>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleClickRestore(v)}
+                          >
+                            <CloudDownloadIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null
                     }
                   >
                     <ListItemText
-                      primary={`Version ${v.version ?? "?"}`}
+                      primary={
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <span>{`Version ${v.version ?? "?"}`}</span>
+                          {isLocal && (
+                            <Chip
+                              size="small"
+                              icon={<ComputerIcon />}
+                              label={isLocallyDirty ? localDirtyS : localS}
+                              color={isLocallyDirty ? "warning" : "primary"}
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
+                      }
                       secondary={`${author} — ${date}`}
                     />
                   </ListItem>

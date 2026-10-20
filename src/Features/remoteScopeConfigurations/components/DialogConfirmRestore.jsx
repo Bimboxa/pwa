@@ -27,9 +27,9 @@ export default function DialogConfirmRestore({ open, onClose, version, onConfirm
 
     // strings
 
-    const title = "Restaurer la version";
+    const title = "Télécharger cette version";
     const cancelS = "Annuler";
-    const confirmS = "Confirmer";
+    const confirmS = "Télécharger";
     const restoreWarningS =
         appConfig?.strings?.scope?.restoreWarning ??
         "Toutes les données locales du plan de repérage seront remplacées.";
@@ -65,7 +65,7 @@ export default function DialogConfirmRestore({ open, onClose, version, onConfirm
             <DialogTitle>{title}</DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    Vous allez restaurer l'enregistrement du <strong>{date}</strong> créé par <strong>{author}</strong>.
+                    Vous allez télécharger la version du <strong>{date}</strong> créée par <strong>{author}</strong>.
                 </DialogContentText>
                 <DialogContentText sx={{ mt: 1 }}>
                     {restoreWarningS}
