@@ -1982,6 +1982,40 @@ export default function PopperMapListings() {
     reset: resetSize,
   } = usePanelResize({ paperRef });
 
+  // Height of the frame the popper lives in (the editor box, see
+  // PortalEditorFloatingPanels): the layers section below is capped at 45%
+  // of the popper's maximum height. A CSS "45%" would not do: the Paper has
+  // no explicit height (maxHeight only, or "auto" height), so a percentage
+  // maxHeight on its children resolves to none, and a long layers list
+  // pushed the listing selector, the templates and the footer out of the
+  // (overflow hidden) Paper with no way to scroll.
+  const showsPaper = !(
+    !isThreedViewer &&
+    !isBaseMapsLegendThreed &&
+    (pasteClipboard ||
+      subtractPickAnnotationId ||
+      Boolean(enabledDrawingMode) ||
+      activeThreedTool)
+  );
+  const [frameHeight, setFrameHeight] = useState(0);
+  useEffect(() => {
+    const frameEl = paperRef.current?.parentElement;
+    if (!showsPaper || !frameEl || typeof ResizeObserver === "undefined")
+      return;
+    const measure = () => setFrameHeight(frameEl.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frameEl);
+    return () => observer.disconnect();
+  }, [showsPaper]);
+  const layersMaxHeight = useMemo(() => {
+    const base =
+      typeof size?.height === "number"
+        ? size.height
+        : frameHeight - 130 - (isAutoHeight ? position.y : 0);
+    return base > 0 ? Math.round(base * 0.45) : undefined;
+  }, [size, frameHeight, isAutoHeight, position.y]);
+
   // helpers - filter listings when coming from LISTING viewer
 
   const returnListingId = viewerReturnContext?.listingId;
@@ -2439,7 +2473,13 @@ export default function PopperMapListings() {
               never pushes the listing selector / templates out of sight. */}
           {((viewerKey === "MAP" && showLayers) ||
             (!isBaseMapsLegend && !isLocateBusinessObjectMode)) && (
-            <Box sx={{ flexShrink: 0, maxHeight: "45%", overflow: "auto" }}>
+            <Box
+              sx={{
+                flexShrink: 0,
+                maxHeight: layersMaxHeight,
+                overflow: "auto",
+              }}
+            >
               {viewerKey === "MAP" && showLayers && (
                 <SectionLayers baseMapId={baseMap?.id} />
               )}
