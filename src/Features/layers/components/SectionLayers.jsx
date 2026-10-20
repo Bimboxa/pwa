@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { setActiveLayerId } from "../layersSlice";
+import { setLayersPanelExpanded } from "Features/popperMapListings/popperMapListingsSlice";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -15,6 +16,8 @@ import { Box, Typography, IconButton, List, Tooltip } from "@mui/material";
 import LayersIcon from "@mui/icons-material/Layers";
 import Add from "@mui/icons-material/Add";
 import BugReportIcon from "@mui/icons-material/BugReport";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
 
 import db from "App/db/db";
 import useLayers from "../hooks/useLayers";
@@ -30,7 +33,17 @@ export default function SectionLayers({ baseMapId }) {
   const createLayer = useCreateLayer();
   const moveLayer = useMoveLayer();
 
+  // strings
+
+  const expandS = "Déplier les calques";
+  const collapseS = "Replier les calques";
+
   // data
+
+  // "Calques" header chevron: the layers list is collapsible, like the
+  // listings panel under the "Listes d'annotations" header. In redux so it
+  // survives the popper remount between the 2D and 3D editors.
+  const expanded = useSelector((s) => s.popperMapListings.layersPanelExpanded);
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const layers = useLayers({
@@ -162,6 +175,10 @@ export default function SectionLayers({ baseMapId }) {
 
   // handlers
 
+  const handleToggleExpanded = () => {
+    dispatch(setLayersPanelExpanded(!expanded));
+  };
+
   const handleCreate = async ({ name, annotationIdsToDuplicate }) => {
     if (!baseMapId) return;
     await createLayer({ baseMapId, name, annotationIdsToDuplicate });
@@ -208,8 +225,9 @@ export default function SectionLayers({ baseMapId }) {
 
   return (
     <Box>
-      {/* Section header */}
+      {/* Section header: click = expand / collapse the layers list */}
       <Box
+        onClick={handleToggleExpanded}
         sx={{
           px: 1,
           py: 0.5,
@@ -219,6 +237,9 @@ export default function SectionLayers({ baseMapId }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          cursor: "pointer",
+          userSelect: "none",
+          "&:hover": { bgcolor: "action.hover" },
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -241,7 +262,10 @@ export default function SectionLayers({ baseMapId }) {
             <IconButton
               size="small"
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={handleCopyDebugData}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyDebugData();
+              }}
               sx={{
                 p: 0.25,
                 flexShrink: 0,
@@ -256,40 +280,61 @@ export default function SectionLayers({ baseMapId }) {
           <Tooltip title="Nouveau calque" arrow>
             <IconButton
               size="small"
-              onClick={() => setOpenCreateDialog(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenCreateDialog(true);
+              }}
               sx={{ p: 0.25, color: "panel.textMuted" }}
             >
               <Add sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
+          <Tooltip title={expanded ? collapseS : expandS} arrow>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleExpanded();
+              }}
+              sx={{ p: 0.25, color: "panel.textMuted" }}
+            >
+              {expanded ? (
+                <ExpandLess sx={{ fontSize: 16 }} />
+              ) : (
+                <ExpandMore sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 
-      {/* Layers list */}
-      <List dense disablePadding>
-        {/* Sortable layers */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sortableIds}
-            strategy={verticalListSortingStrategy}
+      {/* Layers list — hidden while the section is collapsed */}
+      {expanded && (
+        <List dense disablePadding>
+          {/* Sortable layers */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            {layers?.map((layer) => (
-              <LayerRow
-                key={layer.id}
-                layer={layer}
-                count={countByLayerId?.[layer.id] ?? 0}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
+            <SortableContext
+              items={sortableIds}
+              strategy={verticalListSortingStrategy}
+            >
+              {layers?.map((layer) => (
+                <LayerRow
+                  key={layer.id}
+                  layer={layer}
+                  count={countByLayerId?.[layer.id] ?? 0}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
-        {/* "Calque 0" row — below layers */}
-        <LayerRow isNoLayerRow count={countByLayerId?.__no_layer__ ?? 0} />
-      </List>
+          {/* "Calque 0" row — below layers */}
+          <LayerRow isNoLayerRow count={countByLayerId?.__no_layer__ ?? 0} />
+        </List>
+      )}
 
       {openCreateDialog && (
         <DialogCreateLayer

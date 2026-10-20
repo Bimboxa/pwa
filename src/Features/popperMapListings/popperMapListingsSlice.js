@@ -26,6 +26,9 @@ const popperMapListingsSlice = createSlice({
     // the templates. In redux so it survives the popper remount between the
     // 2D and 3D editors.
     listingsPanelExpanded: true,
+    // "Calques" header of the annotations popper (SectionLayers): the layers
+    // list is expanded under the header. In redux for the same reason.
+    layersPanelExpanded: true,
     showLayers: false,
     // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
     // popper behaves like DRAW, and the selected annotation gets EDIT-like
@@ -87,6 +90,9 @@ const popperMapListingsSlice = createSlice({
     setListingsPanelExpanded(state, action) {
       state.listingsPanelExpanded = Boolean(action.payload);
     },
+    setLayersPanelExpanded(state, action) {
+      state.layersPanelExpanded = Boolean(action.payload);
+    },
   },
   extraReducers: (builder) => {
     // The "Contenu" side exists in the SCOPE module only: the popper lands
@@ -113,6 +119,7 @@ export const {
   setCollapsed,
   setViewerContentMode,
   setListingsPanelExpanded,
+  setLayersPanelExpanded,
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
