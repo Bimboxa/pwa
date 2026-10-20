@@ -153,7 +153,9 @@ export default function PortfolioEditorViewport() {
             flexDirection: "column",
             alignItems: "center",
             py: 4,
-            gap: 3,
+            // room under each page for the container toolbar (Repérer /
+            // Croper / ... sits 8px below a full-page container)
+            gap: 8,
             minHeight: "100%",
           }}
         >
