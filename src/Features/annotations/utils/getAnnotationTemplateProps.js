@@ -1,4 +1,26 @@
 import getImageRefFromEntityImage from "Features/imageAnnotations/utils/getImageRefFromEntityImage";
+import {
+  getConfigurableProps,
+  resolveDrawingShape,
+} from "Features/annotations/constants/drawingShapeConfig";
+
+// The colour channel a template's shape actually exposes in its form:
+// "FILL" (POLYGON, DISC, MARKER, … — only « Remplissage »), "STROKE"
+// (POLYLINE, CIRCULATION, … — only « Contour ») or null when the shape
+// edits both / neither. Read by getAnnotationPropsFromAnnotationTemplateProps
+// to mirror that channel onto the other one when the annotation's type is
+// driven by the other channel (a vertical face drawn in 3D from a POLYGON
+// template is a POLYLINE, read through strokeColor everywhere).
+export function getTemplateColorChannel(annotationTemplate) {
+  const configurableProps = getConfigurableProps(
+    resolveDrawingShape(annotationTemplate)
+  );
+  const hasFill = configurableProps.includes("fillColor");
+  const hasStroke = configurableProps.includes("strokeColor");
+  if (hasFill && !hasStroke) return "FILL";
+  if (hasStroke && !hasFill) return "STROKE";
+  return null;
+}
 
 export default function getAnnotationTemplateProps(annotationTemplate) {
   if (!annotationTemplate) return {};
@@ -119,6 +141,9 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     isFixedSize: annotationTemplate?.isFixedSize,
 
     overrideFields: annotationTemplate?.overrideFields,
+
+    // Read-time only (never gated by overrideFields, never copied onto rows).
+    colorChannel: getTemplateColorChannel(annotationTemplate),
   };
 
   return props;

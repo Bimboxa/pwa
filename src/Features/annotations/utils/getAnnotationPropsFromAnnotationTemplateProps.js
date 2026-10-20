@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d" || key === "colorChannel") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -131,7 +131,38 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // overrideFields) => template value wins; unlocked => annotation value is
     // kept untouched (no template fallback).
 
+    // Cross-channel colour: a template whose shape only edits one colour
+    // channel (POLYGON → « Remplissage », POLYLINE → « Contour ») can still
+    // own annotations of a type read through the OTHER channel — a vertical
+    // face drawn in 3D from a POLYGON template is committed as a POLYLINE
+    // (commitDrawnFaceService), a « Bande » drawn from a POLYGON template is
+    // a STRIP, a flat face from a POLYLINE template is a POLYGON. Every
+    // reader (NodePolylineStatic, NodeStripStatic, makeMaterial in 3D,
+    // getAnnotationColor) picks the channel from the TYPE, so the hidden
+    // channel is mirrored from the edited one here, AFTER the padlock: locked
+    // → the template colour, unlocked → the annotation's own colour, in both
+    // cases the one the user actually edits. color3D / opacity3D still win
+    // in 3D. Applied on every read, so existing rows and templates follow
+    // without a migration.
+    applyColorChannelMirror(result, annotationTemplateProps.colorChannel);
+
     result.annotationTemplateProps = annotationTemplateProps;
 
     return result;
+}
+
+const STROKE_DRIVEN_TYPES = ["POLYLINE", "STRIP"];
+const FILL_DRIVEN_TYPES = ["POLYGON", "RECTANGLE"];
+
+function applyColorChannelMirror(result, colorChannel) {
+    const type = result?.type;
+    if (colorChannel === "FILL" && STROKE_DRIVEN_TYPES.includes(type)) {
+        if (result.fillColor === null || result.fillColor === undefined) return;
+        result.strokeColor = result.fillColor;
+        result.strokeOpacity = result.fillOpacity ?? result.strokeOpacity;
+    } else if (colorChannel === "STROKE" && FILL_DRIVEN_TYPES.includes(type)) {
+        if (result.strokeColor === null || result.strokeColor === undefined) return;
+        result.fillColor = result.strokeColor;
+        result.fillOpacity = result.strokeOpacity ?? result.fillOpacity;
+    }
 }

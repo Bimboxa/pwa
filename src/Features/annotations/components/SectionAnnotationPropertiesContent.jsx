@@ -53,10 +53,15 @@ export default function SectionAnnotationPropertiesContent({
   const type = annotation?.type;
   const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
-  // Resolve from the annotation itself, not from its type alone: shapes that
-  // share a type with another shape (or carry their own, like RULER) would
-  // otherwise fall back to the wrong section set.
-  const drawingShape = resolveDrawingShape(annotation);
+  // Resolve from the template first (a face drawn in 3D from a POLYGON
+  // template is a POLYLINE row without drawingShape: its colour follows the
+  // template's « Remplissage », so that is the section to show), then from
+  // the annotation itself, not from its type alone: shapes that share a type
+  // with another shape (or carry their own, like RULER) would otherwise fall
+  // back to the wrong section set.
+  const drawingShape =
+    resolveDrawingShape(annotation?.annotationTemplate) ??
+    resolveDrawingShape(annotation);
   const configurableProps = getConfigurableProps(drawingShape);
   // FREE_TEXT: a pure text box — no overview / label / profile / eraser, its
   // colors live in its own style cards (skip the fill section).
