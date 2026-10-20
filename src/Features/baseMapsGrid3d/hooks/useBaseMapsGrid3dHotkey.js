@@ -2,21 +2,23 @@ import { useEffect } from "react";
 import { useDispatch, useStore } from "react-redux";
 
 import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
-import { setScopeGridWanted } from "Features/baseMapsGrid/baseMapsGridSlice";
+
+import useCloseBaseMapsGrid3d from "./useCloseBaseMapsGrid3d";
 
 import { BASE_MAPS_GRID_HOTKEY } from "Features/baseMapsGrid/hooks/useOpenBaseMapsGridHotkey";
 import isEditableTarget from "Features/baseMapsGrid/utils/isEditableTarget";
-import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import selectCanOpenBaseMapsGrid3d from "../utils/selectCanOpenBaseMapsGrid3d";
 
 // "G" toggles the base maps grid of the displayed 3D editor (same key as the
 // 2D grid, whose own hotkey is inert while a 3D editor is displayed); Escape
-// closes it. In the SCOPE module, closing drops `scopeGridWanted` so the
-// keeper lets the grid closed. Plain key only, never while typing. The state
-// is read from the store at key time, so the listener never re-attaches.
+// closes it (useCloseBaseMapsGrid3d: SCOPE keeper let closed, Dessin table
+// closed around the selected sheet). Plain key only, never while typing. The
+// state is read from the store at key time, so the listener never
+// re-attaches.
 export default function useBaseMapsGrid3dHotkey() {
   const dispatch = useDispatch();
   const store = useStore();
+  const closeGrid = useCloseBaseMapsGrid3d();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -26,19 +28,15 @@ export default function useBaseMapsGrid3dHotkey() {
 
       const s = store.getState();
       const active = s.threedEditor.baseMapsGridMode.active;
-      const close = () => {
-        if (selectBaseMapsGridPinned(s)) dispatch(setScopeGridWanted(false));
-        dispatch(setBaseMapsGridModeActive(false));
-      };
 
       if (e.key === "Escape") {
-        if (active) close();
+        if (active) closeGrid();
         return;
       }
 
       if (e.key.toLowerCase() !== BASE_MAPS_GRID_HOTKEY.toLowerCase()) return;
       if (active) {
-        close();
+        closeGrid();
       } else if (selectCanOpenBaseMapsGrid3d(s)) {
         dispatch(setBaseMapsGridModeActive(true));
       }
@@ -46,5 +44,5 @@ export default function useBaseMapsGrid3dHotkey() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [dispatch, store]);
+  }, [dispatch, store, closeGrid]);
 }

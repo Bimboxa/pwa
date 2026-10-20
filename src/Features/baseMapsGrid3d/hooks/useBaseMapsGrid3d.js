@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsGridSelectedBaseMapId } from "Features/baseMapsGrid/baseMapsGridSlice";
 
 import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 import { waitForViewerSwitch } from "Features/viewers/services/syncCamerasOnViewerSwitch";
@@ -298,13 +299,23 @@ export default function useBaseMapsGrid3d({
     }
   }, [active, sheetsKey, listingId, projectId, sceneEpoch, pinned, dessin]);
 
-  // effects - pinned grid: selected sheet outline
+  // effects - pinned / Dessin grid: selected sheet outline. Dessin: the
+  // main base map's sheet is selected at the opening (G closes the table
+  // around the selected sheet, see useCloseBaseMapsGrid3d).
+
+  const wasActiveRef = useRef(false);
+  useEffect(() => {
+    if (dessin && active && !wasActiveRef.current) {
+      dispatch(setBaseMapsGridSelectedBaseMapId(mainBaseMapId));
+    }
+    wasActiveRef.current = active;
+  }, [active, dessin, mainBaseMapId, dispatch]);
 
   useEffect(() => {
     const manager = getManager();
     if (!active || !manager?.isActive()) return;
-    manager.setSelected(pinned ? selectedBaseMapId : null);
-  }, [active, pinned, selectedBaseMapId]);
+    manager.setSelected(pinned || dessin ? selectedBaseMapId : null);
+  }, [active, pinned, dessin, selectedBaseMapId]);
 
   // effects - image eyes → image, label and eye button of the sheets
 

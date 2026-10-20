@@ -256,11 +256,11 @@ export default class BaseMapsGridManager {
   // The whole table and the camera are first moved, at once, by the
   // similarity that takes the sheet from where it lies to its real pose —
   // nothing changes on screen — then the regular closing flight runs (the
-  // kept sheet is already home).
-  closeAround(baseMapId) {
+  // kept sheet is already home). `onClosed`: see close.
+  closeAround(baseMapId, { onClosed } = {}) {
     const kept = this.sheetsById.get(baseMapId);
     if (!kept || !kept.group.parent || this.closing) {
-      this.close();
+      this.close({ onClosed });
       return;
     }
     this._cancelFlight();
@@ -288,12 +288,13 @@ export default class BaseMapsGridManager {
     applyPose(kept.group, { ...kept.homePose, scale: 1 });
 
     this._moveCamera(transform, ratio);
-    this.close();
+    this.close({ onClosed });
   }
 
   // Back to the real poses. The decorations and the texture-less groups are
-  // dropped once the flight has landed.
-  close({ instant = false } = {}) {
+  // dropped once the flight has landed, then `onClosed` runs (not called
+  // when nothing was open or a flight home is already running).
+  close({ instant = false, onClosed } = {}) {
     if (this.sheetsById.size === 0) {
       this.active = false;
       return;
@@ -309,7 +310,10 @@ export default class BaseMapsGridManager {
     this._fly({
       toGrid: false,
       instant,
-      onDone: () => this._releaseAll(),
+      onDone: () => {
+        this._releaseAll();
+        onClosed?.();
+      },
     });
   }
 
