@@ -8,6 +8,7 @@ import { Box, IconButton, Typography } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
+import FieldCheck from "Features/form/components/FieldCheck";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import { InputManualQty } from "Features/legend/components/SectionLegendManualQties";
@@ -30,6 +31,9 @@ const FIELD_HEIGHT = 40;
 //   icon | legend label (template.labelLegend, committed on blur)
 //        | manual qty (imageModeLegendOverlay.hardCodedQtiesById) | unit
 //        | eye (template.hiddenInLegend)
+// A switch above the rows toggles the quantities column of the legend
+// (imageModeLegendOverlay.showQty, shared with the condensed toolbar and the
+// "Export rapide" panel): the manual qty cells are dropped while it is off.
 // Rows come from the Redux mirror written by ImageModeOverlay
 // (imageModeLegendQtyRows), templates from the live query: the legend under
 // the dialog follows every commit.
@@ -41,6 +45,7 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
   const titleS = "Légende";
   const emptyS = "Aucun élément de légende.";
   const labelPlaceholderS = "Libellé légende";
+  const showQtyS = "Afficher les quantités";
 
   // data
 
@@ -59,6 +64,7 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
   );
 
   const hardCodedQtiesById = overlay?.hardCodedQtiesById ?? {};
+  const showQty = overlay?.showQty ?? true;
 
   // rows grouped by listing section (legend order)
   const groups = useMemo(() => {
@@ -89,6 +95,12 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
   }
 
   // setImageModeLegendOverlay replaces the whole object: spread the current one
+  function handleToggleShowQty(checked) {
+    dispatch(
+      setImageModeLegendOverlay({ ...overlay, showQty: Boolean(checked) })
+    );
+  }
+
   function handleHardCodedQtyChange(templateId, value) {
     const next = { ...hardCodedQtiesById };
     if (value == null) delete next[templateId];
@@ -109,6 +121,16 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
       // keep the editor shortcuts (V, D, Backspace…) out of the inputs
       onKeyDown={(e) => e.stopPropagation()}
     >
+      {/* legend-wide switch, kept above the scrollable rows */}
+      <Box sx={{ px: 1, pb: 1 }}>
+        <FieldCheck
+          value={showQty}
+          onChange={handleToggleShowQty}
+          label={showQtyS}
+          options={{ type: "switch", showAsInline: true }}
+        />
+      </Box>
+
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 2, pb: 2 }}>
         {groups.length === 0 && (
           <Typography variant="body2" color="text.secondary">
@@ -137,6 +159,7 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
                   row={row}
                   template={template}
                   spriteImage={spriteImage}
+                  showQty={showQty}
                   manualQty={hardCodedQtiesById[row.id]}
                   labelPlaceholder={template.label || labelPlaceholderS}
                   onLabelLegendChange={(v) =>
@@ -160,6 +183,7 @@ function RowLegendTemplate({
   row,
   template,
   spriteImage,
+  showQty,
   manualQty,
   labelPlaceholder,
   onLabelLegendChange,
@@ -219,50 +243,53 @@ function RowLegendTemplate({
       </Box>
 
       {/* manual qty (placeholder = computed value) + deviation vs the
-          computed value underneath once a manual value is set */}
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          flexShrink: 0,
-        }}
-      >
+          computed value underneath once a manual value is set — dropped
+          with the legend's quantities column */}
+      {showQty && (
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
-            gap: 1,
-            height: FIELD_HEIGHT,
+            flexDirection: "column",
+            alignItems: "flex-end",
+            flexShrink: 0,
           }}
         >
-          <InputManualQty
-            row={row}
-            value={manualQty}
-            onChange={onManualQtyChange}
-          />
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            title={`Calculé : ${row.computedLabel || "-"}`}
-            sx={{ width: 22, flexShrink: 0 }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              height: FIELD_HEIGHT,
+            }}
           >
-            {row.unit}
-          </Typography>
+            <InputManualQty
+              row={row}
+              value={manualQty}
+              onChange={onManualQtyChange}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              title={`Calculé : ${row.computedLabel || "-"}`}
+              sx={{ width: 22, flexShrink: 0 }}
+            >
+              {row.unit}
+            </Typography>
+          </Box>
+          {Boolean(deviationLabel) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              title={`Écart par rapport à la valeur calculée (${
+                row.computedLabel || "-"
+              })`}
+              sx={{ pr: "30px", lineHeight: 1.2 }}
+            >
+              {deviationLabel}
+            </Typography>
+          )}
         </Box>
-        {Boolean(deviationLabel) && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            title={`Écart par rapport à la valeur calculée (${
-              row.computedLabel || "-"
-            })`}
-            sx={{ pr: "30px", lineHeight: 1.2 }}
-          >
-            {deviationLabel}
-          </Typography>
-        )}
-      </Box>
+      )}
 
       <Box
         sx={{
