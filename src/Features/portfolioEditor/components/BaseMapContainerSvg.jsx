@@ -230,7 +230,9 @@ export default function BaseMapContainerSvg({
         />
       )}
 
-      {isSelected && (
+      {/* framing is sticky (independent of the selection); while a framing
+          is active elsewhere, other selections show no overlay */}
+      {(isFraming || (isSelected && !framingContainerId)) && (
         <ContainerTransformOverlay
           container={container}
           zoom={zoom}
