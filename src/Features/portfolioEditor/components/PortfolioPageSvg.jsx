@@ -484,7 +484,13 @@ export default function PortfolioPageSvg({
         width={dims.width}
         height={dims.height}
         viewBox={`0 0 ${dims.width} ${dims.height}`}
-        style={{ display: "block", background: "white" }}
+        style={{
+          display: "block",
+          background: "white",
+          // let the selection / crop frame and its handles show past the
+          // sheet edge (nested container svgs still clip their image)
+          overflow: isFraming || showEditButton ? "visible" : "hidden",
+        }}
       >
         {displayContainers?.length === 0 && (
           <svg
