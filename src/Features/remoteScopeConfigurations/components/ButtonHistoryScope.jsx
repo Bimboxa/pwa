@@ -16,11 +16,11 @@ import useAllScopeConfigurations from "../hooks/useAllScopeConfigurations";
 import restoreScopeConfigurationService from "../services/restoreScopeConfigurationService";
 
 import {
+  Button,
   IconButton,
   Tooltip,
   Popover,
   Box,
-  Chip,
   Typography,
   List,
   ListItem,
@@ -29,9 +29,10 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   History as HistoryIcon,
-  CloudDownload as CloudDownloadIcon,
+  Restore as RestoreIcon,
   Computer as ComputerIcon,
 } from "@mui/icons-material";
 
@@ -39,9 +40,9 @@ import DialogConfirmRestore from "./DialogConfirmRestore";
 
 // Version history of the selected scope, fetched from the cloud on every
 // open. The version synced on this device (lastSyncedRemoteConfigurationVersion,
-// persisted per scope in localStorage) is flagged "Sur ce poste"; every other
-// version gets a cloud-download button that replaces the local data with that
-// version (confirmed in DialogConfirmRestore).
+// persisted per scope in localStorage) is highlighted with a computer icon;
+// every other version gets a "Restaurer" button that replaces the local data
+// with that version (confirmed in DialogConfirmRestore).
 
 export default function ButtonHistoryScope() {
   // data
@@ -63,10 +64,9 @@ export default function ButtonHistoryScope() {
   const noBackupS =
     appConfig?.strings?.scope?.noBackup ??
     "Aucune sauvegarde pour ce plan de repérage.";
-  const localS = "Sur ce poste";
-  const localDirtyS = "Sur ce poste · modifiée";
-  const downloadS = "Télécharger depuis le cloud";
-  const redownloadS = "Re-télécharger (écrase les modifications locales)";
+  const localS = "Version chargée sur ce poste";
+  const localDirtyS = "Version chargée sur ce poste (modifiée localement)";
+  const restoreS = "Restaurer";
 
   // state
 
@@ -219,43 +219,50 @@ export default function ButtonHistoryScope() {
               const author = v.createdBy?.trigram || "—";
               const date = formatDateTime(v.createdAt);
               const isLocal = isLocalVersion(v);
-              const showDownload = !isLocal || isLocallyDirty;
-              const downloadTooltipS = isLocal ? redownloadS : downloadS;
+              // the local version can only be restored to drop local changes
+              const showRestore = !isLocal || isLocallyDirty;
               return (
                 <Box key={v.id ?? idx}>
                   {idx > 0 && <Divider component="li" />}
                   <ListItem
+                    sx={{
+                      ...(isLocal && {
+                        bgcolor: (t) => alpha(t.palette.secondary.main, 0.12),
+                      }),
+                    }}
                     secondaryAction={
-                      showDownload ? (
-                        <Tooltip title={downloadTooltipS}>
-                          <IconButton
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        {showRestore && (
+                          <Button
                             size="small"
-                            color="primary"
+                            variant="outlined"
+                            startIcon={<RestoreIcon />}
                             onClick={() => handleClickRestore(v)}
                           >
-                            <CloudDownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      ) : null
+                            {restoreS}
+                          </Button>
+                        )}
+                        {isLocal && (
+                          <Tooltip
+                            title={isLocallyDirty ? localDirtyS : localS}
+                          >
+                            <ComputerIcon
+                              fontSize="small"
+                              sx={{
+                                color: isLocallyDirty
+                                  ? "warning.main"
+                                  : "secondary.main",
+                              }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Box>
                     }
                   >
                     <ListItemText
-                      primary={
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <span>{`Version ${v.version ?? "?"}`}</span>
-                          {isLocal && (
-                            <Chip
-                              size="small"
-                              icon={<ComputerIcon />}
-                              label={isLocallyDirty ? localDirtyS : localS}
-                              color={isLocallyDirty ? "warning" : "primary"}
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      }
+                      primary={`Version ${v.version ?? "?"}`}
                       secondary={`${author} — ${date}`}
                     />
                   </ListItem>
