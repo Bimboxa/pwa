@@ -45,7 +45,8 @@ function restoreCarriedGroup() {
 // records the grabbed point and the group's start position (the overlay then
 // moves the whole group, image + annotations, with the cursor); 2nd click
 // drops — persists the base map `position` so the grabbed point lands
-// exactly on the drop point (translation only, rotation kept). Esc cancels
+// exactly on the drop point (translation only, rotation kept) — a Shift
+// axis lock (overlay snap `kind: "AXIS"`) drops like any other snap. Esc cancels
 // the in-progress move, or exits the mode when nothing is grabbed. A
 // press-release pair that moved past DRAG_THRESHOLD_PX is a camera drag,
 // not a click.

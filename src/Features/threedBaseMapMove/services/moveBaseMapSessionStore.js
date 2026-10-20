@@ -3,7 +3,9 @@
 // pointer handlers (read it on click) — same pattern as lastSnapStore /
 // lastDimensionSnapStore.
 
-// { position: Vector3, kind: "VERTEX" | "EDGE" | "FREE", meshKey? } | null
+// { position: Vector3, kind: "VERTEX" | "EDGE" | "PLANE" | "AXIS" | "FREE",
+//   meshKey?, baseMapId?, axisA?, axisB?, axis? ("X" | "Y" | "Z" of an AXIS
+//   snap — Shift ortho lock) } | null
 let lastSnap = null;
 
 // The in-progress grab:

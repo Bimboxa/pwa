@@ -42,7 +42,7 @@ export default function MoveBaseMapToolbarThreed() {
         </Typography>
         <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
           {carriedBaseMapId
-            ? "Cliquez le point de destination (Échap : annuler)"
+            ? "Cliquez le point de destination (Maj : verrou sur un axe, Échap : annuler)"
             : "Cliquez un point du fond de plan à déplacer"}
         </Typography>
         <Tooltip title="Quitter le mode déplacement">
