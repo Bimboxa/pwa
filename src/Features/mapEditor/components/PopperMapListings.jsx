@@ -1653,8 +1653,8 @@ export default function PopperMapListings() {
   // Dessin module (2D or its 3D toggle): the footer switch "Fond de plan
   // sélectionné seul" (panelDrawing.viewerAnnotationsScope, shared with the
   // Dessin / Viewer panels' chips) scopes the annotations set — and so every
-  // displayed quantity and counter — to the main base map, or to the whole
-  // repérage ("ALL", the default). The legend poppers of the other modules
+  // displayed quantity and counter — to the main base map (the default), or
+  // to the whole repérage ("ALL"). The legend poppers of the other modules
   // keep their own base map scoping.
   const isDessinPopper = viewerKey === "MAP";
   const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
