@@ -543,6 +543,8 @@ export default function PortfolioPageSvg({
             position: "absolute",
             left: selectedContainer.x,
             top: selectedContainer.y + selectedContainer.height + 8,
+            // above the next page's white sheet
+            zIndex: 2,
             display: "flex",
             alignItems: "center",
             gap: 0.5,
@@ -613,6 +615,8 @@ export default function PortfolioPageSvg({
             position: "absolute",
             left: selectedContainer.x,
             top: selectedContainer.y + selectedContainer.height + 8,
+            // above the next page's white sheet
+            zIndex: 2,
             display: "flex",
             gap: 0.5,
           }}
