@@ -1,4 +1,4 @@
-import { RotateRight } from "@mui/icons-material";
+import IconRotateBaseMap from "Features/icons/IconRotateBaseMap";
 
 import { setRotateBaseMapModeActive } from "Features/threedEditor/threedEditorSlice";
 
@@ -8,7 +8,7 @@ import createBaseMapPlacementCommand from "../../utils/createBaseMapPlacementCom
 export default createBaseMapPlacementCommand({
   key: "ROTATE_BASE_MAP",
   label: "Tourner le fond de plan",
-  Icon: RotateRight,
+  Icon: IconRotateBaseMap,
   getActive: (ctx) => ctx.rotateBaseMapModeActive,
   setActive: setRotateBaseMapModeActive,
 });

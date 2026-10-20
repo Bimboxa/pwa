@@ -1,4 +1,4 @@
-import { OpenWith } from "@mui/icons-material";
+import IconMoveBaseMap from "Features/icons/IconMoveBaseMap";
 
 import { setMoveBaseMapModeActive } from "Features/threedEditor/threedEditorSlice";
 
@@ -8,7 +8,7 @@ import createBaseMapPlacementCommand from "../../utils/createBaseMapPlacementCom
 export default createBaseMapPlacementCommand({
   key: "MOVE_BASE_MAP",
   label: "Déplacer le fond de plan",
-  Icon: OpenWith,
+  Icon: IconMoveBaseMap,
   getActive: (ctx) => ctx.moveBaseMapModeActive,
   setActive: setMoveBaseMapModeActive,
 });
