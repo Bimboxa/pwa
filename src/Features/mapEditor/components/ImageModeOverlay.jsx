@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -23,10 +24,15 @@ import {
   setImageModeLegendQtyRows,
 } from "../mapEditorSlice";
 
+import { IconButton } from "@mui/material";
+import { Edit } from "@mui/icons-material";
+
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import CaptureTitleBlockOverlay from "./CaptureTitleBlockOverlay";
+import DialogEditCaptureLegend from "./DialogEditCaptureLegend";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
+import filterHiddenLegendItems from "Features/legend/utils/filterHiddenLegendItems";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
 import { selectCaptureRightInset } from "../utils/captureRightInset";
@@ -44,6 +50,7 @@ import theme from "Styles/theme";
 const DIM_FILL = "rgba(0,0,0,0.45)";
 const RECT_STROKE = "rgba(255,255,255,0.95)";
 const HANDLE_SIZE = 12;
+const EDIT_BUTTON_SIZE = 22;
 const MIN_LEGEND_WIDTH = 120;
 const MAX_LEGEND_WIDTH = 600;
 
@@ -110,32 +117,51 @@ export default function ImageModeOverlay({
     overlay.x ?? Math.max(0, rect.width - overlay.width - DEFAULT_PADDING);
   const resolvedY = overlay.y ?? DEFAULT_PADDING;
 
+  // The items may carry the templates hidden in the legend
+  // (includeHiddenInLegend on the legend hooks): they feed the legend editor
+  // dialog through the Redux mirror below, never the rendered legend.
+  const displayedLegendItems = useMemo(
+    () => filterHiddenLegendItems(legendItems),
+    [legendItems]
+  );
+
   // Mirror the current legend rows (id / label / computed qty) to Redux so
-  // the "Quantités manuelles" section of SectionCaptureLegend can edit the
-  // overrides without recomputing the legend data (the 3D annotation set is
-  // owned by MainThreedEditor and unreachable from the panel).
+  // the "Quantités manuelles" section of SectionCaptureLegend and the legend
+  // editor dialog can edit the overrides without recomputing the legend data
+  // (the 3D annotation set is owned by MainThreedEditor and unreachable from
+  // the panel). Rows carry their listing section and the hiddenInLegend flag.
   const lastQtyRowsJsonRef = useRef("");
   useEffect(() => {
-    const rows = (legendItems ?? [])
-      .filter((it) => it.id)
-      .map((it) => {
-        const computedLabel = qtiesById?.[it.id]?.mainQtyLabel ?? "";
-        const { value: computedValue, unit: parsedUnit } =
-          parseMainQtyLabel(computedLabel);
-        const unit = qtiesById?.[it.id]?.mainQtyUnit ?? parsedUnit;
-        return {
-          id: it.id,
-          label: it.label,
-          computedValue,
-          unit,
-          computedLabel,
-        };
+    const rows = [];
+    let listingName = null;
+    (legendItems ?? []).forEach((it) => {
+      if (it.type === "listingName") {
+        listingName = it.name;
+        return;
+      }
+      if (!it.id) return;
+      const computedLabel = qtiesById?.[it.id]?.mainQtyLabel ?? "";
+      const { value: computedValue, unit: parsedUnit } =
+        parseMainQtyLabel(computedLabel);
+      const unit = qtiesById?.[it.id]?.mainQtyUnit ?? parsedUnit;
+      rows.push({
+        id: it.id,
+        label: it.label,
+        listingName,
+        hiddenInLegend: Boolean(it.hiddenInLegend),
+        computedValue,
+        unit,
+        computedLabel,
       });
+    });
     const json = JSON.stringify(rows);
     if (json === lastQtyRowsJsonRef.current) return;
     lastQtyRowsJsonRef.current = json;
     dispatch(setImageModeLegendQtyRows(rows));
   }, [legendItems, qtiesById, dispatch]);
+
+  // legend editor dialog (capture tool only — opened by the Edit button)
+  const [legendDialogOpen, setLegendDialogOpen] = useState(false);
 
   // measure legend height (provided by NodeLegendStatic)
   const [legendHeight, setLegendHeight] = useState(60);
@@ -385,9 +411,9 @@ export default function ImageModeOverlay({
           onMouseDown={startMove}
           style={{ cursor: "grab" }}
         >
-          {legendItems?.length > 0 ? (
+          {displayedLegendItems.length > 0 ? (
             <NodeLegendStatic
-              legendItems={legendItems}
+              legendItems={displayedLegendItems}
               spriteImage={spriteImage}
               legendFormat={{
                 x: 0,
@@ -438,6 +464,40 @@ export default function ImageModeOverlay({
             </g>
           )}
 
+          {/* EDIT button — top-right corner of the legend, capture tool only.
+              data-capture-hide keeps it out of the PNG/PDF; the mousedown is
+              stopped so clicking it never starts the legend drag. */}
+          {captureToolActive && (
+            <g data-capture-hide>
+              <foreignObject
+                x={overlay.width - EDIT_BUTTON_SIZE - 2}
+                y={2}
+                width={EDIT_BUTTON_SIZE}
+                height={EDIT_BUTTON_SIZE}
+                style={{ overflow: "visible" }}
+              >
+                <IconButton
+                  size="small"
+                  title="Modifier la légende"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => setLegendDialogOpen(true)}
+                  sx={{
+                    pointerEvents: "auto",
+                    width: EDIT_BUTTON_SIZE,
+                    height: EDIT_BUTTON_SIZE,
+                    color: "text.disabled",
+                    "&:hover": {
+                      color: "text.secondary",
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <Edit sx={{ fontSize: 13 }} />
+                </IconButton>
+              </foreignObject>
+            </g>
+          )}
+
           {/* SE resize handle (data-capture-hide) */}
           <g data-capture-hide>
             <rect
@@ -454,6 +514,14 @@ export default function ImageModeOverlay({
             />
           </g>
         </g>
+      )}
+
+      {/* legend editor (MUI portal: rendered outside this svg) */}
+      {captureToolActive && (
+        <DialogEditCaptureLegend
+          open={legendDialogOpen}
+          onClose={() => setLegendDialogOpen(false)}
+        />
       )}
     </svg>
   );

@@ -781,7 +781,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     ((povFramingActive || captureToolActive) && isActiveViewer);
   // Same hook as Portfolio's LegendBlockSvg so the capture legend items
   // (shape, ordering, groupings) match exactly.
-  const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);
+  // includeHiddenInLegend: the capture legend editor lists the templates
+  // hidden in the legend too (ImageModeOverlay filters them out of the render).
+  const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id, {
+    includeHiddenInLegend: true,
+  });
   const imageModeLegendSelected = useSelector(
     (s) => s.mapEditor.imageModeLegendSelected
   );

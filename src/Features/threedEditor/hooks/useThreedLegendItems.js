@@ -40,8 +40,13 @@ import { toWatercolorHexColor } from "Features/threedEditor/js/postfx/aquarelleM
  * annotation is hidden in 3D).
  *
  * @param {Array} annotations - resolved annotations shown in 3D.
+ * @param {boolean} [options.includeHiddenInLegend] keep the templates flagged
+ *   `hiddenInLegend` (tagged on their row) — capture legend editor.
  */
-export default function useThreedLegendItems(annotations) {
+export default function useThreedLegendItems(
+  annotations,
+  { includeHiddenInLegend = false } = {}
+) {
   // data
 
   const annotationTemplates = useAnnotationTemplates();
@@ -180,6 +185,7 @@ export default function useThreedLegendItems(annotations) {
         topViewDataUrl:
           template.object3D?.topViewDataUrl ?? source.object3D?.topViewDataUrl,
         groupLabel: template.groupLabel,
+        hiddenInLegend: Boolean(template.hiddenInLegend),
         label: (() => {
           const base = template.labelLegend || (template.label ?? "A définir");
           const h = Number(template.height);
@@ -198,7 +204,8 @@ export default function useThreedLegendItems(annotations) {
         const templateId = annotation.annotationTemplateId;
         if (!templateId || seen[templateId]) return;
         const template = annotationTemplateById[templateId];
-        if (!template || template.hidden || template.hiddenInLegend) return;
+        if (!template || template.hidden) return;
+        if (template.hiddenInLegend && !includeHiddenInLegend) return;
         pushRow({
           templateId,
           template,
@@ -211,7 +218,8 @@ export default function useThreedLegendItems(annotations) {
     painted.templateIds.forEach((templateId) => {
       if (seen[templateId]) return;
       const template = annotationTemplateById[templateId];
-      if (!template || template.hidden || template.hiddenInLegend) return;
+      if (!template || template.hidden) return;
+      if (template.hiddenInLegend && !includeHiddenInLegend) return;
       pushRow({
         templateId,
         template,
@@ -264,6 +272,7 @@ export default function useThreedLegendItems(annotations) {
     listingNameById,
     orderRankByTemplateId,
     toDisplayColor,
+    includeHiddenInLegend,
   ]);
 
   // qty lookup in the shape NodeLegendStatic reads (qtiesById[id].mainQtyLabel)

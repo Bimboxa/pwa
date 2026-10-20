@@ -4,7 +4,10 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden, hideHeight = false } = {}) {
+// includeHiddenInLegend: keep the templates flagged `hiddenInLegend` (tagged
+// `hiddenInLegend: true` on their item) without the eye-hidden ones — used by
+// the capture legend editor, which lists them so they can be re-enabled.
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden, includeHiddenInLegend = false, hideHeight = false } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates({ sortByOrder: true });
@@ -41,7 +44,8 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     if (templateId) {
       const template = annotationTemplateById[templateId];
       const isTemplateHidden = template?.hidden && !includeHidden;
-      const isHiddenInLegend = template?.hiddenInLegend && !includeHidden;
+      const isHiddenInLegend =
+        template?.hiddenInLegend && !includeHidden && !includeHiddenInLegend;
       const isDisabledInContainer = !includeHidden && disabledAnnotationTemplates?.includes(templateId);
       if (!idsMap[templateId] && !isTemplateHidden && !isHiddenInLegend && !isDisabledInContainer) {
         idsMap[templateId] = annotation;
@@ -75,6 +79,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           groupLabel: template?.groupLabel,
           closeLine,
           variant,
+          hiddenInLegend: Boolean(template?.hiddenInLegend),
         };
 
         if (!legendItemsByListingName[listingName]) {

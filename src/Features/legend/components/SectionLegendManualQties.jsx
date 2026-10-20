@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { Box, InputBase, Typography } from "@mui/material";
 
+import getManualQtyDeviationLabel from "../utils/getManualQtyDeviationLabel";
+
 // Shared "Quantités manuelles" rows, used by the portfolio legend panel and
 // the capture/POV legend section. One line per legend item: label, manual qty
 // input (placeholder = computed value) and deviation (%) vs the computed qty.
@@ -47,6 +49,48 @@ export default function SectionLegendManualQties({
 function RowManualQty({ row, value, onChange, showDeviation }) {
   const { label, computedValue, unit, computedLabel } = row;
 
+  // helpers
+
+  const deviationLabel = getManualQtyDeviationLabel(value, computedValue);
+
+  // render
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Typography
+        variant="caption"
+        noWrap
+        title={`${label} — calculé : ${computedLabel || "-"}`}
+        sx={{ flex: 1, minWidth: 0 }}
+      >
+        {label}
+      </Typography>
+      <InputManualQty row={row} value={value} onChange={onChange} />
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ width: 22, flexShrink: 0 }}
+      >
+        {unit}
+      </Typography>
+      {showDeviation && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ width: 52, flexShrink: 0, textAlign: "right" }}
+        >
+          {deviationLabel}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+// The manual qty input alone (placeholder = computed value, 400 ms debounce,
+// empty → onChange(null)). Shared with the capture legend editor dialog.
+export function InputManualQty({ row, value, onChange, width = 64 }) {
+  const { computedValue } = row;
+
   // state
 
   const manualQty = Number.isFinite(value) ? value : null;
@@ -63,20 +107,6 @@ function RowManualQty({ row, value, onChange, showDeviation }) {
   }, [manualQty]);
 
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
-
-  // helpers
-
-  let deviationLabel = "";
-  if (
-    manualQty != null &&
-    Number.isFinite(computedValue) &&
-    computedValue !== 0
-  ) {
-    const pct = ((manualQty - computedValue) / computedValue) * 100;
-    deviationLabel = `${pct >= 0 ? "+" : "-"}${Math.abs(pct).toFixed(1)} %`;
-  } else if (manualQty != null) {
-    deviationLabel = "—";
-  }
 
   // handlers
 
@@ -107,50 +137,23 @@ function RowManualQty({ row, value, onChange, showDeviation }) {
   // render
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <Typography
-        variant="caption"
-        noWrap
-        title={`${label} — calculé : ${computedLabel || "-"}`}
-        sx={{ flex: 1, minWidth: 0 }}
-      >
-        {label}
-      </Typography>
-      <InputBase
-        value={localValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        placeholder={
-          Number.isFinite(computedValue) ? String(computedValue) : "-"
-        }
-        sx={{
-          width: 64,
-          "& .MuiInputBase-input": {
-            fontSize: 12,
-            textAlign: "right",
-            bgcolor: "background.default",
-            borderRadius: 1,
-            px: 0.5,
-            py: 0.25,
-          },
-        }}
-      />
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ width: 22, flexShrink: 0 }}
-      >
-        {unit}
-      </Typography>
-      {showDeviation && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ width: 52, flexShrink: 0, textAlign: "right" }}
-        >
-          {deviationLabel}
-        </Typography>
-      )}
-    </Box>
+    <InputBase
+      value={localValue}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      placeholder={Number.isFinite(computedValue) ? String(computedValue) : "-"}
+      sx={{
+        width,
+        flexShrink: 0,
+        "& .MuiInputBase-input": {
+          fontSize: 12,
+          textAlign: "right",
+          bgcolor: "background.default",
+          borderRadius: 1,
+          px: 0.5,
+          py: 0.25,
+        },
+      }}
+    />
   );
 }

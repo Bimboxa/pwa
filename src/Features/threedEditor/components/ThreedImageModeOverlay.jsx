@@ -27,7 +27,11 @@ export default function ThreedImageModeOverlay({ annotations }) {
   // save bar carries its own).
   const povFramingActive = useSelector(selectPovFramingActive);
 
-  const { legendItems, qtiesById } = useThreedLegendItems(annotations);
+  // includeHiddenInLegend: the capture legend editor lists the templates
+  // hidden in the legend too (ImageModeOverlay filters them out of the render).
+  const { legendItems, qtiesById } = useThreedLegendItems(annotations, {
+    includeHiddenInLegend: true,
+  });
   const spriteImage = useAnnotationSpriteImage();
 
   // Measures the wrapper Box, which fills MainThreedEditor's relative

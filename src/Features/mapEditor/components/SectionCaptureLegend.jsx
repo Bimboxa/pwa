@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { useSelector, useDispatch } from "react-redux";
 
 import { setImageModeLegendOverlay } from "../mapEditorSlice";
@@ -29,7 +31,13 @@ export default function SectionCaptureLegend() {
   // data
 
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
-  const qtyRows = useSelector((s) => s.mapEditor.imageModeLegendQtyRows);
+  const allQtyRows = useSelector((s) => s.mapEditor.imageModeLegendQtyRows);
+  // The mirror also carries the templates hidden in the legend (for the
+  // capture legend editor): this section only edits the visible rows.
+  const qtyRows = useMemo(
+    () => (allQtyRows ?? []).filter((row) => !row.hiddenInLegend),
+    [allQtyRows]
+  );
 
   // helpers
 
