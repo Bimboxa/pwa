@@ -13,9 +13,10 @@ import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSli
 // this one visibility): the editing modules (Dessin, Zones, the
 // business-objects modules, Fonds de plan — with its own layout) while they
 // display a 2D map editor or the 3D editor, and nothing covers / freezes the
-// editor (capture framing, walk mode, PDF editor, base maps grid, "create a
-// base map" section). Never in the read-only Viewer / Maillage modules nor in
-// the POV / Krto / Portfolio / Table / Admin modules.
+// editor (capture framing, walk mode, PDF editor, base maps grid — 2D layer
+// or 3D table —, "create a base map" section). Never in the read-only Viewer
+// / Maillage modules nor in the POV / Krto / Portfolio / Table / Admin
+// modules.
 export function selectShowCommandsToolbar(s) {
   const moduleKey = s.viewers.selectedViewerKey;
   const moduleOk =
@@ -35,6 +36,11 @@ export function selectShowCommandsToolbar(s) {
   if (s.threedEditor.walkMode.active) return false;
   if (selectPdfEditorOpen(s)) return false;
   if (selectBaseMapsGridMounted(s)) return false;
+  if (
+    isThreedFamilyViewerKey(effectiveKey) &&
+    s.threedEditor.baseMapsGridMode.active
+  )
+    return false;
   if (s.mapEditor.showCreateBaseMapSection) return false;
   return true;
 }

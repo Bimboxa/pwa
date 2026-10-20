@@ -58,6 +58,7 @@ import {
   clearActiveBaseMapsGrid,
 } from "../services/baseMapsGridRegistry";
 import selectBaseMapsGridPinned from "../utils/selectBaseMapsGridPinned";
+import selectBaseMapsGridDessin from "../utils/selectBaseMapsGridDessin";
 import composeBaseMapsGridSheets from "../utils/composeBaseMapsGridSheets";
 import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
 import getAlignedSheetsLayout from "../utils/getAlignedSheetsLayout";
@@ -104,6 +105,14 @@ const FIT_ALL_PADDING = {
 // selection of the scope panel (no listing tabs) and draw the annotations
 // of the listed listing. Leaving the grid (double-click, G, Escape, close
 // button) drops `scopeGridWanted` so the keeper lets it closed.
+// Dessin module (selectBaseMapsGridDessin): direct display — every base map
+// of the scope lies on the table (all folders, no tabs, the folder under the
+// name) with every annotation drawn on it (the Dessin eyes / solos and the
+// viewer eyes are ignored, see useBaseMapsGridAnnotations); the "+" frame
+// creates in the folder of the main base map. The editor chrome (docked
+// panel, popper, toolbars) leaves while the layer is mounted, which moves /
+// resizes the editor under it: the camera handover compensates (see the
+// alignment effect and `finish` below).
 export default function LayerBaseMapsGrid({ forViewerKey }) {
   const dispatch = useDispatch();
 
@@ -126,18 +135,24 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     (s) => s.baseMapsGrid.selectedBaseMapId
   );
   const openFitAll = useSelector((s) => s.baseMapsGrid.openFitAll);
+  const openEditorRect = useSelector((s) => s.baseMapsGrid.openEditorRect);
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const pinned = useSelector(selectBaseMapsGridPinned);
+  const dessin = useSelector(selectBaseMapsGridDessin);
 
   const imageMode = useSelector((s) => s.viewers.baseMapsImageMode);
+  // Dessin: the image eye of the main base map never hides the sheets.
   const hideImageInViewer = useSelector(
-    (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideBaseMapImageInViewer
+    (s) =>
+      forViewerKey !== "BASE_MAPS" &&
+      !dessin &&
+      s.viewers.hideBaseMapImageInViewer
   );
   const editorImageOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
   const editorGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
 
   const panelKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const panelWidth = useSelector((s) => s.rightPanel.width);
-  const pinned = useSelector(selectBaseMapsGridPinned);
   // SCOPE module: no listing tabs — the sheets follow the content selection
   // of the scope panel (baseMapsGrid.scopeSheets, ScopeGridSheetsController),
   // whose listing narrows the annotations drawn on them.
@@ -199,12 +214,33 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   });
   const rightOffset = panelKey ? panelWidth + 24 : 24;
 
-  // Displayed table: a listing tab, or (pinned) the scope selection.
+  // Displayed table: a listing tab, (pinned) the scope selection, or
+  // (Dessin) every base map of the scope — the "+" frame then creates in the
+  // folder of the main base map (the tab set at the opening).
   const tabListingId = listings?.some((l) => l.id === selectedListingId)
     ? selectedListingId
     : (listings?.[0]?.id ?? null);
   const listingId = pinned ? scopeSheets.addListingId : tabListingId;
-  const scopeBaseMapIds = pinned ? scopeSheets.baseMapIds : null;
+  const listingRankById = useMemo(() => {
+    const map = {};
+    listings?.forEach((l, index) => (map[l.id] = index));
+    return map;
+  }, [listings]);
+  // Dessin: the sheets in the order of the folders (then the base maps'
+  // own order), so the rows of the table read like the Fonds de plan list.
+  const dessinBaseMapIds = useMemo(() => {
+    if (!dessin || !baseMaps) return null;
+    return baseMaps
+      .map((baseMap, index) => ({ baseMap, index }))
+      .sort(
+        (a, b) =>
+          (listingRankById[a.baseMap.listingId] ?? Infinity) -
+            (listingRankById[b.baseMap.listingId] ?? Infinity) ||
+          a.index - b.index
+      )
+      .map(({ baseMap }) => baseMap.id);
+  }, [dessin, baseMaps, listingRankById]);
+  const explicitBaseMapIds = pinned ? scopeSheets.baseMapIds : dessinBaseMapIds;
   const folderNameById = useMemo(() => {
     const map = {};
     listings?.forEach((l) => (map[l.id] = l.name));
@@ -226,10 +262,10 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
       composeBaseMapsGridSheets({
         baseMaps,
         listingId,
-        baseMapIds: scopeBaseMapIds,
+        baseMapIds: explicitBaseMapIds,
         positions,
       }),
-    [baseMaps, listingId, scopeBaseMapIds, positions]
+    [baseMaps, listingId, explicitBaseMapIds, positions]
   );
 
   const sheetById = useMemo(() => {
@@ -254,10 +290,15 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const annotationsByBaseMapId = useBaseMapsGridAnnotations({
     baseMapIds,
     forViewerKey,
+    // Dessin: every annotation of the sheets, the viewer eye included
+    ignoreHideAnnotations: dessin,
+    direct: dessin,
     filterByListingId: pinned ? scopeFilter.filterByListingId : undefined,
     annotationIdSet: pinned ? scopeFilter.annotationIdSet : null,
   });
   const scopeFilterActive = pinned && scopeFilter.active;
+  // Count chip = what the sheet draws when the table has its own set.
+  const countFromSheets = scopeFilterActive || dessin;
 
   // selected sheet drawn last, on top of the others
   const orderedItems = useMemo(() => {
@@ -309,12 +350,13 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     return getGridCameraFitBounds({
       bounds: getSheetsBounds(Object.values(sheetByIdRef.current)),
       viewport: viewport.getViewportSize(),
-      // no tabs band on the pinned table
-      padding: pinned
-        ? { ...FIT_ALL_PADDING, top: FIT_ALL_PADDING.top - TABS_HEIGHT }
-        : FIT_ALL_PADDING,
+      // no tabs band on the pinned / Dessin table
+      padding:
+        pinned || dessin
+          ? { ...FIT_ALL_PADDING, top: FIT_ALL_PADDING.top - TABS_HEIGHT }
+          : FIT_ALL_PADDING,
     });
-  }, [pinned]);
+  }, [pinned, dessin]);
 
   // effect - opening: pose the grid camera on the editor's one, then reveal
 
@@ -327,7 +369,18 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     alignedRef.current = true;
 
     const focusSheet = sheetById[mainBaseMapId];
-    const editorCamera = getActiveMapEditor()?.getCameraMatrix?.();
+    const mapEditor = getActiveMapEditor();
+    const editorCamera = mapEditor?.getCameraMatrix?.();
+    // The chrome hidden by the grid (docked Dessin panel, commands toolbar)
+    // left in the commit that mounted this layer: the editor viewport moved
+    // under its camera (anchored at its top-left corner), so the sheet would
+    // land offset on screen. Offset the handed-over camera by the move of
+    // the viewport since the opening started (baseMapsGrid.openEditorRect).
+    const rectNow = mapEditor?.getViewportRect?.();
+    if (editorCamera && openEditorRect && rectNow) {
+      editorCamera.x += openEditorRect.left - rectNow.left;
+      editorCamera.y += openEditorRect.top - rectNow.top;
+    }
     const camera =
       focusSheet && editorCamera
         ? editorToGridCamera({ editorCamera, sheet: focusSheet })
@@ -364,6 +417,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     pinned,
     scopeSheets.ready,
     openFitAll,
+    openEditorRect,
   ]);
 
   // effect - the editor camera equivalent to the grid camera, for the 2D ->
@@ -388,9 +442,11 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   // effect - tab change: frame the sheets of the new table
 
-  // Pinned: the table changes with the content selection instead (same
-  // re-framing when the sheet set changes).
-  const tableKey = pinned ? scopeSheets.baseMapIds.join(",") : listingId;
+  // Pinned / Dessin: the table changes with the sheet set instead (same
+  // re-framing when it changes).
+  const tableKey = explicitBaseMapIds
+    ? explicitBaseMapIds.join(",")
+    : listingId;
   const framedTableKeyRef = useRef(null);
   useEffect(() => {
     if (!isOpen || !tableKey) return;
@@ -424,16 +480,45 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
       // it when the CLOSED phase lands (set before the transition).
       if (pinned) dispatch(setScopeGridWanted(false));
 
-      const finish = (editorCamera) => {
+      // Editor camera framing the opened sheet in a viewport of `size`.
+      const getOpenedSheetEditorCamera = (sheet, size) => {
+        if (!sheet || !size?.width || !size?.height) return null;
+        const fitted = getEditorCameraForSheetRatio({
+          printZone: sheet.printZone,
+          viewport: {
+            width: size.width - 2 * OPENED_SHEET_PADDING,
+            height: size.height - 2 * OPENED_SHEET_PADDING,
+          },
+          ratio: 1,
+        });
+        if (!fitted) return null;
+        return { k: fitted.k, x: size.width / 2, y: size.height / 2 };
+      };
+
+      const finish = (editorCamera, sheet) => {
         const mapEditor = getActiveMapEditor();
         if (editorCamera) {
           mapEditor?.setCameraMatrix?.(editorCamera);
           // The editor re-fits its camera when its base map changes: re-apply
-          // once it has settled.
+          // once it has settled. The chrome hidden by the grid (docked Dessin
+          // panel, commands toolbar) comes back with the CLOSED phase and
+          // shrinks the editor: the sheet is then framed again in the
+          // viewport it actually gets.
+          const size = mapEditor?.getViewportSize?.();
           requestAnimationFrame(() =>
-            requestAnimationFrame(() =>
-              getActiveMapEditor()?.setCameraMatrix?.(editorCamera)
-            )
+            requestAnimationFrame(() => {
+              const editor = getActiveMapEditor();
+              const sizeNow = editor?.getViewportSize?.();
+              const resized =
+                sizeNow &&
+                size &&
+                (sizeNow.width !== size.width ||
+                  sizeNow.height !== size.height);
+              const camera = resized
+                ? (getOpenedSheetEditorCamera(sheet, sizeNow) ?? editorCamera)
+                : editorCamera;
+              editor?.setCameraMatrix?.(camera);
+            })
           );
         }
         dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.CLOSED));
@@ -450,31 +535,16 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
         const sheet = sheetByIdRef.current[baseMapId];
         const viewport = viewportRef.current;
         const size = viewport?.getViewportSize?.();
-        const fitted =
-          sheet &&
-          size &&
-          getEditorCameraForSheetRatio({
-            printZone: sheet.printZone,
-            viewport: {
-              width: size.width - 2 * OPENED_SHEET_PADDING,
-              height: size.height - 2 * OPENED_SHEET_PADDING,
-            },
-            ratio: 1,
-          });
-        if (!fitted) {
-          finish(null);
+        const editorCamera = getOpenedSheetEditorCamera(sheet, size);
+        if (!editorCamera) {
+          finish(null, sheet);
           return;
         }
-        const editorCamera = {
-          k: fitted.k,
-          x: size.width / 2,
-          y: size.height / 2,
-        };
         dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.CLOSING_ZOOM));
         flyGridCamera(
           editorToGridCamera({ editorCamera, sheet }),
           ZOOM_DURATION_MS,
-          () => finish(editorCamera)
+          () => finish(editorCamera, sheet)
         );
       }, FADE_DURATION_MS);
     },
@@ -681,14 +751,15 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
                     ? undefined
                     : annotationsByBaseMapId[baseMap.id]
                 }
-                // pinned, across folders: the folder under the name
+                // across folders (pinned without a folder, Dessin): the
+                // folder under the name
                 subtitle={
-                  pinned && !listingId
+                  (pinned && !listingId) || dessin
                     ? folderNameById[baseMap.listingId]
                     : undefined
                 }
                 annotationsCount={
-                  scopeFilterActive
+                  countFromSheets
                     ? (annotationsByBaseMapId[baseMap.id]?.length ?? 0)
                     : (annotationsCountByBaseMapId[baseMap.id] ?? 0)
                 }
@@ -728,8 +799,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
         }}
       >
         {/* SCOPE module: no listing tabs, the scope content drives the
-            table. */}
-        {!pinned && (
+            table. Dessin module: no tabs either, every base map lies on
+            the table. */}
+        {!pinned && !dessin && (
           <BaseMapsGridTabs
             listings={listings}
             countByListingId={countByListingId}

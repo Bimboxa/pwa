@@ -6,6 +6,7 @@ import {
   setBaseMapsGridListingId,
   setBaseMapsGridSelectedBaseMapId,
   setBaseMapsGridOpenFitAll,
+  setBaseMapsGridOpenEditorRect,
 } from "../baseMapsGridSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
@@ -50,11 +51,23 @@ export default function useOpenBaseMapsGrid() {
       const { phase } = store.getState().baseMapsGrid;
       if (phase !== BASE_MAPS_GRID_PHASE.CLOSED) return;
 
+      const mapEditor = getActiveMapEditor();
+      // Where the editor viewport stands BEFORE the chrome hidden by the grid
+      // (docked Dessin panel, commands toolbar) leaves: the grid camera is
+      // offset by the move of the viewport at its alignment so the handed-
+      // over sheet stays put on screen (LayerBaseMapsGrid).
+      const rect = mapEditor?.getViewportRect?.();
+
       // no drawing on the editor hidden under the table
       dispatch(setEnabledDrawingMode(null));
       dispatch(setBaseMapsGridListingId(baseMap?.listingId ?? null));
       dispatch(setBaseMapsGridSelectedBaseMapId(baseMap?.id ?? null));
       dispatch(setBaseMapsGridOpenFitAll(fitAll));
+      dispatch(
+        setBaseMapsGridOpenEditorRect(
+          rect ? { left: rect.left, top: rect.top } : null
+        )
+      );
 
       dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_ZOOM));
 
@@ -66,7 +79,6 @@ export default function useOpenBaseMapsGrid() {
         dispatch(setBaseMapsGridPhase(BASE_MAPS_GRID_PHASE.OPENING_FADE));
       };
 
-      const mapEditor = getActiveMapEditor();
       const from = mapEditor?.getCameraMatrix?.();
       const viewport = mapEditor?.getViewportSize?.();
       const to = getEditorCameraForSheetRatio({

@@ -17,10 +17,15 @@ const EMPTY = {};
 // sheets to the listing selected in its panel (useScopeGridAnnotationsFilter).
 // In that module the hidden listings passed below are inert (useAnnotationsV2
 // drops `excludeListingsIds` under SCOPE): the Dessin eyes never narrow it.
+// `direct` (Dessin module grid, selectBaseMapsGridDessin): EVERY annotation
+// drawn on the sheets — the Dessin listing eyes, the template eyes and the
+// solos are ignored (the folders hidden in the scope and the listings
+// disabled in the scope stay out, useAnnotationsV2 applies them always).
 export default function useBaseMapsGridAnnotations({
   baseMapIds,
   forViewerKey,
   ignoreHideAnnotations = false,
+  direct = false,
   filterByListingId,
   annotationIdSet = null,
 }) {
@@ -54,7 +59,9 @@ export default function useBaseMapsGridAnnotations({
       Boolean(firstId) &&
       !hideAnnotations &&
       !(isBaseMapsViewer && !showAnnotationsInBaseMaps),
-    excludeListingsIds: hiddenListingsIds,
+    excludeListingsIds: direct ? undefined : hiddenListingsIds,
+    keepHiddenTemplates: direct,
+    ignoreSolo: direct,
     hideBaseMapAnnotations: openedPanel !== "BASE_MAP_DETAIL",
     filterByBaseMapId: firstId,
     extraBaseMapIds: otherIds,

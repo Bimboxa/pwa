@@ -21,6 +21,7 @@ import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMaps
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
+  getToggleBaseMapAnnotationsIn3dAction,
   getToggleBaseMapImageIn3dAction,
   isBaseMapAnnotationsOnIn3d,
   isBaseMapImageOnIn3d,
@@ -35,7 +36,11 @@ const TOOLTIP_OFFSET_PX = 15;
 // handlers of MainThreedEditor bail while it is open):
 //   - hover: orange outline around the sheet + its name in the tooltip
 //   - click on the eye button (bottom-left): shows / hides the base map image
-//     (same action as the layer icon of the base map chips)
+//     (same action as the image eye of the "Fonds de plan" rows)
+//   - click on the annotations badge (Dessin module, right of the eye):
+//     shows / hides the annotations of the base map (same action as the
+//     badge of the "Fonds de plan" rows — on the table they show greyed
+//     instead of leaving)
 //   - click on the navigation button (bottom-right): leaves the grid around
 //     this sheet — it stays where it is on screen, the other base maps fly
 //     back to their real poses around it
@@ -59,6 +64,8 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
 
   const showImageS = "Afficher l'image dans la vue 3D";
   const hideImageS = "Masquer l'image dans la vue 3D";
+  const showAnnotationsS = "Afficher les annotations";
+  const hideAnnotationsS = "Masquer les annotations";
   const leaveAroundS = "Quitter la grille sur ce fond de plan";
   const addBaseMapS = "Nouveau fond de plan";
 
@@ -146,6 +153,14 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
               baseMapId: hit.baseMapId,
             });
         text = imageOn ? hideImageS : showImageS;
+      } else if (hit.kind === "badge") {
+        const state = store.getState();
+        const annotationsOn = isBaseMapAnnotationsOnIn3d({
+          threedEditor: state.threedEditor,
+          mainBaseMapId: state.mapEditor.selectedBaseMapId,
+          baseMapId: hit.baseMapId,
+        });
+        text = annotationsOn ? hideAnnotationsS : showAnnotationsS;
       }
       if (text) {
         tooltipApi?.setText(
@@ -211,6 +226,17 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
                 mainBaseMapId: store.getState().mapEditor.selectedBaseMapId,
                 baseMapId: hit.baseMapId,
               })
+        );
+        return;
+      }
+      if (hit.kind === "badge") {
+        const state = store.getState();
+        dispatch(
+          getToggleBaseMapAnnotationsIn3dAction({
+            threedEditor: state.threedEditor,
+            mainBaseMapId: state.mapEditor.selectedBaseMapId,
+            baseMapId: hit.baseMapId,
+          })
         );
         return;
       }

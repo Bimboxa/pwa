@@ -80,6 +80,13 @@ export default class BaseMapsGridManager {
     this.closing = false;
     // global "Masquer les fonds de plan" switch (threedEditor.hideBaseMaps)
     this.hideBaseMaps = false;
+    // Dessin module (direct display): a sheet whose image eye is off keeps
+    // its image, greyed (ImagesManager.setBaseMapFaded), instead of an empty
+    // frame; the sheets that do not take part in the scene are textured
+    // with a preview (ImagesManager.ensureBaseMapPreview); each sheet
+    // carries an annotations badge (count pill right of the eye).
+    this.fadeHidden = false;
+    this.showBadge = false;
     // "new base map" frame decorations (see createAddFrameDecorations)
     this.addFrame = null;
 
@@ -108,7 +115,11 @@ export default class BaseMapsGridManager {
   // open / anchor / close
 
   // sheets, addSlot: see buildBaseMapsGrid3dSheets. The groups of the hidden
-  // base maps are created texture-less (ImagesManager.ensureBaseMapGroup).
+  // base maps are created texture-less (ImagesManager.ensureBaseMapGroup) —
+  // textured with a preview when `preview` (Dessin module).
+  // `fadeHidden`: the image of a sheet whose eye is off shows greyed.
+  // `showBadge` + `annotationsOnById` + `countById`: annotations badge of
+  // each sheet (Dessin module).
   // Re-entrant: called again while open (sheet set / positions changed) or
   // while closing, the sheets fly on from where they are.
   // Returns { box, yaw } (extent of the table, for the camera) or null.
@@ -120,11 +131,18 @@ export default class BaseMapsGridManager {
     hideBaseMaps = false,
     animate = true,
     showNav = true,
+    fadeHidden = false,
+    preview = false,
+    showBadge = false,
+    annotationsOnById = {},
+    countById = {},
   }) {
     const imagesManager = this.sceneManager.imagesManager;
     this._cancelFlight();
     this.closing = false;
     this.showNav = showNav;
+    this.fadeHidden = fadeHidden;
+    this.showBadge = showBadge;
 
     const previous = this.sheetsById;
     const wasOpen = this.active;
@@ -133,6 +151,9 @@ export default class BaseMapsGridManager {
     (sheets ?? []).forEach((sheet) => {
       const group = imagesManager.ensureBaseMapGroup(sheet.baseMap);
       if (!group) return;
+      // down-scaled image for the base maps that do not take part in the
+      // scene (no-op on the textured ones)
+      if (preview) imagesManager.ensureBaseMapPreview(sheet.baseMap);
       const previousEntry = previous.get(sheet.id);
       const sameGroup = previousEntry?.group === group;
       previousEntry?.decorations?.dispose();
@@ -145,6 +166,8 @@ export default class BaseMapsGridManager {
         scaleOverride: sameGroup ? previousEntry.scaleOverride : null,
         decorations: null,
         imageOn: Boolean(imageOnById[sheet.id]),
+        annotationsOn: annotationsOnById[sheet.id] !== false,
+        count: countById[sheet.id] ?? 0,
       });
     });
 
@@ -192,7 +215,11 @@ export default class BaseMapsGridManager {
         meterByPx: entry.gridPose.effectiveMeterByPx,
         materials,
         imageOn: entry.imageOn,
+        fadeHidden,
         showNav,
+        showBadge,
+        annotationsOn: entry.annotationsOn,
+        count: entry.count,
       });
       entry.decorations.objects.forEach((object) => entry.group.add(object));
       // the decorations are recreated on a re-entry: restore the selection
@@ -329,6 +356,34 @@ export default class BaseMapsGridManager {
     this.sceneManager.renderScene();
   }
 
+  // { [baseMapId]: bool } — annotations badge of each base map (same state
+  // as the badge of the "Fonds de plan" rows): filled / outlined pill. The
+  // annotations themselves are dimmed by ThreedSelectionDimmer.
+  setAnnotationsOnById(annotationsOnById) {
+    let changed = false;
+    this.sheetsById.forEach((entry, id) => {
+      const on = annotationsOnById?.[id] !== false;
+      if (entry.annotationsOn === on) return;
+      entry.annotationsOn = on;
+      entry.decorations?.setAnnotationsOn(on);
+      changed = true;
+    });
+    if (changed) this.sceneManager.renderScene();
+  }
+
+  // { [baseMapId]: number } — count shown by the annotations badge.
+  setAnnotationsCountById(countById) {
+    let changed = false;
+    this.sheetsById.forEach((entry, id) => {
+      const count = countById?.[id] ?? 0;
+      if (entry.count === count) return;
+      entry.count = count;
+      entry.decorations?.setCount(count);
+      changed = true;
+    });
+    if (changed) this.sceneManager.renderScene();
+  }
+
   // pose hooks (ThreedEditor / ImagesManager)
 
   // A db placement arrived while the sheet is on the table: it becomes the
@@ -349,6 +404,7 @@ export default class BaseMapsGridManager {
     entry.homePose = readPose(group);
     group.visible = true;
     if (this.active && entry.gridPose) applyPose(group, entry.gridPose);
+    this._applyImageVisibility(entry);
   }
 
   // Every base map group is being dropped (scene reload).
@@ -369,11 +425,11 @@ export default class BaseMapsGridManager {
 
   // picking
 
-  // What lies under the pointer: { kind: "eye" | "nav" | "sheet" | "add",
-  // baseMapId } or null — "add" is the "new base map" frame (its button or
-  // its area), baseMapId = ADD_SHEET_ID. The raycaster must be set from the
-  // camera (sprites need it). No visibility filter on purpose: the hit
-  // planes are not rendered.
+  // What lies under the pointer: { kind: "eye" | "badge" | "nav" | "sheet"
+  // | "add", baseMapId } or null — "add" is the "new base map" frame,
+  // baseMapId = ADD_SHEET_ID. The raycaster must be set from the camera
+  // (sprites need it). No visibility filter on purpose: the hit planes are
+  // not rendered.
   pick(raycaster) {
     if (!this.active) return null;
     const buttons = [];
@@ -381,20 +437,22 @@ export default class BaseMapsGridManager {
     this.sheetsById.forEach((entry) => {
       if (!entry.decorations) return;
       buttons.push(entry.decorations.eyeSprite);
+      if (entry.decorations.badgeSprite) {
+        buttons.push(entry.decorations.badgeSprite);
+      }
       if (entry.decorations.navSprite) {
         buttons.push(entry.decorations.navSprite);
       }
       planes.push(entry.decorations.hitPlane);
     });
     if (this.addFrame?.group.visible) {
-      buttons.push(this.addFrame.buttonSprite);
       planes.push(this.addFrame.hitPlane);
     }
     const buttonHit = raycaster.intersectObjects(buttons, false)[0];
     if (buttonHit) {
-      const { baseMapId, gridNavButton, gridAddButton } =
+      const { baseMapId, gridNavButton, gridBadgeButton } =
         buttonHit.object.userData;
-      if (gridAddButton) return { kind: "add", baseMapId };
+      if (gridBadgeButton) return { kind: "badge", baseMapId };
       return { kind: gridNavButton ? "nav" : "eye", baseMapId };
     }
     const planeHit = raycaster.intersectObjects(planes, false)[0];
@@ -510,9 +568,18 @@ export default class BaseMapsGridManager {
     );
   }
 
+  // Eye off: the image is hidden — or, when the table fades the hidden
+  // images (Dessin module), kept and greyed.
   _applyImageVisibility(entry) {
     const meshWrap = entry.group.userData.meshWrap;
-    if (meshWrap) meshWrap.visible = entry.imageOn && !this.hideBaseMaps;
+    if (meshWrap) {
+      meshWrap.visible =
+        (entry.imageOn || this.fadeHidden) && !this.hideBaseMaps;
+    }
+    this.sceneManager.imagesManager.setBaseMapFaded(
+      entry.sheet.id,
+      this.fadeHidden && !entry.imageOn
+    );
   }
 
   // A base map without a scale has a 0-sized image plane. On the table it
@@ -678,12 +745,15 @@ export default class BaseMapsGridManager {
     this._rafId = null;
   }
 
-  // A sheet leaves the table: real pose, recorded visibility, no decoration;
-  // its group is dropped when it never got an image nor annotations.
+  // A sheet leaves the table: real pose, recorded visibility, no decoration,
+  // no grey display, no preview image; its group is dropped when it never
+  // got an image nor annotations.
   _releaseEntry(id, entry) {
     const imagesManager = this.sceneManager.imagesManager;
     entry.decorations?.dispose();
     entry.decorations = null;
+    imagesManager.setBaseMapFaded(id, false);
+    imagesManager.removeBaseMapPreview(id);
     if (!entry.group.parent) return;
     applyPose(entry.group, { ...entry.homePose, scale: 1 });
     entry.group.visible = imagesManager.groupVisibleByBaseMapId[id] ?? true;

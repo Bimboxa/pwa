@@ -109,6 +109,7 @@ import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
 import BaseMapsGridPinnedController from "Features/baseMapsGrid/components/BaseMapsGridPinnedController";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
 import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
 import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
@@ -321,6 +322,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // Base maps grid ("table of plans") covering this editor.
   const baseMapsGridMounted =
     useSelector(selectBaseMapsGridMounted) && isActiveViewer;
+  // Dessin module with its grid displayed: direct display of the table — no
+  // listings popper nor Dessin helpers over it (the docked panel leaves too,
+  // see SectionViewer).
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
   // Selected chip / top-bar eye: hide the baseMap image entirely
   // (annotations only). Every 2D map editor honors the flag except the
   // BaseMaps module, whose editor IS the image.
@@ -3025,6 +3030,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           {!versionCompareEnabled &&
             !imageModeActive &&
             !dessinPanelDocked &&
+            !dessinGridOpen &&
             !viewerPanelDocked &&
             !isPhotosModule &&
             (forViewerKey !== "BASE_MAPS" || !leftPanelDocked) && (
@@ -3041,7 +3047,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 helpers only — listings and the drawing helper live in the
                 panel. The helper content is portaled INTO the panel from here
                 so it keeps this editor's SmartZoomProvider (loupe). */}
-          {dessinPanelDocked && !versionCompareEnabled && !imageModeActive && (
+          {dessinPanelDocked &&
+            !dessinGridOpen &&
+            !versionCompareEnabled &&
+            !imageModeActive && (
             <>
               <FloatingHelpersDessin />
               <PanelDrawingHelperPortal />

@@ -14,8 +14,10 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
+import useDessinGridBaseMapIds from "Features/baseMapsGrid3d/hooks/useDessinGridBaseMapIds";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -102,33 +104,54 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // in the scope panel (useScopeGridAnnotationsFilter).
   const gridPinned = useSelector(selectBaseMapsGridScopeOpen);
   const scopeFilter = useScopeGridAnnotationsFilter();
-  const scopeSheetIds = useSelector((s) => s.baseMapsGrid.scopeSheets.baseMapIds);
+  const scopeSheetIds = useSelector(
+    (s) => s.baseMapsGrid.scopeSheets.baseMapIds
+  );
+  // Dessin module's base maps grid (direct display): every base map of the
+  // scope is a sheet and shows EVERY annotation drawn on it — the Dessin
+  // listing eyes, the template eyes and the solos do not apply; the badge
+  // of a sheet greys its annotations (ThreedSelectionDimmer) instead of
+  // leaving them out. The sheets that do not take part in the scene only
+  // get their group (the table textures them with a preview), never the
+  // full image.
+  const gridDessin = useSelector(selectBaseMapsGridDessinOpen);
+  const dessinSheetIds = useDessinGridBaseMapIds();
   const sheetIdsKey = useMemo(() => {
-    if (!gridPinned) return "";
-    return scopeSheetIds
+    const sheetIds = gridPinned
+      ? scopeSheetIds
+      : gridDessin
+        ? dessinSheetIds
+        : null;
+    if (!sheetIds) return "";
+    return sheetIds
       .filter((id) => id !== mainBaseMap?.id)
       .sort()
       .join(",");
-  }, [gridPinned, scopeSheetIds, mainBaseMap?.id]);
+  }, [gridPinned, gridDessin, scopeSheetIds, dessinSheetIds, mainBaseMap?.id]);
   const extraBaseMapIds = useMemo(() => {
-    if (!gridPinned) return chipExtraBaseMapIds;
-    return [...new Set([...chipExtraBaseMapIds, ...sheetIdsKey.split(",")])]
-      .filter(Boolean);
-  }, [gridPinned, chipExtraBaseMapIds, sheetIdsKey]);
+    if (!sheetIdsKey) return chipExtraBaseMapIds;
+    return [
+      ...new Set([...chipExtraBaseMapIds, ...sheetIdsKey.split(",")]),
+    ].filter(Boolean);
+  }, [chipExtraBaseMapIds, sheetIdsKey]);
   const scopeAnnotationIdSet = gridPinned ? scopeFilter.annotationIdSet : null;
   // badge of the "Fonds de plan" rows: annotations of a sheet switched off
   const hiddenSheetIds = useSelector(
     (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
   );
   const hiddenSheetIdSet = useMemo(
-    () => (gridPinned && hiddenSheetIds.length ? new Set(hiddenSheetIds) : null),
+    () =>
+      gridPinned && hiddenSheetIds.length ? new Set(hiddenSheetIds) : null,
     [gridPinned, hiddenSheetIds]
   );
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
-    enabled: isActiveViewer && !(isBaseMapsModule && !showAnnotationsInBaseMaps),
-    excludeListingsIds: hiddenListingsIds,
+    enabled:
+      isActiveViewer && !(isBaseMapsModule && !showAnnotationsInBaseMaps),
+    excludeListingsIds: gridDessin ? undefined : hiddenListingsIds,
+    keepHiddenTemplates: gridDessin,
+    ignoreSolo: gridDessin,
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
     extraBaseMapIds,
@@ -140,7 +163,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     excludeDimensionsHiddenIn3d: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent.
-    keepSoloDimmed: true,
+    keepSoloDimmed: !gridDessin,
   });
 
   // Leaving the 3D viewer must NOT unload the scene (meshes stay alive while
@@ -264,11 +287,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       out[bm.id] = revolutionSectionSideByBaseMapId?.[bm.id] ?? 1;
     });
     return Object.keys(out).length > 0 ? out : null;
-  }, [
-    annotationsForThreed,
-    baseMaps,
-    revolutionSectionSideByBaseMapId,
-  ]);
+  }, [annotationsForThreed, baseMaps, revolutionSectionSideByBaseMapId]);
   // Serialized form for the build epoch (see getBuildEpochKey).
   const revolutionSectionKey = revolutionSection
     ? Object.entries(revolutionSection)
@@ -295,11 +314,22 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       if (mainBaseMap?.id) {
         threedEditor.ensureBaseMapLoaded(mainBaseMap);
       }
+      const chipExtraIdSet = new Set(chipExtraBaseMapIds);
+      const imagesManager = threedEditor.sceneManager?.imagesManager;
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
+        if (!bm) return;
+        // Dessin grid: a sheet that does not take part in the scene gets
+        // its group / registry entry only (the annotations are built in
+        // it) — the table shows a preview, the full image is never loaded.
+        if (gridDessin && !chipExtraIdSet.has(id) && imagesManager) {
+          imagesManager.ensureBaseMapGroup(bm);
+          imagesManager.baseMapsMap[bm.id] = bm;
+          return;
+        }
         // Pinned grid: every sheet gets its group / registry entry (the
         // annotations are built in it), image or not.
-        if (bm?.image?.imageUrlClient || (gridPinned && bm)) {
+        if (bm.image?.imageUrlClient || (gridPinned && bm)) {
           threedEditor.ensureBaseMapLoaded(bm);
         }
       });
@@ -340,9 +370,11 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     revolutionSectionKey,
     revolutionSectionFill,
     extraBaseMapIds,
+    chipExtraBaseMapIds,
     baseMaps,
     mainBaseMap,
     gridPinned,
+    gridDessin,
   ]);
 
   return annotationsForThreed;

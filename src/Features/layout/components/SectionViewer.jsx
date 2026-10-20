@@ -41,6 +41,7 @@ import {
   selectEffectiveViewerKey,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 
 import { Box } from "@mui/material";
 
@@ -93,6 +94,10 @@ export default function SectionViewer() {
   // PopperMapListings. The sheets of the grid follow that content selection
   // (ScopeGridSheetsController).
   const isScopeModule = viewerKey === "SCOPE";
+  // Dessin module with its base maps grid displayed (2D layer or 3D table):
+  // the direct display of the table takes the whole editors area — the
+  // docked Dessin panel leaves with the other chrome.
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
 
   // Unified commands toolbar (Features/commandsToolbar): docked TOP / BOTTOM /
   // LEFT it is an in-flow strip of the editors area — the editors shrink —
@@ -130,8 +135,9 @@ export default function SectionViewer() {
           the module (the module key is unchanged when the 2D/3D toggle swaps
           the displayed editor). The outer guard is load-bearing — in docked
           mode LeftDrawerPanel renders its fixed-width box without checking
-          viewerKey. */}
-      {viewerKey === "MAP" && (
+          viewerKey. Hidden while the module's base maps grid covers the
+          editor (selectBaseMapsGridDessinOpen). */}
+      {viewerKey === "MAP" && !dessinGridOpen && (
         <LeftDrawerPanel width={360} viewerKey="MAP">
           <PanelDrawing />
         </LeftDrawerPanel>

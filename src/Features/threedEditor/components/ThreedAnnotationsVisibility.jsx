@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
+
 // Applies the annotation hide toggles to every annotation 3D object:
 //   - global "Masquer les annotations" (threedEditor.hideAnnotationsIn3d,
 //     set from the Maillage panel),
 //   - main-basemap "Masquer les annotations" (hideMainBaseMapAnnotationsIn3d,
 //     set from the base maps list / top bar selector). Non-main basemaps
 //     don't need this path — their annotations are simply not loaded when
-//     their mode is NONE.
+//     their mode is NONE. Suspended while the Dessin module's base maps
+//     grid is displayed: on the table the badge greys the annotations
+//     (ThreedSelectionDimmer) instead of hiding them.
 // Lives as a child of MainThreedEditor so selection/toggle re-renders don't
 // re-render the parent (which would re-fire useAutoLoadAnnotationsInThreedEditor
 // — same trap as ThreedSelectionDimmer).
@@ -23,9 +27,14 @@ export default function ThreedAnnotationsVisibility({ threedEditorRef }) {
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
 
   const hideRef = useRef();
-  hideRef.current = { hideAnnotations, hideMainAnnotations, mainBaseMapId };
+  hideRef.current = {
+    hideAnnotations,
+    hideMainAnnotations: hideMainAnnotations && !dessinGridOpen,
+    mainBaseMapId,
+  };
 
   const applyToId = useCallback(
     (id) => {
@@ -53,6 +62,7 @@ export default function ThreedAnnotationsVisibility({ threedEditorRef }) {
     hideAnnotations,
     hideMainAnnotations,
     mainBaseMapId,
+    dessinGridOpen,
     applyToId,
     threedEditorRef,
   ]);
