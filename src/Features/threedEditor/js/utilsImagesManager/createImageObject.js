@@ -98,15 +98,148 @@ export default function createImageObject(image) {
   return { group, ready };
 }
 
+// The full-resolution basemap mesh of a group's meshWrap (not a preview).
+function getBaseMapMesh(meshWrap) {
+  return meshWrap?.children.find(
+    (c) => c.userData?.isBasemap && !c.userData?.isBasemapPreview
+  );
+}
+
+// Drops the preview mesh(es) of a group's meshWrap (3D base maps grid, see
+// ImagesManager.ensureBaseMapPreview). The preview texture is NOT disposed:
+// ImagesManager caches it for the next opening of the table.
+export function removeBaseMapPreviewMesh(group) {
+  const meshWrap = group?.userData?.meshWrap;
+  if (!meshWrap) return false;
+  const previews = meshWrap.children.filter(
+    (c) => c.userData?.isBasemapPreview
+  );
+  previews.forEach((mesh) => {
+    meshWrap.remove(mesh);
+    mesh.geometry?.dispose?.();
+    mesh.material?.dispose?.();
+  });
+  delete group.userData.previewSignature;
+  return previews.length > 0;
+}
+
+// Material of a basemap plane (full image or preview).
+//
+// Render the basemap as a background plate that loses every depth contest
+// it enters, so any annotation in front of it occludes it correctly.
+//
+// - renderOrder=-1 (set on the mesh): drawn first within its render queue.
+// - transparent=true (always): the basemap stays in the transparent queue
+//   regardless of its opacity, so the live-sync hook can drag opacity
+//   continuously from 0 to 1 without ever swapping render queues. At
+//   opacity=1 the blending is `src*1 + dst*0 = src`, identical visually
+//   to a non-blended draw — no discontinuity at the slider boundary.
+// - depthTest=true + polygonOffset: the basemap is drawn AFTER opaque
+//   annotations. Without depthTest it would paint over them (original
+//   bug). With depthTest alone the basemap z-fights with the GridHelper
+//   at y=0 and a white floorplan turns invisible. polygonOffset pushes
+//   the basemap's depth slightly back so grid lines and any coplanar
+//   annotation win the depth contest cleanly.
+// - depthWrite=(opacity===1): only when fully opaque does the basemap
+//   update the depth buffer, so later transparent draws — annotation edge
+//   lines, dimmed annotations — that sit behind it fail their depth test
+//   and don't leak through. As soon as the user drags the slider below
+//   1, depthWrite turns off so things behind a translucent basemap can
+//   blend through normally; otherwise the basemap would always occlude
+//   transparent annotations behind it, even at low slider values.
+//   polygonOffset still keeps the basemap behind coplanar geometry
+//   (grid, flush annotations).
+// - toneMapped=false: the realistic modes use ACES tone mapping, which
+//   compresses pure white to a light gray. The basemap is an unlit
+//   document, not part of the lit scene — bypass tone mapping so the
+//   floorplan stays paper-white in every render mode.
+// - uDesaturate (material.userData, 0..1): grey display of the image (3D
+//   base maps grid of the Dessin module, image eye off — ImagesManager
+//   .applyBaseMapOpacity drives it with the faded opacity). A luminance
+//   mix in the fragment shader, driven by a uniform: one program shared by
+//   every basemap (customProgramCacheKey), nothing recompiles on toggle.
+//
+// The material is born fully opaque: attachBaseMapMesh runs AFTER an await,
+// so it can't know the current slider value. ImagesManager owns the desired
+// opacity and pushes it (opacity + depthWrite) in the `.then()` that
+// follows the attach, before the first draw.
+export function createBaseMapMaterial(texture) {
+  const material = new MeshBasicMaterial({
+    map: texture,
+    side: DoubleSide,
+    depthWrite: true,
+    depthTest: true,
+    transparent: true,
+    opacity: 1,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 4,
+  });
+  material.userData.uDesaturate = { value: 0 };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uDesaturate = material.userData.uDesaturate;
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nuniform float uDesaturate;"
+      )
+      .replace(
+        "#include <map_fragment>",
+        [
+          "#include <map_fragment>",
+          "diffuseColor.rgb = mix(",
+          "  diffuseColor.rgb,",
+          "  vec3(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114))),",
+          "  uDesaturate",
+          ");",
+        ].join("\n")
+      );
+  };
+  material.customProgramCacheKey = () => "basemap-desaturate";
+  return material;
+}
+
+function createBaseMapMesh(texture, geometry) {
+  const mesh = new Mesh(geometry, createBaseMapMaterial(texture));
+  mesh.renderOrder = -1;
+  // Tag consumed by opacity controls, raycast filters and the PHOTOREAL
+  // shadow catchers (RenderModeManager overlays a coplanar ShadowMaterial
+  // child on every mesh carrying this flag).
+  mesh.userData.isBasemap = true;
+  return mesh;
+}
+
+// Low-resolution stand-in of the basemap mesh (3D base maps grid of the
+// Dessin module: a sheet whose base map does not take part in the scene
+// shows a preview texture instead of loading the full image). Same plane,
+// same material contract as the full mesh, tagged `isBasemapPreview`: the
+// full mesh replaces it when it lands (attachBaseMapMesh), the grid drops
+// it when the sheet is released (removeBaseMapPreviewMesh).
+export function attachBaseMapPreviewMesh(group, texture, signature) {
+  const meshWrap = group.userData.meshWrap;
+  if (!meshWrap) return null;
+  const plane = buildBaseMapPlaneGeometry({
+    ...group.userData.planePx,
+    meterByPx: group.userData.meterByPx,
+  });
+  const mesh = createBaseMapMesh(texture, plane);
+  mesh.userData.isBasemapPreview = true;
+  mesh.userData.previewSignature = signature;
+  meshWrap.add(mesh);
+  return mesh;
+}
+
 // Load the texture and attach the basemap mesh into an existing group's
 // meshWrap. Split from createImageObject so a group whose texture load failed
 // (blob URL not ready yet after a Krto import) or whose image changed (active
 // version switch) can be repaired in place — annotations already attached to
-// the group are untouched.
+// the group are untouched. A preview mesh (3D base maps grid) gives way to
+// the full mesh.
 export async function attachBaseMapMesh(group, image) {
   const meshWrap = group.userData.meshWrap;
   if (!meshWrap) return;
-  if (meshWrap.children.some((c) => c.userData?.isBasemap)) return;
+  if (getBaseMapMesh(meshWrap)) return;
 
   // Refresh the pixel-space placement stash — a repair or a version switch
   // carries fresher data than the group's creation.
@@ -124,62 +257,17 @@ export async function attachBaseMapMesh(group, image) {
   group.userData.meterByPx = meterByPx;
 
   const texture = await getTextureAsync(image.url);
+  // a full mesh attached meanwhile (concurrent repair) wins
+  if (getBaseMapMesh(meshWrap)) {
+    texture.dispose();
+    return;
+  }
   const plane = buildBaseMapPlaneGeometry({
     ...group.userData.planePx,
     meterByPx,
   });
 
-  // Render the basemap as a background plate that loses every depth contest
-  // it enters, so any annotation in front of it occludes it correctly.
-  //
-  // - renderOrder=-1: drawn first within its render queue.
-  // - transparent=true (always): the basemap stays in the transparent queue
-  //   regardless of its opacity, so the live-sync hook can drag opacity
-  //   continuously from 0 to 1 without ever swapping render queues. At
-  //   opacity=1 the blending is `src*1 + dst*0 = src`, identical visually
-  //   to a non-blended draw — no discontinuity at the slider boundary.
-  // - depthTest=true + polygonOffset: the basemap is drawn AFTER opaque
-  //   annotations. Without depthTest it would paint over them (original
-  //   bug). With depthTest alone the basemap z-fights with the GridHelper
-  //   at y=0 and a white floorplan turns invisible. polygonOffset pushes
-  //   the basemap's depth slightly back so grid lines and any coplanar
-  //   annotation win the depth contest cleanly.
-  // - depthWrite=(opacity===1): only when fully opaque does the basemap
-  //   update the depth buffer, so later transparent draws — annotation edge
-  //   lines, dimmed annotations — that sit behind it fail their depth test
-  //   and don't leak through. As soon as the user drags the slider below
-  //   1, depthWrite turns off so things behind a translucent basemap can
-  //   blend through normally; otherwise the basemap would always occlude
-  //   transparent annotations behind it, even at low slider values.
-  //   polygonOffset still keeps the basemap behind coplanar geometry
-  //   (grid, flush annotations).
-  // - toneMapped=false: the realistic modes use ACES tone mapping, which
-  //   compresses pure white to a light gray. The basemap is an unlit
-  //   document, not part of the lit scene — bypass tone mapping so the
-  //   floorplan stays paper-white in every render mode.
-  //
-  // The material is born fully opaque: this function runs AFTER an await, so
-  // it can't know the current slider value. ImagesManager owns the desired
-  // opacity and pushes it (opacity + depthWrite) in the `.then()` that
-  // follows this attach, before the first draw.
-  const material = new MeshBasicMaterial({
-    map: texture,
-    side: DoubleSide,
-    depthWrite: true,
-    depthTest: true,
-    transparent: true,
-    opacity: 1,
-    toneMapped: false,
-    polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 4,
-  });
-
-  const mesh = new Mesh(plane, material);
-  mesh.renderOrder = -1;
-  // Tag consumed by opacity controls, raycast filters and the PHOTOREAL
-  // shadow catchers (RenderModeManager overlays a coplanar ShadowMaterial
-  // child on every mesh carrying this flag).
-  mesh.userData.isBasemap = true;
-  meshWrap.add(mesh);
+  // The full image replaces the preview of the table (if any).
+  removeBaseMapPreviewMesh(group);
+  meshWrap.add(createBaseMapMesh(texture, plane));
 }

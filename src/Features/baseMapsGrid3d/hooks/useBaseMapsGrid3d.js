@@ -6,16 +6,23 @@ import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSli
 import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 import { waitForViewerSwitch } from "Features/viewers/services/syncCamerasOnViewerSwitch";
 import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
+import selectBaseMapsGridDessin from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 import selectCanOpenBaseMapsGrid3d from "../utils/selectCanOpenBaseMapsGrid3d";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useDessinGridBaseMapIds from "./useDessinGridBaseMapIds";
 import { readBaseMapsGridPositions } from "Features/baseMapsGrid/hooks/useBaseMapsGridLayout";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import buildBaseMapsGrid3dSheets from "../utils/buildBaseMapsGrid3dSheets";
-import { isBaseMapImageOnIn3d } from "../utils/baseMapImageEyeIn3d";
+import {
+  isBaseMapAnnotationsOnIn3d,
+  isBaseMapImageOnIn3d,
+} from "../utils/baseMapImageEyeIn3d";
 import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideBaseMapImagesIn3d";
+
+const EMPTY_COUNTS = {};
 
 function getManager() {
   return getActiveThreedEditor()?.sceneManager?.baseMapsGridManager ?? null;
@@ -35,8 +42,17 @@ function getManager() {
 //   - pinned (SCOPE module, selectBaseMapsGridPinned): the grid is the
 //     module's editor — re-opened whenever a reducer closes it, no nav
 //     sprite, the selected sheet (baseMapsGrid.selectedBaseMapId) outlined.
+//   - Dessin module (selectBaseMapsGridDessin): direct display — every base
+//     map of the scope on the table (preview images for the ones that do
+//     not take part in the scene), the image of a sheet whose eye is off
+//     greyed instead of removed, an annotations badge (count, same state
+//     as the "Fonds de plan" rows) next to the eye of each sheet. The "+"
+//     frame creates in the folder of the main base map.
 // Mounted once (BaseMapsGrid3dController) while a 3D editor is displayed.
-export default function useBaseMapsGrid3d() {
+// `countByBaseMapId`: annotations built in the scene per base map (badges).
+export default function useBaseMapsGrid3d({
+  countByBaseMapId = EMPTY_COUNTS,
+} = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -49,6 +65,8 @@ export default function useBaseMapsGrid3d() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const pinned = useSelector(selectBaseMapsGridPinned);
+  const dessin = useSelector(selectBaseMapsGridDessin);
+  const dessinIds = useDessinGridBaseMapIds();
   const canOpen = useSelector(selectCanOpenBaseMapsGrid3d);
   const selectedBaseMapId = useSelector(
     (s) => s.baseMapsGrid.selectedBaseMapId
@@ -67,6 +85,13 @@ export default function useBaseMapsGrid3d() {
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
+  // annotations badges (Dessin)
+  const hideMainAnnotations = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
+  );
+  const annotationsModeByBaseMapId = useSelector(
+    (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
+  );
   // 3D "Masquer les fonds de plan" switch OR global image mode NONE
   const hideBaseMaps = useSelector(selectHideBaseMapImagesIn3d);
 
@@ -82,6 +107,9 @@ export default function useBaseMapsGrid3d() {
 
   const baseMapsRef = useRef(baseMaps);
   baseMapsRef.current = baseMaps;
+  // badges of the sheets at the opening (kept current by its own effect)
+  const countByBaseMapIdRef = useRef(countByBaseMapId);
+  countByBaseMapIdRef.current = countByBaseMapId;
   // the camera goes over the table once per opening, not on a re-entry
   const cameraFittedRef = useRef(false);
 
@@ -91,11 +119,22 @@ export default function useBaseMapsGrid3d() {
   const listingId = pinned
     ? scopeSheets.addListingId
     : (mainBaseMap?.listingId ?? null);
-  const scopeIdSet = pinned ? new Set(scopeSheets.baseMapIds) : null;
-  // what makes the table: the sheets of the listing, their frames and scales
+  // explicit sheet set: the scope selection (pinned), every base map of the
+  // scope (Dessin); the main base map's listing otherwise
+  const explicitIds = pinned
+    ? scopeSheets.baseMapIds
+    : dessin
+      ? dessinIds
+      : null;
+  const explicitIdSet = explicitIds ? new Set(explicitIds) : null;
+  // the "+" frame: a listing to create in (pinned: a selected folder only)
+  const withAddSlot = pinned || dessin ? Boolean(listingId) : true;
+  // what makes the table: the sheets, their frames and scales
   const sheetsKey = (baseMaps ?? [])
     .filter((baseMap) =>
-      scopeIdSet ? scopeIdSet.has(baseMap.id) : baseMap.listingId === listingId
+      explicitIdSet
+        ? explicitIdSet.has(baseMap.id)
+        : baseMap.listingId === listingId
     )
     .map((baseMap) => {
       const zone = baseMap.getPrintZone?.();
@@ -116,7 +155,7 @@ export default function useBaseMapsGrid3d() {
     buildBaseMapsGrid3dSheets({
       baseMaps,
       listingId,
-      baseMapIds: pinned ? scopeSheets.baseMapIds : undefined,
+      baseMapIds: explicitIds ?? undefined,
       positions: {},
     }).sheets.length > 0;
 
@@ -131,6 +170,20 @@ export default function useBaseMapsGrid3d() {
             mainBaseMapId: state.mapEditor.selectedBaseMapId,
             baseMapId,
           });
+    });
+    return result;
+  }
+
+  // Dessin: the annotations badge of each sheet (3D badge of the rows).
+  function getAnnotationsOnById(sheetIds) {
+    const state = store.getState();
+    const result = {};
+    sheetIds.forEach((baseMapId) => {
+      result[baseMapId] = isBaseMapAnnotationsOnIn3d({
+        threedEditor: state.threedEditor,
+        mainBaseMapId: state.mapEditor.selectedBaseMapId,
+        baseMapId,
+      });
     });
     return result;
   }
@@ -187,17 +240,23 @@ export default function useBaseMapsGrid3d() {
     const { sheets, addSlot } = buildBaseMapsGrid3dSheets({
       baseMaps: baseMapsRef.current,
       listingId,
-      baseMapIds: pinned ? scopeSheets.baseMapIds : undefined,
-      // pinned: the "+" frame only with a selected folder
-      withAddSlot: !pinned || Boolean(listingId),
+      baseMapIds: explicitIds ?? undefined,
+      withAddSlot,
       positions: readBaseMapsGridPositions(projectId),
     });
+    const sheetIds = sheets.map((s) => s.id);
     const result = manager.open({
       sheets,
       addSlot,
       anchorBaseMapId: mainBaseMapId,
-      imageOnById: getImageOnById(sheets.map((s) => s.id)),
+      imageOnById: getImageOnById(sheetIds),
       hideBaseMaps: selectHideBaseMapImagesIn3d(store.getState()),
+      // Dessin: direct display (see the header comment)
+      fadeHidden: dessin,
+      preview: dessin,
+      showBadge: dessin,
+      annotationsOnById: dessin ? getAnnotationsOnById(sheetIds) : {},
+      countById: countByBaseMapIdRef.current,
     });
     if (!result) {
       // nothing to lay on the table
@@ -213,25 +272,31 @@ export default function useBaseMapsGrid3d() {
     // map, main base map off the table...), the top-down fit always runs.
     if (!cameraFittedRef.current) {
       cameraFittedRef.current = true;
-      const controlsManager = editor.sceneManager.controlsManager;
+      const sceneManager = editor.sceneManager;
+      const controlsManager = sceneManager.controlsManager;
       const { box, yaw } = result;
       // Top-down over the table, the sheets upright on screen (azimuth = the
       // table's yaw), while the sheets fly. After the 2D -> 3D switch
       // animation when the grid opens on a T toggle (SCOPE module): its
-      // dolly-zoom would fight the fit.
+      // dolly-zoom would fight the fit. The editor chrome hidden by the grid
+      // (Dessin module) leaves in the same commit: the canvas is re-synced
+      // to its container before the camera frames the table.
       waitForViewerSwitch()
         .then(() => {
           if (!manager.isActive()) return null;
+          sceneManager.ensureSizeSynced?.();
           return controlsManager?.animateToTopDown?.({
             target: box.getCenter(box.min.clone()),
             azimuthRad: yaw,
           });
         })
         .then(() => {
-          if (manager.isActive()) controlsManager?.fitToBox3(box);
+          if (!manager.isActive()) return;
+          sceneManager.ensureSizeSynced?.();
+          controlsManager?.fitToBox3(box);
         });
     }
-  }, [active, sheetsKey, listingId, projectId, sceneEpoch, pinned]);
+  }, [active, sheetsKey, listingId, projectId, sceneEpoch, pinned, dessin]);
 
   // effects - pinned grid: selected sheet outline
 
@@ -259,6 +324,31 @@ export default function useBaseMapsGrid3d() {
       hideBaseMaps,
     });
   }, [active, imageEyesKey]);
+
+  // effects - Dessin: annotations badges (state + count) of the sheets
+
+  const annotationsBadgesKey = dessin
+    ? [
+        hideMainAnnotations,
+        mainBaseMapId,
+        Object.entries(annotationsModeByBaseMapId ?? {})
+          .map(([id, mode]) => `${id}:${mode}`)
+          .join(","),
+      ].join("|")
+    : "";
+  useEffect(() => {
+    const manager = getManager();
+    if (!active || !dessin || !manager?.isActive()) return;
+    manager.setAnnotationsOnById(
+      getAnnotationsOnById([...manager.sheetsById.keys()])
+    );
+  }, [active, dessin, annotationsBadgesKey]);
+
+  useEffect(() => {
+    const manager = getManager();
+    if (!active || !dessin || !manager?.isActive()) return;
+    manager.setAnnotationsCountById(countByBaseMapId);
+  }, [active, dessin, countByBaseMapId]);
 
   // effects - a capture framing never snapshots the table
 

@@ -24,6 +24,7 @@ import {
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 
 import theme from "Styles/theme";
 
@@ -384,6 +385,9 @@ export default function ToolbarStartDrawTemplate() {
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
   const detailView = useSelector((s) => s.panelDrawing.detailView);
+  // The base maps grid covers the editor: no pre-draw toolbar (and none of
+  // its captured tool letters) over the table.
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
 
   const annotationTemplates = useAnnotationTemplates();
 
@@ -393,6 +397,7 @@ export default function ToolbarStartDrawTemplate() {
     isDessinModule &&
     !isThreedEditor &&
     leftPanelDocked &&
+    !dessinGridOpen &&
     !enabledDrawingMode &&
     !pasteClipboard &&
     // Both template-level subviews: properties (the landing view on row

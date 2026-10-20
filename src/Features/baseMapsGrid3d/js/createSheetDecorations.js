@@ -4,6 +4,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 
 import createIconSprite, { ICON_PATHS } from "../services/createIconSprite";
 import createLabelSprite from "../services/createLabelSprite";
+import createTextButtonSprite from "../services/createTextButtonSprite";
 import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 
 // Decorations of one sheet of the 3D base maps grid. They are CHILDREN of the
@@ -12,9 +13,14 @@ import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 //     / selected — hover wins)
 //   - hitPlane: invisible plane over the print zone — hover / click target,
 //     also for the sheets that have no image mesh
-//   - label: base map name in the middle, shown while the image is hidden
+//   - label: base map name in the middle, shown while the image is not
+//     rendered (eye off — unless the table fades the image instead,
+//     `fadeHidden`)
 //   - eye: round button at the bottom-left, the image eye of the base map
-//     (same state as the layer icon of the base map chips)
+//     (same state as the image eye of the "Fonds de plan" rows)
+//   - badge (Dessin module, `showBadge`): annotations count pill right of
+//     the eye, the annotations badge of the "Fonds de plan" rows (filled
+//     when the annotations are shown, outlined when they are off)
 //   - nav: round button at the bottom-right, leaves the grid around this
 //     sheet (it stays where it is on screen) — left out when the grid is
 //     pinned (`showNav` false: nothing to leave)
@@ -27,6 +33,20 @@ const LABEL_MAX_HEIGHT_RATIO = 0.09;
 // buttons inset from the bottom corners, share of the smaller side
 const BUTTON_INSET_RATIO = 0.06;
 const BUTTON_CSS_SIZE = 28;
+// badge: right of the eye (share of the inset), smaller than the buttons
+const BADGE_OFFSET_RATIO = 2.4;
+const BADGE_CSS_HEIGHT = 22;
+// badge colours = the annotations badge of RowBaseMapInList
+const BADGE_STYLE_ON = {
+  color: "#ffffff",
+  background: "#e85426", // theme secondary.main
+  border: "rgba(0,0,0,0)",
+};
+const BADGE_STYLE_OFF = {
+  color: "#9e9e9e", // theme text.disabled
+  background: "#ffffff",
+  border: "rgba(0,0,0,0.25)",
+};
 
 // sheet: see buildBaseMapsGrid3dSheets. meterByPx: the EFFECTIVE scale of the
 // sheet (see computeBaseMapsGrid3dPoses). materials: { idle, hover,
@@ -36,7 +56,11 @@ export default function createSheetDecorations({
   meterByPx,
   materials,
   imageOn,
+  fadeHidden = false,
   showNav = true,
+  showBadge = false,
+  annotationsOn = true,
+  count = 0,
 }) {
   const [topLeft, topRight, , bottomLeft] = getSheetLocalCorners(
     sheet,
@@ -101,7 +125,9 @@ export default function createSheetDecorations({
   label.sprite.renderOrder = 1002;
   label.sprite.raycast = () => {};
   label.sprite.userData = { ...userData };
-  label.sprite.visible = !imageOn;
+  // the name reads over the empty frame only
+  const isImageShown = (on) => on || fadeHidden;
+  label.sprite.visible = !isImageShown(imageOn);
 
   // eye button
   const eye = createIconSprite({
@@ -112,6 +138,25 @@ export default function createSheetDecorations({
   eye.sprite.position.set(bottomLeft.x + inset, bottomLeft.y + inset, 0);
   eye.sprite.renderOrder = 1004;
   eye.sprite.userData = { ...userData, gridEyeButton: true };
+
+  // annotations badge (count pill)
+  const badge = showBadge
+    ? createTextButtonSprite({
+        text: String(count),
+        cssHeight: BADGE_CSS_HEIGHT,
+        ...(annotationsOn ? BADGE_STYLE_ON : BADGE_STYLE_OFF),
+        compensateParentScale: true,
+      })
+    : null;
+  if (badge) {
+    badge.sprite.position.set(
+      bottomLeft.x + inset * BADGE_OFFSET_RATIO,
+      bottomLeft.y + inset,
+      0
+    );
+    badge.sprite.renderOrder = 1004;
+    badge.sprite.userData = { ...userData, gridBadgeButton: true };
+  }
 
   // navigation button
   const nav = showNav
@@ -127,6 +172,7 @@ export default function createSheetDecorations({
   }
 
   const objects = [outline, hitPlane, label.sprite, eye.sprite];
+  if (badge) objects.push(badge.sprite);
   if (nav) objects.push(nav.sprite);
 
   // outline state: hover > selected > idle
@@ -144,6 +190,7 @@ export default function createSheetDecorations({
     objects,
     hitPlane,
     eyeSprite: eye.sprite,
+    badgeSprite: badge?.sprite ?? null,
     navSprite: nav?.sprite ?? null,
     setHovered: (value) => {
       hovered = Boolean(value);
@@ -154,8 +201,14 @@ export default function createSheetDecorations({
       applyOutline();
     },
     setImageOn: (visible) => {
-      label.sprite.visible = !visible;
+      label.sprite.visible = !isImageShown(visible);
       eye.setIcon(visible ? ICON_PATHS.VISIBILITY : ICON_PATHS.VISIBILITY_OFF);
+    },
+    setAnnotationsOn: (on) => {
+      badge?.setStyle(on ? BADGE_STYLE_ON : BADGE_STYLE_OFF);
+    },
+    setCount: (value) => {
+      badge?.setText(String(value ?? 0));
     },
     dispose: () => {
       objects.forEach((object) => object.parent?.remove(object));
@@ -164,6 +217,7 @@ export default function createSheetDecorations({
       hitMaterial.dispose();
       label.dispose();
       eye.dispose();
+      badge?.dispose();
       nav?.dispose();
     },
   };

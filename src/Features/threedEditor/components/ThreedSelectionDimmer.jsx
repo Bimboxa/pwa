@@ -3,6 +3,8 @@ import { useSelector } from "react-redux";
 
 import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
+import { isBaseMapAnnotationsOnIn3d } from "Features/baseMapsGrid3d/utils/baseMapImageEyeIn3d";
 import applyAnnotationMaterialState, {
   STATE_DIM,
   STATE_NONE,
@@ -19,6 +21,11 @@ import applyAnnotationMaterialState, {
 //   - in selection                             → STATE_NONE  (original)
 //   - hovered (and not selected)               → STATE_NONE  (original — the
 //     hover highlight is the face-level stipple overlay, not a recolor)
+//   - Dessin module's base maps grid displayed: badge of the base map off
+//     (hideMainBaseMapAnnotationsIn3d / mode NONE)
+//                                              → STATE_DIM   (greyed on the
+//     table instead of absent — the display filters are ignored there,
+//     only the selection dims the rest)
 //   - dimmed by solo (not in the soloed set)   → STATE_DIM   (grey, translucent)
 //   - selection non-empty (and not selected)   → STATE_DIM   (grey, opacity 0.6)
 //     — except while the vertex offset mode is active (snap targets)
@@ -37,6 +44,16 @@ export default function ThreedSelectionDimmer({
   );
   const mainBaseMap = useMainBaseMap();
   const mainBaseMapId = mainBaseMap?.id ?? null;
+  // Dessin module's base maps grid: the annotations badge of a sheet greys
+  // its annotations (main base map: hideMainBaseMapAnnotationsIn3d).
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
+  const hideMainAnnotations = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
+  );
+  const dessinGridOpenRef = useRef(dessinGridOpen);
+  dessinGridOpenRef.current = dessinGridOpen;
+  const hideMainAnnotationsRef = useRef(hideMainAnnotations);
+  hideMainAnnotationsRef.current = hideMainAnnotations;
   // Bumped after every annotations load (useAutoLoadAnnotationsInThreedEditor):
   // a solo toggle rebuilds the annotations it leaves out (`soloDimmed`).
   const annotationsLoadTick = useSelector(
@@ -96,7 +113,20 @@ export default function ThreedSelectionDimmer({
       let state;
       if (selectedIds.includes(id)) state = STATE_NONE;
       else if (id === hoveredId) state = STATE_NONE;
-      else if (!isMain && mode === "DIMMED") state = STATE_DIM;
+      else if (dessinGridOpenRef.current) {
+        const badgeOn = isBaseMapAnnotationsOnIn3d({
+          threedEditor: {
+            hideMainBaseMapAnnotationsIn3d: hideMainAnnotationsRef.current,
+            annotationsModeByBaseMapIdIn3d: annotationsModeRef.current,
+          },
+          mainBaseMapId: mainBaseMapIdRef.current,
+          baseMapId: bmId,
+        });
+        if (!badgeOn) state = STATE_DIM;
+        else if (hasSelectionRef.current && !vertexOffsetActiveRef.current)
+          state = STATE_DIM;
+        else state = STATE_NONE;
+      } else if (!isMain && mode === "DIMMED") state = STATE_DIM;
       else if (isSoloDimmed) state = STATE_DIM;
       else if (hasSelectionRef.current && !vertexOffsetActiveRef.current)
         state = STATE_DIM;
@@ -125,6 +155,8 @@ export default function ThreedSelectionDimmer({
     mainBaseMapId,
     annotationsLoadTick,
     vertexOffsetActive,
+    dessinGridOpen,
+    hideMainAnnotations,
     computeAndApply,
     threedEditorRef,
   ]);

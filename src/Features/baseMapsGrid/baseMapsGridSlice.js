@@ -13,6 +13,13 @@ const initialState = {
   // than on the main base map's sheet (SCOPE module landing, see
   // useOpenBaseMapsGrid / LayerBaseMapsGrid). Reset once consumed / closed.
   openFitAll: false,
+  // Screen rect ({ left, top }) of the editor viewport when the opening
+  // started, BEFORE the chrome hidden by the grid (docked Dessin panel,
+  // commands toolbar) leaves and moves / resizes the editor: the grid
+  // camera aligned on the editor camera compensates the offset so the
+  // handed-over sheet does not jump on screen (LayerBaseMapsGrid). Reset on
+  // close.
+  openEditorRect: null,
   // Pinned grid (SCOPE module): the sheets follow the content selection of
   // the scope panel instead of a base maps listing tab — the base maps of
   // the selected folder, or every base map carrying an annotation of the
@@ -44,6 +51,7 @@ const closeGrid = (state) => {
   state.phase = BASE_MAPS_GRID_PHASE.CLOSED;
   state.selectedBaseMapId = null;
   state.openFitAll = false;
+  state.openEditorRect = null;
 };
 
 export const baseMapsGridSlice = createSlice({
@@ -62,6 +70,13 @@ export const baseMapsGridSlice = createSlice({
     },
     setBaseMapsGridOpenFitAll: (state, action) => {
       state.openFitAll = Boolean(action.payload);
+    },
+    setBaseMapsGridOpenEditorRect: (state, action) => {
+      const rect = action.payload;
+      state.openEditorRect =
+        rect && Number.isFinite(rect.left) && Number.isFinite(rect.top)
+          ? { left: rect.left, top: rect.top }
+          : null;
     },
     setScopeGridWanted: (state, action) => {
       state.scopeGridWanted = Boolean(action.payload);
@@ -135,6 +150,7 @@ export const {
   setBaseMapsGridScopeSheets,
   setScopeGridWanted,
   setBaseMapsGridOpenFitAll,
+  setBaseMapsGridOpenEditorRect,
   toggleBaseMapsGridImageHidden,
   toggleBaseMapsGridAnnotationsHidden,
   resetBaseMapsGridSheetFilters,

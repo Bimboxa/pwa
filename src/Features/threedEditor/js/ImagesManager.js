@@ -1,9 +1,13 @@
 import createImageObject, {
   attachBaseMapMesh,
+  attachBaseMapPreviewMesh,
   buildBaseMapPlaneGeometry,
   createBaseMapGroup,
+  removeBaseMapPreviewMesh,
 } from "./utilsImagesManager/createImageObject";
 import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
+import getPreviewTextureAsync from "./utilsImagesManager/getPreviewTextureAsync";
+import { FADED_IMAGE_OPACITY } from "Features/baseMaps/constants/baseMapsImageMode";
 import attachScene3dToBaseMapGroup, {
   getScene3dGroupKey,
 } from "./utilsImagesManager/attachScene3dToBaseMapGroup";
@@ -54,16 +58,28 @@ export default class ImagesManager {
     // getBaseMapOpacityIn3d resolves override ?? global for any basemap,
     // including those not created yet.
     this.opacityState = { baseMapOpacityIn3d: 1, opacityByBaseMapIdIn3d: {} };
+    // Base maps displayed grey (faded opacity + desaturated image) — the
+    // sheets of the Dessin module's 3D base maps grid whose image eye is
+    // off (BaseMapsGridManager). Same record-then-apply contract as the
+    // opacity: applied after every async mesh attach.
+    this.fadedBaseMapIds = new Set();
+    // Preview textures of the 3D base maps grid (down-scaled images, see
+    // ensureBaseMapPreview), kept for the session: id → { signature,
+    // promise }.
+    this.previewTextureById = {};
   }
 
   // Resolve + apply one basemap's desired opacity to its mesh material.
   // Called after EVERY async mesh attach, so a mesh born after the last
   // opacity change (texture still in flight, active version switch, late blob
-  // url repair) never keeps a stale value.
+  // url repair) never keeps a stale value. A faded base map (grid) is
+  // capped at the faded opacity and desaturated (createBaseMapMaterial).
   applyBaseMapOpacity(baseMapId) {
     const group = this.imagesMap[baseMapId];
     if (!group) return;
-    const opacity = getBaseMapOpacityIn3d(this.opacityState, baseMapId);
+    const faded = this.fadedBaseMapIds.has(baseMapId);
+    const desired = getBaseMapOpacityIn3d(this.opacityState, baseMapId);
+    const opacity = faded ? Math.min(desired, FADED_IMAGE_OPACITY) : desired;
     group.traverse?.((child) => {
       // The scan of a scan base map follows the base map opacity too.
       if (child.userData?.isScene3dScan && child.material) {
@@ -82,6 +98,8 @@ export default class ImagesManager {
         // rationale).
         child.material.opacity = opacity;
         child.material.depthWrite = opacity >= 1;
+        const desaturate = child.material.userData?.uDesaturate;
+        if (desaturate) desaturate.value = faded ? 1 : 0;
       }
     });
   }
@@ -92,6 +110,85 @@ export default class ImagesManager {
   setBaseMapOpacities(opacityState) {
     if (opacityState) this.opacityState = opacityState;
     Object.keys(this.imagesMap).forEach((id) => this.applyBaseMapOpacity(id));
+  }
+
+  // Grey display of one base map's image (3D base maps grid of the Dessin
+  // module, image eye off): recorded, then applied like the opacity.
+  setBaseMapFaded(baseMapId, faded) {
+    const was = this.fadedBaseMapIds.has(baseMapId);
+    if (faded) this.fadedBaseMapIds.add(baseMapId);
+    else this.fadedBaseMapIds.delete(baseMapId);
+    if (was !== Boolean(faded)) this.applyBaseMapOpacity(baseMapId);
+  }
+
+  // Down-scaled texture of a base map image, loaded once per image
+  // (signature) and kept for the session — a few MB whatever the plan.
+  getPreviewTexture(baseMapId, url, signature) {
+    const cached = this.previewTextureById[baseMapId];
+    if (cached?.signature === signature) return cached.promise;
+    cached?.promise.then((texture) => texture.dispose()).catch(() => {});
+    const promise = getPreviewTextureAsync(url);
+    this.previewTextureById[baseMapId] = { signature, promise };
+    return promise;
+  }
+
+  // Preview mesh of a base map on the table of the 3D base maps grid
+  // (Dessin module): a sheet whose base map does not take part in the scene
+  // shows a down-scaled image instead of loading the full one (memory).
+  // Creates the texture-less group when needed; no-op when the full image is
+  // there or on its way, or when the current preview matches the image.
+  ensureBaseMapPreview(baseMap) {
+    const group = this.ensureBaseMapGroup(baseMap);
+    if (!group || this.hasTexturedImageObject(baseMap.id)) return;
+    const image = getEditorImageFromBaseMap(baseMap);
+    if (!image?.url) return;
+    const signature = getPlaneSignature(image);
+    if (group.userData.previewSignature === signature) return;
+    removeBaseMapPreviewMesh(group);
+    // Same stash refresh as attachBaseMapMesh (the group may predate a
+    // version switch).
+    group.userData.planePx = {
+      refSizePx: image.refSizePx,
+      versionSizePx: image.versionSizePx,
+      versionTransform: image.versionTransform,
+    };
+    const stashedM = group.userData.meterByPx;
+    if (!(Number.isFinite(stashedM) && stashedM > 0)) {
+      group.userData.meterByPx = image.meterByPx;
+    }
+    group.userData.previewSignature = signature;
+    this.getPreviewTexture(baseMap.id, image.url, signature)
+      .then((texture) => {
+        // dropped, re-imaged, fully textured or superseded meanwhile
+        if (this.imagesMap[baseMap.id] !== group) return;
+        if (group.userData.previewSignature !== signature) return;
+        if (this.hasTexturedImageObject(baseMap.id)) return;
+        if (!attachBaseMapPreviewMesh(group, texture, signature)) return;
+        this.applyBaseMapOpacity(baseMap.id);
+        this.sceneManager.renderScene();
+      })
+      .catch((e) => {
+        if (group.userData.previewSignature === signature) {
+          delete group.userData.previewSignature;
+        }
+        console.warn("[ImagesManager] preview texture load failed", e);
+      });
+  }
+
+  // Drops the preview mesh of a base map (its texture stays cached).
+  removeBaseMapPreview(baseMapId) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return;
+    if (removeBaseMapPreviewMesh(group)) this.sceneManager.renderScene();
+    else delete group.userData.previewSignature;
+  }
+
+  // Releases the cached preview textures (scene teardown).
+  releasePreviewTextures() {
+    Object.values(this.previewTextureById).forEach(({ promise }) =>
+      promise.then((texture) => texture.dispose()).catch(() => {})
+    );
+    this.previewTextureById = {};
   }
 
   createImagesObjects(images, baseMaps) {
@@ -233,6 +330,8 @@ export default class ImagesManager {
       group.children.some((child) => child !== meshWrap && child !== scanWrap)
     )
       return false;
+    // a preview of the table is not a texture
+    removeBaseMapPreviewMesh(group);
     group.userData.disposeScene3d?.();
     this.scene.remove(group);
     delete this.imagesMap[baseMapId];
@@ -254,6 +353,8 @@ export default class ImagesManager {
       return;
     }
     // Drop the current mesh (if any) — geometry AND texture may both change.
+    // A preview of the table goes too (its texture stays cached).
+    removeBaseMapPreviewMesh(group);
     const meshWrap = group.userData.meshWrap;
     meshWrap?.children
       .filter((c) => c.userData?.isBasemap)
@@ -427,6 +528,8 @@ export default class ImagesManager {
       console.log("[ImagesManager] deleteAllImagesObjects");
       // The grid decorations are children of the groups dropped below.
       this.sceneManager.baseMapsGridManager?.onGroupsDeleted();
+      this.fadedBaseMapIds.clear();
+      this.releasePreviewTextures();
       Object.values(this.imagesMap).forEach((group) => {
         // The group can carry annotations as siblings of the mesh wrapper;
         // dispose only the basemap's own mesh resources, not the

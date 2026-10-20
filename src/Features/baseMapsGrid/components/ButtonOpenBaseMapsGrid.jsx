@@ -1,6 +1,8 @@
+import { useCallback } from "react";
 import { useSelector } from "react-redux";
 
 import { selectBaseMapsGridOpen } from "../baseMapsGridSlice";
+import selectBaseMapsGridDessin from "../utils/selectBaseMapsGridDessin";
 
 import useOpenBaseMapsGrid from "../hooks/useOpenBaseMapsGrid";
 import useOpenBaseMapsGridHotkey, {
@@ -24,10 +26,18 @@ export default function ButtonOpenBaseMapsGrid() {
   // The grid hands the sheet over in the print zone frame: not available in
   // the background-page mode.
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
+  // Dessin module: direct display of the whole table (every base map of
+  // the scope) — the opening lands on the whole table, not on the main
+  // base map's sheet.
+  const dessin = useSelector(selectBaseMapsGridDessin);
 
   // handlers
 
-  const openGrid = useOpenBaseMapsGrid();
+  const openBaseMapsGrid = useOpenBaseMapsGrid();
+  const openGrid = useCallback(
+    () => openBaseMapsGrid({ fitAll: dessin }),
+    [openBaseMapsGrid, dessin]
+  );
   useOpenBaseMapsGridHotkey({ enabled: !showBgImage, onOpen: openGrid });
 
   // render

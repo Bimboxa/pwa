@@ -1,4 +1,10 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { Box3, Raycaster, Vector2, Vector3 } from "three";
 
@@ -80,6 +86,7 @@ import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import CursorAltitudeThreed from "./CursorAltitudeThreed";
 import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonToggleCursorAltitude";
 import BaseMapsGrid3dController from "Features/baseMapsGrid3d/components/BaseMapsGrid3dController";
+import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
@@ -315,6 +322,10 @@ export default function MainThreedEditor() {
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
+  // Dessin module with the 3D base maps grid displayed: direct display of
+  // the table, no listings popper over it (nor the docked panel, see
+  // SectionViewer).
+  const dessinGridOpen = useSelector(selectBaseMapsGridDessinOpen);
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -887,6 +898,17 @@ export default function MainThreedEditor() {
   });
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
+
+  // Annotations built in the scene per base map: the badges of the sheets
+  // of the Dessin module's base maps grid (what the table draws).
+  const annotationsCountByBaseMapId = useMemo(() => {
+    const counts = {};
+    (annotations ?? []).forEach((a) => {
+      if (!a.baseMapId) return;
+      counts[a.baseMapId] = (counts[a.baseMapId] ?? 0) + 1;
+    });
+    return counts;
+  }, [annotations]);
 
   // Sync the max view distance (device preference, Configuration > Éditeur
   // 3D) → ControlsManager. AUTO follows the loaded scan base maps (main +
@@ -2791,6 +2813,7 @@ export default function MainThreedEditor() {
       {isThreedViewer &&
         (!isBaseMapsModule || !leftPanelDocked) &&
         !dessinPanelDocked &&
+        !dessinGridOpen &&
         !viewerPanelDocked &&
         !captureFramingActive &&
         !subtractPickActive && (
@@ -2843,7 +2866,10 @@ export default function MainThreedEditor() {
         />
       )}
       {isThreedViewer && rendererIsReady && (
-        <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
+        <BaseMapsGrid3dController
+          tooltipApiRef={tooltipApiRef}
+          countByBaseMapId={annotationsCountByBaseMapId}
+        />
       )}
       {/* No top-right row any more: the base map image mode, the base maps
           grid button and the « Séparer les surfaces en contact » toggle live
