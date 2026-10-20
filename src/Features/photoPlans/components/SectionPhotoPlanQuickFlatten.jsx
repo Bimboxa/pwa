@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import {
@@ -8,8 +9,10 @@ import {
 import {
   Box,
   Button,
+  Checkbox,
   FormControlLabel,
   Switch,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -21,6 +24,7 @@ import db from "App/db/db";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import useQuickFlattenAction from "../hooks/useQuickFlattenAction";
+import { DEFAULT_FOCAL_35, focal35ToPx, pxToFocal35 } from "../utils/focal35";
 
 // "Mettre à plat" section of the Transfo. tool (BASE_MAPS module), shown for
 // PHOTO baseMaps: guide-lines switch, plane orientation, and the shared
@@ -41,9 +45,28 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
     flatten,
   } = useQuickFlattenAction({ baseMap });
 
+  // state
+
+  // Focal field (35 mm equiv.) — persisted on blur as calibrationInputs
+  // .focalPxOverride (same storage the Élévation panel seeds from).
+  const [focalStr, setFocalStr] = useState("");
+
   // helpers
 
   const orientation = targetPlan?.orientation ?? "VERTICAL";
+  const mirrored = Boolean(targetPlan?.mirrored);
+  const imageSize = baseMap?.getImageSize?.();
+  const exifFocal35 = targetPlan?.calibrationInputs?.exifFocal35 ?? null;
+  const storedFocal35 = pxToFocal35(
+    targetPlan?.calibrationInputs?.focalPxOverride,
+    imageSize
+  );
+
+  useEffect(() => {
+    setFocalStr(
+      storedFocal35 != null ? String(Math.round(storedFocal35 * 10) / 10) : ""
+    );
+  }, [targetPlan?.id, storedFocal35]);
 
   // handlers
 
@@ -56,6 +79,31 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
     if (!value) return;
     const plan = await ensureTargetPlan();
     await db.photoPlans.update(plan.id, { orientation: value });
+    dispatch(triggerPhotoPlansUpdate());
+  }
+
+  async function handleMirroredChange(checked) {
+    const plan = await ensureTargetPlan();
+    await db.photoPlans.update(plan.id, { mirrored: checked });
+    dispatch(triggerPhotoPlansUpdate());
+  }
+
+  async function handleFocalBlur() {
+    const plan = await ensureTargetPlan();
+    const focal35 = focalStr
+      ? parseFloat(String(focalStr).replace(",", "."))
+      : null;
+    const focalPxOverride = focal35ToPx(focal35, imageSize);
+    const current = plan.calibrationInputs?.focalPxOverride ?? null;
+    if ((focalPxOverride ?? null) === current) return;
+    const { focalPxOverride: _dropped, ...rest } = plan.calibrationInputs ?? {};
+    void _dropped;
+    await db.photoPlans.update(plan.id, {
+      calibrationInputs: {
+        ...rest,
+        ...(focalPxOverride != null && { focalPxOverride }),
+      },
+    });
     dispatch(triggerPhotoPlansUpdate());
   }
 
@@ -120,6 +168,23 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
           </ToggleButton>
         </ToggleButtonGroup>
 
+        <TextField
+          size="small"
+          label="Focale (équiv. 35 mm)"
+          placeholder={
+            exifFocal35 ? `${exifFocal35} (EXIF)` : `${DEFAULT_FOCAL_35}`
+          }
+          helperText={
+            exifFocal35
+              ? "Lue dans la photo (EXIF) — modifiez-la si besoin."
+              : `Pas d'EXIF : ${DEFAULT_FOCAL_35} mm par défaut quand les lignes ne permettent pas de la calculer.`
+          }
+          value={focalStr}
+          onChange={(e) => setFocalStr(e.target.value)}
+          onBlur={handleFocalBlur}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+
         <Button
           variant="contained"
           size="small"
@@ -129,6 +194,30 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
         >
           {hasFlattened ? "Ouvrir la mise à plat" : "Mettre à plat"}
         </Button>
+
+        {orientation === "HORIZONTAL" && (
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={mirrored}
+                  onChange={(e) => handleMirroredChange(e.target.checked)}
+                />
+              }
+              label={<Typography variant="body2">Plan réfléchi</Typography>}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block" }}
+            >
+              {
+                "Image en miroir : sous-face / plafond vu de dessus, superposable au plan d'étage. Décoché, l'image garde le sens de la photo."
+              }
+            </Typography>
+          </Box>
+        )}
       </Box>
     </WhiteSectionGeneric>
   );

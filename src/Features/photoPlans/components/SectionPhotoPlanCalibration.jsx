@@ -38,6 +38,7 @@ import {
 } from "../utils/calibrationUiConstants";
 import useCreatePhotoPlan from "../hooks/useCreatePhotoPlan";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { focal35ToPx, pxToFocal35 } from "../utils/focal35";
 import computePhotoPlanCalibrationFromBaseMaps from "../utils/computePhotoPlanCalibrationFromBaseMaps";
 import {
   DEFAULT_RED,
@@ -127,10 +128,7 @@ export default function SectionPhotoPlanCalibration({
   const focal35 = focal35Str
     ? parseFloat(String(focal35Str).replace(",", "."))
     : null;
-  const focalPxOverride =
-    Number.isFinite(focal35) && focal35 > 0 && imageSize?.width
-      ? (focal35 * imageSize.width) / 36
-      : null;
+  const focalPxOverride = focal35ToPx(focal35, imageSize);
 
   const linesAreDefault = useMemo(
     () => linesEqualDefaults(vanishingLines),
@@ -196,13 +194,9 @@ export default function SectionPhotoPlanCalibration({
     setRefHeightStr(
       Number.isFinite(inputs.refHeight) ? String(inputs.refHeight) : ""
     );
+    const seededFocal35 = pxToFocal35(inputs.focalPxOverride, imageSize);
     setFocal35Str(
-      Number.isFinite(inputs.focalPxOverride) && imageSize?.width
-        ? String(
-            Math.round(((inputs.focalPxOverride * 36) / imageSize.width) * 10) /
-              10
-          )
-        : ""
+      seededFocal35 != null ? String(Math.round(seededFocal35 * 10) / 10) : ""
     );
     if (photoKey && inputs.photoTargets) {
       dispatch(

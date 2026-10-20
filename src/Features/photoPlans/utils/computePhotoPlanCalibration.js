@@ -11,6 +11,7 @@ import {
 } from "./mat3";
 import estimateVanishingPoint from "./estimateVanishingPoint";
 import estimateFocalFromVanishingPoints from "./estimateFocalFromVanishingPoints";
+import { pxToFocal35 } from "./focal35";
 
 // Calibrate a photoPlan: build the homography H mapping NORMALIZED photo
 // coords ([0..1] vs the photo's reference imageSize) to the plane's METRIC
@@ -33,7 +34,14 @@ import estimateFocalFromVanishingPoints from "./estimateFocalFromVanishingPoints
 //     the metric scale INSTEAD of the plan-side pastille distance (usually
 //     far more accurate: a door / storey height is known to the cm); the
 //     pastilles then only anchor + orient the plane, and the recomputed
-//     pastille spacing becomes a coherence diagnostic.
+//     pastille spacing becomes a coherence diagnostic,
+//   - mirrored (HORIZONTAL only): by default the (u, v) frame keeps the
+//     photo's chirality (a floor shot from above reads like the plan, a
+//     ceiling shot from below reads as seen from below); `mirrored` flips it
+//     (reflected ceiling plan, superimposable on the floor plan). The metric
+//     pose solve assumes (u, v) right-handed seen from +Y — true for a
+//     floor NOT mirrored or a ceiling mirrored; the other two combinations
+//     place the plane mirrored in 3D.
 //
 // Math (single-view metric: square pixels, principal point at image center):
 // centered coords xc = (px - W/2)/s, yc = -(py - H/2)/s with s = max(W, H);
@@ -65,6 +73,7 @@ export default function computePhotoPlanCalibration({
   refHeight,
   focalPxOverride,
   knownCote,
+  mirrored = false,
 }) {
   // --- malformed args -> null (nothing to diagnose) ---
   const W = photoImageSize?.width;
@@ -136,7 +145,9 @@ export default function computePhotoPlanCalibration({
   diagnostics.focalSource = focal.source;
   diagnostics.focalPx = focal.source === "frontoParallel" ? null : f * s;
   diagnostics.focal35 =
-    focal.source === "frontoParallel" ? null : ((f * s) / W) * 36;
+    focal.source === "frontoParallel"
+      ? null
+      : pxToFocal35(f * s, { width: W, height: H });
   if (
     diagnostics.focal35 != null &&
     (diagnostics.focal35 < 12 || diagnostics.focal35 > 200)
@@ -182,7 +193,8 @@ export default function computePhotoPlanCalibration({
   const refH = planeType === "VERTICAL" ? refHeight : (refHeight ?? 0);
   if (!Number.isFinite(refH)) return fail("REF_HEIGHT_REQUIRED");
 
-  // --- sign fixes on the plane frame ---
+  // --- sign fixes on the plane frame (VERTICAL: e_v image-up here; the
+  // +u / chirality fixes below need planeRaw) ---
 
   if (planeType === "VERTICAL") {
     // e_v must be image-UP at the ref pastille (world up).
@@ -194,12 +206,6 @@ export default function computePhotoPlanCalibration({
     if (Math.abs(t.z) > EPS && Math.abs(r0.z) > EPS) {
       if (t.y / t.z < r0.y / r0.z) eV = v3Scale(eV, -1);
     }
-  } else {
-    // Handedness: plane normal (e_u x e_v) toward the camera (n . r0 < 0),
-    // i.e. the camera shoots the floor from above — keeps the photo frame's
-    // chirality consistent with world XZ seen from +Y.
-    const nP = v3Cross(eU, eV);
-    if (v3Dot(nP, r0) > 0) eV = v3Scale(eV, -1);
   }
 
   // --- raw plane coords: q = M^-1 . ray, dehomogenized ---
@@ -233,6 +239,47 @@ export default function computePhotoPlanCalibration({
   let qOther = planeRaw(cOther);
   if (!qOther) return fail("TARGET_ON_HORIZON");
 
+  const rebuildFrame = () => {
+    Minv = buildMinv();
+    if (!Minv) return false;
+    qOther = planeRaw(cOther);
+    return Boolean(qOther);
+  };
+
+  // --- +u must appear RIGHTWARD in the photo at the ref pastille (canonical
+  // camera-side frame, both plane types). The flattened views render u to
+  // the right, so any other sign choice — e.g. deriving it from which side
+  // the second pastille sits — would display the plane MIRRORED whenever the
+  // ref pastille is photo-right of the other one, and an eigenvector-born
+  // sign would rotate HORIZONTAL planes by 180° at random. d(x_img)/du at
+  // the ref is proportional to e_u.x * r0.z - r0.x * e_u.z (r0.z > 0).
+  if (eU.x * r0.z - r0.x * eU.z < 0) {
+    eU = v3Scale(eU, -1);
+    if (!rebuildFrame()) return fail("TARGET_ON_HORIZON");
+  }
+
+  // --- HORIZONTAL chirality: the sign of e_v is set from the photo itself
+  // (the vanishing geometry alone cannot tell a floor from a ceiling). The
+  // Jacobian of photo (y DOWN) -> (u, v) at the ref pastille has det < 0 when
+  // (u, v) keeps the photo's chirality (the baked image, v up, then reads
+  // like the photo) and det > 0 when it is mirrored.
+  if (planeType === "HORIZONTAL") {
+    const chiralityDet = () => {
+      const d = 1e-3;
+      const q0 = planeRaw(cRef);
+      const qx = planeRaw({ x: cRef.x + d, y: cRef.y });
+      const qy = planeRaw({ x: cRef.x, y: cRef.y - d }); // photo-down
+      if (!q0 || !qx || !qy) return null;
+      return (qx.u - q0.u) * (qy.v - q0.v) - (qx.v - q0.v) * (qy.u - q0.u);
+    };
+    const det = chiralityDet();
+    if (det == null || det === 0) return fail("TARGET_ON_HORIZON");
+    if (det > 0 !== Boolean(mirrored)) {
+      eV = v3Scale(eV, -1);
+      if (!rebuildFrame()) return fail("TARGET_ON_HORIZON");
+    }
+  }
+
   // Optional known-dimension scale. Computed on the CURRENT frame: raw
   // distances are invariant under the later e_u sign flip (u -> -u for every
   // point), so the order does not matter.
@@ -257,19 +304,6 @@ export default function computePhotoPlanCalibration({
   let pose;
 
   if (planeType === "VERTICAL") {
-    // +u must appear RIGHTWARD in the photo at the ref pastille (canonical
-    // camera-side frame). The flattened views render u to the right, so any
-    // other sign choice — e.g. deriving it from which side the second
-    // pastille sits — would display the plane MIRRORED whenever the ref
-    // pastille is photo-right of the other one. d(x_img)/du at the ref is
-    // proportional to e_u.x * r0.z - r0.x * e_u.z (r0.z > 0).
-    if (eU.x * r0.z - r0.x * eU.z < 0) {
-      eU = v3Scale(eU, -1);
-      Minv = buildMinv();
-      if (!Minv) return fail("TARGET_ON_HORIZON");
-      qOther = planeRaw(cOther);
-      if (!qOther) return fail("TARGET_ON_HORIZON");
-    }
     const r2 = Math.hypot(qOther.u, qOther.v);
     if (r2 < EPS) return fail("PHOTO_TARGETS_SUPERIMPOSED");
     // The pastilles' horizontal spacing still orients the facade in the
@@ -296,7 +330,8 @@ export default function computePhotoPlanCalibration({
     sc = coteScale ?? d / r2;
     const a = qOther.u * sc;
     const b = qOther.v * sc;
-    // In-plane rotation photo-frame -> world, from the single pastille pair:
+    // In-plane rotation photo-frame -> world, from the single pastille pair
+    // (assumes (u, v) right-handed seen from +Y — see `mirrored` above):
     //   dX = a cos + b sin ; dZ = a sin - b cos
     // Normalized by (|ab| * d) so (cos, sin) is exactly unit even when the
     // cote-driven scale makes |ab| differ from d (reduces to the exact
@@ -343,6 +378,7 @@ export default function computePhotoPlanCalibration({
     pose,
     imageSize: { width: W, height: H },
     planeType,
+    mirrored: planeType === "HORIZONTAL" ? Boolean(mirrored) : false,
     horizonLine,
     diagnostics,
   };

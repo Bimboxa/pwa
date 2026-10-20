@@ -1,5 +1,5 @@
-import { useDispatch } from "react-redux";
-import { useSelector } from "react-redux";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   triggerPhotoPlansUpdate,
@@ -17,11 +17,30 @@ import useQuickFlattenTargetPlan from "./useQuickFlattenTargetPlan";
 import useCreatePhotoPlan from "./useCreatePhotoPlan";
 import useFlattenPhotoPlanToBaseMap from "./useFlattenPhotoPlanToBaseMap";
 import computePhotoPlanQuickCalibration from "../utils/computePhotoPlanQuickCalibration";
+import { getPhotoBaseMapExifFocal35 } from "../utils/readExifFocal35";
+import { DEFAULT_FOCAL_35, focal35ToPx } from "../utils/focal35";
 import {
   defaultVanishingLines,
   linesEqualDefaults,
   CALIBRATION_ERROR_MESSAGES,
 } from "../utils/calibrationUiConstants";
+
+// Whole-photo rings get clipped farther from the plane's horizon than drawn
+// zones: the depth stretch of the farthest kept pixels is ~ (1 / eps)², so
+// 0.2 caps it at ~25x the nearest corner — past that the strip is a smear
+// that would only inflate the output's extent (and shrink its resolution).
+const WHOLE_PHOTO_HORIZON_EPS = 0.2;
+
+// Quick-flow wording of errors raised on the synthesized anchors (the two
+// endpoints of the first U guide line — there are no pastilles here).
+const QUICK_ERROR_MESSAGES = {
+  TARGET_ON_HORIZON:
+    "Une extrémité de ligne guide bleue est sur l'horizon du plan — rapprochez-la.",
+  PHOTO_TARGETS_SUPERIMPOSED:
+    "Les deux extrémités de la 1ʳᵉ ligne guide bleue sont confondues — écartez-les.",
+  TARGETS_SAME_U:
+    "La 1ʳᵉ ligne guide bleue doit suivre une ligne horizontale du plan.",
+};
 
 // The complete "Mettre à plat" action, shared by the Transfo. section and
 // the map-editor chips band so both buttons behave identically:
@@ -53,6 +72,27 @@ export default function useQuickFlattenAction({ baseMap }) {
     targetPlan?.calibration?.ok && !targetPlan.calibration.isUnscaled
   );
 
+  // EXIF focal (35 mm equiv.) of the photo, read once per plan and cached on
+  // its calibrationInputs (null = read, none found).
+  useEffect(() => {
+    if (!targetPlan || !baseMap?.isPhoto) return;
+    if (targetPlan.calibrationInputs?.exifFocal35 !== undefined) return;
+    let cancelled = false;
+    (async () => {
+      const exifFocal35 = (await getPhotoBaseMapExifFocal35(baseMap)) ?? null;
+      if (cancelled) return;
+      const fresh = await db.photoPlans.get(targetPlan.id);
+      if (!fresh || fresh.calibrationInputs?.exifFocal35 !== undefined) return;
+      await db.photoPlans.update(targetPlan.id, {
+        calibrationInputs: { ...(fresh.calibrationInputs ?? {}), exifFocal35 },
+      });
+      dispatch(triggerPhotoPlansUpdate());
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [targetPlan?.id, targetPlan?.calibrationInputs?.exifFocal35, baseMap?.id]);
+
   async function ensureTargetPlan() {
     if (targetPlan) return targetPlan;
     return await createPhotoPlan({
@@ -81,16 +121,32 @@ export default function useQuickFlattenAction({ baseMap }) {
       return null;
     }
 
+    // Focal: the user's field, else the photo's EXIF (read lazily when the
+    // effect above has not landed yet), else the 26 mm default inside the
+    // quick calibration.
+    let focalPxOverride = plan.calibrationInputs?.focalPxOverride;
+    let exifFocal35 = plan.calibrationInputs?.exifFocal35;
+    if (!(Number.isFinite(focalPxOverride) && focalPxOverride > 0)) {
+      focalPxOverride = null;
+      if (exifFocal35 === undefined) {
+        exifFocal35 = (await getPhotoBaseMapExifFocal35(baseMap)) ?? null;
+      }
+      if (exifFocal35) focalPxOverride = focal35ToPx(exifFocal35, imageSize);
+    }
+
     const result = computePhotoPlanQuickCalibration({
       photoImageSize: imageSize,
       planeType: plan.orientation,
       uSegments: lines.u,
       vSegments: lines.v,
+      focalPxOverride,
+      mirrored: Boolean(plan.mirrored),
     });
     if (!result?.ok) {
       dispatch(
         setToaster({
           message:
+            QUICK_ERROR_MESSAGES[result?.errorCode] ??
             CALIBRATION_ERROR_MESSAGES[result?.errorCode] ??
             `Mise à plat impossible (${result?.errorCode ?? "?"}).`,
           isError: true,
@@ -104,10 +160,12 @@ export default function useQuickFlattenAction({ baseMap }) {
         ...(plan.calibrationInputs ?? {}),
         uSegments: lines.u,
         vSegments: lines.v,
+        exifFocal35: exifFocal35 ?? null,
       },
       calibration: {
         ok: true,
         isUnscaled: true,
+        mirrored: result.mirrored,
         H: result.H,
         Hinv: result.Hinv,
         pose: result.pose,
@@ -175,6 +233,9 @@ export default function useQuickFlattenAction({ baseMap }) {
       plan,
       ringPx,
       holesPx,
+      horizonEpsFraction: plan.annotationId
+        ? undefined
+        : WHOLE_PHOTO_HORIZON_EPS,
     });
     if (!newId) {
       dispatch(
@@ -185,10 +246,19 @@ export default function useQuickFlattenAction({ baseMap }) {
       );
       return;
     }
+    const diag = plan.calibration?.diagnostics;
+    const focalNote = plan.calibration?.isUnscaled
+      ? diag?.warnings?.includes("DEFAULT_FOCAL")
+        ? ` (focale par défaut ${DEFAULT_FOCAL_35} mm)`
+        : Number.isFinite(diag?.focal35)
+          ? ` (focale ${Math.round(diag.focal35)} mm${
+              diag.focalSource === "override" ? "" : " estimée"
+            })`
+          : ""
+      : "";
     dispatch(
       setToaster({
-        message:
-          "Fond de plan « à plat » créé — vous dessinez maintenant dessus.",
+        message: `Fond de plan « à plat » créé — vous dessinez maintenant dessus.${focalNote}`,
       })
     );
   }

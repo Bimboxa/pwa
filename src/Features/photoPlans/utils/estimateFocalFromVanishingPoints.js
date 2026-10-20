@@ -20,6 +20,16 @@
 // or { error: "NEEDS_FOCAL"|"FOCAL_DEGENERATE" }.
 
 const INFINITE_W = 1e-6;
+// A finite VP farther than this (centered units = image sizes, i.e. lines
+// within ~1° of parallel) is noise-dominated: the f² estimate flips sign with
+// a 1 px endpoint move. Treat it as at infinity (-> override / NEEDS_FOCAL).
+const FAR_VP_DIST = 20;
+
+export function isVanishingPointAtInfinity(vp) {
+  const w = Math.abs(vp[2]);
+  if (w < INFINITE_W) return true;
+  return Math.hypot(vp[0], vp[1]) / w > FAR_VP_DIST;
+}
 
 export default function estimateFocalFromVanishingPoints({
   vpU,
@@ -27,13 +37,15 @@ export default function estimateFocalFromVanishingPoints({
   focalOverride,
 }) {
   const warnings = [];
-  const uInf = Math.abs(vpU[2]) < INFINITE_W;
-  const vInf = Math.abs(vpV[2]) < INFINITE_W;
+  const uInf = isVanishingPointAtInfinity(vpU);
+  const vInf = isVanishingPointAtInfinity(vpV);
 
   if (uInf && vInf) {
     // Fronto-parallel: check the two image directions are ~perpendicular
     // (they project without distortion when the plane faces the camera).
-    const cos = Math.abs(vpU[0] * vpV[0] + vpU[1] * vpV[1]);
+    const nu = Math.hypot(vpU[0], vpU[1]) || 1;
+    const nv = Math.hypot(vpV[0], vpV[1]) || 1;
+    const cos = Math.abs(vpU[0] * vpV[0] + vpU[1] * vpV[1]) / (nu * nv);
     if (cos > Math.sin((5 * Math.PI) / 180)) {
       warnings.push("FRONTO_NOT_ORTHO");
     }

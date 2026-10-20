@@ -1,3 +1,4 @@
+/* global process */
 // Node replay of the photoPlan calibration math (pure utils, no DOM/db).
 //
 // Run from the repo root:
@@ -15,6 +16,8 @@ import applyPhotoPlanHomography from "Features/photoPlans/utils/applyPhotoPlanHo
 import photoPlanPointToWorld from "Features/photoPlans/utils/photoPlanPointToWorld";
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
 import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttachment";
+import computePhotoPlanQuickCalibration from "Features/photoPlans/utils/computePhotoPlanQuickCalibration";
+import { focal35ToPx, pxToFocal35 } from "Features/photoPlans/utils/focal35";
 
 // --- tiny synthetic pinhole camera ------------------------------------------
 // World: y up. Camera: position + lookAt; projects to PIXEL coords (y down)
@@ -40,11 +43,13 @@ function makeCamera({
     const n = Math.hypot(a.x, a.y, a.z);
     return { x: a.x / n, y: a.y / n, z: a.z / n };
   };
-  // Proper right-handed camera basis: right x camUp = fwd (a mirrored basis
-  // would produce physically impossible photos and break chirality checks).
-  const fwd = norm(sub(lookAt, position)); // camera +z (view direction)
-  const right = norm(cross(up, fwd)); // camera +x (image x, right)
-  const camUp = cross(fwd, right); // camera y-up (image y-up)
+  // Proper right-handed camera basis (OpenGL-like: right x camUp = -fwd).
+  // Looking down -Z with +Y up, right must be +X — a mirrored basis would
+  // produce physically impossible photos and silently validate a mirrored
+  // chirality rule (which is exactly what happened before this fix).
+  const fwd = norm(sub(lookAt, position)); // view direction
+  const right = norm(cross(fwd, up)); // image x (right)
+  const camUp = cross(right, fwd); // image y-up
 
   return {
     W,
@@ -214,11 +219,15 @@ console.log("\n[1] VERTICAL exact");
       )
     );
     check("world corners", maxErr < 1e-6, `maxErr ${maxErr}`);
-    // pose axes
+    // pose axes: +u is photo-rightward, so uDir follows the facade direction
+    // that appears rightward in THIS photo (the camera is on the facade's
+    // -normal side, so that is -uDir).
+    const uSign = cam.projectN(P(5, 1)).x > cam.projectN(P(0, 1)).x ? 1 : -1;
     check(
       "pose uDir",
-      approx(calib.pose.uDir.x, uDir.x, 1e-9) &&
-        approx(calib.pose.uDir.z, uDir.z, 1e-9)
+      approx(calib.pose.uDir.x, uSign * uDir.x, 1e-9) &&
+        approx(calib.pose.uDir.z, uSign * uDir.z, 1e-9),
+      JSON.stringify(calib.pose.uDir)
     );
     check("pose vDir up", calib.pose.vDir.y === 1);
   }
@@ -935,8 +944,10 @@ console.log("\n[10] no mirror (swapped ref)");
     segN(cam, P(0.8, 0.2), P(0.8, 4.6)),
     segN(cam, P(5.4, 0.1), P(5.4, 4.2)),
   ];
-  const leftWorld = P(0.6, 1.1); // photo-left pastille
-  const rightWorld = P(4.9, 2.3); // photo-right pastille
+  // The two pastilles: which one is photo-left depends on the camera side.
+  const leftWorld = P(0.6, 1.1);
+  const rightWorld = P(4.9, 2.3);
+  const photoRightward = cam.projectN(rightWorld).x > cam.projectN(leftWorld).x;
 
   for (const refColor of ["green", "red"]) {
     // green = left, red = right → refColor "red" is the swapped-ref case.
@@ -962,7 +973,7 @@ console.log("\n[10] no mirror (swapped ref)");
     const uOf = (w) => applyPhotoPlanHomography(calib.H, cam.projectN(w)).x;
     check(
       `ref=${refColor} u grows photo-rightward`,
-      uOf(P(1, 1.5)) < uOf(P(5, 1.5)),
+      uOf(P(1, 1.5)) < uOf(P(5, 1.5)) === photoRightward,
       `${uOf(P(1, 1.5))} vs ${uOf(P(5, 1.5))}`
     );
     // World reconstruction stays exact in both configurations.
@@ -977,6 +988,293 @@ console.log("\n[10] no mirror (swapped ref)");
     );
     check(`ref=${refColor} world exact`, maxErr < 1e-6, `maxErr ${maxErr}`);
   }
+}
+
+// =============================================================================
+// Scenario 11 — ceiling shot from BELOW (underside of a slab): by default the
+// (u, v) frame keeps the photo's chirality (reads as seen from below);
+// `mirrored` gives the reflected ceiling plan (as seen from +Y), which is the
+// frame the metric pose solve expects.
+// =============================================================================
+console.log("\n[11] ceiling from below (chirality + mirrored)");
+{
+  const h = 2.5;
+  const az = (15 * Math.PI) / 180;
+  const u = { x: Math.cos(az), y: 0, z: Math.sin(az) };
+  const v = { x: -Math.sin(az), y: 0, z: Math.cos(az) };
+  const G = (a, b) => ({
+    x: 1 + a * u.x + b * v.x,
+    y: h,
+    z: 2 + a * u.z + b * v.z,
+  });
+  const cam = makeCamera({
+    position: { x: 3, y: 1.6, z: 9 },
+    lookAt: G(3, 3),
+    focalPx: 1100,
+    W: 1200,
+    H: 1600,
+  });
+  const uSegments = [
+    segN(cam, G(0, 0.5), G(6, 0.5)),
+    segN(cam, G(0.3, 4.5), G(6.3, 4.5)),
+  ];
+  const vSegments = [
+    segN(cam, G(0.7, 0), G(0.7, 5.5)),
+    segN(cam, G(5.6, 0.2), G(5.6, 5.8)),
+  ];
+  const refWorld = G(0.9, 0.8);
+  const otherWorld = G(4.7, 3.9);
+  const args = {
+    photoImageSize: { width: cam.W, height: cam.H },
+    planeType: "HORIZONTAL",
+    uSegments,
+    vSegments,
+    photoTargets: {
+      green: cam.projectN(refWorld),
+      red: cam.projectN(otherWorld),
+    },
+    worldTargets: {
+      green: { x: refWorld.x, z: refWorld.z },
+      red: { x: otherWorld.x, z: otherWorld.z },
+    },
+    refColor: "green",
+    refHeight: h,
+  };
+  // Jacobian det of photo (y down) -> (u, v): < 0 = same chirality as photo.
+  const chirality = (calib, world) => {
+    const p = cam.projectN(world);
+    const d = 1e-4;
+    const q0 = applyPhotoPlanHomography(calib.H, p);
+    const qx = applyPhotoPlanHomography(calib.H, { x: p.x + d, y: p.y });
+    const qy = applyPhotoPlanHomography(calib.H, { x: p.x, y: p.y + d });
+    return (qx.x - q0.x) * (qy.y - q0.y) - (qx.y - q0.y) * (qy.x - q0.x);
+  };
+  const L = [G(1, 1), G(4, 1), G(4, 2), G(2, 2), G(2, 4), G(1, 4)];
+  const worldErr = (calib) => {
+    const wr = L.map((c) => photoPlanPointToWorld(calib, cam.projectN(c)));
+    return Math.max(
+      ...wr.map((p, i) => Math.hypot(p.x - L[i].x, p.y - L[i].y, p.z - L[i].z))
+    );
+  };
+
+  const plain = computePhotoPlanCalibration(args);
+  check("default ok", plain?.ok === true, plain?.errorCode);
+  if (plain?.ok) {
+    check("default mirrored flag false", plain.mirrored === false);
+    check(
+      "default keeps the photo chirality",
+      chirality(plain, G(2, 2)) < 0,
+      `det ${chirality(plain, G(2, 2))}`
+    );
+    check(
+      "focal recovered",
+      approx(plain.diagnostics.focalPx, 1100, 1e-3 * 1100)
+    );
+    const uv = L.map((c) => applyPhotoPlanHomography(plain.H, cam.projectN(c)));
+    check(
+      "L area 5m2 (default)",
+      approx(polyArea(uv), 5, 1e-5),
+      `${polyArea(uv)}`
+    );
+    // +u photo-rightward holds for HORIZONTAL planes too.
+    const uOf = (w) => applyPhotoPlanHomography(plain.H, cam.projectN(w)).x;
+    const a = G(1, 2);
+    const b = G(5, 2);
+    const rightward = cam.projectN(b).x > cam.projectN(a).x;
+    check("u grows photo-rightward", rightward === uOf(b) > uOf(a));
+    // Seen-from-below frame is left-handed vs +Y: the rotation-only pose
+    // solve cannot place it exactly (documented limitation).
+    check("default world NOT exact (left-handed vs +Y)", worldErr(plain) > 0.1);
+  }
+
+  const refl = computePhotoPlanCalibration({ ...args, mirrored: true });
+  check("mirrored ok", refl?.ok === true, refl?.errorCode);
+  if (refl?.ok) {
+    check("mirrored flag true", refl.mirrored === true);
+    check(
+      "mirrored flips the photo chirality",
+      chirality(refl, G(2, 2)) > 0,
+      `det ${chirality(refl, G(2, 2))}`
+    );
+    check(
+      "mirrored world exact",
+      worldErr(refl) < 1e-6,
+      `maxErr ${worldErr(refl)}`
+    );
+    check("mirrored plane altitude", approx(refl.pose.origin.y, h, 1e-12));
+  }
+}
+
+// =============================================================================
+// Scenario 12 — far-but-finite vanishing point: U lines within ~0.5° of
+// parallel in the photo (slight yaw) are noise-dominated and must count as
+// "at infinity" -> NEEDS_FOCAL (no override) / exact with the override.
+// =============================================================================
+console.log("\n[12] far vanishing point (quasi-parallel U lines)");
+{
+  const G = (a, b) => ({ x: a, y: 0, z: -b });
+  const yaw = (0.5 * Math.PI) / 180;
+  const cam = makeCamera({
+    position: { x: 2, y: 1.6, z: 1 },
+    lookAt: { x: 2 + 6 * Math.sin(yaw), y: 0.2, z: 1 - 6 * Math.cos(yaw) },
+    focalPx: 1000,
+    W: 1000,
+    H: 1330,
+  });
+  const uSegments = [segN(cam, G(0, 2), G(4, 2)), segN(cam, G(0, 4), G(4, 4))];
+  const vSegments = [
+    segN(cam, G(0.5, 1.5), G(0.5, 5)),
+    segN(cam, G(3.5, 1.5), G(3.5, 5)),
+  ];
+  const quickArgs = {
+    photoImageSize: { width: cam.W, height: cam.H },
+    planeType: "HORIZONTAL",
+    uSegments,
+    vSegments,
+  };
+  const refWorld = G(1, 2.5);
+  const otherWorld = G(3, 3.5);
+  const full = computePhotoPlanCalibration({
+    ...quickArgs,
+    photoTargets: {
+      green: cam.projectN(refWorld),
+      red: cam.projectN(otherWorld),
+    },
+    worldTargets: {
+      green: { x: refWorld.x, z: refWorld.z },
+      red: { x: otherWorld.x, z: otherWorld.z },
+    },
+    refColor: "green",
+    refHeight: 0,
+  });
+  check(
+    "far VP -> NEEDS_FOCAL without override",
+    full && full.ok === false && full.errorCode === "NEEDS_FOCAL",
+    JSON.stringify(full?.errorCode)
+  );
+  const square = [G(1, 2), G(2, 2), G(2, 3), G(1, 3)];
+  const sides = (calib) => {
+    const uv = square.map((c) =>
+      applyPhotoPlanHomography(calib.H, cam.projectN(c))
+    );
+    return uv.map((p, i) => {
+      const q = uv[(i + 1) % 4];
+      return Math.hypot(q.x - p.x, q.y - p.y);
+    });
+  };
+  const quickDefault = computePhotoPlanQuickCalibration(quickArgs);
+  check(
+    "quick ok (default focal)",
+    quickDefault?.ok === true,
+    quickDefault?.errorCode
+  );
+  if (quickDefault?.ok) {
+    check(
+      "quick DEFAULT_FOCAL warning",
+      quickDefault.diagnostics.warnings.includes("DEFAULT_FOCAL")
+    );
+    check("quick isUnscaled", quickDefault.isUnscaled === true);
+  }
+  const quickExif = computePhotoPlanQuickCalibration({
+    ...quickArgs,
+    focalPxOverride: cam.focalPx,
+  });
+  check(
+    "quick ok (override focal)",
+    quickExif?.ok === true,
+    quickExif?.errorCode
+  );
+  if (quickExif?.ok) {
+    check(
+      "quick override source",
+      quickExif.diagnostics.focalSource === "override"
+    );
+    const sd = sides(quickExif);
+    const ratio = Math.max(...sd) / Math.min(...sd);
+    check(
+      "quick square stays square (ratio < 1.01)",
+      ratio < 1.01,
+      `ratio ${ratio}`
+    );
+  }
+}
+
+// =============================================================================
+// Scenario 13 — quick calibration with a LEVEL camera: the plane's horizon
+// runs through the image centre, where the old fixed anchors (y = 0.5) sat
+// (TARGET_ON_HORIZON). Anchors on the first U guide line are on the plane.
+// =============================================================================
+console.log("\n[13] quick calibration, level camera");
+{
+  const G = (a, b) => ({ x: a, y: 0, z: -b });
+  const cam = makeCamera({
+    position: { x: 2, y: 1.6, z: 1 },
+    lookAt: { x: 2.3, y: 1.6, z: -5 }, // level: horizon at image centre
+    focalPx: 900,
+    W: 1200,
+    H: 900,
+  });
+  const uSegments = [
+    segN(cam, G(0, 2), G(4, 2)),
+    segN(cam, G(0, 3.5), G(4, 3.5)),
+  ];
+  const vSegments = [
+    segN(cam, G(0.5, 1.5), G(0.5, 4)),
+    segN(cam, G(3.5, 1.5), G(3.5, 4)),
+  ];
+  const quick = computePhotoPlanQuickCalibration({
+    photoImageSize: { width: cam.W, height: cam.H },
+    planeType: "HORIZONTAL",
+    uSegments,
+    vSegments,
+    focalPxOverride: cam.focalPx,
+  });
+  check("quick ok", quick?.ok === true, quick?.errorCode);
+  if (quick?.ok) {
+    const square = [G(1, 2), G(2, 2), G(2, 3), G(1, 3)];
+    const uv = square.map((c) =>
+      applyPhotoPlanHomography(quick.H, cam.projectN(c))
+    );
+    check("square points on the valid side", uv.every(Boolean));
+    if (uv.every(Boolean)) {
+      const sd = uv.map((p, i) => {
+        const q = uv[(i + 1) % 4];
+        return Math.hypot(q.x - p.x, q.y - p.y);
+      });
+      const ratio = Math.max(...sd) / Math.min(...sd);
+      check("square stays square", ratio < 1.01, `ratio ${ratio}`);
+    }
+    // Sky (above the horizon) is beyond the plane.
+    check(
+      "image top beyond the horizon",
+      applyPhotoPlanHomography(quick.H, { x: 0.5, y: 0.1 }) === null
+    );
+  }
+}
+
+// =============================================================================
+// Scenario 14 — 35 mm-equivalent focal uses the LONG side.
+// =============================================================================
+console.log("\n[14] focal35 <-> px");
+{
+  const portrait = { width: 3000, height: 4000 };
+  const landscape = { width: 4000, height: 3000 };
+  check(
+    "portrait uses the long side",
+    approx(focal35ToPx(26, portrait), (26 * 4000) / 36, 1e-9)
+  );
+  check(
+    "same px in both orientations",
+    approx(focal35ToPx(26, portrait), focal35ToPx(26, landscape), 1e-9)
+  );
+  check(
+    "round trip",
+    approx(pxToFocal35(focal35ToPx(26, portrait), portrait), 26, 1e-9)
+  );
+  check(
+    "invalid -> null",
+    focal35ToPx(0, portrait) === null && focal35ToPx(26, null) === null
+  );
 }
 
 // -----------------------------------------------------------------------------

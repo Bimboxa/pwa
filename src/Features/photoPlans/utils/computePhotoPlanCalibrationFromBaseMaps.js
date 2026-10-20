@@ -49,5 +49,6 @@ export default function computePhotoPlanCalibrationFromBaseMaps({
     refHeight,
     focalPxOverride,
     knownCote,
+    mirrored: Boolean(photoPlan.mirrored),
   });
 }

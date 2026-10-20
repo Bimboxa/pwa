@@ -33,6 +33,7 @@ export default function useFlattenPhotoPlanToBaseMap() {
     plan,
     ringPx,
     holesPx = [],
+    horizonEpsFraction,
   }) {
     const calibration = plan?.calibration;
     if (!calibration?.ok || !photoBaseMap) return null;
@@ -45,6 +46,7 @@ export default function useFlattenPhotoPlanToBaseMap() {
       calibration,
       ringPx,
       holesPx,
+      horizonEpsFraction,
     });
     if (!baked) return null;
 

@@ -1,5 +1,7 @@
 import applyPhotoPlanHomography from "./applyPhotoPlanHomography";
-import clipRingToHorizon from "./clipRingToHorizon";
+import clipRingToHorizon, {
+  DEFAULT_HORIZON_EPS_FRACTION,
+} from "./clipRingToHorizon";
 
 // Bake the rectified ("mise à plat") orthophoto of a calibrated photoPlan:
 // warp the photo through the inverse homography into the plane's metric
@@ -8,6 +10,10 @@ import clipRingToHorizon from "./clipRingToHorizon";
 // Output frame: x right = +u, y DOWN = -v (image convention), 1 px =
 // 1/pxPerM meters. Returns null when the zone is unusable, else
 //   { dataUrl, widthPx, heightPx, widthM, heightM, pxPerM }.
+//
+// `horizonEpsFraction`: how close to the plane's horizon the ring may get
+// (see clipRingToHorizon) — a whole-photo ring passes a larger value so the
+// far, hugely foreshortened strip does not dominate the output's extent.
 
 const MAX_DIM_PX = 2048;
 const MIN_PX_PER_M = 20;
@@ -27,6 +33,7 @@ export default async function bakePhotoPlanOrtho({
   calibration,
   ringPx,
   holesPx = [],
+  horizonEpsFraction = DEFAULT_HORIZON_EPS_FRACTION,
 }) {
   if (!imageUrl || !calibration?.ok || !calibration.H || !calibration.Hinv) {
     return null;
@@ -42,6 +49,7 @@ export default async function bakePhotoPlanOrtho({
     points: ringPx,
     imageSize,
     H: calibration.H,
+    epsFraction: horizonEpsFraction,
   });
   if (!ringClipped) return null; // fully on/beyond the horizon
   const ringUV = [];
@@ -59,6 +67,7 @@ export default async function bakePhotoPlanOrtho({
       points: hole,
       imageSize,
       H: calibration.H,
+      epsFraction: horizonEpsFraction,
     });
     if (!holeClipped) continue; // hole fully beyond the horizon
     const h = [];

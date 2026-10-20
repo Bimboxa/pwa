@@ -7,10 +7,20 @@
 // `points`: PIXEL coords, arcs already tessellated (clipping would break
 // S-C-S triplets). Returns the clipped pixel ring, or null when the whole
 // ring is on/beyond the horizon. No-op (same array) when nothing crosses.
+//
+// `epsFraction`: kept w >= epsFraction * maxW. The depth stretch of the
+// farthest kept pixels vs the nearest ring point is ~ (1 / epsFraction)²,
+// so callers baking a WHOLE photo pass a larger fraction (see
+// bakePhotoPlanOrtho) than ones clipping a user-drawn zone.
 
-const EPS_FRACTION = 0.03;
+export const DEFAULT_HORIZON_EPS_FRACTION = 0.03;
 
-export default function clipRingToHorizon({ points, imageSize, H }) {
+export default function clipRingToHorizon({
+  points,
+  imageSize,
+  H,
+  epsFraction = DEFAULT_HORIZON_EPS_FRACTION,
+}) {
   if (!points?.length || !H || !imageSize?.width || !imageSize?.height) {
     return null;
   }
@@ -21,7 +31,7 @@ export default function clipRingToHorizon({ points, imageSize, H }) {
   const ws = points.map(wOf);
   const maxW = Math.max(...ws);
   if (!(maxW > 0)) return null;
-  const eps = EPS_FRACTION * maxW;
+  const eps = epsFraction * maxW;
   if (ws.every((w) => w >= eps)) return points;
 
   const out = [];
