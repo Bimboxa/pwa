@@ -207,8 +207,6 @@ export default function FieldActiveListing({
   // Hosts where creating a listing is not allowed (e.g. the popper in some
   // viewers) hide the "Nouvelle liste" entry and the empty-state CTA.
   showAddListing = true,
-  // Popper host: the "..." menu gets the "Sélecteur / Avatars" mode switch.
-  showModeSwitch = false,
 }) {
   const dispatch = useDispatch();
 
@@ -376,7 +374,6 @@ export default function FieldActiveListing({
         anchorEl={moreMenuAnchor}
         onClose={() => setMoreMenuAnchor(null)}
         listing={activeListing}
-        showModeSwitch={showModeSwitch}
       />
 
       <Menu

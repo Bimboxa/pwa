@@ -23,9 +23,9 @@ const panelDrawingSlice = createSlice({
     // businessObjects.selectedListingId belongs to the business-objects
     // modules, which auto-write it.
     viewerBusinessObjectListingIdByType: {},
-    // "Visibilité auto" option of the active-listing selector: selecting a
+    // "Visibilité auto" option of the "Listes" header menu: selecting a
     // listing hides every other listing and unhides all its templates.
-    autoListingVisibility: true,
+    autoListingVisibility: false,
   },
   reducers: {
     setDetailTemplateId(state, action) {

@@ -14,7 +14,7 @@ import db from "App/db/db";
 
 // ---------------------------------------------------------------------------
 // useReorderListings — dnd-kit `onDragEnd` handler of the sortable listing
-// lists (LISTE ACTIVE menu, "Listes" side of the popper): moves the dragged
+// lists (LISTE ACTIVE menu, listings panel of the popper): moves the dragged
 // listing in the displayed order and rewrites the `rank` of every displayed
 // listing (fractional indexing, the field the listings selector sorts on).
 // Linked listings (other scope) are never ranked from here: their rank

@@ -3,24 +3,19 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setAutoListingVisibility } from "Features/panelDrawing/panelDrawingSlice";
 
 import {
   Box,
   Button,
   Chip,
-  Divider,
-  IconButton,
   List,
   ListItemButton,
   Tooltip,
   Typography,
 } from "@mui/material";
-import Add from "@mui/icons-material/Add";
+import { alpha } from "@mui/material/styles";
 import DragIndicator from "@mui/icons-material/DragIndicator";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import {
   DndContext,
@@ -41,19 +36,20 @@ import { CSS } from "@dnd-kit/utilities";
 import AvatarListing from "Features/listings/components/AvatarListing";
 import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
 import MenuMoreActionsActiveListing from "Features/panelDrawing/components/MenuMoreActionsActiveListing";
-import RowPanelOptionCheckbox from "Features/layout/components/RowPanelOptionCheckbox";
 
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import useReorderListings from "Features/listings/hooks/useReorderListings";
 import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
 
 // ---------------------------------------------------------------------------
-// SectionPopperListings — "Listes" side of PopperMapListings (Dessin module):
+// SectionPopperListings — listings panel of the Dessin popper, expanded from
+// the "Listes" header above the active listing band:
 // the annotation listings of the scope as vertical rows, in the selector's
 // rank order. Each row: drag handle (reorder = rewrite the ranks, same rule
-// as the LISTE ACTIVE menu), listing avatar, name, annotations count (scoped
-// like the popper), visibility eye and the "..." menu of the listing (rename,
-// favorites, duplicate, delete — "Retirer du …" for a linked listing).
+// as the LISTE ACTIVE menu), listing avatar, name, the "..." menu of the
+// listing (rename, favorites, duplicate, delete — "Retirer du …" for a
+// linked listing) and the annotations count (scoped like the popper) as a
+// pill that toggles the listing visibility.
 // Click = select the listing (active listing of the Dessin panel, with the
 // "Visibilité auto" rule) and send it to the selection as a LISTING item —
 // the right panel, when open, shows its properties. A trailing row creates a
@@ -78,9 +74,9 @@ function SortableRowPopperListing({
   // strings
 
   const dragS = "Glisser pour réordonner";
-  const showS = "Afficher";
-  const hideS = "Masquer";
   const moreS = "Actions sur la liste";
+  const showS = "Afficher la liste";
+  const hideS = "Masquer la liste";
   const fromS = "Depuis";
 
   // data
@@ -124,6 +120,15 @@ function SortableRowPopperListing({
         // shifts the row; a linked listing always shows its bar.
         borderLeft: "3px solid",
         borderLeftColor: linked || selected ? accent : "transparent",
+        // Selected row: same tint as the active listing band.
+        bgcolor: (theme) =>
+          selected ? alpha(theme.palette.secondary.main, 0.08) : "transparent",
+        "&:hover": {
+          bgcolor: (theme) =>
+            selected
+              ? alpha(theme.palette.secondary.main, 0.125)
+              : theme.palette.action.hover,
+        },
         "&:hover .popperListingDragHandle": { opacity: linked ? 0 : 1 },
       }}
     >
@@ -190,53 +195,73 @@ function SortableRowPopperListing({
         </Tooltip>
       )}
 
-      {/* Annotations count, scoped like the popper. */}
-      <Chip
-        label={count}
-        size="small"
-        sx={{
-          height: 16,
-          flexShrink: 0,
-          "& .MuiChip-label": {
-            px: 0.75,
-            fontSize: "10px",
-            fontFamily: "monospace",
-            fontWeight: 500,
-            color: hidden
-              ? "text.disabled"
-              : count > 0
-                ? accent
-                : "panel.countEmpty",
-          },
-        }}
-      />
-
-      <Tooltip title={hidden ? showS : hideS} arrow>
-        <IconButton
-          size="small"
-          onClick={(e) => onToggleVisibility(e, listing.id)}
+      {/* "..." menu of the listing (rename, favorites, duplicate, delete —
+          "Retirer du …" for a linked listing), same button as the active
+          listing band. */}
+      <Tooltip title={moreS} arrow placement="top">
+        <Box
+          component="button"
+          onClick={(e) => onOpenMenu(e, listing)}
           sx={{
-            p: 0.5,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 24,
+            p: 0,
+            border: "none",
+            borderRadius: 1.5,
             flexShrink: 0,
-            color: hidden ? accent : "panel.iconMuted",
+            cursor: "pointer",
+            color: "text.secondary",
+            bgcolor: "action.hover",
+            "&:hover": { bgcolor: "action.selected" },
           }}
         >
-          {hidden ? (
-            <VisibilityOff sx={{ fontSize: 16 }} />
-          ) : (
-            <Visibility sx={{ fontSize: 16 }} />
-          )}
-        </IconButton>
+          <MoreHoriz sx={{ fontSize: 16 }} />
+        </Box>
       </Tooltip>
 
-      <Tooltip title={moreS} arrow>
-        <IconButton
-          size="small"
-          onClick={(e) => onOpenMenu(e, listing)}
-          sx={{ p: 0.5, flexShrink: 0, color: "panel.iconMuted" }}
+      {/* Annotations count pill = listing visibility toggle (same pill as
+          the active listing band; filled in the accent when visible,
+          outlined when hidden). */}
+      <Tooltip title={hidden ? showS : hideS} arrow placement="top">
+        <Box
+          component="button"
+          onClick={(e) => onToggleVisibility(e, listing.id)}
+          sx={{
+            minWidth: 24,
+            height: 20,
+            px: 0.75,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            borderRadius: 999,
+            border: "1px solid",
+            borderColor: hidden ? "panel.border" : "transparent",
+            bgcolor: hidden ? "transparent" : accent,
+            color: hidden ? "text.disabled" : "secondary.contrastText",
+            cursor: "pointer",
+            transition: "0.2s",
+            "&:hover": {
+              filter: "brightness(1.1)",
+              borderColor: hidden ? "text.secondary" : "transparent",
+            },
+          }}
         >
-          <MoreHoriz sx={{ fontSize: 16 }} />
-        </IconButton>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 600,
+              fontFamily: "monospace",
+              lineHeight: 1,
+              color: "inherit",
+            }}
+          >
+            {count}
+          </Typography>
+        </Box>
       </Tooltip>
     </ListItemButton>
   );
@@ -248,28 +273,21 @@ export default function SectionPopperListings({
   listings,
   activeListing,
   countsByListingId,
-  // Hosts where creating a listing is not allowed hide the "Nouvelle liste"
-  // row and the empty-state CTA.
+  // Hosts where creating a listing is not allowed hide the empty-state CTA
+  // (the "+" of the "Listes d'annotations" header is theirs to gate too).
   showAddListing = true,
 }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const addListingS = "Nouvelle liste";
   const createListingS = "+ Liste de modèles d'annotations";
   const emptyS = "Aucune liste d'annotations.";
-  const autoVisibilityS = "Visibilité auto";
-  const autoVisibilityTooltipS =
-    "Au changement de liste : masque les autres listes et affiche tous les modèles de la liste sélectionnée.";
 
   // data
 
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
-  );
-  const autoVisibility = useSelector(
-    (s) => s.panelDrawing.autoListingVisibility
   );
   const selectListing = useSelectActiveListing(listings);
   const reorderListings = useReorderListings();
@@ -304,6 +322,11 @@ export default function SectionPopperListings({
     dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
   };
 
+  const handleOpenMenu = (e, listing) => {
+    e.stopPropagation();
+    setMenuState({ anchorEl: e.currentTarget, listing });
+  };
+
   const handleToggleVisibility = (e, listingId) => {
     e.stopPropagation();
     const isHidden = hiddenListingsIds.includes(listingId);
@@ -314,11 +337,6 @@ export default function SectionPopperListings({
           : [...hiddenListingsIds, listingId]
       )
     );
-  };
-
-  const handleOpenMenu = (e, listing) => {
-    e.stopPropagation();
-    setMenuState({ anchorEl: e.currentTarget, listing });
   };
 
   const handleDragEnd = (event) => reorderListings(event, listings);
@@ -385,56 +403,6 @@ export default function SectionPopperListings({
           </List>
         </SortableContext>
       </DndContext>
-
-      {showAddListing && (
-        <ListItemButton
-          onClick={() => setOpenCreateListing(true)}
-          sx={{
-            gap: 1,
-            pl: 0.5,
-            pr: 1,
-            py: 0.5,
-            // Same left structure as the rows (transparent selection border
-            // + drag handle slot) so the "+" lines up with the avatars.
-            borderLeft: "3px solid transparent",
-          }}
-        >
-          <Box
-            component="span"
-            sx={{ width: 16, flexShrink: 0, display: "inline-flex" }}
-          />
-          <Box
-            sx={{
-              width: 28,
-              height: 28,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              border: "1px dashed",
-              borderColor: "panel.textLight",
-              color: "panel.textMuted",
-              flexShrink: 0,
-            }}
-          >
-            <Add sx={{ fontSize: 16 }} />
-          </Box>
-          <Typography variant="body2" color="panel.textMuted">
-            {addListingS}
-          </Typography>
-        </ListItemButton>
-      )}
-
-      {/* "Visibilité auto": selecting a listing hides every other listing
-          and unhides all the templates of the selected one (same option as
-          the LISTE ACTIVE menu — panelDrawing.autoListingVisibility). */}
-      <Divider sx={{ mt: 0.5 }} />
-      <RowPanelOptionCheckbox
-        label={autoVisibilityS}
-        tooltip={autoVisibilityTooltipS}
-        checked={autoVisibility}
-        onChange={(checked) => dispatch(setAutoListingVisibility(checked))}
-      />
 
       <MenuMoreActionsActiveListing
         anchorEl={menuState?.anchorEl ?? null}

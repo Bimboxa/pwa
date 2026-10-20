@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
-  Box,
   Typography,
   ListItemButton,
   IconButton,
@@ -11,10 +10,12 @@ import {
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import FilterCenterFocus from "@mui/icons-material/FilterCenterFocus";
 import QuestionMark from "@mui/icons-material/QuestionMark";
+import Tune from "@mui/icons-material/Tune";
 
+import SoloIconToggle from "./SoloIconToggle";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
+import useOpenTemplatelessAnnotationsPanel from "Features/mapEditor/hooks/useOpenTemplatelessAnnotationsPanel";
 import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotationsOnMap";
 
 // ---------------------------------------------------------------------------
@@ -22,8 +23,9 @@ import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotat
 // PopperMapListings templates list, right below "Nouveau modèle": the
 // annotations drawn without template nor listing (« Dessin » command of the
 // commands toolbar, hotkey D) in the popper's annotations set. Shows their
-// count; on hover: solo and eye (templateless sentinel, see
-// useDrawTemplateless); click selects the ones of the main base map on the
+// count; the row icon is the solo toggle (as on the template rows) and the
+// eye shows on hover (templateless sentinel, see useDrawTemplateless);
+// click selects the ones of the main base map on the
 // map (multi-selection panel). Rendered only when there is at least one, or
 // while the sentinel is soloed / eye-hidden.
 // ---------------------------------------------------------------------------
@@ -32,8 +34,7 @@ export default function RowTemplatelessAnnotations({ annotations }) {
   // strings
 
   const labelS = "Annotations sans modèle";
-  const soloS = "Solo";
-  const exitSoloS = "Quitter le solo";
+  const propertiesS = "Propriétés";
   const hideS = "Masquer";
   const showS = "Afficher";
   const tooltipS =
@@ -42,6 +43,7 @@ export default function RowTemplatelessAnnotations({ annotations }) {
   // data
 
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const openProperties = useOpenTemplatelessAnnotationsPanel();
   const { isSolo, isHidden, toggleSolo, toggleHidden } = useDrawTemplateless();
   const { selectAnnotations } = useSelectAnnotationsOnMap();
 
@@ -52,7 +54,6 @@ export default function RowTemplatelessAnnotations({ annotations }) {
   // helpers
 
   const count = annotations?.length ?? 0;
-  const showActions = isHovered || isSolo;
   const buttonSx = {
     p: 0.5,
     bgcolor: "action.hover",
@@ -73,12 +74,12 @@ export default function RowTemplatelessAnnotations({ annotations }) {
     );
     if (selectable.length === 0) return;
     if (isHidden) toggleHidden();
-    selectAnnotations(selectable);
+    selectAnnotations(selectable, { openProperties: false });
   };
 
-  const handleToggleSolo = (e) => {
+  const handleOpenProperties = (e) => {
     e.stopPropagation();
-    toggleSolo();
+    openProperties();
   };
 
   const handleToggleHidden = (e) => {
@@ -108,23 +109,15 @@ export default function RowTemplatelessAnnotations({ annotations }) {
             "&:hover": { bgcolor: "action.hover" },
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              flexShrink: 0,
-            }}
+          {/* Row icon = SOLO toggle, as on the template rows */}
+          <SoloIconToggle
+            isSolo={isSolo}
+            isHidden={isHidden}
+            isRowHovered={isHovered}
+            onToggle={toggleSolo}
           >
-            <QuestionMark
-              sx={{
-                fontSize: 18,
-                color: isHidden ? "text.disabled" : "panel.textMuted",
-              }}
-            />
-          </Box>
+            <QuestionMark sx={{ fontSize: 18, color: "panel.textMuted" }} />
+          </SoloIconToggle>
           <Typography
             variant="body2"
             noWrap
@@ -138,39 +131,32 @@ export default function RowTemplatelessAnnotations({ annotations }) {
             {labelS}
           </Typography>
 
-          {showActions && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Tooltip title={isSolo ? exitSoloS : soloS} arrow>
-                <IconButton
-                  size="small"
-                  onClick={handleToggleSolo}
-                  sx={{
-                    ...buttonSx,
-                    ...(isSolo && {
-                      bgcolor: "secondary.main",
-                      color: "secondary.contrastText",
-                    }),
-                  }}
-                >
-                  <FilterCenterFocus sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              {isHovered && (
-                <Tooltip title={isHidden ? showS : hideS} arrow>
-                  <IconButton
-                    size="small"
-                    onClick={handleToggleHidden}
-                    sx={buttonSx}
-                  >
-                    {isHidden ? (
-                      <VisibilityOff sx={{ fontSize: 16 }} />
-                    ) : (
-                      <Visibility sx={{ fontSize: 16 }} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
+          {isHovered && (
+            <Tooltip title={propertiesS} arrow>
+              <IconButton
+                size="small"
+                onClick={handleOpenProperties}
+                sx={buttonSx}
+              >
+                <Tune sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {isHovered && (
+            <Tooltip title={isHidden ? showS : hideS} arrow>
+              <IconButton
+                size="small"
+                onClick={handleToggleHidden}
+                sx={buttonSx}
+              >
+                {isHidden ? (
+                  <VisibilityOff sx={{ fontSize: 16 }} />
+                ) : (
+                  <Visibility sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
           )}
 
           {!isHovered && (

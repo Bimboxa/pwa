@@ -72,13 +72,11 @@ import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
-import SectionPopperListings from "Features/popperMapListings/components/SectionPopperListings";
 import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
-import SwitchSelectedBaseMapOnly from "Features/popperMapListings/components/SwitchSelectedBaseMapOnly";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
 import PanelFooter from "Features/layout/components/PanelFooter";
@@ -116,7 +114,7 @@ import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
 import { setToaster } from "Features/layout/layoutSlice";
 import FieldActiveListing from "Features/panelDrawing/components/FieldActiveListing";
-import ListingAvatarsBar from "Features/panelDrawing/components/ListingAvatarsBar";
+import BandActiveListing from "Features/panelDrawing/components/BandActiveListing";
 import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
 import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -891,10 +889,6 @@ function AnnotationTemplatesForListing({
   // Listing linked from another scope: read-only rows, no reorder, no
   // "Nouveau modèle".
   readOnly = false,
-  // Dessin popper only: the annotations drawn without template (« Dessin »
-  // command) of the popper's set — the « Annotations sans modèle » row below
-  // "Nouveau modèle". Undefined in the legends (no row).
-  templatelessAnnotations,
 }) {
   // data
 
@@ -1096,15 +1090,6 @@ function AnnotationTemplatesForListing({
         </ListItemButton>
       )}
 
-      {/* « Annotations sans modèle » (« Dessin » command draws, scope-level)
-          right below the add row — same gates */}
-      {!isThreedViewer &&
-        !visibleTemplateIds &&
-        !readOnly &&
-        templatelessAnnotations && (
-          <RowTemplatelessAnnotations annotations={templatelessAnnotations} />
-        )}
-
       {/* procedures linked to the listing ("Dessin auto"), below the add
           row — hidden in 3D (read-only), while SELECT-filtering and for a
           listing linked from another scope */}
@@ -1148,8 +1133,6 @@ function ListingRow({
   // The FieldActiveListing selector already names the active listing: skip
   // the redundant header band and render the templates only.
   hideHeader = false,
-  // See AnnotationTemplatesForListing.
-  templatelessAnnotations,
 }) {
   const dispatch = useDispatch();
 
@@ -1222,7 +1205,6 @@ function ListingRow({
         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
         visibleTemplateIds={visibleTemplateIds}
         readOnly={isLinked}
-        templatelessAnnotations={templatelessAnnotations}
       />
     );
   }
@@ -1384,7 +1366,6 @@ function ListingRow({
           paintedQtiesByTemplateId={paintedQtiesByTemplateId}
           visibleTemplateIds={visibleTemplateIds}
           readOnly={isLinked}
-          templatelessAnnotations={templatelessAnnotations}
         />
       )}
     </Box>
@@ -1904,9 +1885,6 @@ export default function PopperMapListings() {
   const popperContentMode = useSelector(
     (s) => s.popperMapListings.viewerContentMode
   );
-  const listingSelectorMode = useSelector(
-    (s) => s.popperMapListings.listingSelectorMode
-  );
   // "Détacher la liste": the base maps list lives in its own popper
   // (PopperBaseMapsList, mounted next to this one by the editors) — this one
   // loses its "Fonds de plan" side. The toggle goes altogether when no
@@ -1923,25 +1901,17 @@ export default function PopperMapListings() {
     moduleTypeKey ?? undefined
   );
   const showObjectsToggle = isBusinessObjectsModule && Boolean(moduleTypeKey);
-  // "Listes" side (Dessin module, 2D or its 3D editor): the annotation
-  // listings as rows (SectionPopperListings) — not in the legend poppers,
-  // where every listing is shown at once, nor in locate-object mode.
-  const showListingsToggle =
-    isDessinPopper && !isLegendPopper && !isLocateBusinessObjectMode;
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
     (!baseMapsListDetached ||
       showPhotosToggle ||
       showObjectsToggle ||
-      showListingsToggle ||
       isScopeModule);
   const showObjectsBody =
     showObjectsToggle && showContentToggle && popperContentMode === "OBJECTS";
   const showScopeContentBody =
     isScopeModule && showContentToggle && popperContentMode === "CONTENT";
-  const showListingsBody =
-    showListingsToggle && showContentToggle && popperContentMode === "LISTINGS";
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
   const showBaseMapsBody =
     isBaseMapsListOnly ||
@@ -1953,7 +1923,6 @@ export default function PopperMapListings() {
     !collapsed &&
     !showBaseMapsBody &&
     !showScopeContentBody &&
-    !showListingsBody &&
     !showObjectsBody;
   // Side title row with the properties button: not in the Viewer / SCOPE
   // modules nor the BaseMaps module (read-only legends, no popper properties
@@ -2300,7 +2269,6 @@ export default function PopperMapListings() {
             showObjects={showObjectsToggle}
             objectsLabel={objectsLabel}
             showContent={isScopeModule}
-            showListings={showListingsToggle}
             showPhotos={showPhotosToggle}
             showBaseMaps={!baseMapsListDetached}
             annotationsLabel="Annotations"
@@ -2439,20 +2407,6 @@ export default function PopperMapListings() {
         </Box>
       )}
 
-      {/* "Listes" side (Dessin module): the annotation listings as rows
-          replace the whole body — same listings, active listing and counts
-          as the selector of the annotations side. */}
-      {!collapsed && showListingsBody && (
-        <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionPopperListings
-            listings={displayedListings}
-            activeListing={activeListing}
-            countsByListingId={listingCountsById}
-            showAddListing={canAddListing}
-          />
-        </Box>
-      )}
-
       {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
@@ -2468,11 +2422,10 @@ export default function PopperMapListings() {
               only; hidden in 3D and viewer mode (read-only) */}
           {/* Standard body (layers / listings / cut tools) */}
 
-          {/* Layers + revolution axes — pinned right under the header, above
-              the listing selector. Capped in height so a long layers list
-              never pushes the listing selector / templates out of sight. */}
-          {((viewerKey === "MAP" && showLayers) ||
-            (!isBaseMapsLegend && !isLocateBusinessObjectMode)) && (
+          {/* Layers — pinned right under the header, above the listing
+              selector. Capped in height so a long layers list never pushes
+              the listing selector / templates out of sight. */}
+          {viewerKey === "MAP" && showLayers && (
             <Box
               sx={{
                 flexShrink: 0,
@@ -2480,21 +2433,7 @@ export default function PopperMapListings() {
                 overflow: "auto",
               }}
             >
-              {viewerKey === "MAP" && showLayers && (
-                <SectionLayers baseMapId={baseMap?.id} />
-              )}
-
-              {/* Axes de révolution — as soon as the base map carries one
-                (drawn on this plan / placed on this vertical base map): one
-                row per axis, with the navigation to the perpendicular base
-                map, the eye / solo of everything linked to it and its 3D
-                half-view. */}
-              {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
-                <SectionRevolutionAxes
-                  baseMap={baseMap}
-                  spriteImage={spriteImage}
-                />
-              )}
+              <SectionLayers baseMapId={baseMap?.id} />
             </Box>
           )}
 
@@ -2503,42 +2442,38 @@ export default function PopperMapListings() {
             <WarningBaseMapNotToScale />
           )}
 
-          {/* Listing selector — pick the current listing (selectedListingId).
-            Same "LISTE ACTIVE" field as the Dessin left panel (counts chips,
-            visibility eyes, "Visibilité auto" option). Shown whenever there
-            are listings, or when a new one can be created (empty-state CTA).
-            Hidden in the legend poppers (Viewer module, BaseMaps module),
-            where every listing is shown at once. Kept out of the scrollable
-            body so it stays in sight while the templates scroll. */}
+          {/* Active listing block — the "Liste active" band (name, "..."
+            menu, count / visibility pill) and, below it, the expandable
+            listings panel ("Listes" header: select, show / hide, reorder,
+            create, "Visibilité auto" in its "..." menu). Shown whenever there are
+            listings, or when a new one can be created (empty-state CTA of
+            the LISTE ACTIVE field). Hidden in the legend poppers (Viewer
+            module, BaseMaps module), where every listing is shown at once.
+            Kept out of the scrollable body so it stays in sight while the
+            templates scroll. */}
           {!isLegendPopper &&
             !isLocateBusinessObjectMode &&
             (displayedListings?.length > 0 || canAddListing) && (
               <Box
                 sx={{
                   flexShrink: 0,
-                  py: 0.75,
                   borderBottom: "1px solid",
                   borderColor: "panel.border",
                 }}
               >
-                {/* Either the LISTE ACTIVE field or the avatars band,
-                    per the "Sélecteur / Avatars" switch of the "..."
-                    menu. The field stays for the empty state (its CTA
-                    creates the first listing). */}
-                {listingSelectorMode === "AVATARS" && !hasNoListing ? (
-                  <ListingAvatarsBar
+                {hasNoListing ? (
+                  <FieldActiveListing
                     listings={displayedListings}
                     activeListing={activeListing}
                     countsByListingId={listingCountsById}
                     showAddListing={canAddListing}
                   />
                 ) : (
-                  <FieldActiveListing
+                  <BandActiveListing
                     listings={displayedListings}
                     activeListing={activeListing}
                     countsByListingId={listingCountsById}
                     showAddListing={canAddListing}
-                    showModeSwitch
                   />
                 )}
               </Box>
@@ -2667,23 +2602,8 @@ export default function PopperMapListings() {
                         annotationTemplateById={annotationTemplateById}
                         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
-                        templatelessAnnotations={templatelessAnnotations}
                       />
                     )}
-
-              {/* Dessin popper without any listing: the « Annotations sans
-                  modèle » row stands alone (the « Dessin » command needs no
-                  listing), same gates as below "Nouveau modèle". */}
-              {!isLocateBusinessObjectMode &&
-                !isLegendPopper &&
-                !activeListing &&
-                isDessinPopper &&
-                !isThreedViewer &&
-                !visibleTemplateIds && (
-                  <RowTemplatelessAnnotations
-                    annotations={templatelessAnnotations}
-                  />
-                )}
 
               {/* Coupes / élévations liées — on a VERTICAL base map targeted
                 by BASE_MAP_LINK marks: one row per link to draw its clone
@@ -2697,6 +2617,45 @@ export default function PopperMapListings() {
               )}
             </>
           </Box>
+
+          {/* Pinned bottom section — outside the scrollable body, so it
+              stays in sight while the templates scroll. Capped in height so
+              it never hides the templates.
+              - « Annotations sans modèle » (Dessin popper, scope-level: the
+                « Dessin » command needs no listing), hidden in 3D and while
+                SELECT-filtering;
+              - Axes de révolution, as soon as the base map carries one
+                (drawn on this plan / placed on this vertical base map): one
+                row per axis, without section header, with the navigation to
+                the perpendicular base map, the eye / solo of everything
+                linked to it and its 3D half-view. */}
+          {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
+            <Box
+              sx={{
+                flexShrink: 0,
+                maxHeight: layersMaxHeight,
+                overflow: "auto",
+              }}
+            >
+              {isDessinPopper &&
+                !isLegendPopper &&
+                !isThreedViewer &&
+                !visibleTemplateIds && (
+                  <Box
+                    sx={{ borderTop: "1px solid", borderColor: "panel.border" }}
+                  >
+                    <RowTemplatelessAnnotations
+                      annotations={templatelessAnnotations}
+                    />
+                  </Box>
+                )}
+              <SectionRevolutionAxes
+                baseMap={baseMap}
+                spriteImage={spriteImage}
+                hideHeader
+              />
+            </Box>
+          )}
         </>
       )}
 
@@ -2705,7 +2664,6 @@ export default function PopperMapListings() {
       {(soloTemplateId || soloRevolutionAxisId) &&
         !showBaseMapsBody &&
         !showScopeContentBody &&
-        !showListingsBody &&
         !showObjectsBody && (
           <Box
             sx={{
@@ -2749,11 +2707,6 @@ export default function PopperMapListings() {
         isAutoHeight={isAutoHeight}
         collapsed={collapsed}
         onToggleCollapsed={() => dispatch(setCollapsed(!collapsed))}
-        startContent={
-          isDessinPopper && !isBaseMapsListOnly ? (
-            <SwitchSelectedBaseMapOnly />
-          ) : null
-        }
       >
         {showBaseMapsBody && !isBaseMapsListOnly && (
           <IconButtonToggleDetached />

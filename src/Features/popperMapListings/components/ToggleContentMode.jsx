@@ -9,7 +9,6 @@ import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 // and the docked PanelDrawing: the module's objects (`showObjects`, labelled
 // after the business-objects module — "Ouvrages", "Quantités"…, far left) |
 // "Contenu" (`showContent`, the scope content of the SCOPE module) |
-// "Listes" (`showListings`, the annotation listings of the Dessin module) |
 // "Annotations" | "Photos" (Viewer module with photos, `showPhotos`) |
 // "Fonds de plan" (`showBaseMaps`, off in the popper while the base maps
 // list is detached). The mode lives in redux
@@ -20,7 +19,6 @@ export default function ToggleContentMode({
   showObjects = false,
   objectsLabel = "Objets",
   showContent = false,
-  showListings = false,
   showPhotos = false,
   showBaseMaps = true,
   annotationsLabel = "Annotations",
@@ -30,7 +28,6 @@ export default function ToggleContentMode({
   // strings
 
   const contentS = "Contenu";
-  const listingsS = "Listes";
   const photosS = "Photos";
   const baseMapsS = "Fonds de plan";
 
@@ -43,7 +40,6 @@ export default function ToggleContentMode({
   const options = [
     ...(showObjects ? [{ value: "OBJECTS", label: objectsLabel }] : []),
     ...(showContent ? [{ value: "CONTENT", label: contentS }] : []),
-    ...(showListings ? [{ value: "LISTINGS", label: listingsS }] : []),
     { value: "ANNOTATIONS", label: annotationsLabel },
     ...(showPhotos ? [{ value: "PHOTOS", label: photosS }] : []),
     ...(showBaseMaps ? [{ value: "BASE_MAPS", label: baseMapsS }] : []),

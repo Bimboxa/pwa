@@ -11,7 +11,9 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 // list row (« Annot. sans modèle » orphans, « Annotations sans modèle »
 // templateless draws): same item shape as the 2D lasso selection
 // (InteractionLayer buildItem / PanelTemplateAnnotations "Tout sél."), then
-// the multi-selection properties panel.
+// the multi-selection properties panel — unless `openProperties: false`
+// (the « Annotations sans modèle » row click only selects on the map; its
+// "Propriétés" button opens its own panel).
 // ---------------------------------------------------------------------------
 
 export default function useSelectAnnotationsOnMap() {
@@ -19,7 +21,7 @@ export default function useSelectAnnotationsOnMap() {
 
   // handlers
 
-  const selectAnnotations = (annotations) => {
+  const selectAnnotations = (annotations, { openProperties = true } = {}) => {
     if (!annotations?.length) return;
     const items = annotations.map((a) => ({
       id: a.id,
@@ -35,7 +37,8 @@ export default function useSelectAnnotationsOnMap() {
     }));
     dispatch(setSelectedItems(items));
     if (items.length === 1) dispatch(setShowAnnotationsProperties(true));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    if (openProperties)
+      dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   };
 
   return { selectAnnotations };

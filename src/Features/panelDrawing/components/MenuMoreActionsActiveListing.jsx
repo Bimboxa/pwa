@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import { setListingSelectorMode } from "Features/popperMapListings/popperMapListingsSlice";
 
 import {
   Box,
@@ -12,7 +11,6 @@ import {
   Divider,
   ListItemIcon,
   ListItemText,
-  Switch,
 } from "@mui/material";
 import Edit from "@mui/icons-material/Edit";
 import Star from "@mui/icons-material/Star";
@@ -39,23 +37,18 @@ import { OwnershipError } from "App/db/ownership";
 // MenuMoreActionsActiveListing — "..." menu of the active-listing field:
 // rename (dialog), favorites toggle, duplicate, delete unused templates (of
 // this listing only, the listing is kept), delete. Duplicate / delete
-// mirror IconButtonMoreActionsListing. With `showModeSwitch`, a
-// "Sélecteur / Avatars" switch at the top picks how the popper shows the
-// listings (LISTE ACTIVE field vs avatars band).
+// mirror IconButtonMoreActionsListing.
 // ---------------------------------------------------------------------------
 
 export default function MenuMoreActionsActiveListing({
   anchorEl,
   onClose,
   listing,
-  showModeSwitch = false,
 }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const selectorModeS = "Sélecteur";
-  const avatarsModeS = "Avatars";
   const renameS = "Renommer";
   const addFavoriteS = "Ajouter aux favoris";
   const removeFavoriteS = "Retirer des favoris";
@@ -80,9 +73,6 @@ export default function MenuMoreActionsActiveListing({
   const createListings = useCreateListings();
   const { canEditRecord, guardEditRecord } = useCanEditRecord();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
-  const listingSelectorMode = useSelector(
-    (s) => s.popperMapListings.listingSelectorMode
-  );
   // Favorites store the listing WITH its templates (see useFavoriteListings).
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listing?.id,
@@ -98,13 +88,8 @@ export default function MenuMoreActionsActiveListing({
   // helpers
 
   const favorite = isFavorite(listing?.id);
-  const isAvatarsMode = listingSelectorMode === "AVATARS";
 
   // handlers
-
-  const handleToggleMode = (e) => {
-    dispatch(setListingSelectorMode(e.target.checked ? "AVATARS" : "SELECTOR"));
-  };
 
   const handleRename = () => {
     onClose();
@@ -172,47 +157,6 @@ export default function MenuMoreActionsActiveListing({
           },
         }}
       >
-        {/* Display mode: LISTE ACTIVE field vs avatars band */}
-        {showModeSwitch && (
-          <Box
-            sx={{
-              px: 2,
-              py: 0.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              borderBottom: "1px solid",
-              borderColor: "panel.border",
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                color: isAvatarsMode ? "text.disabled" : "text.primary",
-                fontWeight: isAvatarsMode ? 400 : 600,
-              }}
-            >
-              {selectorModeS}
-            </Typography>
-            <Switch
-              size="small"
-              color="secondary"
-              checked={isAvatarsMode}
-              onChange={handleToggleMode}
-            />
-            <Typography
-              variant="body2"
-              sx={{
-                color: isAvatarsMode ? "text.primary" : "text.disabled",
-                fontWeight: isAvatarsMode ? 600 : 400,
-              }}
-            >
-              {avatarsModeS}
-            </Typography>
-          </Box>
-        )}
-
         {/* Listing name header */}
         <Box
           sx={{

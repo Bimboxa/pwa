@@ -13,16 +13,22 @@ import getRevolutionAxisProcedures, {
   getAxisSystemListingId,
 } from "../utils/getRevolutionAxisProcedures";
 
-// "Axes de révolution" section of PopperMapListings — pinned right below the
-// layers zone, under the panel header, as soon as the base map carries a
-// revolution axis: the axes drawn on it (plan) or placed on it (vertical base
-// map). One row per axis
+// "Axes de révolution" section of PopperMapListings — pinned at the bottom
+// of the annotations side, outside the scrollable body, as soon as the base
+// map carries a revolution axis: the axes drawn on it (plan) or placed on it
+// (vertical base map). One row per axis
 // (RowRevolutionAxis): navigation to the perpendicular base map the profiles
 // are drawn on, eye / solo of everything linked to the axis, 3D half-view.
 // "Créer un fond de plan…" of a row creates the automatic A3 coupe page of the
 // axis (same hook as the "Fond de plan" button of the axis overlay): page
 // sized to the axis, axis posed at its base point, page selected.
-export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
+// `hideHeader`: rows only (the popper pins them at the bottom, where the
+// section separates from the templates by a top border instead).
+export default function SectionRevolutionAxes({
+  baseMap,
+  spriteImage,
+  hideHeader = false,
+}) {
   // strings
 
   const titleS = "Axes de révolution";
@@ -67,49 +73,58 @@ export default function SectionRevolutionAxes({ baseMap, spriteImage }) {
   if (!hasItems) return null;
 
   return (
-    <Box sx={{ borderBottom: "1px solid", borderColor: "panel.border" }}>
-      {/* Same muted header as the "Calques" section right above: grey band,
-          uppercase caption, inverted-T glyph (the axis placement mark). */}
-      <Box
-        sx={{
-          px: 1,
-          py: 0.5,
-          bgcolor: "panel.sectionBg",
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-        }}
-      >
-        <svg
-          width={14}
-          height={14}
-          viewBox="0 0 20 20"
-          style={{ flexShrink: 0 }}
-        >
-          <g
-            stroke={theme.palette.panel.textMuted}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <line x1="10" y1="3" x2="10" y2="16" />
-            <line x1="4" y1="16" x2="16" y2="16" />
-          </g>
-        </svg>
-        <Typography
-          variant="caption"
+    <Box
+      sx={{
+        ...(hideHeader
+          ? { borderTop: "1px solid" }
+          : { borderBottom: "1px solid" }),
+        borderColor: "panel.border",
+      }}
+    >
+      {/* Same muted header as the "Calques" section: grey band, uppercase
+          caption, inverted-T glyph (the axis placement mark). */}
+      {!hideHeader && (
+        <Box
           sx={{
-            color: "panel.textMuted",
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            fontSize: "11px",
+            px: 1,
+            py: 0.5,
+            bgcolor: "panel.sectionBg",
+            borderBottom: "1px solid",
+            borderColor: "panel.border",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
           }}
         >
-          {titleS}
-        </Typography>
-      </Box>
+          <svg
+            width={14}
+            height={14}
+            viewBox="0 0 20 20"
+            style={{ flexShrink: 0 }}
+          >
+            <g
+              stroke={theme.palette.panel.textMuted}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <line x1="10" y1="3" x2="10" y2="16" />
+              <line x1="4" y1="16" x2="16" y2="16" />
+            </g>
+          </svg>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "panel.textMuted",
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              fontSize: "11px",
+            }}
+          >
+            {titleS}
+          </Typography>
+        </Box>
+      )}
       <List dense disablePadding>
         {items.map(({ axis, placements, linkedCount }) => (
           <RowRevolutionAxis

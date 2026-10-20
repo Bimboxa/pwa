@@ -8,7 +8,8 @@ import { Box, Typography } from "@mui/material";
 // ChipsViewerScope — annotations scope chips of the panels: the active base
 // map, or the whole repérage ("Tous", the default). Drives the annotations set
 // (useAnnotationsV2) and thus every displayed quantity. Same state as the
-// "Fond de plan sélectionné seul" switch of the Dessin popper footer.
+// "Quantités pour le fond de plan sélectionné seul" switch of the "Listes
+// d'annotations" menu of the Dessin popper / panel (BandActiveListing).
 // ---------------------------------------------------------------------------
 
 export default function ChipsViewerScope({ baseMapName }) {

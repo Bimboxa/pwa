@@ -1,5 +1,9 @@
 import { useSelector } from "react-redux";
-import { selectSelectedItems, selectSelectedPointIds, selectSelectedPartIds } from "../selectionSlice";
+import {
+  selectSelectedItems,
+  selectSelectedPointIds,
+  selectSelectedPartIds,
+} from "../selectionSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingById from "Features/listings/hooks/useListingById";
@@ -26,6 +30,7 @@ import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
 import PanelPropertiesScope from "Features/scopes/components/PanelPropertiesScope";
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
 import PanelPropertiesBaseMapsList from "Features/popperMapListings/components/PanelPropertiesBaseMapsList";
+import PanelTemplatelessAnnotations from "Features/annotations/components/PanelTemplatelessAnnotations";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
@@ -58,9 +63,7 @@ export default function PanelSelectionProperties() {
   const selectedPointIds = useSelector(selectSelectedPointIds);
   const selectedPartIds = useSelector(selectSelectedPartIds);
   const { value: defaultListing } = useSelectedListing();
-  const selectedViewerKey = useSelector(
-    (s) => s.viewers.selectedViewerKey
-  );
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const showAnnotationsProperties = useSelector(
     (s) => s.selection.showAnnotationsProperties
   );
@@ -292,6 +295,8 @@ export default function PanelSelectionProperties() {
     type = "POPPER_MAP_LISTINGS";
   } else if (selectedItem?.type === "POPPER_BASE_MAPS") {
     type = "POPPER_BASE_MAPS";
+  } else if (selectedItem?.type === "TEMPLATELESS_ANNOTATIONS") {
+    type = "TEMPLATELESS_ANNOTATIONS";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -323,8 +328,14 @@ export default function PanelSelectionProperties() {
 
       {/* THREED uses the V2 panel too so the back chain ends listing → scope,
           matching the 2D editor. */}
-      {type === "LISTING" && (isMapViewer || isScopeViewer || isThreedViewer) && <PanelPropertiesListingV2 listing={listing} />}
-      {type === "LISTING" && !isMapViewer && !isScopeViewer && !isThreedViewer && <PanelListingProperties listing={listing} />}
+      {type === "LISTING" &&
+        (isMapViewer || isScopeViewer || isThreedViewer) && (
+          <PanelPropertiesListingV2 listing={listing} />
+        )}
+      {type === "LISTING" &&
+        !isMapViewer &&
+        !isScopeViewer &&
+        !isThreedViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
 
@@ -371,6 +382,8 @@ export default function PanelSelectionProperties() {
 
       {type === "POPPER_BASE_MAPS" && <PanelPropertiesBaseMapsList />}
 
+      {type === "TEMPLATELESS_ANNOTATIONS" && <PanelTemplatelessAnnotations />}
+
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
 
       {type === "POINTS" && <PanelPropertiesPoints />}
@@ -385,7 +398,6 @@ export default function PanelSelectionProperties() {
 
       {type === "MESH3D" && <PanelMesh3dProperties />}
 
-
       {type === "ZONE" && <PanelZoneProperties />}
 
       {type === "BUSINESS_OBJECT" && <PanelBusinessObjectProperties />}
@@ -397,7 +409,9 @@ export default function PanelSelectionProperties() {
           deleted the id no longer resolves and the panel renders nothing. */}
       {type === "BUSINESS_OBJECT_LISTING" && (
         <PanelBusinessObjectListingProperties
-          listing={selectionListingId ? listingById : businessObjectsListingById}
+          listing={
+            selectionListingId ? listingById : businessObjectsListingById
+          }
         />
       )}
 

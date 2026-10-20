@@ -2,19 +2,16 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
-// "SELECTOR" (LISTE ACTIVE field) | "AVATARS" (listing avatars band).
-const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
-
 // Header toggle of the popper / PanelDrawing: "OBJECTS" (the objects and
 // listings of a business-objects module, popper only) | "CONTENT" (scope
-// content, SCOPE module only) | "LISTINGS" ("Listes": the annotation
-// listings of the Dessin module, popper only) | "ANNOTATIONS" | "PHOTOS"
-// (Viewer module with photos) | "BASE_MAPS" (base maps list). The drawing
-// commands live in the unified commands toolbar (Features/commandsToolbar).
+// content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module with
+// photos) | "BASE_MAPS" (base maps list). The drawing commands live in the
+// unified commands toolbar (Features/commandsToolbar). The annotation
+// listings of the Dessin module are managed from the expandable panel under
+// the active listing band (BandActiveListing), not from a toggle side.
 const CONTENT_MODES = [
   "OBJECTS",
   "CONTENT",
-  "LISTINGS",
   "ANNOTATIONS",
   "PHOTOS",
   "BASE_MAPS",
@@ -23,7 +20,12 @@ const CONTENT_MODES = [
 const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
   initialState: {
-    listingSelectorMode: "AVATARS",
+    // "Listes" header of the Dessin popper and docked panel
+    // (BandActiveListing):
+    // the listings panel is expanded between the active listing band and
+    // the templates. In redux so it survives the popper remount between the
+    // 2D and 3D editors.
+    listingsPanelExpanded: true,
     showLayers: false,
     // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
     // popper behaves like DRAW, and the selected annotation gets EDIT-like
@@ -82,12 +84,8 @@ const popperMapListingsSlice = createSlice({
     setAutoBaseMapVisibility(state, action) {
       state.autoBaseMapVisibility = Boolean(action.payload);
     },
-    setListingSelectorMode(state, action) {
-      state.listingSelectorMode = LISTING_SELECTOR_MODES.includes(
-        action.payload
-      )
-        ? action.payload
-        : "AVATARS";
+    setListingsPanelExpanded(state, action) {
+      state.listingsPanelExpanded = Boolean(action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -95,13 +93,10 @@ const popperMapListingsSlice = createSlice({
     // on the annotations when the module is entered (the content is one tab
     // away), and leaves the "Contenu" side when the module is left (the
     // other modules have no such side).
-    // Same rule for the "Objets" side of the business-objects modules and
-    // for the "Listes" side of the Dessin module.
+    // Same rule for the "Objets" side of the business-objects modules.
     builder.addCase("viewers/setSelectedViewerKey", (state, action) => {
       if (action.payload === "SCOPE") state.viewerContentMode = "ANNOTATIONS";
       else if (state.viewerContentMode === "CONTENT")
-        state.viewerContentMode = "ANNOTATIONS";
-      if (state.viewerContentMode === "LISTINGS" && action.payload !== "MAP")
         state.viewerContentMode = "ANNOTATIONS";
       if (
         state.viewerContentMode === "OBJECTS" &&
@@ -117,7 +112,7 @@ export const {
   setInteractionMode,
   setCollapsed,
   setViewerContentMode,
-  setListingSelectorMode,
+  setListingsPanelExpanded,
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
