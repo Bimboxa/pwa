@@ -46,7 +46,6 @@ import {
   clearPatternRepeatBuffer,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
-import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, patchNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import getDraftFieldVisibility from 'Features/mapEditor/utils/getDraftFieldVisibility';
 import isOpeningAnnotation, { getOpeningType } from 'Features/annotations/utils/isOpeningAnnotation';
@@ -6873,14 +6872,26 @@ const InteractionLayer = forwardRef(({
       if (hit) {
         console.log("[InteractionLayer] selected node", hit?.dataset)
 
-        // 3a. Click on a version image in BASE_MAPS viewer → select version
+        // 3a. Click on a version image in BASE_MAPS viewer → select the base
+        // map itself (not the version: versions are picked from the
+        // « Versions » list / tree). A click on the already selected base
+        // map deselects, like the IMAGE hit-rect of PrintZoneLayer.
         if (hit?.dataset?.nodeType === "BASE_MAP_VERSION") {
-          const versionId = hit?.dataset?.nodeId;
-          dispatch(setSelectedVersionId(versionId));
-          dispatch(setSelectedItem({
-            id: versionId,
-            type: "BASE_MAP_VERSION",
-          }));
+          const baseMap = calibrationBaseMapRef.current;
+          const alreadySelected =
+            selectedItems?.[0]?.type === "BASE_MAP" &&
+            selectedItems[0].id === baseMap?.id;
+          if (!baseMap?.id || alreadySelected) {
+            dispatch(clearSelection());
+          } else {
+            dispatch(
+              setSelectedItem({
+                id: baseMap.id,
+                type: "BASE_MAP",
+                listingId: baseMap.listingId,
+              })
+            );
+          }
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
         }

@@ -18,6 +18,8 @@ import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName
 //   live `translate` of the world group, zone rect -d in image px on
 //   commit; RESIZE (corner handles of the IMAGE frame) → live `scale`
 //   about the opposite image corner, zone rect scaled inversely on commit.
+//   Both need the sheet on screen (showSheet): hidden sheet = the image
+//   frame is a plain selection outline, no IMAGE hit-rect, no handles.
 //   The image frame / handles (this layer) get the SAME live transform so
 //   they follow the image. Nothing else re-renders during the gesture: the
 //   ONE db write on pointerup is what moves the React tree (MainMapEditorV3
@@ -223,7 +225,9 @@ export default function PrintZoneLayer({
   // render
 
   const showImageFrame = explicitlySelected && interactive && W > 0 && H > 0;
-  const showHandles = showImageFrame && !sizeLocked;
+  // The image is positioned relative to the sheet: no sheet, no drag.
+  const imageDraggable = showImageFrame && showSheet;
+  const showHandles = imageDraggable && !sizeLocked;
   const counterZoom = `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   const counterZoomLive = `scale(calc(1 / (var(--map-zoom, 1) * ${k} * var(--pz-live-scale, 1))))`;
 
@@ -245,30 +249,30 @@ export default function PrintZoneLayer({
       {/* A. image frame group — follows the live transform of the image */}
       <g ref={liveRef}>
         <g transform={poseTransform}>
+          {imageDraggable && (
+            <rect
+              x={0}
+              y={0}
+              width={W}
+              height={H}
+              fill="transparent"
+              style={{ pointerEvents: "all", cursor: "move" }}
+              data-interaction="transform-print-zone"
+              data-handle-type="IMAGE"
+            />
+          )}
           {showImageFrame && (
-            <>
-              <rect
-                x={0}
-                y={0}
-                width={W}
-                height={H}
-                fill="transparent"
-                style={{ pointerEvents: "all", cursor: "move" }}
-                data-interaction="transform-print-zone"
-                data-handle-type="IMAGE"
-              />
-              <rect
-                x={0}
-                y={0}
-                width={W}
-                height={H}
-                fill="none"
-                stroke={IMAGE_FRAME_STROKE}
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-                style={{ pointerEvents: "none" }}
-              />
-            </>
+            <rect
+              x={0}
+              y={0}
+              width={W}
+              height={H}
+              fill="none"
+              stroke={IMAGE_FRAME_STROKE}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "none" }}
+            />
           )}
           {showHandles &&
             HANDLES.map(({ type, cursor, ax, ay }) => (
