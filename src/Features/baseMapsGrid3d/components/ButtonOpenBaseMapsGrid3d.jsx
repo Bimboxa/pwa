@@ -1,19 +1,19 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
-import { setScopeGridWanted } from "Features/baseMapsGrid/baseMapsGridSlice";
+
+import useCloseBaseMapsGrid3d from "../hooks/useCloseBaseMapsGrid3d";
 
 import { GridView } from "@mui/icons-material";
 
 import ButtonBaseMapsGrid from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
 
 import { BASE_MAPS_GRID_HOTKEY } from "Features/baseMapsGrid/hooks/useOpenBaseMapsGridHotkey";
-import selectBaseMapsGridPinned from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import selectCanOpenBaseMapsGrid3d from "../utils/selectCanOpenBaseMapsGrid3d";
 
 // Bottom bar button of the 3D editors (SectionBaseMapsBottomBarControls):
-// lays the base maps flat like the
-// sheets of the 2D grid, and sends them back to their real poses.
+// lays the base maps flat like the sheets of the 2D grid, and sends them
+// back to their real poses (useCloseBaseMapsGrid3d).
 export default function ButtonOpenBaseMapsGrid3d() {
   const dispatch = useDispatch();
 
@@ -25,14 +25,13 @@ export default function ButtonOpenBaseMapsGrid3d() {
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
   const canOpen = useSelector(selectCanOpenBaseMapsGrid3d);
-  // SCOPE module: closing drops `scopeGridWanted` (the keeper lets it closed).
-  const isScopeModule = useSelector(selectBaseMapsGridPinned);
+  const closeGrid = useCloseBaseMapsGrid3d();
 
   // handlers
 
   function handleClick() {
-    if (active && isScopeModule) dispatch(setScopeGridWanted(false));
-    dispatch(setBaseMapsGridModeActive(!active));
+    if (active) closeGrid();
+    else dispatch(setBaseMapsGridModeActive(true));
   }
 
   // render
