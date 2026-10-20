@@ -3,7 +3,7 @@ import SvgIcon from "@mui/material/SvgIcon";
 // « Couper une surface » (SURFACE_CUT, 2D): a filled surface already split in
 // two halves, pulled apart along the cut so the separation reads at 18 px,
 // with the cutting stroke overshooting the shape at both ends. Distinct from
-// IconSplitPolygon (3D « Coupe face »: an outlined polygon with a dashed
+// IconFaceCut (3D « Coupe face »: a face split in two pieces along a dashed
 // line) and from IconCutLine (segment removal).
 const IconCutSurface = (props) => (
   <SvgIcon {...props} viewBox="0 0 24 24">

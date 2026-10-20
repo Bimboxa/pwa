@@ -1,4 +1,4 @@
-import { Height } from "@mui/icons-material";
+import IconExtrudeFace from "Features/icons/IconExtrudeFace";
 
 import { setExtrudeModeActive } from "Features/threedEditor/threedEditorSlice";
 
@@ -11,7 +11,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 export default {
   key: "EXTRUDE",
   label: "Extruder",
-  Icon: Height,
+  Icon: IconExtrudeFace,
   editors: [EDITOR_3D],
   hotkey: { key: "e" },
   getState: (ctx) => getThreedToolState(ctx, ["EXTRUDE"]),

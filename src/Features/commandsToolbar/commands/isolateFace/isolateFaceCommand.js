@@ -1,4 +1,4 @@
-import IconIsolateSegment from "Features/icons/IconIsolateSegment";
+import IconIsolateFace from "Features/icons/IconIsolateFace";
 
 import { setIsolateFaceModeActive } from "Features/threedEditor/threedEditorSlice";
 
@@ -10,7 +10,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 export default {
   key: "ISOLATE_FACE",
   label: "Isoler une face",
-  Icon: IconIsolateSegment,
+  Icon: IconIsolateFace,
   editors: [EDITOR_3D],
   hotkey: { key: "s" },
   getState: (ctx) => getThreedToolState(ctx, ["ISOLATE_FACE"]),

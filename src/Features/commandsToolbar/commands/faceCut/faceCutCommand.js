@@ -1,4 +1,4 @@
-import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import IconFaceCut from "Features/icons/IconFaceCut";
 
 import { EDITOR_3D } from "../../constants/commandEditors";
 import createToolGroupCommand from "../../utils/createToolGroupCommand";
@@ -10,7 +10,7 @@ import createToolGroupCommand from "../../utils/createToolGroupCommand";
 export default createToolGroupCommand({
   key: "FACE_CUT",
   label: "Coupe face",
-  Icon: IconSplitPolygon,
+  Icon: IconFaceCut,
   editors: [EDITOR_3D],
   hotkey: {
     key: "c",

@@ -33,6 +33,9 @@ import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
+import IconFaceCutSegment from "Features/icons/IconFaceCutSegment";
+import IconFaceCutPolyline from "Features/icons/IconFaceCutPolyline";
+import IconFaceCutRectangle from "Features/icons/IconFaceCutRectangle";
 import IconFaceCutHorizontal from "Features/icons/IconFaceCutHorizontal";
 import IconFaceCutVertical from "Features/icons/IconFaceCutVertical";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
@@ -312,14 +315,14 @@ const DRAWING_TOOLS = [
   {
     key: "FACE_CUT_SEGMENT",
     label: "Segment (2 clics)",
-    Icon: IconPolylineSegment,
+    Icon: IconFaceCutSegment,
     annotationType: "FACE_CUT",
     behavior: "SEGMENT",
   },
   {
     key: "FACE_CUT_POLYLINE",
     label: "Polyligne clic",
-    Icon: IconPolylineClick,
+    Icon: IconFaceCutPolyline,
     annotationType: "FACE_CUT",
     behavior: "CLICK",
   },
@@ -328,7 +331,7 @@ const DRAWING_TOOLS = [
   {
     key: "FACE_CUT_RECTANGLE",
     label: "Rectangle",
-    Icon: IconPolylineRectangle,
+    Icon: IconFaceCutRectangle,
     annotationType: "FACE_CUT",
     behavior: "RECTANGLE",
   },

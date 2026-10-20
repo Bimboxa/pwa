@@ -1,4 +1,4 @@
-import { CallMerge } from "@mui/icons-material";
+import IconMergeFaces from "Features/icons/IconMergeFaces";
 
 import activateMergeFacesTool from "Features/threedMergeFaces/utils/activateMergeFacesTool";
 
@@ -12,7 +12,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 export default {
   key: "MERGE_FACES",
   label: "Fusionner des faces",
-  Icon: CallMerge,
+  Icon: IconMergeFaces,
   editors: [EDITOR_3D],
   getState: (ctx) => getThreedToolState(ctx, ["MERGE_FACES"]),
   run(ctx, { dispatch, store, getThreedEditor }) {

@@ -1,6 +1,6 @@
 import SvgIcon from "@mui/material/SvgIcon";
 
-// « Isoler un segment / une face »: a polyline whose middle segment is cut
+// « Isoler un segment » (2D): a polyline whose middle segment is cut
 // off at both ends (two cut marks) and kept bold.
 const IconIsolateSegment = (props) => (
   <SvgIcon {...props} viewBox="0 0 24 24">
