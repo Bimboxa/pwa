@@ -147,15 +147,23 @@ export default function PortfolioPageSvg({
   const selectedContainer = displayContainers?.find((c) =>
     selectedItems.some((i) => i.id === c.id && i.type === "BASE_MAP_CONTAINER")
   );
-  const showEditButton = selectedContainer?.baseMapId;
-  const selectedBaseMap = useBaseMap({ id: selectedContainer?.baseMapId });
-  const isFraming =
-    framingContainerId === selectedContainer?.id && showEditButton;
+  // Framing (« Cadrer » / « Croper ») is sticky: it follows the framing
+  // container id, not the selection, so a click elsewhere (another page, the
+  // background) never drops the crop frame — only « Terminer » / Escape do.
+  const framingContainer = displayContainers?.find(
+    (c) => c.id === framingContainerId && c.baseMapId
+  );
+  const isFraming = Boolean(framingContainer);
   const isCropping = isFraming && framingMode === "CROP";
+  const activeContainer = framingContainer ?? selectedContainer;
+  // default toolbar: a selected base map container while no framing is
+  // active anywhere
+  const showEditButton = selectedContainer?.baseMapId && !framingContainerId;
+  const activeBaseMap = useBaseMap({ id: activeContainer?.baseMapId });
   // Scale lock (« cadenas d'échelle »): move + crop only, never stretch / zoom.
   const scaleLocked = resolveContainerScaleLocked(
-    selectedContainer,
-    selectedBaseMap?.getPrintZone?.()
+    activeContainer,
+    activeBaseMap?.getPrintZone?.()
   );
 
   // printed scale of the page (title block « Echelle » cell): from the
@@ -176,7 +184,16 @@ export default function PortfolioPageSvg({
 
   function handleFrame() {
     if (isFraming) {
+      // « Terminer »: leave the mode and give the container back its
+      // selection (a click elsewhere may have cleared it meanwhile)
       dispatch(setFramingContainerId(null));
+      dispatch(
+        setSelectedItem({
+          id: framingContainer.id,
+          type: "BASE_MAP_CONTAINER",
+          portfolioPageId: framingContainer.portfolioPageId,
+        })
+      );
       return;
     }
     if (scaleLocked) return;
@@ -192,10 +209,10 @@ export default function PortfolioPageSvg({
   // « Reset »: puts the print zone back in the page (full page + zone as
   // viewBox, page format from the zone) — the base map assignment layout.
   async function handleResetLayout() {
-    if (!selectedBaseMap || !selectedContainer) return;
+    if (!activeBaseMap || !activeContainer) return;
     const layout = getBaseMapContainerDefaultLayout({
-      printZone: selectedBaseMap.getPrintZone?.(),
-      imageSize: selectedBaseMap.getImageSize(),
+      printZone: activeBaseMap.getPrintZone?.(),
+      imageSize: activeBaseMap.getImageSize(),
       contentArea,
     });
     if (!layout) return;
@@ -207,7 +224,7 @@ export default function PortfolioPageSvg({
     ) {
       await updateEntity(page.id, pageFormat, { listing: portfolio });
     }
-    await db.portfolioBaseMapContainers.update(selectedContainer.id, {
+    await db.portfolioBaseMapContainers.update(activeContainer.id, {
       x: layout.x,
       y: layout.y,
       width: layout.width,
@@ -218,13 +235,13 @@ export default function PortfolioPageSvg({
   }
 
   async function handleToggleScaleLock() {
-    if (!selectedContainer) return;
+    if (!activeContainer) return;
     const nextLocked = !scaleLocked;
     // locking while « Cadrer » is active leaves the zoomable mode
     if (nextLocked && isFraming && framingMode === "FRAME") {
       dispatch(setFramingContainerId(null));
     }
-    await db.portfolioBaseMapContainers.update(selectedContainer.id, {
+    await db.portfolioBaseMapContainers.update(activeContainer.id, {
       scaleLocked: nextLocked,
     });
   }
@@ -536,7 +553,7 @@ export default function PortfolioPageSvg({
         onSelectPov={handleSelectPov}
       />
 
-      {showEditButton && !isFraming && (
+      {showEditButton && (
         <Box
           onClick={(e) => e.stopPropagation()}
           sx={{
@@ -613,8 +630,8 @@ export default function PortfolioPageSvg({
           onClick={(e) => e.stopPropagation()}
           sx={{
             position: "absolute",
-            left: selectedContainer.x,
-            top: selectedContainer.y + selectedContainer.height + 8,
+            left: framingContainer.x,
+            top: framingContainer.y + framingContainer.height + 8,
             // above the next page's white sheet
             zIndex: 2,
             display: "flex",
