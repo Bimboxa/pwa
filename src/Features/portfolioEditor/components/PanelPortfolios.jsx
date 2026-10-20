@@ -39,6 +39,8 @@ export default function PanelPortfolios() {
         height: 1,
         minHeight: 0,
         bgcolor: "background.default",
+        // Vertical divider marking the boundary with the 2D / 3D editor.
+        borderRight: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
       <Box
