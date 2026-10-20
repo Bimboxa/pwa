@@ -2875,8 +2875,9 @@ export default function MainThreedEditor() {
           grid button and the « Séparer les surfaces en contact » toggle live
           in the bottom bar (SectionBaseMapsBottomBarControls), the zoom out
           next to the 2D/3D toggle below. */}
-      {/* Orientation gizmo, under the top-right row (3D view settings
-          "Gizmo d'orientation"). Hidden with the row under a capture
+      {/* Orientation gizmo in the top-right corner (3D view settings
+          "Gizmo d'orientation"), flush with the top since the former
+          top-right row moved to the bottom bar. Hidden under a capture
           framing, in walk mode (HUD) and in the POV viewer. */}
       {isThreedViewer &&
         rendererIsReady &&
@@ -2889,7 +2890,7 @@ export default function MainThreedEditor() {
             sx={{
               position: "absolute",
               right: rightPanelOpen ? `${rightPanelWidth + 24}px` : "24px",
-              top: "64px",
+              top: "12px",
               zIndex: 10,
               transition: "right 0.2s ease",
             }}
