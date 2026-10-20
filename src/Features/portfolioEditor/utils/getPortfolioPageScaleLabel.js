@@ -5,16 +5,18 @@ import { formatPrintZoneScale } from "Features/baseMaps/utils/printZone";
 // `page.scale` cell. Pure — takes the page, its largest base map container
 // and that base map's resolved print zone.
 //
-// The label is only meaningful when the printed sheet IS the print zone:
+// The label is only meaningful when the container prints the zone at the
+// zone's scale, i.e. when the container's pt-per-reference-px ratio equals
+// the zone's own ratio (page width in pt / zone width in px), on both axes:
 // - the zone carries a scale (zone.scale > 0, "libre" zones have none),
-// - the page has the zone's format / orientation,
-// - the container covers the whole page (x = y = 0, page-sized),
-// - the container viewBox is the zone rect (no custom « Cadrer » framing;
-//   a missing viewBox means the default framing, i.e. the zone itself —
-//   see computeDefaultViewBox).
+// - container.width / viewBox.width ≈ pageDims(zone).width / zone.width
+//   (0.5 % tolerance), same for the height — a missing viewBox means the
+//   default framing, i.e. the zone itself (see computeDefaultViewBox).
+// A cropped container (smaller frame, same ratio — « Croper ») keeps the
+// label; a zoomed (« Cadrer » wheel) or stretched one loses it.
 // Every other case returns "" so the cell hides (hideIfEmpty).
 
-const PAGE_TOLERANCE_PT = 1;
+const RATIO_TOLERANCE = 0.005;
 
 const near = (a, b, tol) => Math.abs((a ?? NaN) - (b ?? NaN)) <= tol;
 
@@ -35,32 +37,18 @@ export default function getPortfolioPageScaleLabel({
 }) {
   if (!page || !container || !printZone) return "";
   if (!(printZone.scale > 0)) return "";
-  if (
-    page.format !== printZone.format ||
-    page.orientation !== printZone.orientation
-  )
-    return "";
+  if (!(printZone.width > 0) || !(printZone.height > 0)) return "";
 
-  const dims = getPageDimensions(page.format, page.orientation);
-  if (
-    !near(container.x, 0, PAGE_TOLERANCE_PT) ||
-    !near(container.y, 0, PAGE_TOLERANCE_PT) ||
-    !near(container.width, dims.width, PAGE_TOLERANCE_PT) ||
-    !near(container.height, dims.height, PAGE_TOLERANCE_PT)
-  )
-    return "";
+  const zoneDims = getPageDimensions(printZone.format, printZone.orientation);
+  const kZone = zoneDims.width / printZone.width;
 
-  const viewBox = container.viewBox;
-  if (viewBox) {
-    const tol = Math.max(1, printZone.width * 0.005);
-    if (
-      !near(viewBox.x, printZone.x, tol) ||
-      !near(viewBox.y, printZone.y, tol) ||
-      !near(viewBox.width, printZone.width, tol) ||
-      !near(viewBox.height, printZone.height, tol)
-    )
-      return "";
-  }
+  const viewBox = container.viewBox ?? printZone;
+  if (!(viewBox.width > 0) || !(viewBox.height > 0)) return "";
+  const kX = container.width / viewBox.width;
+  const kY = container.height / viewBox.height;
+
+  const tol = kZone * RATIO_TOLERANCE;
+  if (!near(kX, kZone, tol) || !near(kY, kZone, tol)) return "";
 
   return `1:${formatPrintZoneScale(printZone.scale)}`;
 }

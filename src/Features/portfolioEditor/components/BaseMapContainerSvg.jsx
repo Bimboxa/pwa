@@ -17,6 +17,7 @@ import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnot
 import { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+import resolveContainerScaleLocked from "../utils/resolveContainerScaleLocked";
 import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import FramingOverlay from "./FramingOverlay";
 import ContainerTransformOverlay from "./ContainerTransformOverlay";
@@ -33,6 +34,9 @@ export default function BaseMapContainerSvg({
   const selectedItems = useSelector(selectSelectedItems);
   const framingContainerId = useSelector(
     (s) => s.portfolioBaseMapContainers.framingContainerId
+  );
+  const framingMode = useSelector(
+    (s) => s.portfolioBaseMapContainers.framingMode
   );
   const baseMap = useBaseMap({ id: container.baseMapId });
   const spriteImage = useAnnotationSpriteImage();
@@ -56,6 +60,10 @@ export default function BaseMapContainerSvg({
   );
   const hasBaseMap = container.baseMapId && baseMap;
   const isFraming = framingContainerId === container.id && hasBaseMap;
+  const scaleLocked = resolveContainerScaleLocked(
+    container,
+    hasBaseMap ? baseMap.getPrintZone?.() : null
+  );
 
   const imageSize = hasBaseMap ? baseMap.getImageSize() : null;
   const meterByPx = hasBaseMap ? baseMap.getMeterByPx() : null;
@@ -159,24 +167,35 @@ export default function BaseMapContainerSvg({
           </defs>
 
           <g clipPath={`url(#${clipId})`}>
-            {version ? (() => {
-              const vUrl = version.image?.imageUrlClient ?? version.image?.imageUrlRemote;
-              const vSize = version.image?.imageSize;
-              if (!vUrl || !vSize) return null;
-              const t = version.transform || { x: 0, y: 0, rotation: 0, scale: 1 };
-              return (
-                <g transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}>
-                  <NodeSvgImage
-                    src={vUrl}
-                    dataNodeId={container.id}
-                    dataNodeType="BASE_MAP_CONTAINER"
-                    width={vSize.width}
-                    height={vSize.height}
-                    opacity={container.baseMapOpacity ?? 1}
-                  />
-                </g>
-              );
-            })() : (
+            {version ? (
+              (() => {
+                const vUrl =
+                  version.image?.imageUrlClient ??
+                  version.image?.imageUrlRemote;
+                const vSize = version.image?.imageSize;
+                if (!vUrl || !vSize) return null;
+                const t = version.transform || {
+                  x: 0,
+                  y: 0,
+                  rotation: 0,
+                  scale: 1,
+                };
+                return (
+                  <g
+                    transform={`translate(${t.x}, ${t.y}) scale(${t.scale}) rotate(${t.rotation || 0})`}
+                  >
+                    <NodeSvgImage
+                      src={vUrl}
+                      dataNodeId={container.id}
+                      dataNodeType="BASE_MAP_CONTAINER"
+                      width={vSize.width}
+                      height={vSize.height}
+                      opacity={container.baseMapOpacity ?? 1}
+                    />
+                  </g>
+                );
+              })()
+            ) : (
               <NodeSvgImage
                 src={baseMap.getUrl()}
                 dataNodeId={container.id}
@@ -207,6 +226,7 @@ export default function BaseMapContainerSvg({
           baseMap={baseMap}
           innerSvgRef={innerSvgRef}
           labelSvgRef={labelSvgRef}
+          allowZoom={framingMode !== "CROP"}
         />
       )}
 
@@ -217,6 +237,7 @@ export default function BaseMapContainerSvg({
           innerSvgRef={innerSvgRef}
           labelSvgRef={labelSvgRef}
           framing={isFraming}
+          scaleLocked={scaleLocked}
         />
       )}
 

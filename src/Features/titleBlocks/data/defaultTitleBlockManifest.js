@@ -19,8 +19,9 @@
 //   page.format | pageNum | field:<fieldKey>. `fallbackBind` = binding
 //   rendered while a field: bind has no stored value (live default, e.g.
 //   chantier -> project.name). `page.scale` = printed scale label ("1:50"),
-//   only bound on pages whose largest base map fills the page with a scaled
-//   print zone (carnet) or when the capture frame is the scaled print zone.
+//   only bound on pages whose largest base map prints its scaled print zone
+//   at the zone's ratio (carnet: full page or cropped, never zoomed) or
+//   when the capture frame is the scaled print zone.
 //   `page.format` = sheet format ("A3", no orientation), capture only.
 //   `modes` = layout modes the cell belongs to ("PORTFOLIO" = Carnet de
 //   plans page, "CAPTURE" = Capture tool frame); absent = every mode. Two
@@ -58,8 +59,9 @@ const defaultTitleBlockManifest = {
   ],
   cells: [
     // row 0: FOLIO / TITRE (page title, spans main+mid) | [ECHELLE] | DATE
-    // Echelle only shows on full-page scaled print zones (carnet) or when
-    // the capture frame is the scaled print zone; FOLIO then shrinks to the
+    // Echelle only shows on scaled print zones kept at their ratio (carnet,
+    // see getPortfolioPageScaleLabel) or when the capture frame is the
+    // scaled print zone; FOLIO then shrinks to the
     // main column (colSpan truncated at the next visible cell).
     { row: 0, col: "main", colSpan: 2, label: "Folio", bind: "page.title", bold: true, modes: ["PORTFOLIO"] },
     { row: 0, col: "main", colSpan: 2, label: "Titre", bind: "page.title", bold: true, modes: ["CAPTURE"] },
