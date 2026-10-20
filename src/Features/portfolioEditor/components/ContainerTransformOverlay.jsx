@@ -60,6 +60,7 @@ export default function ContainerTransformOverlay({
   innerSvgRef,
   labelSvgRef,
   framing = false,
+  scaleLocked = false,
 }) {
   // refs — all transient drag state, zero re-renders during drag
 
@@ -153,7 +154,11 @@ export default function ContainerTransformOverlay({
       }
 
       // during framing, also adjust viewBox so the baseMap stays at same scale/position
-      if (framingRef.current && startViewBoxRef.current && startRectRef.current) {
+      if (
+        framingRef.current &&
+        startViewBoxRef.current &&
+        startRectRef.current
+      ) {
         const old = startRectRef.current;
         const vb = startViewBoxRef.current;
         const scaleX = vb.width / old.width;
@@ -237,7 +242,11 @@ export default function ContainerTransformOverlay({
         const update = { x: r.x, y: r.y, width: r.width, height: r.height };
 
         // When framing, persist the adjusted viewBox
-        if (framingRef.current && startViewBoxRef.current && startRectRef.current) {
+        if (
+          framingRef.current &&
+          startViewBoxRef.current &&
+          startRectRef.current
+        ) {
           const old = startRectRef.current;
           const vb = startViewBoxRef.current;
           const scaleX = vb.width / old.width;
@@ -273,6 +282,9 @@ export default function ContainerTransformOverlay({
   const strokeColor = framing
     ? theme.palette.primary.main
     : theme.palette.viewers.portfolio;
+  // Scale lock: outside framing the handles would stretch the image (scale
+  // change) — hide them; while framing / cropping they crop (viewBox follows).
+  const showHandles = framing || !scaleLocked;
 
   return (
     <g onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
@@ -304,23 +316,24 @@ export default function ContainerTransformOverlay({
       )}
 
       {/* 8 resize handles */}
-      {HANDLES.map((h) => (
-        <rect
-          key={h.id}
-          ref={(el) => {
-            handleRefsMap.current[h.id] = el;
-          }}
-          x={h.xFn(r) - half}
-          y={h.yFn(r) - half}
-          width={compensatedSize}
-          height={compensatedSize}
-          fill="white"
-          stroke={strokeColor}
-          strokeWidth={strokeW}
-          style={{ cursor: h.cursor }}
-          onPointerDown={handlePointerDown(h.id)}
-        />
-      ))}
+      {showHandles &&
+        HANDLES.map((h) => (
+          <rect
+            key={h.id}
+            ref={(el) => {
+              handleRefsMap.current[h.id] = el;
+            }}
+            x={h.xFn(r) - half}
+            y={h.yFn(r) - half}
+            width={compensatedSize}
+            height={compensatedSize}
+            fill="white"
+            stroke={strokeColor}
+            strokeWidth={strokeW}
+            style={{ cursor: h.cursor }}
+            onPointerDown={handlePointerDown(h.id)}
+          />
+        ))}
     </g>
   );
 }

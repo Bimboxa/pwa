@@ -8,7 +8,15 @@ import db from "App/db/db";
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 
-export default function FramingOverlay({ container, baseMap, innerSvgRef, labelSvgRef }) {
+// allowZoom: false in « Croper » mode — the wheel is left alone so the image
+// scale never changes; drag (pan) and the crop handles stay available.
+export default function FramingOverlay({
+  container,
+  baseMap,
+  innerSvgRef,
+  labelSvgRef,
+  allowZoom = true,
+}) {
   const dispatch = useDispatch();
 
   // refs
@@ -86,28 +94,31 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef, labelS
     e.target.setPointerCapture(e.pointerId);
   }, []);
 
-  const handlePointerMove = useCallback((e) => {
-    if (!draggingRef.current) return;
-    e.stopPropagation();
-    const pt = getSvgPoint(e);
-    if (!pt || !lastPointRef.current) return;
+  const handlePointerMove = useCallback(
+    (e) => {
+      if (!draggingRef.current) return;
+      e.stopPropagation();
+      const pt = getSvgPoint(e);
+      if (!pt || !lastPointRef.current) return;
 
-    const vb = viewBoxRef.current;
-    const scaleX = vb.width / container.width;
-    const scaleY = vb.height / container.height;
+      const vb = viewBoxRef.current;
+      const scaleX = vb.width / container.width;
+      const scaleY = vb.height / container.height;
 
-    const dx = (pt.x - lastPointRef.current.x) * scaleX;
-    const dy = (pt.y - lastPointRef.current.y) * scaleY;
+      const dx = (pt.x - lastPointRef.current.x) * scaleX;
+      const dy = (pt.y - lastPointRef.current.y) * scaleY;
 
-    viewBoxRef.current = {
-      ...vb,
-      x: vb.x - dx,
-      y: vb.y - dy,
-    };
+      viewBoxRef.current = {
+        ...vb,
+        x: vb.x - dx,
+        y: vb.y - dy,
+      };
 
-    lastPointRef.current = pt;
-    applyViewBox();
-  }, [container.width, container.height]);
+      lastPointRef.current = pt;
+      applyViewBox();
+    },
+    [container.width, container.height]
+  );
 
   const handlePointerUp = useCallback((e) => {
     if (!draggingRef.current) return;
@@ -117,40 +128,43 @@ export default function FramingOverlay({ container, baseMap, innerSvgRef, labelS
     commitViewBox();
   }, []);
 
-  const handleWheel = useCallback((e) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleWheel = useCallback(
+    (e) => {
+      e.stopPropagation();
+      e.preventDefault();
 
-    const factor = e.deltaY > 0 ? 1.03 : 1 / 1.03;
-    const vb = viewBoxRef.current;
+      const factor = e.deltaY > 0 ? 1.03 : 1 / 1.03;
+      const vb = viewBoxRef.current;
 
-    // Mouse position in viewBox coordinates
-    const pt = getSvgPoint(e);
-    if (!pt) return;
-    const mouseVBX =
-      ((pt.x - container.x) / container.width) * vb.width + vb.x;
-    const mouseVBY =
-      ((pt.y - container.y) / container.height) * vb.height + vb.y;
+      // Mouse position in viewBox coordinates
+      const pt = getSvgPoint(e);
+      if (!pt) return;
+      const mouseVBX =
+        ((pt.x - container.x) / container.width) * vb.width + vb.x;
+      const mouseVBY =
+        ((pt.y - container.y) / container.height) * vb.height + vb.y;
 
-    viewBoxRef.current = {
-      x: mouseVBX - (mouseVBX - vb.x) * factor,
-      y: mouseVBY - (mouseVBY - vb.y) * factor,
-      width: vb.width * factor,
-      height: vb.height * factor,
-    };
+      viewBoxRef.current = {
+        x: mouseVBX - (mouseVBX - vb.x) * factor,
+        y: mouseVBY - (mouseVBY - vb.y) * factor,
+        width: vb.width * factor,
+        height: vb.height * factor,
+      };
 
-    applyViewBox();
-    debouncedCommit();
-  }, [container.x, container.y, container.width, container.height]);
+      applyViewBox();
+      debouncedCommit();
+    },
+    [container.x, container.y, container.width, container.height]
+  );
 
   // native wheel listener (passive: false to allow preventDefault)
 
   useEffect(() => {
     const el = rectRef.current;
-    if (!el) return;
+    if (!el || !allowZoom) return;
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
-  }, [handleWheel]);
+  }, [handleWheel, allowZoom]);
 
   // escape key to exit framing mode
 

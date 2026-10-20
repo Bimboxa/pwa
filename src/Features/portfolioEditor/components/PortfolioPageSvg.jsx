@@ -8,11 +8,24 @@ import {
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { setFramingContainerId } from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
-import { setSourceContainer, clearSourceContainer } from "Features/baseMapCreator/baseMapCreatorSlice";
+import {
+  setFramingContainerId,
+  setFramingMode,
+} from "Features/portfolioBaseMapContainers/portfolioBaseMapContainersSlice";
+import {
+  setSourceContainer,
+  clearSourceContainer,
+} from "Features/baseMapCreator/baseMapCreatorSlice";
 
-import { Box } from "@mui/material";
-import { Draw, CropFree, RestartAlt } from "@mui/icons-material";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import {
+  Draw,
+  Crop,
+  CropFree,
+  RestartAlt,
+  Lock,
+  LockOpen,
+} from "@mui/icons-material";
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
@@ -39,7 +52,8 @@ import getPageDimensions from "../utils/getPageDimensions";
 import getPageLayout from "../utils/getPageLayout";
 import computePageFrame from "../utils/computePageFrame";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
-import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+import getBaseMapContainerDefaultLayout from "../utils/getBaseMapContainerDefaultLayout";
+import resolveContainerScaleLocked from "../utils/resolveContainerScaleLocked";
 import getPortfolioPageScaleLabel, {
   getLargestBaseMapContainer,
 } from "../utils/getPortfolioPageScaleLabel";
@@ -47,7 +61,12 @@ import getPovImageInfo from "Features/pov/utils/getPovImageInfo";
 
 import db from "App/db/db";
 
-export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) {
+export default function PortfolioPageSvg({
+  page,
+  pageIndex,
+  totalPages,
+  zoom,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -62,6 +81,9 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   const framingContainerId = useSelector(
     (s) => s.portfolioBaseMapContainers.framingContainerId
   );
+  const framingMode = useSelector(
+    (s) => s.portfolioBaseMapContainers.framingMode
+  );
 
   // state
 
@@ -70,6 +92,14 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   const [creatingContainerId, setCreatingContainerId] = useState(null);
   const emptyPlaceholderRef = useRef(null);
   const createContainer = useCreatePortfolioBaseMapContainer();
+
+  // strings
+
+  const lockedTooltipS =
+    "Échelle verrouillée : déplacer et recadrer uniquement";
+  const unlockedTooltipS = "Échelle libre : étirer et zoomer possibles";
+  const frameDisabledTooltipS =
+    "Échelle verrouillée - déverrouillez le cadenas pour zoomer";
 
   // helpers
 
@@ -106,20 +136,31 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       }
       return c;
     });
-  }, [containers, contentArea.x, contentArea.y, contentArea.width, contentArea.height]);
+  }, [
+    containers,
+    contentArea.x,
+    contentArea.y,
+    contentArea.width,
+    contentArea.height,
+  ]);
 
   const selectedContainer = displayContainers?.find((c) =>
-    selectedItems.some(
-      (i) => i.id === c.id && i.type === "BASE_MAP_CONTAINER"
-    )
+    selectedItems.some((i) => i.id === c.id && i.type === "BASE_MAP_CONTAINER")
   );
   const showEditButton = selectedContainer?.baseMapId;
   const selectedBaseMap = useBaseMap({ id: selectedContainer?.baseMapId });
   const isFraming =
     framingContainerId === selectedContainer?.id && showEditButton;
+  const isCropping = isFraming && framingMode === "CROP";
+  // Scale lock (« cadenas d'échelle »): move + crop only, never stretch / zoom.
+  const scaleLocked = resolveContainerScaleLocked(
+    selectedContainer,
+    selectedBaseMap?.getPrintZone?.()
+  );
 
   // printed scale of the page (title block « Echelle » cell): from the
-  // largest base map container when it is a full-page scaled print zone
+  // largest base map container when it prints its scaled print zone at the
+  // zone's ratio (full page or cropped, never zoomed / stretched)
   const largestContainer = useMemo(
     () => getLargestBaseMapContainer(containers),
     [containers]
@@ -134,16 +175,58 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   // handlers
 
   function handleFrame() {
-    dispatch(setFramingContainerId(isFraming ? null : selectedContainer.id));
+    if (isFraming) {
+      dispatch(setFramingContainerId(null));
+      return;
+    }
+    if (scaleLocked) return;
+    dispatch(setFramingMode("FRAME"));
+    dispatch(setFramingContainerId(selectedContainer.id));
   }
 
-  async function handleResetFrame() {
+  function handleCrop() {
+    dispatch(setFramingMode("CROP"));
+    dispatch(setFramingContainerId(selectedContainer.id));
+  }
+
+  // « Reset »: puts the print zone back in the page (full page + zone as
+  // viewBox, page format from the zone) — the base map assignment layout.
+  async function handleResetLayout() {
     if (!selectedBaseMap || !selectedContainer) return;
-    const viewBox = computeDefaultViewBox(selectedBaseMap, selectedContainer);
+    const layout = getBaseMapContainerDefaultLayout({
+      printZone: selectedBaseMap.getPrintZone?.(),
+      imageSize: selectedBaseMap.getImageSize(),
+      contentArea,
+    });
+    if (!layout) return;
+    const { pageFormat } = layout;
+    if (
+      pageFormat &&
+      (page.format !== pageFormat.format ||
+        page.orientation !== pageFormat.orientation)
+    ) {
+      await updateEntity(page.id, pageFormat, { listing: portfolio });
+    }
     await db.portfolioBaseMapContainers.update(selectedContainer.id, {
-      viewBox,
+      x: layout.x,
+      y: layout.y,
+      width: layout.width,
+      height: layout.height,
+      viewBox: layout.viewBox,
     });
     dispatch(setFramingContainerId(null));
+  }
+
+  async function handleToggleScaleLock() {
+    if (!selectedContainer) return;
+    const nextLocked = !scaleLocked;
+    // locking while « Cadrer » is active leaves the zoomable mode
+    if (nextLocked && isFraming && framingMode === "FRAME") {
+      dispatch(setFramingContainerId(null));
+    }
+    await db.portfolioBaseMapContainers.update(selectedContainer.id, {
+      scaleLocked: nextLocked,
+    });
   }
 
   function handleClick(e) {
@@ -192,68 +275,37 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       containerId = created.id;
     }
 
-    const imageSize = baseMap.getImageSize();
-    const printZone = baseMap.getPrintZone?.();
-
-    if (printZone) {
-      // Print zone: the page takes the sheet format and the container is the
-      // FULL page with the zone as viewBox (exact 1:N / page-pt sizes) —
-      // same rule as useCreateBaseMapPage.
-      if (
-        page.format !== printZone.format ||
-        page.orientation !== printZone.orientation
-      ) {
-        await updateEntity(
-          page.id,
-          { format: printZone.format, orientation: printZone.orientation },
-          { listing: portfolio }
-        );
-      }
-      const pageDims = getPageDimensions(
-        printZone.format,
-        printZone.orientation
-      );
-      await db.portfolioBaseMapContainers.update(containerId, {
-        baseMapId: baseMap.id,
-        x: 0,
-        y: 0,
-        width: pageDims.width,
-        height: pageDims.height,
-        viewBox: {
-          x: printZone.x,
-          y: printZone.y,
-          width: printZone.width,
-          height: printZone.height,
-        },
-      });
-    } else if (imageSize) {
-      const fitted = fitContainerToBaseMap(imageSize, contentArea);
-      const viewBox = {
-        x: 0,
-        y: 0,
-        width: imageSize.width,
-        height: imageSize.height,
-      };
-      await db.portfolioBaseMapContainers.update(containerId, {
-        baseMapId: baseMap.id,
-        x: fitted.x,
-        y: fitted.y,
-        width: fitted.width,
-        height: fitted.height,
-        viewBox,
-      });
-    } else {
-      await db.portfolioBaseMapContainers.update(containerId, {
-        baseMapId: baseMap.id,
-      });
+    const layout = getBaseMapContainerDefaultLayout({
+      printZone: baseMap.getPrintZone?.(),
+      imageSize: baseMap.getImageSize(),
+      contentArea,
+    });
+    const pageFormat = layout?.pageFormat;
+    if (
+      pageFormat &&
+      (page.format !== pageFormat.format ||
+        page.orientation !== pageFormat.orientation)
+    ) {
+      await updateEntity(page.id, pageFormat, { listing: portfolio });
     }
+    await db.portfolioBaseMapContainers.update(containerId, {
+      baseMapId: baseMap.id,
+      ...(layout && {
+        x: layout.x,
+        y: layout.y,
+        width: layout.width,
+        height: layout.height,
+        viewBox: layout.viewBox,
+      }),
+    });
 
     // rename page title on first baseMap assignment
-    if (
-      page.title === "Nouvelle page" ||
-      page.title.startsWith("Page ")
-    ) {
-      await updateEntity(page.id, { title: baseMap.name }, { listing: portfolio });
+    if (page.title === "Nouvelle page" || page.title.startsWith("Page ")) {
+      await updateEntity(
+        page.id,
+        { title: baseMap.name },
+        { listing: portfolio }
+      );
     }
 
     handlePopoverClose();
@@ -303,10 +355,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     }
 
     // rename page title on first pov assignment
-    if (
-      page.title === "Nouvelle page" ||
-      page.title.startsWith("Page ")
-    ) {
+    if (page.title === "Nouvelle page" || page.title.startsWith("Page ")) {
       const title = pov.description || "Point de vue";
       await updateEntity(page.id, { title }, { listing: portfolio });
     }
@@ -333,12 +382,14 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
 
     handlePopoverClose();
     setCreatingContainerId(containerId);
-    dispatch(setSourceContainer({
-      containerId,
-      contentArea,
-      pageId: page.id,
-      portfolioId: page.listingId,
-    }));
+    dispatch(
+      setSourceContainer({
+        containerId,
+        contentArea,
+        pageId: page.id,
+        portfolioId: page.listingId,
+      })
+    );
   }
 
   async function handleBaseMapCreated(entity) {
@@ -369,10 +420,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     }
 
     // rename page title
-    if (
-      page.title === "Nouvelle page" ||
-      page.title.startsWith("Page ")
-    ) {
+    if (page.title === "Nouvelle page" || page.title.startsWith("Page ")) {
       const name = entity.name || record?.name || "Base map";
       await updateEntity(page.id, { title: name }, { listing: portfolio });
     }
@@ -496,6 +544,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             left: selectedContainer.x,
             top: selectedContainer.y + selectedContainer.height + 8,
             display: "flex",
+            alignItems: "center",
             gap: 0.5,
           }}
         >
@@ -508,13 +557,52 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             sx={{ bgcolor: "white" }}
           />
           <ButtonGeneric
-            label="Cadrer"
+            label="Croper"
             variant="outlined"
             size="small"
-            startIcon={<CropFree />}
-            onClick={handleFrame}
+            startIcon={<Crop />}
+            onClick={handleCrop}
             sx={{ bgcolor: "white" }}
           />
+          <Tooltip title={scaleLocked ? frameDisabledTooltipS : ""}>
+            <span>
+              <ButtonGeneric
+                label="Cadrer"
+                variant="outlined"
+                size="small"
+                startIcon={<CropFree />}
+                onClick={handleFrame}
+                disabled={scaleLocked}
+                sx={{ bgcolor: "white" }}
+              />
+            </span>
+          </Tooltip>
+          <ButtonGeneric
+            label="Reset"
+            variant="outlined"
+            size="small"
+            startIcon={<RestartAlt />}
+            onClick={handleResetLayout}
+            sx={{ bgcolor: "white" }}
+          />
+          <Tooltip title={scaleLocked ? lockedTooltipS : unlockedTooltipS}>
+            <IconButton
+              size="small"
+              onClick={handleToggleScaleLock}
+              sx={{
+                bgcolor: "white",
+                border: "1px solid",
+                borderColor: "divider",
+                "&:hover": { bgcolor: "white" },
+              }}
+            >
+              {scaleLocked ? (
+                <Lock sx={{ fontSize: 18 }} color="primary" />
+              ) : (
+                <LockOpen sx={{ fontSize: 18, color: "text.disabled" }} />
+              )}
+            </IconButton>
+          </Tooltip>
         </Box>
       )}
 
@@ -534,13 +622,14 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             variant="outlined"
             size="small"
             startIcon={<RestartAlt />}
-            onClick={handleResetFrame}
+            onClick={handleResetLayout}
+            sx={{ bgcolor: "white" }}
           />
           <ButtonGeneric
             label="Terminer"
             variant="contained"
             size="small"
-            startIcon={<CropFree />}
+            startIcon={isCropping ? <Crop /> : <CropFree />}
             onClick={handleFrame}
           />
         </Box>
