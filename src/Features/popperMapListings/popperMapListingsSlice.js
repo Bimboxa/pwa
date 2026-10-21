@@ -29,6 +29,10 @@ const popperMapListingsSlice = createSlice({
     // "Calques" header of the annotations popper (SectionLayers): the layers
     // list is expanded under the header. In redux for the same reason.
     layersPanelExpanded: true,
+    // "Fonds de plan" header of the Dessin popper (SectionPopperBaseMaps,
+    // above the listings block): the base maps list is expanded under the
+    // header. Collapsed by default; in redux for the same reason.
+    baseMapsPanelExpanded: false,
     showLayers: false,
     // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
     // popper behaves like DRAW, and the selected annotation gets EDIT-like
@@ -71,7 +75,9 @@ const popperMapListingsSlice = createSlice({
         : "ANNOTATIONS";
     },
     // Detach: the annotations popper falls back to its annotations side.
-    // Attach: it lands on the "Fonds de plan" side, where the list returns.
+    // Attach: the legend poppers land on their "Fonds de plan" side, where
+    // the list returns; the Dessin popper (no such side) expands its
+    // "Fonds de plan" section instead.
     setBaseMapsListDetached(state, action) {
       const detached = Boolean(action.payload);
       state.baseMapsListDetached = detached;
@@ -79,6 +85,7 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode = "ANNOTATIONS";
       } else if (!detached) {
         state.viewerContentMode = "BASE_MAPS";
+        state.baseMapsPanelExpanded = true;
       }
     },
     setHideEmptyBaseMapsInList(state, action) {
@@ -92,6 +99,9 @@ const popperMapListingsSlice = createSlice({
     },
     setLayersPanelExpanded(state, action) {
       state.layersPanelExpanded = Boolean(action.payload);
+    },
+    setBaseMapsPanelExpanded(state, action) {
+      state.baseMapsPanelExpanded = Boolean(action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -120,6 +130,7 @@ export const {
   setViewerContentMode,
   setListingsPanelExpanded,
   setLayersPanelExpanded,
+  setBaseMapsPanelExpanded,
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,

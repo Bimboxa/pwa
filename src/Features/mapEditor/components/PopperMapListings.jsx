@@ -74,6 +74,7 @@ import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
+import SectionPopperBaseMaps from "Features/popperMapListings/components/SectionPopperBaseMaps";
 import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
@@ -1880,7 +1881,11 @@ export default function PopperMapListings() {
   // Header toggle "Annotations | Fonds de plan" (ToggleContentMode) — plus a
   // "Photos" side in the Viewer module when the project has photos, which
   // swaps the body for the photo albums (2-column grids, click = select the
-  // photo). The "Fonds de plan" side swaps the body for the base maps list.
+  // photo). The "Fonds de plan" side swaps the body for the base maps list —
+  // legend poppers only: the poppers showing the listings block carry the
+  // list in their own collapsible "Fonds de plan" section instead
+  // (SectionPopperBaseMaps, above the listings), and the Dessin popper then
+  // has no toggle at all (plain "Annotations" title).
   // Locate-business-object mode keeps the object's label as a plain title.
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const projectPhotos = useProjectPhotos({
@@ -1891,12 +1896,16 @@ export default function PopperMapListings() {
   );
   // "Détacher la liste": the base maps list lives in its own popper
   // (PopperBaseMapsList, mounted next to this one by the editors) — this one
-  // loses its "Fonds de plan" side. The toggle goes altogether when no
-  // second side remains. (The drawing / base map placement commands live in
-  // the unified commands toolbar, Features/commandsToolbar.)
+  // loses its "Fonds de plan" side / section panel. The toggle goes
+  // altogether when no second side remains. (The drawing / base map
+  // placement commands live in the unified commands toolbar,
+  // Features/commandsToolbar.)
   const baseMapsListDetached = useSelector(
     (s) => s.popperMapListings.baseMapsListDetached
   );
+  // "Fonds de plan" section above the listings block — same gate as the
+  // block itself (not in the legend poppers, not in locate mode).
+  const showBaseMapsSection = !isLegendPopper && !isLocateBusinessObjectMode;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   // "Objets" side (business-objects modules, far left of the toggle,
   // labelled after the module): the module's listings and objects tree.
@@ -1908,7 +1917,7 @@ export default function PopperMapListings() {
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
-    (!baseMapsListDetached ||
+    ((!baseMapsListDetached && !showBaseMapsSection) ||
       showPhotosToggle ||
       showObjectsToggle ||
       isScopeModule);
@@ -1921,6 +1930,7 @@ export default function PopperMapListings() {
     isBaseMapsListOnly ||
     (showContentToggle &&
       !baseMapsListDetached &&
+      !showBaseMapsSection &&
       popperContentMode === "BASE_MAPS");
   // Annotations side (the standard body): no other side displayed.
   const showStandardBody =
@@ -2281,7 +2291,7 @@ export default function PopperMapListings() {
             objectsLabel={objectsLabel}
             showContent={isScopeModule}
             showPhotos={showPhotosToggle}
-            showBaseMaps={!baseMapsListDetached}
+            showBaseMaps={!baseMapsListDetached && !showBaseMapsSection}
             annotationsLabel="Annotations"
           />
         ) : (
@@ -2418,7 +2428,8 @@ export default function PopperMapListings() {
         </Box>
       )}
 
-      {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
+      {/* "Fonds de plan" side (legend poppers): the base maps list replaces
+          the whole body. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionBaseMapsList
@@ -2431,9 +2442,22 @@ export default function PopperMapListings() {
         <>
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
-          {/* Standard body (layers / listings / cut tools) */}
+          {/* Standard body (base maps / layers / listings) */}
 
-          {/* Layers — pinned right under the header, above the listing
+          {/* "Fonds de plan" section — pinned first under the header: the
+              header (properties, detach, expand / collapse) and, expanded,
+              the base maps list capped in height. Replaces the "Fonds de
+              plan" tab of the header toggle in these poppers. */}
+          {showBaseMapsSection && (
+            <Box sx={{ flexShrink: 0 }}>
+              <SectionPopperBaseMaps
+                countByBaseMapIdOverride={scopeCountByBaseMapId}
+                showProperties={showSideProperties}
+              />
+            </Box>
+          )}
+
+          {/* Layers — pinned under the base maps section, above the listing
               selector. Capped in height so a long layers list never pushes
               the listing selector / templates out of sight. */}
           {viewerKey === "MAP" && showLayers && (

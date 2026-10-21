@@ -30,6 +30,8 @@ import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import SectionPopperListings from "Features/popperMapListings/components/SectionPopperListings";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
+import bandButtonSx from "Features/popperMapListings/utils/bandButtonSx";
+
 // ---------------------------------------------------------------------------
 // BandActiveListing — active listing block of the Dessin popper and of the
 // docked Dessin panel (PanelDrawing), right under the header and above the
@@ -51,22 +53,6 @@ import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 // templates area: capped so a long list never pushes the templates out of
 // sight.
 const PANEL_MAX_HEIGHT = 240;
-
-const bandButtonSx = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 28,
-  height: 28,
-  p: 0,
-  border: "none",
-  borderRadius: 2,
-  flexShrink: 0,
-  cursor: "pointer",
-  color: "text.secondary",
-  bgcolor: "action.hover",
-  "&:hover": { bgcolor: "action.selected" },
-};
 
 export default function BandActiveListing({
   listings,

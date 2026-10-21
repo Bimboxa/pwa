@@ -11,8 +11,10 @@ import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 // "Contenu" (`showContent`, the scope content of the SCOPE module) |
 // "Annotations" | "Photos" (Viewer module with photos, `showPhotos`) |
 // "Fonds de plan" (`showBaseMaps`, off in the popper while the base maps
-// list is detached). The mode lives in redux
-// (popperMapListings.viewerContentMode) so both surfaces agree.
+// list is detached, and off in the poppers carrying the collapsible
+// "Fonds de plan" section above the listings — SectionPopperBaseMaps). The
+// mode lives in redux (popperMapListings.viewerContentMode) so both
+// surfaces agree.
 // ---------------------------------------------------------------------------
 
 export default function ToggleContentMode({
