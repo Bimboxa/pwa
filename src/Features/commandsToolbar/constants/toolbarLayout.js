@@ -103,7 +103,6 @@ const DEFAULT_LAYOUT = [
       "SLOPE_WALLS",
     ],
   },
-  "ASSIGN_ZONE",
   "ASSIGN_BUSINESS_OBJECT",
   { type: "divider" },
   // view toggles of the 2D editor

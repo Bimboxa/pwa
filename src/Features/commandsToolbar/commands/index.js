@@ -58,7 +58,6 @@ import closeEnvelopeCommand from "./closeEnvelope/closeEnvelopeCommand";
 import closeWallFootprintCommand from "./closeWallFootprint/closeWallFootprintCommand";
 import autoWallsCommand from "./autoWalls/autoWallsCommand";
 import slopeWallsCommand from "./slopeWalls/slopeWallsCommand";
-import assignZoneCommand from "./assignZone/assignZoneCommand";
 import assignBusinessObjectCommand from "./assignBusinessObject/assignBusinessObjectCommand";
 import toggleSegmentCotesCommand from "./toggleSegmentCotes/toggleSegmentCotesCommand";
 import toggleSegmentDragCommand from "./toggleSegmentDrag/toggleSegmentDragCommand";
@@ -145,7 +144,6 @@ export const COMMANDS = [
   closeWallFootprintCommand,
   autoWallsCommand,
   slopeWallsCommand,
-  assignZoneCommand,
   assignBusinessObjectCommand,
   // 2D view toggles
   toggleSegmentCotesCommand,
