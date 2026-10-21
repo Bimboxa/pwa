@@ -225,6 +225,17 @@ const threedEditorInitialState = {
   // the image reads as a section plane).
   // Session-only, display-only — quantities stay full-rotation.
   revolutionSectionSideByBaseMapId: {},
+  // Cut planes of the plan REVOLUTION_AXES whose "Demi-vue 3D" is on, in
+  // WORLD coordinates ({ axisId: { center: [x,y,z], normal: [x,y,z] } },
+  // normal = the +normal side of the vertical base map the axis would pose,
+  // see getRevolutionAxisPlanFrame's orange-half convention). Written by
+  // useAutoLoadAnnotationsInThreedEditor, read by useRevolutionSectionIn3d to
+  // track the camera side per axis — so the axis's base circle shows its kept
+  // half even when no arc / vertical base map is around. Session-only.
+  revolutionAxisSectionPlanes: {},
+  // { axisId: 1 | -1 }, camera side of each axis cut plane (same convention
+  // as revolutionSectionSideByBaseMapId). Session-only, display-only.
+  revolutionSectionSideByAxisId: {},
   // "Pochage des coupes" switch (3D view settings): fill the section of
   // partial revolutions with a flat dark face when the profile is a closed
   // contour. The ink boundary lines are always shown on partial revolutions;
@@ -694,6 +705,20 @@ export const threedEditorSlice = createSlice({
     },
     setRevolutionSectionFillIn3d: (state, action) => {
       state.revolutionSectionFillIn3d = Boolean(action.payload);
+    },
+    setRevolutionAxisSectionPlanes: (state, action) => {
+      state.revolutionAxisSectionPlanes = action.payload || {};
+    },
+    // Dispatched only when the camera crosses an axis cut plane (rare) — the
+    // value feeds the annotations build epoch like the base map sides.
+    setRevolutionSectionAxisSide: (state, action) => {
+      const { axisId, side } = action.payload || {};
+      if (!axisId) return;
+      if (side !== 1 && side !== -1) {
+        delete state.revolutionSectionSideByAxisId[axisId];
+      } else {
+        state.revolutionSectionSideByAxisId[axisId] = side;
+      }
     },
     setClippingPlaneEnabled: (state, action) => {
       state.clippingPlane.enabled = action.payload;
@@ -1441,6 +1466,8 @@ export const {
   clearSubSelection,
   setRevolutionSectionSide,
   setRevolutionSectionFillIn3d,
+  setRevolutionAxisSectionPlanes,
+  setRevolutionSectionAxisSide,
   setClippingPlaneEnabled,
   setClippingPlaneEditing,
   toggleClippingPlaneEditing,

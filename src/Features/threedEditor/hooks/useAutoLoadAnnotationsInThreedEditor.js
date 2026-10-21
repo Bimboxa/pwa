@@ -7,6 +7,7 @@ import db from "App/db/db";
 import {
   bumpSnapIndexEpoch,
   bumpAnnotationsLoadTick,
+  setRevolutionAxisSectionPlanes,
 } from "Features/threedEditor/threedEditorSlice";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -19,6 +20,7 @@ import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScope
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -288,25 +290,111 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     });
     return Object.keys(out).length > 0 ? out : null;
   }, [annotationsForThreed, baseMaps, revolutionSectionSideByBaseMapId]);
-  // { axisId: 1 | -1 }: the same camera side, keyed by the plan REVOLUTION_AXIS
-  // whose arcs are half-viewed, so the axis's base circle in 3D can show the
-  // kept half as a thick arc and the cut-away half as a thin one (like the
-  // 2D glyph). An axis revolved on several vertical base maps takes the side
-  // of the first one found (their planes coincide: all are posed from the
-  // axis's diameter).
-  const revolutionSectionByAxisId = useMemo(() => {
-    if (!revolutionSection) return null;
-    const out = {};
-    (annotationsForThreed || []).forEach((a) => {
-      if (a.shape3D?.key !== "REVOLUTION" || !a.revolutionHalfView) return;
-      if (a.revolutionPhi) return;
-      const axisId = a.shape3D?.axisAnnotationId;
-      const side = revolutionSection[a.baseMapId];
-      if (!axisId || !side || out[axisId]) return;
-      out[axisId] = side;
+  // Plan REVOLUTION_AXES whose "Demi-vue 3D" is on (and no explicit sector):
+  // their base circle in 3D shows the kept half as a thick arc and the
+  // cut-away half as a thin dashed one (like the 2D glyph).
+  const halfViewAxes = useMemo(
+    () =>
+      (annotationsForThreed || []).filter(
+        (a) =>
+          a.type === "REVOLUTION_AXIS" &&
+          a.halfViewIn3d !== false &&
+          !a.partialRevolution &&
+          a.point
+      ),
+    [annotationsForThreed]
+  );
+
+  // Cut plane of each of those axes, in WORLD coordinates, for the camera
+  // side tracker (useRevolutionSectionIn3d). The plane is the one a vertical
+  // base map posed from the axis would occupy: through the axis centre,
+  // along the diameter direction; its +normal side is the −90° side of the
+  // diameter in the plan local frame (the +90° CCW side is the "orange"
+  // half behind the plane — getRevolutionAxisPlanFrame). Probed through
+  // baseMapLocalToWorld so the plan's own angleDeg / y-flip stay in one
+  // place (same technique as computeVerticalBaseMapPlacementFromAxis).
+  const baseMapById = useMemo(
+    () => Object.fromEntries((baseMaps || []).map((bm) => [bm.id, bm])),
+    [baseMaps]
+  );
+  const axisPlanesKey = halfViewAxes
+    .map((a) => {
+      const bm = baseMapById[a.baseMapId];
+      const t = bm ? getBaseMapTransform(bm) : null;
+      return [
+        a.id,
+        a.point?.x,
+        a.point?.y,
+        a.directionDeg,
+        a.invertHalf ? 1 : 0,
+        a.baseMapId,
+        t
+          ? `${t.angleDeg}:${t.position.x},${t.position.y},${t.position.z}`
+          : "",
+      ].join(":");
+    })
+    .join("|");
+  useEffect(() => {
+    const planes = {};
+    halfViewAxes.forEach((a) => {
+      const bm = baseMapById[a.baseMapId];
+      if (!bm) return;
+      const size = bm.getImageSize?.() || bm.image?.imageSize;
+      const m = bm.getMeterByPx?.() ?? bm.meterByPx;
+      if (!size?.width || !size?.height || !(m > 0)) return;
+      const t = getBaseMapTransform(bm);
+      if (t.orientation === "VERTICAL") return;
+      const local = {
+        x: (a.point.x - size.width / 2) * m,
+        y: -(a.point.y - size.height / 2) * m,
+      };
+      const theta =
+        ((Number(a.directionDeg) || 0) * Math.PI) / 180 +
+        (a.invertHalf ? Math.PI : 0);
+      const c = baseMapLocalToWorld(local, t);
+      const n = baseMapLocalToWorld(
+        { x: local.x + Math.sin(theta), y: local.y - Math.cos(theta) },
+        t
+      ).sub(c);
+      if (!c || !(n.length() > 1e-9)) return;
+      n.normalize();
+      planes[a.id] = { center: [c.x, c.y, c.z], normal: [n.x, n.y, n.z] };
     });
-    return Object.keys(out).length > 0 ? out : null;
-  }, [annotationsForThreed, revolutionSection]);
+    dispatch(setRevolutionAxisSectionPlanes(planes));
+  }, [axisPlanesKey]);
+
+  const revolutionSectionSideByAxisId = useSelector(
+    (s) => s.threedEditor.revolutionSectionSideByAxisId
+  );
+
+  // { axisId: 1 | -1 }: camera side per half-viewed axis. An arc of the axis
+  // half-viewed on a vertical base map gives the side the lathes actually
+  // use (the planes coincide: the base map was posed from the axis's
+  // diameter); otherwise the axis's own cut plane tracker does.
+  const revolutionSectionByAxisId = useMemo(() => {
+    if (halfViewAxes.length === 0) return null;
+    const fromArcs = {};
+    if (revolutionSection) {
+      (annotationsForThreed || []).forEach((a) => {
+        if (a.shape3D?.key !== "REVOLUTION" || !a.revolutionHalfView) return;
+        if (a.revolutionPhi) return;
+        const axisId = a.shape3D?.axisAnnotationId;
+        const side = revolutionSection[a.baseMapId];
+        if (!axisId || !side || fromArcs[axisId]) return;
+        fromArcs[axisId] = side;
+      });
+    }
+    const out = {};
+    halfViewAxes.forEach((a) => {
+      out[a.id] = fromArcs[a.id] ?? revolutionSectionSideByAxisId?.[a.id] ?? 1;
+    });
+    return out;
+  }, [
+    halfViewAxes,
+    annotationsForThreed,
+    revolutionSection,
+    revolutionSectionSideByAxisId,
+  ]);
   // Serialized form for the build epoch (see getBuildEpochKey). The per-axis
   // part is there so re-pointing an arc at another axis (same base map, same
   // side) still rebuilds the axes' circles.

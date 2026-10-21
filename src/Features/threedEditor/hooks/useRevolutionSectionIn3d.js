@@ -1,7 +1,10 @@
 import { useEffect } from "react";
-import { useDispatch, useStore } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
-import { setRevolutionSectionSide } from "Features/threedEditor/threedEditorSlice";
+import {
+  setRevolutionSectionSide,
+  setRevolutionSectionAxisSide,
+} from "Features/threedEditor/threedEditorSlice";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
@@ -21,6 +24,12 @@ const SIDE_HYSTERESIS_M = 0.05;
 // maps actually host a half-viewed revolution is decided downstream
 // (useAutoLoadAnnotationsInThreedEditor), where unused sides are ignored.
 //
+// The same side is tracked per plan REVOLUTION_AXIS cut plane
+// (`revolutionAxisSectionPlanes`, world frame, published by
+// useAutoLoadAnnotationsInThreedEditor) into `revolutionSectionSideByAxisId`,
+// so an axis whose "Demi-vue 3D" is on shows its kept half (thick base
+// circle arc) even without an arc revolved on a vertical base map.
+//
 // Dispatches ONLY on a side flip (rare — the camera crossing the plane).
 // Mounted once from MainThreedEditor, same pattern as
 // useApplyBaseMapVisibilityIn3d.
@@ -29,6 +38,9 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
   const store = useStore();
 
   const { value: baseMaps = [] } = useBaseMaps();
+  const axisPlanes = useSelector(
+    (s) => s.threedEditor.revolutionAxisSectionPlanes
+  );
 
   // Placement key: a moved/rotated vertical base map must recompute sides.
   const placementKey = baseMaps
@@ -47,11 +59,26 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     const trackedBaseMaps = baseMaps.filter(
       (bm) => getBaseMapTransform(bm).orientation === "VERTICAL"
     );
-    if (trackedBaseMaps.length === 0) return;
+    const trackedAxes = Object.entries(axisPlanes || {});
+    if (trackedBaseMaps.length === 0 && trackedAxes.length === 0) return;
 
     const computeSides = () => {
-      const sides =
-        store.getState().threedEditor.revolutionSectionSideByBaseMapId || {};
+      const state = store.getState().threedEditor;
+      const sides = state.revolutionSectionSideByBaseMapId || {};
+      const axisSides = state.revolutionSectionSideByAxisId || {};
+      trackedAxes.forEach(([axisId, plane]) => {
+        const [cx, cy, cz] = plane.center;
+        const [nx, ny, nz] = plane.normal;
+        const d =
+          nx * (camera.position.x - cx) +
+          ny * (camera.position.y - cy) +
+          nz * (camera.position.z - cz);
+        if (Math.abs(d) < SIDE_HYSTERESIS_M) return; // keep previous side
+        const side = d >= 0 ? 1 : -1;
+        if ((axisSides[axisId] ?? 1) !== side) {
+          dispatch(setRevolutionSectionAxisSide({ axisId, side }));
+        }
+      });
       trackedBaseMaps.forEach((bm) => {
         const t = getBaseMapTransform(bm);
         // VERTICAL base map world normal: local +Z rotated by angleDeg
@@ -79,5 +106,5 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     return () => {
       cameraControls?.removeEventListener("update", computeSides);
     };
-  }, [rendererIsReady, placementKey, baseMaps]);
+  }, [rendererIsReady, placementKey, baseMaps, axisPlanes]);
 }

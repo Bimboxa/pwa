@@ -90,10 +90,13 @@ const REVOLUTION_AXIS_GAP_M = 0.2;
 // Z_FIGHT_OFFSET).
 const REVOLUTION_AXIS_CIRCLE_LIFT_M = 0.001;
 const REVOLUTION_AXIS_CIRCLE_SEGMENTS = 64;
-// Half-view split of the base circle (same weights as the 2D glyph): the
-// kept half reads as the visible section edge, the cut-away half as a hint.
+// Half-view split of the base circle: the kept half reads as the visible
+// section edge (thick solid), the cut-away half as a hint (thin dashed, world
+// metres like the axis line).
 const REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX = 3;
-const REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX = 1;
+const REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX = 1.5;
+const REVOLUTION_AXIS_CIRCLE_HIDDEN_DASH_M = 0.12;
+const REVOLUTION_AXIS_CIRCLE_HIDDEN_GAP_M = 0.08;
 const DEG_TO_RAD = Math.PI / 180;
 
 // Vertices of the axis base outline in basemap-local metres (y up, CCW like
@@ -1249,16 +1252,18 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // Display-only otherwise: `isRevolutionAxisCircle` keeps it out of the
       // scene export, the vertex snap index, the drawable faces and the
       // hover / dim material swaps.
-      // While the 3D half-view is active on this axis (an arc of it is
-      // half-viewed on a vertical base map whose camera side is known —
-      // options.revolutionSectionByAxisId, from useAutoLoadAnnotationsInThreedEditor),
-      // the full circle splits into two half circles: the kept half thick,
-      // the cut-away half thin, like the 2D glyph. An explicit sector
-      // (partialRevolution) wins over the half-view, as for the lathes.
+      // While the axis's "Demi-vue 3D" is on (camera side per axis in
+      // options.revolutionSectionByAxisId, from
+      // useAutoLoadAnnotationsInThreedEditor — tracked against the axis's own
+      // cut plane, or taken from a half-viewed arc on a vertical base map),
+      // the full circle splits into two half circles: the kept half thick and
+      // solid, the cut-away half thin and dashed, like the 2D glyph. An
+      // explicit sector (partialRevolution) wins over the half-view, as for
+      // the lathes.
       const axisGroup = new Group();
       axisGroup.add(line);
       const r = Number(annotation.radiusM) || 0;
-      const addCircleLine = (points, linewidth) => {
+      const addCircleLine = (points, linewidth, dashed = false) => {
         const circleGeom = new LineGeometry();
         circleGeom.setPositions(points.flatMap((v) => [v.x, v.y, v.z]));
         const circleMat = new LineMaterial({
@@ -1266,6 +1271,9 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           linewidth,
           resolution: options?.resolution,
           worldUnits: false,
+          dashed,
+          dashSize: REVOLUTION_AXIS_CIRCLE_HIDDEN_DASH_M,
+          gapSize: REVOLUTION_AXIS_CIRCLE_HIDDEN_GAP_M,
           transparent: true,
           depthTest: true,
         });
@@ -1292,7 +1300,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             points,
             visible
               ? REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX
-              : REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX
+              : REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX,
+            !visible
           )
         );
       } else if (r > 0) {
