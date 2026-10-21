@@ -15,6 +15,13 @@ import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
 import findBaseMapGroupsAtVertex from "../utils/findBaseMapGroupsAtVertex";
 import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxes/services/syncRevolutionAxesFromVerticalBaseMapService";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
+import {
+  collectRevolutionFollowers,
+  getRevolutionFollowerSubtrees,
+  poseRevolutionFollowers,
+  restoreRevolutionFollowers,
+} from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 import db from "App/db/db";
 
 import {
@@ -33,10 +40,9 @@ function restoreCarriedGroup() {
   if (!grab) return;
   const editor = getActiveThreedEditor();
   const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
-  if (group) {
-    group.position.copy(grab.groupStartPosition);
-    editor.renderScene?.();
-  }
+  if (group) group.position.copy(grab.groupStartPosition);
+  restoreRevolutionFollowers(grab.followers);
+  editor?.renderScene?.();
   clearMoveGrab();
 }
 
@@ -50,10 +56,19 @@ function restoreCarriedGroup() {
 // the in-progress move, or exits the mode when nothing is grabbed. A
 // press-release pair that moved past DRAG_THRESHOLD_PX is a camera drag,
 // not a click.
-export default function useMoveBaseMapPointerHandlers() {
+// Revolution axes: a base map tied to an axis (the plan hosting it, or an
+// elevation posed by one of its placements) drags the rest of the family
+// along while carried — the plan axis root and the sibling elevations
+// (revolutionFollowers); the drop then persists through the regular
+// reverse sync (elevation) or resync (plan).
+// `annotations`: the resolved list loaded in 3D (families resolution).
+export default function useMoveBaseMapPointerHandlers({ annotations } = {}) {
   const dispatch = useDispatch();
 
   const active = useSelector((s) => s.threedEditor.moveBaseMapMode.active);
+
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
 
   // Selected base map — tie-break of an ambiguous grab vertex (shared by
   // annotations of several base maps). Ref so the handlers don't re-attach.
@@ -115,19 +130,31 @@ export default function useMoveBaseMapPointerHandlers() {
         return;
       }
 
+      // Revolution family of the carried base map: follows live, never a
+      // drop target.
+      const followers = collectRevolutionFollowers({
+        editor,
+        annotations: annotationsRef.current,
+        baseMapId,
+      });
+
       // Fresh target-only snap index, excluding the whole carried subtree:
       // the carried geometry must never screen the drop targets, and a
       // grab-time rebuild guarantees up-to-date world positions whatever
       // happened since the mode was armed.
       const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
         scene,
-        { excludeSubtree: group }
+        {
+          excludeSubtree: group,
+          excludeSubtrees: getRevolutionFollowerSubtrees(followers),
+        }
       );
 
       setMoveGrab({
         baseMapId,
         startWorld: snap.position.clone(),
         groupStartPosition: group.position.clone(),
+        followers,
         targetVerts,
         targetAdjacency,
       });
@@ -143,13 +170,20 @@ export default function useMoveBaseMapPointerHandlers() {
         dispatch(setMoveBaseMapCarriedId(null));
         return;
       }
-      // The overlay already placed the group so the grabbed point lands on
-      // the target; re-apply from the drop snap to be exact.
+      // The overlay already placed the group (and its revolution family) so
+      // the grabbed point lands on the target; re-apply from the drop snap
+      // to be exact.
+      const deltaWorld = {
+        x: snap.position.x - grab.startWorld.x,
+        y: snap.position.y - grab.startWorld.y,
+        z: snap.position.z - grab.startWorld.z,
+      };
       group.position.set(
-        grab.groupStartPosition.x + (snap.position.x - grab.startWorld.x),
-        grab.groupStartPosition.y + (snap.position.y - grab.startWorld.y),
-        grab.groupStartPosition.z + (snap.position.z - grab.startWorld.z)
+        grab.groupStartPosition.x + deltaWorld.x,
+        grab.groupStartPosition.y + deltaWorld.y,
+        grab.groupStartPosition.z + deltaWorld.z
       );
+      poseRevolutionFollowers(grab.followers, deltaWorld);
       editor.renderScene?.();
 
       const position = {
@@ -162,9 +196,14 @@ export default function useMoveBaseMapPointerHandlers() {
       try {
         await db.baseMaps.update(grab.baseMapId, { position });
         dispatch(triggerBaseMapsUpdate());
-        // A moved elevation drags its revolution axes along on the plan.
+        // A moved elevation drags its revolution axes along on the plan;
+        // a moved plan drags the elevations posed by the axes it hosts.
         await syncRevolutionAxesFromVerticalBaseMapService({
           baseMapId: grab.baseMapId,
+          dispatch,
+        });
+        await resyncRevolutionAxisPlacementsService({
+          planBaseMapId: grab.baseMapId,
           dispatch,
         });
       } catch (err) {

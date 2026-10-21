@@ -1,4 +1,8 @@
 import { scaleDeltaToLength } from "Features/annotationTransform/utils/copyBuffer";
+import {
+  localDeltaToWorld,
+  poseRevolutionFollowers,
+} from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 
 // Local (base map metre frame) delta that brings the grabbed point onto
 // `targetWorld`. The roots are children of the base map group with their
@@ -28,7 +32,8 @@ export function computeMoveDeltaLocal(editor, grab, targetWorld, options = {}) {
 }
 
 // Poses the carried annotation roots at their grab-time pose + `delta`
-// (local metres). Does not render.
+// (local metres) — and, for a revolution axis, the vertical base maps it
+// poses (same delta, in world metres). Does not render.
 export function poseCarriedAnnotations(editor, grab, delta) {
   const annotationsObjectsMap =
     editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
@@ -41,6 +46,10 @@ export function poseCarriedAnnotations(editor, grab, delta) {
       start.position.y + delta.y,
       start.position.z + delta.z
     );
+  }
+  if (grab.followers) {
+    const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
+    poseRevolutionFollowers(grab.followers, localDeltaToWorld(group, delta));
   }
 }
 

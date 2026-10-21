@@ -7,6 +7,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
+import { poseRevolutionFollowers } from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 
 import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
@@ -248,18 +249,25 @@ export default function MoveBaseMapOverlayThreed() {
       updateBadge(grab, snap, rect);
 
       // Live move: the base map group (image + annotations) follows so the
-      // grabbed point lands on the current target.
+      // grabbed point lands on the current target — with its revolution
+      // family (plan axis root / sibling elevations, revolutionFollowers).
       if (grab && snap?.position) {
         const group = editor?.sceneManager?.imagesManager?.getGroup(
           grab.baseMapId
         );
+        const deltaWorld = {
+          x: snap.position.x - grab.startWorld.x,
+          y: snap.position.y - grab.startWorld.y,
+          z: snap.position.z - grab.startWorld.z,
+        };
         if (group) {
           group.position.set(
-            grab.groupStartPosition.x + (snap.position.x - grab.startWorld.x),
-            grab.groupStartPosition.y + (snap.position.y - grab.startWorld.y),
-            grab.groupStartPosition.z + (snap.position.z - grab.startWorld.z)
+            grab.groupStartPosition.x + deltaWorld.x,
+            grab.groupStartPosition.y + deltaWorld.y,
+            grab.groupStartPosition.z + deltaWorld.z
           );
         }
+        poseRevolutionFollowers(grab.followers, deltaWorld);
       }
       editor.renderScene?.();
     }

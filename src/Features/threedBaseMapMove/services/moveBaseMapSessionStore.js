@@ -13,8 +13,11 @@ let lastSnap = null;
 //   baseMapId,
 //   startWorld: Vector3,         // grabbed point, world space
 //   groupStartPosition: Vector3, // base map group position at grab time
+//   followers,                   // revolution family following live (plan
+//                                // axis root / sibling elevations —
+//                                // revolutionFollowers)
 //   targetVerts,                 // target-only snap index (carried subtree
-//   targetAdjacency,             // excluded), built fresh at grab time
+//   targetAdjacency,             // + followers excluded), built at grab time
 // } | null
 let grab = null;
 

@@ -16,6 +16,10 @@ let lastSnap = null;
 //   startLocal: {x, y, z},       // grabbed point, base map LOCAL metres
 //                                // (z drives the offsetZ delta of a snapped
 //                                // drop at another altitude)
+//   isRevolutionAxis,            // the carried object is a plan axis
+//   followers,                   // revolution axis: the vertical base map
+//                                // groups it poses, following live
+//                                // (revolutionFollowers) — else null
 //   rootStartPoses: Map<id, {position: Vector3, rotZ}>, // at grab time
 //   targetVerts,                 // target-only snap index (carried roots
 //   targetAdjacency,             // excluded), built fresh at grab time

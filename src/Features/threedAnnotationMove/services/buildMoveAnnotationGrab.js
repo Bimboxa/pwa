@@ -1,4 +1,8 @@
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
+import {
+  collectRevolutionFollowers,
+  getRevolutionFollowerSubtrees,
+} from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 
 import { setMoveAnnotationGrab } from "./moveAnnotationSessionStore";
 
@@ -46,12 +50,22 @@ export default function buildMoveAnnotationGrab({
   group.updateWorldMatrix(true, false);
   const startLocal = group.worldToLocal(snapPosition.clone());
 
+  // A revolution axis drags the vertical base maps it poses along (live
+  // follow — revolutionFollowers); they are not drop targets either.
+  const followers = isRevolutionAxis
+    ? collectRevolutionFollowers({
+        editor,
+        annotations,
+        axisId: carriedIds[0],
+      })
+    : null;
+
   // Fresh target-only snap index, excluding every carried annotation root:
   // the carried geometry must never screen the drop targets, and a
   // grab-time rebuild guarantees up-to-date world positions.
   const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
     editor?.sceneManager?.scene,
-    { excludeSubtrees: roots }
+    { excludeSubtrees: [...roots, ...getRevolutionFollowerSubtrees(followers)] }
   );
 
   setMoveAnnotationGrab({
@@ -60,6 +74,7 @@ export default function buildMoveAnnotationGrab({
     startWorld: snapPosition.clone(),
     startLocal: { x: startLocal.x, y: startLocal.y, z: startLocal.z },
     isRevolutionAxis,
+    followers,
     rootStartPoses,
     targetVerts,
     targetAdjacency,
@@ -84,7 +99,10 @@ export function refreshMoveAnnotationGrabTargets(editor, grab) {
     .map((id) => annotationsObjectsMap[id])
     .filter(Boolean);
   const { verts, adjacency } = buildIndex(editor?.sceneManager?.scene, {
-    excludeSubtrees: roots,
+    excludeSubtrees: [
+      ...roots,
+      ...getRevolutionFollowerSubtrees(grab.followers),
+    ],
   });
   grab.targetVerts = verts;
   grab.targetAdjacency = adjacency;

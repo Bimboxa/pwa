@@ -15,6 +15,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import { restoreRevolutionFollowers } from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 import createTransformedAnnotationCopiesService from "Features/annotationTransform/services/createTransformedAnnotationCopiesService";
 import {
   appendToMoveBuffer,
@@ -83,6 +84,7 @@ function restoreCarriedAnnotations() {
     root.position.copy(start.position);
     root.rotation.z = start.rotZ;
   }
+  restoreRevolutionFollowers(grab.followers);
   editor?.renderScene?.();
   clearMoveAnnotationGrab();
 }
@@ -169,6 +171,18 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       // origin base map, altitude included on a real snap
       // (commitRevolutionAxisMoveFrom3d).
       const isRevolutionAxis = resolved.annotationType === "REVOLUTION_AXIS";
+      if (resolved.annotationType === "REVOLUTION_AXIS_PLACEMENT") {
+        // The inverted T is the axis's clone POSING its vertical map: it
+        // moves with the map, through the base map tool.
+        dispatch(
+          setToaster({
+            message:
+              "Le clone de l'axe suit son fond de plan : utilisez « Déplacer le fond de plan »",
+            severity: "warning",
+          })
+        );
+        return;
+      }
       if (
         !isRevolutionAxis &&
         !isPointBasedAnnotationType(resolved.annotationType)
@@ -379,6 +393,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
           dropWorld: snap.position.clone(),
           copyBuffer: grab.copyBuffer ?? "",
           getAnnotations: () => annotationsRef.current,
+          isRevolutionAxis: Boolean(grab.isRevolutionAxis),
         });
       }
     }
