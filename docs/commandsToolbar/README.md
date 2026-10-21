@@ -29,7 +29,17 @@ editor; never in the read-only Viewer / Maillage modules; hidden under
 capture framing, walk mode, PDF editor, base maps grid, create base map
 section. Buttons and hotkeys share this visibility. The layout is per module
 (`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
-module shows its two base map placement commands alone.
+module shows its two base map placement commands and the « Repère » group
+alone.
+
+The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
+drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device
+preference): « Orienter le repère » is a 2-click tool
+(`Features/threedAxesPlacement`: origin, then X axis direction, the in-scene
+axes rotating live), « Afficher le repère » toggles the in-scene axes and
+« Réinitialiser le repère » puts the frame back to the world origin with no
+rotation. The frame origin is a snappable point of every 3D tool while the
+axes are shown.
 
 ## Command contract
 

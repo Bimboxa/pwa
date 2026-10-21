@@ -114,10 +114,29 @@ const DEFAULT_LAYOUT = [
   // base map placement (3D editor)
   "MOVE_BASE_MAP",
   "ROTATE_BASE_MAP",
+  { type: "divider" },
+  // user frame (3D editor): orient / show / reset the axes
+  {
+    type: "group",
+    key: "AXES",
+    label: "Repère",
+    commandKeys: ["PLACE_AXES", "TOGGLE_AXES", "RESET_AXES"],
+  },
 ];
 
-// « Fonds de plan » module: the base map placement commands only.
-const BASE_MAPS_LAYOUT = ["MOVE_BASE_MAP", "ROTATE_BASE_MAP"];
+// « Fonds de plan » module: the base map placement commands and the user
+// frame group only.
+const BASE_MAPS_LAYOUT = [
+  "MOVE_BASE_MAP",
+  "ROTATE_BASE_MAP",
+  { type: "divider" },
+  {
+    type: "group",
+    key: "AXES",
+    label: "Repère",
+    commandKeys: ["PLACE_AXES", "TOGGLE_AXES", "RESET_AXES"],
+  },
+];
 
 export const TOOLBAR_LAYOUTS = {
   DEFAULT: DEFAULT_LAYOUT,

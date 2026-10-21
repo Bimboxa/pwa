@@ -1,13 +1,14 @@
 import {
   DEFAULT_AXES_SETTINGS,
   isAxesSettings,
+  normalizeAxesOrigin,
   normalizeAxesYawDeg,
 } from "Features/threedEditor/constants/axesDisplay";
 
 const LS_KEY = "threedAxesSettings";
 
 // Device preference of the "Axes" section (3D view settings): gizmo + in-scene
-// axes visibility, yaw of the displayed frame. Same pattern as
+// axes visibility, yaw and origin of the displayed frame. Same pattern as
 // navigationPresetLocalStorage.
 export function loadAxesSettings() {
   try {
@@ -15,7 +16,11 @@ export function loadAxesSettings() {
     if (!raw) return { ...DEFAULT_AXES_SETTINGS };
     const parsed = { ...DEFAULT_AXES_SETTINGS, ...JSON.parse(raw) };
     if (!isAxesSettings(parsed)) return { ...DEFAULT_AXES_SETTINGS };
-    return { ...parsed, yawDeg: normalizeAxesYawDeg(parsed.yawDeg) };
+    return {
+      ...parsed,
+      yawDeg: normalizeAxesYawDeg(parsed.yawDeg),
+      origin: normalizeAxesOrigin(parsed.origin),
+    };
   } catch {
     return { ...DEFAULT_AXES_SETTINGS };
   }

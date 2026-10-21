@@ -123,6 +123,7 @@ import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPo
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
 import {
+  bumpSnapIndexEpoch,
   clearSubSelection,
   setMeshingModeActive,
   setSubSelection,
@@ -190,6 +191,9 @@ import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/Move
 import useRotateBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useRotateBaseMapPointerHandlers";
 import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/RotateBaseMapOverlayThreed";
 import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
+import useAxesPlacementPointerHandlers from "Features/threedAxesPlacement/hooks/useAxesPlacementPointerHandlers";
+import AxesPlacementOverlayThreed from "Features/threedAxesPlacement/components/AxesPlacementOverlayThreed";
+import AxesPlacementToolbarThreed from "Features/threedAxesPlacement/components/AxesPlacementToolbarThreed";
 import useMoveAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useMoveAnnotationPointerHandlers";
 import useIsolateFacePointerHandlers from "Features/isolateSegment/hooks/useIsolateFacePointerHandlers";
 import useMergeFacesPointerHandlers from "Features/threedMergeFaces/hooks/useMergeFacesPointerHandlers";
@@ -510,6 +514,16 @@ export default function MainThreedEditor() {
     rotateBaseMapActiveRef.current = rotateBaseMapActive;
   }, [rotateBaseMapActive]);
 
+  // Same pattern for the « Orienter le repère » (axes placement) mode —
+  // useAxesPlacementPointerHandlers owns the pointer while active.
+  const axesPlacementActive = useSelector(
+    (s) => s.threedEditor.axesPlacementMode.active
+  );
+  const axesPlacementActiveRef = useRef(axesPlacementActive);
+  useEffect(() => {
+    axesPlacementActiveRef.current = axesPlacementActive;
+  }, [axesPlacementActive]);
+
   // Same pattern for the "Déplacer" (move annotation) mode —
   // useMoveAnnotationPointerHandlers owns the pointer while active.
   const moveAnnotationActive = useSelector(
@@ -586,6 +600,7 @@ export default function MainThreedEditor() {
   // annotation delete shortcut). Their highlight is Mesh3dPartsHighlightThreed.
   useDeleteMesh3dPartsOnKeyboard();
   useRotateBaseMapPointerHandlers();
+  useAxesPlacementPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
@@ -749,8 +764,14 @@ export default function MainThreedEditor() {
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
 
-  // Sync the "Axes" settings → sceneManager.axes (visibility + yaw of the
-  // displayed frame around world Y, same sense as a base map angleDeg).
+  // Sync the "Axes" settings → sceneManager.axes (visibility, yaw of the
+  // displayed frame around world Y — same sense as a base map angleDeg —
+  // and origin). This effect is the only writer of the helper's committed
+  // pose (« Orienter le repère » poses it live, then commits through the
+  // store). The helper's origin is a snappable point (useVertexSnap
+  // buildIndex), so the snap index is refreshed AFTER the helper is posed —
+  // bumping in the reducer would let the overlays (children, effects first)
+  // rebuild the index from the stale pose.
   useEffect(() => {
     const editor = threedEditorRef.current;
     if (!editor || !rendererIsReady) return;
@@ -758,8 +779,17 @@ export default function MainThreedEditor() {
     if (!axes) return;
     axes.visible = axesSettings.showSceneAxes;
     axes.rotation.y = (axesSettings.yawDeg * Math.PI) / 180;
+    const [ox, oy, oz] = axesSettings.origin ?? [0, 0, 0];
+    axes.position.set(ox, oy, oz);
     editor.renderScene();
-  }, [axesSettings.showSceneAxes, axesSettings.yawDeg, rendererIsReady]);
+    dispatch(bumpSnapIndexEpoch());
+  }, [
+    axesSettings.showSceneAxes,
+    axesSettings.yawDeg,
+    axesSettings.origin,
+    rendererIsReady,
+    dispatch,
+  ]);
 
   // Sync the Wireframe settings → AnnotationsManager (visibility toggle +
   // EdgesGeometry threshold rebuild on the built annotation objects; newly
@@ -998,6 +1028,7 @@ export default function MainThreedEditor() {
       // handle it.
       if (moveBaseMapActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
+      if (axesPlacementActiveRef.current) return;
       // Same for the annotation move / rotate modes.
       if (moveAnnotationActiveRef.current) return;
       if (rotateAnnotationActiveRef.current) return;
@@ -1565,6 +1596,7 @@ export default function MainThreedEditor() {
       if (placementActiveRef.current) return;
       if (moveBaseMapActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
+      if (axesPlacementActiveRef.current) return;
       if (moveAnnotationActiveRef.current) return;
       if (rotateAnnotationActiveRef.current) return;
       if (baseMapsGridActiveRef.current) return;
@@ -1991,7 +2023,11 @@ export default function MainThreedEditor() {
       }
       // Move / rotate base-map modes own the pointer (their own drag
       // tracking). Same for the annotation move / rotate modes.
-      if (moveBaseMapActiveRef.current || rotateBaseMapActiveRef.current) {
+      if (
+        moveBaseMapActiveRef.current ||
+        rotateBaseMapActiveRef.current ||
+        axesPlacementActiveRef.current
+      ) {
         return;
       }
       if (
@@ -2130,6 +2166,7 @@ export default function MainThreedEditor() {
       placementActiveRef.current ||
       moveBaseMapActiveRef.current ||
       rotateBaseMapActiveRef.current ||
+      axesPlacementActiveRef.current ||
       moveAnnotationActiveRef.current ||
       rotateAnnotationActiveRef.current ||
       baseMapsGridActiveRef.current ||
@@ -2914,6 +2951,8 @@ export default function MainThreedEditor() {
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
           <RotateBaseMapToolbarThreed />
+        ) : axesPlacementActive ? (
+          <AxesPlacementToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : null)}
@@ -2987,6 +3026,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && <RotateBaseMapOverlayThreed />}
+      {isThreedViewer && <AxesPlacementOverlayThreed />}
       {isThreedViewer && <MoveAnnotationOverlayThreed />}
       {isThreedViewer && <RotateAnnotationOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}

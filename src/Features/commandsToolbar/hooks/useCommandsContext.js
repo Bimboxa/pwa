@@ -13,6 +13,7 @@ import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtrac
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
+import { isAxesFrameDefault } from "Features/threedEditor/constants/axesDisplay";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -109,6 +110,14 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const rotateBaseMapModeActive = useSelector(
     (s) => s.threedEditor.rotateBaseMapMode.active
   );
+  const axesPlacementModeActive = useSelector(
+    (s) => s.threedEditor.axesPlacementMode.active
+  );
+  // « Repère » group: visibility of the in-scene axes + "already at the
+  // world origin, no rotation" (disables « Réinitialiser »).
+  const axesSettings = useSelector((s) => s.threedEditor.axesSettings);
+  const showSceneAxes = Boolean(axesSettings?.showSceneAxes);
+  const axesFrameIsDefault = isAxesFrameDefault(axesSettings ?? {});
 
   // data — view toggles (mapEditorSlice)
 
@@ -242,6 +251,9 @@ export default function useCommandsContext({ enabled = true } = {}) {
       moveAnnotationModeActive,
       moveBaseMapModeActive,
       rotateBaseMapModeActive,
+      axesPlacementModeActive,
+      showSceneAxes,
+      axesFrameIsDefault,
       pasteClipboard,
       subtractPickAnnotationId,
       subtractSourceAnnotationId,
@@ -295,6 +307,9 @@ export default function useCommandsContext({ enabled = true } = {}) {
       moveAnnotationModeActive,
       moveBaseMapModeActive,
       rotateBaseMapModeActive,
+      axesPlacementModeActive,
+      showSceneAxes,
+      axesFrameIsDefault,
       pasteClipboard,
       subtractPickAnnotationId,
       subtractSourceAnnotationId,

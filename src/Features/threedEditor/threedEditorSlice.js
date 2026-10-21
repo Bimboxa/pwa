@@ -17,7 +17,10 @@ import {
 } from "Features/threedEditor/services/axesSettingsLocalStorage";
 
 import { isNavigationPreset } from "Features/threedEditor/constants/navigationPresets";
-import { normalizeAxesYawDeg } from "Features/threedEditor/constants/axesDisplay";
+import {
+  normalizeAxesOrigin,
+  normalizeAxesYawDeg,
+} from "Features/threedEditor/constants/axesDisplay";
 import { isViewDistance } from "Features/threedEditor/constants/viewDistances";
 import { DEFAULT_CREASE_THRESHOLD_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 
@@ -117,11 +120,12 @@ const threedEditorInitialState = {
   // synced by MainThreedEditor → ControlsManager.setRegularMaxDistance.
   maxViewDistance: loadMaxViewDistance(),
   // "Axes" section of the 3D view settings (constants/axesDisplay):
-  // { showGizmo, showSceneAxes, yawDeg }. showGizmo = orientation gizmo at the
-  // top right of the view (AxesGizmoThreed), showSceneAxes = coloured axes
-  // helper at the world origin, yawDeg = rotation of the DISPLAYED frame
-  // around the vertical axis — purely visual (gizmo, in-scene axes, gizmo
-  // face views), nothing else reads it. Device preference persisted in
+  // { showGizmo, showSceneAxes, yawDeg, origin }. showGizmo = orientation
+  // gizmo at the top right of the view (AxesGizmoThreed), showSceneAxes =
+  // coloured axes helper, yawDeg = rotation of the displayed frame around
+  // the vertical axis (the 3D drawing helpers — axis locks, in-plane snaps,
+  // face cuts… — follow it), origin = world position [x, y, z] of the axes
+  // helper (visual only, snappable point). Device preference persisted in
   // localStorage.
   axesSettings: loadAxesSettings(),
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
@@ -345,6 +349,17 @@ const threedEditorInitialState = {
     // drawing constraint buffer. A parsable buffer wins over the mouse.
     angleBuffer: "",
   },
+  // « Orienter le repère » mode (Features/threedAxesPlacement), 2 clicks:
+  // the 1st snapped click sets the frame origin (axesSettings.origin), the
+  // axes helper then rotates live around its vertical axis following the
+  // cursor and the 2nd click fixes the X axis direction
+  // (axesSettings.yawDeg); the mode exits on commit. Mutually exclusive
+  // with the other 3D tool modes.
+  axesPlacementMode: {
+    active: false,
+    // Origin click done — drives the toolbar hint.
+    originSet: false,
+  },
   // "Déplacer" mode for ANNOTATIONS (Dessin/MAP module): grab a snapped
   // vertex of an annotation, the selected annotations then follow the mouse
   // as one group (in their base map's plane); the drop click writes the new
@@ -485,6 +500,17 @@ export const threedEditorSlice = createSlice({
       state.axesSettings.yawDeg = normalizeAxesYawDeg(action.payload);
       storeAxesSettings(state.axesSettings);
     },
+    // World position [x, y, z] of the in-scene axes helper.
+    setAxesOrigin: (state, action) => {
+      state.axesSettings.origin = normalizeAxesOrigin(action.payload);
+      storeAxesSettings(state.axesSettings);
+    },
+    // « Réinitialiser le repère »: world origin, no rotation.
+    resetAxesFrame: (state) => {
+      state.axesSettings.yawDeg = 0;
+      state.axesSettings.origin = normalizeAxesOrigin(null);
+      storeAxesSettings(state.axesSettings);
+    },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
       if (action.payload === "BASEMAP_POSITION") closeBaseMapsGrid(state);
@@ -593,6 +619,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -709,6 +737,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -747,6 +777,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -809,6 +841,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -871,6 +905,8 @@ export const threedEditorSlice = createSlice({
       state.moveBaseMapMode.active = false;
       state.moveBaseMapMode.carriedBaseMapId = null;
       state.rotateBaseMapMode.active = false;
+      state.axesPlacementMode.active = false;
+      state.axesPlacementMode.originSet = false;
       state.rotateBaseMapMode.carriedBaseMapId = null;
       state.moveAnnotationMode.active = false;
       state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -926,6 +962,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -960,6 +998,8 @@ export const threedEditorSlice = createSlice({
       state.moveBaseMapMode.active = false;
       state.moveBaseMapMode.carriedBaseMapId = null;
       state.rotateBaseMapMode.active = false;
+      state.axesPlacementMode.active = false;
+      state.axesPlacementMode.originSet = false;
       state.rotateBaseMapMode.carriedBaseMapId = null;
       state.rotateBaseMapMode.referenceSet = false;
       state.rotateBaseMapMode.angleBuffer = "";
@@ -992,6 +1032,8 @@ export const threedEditorSlice = createSlice({
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -1050,6 +1092,43 @@ export const threedEditorSlice = createSlice({
     setRotateAngleBuffer: (state, action) => {
       state.rotateBaseMapMode.angleBuffer = action.payload ?? "";
     },
+    setAxesPlacementModeActive: (state, action) => {
+      state.axesPlacementMode.active = !!action.payload;
+      state.axesPlacementMode.originSet = false;
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        closeIsolateFaceMode(state);
+        closeMergeFacesMode(state);
+        closeBaseMapsGrid(state);
+        closeVertexOffsetMode(state);
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.referenceSet = false;
+        state.rotateBaseMapMode.angleBuffer = "";
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setAxesPlacementOriginSet: (state, action) => {
+      state.axesPlacementMode.originSet = !!action.payload;
+    },
     setMoveAnnotationModeActive: (state, action) => {
       state.moveAnnotationMode.active = !!action.payload;
       state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -1075,6 +1154,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.rotateAnnotationMode.active = false;
         state.rotateAnnotationMode.carriedAnnotationIds = [];
@@ -1104,6 +1185,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -1141,6 +1224,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -1194,6 +1279,8 @@ export const threedEditorSlice = createSlice({
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
         state.rotateBaseMapMode.active = false;
+        state.axesPlacementMode.active = false;
+        state.axesPlacementMode.originSet = false;
         state.rotateBaseMapMode.carriedBaseMapId = null;
         state.moveAnnotationMode.active = false;
         state.moveAnnotationMode.carriedAnnotationIds = [];
@@ -1319,6 +1406,10 @@ export const {
   setShowAxesGizmo,
   setShowSceneAxes,
   setAxesYawDeg,
+  setAxesOrigin,
+  resetAxesFrame,
+  setAxesPlacementModeActive,
+  setAxesPlacementOriginSet,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,

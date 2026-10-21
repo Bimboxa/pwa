@@ -65,6 +65,9 @@ import toggleSegmentDragCommand from "./toggleSegmentDrag/toggleSegmentDragComma
 import toggleAnglesLockedCommand from "./toggleAnglesLocked/toggleAnglesLockedCommand";
 import moveBaseMapCommand from "./moveBaseMap/moveBaseMapCommand";
 import rotateBaseMapCommand from "./rotateBaseMap/rotateBaseMapCommand";
+import placeAxesCommand from "./placeAxes/placeAxesCommand";
+import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
+import resetAxesCommand from "./resetAxes/resetAxesCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -151,6 +154,10 @@ export const COMMANDS = [
   // base map placement (3D)
   moveBaseMapCommand,
   rotateBaseMapCommand,
+  // user frame (3D)
+  placeAxesCommand,
+  toggleAxesCommand,
+  resetAxesCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

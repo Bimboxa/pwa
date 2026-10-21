@@ -4,6 +4,7 @@ import {
   setShowAxesGizmo,
   setShowSceneAxes,
   setAxesYawDeg,
+  resetAxesFrame,
 } from "Features/threedEditor/threedEditorSlice";
 
 import {
@@ -19,16 +20,22 @@ import {
 
 import useSelectedBaseMap from "Features/baseMaps/hooks/useSelectedBaseMap";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
-import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
+import {
+  AXIS_COLORS,
+  isAxesFrameDefault,
+} from "Features/threedEditor/constants/axesDisplay";
+import { toUserCoords } from "Features/threedEditor/utils/userCoords";
 
 const YAW_PRESETS_DEG = [0, 90, 180, 270];
 
 // "Axes" card of the 3D view settings (PanelThreedProperties): orientation
-// gizmo switch, in-scene axes switch and the yaw of the displayed frame.
-// Device preference (threedEditor.axesSettings, localStorage). The yaw
-// rotates the gizmo, the in-scene axes and the gizmo's face views, and the
-// 3D drawing helpers follow it (axis locks, in-plane ortho / alignment
-// snaps, rectangles, face cuts); the model and the camera do not move.
+// gizmo switch, in-scene axes switch, the yaw of the displayed frame and
+// its origin (read-only here — placed by the « Orienter le repère » toolbar
+// command — with a reset). Device preference (threedEditor.axesSettings,
+// localStorage). The yaw rotates the gizmo, the in-scene axes and the
+// gizmo's face views, and the 3D drawing helpers follow it (axis locks,
+// in-plane ortho / alignment snaps, rectangles, face cuts); the model and
+// the camera do not move.
 export default function SectionAxes3d() {
   const dispatch = useDispatch();
 
@@ -45,11 +52,18 @@ export default function SectionAxes3d() {
     "Rotation autour de la verticale. Le modèle et la caméra ne bougent pas ; les verrous d'axe, les accroches orthogonales et les alignements du dessin 3D suivent ce repère.";
   const rotationLabelS = "Rotation (°)";
   const alignS = "Aligner sur le fond de plan";
+  const originS = "Centre du repère";
+  const originHelperS =
+    "Placé avec la commande « Orienter le repère » de la barre de commandes (1er clic : centre, 2ème clic : direction de l'axe X). Le centre est accrochable comme un sommet.";
+  const resetS = "Réinitialiser le repère";
 
   // data
 
   const axesSettings = useSelector((s) => s.threedEditor.axesSettings);
-  const { showGizmo, showSceneAxes, yawDeg } = axesSettings;
+  const { showGizmo, showSceneAxes, yawDeg, origin } = axesSettings;
+  const [ox, oy, oz] = origin ?? [0, 0, 0];
+  const userOrigin = toUserCoords({ x: ox, y: oy, z: oz });
+  const frameIsDefault = isAxesFrameDefault(axesSettings);
 
   const selectedBaseMap = useSelectedBaseMap();
   const baseMapAngleDeg = selectedBaseMap
@@ -76,6 +90,14 @@ export default function SectionAxes3d() {
   function handleAlignOnBaseMap() {
     if (baseMapAngleDeg === null) return;
     dispatch(setAxesYawDeg(baseMapAngleDeg));
+  }
+
+  function handleReset() {
+    dispatch(resetAxesFrame());
+  }
+
+  function formatM(v) {
+    return `${v.toFixed(2)} m`;
   }
 
   // render
@@ -191,6 +213,41 @@ export default function SectionAxes3d() {
         sx={{ textTransform: "none" }}
       >
         {baseMapAngleDeg === null ? alignS : `${alignS} (${baseMapAngleDeg}°)`}
+      </Button>
+
+      <Typography variant="body2" sx={{ fontWeight: 600, mt: 1.5, mb: 0.5 }}>
+        {originS}
+      </Typography>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", mb: 0.5 }}
+      >
+        {originHelperS}
+      </Typography>
+      <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
+        <Box component="span" sx={{ color: AXIS_COLORS.X, fontWeight: 700 }}>
+          X
+        </Box>
+        {` ${formatM(userOrigin.x)} · `}
+        <Box component="span" sx={{ color: AXIS_COLORS.Y, fontWeight: 700 }}>
+          Y
+        </Box>
+        {` ${formatM(userOrigin.y)} · `}
+        <Box component="span" sx={{ color: AXIS_COLORS.Z, fontWeight: 700 }}>
+          Z
+        </Box>
+        {` ${formatM(userOrigin.z)}`}
+      </Typography>
+      <Button
+        size="small"
+        variant="outlined"
+        fullWidth
+        disabled={frameIsDefault}
+        onClick={handleReset}
+        sx={{ textTransform: "none" }}
+      >
+        {resetS}
       </Button>
     </Card>
   );
