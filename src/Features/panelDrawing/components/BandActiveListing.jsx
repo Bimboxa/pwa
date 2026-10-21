@@ -110,7 +110,10 @@ export default function BandActiveListing({
   // render
 
   return (
-    <Box>
+    // Grey block on both hosts: with the listings panel collapsed, the
+    // active band card sits on it (not on the white popper Paper, which
+    // would show as a second white frame around the card).
+    <Box sx={{ bgcolor: "background.default" }}>
       {/* "Listes" header: title, then the "+" and the expand / collapse
           button of the listings panel. */}
       <Box
