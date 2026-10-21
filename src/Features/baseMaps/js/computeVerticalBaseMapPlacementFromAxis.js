@@ -9,7 +9,9 @@ import getBaseMapTransform from "./getBaseMapTransform";
 // solver) and deliberately built on the same formula — only the way the anchor
 // and the direction are obtained differs:
 //   - the axis CENTRE gives the horizontal anchor (position.x / z),
-//   - the axis OFFSET Z gives the vertical one (position.y),
+//   - the plan's altitude at that centre plus the axis OFFSET Z (relative to
+//     the plan, like every annotation lift in 3D) gives the vertical one
+//     (position.y),
 //   - the axis DIAMETER direction gives the rotation (angleDeg),
 //     signed so the ORANGE half-disc ends up BEHIND the placed plane.
 // The elevation's scale (`meterByPx`) is never touched.
@@ -123,7 +125,11 @@ export default function computeVerticalBaseMapPlacementFromAxis({
     );
   }
 
-  // --- 4. position: anchor the drop point on the axis centre ---
+  // --- 4. position: anchor the drop point on the axis base ---
+  // The axis base sits at the plan's own altitude (A.y, carried by the plan
+  // base map's position) lifted by offsetZ — the same frame the 3D renderer
+  // uses for the axis line (createAnnotationObject3D: z0 = offsetZ inside the
+  // plan group). offsetZ alone would drop the elevation by the plan's Z.
 
   const lClick = toLocalMetres(clickNorm, elevSize, elevMeterByPx);
 
@@ -131,7 +137,7 @@ export default function computeVerticalBaseMapPlacementFromAxis({
     angleDeg: (angleRad * 180) / Math.PI,
     position: {
       x: A.x - lClick.x * cos,
-      y: offsetZ - lClick.y,
+      y: A.y + offsetZ - lClick.y,
       z: A.z + lClick.x * sin,
     },
   };

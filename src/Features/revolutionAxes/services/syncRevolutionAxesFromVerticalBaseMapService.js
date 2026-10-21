@@ -13,8 +13,9 @@ import resyncRevolutionAxisPlacementsService from "Features/elevation/services/r
 // Reverse of resyncRevolutionAxisPlacementsService: a VERTICAL base map that
 // hosts a REVOLUTION_AXIS_PLACEMENT was moved / rotated by the user (base map
 // move tools), so the plan axis — the source of truth of that pose — is
-// rewritten to match: centre point (db.points), altitude (offsetZ) and
-// diameter direction (directionDeg). Without this, the plan axis stays behind
+// rewritten to match: centre point (db.points), height above the plan
+// (offsetZ, relative to the plan like every 3D lift) and diameter direction
+// (directionDeg). Without this, the plan axis stays behind
 // and the next axis-driven resync snaps the base map back.
 //
 // The placement keeps its position in the elevation image, so the new axis
@@ -129,7 +130,11 @@ export default async function syncRevolutionAxesFromVerticalBaseMapService({
       // Keep the stored value's winding: only apply the actual rotation.
       const dDirection = deltaDeg(thetaDeg, prevDirectionDeg);
 
-      const offsetZ = roundOffsetZ(A.y);
+      // Height of the placement point above the plan plane: the local normal
+      // component (= A.y − plan altitude for a horizontal plan), inverse of
+      // the solver's `A.y + offsetZ`. A.y alone would bake the plan's Z into
+      // the axis and lift the 3D circle twice.
+      const offsetZ = roundOffsetZ(lA.z);
 
       // --- write (only what moved) ---
 
