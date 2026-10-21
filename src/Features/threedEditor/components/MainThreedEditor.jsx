@@ -134,6 +134,8 @@ import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCo
 import ThreedRulerAnnotations from "Features/threedDimensions/components/ThreedRulerAnnotations";
 import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/ThreedAnnotationLabels";
 import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
+import ThreedRevolutionAxisHandles from "Features/revolutionAxes/components/ThreedRevolutionAxisHandles";
+import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisHandleDragHandlers";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
@@ -608,6 +610,7 @@ export default function MainThreedEditor() {
   useCoteLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useAnnotationLabelDragHandlers({ rendererIsReady });
+  useRevolutionAxisHandleDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -3023,6 +3026,9 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && rendererIsReady && (
         <ThreedAnnotationLabels annotations={annotations} />
+      )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedRevolutionAxisHandles annotations={annotations} />
       )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
