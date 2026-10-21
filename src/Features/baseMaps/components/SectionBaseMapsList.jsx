@@ -116,6 +116,8 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   the 3D eyes / modes are not involved).
 //   `countByBaseMapIdOverride`: counts narrowed like the legend (the popper
 //   passes them).
+// - `hideAutoVisibility`: the "Visibilité auto" row at the bottom is the
+//   host's (the "..." menu of the Dessin popper's "Fonds de plan" section).
 // - BaseMaps module (`editable`): the list is also the module's editing
 //   surface, same actions as the expanded left panel (BaseMapTreeItem) —
 //   every folder is listed (empty ones included) under a header carrying a
@@ -138,7 +140,10 @@ function listCollisionDetection(args) {
 
 const GROUP_DROPPABLE_PREFIX = "group:";
 
-export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
+export default function SectionBaseMapsList({
+  countByBaseMapIdOverride,
+  hideAutoVisibility = false,
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -743,8 +748,9 @@ export default function SectionBaseMapsList({ countByBaseMapIdOverride }) {
         )}
       </DndContext>
       {/* "Visibilité auto" — not with the pinned grid (the rows are sheets,
-          a click never changes the main base map there). */}
-      {!pinned && (
+          a click never changes the main base map there), nor when the host
+          carries the option in its own menu. */}
+      {!pinned && !hideAutoVisibility && (
         <>
           <Divider />
           <RowPanelOptionCheckbox
