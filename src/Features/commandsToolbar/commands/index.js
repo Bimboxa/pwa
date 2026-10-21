@@ -33,7 +33,6 @@ import settingOutCommand from "./settingOut/settingOutCommand";
 import convertCommand from "./convert/convertCommand";
 import reentrantAnglesCommand from "./reentrantAngles/reentrantAnglesCommand";
 import cleanSegmentsCommand from "./cleanSegments/cleanSegmentsCommand";
-import curvatureCommand from "./curvature/curvatureCommand";
 import toggleStripTypeCommand from "./toggleStripType/toggleStripTypeCommand";
 import toggleCloseLineCommand from "./toggleCloseLine/toggleCloseLineCommand";
 import flipStripCommand from "./flipStrip/flipStripCommand";
@@ -117,7 +116,6 @@ export const COMMANDS = [
   convertCommand,
   reentrantAnglesCommand,
   cleanSegmentsCommand,
-  curvatureCommand,
   toggleStripTypeCommand,
   toggleCloseLineCommand,
   flipStripCommand,

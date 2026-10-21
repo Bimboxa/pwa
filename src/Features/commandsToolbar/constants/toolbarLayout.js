@@ -51,7 +51,6 @@ const DEFAULT_LAYOUT = [
   "CONVERT",
   "REENTRANT_ANGLES",
   "CLEAN_SEGMENTS",
-  "CURVATURE",
   { type: "divider" },
   // geometry of one annotation
   {
