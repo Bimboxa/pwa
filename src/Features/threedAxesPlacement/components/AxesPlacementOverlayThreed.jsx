@@ -31,9 +31,15 @@ const ORIGIN_CIRCLE_RADIUS_PX = 4;
 //    snappable object, else a direct hit on a base map image plane with the
 //    cross helper, else a free point on the horizontal plane of the current
 //    frame origin);
-// 2. direction phase: dashed red (X colour) helper from the origin to the
-//    cursor, the in-scene axes helper rotates live around its vertical axis
-//    so its X axis points at the cursor, with a yaw readout.
+// 2. direction phase: the direction point lives IN THE HORIZONTAL PLANE OF
+//    THE ORIGIN — the free hit is the ray ∩ that plane (so the X axis passes
+//    under the cursor on screen, whatever the camera), a vertex snap at
+//    another height is projected on it (dotted vertical drop line between
+//    the two, the snap circle on the real vertex); no base map plane hit
+//    here, a plan at another height would pull the point off the plane.
+//    Dashed red (X colour) helper from the origin to the direction point,
+//    the in-scene axes helper rotates live around its vertical axis so its
+//    X axis runs along it, with a yaw readout.
 // Helpers are screen-space SVG, like RotateBaseMapOverlayThreed. The click
 // handling lives in useAxesPlacementPointerHandlers (reads the snap
 // published here through the session store).
@@ -49,6 +55,7 @@ export default function AxesPlacementOverlayThreed() {
   const snapCircleRef = useRef(null);
   const originCircleRef = useRef(null);
   const directionLineRef = useRef(null);
+  const dropLineRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
   const yawLabelRef = useRef(null);
@@ -122,6 +129,7 @@ export default function AxesPlacementOverlayThreed() {
         snapCircleRef,
         originCircleRef,
         directionLineRef,
+        dropLineRef,
         crossARef,
         crossBRef,
       ].forEach((r) => {
@@ -162,9 +170,10 @@ export default function AxesPlacementOverlayThreed() {
       });
     }
 
-    // Point under the cursor, both phases: vertex snap → base map image
-    // plane (cross) → free point on the horizontal plane through `anchor`.
-    function computeTarget(canvasSize, anchor) {
+    // Point under the cursor: vertex snap → base map image plane (cross,
+    // origin phase only) → free point on the horizontal plane through
+    // `anchor`.
+    function computeTarget(canvasSize, anchor, { withPlaneHit }) {
       const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
       if (vertexSnap) {
         return {
@@ -173,9 +182,11 @@ export default function AxesPlacementOverlayThreed() {
           meshKey: vertexSnap.meshKey,
         };
       }
-      const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
-        axes: getUserAxesWorldDirections(yawDegRef.current),
-      });
+      const planeHitTarget = withPlaneHit
+        ? intersectBaseMapPlane(editor, ndc, camera, {
+            axes: getUserAxesWorldDirections(yawDegRef.current),
+          })
+        : null;
       if (planeHitTarget) {
         return {
           position: planeHitTarget.position,
@@ -205,7 +216,7 @@ export default function AxesPlacementOverlayThreed() {
       // Phase 1 — origin pick.
       if (!grab) {
         const anchor = axes?.position ?? new Vector3();
-        const snap = computeTarget(canvasSize, anchor);
+        const snap = computeTarget(canvasSize, anchor, { withPlaneHit: true });
         setLastAxesPlacementSnap(snap);
         hideAll();
         updateCircle(
@@ -225,7 +236,9 @@ export default function AxesPlacementOverlayThreed() {
         rect,
         COLOR_ORIGIN
       );
-      const target = computeTarget(canvasSize, grab.origin);
+      const target = computeTarget(canvasSize, grab.origin, {
+        withPlaneHit: false,
+      });
       setLastAxesPlacementSnap(target);
       const targetScreen = target
         ? updateCircle(
@@ -235,8 +248,25 @@ export default function AxesPlacementOverlayThreed() {
             colorForKind(target.kind)
           )
         : null;
-      updateCross(target, rect);
-      updateLine(directionLineRef, originScreen, targetScreen);
+      updateCross(null, rect);
+
+      // Direction point = the target projected in the origin's horizontal
+      // plane: the dashed helper then runs along the X axis on screen. A
+      // vertex at another height shows its drop line.
+      const directionPoint = target
+        ? new Vector3(target.position.x, grab.origin.y, target.position.z)
+        : null;
+      const offPlane =
+        !!target && Math.abs(target.position.y - grab.origin.y) > 1e-3;
+      const directionScreen = directionPoint
+        ? toScreen(directionPoint, rect)
+        : null;
+      updateLine(directionLineRef, originScreen, directionScreen);
+      updateLine(
+        dropLineRef,
+        offPlane ? directionScreen : null,
+        offPlane ? targetScreen : null
+      );
 
       const yaw = target
         ? computeAxesYawFromPoints(grab.origin, target.position)
@@ -287,6 +317,13 @@ export default function AxesPlacementOverlayThreed() {
         stroke={COLOR_CROSS}
         strokeWidth="1.5"
         strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={dropLineRef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="2 3"
         style={{ display: "none" }}
       />
       <line
