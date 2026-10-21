@@ -208,61 +208,64 @@ export default function BandActiveListing({
           listing visibility. Hidden while the listings panel is expanded:
           its selected row already shows the same. */}
       {activeListing && !expanded && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            mx: 1,
-            my: 1,
-            pl: 1,
-            pr: 2,
-            py: 0.75,
-            ...activeListingCardSx(accent),
-          }}
-        >
-          <AvatarListing
-            listing={activeListing}
-            size={28}
-            variant="selected"
-            linked={activeLinked}
-          />
-          <Typography
-            variant="body2"
+        /* Padding on a wrapper, not margins on the card: a bottom margin
+           would collapse through the grey block and show the white Paper
+           as a strip under the band. */
+        <Box sx={{ p: 1 }}>
+          <Box
             sx={{
-              flex: 1,
-              minWidth: 0,
-              overflowWrap: "anywhere",
-              lineHeight: 1.25,
-              fontWeight: 700,
-              color: accent,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              pl: 1,
+              pr: 2,
+              py: 0.75,
+              ...activeListingCardSx(accent),
             }}
           >
-            {activeListing.name ?? activeListing.label ?? "Liste"}
-          </Typography>
-
-          <Tooltip title={moreS} arrow placement="top">
-            <Box
-              component="button"
-              onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
+            <AvatarListing
+              listing={activeListing}
+              size={28}
+              variant="selected"
+              linked={activeLinked}
+            />
+            <Typography
+              variant="body2"
               sx={{
-                ...bandButtonSx,
-                bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
+                flex: 1,
+                minWidth: 0,
+                overflowWrap: "anywhere",
+                lineHeight: 1.25,
+                fontWeight: 700,
+                color: accent,
               }}
             >
-              <MoreHoriz sx={{ fontSize: 18 }} />
-            </Box>
-          </Tooltip>
+              {activeListing.name ?? activeListing.label ?? "Liste"}
+            </Typography>
 
-          {/* Annotations count pill = listing visibility toggle (light
+            <Tooltip title={moreS} arrow placement="top">
+              <Box
+                component="button"
+                onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
+                sx={{
+                  ...bandButtonSx,
+                  bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
+                }}
+              >
+                <MoreHoriz sx={{ fontSize: 18 }} />
+              </Box>
+            </Tooltip>
+
+            {/* Annotations count pill = listing visibility toggle (light
               transposition of the top bar base map badge). */}
-          <ButtonCountPill
-            count={activeCount}
-            hidden={activeHidden}
-            title={activeHidden ? showListingS : hideListingS}
-            onClick={() => toggleVisibility(activeListing.id)}
-            accent={accent}
-          />
+            <ButtonCountPill
+              count={activeCount}
+              hidden={activeHidden}
+              title={activeHidden ? showListingS : hideListingS}
+              onClick={() => toggleVisibility(activeListing.id)}
+              accent={accent}
+            />
+          </Box>
         </Box>
       )}
 
