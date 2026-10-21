@@ -1239,10 +1239,70 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       });
       break;
     }
-    case "REVOLUTION_AXIS_PLACEMENT":
-      // The placement is the axis's clone on a vertical map: the plan axis
-      // above owns the 3D representation, the clone draws NOTHING.
-      return null;
+    case "REVOLUTION_AXIS_PLACEMENT": {
+      // The placement is the axis's clone on a vertical map, drawn as the
+      // same inverted T as in 2D (NodeRevolutionAxisPlacementStatic): a black
+      // dashed stem of the axis height standing on the placement point and a
+      // bar of the plan diameter in the axis colour, both flat in the image
+      // plane. The vertical map is POSED so its plane contains the axis and
+      // the placement point sits at the axis altitude (offsetZ): the T is
+      // therefore drawn from the point itself, no lift to add.
+      // Both lines are snappable at their ends (isSnapLine + exportLine, like
+      // the plan axis): the T intersection, the two bar ends and the stem
+      // top — the grab anchors of the 3D « Déplacer le fond de plan » tool.
+      const p = annotation.point;
+      if (!p) break;
+      const local = pixelToWorld(p, baseMap); // { x, y } in basemap-local meters
+      const h = Number(annotation.revolutionAxisHeightM);
+      const stemHeight = Number.isFinite(h) && h > 0 ? h : 5;
+      const r = Number(annotation.revolutionAxisRadiusM) || 0;
+      const tGroup = new Group();
+      const addTLine = (positions, materialProps) => {
+        const geom = new LineGeometry();
+        geom.setPositions(positions);
+        const mat = new LineMaterial({
+          linewidth: REVOLUTION_AXIS_LINEWIDTH_PX,
+          resolution: options?.resolution, // Vector2 from AnnotationsManager
+          worldUnits: false, // screen-space px thickness
+          transparent: true,
+          depthTest: true,
+          // Coplanar with the base map image: pull the line towards the
+          // camera in depth instead of lifting it geometrically, so the T
+          // intersection stays EXACTLY on the plan axis base (snap parity).
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+          ...materialProps,
+        });
+        const line = new Line2(geom, mat);
+        line.computeLineDistances();
+        const pts = [];
+        for (let i = 0; i + 2 < positions.length; i += 3) {
+          pts.push(
+            new Vector3(positions[i], positions[i + 1], positions[i + 2])
+          );
+        }
+        attachFatLineRaycast(line, pts);
+        line.userData.exportLine = { positions };
+        line.userData.isSnapLine = true;
+        tGroup.add(line);
+      };
+      // Stem: up in the image (local +Y = world +Y on a vertical map).
+      addTLine([local.x, local.y, 0, local.x, local.y + stemHeight, 0], {
+        color: normalizeHex("#000000"),
+        dashed: true,
+        dashSize: REVOLUTION_AXIS_DASH_M,
+        gapSize: REVOLUTION_AXIS_GAP_M,
+      });
+      // Bar: the plan diameter laid flat on the elevation.
+      if (r > 0) {
+        addTLine([local.x - r, local.y, 0, local.x + r, local.y, 0], {
+          color: normalizeHex(annotation.strokeColor || "#e85426"),
+        });
+      }
+      object = tGroup;
+      break;
+    }
     case "OBJECT_3D": {
       // GLB loading is async — return a placeholder Group synchronously and
       // attach the parsed scene when ready. The basemap transform is applied

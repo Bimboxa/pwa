@@ -585,7 +585,6 @@ export default function MainThreedEditor() {
   // Mesh annotations: Delete on the selected faces / edges (before the
   // annotation delete shortcut). Their highlight is Mesh3dPartsHighlightThreed.
   useDeleteMesh3dPartsOnKeyboard();
-  useMoveBaseMapPointerHandlers();
   useRotateBaseMapPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
@@ -954,6 +953,9 @@ export default function MainThreedEditor() {
     );
   }, [maxViewDistance, sceneBaseMapsKey, rendererIsReady, isThreedViewer]);
 
+  // Base map move tool — the resolved annotations give the revolution
+  // families (plan axis ↔ posed elevations) following the carried map live.
+  useMoveBaseMapPointerHandlers({ annotations });
   // Annotation move / rotate tools (Dessin module) — need the resolved
   // annotations for the carry-set resolution and the 2D write-back.
   useMoveAnnotationPointerHandlers({ annotations });

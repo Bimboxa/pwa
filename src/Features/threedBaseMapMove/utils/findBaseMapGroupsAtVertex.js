@@ -38,9 +38,27 @@ export default function findBaseMapGroupsAtVertex(editor, position) {
     const baseMapId = group.userData?.baseMapId;
     if (!baseMapId || byBaseMapId.has(baseMapId)) return;
 
+    obj.updateWorldMatrix(true, false);
+    // Fat lines (Line2) hold INSTANCED geometry: their vertices are the
+    // `exportLine` positions of a snap line, like in buildIndex — the plan
+    // axis and the placement's inverted T are such lines.
+    if (obj.isLine2 || obj.isLineSegments2) {
+      const linePositions = obj.userData?.isSnapLine
+        ? obj.userData.exportLine?.positions
+        : null;
+      if (!linePositions) return;
+      for (let i = 0; i + 2 < linePositions.length; i += 3) {
+        tmp.set(linePositions[i], linePositions[i + 1], linePositions[i + 2]);
+        tmp.applyMatrix4(obj.matrixWorld);
+        if (quantizeVertex(tmp) === targetKey) {
+          byBaseMapId.set(baseMapId, group);
+          return;
+        }
+      }
+      return;
+    }
     const pos = obj.geometry?.attributes?.position;
     if (!pos) return;
-    obj.updateWorldMatrix(true, false);
     for (let i = 0; i < pos.count; i++) {
       tmp.set(pos.getX(i), pos.getY(i), pos.getZ(i));
       tmp.applyMatrix4(obj.matrixWorld);

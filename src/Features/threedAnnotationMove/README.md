@@ -39,7 +39,15 @@ Les modes sont mutuellement exclusifs avec les autres outils 3D (slice
    `mesh3dSource.fields.offsetZ` suivent la composante verticale ; les
    ouvertures collées suivent ; `bumpSnapIndexEpoch` rafraîchit l'index.
    Un **axe de révolution** est déplacé seul par
-   `commitRevolutionAxisMoveFrom3d`.
+   `commitRevolutionAxisMoveFrom3d` ; pendant le transport, les fonds de
+   plan verticaux qu'il pose (ses `REVOLUTION_AXIS_PLACEMENT`) suivent en
+   direct (`grab.followers`,
+   `threedEditor/js/utilsAnnotationsManager/revolutionFollowers.js`, exclus
+   des cibles de drop) — le commit les repose à la pose DB via la resync,
+   sans saut. Le T inversé d'un placement n'est pas saisissable ici
+   (toaster : il suit son fond de plan, outil « Déplacer le fond de plan »,
+   qui fait suivre l'axe du plan et les coupes sœurs par le même
+   mécanisme).
 
 Saisie clavier `<distance>[*<copies>]` (`setMoveCopyBufferService`, partagé
 par le clavier et la carte du helper) : la distance rescale le delta

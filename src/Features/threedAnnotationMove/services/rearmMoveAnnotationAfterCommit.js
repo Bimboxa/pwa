@@ -29,6 +29,7 @@ export default function rearmMoveAnnotationAfterCommit({
   dropWorld,
   copyBuffer,
   getAnnotations,
+  isRevolutionAxis = false,
 }) {
   const annotationsManager = editor?.sceneManager?.annotationsManager;
   const pending = new Set(annotationIds);
@@ -51,6 +52,7 @@ export default function rearmMoveAnnotationAfterCommit({
       baseMapId,
       group,
       snapPosition: dropWorld,
+      isRevolutionAxis,
       copyBuffer,
       annotations: getAnnotations?.() ?? [],
     });
