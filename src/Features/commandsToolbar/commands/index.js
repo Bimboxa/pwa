@@ -33,6 +33,7 @@ import settingOutCommand from "./settingOut/settingOutCommand";
 import convertCommand from "./convert/convertCommand";
 import reentrantAnglesCommand from "./reentrantAngles/reentrantAnglesCommand";
 import cleanSegmentsCommand from "./cleanSegments/cleanSegmentsCommand";
+import detectDuplicatesCommand from "./detectDuplicates/detectDuplicatesCommand";
 import toggleStripTypeCommand from "./toggleStripType/toggleStripTypeCommand";
 import toggleCloseLineCommand from "./toggleCloseLine/toggleCloseLineCommand";
 import flipStripCommand from "./flipStrip/flipStripCommand";
@@ -116,6 +117,7 @@ export const COMMANDS = [
   convertCommand,
   reentrantAnglesCommand,
   cleanSegmentsCommand,
+  detectDuplicatesCommand,
   toggleStripTypeCommand,
   toggleCloseLineCommand,
   flipStripCommand,

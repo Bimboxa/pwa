@@ -14,6 +14,7 @@ import RowTemplatelessVisibility from "./RowTemplatelessVisibility";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
 import SectionPanelPasteHelper from "./SectionPanelPasteHelper";
+import SectionPanelDuplicatesHelper from "Features/duplicatesDetection/components/SectionPanelDuplicatesHelper";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 import PanelTemplateProperties from "./PanelTemplateProperties";
 import PanelAnnotationDetail from "./PanelAnnotationDetail";
@@ -33,6 +34,7 @@ import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/temp
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
+import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/duplicatesDetectionSlice";
 
 // ---------------------------------------------------------------------------
 // PanelDrawing — interactive left panel of the Dessin module (#310): listing
@@ -50,6 +52,9 @@ export default function PanelDrawing() {
   // helper swap as an armed draw.
   const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  // « Détection des doublons » run displayed (status !== idle): the panel
+  // swaps to the duplicates helper, below the paste / drawing helpers.
+  const duplicatesActive = useSelector(selectDuplicatesDetectionActive);
   // Helper swaps (paste / drawing) only in DOCKED mode: in drawer mode the
   // popper is the visible surface and shows its own floating helpers
   // (mounting a second drawing helper here would duplicate the loupe
@@ -287,6 +292,11 @@ export default function PanelDrawing() {
         <>
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelDrawingHelper />
+        </>
+      ) : duplicatesActive && leftPanelDocked ? (
+        <>
+          <LeftDrawerPanelHeader title="Dessin d'annotations" />
+          <SectionPanelDuplicatesHelper />
         </>
       ) : detailTemplate &&
         detailView === "ANNOTATION" &&

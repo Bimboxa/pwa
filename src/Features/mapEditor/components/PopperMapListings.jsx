@@ -59,6 +59,8 @@ import db from "App/db/db";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperPasteHelper from "Features/mapEditor/components/PopperPasteHelper";
+import PopperDuplicatesHelper from "Features/duplicatesDetection/components/PopperDuplicatesHelper";
+import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/duplicatesDetectionSlice";
 import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
@@ -1582,6 +1584,8 @@ export default function PopperMapListings() {
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  // « Détection des doublons » run displayed (floating helper in drawer mode)
+  const duplicatesActive = useSelector(selectDuplicatesDetectionActive);
   // truthy in either subtraction pick direction (see utils/subtractPickMode)
   const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
   const hiddenListingsIds = useSelector(
@@ -1964,7 +1968,8 @@ export default function PopperMapListings() {
     (pasteClipboard ||
       subtractPickAnnotationId ||
       Boolean(enabledDrawingMode) ||
-      activeThreedTool)
+      activeThreedTool ||
+      duplicatesActive)
   );
   const [frameHeight, setFrameHeight] = useState(0);
   useEffect(() => {
@@ -2200,6 +2205,12 @@ export default function PopperMapListings() {
   // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor).
   if (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) {
     return <PopperDrawingHelper />;
+  }
+
+  // « Détection des doublons » result (duplicatesDetectionSlice): one row per
+  // duplicate, below the paste / subtract / drawing helpers in precedence.
+  if (helpersEnabled && duplicatesActive) {
+    return <PopperDuplicatesHelper />;
   }
 
   // in BASE_MAPS viewer, mounting is gated by the folded left panel (legend,
