@@ -5,7 +5,7 @@ import { Box, Tooltip, Typography } from "@mui/material";
 // active listing band, the « Annotations sans modèle » row): filled in the
 // accent while visible, outlined while hidden. With a count of 0 the pill
 // has no background nor border — just the figure, in the accent while
-// visible, in the text colour while hidden.
+// visible, greyed (like the hidden row's name) while hidden.
 // ---------------------------------------------------------------------------
 
 export default function ButtonCountPill({
@@ -24,7 +24,7 @@ export default function ButtonCountPill({
     ? {
         borderColor: "transparent",
         bgcolor: "transparent",
-        color: hidden ? "text.primary" : accent,
+        color: hidden ? "text.disabled" : accent,
         "&:hover": { bgcolor: "action.hover" },
       }
     : {

@@ -2246,6 +2246,11 @@ export default function PopperMapListings() {
     activeListing && isLinkedListing(activeListing.id)
       ? "listingFromOtherScope.main"
       : "secondary.main";
+  // Without any template the block is the dashed "Nouveau modèle" empty
+  // state, a frame of its own: no accent card around it (two frames would
+  // be redundant).
+  const activeListingHasTemplates =
+    (templatesByListingId[activeListing?.id]?.length ?? 0) > 0;
 
   // effect - ESC clears the EDIT target template
 
@@ -2706,14 +2711,19 @@ export default function PopperMapListings() {
                          (same inset), so the templates read as the
                          listing's. Everything of the listing lives inside
                          (group headers, rows, "Nouveau modèle", orphans,
-                         procedures, empty state). */
+                         procedures). Without any template, the dashed
+                         empty state stands alone on the grey. */
                       <Box
-                        sx={{
-                          mx: 1,
-                          my: 1,
-                          overflow: "hidden",
-                          ...activeListingCardSx(activeListingAccent),
-                        }}
+                        sx={
+                          activeListingHasTemplates
+                            ? {
+                                mx: 1,
+                                my: 1,
+                                overflow: "hidden",
+                                ...activeListingCardSx(activeListingAccent),
+                              }
+                            : { pb: 1 }
+                        }
                       >
                         <ListingRow
                           key={activeListing.id}
