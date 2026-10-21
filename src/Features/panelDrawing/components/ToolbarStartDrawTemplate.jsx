@@ -22,8 +22,8 @@ import {
   getHotkeyForToolInGroup,
 } from "Features/mapEditor/constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
+import { DRAWING_TOOLS_EDITOR_3D } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
 
 import theme from "Styles/theme";
@@ -31,13 +31,17 @@ import theme from "Styles/theme";
 // ---------------------------------------------------------------------------
 // ToolbarStartDrawTemplate — floating toolbar at the bottom of the displayed
 // editor (PaperEditorBottomToolbar, mounted in SectionViewer's editors area)
-// while the Dessin panel shows a template's annotations list (2D editor, no drawing
-// mode armed): same controls as ToolbarDrawingDraft (color when not locked
+// while the Dessin panel shows a template's detail (no drawing mode armed) —
+// in the 2D editor, or in the 3D editor for the shapes drawable there
+// (useDrawFromTemplate.canDrawInCurrentEditor; the toolbar stays hidden for
+// the others, e.g. MARKER). Same controls as ToolbarDrawingDraft (color when not locked
 // by the template, tool variants, height / thickness / offset / width
 // fields) operating on a PREVIEW draft. Edits are persisted per template
 // (mapEditor.draftPropsByTemplateId) so starting the draw — from a tool
 // here, the panel's split button or the L/P hotkeys — applies them. Once a
 // draw is armed, ToolbarDrawingDraft takes over (this one returns null).
+// In 3D, P stays the walk-mode toggle (useWalkMode): the « Pinceau » keeps
+// its button but gets no P badge, and the letter passes through here.
 // ---------------------------------------------------------------------------
 
 function ToolbarContent({ template }) {
@@ -55,13 +59,14 @@ function ToolbarContent({ template }) {
 
   // data
 
-  const { tools, selectToolAndDraw } = useDrawFromTemplate(
-    template,
-    template.listingId
-  );
+  const { tools, selectToolAndDraw, canDrawInCurrentEditor } =
+    useDrawFromTemplate(template, template.listingId);
   const rememberedDraftProps = useSelector(
     (s) => s.mapEditor.draftPropsByTemplateId?.[template.id]
   );
+  // 3D editor of the Dessin module: P belongs to the walk-mode toggle.
+  const isThreedTools =
+    useSelector(selectDrawingToolsEditor) === DRAWING_TOOLS_EDITOR_3D;
 
   // helpers - preview draft (NOT dispatched — the real draft is built by
   // startDraw with the same function, remembered props included)
@@ -101,7 +106,10 @@ function ToolbarContent({ template }) {
 
   const options = tools.map((tool) => {
     const { key, label, Icon } = tool;
-    const hotkey = getHotkeyForToolInGroup(tool, tools);
+    const hotkey =
+      isThreedTools && tool.behavior === "MESH_BRUSH"
+        ? null
+        : getHotkeyForToolInGroup(tool, tools);
     return {
       key,
       label,
@@ -186,6 +194,8 @@ function ToolbarContent({ template }) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isEditableTarget(e.target)) return;
       const letter = e.key?.toLowerCase();
+      // 3D: P is the walk-mode toggle, never the « Pinceau » shortcut.
+      if (isThreedTools && letter === "p") return;
 
       // Tool letters: same resolution as the badges (first tool of the
       // behavior within the group).
@@ -213,10 +223,12 @@ function ToolbarContent({ template }) {
 
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [tools, selectToolAndDraw, showThickness, showHeight]);
+  }, [tools, selectToolAndDraw, showThickness, showHeight, isThreedTools]);
 
   // render
 
+  // Shape not drawable in the displayed (3D) editor: no toolbar, like before.
+  if (!canDrawInCurrentEditor) return null;
   if (options.length === 0) return null;
 
   return (
@@ -377,9 +389,6 @@ export default function ToolbarStartDrawTemplate() {
   const isDessinModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MAP"
   );
-  const isThreedEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
@@ -395,7 +404,6 @@ export default function ToolbarStartDrawTemplate() {
 
   const show =
     isDessinModule &&
-    !isThreedEditor &&
     leftPanelDocked &&
     !dessinGridOpen &&
     !enabledDrawingMode &&
