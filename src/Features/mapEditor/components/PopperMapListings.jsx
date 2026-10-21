@@ -47,6 +47,8 @@ import FormatColorFill from "@mui/icons-material/FormatColorFill";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import { useOverlayAnnotationsBaseMapIds } from "Features/baseMapOverlays/hooks/useBaseMapOverlays";
 import SectionBaseMapLinkClones from "Features/baseMapLinks/components/SectionBaseMapLinkClones";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -1655,15 +1657,20 @@ export default function PopperMapListings() {
   );
   const mirrors3dFilters =
     (isThreedViewer && !isViewer2d) || isPovThreed || isBaseMapsLegendThreed;
-  // Dessin module (2D or its 3D toggle): the footer switch "Fond de plan
-  // sélectionné seul" (panelDrawing.viewerAnnotationsScope, shared with the
-  // Dessin / Viewer panels' chips) scopes the annotations set — and so every
-  // displayed quantity and counter — to the main base map (the default), or
-  // to the whole repérage ("ALL"). The legend poppers of the other modules
-  // keep their own base map scoping.
+  // Dessin module (2D or its 3D toggle): the annotations set — and so every
+  // displayed quantity and counter — is the main base map's plus the other
+  // base maps whose annotations the editor displays (below). The quantities
+  // scope of the Viewer panels' chips (panelDrawing.viewerAnnotationsScope)
+  // is not honoured here: the counters mirror the base maps section.
   const isDessinPopper = viewerKey === "MAP";
-  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
-  const isAllScope = isDessinPopper && viewerScope === "ALL";
+  // Dessin module: the counters also cover the other base maps whose
+  // annotations the displayed editor shows — in 2D the base maps overlaid
+  // on the main one with their badge on, in 3D the base maps with a display
+  // mode (see displayedAnnotationsBaseMapIds below).
+  const isDessin2d = useSelector(
+    (s) =>
+      isDessinPopper && !isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   // Raw popperMapListings.interactionMode overridden by the module / display
   // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
@@ -1711,6 +1718,12 @@ export default function PopperMapListings() {
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
+  const { value: scopeBaseMaps } = useBaseMaps({});
+  const overlayAnnotationsBaseMapIds = useOverlayAnnotationsBaseMapIds({
+    baseMap,
+    baseMaps: scopeBaseMaps,
+    enabled: isDessin2d,
+  });
 
   // Auto-enable showLayers when the baseMap has layers in the MAP viewer.
   // Enable only: a manual choice (Dessin properties panel / Configuration
@@ -1725,6 +1738,52 @@ export default function PopperMapListings() {
   // 3D can show annotations from several base maps at once; mirror those extra
   // base maps here so the panel's visible set matches the 3D scene.
   const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
+
+  // Base maps whose annotations the displayed editor shows — the main one
+  // under its own eye, plus the 2D overlays with their badge on or the 3D
+  // base maps with a display mode (title of the « Annotations repérées sur
+  // N fonds de plan » section).
+  const hideAnnotationsInViewer = useSelector(
+    (s) => s.viewers.hideAnnotationsInViewer
+  );
+  const hideAnnotationsIn3d = useSelector(
+    (s) => s.threedEditor.hideAnnotationsIn3d
+  );
+  const hideMainBaseMapAnnotationsIn3d = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
+  );
+  const otherDisplayedBaseMapIds = useMemo(
+    () =>
+      isDessin2d
+        ? overlayAnnotationsBaseMapIds
+        : hideAnnotationsIn3d
+          ? []
+          : extraBaseMapIdsIn3d,
+    [
+      isDessin2d,
+      overlayAnnotationsBaseMapIds,
+      hideAnnotationsIn3d,
+      extraBaseMapIdsIn3d,
+    ]
+  );
+  const displayedAnnotationsBaseMapIds = useMemo(() => {
+    if (!baseMap?.id) return [];
+    const mainShown = isDessin2d
+      ? !hideAnnotationsInViewer
+      : !hideAnnotationsIn3d && !hideMainBaseMapAnnotationsIn3d;
+    return [...(mainShown ? [baseMap.id] : []), ...otherDisplayedBaseMapIds];
+  }, [
+    baseMap?.id,
+    isDessin2d,
+    hideAnnotationsInViewer,
+    hideAnnotationsIn3d,
+    hideMainBaseMapAnnotationsIn3d,
+    otherDisplayedBaseMapIds,
+  ]);
+  // Dessin module, main base map scope: the counters cover those base maps
+  // on top of the main one (same set as the 3D mirror of the other modules).
+  const widenToDisplayed =
+    isDessinPopper && otherDisplayedBaseMapIds.length > 0;
   const extraBaseMapIds = useMemo(() => {
     if (!isScopeGridOpen) return extraBaseMapIdsIn3d;
     return scopeSheetIds.filter((id) => id !== baseMap?.id);
@@ -1736,7 +1795,8 @@ export default function PopperMapListings() {
   // eye-hidden templates' annotations so their rows stay in the tree (greyed)
   // and can be re-enabled. In 3D, the 3D-specific filters are mirrored so the
   // set matches what the scene actually shows. In the Dessin module, the
-  // "ALL" scope widens the set to every base map of the selected scope.
+  // other base maps whose annotations the displayed editor shows (2D
+  // overlays, 3D display modes) join the main one.
   const allAnnotationsInclHidden = useAnnotationsV2({
     caller: "PopperMapListings",
     enabled:
@@ -1747,8 +1807,8 @@ export default function PopperMapListings() {
       isPovViewer ||
       isThreedViewer ||
       isScopeModule,
-    filterByMainBaseMap: !isAllScope,
-    ...(isAllScope ? { filterBySelectedScope: true } : {}),
+    filterByMainBaseMap: true,
+    ...(widenToDisplayed ? { extraBaseMapIds: otherDisplayedBaseMapIds } : {}),
     hideBaseMapAnnotations: true,
     withQties: true,
     ignoreSolo: true,
@@ -2041,7 +2101,7 @@ export default function PopperMapListings() {
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer,
-    filterByMainBaseMap: !isAllScope,
+    filterByMainBaseMap: true,
     filterBySelectedScope: true,
     keepHiddenTemplates: true,
     annotationTemplates,
@@ -2303,11 +2363,10 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Properties of the displayed side (annotations / base maps sides).
-            Hidden in the Viewer module and the BaseMaps module (read-only
-            legends, no popper properties there). On the commandes side the
-            button is kept in the layout, invisible, so the header does not
-            jump between sides. */}
+        {/* Properties of the popper (annotations side). Hidden in the Viewer
+            module and the BaseMaps module (read-only legends, no popper
+            properties there). On the objects side the button is kept in the
+            layout, invisible, so the header does not jump between sides. */}
         {showSideProperties && (
           <Tooltip title={propertiesS} arrow placement="top">
             <IconButton
@@ -2318,9 +2377,7 @@ export default function PopperMapListings() {
                 dispatch(
                   setSelectedItem({
                     id: selectedScopeId,
-                    type: showBaseMapsBody
-                      ? "POPPER_BASE_MAPS"
-                      : "POPPER_MAP_LISTINGS",
+                    type: "POPPER_MAP_LISTINGS",
                   })
                 );
                 dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
@@ -2442,22 +2499,9 @@ export default function PopperMapListings() {
         <>
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
-          {/* Standard body (base maps / layers / listings) */}
+          {/* Standard body (layers / listings / base maps) */}
 
-          {/* "Fonds de plan" section — pinned first under the header: the
-              header (properties, detach, expand / collapse) and, expanded,
-              the base maps list capped in height. Replaces the "Fonds de
-              plan" tab of the header toggle in these poppers. */}
-          {showBaseMapsSection && (
-            <Box sx={{ flexShrink: 0 }}>
-              <SectionPopperBaseMaps
-                countByBaseMapIdOverride={scopeCountByBaseMapId}
-                showProperties={showSideProperties}
-              />
-            </Box>
-          )}
-
-          {/* Layers — pinned under the base maps section, above the listing
+          {/* Layers — pinned right under the header, above the listing
               selector. Capped in height so a long layers list never pushes
               the listing selector / templates out of sight. */}
           {viewerKey === "MAP" && showLayers && (
@@ -2688,6 +2732,20 @@ export default function PopperMapListings() {
                 baseMap={baseMap}
                 spriteImage={spriteImage}
                 hideHeader
+              />
+            </Box>
+          )}
+
+          {/* « Annotations sur les autres fonds de plan » section — pinned
+              at the very bottom, under « Annotations sans modèle »: the
+              header ("..." menu, detach, expand / collapse) and, expanded,
+              the base maps list capped in height. Replaces the "Fonds de
+              plan" tab of the header toggle in these poppers. */}
+          {showBaseMapsSection && (
+            <Box sx={{ flexShrink: 0 }}>
+              <SectionPopperBaseMaps
+                listingIds={displayedListings?.map((l) => l.id)}
+                displayedBaseMapIds={displayedAnnotationsBaseMapIds}
               />
             </Box>
           )}

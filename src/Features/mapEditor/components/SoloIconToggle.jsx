@@ -6,7 +6,8 @@ import { alpha } from "@mui/material/styles";
 // template rows of PopperMapListings (AnnotationTemplateRow): a 24px icon
 // slot that takes a button shape when the row is hovered, a secondary ring
 // while soloed. Used by the « Annotations sans modèle » rows (popper and
-// docked Dessin panel).
+// docked Dessin panel) and, around the listing avatar, by the listing rows
+// of the Dessin popper (`title` / `size` overrides).
 // ---------------------------------------------------------------------------
 
 export default function SoloIconToggle({
@@ -14,12 +15,17 @@ export default function SoloIconToggle({
   isHidden = false,
   isRowHovered = false,
   onToggle,
+  // Tooltip override (default: Solo / Quitter le solo).
+  title,
+  // Slot size (px).
+  size = 24,
   children,
 }) {
   // strings
 
   const soloS = "Solo";
   const exitSoloS = "Quitter le solo";
+  const tooltipS = title ?? (isSolo ? exitSoloS : soloS);
 
   // handlers
 
@@ -31,7 +37,7 @@ export default function SoloIconToggle({
   // render
 
   return (
-    <Tooltip title={isSolo ? exitSoloS : soloS} arrow placement="left">
+    <Tooltip title={tooltipS} arrow placement="left">
       <Box
         onClick={handleClick}
         onDoubleClick={(e) => e.stopPropagation()}
@@ -40,8 +46,8 @@ export default function SoloIconToggle({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 24,
-          height: 24,
+          width: size,
+          height: size,
           flexShrink: 0,
           borderRadius: 1,
           cursor: "pointer",

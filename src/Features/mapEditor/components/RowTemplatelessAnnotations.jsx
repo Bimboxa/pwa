@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
-  Box,
   Typography,
   ListItemButton,
   IconButton,
@@ -13,6 +12,7 @@ import QuestionMark from "@mui/icons-material/QuestionMark";
 import Tune from "@mui/icons-material/Tune";
 
 import SoloIconToggle from "./SoloIconToggle";
+import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPill";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 import useOpenTemplatelessAnnotationsPanel from "Features/mapEditor/hooks/useOpenTemplatelessAnnotationsPanel";
 import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotationsOnMap";
@@ -143,46 +143,13 @@ export default function RowTemplatelessAnnotations({ annotations }) {
             </Tooltip>
           )}
 
-          {/* Count pill = visibility toggle (same pill as the listing rows:
-              filled in the accent while visible, outlined while hidden). */}
-          <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
-            <Box
-              component="button"
-              onClick={handleToggleHidden}
-              sx={{
-                minWidth: 24,
-                height: 20,
-                px: 0.75,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                borderRadius: 999,
-                border: "1px solid",
-                borderColor: isHidden ? "panel.border" : "transparent",
-                bgcolor: isHidden ? "transparent" : "secondary.main",
-                color: isHidden ? "text.disabled" : "secondary.contrastText",
-                cursor: "pointer",
-                transition: "0.2s",
-                "&:hover": {
-                  filter: "brightness(1.1)",
-                  borderColor: isHidden ? "text.secondary" : "transparent",
-                },
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  fontFamily: "monospace",
-                  lineHeight: 1,
-                  color: "inherit",
-                }}
-              >
-                {count}
-              </Typography>
-            </Box>
-          </Tooltip>
+          {/* Count pill = visibility toggle (same pill as the listing rows). */}
+          <ButtonCountPill
+            count={count}
+            hidden={isHidden}
+            title={isHidden ? showS : hideS}
+            onClick={handleToggleHidden}
+          />
         </ListItemButton>
       </Tooltip>
     </>

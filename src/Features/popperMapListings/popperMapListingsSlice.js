@@ -45,7 +45,8 @@ const popperMapListingsSlice = createSlice({
     // gates the photo pseudo-annotations on it (photos render only while the
     // Photos tab is active) and both surfaces must agree.
     viewerContentMode: "ANNOTATIONS",
-    // "Fonds de plan" list option (PanelPropertiesBaseMapsList): relegate the
+    // "Fonds de plan" list option (no UI any more, kept for the stored
+    // state): relegate the
     // base maps without annotations — except the main one and those whose
     // image / annotations are currently shown in 3D.
     hideEmptyBaseMapsInList: false,

@@ -1,12 +1,8 @@
 import { useState, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-
-import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import Tune from "@mui/icons-material/Tune";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
@@ -25,7 +21,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 // PopperBaseMapsList — the base maps list detached from PopperMapListings
 // ("Détacher la liste" icon of the bottom band of its "Fonds de plan" side):
 // a second floating panel with the very same structure (draggable header,
-// properties, bottom band with the "auto" height button, the attach icon,
+// bottom band with the "auto" height button, the attach icon,
 // the collapse toggle and the resize handle), showing the base maps list
 // (in the BaseMaps module the header also gets the new-folder "+"). The base
 // map placement commands live in the unified commands toolbar. Mounted by the
@@ -41,12 +37,9 @@ const POPPER_WIDTH = 290;
 const DEFAULT_LEFT = 50 + 320 + 12;
 
 export default function PopperBaseMapsList() {
-  const dispatch = useDispatch();
-
   // strings
 
   const titleS = "Fonds de plan";
-  const propertiesS = "Propriétés";
 
   // data
 
@@ -57,7 +50,6 @@ export default function PopperBaseMapsList() {
       s.popperMapListings.baseMapsListDetached &&
       !(selectIsBaseMapsLegendPopper(s) && !s.baseMapEditor.showAnnotations)
   );
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   // Same helper chain as PopperMapListings (2D only).
   const helperActive = useSelector(
@@ -89,20 +81,7 @@ export default function PopperBaseMapsList() {
 
   // helpers
 
-  // Same rule as the annotations popper: no properties panel in the Viewer
-  // (read-only legend) and BaseMaps modules.
-  const showProperties = viewerKey !== "THREED" && viewerKey !== "BASE_MAPS";
   const isBaseMapsModule = viewerKey === "BASE_MAPS";
-
-  // handlers
-
-  function handleOpenProperties(e) {
-    e.stopPropagation();
-    dispatch(
-      setSelectedItem({ id: selectedScopeId, type: "POPPER_BASE_MAPS" })
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-  }
 
   // render
 
@@ -169,19 +148,6 @@ export default function PopperBaseMapsList() {
         >
           {titleS}
         </Typography>
-
-        {showProperties && (
-          <Tooltip title={propertiesS}>
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={handleOpenProperties}
-              sx={{ color: "panel.textLight", p: 0.25, cursor: "pointer" }}
-            >
-              <Tune sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
 
         {isBaseMapsModule && <IconButtonCreateBaseMapListing />}
       </Box>

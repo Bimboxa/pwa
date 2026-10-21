@@ -23,12 +23,11 @@ const EMPTY = [];
 //   { baseMap, matrix, matrixStr, showImage, annotations }
 // — stable while neither the base maps nor the toggles nor the overlaid
 // annotations change (never during pan / zoom / drag).
-export default function useBaseMapOverlays({
-  baseMap,
-  baseMaps,
-  enabled,
-  forViewerKey,
-}) {
+
+// The placement filter alone (no annotations fetch): the overlaid base maps
+// with their transform and toggles. Shared with
+// useOverlayAnnotationsBaseMapIds below.
+function usePlacedBaseMapOverlays({ baseMap, baseMaps, enabled }) {
   // data
 
   const visibleIds = useSelector((s) => s.viewers.visibleBaseMapIdsIn2d);
@@ -39,7 +38,7 @@ export default function useBaseMapOverlays({
 
   // helpers
 
-  const placed = useMemo(() => {
+  return useMemo(() => {
     if (!enabled || !baseMap || baseMap.isPhoto) return EMPTY;
     if (visibleIds.length === 0 && annotationsIds.length === 0) return EMPTY;
     const result = [];
@@ -62,6 +61,35 @@ export default function useBaseMapOverlays({
     }
     return result.length > 0 ? result : EMPTY;
   }, [enabled, baseMap, baseMaps, visibleIds, annotationsIds, disabledIds]);
+}
+
+// Ids of the overlaid base maps whose ANNOTATIONS are displayed on the main
+// one (badge on) — the base maps whose annotations the 2D editor shows
+// besides the main one. Lets the annotations popper widen its counters to
+// them without fetching the overlays' annotations a second time.
+export function useOverlayAnnotationsBaseMapIds({
+  baseMap,
+  baseMaps,
+  enabled,
+}) {
+  const placed = usePlacedBaseMapOverlays({ baseMap, baseMaps, enabled });
+  return useMemo(
+    () => placed.filter((o) => o.showAnnotations).map((o) => o.baseMap.id),
+    [placed]
+  );
+}
+
+export default function useBaseMapOverlays({
+  baseMap,
+  baseMaps,
+  enabled,
+  forViewerKey,
+}) {
+  // data
+
+  const placed = usePlacedBaseMapOverlays({ baseMap, baseMaps, enabled });
+
+  // helpers
 
   const annotationsBaseMapIds = useMemo(
     () => placed.filter((o) => o.showAnnotations).map((o) => o.baseMap.id),

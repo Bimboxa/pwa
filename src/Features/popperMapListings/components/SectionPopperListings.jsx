@@ -34,6 +34,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import AvatarListing from "Features/listings/components/AvatarListing";
+import ButtonCountPill from "./ButtonCountPill";
+import SoloIconToggle from "Features/mapEditor/components/SoloIconToggle";
 import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
 import MenuMoreActionsActiveListing from "Features/panelDrawing/components/MenuMoreActionsActiveListing";
 
@@ -50,10 +52,13 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // listing (rename, favorites, duplicate, delete — "Retirer du …" for a
 // linked listing) and the annotations count (scoped like the popper) as a
 // pill that toggles the listing visibility.
-// Click = select the listing (active listing of the Dessin panel, with the
-// "Visibilité auto" rule) and send it to the selection as a LISTING item —
-// the right panel, when open, shows its properties. A trailing row creates a
-// listing; with no listing at all, the section is the create CTA.
+// Click = select the listing (active listing of the Dessin panel, the other
+// listings keep their visibility) and send it to the selection as a LISTING
+// item — the right panel, when open, shows its properties. The avatar is the
+// listing SOLO toggle (same affordance as the template rows' icon): click =
+// select the listing AND hide every other listing's annotations; ringed
+// while the listing is the only visible one. With no listing at all, the
+// section is the create CTA.
 // ---------------------------------------------------------------------------
 
 // -- Sortable row --
@@ -62,18 +67,22 @@ function SortableRowPopperListing({
   listing,
   selected,
   hidden,
+  // Selected and every other listing of the panel hidden.
+  soloed,
   count,
   // Listing linked from another scope ("Depuis un autre Krto"): selectable,
   // not sortable, flagged in the linked colour with the source scope's name.
   linked = false,
   sourceScopeName,
   onSelect,
+  onSolo,
   onToggleVisibility,
   onOpenMenu,
 }) {
   // strings
 
   const dragS = "Glisser pour réordonner";
+  const soloS = "Masquer les autres annotations";
   const moreS = "Actions sur la liste";
   const showS = "Afficher la liste";
   const hideS = "Masquer la liste";
@@ -90,6 +99,10 @@ function SortableRowPopperListing({
     isDragging,
   } = useSortable({ id: listing.id, disabled: linked });
 
+  // state
+
+  const [isHovered, setIsHovered] = useState(false);
+
   // helpers
 
   const accent = linked ? "listingFromOtherScope.main" : "secondary.main";
@@ -105,6 +118,8 @@ function SortableRowPopperListing({
     <ListItemButton
       ref={setNodeRef}
       onClick={() => onSelect(listing)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -129,7 +144,16 @@ function SortableRowPopperListing({
               ? alpha(theme.palette.secondary.main, 0.125)
               : theme.palette.action.hover,
         },
+        // Keyboard focus (or a focused child button) must not grey the
+        // row: the selected tint stays.
+        "&.Mui-focusVisible": {
+          bgcolor: (theme) =>
+            selected
+              ? alpha(theme.palette.secondary.main, 0.08)
+              : "transparent",
+        },
         "&:hover .popperListingDragHandle": { opacity: linked ? 0 : 1 },
+        "& .popperListingDragHandle": { opacity: linked ? 0 : 1 },
       }}
     >
       <Tooltip title={linked ? "" : dragS} arrow placement="left">
@@ -146,8 +170,8 @@ function SortableRowPopperListing({
             color: "panel.iconMuted",
             cursor: linked ? "default" : "grab",
             touchAction: "none",
-            opacity: isDragging ? 1 : 0,
-            transition: "opacity 0.15s ease",
+            // Always shown (a linked listing is not sortable: no handle).
+            opacity: linked ? 0 : 1,
             "&:active": { cursor: linked ? "default" : "grabbing" },
           }}
         >
@@ -155,12 +179,22 @@ function SortableRowPopperListing({
         </Box>
       </Tooltip>
 
-      <AvatarListing
-        listing={listing}
-        size={28}
-        variant={variant}
-        linked={linked}
-      />
+      {/* Avatar = listing SOLO toggle (button shape on row hover, ring
+          while the listing is the only visible one). */}
+      <SoloIconToggle
+        isSolo={soloed}
+        isRowHovered={isHovered}
+        onToggle={() => onSolo(listing)}
+        title={soloS}
+        size={32}
+      >
+        <AvatarListing
+          listing={listing}
+          size={28}
+          variant={variant}
+          linked={linked}
+        />
+      </SoloIconToggle>
 
       <Typography
         variant="body2"
@@ -168,8 +202,14 @@ function SortableRowPopperListing({
         sx={{
           flex: 1,
           minWidth: 0,
-          fontWeight: selected ? 600 : 400,
-          color: hidden ? "text.disabled" : "text.primary",
+          // Selected row: same style as the collapsed active listing band
+          // (bold, secondary).
+          fontWeight: selected ? 700 : 400,
+          color: hidden
+            ? "text.disabled"
+            : selected
+              ? "secondary.main"
+              : "text.primary",
         }}
       >
         {listing.name ?? listing.label ?? "Liste"}
@@ -223,46 +263,14 @@ function SortableRowPopperListing({
       </Tooltip>
 
       {/* Annotations count pill = listing visibility toggle (same pill as
-          the active listing band; filled in the accent when visible,
-          outlined when hidden). */}
-      <Tooltip title={hidden ? showS : hideS} arrow placement="top">
-        <Box
-          component="button"
-          onClick={(e) => onToggleVisibility(e, listing.id)}
-          sx={{
-            minWidth: 24,
-            height: 20,
-            px: 0.75,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            borderRadius: 999,
-            border: "1px solid",
-            borderColor: hidden ? "panel.border" : "transparent",
-            bgcolor: hidden ? "transparent" : accent,
-            color: hidden ? "text.disabled" : "secondary.contrastText",
-            cursor: "pointer",
-            transition: "0.2s",
-            "&:hover": {
-              filter: "brightness(1.1)",
-              borderColor: hidden ? "text.secondary" : "transparent",
-            },
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              fontFamily: "monospace",
-              lineHeight: 1,
-              color: "inherit",
-            }}
-          >
-            {count}
-          </Typography>
-        </Box>
-      </Tooltip>
+          the active listing band). */}
+      <ButtonCountPill
+        count={count}
+        hidden={hidden}
+        title={hidden ? showS : hideS}
+        onClick={(e) => onToggleVisibility(e, listing.id)}
+        accent={accent}
+      />
     </ListItemButton>
   );
 }
@@ -317,10 +325,23 @@ export default function SectionPopperListings({
 
   // handlers
 
+  // Row click: the other listings keep their visibility.
   const handleSelectListing = (listing) => {
-    selectListing(listing.id);
+    selectListing(listing.id, { hideOthers: false });
     dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
   };
+
+  // Avatar click: select AND hide every other listing of the panel.
+  const handleSoloListing = (listing) => {
+    selectListing(listing.id, { hideOthers: true });
+    dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
+  };
+
+  const isSoloed = (listing) =>
+    listing.id === activeListing?.id &&
+    listingIds
+      .filter((id) => id !== listing.id)
+      .every((id) => hiddenListingsIds.includes(id));
 
   const handleOpenMenu = (e, listing) => {
     e.stopPropagation();
@@ -392,10 +413,12 @@ export default function SectionPopperListings({
                 listing={listing}
                 selected={listing.id === activeListing?.id}
                 hidden={hiddenListingsIds.includes(listing.id)}
+                soloed={isSoloed(listing)}
                 count={countsByListingId?.[listing.id] ?? 0}
                 linked={isLinkedListing(listing.id)}
                 sourceScopeName={getSourceScope(listing.id)?.name}
                 onSelect={handleSelectListing}
+                onSolo={handleSoloListing}
                 onToggleVisibility={handleToggleVisibility}
                 onOpenMenu={handleOpenMenu}
               />

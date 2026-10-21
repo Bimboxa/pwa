@@ -1,45 +1,41 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setAutoBaseMapVisibility,
-  setBaseMapsPanelExpanded,
-} from "../popperMapListingsSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setBaseMapsPanelExpanded } from "../popperMapListingsSlice";
 
-import {
-  Box,
-  Checkbox,
-  Divider,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import MoreHoriz from "@mui/icons-material/MoreHoriz";
-import Tune from "@mui/icons-material/Tune";
 
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
 
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
+import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import bandButtonSx from "../utils/bandButtonSx";
 
 // ---------------------------------------------------------------------------
-// SectionPopperBaseMaps — "Fonds de plan" block of the Dessin popper, right
-// under the header and above the listings block (BandActiveListing):
-// 1. the "Fonds de plan" header: a "..." options menu ("Visibilité auto" —
-//    moved here from the bottom of the list — and the base maps properties
-//    of the right panel, PanelPropertiesBaseMapsList), the detach icon of
-//    the list (PopperBaseMapsList) and the expand / collapse button of the
-//    base maps panel — collapsed by default;
+// SectionPopperBaseMaps — « X annotations sur N fonds de plan » block of the
+// Dessin popper, pinned at the very bottom under « Annotations sans
+// modèle »:
+// 1. the header (N = base maps whose annotations the editor displays —
+//    main eye, 2D overlay badges, 3D display modes — among those carrying
+//    at least one counted annotation, X = their annotations; so the counts
+//    below are computed even while collapsed): the detach icon of the list
+//    (PopperBaseMapsList) and the expand / collapse button of the base maps
+//    panel — collapsed by default;
 // 2. the base maps list (SectionBaseMapsList, the very panel the former
-//    "Fonds de plan" tab of the header toggle showed), capped in height so a
-//    long list never pushes the listings and templates out of sight.
+//    "Fonds de plan" tab of the header toggle showed, without its
+//    "Visibilité auto" row: selecting a base map here always hides the
+//    others' image and annotations), capped in height so a long list never
+//    pushes
+//    the listings and templates out of sight. Its counts are aligned on the
+//    listing counters above: per base map, the annotations of the listings
+//    displayed AND visible in the popper (hidden listings and eye-hidden
+//    templates excluded) plus the templateless ones of the scope — computed
+//    here, scope-wide. (The top bar badge keeps the whole count of the base
+//    map, see useAnnotationsCountByBaseMapId.)
 // Replaces the "Fonds de plan" side of the header toggle in the poppers
 // that show the listings block; the legend poppers keep their tab. While
 // the list is detached the section is gone altogether (re-attach from the
@@ -51,21 +47,17 @@ import bandButtonSx from "../utils/bandButtonSx";
 const PANEL_MAX_HEIGHT = 240;
 
 export default function SectionPopperBaseMaps({
-  // Counts narrowed like the legend (SCOPE module), null elsewhere.
-  countByBaseMapIdOverride,
-  // "Propriétés" menu item — not in the read-only legends.
-  showProperties = true,
+  // Ids of the listings displayed in the popper (their counters above).
+  listingIds,
+  // Ids of the base maps whose annotations the displayed editor shows.
+  displayedBaseMapIds,
 }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const titleS = "Fonds de plan";
-  const optionsS = "Options des fonds de plan";
-  const propertiesS = "Propriétés";
-  const autoVisibilityS = "Visibilité auto";
-  const autoVisibilityTooltipS =
-    "Au changement de fond de plan : masque l'image et les annotations des autres fonds de plan.";
+  const titleS = (x, n) =>
+    `${x} annotation${x > 1 ? "s" : ""} sur ${n} fond${n > 1 ? "s" : ""} de plan`;
   const expandS = "Déplier les fonds de plan";
   const collapseS = "Replier les fonds de plan";
 
@@ -76,30 +68,51 @@ export default function SectionPopperBaseMaps({
     (s) => s.popperMapListings.baseMapsPanelExpanded
   );
   const detached = useSelector((s) => s.popperMapListings.baseMapsListDetached);
-  const autoVisibility = useSelector(
-    (s) => s.popperMapListings.autoBaseMapVisibility
+  const hiddenListingsIds = useSelector(
+    (s) => s.listings.hiddenListingsIds || []
   );
 
-  // state
-
-  const [optionsMenuAnchor, setOptionsMenuAnchor] = useState(null);
+  // Scope-wide annotations set, same filters as the popper's counters
+  // (allAnnotations of PopperMapListings) without the main base map one.
+  // Also feeds the header's counts, hence fetched while collapsed.
+  const scopeAnnotations = useAnnotationsV2({
+    caller: "SectionPopperBaseMaps",
+    enabled: !detached,
+    filterBySelectedScope: true,
+    hideBaseMapAnnotations: true,
+    ignoreSolo: true,
+  });
+  const listingIdsKey = (listingIds ?? []).join("|");
+  const hiddenListingIdsKey = hiddenListingsIds.join("|");
+  const countByBaseMapId = useMemo(() => {
+    const hiddenSet = new Set(
+      hiddenListingIdsKey ? hiddenListingIdsKey.split("|") : []
+    );
+    const listingIdSet = new Set(
+      (listingIdsKey ? listingIdsKey.split("|") : []).filter(
+        (id) => !hiddenSet.has(id)
+      )
+    );
+    const counts = {};
+    (scopeAnnotations ?? []).forEach((a) => {
+      if (!a.baseMapId || isLegacyStyleRevolutionHelper(a)) return;
+      const counted = a.listingId
+        ? listingIdSet.has(a.listingId)
+        : isTemplatelessAnnotationInScope(a, selectedScopeId);
+      if (counted) counts[a.baseMapId] = (counts[a.baseMapId] ?? 0) + 1;
+    });
+    return counts;
+  }, [scopeAnnotations, listingIdsKey, hiddenListingIdsKey, selectedScopeId]);
+  const displayedCounts = (displayedBaseMapIds ?? []).map(
+    (id) => countByBaseMapId[id] ?? 0
+  );
+  const displayedBaseMapsCount = displayedCounts.filter((n) => n > 0).length;
+  const displayedAnnotationsCount = displayedCounts.reduce((a, n) => a + n, 0);
 
   // handlers
 
   const handleToggleExpanded = () => {
     dispatch(setBaseMapsPanelExpanded(!expanded));
-  };
-
-  const handleToggleAutoVisibility = () => {
-    dispatch(setAutoBaseMapVisibility(!autoVisibility));
-  };
-
-  const handleOpenProperties = () => {
-    setOptionsMenuAnchor(null);
-    dispatch(
-      setSelectedItem({ id: selectedScopeId, type: "POPPER_BASE_MAPS" })
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   };
 
   // render
@@ -109,8 +122,8 @@ export default function SectionPopperBaseMaps({
 
   return (
     <Box>
-      {/* "Fonds de plan" header: title, then the "..." options menu, the
-          detach icon and the expand / collapse button. */}
+      {/* Header: title, then the detach icon and the expand / collapse
+          button. */}
       <Box
         onClick={handleToggleExpanded}
         sx={{
@@ -122,7 +135,10 @@ export default function SectionPopperBaseMaps({
           py: 0.5,
           cursor: "pointer",
           userSelect: "none",
-          borderBottom: "1px solid",
+          // Pinned at the bottom of the popper: the border is on top, and
+          // under the header only while the list is expanded.
+          borderTop: "1px solid",
+          borderBottom: expanded ? "1px solid" : "none",
           borderColor: "panel.border",
           // Same tinted block as the "Listes d'annotations" header.
           bgcolor: "background.default",
@@ -139,24 +155,8 @@ export default function SectionPopperBaseMaps({
             color: "panel.textMuted",
           }}
         >
-          {titleS}
+          {titleS(displayedAnnotationsCount, displayedBaseMapsCount)}
         </Typography>
-
-        <Tooltip title={optionsS} arrow placement="top">
-          <Box
-            component="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOptionsMenuAnchor(e.currentTarget);
-            }}
-            sx={{
-              ...bandButtonSx,
-              bgcolor: optionsMenuAnchor ? "action.selected" : "action.hover",
-            }}
-          >
-            <MoreHoriz sx={{ fontSize: 18 }} />
-          </Box>
-        </Tooltip>
 
         <Box
           onClick={(e) => e.stopPropagation()}
@@ -183,77 +183,21 @@ export default function SectionPopperBaseMaps({
         </Tooltip>
       </Box>
 
-      {/* Options menu: "Visibilité auto" (selecting a base map hides the
-          image / annotations of every other one — useHideOtherBaseMaps)
-          and the base maps properties of the right panel. */}
-      <Menu
-        anchorEl={optionsMenuAnchor}
-        open={Boolean(optionsMenuAnchor)}
-        onClose={() => setOptionsMenuAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{
-          paper: {
-            sx: {
-              minWidth: 220,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "panel.border",
-              mt: 0.5,
-            },
-          },
-        }}
-      >
-        <Tooltip
-          title={autoVisibilityTooltipS}
-          arrow
-          placement="left"
-          enterDelay={400}
-        >
-          <MenuItem dense onClick={handleToggleAutoVisibility}>
-            <Checkbox
-              size="small"
-              color="secondary"
-              checked={Boolean(autoVisibility)}
-              disableRipple
-              sx={{ p: 0, mr: 1 }}
-            />
-            <ListItemText
-              primary={autoVisibilityS}
-              slotProps={{ primary: { variant: "body2" } }}
-            />
-          </MenuItem>
-        </Tooltip>
-
-        {showProperties && <Divider />}
-        {showProperties && (
-          <MenuItem dense onClick={handleOpenProperties}>
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              <Tune sx={{ fontSize: 18 }} />
-            </ListItemIcon>
-            <ListItemText
-              primary={propertiesS}
-              slotProps={{ primary: { variant: "body2" } }}
-            />
-          </MenuItem>
-        )}
-      </Menu>
-
-      {/* Base maps panel, under the header. "Visibilité auto" is in the
-          menu above, not at the bottom of the list. */}
+      {/* Base maps panel, under the header — white like the templates list
+          (the header alone is tinted). */}
       {expanded && (
         <Box
           sx={{
             maxHeight: PANEL_MAX_HEIGHT,
             overflow: "auto",
-            borderBottom: "1px solid",
-            borderColor: "panel.border",
-            bgcolor: "background.default",
+            bgcolor: "background.paper",
           }}
         >
           <SectionBaseMapsList
-            countByBaseMapIdOverride={countByBaseMapIdOverride}
+            countByBaseMapIdOverride={countByBaseMapId}
             hideAutoVisibility
+            forceAutoVisibility
+            disableDrag
           />
         </Box>
       )}

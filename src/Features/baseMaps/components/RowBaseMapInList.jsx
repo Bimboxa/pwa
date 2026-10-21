@@ -2,13 +2,11 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import Check from "@mui/icons-material/Check";
 import Close from "@mui/icons-material/Close";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import LayersIcon from "@mui/icons-material/Layers";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
@@ -150,18 +148,15 @@ export default function RowBaseMapInList({
         "&:hover .drag-handle": { opacity: canDrag ? 1 : 0 },
         borderBottom: "1px solid",
         borderColor: "panel.border",
-        // Main (selected) row: same highlight as a selected layer / template
-        // row — secondary tint + 3px secondary left border.
+        // Main (selected) row: the dark pill of the top bar base map
+        // selector (BaseMapSelectorInMapEditorV2) — black background, white
+        // name, grey "off" chips — plus the 3px secondary left border.
         borderLeft: "3px solid",
         borderLeftColor: isMain ? "secondary.main" : "transparent",
         cursor: isMain ? "default" : "pointer",
-        bgcolor: (theme) =>
-          isMain ? alpha(theme.palette.secondary.main, 0.08) : "transparent",
+        bgcolor: isMain ? "#252525" : "transparent",
         "&:hover": {
-          bgcolor: (theme) =>
-            isMain
-              ? alpha(theme.palette.secondary.main, 0.125)
-              : theme.palette.panel.headerBg,
+          bgcolor: (theme) => (isMain ? "#333" : theme.palette.panel.headerBg),
         },
       }}
     >
@@ -194,7 +189,7 @@ export default function RowBaseMapInList({
             overflowWrap: "anywhere",
             lineHeight: 1.25,
             fontWeight: isMain ? 700 : 400,
-            color: isMain ? "secondary.main" : "panel.textPrimary",
+            color: isMain ? "#ffffff" : "panel.textPrimary",
           }}
         >
           {name}
@@ -216,22 +211,21 @@ export default function RowBaseMapInList({
               px: 0.5,
               borderRadius: "8px",
               border: "1px solid",
-              borderColor: "panel.border",
+              // Main row only: on the dark background.
+              borderColor: "rgba(255,255,255,0.25)",
               cursor: "pointer",
               flexShrink: 0,
-              "&:hover": { bgcolor: "panel.sectionBg" },
+              "&:hover": { bgcolor: "#333" },
             }}
           >
             <Typography
               variant="caption"
               noWrap
-              sx={{ color: "panel.textSecondary", maxWidth: 70 }}
+              sx={{ color: "grey.300", maxWidth: 70 }}
             >
               {versionChip.label}
             </Typography>
-            <ArrowDropDownIcon
-              sx={{ fontSize: 16, color: "panel.iconMuted" }}
-            />
+            <ArrowDropDownIcon sx={{ fontSize: 16, color: "grey.400" }} />
           </Box>
         </Tooltip>
       )}
@@ -317,7 +311,11 @@ export default function RowBaseMapInList({
                 badgeClickable && badgeOn ? "secondary.main" : "transparent",
               border: "1px solid",
               borderColor:
-                badgeClickable && badgeOn ? "transparent" : "divider",
+                badgeClickable && badgeOn
+                  ? "transparent"
+                  : isMain
+                    ? "rgba(255,255,255,0.25)"
+                    : "divider",
               cursor: badgeClickable ? "pointer" : "default",
             }}
           >
@@ -331,10 +329,14 @@ export default function RowBaseMapInList({
                   badgeClickable && badgeOn
                     ? "secondary.contrastText"
                     : badgeClickable
-                      ? "text.disabled"
+                      ? isMain
+                        ? "grey.400"
+                        : "text.disabled"
                       : annotationsBadge.count > 0
                         ? "secondary.main"
-                        : "panel.countEmpty",
+                        : isMain
+                          ? "grey.500"
+                          : "panel.countEmpty",
               }}
             >
               {annotationsBadge.count}
@@ -359,22 +361,41 @@ export default function RowBaseMapInList({
             title={imageEye.on ? hideImageS : showImageS}
             disableInteractive
           >
+            {/* Same "layer" chip as the top bar base map selector: filled
+                in secondary while the image is shown, outlined otherwise. */}
             <Box
               role="button"
               onClick={(e) => stop(e, imageEye.onToggle)}
               sx={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                border: "1px solid",
+                borderColor:
+                  imageEye.on || isMain ? "transparent" : "panel.border",
+                bgcolor: imageEye.on
+                  ? "secondary.main"
+                  : isMain
+                    ? "grey.700"
+                    : "transparent",
+                color: imageEye.on
+                  ? "secondary.contrastText"
+                  : isMain
+                    ? "grey.400"
+                    : "text.disabled",
                 cursor: "pointer",
-                color: imageEye.on ? "panel.iconMuted" : "panel.textLight",
-                "&:hover": { color: "panel.textPrimary" },
+                transition: "0.2s",
+                "&:hover": {
+                  filter: "brightness(1.15)",
+                  borderColor:
+                    imageEye.on || isMain ? "transparent" : "text.secondary",
+                },
               }}
             >
-              {imageEye.on ? (
-                <Visibility sx={{ fontSize: 18 }} />
-              ) : (
-                <VisibilityOff sx={{ fontSize: 18 }} />
-              )}
+              <LayersIcon sx={{ fontSize: 13 }} />
             </Box>
           </Tooltip>
         )}

@@ -116,8 +116,11 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 //   the 3D eyes / modes are not involved).
 //   `countByBaseMapIdOverride`: counts narrowed like the legend (the popper
 //   passes them).
-// - `hideAutoVisibility`: the "Visibilité auto" row at the bottom is the
-//   host's (the "..." menu of the Dessin popper's "Fonds de plan" section).
+// - `hideAutoVisibility`: no "Visibilité auto" row at the bottom;
+//   `forceAutoVisibility`: selecting a base map always hides the others
+//   (image + annotations), whatever the option; `disableDrag`: no row
+//   reorder (no drag handle) — the Dessin popper's base maps section uses
+//   the three.
 // - BaseMaps module (`editable`): the list is also the module's editing
 //   surface, same actions as the expanded left panel (BaseMapTreeItem) —
 //   every folder is listed (empty ones included) under a header carrying a
@@ -143,6 +146,8 @@ const GROUP_DROPPABLE_PREFIX = "group:";
 export default function SectionBaseMapsList({
   countByBaseMapIdOverride,
   hideAutoVisibility = false,
+  forceAutoVisibility = false,
+  disableDrag = false,
 }) {
   const dispatch = useDispatch();
 
@@ -169,6 +174,13 @@ export default function SectionBaseMapsList({
   const updateEntity = useUpdateEntity();
   const moveBaseMapToListing = useMoveBaseMapToListing();
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+  // Host-narrowed counts (SCOPE legend, Dessin popper section) replace the
+  // whole count: a base map missing from the override has 0 there, it must
+  // not fall back to the unfiltered count.
+  const getCount = (baseMapId) =>
+    countByBaseMapIdOverride
+      ? (countByBaseMapIdOverride[baseMapId] ?? 0)
+      : (annotationsCountByBaseMapId[baseMapId] ?? 0);
   const {
     isThreedDisplayed,
     imageOn: mainImageOn,
@@ -260,7 +272,7 @@ export default function SectionBaseMapsList({
             areBaseMapsParallel(bm, mainBaseMap)) &&
           (!hideEmpty ||
             bm.id === mainBaseMap?.id ||
-            (annotationsCountByBaseMapId[bm.id] ?? 0) > 0 ||
+            getCount(bm.id) > 0 ||
             (overlaysIn2d
               ? visibleIdsIn2d.includes(bm.id) ||
                 annotationsIdsIn2d.includes(bm.id)
@@ -343,7 +355,7 @@ export default function SectionBaseMapsList({
             }
           : null;
 
-    const count = annotationsCountByBaseMapId[map.id] ?? 0;
+    const count = getCount(map.id);
     const annotationsMode =
       annotationsModeByBaseMapId?.[map.id] ?? ANNOTATIONS_DISPLAY_MODE.NONE;
     const otherAnnotationsOn =
@@ -401,10 +413,7 @@ export default function SectionBaseMapsList({
       onToggle: () => dispatch(toggleBaseMapsGridImageHidden(map.id)),
     };
     const annotationsBadge = {
-      count:
-        countByBaseMapIdOverride?.[map.id] ??
-        annotationsCountByBaseMapId[map.id] ??
-        0,
+      count: getCount(map.id),
       on: !gridHiddenAnnotationsIds.includes(map.id),
       onToggle: () => dispatch(toggleBaseMapsGridAnnotationsHidden(map.id)),
     };
@@ -556,7 +565,7 @@ export default function SectionBaseMapsList({
     selectMainBaseMap(map.id);
     // "Visibilité auto": the selected base map shown fully, every other
     // one hidden (image + annotations) in the displayed editor.
-    if (autoBaseMapVisibility) hideOtherBaseMaps();
+    if (forceAutoVisibility || autoBaseMapVisibility) hideOtherBaseMaps();
     // Keep the listing selection in sync: baseMap creation & url params
     // still read selectedBaseMapsListingId.
     if (map.listingId) dispatch(setSelectedBaseMapsListingId(map.listingId));
@@ -702,7 +711,7 @@ export default function SectionBaseMapsList({
                   id={map.id}
                   listingId={group.id}
                   name={map.name}
-                  canDrag={Boolean(group.listing)}
+                  canDrag={!disableDrag && Boolean(group.listing)}
                   onSelect={() => handleSelect(map)}
                   renaming={getRenamingProps(map, () =>
                     handleConfirmRenameBaseMap(map, group.listing)
