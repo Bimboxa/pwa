@@ -23,7 +23,10 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 // a second floating panel with the very same structure (draggable header,
 // bottom band with the "auto" height button, the attach icon,
 // the collapse toggle and the resize handle), showing the base maps list
-// (in the BaseMaps module the header also gets the new-folder "+"). The base
+// like the attached "Fonds de plan" section does — without the "Visibilité
+// auto" row: selecting a base map here always hides the others' image and
+// annotations (in the BaseMaps module the header also gets the new-folder
+// "+"). The base
 // map placement commands live in the unified commands toolbar. Mounted by the
 // editors right next to
 // PopperMapListings (same gates); renders nothing while the list is
@@ -154,7 +157,7 @@ export default function PopperBaseMapsList() {
 
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionBaseMapsList />
+          <SectionBaseMapsList hideAutoVisibility forceAutoVisibility />
         </Box>
       )}
 
