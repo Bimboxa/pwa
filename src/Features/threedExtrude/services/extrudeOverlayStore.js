@@ -7,8 +7,10 @@
 //   "Extruder" while hovering an extrudable top face, then the live value
 //   once a face is armed.
 // - snap: { x, y } | null — the scene vertex the armed face is snapped on.
+// - axis: "X" | "Y" | "Z" | null — the gizmo axis an armed LINE extrusion is
+//   locked on (Shift), shown as a colored letter next to the value.
 
-let _state = { cursor: null, snap: null };
+let _state = { cursor: null, snap: null, axis: null };
 const _listeners = new Set();
 
 export function setExtrudeOverlay(partial) {
@@ -17,7 +19,7 @@ export function setExtrudeOverlay(partial) {
 }
 
 export function clearExtrudeOverlay() {
-  setExtrudeOverlay({ cursor: null, snap: null });
+  setExtrudeOverlay({ cursor: null, snap: null, axis: null });
 }
 
 export function getExtrudeOverlayState() {

@@ -48,8 +48,8 @@ export default function ExtrudeToolbarThreed() {
       ? "Entrée ou clic pour valider (⌫ : effacer la saisie)"
       : "Valeur saisie — cliquez une face pour l'appliquer"
     : armed
-      ? "Déplacez la souris ou tapez une valeur, clic pour valider (Échap : annuler)"
-      : "Cliquez une face du dessus";
+      ? "Déplacez la souris ou tapez une valeur (Maj : verrouiller une ligne sur un axe), clic pour valider (Échap : annuler)"
+      : "Cliquez une face du dessus ou une polyligne";
 
   // handlers
 

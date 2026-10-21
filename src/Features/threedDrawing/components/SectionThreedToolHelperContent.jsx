@@ -33,6 +33,7 @@ import { parseCopyCount } from "Features/annotationTransform/utils/copyBuffer";
 // Shortcuts of the 3D « Extruder » (useExtrudePointerHandlers).
 const EXTRUDE_SHORTCUTS = [
   { key: "0-9", label: "Saisir la valeur" },
+  { key: "Maj", label: "Ligne : verrouiller l'extrusion sur un axe X/Y/Z" },
   { key: "Entrée", label: "Valider l'extrusion" },
   { key: "⌫", label: "Effacer la saisie" },
   { key: "Esc", label: "Annuler / Quitter" },
@@ -117,7 +118,7 @@ export default function SectionThreedToolHelperContent({ tool }) {
       : "Valeur saisie — cliquez une face pour l'appliquer"
     : extrudeArmed
       ? "Déplacez la souris ou tapez une valeur, clic pour valider"
-      : "Cliquez une face du dessus";
+      : "Cliquez une face du dessus ou une polyligne";
 
   const vertexOffsetHintS = vertexArmed
     ? vertexTyped

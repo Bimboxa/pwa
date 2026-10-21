@@ -6,6 +6,8 @@ import { Box } from "@mui/material";
 import LockOutlined from "@mui/icons-material/LockOutlined";
 import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
+import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
+
 import {
   getExtrudeOverlayState,
   subscribeExtrudeOverlay,
@@ -21,7 +23,9 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // once a face is armed, plus a circle on the scene vertex the armed face is
 // snapped on. The armed value carries the same padlock as the 2D segment
 // length constraint (SectionSegmentLengthConstraint): closed while a typed value
-// holds it, open while the mouse drives it. Driven imperatively by useExtrudePointerHandlers through
+// holds it, open while the mouse drives it — and, for a polyline swept with
+// Shift, the letter of the gizmo axis it is locked on, in that axis' colour.
+// Driven imperatively by useExtrudePointerHandlers through
 // extrudeOverlayStore; pointer-transparent.
 export default function ExtrudeOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.extrudeMode.active);
@@ -38,7 +42,7 @@ export default function ExtrudeOverlayThreed() {
   );
 
   if (!active) return null;
-  const { cursor, snap } = state;
+  const { cursor, snap, axis } = state;
   const armed = Boolean(targetAnnotationId);
   const locked = armed && valueBuffer !== "";
   if (!cursor && !snap) return null;
@@ -90,6 +94,14 @@ export default function ExtrudeOverlayThreed() {
           }}
         >
           {cursor.label}
+          {armed && axis && (
+            <Box
+              component="span"
+              sx={{ fontWeight: 700, color: AXIS_COLORS[axis] ?? "inherit" }}
+            >
+              {axis}
+            </Box>
+          )}
           {armed &&
             (locked ? (
               <LockOutlined sx={{ fontSize: 14, color: "primary.main" }} />
