@@ -225,7 +225,10 @@ export default function MoveAnnotationOverlayThreed() {
         ) ??
         findNearestEdgeSnap(grab.targetAdjacency, ndc, camera, canvasSize, 12);
       if (!snap) {
-        const planeHit = intersectBaseMapPlane(editor, ndc, camera);
+        // Cross arms along the user axes of the gizmo frame.
+        const planeHit = intersectBaseMapPlane(editor, ndc, camera, {
+          axes: getUserAxesWorldDirections(yawDegRef.current),
+        });
         if (planeHit) {
           snap = {
             position: planeHit.position,

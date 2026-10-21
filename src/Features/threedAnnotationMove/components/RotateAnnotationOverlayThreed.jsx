@@ -344,7 +344,9 @@ export default function RotateAnnotationOverlayThreed() {
             );
       }
       if (!target) {
-        const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera);
+        const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
+          axes: getUserAxesWorldDirections(yawDegRef.current),
+        });
         if (planeHitTarget) {
           target = {
             position: planeHitTarget.position,
@@ -417,6 +419,7 @@ export default function RotateAnnotationOverlayThreed() {
         intersectPlane: (mNdc) =>
           intersectBaseMapPlane(editor, mNdc, camera, {
             preferredBaseMapId: mainBaseMapIdRef.current,
+            axes: userAxes,
           }) ?? intersectMainBaseMapPlane(mNdc, userAxes),
         alignAdjacency: getMeshAdjacency(),
         axes: userAxes.map((a) => ({ key: a.key, dir: a.dir })),

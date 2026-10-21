@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector, useStore } from "react-redux";
-import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
+import { Group, Plane, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 
 import formatSegmentLengthDisplay from "Features/annotations/utils/formatSegmentLengthDisplay";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -92,6 +92,22 @@ const ALIGN_MARKERS_COUNT = 2;
 // Under this distance (m) to the hovered plane, an aligned vertex sits on its
 // own footprint: no leader line.
 const ALIGN_LEADER_EPS_M = 5e-3;
+
+// A user axis this parallel to an image edge (≈ 0.5°) runs along it: the
+// rectangle on that plan keeps the px-exact image frame.
+const IMAGE_AXIS_ALIGNED_DOT = Math.cos((0.5 * Math.PI) / 180);
+
+// Whether the in-plane user axes `basis` ({ u, v }) run along the image
+// edges of the base map `group` (its local X in world).
+function isBasisAlongImageAxes(basis, group) {
+  const imageX = new Vector3(1, 0, 0).applyQuaternion(
+    group.getWorldQuaternion(new Quaternion())
+  );
+  return (
+    Math.abs(basis.u.dot(imageX)) > IMAGE_AXIS_ALIGNED_DOT ||
+    Math.abs(basis.v.dot(imageX)) > IMAGE_AXIS_ALIGNED_DOT
+  );
+}
 
 const LINEWIDTH_PREVIEW = 1.5;
 const LINEWIDTH_IN_PROGRESS = 2;
@@ -537,16 +553,20 @@ export default function DrawingOverlayThreed() {
             anchorNormal,
             anchor,
             editor.sceneManager?.imagesManager?.getGroup?.(anchor.baseMapId) ??
-              null
+              null,
+            userAxes
           )
         : null;
 
     // Plane of a template / "Dessin" rectangle for the current view: the
     // natural plane through its anchor (pickNaturalPlane). The anchor's base
-    // map plane when that is the natural one — image frame, bounded raycast,
-    // as in 2D — else a plane whose sides follow the user axes. Resolved on
+    // map plane when that is the natural one (bounded raycast) — its image
+    // frame, as in 2D, while the user axes run along the image edges, else
+    // the user axes projected on the plan (the frame was rotated away from
+    // the plan) — else a plane whose sides follow the user axes. Resolved on
     // every pointer move: the view may have turned since the anchor.
-    // { onBaseMap: true, host } | { onBaseMap: false, normal, plane, basis }
+    // { onBaseMap: true, host, normal?, basis? }
+    //   | { onBaseMap: false, normal, plane, basis }
     function resolveRectanglePlane() {
       if (!anchor || isFaceCut) return null;
       const natural = pickNaturalPlane(getCamForward(), {
@@ -556,7 +576,22 @@ export default function DrawingOverlayThreed() {
       });
       if (!natural) return null;
       if (natural.isSupport && anchorHost && !anchor.faceNormal) {
-        return { onBaseMap: true, host: anchorHost };
+        const planBasis = getUserAxesInPlane(natural.normal, userAxes);
+        const hostGroup =
+          editor.sceneManager?.imagesManager?.getGroup?.(anchorHost.id) ?? null;
+        if (
+          !planBasis ||
+          !hostGroup ||
+          isBasisAlongImageAxes(planBasis, hostGroup)
+        ) {
+          return { onBaseMap: true, host: anchorHost };
+        }
+        return {
+          onBaseMap: true,
+          host: anchorHost,
+          normal: natural.normal,
+          basis: planBasis,
+        };
       }
       const basis = getUserAxesInPlane(natural.normal, userAxes);
       if (!basis) return null;
@@ -586,7 +621,7 @@ export default function DrawingOverlayThreed() {
           basis: faceCutBasis,
         });
       }
-      if (rectPlane?.onBaseMap) {
+      if (rectPlane?.onBaseMap && !rectPlane.basis) {
         return computeRectangleCorners(anchor, position, rectPlane.host, {
           forcedDx: forcedX,
           forcedDy: forcedY,
@@ -627,6 +662,9 @@ export default function DrawingOverlayThreed() {
         // the 2D-selected one so the drawing lands on the plan the user
         // is looking at (and will look for) in 2D.
         preferredBaseMapId: mainBaseMapId,
+        // Cross arms, in-plane ortho lock and alignment along the user
+        // axes of the gizmo frame.
+        axes: snapAxes,
       });
       let best = planHit;
       let bestDistance = planHit
@@ -635,7 +673,9 @@ export default function DrawingOverlayThreed() {
       // An annotation face in front of the plan. A sheet lying on the plan
       // is in front of it by its 1 mm lift only.
       if (withFaces) {
-        const faceHit = intersectAnnotationFace(editor, mNdc, camera);
+        const faceHit = intersectAnnotationFace(editor, mNdc, camera, {
+          axes: userAxes,
+        });
         if (faceHit && faceHit.distance <= bestDistance + 2e-3) {
           best = faceHit;
           bestDistance = faceHit.distance;
@@ -672,10 +712,13 @@ export default function DrawingOverlayThreed() {
         raycaster.setFromCamera(mNdc, camera);
         const hit = raycaster.ray.intersectPlane(anchorPlane, new Vector3());
         return hit
-          ? buildFacePlaneHit(hit, anchorNormal, {
-              nodeId: anchor.nodeId,
-              baseMapId: anchor.baseMapId,
-            })
+          ? buildFacePlaneHit(
+              hit,
+              anchorNormal,
+              { nodeId: anchor.nodeId, baseMapId: anchor.baseMapId },
+              undefined,
+              userAxes
+            )
           : null;
       }
       if (rectPlane) {
@@ -683,6 +726,7 @@ export default function DrawingOverlayThreed() {
         if (rectPlane.onBaseMap) {
           return intersectBaseMapPlane(editor, mNdc, camera, {
             onlyBaseMapId: anchor.baseMapId,
+            axes: snapAxes,
           });
         }
         raycaster.setFromCamera(mNdc, camera);
@@ -706,11 +750,17 @@ export default function DrawingOverlayThreed() {
           editor.sceneManager
         );
         if (!hit?.inside) return null;
-        return buildFacePlaneHit(hit.position, hit.normal, {
-          nodeId: faceLock.annotationId,
-          baseMapId: faceLock.baseMapId,
-          distance: hit.distance,
-        });
+        return buildFacePlaneHit(
+          hit.position,
+          hit.normal,
+          {
+            nodeId: faceLock.annotationId,
+            baseMapId: faceLock.baseMapId,
+            distance: hit.distance,
+          },
+          undefined,
+          userAxes
+        );
       }
       const surface = intersectSurfaces(mNdc, {
         // The first point of any drawing lands on a plan or on a visible
@@ -795,7 +845,7 @@ export default function DrawingOverlayThreed() {
     }
 
     // Cross helper of a plane hit: the two dashed lines through the point,
-    // parallel to the plane's edges, ending on its borders (mirrors
+    // along the user axes in the plane, ending on its borders (mirrors
     // MoveBaseMapOverlayThreed). A locked arm (in-plane ortho lock, or arm
     // running through an aligned vertex) is drawn solid — like the snapped
     // branch of the 2D cursor — in the colour of the user axis it runs

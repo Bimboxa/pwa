@@ -25,9 +25,10 @@ const YAW_PRESETS_DEG = [0, 90, 180, 270];
 
 // "Axes" card of the 3D view settings (PanelThreedProperties): orientation
 // gizmo switch, in-scene axes switch and the yaw of the displayed frame.
-// Device preference (threedEditor.axesSettings, localStorage). The yaw is
-// purely visual: only the gizmo, the in-scene axes and the gizmo's face views
-// rotate.
+// Device preference (threedEditor.axesSettings, localStorage). The yaw
+// rotates the gizmo, the in-scene axes and the gizmo's face views, and the
+// 3D drawing helpers follow it (axis locks, in-plane ortho / alignment
+// snaps, rectangles, face cuts); the model and the camera do not move.
 export default function SectionAxes3d() {
   const dispatch = useDispatch();
 
@@ -41,7 +42,7 @@ export default function SectionAxes3d() {
   const sceneAxesS = "Afficher les axes dans la scène";
   const orientationS = "Orientation du repère";
   const orientationHelperS =
-    "Rotation autour de la verticale. Purement visuelle : le modèle et la caméra ne bougent pas.";
+    "Rotation autour de la verticale. Le modèle et la caméra ne bougent pas ; les verrous d'axe, les accroches orthogonales et les alignements du dessin 3D suivent ce repère.";
   const rotationLabelS = "Rotation (°)";
   const alignS = "Aligner sur le fond de plan";
 

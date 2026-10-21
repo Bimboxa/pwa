@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
@@ -60,6 +61,10 @@ function normalizeAngle(phi) {
 // MoveBaseMapOverlayThreed.
 export default function RotateBaseMapOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.rotateBaseMapMode.active);
+  // Yaw of the gizmo frame: the cross arms of a plane hit follow its axes.
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
+  const yawDegRef = useRef(yawDeg);
+  yawDegRef.current = yawDeg;
 
   const { findNearestSnap } = useVertexSnap({ active });
 
@@ -255,6 +260,7 @@ export default function RotateBaseMapOverlayThreed() {
           : null;
         const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
           excludeSubtree: group ?? undefined,
+          axes: getUserAxesWorldDirections(yawDegRef.current),
         });
         if (planeHitTarget) {
           target = {
@@ -331,7 +337,9 @@ export default function RotateBaseMapOverlayThreed() {
             }
           : null;
         if (!snap) {
-          const planeHitSnap = intersectBaseMapPlane(editor, ndc, camera);
+          const planeHitSnap = intersectBaseMapPlane(editor, ndc, camera, {
+            axes: getUserAxesWorldDirections(yawDegRef.current),
+          });
           if (planeHitSnap) {
             snap = {
               position: planeHitSnap.position,

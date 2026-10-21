@@ -6,9 +6,11 @@
 // Three.js Y and Z). X / Y lie in the horizontal plane. The frame rotation
 // rotates the gizmo, the in-scene axes and the gizmo's face views around the
 // vertical axis, and orients the 3D drawing helpers: the axis locks, the
-// natural drawing planes and the colours / letters of the length badges
-// follow this frame (threedDrawing). The model, the camera and the 2D↔3D
-// sync are untouched.
+// natural drawing planes, the in-plane ortho / alignment snaps on plans and
+// horizontal faces (cross arms of intersectBaseMapPlane / buildFacePlaneHit),
+// the rectangle sides, the face cuts and the colours / letters of the length
+// badges follow this frame (threedDrawing, threedFaceCut, move / rotate
+// tools). The model, the camera and the 2D↔3D sync are untouched.
 
 export const AXIS_COLORS = {
   X: "#e5484d", // red

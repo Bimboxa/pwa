@@ -1,6 +1,7 @@
 import { Matrix3, Raycaster, Vector3 } from "three";
 
 import computePlaneBasis from "Features/threedMesh/utils/computePlaneBasis";
+import { getUserAxesInPlane } from "Features/threedDrawing/utils/buildUserAxesPlaneHit";
 import {
   getActiveClippingPlane,
   filterIntersectionsByClipping,
@@ -14,15 +15,24 @@ const _normalMatrix = new Matrix3();
 
 // Cross helper + in-plane axes of a point on a plane: the "horizontal" and
 // the "up the slope" directions of the face (computePlaneBasis), so the
-// in-plane ortho lock follows the face, whatever its orientation.
+// in-plane ortho lock follows the face, whatever its orientation. A
+// horizontal face has no "up the slope": its arms follow the user axes of
+// the gizmo frame (`userAxes`, see getUserAxesWorldDirections — X / Y
+// rotated by the frame yaw, the hit then carries `axisKeys`), else world X.
 // crossHalfLength: half-length (m) of the cross arms.
 export function buildFacePlaneHit(
   position,
   normal,
   extra = {},
-  crossHalfLength = CROSS_HALF_LENGTH_M
+  crossHalfLength = CROSS_HALF_LENGTH_M,
+  userAxes = null
 ) {
-  const basis = computePlaneBasis(normal, position);
+  const planeBasis = computePlaneBasis(normal, position);
+  const userBasis =
+    planeBasis.isHorizontalFace && userAxes?.length
+      ? getUserAxesInPlane(normal, userAxes)
+      : null;
+  const basis = userBasis ?? planeBasis;
   const segment = (axis) => [
     position
       .clone()
@@ -38,6 +48,9 @@ export function buildFacePlaneHit(
     normal,
     axisA: segment(basis.u),
     axisB: segment(basis.v),
+    ...(userBasis
+      ? { axisKeys: { A: userBasis.keys[0], B: userBasis.keys[1] } }
+      : {}),
     isFace: true,
     ...extra,
   };
@@ -54,7 +67,15 @@ export function buildFacePlaneHit(
 // Targets are collected explicitly (never intersectObjects(scene, true)): fat
 // lines extend Mesh and can throw on a stale geometry. Hidden and clipped
 // geometry is not pickable.
-export default function intersectAnnotationFace(editor, ndc, camera) {
+//
+// options.axes: the user axes of the gizmo frame, for the cross arms of a
+// horizontal face (buildFacePlaneHit).
+export default function intersectAnnotationFace(
+  editor,
+  ndc,
+  camera,
+  options = {}
+) {
   const sceneManager = editor?.sceneManager;
   const scene = sceneManager?.scene;
   if (!scene || !camera) return null;
@@ -96,15 +117,21 @@ export default function intersectAnnotationFace(editor, ndc, camera) {
     // Double-sided solids: report the side facing the camera.
     if (normal.dot(raycaster.ray.direction) > 0) normal.negate();
 
-    return buildFacePlaneHit(hit.point.clone(), normal, {
-      nodeId: owner.userData.nodeId,
-      baseMapId: owner.userData.baseMapId ?? null,
-      distance: hit.distance,
-      // The hit mesh itself (a piece of a cut surface host, see
-      // applySurfaceCuts) and its triangle, for the surface tools.
-      object: hit.object,
-      faceIndex: hit.faceIndex,
-    });
+    return buildFacePlaneHit(
+      hit.point.clone(),
+      normal,
+      {
+        nodeId: owner.userData.nodeId,
+        baseMapId: owner.userData.baseMapId ?? null,
+        distance: hit.distance,
+        // The hit mesh itself (a piece of a cut surface host, see
+        // applySurfaceCuts) and its triangle, for the surface tools.
+        object: hit.object,
+        faceIndex: hit.faceIndex,
+      },
+      undefined,
+      options.axes ?? null
+    );
   }
   return null;
 }

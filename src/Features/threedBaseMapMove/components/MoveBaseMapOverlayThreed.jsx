@@ -184,7 +184,10 @@ export default function MoveBaseMapOverlayThreed() {
             meshKey: vertexSnap.meshKey,
           };
         }
-        const planeHit = intersectBaseMapPlane(editor, ndc, camera);
+        // Cross arms along the user axes of the gizmo frame.
+        const planeHit = intersectBaseMapPlane(editor, ndc, camera, {
+          axes: getUserAxesWorldDirections(yawDegRef.current),
+        });
         if (planeHit) {
           return {
             position: planeHit.position,

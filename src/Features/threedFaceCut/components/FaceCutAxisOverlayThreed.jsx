@@ -22,6 +22,7 @@ import {
 } from "Features/threedDrawing/utils/drawingOverlayLines";
 import intersectAnnotationFace from "Features/threedDrawing/utils/intersectAnnotationFace";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import { MESH3D_SNAP_PX } from "Features/threedMesh/utils/mesh3dConstants";
 import {
   liftPointTo3d,
@@ -500,7 +501,10 @@ export default function FaceCutAxisOverlayThreed() {
       const basis = getFaceCutBasisWorld(
         hit.normal,
         hit.position,
-        ctx.baseMapGroup
+        ctx.baseMapGroup,
+        getUserAxesWorldDirections(
+          store.getState().threedEditor.axesSettings.yawDeg
+        )
       );
       const loops2d = getFaceLoops(ctx.mesh.faces[faceIndex]).map((loop) =>
         loop.map((vi) =>

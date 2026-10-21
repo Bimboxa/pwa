@@ -62,6 +62,7 @@ import {
   isFaceCutDrawingMode,
 } from "Features/threedFaceCut/utils/faceCutTools";
 import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import resolveFaceCutLockedFace from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
@@ -741,7 +742,10 @@ export default function useDrawingPointerHandlers() {
       const basis = getFaceCutBasisWorld(
         anchor.faceNormal,
         anchor,
-        baseMapGroup
+        baseMapGroup,
+        getUserAxesWorldDirections(
+          store.getState().threedEditor.axesSettings.yawDeg
+        )
       );
       const corners = computeRectangleCornersOnPlane(
         anchor,
