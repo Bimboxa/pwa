@@ -344,14 +344,9 @@ export default function PanelDrawing() {
           {/* Active listing block — same as the Dessin popper: the "Liste
               active" band and, below it, the expandable listings panel
               ("Listes" header). The LISTE ACTIVE field stays for the
-              empty state (its CTA creates the first listing). */}
-          <Box
-            sx={{
-              flexShrink: 0,
-              borderBottom: "1px solid",
-              borderColor: "panel.border",
-            }}
-          >
+              empty state (its CTA creates the first listing). No rule
+              under it: the grey continues down to the templates card. */}
+          <Box sx={{ flexShrink: 0 }}>
             {displayedListings.length === 0 ? (
               <FieldActiveListing
                 listings={displayedListings}

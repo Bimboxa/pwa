@@ -95,6 +95,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectIsBaseMapsLegendPopper from "Features/popperMapListings/utils/selectIsBaseMapsLegendPopper";
+import activeListingCardSx from "Features/popperMapListings/utils/activeListingCardSx";
 
 import {
   setNewAnnotation,
@@ -2228,6 +2229,24 @@ export default function PopperMapListings() {
     displayedListings?.[0] ??
     null;
 
+  // Active listing block (BandActiveListing: "Listes d'annotations" header,
+  // listings panel, active band) above the templates: shown whenever there
+  // are listings, or when a new one can be created (empty-state CTA of the
+  // LISTE ACTIVE field). Hidden in the legend poppers (Viewer module,
+  // BaseMaps module), where every listing is shown at once. When shown, the
+  // body is grey and the templates of the active listing sit in a white
+  // card flagged with the listing accent — the same card as its selected
+  // row / band above (activeListingCardSx), so the two read as linked.
+  const showActiveListingBlock =
+    !isLegendPopper &&
+    !isLocateBusinessObjectMode &&
+    (displayedListings?.length > 0 || canAddListing);
+  const { isLinkedListing } = useLinkedListings();
+  const activeListingAccent =
+    activeListing && isLinkedListing(activeListing.id)
+      ? "listingFromOtherScope.main"
+      : "secondary.main";
+
   // effect - ESC clears the EDIT target template
 
   useEffect(() => {
@@ -2540,42 +2559,42 @@ export default function PopperMapListings() {
           {/* Active listing block — the "Liste active" band (name, "..."
             menu, count / visibility pill) and, below it, the expandable
             listings panel ("Listes" header: select, show / hide, reorder,
-            create, "Visibilité auto" in its "..." menu). Shown whenever there are
-            listings, or when a new one can be created (empty-state CTA of
-            the LISTE ACTIVE field). Hidden in the legend poppers (Viewer
-            module, BaseMaps module), where every listing is shown at once.
-            Kept out of the scrollable body so it stays in sight while the
-            templates scroll. */}
-          {!isLegendPopper &&
-            !isLocateBusinessObjectMode &&
-            (displayedListings?.length > 0 || canAddListing) && (
-              <Box
-                sx={{
-                  flexShrink: 0,
-                  borderBottom: "1px solid",
-                  borderColor: "panel.border",
-                }}
-              >
-                {hasNoListing ? (
-                  <FieldActiveListing
-                    listings={displayedListings}
-                    activeListing={activeListing}
-                    countsByListingId={listingCountsById}
-                    showAddListing={canAddListing}
-                  />
-                ) : (
-                  <BandActiveListing
-                    listings={displayedListings}
-                    activeListing={activeListing}
-                    countsByListingId={listingCountsById}
-                    showAddListing={canAddListing}
-                  />
-                )}
-              </Box>
-            )}
+            create, "Visibilité auto" in its "..." menu), see
+            showActiveListingBlock. Kept out of the scrollable body so it
+            stays in sight while the templates scroll. No rule under it: the
+            grey continues into the body, up to the templates card. */}
+          {showActiveListingBlock && (
+            <Box sx={{ flexShrink: 0 }}>
+              {hasNoListing ? (
+                <FieldActiveListing
+                  listings={displayedListings}
+                  activeListing={activeListing}
+                  countsByListingId={listingCountsById}
+                  showAddListing={canAddListing}
+                />
+              ) : (
+                <BandActiveListing
+                  listings={displayedListings}
+                  activeListing={activeListing}
+                  countsByListingId={listingCountsById}
+                  showAddListing={canAddListing}
+                />
+              )}
+            </Box>
+          )}
 
-          {/* Scrollable body: templates of the active listing */}
-          <Box sx={{ overflow: "auto", flex: 1 }}>
+          {/* Scrollable body: templates of the active listing — grey under
+              the listing block, so the templates card stands out as the
+              listing's; white in the legend poppers (full-width rows). */}
+          <Box
+            sx={{
+              overflow: "auto",
+              flex: 1,
+              bgcolor: showActiveListingBlock
+                ? "background.default"
+                : "background.paper",
+            }}
+          >
             {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
             selected in the drawer as a DRAW-armed template row: this is the
             only drawing entry of the module (the listings below are a
@@ -2682,22 +2701,39 @@ export default function PopperMapListings() {
                       />
                     ))
                   : activeListing && (
-                      <ListingRow
-                        key={activeListing.id}
-                        listing={activeListing}
-                        isExpanded
-                        alwaysExpanded
-                        hideCaret
-                        // The selector above already names the listing.
-                        hideHeader
-                        annotationCount={
-                          listingCountsById?.[activeListing.id] || 0
-                        }
-                        annotations={annotationsByListingId?.[activeListing.id]}
-                        annotationTemplateById={annotationTemplateById}
-                        paintedQtiesByTemplateId={paintedQtiesByTemplateId}
-                        visibleTemplateIds={visibleTemplateIds}
-                      />
+                      /* Templates card of the active listing: the white
+                         accent card of its selected row / band above
+                         (same inset), so the templates read as the
+                         listing's. Everything of the listing lives inside
+                         (group headers, rows, "Nouveau modèle", orphans,
+                         procedures, empty state). */
+                      <Box
+                        sx={{
+                          mx: 1,
+                          my: 1,
+                          overflow: "hidden",
+                          ...activeListingCardSx(activeListingAccent),
+                        }}
+                      >
+                        <ListingRow
+                          key={activeListing.id}
+                          listing={activeListing}
+                          isExpanded
+                          alwaysExpanded
+                          hideCaret
+                          // The selector above already names the listing.
+                          hideHeader
+                          annotationCount={
+                            listingCountsById?.[activeListing.id] || 0
+                          }
+                          annotations={
+                            annotationsByListingId?.[activeListing.id]
+                          }
+                          annotationTemplateById={annotationTemplateById}
+                          paintedQtiesByTemplateId={paintedQtiesByTemplateId}
+                          visibleTemplateIds={visibleTemplateIds}
+                        />
+                      </Box>
                     )}
 
               {/* Coupes / élévations liées — on a VERTICAL base map targeted

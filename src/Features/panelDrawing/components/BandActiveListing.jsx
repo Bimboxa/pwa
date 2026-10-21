@@ -5,7 +5,6 @@ import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 import { setListingsPanelExpanded } from "Features/popperMapListings/popperMapListingsSlice";
 
 import { Box, Tooltip, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Add from "@mui/icons-material/Add";
@@ -19,6 +18,7 @@ import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPi
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
 import bandButtonSx from "Features/popperMapListings/utils/bandButtonSx";
+import activeListingCardSx from "Features/popperMapListings/utils/activeListingCardSx";
 
 // ---------------------------------------------------------------------------
 // BandActiveListing — active listing block of the Dessin popper and of the
@@ -85,6 +85,10 @@ export default function BandActiveListing({
   const activeHidden = activeListingId
     ? hiddenListingsIds.includes(activeListingId)
     : false;
+  const activeLinked = activeListingId
+    ? isLinkedListing(activeListingId)
+    : false;
+  const accent = activeLinked ? "listingFromOtherScope.main" : "secondary.main";
 
   // handlers
 
@@ -120,11 +124,11 @@ export default function BandActiveListing({
           py: 0.5,
           cursor: "pointer",
           userSelect: "none",
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
           // Same tinted background on both hosts (the docked panel's and
-          // the white popper's): the header and the listings panel read as
-          // one block above the white templates list.
+          // the white popper's): the header, the listings panel and the
+          // templates area read as one grey block, on which the selected
+          // listing and its templates stand out as white accent cards (no
+          // rule between them).
           bgcolor: "background.default",
           "&:hover": { bgcolor: "action.hover" },
         }}
@@ -181,8 +185,6 @@ export default function BandActiveListing({
           sx={{
             maxHeight: PANEL_MAX_HEIGHT,
             overflow: "auto",
-            borderBottom: "1px solid",
-            borderColor: "panel.border",
             bgcolor: "background.default",
           }}
         >
@@ -195,31 +197,32 @@ export default function BandActiveListing({
         </Box>
       )}
 
-      {/* Active listing band, highlighted like the selected base map row
-          (RowBaseMapInList): secondary tint + 3px secondary left border,
-          listing avatar, full name in secondary (several lines rather than
-          an ellipsis), the "..." menu button, then the annotations count
-          pill toggling the listing visibility. Hidden while the listings
-          panel is expanded: its selected row already shows the same. */}
+      {/* Active listing band: the same white accent card as the selected
+          row of the expanded panel (activeListingCardSx — it stacks right
+          above the templates card of the listing), listing avatar, full
+          name in the accent (several lines rather than an ellipsis), the
+          "..." menu button, then the annotations count pill toggling the
+          listing visibility. Hidden while the listings panel is expanded:
+          its selected row already shows the same. */}
       {activeListing && !expanded && (
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             gap: 1,
+            mx: 1,
+            my: 1,
             pl: 1,
             pr: 2,
             py: 0.75,
-            borderLeft: "3px solid",
-            borderLeftColor: "secondary.main",
-            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
+            ...activeListingCardSx(accent),
           }}
         >
           <AvatarListing
             listing={activeListing}
             size={28}
             variant="selected"
-            linked={isLinkedListing(activeListing.id)}
+            linked={activeLinked}
           />
           <Typography
             variant="body2"
@@ -229,7 +232,7 @@ export default function BandActiveListing({
               overflowWrap: "anywhere",
               lineHeight: 1.25,
               fontWeight: 700,
-              color: "secondary.main",
+              color: accent,
             }}
           >
             {activeListing.name ?? activeListing.label ?? "Liste"}
@@ -255,6 +258,7 @@ export default function BandActiveListing({
             hidden={activeHidden}
             title={activeHidden ? showListingS : hideListingS}
             onClick={() => toggleVisibility(activeListing.id)}
+            accent={accent}
           />
         </Box>
       )}

@@ -26,7 +26,9 @@ import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotat
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
+import activeListingCardSx from "Features/popperMapListings/utils/activeListingCardSx";
 
 // ---------------------------------------------------------------------------
 // ListPanelDrawingTemplates — template rows of the active listing (grouped by
@@ -73,6 +75,7 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const { isLinkedListing } = useLinkedListings();
 
   // state
 
@@ -81,6 +84,11 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   // helpers
 
   const dndEnabled = true;
+  // Card accent: the listing's (secondary, or the "other scope" colour of
+  // a linked listing) — same as its selected row / band above.
+  const accent = isLinkedListing(listingId)
+    ? "listingFromOtherScope.main"
+    : "secondary.main";
 
   const groupedItems = useMemo(
     () => groupAnnotationTemplatesByGroupLabel(templates ?? []),
@@ -172,13 +180,16 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
     </List>
   );
 
+  // Templates card of the active listing: the white accent card of its
+  // selected row / band above (BandActiveListing, same inset), so the
+  // templates read as the listing's.
   return (
     <Box
       sx={{
-        bgcolor: "background.paper",
-        borderTop: "1px solid",
-        borderBottom: "1px solid",
-        borderColor: "divider",
+        mx: 1,
+        mt: 1,
+        overflow: "hidden",
+        ...activeListingCardSx(accent),
       }}
     >
       {dndEnabled ? (

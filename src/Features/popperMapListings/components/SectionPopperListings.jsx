@@ -43,6 +43,8 @@ import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import useReorderListings from "Features/listings/hooks/useReorderListings";
 import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
 
+import activeListingCardSx from "../utils/activeListingCardSx";
+
 // ---------------------------------------------------------------------------
 // SectionPopperListings — listings panel of the Dessin popper, expanded from
 // the "Listes" header above the active listing band:
@@ -106,6 +108,7 @@ function SortableRowPopperListing({
   // helpers
 
   const accent = linked ? "listingFromOtherScope.main" : "secondary.main";
+  const accentKey = linked ? "listingFromOtherScope" : "secondary";
   const variant = selected
     ? "selected"
     : hidden || count === 0
@@ -128,29 +131,31 @@ function SortableRowPopperListing({
       }}
       sx={{
         gap: 1,
+        // Every row has the same inset and radius, so selecting never
+        // shifts a row: the selected one is the white accent-flagged card
+        // (activeListingCardSx, same look as the templates card below the
+        // listings), the others sit flat on the grey panel.
+        mx: 1,
         pl: 0.5,
         pr: 1,
         py: 0.5,
+        borderRadius: 2,
         // Selection flag: left border, always there so selecting never
         // shifts the row; a linked listing always shows its bar.
         borderLeft: "3px solid",
         borderLeftColor: linked || selected ? accent : "transparent",
-        // Selected row: same tint as the active listing band.
-        bgcolor: (theme) =>
-          selected ? alpha(theme.palette.secondary.main, 0.08) : "transparent",
+        bgcolor: "transparent",
+        ...(selected && activeListingCardSx(accent)),
         "&:hover": {
           bgcolor: (theme) =>
             selected
-              ? alpha(theme.palette.secondary.main, 0.125)
+              ? alpha(theme.palette[accentKey].main, 0.06)
               : theme.palette.action.hover,
         },
         // Keyboard focus (or a focused child button) must not grey the
-        // row: the selected tint stays.
+        // row: the selected card stays white.
         "&.Mui-focusVisible": {
-          bgcolor: (theme) =>
-            selected
-              ? alpha(theme.palette.secondary.main, 0.08)
-              : "transparent",
+          bgcolor: selected ? "background.paper" : "transparent",
         },
         "&:hover .popperListingDragHandle": { opacity: linked ? 0 : 1 },
         "& .popperListingDragHandle": { opacity: linked ? 0 : 1 },
