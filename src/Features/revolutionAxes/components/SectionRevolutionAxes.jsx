@@ -13,21 +13,24 @@ import getRevolutionAxisProcedures, {
   getAxisSystemListingId,
 } from "../utils/getRevolutionAxisProcedures";
 
-// "Axes de révolution" section of PopperMapListings — pinned at the bottom
-// of the annotations side, outside the scrollable body, as soon as the base
-// map carries a revolution axis: the axes drawn on it (plan) or placed on it
-// (vertical base map). One row per axis
+// "Axes de révolution" section of PopperMapListings and of the docked Dessin
+// panel — pinned at the top of the annotations side, right under the
+// header and above the listings block, as soon as the base map carries a
+// revolution axis: the axes drawn on it (plan) or placed on it (vertical
+// base map). One row per axis
 // (RowRevolutionAxis): navigation to the perpendicular base map the profiles
 // are drawn on, eye / solo of everything linked to the axis, 3D half-view.
 // "Créer un fond de plan…" of a row creates the automatic A3 coupe page of the
 // axis (same hook as the "Fond de plan" button of the axis overlay): page
 // sized to the axis, axis posed at its base point, page selected.
-// `hideHeader`: rows only (the popper pins them at the bottom, where the
-// section separates from the templates by a top border instead).
+// `hideHeader`: rows only, with `card` the rows sit in a white rounded
+// outlined card, inset in the grey panel with a small inner padding (the
+// two hosts above); without, the rows are separated by a top border.
 export default function SectionRevolutionAxes({
   baseMap,
   spriteImage,
   hideHeader = false,
+  card = false,
 }) {
   // strings
 
@@ -75,9 +78,19 @@ export default function SectionRevolutionAxes({
   return (
     <Box
       sx={{
-        ...(hideHeader
-          ? { borderTop: "1px solid" }
-          : { borderBottom: "1px solid" }),
+        ...(card
+          ? {
+              mx: 1,
+              my: 1,
+              py: 0.5,
+              overflow: "hidden",
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderRadius: 2,
+            }
+          : hideHeader
+            ? { borderTop: "1px solid" }
+            : { borderBottom: "1px solid" }),
         borderColor: "panel.border",
       }}
     >

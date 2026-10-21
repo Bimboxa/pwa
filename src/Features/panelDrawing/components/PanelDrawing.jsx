@@ -341,6 +341,19 @@ export default function PanelDrawing() {
             <WarningBaseMapNotToScale sx={{ mx: 1.5, mt: 0 }} />
           )}
 
+          {/* Axes de révolution of the base map — pinned at the top, above
+              the listings block, one row per axis in a rounded card without
+              section header (same section as the Dessin popper). Capped in
+              height so many axes never hide the listings. */}
+          <Box sx={{ flexShrink: 0, maxHeight: "40%", overflowY: "auto" }}>
+            <SectionRevolutionAxes
+              baseMap={baseMap}
+              spriteImage={spriteImage}
+              hideHeader
+              card
+            />
+          </Box>
+
           {/* Active listing block — same as the Dessin popper: the "Liste
               active" band and, below it, the expandable listings panel
               ("Listes" header). The LISTE ACTIVE field stays for the
@@ -371,20 +384,10 @@ export default function PanelDrawing() {
             )}
           </Box>
 
-          {/* Pinned bottom section — outside the scrollable templates list:
-              - annotations drawn without template: count, solo and eye (the
-                "Dessin" command itself lives in the commands toolbar);
-              - axes de révolution of the base map, one row per axis without
-                section header (same section as the Dessin popper). Capped
-                in height so many axes never hide the templates. */}
+          {/* Pinned bottom row — outside the scrollable templates list:
+              annotations drawn without template: count, solo and eye (the
+              "Dessin" command itself lives in the commands toolbar). */}
           <RowTemplatelessVisibility count={templatelessCount} />
-          <Box sx={{ flexShrink: 0, maxHeight: "40%", overflowY: "auto" }}>
-            <SectionRevolutionAxes
-              baseMap={baseMap}
-              spriteImage={spriteImage}
-              hideHeader
-            />
-          </Box>
         </>
       )}
     </Box>

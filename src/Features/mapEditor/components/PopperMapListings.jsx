@@ -2561,6 +2561,31 @@ export default function PopperMapListings() {
             <WarningBaseMapNotToScale />
           )}
 
+          {/* Axes de révolution — pinned at the top, above the listings
+              block, as soon as the base map carries one (drawn on this plan
+              / placed on this vertical base map): one row per axis in a
+              rounded card on the grey, without section header, with the
+              navigation to the perpendicular base map, the eye / solo of
+              everything linked to it and its 3D half-view. Capped in
+              height so many axes never hide the listings. */}
+          {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
+            <Box
+              sx={{
+                flexShrink: 0,
+                maxHeight: layersMaxHeight,
+                overflow: "auto",
+                bgcolor: "background.default",
+              }}
+            >
+              <SectionRevolutionAxes
+                baseMap={baseMap}
+                spriteImage={spriteImage}
+                hideHeader
+                card
+              />
+            </Box>
+          )}
+
           {/* Active listing block — the "Liste active" band (name, "..."
             menu, count / visibility pill) and, below it, the expandable
             listings panel ("Listes" header: select, show / hide, reorder,
@@ -2761,15 +2786,9 @@ export default function PopperMapListings() {
 
           {/* Pinned bottom section — outside the scrollable body, so it
               stays in sight while the templates scroll. Capped in height so
-              it never hides the templates.
-              - « Annotations sans modèle » (Dessin popper, scope-level: the
-                « Dessin » command needs no listing), hidden in 3D and while
-                SELECT-filtering;
-              - Axes de révolution, as soon as the base map carries one
-                (drawn on this plan / placed on this vertical base map): one
-                row per axis, without section header, with the navigation to
-                the perpendicular base map, the eye / solo of everything
-                linked to it and its 3D half-view. */}
+              it never hides the templates: « Annotations sans modèle »
+              (Dessin popper, scope-level: the « Dessin » command needs no
+              listing), hidden in 3D and while SELECT-filtering. */}
           {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
             <Box
               sx={{
@@ -2794,11 +2813,6 @@ export default function PopperMapListings() {
                     />
                   </Box>
                 )}
-              <SectionRevolutionAxes
-                baseMap={baseMap}
-                spriteImage={spriteImage}
-                hideHeader
-              />
             </Box>
           )}
 
