@@ -2,14 +2,13 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
+  Box,
   Typography,
   ListItemButton,
   IconButton,
   Tooltip,
   Divider,
 } from "@mui/material";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import QuestionMark from "@mui/icons-material/QuestionMark";
 import Tune from "@mui/icons-material/Tune";
 
@@ -23,10 +22,11 @@ import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotat
 // PopperMapListings templates list, right below "Nouveau modèle": the
 // annotations drawn without template nor listing (« Dessin » command of the
 // commands toolbar, hotkey D) in the popper's annotations set. Shows their
-// count; the row icon is the solo toggle (as on the template rows) and the
-// eye shows on hover (templateless sentinel, see useDrawTemplateless);
-// click selects the ones of the main base map on the
-// map (multi-selection panel). Rendered only when there is at least one, or
+// count as a pill that toggles their visibility (templateless sentinel, see
+// useDrawTemplateless — same pill as the listing rows: filled while visible,
+// outlined while hidden); the row icon is the solo toggle (as on the
+// template rows) and the properties button shows on hover; click selects
+// the ones of the main base map on the map (multi-selection panel). Rendered only when there is at least one, or
 // while the sentinel is soloed / eye-hidden.
 // ---------------------------------------------------------------------------
 
@@ -35,8 +35,8 @@ export default function RowTemplatelessAnnotations({ annotations }) {
 
   const labelS = "Annotations sans modèle";
   const propertiesS = "Propriétés";
-  const hideS = "Masquer";
-  const showS = "Afficher";
+  const hideS = "Masquer les annotations sans modèle";
+  const showS = "Afficher les annotations sans modèle";
   const tooltipS =
     "Annotations dessinées sans modèle — cliquer pour les sélectionner";
 
@@ -143,43 +143,46 @@ export default function RowTemplatelessAnnotations({ annotations }) {
             </Tooltip>
           )}
 
-          {isHovered && (
-            <Tooltip title={isHidden ? showS : hideS} arrow>
-              <IconButton
-                size="small"
-                onClick={handleToggleHidden}
-                sx={buttonSx}
-              >
-                {isHidden ? (
-                  <VisibilityOff sx={{ fontSize: 16 }} />
-                ) : (
-                  <Visibility sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-          )}
-
-          {!isHovered && (
-            <Typography
-              align="right"
-              noWrap
+          {/* Count pill = visibility toggle (same pill as the listing rows:
+              filled in the accent while visible, outlined while hidden). */}
+          <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
+            <Box
+              component="button"
+              onClick={handleToggleHidden}
               sx={{
-                fontSize: "10px",
-                minWidth: "24px",
-                fontFamily: "monospace",
-                fontWeight: 500,
+                minWidth: 24,
+                height: 20,
+                px: 0.75,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                borderRadius: 999,
+                border: "1px solid",
+                borderColor: isHidden ? "panel.border" : "transparent",
+                bgcolor: isHidden ? "transparent" : "secondary.main",
+                color: isHidden ? "text.disabled" : "secondary.contrastText",
+                cursor: "pointer",
+                transition: "0.2s",
+                "&:hover": {
+                  filter: "brightness(1.1)",
+                  borderColor: isHidden ? "text.secondary" : "transparent",
+                },
               }}
-              color={
-                isHidden
-                  ? "text.disabled"
-                  : count > 0
-                    ? "secondary.main"
-                    : "panel.countEmpty"
-              }
             >
-              {count}
-            </Typography>
-          )}
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 600,
+                  fontFamily: "monospace",
+                  lineHeight: 1,
+                  color: "inherit",
+                }}
+              >
+                {count}
+              </Typography>
+            </Box>
+          </Tooltip>
         </ListItemButton>
       </Tooltip>
     </>
