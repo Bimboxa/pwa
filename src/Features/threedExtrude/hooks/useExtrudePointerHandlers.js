@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Raycaster, Vector2, Vector3 } from "three";
+import { Matrix4, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import store from "App/store";
@@ -25,6 +25,14 @@ import {
   filterIntersectionsByClipping,
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import preferLineHits from "Features/threedEditor/js/utilsAnnotationsManager/preferLineHits";
+import applyAnnotationMaterialState, {
+  STATE_HOVER,
+  STATE_NONE,
+} from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
+import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
 import {
   buildTransientFaceMesh,
   loadAnnotationSnapshot,
@@ -48,8 +56,15 @@ import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dSe
 import locateHitFaceOnMesh3d from "Features/annotationMesh3d/services/locateHitFaceOnMesh3d";
 import getPushPullRange from "Features/annotationMesh3d/utils/getPushPullRange";
 import isAnnotationConvertibleToMesh3d from "Features/annotationMesh3d/utils/isAnnotationConvertibleToMesh3d";
-import { MIN_THICKNESS_M } from "Features/annotationMesh3d/utils/mesh3dConstants";
-import { mesh3dFromLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import {
+  MIN_THICKNESS_M,
+  WELD_PRECISION_M,
+} from "Features/annotationMesh3d/utils/mesh3dConstants";
+import {
+  mesh3dFromLocal,
+  roundOffsetZ,
+} from "Features/annotationMesh3d/utils/mesh3dFrame";
+import buildRibbonMesh3d from "Features/annotationMesh3d/utils/buildRibbonMesh3d";
 import {
   getDistanceToFacePlane,
   getFaceNormal,
@@ -70,6 +85,7 @@ import isExtrudableFaceHit from "../utils/isExtrudableFaceHit";
 import parseExtrudeValueBuffer, {
   EXTRUDE_BUFFER_CHAR_RE,
 } from "../utils/parseExtrudeValueBuffer";
+import resolveLineExtrusionAxis from "../utils/resolveLineExtrusionAxis";
 
 // Mirrors useMeshingPointerHandlers / useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
@@ -94,6 +110,42 @@ const isEditableTarget = (el) => {
 const SNAP_THRESHOLD_PX = 12;
 // A base sheet must be this parallel to the base map to dig along its axis.
 const DIG_SHEET_MIN_DOT = 0.999;
+// A LINE extrusion axis this parallel to the base map normal keeps the
+// polyline a parametric wall (`height`) instead of a ribbon mesh.
+const WALL_AXIS_MIN_DOT = 0.999;
+
+// The flat fat line of a POLYLINE (extrudePolylineWall): the only Line2 the
+// tool picks. Other fat lines (POINT trait, revolution axis / circle) carry
+// exportLine too, hence the annotation type check on the root object.
+function isPolylineFatLine(obj) {
+  if (!obj.isLine2 || !obj.userData?.isSnapLine || !obj.userData?.exportLine) {
+    return false;
+  }
+  let current = obj;
+  while (current) {
+    if (current.userData?.nodeId) {
+      return current.userData.annotationType === "POLYLINE";
+    }
+    current = current.parent;
+  }
+  return false;
+}
+
+// A POLYLINE lying flat on its base map: no height, and the same vertical
+// offset at every vertex (bottom = offsetBottom, top = height + offsetTop —
+// a `height` written on it is then its real span). Such a line pulled along
+// the base map normal stays a regular wall.
+function isPolylineFlatOnBaseMap(annotation) {
+  if (!annotation || Number(annotation.height) > 0) return false;
+  const refs = annotation.points || [];
+  if (!refs.length) return false;
+  const first = Number(refs[0]?.offsetBottom) || 0;
+  return refs.every((ref) => {
+    const bottom = Number(ref?.offsetBottom) || 0;
+    const top = Number(ref?.offsetTop) || 0;
+    return Math.abs(bottom - first) < 1e-6 && Math.abs(top - bottom) < 1e-6;
+  });
+}
 
 // Anchor of a push / pull picked on the DISPLAYED object, moved onto the
 // plane of the editable face: a conversion reads the un-shrunk object, whose
@@ -148,6 +200,14 @@ function disposeObject(obj) {
 //     normal and the annotation is stored as a face mesh (converted on
 //     commit, see annotationMesh3d). A prism face may go through the
 //     opposite one (see resolvePushPull).
+//   · LINE — a flat POLYLINE (its fat line): the line is swept into a
+//     SURFACE, one quad per segment. The axis is the normal of the plane
+//     its vertices lie on (resolveLineExtrusionAxis; a 2-point / collinear
+//     line uses the base map normal), or, while Shift is held, the gizmo
+//     user axis (X / Y / Z) closest to the cursor — the lock of « Déplacer ».
+//     A line flat on its base map pulled along the base map normal stays a
+//     POLYLINE and gets its `height` (a negative pull lowers `offsetZ`
+//     instead); any other sweep stores the ribbon as a face mesh.
 // - click 1: arms the annotation owning the face. Its real mesh is hidden and
 //   replaced by a transient ghost rebuilt at every value change.
 // - mouse move: the value follows the cursor along the axis (toolbar field +
@@ -215,15 +275,22 @@ export default function useExtrudePointerHandlers() {
     let downPos = null;
     let dragging = false;
 
-    // Coplanar-face hover state.
-    const hover = { overlay: null, key: null };
+    // Coplanar-face hover state; `line`: the POLYLINE object recolored while
+    // its fat line is hovered (no face to stipple).
+    const hover = { overlay: null, key: null, line: null };
+    // Shift state read by the LINE kind (axis lock). Tracked from the pointer
+    // events AND the key events: a press / release while the mouse is still
+    // must re-evaluate the axis.
+    let shiftHeld = false;
 
     const annotationsManager = sceneManager.annotationsManager;
 
     // Armed annotation (null until the first click):
     //   { kind, annotationId, axis, anchor, object, parent, ghost, downPos,
     //     tracking, snapVerts, snap,
-    //     HEIGHT: snapshot, baseHeight, dig — MESH3D: ctx, faceIndex, range }
+    //     HEIGHT: snapshot, baseHeight, dig — MESH3D: ctx, faceIndex, range
+    //     LINE: ctx, localPoints, closeLine, naturalAxis, axisKey, snapshot,
+    //           wallAllowed, baseMapNormal }
     let armed = null;
     let arming = false;
     // Set by the cleanup: an arm / commit resuming after an await (the
@@ -238,7 +305,7 @@ export default function useExtrudePointerHandlers() {
 
     // Per-annotation extrudability, resolved asynchronously (db reads) and
     // cached for the whole activation. Values: "PENDING" | { height, mesh,
-    // isMesh3d } — which push/pull kinds the annotation accepts.
+    // isMesh3d, line } — which push/pull kinds the annotation accepts.
     const eligibility = new Map();
 
     dom.style.cursor = "crosshair";
@@ -248,6 +315,13 @@ export default function useExtrudePointerHandlers() {
     }
     scheduleHoverRef.current = scheduleHover;
 
+    function clearLineHover() {
+      if (!hover.line) return;
+      applyAnnotationMaterialState(hover.line, STATE_NONE);
+      hover.line = null;
+      sceneManager.renderScene?.();
+    }
+
     function clearStipple() {
       if (hover.overlay) {
         disposeFaceHoverOverlay(hover.overlay);
@@ -255,6 +329,17 @@ export default function useExtrudePointerHandlers() {
         sceneManager.renderScene?.();
       }
       hover.key = null;
+      clearLineHover();
+    }
+
+    // Whole-object recolor of a hovered flat polyline — the fallback the
+    // selection hover uses for fat-line hits (no face to stipple).
+    function applyLineHover(object) {
+      if (hover.line === object) return;
+      clearStipple();
+      applyAnnotationMaterialState(object, STATE_HOVER);
+      hover.line = object;
+      sceneManager.renderScene?.();
     }
 
     function getEligibility(annotationId) {
@@ -262,7 +347,12 @@ export default function useExtrudePointerHandlers() {
       if (cached !== undefined) return cached;
       eligibility.set(annotationId, "PENDING");
       (async () => {
-        let result = { height: false, mesh: false, isMesh3d: false };
+        let result = {
+          height: false,
+          mesh: false,
+          isMesh3d: false,
+          line: false,
+        };
         try {
           const annotation = await db.annotations.get(annotationId);
           const template = annotation?.annotationTemplateId
@@ -273,6 +363,13 @@ export default function useExtrudePointerHandlers() {
             isMesh3d,
             height: !isMesh3d && isAnnotationExtrudable(annotation, template),
             mesh: isMesh3d || isAnnotationConvertibleToMesh3d(annotation),
+            // A flat polyline (fat line): swept into a surface.
+            line:
+              !isMesh3d &&
+              annotation?.type === "POLYLINE" &&
+              !(Number(annotation.height) > 0) &&
+              annotation.strokeWidthUnit !== "CM" &&
+              isAnnotationConvertibleToMesh3d(annotation),
           };
         } catch (err) {
           console.error("[threedExtrude] eligibility check failed", err);
@@ -292,6 +389,9 @@ export default function useExtrudePointerHandlers() {
     // Targets are collected explicitly instead of intersectObjects(scene,
     // recursive) for the same reason as the meshing mode: fat lines
     // (Line2/LineSegments2, which extend Mesh) can throw on a stale geometry.
+    // The flat polylines are the exception: their fat line carries its own
+    // raycast (attachFatLineRaycast), and preferLineHits lets one lying on a
+    // slab win the distance tie against that slab.
     function pickScene(e) {
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return null;
@@ -302,15 +402,20 @@ export default function useExtrudePointerHandlers() {
 
       const targets = [];
       sceneManager.scene.traverse((obj) => {
-        if (obj.isMesh && !obj.isLine2 && !obj.isLineSegments2) {
-          targets.push(obj);
+        if (!obj.isMesh) return;
+        if (obj.isLine2 || obj.isLineSegments2) {
+          if (isPolylineFatLine(obj)) targets.push(obj);
+          return;
         }
+        targets.push(obj);
       });
 
-      const intersects = filterIntersectionsByVisibility(
-        filterIntersectionsByClipping(
-          raycaster.intersectObjects(targets, false),
-          clippingPlane
+      const intersects = preferLineHits(
+        filterIntersectionsByVisibility(
+          filterIntersectionsByClipping(
+            raycaster.intersectObjects(targets, false),
+            clippingPlane
+          )
         )
       );
 
@@ -319,13 +424,15 @@ export default function useExtrudePointerHandlers() {
         while (object) {
           if (object.userData?.nodeId) {
             const axis = getBaseMapNormalWorld(object);
+            const isLine = Boolean(intersect.object.isLine2);
             return {
               nodeId: object.userData.nodeId,
               annotationObject: object,
               hitObject: intersect.object,
               intersect,
               axis,
-              isTopFace: isExtrudableFaceHit(intersect, axis),
+              isLine,
+              isTopFace: !isLine && isExtrudableFaceHit(intersect, axis),
               isMesh3dObject: Boolean(object.userData.isAnnotationMesh3d),
               rect,
             };
@@ -339,6 +446,7 @@ export default function useExtrudePointerHandlers() {
     // Stipple the face under the cursor (same overlay as the selection-mode
     // annotation hover), so the extrudable face is obvious before clicking.
     function applyStipple(object, faceIndex) {
+      clearLineHover();
       const angleDeg = faceSelectionAngleDegRef.current;
       const region = getFaceRegion(object.geometry, faceIndex, {
         plane: !!object.userData?.hasSubtraction,
@@ -362,13 +470,14 @@ export default function useExtrudePointerHandlers() {
       }
     }
 
-    // Which push/pull the face under the cursor gets: "HEIGHT", "MESH3D" or
-    // null (not extrudable / eligibility still resolving).
+    // Which push/pull the face under the cursor gets: "HEIGHT", "MESH3D",
+    // "LINE" or null (not extrudable / eligibility still resolving).
     function getPickKind(pick) {
       if (!pick?.nodeId) return null;
       if (pending.has(pick.nodeId)) return null; // commit still landing
       const el = getEligibility(pick.nodeId);
       if (el === "PENDING") return null;
+      if (pick.isLine) return el.line ? "LINE" : null;
       if (pick.isMesh3dObject) return el.isMesh3d ? "MESH3D" : null;
       if (pick.isTopFace) return el.height ? "HEIGHT" : null;
       return el.mesh ? "MESH3D" : null;
@@ -381,10 +490,56 @@ export default function useExtrudePointerHandlers() {
       return resolvePushPullValue(v, armed.range).applied;
     }
 
+    // LINE: the ribbon the polyline sweeps for a value. Along the base map
+    // normal, a line flat on its base map stays a wall: `height` = the span,
+    // a negative pull lowers `offsetZ` by it. Anything else is a face mesh.
+    // Under the minimum thickness there is nothing to write ({ mesh: null,
+    // height: undefined }).
+    function resolveLine(v) {
+      const { ctx, localPoints, closeLine, axis, baseMapNormal, wallAllowed } =
+        armed;
+      if (!Number.isFinite(v) || Math.abs(v) < MIN_THICKNESS_M) {
+        return { applied: v, ctx, mesh: null };
+      }
+      const along = axis.dot(baseMapNormal);
+      if (wallAllowed && Math.abs(along) > WALL_AXIS_MIN_DOT) {
+        const signed = along > 0 ? v : -v;
+        const base = Number(ctx.annotation.offsetZ) || 0;
+        return {
+          applied: v,
+          height: Math.abs(v),
+          offsetZ: roundOffsetZ(signed < 0 ? base + signed : base),
+        };
+      }
+      ctx.baseMapGroup.updateWorldMatrix(true, false);
+      const toLocal = new Matrix4().copy(ctx.baseMapGroup.matrixWorld).invert();
+      const direction = axis.clone().transformDirection(toLocal).normalize();
+      const camera = sceneManager.camera;
+      const eye = camera
+        ? ctx.baseMapGroup.worldToLocal(camera.position.clone())
+        : null;
+      const normalHint = eye
+        ? {
+            x: eye.x - localPoints[0].x,
+            y: eye.y - localPoints[0].y,
+            z: eye.z - localPoints[0].z,
+          }
+        : null;
+      const mesh = buildRibbonMesh3d({
+        points: localPoints,
+        direction,
+        distance: v,
+        closeLine,
+        normalHint,
+      });
+      return { applied: v, ctx, mesh };
+    }
+
     // What the armed annotation becomes for a value:
     //   { applied, ctx, mesh } — a face mesh (written by writeMesh3dService);
-    //   { applied, height } — a regular annotation of that height.
+    //   { applied, height, offsetZ? } — a regular annotation of that height.
     function resolveArmed(v) {
+      if (armed.kind === "LINE") return resolveLine(v);
       if (armed.kind === "MESH3D") {
         const { ctx, faceIndex, range } = armed;
         return { ctx, ...resolvePushPull(ctx.mesh, faceIndex, v, range) };
@@ -427,9 +582,14 @@ export default function useExtrudePointerHandlers() {
           ctx.metrics
         );
       }
+      if (result.height == null || !armed.snapshot) return null;
       const snapshot = {
         ...armed.snapshot,
-        annotation: { ...armed.snapshot.annotation, height: result.height },
+        annotation: {
+          ...armed.snapshot.annotation,
+          height: result.height,
+          ...(result.offsetZ != null ? { offsetZ: result.offsetZ } : {}),
+        },
       };
       return buildTransientFaceMesh({
         snapshot,
@@ -447,6 +607,10 @@ export default function useExtrudePointerHandlers() {
         armed.parent.add(ghost);
         armed.ghost = ghost;
       }
+      // Nothing to show for the value (a LINE under the minimum thickness):
+      // the real object stands in for the ghost instead of vanishing.
+      if (ghost) deepHide(armed.object);
+      else deepShow(armed.object);
       sceneManager.renderScene?.();
     }
     rebuildGhostRef.current = rebuildGhost;
@@ -598,12 +762,125 @@ export default function useExtrudePointerHandlers() {
       dispatch(setExtrudeTargetAnnotationId(annotationId));
     }
 
+    // LINE arm: the polyline's points come from its displayed fat line
+    // (exportLine: the builder's sampled, offset points in the base map
+    // frame), so the ribbon starts exactly on what was clicked.
+    async function armLine(e, pick) {
+      const annotationId = pick.nodeId;
+      const annotation = await db.annotations.get(annotationId);
+      if (disposed || !annotation || annotation.deletedAt) return;
+      const imagesManager = sceneManager.imagesManager;
+      const metrics = getBaseMapForRender(
+        imagesManager?.baseMapsMap?.[annotation.baseMapId]
+      );
+      const baseMapGroup = imagesManager?.getGroup?.(annotation.baseMapId);
+      if (!metrics || !baseMapGroup) return;
+      const object =
+        sceneManager.annotationsManager?.annotationsObjectsMap?.[
+          annotationId
+        ] ?? pick.annotationObject;
+      if (!object?.parent) return;
+
+      const line = pick.hitObject;
+      const positions = line?.userData?.exportLine?.positions || [];
+      line.updateWorldMatrix(true, false);
+      baseMapGroup.updateWorldMatrix(true, false);
+      const worldPoints = [];
+      const localPoints = [];
+      for (let i = 0; i + 2 < positions.length; i += 3) {
+        const world = line.localToWorld(
+          new Vector3(positions[i], positions[i + 1], positions[i + 2])
+        );
+        const local = baseMapGroup.worldToLocal(world.clone());
+        const last = localPoints[localPoints.length - 1];
+        if (
+          last &&
+          Math.abs(last.x - local.x) < WELD_PRECISION_M &&
+          Math.abs(last.y - local.y) < WELD_PRECISION_M &&
+          Math.abs(last.z - local.z) < WELD_PRECISION_M
+        ) {
+          continue;
+        }
+        worldPoints.push(world);
+        localPoints.push({ x: local.x, y: local.y, z: local.z });
+      }
+      const closeLine = Boolean(annotation.closeLine);
+      if (closeLine && localPoints.length > 1) {
+        const first = localPoints[0];
+        const last = localPoints[localPoints.length - 1];
+        if (
+          Math.abs(last.x - first.x) < WELD_PRECISION_M &&
+          Math.abs(last.y - first.y) < WELD_PRECISION_M &&
+          Math.abs(last.z - first.z) < WELD_PRECISION_M
+        ) {
+          localPoints.pop();
+          worldPoints.pop();
+        }
+      }
+      if (localPoints.length < 2) return;
+
+      const baseMapNormal = getBaseMapNormalWorld(object);
+      const anchor = pick.intersect.point.clone();
+      const { axis: naturalAxis } = resolveLineExtrusionAxis({
+        worldPoints,
+        baseMapNormal,
+        cameraPosition: sceneManager.camera?.position ?? null,
+        anchor,
+      });
+      // The wall ghost (buildTransientFaceMesh) and the "flat" test read the
+      // resolved snapshot.
+      const snapshot = await loadAnnotationSnapshot(annotationId);
+      if (disposed) return;
+      const el = eligibility.get(annotationId);
+      const wallAllowed =
+        Boolean(el?.height) &&
+        Boolean(snapshot) &&
+        isPolylineFlatOnBaseMap(annotation);
+
+      clearStipple();
+      armed = {
+        kind: "LINE",
+        annotationId,
+        ctx: {
+          annotation,
+          mesh: null,
+          baseOffsetZ: 0,
+          metrics,
+          baseMapGroup,
+          isConversion: true,
+          isShrunk: false,
+        },
+        localPoints,
+        closeLine,
+        naturalAxis,
+        axis: naturalAxis.clone(),
+        axisKey: null,
+        anchor,
+        snapshot,
+        wallAllowed,
+        baseMapNormal,
+        object,
+        parent: object.parent,
+        ghost: null,
+        downPos: { x: e.clientX, y: e.clientY },
+        tracking: false,
+        snapVerts: buildSnapVerts(),
+        snap: null,
+      };
+      rebuildGhost(valueRef.current);
+      dispatch(setExtrudeTargetAnnotationId(annotationId));
+    }
+
     async function arm(e, pick, kind) {
       if (arming || armed) return;
       arming = true;
       try {
         if (kind === "MESH3D") {
           await armMesh3d(e, pick);
+          return;
+        }
+        if (kind === "LINE") {
+          await armLine(e, pick);
           return;
         }
         const annotationId = pick.nodeId;
@@ -678,9 +955,10 @@ export default function useExtrudePointerHandlers() {
       const result = resolveArmed(valueRef.current || 0);
       // A zero push changes nothing — in particular it must not convert a
       // regular annotation into a mesh.
-      const unchanged = result.mesh
-        ? result.mesh === result.ctx.mesh
-        : kind === "HEIGHT" && result.height === baseHeight;
+      let unchanged;
+      if (kind === "LINE") unchanged = !result.mesh && result.height == null;
+      else if (result.mesh) unchanged = result.mesh === result.ctx.mesh;
+      else unchanged = kind === "HEIGHT" && result.height === baseHeight;
 
       if (unchanged || !armed.ghost || !annotationsManager) cancelArm();
       else holdGhostUntilRebuilt();
@@ -710,12 +988,48 @@ export default function useExtrudePointerHandlers() {
           await updateAnnotationRef.current({
             id: annotationId,
             height: result.height,
+            ...(result.offsetZ != null ? { offsetZ: result.offsetZ } : {}),
           });
         }
       } catch (err) {
         console.error("[threedExtrude] commit failed", err);
         releasePending(annotationId, { restore: true });
       }
+    }
+
+    // LINE: the axis the value runs along — the gizmo user axis closest to
+    // the cursor while Shift is held (computeAxisLockSnap, as « Déplacer »),
+    // the natural axis otherwise. Returns true when it changed.
+    function updateArmedAxis(e) {
+      if (armed.kind !== "LINE") return false;
+      let axis = armed.naturalAxis;
+      let axisKey = null;
+      if (shiftHeld) {
+        const rect = dom.getBoundingClientRect();
+        if (rect.width && rect.height) {
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          const yawDeg = store.getState().threedEditor.axesSettings?.yawDeg;
+          const axes = getUserAxesWorldDirections(yawDeg);
+          const lock = computeAxisLockSnap({
+            mouseNdc: mouse,
+            camera: sceneManager.camera,
+            canvasSize: { width: rect.width, height: rect.height },
+            origin: armed.anchor,
+            axes,
+            raycaster,
+          });
+          const locked = lock && axes.find((a) => a.key === lock.axis);
+          if (locked) {
+            axis = locked.dir;
+            axisKey = locked.key;
+          }
+        }
+      }
+      if (axisKey === armed.axisKey && axis.equals(armed.axis)) return false;
+      armed.axis = axis.clone();
+      armed.axisKey = axisKey;
+      return true;
     }
 
     // Armed: the value follows the cursor along the extrusion axis — unless
@@ -787,7 +1101,14 @@ export default function useExtrudePointerHandlers() {
       if (!e) return;
 
       if (armed) {
+        // The axis may change without the value (Shift pressed while the
+        // mouse is still): the ghost follows it anyway.
+        const axisChanged = updateArmedAxis(e);
+        const before = valueRef.current;
         updateArmedValue(e);
+        if (axisChanged && valueRef.current === before) {
+          rebuildGhost(valueRef.current);
+        }
         const rect = dom.getBoundingClientRect();
         // A typed value beyond the mesh range is applied clamped — show what
         // will really be committed.
@@ -800,22 +1121,25 @@ export default function useExtrudePointerHandlers() {
             label: `${shown > 0 ? "+" : ""}${shown} m`,
           },
           snap: getSnapMarker(applied, rect),
+          axis: armed.axisKey ?? null,
         });
         return;
       }
 
       const pick = pickScene(e);
-      const extrudable = getPickKind(pick) !== null;
+      const kind = getPickKind(pick);
 
-      if (extrudable) {
-        applyStipple(pick.hitObject, pick.intersect.faceIndex);
+      if (kind) {
+        if (kind === "LINE") applyLineHover(pick.annotationObject);
+        else applyStipple(pick.hitObject, pick.intersect.faceIndex);
         setExtrudeOverlay({
           cursor: {
             x: e.clientX - pick.rect.left,
             y: e.clientY - pick.rect.top,
-            label: "Extruder",
+            label: kind === "LINE" ? "Extruder la ligne" : "Extruder",
           },
           snap: null,
+          axis: null,
         });
         dom.style.cursor = "crosshair";
       } else {
@@ -833,6 +1157,7 @@ export default function useExtrudePointerHandlers() {
 
     function onPointerMove(e) {
       lastEvent = e;
+      shiftHeld = Boolean(e.shiftKey);
       if (rafId == null) rafId = requestAnimationFrame(runHover);
       if (!downPos) return;
       const dx = Math.abs(e.clientX - downPos.x);
@@ -873,6 +1198,13 @@ export default function useExtrudePointerHandlers() {
     }
 
     function onKeyDown(e) {
+      if (e.key === "Shift") {
+        if (!shiftHeld) {
+          shiftHeld = true;
+          scheduleHover();
+        }
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if (e.key === "Escape") {
@@ -940,6 +1272,20 @@ export default function useExtrudePointerHandlers() {
       rebuildGhost(valueRef.current);
     });
 
+    // Shift released (or the window losing focus while it is held): the
+    // LINE axis goes back to its natural direction at the same cursor.
+    function onKeyUp(e) {
+      if (e.key !== "Shift" || !shiftHeld) return;
+      shiftHeld = false;
+      scheduleHover();
+    }
+
+    function onWindowBlur() {
+      if (!shiftHeld) return;
+      shiftHeld = false;
+      scheduleHover();
+    }
+
     dom.addEventListener("pointerdown", onPointerDown);
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerup", onPointerUp);
@@ -949,6 +1295,8 @@ export default function useExtrudePointerHandlers() {
     // the window-scoped shortcuts of the other features (delete annotation,
     // drawing-tool hotkeys) see them.
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("blur", onWindowBlur);
 
     return () => {
       disposed = true;
@@ -958,6 +1306,8 @@ export default function useExtrudePointerHandlers() {
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", onWindowBlur);
       unsubReady?.();
       rebuildGhostRef.current = null;
       scheduleHoverRef.current = null;
