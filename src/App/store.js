@@ -73,6 +73,7 @@ import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlic
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 import commandsToolbarReducer from "Features/commandsToolbar/commandsToolbarSlice";
+import duplicatesDetectionReducer from "Features/duplicatesDetection/duplicatesDetectionSlice";
 import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
 import photosReducer from "Features/photos/photosSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
@@ -177,6 +178,7 @@ const store = configureStore({
     baseMapsGrid: baseMapsGridReducer,
     pdfEditor: pdfEditorReducer,
     commandsToolbar: commandsToolbarReducer,
+    duplicatesDetection: duplicatesDetectionReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

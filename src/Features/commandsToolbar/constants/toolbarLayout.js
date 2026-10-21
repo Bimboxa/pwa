@@ -51,6 +51,7 @@ const DEFAULT_LAYOUT = [
   "CONVERT",
   "REENTRANT_ANGLES",
   "CLEAN_SEGMENTS",
+  "DETECT_DUPLICATES",
   { type: "divider" },
   // geometry of one annotation
   {
