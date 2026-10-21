@@ -288,12 +288,40 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     });
     return Object.keys(out).length > 0 ? out : null;
   }, [annotationsForThreed, baseMaps, revolutionSectionSideByBaseMapId]);
-  // Serialized form for the build epoch (see getBuildEpochKey).
-  const revolutionSectionKey = revolutionSection
-    ? Object.entries(revolutionSection)
-        .map(([id, side]) => `${id}:${side}`)
-        .join("|")
-    : "";
+  // { axisId: 1 | -1 }: the same camera side, keyed by the plan REVOLUTION_AXIS
+  // whose arcs are half-viewed, so the axis's base circle in 3D can show the
+  // kept half as a thick arc and the cut-away half as a thin one (like the
+  // 2D glyph). An axis revolved on several vertical base maps takes the side
+  // of the first one found (their planes coincide: all are posed from the
+  // axis's diameter).
+  const revolutionSectionByAxisId = useMemo(() => {
+    if (!revolutionSection) return null;
+    const out = {};
+    (annotationsForThreed || []).forEach((a) => {
+      if (a.shape3D?.key !== "REVOLUTION" || !a.revolutionHalfView) return;
+      if (a.revolutionPhi) return;
+      const axisId = a.shape3D?.axisAnnotationId;
+      const side = revolutionSection[a.baseMapId];
+      if (!axisId || !side || out[axisId]) return;
+      out[axisId] = side;
+    });
+    return Object.keys(out).length > 0 ? out : null;
+  }, [annotationsForThreed, revolutionSection]);
+  // Serialized form for the build epoch (see getBuildEpochKey). The per-axis
+  // part is there so re-pointing an arc at another axis (same base map, same
+  // side) still rebuilds the axes' circles.
+  const revolutionSectionKey = [
+    revolutionSection
+      ? Object.entries(revolutionSection)
+          .map(([id, side]) => `${id}:${side}`)
+          .join("|")
+      : "",
+    revolutionSectionByAxisId
+      ? Object.entries(revolutionSectionByAxisId)
+          .map(([id, side]) => `${id}:${side}`)
+          .join("|")
+      : "",
+  ].join("#");
 
   useEffect(() => {
     // While hidden, keep the scene as-is: no unload on 3D→2D, no reload on
@@ -341,6 +369,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       photorealShading,
       aquarelleShading,
       revolutionSection,
+      revolutionSectionByAxisId,
       revolutionSectionKey,
       revolutionSectionFill,
     });

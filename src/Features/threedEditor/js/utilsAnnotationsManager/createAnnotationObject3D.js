@@ -34,6 +34,7 @@ import {
   expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
+import { getRevolutionAxisContourArcs } from "Features/annotations/utils/revolutionAxisGlyph";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import {
   createAnnotationPbrMaterial,
@@ -89,6 +90,10 @@ const REVOLUTION_AXIS_GAP_M = 0.2;
 // Z_FIGHT_OFFSET).
 const REVOLUTION_AXIS_CIRCLE_LIFT_M = 0.001;
 const REVOLUTION_AXIS_CIRCLE_SEGMENTS = 64;
+// Half-view split of the base circle (same weights as the 2D glyph): the
+// kept half reads as the visible section edge, the cut-away half as a hint.
+const REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX = 3;
+const REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX = 1;
 const DEG_TO_RAD = Math.PI / 180;
 
 // Vertices of the axis base outline in basemap-local metres (y up, CCW like
@@ -122,6 +127,37 @@ function buildRevolutionAxisBasePoints({ cx, cy, r, annotation }) {
   }
   if (isSector) points.push(new Vector3(cx, cy, 0));
   return points;
+}
+
+// Half-view split of the axis base circle, in basemap-local metres (z = 0):
+// `[{ points, visible }]`, one entry per half. The cut runs along the axis's
+// diameter (directionDeg / invertHalf, plan local frame, y up) and the kept
+// half is the one the lathes keep for that camera side (getRevolutionPartialPhi):
+// side 1 (camera on the +normal side of the vertical base map) keeps the half
+// BEHIND the plane = the +90°-CCW side of the diameter (the "orange" half of
+// getRevolutionAxisPlanFrame, [theta, theta + π]); side -1 keeps the other one.
+// getRevolutionAxisContourArcs shows [theta, theta + π], so the side only
+// turns theta by π. Each arc is sampled at the full-circle density.
+function buildRevolutionAxisHalfArcs({ cx, cy, r, annotation, side }) {
+  const theta =
+    (Number(annotation.directionDeg) || 0) * DEG_TO_RAD +
+    (annotation.invertHalf ? Math.PI : 0) +
+    (side === -1 ? Math.PI : 0);
+  return getRevolutionAxisContourArcs({ theta, halfView: true }).map((arc) => {
+    const span = arc.to - arc.from;
+    const segments = Math.max(
+      2,
+      Math.round((REVOLUTION_AXIS_CIRCLE_SEGMENTS * span) / (Math.PI * 2))
+    );
+    const points = [];
+    for (let i = 0; i <= segments; i++) {
+      const phi = arc.from + (span * i) / segments;
+      points.push(
+        new Vector3(cx + r * Math.cos(phi), cy + r * Math.sin(phi), 0)
+      );
+    }
+    return { points, visible: arc.visible };
+  });
 }
 
 // Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
@@ -1195,21 +1231,21 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // Display-only otherwise: `isRevolutionAxisCircle` keeps it out of the
       // scene export, the vertex snap index, the drawable faces and the
       // hover / dim material swaps.
+      // While the 3D half-view is active on this axis (an arc of it is
+      // half-viewed on a vertical base map whose camera side is known —
+      // options.revolutionSectionByAxisId, from useAutoLoadAnnotationsInThreedEditor),
+      // the full circle splits into two half circles: the kept half thick,
+      // the cut-away half thin, like the 2D glyph. An explicit sector
+      // (partialRevolution) wins over the half-view, as for the lathes.
       const axisGroup = new Group();
       axisGroup.add(line);
       const r = Number(annotation.radiusM) || 0;
-      if (r > 0) {
-        const circlePoints = buildRevolutionAxisBasePoints({
-          cx: local.x,
-          cy: local.y,
-          r,
-          annotation,
-        });
+      const addCircleLine = (points, linewidth) => {
         const circleGeom = new LineGeometry();
-        circleGeom.setPositions(circlePoints.flatMap((v) => [v.x, v.y, v.z]));
+        circleGeom.setPositions(points.flatMap((v) => [v.x, v.y, v.z]));
         const circleMat = new LineMaterial({
           color: normalizeHex(annotation.strokeColor || "#e85426"),
-          linewidth: REVOLUTION_AXIS_LINEWIDTH_PX,
+          linewidth,
           resolution: options?.resolution,
           worldUnits: false,
           transparent: true,
@@ -1218,9 +1254,39 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         const circle = new Line2(circleGeom, circleMat);
         circle.computeLineDistances();
         circle.position.z = z0 + REVOLUTION_AXIS_CIRCLE_LIFT_M;
-        attachFatLineRaycast(circle, circlePoints);
+        attachFatLineRaycast(circle, points);
         circle.userData.isRevolutionAxisCircle = true;
         axisGroup.add(circle);
+      };
+      const halfViewSide =
+        annotation.halfViewIn3d !== false && !annotation.partialRevolution
+          ? options?.revolutionSectionByAxisId?.[annotation.id]
+          : undefined;
+      if (r > 0 && halfViewSide) {
+        buildRevolutionAxisHalfArcs({
+          cx: local.x,
+          cy: local.y,
+          r,
+          annotation,
+          side: halfViewSide,
+        }).forEach(({ points, visible }) =>
+          addCircleLine(
+            points,
+            visible
+              ? REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX
+              : REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX
+          )
+        );
+      } else if (r > 0) {
+        addCircleLine(
+          buildRevolutionAxisBasePoints({
+            cx: local.x,
+            cy: local.y,
+            r,
+            annotation,
+          }),
+          REVOLUTION_AXIS_LINEWIDTH_PX
+        );
       }
       object = axisGroup;
       break;
