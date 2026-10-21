@@ -8,6 +8,8 @@
 //     useAnnotationsV2) is the lathe axis in THAT base map's pixels and only
 //     mean(x) is load-bearing: a profile vertex revolves at radius
 //       r = |p.x − axisX| · arcMeterByPx            (metres)
+//     — or on the axis's OWN plan (`arc.revolutionAxisOnPlan`, drawn in 3D
+//     above it): r = plan distance to `arc.revolutionAxisCenter`;
 //   - S–C–S arcs of the profile are sampled exactly like the lathe, so a
 //     curved segment can reach radii beyond its anchor points;
 //   - hidden segments split the profile into runs, each run sweeping its own
@@ -86,7 +88,15 @@ export function getRevolutionRadiusIntervals(arc, arcMeterByPx) {
   const axisPts = arc?.revolutionAxisPoints;
   if (!axisPts?.length || !(arcMeterByPx > 0)) return [];
   const axisX = axisPts.reduce((s, p) => s + p.x, 0) / axisPts.length;
-  const signed = (p) => (p.x - axisX) * arcMeterByPx;
+  const onPlanCenter = arc.revolutionAxisOnPlan
+    ? arc.revolutionAxisCenter
+    : null;
+  // Signed radius; on a plan the distance is radial (never negative — a
+  // profile crossing the axis folds back, like `abs` on a vertical map).
+  const signed = onPlanCenter
+    ? (p) =>
+        Math.hypot(p.x - onPlanCenter.x, p.y - onPlanCenter.y) * arcMeterByPx
+    : (p) => (p.x - axisX) * arcMeterByPx;
 
   if (arc.type === "POINT") {
     const p = arc.point;

@@ -13,7 +13,10 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
-import { expandArcsInPathWithHiddenMap } from "Features/geometry/utils/arcSampling";
+import {
+  expandArcsInPathWithHiddenMap,
+  expandRingWithOffsetsAndHiddenMap,
+} from "Features/geometry/utils/arcSampling";
 
 import buildRevolutionSolidGeometry from "./buildRevolutionSolidGeometry";
 import buildGridEdgeLines from "./buildGridEdgeLines";
@@ -114,34 +117,47 @@ export default function buildRevolutionMesh({
   solid = false,
   // EdgesGeometry threshold of the black grid lines (Wireframe settings).
   gridEdgeThresholdDeg = 1,
+  // Arc hosted by the axis's OWN plan (drawn in 3D above it): the lathe axis
+  // is the plan normal through `centerLocal` (required), the radius is the
+  // in-plane distance to it and the height is the vertex altitude above the
+  // plan (`offsetBottom` / `offsetTop`, interpolated along S–C–S arcs) on top
+  // of `verticalLift` (the arc's offsetZ, carried by the centre's z). Same
+  // frame as the DISC_DOME lathe (buildDiscObject3D).
+  onPlan = false,
+  verticalLift = 0,
 }) {
   if (!arcPoints || arcPoints.length < 2) return null;
-  if (!axisPoints || axisPoints.length < 2) return null;
+  if (!onPlan && (!axisPoints || axisPoints.length < 2)) return null;
+  if (onPlan && !centerLocal) return null;
 
   // Vertical-in-drawing axis position: average local x of the axis line.
-  const axisX = axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
+  const axisX = onPlan
+    ? centerLocal.x
+    : axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
 
   // Shared vertical reference = the axis line's bottom. Heights are measured
   // from it (NOT from each arc's own lowest point) so several arcs revolved
   // around the SAME axis keep their relative vertical positions instead of all
   // being anchored to the same base.
-  const baseY = Math.min(...axisPoints.map((p) => p.y));
+  const baseY = onPlan ? 0 : Math.min(...axisPoints.map((p) => p.y));
 
   // Sample S–C–S arcs in the profile so a curved arc revolves as a smooth
   // surface instead of straight chords. Hidden-segment indices are remapped
-  // onto the densified point list.
-  const { points: sampledArc, hiddenSegmentsIdx: sampledHidden } =
-    expandArcsInPathWithHiddenMap(
-      arcPoints,
-      REVOLUTION_ARC_SAMPLES,
-      hiddenSegmentsIdx ?? [],
-      false
-    );
+  // onto the densified point list. On a plan the sampled points also carry the
+  // interpolated altitudes.
+  const { points: sampledArc, hiddenSegmentsIdx: sampledHidden } = (
+    onPlan ? expandRingWithOffsetsAndHiddenMap : expandArcsInPathWithHiddenMap
+  )(arcPoints, REVOLUTION_ARC_SAMPLES, hiddenSegmentsIdx ?? [], false);
 
   // Profile in lathe-local frame: X = radius (distance to axis), Y = height
   // above the axis bottom.
-  const profileAll = sampledArc.map(
-    (p) => new Vector2(Math.abs(p.x - axisX), p.y - baseY)
+  const profileAll = sampledArc.map((p) =>
+    onPlan
+      ? new Vector2(
+          Math.hypot(p.x - centerLocal.x, p.y - centerLocal.y),
+          (p.offsetBottom ?? 0) + (p.offsetTop ?? 0)
+        )
+      : new Vector2(Math.abs(p.x - axisX), p.y - baseY)
   );
 
   // Split into runs of contiguous non-hidden segments.
@@ -163,12 +179,14 @@ export default function buildRevolutionMesh({
   // is local +Z, so rotate the lathe (built around local +Y) by 90° about X so
   // its height runs along +Z. A VERTICAL base map already has its normal-aligned
   // up direction along local +Y, so no rotation is needed.
-  const axisAlongNormal = orientation !== "VERTICAL";
+  const axisAlongNormal = onPlan || orientation !== "VERTICAL";
 
   // In-plane placement of the axis. With a linked point, use it; otherwise fall
   // back to the drawn axis's own location.
   let center;
-  if (centerLocal) {
+  if (onPlan) {
+    center = { x: centerLocal.x, y: centerLocal.y, z: verticalLift };
+  } else if (centerLocal) {
     center = { x: centerLocal.x, y: centerLocal.y, z: centerLocal.z ?? 0 };
   } else if (axisAlongNormal) {
     const avgAxisY =

@@ -132,6 +132,11 @@ function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
     // REVOLUTION radius depends on the axis line, whose edits don't touch the
     // arc's own updatedAt — key on the resolved axis coordinates.
     a: (source.revolutionAxisPoints || []).map((p) => [p.x, p.y]),
+    // Arc hosted by the axis's own plan: the lathe follows the axis centre
+    // (see resolveRevolutionAxes `revolutionAxisOnPlan`).
+    ap: source.revolutionAxisOnPlan
+      ? [source.revolutionAxisCenter?.x, source.revolutionAxisCenter?.y]
+      : null,
     m: baseMapForRender.meterByPx,
     w: baseMapForRender.imageWidth,
     h: baseMapForRender.imageHeight,
@@ -164,9 +169,9 @@ export default async function computeSubtractedSurfaceM2Async(
   // mesh area becomes the only quantity — whatever the source's shape.
   const isCrossBaseMap = Boolean(
     sourceBaseMapId &&
-      targetAnnotations.some(
-        (t) => t?.baseMapId && t.baseMapId !== sourceBaseMapId
-      )
+    targetAnnotations.some(
+      (t) => t?.baseMapId && t.baseMapId !== sourceBaseMapId
+    )
   );
 
   const shapeKey = getShape3DKey(sourceAnnotation?.shape3D);

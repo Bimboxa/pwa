@@ -442,7 +442,10 @@ import getRevolutionHandleSnapPoints from "Features/annotations/utils/getRevolut
 
 // Length of the synthesized lathe-axis segment, in reference-frame pixels. The
 // value is arbitrary: both ends share the same x (all buildRevolutionMesh reads
-// is mean(x)) and `baseY` cancels out for a VERTICAL base map.
+// is mean(x)) and `baseY` cancels out for a VERTICAL base map. For an arc
+// hosted by the axis's own plan (`revolutionAxisOnPlan`) the segment is only
+// kept for the `length >= 2` guards and the cache keys: the lathe reads
+// `revolutionAxisCenter` instead.
 const AXIS_SYNTH_SPAN_PX = 100;
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -450,11 +453,15 @@ const DEG_TO_RAD = Math.PI / 180;
 // Sector kept by a partial revolution, resolved from the AXIS (shared by every
 // arc bound to it). Returns null for a full turn, so the camera-driven 180°
 // half-view stays in charge when the user hasn't set explicit angles.
-function getRevolutionPhiForAxis(axis) {
+// `onPlan`: the arc is revolved on the axis's own plan, where the lathe is
+// built straight in the plan local frame (rotateX(π/2) like the dome): the
+// sector angles are plan angles already, no diameter direction to subtract.
+function getRevolutionPhiForAxis(axis, { onPlan = false } = {}) {
   if (!axis?.partialRevolution) return null;
-  const theta =
-    (Number(axis.directionDeg) || 0) * DEG_TO_RAD +
-    (axis.invertHalf ? Math.PI : 0);
+  const theta = onPlan
+    ? 0
+    : (Number(axis.directionDeg) || 0) * DEG_TO_RAD +
+      (axis.invertHalf ? Math.PI : 0);
   return getRevolutionPhi(
     (Number(axis.revolutionAngleStartDeg) || 0) * DEG_TO_RAD,
     (Number(axis.revolutionAngleEndDeg) || 0) * DEG_TO_RAD,
@@ -468,6 +475,17 @@ function getRevolutionPhiForAxis(axis) {
 // map cannot be found. Shared by the main query and by the supplementary fetch
 // of cross-base-map subtraction targets (a revolution used as a cutter on
 // another plan must revolve there too, or it is built as a flat wall).
+//
+// Two hosting cases per arc:
+//   - the arc lives on a VERTICAL base map posed from the axis (a
+//     REVOLUTION_AXIS_PLACEMENT sits on it): the lathe axis is the vertical
+//     through the placement point, in the arc's image;
+//   - the arc lives on the axis's OWN plan (drawn in 3D above the plan, points
+//     carrying altitudes): `revolutionAxisOnPlan` + `revolutionAxisCenter`
+//     (the axis centre in plan pixels); the lathe revolves around the plan
+//     normal through that centre, radius = plan distance, height = the arc's
+//     own offsetZ + the point's offsetBottom (buildRevolutionMesh `onPlan`).
+//     No half-view there (it needs a vertical image as the section plane).
 async function resolveRevolutionAxes(annotations, baseMapById) {
   const revolutionArcs = annotations.filter(
     (a) =>
@@ -492,25 +510,63 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
     placementByBaseMapAndAxisId[`${p.baseMapId}:${p.revolutionAxisId}`] = p;
   }
 
-  // Placement points live on ANOTHER base map than the arc, so they are
-  // not in `pointsIndex` — fetch them explicitly.
-  const placementPointRows = await db.points.bulkGet(
-    placements.map((p) => p.point?.id).filter(Boolean)
-  );
-  const placementPointById = {};
-  for (const row of placementPointRows) {
-    if (row) placementPointById[row.id] = row;
-  }
-
   const axisCache = new Map();
   for (const arc of revolutionArcs) {
     const axisId = arc.shape3D.axisAnnotationId;
     if (!axisCache.has(axisId)) {
       axisCache.set(axisId, await db.annotations.get(axisId));
     }
+  }
+
+  // Placement points live on ANOTHER base map than the arc, so they are
+  // not in `pointsIndex` — fetch them explicitly. Same for the centre of an
+  // axis hosting an arc on its own plan (the arc's resolved points are its
+  // own, not the axis's).
+  const onPlanAxisPointIds = revolutionArcs
+    .map((arc) => axisCache.get(arc.shape3D.axisAnnotationId))
+    .filter((axis, i) => axis && axis.baseMapId === revolutionArcs[i].baseMapId)
+    .map((axis) => axis.point?.id)
+    .filter(Boolean);
+  const placementPointRows = await db.points.bulkGet([
+    ...new Set([
+      ...placements.map((p) => p.point?.id).filter(Boolean),
+      ...onPlanAxisPointIds,
+    ]),
+  ]);
+  const placementPointById = {};
+  for (const row of placementPointRows) {
+    if (row) placementPointById[row.id] = row;
+  }
+
+  for (const arc of revolutionArcs) {
+    const axisId = arc.shape3D.axisAnnotationId;
     const axis = axisCache.get(axisId);
     if (!axis || axis.deletedAt) {
       arc.revolutionMissingPlacement = true;
+      continue;
+    }
+
+    // Arc hosted by the axis's own plan: the axis centre IS the lathe axis.
+    if (arc.baseMapId === axis.baseMapId) {
+      const planBaseMap = baseMapById[arc.baseMapId];
+      const planImageSize =
+        planBaseMap?.getImageSize?.() || planBaseMap?.image?.imageSize;
+      const row = placementPointById[axis.point?.id];
+      if (!planImageSize?.width || !row) {
+        arc.revolutionMissingPlacement = true;
+        continue;
+      }
+      const cx = row.x * planImageSize.width;
+      const cy = row.y * planImageSize.height;
+      arc.revolutionAxisPoints = [
+        { x: cx, y: cy },
+        { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
+      ];
+      arc.revolutionAxisOnPlan = true;
+      arc.revolutionAxisCenter = { x: cx, y: cy };
+      arc.revolutionPhi = getRevolutionPhiForAxis(axis, { onPlan: true });
+      arc._revolutionAxis = axis;
+      arc.revolutionHalfView = false;
       continue;
     }
 
@@ -1481,8 +1537,11 @@ export default function useAnnotationsV2(options) {
             // DISC: its openings are db.points rings like a POLYGON's holes.
             if (_annotation.type === "DISC" && annotation.cuts?.length) {
               _annotation.cuts = (
-                resolveCuts({ cuts: annotation.cuts, pointsIndex, imageSize }) ??
-                []
+                resolveCuts({
+                  cuts: annotation.cuts,
+                  pointsIndex,
+                  imageSize,
+                }) ?? []
               )
                 .map((cut) => ({
                   ...cut,
@@ -1923,7 +1982,9 @@ export default function useAnnotationsV2(options) {
       // -- REVOLUTION (axis-based) resolution --
       // The axis lives on the PLAN; each VERTICAL base map that uses it carries
       // a REVOLUTION_AXIS_PLACEMENT whose point is where the axis centre sits in
-      // that elevation image. Placing it also POSED the base map so its plane
+      // that elevation image. (An arc hosted by the plan itself — drawn in 3D
+      // above it — revolves around the axis centre directly: see
+      // resolveRevolutionAxes, `revolutionAxisOnPlan`.) Placing it also POSED the base map so its plane
       // contains the axis (see computeVerticalBaseMapPlacementFromAxis), which
       // is what lets us synthesize the lathe axis purely from the placement:
       //
@@ -2326,6 +2387,8 @@ export default function useAnnotationsV2(options) {
               _foreignSubtractionFootprints: undefined,
               _revolutionAxis: undefined,
               revolutionAxisPoints: undefined,
+              revolutionAxisOnPlan: undefined,
+              revolutionAxisCenter: undefined,
               revolutionPhi: undefined,
               revolutionHalfView: undefined,
               revolutionMissingPlacement: undefined,
@@ -2438,9 +2501,7 @@ export default function useAnnotationsV2(options) {
       if (_annotations?.length) {
         const photoAnns = _annotations.filter(
           (a) =>
-            a &&
-            !a.isBaseMapAnnotation &&
-            baseMapById[a.baseMapId]?.isPhoto
+            a && !a.isBaseMapAnnotation && baseMapById[a.baseMapId]?.isPhoto
         );
         if (photoAnns.length > 0) {
           const photoIds = [...new Set(photoAnns.map((a) => a.baseMapId))];

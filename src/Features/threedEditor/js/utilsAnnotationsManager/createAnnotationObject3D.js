@@ -933,8 +933,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         // is exactly the builder's z = 0 default. When no placement exists, the
         // axis stays unresolved and we fall through to the default polyline wall
         // so the arc still renders.
+        // Arc hosted by the axis's OWN plan (`revolutionAxisOnPlan`, drawn in
+        // 3D above it): the lathe revolves around the plan normal through the
+        // axis centre, heights from the points' altitudes (builder `onPlan`).
         const axisPx = annotation.revolutionAxisPoints || [];
         if (axisPx.length >= 2) {
+          const onPlan = Boolean(annotation.revolutionAxisOnPlan);
           const arcPts = pointsToLocal(annotation.points || [], baseMap);
           const axisPts = pointsToLocal(axisPx, baseMap);
           // Partial revolution range, resolved from the AXIS.
@@ -946,7 +950,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           object = buildRevolutionMesh({
             arcPoints: arcPts,
             axisPoints: axisPts,
-            centerLocal: null,
+            centerLocal:
+              onPlan && annotation.revolutionAxisCenter
+                ? pixelToWorld(annotation.revolutionAxisCenter, baseMap)
+                : null,
+            onPlan,
+            verticalLift,
             orientation: baseMap.orientation,
             material,
             hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
@@ -1138,10 +1147,19 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         shape3DKey === "REVOLUTION" &&
         (annotation.revolutionAxisPoints?.length ?? 0) >= 2
       ) {
+        const onPlan = Boolean(annotation.revolutionAxisOnPlan);
         object = buildRevolutionCircleLine({
-          pointLocal: pixelToWorld(p, baseMap),
+          pointLocal: {
+            ...pixelToWorld(p, baseMap),
+            offsetBottom: p.offsetBottom ?? 0,
+          },
           axisPoints: pointsToLocal(annotation.revolutionAxisPoints, baseMap),
-          centerLocal: null,
+          centerLocal:
+            onPlan && annotation.revolutionAxisCenter
+              ? pixelToWorld(annotation.revolutionAxisCenter, baseMap)
+              : null,
+          onPlan,
+          verticalLift,
           orientation: baseMap.orientation,
           material,
           ...getRevolutionPartialPhi(annotation, baseMap, options),

@@ -239,11 +239,16 @@ function getArcMetrics(p0, p1, p2) {
 // is degenerate (P0 == Pn) so the caller can fall back to default behavior.
 // Arcs (point.type === "circle") are treated as straight points — out of
 // scope for v1.
+// `onPlanCenter` (plan pixels): the arc is hosted by the axis's own plan
+// (`revolutionAxisOnPlan`) — the radius is the plan distance to the axis
+// centre and each segment's length includes its altitude change
+// (offsetBottom, metres), mirroring buildRevolutionMesh's `onPlan` profile.
 function computeRevolutionSurface(
   points,
   meterByPx,
   hiddenSegmentsIdx = [],
-  axisPoints = null
+  axisPoints = null,
+  onPlanCenter = null
 ) {
   const n = points?.length ?? 0;
   if (n < 2) return 0;
@@ -253,7 +258,9 @@ function computeRevolutionSurface(
   // (radius = horizontal distance to it). Returns null when the axis is missing
   // so the caller can fall back to default polyline behavior.
   let radiusPx;
-  if (axisPoints && axisPoints.length >= 2) {
+  if (onPlanCenter) {
+    radiusPx = (p) => Math.hypot(p.x - onPlanCenter.x, p.y - onPlanCenter.y);
+  } else if (axisPoints && axisPoints.length >= 2) {
     const axisX =
       axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
     radiusPx = (p) => Math.abs(p.x - axisX);
@@ -265,9 +272,14 @@ function computeRevolutionSurface(
     if (hiddenSegmentsIdx.includes(i)) continue;
     const r1 = radiusPx(points[i]);
     const r2 = radiusPx(points[i + 1]);
+    const dzPx = onPlanCenter
+      ? ((points[i + 1].offsetBottom ?? 0) - (points[i].offsetBottom ?? 0)) /
+        meterByPx
+      : 0;
     const seg = Math.hypot(
       points[i + 1].x - points[i].x,
-      points[i + 1].y - points[i].y
+      points[i + 1].y - points[i].y,
+      dzPx
     );
     surfacePx2 += Math.PI * (r1 + r2) * seg;
   }
@@ -284,8 +296,14 @@ export function getRevolutionCirclePerimeter(annotation, meterByPx) {
   const axisPoints = annotation?.revolutionAxisPoints;
   const point = annotation?.point;
   if (!point || !axisPoints || axisPoints.length < 2) return null;
+  // POINT hosted by the axis's own plan: plan distance to the axis centre.
+  const c = annotation.revolutionAxisOnPlan
+    ? annotation.revolutionAxisCenter
+    : null;
   const axisX = axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
-  const radiusM = Math.abs(point.x - axisX) * meterByPx;
+  const radiusM =
+    (c ? Math.hypot(point.x - c.x, point.y - c.y) : Math.abs(point.x - axisX)) *
+    meterByPx;
   return 2 * Math.PI * radiusM;
 }
 
@@ -689,7 +707,10 @@ function computeAnnotationQties({
           points,
           meterByPx,
           annotation.hiddenSegmentsIdx || [],
-          annotation.revolutionAxisPoints || null
+          annotation.revolutionAxisPoints || null,
+          annotation.revolutionAxisOnPlan
+            ? annotation.revolutionAxisCenter || null
+            : null
         );
         if (revSurfaceM2 != null) {
           return {

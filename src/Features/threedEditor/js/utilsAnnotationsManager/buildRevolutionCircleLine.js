@@ -45,27 +45,39 @@ export default function buildRevolutionCircleLine({
   phiStart = 0,
   phiLength = Math.PI * 2,
   resolution = null,
+  // POINT hosted by the axis's OWN plan (see buildRevolutionMesh `onPlan`):
+  // radius = plan distance to `centerLocal`, height = the point's altitude
+  // above the plan (offsetBottom) on top of `verticalLift` (its offsetZ).
+  onPlan = false,
+  verticalLift = 0,
 }) {
   if (!pointLocal) return null;
-  if (!axisPoints || axisPoints.length < 2) return null;
+  if (!onPlan && (!axisPoints || axisPoints.length < 2)) return null;
+  if (onPlan && !centerLocal) return null;
 
   // Vertical-in-drawing axis position: average local x of the axis line.
-  const axisX = axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
+  const axisX = onPlan
+    ? centerLocal.x
+    : axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
 
   // Shared vertical reference = the axis line's bottom, so a circle keeps its
   // relative height against the other elements revolved around the same axis.
-  const baseY = Math.min(...axisPoints.map((p) => p.y));
+  const baseY = onPlan ? 0 : Math.min(...axisPoints.map((p) => p.y));
 
-  const radius = Math.abs(pointLocal.x - axisX);
+  const radius = onPlan
+    ? Math.hypot(pointLocal.x - centerLocal.x, pointLocal.y - centerLocal.y)
+    : Math.abs(pointLocal.x - axisX);
   if (!(radius > MIN_RADIUS_M)) return null;
-  const height = pointLocal.y - baseY;
+  const height = onPlan ? (pointLocal.offsetBottom ?? 0) : pointLocal.y - baseY;
 
-  const axisAlongNormal = orientation !== "VERTICAL";
+  const axisAlongNormal = onPlan || orientation !== "VERTICAL";
 
   // In-plane placement of the axis. With a linked point, use it; otherwise fall
   // back to the drawn axis's own location.
   let center;
-  if (centerLocal) {
+  if (onPlan) {
+    center = { x: centerLocal.x, y: centerLocal.y, z: verticalLift };
+  } else if (centerLocal) {
     center = { x: centerLocal.x, y: centerLocal.y, z: centerLocal.z ?? 0 };
   } else if (axisAlongNormal) {
     const avgAxisY =
