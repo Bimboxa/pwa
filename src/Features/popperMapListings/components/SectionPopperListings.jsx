@@ -242,12 +242,17 @@ function SortableRowPopperListing({
 
       {/* "..." menu of the listing (rename, favorites, duplicate, delete —
           "Retirer du …" for a linked listing), same button as the active
-          listing band. */}
-      <Tooltip title={moreS} arrow placement="top">
+          listing band. Selected row only — kept in the layout, invisible,
+          on the other rows so every count pill stays aligned. */}
+      <Tooltip title={selected ? moreS : ""} arrow placement="top">
         <Box
           component="button"
           onClick={(e) => onOpenMenu(e, listing)}
+          tabIndex={selected ? 0 : -1}
+          aria-hidden={!selected}
           sx={{
+            visibility: selected ? "visible" : "hidden",
+            pointerEvents: selected ? "auto" : "none",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
