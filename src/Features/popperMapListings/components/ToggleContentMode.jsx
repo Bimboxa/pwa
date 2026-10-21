@@ -5,8 +5,9 @@ import { setViewerContentMode } from "../popperMapListingsSlice";
 import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 
 // ---------------------------------------------------------------------------
-// ToggleContentMode — header toggle shared by the floating PopperMapListings
-// and the docked PanelDrawing: the module's objects (`showObjects`, labelled
+// ToggleContentMode — header toggle of the floating PopperMapListings (the
+// docked Dessin panel has no toggle: plain title + bottom base maps
+// section, like the Dessin popper): the module's objects (`showObjects`, labelled
 // after the business-objects module — "Ouvrages", "Quantités"…, far left) |
 // "Contenu" (`showContent`, the scope content of the SCOPE module) |
 // "Annotations" | "Photos" (Viewer module with photos, `showPhotos`) |

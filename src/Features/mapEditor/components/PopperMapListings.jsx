@@ -47,8 +47,7 @@ import FormatColorFill from "@mui/icons-material/FormatColorFill";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import { useOverlayAnnotationsBaseMapIds } from "Features/baseMapOverlays/hooks/useBaseMapOverlays";
+import useDisplayedAnnotationsBaseMapIds from "Features/popperMapListings/hooks/useDisplayedAnnotationsBaseMapIds";
 import SectionBaseMapLinkClones from "Features/baseMapLinks/components/SectionBaseMapLinkClones";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -1735,13 +1734,6 @@ export default function PopperMapListings() {
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
-  const { value: scopeBaseMaps } = useBaseMaps({});
-  const overlayAnnotationsBaseMapIds = useOverlayAnnotationsBaseMapIds({
-    baseMap,
-    baseMaps: scopeBaseMaps,
-    enabled: isDessin2d,
-  });
-
   // Auto-enable showLayers when the baseMap has layers in the MAP viewer.
   // Enable only: a manual choice (Dessin properties panel / Configuration
   // page) is never forced back, and "on" without any layer stays on so the
@@ -1752,51 +1744,15 @@ export default function PopperMapListings() {
     }
   }, [layers?.length, viewerKey]);
 
-  // 3D can show annotations from several base maps at once; mirror those extra
-  // base maps here so the panel's visible set matches the 3D scene.
-  const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
-
   // Base maps whose annotations the displayed editor shows — the main one
   // under its own eye, plus the 2D overlays with their badge on or the 3D
   // base maps with a display mode (title of the « Annotations repérées sur
-  // N fonds de plan » section).
-  const hideAnnotationsInViewer = useSelector(
-    (s) => s.viewers.hideAnnotationsInViewer
-  );
-  const hideAnnotationsIn3d = useSelector(
-    (s) => s.threedEditor.hideAnnotationsIn3d
-  );
-  const hideMainBaseMapAnnotationsIn3d = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
-  );
-  const otherDisplayedBaseMapIds = useMemo(
-    () =>
-      isDessin2d
-        ? overlayAnnotationsBaseMapIds
-        : hideAnnotationsIn3d
-          ? []
-          : extraBaseMapIdsIn3d,
-    [
-      isDessin2d,
-      overlayAnnotationsBaseMapIds,
-      hideAnnotationsIn3d,
-      extraBaseMapIdsIn3d,
-    ]
-  );
-  const displayedAnnotationsBaseMapIds = useMemo(() => {
-    if (!baseMap?.id) return [];
-    const mainShown = isDessin2d
-      ? !hideAnnotationsInViewer
-      : !hideAnnotationsIn3d && !hideMainBaseMapAnnotationsIn3d;
-    return [...(mainShown ? [baseMap.id] : []), ...otherDisplayedBaseMapIds];
-  }, [
-    baseMap?.id,
-    isDessin2d,
-    hideAnnotationsInViewer,
-    hideAnnotationsIn3d,
-    hideMainBaseMapAnnotationsIn3d,
+  // N fonds de plan » section). Shared with the docked Dessin panel.
+  const {
+    displayedBaseMapIds: displayedAnnotationsBaseMapIds,
     otherDisplayedBaseMapIds,
-  ]);
+  } = useDisplayedAnnotationsBaseMapIds({ baseMap, isDessin2d });
+  const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
   // Dessin module, main base map scope: the counters cover those base maps
   // on top of the main one (same set as the 3D mirror of the other modules).
   const widenToDisplayed =

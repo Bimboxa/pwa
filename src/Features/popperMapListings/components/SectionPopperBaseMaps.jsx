@@ -40,6 +40,10 @@ import bandButtonSx from "../utils/bandButtonSx";
 // that show the listings block; the legend poppers keep their tab. While
 // the list is detached the section is gone altogether (re-attach from the
 // detached popper's footer, which also expands the section).
+// Also pinned at the bottom of the docked Dessin panel (PanelDrawing,
+// `docked`): the editors mount no detached popper in that mode, so the
+// detach icon is hidden and the detached state is ignored — the section
+// always shows.
 // The expanded state lives in redux (popperMapListings.baseMapsPanelExpanded)
 // so it survives the popper remount between the 2D and 3D editors.
 // ---------------------------------------------------------------------------
@@ -51,6 +55,8 @@ export default function SectionPopperBaseMaps({
   listingIds,
   // Ids of the base maps whose annotations the displayed editor shows.
   displayedBaseMapIds,
+  // Docked Dessin panel: no detach icon, detached state ignored.
+  docked = false,
 }) {
   const dispatch = useDispatch();
 
@@ -67,7 +73,10 @@ export default function SectionPopperBaseMaps({
   const expanded = useSelector(
     (s) => s.popperMapListings.baseMapsPanelExpanded
   );
-  const detached = useSelector((s) => s.popperMapListings.baseMapsListDetached);
+  const detachedState = useSelector(
+    (s) => s.popperMapListings.baseMapsListDetached
+  );
+  const detached = detachedState && !docked;
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -158,12 +167,18 @@ export default function SectionPopperBaseMaps({
           {titleS(displayedAnnotationsCount, displayedBaseMapsCount)}
         </Typography>
 
-        <Box
-          onClick={(e) => e.stopPropagation()}
-          sx={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}
-        >
-          <IconButtonToggleDetached />
-        </Box>
+        {!docked && (
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <IconButtonToggleDetached />
+          </Box>
+        )}
 
         <Tooltip title={expanded ? collapseS : expandS} arrow placement="top">
           <Box

@@ -5,8 +5,7 @@ import { Box } from "@mui/material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
-import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
-import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
+import SectionPopperBaseMaps from "Features/popperMapListings/components/SectionPopperBaseMaps";
 import BandActiveListing from "./BandActiveListing";
 import FieldActiveListing from "./FieldActiveListing";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
@@ -25,6 +24,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
+import useDisplayedAnnotationsBaseMapIds from "Features/popperMapListings/hooks/useDisplayedAnnotationsBaseMapIds";
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
@@ -38,9 +38,11 @@ import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/du
 
 // ---------------------------------------------------------------------------
 // PanelDrawing — interactive left panel of the Dessin module (#310): listing
-// selector, template rows with the split draw button, and the drawing tools.
-// Replaces the floating PopperMapListings in this module; while a drawing
-// mode is armed the panel content swaps to the drawing helper.
+// selector, template rows with the split draw button, and, pinned at the
+// bottom like the Dessin popper, the « X annotations sur N fonds de plan »
+// section (SectionPopperBaseMaps). Replaces the floating PopperMapListings
+// in this module; while a drawing mode is armed the panel content swaps to
+// the drawing helper.
 // ---------------------------------------------------------------------------
 
 export default function PanelDrawing() {
@@ -61,11 +63,6 @@ export default function PanelDrawing() {
   // container).
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
-  // Header toggle "Annotations | Fonds de plan" (shared with the popper):
-  // the "Fonds de plan" side swaps the body for the base maps list.
-  const showBaseMaps = useSelector(
-    (s) => s.popperMapListings.viewerContentMode === "BASE_MAPS"
-  );
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -92,6 +89,12 @@ export default function PanelDrawing() {
   const isAllScope = viewerScope === "ALL";
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
+  // Base maps whose annotations the displayed editor shows (title of the
+  // bottom section) — same set as the Dessin popper.
+  const { displayedBaseMapIds } = useDisplayedAnnotationsBaseMapIds({
+    baseMap,
+    isDessin2d: !isThreedEditor,
+  });
   const annotationTemplates = useAnnotationTemplates();
   const spriteImage = useAnnotationSpriteImage();
 
@@ -322,20 +325,9 @@ export default function PanelDrawing() {
           paintedParts={detailPaintedParts}
           hostLabelById={detailHostLabelById}
         />
-      ) : showBaseMaps ? (
-        <>
-          <LeftDrawerPanelHeader>
-            <ToggleContentMode />
-          </LeftDrawerPanelHeader>
-          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
-            <SectionBaseMapsList />
-          </Box>
-        </>
       ) : (
         <>
-          <LeftDrawerPanelHeader>
-            <ToggleContentMode />
-          </LeftDrawerPanelHeader>
+          <LeftDrawerPanelHeader title="Annotations" />
 
           {baseMap && !baseMap.meterByPx && (
             <WarningBaseMapNotToScale sx={{ mx: 1.5, mt: 0 }} />
@@ -388,6 +380,18 @@ export default function PanelDrawing() {
               annotations drawn without template: count, solo and eye (the
               "Dessin" command itself lives in the commands toolbar). */}
           <RowTemplatelessVisibility count={templatelessCount} />
+
+          {/* « X annotations sur N fonds de plan » — pinned at the very
+              bottom like the Dessin popper: header with the expand /
+              collapse button and, expanded, the base maps list. Docked: no
+              detach icon (no detached popper is mounted in that mode). */}
+          <Box sx={{ flexShrink: 0 }}>
+            <SectionPopperBaseMaps
+              listingIds={displayedListings.map((l) => l.id)}
+              displayedBaseMapIds={displayedBaseMapIds}
+              docked={leftPanelDocked}
+            />
+          </Box>
         </>
       )}
     </Box>
