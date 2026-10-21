@@ -225,12 +225,14 @@ export default class SceneManager {
     return grid;
   };
 
-  // Coloured axes at the world origin, hidden by default (3D view settings
+  // Coloured axes of the user frame, hidden by default (3D view settings
   // "Afficher les axes dans la scène"). User-facing convention is Z up
   // (utils/userCoords): world Y (vertical) takes the Z colour, world Z the Y
-  // colour. The yaw of the displayed frame is applied by MainThreedEditor
-  // (axes.rotation.y). Drawn on top of the scene so it stays readable over a
-  // base map; tagged isGizmo like the transform gizmos.
+  // colour. The yaw and the origin of the displayed frame are applied by
+  // MainThreedEditor (axes.rotation.y / axes.position, from
+  // threedEditor.axesSettings). Drawn on top of the scene so it stays
+  // readable over a base map; tagged isGizmo like the transform gizmos, and
+  // isAxesFrame so its origin enters the vertex snap index (useVertexSnap).
   _addAxes = () => {
     const axes = new AxesHelper(SCENE_AXES_SIZE_M);
     axes.setColors(AXIS_COLORS.X, AXIS_COLORS.Z, AXIS_COLORS.Y);
@@ -240,6 +242,7 @@ export default class SceneManager {
     axes.renderOrder = 999;
     axes.visible = false;
     axes.userData.isGizmo = true;
+    axes.userData.isAxesFrame = true;
     this.scene.add(axes);
     return axes;
   };

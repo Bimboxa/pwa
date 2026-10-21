@@ -28,7 +28,9 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // (userData.isMesh3d) — cut mailles carry vertices (cut endpoints,
 // mid-edge points) that exist nowhere else. Objects hidden via an
 // ancestor's `visible = false` (e.g. "Masquer les annotations") are
-// skipped.
+// skipped. The origin of the user frame (the in-scene axes helper,
+// userData.isAxesFrame, placed by « Orienter le repère ») is one more
+// snappable point while the axes are shown — a lone vertex, no edge.
 // options.excludeSubtree: an Object3D whose whole subtree is skipped — used
 // by the "Déplacer" tool to build a target-only index that never contains
 // the carried base map (its own geometry would otherwise screen the drop
@@ -59,6 +61,17 @@ export function buildIndex(scene, options = {}) {
   }
 
   scene.traverse((obj) => {
+    if (obj.userData?.isAxesFrame) {
+      // User frame origin: a direct child of the scene (its own `visible`
+      // is the whole story), never an annotation.
+      if (obj.visible && !annotationsOnly) {
+        verts.push({
+          position: obj.getWorldPosition(new Vector3()),
+          meshKey: obj.uuid,
+        });
+      }
+      return;
+    }
     if (!obj.isMesh || !obj.visible) return;
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
     if (obj.userData?.isPaintOverlay) return; // painted part (Pinceau) skin
