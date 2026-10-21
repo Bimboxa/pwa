@@ -1,22 +1,32 @@
 import buildAnnotationEdgeRings from "Features/annotations/utils/buildAnnotationEdgeRings";
 import findSharedEdgeChains from "Features/annotations/utils/findSharedEdgeChains";
+import polygonsIntersectionArea from "Features/geometry/utils/polygonsIntersectionArea";
 
-import { TOTAL_COVERAGE } from "../constants/duplicatesDetectionConstants";
+import {
+  MIN_POLYGON_COVERAGE,
+  TOTAL_COVERAGE,
+} from "../constants/duplicatesDetectionConstants";
 
 // PURE matcher of the duplicates detection (runs in the worker, or on the
 // main thread as a fallback). Input: serialized candidates (see
-// serializeAnnotationsForDetection), pixel space. Two annotations are
-// duplicates when they share the same template (+ type) and a portion of
-// their paths runs within `thresholdPx` of each other over more than
-// `minOverlapPx` (findSharedEdgeChains: projected intervals, chains stitched
-// along the ring). A crossing or a touching corner yields no chain.
+// serializeAnnotationsForDetection), pixel space. Candidates are grouped by
+// template (+ type); within a group:
+//   - lines / strips (measure "LENGTH"): duplicates when a portion of their
+//     paths runs within `thresholdPx` of each other over more than
+//     `minOverlapPx` (findSharedEdgeChains: projected intervals, chains
+//     stitched along the ring). A crossing or a touching corner yields none;
+//   - polygons (measure "AREA"): duplicates when their surfaces intersect
+//     (polygon-clipping) over at least `minOverlapPx²` AND
+//     `minPolygonCoverage` of the smaller one — neighbours sharing a side,
+//     or overlapping by a sliver, are not duplicates.
 //
 // Returns {
 //   pairs: [{ aId, bId, overlapPx }],
-//   duplicates: [{ annotationId, annotationTemplateId, type, layerId,
-//                  overlapPx, ownLengthPx, coverage, isTotal, partnerIds }],
+//   duplicates: [{ annotationId, annotationTemplateId, type, layerId, measure,
+//                  overlapPx, ownMeasurePx, coverage, isTotal, partnerIds }],
 //   stats: { candidates, groups, pairsChecked, pairs, durationMs },
 // }
+// `overlapPx` / `ownMeasurePx` are px for a LENGTH measure, px² for AREA.
 
 function segmentLength(a, b) {
   return Math.hypot(b.x - a.x, b.y - a.y);
@@ -72,6 +82,17 @@ function bboxesIntersect(b1, b2) {
   );
 }
 
+// polygon-clipping multipolygon of a POLYGON's rings: MAIN outer + CUT holes.
+function ringsToMultiPolygon(rings) {
+  const toCoords = (ring) => ring.points.map((p) => [p.x, p.y]);
+  const outer = rings.find((r) => r.kind === "MAIN");
+  if (!outer || outer.points.length < 3) return null;
+  const holes = rings
+    .filter((r) => r.kind === "CUT" && r.points.length >= 3)
+    .map(toCoords);
+  return [[toCoords(outer), ...holes]];
+}
+
 // Length of `source` running along `other` (sum of the shared chains).
 function getOverlapAlong(source, other, { thresholdPx, minOverlapPx }) {
   const chains = findSharedEdgeChains({
@@ -84,7 +105,25 @@ function getOverlapAlong(source, other, { thresholdPx, minOverlapPx }) {
   });
   let overlap = 0;
   for (const { chain } of chains) overlap += chainLength(chain);
-  return Math.min(overlap, source.ownLengthPx);
+  return Math.min(overlap, source.ownMeasurePx);
+}
+
+function getLengthOverlap(a, b, options) {
+  // measured both ways: the interval matcher samples the source edges, so
+  // the longer of the two readings is the fairest overlap.
+  return Math.max(
+    getOverlapAlong(a, b, options),
+    getOverlapAlong(b, a, options)
+  );
+}
+
+function getAreaOverlap(a, b, { minOverlapPx, minPolygonCoverage }) {
+  if (!a.polygon || !b.polygon) return 0;
+  const { interArea } = polygonsIntersectionArea(a.polygon, b.polygon);
+  if (interArea < minOverlapPx * minOverlapPx) return 0;
+  const smaller = Math.min(a.ownMeasurePx, b.ownMeasurePx);
+  if (smaller <= 0 || interArea / smaller < minPolygonCoverage) return 0;
+  return interArea;
 }
 
 function getGroupKey(annotation, sameLayer) {
@@ -95,7 +134,7 @@ function getGroupKey(annotation, sameLayer) {
 }
 
 function recordDuplicate(byId, entry, partnerId, overlapPx, totalCoverage) {
-  const { annotation, ownLengthPx } = entry;
+  const { annotation, measure, ownMeasurePx } = entry;
   let dup = byId.get(annotation.id);
   if (!dup) {
     dup = {
@@ -103,8 +142,9 @@ function recordDuplicate(byId, entry, partnerId, overlapPx, totalCoverage) {
       annotationTemplateId: annotation.annotationTemplateId ?? null,
       type: annotation.type,
       layerId: annotation.layerId ?? null,
+      measure,
       overlapPx: 0,
-      ownLengthPx,
+      ownMeasurePx,
       coverage: 0,
       isTotal: false,
       partnerIds: [],
@@ -113,7 +153,7 @@ function recordDuplicate(byId, entry, partnerId, overlapPx, totalCoverage) {
   }
   dup.partnerIds.push(partnerId);
   dup.overlapPx = Math.max(dup.overlapPx, overlapPx);
-  dup.coverage = ownLengthPx > 0 ? dup.overlapPx / ownLengthPx : 0;
+  dup.coverage = ownMeasurePx > 0 ? dup.overlapPx / ownMeasurePx : 0;
   dup.isTotal = dup.coverage >= totalCoverage;
 }
 
@@ -123,6 +163,7 @@ export default function findOverlappingAnnotations(
     thresholdPx,
     minOverlapPx,
     totalCoverage = TOTAL_COVERAGE,
+    minPolygonCoverage = MIN_POLYGON_COVERAGE,
     sameLayer = false,
   } = {}
 ) {
@@ -134,18 +175,26 @@ export default function findOverlappingAnnotations(
       ? minOverlapPx
       : 2 * threshold;
 
-  // 1. rings + bbox + own length of every candidate
+  // 1. rings + bbox + own measure (length, or area for a polygon)
   const entries = [];
   for (const annotation of annotations ?? []) {
     const rings = buildAnnotationEdgeRings(annotation);
     if (!rings?.length) continue;
-    const ownLengthPx = rings.reduce((sum, ring) => sum + ringLength(ring), 0);
-    if (ownLengthPx <= 0) continue;
+    const isArea = annotation.type === "POLYGON";
+    const polygon = isArea ? ringsToMultiPolygon(rings) : null;
+    const ownMeasurePx = isArea
+      ? polygon
+        ? polygonsIntersectionArea(polygon, polygon).areaA
+        : 0
+      : rings.reduce((sum, ring) => sum + ringLength(ring), 0);
+    if (ownMeasurePx <= 0) continue;
     entries.push({
       annotation,
       rings,
+      polygon,
+      measure: isArea ? "AREA" : "LENGTH",
       bbox: getRingsBBox(rings, threshold),
-      ownLengthPx,
+      ownMeasurePx,
     });
   }
 
@@ -162,7 +211,11 @@ export default function findOverlappingAnnotations(
   const pairs = [];
   const duplicatesById = new Map();
   let pairsChecked = 0;
-  const options = { thresholdPx: threshold, minOverlapPx: minOverlap };
+  const options = {
+    thresholdPx: threshold,
+    minOverlapPx: minOverlap,
+    minPolygonCoverage,
+  };
 
   for (const group of groups.values()) {
     if (group.length < 2) continue;
@@ -174,12 +227,10 @@ export default function findOverlappingAnnotations(
         if (b.bbox.minX > a.bbox.maxX) break;
         if (!bboxesIntersect(a.bbox, b.bbox)) continue;
         pairsChecked += 1;
-        // measured both ways: the interval matcher samples the source edges,
-        // so the longer of the two readings is the fairest overlap.
-        const overlapPx = Math.max(
-          getOverlapAlong(a, b, options),
-          getOverlapAlong(b, a, options)
-        );
+        const overlapPx =
+          a.measure === "AREA"
+            ? getAreaOverlap(a, b, options)
+            : getLengthOverlap(a, b, options);
         if (overlapPx <= 0) continue;
         pairs.push({ aId: a.annotation.id, bId: b.annotation.id, overlapPx });
         recordDuplicate(

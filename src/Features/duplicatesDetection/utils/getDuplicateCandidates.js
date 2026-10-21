@@ -11,7 +11,8 @@ export default function getDuplicateCandidates(
 ) {
   return (annotations ?? []).filter((a) => {
     if (!a || !types.includes(a.type)) return false;
-    if (!Array.isArray(a.points) || a.points.length < 2) return false;
+    const minPoints = a.type === "POLYGON" ? 3 : 2;
+    if (!Array.isArray(a.points) || a.points.length < minPoints) return false;
     // « même type » = same template: templateless / orphan lines have none.
     if (!a.annotationTemplateId || a._isOrphan) return false;
     if (baseMapId && a.baseMapId !== baseMapId) return false;

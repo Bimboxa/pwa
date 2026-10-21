@@ -1,8 +1,9 @@
 # Duplicates detection (`src/Features/duplicatesDetection`)
 
 « Détection des doublons »: a commands-toolbar command (`DETECT_DUPLICATES`,
-2D editor) that finds the POLYLINE / STRIP annotations **of the same template**
-whose paths overlap, totally or partially, on the main base map. It completes
+2D editor) that finds the POLYLINE / STRIP annotations **of the same template** whose
+paths overlap, and the POLYGON annotations of the same template whose
+surfaces intersect, totally or partially, on the main base map. It completes
 the exact-geometry « Doublons » card of the listing properties
 (`findDuplicateAnnotations`), which stays in place.
 
@@ -22,10 +23,13 @@ the exact-geometry « Doublons » card of the listing properties
    thread after a macrotask.
 4. `findOverlappingAnnotations` (pure): rings via `buildAnnotationEdgeRings`
    (arcs expanded), groups by `annotationTemplateId|type`, bbox sweep, then
-   `findSharedEdgeChains` per pair in both directions; overlap = summed chain
-   length (px). Output `{ pairs, duplicates, stats }`, one `duplicates` entry
-   per annotation (`overlapPx`, `ownLengthPx`, `coverage`, `isTotal`,
-   `partnerIds`).
+   lines / strips: `findSharedEdgeChains` per pair in both directions,
+   overlap = summed chain length (px); polygons: `polygonsIntersectionArea`
+   (polygon-clipping, cuts as holes), overlap = intersection area (px²) when
+   it reaches `MIN_OVERLAP²` and `MIN_POLYGON_COVERAGE` of the smaller
+   polygon. Output `{ pairs, duplicates, stats }`, one `duplicates` entry per
+   annotation (`measure` LENGTH | AREA, `overlapPx`, `ownMeasurePx`,
+   `coverage`, `isTotal`, `partnerIds`).
 5. `duplicatesDetectionSlice` holds `status` (`idle | running | done | error`),
    `runId` (stale results are ignored), `result`, the run's `meterByPx` /
    `hasScale` (px → m formatting) and the user `toleranceCm`.
@@ -35,7 +39,9 @@ the exact-geometry « Doublons » card of the listing properties
 - tolerance: `toleranceCm` of the slice (default 2 cm, field in the helper),
   `TOLERANCE_PX_FALLBACK` without scale, floor `MIN_THRESHOLD_PX`;
 - minimum shared length: `max(2 × tolerance, MIN_OVERLAP_M | MIN_OVERLAP_PX)`;
-- `TOTAL_COVERAGE`: coverage ratio above which a duplicate is « total ».
+- `TOTAL_COVERAGE`: coverage ratio above which a duplicate is « total »;
+- `MIN_POLYGON_COVERAGE`: share of the smaller polygon the intersection must
+  reach (adjacent surfaces overlapping by a sliver are not duplicates).
 
 ## Helper display
 
