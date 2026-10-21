@@ -7,8 +7,8 @@ const EMPTY = { rows: [], missingCount: 0 };
 
 // Joins the duplicates of the last run with the helper's live annotations /
 // templates into display rows: label (own label, else « Modèle 03 » numbered
-// in the template's draw order like the Dessin panel), swatch color, overlap
-// text in m (calibrated run) or px. Annotations deleted since the run are
+// in the template's draw order like the Dessin panel), the template (icon),
+// overlap text in m (calibrated run) or px. Annotations deleted since the run are
 // counted in `missingCount` instead of rendered.
 export default function useDuplicatesHelperRows({
   result,
@@ -53,17 +53,11 @@ export default function useDuplicatesHelperRows({
           rankById.get(annotation.id) ?? 0,
           2
         )}`;
-      const color =
-        template?.fillColor ??
-        template?.strokeColor ??
-        annotation.fillColor ??
-        annotation.strokeColor ??
-        "#999999";
       const overlapText =
         hasScale && meterByPx
           ? `${(dup.overlapPx * meterByPx).toFixed(2)} m`
           : `${Math.round(dup.overlapPx)} px`;
-      rows.push({ ...dup, annotation, template, label, color, overlapText });
+      rows.push({ ...dup, annotation, template, label, overlapText });
     }
     return { rows, missingCount };
   }, [result, annotations, templateById, meterByPx, hasScale]);

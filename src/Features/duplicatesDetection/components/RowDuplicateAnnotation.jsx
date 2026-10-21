@@ -1,19 +1,14 @@
 import { Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+
 // ---------------------------------------------------------------------------
-// RowDuplicateAnnotation — one duplicate of the helper list: swatch of the
-// template color, label, overlap line. Clicking the row selects the
+// RowDuplicateAnnotation — one duplicate of the helper list: the template
+// icon (same per-type glyph as the edit toolbar header: line, strip…),
+// label, overlap line. Clicking the row selects the
 // annotation on the map (the parent passes useSelectAnnotationFromPanel).
 // ---------------------------------------------------------------------------
-
-function safeAlpha(color, value) {
-  try {
-    return alpha(color, value);
-  } catch {
-    return color;
-  }
-}
 
 export default function RowDuplicateAnnotation({ row, selected, onClick }) {
   // strings
@@ -53,16 +48,10 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
         },
       }}
     >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: 1.5,
-          flexShrink: 0,
-          bgcolor: safeAlpha(row.color, 0.25),
-          border: "2px solid",
-          borderColor: row.color,
-        }}
+      <AnnotationTemplateIcon
+        template={row.template ?? row.annotation}
+        size={24}
+        use3D={false}
       />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
