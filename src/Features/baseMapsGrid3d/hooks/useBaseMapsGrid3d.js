@@ -277,25 +277,24 @@ export default function useBaseMapsGrid3d({
       const controlsManager = sceneManager.controlsManager;
       const { box, yaw } = result;
       // Top-down over the table, the sheets upright on screen (azimuth = the
-      // table's yaw), while the sheets fly. After the 2D -> 3D switch
-      // animation when the grid opens on a T toggle (SCOPE module): its
-      // dolly-zoom would fight the fit. The editor chrome hidden by the grid
-      // (Dessin module) leaves in the same commit: the canvas is re-synced
-      // to its container before the camera frames the table.
-      waitForViewerSwitch()
-        .then(() => {
-          if (!manager.isActive()) return null;
-          sceneManager.ensureSizeSynced?.();
-          return controlsManager?.animateToTopDown?.({
-            target: box.getCenter(box.min.clone()),
-            azimuthRad: yaw,
-          });
-        })
-        .then(() => {
-          if (!manager.isActive()) return;
-          sceneManager.ensureSizeSynced?.();
-          controlsManager?.fitToBox3(box);
+      // table's yaw), while the sheets fly. One framing under explicit
+      // angles (fitToBox3FromAngles): cameraControls.fitToBox would round
+      // the azimuth to the nearest axis and undo the yaw — the table of a
+      // main base map rotated in 3D landed turned by `yaw mod 90°`. After
+      // the 2D -> 3D switch animation when the grid opens on a T toggle
+      // (SCOPE module): its dolly-zoom would fight the fit. The editor
+      // chrome hidden by the grid (Dessin module) leaves in the same commit:
+      // the canvas is re-synced to its container before the camera frames
+      // the table.
+      waitForViewerSwitch().then(() => {
+        if (!manager.isActive()) return;
+        sceneManager.ensureSizeSynced?.();
+        return controlsManager?.fitToBox3FromAngles?.({
+          box,
+          azimuthRad: yaw,
+          polarRad: 0.001, // top-down, same pole guard as animateToTopDown
         });
+      });
     }
   }, [active, sheetsKey, listingId, projectId, sceneEpoch, pinned, dessin]);
 

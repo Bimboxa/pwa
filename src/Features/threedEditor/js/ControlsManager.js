@@ -485,8 +485,10 @@ export default class ControlsManager {
       Math.max(0.001, Math.acos(Math.min(1, Math.max(-1, dir.y))))
     );
 
-    await this.animateToTopDown({ target: center, azimuthRad, polarRad });
-    this.fitToBox3(box);
+    // One framing under these exact angles: cameraControls.fitToBox would
+    // round them to the nearest axis and pull the camera off an oblique
+    // face (a vertical plan at 30°, a slanted mesh face).
+    await this.fitToBox3FromAngles({ box, azimuthRad, polarRad });
     return appliedSide;
   };
 
