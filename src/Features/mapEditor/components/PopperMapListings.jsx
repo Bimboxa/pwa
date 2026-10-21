@@ -56,6 +56,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import SectionListingProcedures from "Features/annotationsAuto/components/SectionListingProcedures";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
+import EmptyStateCreateAnnotationTemplate from "Features/annotations/components/EmptyStateCreateAnnotationTemplate";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
@@ -967,93 +968,108 @@ function AnnotationTemplatesForListing({
     [reorderAnnotationTemplates, annotationTemplates, readOnly]
   );
 
+  // helpers - empty listing: the explicit create-first-template box replaces
+  // the rows + dashed add row (`allTemplates` is undefined while loading).
+  // Not in 3D (read-only), while SELECT-filtering nor for a linked listing.
+
+  const canEdit = !isThreedViewer && !visibleTemplateIds && !readOnly;
+  const showEmptyState = canEdit && allTemplates && allTemplates.length === 0;
+
   // render
 
   return (
     <Box>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={sortableIds}
-          strategy={verticalListSortingStrategy}
+      {!showEmptyState && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <List dense disablePadding>
-            {groupedItems?.map((item, idx) => {
-              if (item.isGroupDivider) {
+          <SortableContext
+            items={sortableIds}
+            strategy={verticalListSortingStrategy}
+          >
+            <List dense disablePadding>
+              {groupedItems?.map((item, idx) => {
+                if (item.isGroupDivider) {
+                  return (
+                    <Divider
+                      key={`divider-${idx}`}
+                      sx={{ mx: 3, my: 0.5, borderColor: "divider" }}
+                    />
+                  );
+                }
+                if (item.isGroupHeader) {
+                  return (
+                    <Typography
+                      key={`group-${item.groupLabel}`}
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        pl: 3,
+                        pt: idx > 0 ? 1 : 0.5,
+                        pb: 0.5,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        fontWeight: 600,
+                        fontSize: "0.7rem",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {item.groupLabel}
+                    </Typography>
+                  );
+                }
+                if (item?.isDivider) return null;
+                // A BASE_MAP_LINK section mark is authored on plans only; on a
+                // vertical base map its clones come from the dedicated
+                // "Coupes / élévations liées" section (SectionBaseMapLinkClones).
+                if (
+                  isVerticalBaseMap &&
+                  resolveDrawingShape(item) === "BASE_MAP_LINK"
+                )
+                  return null;
+                const templateQties = qtiesById?.[item.id];
+                // Annotations + parts painted in 3D with the template: both
+                // are counted (colored main quantity).
+                const count =
+                  (templateQties?.count || 0) +
+                  (templateQties?.paintedCount || 0);
+                const qtyLabel = templateQties?.mainQtyLabel;
                 return (
-                  <Divider
-                    key={`divider-${idx}`}
-                    sx={{ mx: 3, my: 0.5, borderColor: "divider" }}
+                  <SortableAnnotationTemplateRow
+                    key={item.id}
+                    annotationTemplate={item}
+                    count={count}
+                    qtyLabel={qtyLabel}
+                    listingId={listingId}
+                    spriteImage={spriteImage}
+                    isVerticalBaseMap={isVerticalBaseMap}
+                    forceDrawMode={
+                      isMeshesModule && resolveDrawingShape(item) === "COTE"
+                    }
+                    readOnly={readOnly}
                   />
                 );
-              }
-              if (item.isGroupHeader) {
-                return (
-                  <Typography
-                    key={`group-${item.groupLabel}`}
-                    variant="caption"
-                    sx={{
-                      display: "block",
-                      pl: 3,
-                      pt: idx > 0 ? 1 : 0.5,
-                      pb: 0.5,
-                      color: "text.secondary",
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      fontSize: "0.7rem",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    {item.groupLabel}
-                  </Typography>
-                );
-              }
-              if (item?.isDivider) return null;
-              // A BASE_MAP_LINK section mark is authored on plans only; on a
-              // vertical base map its clones come from the dedicated
-              // "Coupes / élévations liées" section (SectionBaseMapLinkClones).
-              if (
-                isVerticalBaseMap &&
-                resolveDrawingShape(item) === "BASE_MAP_LINK"
-              )
-                return null;
-              const templateQties = qtiesById?.[item.id];
-              // Annotations + parts painted in 3D with the template: both
-              // are counted (colored main quantity).
-              const count =
-                (templateQties?.count || 0) +
-                (templateQties?.paintedCount || 0);
-              const qtyLabel = templateQties?.mainQtyLabel;
-              return (
-                <SortableAnnotationTemplateRow
-                  key={item.id}
-                  annotationTemplate={item}
-                  count={count}
-                  qtyLabel={qtyLabel}
-                  listingId={listingId}
-                  spriteImage={spriteImage}
-                  isVerticalBaseMap={isVerticalBaseMap}
-                  forceDrawMode={
-                    isMeshesModule && resolveDrawingShape(item) === "COTE"
-                  }
-                  readOnly={readOnly}
-                />
-              );
-            })}
-          </List>
-        </SortableContext>
-      </DndContext>
+              })}
+            </List>
+          </SortableContext>
+        </DndContext>
+      )}
 
       {/* « Annot. sans modèle » (orphan annotations of the listing) then
           + Nouveau modele — hidden in 3D (read-only), while SELECT-filtering
           and for a listing linked from another scope */}
-      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+      {canEdit && (
         <RowOrphanAnnotations listingId={listingId} variant="popper" />
       )}
-      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+      {showEmptyState && (
+        <EmptyStateCreateAnnotationTemplate
+          listingId={listingId}
+          templateDefaults={templateDefaults}
+        />
+      )}
+      {canEdit && !showEmptyState && (
         <ListItemButton
           onClick={() => setOpenCreateDialog(true)}
           sx={{
@@ -1098,7 +1114,7 @@ function AnnotationTemplatesForListing({
       {/* procedures linked to the listing ("Dessin auto"), below the add
           row — hidden in 3D (read-only), while SELECT-filtering and for a
           listing linked from another scope */}
-      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
+      {canEdit && (
         <SectionListingProcedures
           listingId={listingId}
           baseMapId={selectedBaseMapId}

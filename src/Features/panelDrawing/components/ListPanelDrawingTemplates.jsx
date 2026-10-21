@@ -15,18 +15,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import {
-  Box,
-  Button,
-  List,
-  ListItemButton,
-  Typography,
-  Divider,
-} from "@mui/material";
+import { Box, List, ListItemButton, Typography, Divider } from "@mui/material";
 import Add from "@mui/icons-material/Add";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
+import EmptyStateCreateAnnotationTemplate from "Features/annotations/components/EmptyStateCreateAnnotationTemplate";
 import SectionListingProcedures from "Features/annotationsAuto/components/SectionListingProcedures";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -124,43 +118,7 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
           variant="panel"
           sx={{ mb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
         />
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 1.5,
-            mx: 1.5,
-            px: 2,
-            py: 3,
-            textAlign: "center",
-            bgcolor: "background.paper",
-            border: "1px dashed",
-            borderColor: "divider",
-            borderRadius: 3,
-          }}
-        >
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            Aucun modèle dans cette liste. Créez votre premier modèle pour
-            commencer à dessiner.
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<Add />}
-            onClick={() => setOpenCreateDialog(true)}
-          >
-            Nouveau modèle
-          </Button>
-
-          {openCreateDialog && (
-            <DialogCreateAnnotationTemplate
-              open={openCreateDialog}
-              onClose={() => setOpenCreateDialog(false)}
-              listingId={listingId}
-            />
-          )}
-        </Box>
+        <EmptyStateCreateAnnotationTemplate listingId={listingId} />
       </>
     );
   }
