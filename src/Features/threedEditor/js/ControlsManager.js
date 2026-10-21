@@ -825,6 +825,14 @@ export default class ControlsManager {
     }
   };
 
+  // Set the orbit point to a known world point (drawing mode: the snap shown
+  // under the marker, i.e. the point a click would place). Same guard as
+  // updateRotationPivotFromEvent: never fight a gizmo / lasso drag.
+  setRotationPivot = (point) => {
+    if (!this.cameraControls?.enabled || !point) return;
+    this.cameraControls.setOrbitPoint(point.x, point.y, point.z);
+  };
+
   // Resolve the world point under the cursor, in priority order:
   //   (a) the nearest opaque mesh hit (see-through meshes are ignored so a
   //       dimmed annotation never captures the pivot),

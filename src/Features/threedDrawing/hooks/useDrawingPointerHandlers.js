@@ -1127,6 +1127,16 @@ export default function useDrawingPointerHandlers() {
     }
 
     function onPointerDown(e) {
+      // Orbit / pan around the point under the cursor: MainThreedEditor's
+      // handlePointerDown stands aside while drawing (same pattern as the
+      // brush). Prefer the snap shown under the marker — the point a click
+      // would place — and fall back to the raycast under the cursor.
+      const controlsManager = editor.sceneManager?.controlsManager;
+      if (controlsManager?.isPivotGesture?.(e)) {
+        const snapPosition = getLastSnap()?.position;
+        if (snapPosition) controlsManager.setRotationPivot(snapPosition);
+        else controlsManager.updateRotationPivotFromEvent?.(e);
+      }
       if (e.button !== 0) return;
       downPosRef.current = { x: e.clientX, y: e.clientY };
       isDraggingRef.current = false;

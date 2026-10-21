@@ -2017,7 +2017,8 @@ export default function MainThreedEditor() {
       if (isWithinPopper(event)) {
         return;
       }
-      // Drawing mode owns the pointer.
+      // Drawing mode owns the pointer (it re-anchors the orbit point itself —
+      // see useDrawingPointerHandlers.onPointerDown).
       if (drawingActiveRef.current) {
         return;
       }
