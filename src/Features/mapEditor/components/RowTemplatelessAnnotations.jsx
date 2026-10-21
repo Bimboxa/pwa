@@ -102,7 +102,9 @@ export default function RowTemplatelessAnnotations({ annotations }) {
           sx={{
             alignItems: "center",
             gap: 1,
-            bgcolor: "white",
+            // Grey like the panel around the listing / templates cards: the
+            // row is scope-level, not part of the active listing's card.
+            bgcolor: "background.default",
             pl: 3,
             pr: 1,
             py: 0.5,

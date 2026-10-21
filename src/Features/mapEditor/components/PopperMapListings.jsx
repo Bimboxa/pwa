@@ -2773,7 +2773,11 @@ export default function PopperMapListings() {
                 !isThreedViewer &&
                 !visibleTemplateIds && (
                   <Box
-                    sx={{ borderTop: "1px solid", borderColor: "panel.border" }}
+                    sx={{
+                      borderTop: "1px solid",
+                      borderColor: "panel.border",
+                      bgcolor: "background.default",
+                    }}
                   >
                     <RowTemplatelessAnnotations
                       annotations={templatelessAnnotations}
