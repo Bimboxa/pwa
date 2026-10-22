@@ -33,8 +33,11 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // snappable point while the axes are shown — a lone vertex, no edge.
 // Snap-only anchors (userData.snapAnchors, an array of [x, y, z] in the
 // object's local space on any Object3D, e.g. the rim ends of a plan
-// revolution axis) are lone vertices too, under the same ancestor rules as
-// a mesh.
+// revolution axis, the measured points of a COTE / RULER) are lone vertices
+// too, under the same ancestor rules as a mesh. Dimension anchors
+// (userData.isDimensionSnapAnchors) are left out of an `annotationsOnly`
+// index: a cote is no grabbable annotation, and one sitting on a polyline
+// vertex must not screen that vertex from the grab.
 // options.excludeSubtree: an Object3D whose whole subtree is skipped — used
 // by the "Déplacer" tool to build a target-only index that never contains
 // the carried base map (its own geometry would otherwise screen the drop
@@ -84,6 +87,7 @@ export function buildIndex(scene, options = {}) {
     if (obj.userData?.isDecor) return; // scan base maps (no CPU geometry)
     if (obj.userData?.isHatchFill) return; // hatched fill band / lines
     if (obj.userData?.isRevolutionAxisCircle) return; // axis base circle (decoration)
+    if (annotationsOnly && obj.userData?.isDimensionSnapAnchors) return; // not grabbable
     let isSnappable = false;
     let nodeId = null; // owning annotation, when there is one
     let parent = obj;
