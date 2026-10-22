@@ -2,6 +2,7 @@ import {
   MeshLambertMaterial,
   Color,
   Group,
+  Object3D,
   Vector3,
   BufferGeometry,
   Float32BufferAttribute,
@@ -35,6 +36,7 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 import { getRevolutionAxisContourArcs } from "Features/annotations/utils/revolutionAxisGlyph";
+import getRevolutionAxisRimAnchors from "Features/revolutionAxes/utils/getRevolutionAxisRimAnchors";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import {
   createAnnotationPbrMaterial,
@@ -1347,6 +1349,23 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           }),
           REVOLUTION_AXIS_LINEWIDTH_PX
         );
+      }
+      // Rim snap anchors: the two diameter ends along the cut direction (or
+      // the two sector ends), the 3D twin of the 2D `_snapPoints` of the
+      // axis. The circle itself stays display-only; these ride a bare
+      // Object3D read by useVertexSnap's buildIndex (userData.snapAnchors,
+      // local space) — no geometry, no raycast. At z0 like the axis base
+      // (not the 1 mm circle lift) so a snapped point lands on the plan.
+      const rimAnchors = getRevolutionAxisRimAnchors({
+        cx: local.x,
+        cy: local.y,
+        r,
+        annotation,
+      });
+      if (rimAnchors.length) {
+        const anchors = new Object3D();
+        anchors.userData.snapAnchors = rimAnchors.map((a) => [a.x, a.y, z0]);
+        axisGroup.add(anchors);
       }
       object = axisGroup;
       break;
