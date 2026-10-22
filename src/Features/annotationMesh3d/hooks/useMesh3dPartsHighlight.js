@@ -19,6 +19,7 @@ import {
   buildFaceStippleOverlay,
   buildStippleOverlayFromPositions,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import {
@@ -131,6 +132,13 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
     }
 
     const isMeshObject = Boolean(annoObject.userData?.isAnnotationMesh3d);
+    // A mesh host carved live by a subtraction has no face meshes left (the
+    // CSG collapsed them): a part selected before the relation was added
+    // would point at stored faces that are not on screen — drop it.
+    if (isMeshObject && hasCarvedSolid(annoObject)) {
+      dispatch(clearItemPartSelection(annotationId));
+      return undefined;
+    }
     const displayed = isMeshObject
       ? null
       : getDisplayedMesh3d(editor, annotationId);

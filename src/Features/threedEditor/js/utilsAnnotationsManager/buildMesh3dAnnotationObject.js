@@ -10,6 +10,7 @@ import {
   Vector2,
 } from "three";
 
+import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
@@ -81,6 +82,13 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
 //   `userData.mesh3dFaceIndex`.
 // Edge lines come from the face loops, not from EdgesGeometry, for the same
 // reason (a dihedral threshold would hide the coplanar splits).
+//
+// The group carries `mesh3dClosed` (the stored faces bound a volume): the
+// CSG reads it to carve a sheet host hollow and to refuse an open cutter.
+// A live subtraction (subtractAnnotationGeometries) collapses the face
+// meshes into ONE carved `hasSubtraction` mesh — display only, no
+// `mesh3dFaceIndex` left: « Soustraire définitivement » is the way back to
+// an editable mesh.
 //
 // `userData.isMesh3d` is NOT used here: it tags the mailles (ThreedMeshes).
 export default function buildMesh3dAnnotationObject(
@@ -161,6 +169,10 @@ export default function buildMesh3dAnnotationObject(
   edges.raycast = () => {};
   group.add(edges);
 
-  group.userData = { isAnnotationMesh3d: true, mesh3dLift: lift };
+  group.userData = {
+    isAnnotationMesh3d: true,
+    mesh3dLift: lift,
+    mesh3dClosed: isMesh3dClosed(mesh),
+  };
   return group;
 }

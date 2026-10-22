@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 import db from "App/db/db";
 
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
@@ -23,9 +24,13 @@ import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
 //     isShrunk,      // the conversion read a SHRUNK object (unshrink: false)
 //   }
 //
-// An isMesh3d annotation returns its stored mesh. A regular annotation is
-// converted IN MEMORY from its live 3D object — nothing is written until the
-// tool commits through writeMesh3dService. Null when not editable.
+// An isMesh3d annotation returns its stored mesh — unless its displayed
+// object was carved live by a subtraction (hasCarvedSolid: the CSG collapsed
+// its face meshes, so no displayed face maps to a stored one): null, the
+// host is display-only until « Soustraire définitivement » writes the
+// carved mesh. A regular annotation is converted IN MEMORY from its live 3D
+// object — nothing is written until the tool commits through
+// writeMesh3dService. Null when not editable.
 //
 // unshrink (default true): the conversion reads the FINAL, un-shrunk object
 // (ensureUnshrunkHostObject: the « Réduire le crénelage » inset must never
@@ -55,6 +60,11 @@ export default async function getEditableMesh3d({
   if (!metrics || !baseMapGroup) return null;
 
   if (annotation.isMesh3d) {
+    const object =
+      sceneManager.annotationsManager?.annotationsObjectsMap?.[annotationId];
+    if (object?.userData?.isAnnotationMesh3d && hasCarvedSolid(object)) {
+      return null;
+    }
     const mesh = mesh3dToLocal(annotation.mesh3d, metrics);
     if (!mesh.faces.length) return null;
     return {

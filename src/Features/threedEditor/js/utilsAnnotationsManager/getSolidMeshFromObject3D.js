@@ -52,3 +52,19 @@ export function getSolidMeshesFromObject3D(object) {
   const single = getSolidMeshFromObject3D(object);
   return single ? [single] : [];
 }
+
+/**
+ * Whether an annotation object was carved live by a subtraction (CSG on its
+ * displayed solid, `userData.hasSubtraction`). Such an object is display-only
+ * for the mesh tools: its faces no longer match the stored geometry (a mesh3d
+ * host loses its per-face meshes), and « Soustraire définitivement » is the
+ * way to a mesh that can be edited again.
+ *
+ * @param {import("three").Object3D} object
+ * @returns {boolean}
+ */
+export function hasCarvedSolid(object) {
+  return getSolidMeshesFromObject3D(object).some(
+    (mesh) => mesh.userData?.hasSubtraction
+  );
+}

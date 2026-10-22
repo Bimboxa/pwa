@@ -1,4 +1,7 @@
-import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
+import {
+  getSolidMeshesFromObject3D,
+  hasCarvedSolid,
+} from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 
 import isAnnotationConvertibleToMesh3d from "../utils/isAnnotationConvertibleToMesh3d";
 import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
@@ -25,7 +28,9 @@ const getGeometryKey = (solids) =>
 // (useMesh3dPartsHighlight), and a write re-locates the parts on the
 // un-shrunk conversion (deleteMesh3dPartsService).
 //
-// Null when the annotation is a mesh already or is not convertible. A flat
+// Null when the annotation is a mesh already (its faces are addressed on
+// the stored mesh — or not at all once a live carve collapsed them, see
+// getEditableMesh3d) or is not convertible. A flat
 // one-face sheet (a one-segment PX wall, a flat polygon: its only face IS
 // the annotation) is returned too — the second click selects that face, the
 // cut tools lock on it, the vertex offset tool addresses it — unless
@@ -58,7 +63,7 @@ export default function getDisplayedMesh3d(
   if (!baseMapGroup) return null;
 
   const solids = getSolidMeshesFromObject3D(object);
-  const carved = solids.some((mesh) => mesh.userData?.hasSubtraction);
+  const carved = hasCarvedSolid(object);
   const geometryKey = getGeometryKey(solids);
   let entry = cache.get(object);
   if (!entry || entry.geometryKey !== geometryKey) {

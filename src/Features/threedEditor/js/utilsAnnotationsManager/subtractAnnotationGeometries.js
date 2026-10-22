@@ -6,6 +6,7 @@ import {
   HOLLOW_SUBTRACTION,
 } from "three-bvh-csg";
 
+import buildMergedWorldSolid from "./buildMergedWorldSolid";
 import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
 import { buildWallEdges } from "./extrudePolylineWall";
 
@@ -33,7 +34,26 @@ function worldGeometry(mesh) {
 // several prism meshes — e.g. an EXTRUSION_PROFILE solid). Fat lines
 // (LineSegments2 / Line2 are `isMesh`) and the partial-revolution section
 // markers are decoration, never a cutting brush.
+//
+// A mesh3d annotation object (one Mesh per face) is merged into ONE world
+// solid (`userData.mergedCutter`, geometry disposed once its brush is
+// built): one brush per face would be an open sheet each, and three-bvh-csg
+// classifies the host triangles by ray parity against a surface that bounds
+// no volume. An OPEN mesh (a flat sheet) is skipped for the same reason.
 function collectMeshes(object) {
+  if (object.userData?.isAnnotationMesh3d) {
+    if (object.userData.mesh3dClosed === false) {
+      console.warn(
+        "[subtractAnnotationGeometries] open mesh3d cutter skipped (a sheet bounds no volume)",
+        object.userData.nodeId
+      );
+      return [];
+    }
+    const merged = buildMergedWorldSolid(object);
+    if (!merged) return [];
+    merged.userData.mergedCutter = true;
+    return [merged];
+  }
   const meshes = [];
   object.updateMatrixWorld?.(true);
   object.traverse?.((c) => {
@@ -45,10 +65,40 @@ function collectMeshes(object) {
   return meshes;
 }
 
+// A mesh3d HOST (group `isAnnotationMesh3d`, one face Mesh each) is collapsed
+// into ONE solid mesh before the carve: the faces are merged in world space
+// (buildMergedWorldSolid), brought back into the group's local frame and
+// added as a single child with an identity transform; the face meshes are
+// removed (their shared material is kept on the merged mesh). The carved
+// result carries `hasSubtraction` and NO `mesh3dFaceIndex`: the host is
+// display-only until « Soustraire définitivement » writes the carved mesh.
+// Returns the solid meshes to carve (the merged one, or the existing single
+// solid of an already-collapsed group).
+function collapseMesh3dHost(group) {
+  const solids = getSolidMeshesFromObject3D(group);
+  const faces = solids.filter(
+    (mesh) => mesh.userData?.mesh3dFaceIndex !== undefined
+  );
+  if (faces.length === 0) return solids;
+  group.updateMatrixWorld(true);
+  const merged = buildMergedWorldSolid(group, { material: faces[0].material });
+  if (!merged) return [];
+  merged.geometry.applyMatrix4(new Matrix4().copy(group.matrixWorld).invert());
+  for (const face of faces) {
+    face.parent?.remove(face);
+    face.geometry?.dispose?.();
+  }
+  group.add(merged);
+  group.updateMatrixWorld(true);
+  return [merged];
+}
+
 /**
  * Carve `targetObjects` out of `sourceObject`'s solid mesh(es) with a 3D
  * boolean SUBTRACTION. Every `role === "SOLID"` mesh in the source is carved
- * (a REVOLUTION with hidden segments emits one lathe mesh per run). Both
+ * (a REVOLUTION with hidden segments emits one lathe mesh per run); a mesh3d
+ * host is first collapsed into one solid (collapseMesh3dHost), and a mesh3d
+ * target is merged into one brush (collectMeshes). Both
  * source and targets are read in WORLD space (each mesh's own matrixWorld), so
  * the operands share a frame no matter how the objects are parented; the
  * world-space result is then mapped back into each source mesh's LOCAL frame
@@ -78,8 +128,9 @@ export default function subtractAnnotationGeometries(
   const targets = (targetObjects || []).filter(Boolean);
   if (targets.length === 0) return sourceObject;
 
-  const sourceMeshes = getSolidMeshesFromObject3D(sourceObject);
-  if (sourceMeshes.length === 0) return sourceObject;
+  if (getSolidMeshesFromObject3D(sourceObject).length === 0) {
+    return sourceObject;
+  }
 
   // For an OPEN surface source (e.g. an EXTRUSION_PROFILE swept surface or a
   // REVOLUTION lathe shell), use HOLLOW_SUBTRACTION: it only clips the source
@@ -102,9 +153,17 @@ export default function subtractAnnotationGeometries(
         const targetBrush = new Brush(worldGeometry(targetMesh));
         targetBrush.updateMatrixWorld();
         targetBrushes.push(targetBrush);
+        if (targetMesh.userData?.mergedCutter) targetMesh.geometry.dispose();
       }
     }
     if (targetBrushes.length === 0) return sourceObject;
+
+    // Only now (a brush to carve with): collapsing a mesh3d host drops its
+    // face meshes, which must not happen for nothing.
+    const sourceMeshes = sourceObject.userData?.isAnnotationMesh3d
+      ? collapseMesh3dHost(sourceObject)
+      : getSolidMeshesFromObject3D(sourceObject);
+    if (sourceMeshes.length === 0) return sourceObject;
 
     let didSubtract = false;
     for (const sourceMesh of sourceMeshes) {
@@ -191,12 +250,17 @@ export default function subtractAnnotationGeometries(
     // EdgesGeometry would slash diagonals across flat faces: buildWallEdges
     // coalesces coplanar faces first. "EDGES" lines take the current
     // Wireframe threshold (options.gridEdgeThresholdDeg, 1° when absent) so
-    // the carved object needs no re-threshold in finishRoot.
+    // the carved object needs no re-threshold in finishRoot. The face-loop
+    // lines of a mesh3d host ("MESH3D", carrying `mesh3dEdges`) are rebuilt
+    // as plain "EDGES" too: the collapsed solid has no face loops any more,
+    // and applyWireframeSettings re-thresholds "EDGES" lines only.
     // Attached as a CHILD of the carved mesh: the carved geometry is in the
     // mesh's local frame, so an identity-transform child lands exactly on the
     // surface — and it is found again by the purge on a later re-carve.
     if (options.rebuildEdges && removedEdgeInfo) {
-      const { kind, material } = removedEdgeInfo;
+      const { material } = removedEdgeInfo;
+      const kind =
+        removedEdgeInfo.kind === "MESH3D" ? "EDGES" : removedEdgeInfo.kind;
       const seamDihedralDeg =
         kind === "WALL_PLANAR"
           ? undefined

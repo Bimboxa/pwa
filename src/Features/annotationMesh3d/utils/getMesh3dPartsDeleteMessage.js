@@ -7,6 +7,8 @@ export default function getMesh3dPartsDeleteMessage(result) {
       return "C'est la dernière face : supprimez l'annotation.";
     case "EDGE_NOT_MERGEABLE":
       return "Cette arête sépare deux plans : elle ne peut pas être supprimée.";
+    case "CARVED":
+      return "Suppression impossible : soustraction non figée (« Soustraire définitivement »).";
     default:
       return "Suppression impossible.";
   }

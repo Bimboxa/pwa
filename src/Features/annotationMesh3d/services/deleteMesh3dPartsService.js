@@ -2,6 +2,8 @@ import {
   deleteMesh3dFaces,
   mergeMesh3dFacesAtEdge,
 } from "../utils/editMesh3dParts";
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
+
 import { MESH3D_EDGE_PART, MESH3D_FACE_PART } from "../utils/mesh3dPartIds";
 import remapMesh3dParts from "../utils/remapMesh3dParts";
 import getDisplayedMesh3d from "./getDisplayedMesh3d";
@@ -23,7 +25,10 @@ import writeMesh3dService from "./writeMesh3dService";
 //
 // parts: parsed part ids (parseMesh3dPartId). Returns
 //   { ok: true } | { ok: false, reason: "LAST_FACE" | "EDGE_NOT_MERGEABLE" |
-//   "NOT_FOUND" }.
+//   "NOT_FOUND" | "CARVED" }.
+// "CARVED": the mesh's displayed object was carved live by a subtraction
+// (display-only, see getEditableMesh3d) — the stored faces the parts point
+// at are not the ones on screen.
 // The part selection is cleared on success (writeMesh3dService): the write
 // renumbers the mesh.
 export default async function deleteMesh3dPartsService({
@@ -33,6 +38,15 @@ export default async function deleteMesh3dPartsService({
   editor,
 }) {
   let ctx = await loadStoredMesh3d(annotationId);
+  if (ctx && editor) {
+    const object =
+      editor.sceneManager?.annotationsManager?.annotationsObjectsMap?.[
+        annotationId
+      ];
+    if (object?.userData?.isAnnotationMesh3d && hasCarvedSolid(object)) {
+      return { ok: false, reason: "CARVED" };
+    }
+  }
   if (!ctx && editor && parts?.length) {
     // Read the displayed mesh BEFORE getEditableMesh3d rebuilds the object.
     const displayed = getDisplayedMesh3d(editor, annotationId);

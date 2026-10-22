@@ -478,7 +478,14 @@ export default function useExtrudePointerHandlers() {
       const el = getEligibility(pick.nodeId);
       if (el === "PENDING") return null;
       if (pick.isLine) return el.line ? "LINE" : null;
-      if (pick.isMesh3dObject) return el.isMesh3d ? "MESH3D" : null;
+      // A mesh host carved live by a subtraction has one collapsed solid
+      // (no mesh3dFaceIndex): not editable until « Soustraire
+      // définitivement » (getEditableMesh3d refuses it) — no stipple either.
+      if (pick.isMesh3dObject) {
+        return el.isMesh3d && !pick.hitObject?.userData?.hasSubtraction
+          ? "MESH3D"
+          : null;
+      }
       if (pick.isTopFace) return el.height ? "HEIGHT" : null;
       return el.mesh ? "MESH3D" : null;
     }
