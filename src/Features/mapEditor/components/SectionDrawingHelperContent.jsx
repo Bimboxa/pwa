@@ -52,6 +52,7 @@ import SectionScene3dPickingStatus from "Features/scene3d/components/SectionScen
 import SectionMeshBrushPaintedTotal from "Features/meshPaint/components/SectionMeshBrushPaintedTotal";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
+import { selectIsTemplateRulerDrawActive } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
@@ -128,6 +129,14 @@ const FACE_CUT_LOCKED_MESSAGE =
 const THREED_COTE_SHORTCUTS = [
   { key: "0-9", label: "Longueur de la cote" },
   { key: "Esc", label: "Annuler le point / Quitter" },
+];
+
+// Shortcuts of the 3D ruler (dimension chain, useDrawingPointerHandlers):
+// each segment can take a typed length, Enter / a double click end the chain.
+const THREED_RULER_SHORTCUTS = [
+  { key: "0-9", label: "Longueur du segment" },
+  { key: "Entrée", label: "Terminer la règle" },
+  { key: "Esc", label: "Terminer / Quitter la règle" },
 ];
 
 // Shortcuts of the « Pinceau » (useMeshBrushPointerHandlers).
@@ -268,6 +277,7 @@ export default function SectionDrawingHelperContent() {
   // two-click cote, or (default) the line / face drawing.
   const isObject3DPlacement = useSelector(selectIsObject3DPlacementActive);
   const isThreedCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
+  const isThreedRulerDraw = useSelector(selectIsTemplateRulerDrawActive);
   // « Pinceau »: "FACE" (Surface template) / "EDGE" (Ligne template), null
   // when the brush is not armed.
   const meshBrushPartType = useSelector(selectMeshBrushPartType);
@@ -304,7 +314,8 @@ export default function SectionDrawingHelperContent() {
   const canDrawOnScan = useSelector(
     (s) =>
       s.annotations.newAnnotation?.type === "POLYLINE" ||
-      selectIsTemplateCoteDrawActive(s)
+      selectIsTemplateCoteDrawActive(s) ||
+      selectIsTemplateRulerDrawActive(s)
   );
   // A line drawn click by click in the 3D editor (template or "Dessin"):
   // the arc toggle (T) and the « Points coplanaires » switch — once 3 points
@@ -329,22 +340,26 @@ export default function SectionDrawingHelperContent() {
     ? "Cliquez sur le plan pour poser l'objet 3D"
     : isThreedCoteDraw
       ? "Cliquez le 1ᵉʳ point de la cote, puis le 2ᵉ (plan, face, sommet, arête ou axe)"
-      : isMeshBrush
-        ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
-          ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
-          : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
-        : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
+      : isThreedRulerDraw
+        ? "Cliquez les points de la règle (plan, face, sommet, arête ou axe) — Entrée ou double-clic pour terminer"
+        : isMeshBrush
+          ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
+            ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
+            : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
+          : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
   const threedShortcuts = isObject3DPlacement
     ? THREED_PLACEMENT_SHORTCUTS
     : isThreedCoteDraw
       ? THREED_COTE_SHORTCUTS
-      : isMeshBrush
-        ? THREED_MESH_BRUSH_SHORTCUTS
-        : isFaceCut
-          ? FACE_CUT_SHORTCUTS
-          : isThreedPolylineClickDraw
-            ? THREED_POLYLINE_SHORTCUTS
-            : THREED_DRAWING_SHORTCUTS;
+      : isThreedRulerDraw
+        ? THREED_RULER_SHORTCUTS
+        : isMeshBrush
+          ? THREED_MESH_BRUSH_SHORTCUTS
+          : isFaceCut
+            ? FACE_CUT_SHORTCUTS
+            : isThreedPolylineClickDraw
+              ? THREED_POLYLINE_SHORTCUTS
+              : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit

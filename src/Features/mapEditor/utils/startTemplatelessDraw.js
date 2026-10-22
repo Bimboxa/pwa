@@ -14,8 +14,9 @@ import {
 } from "Features/annotations/utils/templatelessAnnotations";
 
 // Annotation types the "Dessin" tool offers in the 3D editor: lines and
-// surfaces (face drawing), and the two-click cote (dimension mode).
-export const THREED_DRAWING_SHAPES = ["POLYLINE", "POLYGON", "COTE"];
+// surfaces (face drawing), the two-click cote and the ruler (dimension
+// chain), both riding the drawing mode.
+export const THREED_DRAWING_SHAPES = ["POLYLINE", "POLYGON", "COTE", "RULER"];
 
 // Active drawing tool of a templateless shape: last used one → first tool of
 // the shape group. The group never offers the tools that need a template

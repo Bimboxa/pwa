@@ -6,22 +6,26 @@ import { NON_TEMPLATE_KEYS } from "./buildFaceAnnotationFields";
 // template-armed newAnnotation. `offset3d` (the 3D dimension-line offset of
 // a vertical/oblique cote) and `labelOffset` (the free 2D label placement of
 // a degenerate cote) are per-annotation state and must not leak from a
-// previously drawn cote into the next one via the template draft.
+// previously drawn cote into the next one via the template draft. Same for
+// `rulerLabelOffsets` (the per-segment value-card offsets of a ruler).
 const NON_TEMPLATE_COTE_KEYS = new Set([
   ...NON_TEMPLATE_KEYS,
   "offset3d",
   "labelOffset",
+  "rulerLabelOffsets",
 ]);
 
-// Pure merge of the annotation style fields for a cote drawn in 3D:
-// COTE shape defaults < template props < geometry fields ({type, offsetZ?}).
+// Pure merge of the annotation style fields for a cote (or a ruler — a
+// dimension chain shares the cote fields) drawn in 3D:
+// shape defaults < template props < geometry fields ({type, offsetZ?}).
 // `extensionOffset` / `extensionOffsetUnit` are regular template props and
 // pass through, so an in-plane 3D cote shares the 2D offset behavior.
 export default function buildCoteAnnotationFields({
-  classificationFields, // { type: "COTE", offsetZ? }
+  classificationFields, // { type: "COTE" | "RULER", offsetZ? }
   templateProps = null, // the template-armed newAnnotation (or null)
+  shape = "COTE", // drawing shape whose defaults apply
 }) {
-  const defaults = getDefaultsForShape("COTE");
+  const defaults = getDefaultsForShape(shape);
   if (!templateProps) return { ...defaults, ...classificationFields };
 
   const sanitized = {};

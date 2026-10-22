@@ -122,6 +122,7 @@ import FaceCutAxisOverlayThreed from "Features/threedFaceCut/components/FaceCutA
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
+import { selectIsTemplateRulerDrawActive } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 import {
   bumpSnapIndexEpoch,
   clearSubSelection,
@@ -409,6 +410,12 @@ export default function MainThreedEditor() {
   // on its cote type): it rides the 3D drawing mode (useDrawingPointerHandlers)
   // and swaps the bottom toolbar for CoteToolbarThreed.
   const coteDrawActive = useSelector(selectIsTemplateCoteDrawActive);
+  // Ruler armed (RULER template row, or the "Dessin" tool on its ruler
+  // type): rides the drawing mode too; ToolbarDrawingDraft (SectionViewer)
+  // owns the bottom bar — its tool toggle « Règle (clics) / (2 clics) » —
+  // so no 3D toolbar is swapped in (nor the meshing one in the Maillage
+  // module).
+  const rulerDrawActive = useSelector(selectIsTemplateRulerDrawActive);
 
   // Maillage module: meshing is forced on. Arming a cote (COTE template row in
   // PopperMapListings) switches meshing off via the slice's mutual exclusion
@@ -3001,7 +3008,7 @@ export default function MainThreedEditor() {
           <ExtrudeToolbarThreed />
         ) : coteDrawActive ? (
           <CoteToolbarThreed />
-        ) : moveBaseMapActive ? (
+        ) : rulerDrawActive ? null : moveBaseMapActive ? (
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
           <RotateBaseMapToolbarThreed />
