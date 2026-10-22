@@ -9,6 +9,11 @@ import {
 } from "three";
 
 import applySurfaceCutsToSoups from "Features/threedFaceCut/utils/applySurfaceCutsToSoups";
+import isSurfaceCutHost from "Features/threedFaceCut/utils/isSurfaceCutHost";
+import planSurfacePieces, {
+  SURFACE_PIECE_KEEP,
+  SURFACE_PIECE_REPLACE,
+} from "Features/threedFaceCut/utils/planSurfacePieces";
 import {
   SURFACE_CUT_REMOVE,
   getSurfaceCutsKey,
@@ -20,6 +25,15 @@ import buildGridEdgeLines from "./buildGridEdgeLines";
 // profile — isSurfaceCutHost): the stored cut planes (annotation.surfaceCuts)
 // partition the displayed solid into PIECES, each one its own SOLID mesh, so
 // every piece hovers, selects and paints (Pinceau) as a face of its own.
+//
+// Every SOLID mesh of a surface host is a piece from the FIRST build, cuts
+// or not: such a host is never converted to a planar-face mesh
+// (isAnnotationConvertibleToMesh3d refuses it), so the piece is the only
+// part the second click on the solo-selected host can select — an uncut
+// lathe is piece 0, a lathe of several runs (hidden segments) one piece per
+// run. The numbering (planSurfacePieces) runs over the sources in order:
+// a source no cut reached is tagged IN PLACE (children, material, transform
+// kept), a source a cut touched is replaced by its pieces.
 //
 // Run by AnnotationsManager on every (re)build of the host's root, before
 // the finishing passes: the SOLID meshes of the root (role "SOLID", section
@@ -40,7 +54,8 @@ import buildGridEdgeLines from "./buildGridEdgeLines";
 //   the builders' (isGridEdge / EDGES / sourceMesh, child of the piece like
 //   the carve rebuild — applyWireframeSettings re-thresholds it); else only
 //   the seams, as a plain line child (per-vertex-Z shells draw no grid).
-// A source mesh no cut touched is left as it is.
+// A source mesh no cut touched only gets surfaceCutPiece (next index in the
+// sequence) + surfaceCutPieceSurface, no seams.
 //
 // Idempotent per cut list (root.userData.surfaceCutsApplied): the carve
 // pass re-finishes the same root; a swapped-in root is cut again from its
@@ -114,6 +129,18 @@ function soupSurface(positions) {
 const sourceMaterialOf = (mesh) =>
   mesh.userData?.originalMaterial ?? mesh.material;
 
+// A source no cut reached is a piece in its own right: tagged in place, so
+// it keeps its children (section markers, grid edges), its material (it may
+// be wearing a highlight at this point) and its transform (revolutionAxis
+// stays valid as stored). No surfaceCutSeams: the readers default to [].
+function tagSourceAsPiece(mesh, pieceIndex, surface) {
+  mesh.userData = {
+    ...(mesh.userData ?? {}),
+    surfaceCutPiece: pieceIndex,
+    surfaceCutPieceSurface: surface,
+  };
+}
+
 function findGridEdges(root, sourceMesh) {
   const lines = [];
   root.traverse((child) => {
@@ -177,15 +204,30 @@ function buildSeamLines(seams, toParent) {
  * @param {import("three").Object3D} root - the host's annotation root
  * @param {object} annotation - the resolved annotation (surfaceCuts read)
  * @param {{imageWidth, imageHeight, meterByPx}} metrics - getBaseMapForRender
- * @returns {boolean} true when the root was partitioned
+ * @returns {boolean} true when the root was partitioned or its meshes
+ *   tagged as pieces
  */
 export default function applySurfaceCuts(root, annotation, metrics) {
-  const cuts = annotation?.surfaceCuts;
-  if (!root || !metrics || !Array.isArray(cuts) || !cuts.length) return false;
+  const cuts = Array.isArray(annotation?.surfaceCuts)
+    ? annotation.surfaceCuts
+    : [];
+  const isHost = isSurfaceCutHost(annotation);
+  if (!root || !metrics || (!cuts.length && !isHost)) return false;
   const key = getSurfaceCutsKey(cuts);
   if (root.userData?.surfaceCutsApplied === key) return false;
 
-  const meshes = collectSolidMeshes(root);
+  // Only the meshes with a usable soup, so that meshes[i] ↔ soups[i] ↔ the
+  // sourceIndex of applySurfaceCutsToSoups (it drops empty soups before
+  // numbering). No SOLID mesh yet (async sweep still loading): no key, the
+  // next finish pass runs again.
+  const meshes = [];
+  const soups = [];
+  for (const mesh of collectSolidMeshes(root)) {
+    const positions = bakeSoup(mesh, getMatrixRelativeTo(mesh, root));
+    if (!positions || positions.length < 9) continue;
+    meshes.push(mesh);
+    soups.push({ positions });
+  }
   if (!meshes.length) return false;
 
   // Plane cuts ({plane, seed}) and removals ({remove: point}), in order.
@@ -195,32 +237,41 @@ export default function applySurfaceCuts(root, annotation, metrics) {
     .map((cut) =>
       cut.kind === SURFACE_CUT_REMOVE ? { remove: cut.point } : cut
     );
-  if (!localCuts.length) return false;
+  // Stale cuts only on a host that is no surface host: nothing to do.
+  if (!localCuts.length && !isHost) return false;
 
-  const relMatrices = meshes.map((mesh) => getMatrixRelativeTo(mesh, root));
-  const soups = meshes.map((mesh, i) => ({
-    positions: bakeSoup(mesh, relMatrices[i]) ?? new Float64Array(0),
-  }));
-
-  let result;
-  try {
-    result = applySurfaceCutsToSoups({ soups, cuts: localCuts });
-  } catch (e) {
-    console.error("[applySurfaceCuts] cut replay failed", e);
-    return false;
+  let result = null;
+  if (localCuts.length) {
+    try {
+      result = applySurfaceCutsToSoups({ soups, cuts: localCuts });
+    } catch (e) {
+      console.error("[applySurfaceCuts] cut replay failed", e);
+      return false;
+    }
   }
   if (!root.userData) root.userData = {};
   root.userData.surfaceCutsApplied = key;
-  if (!result?.applied) return false;
 
-  let pieceIndex = 0;
+  // One index sequence over the sources: a KEEP source is tagged in place,
+  // a REPLACE source gives one Mesh per kept piece, a DROP source (removed,
+  // nothing left) is simply taken down.
+  const plan = planSurfacePieces(meshes.length, result?.pieces);
+  let changed = false;
   for (let sourceIndex = 0; sourceIndex < meshes.length; sourceIndex++) {
-    // A source is replaced when a cut touched it or a removal took it
-    // (an untouched, removed source is simply taken down).
-    const all = result.pieces.filter((p) => p.sourceIndex === sourceIndex);
-    if (!all.some((p) => p.touched || p.removed)) continue;
-    const pieces = all.filter((p) => !p.removed);
+    const entry = plan[sourceIndex];
     const mesh = meshes[sourceIndex];
+    if (entry.kind === SURFACE_PIECE_KEEP) {
+      if (!isHost) continue;
+      tagSourceAsPiece(
+        mesh,
+        entry.index,
+        soupSurface(soups[sourceIndex].positions)
+      );
+      changed = true;
+      continue;
+    }
+    changed = true;
+    const pieces = entry.kind === SURFACE_PIECE_REPLACE ? entry.pieces : [];
     const parent = mesh.parent ?? root;
     const toParent = getMatrixRelativeTo(parent, root).invert();
     const meshToParent = getMatrixRelativeTo(mesh, parent);
@@ -256,7 +307,7 @@ export default function applySurfaceCuts(root, annotation, metrics) {
       };
     }
 
-    for (const piece of pieces) {
+    for (const { piece, index } of pieces) {
       const geometry = buildPieceGeometry(piece.positions, toParent);
       // The source may be wearing a highlight override at this point
       // (applyAnnotationMaterialState swaps the material in place and keeps
@@ -273,7 +324,7 @@ export default function applySurfaceCuts(root, annotation, metrics) {
       pieceMesh.userData = {
         ...sourceUserData,
         role: "SOLID",
-        surfaceCutPiece: pieceIndex++,
+        surfaceCutPiece: index,
         surfaceCutSeams: piece.seams,
         surfaceCutPieceSurface: piece.surface ?? soupSurface(piece.positions),
         ...(revolutionAxis ? { revolutionAxis } : {}),
@@ -301,5 +352,5 @@ export default function applySurfaceCuts(root, annotation, metrics) {
     mesh.userData?.originalMaterial?.dispose?.();
     parent.remove(mesh);
   }
-  return true;
+  return changed;
 }
