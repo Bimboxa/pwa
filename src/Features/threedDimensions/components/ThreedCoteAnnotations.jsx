@@ -15,8 +15,11 @@ import { setDimensionObjects } from "../services/dimensionObjectsStore";
 import computeCoteGeometry3d from "../utils/computeCoteGeometry3d";
 import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
-const LINEWIDTH = 2.5;
-const LINEWIDTH_SELECTED = 4;
+// Thin ink (screen px): a dimension line reads as precise, not as a stroke.
+const LINEWIDTH = 1;
+const LINEWIDTH_SELECTED = 2;
+// Dashed extension / graduation lines, thinner still.
+const LINEWIDTH_EXTENSION = 0.75;
 
 // Picking tolerance for the dimension line — same distance-scaled model as
 // the POINT trait raycast of createAnnotationObject3D.
@@ -217,7 +220,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
           const ext = makeLine({
             positions: [p.x, p.y, p.z, d.x, d.y, d.z],
             color,
-            linewidth: 1.5,
+            linewidth: LINEWIDTH_EXTENSION,
             resolution,
             dashed: true,
           });
