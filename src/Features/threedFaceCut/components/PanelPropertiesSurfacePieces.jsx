@@ -1,9 +1,7 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 import {
-  selectSelectedItem,
-  selectSelectedPartIds,
   setSelectedPartIds,
   setSubSelection,
 } from "Features/selection/selectionSlice";
@@ -17,8 +15,8 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
+import useSelectedSurfacePieces from "../hooks/useSelectedSurfacePieces";
 import removeSurfacePiecesService from "../services/removeSurfacePiecesService";
-import { getSelectedSurfacePieces } from "../utils/surfacePieceParts";
 
 const formatM2 = (m2) =>
   Number(m2).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
@@ -43,31 +41,8 @@ export default function PanelPropertiesSurfacePieces() {
 
   // data
 
-  const selectedItem = useSelector(selectSelectedItem);
-  const selectedPartIds = useSelector(selectSelectedPartIds);
-  const pieces = getSelectedSurfacePieces(selectedItem, selectedPartIds);
-  const annotationId = pieces.length ? selectedItem.nodeId : null;
-
-  // helpers
-
-  function getSurface() {
-    const root =
-      getActiveThreedEditor()?.sceneManager?.annotationsManager
-        ?.annotationsObjectsMap?.[annotationId];
-    if (!root) return null;
-    const wanted = new Set(pieces.map((p) => p.pieceIndex));
-    let total = 0;
-    let found = false;
-    root.traverse((mesh) => {
-      if (!mesh.isMesh || !wanted.has(mesh.userData?.surfaceCutPiece)) return;
-      if (Number.isFinite(mesh.userData.surfaceCutPieceSurface)) {
-        total += mesh.userData.surfaceCutPieceSurface;
-        found = true;
-      }
-    });
-    return found ? total : null;
-  }
-  const surface = annotationId ? getSurface() : null;
+  const { annotationId, pieces, pieceIndices, surface } =
+    useSelectedSurfacePieces();
 
   // handlers
 
@@ -81,7 +56,7 @@ export default function PanelPropertiesSurfacePieces() {
       const result = await removeSurfacePiecesService({
         editor: getActiveThreedEditor(),
         annotationId,
-        pieceIndices: pieces.map((p) => p.pieceIndex),
+        pieceIndices,
         dispatch,
       });
       if (!result.ok)
