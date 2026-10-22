@@ -10,6 +10,10 @@ import React, {
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
 import getCenteredBandFromGuideLine from "Features/geometry/utils/getCenteredBandFromGuideLine";
@@ -543,8 +547,8 @@ const DrawingLayer = forwardRef(
               p1,
               p2,
               meterByPx: mbp,
-              unit: na.unit ?? "CM",
-              decimals: na.decimals ?? 0,
+              unit: na.unit ?? DEFAULT_COTE_UNIT,
+              decimals: na.decimals ?? DEFAULT_COTE_DECIMALS,
               showUnitLabel: na.showUnitLabel ?? true,
             });
             if (

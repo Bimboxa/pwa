@@ -7,6 +7,10 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -291,8 +295,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
           p1: cote.points[0],
           p2: cote.points[1],
           meterByPx,
-          unit: cote.unit ?? "CM",
-          decimals: cote.decimals ?? 0,
+          unit: cote.unit ?? DEFAULT_COTE_UNIT,
+          decimals: cote.decimals ?? DEFAULT_COTE_DECIMALS,
           showUnitLabel: cote.showUnitLabel ?? true,
           deltaZMeters: geom.deltaZMeters,
         }),

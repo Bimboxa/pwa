@@ -1,6 +1,10 @@
 import theme from "Styles/theme";
 
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 
 const secondary = theme.palette.secondary.main;
 
@@ -483,10 +487,10 @@ const DRAWING_SHAPE_CONFIG = {
       strokeWidthUnit: "PX",
       strokeOpacity: 1,
       strokeType: "SOLID",
-      unit: "M",
+      unit: DEFAULT_COTE_UNIT,
       extensionOffset: 40,
       extensionOffsetUnit: "PX",
-      decimals: 2,
+      decimals: DEFAULT_COTE_DECIMALS,
       fontSize: 14,
       showUnitLabel: true,
       showTotalCote: false,
@@ -521,10 +525,10 @@ const DRAWING_SHAPE_CONFIG = {
       strokeWidthUnit: "PX",
       strokeOpacity: 1,
       strokeType: "SOLID",
-      unit: "CM",
+      unit: DEFAULT_COTE_UNIT,
       extensionOffset: 8,
       extensionOffsetUnit: "PX",
-      decimals: 0,
+      decimals: DEFAULT_COTE_DECIMALS,
       fontSize: 18,
       showUnitLabel: true,
       // 3D: the value in a rounded card (false: bare value with a white halo).

@@ -8,6 +8,10 @@ import {
 } from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getRulerLabelPlacement, {
@@ -95,10 +99,10 @@ export default function NodeRulerStatic({
     strokeWidth = 1,
     strokeWidthUnit = "PX",
     strokeOpacity: rawStrokeOpacity = 1,
-    unit = "CM",
+    unit = DEFAULT_COTE_UNIT,
     extensionOffset = 8,
     extensionOffsetUnit = "PX",
-    decimals = 0,
+    decimals = DEFAULT_COTE_DECIMALS,
     fontSize = 18,
     showUnitLabel = true,
     showTotalCote = false,

@@ -153,7 +153,8 @@ liste par source, puis un rapport d'écarts — sections « Sources CAO / BIM »
   l'annotation (`strokeWidth` + `strokeWidthUnit: "CM"`) quand elle diffère de
   celle du modèle.
 - **COTE** — ligne de cote : exactement 2 points, `unit` (`"MM"|"CM"|"M"`),
-  `decimals`, `showUnitLabel: true`. Retranscris la valeur écrite à
+  `decimals`, `showUnitLabel: true` (défaut si omis : `"M"` / `2`, soit
+  `1.45 m`). Retranscris la valeur écrite à
   l'identique.
 - **POINT** — élément ponctuel (EP, regard, équipement, point singulier) :
   pas de `points` ; `point` = **centre** de l'élément, dans l'espace de
@@ -836,8 +837,8 @@ est un poteau de 20 × 85 cm tracé par l'axe de son grand côté :
       "strokeColor": "#000000",
       "strokeWidth": 1,
       "strokeWidthUnit": "PX",
-      "unit": "CM",
-      "decimals": 0,
+      "unit": "M",
+      "decimals": 2,
       "showUnitLabel": true
     }
   ],

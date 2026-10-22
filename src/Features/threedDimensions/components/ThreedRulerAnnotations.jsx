@@ -7,6 +7,10 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManager/attachFatLineRaycast";
@@ -273,8 +277,8 @@ export default function ThreedRulerAnnotations({ annotations }) {
             p1: geom.pixelPoints[seg.index],
             p2: geom.pixelPoints[seg.index + 1],
             meterByPx,
-            unit: ruler.unit ?? "CM",
-            decimals: ruler.decimals ?? 0,
+            unit: ruler.unit ?? DEFAULT_COTE_UNIT,
+            decimals: ruler.decimals ?? DEFAULT_COTE_DECIMALS,
             showUnitLabel: ruler.showUnitLabel ?? true,
             deltaZMeters: seg.deltaZMeters,
           }),

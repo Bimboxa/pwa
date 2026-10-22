@@ -23,6 +23,10 @@ import { COTE_FIELDS } from "Features/annotations/constants/coteFields";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
+import {
   getDefaultsForShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
@@ -81,9 +85,9 @@ export default function FieldAnnotationTemplateCote({
   showLabelOption = false,
 }) {
   const {
-    unit = "CM",
+    unit = DEFAULT_COTE_UNIT,
     extensionOffset = 8,
-    decimals = 0,
+    decimals = DEFAULT_COTE_DECIMALS,
     fontSize = 18,
     showUnitLabel = true,
     showTotalCote = false,

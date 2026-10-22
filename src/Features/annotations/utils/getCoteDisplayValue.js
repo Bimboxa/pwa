@@ -1,21 +1,16 @@
-const UNIT_FACTORS_FROM_METERS = {
-  MM: 1000,
-  CM: 100,
-  M: 1,
-};
-
-const UNIT_SUFFIXES = {
-  MM: "mm",
-  CM: "cm",
-  M: "m",
-};
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+  UNIT_FACTORS_FROM_METERS,
+  UNIT_SUFFIXES,
+} from "Features/annotations/constants/coteDisplayDefaults";
 
 export default function getCoteDisplayValue({
   p1,
   p2,
   meterByPx,
-  unit = "CM",
-  decimals = 0,
+  unit = DEFAULT_COTE_UNIT,
+  decimals = DEFAULT_COTE_DECIMALS,
   showUnitLabel = true,
   deltaZMeters = 0,
 }) {
@@ -31,7 +26,7 @@ export default function getCoteDisplayValue({
   // 3D-aware length: cotes drawn in 3D carry a vertical delta (meters);
   // Math.hypot(x, 0) === |x| so pure-2D cotes are unaffected.
   const meters = Math.hypot(pixelDistance * meterByPx, deltaZMeters || 0);
-  const factor = UNIT_FACTORS_FROM_METERS[unit] ?? UNIT_FACTORS_FROM_METERS.CM;
+  const factor = UNIT_FACTORS_FROM_METERS[unit] ?? UNIT_FACTORS_FROM_METERS.M;
   const value = meters * factor;
 
   const safeDecimals = Math.max(0, Math.min(6, Number(decimals) || 0));

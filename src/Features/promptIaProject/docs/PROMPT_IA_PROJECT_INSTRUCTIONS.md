@@ -282,7 +282,8 @@ hors du cadre du fond est écarté automatiquement.
   partir de ses deux faces opposées. Porte-la sur l'annotation
   (`strokeWidth` + `strokeWidthUnit`) quand elle diffère de celle du modèle.
 - **COTE** — ligne de cote : exactement 2 points, `unit`
-  (`"MM"|"CM"|"M"`), `decimals`, `showUnitLabel: true`.
+  (`"MM"|"CM"|"M"`), `decimals`, `showUnitLabel: true` (défaut si omis :
+  `"M"` / `2`, soit `1.45 m`).
 - **FREE_TEXT** — texte posé sur le plan : pas de `points` ; `textContent` et
   `labelPoint` = **centre** de la boîte de texte ; optionnel `targetPoint` +
   `hasConnector: true`. Style sur le modèle : `fontSize` en points,

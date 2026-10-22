@@ -2,6 +2,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { darken } from "@mui/material/styles";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+} from "Features/annotations/constants/coteDisplayDefaults";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
@@ -34,10 +38,10 @@ export default function NodeCoteStatic({
     strokeColor = "#000000",
     strokeWidth = 1,
     strokeWidthUnit = "PX",
-    unit = "CM",
+    unit = DEFAULT_COTE_UNIT,
     extensionOffset = 8,
     extensionOffsetUnit = "PX",
-    decimals = 0,
+    decimals = DEFAULT_COTE_DECIMALS,
     fontSize = 18,
     showUnitLabel = true,
   } = merged ?? {};

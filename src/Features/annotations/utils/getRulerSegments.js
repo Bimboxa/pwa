@@ -1,5 +1,11 @@
 import offsetPolylineParallel from "Features/geometry/utils/offsetPolylineParallel";
 import getCoteDisplayValue from "./getCoteDisplayValue";
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+  UNIT_FACTORS_FROM_METERS,
+  UNIT_SUFFIXES,
+} from "Features/annotations/constants/coteDisplayDefaults";
 
 // Pure geometry + formatting for a RULER (dimension chain). Dependency free
 // beyond the two helpers above (plain {x, y} objects) so it can be replayed in
@@ -16,8 +22,8 @@ import getCoteDisplayValue from "./getCoteDisplayValue";
 export default function getRulerSegments({
   points,
   meterByPx,
-  unit = "CM",
-  decimals = 0,
+  unit = DEFAULT_COTE_UNIT,
+  decimals = DEFAULT_COTE_DECIMALS,
   showUnitLabel = true,
   offsetPx = 0,
 }) {
@@ -79,19 +85,22 @@ export default function getRulerSegments({
     segments,
     offsetPoints,
     totalMeters,
-    totalText: formatTotal({ totalMeters, hasScale, unit, decimals, showUnitLabel }),
+    totalText: formatTotal({
+      totalMeters,
+      hasScale,
+      unit,
+      decimals,
+      showUnitLabel,
+    }),
   };
 }
 
 // Same unit/decimals/suffix rules as getCoteDisplayValue, applied to an
 // already-summed length in meters (the total of a chain is a sum of segment
 // lengths, not the distance between the two extremities).
-const UNIT_FACTORS_FROM_METERS = { MM: 1000, CM: 100, M: 1 };
-const UNIT_SUFFIXES = { MM: "mm", CM: "cm", M: "m" };
-
 function formatTotal({ totalMeters, hasScale, unit, decimals, showUnitLabel }) {
   if (!hasScale) return "—";
-  const factor = UNIT_FACTORS_FROM_METERS[unit] ?? UNIT_FACTORS_FROM_METERS.CM;
+  const factor = UNIT_FACTORS_FROM_METERS[unit] ?? UNIT_FACTORS_FROM_METERS.M;
   const safeDecimals = Math.max(0, Math.min(6, Number(decimals) || 0));
   const formatted = (totalMeters * factor).toFixed(safeDecimals);
   if (!showUnitLabel) return formatted;
