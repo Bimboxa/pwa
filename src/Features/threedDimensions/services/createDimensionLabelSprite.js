@@ -41,24 +41,31 @@ function roundRect(ctx, x, y, w, h, r) {
 //
 // `color` is the cote's display color (border + text). `selected` thickens the
 // border and tints the background so the user sees which cote is selected.
+// `emphasis` inverts the card (filled with the colour, white text): the one
+// value card of a selected ruler that is itself sub-selected.
 export default function createDimensionLabelSprite({
   text,
   coteId,
   color = DEFAULT_COTE_COLOR,
   selected = false,
+  emphasis = false,
 }) {
   const label = text || "";
 
   const borderColor = color;
-  const textColor = color;
-  const fillBg = selected ? safeLighten(color, 0.85, "#e3f2fd") : "#ffffff";
+  const textColor = emphasis ? "#ffffff" : color;
+  const fillBg = emphasis
+    ? color
+    : selected
+      ? safeLighten(color, 0.85, "#e3f2fd")
+      : "#ffffff";
 
   const s = CANVAS_SCALE;
   const titleFontPx = 24 * s;
   const padX = 14 * s;
   const padY = 10 * s;
   const radius = 9 * s;
-  const borderWidth = (selected ? 5 : 3) * s;
+  const borderWidth = (selected || emphasis ? 5 : 3) * s;
 
   const measureCanvas = document.createElement("canvas");
   const mctx = measureCanvas.getContext("2d");

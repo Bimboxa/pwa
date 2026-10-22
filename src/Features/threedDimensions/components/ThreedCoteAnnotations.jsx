@@ -137,7 +137,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
         disposeObject(group);
       });
       groupsRef.current = [];
-      setDimensionObjects([]);
+      setDimensionObjects("COTE", []);
     };
     clear();
 
@@ -261,7 +261,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
       groupsRef.current.push(group);
     });
 
-    setDimensionObjects(sprites);
+    setDimensionObjects("COTE", sprites);
     editor.sceneManager.renderScene?.();
 
     return clear;

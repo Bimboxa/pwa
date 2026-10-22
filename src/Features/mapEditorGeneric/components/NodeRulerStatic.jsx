@@ -8,6 +8,10 @@ import {
 } from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
+import {
+  getRulerSegmentKeys,
+  isZeroLabelOffset,
+} from "Features/annotations/utils/getRulerSegmentKey";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getRulerLabelPlacement, {
@@ -31,6 +35,8 @@ const TOTAL_LINE_GAP_PT = 28;
 const TICK_HALF_END_PT = 9;
 const TICK_HALF_INNER_PT = 5;
 const TICK_STROKE_PT = 1.5;
+// Dashed leader from a displaced value back to its cote (page pt).
+const LEADER_STROKE_PT = 0.75;
 
 const TEXT_HALO_PT = 3;
 
@@ -103,6 +109,9 @@ export default function NodeRulerStatic({
     showUnitLabel = true,
     showTotalCote = false,
     showRulerLabel = false,
+    // Per-segment displacement of the values (base-map-local metres, keyed
+    // by segment — dragged in the 3D editor, see useRulerLabelDragHandlers).
+    rulerLabelOffsets = null,
   } = merged ?? {};
 
   // Per-segment label prefixes ("H1 = 0.20 m"): the annotation's OWN label
@@ -208,6 +217,24 @@ export default function NodeRulerStatic({
       }),
     [points, baseMapMeterByPx, unit, decimals, showUnitLabel, effectiveOffsetPx]
   );
+
+  // Values displaced from their cote: the stored metres → image px on the
+  // plan (the local frame is y-up, the image y-down; the normal component is
+  // ignored). Nothing without a scale. Indexed by segment.
+  const labelOffsetsPx = useMemo(() => {
+    if (!rulerLabelOffsets || !hasScale || !baseMapMeterByPx) return {};
+    const keys = getRulerSegmentKeys(points);
+    const out = {};
+    keys.forEach((key, i) => {
+      const v = rulerLabelOffsets[key];
+      if (isZeroLabelOffset(v)) return;
+      out[i] = {
+        dx: (v.x || 0) / baseMapMeterByPx,
+        dy: -(v.y || 0) / baseMapMeterByPx,
+      };
+    });
+    return out;
+  }, [rulerLabelOffsets, points, hasScale, baseMapMeterByPx]);
 
   // Optional total line: pushed further out on the same side. `|| 1` keeps it
   // outside even when the segment line sits exactly on the polyline. Only the
@@ -551,17 +578,40 @@ export default function NodeRulerStatic({
         </>
       )}
 
-      {/* per-segment values — horizontal, aligned against the alignment line */}
+      {/* Leaders of the displaced values: dashed, from the cote's middle to
+          the value's anchor. */}
+      {segments.map((seg) => {
+        const o = labelOffsetsPx[seg.index];
+        if (!o) return null;
+        return (
+          <line
+            key={`leader-${seg.startPointId ?? seg.index}`}
+            x1={seg.mid.x}
+            y1={seg.mid.y}
+            x2={seg.mid.x + o.dx}
+            y2={seg.mid.y + o.dy}
+            stroke={displayStrokeColor}
+            strokeOpacity={strokeOpacity}
+            strokeWidth={LEADER_STROKE_PT * pageScale}
+            strokeDasharray={`${4 * pageScale} ${3 * pageScale}`}
+            pointerEvents="none"
+          />
+        );
+      })}
+
+      {/* per-segment values — horizontal, aligned against the alignment line
+          (plus their own displacement, if any) */}
       {segments.map((seg) => {
         const place = getRulerLabelPlacement(seg);
         const isEditing = editableSegmentIndexes.includes(seg.index);
         const field = getRulerFieldPlacement(place, FIELD_W_PX, FIELD_H_PX);
         const segLabel = segmentLabels[seg.index];
+        const o = labelOffsetsPx[seg.index];
 
         return (
           <g
             key={`label-${seg.startPointId ?? seg.index}`}
-            transform={`translate(${seg.mid.x}, ${seg.mid.y})`}
+            transform={`translate(${seg.mid.x + (o?.dx ?? 0)}, ${seg.mid.y + (o?.dy ?? 0)})`}
           >
             {isEditing && isEditable ? (
               <g style={{ transform: counterScaleTransform }}>

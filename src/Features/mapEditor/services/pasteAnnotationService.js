@@ -4,6 +4,7 @@ import {
 } from "Features/importAnnotations/utils/imageImport";
 import { nanoid } from "@reduxjs/toolkit";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
+import { remapRulerLabelOffsets } from "Features/annotations/utils/getRulerSegmentKey";
 
 import db from "App/db/db";
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
@@ -234,6 +235,15 @@ export default async function pasteAnnotationService({
         sourceAnnotation.points,
         sourceAnnotation
       );
+      // RULER: the value-card offsets are keyed by point ids — re-key them
+      // on the minted refs (index for index), else they would be orphans.
+      if (type === "RULER") {
+        clonedAnnotation.rulerLabelOffsets = remapRulerLabelOffsets(
+          sourceAnnotation.rulerLabelOffsets,
+          sourceAnnotation.points,
+          clonedAnnotation.points
+        );
+      }
 
       if (type === "POLYGON" && item.baseCuts?.length) {
         clonedAnnotation.cuts = item.baseCuts.map((cut, ci) => {

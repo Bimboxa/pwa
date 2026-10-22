@@ -19,6 +19,7 @@ import {
 } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import { COTE_FIELDS } from "Features/annotations/constants/coteFields";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import {
@@ -32,21 +33,6 @@ const UNIT_OPTIONS = [
 ];
 
 const DECIMALS_OPTIONS = [0, 1, 2];
-
-// Cote-specific template fields — also the subset restored by "Réinit.".
-const COTE_FIELDS = [
-  "unit",
-  "extensionOffset",
-  "extensionOffsetUnit",
-  "decimals",
-  "fontSize",
-  "showUnitLabel",
-  // RULER only (see showTotalOption / showLabelOption), but kept in the
-  // lock/reset group so the padlock and "Réinit." stay consistent with what
-  // the popover shows.
-  "showTotalCote",
-  "showRulerLabel",
-];
 
 // Preview sample: a 1.63 m long cote (163 px at 1 cm/px).
 const PREVIEW_SAMPLE = {

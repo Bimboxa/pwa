@@ -160,7 +160,7 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
     function onPointerDown(e) {
       if (e.button !== 0) return;
       if (blockedRef.current) return;
-      const sprites = getDimensionObjects();
+      const sprites = getDimensionObjects("COTE");
       if (!sprites.length) return;
       if (!setRayFromClient(e.clientX, e.clientY)) return;
 

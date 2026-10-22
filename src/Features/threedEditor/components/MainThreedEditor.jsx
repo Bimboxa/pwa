@@ -38,12 +38,13 @@ import addAnnotationSubtraction from "Features/annotations/services/addAnnotatio
 import bakeSubtractionPickService from "Features/annotationMesh3d/services/bakeSubtractionPickService";
 import {
   clearItemPartSelection,
+  selectSelectedItem,
+  selectSelectedItems,
+  selectSelectedPartIds,
   setSelectedItem,
   setSelectedItems,
-  toggleItemSelection,
   setShowAnnotationsProperties,
-  selectSelectedItem,
-  selectSelectedPartIds,
+  toggleItemSelection,
 } from "Features/selection/selectionSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -137,6 +138,12 @@ import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hook
 import ThreedRevolutionAxisHandles from "Features/revolutionAxes/components/ThreedRevolutionAxisHandles";
 import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisHandleDragHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
+import useRulerLabelDragHandlers from "Features/threedDimensions/hooks/useRulerLabelDragHandlers";
+import {
+  getRulerLabelPartId,
+  RULER_LABEL_PART_TYPE,
+} from "Features/threedDimensions/utils/rulerLabelPart";
+import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
@@ -607,6 +614,7 @@ export default function MainThreedEditor() {
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
+  useRulerLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useAnnotationLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
@@ -1066,11 +1074,14 @@ export default function MainThreedEditor() {
         return;
       }
 
-      // Cote label sprite hit-test — runs before the annotation raycast
-      // (which filters `.isMesh` and so never sees the label sprites). The
-      // sprite carries the owning COTE annotation id; selecting it dispatches
-      // the SAME payload as the generic annotation branch below, so the
-      // normal annotation popper / properties / Delete-key flows apply.
+      // Cote / ruler value card sprite hit-test — runs before the annotation
+      // raycast (which filters `.isMesh` and so never sees the label
+      // sprites). The sprite carries the owning COTE / RULER annotation id;
+      // selecting it dispatches the SAME payload as the generic annotation
+      // branch below, so the normal annotation popper / properties /
+      // Delete-key flows apply. A card of the already-selected ruler
+      // sub-selects that card instead (RULER_LABEL part — its drag is
+      // useRulerLabelDragHandlers'); Shift keeps the selection toggle.
       const dimensionObjects = getDimensionObjects();
       if (dimensionObjects.length > 0) {
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1096,6 +1107,26 @@ export default function MainThreedEditor() {
             annotationTemplateId,
           };
           const position = { x: event.clientX, y: event.clientY };
+          const segmentKey = spriteHit.userData.segmentKey;
+          if (
+            annotationType === "RULER" &&
+            segmentKey &&
+            !event.shiftKey &&
+            getSingleSelectedAnnotationId(
+              selectSelectedItems(store.getState())
+            ) === coteAnnotationId
+          ) {
+            dispatch(
+              setSubSelection({
+                partId: getRulerLabelPartId(coteAnnotationId, segmentKey),
+                partType: RULER_LABEL_PART_TYPE,
+                pointId: null,
+              })
+            );
+            dispatch(setAnnotationToolbarPosition(position));
+            dispatch(setAnnotationsToolbarPosition(position));
+            return;
+          }
           if (event.shiftKey) {
             dispatch(toggleItemSelection(item));
           } else {

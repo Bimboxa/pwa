@@ -17,6 +17,7 @@ import SectionAnnotationCalepinage from "./SectionAnnotationCalepinage";
 import SectionAnnotationOpenings from "./SectionAnnotationOpenings";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import SectionAnnotationTransform from "./SectionAnnotationTransform";
+import SectionAnnotationCote from "./SectionAnnotationCote";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 import FieldAnnotationStrokeWidth from "./FieldAnnotationStrokeWidth";
@@ -205,6 +206,14 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {type === "IMAGE" && <FieldAnnotationImage annotation={annotation} />}
         {type === "IMAGE" && <FieldAnnotationOpacity annotation={annotation} />}
+        {/* COTE / RULER: the cote settings of this annotation (and the reset
+            of a ruler's dragged value cards). */}
+        {(type === "COTE" || type === "RULER") && (
+          <SectionAnnotationCote
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         <SectionAnnotationTransform annotation={annotation} />
         {/* DISC: radius + partial revolution (sector bounds). */}
         {type === "DISC" && (
