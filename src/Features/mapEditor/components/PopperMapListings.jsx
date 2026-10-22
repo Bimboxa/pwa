@@ -2525,7 +2525,25 @@ export default function PopperMapListings() {
             <WarningBaseMapNotToScale />
           )}
 
-          {/* Axes de révolution — pinned at the top, above the listings
+          {/* « Annotations sans modèle » — pinned at the very top, above the
+              axes, in the same white rounded card as the axis rows (Dessin
+              popper, scope-level: the « Dessin » command needs no listing),
+              hidden in 3D and while SELECT-filtering. */}
+          {!isBaseMapsLegend &&
+            !isLocateBusinessObjectMode &&
+            isDessinPopper &&
+            !isLegendPopper &&
+            !isThreedViewer &&
+            !visibleTemplateIds && (
+              <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
+                <RowTemplatelessAnnotations
+                  annotations={templatelessAnnotations}
+                />
+              </Box>
+            )}
+
+          {/* Axes de révolution — pinned at the top under « Annotations sans
+              modèle », above the listings
               block, as soon as the base map carries one (drawn on this plan
               / placed on this vertical base map): one row per axis in a
               rounded card on the grey, without section header, with the
@@ -2748,40 +2766,8 @@ export default function PopperMapListings() {
             </>
           </Box>
 
-          {/* Pinned bottom section — outside the scrollable body, so it
-              stays in sight while the templates scroll. Capped in height so
-              it never hides the templates: « Annotations sans modèle »
-              (Dessin popper, scope-level: the « Dessin » command needs no
-              listing), hidden in 3D and while SELECT-filtering. */}
-          {!isBaseMapsLegend && !isLocateBusinessObjectMode && (
-            <Box
-              sx={{
-                flexShrink: 0,
-                maxHeight: layersMaxHeight,
-                overflow: "auto",
-              }}
-            >
-              {isDessinPopper &&
-                !isLegendPopper &&
-                !isThreedViewer &&
-                !visibleTemplateIds && (
-                  <Box
-                    sx={{
-                      borderTop: "1px solid",
-                      borderColor: "panel.border",
-                      bgcolor: "background.default",
-                    }}
-                  >
-                    <RowTemplatelessAnnotations
-                      annotations={templatelessAnnotations}
-                    />
-                  </Box>
-                )}
-            </Box>
-          )}
-
           {/* « Annotations sur les autres fonds de plan » section — pinned
-              at the very bottom, under « Annotations sans modèle »: the
+              at the very bottom: the
               header ("..." menu, detach, expand / collapse) and, expanded,
               the base maps list capped in height. Replaces the "Fonds de
               plan" tab of the header toggle in these poppers. */}

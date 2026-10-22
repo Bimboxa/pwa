@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
+  Box,
   Typography,
   ListItemButton,
   IconButton,
   Tooltip,
-  Divider,
 } from "@mui/material";
-import QuestionMark from "@mui/icons-material/QuestionMark";
 import Tune from "@mui/icons-material/Tune";
 
 import SoloIconToggle from "./SoloIconToggle";
@@ -19,15 +18,18 @@ import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotat
 
 // ---------------------------------------------------------------------------
 // RowTemplatelessAnnotations — « Annotations sans modèle » row of the
-// PopperMapListings templates list, right below "Nouveau modèle": the
-// annotations drawn without template nor listing (« Dessin » command of the
-// commands toolbar, hotkey D) in the popper's annotations set. Shows their
-// count as a pill that toggles their visibility (templateless sentinel, see
-// useDrawTemplateless — same pill as the listing rows: filled while visible,
-// outlined while hidden); the row icon is the solo toggle (as on the
-// template rows) and the properties button shows on hover; click selects
-// the ones of the main base map on the map (multi-selection panel). Rendered only when there is at least one, or
-// while the sentinel is soloed / eye-hidden.
+// PopperMapListings, pinned at the top of the panel above the revolution
+// axes, in the same white rounded card as the axis rows (inset in the grey
+// panel): the annotations drawn without template nor listing (« Dessin »
+// command of the commands toolbar, hotkey D) in the popper's annotations
+// set. Shows their count as a pill that toggles their visibility
+// (templateless sentinel, see useDrawTemplateless — same pill as the listing
+// rows: filled while visible, outlined while hidden); the row icon (light
+// grey polygon, the "shape without template" mark) is the solo toggle (as on
+// the template rows) and the properties button shows on hover; click selects
+// the ones of the main base map on the map (multi-selection panel). Rendered
+// only when there is at least one, or while the sentinel is soloed /
+// eye-hidden.
 // ---------------------------------------------------------------------------
 
 export default function RowTemplatelessAnnotations({ annotations }) {
@@ -92,8 +94,17 @@ export default function RowTemplatelessAnnotations({ annotations }) {
   if (count === 0 && !isSolo && !isHidden) return null;
 
   return (
-    <>
-      <Divider sx={{ my: 0.5, borderColor: "divider" }} />
+    <Box
+      sx={{
+        mx: 1,
+        my: 1,
+        overflow: "hidden",
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "panel.border",
+        borderRadius: 2,
+      }}
+    >
       <Tooltip title={tooltipS} arrow placement="left" enterDelay={600}>
         <ListItemButton
           onClick={handleClick}
@@ -102,23 +113,22 @@ export default function RowTemplatelessAnnotations({ annotations }) {
           sx={{
             alignItems: "center",
             gap: 1,
-            // Grey like the panel around the listing / templates cards: the
-            // row is scope-level, not part of the active listing's card.
-            bgcolor: "background.default",
-            pl: 3,
-            pr: 1,
+            // Same inset as the axis rows of the card below.
+            pl: 1,
+            pr: 0.5,
             py: 0.5,
             "&:hover": { bgcolor: "action.hover" },
           }}
         >
-          {/* Row icon = SOLO toggle, as on the template rows */}
+          {/* Row icon = SOLO toggle, as on the template rows: a light grey
+              polygon, the mark of a shape drawn without template. */}
           <SoloIconToggle
             isSolo={isSolo}
             isHidden={isHidden}
             isRowHovered={isHovered}
             onToggle={toggleSolo}
           >
-            <QuestionMark sx={{ fontSize: 18, color: "panel.textMuted" }} />
+            <PolygonIcon />
           </SoloIconToggle>
           <Typography
             variant="body2"
@@ -127,6 +137,7 @@ export default function RowTemplatelessAnnotations({ annotations }) {
               flex: 1,
               minWidth: 0,
               userSelect: "none",
+              fontStyle: "italic",
               color: isHidden ? "text.disabled" : "panel.textSecondary",
             }}
           >
@@ -154,6 +165,22 @@ export default function RowTemplatelessAnnotations({ annotations }) {
           />
         </ListItemButton>
       </Tooltip>
-    </>
+    </Box>
+  );
+}
+
+// Light grey irregular polygon — the row icon (same 18px box as the
+// template row icons).
+function PolygonIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      <polygon
+        points="3,7 11,2 18,6 16,15 7,18 2,13"
+        fill="#d0d0d0"
+        stroke="#b8b8b8"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
