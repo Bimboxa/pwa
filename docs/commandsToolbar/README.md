@@ -30,7 +30,14 @@ capture framing, walk mode, PDF editor, base maps grid, create base map
 section. Buttons and hotkeys share this visibility. The layout is per module
 (`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
 module shows its two base map placement commands and the « Repère » group
-alone.
+alone. `DEFAULT_LAYOUT` is ordered by tool family, from the scene context to
+the quality tools: « Repère » → base map placement → draw (the templateless
+types, then the revolution axis) → lines in a surface → cuts (opening,
+segment, surface / face) → topological cuts (subtraction, hollow out) → faces
+(extrude, isolate, merge) → create / modify from the selection (clone, merge,
+join, walls…) → move / rotate / view toggles of one annotation → quality
+(duplicates, cleanup, simplify, arcs, align). This order is display only: the
+registry order of `commands/index.js` drives the hotkey resolution.
 
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
 drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device

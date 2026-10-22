@@ -10,9 +10,27 @@
 // own. Every command of the registry must appear in at least one layout, at
 // most once per layout (asserted in dev by commands/index.js). The code stays one folder per command: a group
 // only decides how the buttons are packed on screen.
+//
+// Blocks, from the scene context to the quality tools: frame → base map →
+// draw → lines in a surface → cuts → topological cuts → faces → create /
+// modify from the selection → move / view of one annotation → quality.
+// The registry order (commands/index.js) drives the hotkey resolution and is
+// independent from this display order.
 const DEFAULT_LAYOUT = [
-  // « Dessin » — the templateless annotation types, one button each
+  // user frame (3D editor): orient / show / reset the axes
+  {
+    type: "group",
+    key: "AXES",
+    label: "Repère",
+    commandKeys: ["PLACE_AXES", "TOGGLE_AXES", "RESET_AXES"],
+  },
   { type: "divider" },
+  // base map placement (3D editor)
+  "MOVE_BASE_MAP",
+  "ROTATE_BASE_MAP",
+  { type: "divider" },
+  // « Dessin » — the templateless annotation types, one button each, then
+  // the revolution axis
   "DRAW_POLYLINE",
   "DRAW_POLYGON",
   "DRAW_DISC",
@@ -24,36 +42,55 @@ const DEFAULT_LAYOUT = [
   "DRAW_IMAGE",
   "DRAW_COTE",
   "DRAW_RULER",
-  { type: "divider" },
-  // drawing tools
-  "CUT",
   "REVOLUTION_AXIS",
   { type: "divider" },
-  "SPLIT_LINE",
+  // lines added inside the selected surface (the guide line and the layout
+  // line stand alone, outside the group)
+  {
+    type: "group",
+    key: "POLYGON_LINES",
+    label: "Lignes dans une surface",
+    commandKeys: [
+      "ADD_SLOPE",
+      "AUTO_SLOPE",
+      "ADD_ISO_HEIGHT_LINE",
+      "ADD_PROFILE_LINE",
+    ],
+  },
+  "ADD_GUIDE_LINE",
+  "ADD_LAYOUT_LINE",
+  { type: "divider" },
+  // cuts: openings, segment cuts, surface / face cuts
+  "CUT",
   "SPLIT_POLYLINE_CLICK",
+  "SPLIT_LINE",
   "ISOLATE_SEGMENT",
   "SURFACE_CUT",
-  "JOIN_ANNOTATIONS",
   "FACE_CUT",
+  { type: "divider" },
+  // topological cuts: subtraction, hollow out
+  {
+    type: "group",
+    key: "SUBTRACT",
+    label: "Soustraction",
+    commandKeys: ["SUBTRACT", "SUBTRACT_FROM"],
+  },
+  "HOLLOW_OUT",
+  { type: "divider" },
+  // faces (3D editor)
+  "EXTRUDE",
   "ISOLATE_FACE",
   "MERGE_FACES",
-  "EXTRUDE",
   { type: "divider" },
-  // transforms of the selection
-  "MOVE_ANNOTATION",
-  "ROTATE_ANNOTATION",
-  "WRAPPER_MODE",
+  // create / modify from the selected annotations
   "CLONE",
   "MERGE",
+  "JOIN_ANNOTATIONS",
   "DILATE",
   "SPLIT_IN_SEGMENTS",
   "SETTING_OUT",
   "CONVERT",
   "REENTRANT_ANGLES",
-  "CLEAN_SEGMENTS",
-  "DETECT_DUPLICATES",
-  { type: "divider" },
-  // geometry of one annotation
   {
     type: "group",
     key: "LINE_EDIT",
@@ -65,36 +102,6 @@ const DEFAULT_LAYOUT = [
       "FLIP_EXTRUSION",
       "ANCHOR",
       "DETECT_SIMILAR_STRIPS",
-    ],
-  },
-  // cleanup: the deleted-annotations purge of the scope (default) + the
-  // geometry repair of the selected line / surface
-  {
-    type: "group",
-    key: "CLEANUP",
-    label: "Nettoyage",
-    commandKeys: ["CLEAN", "REPAIR"],
-  },
-  "SIMPLIFY",
-  "ARCIFY",
-  "HOLLOW_OUT",
-  {
-    type: "group",
-    key: "SUBTRACT",
-    label: "Soustraction",
-    commandKeys: ["SUBTRACT", "SUBTRACT_FROM"],
-  },
-  {
-    type: "group",
-    key: "POLYGON_LINES",
-    label: "Lignes dans une surface",
-    commandKeys: [
-      "ADD_GUIDE_LINE",
-      "ADD_SLOPE",
-      "AUTO_SLOPE",
-      "ADD_ISO_HEIGHT_LINE",
-      "ADD_PROFILE_LINE",
-      "ADD_LAYOUT_LINE",
     ],
   },
   {
@@ -112,36 +119,41 @@ const DEFAULT_LAYOUT = [
   },
   "ASSIGN_BUSINESS_OBJECT",
   { type: "divider" },
-  // view toggles of the 2D editor
+  // move / rotate one annotation + view toggles of the 2D editor
+  "MOVE_ANNOTATION",
+  "ROTATE_ANNOTATION",
+  "WRAPPER_MODE",
   "TOGGLE_SEGMENT_COTES",
   "TOGGLE_SEGMENT_DRAG",
   "TOGGLE_ANGLES_LOCKED",
   { type: "divider" },
-  // base map placement (3D editor)
-  "MOVE_BASE_MAP",
-  "ROTATE_BASE_MAP",
-  { type: "divider" },
-  // user frame (3D editor): orient / show / reset the axes
+  // quality: duplicates detection, cleanup (the deleted-annotations purge of
+  // the scope + the geometry repair of the selected line / surface),
+  // geometry simplification, arcs detection, alignment
+  "DETECT_DUPLICATES",
   {
     type: "group",
-    key: "AXES",
-    label: "Repère",
-    commandKeys: ["PLACE_AXES", "TOGGLE_AXES", "RESET_AXES"],
+    key: "CLEANUP",
+    label: "Nettoyage",
+    commandKeys: ["CLEAN", "REPAIR"],
   },
+  "SIMPLIFY",
+  "ARCIFY",
+  "CLEAN_SEGMENTS",
 ];
 
-// « Fonds de plan » module: the base map placement commands and the user
-// frame group only.
+// « Fonds de plan » module: the user frame group and the base map placement
+// commands only, in the same order as DEFAULT_LAYOUT.
 const BASE_MAPS_LAYOUT = [
-  "MOVE_BASE_MAP",
-  "ROTATE_BASE_MAP",
-  { type: "divider" },
   {
     type: "group",
     key: "AXES",
     label: "Repère",
     commandKeys: ["PLACE_AXES", "TOGGLE_AXES", "RESET_AXES"],
   },
+  { type: "divider" },
+  "MOVE_BASE_MAP",
+  "ROTATE_BASE_MAP",
 ];
 
 export const TOOLBAR_LAYOUTS = {
