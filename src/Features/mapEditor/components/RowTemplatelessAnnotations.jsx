@@ -11,6 +11,7 @@ import {
 import Tune from "@mui/icons-material/Tune";
 
 import SoloIconToggle from "./SoloIconToggle";
+import IconTemplatelessPolygon from "./IconTemplatelessPolygon";
 import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPill";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 import useOpenTemplatelessAnnotationsPanel from "Features/mapEditor/hooks/useOpenTemplatelessAnnotationsPanel";
@@ -128,7 +129,7 @@ export default function RowTemplatelessAnnotations({ annotations }) {
             isRowHovered={isHovered}
             onToggle={toggleSolo}
           >
-            <PolygonIcon />
+            <IconTemplatelessPolygon />
           </SoloIconToggle>
           <Typography
             variant="body2"
@@ -166,21 +167,5 @@ export default function RowTemplatelessAnnotations({ annotations }) {
         </ListItemButton>
       </Tooltip>
     </Box>
-  );
-}
-
-// Light grey irregular polygon — the row icon (same 18px box as the
-// template row icons).
-function PolygonIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
-      <polygon
-        points="3,7 11,2 18,6 16,15 7,18 2,13"
-        fill="#d0d0d0"
-        stroke="#b8b8b8"
-        strokeWidth="1"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

@@ -1,21 +1,23 @@
 import { useState } from "react";
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
-import Draw from "@mui/icons-material/Draw";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Tune from "@mui/icons-material/Tune";
 
 import SoloIconToggle from "Features/mapEditor/components/SoloIconToggle";
+import IconTemplatelessPolygon from "Features/mapEditor/components/IconTemplatelessPolygon";
 import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 import useOpenTemplatelessAnnotationsPanel from "Features/mapEditor/hooks/useOpenTemplatelessAnnotationsPanel";
 
 // ---------------------------------------------------------------------------
 // RowTemplatelessVisibility — visibility row of the annotations drawn without
 // template (« Dessin » command of the commands toolbar) in the docked Dessin
-// panel: their count, the row icon as solo toggle and the eye — what the former "Dessin"
-// tool row offered besides starting a draw. Rendered only when the scope
-// holds such annotations.
+// panel, pinned at the top above the revolution axes in the same white
+// rounded card as the axis rows: their count, the row icon (light grey
+// polygon) as solo toggle, the properties button and the eye — what the
+// former "Dessin" tool row offered besides starting a draw. Rendered only
+// when the scope holds such annotations.
 // ---------------------------------------------------------------------------
 
 export default function RowTemplatelessVisibility({ count = 0 }) {
@@ -54,21 +56,27 @@ export default function RowTemplatelessVisibility({ count = 0 }) {
         display: "flex",
         alignItems: "center",
         gap: 1,
-        px: 1.5,
-        py: 0.75,
-        borderTop: "1px solid",
-        borderColor: "divider",
+        // Same card as the axis rows below (SectionRevolutionAxes `card`).
+        mx: 1,
+        my: 1,
+        pl: 1,
+        pr: 0.5,
+        py: 0.5,
         bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "panel.border",
+        borderRadius: 2,
       }}
     >
-      {/* Row icon = SOLO toggle, as on the template rows */}
+      {/* Row icon = SOLO toggle, as on the template rows: a light grey
+          polygon, the mark of a shape drawn without template. */}
       <SoloIconToggle
         isSolo={isSolo}
         isHidden={isHidden}
         isRowHovered={isHovered}
         onToggle={toggleSolo}
       >
-        <Draw sx={{ fontSize: 20, color: "primary.main" }} />
+        <IconTemplatelessPolygon />
       </SoloIconToggle>
       <Typography
         variant="body2"
@@ -77,7 +85,8 @@ export default function RowTemplatelessVisibility({ count = 0 }) {
           flex: 1,
           minWidth: 0,
           userSelect: "none",
-          color: isHidden ? "text.disabled" : "text.primary",
+          fontStyle: "italic",
+          color: isHidden ? "text.disabled" : "panel.textSecondary",
         }}
       >
         {labelS}

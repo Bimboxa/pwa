@@ -333,7 +333,14 @@ export default function PanelDrawing() {
             <WarningBaseMapNotToScale sx={{ mx: 1.5, mt: 0 }} />
           )}
 
-          {/* Axes de révolution of the base map — pinned at the top, above
+          {/* « Annotations sans modèle » — pinned at the very top, above the
+              axes, in the same white rounded card as the axis rows:
+              annotations drawn without template: count, solo and eye (the
+              "Dessin" command itself lives in the commands toolbar). */}
+          <RowTemplatelessVisibility count={templatelessCount} />
+
+          {/* Axes de révolution of the base map — pinned at the top under
+              « Annotations sans modèle », above
               the listings block, one row per axis in a rounded card without
               section header (same section as the Dessin popper). Capped in
               height so many axes never hide the listings. */}
@@ -375,11 +382,6 @@ export default function PanelDrawing() {
               />
             )}
           </Box>
-
-          {/* Pinned bottom row — outside the scrollable templates list:
-              annotations drawn without template: count, solo and eye (the
-              "Dessin" command itself lives in the commands toolbar). */}
-          <RowTemplatelessVisibility count={templatelessCount} />
 
           {/* « X annotations sur N fonds de plan » — pinned at the very
               bottom like the Dessin popper: header with the expand /
