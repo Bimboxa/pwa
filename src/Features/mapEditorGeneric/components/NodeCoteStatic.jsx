@@ -411,19 +411,6 @@ export default function NodeCoteStatic({
   // label transform — at midpoint of the dimension line, rotated, upright
 
   const mid = { x: (D1.x + D2.x) / 2, y: (D1.y + D2.y) / 2 };
-  // The value displaced from its line (`coteLabelOffset`, base-map-local
-  // metres, dragged in the 3D editor): the stored metres → image px on the
-  // plan (local frame y-up, image y-down; the normal component is ignored).
-  // Nothing without a scale. No leader in 2D (as for the ruler).
-  const coteLabelOffset = merged?.coteLabelOffset;
-  const labelDx =
-    hasScale && coteLabelOffset
-      ? (coteLabelOffset.x || 0) / baseMapMeterByPx
-      : 0;
-  const labelDy =
-    hasScale && coteLabelOffset
-      ? -(coteLabelOffset.y || 0) / baseMapMeterByPx
-      : 0;
   let angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
   let textFlip = false;
   if (angleDeg > 90) {
@@ -486,12 +473,11 @@ export default function NodeCoteStatic({
         </>
       )}
 
-      {/* value label — centred on dimension line midpoint (plus its own
-          displacement, if any), rotated, sized in page points (fixed vs the
-          base map), draggable to change extensionOffset */}
-      <g
-        transform={`translate(${mid.x + labelDx}, ${mid.y + labelDy}) rotate(${angleDeg})`}
-      >
+      {/* value label — centred on dimension line midpoint, rotated, sized in
+          page points (fixed vs the base map), draggable to change
+          extensionOffset. The 3D value-card offset (`coteLabelOffset`) is
+          3D-only (user decision): the 2D value keeps its default placement. */}
+      <g transform={`translate(${mid.x}, ${mid.y}) rotate(${angleDeg})`}>
         <g transform={pageScaleTransform}>
           <text
             x={0}

@@ -59,7 +59,7 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
 //   - its card (DIMENSION_LABEL part, the 2nd click on the card): the drag
 //     moves the CARD only, detached from the dimension line — writes
 //     `coteLabelOffset` (basemap-local meters, from the dimension-line
-//     midpoint), rendered in 3D and 2D with a dashed leader — like a
+//     midpoint), rendered in 3D only with a dashed leader — like a
 //     ruler's cards (useRulerLabelDragHandlers).
 // The drag is live: the cursor is projected on a camera-facing plane through
 // the card, the displacement since the grab point is added to the current

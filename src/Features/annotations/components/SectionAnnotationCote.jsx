@@ -20,7 +20,7 @@ import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 // disabled then.
 //
 // « Réinitialiser la position de l'étiquette / des étiquettes » drops the
-// value-card offsets dragged in the 3D editor and rendered in 2D and 3D: a
+// 3D value-card offsets (dragged and rendered in the 3D editor only): a
 // cote's `coteLabelOffset`, a ruler's per-segment `rulerLabelOffsets` —
 // every card goes back onto its cote.
 export default function SectionAnnotationCote({ annotation, overrideFields }) {
@@ -34,8 +34,8 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
       : "Réinitialiser la position de l'étiquette";
   const resetHelperS =
     annotation?.type === "RULER"
-      ? "Replace chaque étiquette déplacée sur sa cote."
-      : "Replace l'étiquette déplacée sur sa ligne de cote.";
+      ? "Replace chaque étiquette déplacée en 3D sur sa cote."
+      : "Replace l'étiquette déplacée en 3D sur sa ligne de cote.";
 
   // data
 

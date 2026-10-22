@@ -52,7 +52,8 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
 // click, through MainThreedEditor's sprite pre-pass — same rule as the cote
 // cards). Each card's displacement from its default position (the middle of
 // its offset segment) is persisted per segment in `rulerLabelOffsets[key]`
-// (base-map-local metres), rendered in 3D and in 2D (NodeRulerStatic).
+// (base-map-local metres), rendered in 3D only (2D keeps the default
+// placement — user decision).
 // Mirror of useCoteLabelDragHandlers: the cursor is projected on a
 // camera-facing plane through the grabbed card, the displacement since the
 // grab point is added to each card's current offset (no jump); with Shift
