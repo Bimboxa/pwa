@@ -55,7 +55,9 @@ export default function createMesh3dLabelSprite({
 
   const s = CANVAS_SCALE;
   const titleFontPx = 24 * s;
-  const subFontPx = 17 * s;
+  // Secondary line (surface / quantities) close to the title size: the card is
+  // small on screen, a much smaller sub line was unreadable.
+  const subFontPx = 22 * s;
   const padX = 14 * s;
   const padY = 10 * s;
   const lineGap = 4 * s;
@@ -74,6 +76,7 @@ export default function createMesh3dLabelSprite({
   }
 
   const canvasW = Math.ceil(textW + padX * 2);
+  const singleLineCanvasH = titleFontPx + padY * 2;
   const canvasH = Math.ceil(
     titleFontPx + (surfaceText ? lineGap + subFontPx : 0) + padY * 2
   );
@@ -132,7 +135,9 @@ export default function createMesh3dLabelSprite({
 
   const sprite = new Sprite(material);
   const aspect = canvasW / canvasH;
-  const screenH = surfaceText ? CARD_SCREEN_HEIGHT * 1.5 : CARD_SCREEN_HEIGHT;
+  // Constant on-screen title size: the card grows with its content (the
+  // secondary line) instead of squeezing both lines into a fixed height.
+  const screenH = (CARD_SCREEN_HEIGHT * canvasH) / singleLineCanvasH;
   sprite.scale.set(screenH * aspect, screenH, 1);
   sprite.renderOrder = 1003;
 
