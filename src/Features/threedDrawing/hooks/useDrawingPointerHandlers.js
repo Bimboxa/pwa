@@ -42,6 +42,8 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
+import useDrawingPreferredBaseMapId from "./useDrawingPreferredBaseMapId";
+
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import {
@@ -206,6 +208,9 @@ export default function useDrawingPointerHandlers() {
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMapId = useMainBaseMap()?.id;
+  // Host of a point the geometry cannot place by itself (stacked plans,
+  // vertex / edge / axis-lock snaps): the base map selected in 3D, else main.
+  const preferredBaseMapId = useDrawingPreferredBaseMapId();
 
   // Template-driven mode (see useTemplateFaceDrawBridge): the committed face
   // carries the armed template + layer instead of isPendingTemplate.
@@ -372,8 +377,8 @@ export default function useDrawingPointerHandlers() {
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
         // Endpoints snapped on annotations / axis locks carry no base map:
-        // the cote then belongs to the plan selected in 2D.
-        preferredBaseMapId: mainBaseMapId ?? null,
+        // the cote then belongs to the plan selected in 3D, else in 2D.
+        preferredBaseMapId,
       });
     }
 
@@ -393,8 +398,8 @@ export default function useDrawingPointerHandlers() {
           layerId: activeLayerIdRef.current ?? null,
           createAnnotationFn: createAnnotation,
           // Vertices snapped on annotations / axis locks carry no base map:
-          // the ruler then belongs to the plan selected in 2D.
-          preferredBaseMapId: mainBaseMapId ?? null,
+          // the ruler then belongs to the plan selected in 3D, else in 2D.
+          preferredBaseMapId,
         });
         if (!created) {
           console.warn(
@@ -424,7 +429,7 @@ export default function useDrawingPointerHandlers() {
         templateProps: newAnnotationRef.current,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
-        preferredBaseMapId: mainBaseMapId ?? null,
+        preferredBaseMapId,
       });
       if (!annotation) {
         const message =
@@ -449,8 +454,8 @@ export default function useDrawingPointerHandlers() {
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
         // Vertices snapped on existing annotations / axis locks carry no
-        // base map: the shape then belongs to the plan selected in 2D.
-        preferredBaseMapId: mainBaseMapId ?? null,
+        // base map: the shape then belongs to the plan selected in 3D, else in 2D.
+        preferredBaseMapId,
       };
       const { annotation, reason } = await commitDrawnFace({
         ...common,
@@ -479,7 +484,7 @@ export default function useDrawingPointerHandlers() {
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
         closeLine,
-        preferredBaseMapId: mainBaseMapId ?? null,
+        preferredBaseMapId,
       });
     }
 
@@ -591,7 +596,7 @@ export default function useDrawingPointerHandlers() {
           templateProps: getLiveDrawing().draft,
           layerId: activeLayerIdRef.current ?? null,
           createAnnotationFn: createAnnotation,
-          preferredBaseMapId: mainBaseMapId ?? null,
+          preferredBaseMapId,
         });
         if (!created) return false;
         console.log(
@@ -619,7 +624,7 @@ export default function useDrawingPointerHandlers() {
         templateProps: draft,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
-        preferredBaseMapId: mainBaseMapId ?? null,
+        preferredBaseMapId,
       };
       let created = null;
       try {
@@ -697,8 +702,9 @@ export default function useDrawingPointerHandlers() {
       let baseMapId = snap.baseMapId ?? null;
       if (!snap.faceNormal && !baseMapId) {
         baseMapId =
-          resolveBaseMapForPoint(snap.position, baseMaps || [])?.baseMap?.id ??
-          null;
+          resolveBaseMapForPoint(snap.position, baseMaps || [], {
+            preferredBaseMapId,
+          })?.baseMap?.id ?? null;
       }
       return toDrawingVertex(snap, baseMapId ? { baseMapId } : {});
     }
@@ -1354,6 +1360,7 @@ export default function useDrawingPointerHandlers() {
         snapKind: snap?.kind ?? null,
         snapBaseMapId: snap?.baseMapId ?? null,
         mainBaseMapId: mainBaseMapId ?? null,
+        preferredBaseMapId,
         behavior: behavior ?? null,
         hasTemplate: hasTemplate(),
         type: newAnnotationRef.current?.type ?? null,
@@ -1468,8 +1475,9 @@ export default function useDrawingPointerHandlers() {
             snap.baseMapId ??
             (snap.faceNormal
               ? null
-              : (resolveBaseMapForPoint(snap.position, horizontalBaseMaps)
-                  ?.baseMap?.id ?? null));
+              : (resolveBaseMapForPoint(snap.position, horizontalBaseMaps, {
+                  preferredBaseMapId,
+                })?.baseMap?.id ?? null));
           const onHorizontalPlan =
             Boolean(centerBaseMapId) &&
             horizontalBaseMaps.some((bm) => bm.id === centerBaseMapId);
@@ -1803,6 +1811,7 @@ export default function useDrawingPointerHandlers() {
     inProgressPolyline,
     baseMaps,
     mainBaseMapId,
+    preferredBaseMapId,
     projectId,
     scopeId,
     listingId,

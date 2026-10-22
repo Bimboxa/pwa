@@ -36,6 +36,7 @@ import resolveFaceCutLockedFace, {
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 
+import useDrawingPreferredBaseMapId from "../hooks/useDrawingPreferredBaseMapId";
 import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
 import { getMeshAdjacency } from "../services/meshGraphStore";
@@ -242,7 +243,8 @@ export default function DrawingOverlayThreed() {
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMap = useMainBaseMap();
-  const mainBaseMapId = mainBaseMap?.id;
+  // Among coplanar plane hits: the base map selected in 3D, else main.
+  const preferredBaseMapId = useDrawingPreferredBaseMapId();
   // The bottom bar reads the live length as image px × meterByPx: the 3D
   // length (metres) is fed back through that scale.
   const meterByPx = mainBaseMap?.meterByPx;
@@ -710,9 +712,9 @@ export default function DrawingOverlayThreed() {
     function intersectSurfaces(mNdc, { withFaces, withScan }) {
       const planHit = intersectBaseMapPlane(editor, mNdc, camera, {
         // Stacked unplaced base maps are coplanar at the origin — prefer
-        // the 2D-selected one so the drawing lands on the plan the user
-        // is looking at (and will look for) in 2D.
-        preferredBaseMapId: mainBaseMapId,
+        // the one selected in 3D (else the 2D-selected main one) so the
+        // drawing lands on the plan the user picked, not the first hit.
+        preferredBaseMapId,
         // Cross arms, in-plane ortho lock and alignment along the user
         // axes of the gizmo frame.
         axes: snapAxes,
@@ -1409,7 +1411,7 @@ export default function DrawingOverlayThreed() {
     trait3DSegments,
     enabledDrawingMode,
     baseMaps,
-    mainBaseMapId,
+    preferredBaseMapId,
     isMeshDraw,
     isCoteDraw,
     isRulerDraw,
