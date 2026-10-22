@@ -40,6 +40,8 @@ const LINEWIDTH_EXTENSION = 0.75;
 const TICK_HALF_RATIO = 0.04;
 const TICK_HALF_MIN_M = 0.02;
 const TICK_HALF_MAX_M = 0.2;
+// Below this (metres) an extension line is invisible: the point gets a tick.
+const EXTENSION_MIN_M = 1e-3;
 
 function getCanvasResolution(editor) {
   const dom = editor?.sceneManager?.renderer?.domElement;
@@ -269,10 +271,19 @@ export default function ThreedRulerAnnotations({ annotations }) {
         group.add(line);
       });
 
-      // Dashed extension lines: measured point → alignment line.
-      if (geom.hasOffset) {
-        geom.P.forEach((p, i) => {
-          const d = geom.D[i];
+      // Per chain point: a dashed extension line (measured point → alignment
+      // line) when the offset actually separates them, otherwise a small
+      // graduation tick across the point (2D parity: NodeRulerStatic's
+      // ticks). The per-point test matters: a purely vertical riser has all
+      // its points confounded in pixel space, so its parallel offset is zero
+      // whatever `extensionOffset` says, and the alignment line sits ON the
+      // chain — without the tick nothing shows where one segment ends and the
+      // next starts. Ticks are interior only: the extremities are the line's
+      // own ends.
+      geom.P.forEach((p, i) => {
+        const d = geom.D[i];
+        const extLength = Math.hypot(d.x - p.x, d.y - p.y, d.z - p.z);
+        if (extLength > EXTENSION_MIN_M) {
           const ext = makeLine({
             positions: [p.x, p.y, p.z, d.x, d.y, d.z],
             color,
@@ -282,40 +293,34 @@ export default function ThreedRulerAnnotations({ annotations }) {
           });
           ext.raycast = () => {}; // never picked
           group.add(ext);
-        });
-      } else {
-        // No offset: the alignment line sits ON the chain, so nothing shows
-        // where one segment ends and the next starts. A small tick across
-        // each interior point marks the joint (2D parity: NodeRulerStatic's
-        // graduation ticks). The extremities are the line's own ends.
-        for (let i = 1; i < geom.P.length - 1; i++) {
-          const p = geom.P[i];
-          const adjacent = Math.min(
-            geom.segments[i - 1].lengthMeters,
-            geom.segments[i].lengthMeters
-          );
-          const half = Math.min(
-            TICK_HALF_MAX_M,
-            Math.max(TICK_HALF_MIN_M, adjacent * TICK_HALF_RATIO)
-          );
-          const dir = tickDirAt3d(geom.P, i);
-          const tick = makeLine({
-            positions: [
-              p.x - dir.x * half,
-              p.y - dir.y * half,
-              p.z - dir.z * half,
-              p.x + dir.x * half,
-              p.y + dir.y * half,
-              p.z + dir.z * half,
-            ],
-            color,
-            linewidth,
-            resolution,
-          });
-          tick.raycast = () => {}; // never picked
-          group.add(tick);
+          return;
         }
-      }
+        if (i === 0 || i === geom.P.length - 1) return;
+        const adjacent = Math.min(
+          geom.segments[i - 1].lengthMeters,
+          geom.segments[i].lengthMeters
+        );
+        const half = Math.min(
+          TICK_HALF_MAX_M,
+          Math.max(TICK_HALF_MIN_M, adjacent * TICK_HALF_RATIO)
+        );
+        const dir = tickDirAt3d(geom.P, i);
+        const tick = makeLine({
+          positions: [
+            p.x - dir.x * half,
+            p.y - dir.y * half,
+            p.z - dir.z * half,
+            p.x + dir.x * half,
+            p.y + dir.y * half,
+            p.z + dir.z * half,
+          ],
+          color,
+          linewidth,
+          resolution,
+        });
+        tick.raycast = () => {}; // never picked
+        group.add(tick);
+      });
 
       // One value card per segment, at the middle of its offset segment plus
       // its own displacement, with a dashed leader back to that middle (built
