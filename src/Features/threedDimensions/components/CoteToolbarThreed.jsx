@@ -2,23 +2,28 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 import { IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
-// Bottom toolbar shown while the template-driven cote (2-click) mode is active.
-// Replaces the meshing / default toolbar (same swap pattern as
-// MeshingToolbarThreed) so the Maillage module doesn't keep displaying cut
-// tools that are inert while `meshingMode.active` is false.
+// Bottom toolbar shown while a cote is armed in the 3D editor (COTE template
+// row, or the "Dessin" tool on its cote type — the cote rides the 3D drawing
+// mode, see useDrawingPointerHandlers). Replaces the meshing / default
+// toolbar (same swap pattern as MeshingToolbarThreed) so the Maillage module
+// doesn't keep displaying cut tools that are inert while
+// `meshingMode.active` is false.
 //
 // Closing clears the 2D drawing state — the same dispatch pair as the Esc
-// handler of useDimensionPointerHandlers; useTemplateCoteDrawBridge then
-// deactivates the 3D dimension mode.
+// handler of useDrawingPointerHandlers; useTemplateFaceDrawBridge then
+// deactivates the 3D drawing mode.
 export default function CoteToolbarThreed() {
   const dispatch = useDispatch();
 
-  const startPoint = useSelector(
-    (s) => s.threedEditor.dimensionMode.startPoint
+  const hasFirstPoint = useSelector(
+    (s) =>
+      selectIsTemplateCoteDrawActive(s) &&
+      s.threedEditor.drawingMode.inProgressPolyline.length > 0
   );
 
   // handlers
@@ -49,9 +54,9 @@ export default function CoteToolbarThreed() {
           Cote
         </Typography>
         <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-          {startPoint
-            ? "2ᵉ point — cliquez sur un sommet ou une arête (Échap : annuler)"
-            : "Cliquez sur un sommet ou une arête pour le 1ᵉʳ point"}
+          {hasFirstPoint
+            ? "2ᵉ point — cliquez n'importe où (0-9 : longueur, Échap : annuler)"
+            : "Cliquez le 1ᵉʳ point de la cote (plan, face, sommet, arête ou axe)"}
         </Typography>
         <Tooltip title="Quitter le mode cote">
           <IconButton size="small" onClick={handleClose}>

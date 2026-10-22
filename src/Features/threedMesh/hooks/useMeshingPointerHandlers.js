@@ -43,7 +43,7 @@ import parseMeshingAngleBuffer, {
   MESHING_ANGLE_BUFFER_CHAR_RE,
 } from "../utils/parseMeshingAngleBuffer";
 
-// Mirrors useDrawingPointerHandlers / useDimensionPointerHandlers.
+// Mirrors useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 
 // Pointer interactions of the 3D meshing mode. Owns the pointer while

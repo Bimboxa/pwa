@@ -316,8 +316,8 @@ function AnnotationTemplateRow({
       return;
     }
     // Armed cote row (Maillage module): click again to disarm — same dispatch
-    // pair as the Esc handler of useDimensionPointerHandlers, so the bridge
-    // deactivates the 3D dimension mode.
+    // pair as the Esc handler of useDrawingPointerHandlers, so the bridge
+    // deactivates the 3D drawing mode.
     if (isArmedCoteRow) {
       dispatch(setEnabledDrawingMode(null));
       dispatch(setNewAnnotation({}));

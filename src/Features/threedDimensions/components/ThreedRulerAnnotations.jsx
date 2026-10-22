@@ -13,8 +13,11 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import computeRulerGeometry3d from "../utils/computeRulerGeometry3d";
 
-const LINEWIDTH = 2.5;
-const LINEWIDTH_SELECTED = 4;
+// Thin ink (screen px): a dimension line reads as precise, not as a stroke.
+const LINEWIDTH = 1;
+const LINEWIDTH_SELECTED = 2;
+// Dashed extension / graduation lines, thinner still.
+const LINEWIDTH_EXTENSION = 0.75;
 
 function getCanvasResolution(editor) {
   const dom = editor?.sceneManager?.renderer?.domElement;
@@ -175,7 +178,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
           const ext = makeLine({
             positions: [p.x, p.y, p.z, d.x, d.y, d.z],
             color,
-            linewidth: 1.5,
+            linewidth: LINEWIDTH_EXTENSION,
             resolution,
             dashed: true,
           });

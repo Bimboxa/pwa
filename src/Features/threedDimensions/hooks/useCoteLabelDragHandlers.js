@@ -1,41 +1,84 @@
 import { useEffect, useRef } from "react";
 
-import { useSelector } from "react-redux";
+import { useSelector, useStore } from "react-redux";
 import { Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
+import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
+import {
+  buildAxisLockLine,
+  removeAxisLockLine,
+} from "Features/threedDrawing/utils/axisLockLine";
+import {
+  filterIntersectionsByClipping,
+  getActiveClippingPlane,
+} from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
+// Reused as-is (see useAnnotationLabelDragHandlers): MainThreedEditor's
+// pointerup stands down while the flag is on — the sprite is invisible to
+// its `.isMesh` pick, which would otherwise act on the geometry behind it.
+import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 
 import { getDimensionObjects } from "../services/dimensionObjectsStore";
+import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
 // Pointer movement (in CSS px) below which the gesture is treated as a plain
 // click (selection) rather than an offset drag.
 const DRAG_THRESHOLD_PX = 4;
 
+// A user axis this parallel to the base map normal (|dot|) is off the plane
+// of a plane-parallel cote: no lock on it (it would only bring the dimension
+// line back onto the measured segment).
+const OFF_PLANE_AXIS_DOT = 0.1;
+
 const round2 = (v) => Math.round(v * 100) / 100;
 const round4 = (v) => Math.round(v * 10000) / 10000;
 
-// Dragging a cote's value card in 3D adjusts the dimension-line offset:
+// Dragging the value card of the SELECTED cote in 3D adjusts the
+// dimension-line offset (an unselected cote only gets selected by the click,
+// through MainThreedEditor's sprite pre-pass — same rule as the label cards):
 //   - plane-parallel cote → writes `extensionOffset` (shared with the 2D
 //     label drag of NodeCoteStatic, so both views stay in sync);
 //   - vertical/oblique cote → writes the `offset3d` vector (basemap-local
 //     meters), the only way to give such a cote an offset (its 2D projection
 //     is degenerate).
-// The drag is live: cursor is projected on a camera-facing plane through the
-// label, the delta is constrained perpendicular to the measured segment, and
-// the Line2/extensions/sprite are updated imperatively; the annotation is
-// persisted on pointerup (the DB write then re-triggers the rebuild).
+// The drag is live: the cursor is projected on a camera-facing plane through
+// the label, the displacement since the grab point is added to the current
+// offset (the line keeps its grab offset, no jump) and constrained
+// perpendicular to the measured segment; with Shift held the cursor is
+// locked on the user axis of the gizmo frame (through the grab point)
+// closest to it on screen — « Déplacer » parity, the axis drawn dashed in
+// its colour. The Line2/extensions/sprite are updated imperatively; the
+// annotation is persisted on pointerup (the DB write then re-triggers the
+// rebuild).
 export default function useCoteLabelDragHandlers({ rendererIsReady }) {
   const updateAnnotation = useUpdateAnnotation();
+  const store = useStore();
 
-  // Modes that own the pointer — no label drag while one is active.
-  const dimensionActive = useSelector(
-    (s) => s.threedEditor.dimensionMode.active
-  );
+  // Modes that own the pointer — no label drag while one is active (same
+  // list as useAnnotationLabelDragHandlers: the Maillage module keeps
+  // meshing on, so only a tool other than SELECT blocks).
+  const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
+  const meshingTool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const walkActive = useSelector((s) => s.threedEditor.walkMode?.active);
+  const extrudeActive = useSelector((s) => s.threedEditor.extrudeMode?.active);
   const blockedRef = useRef(false);
-  blockedRef.current = Boolean(dimensionActive || drawingActive || walkActive);
+  blockedRef.current = Boolean(
+    drawingActive ||
+    walkActive ||
+    extrudeActive ||
+    (meshingActive && meshingTool !== "SELECT")
+  );
+
+  // Yaw of the displayed axes frame: the Shift locks follow the gizmo axes
+  // (same as the 3D drawing and « Déplacer »). Read in the handlers through
+  // a ref.
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings?.yawDeg ?? 0);
+  const yawDegRef = useRef(yawDeg);
+  yawDegRef.current = yawDeg;
 
   const updateAnnotationRef = useRef(updateAnnotation);
   useEffect(() => {
@@ -55,25 +98,62 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
     const raycaster = new Raycaster();
     const ndc = new Vector2();
 
-    function setRayFromEvent(e) {
+    function setRayFromClient(clientX, clientY) {
       const rect = dom.getBoundingClientRect();
-      if (!rect.width || !rect.height) return false;
-      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      if (!rect.width || !rect.height) return null;
+      ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
-      return true;
+      return { width: rect.width, height: rect.height };
+    }
+
+    function removeAxisLine(drag) {
+      if (!drag?.axisLine) return;
+      removeAxisLockLine(drag.axisLine);
+      drag.axisLine = null;
+      drag.axis = null;
+    }
+
+    // Dashed line along the locked axis through the grab point, in the axis
+    // colour. Static for a given axis.
+    function updateAxisLine(drag, axis) {
+      if (!axis) {
+        removeAxisLine(drag);
+        return;
+      }
+      if (drag.axis === axis && drag.axisLine) return;
+      removeAxisLine(drag);
+      const dir = drag.axes.find((a) => a.key === axis)?.dir;
+      if (!dir) return;
+      const line = buildAxisLockLine({
+        editor,
+        camera,
+        origin: drag.startHit,
+        dir,
+        axis,
+      });
+      if (!line) return;
+      sceneManager.scene.add(line);
+      drag.axisLine = line;
+      drag.axis = axis;
     }
 
     function endDrag() {
       const drag = dragRef.current;
       dragRef.current = null;
-      if (drag && sceneManager.controlsManager?.orbitControls) {
-        sceneManager.controlsManager.orbitControls.enabled =
-          drag.prevControlsEnabled;
+      if (drag) {
+        const controls = sceneManager.controlsManager?.orbitControls;
+        if (controls) controls.enabled = drag.prevControlsEnabled;
+        removeAxisLine(drag);
+        sceneManager.renderScene?.();
       }
+      // Released after the canvas-level pointerup listeners have run.
+      setMesh3dLabelGestureActive(false);
       window.removeEventListener("pointermove", onWindowPointerMove);
       window.removeEventListener("pointerup", onWindowPointerUp);
       window.removeEventListener("pointercancel", onWindowPointerCancel);
+      window.removeEventListener("keydown", onShiftChange);
+      window.removeEventListener("keyup", onShiftChange);
       return drag;
     }
 
@@ -82,12 +162,24 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       if (blockedRef.current) return;
       const sprites = getDimensionObjects();
       if (!sprites.length) return;
-      if (!setRayFromEvent(e)) return;
+      if (!setRayFromClient(e.clientX, e.clientY)) return;
 
-      const hits = raycaster.intersectObjects(sprites, false);
+      // A card hidden by the clipping plane is not grabbed (same filter as
+      // the selection pre-pass of MainThreedEditor).
+      const hits = filterIntersectionsByClipping(
+        raycaster.intersectObjects(sprites, false),
+        getActiveClippingPlane(sceneManager)
+      );
       const sprite = hits[0]?.object;
       const annotationId = sprite?.userData?.annotationId;
       if (!annotationId) return;
+
+      // Unselected cote: the click only selects it (MainThreedEditor's
+      // handleClick, sprite pre-pass) — no drag, camera controls stay free.
+      const selectedId = getSingleSelectedAnnotationId(
+        selectSelectedItems(store.getState())
+      );
+      if (selectedId !== annotationId) return;
 
       const group = sprite.parent;
       const coteGeom = group?.userData?.coteGeom;
@@ -109,12 +201,29 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       const midWorld = P1w.clone().add(P2w).multiplyScalar(0.5);
 
       // Drag plane: through the current label position, facing the camera.
+      // The label sits at the dimension line's midpoint: its offset from the
+      // measured segment is the current offset vector.
       const labelWorld = sprite.getWorldPosition(new Vector3());
       const planeNormal = camera.getWorldDirection(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
         planeNormal,
         labelWorld
       );
+      const startHit = new Vector3();
+      if (!raycaster.ray.intersectPlane(plane, startHit)) return;
+      const offsetWorld = labelWorld.clone().sub(midWorld);
+
+      // Shift locks: the user axes of the gizmo frame. A plane-parallel cote
+      // keeps its line in its plan: the axes lying in that plane only.
+      const baseMapNormal = new Vector3(0, 0, 1).transformDirection(
+        group.matrixWorld
+      );
+      const userAxes = getUserAxesWorldDirections(yawDegRef.current);
+      const axes = coteGeom.isPlaneParallel
+        ? userAxes.filter(
+            (a) => Math.abs(a.dir.dot(baseMapNormal)) < OFF_PLANE_AXIS_DOT
+          )
+        : userAxes;
 
       const controls = sceneManager.controlsManager?.orbitControls;
       const prevControlsEnabled = controls?.enabled ?? true;
@@ -126,10 +235,16 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         coteGeom,
         coteObjects,
         uWorld,
-        midWorld,
+        offsetWorld,
         plane,
+        startHit,
+        axes,
+        axis: null,
+        axisLine: null,
         prevControlsEnabled,
         startClient: { x: e.clientX, y: e.clientY },
+        lastClient: { clientX: e.clientX, clientY: e.clientY },
+        lastShiftKey: e.shiftKey,
         moved: false,
         // Live values persisted on pointerup.
         sMeters: null,
@@ -139,6 +254,8 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       window.addEventListener("pointermove", onWindowPointerMove);
       window.addEventListener("pointerup", onWindowPointerUp);
       window.addEventListener("pointercancel", onWindowPointerCancel);
+      window.addEventListener("keydown", onShiftChange);
+      window.addEventListener("keyup", onShiftChange);
 
       // Keep camera-controls (registered on the same element) from starting
       // a camera drag with this gesture.
@@ -146,22 +263,50 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       e.preventDefault();
     }
 
-    function onWindowPointerMove(e) {
+    function applyMove({ clientX, clientY, shiftKey }) {
       const drag = dragRef.current;
       if (!drag) return;
       if (!drag.moved) {
-        const dx = Math.abs(e.clientX - drag.startClient.x);
-        const dy = Math.abs(e.clientY - drag.startClient.y);
+        const dx = Math.abs(clientX - drag.startClient.x);
+        const dy = Math.abs(clientY - drag.startClient.y);
         if (dx <= DRAG_THRESHOLD_PX && dy <= DRAG_THRESHOLD_PX) return;
         drag.moved = true;
+        // From here on the card owns the gesture: the pointerup pick path
+        // of MainThreedEditor (selection toggle on Shift) stands down. A
+        // click without a move keeps it — Shift+click still deselects.
+        setMesh3dLabelGestureActive(true);
       }
-      if (!setRayFromEvent(e)) return;
+      const canvasSize = setRayFromClient(clientX, clientY);
+      if (!canvasSize) return;
 
-      const hit = new Vector3();
-      if (!raycaster.ray.intersectPlane(drag.plane, hit)) return;
+      // Shift: the destination is locked on the user axis through the grab
+      // point closest to the cursor on screen (no threshold, « Déplacer »
+      // parity); else the cursor on the camera-facing plane.
+      let hit = null;
+      let axis = null;
+      if (shiftKey && drag.axes.length) {
+        const lock = computeAxisLockSnap({
+          mouseNdc: ndc,
+          camera,
+          canvasSize,
+          origin: drag.startHit,
+          axes: drag.axes,
+          raycaster,
+        });
+        if (lock) {
+          hit = lock.position;
+          axis = lock.axis;
+        }
+      }
+      if (!hit) {
+        hit = new Vector3();
+        if (!raycaster.ray.intersectPlane(drag.plane, hit)) return;
+      }
+      updateAxisLine(drag, axis);
 
-      // Perpendicular component of (hit - segment midpoint) vs the segment.
-      const w = hit.sub(drag.midWorld);
+      // Current offset + displacement since the grab point, perpendicular
+      // component vs the segment.
+      const w = drag.offsetWorld.clone().add(hit.clone().sub(drag.startHit));
       const along = w.dot(drag.uWorld);
       const vWorld = w.addScaledVector(drag.uWorld, -along);
 
@@ -224,8 +369,32 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         ]);
         extensions[1].computeLineDistances();
       }
-      sprite.position.set((D1.x + D2.x) / 2, (D1.y + D2.y) / 2, (D1.z + D2.z) / 2);
+      sprite.position.set(
+        (D1.x + D2.x) / 2,
+        (D1.y + D2.y) / 2,
+        (D1.z + D2.z) / 2
+      );
       sceneManager.renderScene?.();
+    }
+
+    function onWindowPointerMove(e) {
+      const drag = dragRef.current;
+      if (!drag) return;
+      drag.lastClient = { clientX: e.clientX, clientY: e.clientY };
+      drag.lastShiftKey = e.shiftKey;
+      applyMove({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        shiftKey: e.shiftKey,
+      });
+    }
+
+    // Shift pressed / released with a still mouse: lock / unlock at once.
+    function onShiftChange(e) {
+      const drag = dragRef.current;
+      if (e.key !== "Shift" || e.repeat || !drag?.moved) return;
+      drag.lastShiftKey = e.type === "keydown";
+      applyMove({ ...drag.lastClient, shiftKey: drag.lastShiftKey });
     }
 
     async function onWindowPointerUp() {
@@ -269,5 +438,5 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       dom.removeEventListener("pointerdown", onPointerDown, true);
       endDrag();
     };
-  }, [rendererIsReady]);
+  }, [rendererIsReady, store]);
 }

@@ -52,15 +52,11 @@ export default function useRevolutionAxisHandleDragHandlers({
   // Modes that own the pointer (same list as the label drag).
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
   const meshingTool = useSelector((s) => s.threedEditor.meshingMode.tool);
-  const dimensionActive = useSelector(
-    (s) => s.threedEditor.dimensionMode.active
-  );
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const walkActive = useSelector((s) => s.threedEditor.walkMode?.active);
   const extrudeActive = useSelector((s) => s.threedEditor.extrudeMode?.active);
   const blockedRef = useRef(false);
   blockedRef.current = Boolean(
-    dimensionActive ||
     drawingActive ||
     walkActive ||
     extrudeActive ||

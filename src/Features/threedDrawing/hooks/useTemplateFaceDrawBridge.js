@@ -17,6 +17,7 @@ import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools"
 import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
 import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 
+import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
 import {
   selectIsFaceCutDrawActive,
   selectIsTemplateFaceDrawActive,
@@ -50,6 +51,12 @@ function isThreedOnlyDrawingMode(enabledDrawingMode) {
 // two-click draft on the DISC flow (centre, then a rim point on the centre's
 // plane) with its own commit (commitDrawnRevolutionAxisService).
 //
+// The cote (selectIsTemplateCoteDrawActive — COTE template row, or the
+// "Dessin" tool on its cote type) rides it too: two clicks on the full snap
+// cascade of the drawing (planes, faces, vertices, edges, axis locks, typed
+// length), its own commit (commitDrawnCoteService), the mode staying armed
+// for the next cote.
+//
 // The « Pinceau » (selectIsMeshBrushActive) rides it too, for the
 // `drawingMode.active` guards only (no selection / lasso / hover tooltip
 // clicks, hidden 2D InteractionLayer keys, delete hotkeys, label drags,
@@ -65,7 +72,8 @@ export default function useTemplateFaceDrawBridge() {
       selectIsThreedTemplatelessDrawActive(s) ||
       selectIsFaceCutDrawActive(s) ||
       selectIsMeshBrushActive(s) ||
-      selectIsRevolutionAxisDrawThreedActive(s)
+      selectIsRevolutionAxisDrawThreedActive(s) ||
+      selectIsTemplateCoteDrawActive(s)
   );
   // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the
   // 2D editor has no use for its drawing mode).

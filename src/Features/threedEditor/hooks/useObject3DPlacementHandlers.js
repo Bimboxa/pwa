@@ -6,7 +6,6 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import {
   setDrawingModeActive,
-  setDimensionModeActive,
   setMeshingModeActive,
   setWalkModeActive,
 } from "Features/threedEditor/threedEditorSlice";
@@ -54,7 +53,6 @@ export default function useObject3DPlacementHandlers() {
     activeLayerIdRef.current = activeLayerId;
   }, [activeLayerId]);
 
-
   const committingRef = useRef(false);
 
   useEffect(() => {
@@ -75,7 +73,6 @@ export default function useObject3DPlacementHandlers() {
     // Placement owns the pointer — switch off competing 3D modes (payload
     // false is a pure switch-off in every reducer).
     dispatch(setDrawingModeActive(false));
-    dispatch(setDimensionModeActive(false));
     dispatch(setMeshingModeActive(false));
     dispatch(setWalkModeActive(false));
 
@@ -117,24 +114,22 @@ export default function useObject3DPlacementHandlers() {
           meterByPx /
           imageSize.height;
 
-        await createAnnotation(
-          {
-            ...na,
-            type: "OBJECT_3D",
-            baseMapId: hostBaseMap.id,
-            bbox: {
-              x: xNorm - wN / 2,
-              y: yNorm - hN / 2,
-              width: wN,
-              height: hN,
-            },
-            ...(offset > MIN_OFFSET_Z_M ? { offsetZ: offset } : {}),
-            ...(rotationDeg ? { rotation: rotationDeg } : {}),
-            ...(activeLayerIdRef.current
-              ? { layerId: activeLayerIdRef.current }
-              : {}),
-          }
-        );
+        await createAnnotation({
+          ...na,
+          type: "OBJECT_3D",
+          baseMapId: hostBaseMap.id,
+          bbox: {
+            x: xNorm - wN / 2,
+            y: yNorm - hN / 2,
+            width: wN,
+            height: hN,
+          },
+          ...(offset > MIN_OFFSET_Z_M ? { offsetZ: offset } : {}),
+          ...(rotationDeg ? { rotation: rotationDeg } : {}),
+          ...(activeLayerIdRef.current
+            ? { layerId: activeLayerIdRef.current }
+            : {}),
+        });
       } catch (e) {
         console.error("[Object3DPlacement] commit failed", e);
       } finally {
@@ -161,13 +156,9 @@ export default function useObject3DPlacementHandlers() {
   // active cancels the placement (its reducers don't know about this derived
   // mode, so watch them here).
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
-  const dimensionActive = useSelector(
-    (s) => s.threedEditor.dimensionMode.active
-  );
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
-  const otherModeActive =
-    drawingActive || dimensionActive || meshingActive || walkActive;
+  const otherModeActive = drawingActive || meshingActive || walkActive;
 
   // Transition-guarded: at activation the effect above just switched the
   // other modes off, but this render still sees the pre-dispatch (true)
