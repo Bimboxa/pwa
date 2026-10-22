@@ -1648,7 +1648,11 @@ export default function MainThreedEditor() {
             face?.seedTri
           );
         } else {
-          const displayed = getDisplayedMesh3d(threedEditor, nodeId);
+          // A flat one-face sheet keeps the plan gesture below (the single
+          // click selects its face).
+          const displayed = getDisplayedMesh3d(threedEditor, nodeId, {
+            allowSingleFace: false,
+          });
           if (displayed) {
             faceIndex = locateHitFaceOnMesh3d(displayed, firstHit, camera);
             const face = displayed.mesh.faces[faceIndex];
