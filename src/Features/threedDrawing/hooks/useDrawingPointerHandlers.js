@@ -89,6 +89,7 @@ import {
   getRectangleFrame,
 } from "../services/rectangleFrameStore";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
+import filterBaseMapsShownIn3d from "../utils/filterBaseMapsShownIn3d";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
 import {
   isRevolutionAxisDraftFor3d,
@@ -288,6 +289,10 @@ export default function useDrawingPointerHandlers() {
     // and Escape).
     if (isMeshBrushDrawingMode(enabledDrawingMode)) return;
     const editor = getActiveThreedEditor();
+    // Base maps a drawing may land on: those shown in the scene (a plan
+    // hidden in 3D must not host a point resolved by geometry alone).
+    // Read at use: the eyes can be toggled while the mode stays armed.
+    const getHostBaseMaps = () => filterBaseMapsShownIn3d(editor, baseMaps);
     const dom = editor?.sceneManager?.renderer?.domElement;
     if (!dom) return;
 
@@ -369,7 +374,7 @@ export default function useDrawingPointerHandlers() {
       return await commitDrawnCoteService({
         a,
         b,
-        baseMaps: baseMaps || [],
+        baseMaps: getHostBaseMaps(),
         projectId,
         listingId,
         scopeId,
@@ -390,7 +395,7 @@ export default function useDrawingPointerHandlers() {
       try {
         const created = await commitDrawnRulerService({
           verticesInOrder: points,
-          baseMaps: baseMaps || [],
+          baseMaps: getHostBaseMaps(),
           projectId,
           listingId,
           scopeId,
@@ -423,7 +428,7 @@ export default function useDrawingPointerHandlers() {
       const { annotation, reason } = await commitDrawnDiscService({
         center,
         rim,
-        baseMaps: baseMaps || [],
+        baseMaps: getHostBaseMaps(),
         projectId,
         listingId,
         templateProps: newAnnotationRef.current,
@@ -448,7 +453,7 @@ export default function useDrawingPointerHandlers() {
     // and its listing, whose plan projection is a segment.
     async function commitFace(cornersInOrder) {
       const common = {
-        baseMaps: baseMaps || [],
+        baseMaps: getHostBaseMaps(),
         projectId,
         listingId,
         layerId: activeLayerIdRef.current ?? null,
@@ -477,7 +482,7 @@ export default function useDrawingPointerHandlers() {
     async function commitPolyline(verticesInOrder, { closeLine = false } = {}) {
       return await commitDrawnPolylineService({
         verticesInOrder,
-        baseMaps: baseMaps || [],
+        baseMaps: getHostBaseMaps(),
         projectId,
         listingId,
         templateProps: newAnnotationRef.current,
@@ -590,7 +595,7 @@ export default function useDrawingPointerHandlers() {
       try {
         const { annotation: created } = await commitDrawnPolyline({
           verticesInOrder: vertices,
-          baseMaps: baseMaps || [],
+          baseMaps: getHostBaseMaps(),
           projectId,
           scopeId,
           templateProps: getLiveDrawing().draft,
@@ -618,7 +623,7 @@ export default function useDrawingPointerHandlers() {
     async function commitTemplateless(points, { closed = false } = {}) {
       const draft = getLiveDrawing().draft;
       const common = {
-        baseMaps: baseMaps || [],
+        baseMaps: getHostBaseMaps(),
         projectId,
         scopeId,
         templateProps: draft,
@@ -702,7 +707,7 @@ export default function useDrawingPointerHandlers() {
       let baseMapId = snap.baseMapId ?? null;
       if (!snap.faceNormal && !baseMapId) {
         baseMapId =
-          resolveBaseMapForPoint(snap.position, baseMaps || [], {
+          resolveBaseMapForPoint(snap.position, getHostBaseMaps(), {
             preferredBaseMapId,
           })?.baseMap?.id ?? null;
       }
@@ -1468,7 +1473,7 @@ export default function useDrawingPointerHandlers() {
             );
             return;
           }
-          const horizontalBaseMaps = (baseMaps || []).filter(
+          const horizontalBaseMaps = getHostBaseMaps().filter(
             (bm) => bm.orientation !== "VERTICAL"
           );
           const centerBaseMapId =
