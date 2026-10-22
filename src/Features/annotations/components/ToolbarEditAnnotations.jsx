@@ -10,15 +10,15 @@ import {
 
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
 import useUpdateAnnotations from "../hooks/useUpdateAnnotations";
-import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
+import useAnnotationTemplateCandidates, {
+  isTemplateCompatibleWithAnnotation,
+} from "../hooks/useAnnotationTemplateCandidates";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
-import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
-import getAnnotationTypeOnTemplateChange from "../utils/getAnnotationTypeOnTemplateChange";
-import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
+import getAnnotationTemplateChangeUpdates from "../utils/getAnnotationTemplateChangeUpdates";
 
 import {
   Box,
@@ -66,13 +66,21 @@ export default function ToolbarEditAnnotations({
   const deleteAnnotations = useDeleteAnnotations();
   const baseMap = useMainBaseMap();
 
-  // Template candidates based on first selected annotation
-  const firstAnnotation = allAnnotations.find((a) =>
-    selectedItems.some((item) => item.nodeId === a.id)
+  // helpers - selected annotations
+
+  const annotations = useMemo(
+    () =>
+      allAnnotations.filter((a) =>
+        selectedItems.some((item) => item.nodeId === a.id)
+      ),
+    [allAnnotations, selectedItems]
   );
+
+  // Template candidates of the WHOLE selection (union over the selected
+  // rows): a mixed RULER + COTE selection sees both families; the chosen
+  // template is then applied to the compatible rows only.
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
-    useAnnotationTemplateCandidates(firstAnnotation, { variant: "sameType" }) ??
-    {};
+    useAnnotationTemplateCandidates(annotations, { variant: "sameType" }) ?? {};
   const updateAnnotations = useUpdateAnnotations();
 
   // state
@@ -82,12 +90,6 @@ export default function ToolbarEditAnnotations({
   const [pendingHeight, setPendingHeight] = useState(null);
   const [pendingOffsetZ, setPendingOffsetZ] = useState(null);
   const [pendingIsExt, setPendingIsExt] = useState(null);
-
-  // helpers - selected annotations
-
-  const annotations = allAnnotations.filter((a) =>
-    selectedItems.some((item) => item.nodeId === a.id)
-  );
 
   const count = annotations.length;
   const countLabel = `${count} annotation${count > 1 ? "s" : ""} sélectionnée${count > 1 ? "s" : ""}`;
@@ -262,46 +264,46 @@ export default function ToolbarEditAnnotations({
     setTemplateAnchorEl(null);
   }
 
+  // helpers - template change targets
+
+  // Selected rows a candidate template may be assigned to (same shape).
+  function getTemplateTargets(template) {
+    return annotations.filter((a) =>
+      isTemplateCompatibleWithAnnotation(a, template, { variant: "sameType" })
+    );
+  }
+
+  // The selection's common template, when it has exactly one.
+  const templateIds = [
+    ...new Set(annotations.map((a) => a.annotationTemplateId)),
+  ];
+  const commonTemplateId = templateIds.length === 1 ? templateIds[0] : null;
+
+  // Mixed selection: not every candidate applies to every selected row, so
+  // each row of the menu shows how many annotations it would affect.
+  const isMixedSelection =
+    count > 1 &&
+    (sameTypeCandidates ?? []).some(
+      (t) => getTemplateTargets(t).length !== count
+    );
+
   async function handleTemplateChange(annotationTemplateId) {
     const template = sameTypeCandidates?.find(
       (t) => t.id === annotationTemplateId
     );
     if (!template) return;
 
-    const templateProps = getAnnotationTemplateProps(template);
-
-    const updates = annotations.map((annotation) => {
-      // Types sharing the template drawingShape (STRIP, RECTANGLE) are kept.
-      const resolvedType = getAnnotationTypeOnTemplateChange(
-        annotation,
-        template
-      );
-      // Only overwrite properties the template locks (overrideFields);
-      // non-overridden fields keep the annotation's own value.
-      const merged = getAnnotationPropsFromAnnotationTemplateProps(
-        annotation,
-        templateProps,
-        baseMap
-      );
-      // annotationTemplateProps is a render-time snapshot (useAnnotationsV2
-      // recomputes it); don't persist it to the DB record. Same for the
-      // template-owned 3D rendering overrides, re-derived at read time.
-      delete merged.annotationTemplateProps;
-      delete merged.color3D;
-      delete merged.opacity3D;
-      delete merged.material3d;
-      return {
-        ...merged,
-        id: annotation.id,
-        annotationTemplateId: template.id,
-        templateLabel: template.label,
-        listingId: template.listingId,
-        // Persist the NEW template's lock set so the editor UI reflects it.
-        overrideFields: templateProps.overrideFields,
-        ...(resolvedType ? { type: resolvedType } : {}),
-      };
-    });
-    await updateAnnotations(updates);
+    // Diff-only patch per row (same path as the single-selection toolbar):
+    // template fields the merge actually changed, the new template's ids and
+    // lock set, `type` only when it changes, and a templateless row ("Dessin"
+    // tool) becomes a regular listing annotation. Incompatible rows of a
+    // mixed selection are left untouched.
+    const updates = getTemplateTargets(template)
+      .map((annotation) =>
+        getAnnotationTemplateChangeUpdates({ annotation, template, baseMap })
+      )
+      .filter(Boolean);
+    if (updates.length > 0) await updateAnnotations(updates);
     handleTemplateDropdownClose();
   }
 
@@ -540,10 +542,15 @@ export default function ToolbarEditAnnotations({
           transformOrigin={{ vertical: "top", horizontal: "left" }}
         >
           <SelectorAnnotationTemplateVariantDense
-            selectedAnnotationTemplateId={firstAnnotation?.annotationTemplateId}
+            selectedAnnotationTemplateId={commonTemplateId}
             onChange={handleTemplateChange}
             annotationTemplates={sameTypeCandidates}
             listings={sameTypeListings}
+            getItemSuffix={
+              isMixedSelection
+                ? (t) => `· ${getTemplateTargets(t).length}`
+                : null
+            }
           />
         </Menu>
       </Paper>

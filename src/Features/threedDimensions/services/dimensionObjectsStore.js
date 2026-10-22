@@ -8,12 +8,24 @@
 // / RULER annotation) and `userData.annotationType`.
 //
 // Owners: "COTE" (ThreedCoteAnnotations) and "RULER" (ThreedRulerAnnotations).
+//
+// A second registry holds the dimension GROUPS themselves (one Group per
+// COTE / RULER, carrying the ANNOTATION userData contract and
+// `userData.lassoPoints`): the 3D lasso iterates them, since rulers and
+// cotes never enter AnnotationsManager's annotationsObjectsMap.
 
 const _byOwner = new Map();
 let _flat = [];
 
 function refresh() {
   _flat = [..._byOwner.values()].flat();
+}
+
+const _groupsByOwner = new Map();
+let _flatGroups = [];
+
+function refreshGroups() {
+  _flatGroups = [..._groupsByOwner.values()].flat();
 }
 
 export function setDimensionObjects(owner, objects) {
@@ -31,4 +43,15 @@ export function clearDimensionObjects(owner) {
   if (owner) _byOwner.delete(owner);
   else _byOwner.clear();
   refresh();
+}
+
+export function setDimensionGroups(owner, groups) {
+  _groupsByOwner.set(owner, groups ? [...groups] : []);
+  refreshGroups();
+}
+
+// Without `owner`: every published dimension group (the lasso pass).
+export function getDimensionGroups(owner) {
+  if (owner) return _groupsByOwner.get(owner) || [];
+  return _flatGroups;
 }

@@ -12,7 +12,10 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
-import { setDimensionObjects } from "../services/dimensionObjectsStore";
+import {
+  setDimensionGroups,
+  setDimensionObjects,
+} from "../services/dimensionObjectsStore";
 import { applyPendingDimensionPatch } from "../services/dimensionPendingPatchStore";
 import {
   COTE_LABEL_SEGMENT_KEY,
@@ -20,7 +23,6 @@ import {
   getDimensionLabelPartId,
 } from "../utils/dimensionLabelPart";
 import computeCoteGeometry3d from "../utils/computeCoteGeometry3d";
-import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
 // Thin ink (screen px): a dimension line reads as precise, not as a stroke.
 const LINEWIDTH = 1;
@@ -116,13 +118,25 @@ export default function ThreedCoteAnnotations({ annotations }) {
     [annotations]
   );
 
-  // Id of the currently-selected cote (to highlight it). Read as a primitive
-  // so the effect only re-runs when the selected cote actually changes.
+  // Selected cotes (one, or several after a lasso), read as a primitive so
+  // the effect only re-runs when the selection actually changes.
   const coteIdsKey = useMemo(() => cotes.map((c) => c.id).join(","), [cotes]);
-  const selectedCoteId = useSelector((s) => {
-    const id = getSingleSelectedAnnotationId(selectSelectedItems(s));
-    return id && coteIdsKey.split(",").includes(id) ? id : null;
+  const selectedCoteIdsKey = useSelector((s) => {
+    const ids = coteIdsKey ? coteIdsKey.split(",") : [];
+    return selectSelectedItems(s)
+      .filter(
+        (it) =>
+          it?.type === "NODE" &&
+          it?.nodeType === "ANNOTATION" &&
+          ids.includes(it.nodeId)
+      )
+      .map((it) => it.nodeId)
+      .join(",");
   });
+  const selectedCoteIds = useMemo(
+    () => new Set(selectedCoteIdsKey ? selectedCoteIdsKey.split(",") : []),
+    [selectedCoteIdsKey]
+  );
   // The sub-selected value card of the selected cote, if any.
   const selectedPartId = useSelector((s) => {
     const items = selectSelectedItems(s);
@@ -154,6 +168,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
       });
       groupsRef.current = [];
       setDimensionObjects("COTE", []);
+      setDimensionGroups("COTE", []);
     };
     clear();
 
@@ -187,7 +202,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
       });
       if (!geom) return;
 
-      const isSelected = cote.id === selectedCoteId;
+      const isSelected = selectedCoteIds.has(cote.id);
       // Selection styles: the cote itself → bold line only; its card (2nd
       // click on it) → thin line, the card drawn as an inverted chip.
       const isLabelSelected =
@@ -212,6 +227,12 @@ export default function ThreedCoteAnnotations({ annotations }) {
         listingId: cote.listingId,
         annotationTemplateId: cote.annotationTemplateId,
         baseMapId: cote.baseMapId,
+        // Lasso hit-test points (parent-group local): measured points,
+        // dimension-line ends and the value card. The 3D lasso selects the
+        // cote when any falls inside.
+        lassoPoints: [geom.P1, geom.P2, geom.D1, geom.D2, card].map(
+          (p) => new Vector3(p.x, p.y, p.z)
+        ),
         // Consumed by useCoteLabelDragHandlers for the live offset drag.
         coteGeom: {
           ...geom,
@@ -311,10 +332,11 @@ export default function ThreedCoteAnnotations({ annotations }) {
     });
 
     setDimensionObjects("COTE", sprites);
+    setDimensionGroups("COTE", groupsRef.current);
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [cotes, selectedCoteId, selectedPartId, annotationsLoadTick]);
+  }, [cotes, selectedCoteIds, selectedPartId, annotationsLoadTick]);
 
   return null;
 }

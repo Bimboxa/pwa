@@ -143,6 +143,7 @@ import {
   handleDimensionCardClick,
   pickDimensionCard,
 } from "Features/threedDimensions/services/dimensionCardClick";
+import { getDimensionGroups } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
 import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
@@ -250,6 +251,28 @@ function setMesh3dGroupLassoHover(group, hovered) {
   });
 }
 
+// Lasso hover cue for a COTE / RULER group: its solid dimension lines get the
+// selected thickness (each Line2 owns its LineMaterial, see makeLine in
+// ThreedCoteAnnotations / ThreedRulerAnnotations). The dashed extension and
+// leader lines are left alone. The selected style proper is re-rendered by
+// the components once the selection is dispatched.
+const DIMENSION_LASSO_LINEWIDTH = 2;
+function setDimensionGroupLassoHover(group, hovered) {
+  group.traverse((child) => {
+    const mat = child.material;
+    if (!child.isLine2 || !mat || mat.dashed) return;
+    if (hovered) {
+      if (child.userData.lassoBaseLinewidth == null) {
+        child.userData.lassoBaseLinewidth = mat.linewidth;
+      }
+      mat.linewidth = DIMENSION_LASSO_LINEWIDTH;
+    } else if (child.userData.lassoBaseLinewidth != null) {
+      mat.linewidth = child.userData.lassoBaseLinewidth;
+      delete child.userData.lassoBaseLinewidth;
+    }
+  });
+}
+
 export default function MainThreedEditor() {
   // ref
 
@@ -278,6 +301,7 @@ export default function MainThreedEditor() {
   const orbitWasEnabledRef = useRef(true); // remember orbit state to restore
   const lassoLiveIdsRef = useRef(new Set()); // ids currently shown as green during the drag
   const lassoLiveMesh3dIdsRef = useRef(new Set()); // maille ids currently shown as green
+  const lassoLiveDimensionIdsRef = useRef(new Set()); // COTE / RULER ids previewed (bold line)
   const lassoPreviewRafRef = useRef(null); // rAF handle for the preview pass
   // Sub-selection helpers (vertex/edge highlight on the selected annotation):
   // ephemeral hover helper (replaced as the cursor moves) and persistent
@@ -1795,6 +1819,68 @@ export default function MainThreedEditor() {
     []
   );
 
+  // COTE / RULER groups (ThreedCoteAnnotations / ThreedRulerAnnotations) are
+  // not in annotationsObjectsMap; they publish `userData.lassoPoints`
+  // (parent-local: measured points, dimension-line ends, value cards). The
+  // group is hit when ANY of them projects inside the rect — a bbox center
+  // would miss a long ruler whose cards alone are lassoed.
+  const dimensionGroupHitsRect = useCallback(
+    (group, camera, canvasRect, rect, plane = null) => {
+      const points = group?.userData?.lassoPoints;
+      const parent = group?.parent;
+      if (!points?.length || !parent) return false;
+      const world = new Vector3();
+      for (const p of points) {
+        world.copy(p).applyMatrix4(parent.matrixWorld);
+        if (plane && !isWorldPointVisible(plane, world)) continue;
+        world.project(camera);
+        const sx = canvasRect.left + (world.x * 0.5 + 0.5) * canvasRect.width;
+        const sy = canvasRect.top + (-world.y * 0.5 + 0.5) * canvasRect.height;
+        if (
+          sx >= rect.x &&
+          sx <= rect.x + rect.width &&
+          sy >= rect.y &&
+          sy <= rect.y + rect.height
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+    []
+  );
+
+  // Collect the dimension groups (visible, with a nodeId) hit by `rect`,
+  // keyed by annotation id.
+  const collectDimensionGroupsInRect = useCallback(
+    (camera, canvasRect, rect, plane) => {
+      const hits = new Map();
+      for (const group of getDimensionGroups()) {
+        if (!group || group.visible === false) continue;
+        const nodeId = group.userData?.nodeId;
+        if (!nodeId || hits.has(nodeId)) continue;
+        if (dimensionGroupHitsRect(group, camera, canvasRect, rect, plane)) {
+          hits.set(nodeId, group);
+        }
+      }
+      return hits;
+    },
+    [dimensionGroupHitsRect]
+  );
+
+  // Restore the lasso preview of every dimension group (thin lines again).
+  // Returns true when something was restored (the caller re-renders).
+  const clearDimensionLassoPreview = useCallback(() => {
+    if (lassoLiveDimensionIdsRef.current.size === 0) return false;
+    for (const group of getDimensionGroups()) {
+      if (lassoLiveDimensionIdsRef.current.has(group?.userData?.nodeId)) {
+        setDimensionGroupLassoHover(group, false);
+      }
+    }
+    lassoLiveDimensionIdsRef.current = new Set();
+    return true;
+  }, []);
+
   // Imperatively diff the set of annotations whose center is inside the
   // current lasso rect against the previously-shown set, and toggle their
   // material between HOVER (inside) and their normal non-hover state
@@ -1887,8 +1973,32 @@ export default function MainThreedEditor() {
     }
     lassoLiveMesh3dIdsRef.current = newMesh3dSet;
 
+    // COTE / RULER groups (same "mailles win" rule): bold line while inside.
+    const dimensionHits =
+      newMesh3dSet.size === 0
+        ? collectDimensionGroupsInRect(camera, canvasRect, rect, plane)
+        : new Map();
+    const prevDimension = lassoLiveDimensionIdsRef.current;
+    const newDimensionSet = new Set(dimensionHits.keys());
+    dimensionHits.forEach((group, id) => {
+      if (!prevDimension.has(id)) {
+        setDimensionGroupLassoHover(group, true);
+        changed = true;
+      }
+    });
+    if ([...prevDimension].some((id) => !newDimensionSet.has(id))) {
+      for (const group of getDimensionGroups()) {
+        const id = group?.userData?.nodeId;
+        if (prevDimension.has(id) && !newDimensionSet.has(id)) {
+          setDimensionGroupLassoHover(group, false);
+          changed = true;
+        }
+      }
+    }
+    lassoLiveDimensionIdsRef.current = newDimensionSet;
+
     if (changed) editor.renderScene?.();
-  }, [getStateForId, projectAnnotationToClient]);
+  }, [getStateForId, projectAnnotationToClient, collectDimensionGroupsInRect]);
 
   const finalizeLasso = useCallback(() => {
     const startCoords = lassoStartRef.current;
@@ -1928,6 +2038,9 @@ export default function MainThreedEditor() {
         if (group) setMesh3dGroupLassoHover(group, false);
       }
       lassoLiveMesh3dIdsRef.current = new Set();
+      threedEditorRef.current?.renderScene?.();
+    }
+    if (clearDimensionLassoPreview()) {
       threedEditorRef.current?.renderScene?.();
     }
 
@@ -1982,6 +2095,24 @@ export default function MainThreedEditor() {
       });
     });
 
+    // COTE / RULER groups live outside annotationsObjectsMap: same item
+    // shape, hit by any of their lasso points.
+    collectDimensionGroupsInRect(camera, canvasRect, rect, plane).forEach(
+      (group, nodeId) => {
+        const { nodeType, annotationType, listingId, annotationTemplateId } =
+          group.userData || {};
+        annotationItems.push({
+          id: nodeId,
+          nodeId,
+          type: "NODE",
+          nodeType,
+          annotationType,
+          listingId,
+          annotationTemplateId,
+        });
+      }
+    );
+
     // Mailles are lasso candidates whenever they are in the scene (MESHES
     // viewer — collectMesh3dGroups is empty elsewhere). Maille groups are the
     // parents of the published face meshes; their bbox center follows the
@@ -2016,7 +2147,13 @@ export default function MainThreedEditor() {
       dispatch(setAnnotationToolbarPosition(null));
       dispatch(setAnnotationsToolbarPosition(null));
     }
-  }, [dispatch, projectAnnotationToClient, getStateForId]);
+  }, [
+    dispatch,
+    projectAnnotationToClient,
+    getStateForId,
+    collectDimensionGroupsInRect,
+    clearDimensionLassoPreview,
+  ]);
 
   // Handle pointer down to detect drags
   const handlePointerDown = useCallback(
@@ -2690,8 +2827,16 @@ export default function MainThreedEditor() {
         lassoLiveIdsRef.current = new Set();
         threedEditorRef.current?.renderScene?.();
       }
+      if (clearDimensionLassoPreview()) {
+        threedEditorRef.current?.renderScene?.();
+      }
     }
-  }, [getStateForId, clearSubHoverHelper, clearFaceHoverOverlay]);
+  }, [
+    getStateForId,
+    clearSubHoverHelper,
+    clearFaceHoverOverlay,
+    clearDimensionLassoPreview,
+  ]);
 
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(

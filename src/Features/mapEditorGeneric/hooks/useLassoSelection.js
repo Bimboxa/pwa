@@ -11,7 +11,8 @@ export default function useLassoSelection({
     annotations,
     viewportRef,
     toLocalCoords,   // Fonction de conversion (Screen -> Local) passée par InteractionLayer
-    onSelectionComplete // Callback qui reçoit les IDs sélectionnés (ex: (ids) => dispatch(...))
+    onSelectionComplete, // Callback qui reçoit les IDs sélectionnés (ex: (ids) => dispatch(...))
+    meterByPx, // Base map scale: RULER / COTE hit-test on their ink (offset line, cards)
 }) {
     // État visuel du rectangle (en pixels ÉCRAN pour l'affichage CSS)
     const [lassoRect, setLassoRect] = useState(null);
@@ -85,7 +86,7 @@ export default function useLassoSelection({
         // only if at least one of its vertices falls inside the lasso rectangle.
         // This avoids selecting a large concave shape when the lasso is drawn in
         // its "encoche" (notch), where the bbox would still intersect.
-        const hitIds = getAnnotationIdsInBox(annotations, selectionBox);
+        const hitIds = getAnnotationIdsInBox(annotations, selectionBox, { meterByPx });
 
         // C. Commit
         if (onSelectionComplete) {
@@ -98,7 +99,7 @@ export default function useLassoSelection({
 
         return { committed: true };
 
-    }, [lassoRect, annotations, viewportRef, toLocalCoords, onSelectionComplete]);
+    }, [lassoRect, annotations, viewportRef, toLocalCoords, onSelectionComplete, meterByPx]);
 
     return {
         lassoRect,

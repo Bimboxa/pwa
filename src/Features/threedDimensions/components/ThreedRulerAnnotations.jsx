@@ -13,7 +13,10 @@ import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManag
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
-import { setDimensionObjects } from "../services/dimensionObjectsStore";
+import {
+  setDimensionGroups,
+  setDimensionObjects,
+} from "../services/dimensionObjectsStore";
 import { applyPendingDimensionPatch } from "../services/dimensionPendingPatchStore";
 import computeRulerGeometry3d from "../utils/computeRulerGeometry3d";
 import {
@@ -95,13 +98,24 @@ export default function ThreedRulerAnnotations({ annotations }) {
     () => rulers.map((r) => r.id).join(","),
     [rulers]
   );
-  const selectedRulerId = useSelector((s) => {
-    const items = selectSelectedItems(s);
-    if (items.length !== 1) return null;
-    const it = items[0];
-    if (it?.type !== "NODE" || it?.nodeType !== "ANNOTATION") return null;
-    return rulerIdsKey.split(",").includes(it.nodeId) ? it.nodeId : null;
+  // Selected rulers (one, or several after a lasso), read as a primitive so
+  // the effect only re-runs when the selection actually changes.
+  const selectedRulerIdsKey = useSelector((s) => {
+    const ids = rulerIdsKey ? rulerIdsKey.split(",") : [];
+    return selectSelectedItems(s)
+      .filter(
+        (it) =>
+          it?.type === "NODE" &&
+          it?.nodeType === "ANNOTATION" &&
+          ids.includes(it.nodeId)
+      )
+      .map((it) => it.nodeId)
+      .join(",");
   });
+  const selectedRulerIds = useMemo(
+    () => new Set(selectedRulerIdsKey ? selectedRulerIdsKey.split(",") : []),
+    [selectedRulerIdsKey]
+  );
   // The sub-selected value card of the selected ruler, if any.
   const selectedPartId = useSelector((s) => {
     const items = selectSelectedItems(s);
@@ -133,6 +147,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
       });
       groupsRef.current = [];
       setDimensionObjects("RULER", []);
+      setDimensionGroups("RULER", []);
     };
     clear();
 
@@ -165,7 +180,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
       });
       if (!geom || !geom.segments.length) return;
 
-      const isSelected = ruler.id === selectedRulerId;
+      const isSelected = selectedRulerIds.has(ruler.id);
       // Selection styles: the ruler itself → bold line only; one of its
       // cards (2nd click on it) → thin line, that card drawn as an inverted
       // chip.
@@ -191,6 +206,13 @@ export default function ThreedRulerAnnotations({ annotations }) {
         rulerGeom: { isPlaneParallel: geom.isPlaneParallel },
         // Live-drag handles (useRulerLabelDragHandlers), one per segment.
         rulerSegments: [],
+        // Lasso hit-test points (parent-group local): measured points,
+        // alignment-line vertices, then one entry per value card (pushed
+        // below). The 3D lasso selects the ruler when any falls inside.
+        lassoPoints: [
+          ...geom.P.map((p) => new Vector3(p.x, p.y, p.z)),
+          ...geom.D.map((d) => new Vector3(d.x, d.y, d.z)),
+        ],
       };
 
       // Alignment line — one Line2 per segment (a single polyline would need a
@@ -270,6 +292,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
         sprite.position.set(card.x, card.y, card.z);
         group.add(sprite);
         sprites.push(sprite);
+        group.userData.lassoPoints.push(new Vector3(card.x, card.y, card.z));
 
         const leader = makeLine({
           positions: [seg.mid.x, seg.mid.y, seg.mid.z, card.x, card.y, card.z],
@@ -295,10 +318,11 @@ export default function ThreedRulerAnnotations({ annotations }) {
     });
 
     setDimensionObjects("RULER", sprites);
+    setDimensionGroups("RULER", groupsRef.current);
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [rulers, selectedRulerId, selectedPartId, annotationsLoadTick]);
+  }, [rulers, selectedRulerIds, selectedPartId, annotationsLoadTick]);
 
   return null;
 }

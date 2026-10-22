@@ -22,6 +22,9 @@ export default function SelectorAnnotationTemplateVariantDense({
     title = "Bibliothèque d'annotations",
     size = 18,
     showTitle = false,
+    // Optional secondary text at the right of a row (e.g. the number of
+    // selected annotations a template would affect).
+    getItemSuffix = null,
 }) {
 
     // data
@@ -68,6 +71,7 @@ export default function SelectorAnnotationTemplateVariantDense({
     // component
 
     const ListItem = ({ id, selected, annotation }) => {
+        const suffix = getItemSuffix?.(annotation);
         return (
             <ListItemButton
                 divider
@@ -89,6 +93,14 @@ export default function SelectorAnnotationTemplateVariantDense({
                 >
                     {annotation?.label}
                 </Typography>
+                {suffix != null && suffix !== "" && (
+                    <Typography
+                        variant="caption"
+                        sx={{ ml: "auto", pl: 1.5, color: "text.secondary", whiteSpace: "nowrap" }}
+                    >
+                        {suffix}
+                    </Typography>
+                )}
             </ListItemButton>
         );
     };

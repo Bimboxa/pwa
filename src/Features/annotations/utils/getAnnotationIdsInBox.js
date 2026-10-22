@@ -3,7 +3,13 @@ import getAnnotationVertices from "./getAnnotationVertices";
 // Return the ids of annotations that have at least one vertex inside the given
 // selection rectangle (local pixel coords). Vertex-based so a lasso drawn in the
 // "encoche" (notch) of a concave shape doesn't catch it via its bbox.
-export default function getAnnotationIdsInBox(annotations, selectionBox) {
+// `context` ({ meterByPx }) is forwarded to getAnnotationVertices so RULER /
+// COTE rows are also caught by their dimension line and value cards.
+export default function getAnnotationIdsInBox(
+  annotations,
+  selectionBox,
+  context = {}
+) {
   if (!Array.isArray(annotations) || !selectionBox) return [];
 
   const inBox = (pt) =>
@@ -15,7 +21,7 @@ export default function getAnnotationIdsInBox(annotations, selectionBox) {
 
   const ids = [];
   annotations.forEach((ann) => {
-    const verts = getAnnotationVertices(ann);
+    const verts = getAnnotationVertices(ann, context);
     if (verts.some(inBox)) ids.push(ann.id);
   });
   return ids;

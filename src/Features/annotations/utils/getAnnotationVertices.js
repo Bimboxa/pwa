@@ -1,10 +1,17 @@
+import getDimensionAnnotationLassoVertices from "./getDimensionAnnotationLassoVertices";
+
 // Return the list of vertices of an annotation, in the same local pixel
 // coordinate space as the resolved annotation.points (the space consumed by
 // getAnnotationBbox). Used by the lasso hit-test to decide whether an
 // annotation is selected based on its actual vertices rather than its bbox.
 //
+// `context.meterByPx` (optional) lets RULER / COTE rows also expose the
+// vertices of their ink (offset dimension line, value cards) — see
+// getDimensionAnnotationLassoVertices. Without it they fall back to their
+// measured points only.
+//
 // Returns: [{ x, y }]
-export default function getAnnotationVertices(annotation) {
+export default function getAnnotationVertices(annotation, context = {}) {
   if (!annotation) return [];
 
   // 1. IMAGE / RECTANGLE: the 4 corners of the explicit bbox.
@@ -38,6 +45,10 @@ export default function getAnnotationVertices(annotation) {
         if (p && typeof p.x === "number") verts.push({ x: p.x, y: p.y });
       });
     });
+    // 4. RULER / COTE: the ink is drawn away from the measured points.
+    if (annotation.type === "RULER" || annotation.type === "COTE") {
+      verts.push(...getDimensionAnnotationLassoVertices(annotation, context));
+    }
     return verts;
   }
 

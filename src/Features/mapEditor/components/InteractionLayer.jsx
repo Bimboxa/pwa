@@ -2305,7 +2305,8 @@ const InteractionLayer = forwardRef(({
     annotations,
     viewportRef,
     toLocalCoords,
-    onSelectionComplete: handleLassoSelection
+    onSelectionComplete: handleLassoSelection,
+    meterByPx: baseMapMeterByPx,
   });
 
   // Point-level lasso when an annotation is already selected
@@ -8421,7 +8422,9 @@ const InteractionLayer = forwardRef(({
       } else if (empty && selectionBox) {
         // Point-lasso caught no vertex/segment of the selected annotation:
         // treat the gesture as an annotation-level multi-selection instead.
-        const annotationIds = getAnnotationIdsInBox(annotations, selectionBox);
+        const annotationIds = getAnnotationIdsInBox(annotations, selectionBox, {
+          meterByPx: baseMapMeterByPx,
+        });
         handleLassoSelection({ annotationIds, selectionBox, anchorPosition });
       }
       return;
