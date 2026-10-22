@@ -38,8 +38,9 @@ export function getRememberedTemplatelessShapeKey(ctx) {
 // Étiquette, Texte, Détail, Image, Cote, Règle — one button each in the
 // toolbar. They share the « D » hotkey: only the remembered shape's command
 // fires (the others yield) and carries the badge, so « D » keeps drawing the
-// last-used type as before.
-export default function createTemplatelessDrawCommand(shapeKey) {
+// last-used type as before. `Icon` (a component) replaces the shape's icon
+// element in the toolbar only (the shape pickers keep their own icon).
+export default function createTemplatelessDrawCommand(shapeKey, { Icon } = {}) {
   const shape = TEMPLATELESS_DRAWING_SHAPES.find((s) => s.key === shapeKey);
   if (!shape) throw new Error(`Unknown templateless shape ${shapeKey}`);
   const isRemembered = (ctx) =>
@@ -47,7 +48,8 @@ export default function createTemplatelessDrawCommand(shapeKey) {
   return {
     key: `DRAW_${shapeKey}`,
     label: `Dessiner — ${shape.label}`,
-    icon: shape.icon,
+    Icon,
+    icon: Icon ? undefined : shape.icon,
     editors: THREED_DRAWING_SHAPES.includes(shapeKey)
       ? ALL_EDITORS
       : [EDITOR_2D],

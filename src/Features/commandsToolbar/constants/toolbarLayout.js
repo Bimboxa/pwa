@@ -29,19 +29,27 @@ const DEFAULT_LAYOUT = [
   "MOVE_BASE_MAP",
   "ROTATE_BASE_MAP",
   { type: "divider" },
-  // « Dessin » — the templateless annotation types, one button each, then
-  // the revolution axis
+  // « Dessin » — the templateless annotation types (the point-like types and
+  // the measures packed as split buttons, point / cote as default slot),
+  // then the revolution axis
   "DRAW_POLYLINE",
   "DRAW_POLYGON",
   "DRAW_DISC",
-  "DRAW_MARKER",
-  "DRAW_POINT",
-  "DRAW_LABEL",
+  {
+    type: "group",
+    key: "DRAW_POINT_LIKE",
+    label: "Point / Repère / Étiquette",
+    commandKeys: ["DRAW_POINT", "DRAW_MARKER", "DRAW_LABEL"],
+  },
   "DRAW_FREE_TEXT",
   "DRAW_DETAIL",
   "DRAW_IMAGE",
-  "DRAW_COTE",
-  "DRAW_RULER",
+  {
+    type: "group",
+    key: "DRAW_MEASURE",
+    label: "Cote / Règle",
+    commandKeys: ["DRAW_COTE", "DRAW_RULER"],
+  },
   "REVOLUTION_AXIS",
   { type: "divider" },
   // lines added inside the selected surface (the guide line and the layout
