@@ -155,7 +155,7 @@ export default function useAnnotationDrag({
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, anchorLocal, labelElbowSeed }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, nodeOwnedDrag, anchorLocal, labelElbowSeed }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
 
       // GUARD : une empreinte est la projection d'une annotation hébergée par
@@ -189,6 +189,10 @@ export default function useAnnotationDrag({
         // Click-only gesture: never activates a drag, mouseUp still selects
         // (labels are not draggable until selected).
         clickOnly: Boolean(clickOnly),
+        // The node runs its own drag through pointer events (COTE / RULER
+        // value labels sliding their offset): InteractionLayer only absorbs
+        // the mouse gesture, and a real move must not read as a click.
+        nodeOwnedDrag: Boolean(nodeOwnedDrag),
         // Reference point of the annotation at drag start (marker-like types
         // only). Snapping a whole-annotation move lands THIS on the target.
         anchorLocal: anchorLocal ?? null,

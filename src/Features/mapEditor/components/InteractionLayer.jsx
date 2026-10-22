@@ -8450,6 +8450,21 @@ const InteractionLayer = forwardRef(({
 
       const annotationId = dragAnnotationState.selectedAnnotationId;
 
+      // A node-owned gesture (COTE / RULER value label) that actually moved
+      // was the label drag, not a click: re-selecting here would drop the
+      // RULER point sub-selection and close its length editor.
+      if (dragAnnotationState.nodeOwnedDrag) {
+        const start = dragAnnotationState.startMouseScreen;
+        const moved =
+          start &&
+          Math.hypot(event.clientX - start.x, event.clientY - start.y) >
+            DRAG_THRESHOLD_PX;
+        if (moved) {
+          handleAnnotationDragEnd();
+          return;
+        }
+      }
+
       // Click on an annotation LABEL chip ("label::<id>"): select the label
       // itself (ANNOTATION_LABEL item → Etiquette panel). Always a single
       // replace (shift included): a label never joins a multi-selection.
@@ -8660,11 +8675,14 @@ const InteractionLayer = forwardRef(({
     // « Déplacer » / « Tourner »: every click is the tool's (grab,
     // destination, pivot…) — a FREE_TEXT box or a label chip must not start
     // the legacy drag instead.
+    // A COTE / RULER value label (`data-drag-owner="node"`) is only a
+    // selection target: while drawing, the click goes through to the tool.
     if (
       draggableGroup &&
       enabledDrawingModeRef.current &&
       (isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType) ||
-        isTransformToolMode(enabledDrawingModeRef.current))
+        isTransformToolMode(enabledDrawingModeRef.current) ||
+        draggableGroup.dataset?.dragOwner === "node")
     ) {
       draggableGroup = null;
     }
@@ -8894,8 +8912,16 @@ const InteractionLayer = forwardRef(({
         !partType &&
         selectedNode?.nodeId !== nodeId &&
         !selectedItems?.some((it) => it.nodeId === nodeId);
+      // COTE / RULER value labels: the node drags the label offset itself
+      // (pointer events). Here the gesture is only absorbed — no pan, no
+      // whole-annotation move — and a plain click selects the annotation
+      // exactly like a click on its line.
+      const isNodeOwnedDrag =
+        draggableGroup.dataset?.dragOwner === "node";
       const clickOnly =
-        (isLabelPart && !labelNodeSelected) || isUnselectedPlacement;
+        (isLabelPart && !labelNodeSelected) ||
+        isUnselectedPlacement ||
+        isNodeOwnedDrag;
 
       // Marker-like whole-moves can snap; the snap lands the annotation's own
       // reference point (not the cursor) on the target, so capture it now.
@@ -8912,6 +8938,7 @@ const InteractionLayer = forwardRef(({
         startMouseScreen: { x: e.clientX, y: e.clientY },
         nodeContext,
         clickOnly,
+        nodeOwnedDrag: isNodeOwnedDrag,
         anchorLocal,
         labelElbowSeed,
         ...resolveWrapperInfo(nodeId, partType),

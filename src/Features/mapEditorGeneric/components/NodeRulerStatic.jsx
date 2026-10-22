@@ -52,6 +52,10 @@ const GUIDE_COLOR = "#2196f3";
 // hover / click do not require landing exactly on a 1px stroke.
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
 
+// Screen px the pointer must travel before a press on a value / the guide
+// turns into an offset drag — below it the gesture is a click.
+const DRAG_THRESHOLD_PX = 3;
+
 // A RULER is a dimension CHAIN. On the page it is a SINGLE line — the drawn
 // polyline, with small orthogonal ticks separating its segments — plus one
 // value per segment.
@@ -247,10 +251,17 @@ export default function NodeRulerStatic({
 
   // handlers — alignment line drag (perpendicular slide → extensionOffset)
 
+  // `keepMouseEvents`: a press on a VALUE must let the compatibility
+  // mousedown through to InteractionLayer, which absorbs the gesture (no pan)
+  // and selects the ruler on a plain click — see the label markup below. The
+  // guide's grab lines carry no such markup, so for them the mouse events are
+  // cancelled outright (otherwise the viewport would pan along the drag).
   const handleOffsetPointerDown = useCallback(
-    (e, segmentIndex) => {
+    (e, segmentIndex, { keepMouseEvents = false } = {}) => {
       if (!isEditable) return;
       if (e.button !== undefined && e.button !== 0) return;
+      // Shift+press on a value belongs to the lasso / multi-selection toggle.
+      if (keepMouseEvents && e.shiftKey) return;
       const root = rootGRef.current;
       const svg = root?.ownerSVGElement;
       const ctm = root?.getScreenCTM();
@@ -275,6 +286,8 @@ export default function NodeRulerStatic({
         // positive drag grows the offset in the same direction the chain moves.
         nx: dy / len,
         ny: -dx / len,
+        startClient: { x: e.clientX, y: e.clientY },
+        moved: false,
       };
       try {
         e.target.setPointerCapture?.(e.pointerId);
@@ -282,7 +295,7 @@ export default function NodeRulerStatic({
         /* noop */
       }
       e.stopPropagation();
-      e.preventDefault?.();
+      if (!keepMouseEvents) e.preventDefault?.();
     },
     [isEditable, segments, baseOffsetPx]
   );
@@ -290,6 +303,14 @@ export default function NodeRulerStatic({
   const handleOffsetPointerMove = useCallback((e) => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (!drag.moved) {
+      const dist = Math.hypot(
+        e.clientX - drag.startClient.x,
+        e.clientY - drag.startClient.y
+      );
+      if (dist <= DRAG_THRESHOLD_PX) return;
+      drag.moved = true;
+    }
     const root = rootGRef.current;
     const svg = root?.ownerSVGElement;
     const ctm = root?.getScreenCTM();
@@ -557,7 +578,14 @@ export default function NodeRulerStatic({
 
       {/* per-segment values — horizontal, aligned against the alignment line.
           The 3D value-card offsets (`rulerLabelOffsets`) are 3D-only (user
-          decision): in 2D the values keep their default placement. */}
+          decision): in 2D the values keep their default placement.
+
+          A value is a hit target of the ruler, like the line: unselected, the
+          click simply reaches the viewport (world click → selection). Once
+          selected it grabs the offset itself (pointer events), so it carries
+          `draggable` + `data-drag-owner="node"`: InteractionLayer then only
+          absorbs the mouse gesture (no pan, no whole-ruler move) and a plain
+          click still selects. */}
       {segments.map((seg) => {
         const place = getRulerLabelPlacement(seg);
         const isEditing = editableSegmentIndexes.includes(seg.index);
@@ -678,8 +706,13 @@ export default function NodeRulerStatic({
                   data-ruler-label="1"
                   {...(canDragValues
                     ? {
+                        "data-interaction": "draggable",
+                        "data-node-id": annotationId,
+                        "data-drag-owner": "node",
                         onPointerDown: (e) =>
-                          handleOffsetPointerDown(e, seg.index),
+                          handleOffsetPointerDown(e, seg.index, {
+                            keepMouseEvents: true,
+                          }),
                         onPointerMove: handleOffsetPointerMove,
                         onPointerUp: handleOffsetPointerUp,
                         onPointerCancel: handleOffsetPointerUp,
@@ -688,10 +721,7 @@ export default function NodeRulerStatic({
                   style={{
                     userSelect: "none",
                     cursor: canDragValues ? grabCursor : "pointer",
-                    // Only a selected ruler grabs its values: otherwise the
-                    // handlers' stopPropagation would swallow the click that
-                    // selects the annotation in the first place.
-                    pointerEvents: canDragValues ? "auto" : "none",
+                    pointerEvents: "auto",
                     paintOrder: "stroke",
                     stroke: "white",
                     strokeWidth: TEXT_HALO_PT,
@@ -742,7 +772,10 @@ export default function NodeRulerStatic({
                   fill={displayStrokeColor}
                   style={{
                     userSelect: "none",
-                    pointerEvents: "none",
+                    cursor: "pointer",
+                    // Plain hit target: the click reaches the viewport and
+                    // selects the ruler like a click on the line.
+                    pointerEvents: "auto",
                     paintOrder: "stroke",
                     stroke: "white",
                     strokeWidth: TEXT_HALO_PT,

@@ -18,6 +18,10 @@ const TEXT_OFFSET_PT = 4;
 const TEXT_HALO_PT = 3;
 const DASH_PT = 3;
 
+// Screen px the pointer must travel before a press on the value label turns
+// into a drag — below it the gesture is a click, which selects the cote.
+const LABEL_DRAG_THRESHOLD_PX = 3;
+
 export default function NodeCoteStatic({
   annotation,
   annotationOverride,
@@ -63,6 +67,20 @@ export default function NodeCoteStatic({
     "data-node-type": "ANNOTATION",
     "data-annotation-type": "COTE",
   };
+
+  // Hit-test markup of the value label. `draggable` + `data-node-id` is what
+  // InteractionLayer reads on mousedown; `data-drag-owner="node"` tells it the
+  // drag itself is handled HERE (pointer events below), so it only absorbs
+  // the mouse gesture (no pan) and selects the cote on a plain click — a
+  // click on the label then selects exactly like a click on the line.
+  const labelHitProps =
+    printMode || isTransient
+      ? {}
+      : {
+          "data-interaction": "draggable",
+          "data-node-id": annotationId,
+          "data-drag-owner": "node",
+        };
 
   const displayStrokeColor = useMemo(() => {
     if (!hovered) return strokeColor;
@@ -118,6 +136,8 @@ export default function NodeCoteStatic({
     (e) => {
       if (printMode || isTransient) return;
       if (e.button !== undefined && e.button !== 0) return;
+      // Shift+press belongs to the lasso / multi-selection toggle.
+      if (e.shiftKey) return;
       const root = rootGRef.current;
       if (!root) return;
       const ctm = root.getScreenCTM();
@@ -144,14 +164,18 @@ export default function NodeCoteStatic({
         initialOffsetPx: baseExtensionOffsetPx,
         nx: _nx,
         ny: _ny,
+        startClient: { x: e.clientX, y: e.clientY },
+        moved: false,
       };
       try {
         e.target.setPointerCapture?.(e.pointerId);
       } catch {
         /* noop */
       }
+      // Pointer-only stop: the compatibility mousedown must still reach
+      // InteractionLayer (see labelHitProps). No preventDefault here for the
+      // same reason — cancelling pointerdown suppresses the mouse events.
       e.stopPropagation();
-      e.preventDefault?.();
     },
     [points, baseExtensionOffsetPx, printMode, isTransient]
   );
@@ -159,6 +183,14 @@ export default function NodeCoteStatic({
   const handleLabelPointerMove = useCallback((e) => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (!drag.moved) {
+      const dist = Math.hypot(
+        e.clientX - drag.startClient.x,
+        e.clientY - drag.startClient.y
+      );
+      if (dist <= LABEL_DRAG_THRESHOLD_PX) return;
+      drag.moved = true;
+    }
     const root = rootGRef.current;
     if (!root) return;
     const ctm = root.getScreenCTM();
@@ -181,13 +213,19 @@ export default function NodeCoteStatic({
     async (e) => {
       const drag = dragRef.current;
       if (!drag) return;
-      const newOffsetPx = dragOffsetPx ?? drag.initialOffsetPx;
       dragRef.current = null;
       try {
         e.target.releasePointerCapture?.(e.pointerId);
       } catch {
         /* noop */
       }
+      // Plain click (no move past the threshold): nothing to persist — the
+      // selection is handled by InteractionLayer on the mouseup.
+      if (dragOffsetPx === null) {
+        e.stopPropagation();
+        return;
+      }
+      const newOffsetPx = dragOffsetPx;
       // persist
       let nextOffset;
       if (extensionOffsetUnit === "CM" && hasScale) {
@@ -230,6 +268,7 @@ export default function NodeCoteStatic({
     (e) => {
       if (printMode || isTransient) return;
       if (e.button !== undefined && e.button !== 0) return;
+      if (e.shiftKey) return;
       const initial = storedLabelOffset ?? DEGENERATE_LABEL_DEFAULT_OFFSET;
       const ctm = degenerateGRef.current?.getScreenCTM?.();
       const clientPxPerPt = ctm ? Math.hypot(ctm.a, ctm.b) : 0;
@@ -237,14 +276,15 @@ export default function NodeCoteStatic({
         startClient: { x: e.clientX, y: e.clientY },
         initialOffset: { x: initial.x, y: initial.y },
         clientPxPerPt: clientPxPerPt > 0 ? clientPxPerPt : 1,
+        moved: false,
       };
       try {
         e.target.setPointerCapture?.(e.pointerId);
       } catch {
         /* noop */
       }
+      // Same as handleLabelPointerDown: keep the mouse events alive.
       e.stopPropagation();
-      e.preventDefault?.();
     },
     [storedLabelOffset, printMode, isTransient]
   );
@@ -252,6 +292,14 @@ export default function NodeCoteStatic({
   const handleDegenerateLabelPointerMove = useCallback((e) => {
     const drag = degenerateDragRef.current;
     if (!drag) return;
+    if (!drag.moved) {
+      const dist = Math.hypot(
+        e.clientX - drag.startClient.x,
+        e.clientY - drag.startClient.y
+      );
+      if (dist <= LABEL_DRAG_THRESHOLD_PX) return;
+      drag.moved = true;
+    }
     setDragLabelOffset({
       x:
         drag.initialOffset.x +
@@ -273,7 +321,12 @@ export default function NodeCoteStatic({
       } catch {
         /* noop */
       }
-      const next = dragLabelOffset ?? drag.initialOffset;
+      if (dragLabelOffset === null) {
+        // Plain click: InteractionLayer selects the cote on the mouseup.
+        e.stopPropagation();
+        return;
+      }
+      const next = dragLabelOffset;
       try {
         await updateAnnotation({
           id: annotationId,
@@ -375,6 +428,7 @@ export default function NodeCoteStatic({
               fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
               fill={displayStrokeColor}
               data-cote-label="1"
+              {...labelHitProps}
               onPointerDown={handleDegenerateLabelPointerDown}
               onPointerMove={handleDegenerateLabelPointerMove}
               onPointerUp={handleDegenerateLabelPointerUp}
@@ -492,6 +546,7 @@ export default function NodeCoteStatic({
             fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
             fill={displayStrokeColor}
             data-cote-label="1"
+            {...labelHitProps}
             onPointerDown={handleLabelPointerDown}
             onPointerMove={handleLabelPointerMove}
             onPointerUp={handleLabelPointerUp}
