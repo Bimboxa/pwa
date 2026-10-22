@@ -128,6 +128,13 @@ export default async function writeMesh3dService({
     patch.rotation = 0;
     patch.rotationCenter = null;
   }
+  // A generated shape (a baked revolution) is frozen in the mesh: the
+  // parametric shape3D would keep resolving an axis / a lathe quantity on a
+  // POLYGON mesh. Dropped from the row (undefined = Dexie delete), kept in
+  // mesh3dSource by the snapshot below for « Réinitialiser ».
+  if (!annotation.isMesh3d && annotation.shape3D?.key) {
+    patch.shape3D = undefined;
+  }
 
   // First conversion of a stroke-driven annotation (thick wall, strip): a
   // POLYGON is fill-driven, so carry its effective color over.

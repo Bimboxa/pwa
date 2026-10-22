@@ -9,6 +9,10 @@ import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
+import {
+  getShape3DKey,
+  isRevolutionSolid,
+} from "Features/annotations/constants/shape3DConfig";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import buildAnnotationSolidObjectsAsync from "Features/threedEditor/js/utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
@@ -59,13 +63,38 @@ const CSG_SOURCE_MATERIAL = new MeshBasicMaterial();
 
 // Below this volume change (m³) the targets did not touch the host.
 const MIN_REMOVED_VOLUME_M3 = 1e-7;
+// Same for an OPEN host (a lathe shell): the carve removes surface, not
+// volume (m²).
+const MIN_REMOVED_AREA_M2 = 1e-6;
+
+// A lathe is 64 quads per profile segment (a sampled arc = 24 segments), far
+// beyond the hand-editing cap of convertObject3DToMesh3d; a baked revolution
+// is a frozen shape, not a mesh to edit face by face.
+const BAKE_MAX_FACES_LATHE = 8000;
+
+// A REVOLUTION host (profile revolved around a REVOLUTION_AXIS) with its
+// axis resolved (`revolutionAxisPoints`, useAnnotationsV2 /
+// AnnotationsManager.getAnnotationSource). Without the axis
+// createAnnotationObject3D falls back to the plain polyline wall, which
+// must never be baked in its place.
+export function isRevolutionBakeHost(annotation) {
+  return (
+    annotation?.type === "POLYLINE" &&
+    getShape3DKey(annotation.shape3D) === "REVOLUTION" &&
+    annotation.revolutionAxisPoints?.length >= 2 &&
+    !annotation.isOpening &&
+    !annotation.isMeshCell
+  );
+}
 
 // Whether the host's solid can be frozen into a mesh: a plain extrusion
-// (convertible) or a mesh already. Generated shapes (revolutions, swept
-// profiles, shells) are open surfaces or thousands of facets.
+// (convertible), a mesh already, or a revolution (closed « Solide » volume,
+// or open lathe shell baked as an open mesh). The other generated shapes
+// (swept profiles, shells) stay out.
 export function isAnnotationSubtractionBakeable(annotation) {
   if (!annotation?.id || isForeignFootprintId(annotation.id)) return false;
   if (annotation.isMesh3d) return true;
+  if (isRevolutionBakeHost(annotation)) return true;
   return isAnnotationConvertibleToMesh3d(annotation);
 }
 
@@ -145,6 +174,36 @@ const toNonIndexedVolume = (geometry) => {
   return volume;
 };
 
+// Area of a triangle soup (sum of the triangle areas), m² — the measure of
+// an OPEN host, whose volume means nothing.
+function getSoupArea(geometry) {
+  const p = geometry?.getAttribute?.("position");
+  if (!p) return 0;
+  let area = 0;
+  for (let i = 0; i + 2 < p.count; i += 3) {
+    const abx = p.getX(i + 1) - p.getX(i);
+    const aby = p.getY(i + 1) - p.getY(i);
+    const abz = p.getZ(i + 1) - p.getZ(i);
+    const acx = p.getX(i + 2) - p.getX(i);
+    const acy = p.getY(i + 2) - p.getY(i);
+    const acz = p.getZ(i + 2) - p.getZ(i);
+    const cx = aby * acz - abz * acy;
+    const cy = abz * acx - abx * acz;
+    const cz = abx * acy - aby * acx;
+    area += Math.sqrt(cx * cx + cy * cy + cz * cz) / 2;
+  }
+  return area;
+}
+
+const toNonIndexedArea = (geometry) => {
+  if (!geometry) return 0;
+  if (!geometry.index) return getSoupArea(geometry);
+  const soup = geometry.toNonIndexed();
+  const area = getSoupArea(soup);
+  soup.dispose();
+  return area;
+};
+
 export default async function bakeAnnotationSubtractionsService({
   host,
   targets,
@@ -172,6 +231,21 @@ export default async function bakeAnnotationSubtractionsService({
 
   // No render-only tweak (footprint shrink, « Delta offset 3D » lift).
   const options = { ...(buildOptions ?? {}), antiAliasingShrink: false };
+  // Nor the camera-driven 180° half-view of a revolution (display only, it
+  // would bake half a lathe — same stripping as buildAnnotationSolidObjectsAsync
+  // for the operands). The axis's own partial sector (`revolutionPhi`) stays:
+  // it is part of the annotation.
+  const hostOptions = {
+    ...options,
+    revolutionSection: undefined,
+    revolutionSectionByAxisId: undefined,
+    revolutionSectionFill: false,
+  };
+  const isRevolutionHost = isRevolutionBakeHost(host);
+  // An open lathe shell is clipped (HOLLOW_SUBTRACTION, no cap faces) and
+  // written as an OPEN mesh; a « Solide » revolution is a closed volume like
+  // any extrusion — the rule of the live carve (AnnotationsManager).
+  const hollow = isRevolutionHost && !isRevolutionSolid(host);
 
   let hostObject = null;
   let solid = null;
@@ -181,7 +255,7 @@ export default async function bakeAnnotationSubtractionsService({
     hostObject = createAnnotationObject3D(
       { ...host, _noAntiAliasingShrink: true },
       metrics,
-      options
+      hostOptions
     );
     if (!hostObject) return refused(BAKE_SUBTRACTION_REASONS.NOT_BAKEABLE);
     const hostFrame = createBaseMapFrameGroup(getBaseMapTransform(hostBaseMap));
@@ -219,26 +293,38 @@ export default async function bakeAnnotationSubtractionsService({
       return refused(BAKE_SUBTRACTION_REASONS.NO_TARGET);
     }
 
-    // 3. One closed host brush, carved in world space.
+    // 3. One host brush (closed solid, or open shell), carved in world space.
     solid = buildMergedWorldSolid(hostObject);
     if (!solid) return refused(BAKE_SUBTRACTION_REASONS.NOT_BAKEABLE);
-    const volumeBefore = Math.abs(getSoupVolume(solid.geometry));
-    subtractAnnotationGeometries(solid, targetObjects);
+    const measureBefore = hollow
+      ? getSoupArea(solid.geometry)
+      : Math.abs(getSoupVolume(solid.geometry));
+    subtractAnnotationGeometries(solid, targetObjects, { hollow });
     if (!solid.userData?.hasSubtraction) {
       return refused(BAKE_SUBTRACTION_REASONS.FAILED);
     }
-    const volumeAfter = Math.abs(toNonIndexedVolume(solid.geometry));
-    if (volumeBefore - volumeAfter < MIN_REMOVED_VOLUME_M3) {
+    const measureAfter = hollow
+      ? toNonIndexedArea(solid.geometry)
+      : Math.abs(toNonIndexedVolume(solid.geometry));
+    const minRemoved = hollow ? MIN_REMOVED_AREA_M2 : MIN_REMOVED_VOLUME_M3;
+    if (measureBefore - measureAfter < minRemoved) {
       return refused(BAKE_SUBTRACTION_REASONS.NO_INTERSECTION);
     }
 
-    // 4. Carved soup -> host base map LOCAL mesh (absolute z).
-    const mesh = convertObject3DToMesh3d(solid, hostFrame, { carved: true });
-    if (!mesh?.faces?.length || !isMesh3dClosed(mesh)) {
-      return refused(BAKE_SUBTRACTION_REASONS.FAILED);
-    }
-    if (getMesh3dSignedVolume(mesh) <= 0) {
-      return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+    // 4. Carved soup -> host base map LOCAL mesh (absolute z). An open shell
+    // is kept as it is (DoubleSide render, surface = face areas, no volume).
+    const mesh = convertObject3DToMesh3d(solid, hostFrame, {
+      carved: true,
+      allowOpen: hollow,
+      maxFaces: isRevolutionHost ? BAKE_MAX_FACES_LATHE : undefined,
+    });
+    if (!mesh?.faces?.length) return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+    if (!hollow) {
+      if (!isMesh3dClosed(mesh))
+        return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+      if (getMesh3dSignedVolume(mesh) <= 0) {
+        return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+      }
     }
 
     // 5. One undo step: the host mesh + the baked relations.

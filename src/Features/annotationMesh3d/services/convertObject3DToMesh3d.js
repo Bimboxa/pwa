@@ -31,10 +31,14 @@ const MAX_FACES = 2000;
 // « Soustraire définitivement » bake): its coplanar triangles only share
 // partial edges (T-junctions), so the faces are rebuilt by a 2D union per
 // plane (buildMesh3dFromCarvedTriangles) instead of by edge connectivity.
+//
+// options.maxFaces: face cap in place of MAX_FACES, for a caller that freezes
+// a generated shape on purpose (a baked revolution: 64 quads per profile
+// segment) and never hand-edits it.
 export default function convertObject3DToMesh3d(
   object,
   baseMapGroup,
-  { allowOpen = false, carved = false } = {}
+  { allowOpen = false, carved = false, maxFaces = MAX_FACES } = {}
 ) {
   if (!object || !baseMapGroup) return null;
   const solids = getSolidMeshesFromObject3D(object);
@@ -69,7 +73,7 @@ export default function convertObject3DToMesh3d(
   const mesh = carved
     ? buildMesh3dFromCarvedTriangles({ positions })
     : buildMesh3dFromTriangles({ positions });
-  if (!mesh || mesh.faces.length > MAX_FACES) return null;
+  if (!mesh || mesh.faces.length > (maxFaces ?? MAX_FACES)) return null;
 
   if (isMesh3dClosed(mesh)) {
     // Builders do not guarantee outward winding (the pixel → local Y flip).
