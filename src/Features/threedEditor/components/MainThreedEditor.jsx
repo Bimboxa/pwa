@@ -140,9 +140,9 @@ import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/u
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import useRulerLabelDragHandlers from "Features/threedDimensions/hooks/useRulerLabelDragHandlers";
 import {
-  getRulerLabelPartId,
-  RULER_LABEL_PART_TYPE,
-} from "Features/threedDimensions/utils/rulerLabelPart";
+  DIMENSION_LABEL_PART_TYPE,
+  getDimensionLabelPartId,
+} from "Features/threedDimensions/utils/dimensionLabelPart";
 import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
@@ -1079,9 +1079,9 @@ export default function MainThreedEditor() {
       // sprites). The sprite carries the owning COTE / RULER annotation id;
       // selecting it dispatches the SAME payload as the generic annotation
       // branch below, so the normal annotation popper / properties /
-      // Delete-key flows apply. A card of the already-selected ruler
-      // sub-selects that card instead (RULER_LABEL part — its drag is
-      // useRulerLabelDragHandlers'); Shift keeps the selection toggle.
+      // Delete-key flows apply. A card of the already-selected cote / ruler
+      // sub-selects that card instead (DIMENSION_LABEL part — its drag is
+      // the label drag hooks'); Shift keeps the selection toggle.
       const dimensionObjects = getDimensionObjects();
       if (dimensionObjects.length > 0) {
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1109,7 +1109,7 @@ export default function MainThreedEditor() {
           const position = { x: event.clientX, y: event.clientY };
           const segmentKey = spriteHit.userData.segmentKey;
           if (
-            annotationType === "RULER" &&
+            (annotationType === "RULER" || annotationType === "COTE") &&
             segmentKey &&
             !event.shiftKey &&
             getSingleSelectedAnnotationId(
@@ -1118,8 +1118,8 @@ export default function MainThreedEditor() {
           ) {
             dispatch(
               setSubSelection({
-                partId: getRulerLabelPartId(coteAnnotationId, segmentKey),
-                partType: RULER_LABEL_PART_TYPE,
+                partId: getDimensionLabelPartId(coteAnnotationId, segmentKey),
+                partType: DIMENSION_LABEL_PART_TYPE,
                 pointId: null,
               })
             );

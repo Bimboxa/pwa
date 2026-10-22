@@ -1,10 +1,14 @@
 import { useEffect, useRef } from "react";
 
-import { useSelector, useStore } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import { Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 
+import db from "App/db/db";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import { selectSelectedItems } from "Features/selection/selectionSlice";
+import {
+  selectSelectedItems,
+  setSubSelection,
+} from "Features/selection/selectionSlice";
 import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
 import {
   buildAxisLockLine,
@@ -22,6 +26,14 @@ import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesW
 import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 
 import { getDimensionObjects } from "../services/dimensionObjectsStore";
+import {
+  clearPendingDimensionPatch,
+  setPendingDimensionPatch,
+} from "../services/dimensionPendingPatchStore";
+import {
+  DIMENSION_LABEL_PART_TYPE,
+  getDimensionLabelPartId,
+} from "../utils/dimensionLabelPart";
 import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
 // Pointer movement (in CSS px) below which the gesture is treated as a plain
@@ -50,12 +62,15 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
 // perpendicular to the measured segment; with Shift held the cursor is
 // locked on the user axis of the gizmo frame (through the grab point)
 // closest to it on screen — « Déplacer » parity, the axis drawn dashed in
-// its colour. The Line2/extensions/sprite are updated imperatively; the
-// annotation is persisted on pointerup (the DB write then re-triggers the
-// rebuild).
+// its colour. The Line2/extensions/sprite are updated imperatively; on
+// pointerup the written fields are published to dimensionPendingPatchStore
+// BEFORE the DB write, so the rebuilds that precede the live query's updated
+// row (the card sub-selection dispatched below, a load tick) already draw
+// the cote where it was dropped — no snap-back frame, no timer.
 export default function useCoteLabelDragHandlers({ rendererIsReady }) {
   const updateAnnotation = useUpdateAnnotation();
   const store = useStore();
+  const dispatch = useDispatch();
 
   // Modes that own the pointer — no label drag while one is active (same
   // list as useAnnotationLabelDragHandlers: the Maillage module keeps
@@ -401,28 +416,45 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       const drag = endDrag();
       if (!drag || !drag.moved) return;
       const geom = drag.coteGeom;
-      try {
-        if (geom.isPlaneParallel && drag.sMeters !== null) {
-          const unit = geom.extensionOffsetUnit;
-          const nextOffset =
+      const { annotationId } = drag;
+      let patch = null;
+      if (geom.isPlaneParallel && drag.sMeters !== null) {
+        const unit = geom.extensionOffsetUnit;
+        patch = {
+          extensionOffset:
             unit === "CM"
               ? round2(drag.sMeters * 100)
-              : round2(drag.sMeters / geom.meterByPx);
-          await updateAnnotationRef.current({
-            id: drag.annotationId,
-            extensionOffset: nextOffset,
-          });
-        } else if (!geom.isPlaneParallel && drag.vLocal) {
-          await updateAnnotationRef.current({
-            id: drag.annotationId,
-            offset3d: {
-              x: round4(drag.vLocal.x),
-              y: round4(drag.vLocal.y),
-              z: round4(drag.vLocal.z),
-            },
-          });
-        }
+              : round2(drag.sMeters / geom.meterByPx),
+        };
+      } else if (!geom.isPlaneParallel && drag.vLocal) {
+        patch = {
+          offset3d: {
+            x: round4(drag.vLocal.x),
+            y: round4(drag.vLocal.y),
+            z: round4(drag.vLocal.z),
+          },
+        };
+      }
+      if (!patch) return;
+      try {
+        // The raw row's updatedAt identifies the pre-write row for the
+        // pending store; published before the write.
+        const raw = await db.annotations.get(annotationId);
+        setPendingDimensionPatch(annotationId, {
+          baseUpdatedAt: raw?.updatedAt ?? null,
+          patch,
+        });
+        // The dragged card is the sub-selected one.
+        dispatch(
+          setSubSelection({
+            partId: getDimensionLabelPartId(annotationId),
+            partType: DIMENSION_LABEL_PART_TYPE,
+            pointId: null,
+          })
+        );
+        await updateAnnotationRef.current({ id: annotationId, ...patch });
       } catch (err) {
+        clearPendingDimensionPatch(annotationId);
         console.error("[threedDimensions] cote offset persist failed", err);
       }
     }
@@ -438,5 +470,5 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       dom.removeEventListener("pointerdown", onPointerDown, true);
       endDrag();
     };
-  }, [rendererIsReady, store]);
+  }, [rendererIsReady, store, dispatch]);
 }

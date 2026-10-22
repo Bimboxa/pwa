@@ -26,10 +26,14 @@ import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesW
 import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 
 import {
-  getRulerLabelPartId,
-  RULER_LABEL_PART_TYPE,
-} from "../utils/rulerLabelPart";
+  DIMENSION_LABEL_PART_TYPE,
+  getDimensionLabelPartId,
+} from "../utils/dimensionLabelPart";
 import { getDimensionObjects } from "../services/dimensionObjectsStore";
+import {
+  clearPendingDimensionPatch,
+  setPendingDimensionPatch,
+} from "../services/dimensionPendingPatchStore";
 import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
 // Pointer movement (in CSS px) below which the gesture is treated as a plain
@@ -43,21 +47,24 @@ const OFF_PLANE_AXIS_DOT = 0.1;
 
 const round4 = (v) => Math.round(v * 10000) / 10000;
 
-// Dragging a value card of the SELECTED ruler in 3D moves THAT card only
-// (an unselected ruler only gets selected by the click, through
-// MainThreedEditor's sprite pre-pass — same rule as the cote cards). The
-// displacement from the card's default position (the middle of its offset
-// segment) is persisted per segment in `rulerLabelOffsets[key]`
+// Dragging a value card of the SELECTED ruler in 3D moves EVERY card of the
+// ruler by the same vector (an unselected ruler only gets selected by the
+// click, through MainThreedEditor's sprite pre-pass — same rule as the cote
+// cards). Each card's displacement from its default position (the middle of
+// its offset segment) is persisted per segment in `rulerLabelOffsets[key]`
 // (base-map-local metres), rendered in 3D and in 2D (NodeRulerStatic).
 // Mirror of useCoteLabelDragHandlers: the cursor is projected on a
-// camera-facing plane through the card, the displacement since the grab
-// point is added to the current offset (no jump); with Shift held the cursor
-// is locked on the user axis of the gizmo frame (through the grab point)
-// closest to it on screen — in-plane axes only for a plane-parallel ruler.
-// The sprite and its dashed leader are updated imperatively; the annotation
-// is persisted on pointerup (the DB write re-triggers the rebuild), the
-// dragged card then stays sub-selected. A card dragged back within 1 mm of
-// its default position drops its entry.
+// camera-facing plane through the grabbed card, the displacement since the
+// grab point is added to each card's current offset (no jump); with Shift
+// held the cursor is locked on the user axis of the gizmo frame (through
+// the grab point) closest to it on screen — in-plane axes only for a
+// plane-parallel ruler. The sprites and their dashed leaders are updated
+// imperatively; on pointerup the new offsets are published to
+// dimensionPendingPatchStore BEFORE the DB write, so the rebuilds that
+// precede the live query's updated row (the sub-selection dispatch below,
+// a load tick) already draw the cards where they were dropped — no
+// snap-back frame, no timer. A card back within 1 mm of its default
+// position drops its entry.
 export default function useRulerLabelDragHandlers({ rendererIsReady }) {
   const updateAnnotation = useUpdateAnnotation();
   const store = useStore();
@@ -180,17 +187,15 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
       if (selectedId !== annotationId) return;
 
       const group = sprite.parent;
-      const entry = group?.userData?.rulerSegments?.find(
-        (seg) => seg.sprite === sprite
-      );
+      const entries = group?.userData?.rulerSegments;
+      const entry = entries?.find((seg) => seg.sprite === sprite);
       if (!entry) return;
 
       group.updateMatrixWorld(true);
-      const midWorld = entry.midLocal.clone().applyMatrix4(group.matrixWorld);
 
-      // Drag plane: through the current card position, facing the camera.
-      // The card's offset from its default position is the current
-      // displacement vector (the full stored offset).
+      // Drag plane: through the grabbed card position, facing the camera.
+      // Every card starts from its current displacement (sprite − default
+      // position, base-map-local) and gets the same delta.
       const labelWorld = sprite.getWorldPosition(new Vector3());
       const planeNormal = camera.getWorldDirection(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
@@ -199,7 +204,9 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
       );
       const startHit = new Vector3();
       if (!raycaster.ray.intersectPlane(plane, startHit)) return;
-      const offsetWorld = labelWorld.clone().sub(midWorld);
+      const baseOffsets = entries.map((seg) =>
+        seg.sprite.position.clone().sub(seg.midLocal)
+      );
 
       // Shift locks: the user axes of the gizmo frame. A plane-parallel ruler
       // keeps its cards in its plan: the axes lying in that plane only.
@@ -221,7 +228,8 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
         annotationId,
         group,
         entry,
-        offsetWorld,
+        entries,
+        baseOffsets,
         plane,
         startHit,
         axes,
@@ -232,8 +240,8 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
         lastClient: { clientX: e.clientX, clientY: e.clientY },
         lastShiftKey: e.shiftKey,
         moved: false,
-        // Live value persisted on pointerup (base-map-local metres).
-        vLocal: null,
+        // Live delta persisted on pointerup (base-map-local metres).
+        deltaLocal: null,
       };
 
       window.addEventListener("pointermove", onWindowPointerMove);
@@ -286,37 +294,36 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
       }
       updateAxisLine(drag, axis);
 
-      // Current displacement + movement since the grab point — free
-      // placement (no component removed: the card is detached from its
-      // segment).
-      const vWorld = drag.offsetWorld
-        .clone()
-        .add(hit.clone().sub(drag.startHit));
+      // Movement since the grab point — free placement (no component
+      // removed: the cards are detached from their segments).
+      const deltaWorld = hit.clone().sub(drag.startHit);
 
       // World → basemap-local direction (groups are unscaled, so the length
       // is preserved through the rotation).
-      const len = vWorld.length();
+      const len = deltaWorld.length();
       const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
-      const vLocal =
+      const deltaLocal =
         len > 0
-          ? vWorld.transformDirection(inv).multiplyScalar(len)
+          ? deltaWorld.transformDirection(inv).multiplyScalar(len)
           : new Vector3();
-      drag.vLocal = { x: vLocal.x, y: vLocal.y, z: vLocal.z };
+      drag.deltaLocal = deltaLocal;
 
-      // Live update: card and its leader.
-      const { midLocal, sprite, leader } = drag.entry;
-      const card = midLocal.clone().add(vLocal);
-      sprite.position.copy(card);
-      leader.geometry.setPositions([
-        midLocal.x,
-        midLocal.y,
-        midLocal.z,
-        card.x,
-        card.y,
-        card.z,
-      ]);
-      leader.computeLineDistances();
-      leader.visible = !isZeroLabelOffset(drag.vLocal);
+      // Live update: every card and its leader, same delta.
+      drag.entries.forEach(({ midLocal, sprite, leader }, i) => {
+        const offset = drag.baseOffsets[i].clone().add(deltaLocal);
+        const card = midLocal.clone().add(offset);
+        sprite.position.copy(card);
+        leader.geometry.setPositions([
+          midLocal.x,
+          midLocal.y,
+          midLocal.z,
+          card.x,
+          card.y,
+          card.z,
+        ]);
+        leader.computeLineDistances();
+        leader.visible = !isZeroLabelOffset(offset);
+      });
       sceneManager.renderScene?.();
     }
 
@@ -342,35 +349,46 @@ export default function useRulerLabelDragHandlers({ rendererIsReady }) {
 
     async function onWindowPointerUp() {
       const drag = endDrag();
-      if (!drag || !drag.moved || !drag.vLocal) return;
-      const { annotationId, entry, vLocal } = drag;
+      if (!drag || !drag.moved || !drag.deltaLocal) return;
+      const { annotationId, entry, entries, deltaLocal } = drag;
       try {
-        // Merge into the RAW row (the rendered annotation is template-merged
-        // and may carry resolved points): other cards keep their offsets.
+        // Start from the RAW row (the rendered annotation is template-merged
+        // and may carry resolved points) — its updatedAt identifies the
+        // pre-write row for the pending store.
         const raw = await db.annotations.get(annotationId);
-        const next = { ...(raw?.rulerLabelOffsets || {}) };
-        if (isZeroLabelOffset(vLocal)) {
-          delete next[entry.key];
-        } else {
-          next[entry.key] = {
-            x: round4(vLocal.x),
-            y: round4(vLocal.y),
-            z: round4(vLocal.z),
+        const current = raw?.rulerLabelOffsets || {};
+        const next = {};
+        entries.forEach((seg) => {
+          const base = current[seg.key];
+          const v = {
+            x: round4((base?.x || 0) + deltaLocal.x),
+            y: round4((base?.y || 0) + deltaLocal.y),
+            z: round4((base?.z || 0) + deltaLocal.z),
           };
-        }
-        await updateAnnotationRef.current({
-          id: annotationId,
-          rulerLabelOffsets: Object.keys(next).length ? next : null,
+          if (!isZeroLabelOffset(v)) next[seg.key] = v;
         });
-        // The dragged card stays the sub-selected one after the rebuild.
+        const offsets = Object.keys(next).length ? next : null;
+
+        // Published before the write: any rebuild in the meantime draws the
+        // cards where they were dropped.
+        setPendingDimensionPatch(annotationId, {
+          baseUpdatedAt: raw?.updatedAt ?? null,
+          patch: { rulerLabelOffsets: offsets },
+        });
+        // The grabbed card is the sub-selected one.
         dispatch(
           setSubSelection({
-            partId: getRulerLabelPartId(annotationId, entry.key),
-            partType: RULER_LABEL_PART_TYPE,
+            partId: getDimensionLabelPartId(annotationId, entry.key),
+            partType: DIMENSION_LABEL_PART_TYPE,
             pointId: null,
           })
         );
+        await updateAnnotationRef.current({
+          id: annotationId,
+          rulerLabelOffsets: offsets,
+        });
       } catch (err) {
+        clearPendingDimensionPatch(annotationId);
         console.error(
           "[threedDimensions] ruler label offset persist failed",
           err
