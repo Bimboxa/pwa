@@ -140,11 +140,9 @@ import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/u
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import useRulerLabelDragHandlers from "Features/threedDimensions/hooks/useRulerLabelDragHandlers";
 import {
-  DIMENSION_LABEL_PART_TYPE,
-  getDimensionLabelPartId,
-} from "Features/threedDimensions/utils/dimensionLabelPart";
-import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
-import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
+  handleDimensionCardClick,
+  pickDimensionCard,
+} from "Features/threedDimensions/services/dimensionCardClick";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
 import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
@@ -1015,7 +1013,8 @@ export default function MainThreedEditor() {
       if (editorModeRef.current === "BASEMAP_POSITION") return;
       // Drawing mode owns the pointer; useDrawingPointerHandlers handles clicks.
       if (drawingActiveRef.current) return;
-      // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
+      // Meshing mode owns the pointer; useMeshingPointerHandlers handles it
+      // (its own value-card pre-pass included).
       if (meshingActiveRef.current) return;
       // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
       if (extrudeActiveRef.current) return;
@@ -1076,77 +1075,21 @@ export default function MainThreedEditor() {
 
       // Cote / ruler value card sprite hit-test — runs before the annotation
       // raycast (which filters `.isMesh` and so never sees the label
-      // sprites). The sprite carries the owning COTE / RULER annotation id;
-      // selecting it dispatches the SAME payload as the generic annotation
-      // branch below, so the normal annotation popper / properties /
-      // Delete-key flows apply. A card of the already-selected cote / ruler
-      // sub-selects that card instead (DIMENSION_LABEL part — its drag is
-      // the label drag hooks'); Shift keeps the selection toggle.
-      const dimensionObjects = getDimensionObjects();
-      if (dimensionObjects.length > 0) {
-        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouseRef.current.y =
-          -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycasterRef.current.setFromCamera(mouseRef.current, camera);
-        const coteHits = filterIntersectionsByClipping(
-          raycasterRef.current.intersectObjects(dimensionObjects, false),
-          clippingPlane
-        );
-        const spriteHit = coteHits[0]?.object;
-        const coteAnnotationId = spriteHit?.userData?.annotationId;
-        if (coteAnnotationId) {
-          const { annotationType, listingId, annotationTemplateId } =
-            spriteHit.userData;
-          const item = {
-            id: coteAnnotationId,
-            nodeId: coteAnnotationId,
-            type: "NODE",
-            nodeType: "ANNOTATION",
-            annotationType,
-            listingId,
-            annotationTemplateId,
-          };
-          const position = { x: event.clientX, y: event.clientY };
-          const segmentKey = spriteHit.userData.segmentKey;
-          if (
-            (annotationType === "RULER" || annotationType === "COTE") &&
-            segmentKey &&
-            !event.shiftKey &&
-            getSingleSelectedAnnotationId(
-              selectSelectedItems(store.getState())
-            ) === coteAnnotationId
-          ) {
-            dispatch(
-              setSubSelection({
-                partId: getDimensionLabelPartId(coteAnnotationId, segmentKey),
-                partType: DIMENSION_LABEL_PART_TYPE,
-                pointId: null,
-              })
-            );
-            dispatch(setAnnotationToolbarPosition(position));
-            dispatch(setAnnotationsToolbarPosition(position));
-            return;
-          }
-          if (event.shiftKey) {
-            dispatch(toggleItemSelection(item));
-          } else {
-            dispatch(
-              setSelectedNode({
-                id: coteAnnotationId,
-                nodeId: coteAnnotationId,
-                nodeType: "ANNOTATION",
-                annotationType,
-                listingId,
-              })
-            );
-            dispatch(setSelectedItem(item));
-            dispatch(setShowAnnotationsProperties(true));
-          }
-          dispatch(clearSubSelection());
-          dispatch(setAnnotationToolbarPosition(position));
-          dispatch(setAnnotationsToolbarPosition(position));
-          return;
-        }
+      // sprites). Selects the annotation from any of its cards, or
+      // sub-selects the clicked card of the already-selected one
+      // (dimensionCardClick, shared with the Maillage module's handlers).
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      const cardSprite = pickDimensionCard(raycasterRef.current, clippingPlane);
+      if (cardSprite) {
+        handleDimensionCardClick({
+          dispatch,
+          selectedItems: selectSelectedItems(store.getState()),
+          sprite: cardSprite,
+          event,
+        });
+        return;
       }
 
       // Maille label sprite hit-test — same reason as the cote sprites above.

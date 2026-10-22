@@ -1,9 +1,13 @@
 import { useEffect, useRef } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
 import db from "App/db/db";
+import {
+  handleDimensionCardClick,
+  pickDimensionCard,
+} from "Features/threedDimensions/services/dimensionCardClick";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   appendToMeshingAngleBuffer,
@@ -16,6 +20,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
+  selectSelectedItems,
   setSelectedItem,
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
@@ -61,6 +66,7 @@ const DRAG_THRESHOLD_PX = 4;
 //   meshingMode.angleBuffer to constrain its opening angle.
 export default function useMeshingPointerHandlers() {
   const dispatch = useDispatch();
+  const store = useStore();
 
   const active = useSelector((s) => s.threedEditor.meshingMode.active);
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
@@ -402,6 +408,30 @@ export default function useMeshingPointerHandlers() {
       dragging = false;
       if (wasDrag) return;
 
+      // Cote / ruler value cards first (the Maillage module draws cotes):
+      // the sprites are invisible to pickScene — select the annotation from
+      // its card, or sub-select the card of the selected one.
+      if (tool === "SELECT") {
+        const rect = dom.getBoundingClientRect();
+        if (rect.width && rect.height) {
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, sceneManager.camera);
+          const cardSprite = pickDimensionCard(
+            raycaster,
+            getActiveClippingPlane(sceneManager)
+          );
+          if (cardSprite) {
+            handleDimensionCardClick({
+              dispatch,
+              selectedItems: selectSelectedItems(store.getState()),
+              sprite: cardSprite,
+              event: e,
+            });
+            return;
+          }
+        }
+      }
       const pick = pickScene(e);
       if (tool === "SELECT") {
         handleSelectClick(e, pick);
@@ -510,7 +540,7 @@ export default function useMeshingPointerHandlers() {
       clearMeshingOverlay();
       dom.style.cursor = "";
     };
-  }, [active, tool, dispatch]);
+  }, [active, tool, dispatch, store]);
 
   // Typed angle → redraw the V cut in place (the mouse has not moved).
   useEffect(() => {
