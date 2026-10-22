@@ -67,7 +67,14 @@ const DEFAULT_LAYOUT = [
       "DETECT_SIMILAR_STRIPS",
     ],
   },
-  "REPAIR",
+  // cleanup: the deleted-annotations purge of the scope (default) + the
+  // geometry repair of the selected line / surface
+  {
+    type: "group",
+    key: "CLEANUP",
+    label: "Nettoyage",
+    commandKeys: ["CLEAN", "REPAIR"],
+  },
   "SIMPLIFY",
   "ARCIFY",
   "HOLLOW_OUT",

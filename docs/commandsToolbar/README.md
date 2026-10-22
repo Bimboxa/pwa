@@ -41,6 +41,13 @@ axes rotating live), « Afficher le repère » toggles the in-scene axes and
 rotation. The frame origin is a snappable point of every 3D tool while the
 axes are shown.
 
+The « Nettoyage » group (`CLEAN` / `REPAIR`, « Nettoyer » as default slot):
+« Nettoyer » purges the deleted annotations of the current scope (soft-deleted
+tombstones, orphan points, dead mesh paints — `purgeDeletedAnnotationsService`,
+the same service as « Purger les suppressions » in the 2D editor settings)
+after a confirmation dialog that announces the counts (dry run); « Réparer la
+géométrie » repairs the selected line / surface / strip.
+
 ## Command contract
 
 `commands/<name>/<name>Command.js` — pure metadata, no hook:
@@ -66,7 +73,7 @@ Rules (asserted in dev by `commands/index.js`):
   `constants/toolbarLayout.js`, at most once per layout;
 - a command with a `hotkey` has a pure `run` (the window listener calls it
   outside React); a popup-owning command exposes `Button` (`{ command, ctx,
-  deps, state, hotkeyLabel }`) and **never returns null** — it renders
+deps, state, hotkeyLabel }`) and **never returns null** — it renders
   `CommandButton` with `state.enabled = false` + reason instead;
 - a `Button` reads annotations / base map / permissions from `ctx`, never
   through its own `useAnnotationsV2` / `useMainBaseMap`; template pickers go
