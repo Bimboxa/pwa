@@ -215,11 +215,23 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       // handleClick, sprite pre-pass) — no drag, camera controls stay free.
       const items = selectSelectedItems(store.getState());
       const selectedId = getSingleSelectedAnnotationId(items);
-      if (selectedId !== annotationId) return;
       // The card itself is the selection: the gesture moves the card.
       const isLabelDrag =
         items[0]?.partType === DIMENSION_LABEL_PART_TYPE &&
         items[0]?.partId === getDimensionLabelPartId(annotationId);
+      // One decision line per card press (temporary diagnostics).
+      console.log("[threedDimensions] cote card pointerdown", {
+        annotationId,
+        selectedId,
+        partType: items[0]?.partType ?? null,
+        gesture:
+          selectedId !== annotationId
+            ? "NONE (click selects)"
+            : isLabelDrag
+              ? "LABEL"
+              : "LINE",
+      });
+      if (selectedId !== annotationId) return;
 
       const group = sprite.parent;
       const coteGeom = group?.userData?.coteGeom;
