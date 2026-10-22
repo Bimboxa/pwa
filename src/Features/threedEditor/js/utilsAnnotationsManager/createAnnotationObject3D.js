@@ -1000,11 +1000,15 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           });
           // Display-only half-view (not the annotation's own partial
-          // revolution): the real surface is the full turn.
+          // revolution): the real surface is the full turn — the displayed
+          // fraction of it lets the face selection scale its area back
+          // (resolveSurfaceFaceParts).
           if (object && partialPhi.phiLength && !annotation.revolutionPhi) {
+            const turn = partialPhi.phiLength / (2 * Math.PI);
             object.traverse((child) => {
               if (child.userData?.role === "SOLID") {
                 child.userData.isRevolutionHalfView = true;
+                child.userData.revolutionHalfViewTurn = turn;
               }
             });
           }

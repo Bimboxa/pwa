@@ -36,12 +36,14 @@ export default function PanelPropertiesSurfacePieces() {
     n > 1 ? "Supprimer les pièces" : "Supprimer la pièce";
   const hintS =
     "La surface reste ouverte à l'emplacement de la pièce (Suppr). « Supprimer les découpes » dans le panneau de l'annotation la restaure.";
+  const deleteLockedHintS =
+    "La face sélectionnée ne couvre pas toute la pièce : découper (H / V) pour l'isoler avant de la supprimer.";
   const failedS = "Pièce introuvable";
   const emptyS = "Aucune pièce sélectionnée";
 
   // data
 
-  const { annotationId, pieces, pieceIndices, surface } =
+  const { annotationId, pieces, pieceIndices, surface, canDelete } =
     useSelectedSurfacePieces();
 
   // handlers
@@ -118,13 +120,14 @@ export default function PanelPropertiesSurfacePieces() {
             color="error"
             size="small"
             startIcon={<DeleteIcon />}
+            disabled={!canDelete}
             onClick={handleDelete}
             sx={{ textTransform: "none", alignSelf: "flex-start" }}
           >
             {deleteS(pieces.length)}
           </Button>
           <Typography variant="caption" color="text.secondary">
-            {hintS}
+            {canDelete ? hintS : deleteLockedHintS}
           </Typography>
         </Box>
       </Box>

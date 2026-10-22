@@ -479,11 +479,23 @@ test("surfaceCutsFrame: a REMOVE entry converts to a local point and counts its 
 
 test("surfacePieceParts: ids round trip, selection filtered on the selected annotation", () => {
   const id = getSurfacePiecePartId("a1", 3);
+  assert.equal(id, "a1::SURFACE_PIECE::3");
   assert.deepEqual(parseSurfacePiecePartId(id), {
     annotationId: "a1",
     partType: "SURFACE_PIECE",
     pieceIndex: 3,
+    seedTri: null,
   });
+  // A face of the piece: the region seeded at triangle 42.
+  const faceId = getSurfacePiecePartId("a1", 3, 42);
+  assert.equal(faceId, "a1::SURFACE_PIECE::3:42");
+  assert.deepEqual(parseSurfacePiecePartId(faceId), {
+    annotationId: "a1",
+    partType: "SURFACE_PIECE",
+    pieceIndex: 3,
+    seedTri: 42,
+  });
+  assert.equal(parseSurfacePiecePartId("a1::SURFACE_PIECE::3:x"), null);
   assert.equal(parseSurfacePiecePartId("a1::MESH3D_FACE::3"), null);
   const item = { type: "NODE", nodeId: "a1", partId: id };
   assert.equal(getSelectedSurfacePieces(item, []).length, 1);

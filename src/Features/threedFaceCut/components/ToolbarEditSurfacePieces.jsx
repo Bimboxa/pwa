@@ -53,11 +53,13 @@ export default function ToolbarEditSurfacePieces({ onDragStart }) {
   const cutHintS = "Coupe face (C) : découpe horizontale (H) / verticale (V)";
   const deleteS = (n) =>
     n > 1 ? "Supprimer les pièces (Suppr)" : "Supprimer la pièce (Suppr)";
+  const deleteLockedS =
+    "Découper (H / V) pour isoler la face avant de la supprimer";
   const failedS = "Pièce introuvable";
 
   // data
 
-  const { annotationId, pieces, pieceIndices, surface } =
+  const { annotationId, pieces, pieceIndices, surface, canDelete } =
     useSelectedSurfacePieces();
 
   // handlers
@@ -156,17 +158,20 @@ export default function ToolbarEditSurfacePieces({ onDragStart }) {
 
         <Box sx={{ display: "flex", alignItems: "center", px: 0.75, py: 0.25 }}>
           <Box sx={{ flex: 1 }} />
-          <Tooltip title={deleteS(pieces.length)}>
-            <IconButton
-              size="small"
-              onClick={handleDelete}
-              sx={{
-                color: "text.disabled",
-                "&:hover": { bgcolor: "error.lighter", color: "error.main" },
-              }}
-            >
-              <DeleteIcon sx={{ fontSize: 18 }} />
-            </IconButton>
+          <Tooltip title={canDelete ? deleteS(pieces.length) : deleteLockedS}>
+            <span>
+              <IconButton
+                size="small"
+                disabled={!canDelete}
+                onClick={handleDelete}
+                sx={{
+                  color: "text.disabled",
+                  "&:hover": { bgcolor: "error.lighter", color: "error.main" },
+                }}
+              >
+                <DeleteIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </Paper>

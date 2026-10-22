@@ -13,6 +13,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import removeSurfacePiecesService from "Features/threedFaceCut/services/removeSurfacePiecesService";
+import resolveSurfaceFaceParts from "Features/threedFaceCut/services/resolveSurfaceFaceParts";
 import { getSelectedSurfacePieces } from "Features/threedFaceCut/utils/surfacePieceParts";
 
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
@@ -47,6 +48,8 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
   // strings
 
   const pieceNotFoundS = "Pièce introuvable";
+  const pieceLockedS =
+    "Découper (H / V) pour isoler la face avant de la supprimer";
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -121,10 +124,25 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
       if (pieces.length) {
         e.preventDefault();
         e.stopPropagation();
+        // A REMOVE entry drops a whole piece: a face that is only a region
+        // of its piece (a band of a lathe) must be cut out first.
+        const faces = resolveSurfaceFaceParts({
+          editor: getActiveThreedEditor(),
+          annotationId: selectedItem.nodeId,
+          parts: pieces,
+          angleDeg: state.threedEditor.faceSelectionAngleDeg,
+        });
+        if (
+          faces.length !== pieces.length ||
+          !faces.every((face) => face.isWholePiece)
+        ) {
+          dispatch(setToaster({ message: pieceLockedS, severity: "info" }));
+          return;
+        }
         removeSurfacePiecesService({
           editor: getActiveThreedEditor(),
           annotationId: selectedItem.nodeId,
-          pieceIndices: pieces.map((part) => part.pieceIndex),
+          pieceIndices: [...new Set(pieces.map((part) => part.pieceIndex))],
           dispatch,
         })
           .then((result) => {
