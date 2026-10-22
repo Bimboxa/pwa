@@ -40,9 +40,14 @@ CameraControls.install({
 });
 
 // A mesh whose material is (nearly) see-through must not capture the rotation
-// pivot — e.g. annotations dimmed to opacity 0.3 after a solo selection. The
-// ray should pass through and land on the opaque geometry (or plane) behind.
-const PIVOT_OPACITY_THRESHOLD = 0.99;
+// pivot — e.g. annotations dimmed to opacity 0.3 after a solo selection, or
+// the photoreal shadow catcher (0.15). The ray should pass through and land
+// on the geometry (or plane) behind. An annotation's OWN styling opacity
+// (fillOpacity 0.75 is a common template default) keeps it a valid orbit
+// anchor: the user sees and clicks that face, so the camera must pivot on
+// it — not on the base map plane far behind, which made a tall translucent
+// wall impossible to orbit around.
+const PIVOT_OPACITY_THRESHOLD = 0.5;
 
 // camera-controls `mouseButtons` keys, indexed by PointerEvent.button.
 const MOUSE_BUTTON_NAMES = ["left", "middle", "right"];
@@ -50,11 +55,19 @@ const MOUSE_BUTTON_NAMES = ["left", "middle", "right"];
 function isMaterialSeeThrough(material) {
   if (!material) return false;
   if (Array.isArray(material)) return material.some(isMaterialSeeThrough);
-  if (material.transparent === true) return true;
+  // `transparent: true` alone says nothing about visibility (every
+  // translucent annotation and every fat line sets it): only the opacity does.
   return (
     typeof material.opacity === "number" &&
     material.opacity < PIVOT_OPACITY_THRESHOLD
   );
+}
+
+// Fat lines (Line2 / LineSegments2 are `isMesh`) are decoration — frame and
+// revolution axes, outlines, traits: the pivot ray passes through them and
+// lands on the surface behind.
+function isPivotCandidate(object) {
+  return Boolean(object?.isMesh && !object.isLine2 && !object.isLineSegments2);
 }
 
 export default class ControlsManager {
@@ -850,7 +863,10 @@ export default class ControlsManager {
     if (scene) {
       const intersects = ray.intersectObjects(scene.children, true);
       for (const i of intersects) {
-        if (i.object?.isMesh && !isMaterialSeeThrough(i.object.material)) {
+        if (
+          isPivotCandidate(i.object) &&
+          !isMaterialSeeThrough(i.object.material)
+        ) {
           return this._pivotBest.copy(i.point);
         }
       }
