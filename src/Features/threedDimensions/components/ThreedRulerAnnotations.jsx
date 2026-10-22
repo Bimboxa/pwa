@@ -34,6 +34,12 @@ const LINEWIDTH = 1;
 const LINEWIDTH_SELECTED = 2;
 // Dashed extension / graduation lines, thinner still.
 const LINEWIDTH_EXTENSION = 0.75;
+// Half-length (metres) of the graduation tick drawn across each interior
+// chain point when the ruler has no extension offset: a fraction of the
+// shorter adjacent segment, clamped so it stays a small mark on any ruler.
+const TICK_HALF_RATIO = 0.04;
+const TICK_HALF_MIN_M = 0.02;
+const TICK_HALF_MAX_M = 0.2;
 
 function getCanvasResolution(editor) {
   const dom = editor?.sceneManager?.renderer?.domElement;
@@ -52,6 +58,24 @@ function disposeObject(obj) {
       child.material?.dispose?.();
     }
   });
+}
+
+// Unit direction of the graduation tick at chain point i (basemap-local):
+// perpendicular to the chain's tangent at that point. Plane-parallel runs get
+// the 2D convention (the pixel-space normal, which the y-flip maps to
+// (t.y, -t.x)); a riser, whose tangent has no in-plane part, gets a horizontal
+// tick along the basemap x axis.
+function tickDirAt3d(P, i) {
+  const prev = P[Math.max(0, i - 1)];
+  const next = P[Math.min(P.length - 1, i + 1)];
+  const tx = next.x - prev.x;
+  const ty = next.y - prev.y;
+  const tz = next.z - prev.z;
+  const inPlane = Math.hypot(tx, ty);
+  if (inPlane > 1e-6 && inPlane >= Math.abs(tz) * 1e-3) {
+    return { x: ty / inPlane, y: -tx / inPlane, z: 0 };
+  }
+  return { x: 1, y: 0, z: 0 };
 }
 
 function makeLine({ positions, color, linewidth, resolution, dashed }) {
@@ -259,6 +283,38 @@ export default function ThreedRulerAnnotations({ annotations }) {
           ext.raycast = () => {}; // never picked
           group.add(ext);
         });
+      } else {
+        // No offset: the alignment line sits ON the chain, so nothing shows
+        // where one segment ends and the next starts. A small tick across
+        // each interior point marks the joint (2D parity: NodeRulerStatic's
+        // graduation ticks). The extremities are the line's own ends.
+        for (let i = 1; i < geom.P.length - 1; i++) {
+          const p = geom.P[i];
+          const adjacent = Math.min(
+            geom.segments[i - 1].lengthMeters,
+            geom.segments[i].lengthMeters
+          );
+          const half = Math.min(
+            TICK_HALF_MAX_M,
+            Math.max(TICK_HALF_MIN_M, adjacent * TICK_HALF_RATIO)
+          );
+          const dir = tickDirAt3d(geom.P, i);
+          const tick = makeLine({
+            positions: [
+              p.x - dir.x * half,
+              p.y - dir.y * half,
+              p.z - dir.z * half,
+              p.x + dir.x * half,
+              p.y + dir.y * half,
+              p.z + dir.z * half,
+            ],
+            color,
+            linewidth,
+            resolution,
+          });
+          tick.raycast = () => {}; // never picked
+          group.add(tick);
+        }
       }
 
       // One value card per segment, at the middle of its offset segment plus
