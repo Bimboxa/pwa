@@ -98,6 +98,20 @@ export function isAnnotationSubtractionBakeable(annotation) {
   return isAnnotationConvertibleToMesh3d(annotation);
 }
 
+// A REVOLUTION cutter is baked as its CLOSED volume (profile closed toward
+// the axis, capped) whatever its « Solide » switch: an open lathe shell makes
+// the boolean ill-defined — three-bvh-csg classifies the host triangles by
+// ray parity against a surface that does not bound a volume, and the result
+// is not watertight (the host's bottom cap goes missing), which the closure
+// checks below refuse. Validated by a headless replay on a user case: same
+// removed volume to 1 % (2.00 vs 2.01 m³), closed result. The live carve
+// (AnnotationsManager) keeps the shell as drawn. A degenerate closed contour
+// falls back to the open shell inside buildRevolutionMesh.
+function asClosedCutter(target) {
+  if (getShape3DKey(target?.shape3D) !== "REVOLUTION") return target;
+  return { ...target, shape3D: { ...target.shape3D, solid: true } };
+}
+
 function disposeObject(object) {
   object?.traverse?.((child) => {
     try {
@@ -275,7 +289,7 @@ export default async function bakeAnnotationSubtractionsService({
           const transform =
             target._baseMapTransform ?? getBaseMapTransform(targetBaseMap);
           const objects = await buildAnnotationSolidObjectsAsync(
-            { ...target, _noAntiAliasingShrink: true },
+            { ...asClosedCutter(target), _noAntiAliasingShrink: true },
             forRender,
             options
           );
@@ -301,6 +315,9 @@ export default async function bakeAnnotationSubtractionsService({
       : Math.abs(getSoupVolume(solid.geometry));
     subtractAnnotationGeometries(solid, targetObjects, { hollow });
     if (!solid.userData?.hasSubtraction) {
+      console.warn(
+        `[bakeAnnotationSubtractionsService] ${host.id}: the CSG subtraction produced no geometry`
+      );
       return refused(BAKE_SUBTRACTION_REASONS.FAILED);
     }
     const measureAfter = hollow
@@ -318,11 +335,23 @@ export default async function bakeAnnotationSubtractionsService({
       allowOpen: hollow,
       maxFaces: isRevolutionHost ? BAKE_MAX_FACES_LATHE : undefined,
     });
-    if (!mesh?.faces?.length) return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+    if (!mesh?.faces?.length) {
+      console.warn(
+        `[bakeAnnotationSubtractionsService] ${host.id}: the carved soup could not be read as a face mesh (open result, or more faces than the cap)`
+      );
+      return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+    }
     if (!hollow) {
-      if (!isMesh3dClosed(mesh))
+      if (!isMesh3dClosed(mesh)) {
+        console.warn(
+          `[bakeAnnotationSubtractionsService] ${host.id}: the carved mesh is not closed (an open cutter?)`
+        );
         return refused(BAKE_SUBTRACTION_REASONS.FAILED);
+      }
       if (getMesh3dSignedVolume(mesh) <= 0) {
+        console.warn(
+          `[bakeAnnotationSubtractionsService] ${host.id}: the carved mesh has no positive volume`
+        );
         return refused(BAKE_SUBTRACTION_REASONS.FAILED);
       }
     }

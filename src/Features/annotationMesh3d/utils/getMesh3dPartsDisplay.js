@@ -15,8 +15,9 @@ const plural = (count, one, many) => (count > 1 ? `${count} ${many}` : one);
 // Wording + totals of the selected faces / edges of a mesh annotation
 // (getMesh3dPartsInfo output), shared by the properties panel and the edit
 // toolbar. isClosed (default true): false when the parts sit on an OPEN
-// displayed mesh (a PX polyline wall), which no write can convert — the
-// deletion is then disabled instead of failing.
+// displayed mesh (a PX polyline wall) or on a host carved live by a
+// subtraction, which no write can convert — the deletion is then disabled
+// instead of failing.
 export default function getMesh3dPartsDisplay({
   faces,
   edges,
@@ -34,7 +35,7 @@ export default function getMesh3dPartsDisplay({
   const canDelete =
     isClosed && (deletesFaces || edges.some((edge) => edge.canMerge));
   const deleteLabel = !isClosed
-    ? "Suppression impossible sur une surface ouverte"
+    ? "Suppression impossible : surface ouverte ou soustraction non figée"
     : deletesFaces
       ? faces.length > 1
         ? `Supprimer les ${faces.length} faces`

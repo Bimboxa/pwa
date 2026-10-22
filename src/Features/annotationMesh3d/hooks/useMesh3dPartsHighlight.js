@@ -115,6 +115,13 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
     const annoObject =
       sceneManager?.annotationsManager?.annotationsObjectsMap?.[annotationId];
     if (!scene || !annoObject) return undefined;
+    // A carve in flight (a rebuild after a point offset: the uncarved object
+    // is notified "ready" first, the carved one later): neither relocate nor
+    // drop the parts on that transient geometry — the post-carve tick
+    // (objectTick) runs this effect again on the final one.
+    if (sceneManager.annotationsManager?.isCarvePending?.(annotationId)) {
+      return undefined;
+    }
 
     const selectedFaces = new Set();
     const selectedEdges = new Set();

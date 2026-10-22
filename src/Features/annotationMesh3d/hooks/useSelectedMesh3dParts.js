@@ -24,8 +24,8 @@ import { getSelectedMesh3dParts } from "../utils/mesh3dPartIds";
 //
 // `parts` are the parsed part ids; `faces` / `edges` carry their measures
 // (getMesh3dPartsInfo) and are empty until the mesh is loaded. `isClosed` is
-// false on an open displayed mesh (a PX polyline wall): selectable, never
-// written.
+// false on an open displayed mesh (a PX polyline wall) and on a host carved
+// live by a subtraction: selectable, never written.
 export default function useSelectedMesh3dParts() {
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
@@ -42,13 +42,16 @@ export default function useSelectedMesh3dParts() {
   );
 
   return useMemo(() => {
-    const mesh =
-      stored?.mesh ??
-      (annotationId
-        ? getDisplayedMesh3d(getActiveThreedEditor(), annotationId)?.mesh
-        : null);
+    const displayed =
+      !stored?.mesh && annotationId
+        ? getDisplayedMesh3d(getActiveThreedEditor(), annotationId)
+        : null;
+    const mesh = stored?.mesh ?? displayed?.mesh ?? null;
     const info = getMesh3dPartsInfo(mesh, parts);
-    const isClosed = !mesh || isMesh3dClosed(mesh);
+    // A host carved live by a subtraction is display-only (no write converts
+    // it until « Soustraire définitivement »): the deletion is disabled on it
+    // like on an open mesh, instead of failing silently.
+    const isClosed = !mesh || (isMesh3dClosed(mesh) && !displayed?.carved);
     return {
       annotationId,
       parts,
