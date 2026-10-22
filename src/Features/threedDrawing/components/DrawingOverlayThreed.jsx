@@ -1331,13 +1331,15 @@ export default function DrawingOverlayThreed() {
           anchor || lockedPlane ? null : intersectFallbackPlane,
       });
       // Typed length: the rubber band (and the click, through lastSnap) is
-      // rescaled from the last vertex. Not for rectangles (second corner).
+      // rescaled from the last vertex. A ";" series spans its total — the
+      // click then splits it into its segments (expandSeriesVertices). Not
+      // for rectangles (second corner).
       const last = anchor
         ? null
         : inProgressPolyline[inProgressPolyline.length - 1];
       const lockedLength = last
         ? (parseConstraintLengths(store.getState().mapEditor.constraintBuffer)
-            ?.lengths[0] ?? null)
+            ?.total ?? null)
         : null;
       const constrained = lockedLength
         ? constrainSnapToLength(rawSnap, last, lockedLength)

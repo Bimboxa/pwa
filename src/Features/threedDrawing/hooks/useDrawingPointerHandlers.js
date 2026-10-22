@@ -45,6 +45,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDrawingPreferredBaseMapId from "./useDrawingPreferredBaseMapId";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
+import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 import {
   getPatternSegmentCount,
@@ -79,6 +80,7 @@ import commitDrawnPolylineService, {
 import commitDrawnCoteService from "../services/commitDrawnCoteService";
 import commitDrawnRulerService from "../services/commitDrawnRulerService";
 import { isRulerDraftFor3d } from "../utils/templateRulerDrawSelectors";
+import expandConstraintLengths3d from "../utils/expandConstraintLengths3d";
 import commitDrawnDiscService, {
   DISC_COMMIT_NOT_PARALLEL,
   DISC_COMMIT_NO_SCALE,
@@ -765,6 +767,14 @@ export default function useDrawingPointerHandlers() {
         }
         return;
       }
+      // A ";" series: its segments at once, then the next click is free.
+      const rulerSeries =
+        behavior !== "SEGMENT" && expandSeriesVertices(snap, last);
+      if (rulerSeries) {
+        dispatch(appendDrawingVertices(rulerSeries));
+        releaseLengthConstraint();
+        return;
+      }
       // The typed length was applied to this point (preview snap): consumed.
       if (last) releaseLengthConstraint();
 
@@ -820,6 +830,15 @@ export default function useDrawingPointerHandlers() {
         if (behavior !== "SEGMENT" && inProgress.length >= 2) {
           await endPath(inProgress);
         }
+        return;
+      }
+      // A ";" series: its segments at once, then the next click is free.
+      // Never on a scan (constrainSnapToLength does not apply there).
+      const pathSeries =
+        behavior !== "SEGMENT" && expandSeriesVertices(snap, last);
+      if (pathSeries) {
+        dispatch(appendDrawingVertices(pathSeries));
+        releaseLengthConstraint();
         return;
       }
       // NB: while a length is typed the snap is always exactly that far from
@@ -1138,15 +1157,58 @@ export default function useDrawingPointerHandlers() {
       }
     }
 
-    // Typed segment length (2D parity): digits / "." / "," feed
-    // mapEditor.constraintBuffer (SectionSegmentLengthConstraint + the cursor badge),
-    // DrawingOverlayThreed rescales the preview to it and the next click
-    // consumes it. No ";" series in 3D (no collinear expansion here). Not
-    // for rectangles (their second corner is the cursor). True when consumed.
+    // A ";" series typed while a chain is in progress: the vertices it
+    // places in one click, collinear from `last` towards the previewed snap
+    // (already rescaled to the series total, so only its direction is read).
+    // They inherit the snap's plan / face (but not its vertex / edge
+    // identity: constrainSnapToLength dropped it). Null when the buffer
+    // holds a single value (or nothing): the caller places the snap itself.
+    function expandSeriesVertices(snap, last) {
+      if (!last || !snap?.position) return null;
+      const parsed = parseConstraintLengths(
+        store.getState().mapEditor.constraintBuffer
+      );
+      if (!parsed || parsed.lengths.length < 2) return null;
+      const points = expandConstraintLengths3d({
+        last,
+        direction: snap.position,
+        lengths: parsed.lengths,
+      });
+      if (points.length === 0) return null;
+      return points.map((p) => {
+        const vertex = toDrawingVertex({ ...snap, position: p });
+        delete vertex.meshKey;
+        delete vertex.nodeId;
+        return vertex;
+      });
+    }
+
+    // ";" chains several typed lengths ("6;0.2;2" → one click places that
+    // many collinear segments, 2D parity): only for the N-click chains
+    // (templated / template-less polyline, ruler). A cote, a 2-click
+    // segment, a disc / axis radius and a face cut take one value.
+    function canChainLengths() {
+      return (
+        behavior !== "SEGMENT" &&
+        !isCoteDraw() &&
+        !isDiscDraw() &&
+        !isAxisDraw() &&
+        !isFaceCutDraw()
+      );
+    }
+
+    // Typed segment length (2D parity): digits / "." / "," (and ";" for the
+    // chains, canChainLengths) feed mapEditor.constraintBuffer
+    // (SectionSegmentLengthConstraint + the cursor badge), DrawingOverlayThreed
+    // rescales the preview to it (the series total) and the next click
+    // consumes it (expandSeriesVertices for a series). Not for rectangles
+    // (their second corner is the cursor). True when consumed.
     function onLengthKey(e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (behavior === "RECTANGLE") return false;
-      if (/^[0-9.,]$/.test(e.key)) {
+      const accepted =
+        e.key === ";" ? canChainLengths() : /^[0-9.,]$/.test(e.key);
+      if (accepted) {
         e.preventDefault();
         dispatch(appendToConstraintBuffer(e.key === "," ? "." : e.key));
         return true;
@@ -1581,6 +1643,14 @@ export default function useDrawingPointerHandlers() {
       // first point): existing mesh vertices / edges never close the shape.
       const last = inProgressPolyline[inProgressPolyline.length - 1];
       if (last && isSamePoint(last, newVertex)) return; // no duplicate point
+      // A ";" series: its segments at once, then the next click is free.
+      const polylineSeries =
+        behavior !== "SEGMENT" && expandSeriesVertices(snap, last);
+      if (polylineSeries) {
+        dispatch(appendDrawingVertices(polylineSeries));
+        releaseLengthConstraint();
+        return;
+      }
       // The typed length was applied to this point (preview snap): consumed.
       // NB: while locked the point is always exactly that far from `last`,
       // so the back-on-first-point closure below cannot trigger — Enter ends.
