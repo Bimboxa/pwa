@@ -9,7 +9,7 @@ import SectionPopperBaseMaps from "Features/popperMapListings/components/Section
 import BandActiveListing from "./BandActiveListing";
 import FieldActiveListing from "./FieldActiveListing";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
-import RowTemplatelessVisibility from "./RowTemplatelessVisibility";
+import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
 import SectionPanelPasteHelper from "./SectionPanelPasteHelper";
@@ -138,12 +138,14 @@ export default function PanelDrawing() {
       : {}),
   });
 
-  // "Dessin" tool row counter (annotations drawn without template).
-  const templatelessCount = useMemo(
+  // « Annotations sans modèle » row: the annotations drawn without template
+  // in the selected scope, eye-hidden ones included (keepHiddenTemplates) —
+  // the same set as the Dessin popper's row.
+  const templatelessAnnotations = useMemo(
     () =>
       (annotations ?? []).filter((a) =>
         isTemplatelessAnnotationInScope(a, selectedScopeId)
-      ).length,
+      ),
     [annotations, selectedScopeId]
   );
 
@@ -334,10 +336,13 @@ export default function PanelDrawing() {
           )}
 
           {/* « Annotations sans modèle » — pinned at the very top, above the
-              axes, in the same white rounded card as the axis rows:
-              annotations drawn without template: count, solo and eye (the
-              "Dessin" command itself lives in the commands toolbar). */}
-          <RowTemplatelessVisibility count={templatelessCount} />
+              axes, in the same white rounded card as the axis rows: the SAME
+              row as the Dessin popper (solo icon, count pill as the eye,
+              properties on hover, click selects on the map). The "Dessin"
+              command itself lives in the commands toolbar. */}
+          <Box sx={{ flexShrink: 0 }}>
+            <RowTemplatelessAnnotations annotations={templatelessAnnotations} />
+          </Box>
 
           {/* Axes de révolution of the base map — pinned at the top under
               « Annotations sans modèle », above

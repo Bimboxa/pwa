@@ -19,9 +19,10 @@ import useSelectAnnotationsOnMap from "Features/mapEditor/hooks/useSelectAnnotat
 
 // ---------------------------------------------------------------------------
 // RowTemplatelessAnnotations — « Annotations sans modèle » row of the
-// PopperMapListings, pinned at the top of the panel above the revolution
-// axes, in the same white rounded card as the axis rows (inset in the grey
-// panel): the annotations drawn without template nor listing (« Dessin »
+// PopperMapListings AND of the docked Dessin panel (PanelDrawing), pinned at
+// the top of the panel above the revolution axes, in the same white rounded
+// card as the axis rows (inset in the grey panel): the annotations drawn
+// without template nor listing (« Dessin »
 // command of the commands toolbar, hotkey D) in the popper's annotations
 // set. Shows their count as a pill that toggles their visibility
 // (templateless sentinel, see useDrawTemplateless — same pill as the listing
