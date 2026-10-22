@@ -4,10 +4,12 @@
 //
 //   {annotationId}::SURFACE_PIECE::{pieceIndex}
 //
-// pieceIndex = userData.surfaceCutPiece of the displayed piece mesh. The
-// pieces are renumbered by every rebuild of the host, so a selection only
-// holds for the displayed object (useSurfacePiecesHighlight drops it when
-// the piece is gone).
+// pieceIndex = userData.surfaceCutPiece of the displayed piece mesh. Every
+// SOLID mesh of a surface host is a piece from the first build (an uncut
+// lathe is piece 0), numbered by planSurfacePieces: deterministic between
+// two identical builds, but renumbered by every rebuild that changes the
+// pieces, so a selection only holds for the displayed object
+// (useSurfacePiecesHighlight drops it when the piece is gone).
 //
 // Pure: node-testable.
 

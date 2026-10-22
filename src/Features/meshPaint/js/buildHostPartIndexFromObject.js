@@ -84,7 +84,9 @@ function getHalfViewAxis(mesh) {
 
 // Pieces of a cut surface host (applySurfaceCuts, userData.surfaceCutPiece)
 // are tagged per triangle in `triGroups` so the part index keeps them apart
-// (-1: the mesh is no piece); null when the host has no piece.
+// (-1: the mesh is no piece); null when the host has no piece. Every SOLID
+// mesh of a surface host is a piece from its first build (cut or not): a
+// single-mesh host is one group, which partitions like no group at all.
 function collectTriangles(meshes, groupInverse) {
   const out = [];
   const groups = [];

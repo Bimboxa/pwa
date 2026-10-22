@@ -1611,7 +1611,9 @@ export default function MainThreedEditor() {
       // Double-click on a face of an annotation: selects the face WITH all
       // its edges (no camera move). The two clicks of the gesture already
       // selected the annotation, then that face. A mesh annotation reads the
-      // face from the hit mesh, a regular one from the conversion of its
+      // face from the hit mesh, a surface host (lathe, shell: applySurfaceCuts
+      // tags its pieces) its piece from the hit mesh — a piece has no edges
+      // to select with it —, a regular one from the conversion of its
       // displayed object (flat sheets have none: they keep the plan gesture).
       const firstHit = intersects[0];
       let owner = firstHit?.object ?? null;
@@ -1620,9 +1622,17 @@ export default function MainThreedEditor() {
         const { nodeId, nodeType, annotationType, listingId } = owner.userData;
         let faceIndex = -1;
         let edges = null;
+        let pieceId = null;
         if (owner.userData.isAnnotationMesh3d) {
           faceIndex = firstHit.object.userData?.mesh3dFaceIndex ?? -1;
           edges = firstHit.object.userData?.mesh3dFaceEdges;
+        } else if (
+          Number.isInteger(firstHit.object.userData?.surfaceCutPiece)
+        ) {
+          pieceId = getSurfacePiecePartId(
+            nodeId,
+            firstHit.object.userData.surfaceCutPiece
+          );
         } else {
           const displayed = getDisplayedMesh3d(threedEditor, nodeId);
           if (displayed) {
@@ -1635,7 +1645,7 @@ export default function MainThreedEditor() {
               : null;
           }
         }
-        if (faceIndex >= 0) {
+        if (faceIndex >= 0 || pieceId) {
           const selected = store.getState().selection.selectedItems;
           if (selected.length !== 1 || selected[0].id !== nodeId) {
             dispatch(
@@ -1652,12 +1662,20 @@ export default function MainThreedEditor() {
             dispatch(setShowAnnotationsProperties(true));
           }
           clearFaceStipple();
-          selectMesh3dFaceWithEdges({
-            dispatch,
-            annotationId: nodeId,
-            faceIndex,
-            edges,
-          });
+          if (pieceId) {
+            selectMesh3dPart({
+              dispatch,
+              getState: store.getState,
+              partId: pieceId,
+            });
+          } else {
+            selectMesh3dFaceWithEdges({
+              dispatch,
+              annotationId: nodeId,
+              faceIndex,
+              edges,
+            });
+          }
           dispatch(clearSubSelection());
           return;
         }

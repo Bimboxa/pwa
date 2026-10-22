@@ -8,6 +8,11 @@ import computeSurfaceAxisCut, {
   getSurfaceCutNormal,
 } from "./computeSurfaceAxisCut.js";
 import isSurfaceCutHost from "./isSurfaceCutHost.js";
+import planSurfacePieces, {
+  SURFACE_PIECE_DROP,
+  SURFACE_PIECE_KEEP,
+  SURFACE_PIECE_REPLACE,
+} from "./planSurfacePieces.js";
 import {
   getSurfaceCutsKey,
   getSurfaceCutsRemovedM2,
@@ -486,4 +491,53 @@ test("surfacePieceParts: ids round trip, selection filtered on the selected anno
     getSelectedSurfacePieces(item, [id, getSurfacePiecePartId("a2", 1)]).length,
     1
   );
+});
+
+test("planSurfacePieces: no cut → every source is a piece in place, in order", () => {
+  const plan = planSurfacePieces(3, null);
+  assert.deepEqual(plan, [
+    { kind: SURFACE_PIECE_KEEP, index: 0 },
+    { kind: SURFACE_PIECE_KEEP, index: 1 },
+    { kind: SURFACE_PIECE_KEEP, index: 2 },
+  ]);
+});
+
+test("planSurfacePieces: a removal alone on a single uncut source drops it", () => {
+  const soup = cylinderSoup({ turn: 0.5, h: 2 });
+  const { pieces, applied } = applySurfaceCutsToSoups({
+    soups: [{ positions: soup }],
+    cuts: [{ remove: onRing(1, 1) }],
+  });
+  assert.equal(applied, 1);
+  assert.deepEqual(planSurfacePieces(1, pieces), [
+    { kind: SURFACE_PIECE_DROP },
+  ]);
+});
+
+test("planSurfacePieces: an untouched source, a split one, an untouched one share one index sequence", () => {
+  const soup = cylinderSoup({ turn: 0.5, h: 2 });
+  const planeH = { normal: { x: 0, y: 1, z: 0 }, constant: 1 };
+  // Three copies of the half cylinder, the middle one shifted 10 m away on
+  // x so the H cut (seeded on it) reaches no other soup.
+  const shifted = soup.map((v, i) => (i % 3 === 0 ? v + 10 : v));
+  const { pieces } = applySurfaceCutsToSoups({
+    soups: [{ positions: soup }, { positions: shifted }, { positions: soup }],
+    cuts: [
+      {
+        plane: planeH,
+        seed: { x: 10 + Math.cos(1), y: 1, z: Math.sin(1) },
+      },
+    ],
+  });
+  const plan = planSurfacePieces(3, pieces);
+  assert.equal(plan[0].kind, SURFACE_PIECE_KEEP);
+  assert.equal(plan[0].index, 0);
+  assert.equal(plan[1].kind, SURFACE_PIECE_REPLACE);
+  assert.deepEqual(
+    plan[1].pieces.map((p) => p.index),
+    [1, 2]
+  );
+  assert.ok(plan[1].pieces.every((p) => p.piece.touched));
+  assert.equal(plan[2].kind, SURFACE_PIECE_KEEP);
+  assert.equal(plan[2].index, 3);
 });
