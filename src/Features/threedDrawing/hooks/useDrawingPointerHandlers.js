@@ -1465,6 +1465,16 @@ export default function useDrawingPointerHandlers() {
         await commitInProgressAsAnnotation({ closed: true });
         return;
       }
+      // "Segment (2 clics)": the 2nd click ends the segment (2D parity —
+      // InteractionLayer commits POLYLINE_SEGMENT at 2 points). The path is
+      // passed explicitly: `inProgressPolyline` is this render's snapshot.
+      if (behavior === "SEGMENT" && inProgressPolyline.length >= 1) {
+        const committed = await commitInProgressAsAnnotation({
+          points: [...inProgressPolyline, newVertex],
+        });
+        if (!committed) dispatch(cancelInProgressPolyline());
+        return;
+      }
       dispatch(pushDrawingVertex(newVertex));
     }
 
@@ -1572,9 +1582,15 @@ export default function useDrawingPointerHandlers() {
         return;
       }
       if (e.key === "Enter") {
-        // Rectangle / disc / axis: keys never commit (2D parity — the 2nd
-        // click does).
-        if (behavior === "RECTANGLE" || isDiscDraw() || isAxisDraw()) return;
+        // Rectangle / segment / disc / axis: keys never commit (2D parity —
+        // the 2nd click does).
+        if (
+          behavior === "RECTANGLE" ||
+          behavior === "SEGMENT" ||
+          isDiscDraw() ||
+          isAxisDraw()
+        )
+          return;
         // A pending `*N` is appended first, then the path ends.
         const repeatedPath = applyPendingPatternRepeat();
         const committed = await commitInProgressAsAnnotation({
