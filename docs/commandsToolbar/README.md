@@ -36,7 +36,7 @@ types, then the revolution axis) → lines in a surface → cuts (opening,
 segment, surface / face) → topological cuts (subtraction, hollow out) → faces
 (extrude, isolate, merge) → create / modify from the selection (clone, merge,
 join, walls…) → move / rotate / view toggles of one annotation → quality
-(duplicates, cleanup, simplify, arcs, align). This order is display only: the
+(duplicates, cleanup, simplify, arcs). This order is display only: the
 registry order of `commands/index.js` drives the hotkey resolution.
 
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)

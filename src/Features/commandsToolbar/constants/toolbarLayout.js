@@ -137,7 +137,7 @@ const DEFAULT_LAYOUT = [
   { type: "divider" },
   // quality: duplicates detection, cleanup (the deleted-annotations purge of
   // the scope + the geometry repair of the selected line / surface),
-  // geometry simplification, arcs detection, alignment
+  // geometry simplification, arcs detection
   "DETECT_DUPLICATES",
   {
     type: "group",
@@ -147,7 +147,6 @@ const DEFAULT_LAYOUT = [
   },
   "SIMPLIFY",
   "ARCIFY",
-  "CLEAN_SEGMENTS",
 ];
 
 // « Fonds de plan » module: the user frame group and the base map placement
