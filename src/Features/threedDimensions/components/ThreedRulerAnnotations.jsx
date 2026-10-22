@@ -23,6 +23,7 @@ import {
 } from "../services/dimensionObjectsStore";
 import { applyPendingDimensionPatch } from "../services/dimensionPendingPatchStore";
 import computeRulerGeometry3d from "../utils/computeRulerGeometry3d";
+import createDimensionSnapAnchors from "../utils/createDimensionSnapAnchors";
 import {
   DIMENSION_LABEL_PART_TYPE,
   getDimensionLabelPartId,
@@ -316,6 +317,11 @@ export default function ThreedRulerAnnotations({ annotations }) {
           leader,
         });
       });
+
+      // The measured chain points are 3D snap targets (2D parity: the
+      // offset alignment line and the cards never snap).
+      const anchors = createDimensionSnapAnchors(geom.P);
+      if (anchors) group.add(anchors);
 
       parentGroup.add(group);
       groupsRef.current.push(group);

@@ -27,6 +27,7 @@ import {
   getDimensionLabelPartId,
 } from "../utils/dimensionLabelPart";
 import computeCoteGeometry3d from "../utils/computeCoteGeometry3d";
+import createDimensionSnapAnchors from "../utils/createDimensionSnapAnchors";
 
 // Thin ink (screen px): a dimension line reads as precise, not as a stroke.
 const LINEWIDTH = 1;
@@ -330,6 +331,11 @@ export default function ThreedCoteAnnotations({ annotations }) {
 
       // Live-drag handles (useCoteLabelDragHandlers updates them imperatively).
       group.userData.coteObjects = { line, extensions, sprite, leader };
+
+      // The two measured points are 3D snap targets (2D parity: the
+      // dimension line and the card never snap).
+      const anchors = createDimensionSnapAnchors([geom.P1, geom.P2]);
+      if (anchors) group.add(anchors);
 
       parentGroup.add(group);
       groupsRef.current.push(group);
