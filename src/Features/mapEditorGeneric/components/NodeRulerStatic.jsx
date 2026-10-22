@@ -8,10 +8,6 @@ import {
 } from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
-import {
-  getRulerSegmentKeys,
-  isZeroLabelOffset,
-} from "Features/annotations/utils/getRulerSegmentKey";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getRulerLabelPlacement, {
@@ -107,9 +103,6 @@ export default function NodeRulerStatic({
     showUnitLabel = true,
     showTotalCote = false,
     showRulerLabel = false,
-    // Per-segment displacement of the values (base-map-local metres, keyed
-    // by segment — dragged in the 3D editor, see useRulerLabelDragHandlers).
-    rulerLabelOffsets = null,
   } = merged ?? {};
 
   // Per-segment label prefixes ("H1 = 0.20 m"): the annotation's OWN label
@@ -215,26 +208,6 @@ export default function NodeRulerStatic({
       }),
     [points, baseMapMeterByPx, unit, decimals, showUnitLabel, effectiveOffsetPx]
   );
-
-  // Values displaced from their cote (dragged in the 3D editor): the stored
-  // metres → image px on the plan (the local frame is y-up, the image
-  // y-down; the normal component is ignored). Nothing without a scale.
-  // Indexed by segment. No leader in 2D (user decision): the value simply
-  // sits where it was put.
-  const labelOffsetsPx = useMemo(() => {
-    if (!rulerLabelOffsets || !hasScale || !baseMapMeterByPx) return {};
-    const keys = getRulerSegmentKeys(points);
-    const out = {};
-    keys.forEach((key, i) => {
-      const v = rulerLabelOffsets[key];
-      if (isZeroLabelOffset(v)) return;
-      out[i] = {
-        dx: (v.x || 0) / baseMapMeterByPx,
-        dy: -(v.y || 0) / baseMapMeterByPx,
-      };
-    });
-    return out;
-  }, [rulerLabelOffsets, points, hasScale, baseMapMeterByPx]);
 
   // Optional total line: pushed further out on the same side. `|| 1` keeps it
   // outside even when the segment line sits exactly on the polyline. Only the
@@ -578,19 +551,19 @@ export default function NodeRulerStatic({
         </>
       )}
 
-      {/* per-segment values — horizontal, aligned against the alignment line
-          (plus their own displacement, if any) */}
+      {/* per-segment values — horizontal, aligned against the alignment line.
+          The 3D value-card offsets (`rulerLabelOffsets`) are 3D-only (user
+          decision): in 2D the values keep their default placement. */}
       {segments.map((seg) => {
         const place = getRulerLabelPlacement(seg);
         const isEditing = editableSegmentIndexes.includes(seg.index);
         const field = getRulerFieldPlacement(place, FIELD_W_PX, FIELD_H_PX);
         const segLabel = segmentLabels[seg.index];
-        const o = labelOffsetsPx[seg.index];
 
         return (
           <g
             key={`label-${seg.startPointId ?? seg.index}`}
-            transform={`translate(${seg.mid.x + (o?.dx ?? 0)}, ${seg.mid.y + (o?.dy ?? 0)})`}
+            transform={`translate(${seg.mid.x}, ${seg.mid.y})`}
           >
             {isEditing && isEditable ? (
               <g style={{ transform: counterScaleTransform }}>
