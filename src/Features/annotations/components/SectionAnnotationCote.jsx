@@ -5,7 +5,10 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import { COTE_FIELDS } from "Features/annotations/constants/coteFields";
-import { hasActiveRulerLabelOffsets } from "Features/annotations/utils/getRulerSegmentKey";
+import {
+  hasActiveRulerLabelOffsets,
+  isZeroLabelOffset,
+} from "Features/annotations/utils/getRulerSegmentKey";
 
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 
@@ -16,16 +19,23 @@ import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 // row (getAnnotationPropsFromAnnotationTemplateProps), so the field is shown
 // disabled then.
 //
-// RULER: « Réinitialiser la position des étiquettes » drops the per-segment
-// value-card offsets (`rulerLabelOffsets`, dragged in the 3D editor, rendered
-// in 2D and 3D) — every card goes back onto its cote.
+// « Réinitialiser la position de l'étiquette / des étiquettes » drops the
+// value-card offsets dragged in the 3D editor and rendered in 2D and 3D: a
+// cote's `coteLabelOffset`, a ruler's per-segment `rulerLabelOffsets` —
+// every card goes back onto its cote.
 export default function SectionAnnotationCote({ annotation, overrideFields }) {
   // strings
 
   const titleS = annotation?.type === "RULER" ? "Cotes de la règle" : "Cote";
   const lockedS = "Réglages verrouillés par le modèle";
-  const resetS = "Réinitialiser la position des étiquettes";
-  const resetHelperS = "Replace chaque étiquette déplacée sur sa cote.";
+  const resetS =
+    annotation?.type === "RULER"
+      ? "Réinitialiser la position des étiquettes"
+      : "Réinitialiser la position de l'étiquette";
+  const resetHelperS =
+    annotation?.type === "RULER"
+      ? "Replace chaque étiquette déplacée sur sa cote."
+      : "Replace l'étiquette déplacée sur sa ligne de cote.";
 
   // data
 
@@ -37,7 +47,9 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
   const lockedByTemplate =
     Array.isArray(overrideFields) &&
     COTE_FIELDS.every((f) => overrideFields.includes(f));
-  const hasLabelOffsets = isRuler && hasActiveRulerLabelOffsets(annotation);
+  const hasLabelOffsets = isRuler
+    ? hasActiveRulerLabelOffsets(annotation)
+    : !isZeroLabelOffset(annotation?.coteLabelOffset);
 
   // handlers
 
@@ -55,7 +67,10 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
 
   async function handleResetLabelOffsets() {
     if (!annotation?.id) return;
-    await updateAnnotation({ id: annotation.id, rulerLabelOffsets: null });
+    await updateAnnotation({
+      id: annotation.id,
+      ...(isRuler ? { rulerLabelOffsets: null } : { coteLabelOffset: null }),
+    });
   }
 
   // render
@@ -83,26 +98,24 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
           {lockedS}
         </Typography>
       )}
-      {isRuler && (
-        <Box sx={{ mt: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<FilterCenterFocusIcon />}
-            disabled={!hasLabelOffsets}
-            onClick={handleResetLabelOffsets}
-          >
-            {resetS}
-          </Button>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 0.5 }}
-          >
-            {resetHelperS}
-          </Typography>
-        </Box>
-      )}
+      <Box sx={{ mt: 1 }}>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<FilterCenterFocusIcon />}
+          disabled={!hasLabelOffsets}
+          onClick={handleResetLabelOffsets}
+        >
+          {resetS}
+        </Button>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mt: 0.5 }}
+        >
+          {resetHelperS}
+        </Typography>
+      </Box>
     </WhiteSectionGeneric>
   );
 }

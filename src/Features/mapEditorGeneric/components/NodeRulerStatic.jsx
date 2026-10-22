@@ -35,8 +35,6 @@ const TOTAL_LINE_GAP_PT = 28;
 const TICK_HALF_END_PT = 9;
 const TICK_HALF_INNER_PT = 5;
 const TICK_STROKE_PT = 1.5;
-// Dashed leader from a displaced value back to its cote (page pt).
-const LEADER_STROKE_PT = 0.75;
 
 const TEXT_HALO_PT = 3;
 
@@ -218,9 +216,11 @@ export default function NodeRulerStatic({
     [points, baseMapMeterByPx, unit, decimals, showUnitLabel, effectiveOffsetPx]
   );
 
-  // Values displaced from their cote: the stored metres → image px on the
-  // plan (the local frame is y-up, the image y-down; the normal component is
-  // ignored). Nothing without a scale. Indexed by segment.
+  // Values displaced from their cote (dragged in the 3D editor): the stored
+  // metres → image px on the plan (the local frame is y-up, the image
+  // y-down; the normal component is ignored). Nothing without a scale.
+  // Indexed by segment. No leader in 2D (user decision): the value simply
+  // sits where it was put.
   const labelOffsetsPx = useMemo(() => {
     if (!rulerLabelOffsets || !hasScale || !baseMapMeterByPx) return {};
     const keys = getRulerSegmentKeys(points);
@@ -577,27 +577,6 @@ export default function NodeRulerStatic({
             ))}
         </>
       )}
-
-      {/* Leaders of the displaced values: dashed, from the cote's middle to
-          the value's anchor. */}
-      {segments.map((seg) => {
-        const o = labelOffsetsPx[seg.index];
-        if (!o) return null;
-        return (
-          <line
-            key={`leader-${seg.startPointId ?? seg.index}`}
-            x1={seg.mid.x}
-            y1={seg.mid.y}
-            x2={seg.mid.x + o.dx}
-            y2={seg.mid.y + o.dy}
-            stroke={displayStrokeColor}
-            strokeOpacity={strokeOpacity}
-            strokeWidth={LEADER_STROKE_PT * pageScale}
-            strokeDasharray={`${4 * pageScale} ${3 * pageScale}`}
-            pointerEvents="none"
-          />
-        );
-      })}
 
       {/* per-segment values — horizontal, aligned against the alignment line
           (plus their own displacement, if any) */}
