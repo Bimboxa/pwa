@@ -1,4 +1,5 @@
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
 import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -68,6 +69,28 @@ export function isRevolutionAxisDraftFor3d(na, enabledDrawingMode) {
   return (
     na?.type === "REVOLUTION_AXIS" &&
     enabledDrawingMode === "REVOLUTION_AXIS_PLAN"
+  );
+}
+
+// A line (POLYLINE template, or the "Dessin" tool on its line type) drawn
+// click by click in the 3D editor — not a segment / rectangle / opening:
+// the drafts the arc toggle (T) and the « Points coplanaires » switch apply
+// to (useDrawingPointerHandlers, DrawingOverlayThreed, drawing helper).
+export function isPolylineClickDraftFor3d(na, enabledDrawingMode) {
+  if (na?.type !== "POLYLINE" || na?.isOpening) return false;
+  if (!FACE_DRAW_TOOL_KEYS.has(enabledDrawingMode)) return false;
+  const behavior = getDrawingToolByKey(enabledDrawingMode)?.behavior;
+  return behavior !== "SEGMENT" && behavior !== "RECTANGLE";
+}
+
+export function selectIsThreedPolylineClickDraw(s) {
+  return (
+    isPolylineClickDraftFor3d(
+      s.annotations.newAnnotation,
+      s.mapEditor.enabledDrawingMode
+    ) &&
+    s.viewers.selectedViewerKey === "MAP" &&
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
 }
 

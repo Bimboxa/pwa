@@ -16,6 +16,7 @@ import {
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
+  setCoplanarPoints3d,
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
   setMeshBrushCreate2dIfPossible,
@@ -29,7 +30,10 @@ import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools"
 import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
-import { selectIsFaceCutDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import {
+  selectIsFaceCutDrawActive,
+  selectIsThreedPolylineClickDraw,
+} from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
 import { selectIsLoupeEnabled } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
@@ -75,6 +79,13 @@ const THREED_PLACEMENT_SHORTCUTS = [
 const THREED_DRAWING_SHORTCUTS = [
   { key: "Entrée", label: "Terminer le dessin" },
   { key: "Esc", label: "Terminer / Quitter le dessin" },
+];
+
+// A line drawn click by click in 3D: T toggles its last point to an arc
+// point (2D parity, SectionShortcutHelpers).
+const THREED_POLYLINE_SHORTCUTS = [
+  ...THREED_DRAWING_SHORTCUTS,
+  { key: "T", label: "Basculer le dernier point en arc" },
 ];
 
 // Shortcuts of « Couper une surface » (2D): the segment cuts at its 2nd click.
@@ -236,6 +247,7 @@ export default function SectionDrawingHelperContent() {
     "Le modèle actif est masqué : les annotations converties ou dupliquées ne seront pas visibles.";
   const surfaceCutS =
     "Tracez un trait à travers la surface : elle est coupée en autant d'annotations que de morceaux";
+  const coplanarPointsS = "Points coplanaires";
 
   // data
 
@@ -294,6 +306,13 @@ export default function SectionDrawingHelperContent() {
       s.annotations.newAnnotation?.type === "POLYLINE" ||
       selectIsTemplateCoteDrawActive(s)
   );
+  // A line drawn click by click in the 3D editor (template or "Dessin"):
+  // the arc toggle (T) and the « Points coplanaires » switch — once 3 points
+  // are placed, the next ones stay on their plane (DrawingOverlayThreed).
+  const isThreedPolylineClickDraw = useSelector(
+    selectIsThreedPolylineClickDraw
+  );
+  const coplanarPoints3d = useSelector((s) => s.mapEditor.coplanarPoints3d);
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
   // Launched on a selected face: the cut is bound to it.
@@ -323,7 +342,9 @@ export default function SectionDrawingHelperContent() {
         ? THREED_MESH_BRUSH_SHORTCUTS
         : isFaceCut
           ? FACE_CUT_SHORTCUTS
-          : THREED_DRAWING_SHORTCUTS;
+          : isThreedPolylineClickDraw
+            ? THREED_POLYLINE_SHORTCUTS
+            : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit
@@ -510,6 +531,29 @@ export default function SectionDrawingHelperContent() {
       {isThreedToggledEditor && isMeshBrush && <SectionMeshBrushPaintedTotal />}
       {isThreedToggledEditor && canDrawOnScan && !isMeshBrush && (
         <SectionScene3dPickingStatus />
+      )}
+      {isThreedToggledEditor && isThreedPolylineClickDraw && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {coplanarPointsS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={Boolean(coplanarPoints3d)}
+            onChange={(e) => dispatch(setCoplanarPoints3d(e.target.checked))}
+          />
+        </Paper>
       )}
       {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
       {enabledDrawingMode === "REASSIGN_TEMPLATE" && (

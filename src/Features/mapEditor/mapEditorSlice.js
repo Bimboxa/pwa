@@ -49,6 +49,11 @@ const mapEditorInitialState = {
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
   defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
   joinMergeIfPossible: true, // JOIN_ANNOTATIONS (Joindre): when true, two ends of walls sharing the same template and width are merged into one polyline (junction vertex at the intersection) instead of being joined as a corner
+  // « Points coplanaires » (drawing helper, line drawn in the 3D editor):
+  // once 3 points are placed, the next ones are locked on their plane, like
+  // a polygon (DrawingOverlayThreed lockedPlane). Off: free points (scans,
+  // risers…). Session-only, like joinMergeIfPossible.
+  coplanarPoints3d: true,
   // « Pinceau » (MESH_BRUSH, 3D): part type the brush paints — "AUTO" (a
   // Surface template paints facets, a Ligne template paints edges), or an
   // explicit "FACE" / "EDGE" chosen in the drawing helper.
@@ -432,6 +437,9 @@ export const mapEditorSlice = createSlice({
     },
     setJoinMergeIfPossible: (state, action) => {
       state.joinMergeIfPossible = action.payload;
+    },
+    setCoplanarPoints3d: (state, action) => {
+      state.coplanarPoints3d = Boolean(action.payload);
     },
     setMeshBrushPartMode: (state, action) => {
       state.meshBrushPartMode = action.payload || "AUTO";
@@ -1047,6 +1055,7 @@ export const {
   setRepairMode,
   setAutoMergeOnCommit,
   setJoinMergeIfPossible,
+  setCoplanarPoints3d,
   setMeshBrushPartMode,
   setMeshBrushCreate2dIfPossible,
   setTemplateBrushDuplicateTarget,

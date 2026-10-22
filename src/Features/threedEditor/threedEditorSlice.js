@@ -666,6 +666,16 @@ export const threedEditorSlice = createSlice({
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.axisLock = null;
     },
+    // T while drawing a line in 3D (2D parity, InteractionLayer): the last
+    // placed vertex becomes an arc point ("circle") or a corner again. A
+    // square → circle → square run is rendered as the circular arc through
+    // the three points (Features/geometry/utils/arcSampling).
+    toggleLastDrawingVertexType: (state) => {
+      const pts = state.drawingMode.inProgressPolyline;
+      const last = pts[pts.length - 1];
+      if (!last) return;
+      last.type = last.type === "circle" ? "square" : "circle";
+    },
     toggleFaceCutSide: (state) => {
       state.drawingMode.faceCutSide =
         state.drawingMode.faceCutSide === "LEFT" ? "RIGHT" : "LEFT";
@@ -1383,6 +1393,7 @@ export const {
   pushDrawingVertex,
   appendDrawingVertices,
   cancelInProgressPolyline,
+  toggleLastDrawingVertexType,
   toggleFaceCutSide,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,

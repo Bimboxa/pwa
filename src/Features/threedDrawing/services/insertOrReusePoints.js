@@ -7,7 +7,10 @@ import db from "App/db/db";
 export const POINT_REUSE_EPS = 5e-4;
 
 // Persist `db.points` records and return the {id} references for an
-// annotation. If a vertex's normalized (x, y) on the host baseMap matches
+// annotation. A projected point's `type` ("circle" = arc point, see
+// arcSampling) rides on the ref — the type lives on annotation.points, never
+// on db.points (2D parity, useHandleCommitDrawing).
+// If a vertex's normalized (x, y) on the host baseMap matches
 // an existing db.points within `POINT_REUSE_EPS`, that point is REUSED
 // instead of a new one being created — so two faces that share a corner
 // also share the underlying db.points and stay connected when the user
@@ -68,7 +71,7 @@ export default async function insertOrReusePoints({
       }
       pointRefs.push({
         id: matchId,
-        type: "square",
+        type: p.type === "circle" ? "circle" : "square",
         offsetBottom: p.offsetBottom ?? 0,
         offsetTop: p.offsetTop ?? 0,
       });
