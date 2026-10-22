@@ -12,6 +12,7 @@ import { MESH3D_FACE_SELECTED_STIPPLE } from "Features/annotationMesh3d/constant
 import { buildFaceStippleOverlay } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
+import resolveSurfaceFaceParts from "../services/resolveSurfaceFaceParts";
 import { getSelectedSurfacePieces } from "../utils/surfacePieceParts";
 
 function disposeOverlay(overlay) {
@@ -20,22 +21,27 @@ function disposeOverlay(overlay) {
   overlay?.material?.dispose?.();
 }
 
-// Highlights the selected pieces of a cut surface host (selection slice
-// parts SURFACE_PIECE, see surfacePieceParts) in the 3D scene: the fluo-green
-// dots of a selected mesh face over each piece mesh (a child of it, so it
-// follows the clipping plane, the visibility and the moves of the host, and
-// goes with the host's rebuild).
+// Highlights the selected faces of a surface host (selection slice parts
+// SURFACE_PIECE, see surfacePieceParts) in the 3D scene: the fluo-green dots
+// of a selected mesh face over the face's triangles — the hover's region of
+// the piece mesh, resolved with the face selection angle — as a child of the
+// piece mesh, so it follows the clipping plane, the visibility and the moves
+// of the host, and goes with the host's rebuild.
 //
-// Piece indices only hold for the displayed object: when the host is rebuilt
-// and a selected piece is not there any more, the part selection is dropped.
+// A selection only holds for the displayed object: when the host is rebuilt
+// and no selected face is there any more (a removal, a reset, an angle
+// change that moved the regions), the part selection is dropped.
 export default function useSurfacePiecesHighlight({ enabled = true } = {}) {
   const dispatch = useDispatch();
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
+  const angleDeg = useSelector((s) => s.threedEditor.faceSelectionAngleDeg);
 
   const pieces = getSelectedSurfacePieces(selectedItem, selectedPartIds);
   const annotationId = pieces.length ? selectedItem.nodeId : null;
-  const piecesKey = pieces.map((part) => part.pieceIndex).join("|");
+  const piecesKey = pieces
+    .map((part) => `${part.pieceIndex}:${part.seedTri ?? ""}`)
+    .join("|");
 
   // Bumped when the host's 3D object is rebuilt.
   const [objectTick, setObjectTick] = useState(0);
@@ -51,28 +57,25 @@ export default function useSurfacePiecesHighlight({ enabled = true } = {}) {
     if (!enabled || !annotationId || !piecesKey) return undefined;
     const editor = getActiveThreedEditor();
     const sceneManager = editor?.sceneManager;
-    const root =
-      sceneManager?.annotationsManager?.annotationsObjectsMap?.[annotationId];
-    if (!root) return undefined;
+    if (!sceneManager) return undefined;
 
-    const wanted = new Set(piecesKey.split("|").map(Number));
-    const pieceMeshes = [];
-    root.traverse((child) => {
-      if (child.isMesh && wanted.has(child.userData?.surfaceCutPiece)) {
-        pieceMeshes.push(child);
-      }
+    const faces = resolveSurfaceFaceParts({
+      editor,
+      annotationId,
+      parts: getSelectedSurfacePieces(selectedItem, selectedPartIds),
+      angleDeg,
     });
-    if (!pieceMeshes.length) {
-      // The host was rebuilt without these pieces (a removal, a reset).
+    if (!faces.length) {
+      // The host was rebuilt without these faces (a removal, a reset).
       dispatch(clearItemPartSelection(annotationId));
       return undefined;
     }
 
     const overlays = [];
-    for (const mesh of pieceMeshes) {
+    for (const { mesh, tris } of faces) {
       const overlay = buildFaceStippleOverlay(
         mesh,
-        null,
+        tris,
         MESH3D_FACE_SELECTED_STIPPLE
       );
       if (!overlay) continue;
@@ -84,5 +87,6 @@ export default function useSurfacePiecesHighlight({ enabled = true } = {}) {
       overlays.forEach(disposeOverlay);
       sceneManager.requestRender?.();
     };
-  }, [enabled, annotationId, piecesKey, objectTick, dispatch]);
+    // selectedItem / selectedPartIds are read through piecesKey.
+  }, [enabled, annotationId, piecesKey, angleDeg, objectTick, dispatch]);
 }

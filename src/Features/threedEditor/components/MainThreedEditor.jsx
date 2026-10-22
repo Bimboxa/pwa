@@ -161,6 +161,7 @@ import useVertexOffsetPointerHandlers from "Features/threedVertexOffset/hooks/us
 import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
 import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
 import SurfacePiecesHighlightThreed from "Features/threedFaceCut/components/SurfacePiecesHighlightThreed";
+import { getSurfaceFaceAtTriangle } from "Features/threedFaceCut/services/resolveSurfaceFaceParts";
 import {
   getSelectedSurfacePieces,
   getSurfacePiecePartId,
@@ -1430,11 +1431,18 @@ export default function MainThreedEditor() {
               } else if (
                 Number.isInteger(intersect.object.userData?.surfaceCutPiece)
               ) {
-                // Piece of a cut surface host (applySurfaceCuts): the hit
-                // mesh carries its index.
+                // Face of a surface host (applySurfaceCuts tags the pieces):
+                // the hit mesh carries its piece index, the face is the
+                // hover's region around the hit triangle (same angle).
+                const face = getSurfaceFaceAtTriangle(
+                  intersect.object,
+                  intersect.faceIndex,
+                  store.getState().threedEditor.faceSelectionAngleDeg
+                );
                 meshPartId = getSurfacePiecePartId(
                   nodeId,
-                  intersect.object.userData.surfaceCutPiece
+                  intersect.object.userData.surfaceCutPiece,
+                  face?.seedTri
                 );
               } else {
                 const displayed = getDisplayedMesh3d(threedEditor, nodeId);
@@ -1629,9 +1637,15 @@ export default function MainThreedEditor() {
         } else if (
           Number.isInteger(firstHit.object.userData?.surfaceCutPiece)
         ) {
+          const face = getSurfaceFaceAtTriangle(
+            firstHit.object,
+            firstHit.faceIndex,
+            store.getState().threedEditor.faceSelectionAngleDeg
+          );
           pieceId = getSurfacePiecePartId(
             nodeId,
-            firstHit.object.userData.surfaceCutPiece
+            firstHit.object.userData.surfaceCutPiece,
+            face?.seedTri
           );
         } else {
           const displayed = getDisplayedMesh3d(threedEditor, nodeId);
@@ -2538,7 +2552,40 @@ export default function MainThreedEditor() {
         : -1;
       if (located >= 0) hoveredFaceIndex = located;
     }
+    // Face of a surface host under the cursor: the hover's region (same
+    // angle as the selection), compared with the selected faces by region
+    // id — a selected face is not stippled blue on top of its green.
     const hoveredPiece = hitIntersect?.object?.userData?.surfaceCutPiece;
+    const faceAngleDeg =
+      store.getState().threedEditor.faceSelectionAngleDeg ??
+      DEFAULT_FACE_ANGLE_DEG;
+    const isSelectedSurfaceFace =
+      Number.isInteger(hoveredPiece) &&
+      selectedItem?.nodeId === hitId &&
+      (() => {
+        const parts = getSelectedSurfacePieces(
+          selectedItem,
+          selectedPartIds
+        ).filter((part) => part.pieceIndex === hoveredPiece);
+        if (!parts.length) return false;
+        if (parts.some((part) => part.seedTri === null)) return true;
+        const hovered = getSurfaceFaceAtTriangle(
+          hitIntersect.object,
+          hitIntersect.faceIndex,
+          faceAngleDeg
+        );
+        return (
+          !!hovered &&
+          parts.some(
+            (part) =>
+              getSurfaceFaceAtTriangle(
+                hitIntersect.object,
+                part.seedTri,
+                faceAngleDeg
+              )?.regionId === hovered.regionId
+          )
+        );
+      })();
     const isSelectedMeshFace =
       (hoveredFaceIndex !== undefined &&
         isMesh3dFaceSelected(
@@ -2547,11 +2594,7 @@ export default function MainThreedEditor() {
           hitId,
           hoveredFaceIndex
         )) ||
-      (Number.isInteger(hoveredPiece) &&
-        selectedItem?.nodeId === hitId &&
-        getSelectedSurfacePieces(selectedItem, selectedPartIds).some(
-          (part) => part.pieceIndex === hoveredPiece
-        ));
+      isSelectedSurfaceFace;
     const overlayIntersect =
       mesh3dIntersect ||
       (hit && !isLineHit && !meshPart?.edge && !isSelectedMeshFace
@@ -2566,9 +2609,7 @@ export default function MainThreedEditor() {
       // Read from the store (not useSelector): MainThreedEditor must not
       // re-render on a settings change, and the next hover tick picks the new
       // angle up on its own — the overlay key carries it.
-      const angleDeg =
-        store.getState().threedEditor.faceSelectionAngleDeg ??
-        DEFAULT_FACE_ANGLE_DEG;
+      const angleDeg = faceAngleDeg;
       const region = getFaceRegion(
         hitObject.geometry,
         overlayIntersect.faceIndex,
