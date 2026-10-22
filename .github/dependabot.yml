@@ -1,0 +1,26 @@
+# Dependabot: open weekly PRs for npm updates instead of only raising alerts.
+# Security updates are always opened as soon as an advisory is published.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "[deps]"
+    labels:
+      - "dependencies"
+    groups:
+      # One PR per week for every minor + patch bump (production and dev deps).
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Major bumps stay out of the group: Dependabot opens one PR per package,
+    # and these are the ones worth reviewing by hand (React, MUI, Vite, Three...).
