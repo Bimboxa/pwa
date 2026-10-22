@@ -15,7 +15,8 @@ export default function findBaseMapGroupsAtVertex(editor, position) {
   const tmp = new Vector3();
 
   scene.traverse((obj) => {
-    if (!obj.isMesh || !obj.visible) return;
+    const snapAnchors = obj.userData?.snapAnchors;
+    if (!obj.visible || (!obj.isMesh && !snapAnchors)) return;
     if (obj.userData?.isHoverOverlay) return;
 
     // Owning base map group + snappable / hidden-ancestor filter.
@@ -39,6 +40,18 @@ export default function findBaseMapGroupsAtVertex(editor, position) {
     if (!baseMapId || byBaseMapId.has(baseMapId)) return;
 
     obj.updateWorldMatrix(true, false);
+    // Snap-only anchors (userData.snapAnchors, local space), like in
+    // buildIndex — the rim ends of a plan revolution axis.
+    if (snapAnchors) {
+      for (const [x, y, z] of snapAnchors) {
+        tmp.set(x, y, z).applyMatrix4(obj.matrixWorld);
+        if (quantizeVertex(tmp) === targetKey) {
+          byBaseMapId.set(baseMapId, group);
+          return;
+        }
+      }
+      return;
+    }
     // Fat lines (Line2) hold INSTANCED geometry: their vertices are the
     // `exportLine` positions of a snap line, like in buildIndex — the plan
     // axis and the placement's inverted T are such lines.

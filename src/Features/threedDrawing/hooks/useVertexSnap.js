@@ -31,6 +31,10 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // skipped. The origin of the user frame (the in-scene axes helper,
 // userData.isAxesFrame, placed by « Orienter le repère ») is one more
 // snappable point while the axes are shown — a lone vertex, no edge.
+// Snap-only anchors (userData.snapAnchors, an array of [x, y, z] in the
+// object's local space on any Object3D, e.g. the rim ends of a plan
+// revolution axis) are lone vertices too, under the same ancestor rules as
+// a mesh.
 // options.excludeSubtree: an Object3D whose whole subtree is skipped — used
 // by the "Déplacer" tool to build a target-only index that never contains
 // the carried base map (its own geometry would otherwise screen the drop
@@ -72,7 +76,8 @@ export function buildIndex(scene, options = {}) {
       }
       return;
     }
-    if (!obj.isMesh || !obj.visible) return;
+    const snapAnchors = obj.userData?.snapAnchors;
+    if (!obj.visible || (!obj.isMesh && !snapAnchors)) return;
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
     if (obj.userData?.isPaintOverlay) return; // painted part (Pinceau) skin
     if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
@@ -99,6 +104,20 @@ export function buildIndex(scene, options = {}) {
       parent = parent.parent;
     }
     if (!isSnappable) return;
+
+    if (snapAnchors) {
+      // Snap-only anchors: lone vertices, no edges.
+      obj.updateWorldMatrix(true, false);
+      for (const [x, y, z] of snapAnchors) {
+        const worldPos = new Vector3(x, y, z).applyMatrix4(obj.matrixWorld);
+        const key = quantizeVertex(worldPos);
+        if (!adjacency.has(key)) {
+          verts.push({ position: worldPos, meshKey: obj.uuid, nodeId });
+        }
+        ensureNode(key, worldPos, nodeId);
+      }
+      return;
+    }
 
     // Fat lines (Line2) hold INSTANCED geometry — their `position` attribute
     // is the segment quad template, not the line: never index it. A flat
