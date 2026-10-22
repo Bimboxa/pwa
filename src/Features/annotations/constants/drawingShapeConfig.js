@@ -475,6 +475,7 @@ const DRAWING_SHAPE_CONFIG = {
       "showUnitLabel",
       "showTotalCote",
       "showRulerLabel",
+      "showValueCard",
     ],
     defaults: {
       strokeColor: "#000000",
@@ -490,6 +491,8 @@ const DRAWING_SHAPE_CONFIG = {
       showUnitLabel: true,
       showTotalCote: false,
       showRulerLabel: false,
+      // 3D: the values in rounded cards (false: bare values with a white halo).
+      showValueCard: true,
       // Template-owned 3D visibility (not a configurable prop: never stamped
       // on annotation rows, read by the 3D viewer's filter only).
       showIn3d: false,
@@ -510,6 +513,7 @@ const DRAWING_SHAPE_CONFIG = {
       "decimals",
       "fontSize",
       "showUnitLabel",
+      "showValueCard",
     ],
     defaults: {
       strokeColor: "#000000",
@@ -523,6 +527,8 @@ const DRAWING_SHAPE_CONFIG = {
       decimals: 0,
       fontSize: 18,
       showUnitLabel: true,
+      // 3D: the value in a rounded card (false: bare value with a white halo).
+      showValueCard: true,
       // Same as RULER: template-owned 3D visibility, false by default.
       showIn3d: false,
     },
