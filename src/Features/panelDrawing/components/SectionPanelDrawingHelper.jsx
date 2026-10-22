@@ -1,9 +1,12 @@
 import { useSelector } from "react-redux";
 
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import CloseIcon from "@mui/icons-material/Close";
 
 import SectionDrawingHelperContent from "Features/mapEditor/components/SectionDrawingHelperContent";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
+import useExitDrawingMode from "Features/mapEditor/hooks/useExitDrawingMode";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
@@ -34,6 +37,13 @@ export default function SectionPanelDrawingHelper() {
 
   const titleS = transformToolTitle ?? "Mode dessin";
   const quitS = "Terminer / Quitter";
+  const closeS = "Quitter le dessin";
+
+  // handlers
+
+  // X: leaves the draw / tool and drops the annotation in progress (Escape
+  // would commit it first).
+  const exitDrawingMode = useExitDrawingMode();
 
   // render
 
@@ -44,8 +54,9 @@ export default function SectionPanelDrawingHelper() {
           display: "flex",
           alignItems: "center",
           gap: 1,
-          px: 1.5,
-          py: 0.75,
+          pl: 1.5,
+          pr: 0.75,
+          py: 0.5,
           bgcolor: "panel.headerBg",
           borderTop: "1px solid",
           borderBottom: "1px solid",
@@ -62,6 +73,19 @@ export default function SectionPanelDrawingHelper() {
           {quitS}
         </Typography>
         <ShortcutBadge>Esc</ShortcutBadge>
+        <IconButton
+          size="small"
+          title={closeS}
+          aria-label={closeS}
+          onClick={exitDrawingMode}
+          sx={(theme) => ({
+            color: "secondary.main",
+            bgcolor: alpha(theme.palette.secondary.main, 0.1),
+            "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.22) },
+          })}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </Box>
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {isThreedEditor ? (

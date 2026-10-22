@@ -3797,9 +3797,11 @@ const InteractionLayer = forwardRef(({
   // mapEditorSlice), but the points live in this component's local state — so
   // without this the next tool would inherit a half-drawn polyline and its
   // preview would stay painted. Selection is deliberately untouched (only the
-  // Escape handler clears it).
+  // Escape handler clears it). The split-polyline session is dropped too, so
+  // the drawing helper's X leaves the layer as clean as Escape.
   useEffect(() => {
     if (enabledDrawingMode) return;
+    onSplitPolylineResetRef.current?.();
     if (!drawingPointsRef.current?.length && !brushPath.length) return;
     setDrawingPoints([]);
     drawingPointsRef.current = [];

@@ -1,17 +1,21 @@
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, IconButton, Paper, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import CloseIcon from "@mui/icons-material/Close";
 
 import db from "App/db/db";
 
 import SectionDrawingHelperContent from "./SectionDrawingHelperContent";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
+import useExitDrawingMode from "../hooks/useExitDrawingMode";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
 import selectLocatingBusinessObjectId from "Features/businessObjects/utils/selectLocatingBusinessObjectId";
 import selectLinkBusinessObjectDraftId from "Features/businessObjects/utils/selectLinkBusinessObjectDraftId";
 import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
+import { softGradientCardSx } from "Features/dashboard/utils/dashboardStyles";
 
 // ---------------------------------------------------------------------------
 // PopperDrawingHelper — floating panel shown while drawing
@@ -21,6 +25,7 @@ export default function PopperDrawingHelper() {
   // strings
 
   const drawS = "Mode dessin";
+  const quitS = "Quitter le dessin";
 
   // data — "Localiser" draw (Ouvrages module): the draft carries the
   // LOCATE_BUSINESS_OBJECT interceptor; the header names the object and a
@@ -62,12 +67,19 @@ export default function PopperDrawingHelper() {
 
   const { position, isDragging, handleMouseDown } = usePanelDrag();
 
+  // handlers
+
+  // X: leaves the draw / tool and drops the annotation in progress (Escape
+  // would commit it first).
+  const exitDrawingMode = useExitDrawingMode();
+
   // render
 
   return (
     <Paper
       elevation={4}
-      sx={{
+      sx={(theme) => ({
+        ...softGradientCardSx(theme.palette.secondary.main),
         position: "absolute",
         top: 16,
         left: 16,
@@ -79,32 +91,45 @@ export default function PopperDrawingHelper() {
         borderRadius: 2,
         transform: `translate(${position.x}px, ${position.y}px)`,
         transition: isDragging.current ? "none" : "transform 0.1s ease-out",
-      }}
+      })}
     >
-      {/* Drag handle header */}
+      {/* Drag handle header — the X stops the mousedown so it never drags */}
       <Box
         onMouseDown={handleMouseDown}
-        sx={{
+        sx={(theme) => ({
           display: "flex",
           alignItems: "center",
           gap: 0.5,
-          px: 1,
-          py: 0.75,
-          bgcolor: "panel.headerBg",
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
+          pl: 1,
+          pr: 0.75,
+          py: 0.5,
+          borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.18)}`,
           cursor: "grab",
           "&:active": { cursor: "grabbing" },
           userSelect: "none",
-        }}
+        })}
       >
         <DragIndicatorIcon fontSize="small" sx={{ color: "panel.textLight" }} />
         <Typography
           variant="body2"
-          sx={{ fontWeight: 500, color: "panel.textMuted" }}
+          sx={{ flex: 1, fontWeight: 500, color: "panel.textMuted" }}
         >
           {titleS}
         </Typography>
+        <IconButton
+          size="small"
+          title={quitS}
+          aria-label={quitS}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={exitDrawingMode}
+          sx={(theme) => ({
+            color: "secondary.main",
+            bgcolor: alpha(theme.palette.secondary.main, 0.1),
+            "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.22) },
+          })}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </Box>
 
       {locatingBusinessObjectId && draftBusinessObject && (

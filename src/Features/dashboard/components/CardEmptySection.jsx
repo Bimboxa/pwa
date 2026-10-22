@@ -1,7 +1,11 @@
 import { Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
-import { TEXT_MUTED, popIn } from "../utils/dashboardStyles";
+import {
+  TEXT_MUTED,
+  popIn,
+  softGradientCardSx,
+} from "../utils/dashboardStyles";
 
 // Empty-state card used by the right-side dashboard sections
 // (favorites / daily scopes) — warm gradient + halo icon (model 2a).
@@ -17,11 +21,7 @@ export default function CardEmptySection({
   return (
     <Box
       sx={{
-        background: `linear-gradient(160deg, #FFFDFB, ${alpha(
-          iconColor,
-          0.08
-        )})`,
-        border: `1px solid ${alpha(iconColor, 0.18)}`,
+        ...softGradientCardSx(iconColor),
         borderRadius: "16px",
         py: 4.5,
         px: 3.5,

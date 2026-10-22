@@ -101,3 +101,10 @@ export const glow = {
     "50%": { opacity: 0.9 },
   },
 };
+
+// Soft gradient card (empty-state cards, the drawing helper): warm white to a
+// faint tint of `color`, with a matching hairline border.
+export const softGradientCardSx = (color) => ({
+  background: `linear-gradient(160deg, #FFFDFB, ${alpha(color, 0.08)})`,
+  border: `1px solid ${alpha(color, 0.18)}`,
+});
