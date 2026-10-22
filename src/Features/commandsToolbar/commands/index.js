@@ -40,6 +40,7 @@ import flipStripCommand from "./flipStrip/flipStripCommand";
 import flipExtrusionCommand from "./flipExtrusion/flipExtrusionCommand";
 import anchorCommand from "./anchor/anchorCommand";
 import detectSimilarStripsCommand from "./detectSimilarStrips/detectSimilarStripsCommand";
+import cleanCommand from "./clean/cleanCommand";
 import repairCommand from "./repair/repairCommand";
 import simplifyCommand from "./simplify/simplifyCommand";
 import arcifyCommand from "./arcify/arcifyCommand";
@@ -126,6 +127,7 @@ export const COMMANDS = [
   flipExtrusionCommand,
   anchorCommand,
   detectSimilarStripsCommand,
+  cleanCommand,
   repairCommand,
   simplifyCommand,
   arcifyCommand,

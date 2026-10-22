@@ -35,10 +35,13 @@ import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templa
 // between annotations — are always preserved.
 //
 // Hard delete bypasses the soft-delete middleware (withHardDelete) and is not
-// undoable — the caller must confirm with the user first.
+// undoable — the caller must confirm with the user first. `dryRun: true`
+// computes the same counts without writing anything (the confirmation dialog
+// of the « Nettoyer » toolbar command announces what the purge will do).
 export default async function purgeDeletedAnnotationsService({
   projectId,
   scopeId,
+  dryRun = false,
 }) {
   if (!projectId)
     throw new Error("purgeDeletedAnnotationsService: projectId is required");
@@ -127,6 +130,14 @@ export default async function purgeDeletedAnnotationsService({
     .filter((p) => p.deletedAt && referencedPointIds.has(p.id))
     .map((p) => p.id);
 
+  const result = {
+    purgedAnnotations: deletedAnnotationIds.length,
+    purgedPoints: orphanPointIds.length,
+    healedPoints: healPointIds.length,
+    purgedMeshPaints: meshPaintIdsToPurge.length,
+  };
+  if (dryRun) return result;
+
   // withoutUndo: a maintenance pass must not flood the undo stack (one entry
   // per healed point) — and a Ctrl+Z must not re-tombstone healed points.
   await withSystemWrite(() =>
@@ -149,10 +160,5 @@ export default async function purgeDeletedAnnotationsService({
     })
   );
 
-  return {
-    purgedAnnotations: deletedAnnotationIds.length,
-    purgedPoints: orphanPointIds.length,
-    healedPoints: healPointIds.length,
-    purgedMeshPaints: meshPaintIdsToPurge.length,
-  };
+  return result;
 }
