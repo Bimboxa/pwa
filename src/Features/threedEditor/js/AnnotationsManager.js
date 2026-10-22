@@ -10,6 +10,7 @@ import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnno
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
+import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
@@ -494,15 +495,19 @@ export default class AnnotationsManager {
             this.scene.updateMatrixWorld(true);
 
             // Open-surface sources (swept EXTRUSION_PROFILE, lathe REVOLUTION
-            // shells) must use a hollow subtraction so the boolean only clips
-            // the surface and doesn't add the target's cap faces (stray
-            // triangles in the source material). A SOLID revolution is a
-            // closed volume: regular subtraction, cut faces included.
+            // shells, an OPEN mesh3d sheet) must use a hollow subtraction so
+            // the boolean only clips the surface and doesn't add the target's
+            // cap faces (stray triangles in the source material). A SOLID
+            // revolution or a closed mesh3d (a face pulled into a box) is a
+            // closed volume: regular subtraction, cut faces included. A mesh
+            // host has no shape3D any more (cleared at its conversion), so
+            // its closure is read from the stored faces.
             const sourceShapeKey = getShape3DKey(annotation.shape3D);
-            const hollow =
-              sourceShapeKey === "EXTRUSION_PROFILE" ||
-              (sourceShapeKey === "REVOLUTION" &&
-                !isRevolutionSolid(annotation));
+            const hollow = annotation.isMesh3d
+              ? !isMesh3dClosed(annotation.mesh3d)
+              : sourceShapeKey === "EXTRUSION_PROFILE" ||
+                (sourceShapeKey === "REVOLUTION" &&
+                  !isRevolutionSolid(annotation));
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
               rebuildEdges: true,

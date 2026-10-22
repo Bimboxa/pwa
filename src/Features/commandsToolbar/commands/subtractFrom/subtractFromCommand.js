@@ -11,7 +11,8 @@ import {
 
 // « À soustraire de… »: reverse of SUBTRACT — the selected annotation is the
 // SUBTRACTED pivot, each clicked annotation gets carved by it. Same
-// relAnnotationSubtractions row, only the pick direction differs.
+// relAnnotationSubtractions row, only the pick direction differs — and the
+// same opening to 3D meshes (a closed mesh cuts like any solid).
 export default {
   key: "SUBTRACT_FROM",
   label: "À soustraire de…",
@@ -23,7 +24,8 @@ export default {
     const state = getSingleAnnotationState(
       ctx,
       SUBTRACT_TYPES,
-      SUBTRACT_TYPES_REASON
+      SUBTRACT_TYPES_REASON,
+      { allowMesh3d: true }
     );
     if (!state.enabled) return state;
     return {

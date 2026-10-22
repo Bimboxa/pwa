@@ -91,7 +91,9 @@ deps, state, hotkeyLabel }`) and **never returns null** — it renders
 
 Shared `getState` bricks: `utils/drawToolCommandState.js` (drawing tools:
 `showDrawingTools`, armed draw / 3D tool), `utils/selectionCommandState.js`
-(selection: loading, editable, types, targets),
+(selection: loading, editable, types, targets; 3D meshes — `isMesh3d` — are
+excluded unless the command only writes a relation and opts in with
+`allowMesh3d`: SUBTRACT / SUBTRACT_FROM),
 `utils/createToolGroupCommand.js` (a `DRAWING_TOOLS_BY_TYPE` group with its
 variants), `utils/createPolygonLineCommand.js`, `utils/createViewToggleCommand.js`.
 

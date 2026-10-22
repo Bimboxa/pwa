@@ -38,7 +38,7 @@ export default function SectionAnnotationSubtractions({ annotation }) {
   const sourcesS = "Soustraite de";
   const bakeS = "Soustraire définitivement";
   const bakeHelpS =
-    "Grave les trous dans la géométrie de l'annotation (convertie en mesh 3D) : ils restent même si les annotations soustraites sont supprimées.";
+    "Grave les trous dans la géométrie de l'annotation (convertie en mesh 3D) : ils restent même si les annotations soustraites sont supprimées. Sur une maille 3D, les faces et les quantités suivent la maille enregistrée tant que la soustraction n'est pas figée.";
   const notBakeableS =
     "Cette annotation ne peut pas être soustraite définitivement";
   const doneS = "Soustraction définitive appliquée (Ctrl+Z pour annuler)";

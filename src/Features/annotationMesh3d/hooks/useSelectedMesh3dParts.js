@@ -8,6 +8,7 @@ import {
   selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import getDisplayedMesh3d from "../services/getDisplayedMesh3d";
@@ -25,7 +26,9 @@ import { getSelectedMesh3dParts } from "../utils/mesh3dPartIds";
 // `parts` are the parsed part ids; `faces` / `edges` carry their measures
 // (getMesh3dPartsInfo) and are empty until the mesh is loaded. `isClosed` is
 // false on an open displayed mesh (a PX polyline wall) and on a host carved
-// live by a subtraction: selectable, never written.
+// live by a subtraction (a regular one read through its conversion, or a
+// mesh whose displayed faces were collapsed by the CSG): selectable, never
+// written.
 export default function useSelectedMesh3dParts() {
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
@@ -42,16 +45,26 @@ export default function useSelectedMesh3dParts() {
   );
 
   return useMemo(() => {
+    const editor = getActiveThreedEditor();
     const displayed =
       !stored?.mesh && annotationId
-        ? getDisplayedMesh3d(getActiveThreedEditor(), annotationId)
+        ? getDisplayedMesh3d(editor, annotationId)
         : null;
     const mesh = stored?.mesh ?? displayed?.mesh ?? null;
     const info = getMesh3dPartsInfo(mesh, parts);
     // A host carved live by a subtraction is display-only (no write converts
     // it until « Soustraire définitivement »): the deletion is disabled on it
     // like on an open mesh, instead of failing silently.
-    const isClosed = !mesh || (isMesh3dClosed(mesh) && !displayed?.carved);
+    const carvedMeshObject =
+      Boolean(stored?.mesh) &&
+      hasCarvedSolid(
+        editor?.sceneManager?.annotationsManager?.annotationsObjectsMap?.[
+          annotationId
+        ]
+      );
+    const isClosed =
+      !mesh ||
+      (isMesh3dClosed(mesh) && !displayed?.carved && !carvedMeshObject);
     return {
       annotationId,
       parts,

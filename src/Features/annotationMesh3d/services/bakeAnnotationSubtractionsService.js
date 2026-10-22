@@ -1,10 +1,3 @@
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Mesh,
-  MeshBasicMaterial,
-} from "three";
-
 import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 
@@ -15,10 +8,12 @@ import {
 } from "Features/annotations/constants/shape3DConfig";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import buildAnnotationSolidObjectsAsync from "Features/threedEditor/js/utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
+import buildMergedWorldSolid, {
+  MERGED_SOLID_MATERIAL,
+} from "Features/threedEditor/js/utilsAnnotationsManager/buildMergedWorldSolid";
 import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
 import createBaseMapFrameGroup from "Features/threedEditor/js/utilsAnnotationsManager/createBaseMapFrameGroup";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
-import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import subtractAnnotationGeometries from "Features/threedEditor/js/utilsAnnotationsManager/subtractAnnotationGeometries";
 
 import { getMesh3dSignedVolume } from "../utils/getMesh3dQties";
@@ -58,8 +53,6 @@ export const BAKE_SUBTRACTION_REASONS = {
 };
 
 const refused = (reason) => ({ status: "refused", reason });
-
-const CSG_SOURCE_MATERIAL = new MeshBasicMaterial();
 
 // Below this volume change (m³) the targets did not touch the host.
 const MIN_REMOVED_VOLUME_M3 = 1e-7;
@@ -120,39 +113,10 @@ function disposeObject(object) {
       /* ignore */
     }
     if (child.geometry) child.geometry.dispose();
-    if (child.material && child.material !== CSG_SOURCE_MATERIAL) {
+    if (child.material && child.material !== MERGED_SOLID_MATERIAL) {
       child.material.dispose();
     }
   });
-}
-
-// Every solid mesh of the host, baked to WORLD space, as ONE mesh: a mesh
-// host is built as one THREE.Mesh per face, and carving them one by one would
-// close each face on its own (caps per face). Returns null without triangles.
-function buildMergedWorldSolid(object) {
-  const positions = [];
-  for (const mesh of getSolidMeshesFromObject3D(object)) {
-    const position = mesh.geometry?.getAttribute("position");
-    if (!position) continue;
-    mesh.updateWorldMatrix(true, false);
-    const geometry = mesh.geometry.index
-      ? mesh.geometry.toNonIndexed()
-      : mesh.geometry.clone();
-    geometry.applyMatrix4(mesh.matrixWorld);
-    positions.push(...geometry.getAttribute("position").array);
-    geometry.dispose();
-  }
-  if (positions.length < 9) return null;
-  const geometry = new BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new BufferAttribute(new Float32Array(positions), 3)
-  );
-  geometry.computeVertexNormals();
-  const mesh = new Mesh(geometry, CSG_SOURCE_MATERIAL);
-  mesh.userData = { role: "SOLID" };
-  mesh.updateMatrixWorld(true);
-  return mesh;
 }
 
 // Signed volume of a closed triangle soup (divergence theorem), m³.
@@ -256,10 +220,13 @@ export default async function bakeAnnotationSubtractionsService({
     revolutionSectionFill: false,
   };
   const isRevolutionHost = isRevolutionBakeHost(host);
-  // An open lathe shell is clipped (HOLLOW_SUBTRACTION, no cap faces) and
-  // written as an OPEN mesh; a « Solide » revolution is a closed volume like
-  // any extrusion — the rule of the live carve (AnnotationsManager).
-  const hollow = isRevolutionHost && !isRevolutionSolid(host);
+  // An open lathe shell, or an open mesh host (a flat sheet drawn in 3D), is
+  // clipped (HOLLOW_SUBTRACTION, no cap faces) and written as an OPEN mesh; a
+  // « Solide » revolution or a closed mesh is a closed volume like any
+  // extrusion — the rule of the live carve (AnnotationsManager).
+  const hollow = host.isMesh3d
+    ? !isMesh3dClosed(host.mesh3d)
+    : isRevolutionHost && !isRevolutionSolid(host);
 
   let hostObject = null;
   let solid = null;
@@ -307,7 +274,8 @@ export default async function bakeAnnotationSubtractionsService({
       return refused(BAKE_SUBTRACTION_REASONS.NO_TARGET);
     }
 
-    // 3. One host brush (closed solid, or open shell), carved in world space.
+    // 3. One host brush (closed solid, or open shell), carved in world space
+    // (buildMergedWorldSolid: a mesh host is one Mesh per face, merged).
     solid = buildMergedWorldSolid(hostObject);
     if (!solid) return refused(BAKE_SUBTRACTION_REASONS.NOT_BAKEABLE);
     const measureBefore = hollow

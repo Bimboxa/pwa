@@ -2425,9 +2425,13 @@ export default function useAnnotationsV2(options) {
           const isCrossBaseMap = targets.some(
             (t) => t?.baseMapId && t.baseMapId !== a.baseMapId
           );
+          // A mesh host (isMesh3d) keeps its stored-mesh quantities until
+          // « Soustraire définitivement »: `_carvedSurfaceM2` is only
+          // consumed for REVOLUTION, no headless carve for it.
           if (
-            !isCrossBaseMap &&
-            !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey)
+            a.isMesh3d ||
+            (!isCrossBaseMap &&
+              !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey))
           )
             continue;
           const bm = baseMapById[a.baseMapId];
@@ -2937,12 +2941,12 @@ export default function useAnnotationsV2(options) {
           // Planar-footprint subtraction is only meaningful for
           // slab-type sources (footprint = surface). For POLYLINE
           // surfaces the carved area is a developed/lateral surface,
-          // not a footprint, so it is left to a dedicated path.
-          const isFootprintSurfaceType = [
-            "POLYGON",
-            "RECTANGLE",
-            "STRIP",
-          ].includes(a?.type);
+          // not a footprint, so it is left to a dedicated path. A mesh
+          // host is a POLYGON too, but its qties come from the stored mesh
+          // (getMesh3dQties, `reason: "MESH_3D"` here) and its plan polygon
+          // is only a projection: left untouched until the bake.
+          const isFootprintSurfaceType =
+            !a?.isMesh3d && ["POLYGON", "RECTANGLE", "STRIP"].includes(a?.type);
           // A target on another base map is resolved in ITS OWN pixel frame,
           // which has no relation to this one — clipping the two together
           // would carve an arbitrary area. The mesh-area path above already

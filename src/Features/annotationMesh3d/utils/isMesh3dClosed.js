@@ -2,7 +2,8 @@ import { getFaceLoops } from "./mesh3dTopology.js";
 
 // A mesh is a closed solid when every directed edge is carried by exactly one
 // face and its reverse by exactly one other face (2-manifold, consistently
-// oriented). A flat drawn face, or a box pulled out of a flat sheet, is open.
+// oriented). A flat drawn face, or the basin dug DOWN out of a flat sheet
+// (pushPullMesh3dFace: no cap), is open; a sheet pulled up is a closed prism.
 export default function isMesh3dClosed(mesh) {
   if (!mesh?.faces?.length) return false;
   const count = new Map();

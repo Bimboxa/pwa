@@ -4,6 +4,7 @@ import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import buildHostPartIndex from "Features/meshPaint/utils/buildHostPartIndex";
 import hashTriangles from "Features/meshPaint/utils/hashTriangles";
 import { createInsideSoupTester } from "Features/meshPaint/utils/isPointInsideSoup";
@@ -274,7 +275,7 @@ export function getHostPartData({ root, group, source, baseMap }) {
   // A carved host (glued openings, subtractions: CSG on the displayed
   // faces) is read from its carved soup: its stored mesh3d faces have no
   // hole, a paint matched on them would cover the openings.
-  const carved = meshes.some((mesh) => mesh.userData?.hasSubtraction);
+  const carved = hasCarvedSolid(root);
   const exactFaces = carved
     ? null
     : getExactFaces({
