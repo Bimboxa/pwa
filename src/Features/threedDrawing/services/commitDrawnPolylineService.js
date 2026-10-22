@@ -2,9 +2,14 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
+import {
+  adaptiveArcSamples,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
 
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
 import dedupeAdjacentVertices from "../utils/dedupeAdjacentVertices";
+import expandArcsInPath3d from "../utils/expandArcsInPath3d";
 import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
@@ -24,8 +29,16 @@ const OFFSET_EPS_M = 5e-3; // 5 mm — parallel-to-plane tolerance
 //     as two consecutive refs to the same db.points id with different
 //     offsetBottom — extrudePolylineWall draws it as a vertical line.
 //
+// Arc points (T while drawing, `type: "circle"` on a vertex): a square →
+// circle → square run is kept as the same S-C-S arc on the annotation's
+// point refs when the line is parallel to its host (the stored arc IS the
+// drawn one). Off that plane, the stored arc would be the plan projection
+// with linearly interpolated offsets — not the circle drawn — so the arcs
+// are baked into straight segments first (expandArcsInPath3d, the preview's
+// curve).
+//
 // Inputs mirror commitDrawnFaceService; `verticesInOrder` items are
-// {x, y, z, baseMapId?} — a unanimous carried baseMapId wins, then the
+// {x, y, z, baseMapId?, type?} — a unanimous carried baseMapId wins, then the
 // base map selected in 2D (`preferredBaseMapId`), then the centroid
 // heuristic (resolveHostBaseMap).
 //
@@ -82,16 +95,36 @@ export async function commitDrawnPolyline({
   if (!host)
     return abort("no host base map (projection failed on every base map)");
 
-  const projected = verticesInOrder.map((v) =>
-    worldToBaseMapNormalized(v, host)
-  );
-  if (projected.some((p) => !p))
-    return abort(`projection on base map ${host.id} failed`);
+  const project = (vertices) => {
+    const out = vertices.map((v) => {
+      const p = worldToBaseMapNormalized(v, host);
+      return p ? { ...p, type: typeOf(v) } : null;
+    });
+    return out.some((p) => !p) ? null : out;
+  };
+  const offsetRange = (pts) => {
+    const offsets = pts.map((p) => p.offset);
+    return [Math.min(...offsets), Math.max(...offsets)];
+  };
 
-  const offsets = projected.map((p) => p.offset);
-  const minO = Math.min(...offsets);
-  const maxO = Math.max(...offsets);
-  const isParallel = maxO - minO < OFFSET_EPS_M;
+  let projected = project(verticesInOrder);
+  if (!projected) return abort(`projection on base map ${host.id} failed`);
+  let [minO, maxO] = offsetRange(projected);
+  let isParallel = maxO - minO < OFFSET_EPS_M;
+
+  // Arcs off the host plane: baked (see above), all corners.
+  if (!isParallel && verticesInOrder.some((v) => typeOf(v) === "circle")) {
+    const baked = expandArcsInPath3d(
+      verticesInOrder,
+      adaptiveArcSamples,
+      closeLine
+    ).map((v) => ({ ...v, type: "square" }));
+    projected = project(baked);
+    if (!projected)
+      return abort(`projection on base map ${host.id} failed (baked arcs)`);
+    [minO, maxO] = offsetRange(projected);
+    isParallel = maxO - minO < OFFSET_EPS_M;
+  }
 
   let projectedPoints;
   let classificationFields;
@@ -99,6 +132,7 @@ export async function commitDrawnPolyline({
     projectedPoints = projected.map((p) => ({
       x: p.x,
       y: p.y,
+      type: p.type,
       offsetBottom: 0,
       offsetTop: 0,
     }));
@@ -112,6 +146,7 @@ export async function commitDrawnPolyline({
     projectedPoints = projected.map((p) => ({
       x: p.x,
       y: p.y,
+      type: p.type,
       offsetBottom: roundForDisplay(p.offset - minO),
       offsetTop: 0,
     }));

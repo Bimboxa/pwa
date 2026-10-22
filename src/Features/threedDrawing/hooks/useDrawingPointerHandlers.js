@@ -34,6 +34,7 @@ import {
   flushInProgressAsTrait3D,
   pushDrawingVertex,
   toggleFaceCutSide,
+  toggleLastDrawingVertexType,
 } from "Features/threedEditor/threedEditorSlice";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
@@ -88,6 +89,7 @@ import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
 import {
   isRevolutionAxisDraftFor3d,
   isTemplatelessDraft,
+  isPolylineClickDraftFor3d,
 } from "../utils/templateFaceDrawSelectors";
 
 // Pointer movement (in CSS px) above which a press-release pair is treated as
@@ -310,6 +312,15 @@ export default function useDrawingPointerHandlers() {
       return (
         behavior === "CIRCLE_RADIUS" &&
         isRevolutionAxisDraftFor3d(newAnnotationRef.current, enabledDrawingMode)
+      );
+    }
+
+    // Line drawn click by click (template or "Dessin"): T toggles its last
+    // point to an arc point (onArcToggleKey).
+    function isPolylineClickDraw() {
+      return isPolylineClickDraftFor3d(
+        newAnnotationRef.current,
+        enabledDrawingMode
       );
     }
 
@@ -1051,6 +1062,21 @@ export default function useDrawingPointerHandlers() {
       return false;
     }
 
+    // T (2D parity, InteractionLayer): the last placed point of a line
+    // becomes an arc point, or a corner again — DrawingOverlayThreed curves
+    // the band through it, the commit keeps it as a "circle" point. Not
+    // before the first point, nor for the disc / axis flows. True when
+    // consumed.
+    function onArcToggleKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (e.key !== "t" && e.key !== "T") return false;
+      if (!isPolylineClickDraw() || isDiscDraw() || isAxisDraw()) return false;
+      if (getLiveDrawing().inProgress.length === 0) return false;
+      e.preventDefault();
+      if (!e.repeat) dispatch(toggleLastDrawingVertexType());
+      return true;
+    }
+
     // Keys of « Répétition du motif »: "*" opens the count (only with a
     // pattern to repeat: one segment at least, not closed), then digits / Backspace / Escape act on it —
     // not on the typed length. Enter is left to the callers (validate, then
@@ -1525,6 +1551,7 @@ export default function useDrawingPointerHandlers() {
         return;
       if (onPatternRepeatKey(e)) return;
       if (onLengthKey(e)) return;
+      if (onArcToggleKey(e)) return;
       if (isCoteDraw()) {
         // Keys never commit a cote (its 2nd click does). Escape drops the
         // 1st point, then the typed length, then leaves the tool (template

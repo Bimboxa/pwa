@@ -4,6 +4,7 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { Group, Plane, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 
 import formatSegmentLengthDisplay from "Features/annotations/utils/formatSegmentLengthDisplay";
+import { typeOf } from "Features/geometry/utils/arcSampling";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import SEGMENT_DRAWING_MODES from "Features/mapEditor/constants/segmentDrawingModes";
@@ -48,6 +49,7 @@ import buildUserAxesPlaneHit, {
 } from "../utils/buildUserAxesPlaneHit";
 import { getBaseMapWorldNormal } from "../utils/classifyFaceVsBaseMap";
 import computeDraftPlane from "../utils/computeDraftPlane";
+import expandArcsInPath3d from "../utils/expandArcsInPath3d";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import computeSnapTarget from "../utils/computeSnapTarget";
@@ -86,6 +88,12 @@ const COLOR_AXIS = {
 const COLOR_NATURAL = 0x78909c;
 const COLOR_FREE = 0x000000;
 const COLOR_IN_PROGRESS = 0xff2d8d;
+// Arc point toggled with T (2D parity: the orange arc preview).
+const COLOR_ARC_POINT = 0xff9800;
+const MARKER_ARC_SIZE_PX = 11;
+// Samples per half-arc of the curved in-progress line / rubber band
+// (DrawingLayer ARC_SAMPLES).
+const ARC_PREVIEW_SAMPLES = 16;
 const COLOR_TRAIT = 0x8a8a8a;
 const COLOR_CROSS = "#90a4ae";
 // Marker of an aligned vertex — the active marker of the 2D AxisSnapLayer.
@@ -197,10 +205,15 @@ export default function DrawingOverlayThreed() {
   // Yaw of the gizmo frame: the axis locks, the natural / locked planes'
   // axes and the helpers' colours follow the user axes.
   const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
-  // A polygon (template or "Dessin") locks its plane after 3 points.
-  const isPolygonDraft = useSelector(
-    (s) => s.annotations.newAnnotation?.type === "POLYGON"
-  );
+  // A polygon (template or "Dessin") locks its plane after 3 points — a
+  // line too while « Points coplanaires » (drawing helper switch) is on.
+  const isPlaneLockedDraft = useSelector((s) => {
+    const type = s.annotations.newAnnotation?.type;
+    return (
+      type === "POLYGON" ||
+      (type === "POLYLINE" && Boolean(s.mapEditor.coplanarPoints3d))
+    );
+  });
   // A disc (centre / radius tool), or a revolution axis drawn from 3D (same
   // two clicks, template-less): the rim point stays on the centre's plane
   // and the cursor previews the circle.
@@ -252,7 +265,8 @@ export default function DrawingOverlayThreed() {
   // Lines (a POLYLINE template, or the "Dessin" tool on its line type) and
   // cotes can land their points on the scan base maps: straight segments
   // between the picked points. Not the polygons — a face needs coplanar
-  // points.
+  // points (nor a line while « Points coplanaires » is on: the locked plane
+  // rejects an off-plane scan snap).
   const canDrawOnScan = useSelector(
     (s) => s.annotations.newAnnotation?.type === "POLYLINE" || isCoteDraw
   );
@@ -366,23 +380,46 @@ export default function DrawingOverlayThreed() {
       disposeObject(inProgressMarkersRef.current);
       inProgressMarkersRef.current = null;
     }
-    const markers = buildDrawingVertexMarkers(
-      inProgressPolyline,
-      COLOR_IN_PROGRESS
-    );
-    if (markers) {
-      markers.renderOrder = 1001;
+    // Corner points, and (orange, bigger) the arc points toggled with T.
+    const markers = new Group();
+    for (const [points, color, options] of [
+      [
+        inProgressPolyline.filter((p) => typeOf(p) !== "circle"),
+        COLOR_IN_PROGRESS,
+        undefined,
+      ],
+      [
+        inProgressPolyline.filter((p) => typeOf(p) === "circle"),
+        COLOR_ARC_POINT,
+        { size: MARKER_ARC_SIZE_PX },
+      ],
+    ]) {
+      const set = buildDrawingVertexMarkers(points, color, options);
+      if (!set) continue;
+      set.renderOrder = 1001;
+      markers.add(set);
+    }
+    if (markers.children.length > 0) {
       root.add(markers);
       inProgressMarkersRef.current = markers;
     }
-    if (inProgressPolyline.length >= 2) {
+    // The placed segments, arcs curved (2D parity, DrawingLayer staticPath);
+    // a trailing arc point still open is drawn by the rubber band.
+    const staticPoints =
+      typeOf(inProgressPolyline[inProgressPolyline.length - 1]) === "circle"
+        ? inProgressPolyline.slice(0, -1)
+        : inProgressPolyline;
+    if (staticPoints.length >= 2) {
       const editor = getActiveThreedEditor();
       const mat = makeLineMaterial({
         color: COLOR_IN_PROGRESS,
         linewidth: LINEWIDTH_IN_PROGRESS,
         resolution: getCanvasResolution(editor),
       });
-      const line = buildConnectedPolyline(inProgressPolyline, mat);
+      const line = buildConnectedPolyline(
+        expandArcsInPath3d(staticPoints, ARC_PREVIEW_SAMPLES),
+        mat
+      );
       if (line) {
         line.renderOrder = 1000;
         root.add(line);
@@ -427,7 +464,10 @@ export default function DrawingOverlayThreed() {
         resolution: getCanvasResolution(editor),
       });
       mat.opacity = PATTERN_REPEAT_OPACITY;
-      const line = buildConnectedPolyline(ghostPoints, mat);
+      const line = buildConnectedPolyline(
+        expandArcsInPath3d(ghostPoints, ARC_PREVIEW_SAMPLES),
+        mat
+      );
       if (line) {
         line.renderOrder = 1000;
         ghost.add(line);
@@ -525,9 +565,9 @@ export default function DrawingOverlayThreed() {
       return supportNormalCache.get(vertex.baseMapId);
     }
 
-    // A polygon with 3+ points: its plane, the next points are locked on it
-    // (a face is planar). Not for "Coupe face" (bound to its face already)
-    // nor for rectangles.
+    // A polygon with 3+ points (or a line with « Points coplanaires » on):
+    // its plane, the next points are locked on it (a face is planar). Not
+    // for "Coupe face" (bound to its face already) nor for rectangles.
     const discSupportNormal = discCenter ? getSupportNormal(discCenter) : null;
     const draftPlane = discCenter
       ? discSupportNormal
@@ -536,7 +576,7 @@ export default function DrawingOverlayThreed() {
             normal: discSupportNormal,
           }
         : null
-      : isPolygonDraft && !isFaceCut && behavior !== "RECTANGLE"
+      : isPlaneLockedDraft && !isFaceCut && behavior !== "RECTANGLE"
         ? computeDraftPlane(inProgressPolyline)
         : null;
     const draftThreePlane = draftPlane
@@ -942,10 +982,26 @@ export default function DrawingOverlayThreed() {
         dashSize: getDashSize(camera.position.distanceTo(snapPos)),
         resolution: getCanvasResolution(editor),
       });
-      const line = buildSegments(
-        [{ a: { x: last.x, y: last.y, z: last.z }, b: snapPos }],
-        mat
-      );
+      // Last point toggled to an arc point (T): the band is the arc through
+      // the previous point, it and the cursor (2D parity, DrawingLayer).
+      const prev = inProgressPolyline[inProgressPolyline.length - 2];
+      const line =
+        prev && typeOf(last) === "circle"
+          ? buildConnectedPolyline(
+              expandArcsInPath3d(
+                [
+                  { x: prev.x, y: prev.y, z: prev.z, type: prev.type },
+                  { x: last.x, y: last.y, z: last.z, type: last.type },
+                  { x: snapPos.x, y: snapPos.y, z: snapPos.z },
+                ],
+                ARC_PREVIEW_SAMPLES
+              ),
+              mat
+            )
+          : buildSegments(
+              [{ a: { x: last.x, y: last.y, z: last.z }, b: snapPos }],
+              mat
+            );
       if (line) {
         line.renderOrder = 1002;
         root.add(line);
@@ -1358,7 +1414,7 @@ export default function DrawingOverlayThreed() {
     dispatch,
     meterByPx,
     yawDeg,
-    isPolygonDraft,
+    isPlaneLockedDraft,
     isCenterRadiusDraft,
     isAxisDraft,
   ]);
