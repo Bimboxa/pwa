@@ -38,6 +38,8 @@ import IconFaceCutPolyline from "Features/icons/IconFaceCutPolyline";
 import IconFaceCutRectangle from "Features/icons/IconFaceCutRectangle";
 import IconFaceCutHorizontal from "Features/icons/IconFaceCutHorizontal";
 import IconFaceCutVertical from "Features/icons/IconFaceCutVertical";
+import IconSurfaceCutSegment from "Features/icons/IconSurfaceCutSegment";
+import IconSurfaceCutPolyline from "Features/icons/IconSurfaceCutPolyline";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 import RotateRightIcon from "@mui/icons-material/RotateRight";
 
@@ -361,7 +363,7 @@ const DRAWING_TOOLS = [
   {
     key: "SURFACE_CUT_SEGMENT",
     label: "Segment (2 clics)",
-    Icon: IconPolylineSegment,
+    Icon: IconSurfaceCutSegment,
     annotationType: "SURFACE_CUT",
     behavior: "SEGMENT",
     drawingMode: "POLYLINE_SEGMENT",
@@ -369,7 +371,7 @@ const DRAWING_TOOLS = [
   {
     key: "SURFACE_CUT_POLYLINE",
     label: "Polyligne clic",
-    Icon: IconPolylineClick,
+    Icon: IconSurfaceCutPolyline,
     annotationType: "SURFACE_CUT",
     behavior: "CLICK",
     drawingMode: "POLYLINE_CLICK",
