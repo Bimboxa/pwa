@@ -121,7 +121,7 @@ import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverl
 import FaceCutAxisOverlayThreed from "Features/threedFaceCut/components/FaceCutAxisOverlayThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
-import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
+import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 import {
   bumpSnapIndexEpoch,
   clearSubSelection,
@@ -129,14 +129,12 @@ import {
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
 import CoteToolbarThreed from "Features/threedDimensions/components/CoteToolbarThreed";
-import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
 import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
 import ThreedRulerAnnotations from "Features/threedDimensions/components/ThreedRulerAnnotations";
 import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/ThreedAnnotationLabels";
 import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
 import ThreedRevolutionAxisHandles from "Features/revolutionAxes/components/ThreedRevolutionAxisHandles";
 import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisHandleDragHandlers";
-import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
@@ -406,28 +404,23 @@ export default function MainThreedEditor() {
     drawingActiveRef.current = drawingActive;
   }, [drawingActive]);
 
-  // Same pattern for the dimension ("cote") tool — useDimensionPointerHandlers
-  // owns the pointer while active, so the selection click path short-circuits.
-  const dimensionActive = useSelector(
-    (s) => s.threedEditor.dimensionMode.active
-  );
-  const dimensionActiveRef = useRef(dimensionActive);
-  useEffect(() => {
-    dimensionActiveRef.current = dimensionActive;
-  }, [dimensionActive]);
+  // Cote armed (COTE template row in PopperMapListings, or the "Dessin" tool
+  // on its cote type): it rides the 3D drawing mode (useDrawingPointerHandlers)
+  // and swaps the bottom toolbar for CoteToolbarThreed.
+  const coteDrawActive = useSelector(selectIsTemplateCoteDrawActive);
 
   // Maillage module: meshing is forced on. Arming a cote (COTE template row in
-  // PopperMapListings) switches meshing off via the slice's mutual exclusion,
-  // so meshing is re-armed as soon as the cote mode ends — otherwise the
-  // meshing tools would stay inert until the user leaves and re-enters the
-  // module.
+  // PopperMapListings) switches meshing off via the slice's mutual exclusion
+  // (the cote rides the drawing mode), so meshing is re-armed as soon as the
+  // drawing mode ends — otherwise the meshing tools would stay inert until
+  // the user leaves and re-enters the module.
   useEffect(() => {
     if (!isMeshesViewer) {
       dispatch(setMeshingModeActive(false));
       return;
     }
-    if (!dimensionActive) dispatch(setMeshingModeActive(true));
-  }, [isMeshesViewer, dimensionActive, dispatch]);
+    if (!drawingActive) dispatch(setMeshingModeActive(true));
+  }, [isMeshesViewer, drawingActive, dispatch]);
 
   // Same pattern for meshing mode — useMeshingPointerHandlers owns the
   // pointer (hover stipple, maille creation, cut tools) while active.
@@ -594,7 +587,6 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
-  useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
   useVertexOffsetPointerHandlers();
@@ -606,7 +598,6 @@ export default function MainThreedEditor() {
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
-  useTemplateCoteDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useAnnotationLabelDragHandlers({ rendererIsReady });
@@ -1008,8 +999,6 @@ export default function MainThreedEditor() {
       if (editorModeRef.current === "BASEMAP_POSITION") return;
       // Drawing mode owns the pointer; useDrawingPointerHandlers handles clicks.
       if (drawingActiveRef.current) return;
-      // Dimension mode owns the pointer; useDimensionPointerHandlers handles it.
-      if (dimensionActiveRef.current) return;
       // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
       if (meshingActiveRef.current) return;
       // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
@@ -1589,7 +1578,6 @@ export default function MainThreedEditor() {
       // Same modes as handleClick: they own the pointer.
       if (editorModeRef.current === "BASEMAP_POSITION") return;
       if (drawingActiveRef.current) return;
-      if (dimensionActiveRef.current) return;
       if (meshingActiveRef.current) return;
       if (extrudeActiveRef.current) return;
       if (isolateFaceActiveRef.current) return;
@@ -2210,11 +2198,10 @@ export default function MainThreedEditor() {
 
     // Scene hits. Hatched fills: the hover goes through the gaps between the
     // lines, but only when nothing is being drawn / picked (this hover keeps
-    // running while a drawing or a dimension is in progress, where the full
-    // surface is the support).
+    // running while a drawing is in progress, where the full surface is the
+    // support).
     const isPlainHover =
       !drawingActiveRef.current &&
-      !dimensionActiveRef.current &&
       !subtractSourceAnnotationIdRef.current &&
       !subtractTargetAnnotationIdRef.current;
     const intersects = raycastScene(event, rect, { hatchGaps: isPlainHover });
@@ -2949,7 +2936,7 @@ export default function MainThreedEditor() {
           <ClippingToolbarThreed />
         ) : dessinToolHelperShown ? null : extrudeActive ? (
           <ExtrudeToolbarThreed />
-        ) : dimensionActive ? (
+        ) : coteDrawActive ? (
           <CoteToolbarThreed />
         ) : moveBaseMapActive ? (
           <MoveBaseMapToolbarThreed />
@@ -3030,7 +3017,6 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && (
         <ThreedRevolutionAxisHandles annotations={annotations} />
       )}
-      {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && <RotateBaseMapOverlayThreed />}
       {isThreedViewer && <AxesPlacementOverlayThreed />}

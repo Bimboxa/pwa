@@ -31,7 +31,7 @@ import {
   clearMoveGrab,
 } from "../services/moveBaseMapSessionStore";
 
-// Mirrors useDimensionPointerHandlers.
+// Mirrors useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 
 // Restores the carried group to its grab-time position (Escape / mode exit).

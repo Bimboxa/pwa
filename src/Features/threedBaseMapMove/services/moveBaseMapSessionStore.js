@@ -1,7 +1,7 @@
 // Module-level session state of the "Déplacer" (move base map) 3D tool,
 // shared between the overlay (writes the live snap on pointermove) and the
-// pointer handlers (read it on click) — same pattern as lastSnapStore /
-// lastDimensionSnapStore.
+// pointer handlers (read it on click) — same pattern as lastSnapStore
+// (threedDrawing).
 
 // { position: Vector3, kind: "VERTEX" | "EDGE" | "PLANE" | "AXIS" | "FREE",
 //   meshKey?, baseMapId?, axisA?, axisB?, axis? ("X" | "Y" | "Z" of an AXIS

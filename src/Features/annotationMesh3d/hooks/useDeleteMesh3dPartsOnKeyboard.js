@@ -68,7 +68,6 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
         const t = state.threedEditor;
         if (
           t.drawingMode.active ||
-          t.dimensionMode.active ||
           t.meshingMode.active ||
           t.moveBaseMapMode.active ||
           t.rotateBaseMapMode.active ||

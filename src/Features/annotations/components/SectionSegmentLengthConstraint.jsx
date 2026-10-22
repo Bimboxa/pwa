@@ -31,6 +31,10 @@ export default function SectionSegmentLengthConstraint() {
   const meterByPx = baseMap?.meterByPx;
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
   const constraintBuffer = useSelector((s) => s.mapEditor.constraintBuffer);
+  // A cote is one segment: no ";" series.
+  const isCote = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK"
+  );
 
   // state
 
@@ -97,7 +101,7 @@ export default function SectionSegmentLengthConstraint() {
         </Typography>
       )}
       <ConstraintShortcutRow label={constrainS} keys={["0-9"]} />
-      <ConstraintShortcutRow label={chainS} keys={[";"]} />
+      {!isCote && <ConstraintShortcutRow label={chainS} keys={[";"]} />}
       <ConstraintShortcutRow label={eraseS} keys={["⌫"]} />
     </Box>
   );

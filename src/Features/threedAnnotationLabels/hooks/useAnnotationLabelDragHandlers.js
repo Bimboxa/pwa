@@ -20,17 +20,13 @@ import {
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
 import {
+  buildAxisLockLine,
+  removeAxisLockLine,
+} from "Features/threedDrawing/utils/axisLockLine";
+import {
   closestPointOnAxis,
   ndcDistance,
 } from "Features/threedDrawing/utils/computeSnapTarget";
-import {
-  buildSegments,
-  disposeObject,
-  getCanvasResolution,
-  getDashSize,
-  makeLineMaterial,
-} from "Features/threedDrawing/utils/drawingOverlayLines";
-import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { clearSubSelection } from "Features/threedEditor/threedEditorSlice";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
@@ -59,11 +55,6 @@ const MIN_RAY_PLANE_DOT = 0.05;
 // through the grab point — the drawing's axis lock (computeSnapTarget).
 const AXIS_THRESHOLD_PX = 20;
 
-// Axis line drawn while the move is locked on an axis: half-length (m, at
-// least) and screen thickness.
-const AXIS_LINE_MIN_EXTENT_M = 5;
-const AXIS_LINE_WIDTH_PX = 1.5;
-
 const round2 = (v) => Math.round(v * 100) / 100;
 
 /**
@@ -87,16 +78,12 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
   // Modes that own the pointer (same list as useMesh3dLabelDragHandlers).
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
   const meshingTool = useSelector((s) => s.threedEditor.meshingMode.tool);
-  const dimensionActive = useSelector(
-    (s) => s.threedEditor.dimensionMode.active
-  );
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const walkActive = useSelector((s) => s.threedEditor.walkMode?.active);
   const extrudeActive = useSelector((s) => s.threedEditor.extrudeMode?.active);
 
   const blockedRef = useRef(false);
   blockedRef.current = Boolean(
-    dimensionActive ||
     drawingActive ||
     walkActive ||
     extrudeActive ||
@@ -172,8 +159,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
     function removeAxisLine(drag) {
       if (!drag?.axisLine) return;
-      drag.axisLine.parent?.remove(drag.axisLine);
-      disposeObject(drag.axisLine);
+      removeAxisLockLine(drag.axisLine);
       drag.axisLine = null;
       drag.axis = null;
     }
@@ -189,26 +175,14 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       removeAxisLine(drag);
       const dir = drag.axes.find((a) => a.key === axis)?.dir;
       if (!dir) return;
-      const distance = camera.position.distanceTo(drag.startWorld);
-      const extent = Math.max(AXIS_LINE_MIN_EXTENT_M, distance * 2);
-      const mat = makeLineMaterial({
-        color: AXIS_COLORS[axis],
-        linewidth: AXIS_LINE_WIDTH_PX,
-        dashed: true,
-        dashSize: getDashSize(distance),
-        resolution: getCanvasResolution(editor),
+      const line = buildAxisLockLine({
+        editor,
+        camera,
+        origin: drag.startWorld,
+        dir,
+        axis,
       });
-      const line = buildSegments(
-        [
-          {
-            a: drag.startWorld.clone().addScaledVector(dir, -extent),
-            b: drag.startWorld.clone().addScaledVector(dir, extent),
-          },
-        ],
-        mat
-      );
       if (!line) return;
-      line.renderOrder = 1003;
       sceneManager.scene.add(line);
       drag.axisLine = line;
       drag.axis = axis;

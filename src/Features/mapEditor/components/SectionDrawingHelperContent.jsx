@@ -112,8 +112,12 @@ const FACE_CUT_MESSAGES = {
 const FACE_CUT_LOCKED_MESSAGE =
   "Face sélectionnée : la coupe se fera sur cette face";
 
-// Shortcuts of the 3D two-click cote (useDimensionPointerHandlers).
-const THREED_COTE_SHORTCUTS = [{ key: "Esc", label: "Quitter le mode dessin" }];
+// Shortcuts of the 3D two-click cote (useDrawingPointerHandlers): the 2nd
+// click commits, the typed length is shown by the « Contraintes » card.
+const THREED_COTE_SHORTCUTS = [
+  { key: "0-9", label: "Longueur de la cote" },
+  { key: "Esc", label: "Annuler le point / Quitter" },
+];
 
 // Shortcuts of the « Pinceau » (useMeshBrushPointerHandlers).
 const THREED_MESH_BRUSH_SHORTCUTS = [
@@ -305,7 +309,7 @@ export default function SectionDrawingHelperContent() {
   const threedMessage = isObject3DPlacement
     ? "Cliquez sur le plan pour poser l'objet 3D"
     : isThreedCoteDraw
-      ? "Cliquez deux points pour poser la cote"
+      ? "Cliquez le 1ᵉʳ point de la cote, puis le 2ᵉ (plan, face, sommet, arête ou axe)"
       : isMeshBrush
         ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
           ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"

@@ -19,7 +19,7 @@ import formatCoteLength from "Features/threedDimensions/utils/formatCoteLength";
 // every object has a neutralised raycast, so the aim ray (pickWorldHitAtNdc,
 // meshes only anyway) and the annotation click pre-pass ignore them.
 //
-// Same visual language as the COTE draft (DimensionDraftOverlayThreed) and
+// Same visual language as the 3D drawing (DrawingOverlayThreed) and
 // the persisted cotes (ThreedCoteAnnotations), in a distinct colour so a
 // measure never reads as a saved cote.
 

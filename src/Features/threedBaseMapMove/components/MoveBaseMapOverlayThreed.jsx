@@ -33,7 +33,7 @@ const SNAP_CIRCLE_STROKE_PX = 2;
 // snap circle over the canvas (vertex snap on every snappable object except
 // the carried base map), and — while a base map is grabbed — the live move of
 // its group so the image and all its annotations follow the cursor. Mirrors
-// DimensionDraftOverlayThreed.
+// DrawingOverlayThreed.
 // Shift while carrying: ortho lock — the destination is locked on the user
 // axis (X / Y / Z of the gizmo frame) through the grabbed point closest to
 // the cursor, the snaps are ignored, the axis line is drawn in its colour

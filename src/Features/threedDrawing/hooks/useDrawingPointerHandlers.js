@@ -73,6 +73,7 @@ import {
 import commitDrawnPolylineService, {
   commitDrawnPolyline,
 } from "../services/commitDrawnPolylineService";
+import commitDrawnCoteService from "../services/commitDrawnCoteService";
 import commitDrawnDiscService, {
   DISC_COMMIT_NOT_PARALLEL,
   DISC_COMMIT_NO_SCALE,
@@ -145,9 +146,17 @@ const DOUBLE_CLICK_MS = 500;
 // commitDrawnRevolutionAxisService, then the tool disarms (one-shot, like
 // the 2D tool). Enter is ignored, Escape drops the centre / exits the tool.
 //
-// Template-less and face-cut clicks and keys run one at a time, in order (a
-// commit awaits the db): each step reads the live drawing state from the
-// store.
+// Cote (COTE draft, COTE_TWO_CLICK tool — a template row or the "Dessin"
+// tool on its cote type): two clicks anywhere the drawing's snap cascade
+// lands (a plan, a face, a vertex, an edge, an axis lock, the natural plane,
+// free), the 2nd one committing the COTE annotation
+// (commitDrawnCoteService) — the typed length constrains it like a segment.
+// The tool stays armed for the next cote; Enter is ignored, Escape drops the
+// 1st point / exits the tool.
+//
+// Template-less, face-cut and cote clicks and keys run one at a time, in
+// order (a commit awaits the db): each step reads the live drawing state
+// from the store.
 export default function useDrawingPointerHandlers() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -286,6 +295,16 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
+    // COTE draft (template or "Dessin" on its cote type): its own 2-click
+    // flow on the generic snap cascade. Checked before the template-less
+    // branch — a template-less cote must not commit as a polyline.
+    function isCoteDraw() {
+      return (
+        enabledDrawingMode === "COTE_TWO_CLICK" &&
+        newAnnotationRef.current?.type === "COTE"
+      );
+    }
+
     // REVOLUTION_AXIS draft (A): the disc's 2-click flow, no template.
     function isAxisDraw() {
       return (
@@ -307,6 +326,25 @@ export default function useDrawingPointerHandlers() {
         draft: newAnnotationRef.current,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
+      });
+    }
+
+    // COTE from its two endpoints (world): in-plane cotes share the 2D
+    // encoding, lifted / vertical ones carry offsets (commitDrawnCoteService).
+    async function commitCote(a, b) {
+      return await commitDrawnCoteService({
+        a,
+        b,
+        baseMaps: baseMaps || [],
+        projectId,
+        listingId,
+        scopeId,
+        templateProps: newAnnotationRef.current,
+        layerId: activeLayerIdRef.current ?? null,
+        createAnnotationFn: createAnnotation,
+        // Endpoints snapped on annotations / axis locks carry no base map:
+        // the cote then belongs to the plan selected in 2D.
+        preferredBaseMapId: mainBaseMapId ?? null,
       });
     }
 
@@ -395,7 +433,8 @@ export default function useDrawingPointerHandlers() {
         behavior !== "RECTANGLE" &&
         !isFaceCutDraw() &&
         !isDiscDraw() &&
-        !isAxisDraw()
+        !isAxisDraw() &&
+        !isCoteDraw()
       );
     }
 
@@ -596,6 +635,43 @@ export default function useDrawingPointerHandlers() {
           null;
       }
       return toDrawingVertex(snap, baseMapId ? { baseMapId } : {});
+    }
+
+    // Cote: 1st click = the first endpoint (as snapped — a plane snap
+    // carries its base map, a vertex / axis one none), 2nd click = the
+    // other endpoint → commit, the tool staying armed for the next cote.
+    async function onCoteClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      if (inProgress.length === 0) {
+        dispatch(pushDrawingVertex(toDrawingVertex(snap)));
+        return;
+      }
+      const a = inProgress[0];
+      const b = {
+        x: snap.position.x,
+        y: snap.position.y,
+        z: snap.position.z,
+        ...(snap.baseMapId ? { baseMapId: snap.baseMapId } : {}),
+      };
+      if (isSamePoint(a, b)) return; // stay armed
+      // The typed length was applied to this point (preview snap): consumed.
+      releaseLengthConstraint();
+      try {
+        const created = await commitCote(a, b);
+        if (created) {
+          console.log(
+            `[threedDrawing] cote annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
+          );
+          warnIfOffMainBaseMap(created);
+          finishCommit();
+        } else {
+          console.warn(
+            "[threedDrawing] cote commit returned null (see abort reason above)"
+          );
+        }
+      } catch (err) {
+        console.error("[threedDrawing] cote commit failed", err);
+      }
     }
 
     async function onTemplatelessClick(snap) {
@@ -1193,6 +1269,10 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      if (isCoteDraw()) {
+        await enqueueClick(onCoteClick, snap, clickTime);
+        return;
+      }
       if (isFaceCutDraw()) {
         await enqueueClick(onFaceCutClick, snap, clickTime);
         return;
@@ -1435,6 +1515,24 @@ export default function useDrawingPointerHandlers() {
         return;
       if (onPatternRepeatKey(e)) return;
       if (onLengthKey(e)) return;
+      if (isCoteDraw()) {
+        // Keys never commit a cote (its 2nd click does). Escape drops the
+        // 1st point, then the typed length, then leaves the tool (template
+        // or template-less: clearing the 2D drawing state makes the bridge
+        // close the 3D mode).
+        if (e.key !== "Escape") return;
+        if (inProgressPolyline.length > 0) {
+          dispatch(cancelInProgressPolyline());
+          return;
+        }
+        if (store.getState().mapEditor.constraintBuffer) {
+          dispatch(clearConstraintBuffer());
+          return;
+        }
+        dispatch(setEnabledDrawingMode(null));
+        dispatch(setNewAnnotation({}));
+        return;
+      }
       if (isTemplatelessDraw()) {
         if (e.key === "Enter") {
           if (behavior === "RECTANGLE") return;

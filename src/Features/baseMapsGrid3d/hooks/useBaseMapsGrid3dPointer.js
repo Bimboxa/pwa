@@ -28,7 +28,7 @@ import {
   isBaseMapImageOnIn3d,
 } from "../utils/baseMapImageEyeIn3d";
 
-// Mirrors useDimensionPointerHandlers: past this distance a press-release is
+// Mirrors useDrawingPointerHandlers: past this distance a press-release is
 // a camera drag, not a click.
 const DRAG_THRESHOLD_PX = 4;
 const TOOLTIP_OFFSET_PX = 15;

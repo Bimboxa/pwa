@@ -241,17 +241,9 @@ const threedEditorInitialState = {
   // contour. The ink boundary lines are always shown on partial revolutions;
   // only the fill is optional. Display-only, session-only.
   revolutionSectionFillIn3d: false,
-  // Dimension ("cote") mode: click two mesh-snapped points to create a COTE
-  // annotation (template-driven via useTemplateCoteDrawBridge, committed by
-  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`.
-  dimensionMode: {
-    active: false,
-    // First clicked endpoint, world space, while the second is pending.
-    startPoint: null, // {x, y, z} | null
-  },
   // Meshing ("maillage") mode: create mailles from hovered faces and cut
   // them with vertical / horizontal / free lines. Mutually exclusive with
-  // `drawingMode.active` and `dimensionMode.active`.
+  // `drawingMode.active`.
   // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
   // only basemaps + mailles visible (and lasso-selectable).
   hideAnnotationsIn3d: false,
@@ -615,13 +607,11 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.snapIndexEpoch = 0;
         state.drawingMode.faceCutSide = "LEFT";
       } else {
-        // Mutually exclusive with dimension mode.
+        // Mutually exclusive with the other 3D modes.
         closeBaseMapsGrid(state);
         closeIsolateFaceMode(state);
         closeMergeFacesMode(state);
         closeVertexOffsetMode(state);
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -740,45 +730,6 @@ export const threedEditorSlice = createSlice({
         closeBaseMapsGrid(state);
       }
     },
-    setDimensionModeActive: (state, action) => {
-      state.dimensionMode.active = action.payload;
-      if (!action.payload) {
-        state.dimensionMode.startPoint = null;
-      } else {
-        // Mutually exclusive with drawing and meshing modes.
-        closeBaseMapsGrid(state);
-        closeIsolateFaceMode(state);
-        closeMergeFacesMode(state);
-        closeVertexOffsetMode(state);
-        state.drawingMode.active = false;
-        state.drawingMode.inProgressPolyline = [];
-        state.drawingMode.trait3DSegments = [];
-        state.drawingMode.axisLock = null;
-        state.meshingMode.active = false;
-        state.meshingMode.tool = "SELECT";
-        state.walkMode.active = false;
-        state.extrudeMode.active = false;
-        state.extrudeMode.targetAnnotationId = null;
-        state.moveBaseMapMode.active = false;
-        state.moveBaseMapMode.carriedBaseMapId = null;
-        state.rotateBaseMapMode.active = false;
-        state.axesPlacementMode.active = false;
-        state.axesPlacementMode.originSet = false;
-        state.rotateBaseMapMode.carriedBaseMapId = null;
-        state.moveAnnotationMode.active = false;
-        state.moveAnnotationMode.carriedAnnotationIds = [];
-        state.rotateAnnotationMode.active = false;
-        state.rotateAnnotationMode.carriedAnnotationIds = [];
-        state.rotateAnnotationMode.referenceSet = false;
-        state.rotateAnnotationMode.angleBuffer = "";
-      }
-    },
-    setDimensionStartPoint: (state, action) => {
-      state.dimensionMode.startPoint = action.payload;
-    },
-    clearDimensionDraft: (state) => {
-      state.dimensionMode.startPoint = null;
-    },
     setMeshingModeActive: (state, action) => {
       state.meshingMode.active = action.payload;
       if (!action.payload) {
@@ -794,8 +745,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
@@ -858,8 +807,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -920,8 +867,6 @@ export const threedEditorSlice = createSlice({
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.trait3DSegments = [];
       state.drawingMode.axisLock = null;
-      state.dimensionMode.active = false;
-      state.dimensionMode.startPoint = null;
       state.meshingMode.active = false;
       state.meshingMode.tool = "SELECT";
       state.walkMode.active = false;
@@ -978,8 +923,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.extrudeMode.active = false;
@@ -1013,8 +956,6 @@ export const threedEditorSlice = createSlice({
       state.drawingMode.inProgressPolyline = [];
       state.drawingMode.trait3DSegments = [];
       state.drawingMode.axisLock = null;
-      state.dimensionMode.active = false;
-      state.dimensionMode.startPoint = null;
       state.meshingMode.active = false;
       state.meshingMode.tool = "SELECT";
       state.walkMode.active = false;
@@ -1049,8 +990,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1086,8 +1025,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1130,8 +1067,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1169,8 +1104,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1200,8 +1133,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1239,8 +1170,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1294,8 +1223,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -1471,9 +1398,6 @@ export const {
   setClippingPlaneEnabled,
   setClippingPlaneEditing,
   toggleClippingPlaneEditing,
-  setDimensionModeActive,
-  setDimensionStartPoint,
-  clearDimensionDraft,
   setMeshingModeActive,
   setMeshingTool,
   setMeshingOffset,

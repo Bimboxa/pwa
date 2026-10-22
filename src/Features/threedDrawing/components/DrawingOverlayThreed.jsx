@@ -18,7 +18,9 @@ import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRe
 import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLengthBadge";
 import { setRectSideAxes } from "Features/mapEditor/mapEditorSlice";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
+import { getSectionContourAdjacency } from "Features/threedDimensions/services/sectionContourSnapStore";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
+import findNearestVertexSnapInAdjacency from "Features/threedDimensions/utils/findNearestVertexSnapInAdjacency";
 import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
@@ -54,6 +56,7 @@ import pickNaturalPlane from "../utils/pickNaturalPlane";
 import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
+import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
 import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
@@ -216,6 +219,9 @@ export default function DrawingOverlayThreed() {
       isTemplatelessDraft(s.annotations.newAnnotation) ||
       isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
   );
+  // Cote (COTE template row, or "Dessin" on its cote type): both endpoints
+  // land on faces too, and on the cut contour of the clipping plane first.
+  const isCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMap = useMainBaseMap();
@@ -243,11 +249,12 @@ export default function DrawingOverlayThreed() {
   );
 
   const { findNearestSnap } = useVertexSnap({ active });
-  // Lines (a POLYLINE template, or the "Dessin" tool on its line type) can
-  // land their points on the scan base maps: straight segments between the
-  // picked points. Not the polygons — a face needs coplanar points.
+  // Lines (a POLYLINE template, or the "Dessin" tool on its line type) and
+  // cotes can land their points on the scan base maps: straight segments
+  // between the picked points. Not the polygons — a face needs coplanar
+  // points.
   const canDrawOnScan = useSelector(
-    (s) => s.annotations.newAnnotation?.type === "POLYLINE"
+    (s) => s.annotations.newAnnotation?.type === "POLYLINE" || isCoteDraw
   );
   usePrepareScene3dPicking(active && canDrawOnScan);
 
@@ -764,10 +771,11 @@ export default function DrawingOverlayThreed() {
       }
       const surface = intersectSurfaces(mNdc, {
         // The first point of any drawing lands on a plan or on a visible
-        // face; the next ones on faces too for the template-less drawing.
-        // Not the axis centre: a plan only.
+        // face; the next ones on faces too for the template-less drawing
+        // and the cote. Not the axis centre: a plan only.
         withFaces:
-          !isAxisDraft && (isMeshDraw || inProgressPolyline.length === 0),
+          !isAxisDraft &&
+          (isMeshDraw || isCoteDraw || inProgressPolyline.length === 0),
         // Not for rectangles (they live on a plane).
         withScan: canDrawOnScan && behavior !== "RECTANGLE",
       });
@@ -1217,9 +1225,29 @@ export default function DrawingOverlayThreed() {
           : isMeshDraw
             ? [...traitPoints, ...inProgressPolyline]
             : inProgressPolyline,
+        // A cote measures on the section first: the cut contour of the
+        // clipping plane (sectionContourSnapStore, empty without a cut)
+        // takes priority over the full mesh — vertices and edges.
         findNearestVertex: (mNdc, cam, sz, options) =>
-          findNearestSnap(mNdc, cam, sz, undefined, options),
+          (isCoteDraw
+            ? findNearestVertexSnapInAdjacency(
+                getSectionContourAdjacency(),
+                mNdc,
+                cam,
+                sz
+              )
+            : null) ?? findNearestSnap(mNdc, cam, sz, undefined, options),
         findNearestEdge: (mNdc, cam, sz, options) =>
+          (isCoteDraw
+            ? findNearestEdgeSnap(
+                getSectionContourAdjacency(),
+                mNdc,
+                cam,
+                sz,
+                undefined,
+                options
+              )
+            : null) ??
           findNearestEdgeSnap(
             getMeshAdjacency(),
             mNdc,
@@ -1231,7 +1259,8 @@ export default function DrawingOverlayThreed() {
         intersectPlane,
         alignAdjacency: getMeshAdjacency(),
         attachFaceToPointSnaps:
-          (isMeshDraw || inProgressPolyline.length === 0) && !anchor,
+          (isMeshDraw || isCoteDraw || inProgressPolyline.length === 0) &&
+          !anchor,
         lockedPlane,
         axes: snapAxes,
         // Off every surface: the natural plane (not while bound to a plane
@@ -1322,6 +1351,7 @@ export default function DrawingOverlayThreed() {
     baseMaps,
     mainBaseMapId,
     isMeshDraw,
+    isCoteDraw,
     canDrawOnScan,
     rectDimsKey,
     store,

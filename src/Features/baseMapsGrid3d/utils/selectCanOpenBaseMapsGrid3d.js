@@ -19,7 +19,6 @@ export default function selectCanOpenBaseMapsGrid3d(s) {
   if (t.editorMode === "BASEMAP_POSITION") return false;
   return !(
     t.drawingMode.active ||
-    t.dimensionMode.active ||
     t.meshingMode.active ||
     t.extrudeMode.active ||
     t.walkMode.active ||

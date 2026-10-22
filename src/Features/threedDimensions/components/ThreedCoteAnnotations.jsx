@@ -13,6 +13,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import { setDimensionObjects } from "../services/dimensionObjectsStore";
 import computeCoteGeometry3d from "../utils/computeCoteGeometry3d";
+import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
 const LINEWIDTH = 2.5;
 const LINEWIDTH_SELECTED = 4;
@@ -109,11 +110,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
   // so the effect only re-runs when the selected cote actually changes.
   const coteIdsKey = useMemo(() => cotes.map((c) => c.id).join(","), [cotes]);
   const selectedCoteId = useSelector((s) => {
-    const items = selectSelectedItems(s);
-    if (items.length !== 1) return null;
-    const it = items[0];
-    if (it?.type !== "NODE" || it?.nodeType !== "ANNOTATION") return null;
-    return coteIdsKey.split(",").includes(it.nodeId) ? it.nodeId : null;
+    const id = getSingleSelectedAnnotationId(selectSelectedItems(s));
+    return id && coteIdsKey.split(",").includes(id) ? id : null;
   });
 
   // Re-run once loadAnnotations has ensured the basemap groups exist — on a
