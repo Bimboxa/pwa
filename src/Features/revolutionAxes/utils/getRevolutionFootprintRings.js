@@ -17,7 +17,10 @@
 //   - a SOLID revolution (shape3D.solid) ignores hidden segments: an open
 //     profile is closed toward the axis (disc [0, rMax]), a closed one
 //     revolves as a torus (annulus [rMin, rMax]);
-//   - a POINT revolves as a circle LINE (no area): one ring, `isLine`;
+//   - a POINT revolves as a circle LINE (no area): one ring, `isLine`; so
+//     does a profile of CONSTANT radius (a vertical segment → cylinder wall):
+//     its annulus would be two identical rings (zero area, nothing to click),
+//     one circle line per run instead;
 //   - the sector of a PARTIAL revolution lives on the AXIS
 //     (`partialRevolution`, `revolutionAngleStartDeg/EndDeg`, plan LOCAL
 //     metre frame: y up, CCW from start to end — same convention as
@@ -159,8 +162,10 @@ function getAxisSector(axis) {
  * @returns {{rings: Array<Array<{x:number,y:number}>>, isLine: boolean,
  *   closed: boolean} | null}
  *   rings[0] is the main ring, the others are holes / extra rings (even-odd
- *   fill). `isLine`: a POINT circle (stroke only). `closed`: false only for
- *   the open arc of a POINT under a partial revolution.
+ *   fill). `isLine`: stroke only — a POINT circle, or a profile whose every
+ *   run keeps a constant radius (one circle per run, largest first).
+ *   `closed`: false only for the open arc(s) of a line under a partial
+ *   revolution.
  */
 export default function getRevolutionFootprintRings({
   arc,
@@ -203,12 +208,18 @@ export default function getRevolutionFootprintRings({
     return pts;
   };
 
-  const isLine = arc.type === "POINT";
+  // Stroke-only footprint: a POINT, or a profile with no radial extent at
+  // all (e.g. a vertical segment drawn in 3D → cylinder wall). A zero-width
+  // annulus has no fillable area, so it could never be clicked as a POLYGON.
+  const isLine =
+    arc.type === "POINT" ||
+    intervals.every(([rIn, rOut]) => rOut - rIn <= EPS_R);
   if (isLine) {
-    const r = intervals[0][1];
+    // Largest radius first: it becomes the main ring, the others go to cuts.
+    const radii = intervals.map(([, rOut]) => rOut).sort((a, b) => b - a);
     return sector
-      ? { rings: [arcPts(r)], isLine, closed: false }
-      : { rings: [circle(r)], isLine, closed: true };
+      ? { rings: radii.map((r) => arcPts(r)), isLine, closed: false }
+      : { rings: radii.map((r) => circle(r)), isLine, closed: true };
   }
 
   const rings = [];

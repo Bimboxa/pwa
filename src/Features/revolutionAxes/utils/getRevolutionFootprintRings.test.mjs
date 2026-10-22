@@ -117,6 +117,98 @@ test("POINT: a circle line", () => {
   assert.ok(near(maxR(fp.rings[0]), 1.5 / M_PLAN));
 });
 
+test("vertical profile (cylinder wall): a single circle line", () => {
+  // Both vertices at the same radius: the annulus would be two identical
+  // rings (zero area) → stroke-only circle instead, like a POINT.
+  const arc = profile([150, 150]);
+  assert.deepEqual(getRevolutionRadiusIntervals(arc, M_ARC), [[0.5, 0.5]]);
+  const fp = getRevolutionFootprintRings({
+    arc,
+    axis,
+    arcMeterByPx: M_ARC,
+    planMeterByPx: M_PLAN,
+  });
+  assert.equal(fp.isLine, true);
+  assert.equal(fp.closed, true);
+  assert.equal(fp.rings.length, 1);
+  assert.equal(fp.rings[0].length, SEGMENTS_PER_TURN);
+  assert.ok(near(maxR(fp.rings[0]), 0.5 / M_PLAN));
+  assert.ok(near(minR(fp.rings[0]), 0.5 / M_PLAN));
+});
+
+test("vertical profile on the axis's own plan: radius = plan distance", () => {
+  // Drawn in 3D above the plan: two refs of the same point id, altitudes
+  // carried by offsetBottom (ignored here), centre resolved on the plan.
+  const arc = {
+    type: "POLYLINE",
+    shape3D: { key: "REVOLUTION", axisAnnotationId: "axis" },
+    revolutionAxisPoints: AXIS_PTS,
+    revolutionAxisOnPlan: true,
+    revolutionAxisCenter: { x: 500, y: 400 },
+    points: [
+      { x: 530, y: 440, offsetBottom: 0 },
+      { x: 530, y: 440, offsetBottom: 3 },
+    ],
+  };
+  const fp = getRevolutionFootprintRings({
+    arc,
+    axis,
+    arcMeterByPx: M_PLAN,
+    planMeterByPx: M_PLAN,
+  });
+  assert.equal(fp.isLine, true);
+  assert.equal(fp.rings.length, 1);
+  assert.ok(near(maxR(fp.rings[0]), 50));
+});
+
+test("two vertical runs (hidden segment): two circle lines, largest first", () => {
+  const arc = profile([150, 150, 300, 300], { hiddenSegmentsIdx: [1] });
+  const fp = getRevolutionFootprintRings({
+    arc,
+    axis,
+    arcMeterByPx: M_ARC,
+    planMeterByPx: M_PLAN,
+  });
+  assert.equal(fp.isLine, true);
+  assert.equal(fp.rings.length, 2);
+  assert.ok(near(maxR(fp.rings[0]), 2 / M_PLAN));
+  assert.ok(near(maxR(fp.rings[1]), 0.5 / M_PLAN));
+});
+
+test("vertical run beside a sloped one: still a filled annulus", () => {
+  const arc = profile([150, 150, 300, 400], { hiddenSegmentsIdx: [1] });
+  const fp = getRevolutionFootprintRings({
+    arc,
+    axis,
+    arcMeterByPx: M_ARC,
+    planMeterByPx: M_PLAN,
+  });
+  assert.equal(fp.isLine, false);
+});
+
+test("partial revolution vertical profile: open arc line", () => {
+  const partialAxis = {
+    ...axis,
+    partialRevolution: true,
+    revolutionAngleStartDeg: 0,
+    revolutionAngleEndDeg: 90,
+  };
+  const arc = profile([300, 300]);
+  const fp = getRevolutionFootprintRings({
+    arc,
+    axis: partialAxis,
+    arcMeterByPx: M_ARC,
+    planMeterByPx: M_PLAN,
+  });
+  assert.equal(fp.isLine, true);
+  assert.equal(fp.closed, false);
+  assert.equal(fp.rings.length, 1);
+  // quarter of 72 = 18 segments → 19 points, no walk back
+  assert.equal(fp.rings[0].length, 19);
+  assert.ok(near(fp.rings[0][0].x, axis.point.x + 2 / M_PLAN));
+  assert.ok(near(fp.rings[0][18].y, axis.point.y - 2 / M_PLAN));
+});
+
 test("partial revolution: annular sector, CCW from start to end, y up", () => {
   const partialAxis = {
     ...axis,

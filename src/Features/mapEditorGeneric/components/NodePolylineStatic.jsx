@@ -1857,6 +1857,19 @@ function NodePolylineStatic({
   const mainPartId = getPartId("MAIN", 0);
   const mainFillStyle = getPartStyle(mainPartId);
 
+  // Read-only footprints (revolution / subtraction projections) are often
+  // thin rings: a revolved wall is a few screen px wide, so the even-odd
+  // fill alone is a poor click target. Unselected, they get an invisible
+  // hit band along their contour (same idiom as the per-segment hit areas,
+  // which POLYGONs only render once selected). Ordinary polygons keep the
+  // fill-only hit: a band spilling past the edge would steal clicks from
+  // adjacent polygons.
+  const showFootprintHitBand =
+    showFill &&
+    mergedAnnotation.isForeignFootprint &&
+    !selected &&
+    !isTransient;
+
   // Détermination de la valeur finale de fill (Couleur ou Pattern)
   let finalFill = mainFillStyle?.fill;
 
@@ -1925,6 +1938,23 @@ function NodePolylineStatic({
             </pattern>
           )}
       </defs>
+
+      {/* FOOTPRINT HIT BAND — contour-wide click target, see above */}
+      {showFootprintHitBand && (
+        <path
+          d={fullFillD}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX * 2}
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="stroke"
+          style={{ cursor: "pointer" }}
+          onMouseEnter={() => setHoveredPartId(mainPartId)}
+          onMouseLeave={() => setHoveredPartId(null)}
+          data-part-type="MAIN"
+          {...dataProps}
+        />
+      )}
 
       {/* MAIN FILL */}
       {showFill && (
