@@ -78,9 +78,18 @@ import isAntiAliasingShrinkEnabled from "./isAntiAliasingShrinkEnabled";
 // drawn thinner, as a provisional line).
 const POINT_TRAIT_LINEWIDTH_PX = 3;
 
-// Screen-space thickness (px) of the vertical line rendered for a plan
-// REVOLUTION_AXIS — a thin dashed line, matching the 2D dashed axis style.
-const REVOLUTION_AXIS_LINEWIDTH_PX = 1.5;
+// One DEVICE pixel expressed in CSS px: the fat-line `resolution` is the
+// canvas CSS size (AnnotationsManager), so a LineMaterial linewidth of 1 is
+// 1 CSS px = 2 device px on a retina display. Mirrors the renderer's
+// setPixelRatio(min(devicePixelRatio, 2)) in SceneManager.
+const HAIRLINE_PX =
+  1 /
+  Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 2);
+// Screen-space thickness of the vertical line rendered for a plan
+// REVOLUTION_AXIS — a hairline dashed line, as thin as the in-scene axes of
+// the user frame (AxesHelper, 1 device px) so the axis reads as a guide, not
+// as geometry. Same width for the base circle and the elevation T.
+const REVOLUTION_AXIS_LINEWIDTH_PX = HAIRLINE_PX;
 // Dash pattern in world meters (computeLineDistances feeds world distances).
 const REVOLUTION_AXIS_DASH_M = 0.3;
 const REVOLUTION_AXIS_GAP_M = 0.2;
@@ -93,10 +102,10 @@ const REVOLUTION_AXIS_GAP_M = 0.2;
 const REVOLUTION_AXIS_CIRCLE_LIFT_M = 0.001;
 const REVOLUTION_AXIS_CIRCLE_SEGMENTS = 64;
 // Half-view split of the base circle: the kept half reads as the visible
-// section edge (thick solid), the cut-away half as a hint (thin dashed, world
-// metres like the axis line).
-const REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX = 3;
-const REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX = 1.5;
+// section edge (solid, twice the hairline), the cut-away half as a hint
+// (hairline dashed, world metres like the axis line).
+const REVOLUTION_AXIS_CIRCLE_VISIBLE_LINEWIDTH_PX = HAIRLINE_PX * 2;
+const REVOLUTION_AXIS_CIRCLE_HIDDEN_LINEWIDTH_PX = HAIRLINE_PX;
 const REVOLUTION_AXIS_CIRCLE_HIDDEN_DASH_M = 0.12;
 const REVOLUTION_AXIS_CIRCLE_HIDDEN_GAP_M = 0.08;
 const DEG_TO_RAD = Math.PI / 180;
@@ -1239,10 +1248,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "REVOLUTION_AXIS": {
-      // The plan axis renders as a single THICK vertical line standing on the
-      // plan at its centre: base at offsetZ, top at offsetZ + height (the
+      // The plan axis renders as a single HAIRLINE vertical line standing on
+      // the plan at its centre: base at offsetZ, top at offsetZ + height (the
       // drawing height, 5 m by default). Same screen-space fat-line technique
-      // as the POINT vertical trait.
+      // as the POINT vertical trait, 1 device px wide like the frame axes.
       const p = annotation.point;
       if (!p) break;
       const axisHeight = height > 0 ? height : 5;
