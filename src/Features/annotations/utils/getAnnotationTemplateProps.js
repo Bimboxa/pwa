@@ -127,6 +127,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     showUnitLabel: annotationTemplate?.showUnitLabel,
     showTotalCote: annotationTemplate?.showTotalCote,
     showRulerLabel: annotationTemplate?.showRulerLabel,
+    showValueCard: annotationTemplate?.showValueCard,
 
     // Label leader stub ("déport horizontal"). Read-time defaults for the
     // annotations without their own value (not seeded at creation); forced

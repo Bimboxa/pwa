@@ -259,6 +259,8 @@ export default function ThreedRulerAnnotations({ annotations }) {
           coteId: `${ruler.id}::${seg.key}`,
           color,
           emphasis: isLabelSelected && selectedPartId === partId,
+          card: ruler.showValueCard ?? true,
+          fontSize: ruler.fontSize,
         });
         sprite.userData.annotationId = ruler.id;
         sprite.userData.annotationType = "RULER";

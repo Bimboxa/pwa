@@ -36,6 +36,7 @@ export const STYLE_FIELDS = [
   "extensionOffsetUnit",
   "showTotalCote",
   "showRulerLabel",
+  "showValueCard",
   // label leader stub
   "labelStubLength",
   "labelStubMode",

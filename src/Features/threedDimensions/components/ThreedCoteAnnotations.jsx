@@ -278,6 +278,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
         coteId: cote.id,
         color,
         emphasis: isLabelSelected,
+        card: cote.showValueCard ?? true,
+        fontSize: cote.fontSize,
       });
       sprite.userData.annotationId = cote.id;
       sprite.userData.annotationType = "COTE";

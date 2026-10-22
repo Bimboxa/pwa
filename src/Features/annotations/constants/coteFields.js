@@ -14,4 +14,6 @@ export const COTE_FIELDS = [
   // the popover shows.
   "showTotalCote",
   "showRulerLabel",
+  // 3D: values in cards (true) or bare with a white halo (false).
+  "showValueCard",
 ];

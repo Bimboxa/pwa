@@ -88,6 +88,7 @@ export default function FieldAnnotationTemplateCote({
     showUnitLabel = true,
     showTotalCote = false,
     showRulerLabel = false,
+    showValueCard = true,
     strokeColor = "#000000",
   } = annotationTemplate ?? {};
 
@@ -150,6 +151,11 @@ export default function FieldAnnotationTemplateCote({
 
   function handleShowUnitLabelChange(e) {
     onChange({ ...annotationTemplate, showUnitLabel: e.target.checked });
+  }
+
+  // 3D only: the value in a rounded card, or bare with a white halo.
+  function handleShowValueCardChange(e) {
+    onChange({ ...annotationTemplate, showValueCard: e.target.checked });
   }
 
   function handleShowTotalCoteChange(e) {
@@ -451,6 +457,24 @@ export default function FieldAnnotationTemplateCote({
                 size="small"
                 checked={Boolean(showUnitLabel)}
                 onChange={handleShowUnitLabelChange}
+              />
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                py: 0.5,
+              }}
+            >
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                Valeur dans une étiquette (3D)
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(showValueCard)}
+                onChange={handleShowValueCardChange}
               />
             </Box>
 
