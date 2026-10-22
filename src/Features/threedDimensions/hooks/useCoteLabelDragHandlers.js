@@ -1,14 +1,12 @@
 import { useEffect, useRef } from "react";
 
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useSelector, useStore } from "react-redux";
 import { Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import {
-  selectSelectedItems,
-  setSubSelection,
-} from "Features/selection/selectionSlice";
+import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
+import { selectSelectedItems } from "Features/selection/selectionSlice";
 import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
 import {
   buildAxisLockLine,
@@ -48,29 +46,34 @@ const OFF_PLANE_AXIS_DOT = 0.1;
 const round2 = (v) => Math.round(v * 100) / 100;
 const round4 = (v) => Math.round(v * 10000) / 10000;
 
-// Dragging the value card of the SELECTED cote in 3D adjusts the
-// dimension-line offset (an unselected cote only gets selected by the click,
-// through MainThreedEditor's sprite pre-pass — same rule as the label cards):
-//   - plane-parallel cote → writes `extensionOffset` (shared with the 2D
-//     label drag of NodeCoteStatic, so both views stay in sync);
-//   - vertical/oblique cote → writes the `offset3d` vector (basemap-local
-//     meters), the only way to give such a cote an offset (its 2D projection
-//     is degenerate).
+// Dragging the value card of the SELECTED cote in 3D (an unselected cote only
+// gets selected by the click, through MainThreedEditor's sprite pre-pass —
+// same rule as the label cards). Two gestures, decided by what the
+// selection is:
+//   - the cote itself (NODE item, no part): the drag adjusts the
+//     dimension-line offset — plane-parallel cote → writes `extensionOffset`
+//     (shared with the 2D label drag of NodeCoteStatic, so both views stay
+//     in sync); vertical/oblique cote → writes the `offset3d` vector
+//     (basemap-local meters), the only way to give such a cote an offset
+//     (its 2D projection is degenerate). The card keeps its own offset.
+//   - its card (DIMENSION_LABEL part, the 2nd click on the card): the drag
+//     moves the CARD only, detached from the dimension line — writes
+//     `coteLabelOffset` (basemap-local meters, from the dimension-line
+//     midpoint), rendered in 3D and 2D with a dashed leader — like a
+//     ruler's cards (useRulerLabelDragHandlers).
 // The drag is live: the cursor is projected on a camera-facing plane through
-// the label, the displacement since the grab point is added to the current
-// offset (the line keeps its grab offset, no jump) and constrained
-// perpendicular to the measured segment; with Shift held the cursor is
-// locked on the user axis of the gizmo frame (through the grab point)
-// closest to it on screen — « Déplacer » parity, the axis drawn dashed in
-// its colour. The Line2/extensions/sprite are updated imperatively; on
-// pointerup the written fields are published to dimensionPendingPatchStore
-// BEFORE the DB write, so the rebuilds that precede the live query's updated
-// row (the card sub-selection dispatched below, a load tick) already draw
-// the cote where it was dropped — no snap-back frame, no timer.
+// the card, the displacement since the grab point is added to the current
+// offset (no jump) — constrained perpendicular to the measured segment for
+// the line; with Shift held the cursor is locked on the user axis of the
+// gizmo frame (through the grab point) closest to it on screen — « Déplacer »
+// parity, the axis drawn dashed in its colour. The Line2 / extensions /
+// sprite / leader are updated imperatively; on pointerup the written fields
+// are published to dimensionPendingPatchStore BEFORE the DB write, so the
+// rebuilds that precede the live query's updated row already draw the cote
+// where it was dropped — no snap-back frame, no timer.
 export default function useCoteLabelDragHandlers({ rendererIsReady }) {
   const updateAnnotation = useUpdateAnnotation();
   const store = useStore();
-  const dispatch = useDispatch();
 
   // Modes that own the pointer — no label drag while one is active (same
   // list as useAnnotationLabelDragHandlers: the Maillage module keeps
@@ -172,6 +175,25 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       return drag;
     }
 
+    // Card and leader at the dimension-line midpoint + the card's own offset.
+    function placeCard(coteObjects, midLocal, labelOffsetLocal) {
+      const { sprite, leader } = coteObjects;
+      const card = midLocal.clone().add(labelOffsetLocal);
+      sprite.position.copy(card);
+      if (leader) {
+        leader.geometry.setPositions([
+          midLocal.x,
+          midLocal.y,
+          midLocal.z,
+          card.x,
+          card.y,
+          card.z,
+        ]);
+        leader.computeLineDistances();
+        leader.visible = !isZeroLabelOffset(labelOffsetLocal);
+      }
+    }
+
     function onPointerDown(e) {
       if (e.button !== 0) return;
       if (blockedRef.current) return;
@@ -191,10 +213,13 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
 
       // Unselected cote: the click only selects it (MainThreedEditor's
       // handleClick, sprite pre-pass) — no drag, camera controls stay free.
-      const selectedId = getSingleSelectedAnnotationId(
-        selectSelectedItems(store.getState())
-      );
+      const items = selectSelectedItems(store.getState());
+      const selectedId = getSingleSelectedAnnotationId(items);
       if (selectedId !== annotationId) return;
+      // The card itself is the selection: the gesture moves the card.
+      const isLabelDrag =
+        items[0]?.partType === DIMENSION_LABEL_PART_TYPE &&
+        items[0]?.partId === getDimensionLabelPartId(annotationId);
 
       const group = sprite.parent;
       const coteGeom = group?.userData?.coteGeom;
@@ -214,10 +239,17 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       ).applyMatrix4(group.matrixWorld);
       const uWorld = P2w.clone().sub(P1w).normalize();
       const midWorld = P1w.clone().add(P2w).multiplyScalar(0.5);
+      // Dimension-line midpoint (local / world): the card sits there plus
+      // its own offset.
+      const dMidLocal = new Vector3(
+        (coteGeom.D1.x + coteGeom.D2.x) / 2,
+        (coteGeom.D1.y + coteGeom.D2.y) / 2,
+        (coteGeom.D1.z + coteGeom.D2.z) / 2
+      );
+      const dMidWorld = dMidLocal.clone().applyMatrix4(group.matrixWorld);
+      const baseLabelOffset = sprite.position.clone().sub(dMidLocal);
 
-      // Drag plane: through the current label position, facing the camera.
-      // The label sits at the dimension line's midpoint: its offset from the
-      // measured segment is the current offset vector.
+      // Drag plane: through the current card position, facing the camera.
       const labelWorld = sprite.getWorldPosition(new Vector3());
       const planeNormal = camera.getWorldDirection(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
@@ -226,10 +258,12 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       );
       const startHit = new Vector3();
       if (!raycaster.ray.intersectPlane(plane, startHit)) return;
-      const offsetWorld = labelWorld.clone().sub(midWorld);
+      // Line drag: the dimension line's current offset vector.
+      const offsetWorld = dMidWorld.clone().sub(midWorld);
 
       // Shift locks: the user axes of the gizmo frame. A plane-parallel cote
-      // keeps its line in its plan: the axes lying in that plane only.
+      // keeps its line (and its card) in its plan: the axes lying in that
+      // plane only.
       const baseMapNormal = new Vector3(0, 0, 1).transformDirection(
         group.matrixWorld
       );
@@ -246,11 +280,13 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
 
       dragRef.current = {
         annotationId,
+        mode: isLabelDrag ? "LABEL" : "LINE",
         group,
         coteGeom,
         coteObjects,
         uWorld,
         offsetWorld,
+        baseLabelOffset,
         plane,
         startHit,
         axes,
@@ -264,6 +300,7 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         // Live values persisted on pointerup.
         sMeters: null,
         vLocal: null,
+        labelOffsetLocal: null,
       };
 
       window.addEventListener("pointermove", onWindowPointerMove);
@@ -278,6 +315,15 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       e.preventDefault();
     }
 
+    // World displacement → basemap-local (groups are unscaled, so the length
+    // is preserved through the rotation).
+    function toLocalVector(drag, w) {
+      const len = w.length();
+      if (!(len > 0)) return new Vector3();
+      const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
+      return w.clone().transformDirection(inv).multiplyScalar(len);
+    }
+
     function applyMove({ clientX, clientY, shiftKey }) {
       const drag = dragRef.current;
       if (!drag) return;
@@ -287,8 +333,8 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         if (dx <= DRAG_THRESHOLD_PX && dy <= DRAG_THRESHOLD_PX) return;
         drag.moved = true;
         // From here on the card owns the gesture: the pointerup pick path
-        // of MainThreedEditor (selection toggle on Shift) stands down. A
-        // click without a move keeps it — Shift+click still deselects.
+        // of MainThreedEditor (selection toggle on Shift, card
+        // sub-selection) stands down. A click without a move keeps it.
         setMesh3dLabelGestureActive(true);
       }
       const canvasSize = setRayFromClient(clientX, clientY);
@@ -319,19 +365,32 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       }
       updateAxisLine(drag, axis);
 
-      // Current offset + displacement since the grab point, perpendicular
-      // component vs the segment.
-      const w = drag.offsetWorld.clone().add(hit.clone().sub(drag.startHit));
+      const geom = drag.coteGeom;
+      const deltaWorld = hit.clone().sub(drag.startHit);
+
+      if (drag.mode === "LABEL") {
+        // Card only: current offset + displacement, free placement.
+        const offset = drag.baseLabelOffset
+          .clone()
+          .add(toLocalVector(drag, deltaWorld));
+        drag.labelOffsetLocal = offset;
+        const dMidLocal = new Vector3(
+          (geom.D1.x + geom.D2.x) / 2,
+          (geom.D1.y + geom.D2.y) / 2,
+          (geom.D1.z + geom.D2.z) / 2
+        );
+        placeCard(drag.coteObjects, dMidLocal, offset);
+        sceneManager.renderScene?.();
+        return;
+      }
+
+      // Dimension line: current offset + displacement since the grab point,
+      // perpendicular component vs the segment.
+      const w = drag.offsetWorld.clone().add(deltaWorld);
       const along = w.dot(drag.uWorld);
       const vWorld = w.addScaledVector(drag.uWorld, -along);
+      const vLocal = toLocalVector(drag, vWorld);
 
-      // World → basemap-local direction (groups are unscaled, so the length
-      // is preserved through the rotation).
-      const len = vWorld.length();
-      const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
-      const vLocal = vWorld.transformDirection(inv).multiplyScalar(len);
-
-      const geom = drag.coteGeom;
       let V;
       if (geom.isPlaneParallel && geom.nLocal) {
         // Reduce to the signed in-plane offset shared with the 2D model.
@@ -350,7 +409,8 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         V = drag.vLocal;
       }
 
-      // Live update: dimension line, extensions, sprite.
+      // Live update: dimension line, extensions, card (keeping its own
+      // offset) and leader.
       const D1 = {
         x: geom.P1.x + V.x,
         y: geom.P1.y + V.y,
@@ -361,7 +421,7 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         y: geom.P2.y + V.y,
         z: geom.P2.z + V.z,
       };
-      const { line, extensions, sprite } = drag.coteObjects;
+      const { line, extensions } = drag.coteObjects;
       line.geometry.setPositions([D1.x, D1.y, D1.z, D2.x, D2.y, D2.z]);
       line.computeLineDistances();
       if (extensions?.length === 2) {
@@ -384,10 +444,10 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
         ]);
         extensions[1].computeLineDistances();
       }
-      sprite.position.set(
-        (D1.x + D2.x) / 2,
-        (D1.y + D2.y) / 2,
-        (D1.z + D2.z) / 2
+      placeCard(
+        drag.coteObjects,
+        new Vector3((D1.x + D2.x) / 2, (D1.y + D2.y) / 2, (D1.z + D2.z) / 2),
+        drag.baseLabelOffset
       );
       sceneManager.renderScene?.();
     }
@@ -418,7 +478,15 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       const geom = drag.coteGeom;
       const { annotationId } = drag;
       let patch = null;
-      if (geom.isPlaneParallel && drag.sMeters !== null) {
+      if (drag.mode === "LABEL") {
+        if (!drag.labelOffsetLocal) return;
+        const o = drag.labelOffsetLocal;
+        patch = {
+          coteLabelOffset: isZeroLabelOffset(o)
+            ? null
+            : { x: round4(o.x), y: round4(o.y), z: round4(o.z) },
+        };
+      } else if (geom.isPlaneParallel && drag.sMeters !== null) {
         const unit = geom.extensionOffsetUnit;
         patch = {
           extensionOffset:
@@ -444,14 +512,6 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
           baseUpdatedAt: raw?.updatedAt ?? null,
           patch,
         });
-        // The dragged card is the sub-selected one.
-        dispatch(
-          setSubSelection({
-            partId: getDimensionLabelPartId(annotationId),
-            partType: DIMENSION_LABEL_PART_TYPE,
-            pointId: null,
-          })
-        );
         await updateAnnotationRef.current({ id: annotationId, ...patch });
       } catch (err) {
         clearPendingDimensionPatch(annotationId);
@@ -470,5 +530,5 @@ export default function useCoteLabelDragHandlers({ rendererIsReady }) {
       dom.removeEventListener("pointerdown", onPointerDown, true);
       endDrag();
     };
-  }, [rendererIsReady, store, dispatch]);
+  }, [rendererIsReady, store]);
 }

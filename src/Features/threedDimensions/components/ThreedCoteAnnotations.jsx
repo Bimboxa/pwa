@@ -7,6 +7,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
@@ -187,10 +188,19 @@ export default function ThreedCoteAnnotations({ annotations }) {
       if (!geom) return;
 
       const isSelected = cote.id === selectedCoteId;
-      // Its card is the selection: the cote's own selection style recedes
-      // (thin line), the card alone is emphasized.
+      // Selection styles: the cote itself → bold line only; its card (2nd
+      // click on it) → thin line, the card drawn as an inverted chip.
       const isLabelSelected =
         isSelected && selectedPartId === getDimensionLabelPartId(cote.id);
+      // The card's own displacement from the dimension-line midpoint
+      // (dragged while the card is the selection, useCoteLabelDragHandlers).
+      const labelOffset = cote.coteLabelOffset;
+      const displaced = !isZeroLabelOffset(labelOffset);
+      const card = {
+        x: geom.mid.x + (displaced ? labelOffset.x || 0 : 0),
+        y: geom.mid.y + (displaced ? labelOffset.y || 0 : 0),
+        z: geom.mid.z + (displaced ? labelOffset.z || 0 : 0),
+      };
       const color = cote.strokeColor || "#000000";
 
       const group = new Group();
@@ -267,7 +277,6 @@ export default function ThreedCoteAnnotations({ annotations }) {
         }),
         coteId: cote.id,
         color,
-        selected: isSelected && !isLabelSelected,
         emphasis: isLabelSelected,
       });
       sprite.userData.annotationId = cote.id;
@@ -275,12 +284,25 @@ export default function ThreedCoteAnnotations({ annotations }) {
       sprite.userData.segmentKey = COTE_LABEL_SEGMENT_KEY;
       sprite.userData.listingId = cote.listingId;
       sprite.userData.annotationTemplateId = cote.annotationTemplateId;
-      sprite.position.set(geom.mid.x, geom.mid.y, geom.mid.z);
+      sprite.position.set(card.x, card.y, card.z);
       group.add(sprite);
       sprites.push(sprite);
 
+      // Dashed leader from the dimension-line midpoint to a displaced card
+      // (always built so the drag never creates geometry mid-gesture).
+      const leader = makeLine({
+        positions: [geom.mid.x, geom.mid.y, geom.mid.z, card.x, card.y, card.z],
+        color,
+        linewidth: LINEWIDTH_EXTENSION,
+        resolution,
+        dashed: true,
+      });
+      leader.raycast = () => {}; // never picked
+      leader.visible = displaced;
+      group.add(leader);
+
       // Live-drag handles (useCoteLabelDragHandlers updates them imperatively).
-      group.userData.coteObjects = { line, extensions, sprite };
+      group.userData.coteObjects = { line, extensions, sprite, leader };
 
       parentGroup.add(group);
       groupsRef.current.push(group);

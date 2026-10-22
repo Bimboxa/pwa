@@ -166,8 +166,9 @@ export default function ThreedRulerAnnotations({ annotations }) {
       if (!geom || !geom.segments.length) return;
 
       const isSelected = ruler.id === selectedRulerId;
-      // One of its cards is the selection: the ruler's own selection style
-      // recedes (thin line, plain cards), the card alone is emphasized.
+      // Selection styles: the ruler itself → bold line only; one of its
+      // cards (2nd click on it) → thin line, that card drawn as an inverted
+      // chip.
       const isLabelSelected =
         isSelected &&
         geom.segments.some(
@@ -257,7 +258,6 @@ export default function ThreedRulerAnnotations({ annotations }) {
           }),
           coteId: `${ruler.id}::${seg.key}`,
           color,
-          selected: isSelected && !isLabelSelected,
           emphasis: isLabelSelected && selectedPartId === partId,
         });
         sprite.userData.annotationId = ruler.id;

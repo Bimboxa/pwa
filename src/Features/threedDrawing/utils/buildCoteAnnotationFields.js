@@ -7,12 +7,13 @@ import { NON_TEMPLATE_KEYS } from "./buildFaceAnnotationFields";
 // a vertical/oblique cote) and `labelOffset` (the free 2D label placement of
 // a degenerate cote) are per-annotation state and must not leak from a
 // previously drawn cote into the next one via the template draft. Same for
-// `rulerLabelOffsets` (the per-segment value-card offsets of a ruler).
+// `rulerLabelOffsets` / `coteLabelOffset` (the value-card offsets).
 const NON_TEMPLATE_COTE_KEYS = new Set([
   ...NON_TEMPLATE_KEYS,
   "offset3d",
   "labelOffset",
   "rulerLabelOffsets",
+  "coteLabelOffset",
 ]);
 
 // Pure merge of the annotation style fields for a cote (or a ruler — a
