@@ -18,17 +18,20 @@ const cache = new WeakMap();
 // (useMesh3dPartsHighlight), and a write re-locates the parts on the
 // un-shrunk conversion (deleteMesh3dPartsService).
 //
-// Null when the annotation is a mesh already, is not convertible, or is a
-// flat one-face sheet (its only face IS the annotation) — unless
-// options.allowSingleFace (the vertex offset tool addresses that lone face).
+// Null when the annotation is a mesh already or is not convertible. A flat
+// one-face sheet (a one-segment PX wall, a flat polygon: its only face IS
+// the annotation) is returned too — the second click selects that face, the
+// cut tools lock on it, the vertex offset tool addresses it — unless
+// options.allowSingleFace is false: the double-click keeps its plan gesture
+// on such sheets.
 //
 // Open meshes (a PX polyline wall: one zero-thickness quad per segment) are
 // accepted here: their faces are selectable like any other, only the writes
-// (getEditableMesh3d) keep rejecting them.
+// of several open faces (getEditableMesh3d) keep rejecting them.
 export default function getDisplayedMesh3d(
   editor,
   annotationId,
-  { allowSingleFace = false } = {}
+  { allowSingleFace = true } = {}
 ) {
   const sceneManager = editor?.sceneManager;
   const annotationsManager = sceneManager?.annotationsManager;
