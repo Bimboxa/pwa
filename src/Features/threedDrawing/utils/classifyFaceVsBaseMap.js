@@ -98,8 +98,8 @@ export default function classifyFaceVsBaseMap(vertices, baseMap) {
   // PERPENDICULAR: the 3D face's 2D projection on the baseMap is a line —
   // equivalent to "face plane ⊥ baseMap plane". Robust to small picking
   // tilts because we test the footprint shape directly rather than the
-  // face-normal angle. Renders as a closed POLYLINE walking the cycle with
-  // per-vertex offsetTop.
+  // face-normal angle. Committed as an OPEN POLYLINE band: one point per plan
+  // position with per-vertex offsetBottom / offsetTop (buildVerticalBandPoints).
   if (projectedXYAreCollinear(projected)) {
     return {
       kind: "PERPENDICULAR",

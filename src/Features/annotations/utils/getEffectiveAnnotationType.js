@@ -3,6 +3,7 @@ import {
   getGeometryKindFromType,
   resolveDrawingShape,
 } from "../constants/drawingShapeConfig";
+import isDegeneratePolygonRow from "./isDegeneratePolygonRow";
 
 // The annotation `type` the resolver should actually dispatch on.
 //
@@ -16,8 +17,16 @@ import {
 // read as the type of its own drawingShape (POLYGON / POLYLINE fallback).
 // Read-time only — the row is repaired on its next template change
 // (getAnnotationTypeOnTemplateChange resolves from this effective type).
+//
+// Same heal for a POLYGON row with fewer than 3 point refs (a vertical band
+// drawn in 3D that a template change typed POLYGON, see
+// isDegeneratePolygonRow): read as the POLYLINE it is, so the 3D wall and the
+// 2D line render again instead of nothing.
 export default function getEffectiveAnnotationType(annotation) {
   const type = annotation?.type;
+  if (type === "POLYGON" && isDegeneratePolygonRow(annotation)) {
+    return "POLYLINE";
+  }
   if (getGeometryKindFromType(type) !== "LABEL") return type;
 
   const hasLabelGeometry = Boolean(

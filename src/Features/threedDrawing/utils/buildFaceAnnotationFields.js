@@ -46,8 +46,8 @@ export const NON_TEMPLATE_KEYS = new Set([
 // shape defaults < template props < classification-driven geometry fields.
 // The geometric classification of the face vs the host baseMap always wins
 // on type/offsetZ/height/closeLine, even when it differs from the template's
-// drawingShape (e.g. a POLYGON template drawing a vertical face commits a
-// closed POLYLINE wall).
+// drawingShape (e.g. a POLYGON template drawing a vertical face commits an
+// OPEN 2-point POLYLINE band — buildVerticalBandPoints).
 export default function buildFaceAnnotationFields({
   classifiedShape, // "POLYGON" | "POLYLINE" — drives the defaults
   classificationFields, // { type, offsetZ, height, closeLine? }

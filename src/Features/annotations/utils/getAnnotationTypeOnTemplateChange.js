@@ -5,6 +5,7 @@ import {
   getGeometryKindFromType,
 } from "../constants/drawingShapeConfig";
 import getEffectiveAnnotationType from "./getEffectiveAnnotationType";
+import isDegeneratePolygonRow from "./isDegeneratePolygonRow";
 
 // Resolves the annotation `type` to write when an annotation switches to
 // another template (null when the template has no resolvable shape).
@@ -20,6 +21,14 @@ import getEffectiveAnnotationType from "./getEffectiveAnnotationType";
 // the geometry. A POLYGON assigned a LABEL template keeps `type: "POLYGON"`
 // (with the template's colors) — writing "LABEL" would leave a row without
 // targetPoint / labelPoint that crashes the resolver on the next read.
+//
+// Within the family the geometry still rules: a template cannot invent a
+// third vertex. A vertical face drawn in 3D from a POLYGON template is an
+// open 2-point POLYLINE band (commitDrawnFaceService); under another POLYGON
+// template it keeps that type — typed POLYGON it vanished in 3D
+// (extrudeClosedShape refuses a ring under 3 points). Its colours still
+// follow the template through the colour channel mirror
+// (getAnnotationPropsFromAnnotationTemplateProps).
 export default function getAnnotationTypeOnTemplateChange(
   annotation,
   template
@@ -39,6 +48,10 @@ export default function getAnnotationTypeOnTemplateChange(
     // Cross-family switch: hold the geometry-consistent (healed) type, so a
     // row corrupted by the former behavior is repaired by its next
     // re-template (the caller only writes it when it differs).
+    return currentType;
+  }
+
+  if (nextType === "POLYGON" && isDegeneratePolygonRow(annotation)) {
     return currentType;
   }
 
