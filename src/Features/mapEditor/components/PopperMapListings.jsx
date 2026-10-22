@@ -114,6 +114,7 @@ import {
   isTemplatelessAnnotationInScope,
 } from "Features/annotations/utils/templatelessAnnotations";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import { RULER_DRAWING_MODES } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 
 import useListings from "Features/listings/hooks/useListings";
 import useLinkedListings from "Features/listings/hooks/useLinkedListings";
@@ -147,6 +148,10 @@ import {
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 import useBusinessObjectsModuleLabel from "Features/businessObjects/hooks/useBusinessObjectsModuleLabel";
 import SectionPopperBusinessObjects from "Features/popperMapListings/components/SectionPopperBusinessObjects";
+
+// Drawing shapes the Maillage module arms from their template row (they ride
+// the 3D drawing mode: the 2-click cote, the ruler chain).
+const DIMENSION_SHAPES = ["COTE", "RULER"];
 
 // ---------------------------------------------------------------------------
 // SortableAnnotationTemplateRow — wrapper for DnD
@@ -251,13 +256,15 @@ function AnnotationTemplateRow({
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
     selectedItem?.type === "ANNOTATION_TEMPLATE" &&
     selectedItem.id === annotationTemplate?.id;
-  // Maillage module: this row is the only entry point of the 2-click cote mode,
-  // so it shows the armed state itself (the panel stays a legend in 3D — no
-  // PopperDrawingHelper swap) and a second click disarms it.
+  // Maillage module: this row is the only entry point of the 2-click cote
+  // mode (and of the ruler's chain mode), so it shows the armed state itself
+  // (the panel stays a legend in 3D — no PopperDrawingHelper swap) and a
+  // second click disarms it.
   const isArmedCoteRow = useSelector(
     (s) =>
       Boolean(forceDrawMode) &&
-      s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK" &&
+      (s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK" ||
+        RULER_DRAWING_MODES.has(s.mapEditor.enabledDrawingMode)) &&
       s.annotations.newAnnotation?.annotationTemplateId ===
         annotationTemplate?.id
   );
@@ -1046,7 +1053,8 @@ function AnnotationTemplatesForListing({
                     spriteImage={spriteImage}
                     isVerticalBaseMap={isVerticalBaseMap}
                     forceDrawMode={
-                      isMeshesModule && resolveDrawingShape(item) === "COTE"
+                      isMeshesModule &&
+                      DIMENSION_SHAPES.includes(resolveDrawingShape(item))
                     }
                     readOnly={readOnly}
                   />
@@ -2109,15 +2117,15 @@ export default function PopperMapListings() {
   }, [annotationCountByListingId, painted]);
 
   const isSelectFilter = effectiveInteractionMode === "SELECT";
-  // Maillage module: COTE templates are drawing entries there (see the
-  // forceDrawMode rows), so they escape the legend filter — their row must be
-  // reachable before any cote exists, and so must their listing.
+  // Maillage module: COTE / RULER templates are drawing entries there (see
+  // the forceDrawMode rows), so they escape the legend filter — their row
+  // must be reachable before any cote exists, and so must their listing.
   const isMeshesModule = viewerKey === "MESHES";
   const coteTemplates = useMemo(
     () =>
       isMeshesModule
-        ? (annotationTemplates ?? []).filter(
-            (t) => resolveDrawingShape(t) === "COTE"
+        ? (annotationTemplates ?? []).filter((t) =>
+            DIMENSION_SHAPES.includes(resolveDrawingShape(t))
           )
         : [],
     [isMeshesModule, annotationTemplates]

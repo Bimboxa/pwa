@@ -1,20 +1,34 @@
-// Module-level holder for the currently-rendered cote label sprites.
-// ThreedCoteAnnotations publishes its label sprites here on every rebuild so
-// the MainThreedEditor click handler and useCoteLabelDragHandlers can raycast
-// against them (sprites are not meshes, so the annotation raycast — which
-// filters `.isMesh` — never sees them). Each entry is a THREE.Sprite carrying
-// `userData.annotationId` (the owning COTE annotation).
+// Module-level holder for the currently-rendered dimension label sprites
+// (cote and ruler value cards). ThreedCoteAnnotations and
+// ThreedRulerAnnotations each publish their sprites here under their own
+// owner key on every rebuild, so the MainThreedEditor click handler and the
+// label drag hooks can raycast against them (sprites are not meshes, so the
+// annotation raycast — which filters `.isMesh` — never sees them). Each
+// entry is a THREE.Sprite carrying `userData.annotationId` (the owning COTE
+// / RULER annotation) and `userData.annotationType`.
+//
+// Owners: "COTE" (ThreedCoteAnnotations) and "RULER" (ThreedRulerAnnotations).
 
-let _objects = [];
+const _byOwner = new Map();
+let _flat = [];
 
-export function setDimensionObjects(objects) {
-  _objects = objects || [];
+function refresh() {
+  _flat = [..._byOwner.values()].flat();
 }
 
-export function getDimensionObjects() {
-  return _objects;
+export function setDimensionObjects(owner, objects) {
+  _byOwner.set(owner, objects || []);
+  refresh();
 }
 
-export function clearDimensionObjects() {
-  _objects = [];
+// Without `owner`: every published sprite (the selection pre-pass).
+export function getDimensionObjects(owner) {
+  if (owner) return _byOwner.get(owner) || [];
+  return _flat;
+}
+
+export function clearDimensionObjects(owner) {
+  if (owner) _byOwner.delete(owner);
+  else _byOwner.clear();
+  refresh();
 }

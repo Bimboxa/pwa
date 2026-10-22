@@ -59,6 +59,7 @@ import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
 import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
+import { selectIsTemplateRulerDrawActive } from "../utils/templateRulerDrawSelectors";
 import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
@@ -232,9 +233,12 @@ export default function DrawingOverlayThreed() {
       isTemplatelessDraft(s.annotations.newAnnotation) ||
       isFaceCutDrawingMode(s.mapEditor.enabledDrawingMode)
   );
-  // Cote (COTE template row, or "Dessin" on its cote type): both endpoints
-  // land on faces too, and on the cut contour of the clipping plane first.
+  // Cote (COTE template row, or "Dessin" on its cote type) and ruler (RULER
+  // row / type — a dimension chain): every point lands on faces too, and on
+  // the cut contour of the clipping plane first.
   const isCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
+  const isRulerDraw = useSelector(selectIsTemplateRulerDrawActive);
+  const isDimensionDraw = isCoteDraw || isRulerDraw;
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMap = useMainBaseMap();
@@ -268,7 +272,7 @@ export default function DrawingOverlayThreed() {
   // points (nor a line while « Points coplanaires » is on: the locked plane
   // rejects an off-plane scan snap).
   const canDrawOnScan = useSelector(
-    (s) => s.annotations.newAnnotation?.type === "POLYLINE" || isCoteDraw
+    (s) => s.annotations.newAnnotation?.type === "POLYLINE" || isDimensionDraw
   );
   usePrepareScene3dPicking(active && canDrawOnScan);
 
@@ -815,7 +819,7 @@ export default function DrawingOverlayThreed() {
         // and the cote. Not the axis centre: a plan only.
         withFaces:
           !isAxisDraft &&
-          (isMeshDraw || isCoteDraw || inProgressPolyline.length === 0),
+          (isMeshDraw || isDimensionDraw || inProgressPolyline.length === 0),
         // Not for rectangles (they live on a plane).
         withScan: canDrawOnScan && behavior !== "RECTANGLE",
       });
@@ -1285,7 +1289,7 @@ export default function DrawingOverlayThreed() {
         // clipping plane (sectionContourSnapStore, empty without a cut)
         // takes priority over the full mesh — vertices and edges.
         findNearestVertex: (mNdc, cam, sz, options) =>
-          (isCoteDraw
+          (isDimensionDraw
             ? findNearestVertexSnapInAdjacency(
                 getSectionContourAdjacency(),
                 mNdc,
@@ -1294,7 +1298,7 @@ export default function DrawingOverlayThreed() {
               )
             : null) ?? findNearestSnap(mNdc, cam, sz, undefined, options),
         findNearestEdge: (mNdc, cam, sz, options) =>
-          (isCoteDraw
+          (isDimensionDraw
             ? findNearestEdgeSnap(
                 getSectionContourAdjacency(),
                 mNdc,
@@ -1315,7 +1319,7 @@ export default function DrawingOverlayThreed() {
         intersectPlane,
         alignAdjacency: getMeshAdjacency(),
         attachFaceToPointSnaps:
-          (isMeshDraw || isCoteDraw || inProgressPolyline.length === 0) &&
+          (isMeshDraw || isDimensionDraw || inProgressPolyline.length === 0) &&
           !anchor,
         lockedPlane,
         axes: snapAxes,
@@ -1408,6 +1412,7 @@ export default function DrawingOverlayThreed() {
     mainBaseMapId,
     isMeshDraw,
     isCoteDraw,
+    isRulerDraw,
     canDrawOnScan,
     rectDimsKey,
     store,

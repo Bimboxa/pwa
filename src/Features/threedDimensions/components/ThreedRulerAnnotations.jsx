@@ -1,17 +1,24 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { useSelector } from "react-redux";
-import { Group, Vector2 } from "three";
+import { Group, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
+import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManager/attachFatLineRaycast";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
+import { setDimensionObjects } from "../services/dimensionObjectsStore";
 import computeRulerGeometry3d from "../utils/computeRulerGeometry3d";
+import {
+  getRulerLabelPartId,
+  RULER_LABEL_PART_TYPE,
+} from "../utils/rulerLabelPart";
 
 // Thin ink (screen px): a dimension line reads as precise, not as a stroke.
 const LINEWIDTH = 1;
@@ -57,8 +64,8 @@ function makeLine({ positions, color, linewidth, resolution, dashed }) {
 }
 
 // The annotations array is already filtered upstream (useAnnotationsV2,
-// excludeDimensionsHiddenIn3d): only rulers whose template has showIn3d
-// reach this component.
+// excludeDimensionsHiddenIn3d): only rulers whose template has showIn3d, or
+// drawn from 3D (isDrawnIn3d), reach this component.
 //
 // Renders every RULER annotation (dimension chain) of the 3D editor's
 // annotations array: the alignment line, the dashed extension lines and one
@@ -67,8 +74,14 @@ function makeLine({ positions, color, linewidth, resolution, dashed }) {
 // transforms propagate for free, and carries the ANNOTATION userData contract
 // so the generic annotation raycast branch of MainThreedEditor selects it.
 //
-// Display only for now: no label drag, no dimensionObjectsStore publication —
-// rulers are edited in 2D.
+// Picking: the alignment lines get the shared fat-line raycast (a ghost zone
+// around the 1 px ink, attachFatLineRaycast); the value cards are published
+// to dimensionObjectsStore under "RULER" so the sprite pre-pass selects the
+// ruler from any card, then sub-selects the clicked card of the selected
+// ruler (RULER_LABEL part). A card sits at `seg.mid + rulerLabelOffsets[key]`
+// (base-map-local metres, per segment key) with a dashed leader back to its
+// default position when displaced — dragged by useRulerLabelDragHandlers
+// through `group.userData.rulerSegments`.
 export default function ThreedRulerAnnotations({ annotations }) {
   const rulers = useMemo(
     () => (annotations || []).filter((a) => a?.type === "RULER"),
@@ -85,6 +98,13 @@ export default function ThreedRulerAnnotations({ annotations }) {
     const it = items[0];
     if (it?.type !== "NODE" || it?.nodeType !== "ANNOTATION") return null;
     return rulerIdsKey.split(",").includes(it.nodeId) ? it.nodeId : null;
+  });
+  // The sub-selected value card of the selected ruler, if any.
+  const selectedPartId = useSelector((s) => {
+    const items = selectSelectedItems(s);
+    if (items.length !== 1) return null;
+    const it = items[0];
+    return it?.partType === RULER_LABEL_PART_TYPE ? (it.partId ?? null) : null;
   });
 
   // Re-run once loadAnnotations has ensured the basemap groups exist — on a
@@ -107,9 +127,11 @@ export default function ThreedRulerAnnotations({ annotations }) {
         disposeObject(group);
       });
       groupsRef.current = [];
+      setDimensionObjects("RULER", []);
     };
     clear();
 
+    const sprites = [];
     const resolution = getCanvasResolution(editor);
 
     rulers.forEach((ruler) => {
@@ -138,6 +160,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
       const isSelected = ruler.id === selectedRulerId;
       const color = ruler.strokeColor || "#000000";
       const linewidth = isSelected ? LINEWIDTH_SELECTED : LINEWIDTH;
+      const labelOffsets = ruler.rulerLabelOffsets || {};
 
       const group = new Group();
       group.name = `Ruler-${ruler.id}`;
@@ -148,27 +171,34 @@ export default function ThreedRulerAnnotations({ annotations }) {
         listingId: ruler.listingId,
         annotationTemplateId: ruler.annotationTemplateId,
         baseMapId: ruler.baseMapId,
+        rulerGeom: { isPlaneParallel: geom.isPlaneParallel },
+        // Live-drag handles (useRulerLabelDragHandlers), one per segment.
+        rulerSegments: [],
       };
 
       // Alignment line — one Line2 per segment (a single polyline would need a
       // flat position buffer anyway, and per-segment keeps the geometry aligned
-      // with the labels).
+      // with the labels). The fat-line raycast gives it a pick zone wider
+      // than its ink.
       geom.segments.forEach((seg) => {
-        group.add(
-          makeLine({
-            positions: [
-              seg.D1.x,
-              seg.D1.y,
-              seg.D1.z,
-              seg.D2.x,
-              seg.D2.y,
-              seg.D2.z,
-            ],
-            color,
-            linewidth,
-            resolution,
-          })
-        );
+        const line = makeLine({
+          positions: [
+            seg.D1.x,
+            seg.D1.y,
+            seg.D1.z,
+            seg.D2.x,
+            seg.D2.y,
+            seg.D2.z,
+          ],
+          color,
+          linewidth,
+          resolution,
+        });
+        attachFatLineRaycast(line, [
+          new Vector3(seg.D1.x, seg.D1.y, seg.D1.z),
+          new Vector3(seg.D2.x, seg.D2.y, seg.D2.z),
+        ]);
+        group.add(line);
       });
 
       // Dashed extension lines: measured point → alignment line.
@@ -187,38 +217,70 @@ export default function ThreedRulerAnnotations({ annotations }) {
         });
       }
 
-      // One value card per segment, at the middle of its offset segment.
+      // One value card per segment, at the middle of its offset segment plus
+      // its own displacement, with a dashed leader back to that middle (built
+      // for every card so the drag never creates geometry mid-gesture).
       geom.segments.forEach((seg) => {
+        const offset = labelOffsets[seg.key];
+        const displaced = !isZeroLabelOffset(offset);
+        const card = {
+          x: seg.mid.x + (displaced ? offset.x || 0 : 0),
+          y: seg.mid.y + (displaced ? offset.y || 0 : 0),
+          z: seg.mid.z + (displaced ? offset.z || 0 : 0),
+        };
+        const partId = getRulerLabelPartId(ruler.id, seg.key);
         const sprite = createDimensionLabelSprite({
           text: getCoteDisplayValue({
-            p1: ruler.points[seg.index],
-            p2: ruler.points[seg.index + 1],
+            p1: geom.pixelPoints[seg.index],
+            p2: geom.pixelPoints[seg.index + 1],
             meterByPx,
             unit: ruler.unit ?? "CM",
             decimals: ruler.decimals ?? 0,
             showUnitLabel: ruler.showUnitLabel ?? true,
             deltaZMeters: seg.deltaZMeters,
           }),
-          coteId: `${ruler.id}::${seg.index}`,
+          coteId: `${ruler.id}::${seg.key}`,
           color,
           selected: isSelected,
+          emphasis: isSelected && selectedPartId === partId,
         });
         sprite.userData.annotationId = ruler.id;
         sprite.userData.annotationType = "RULER";
         sprite.userData.listingId = ruler.listingId;
         sprite.userData.annotationTemplateId = ruler.annotationTemplateId;
-        sprite.position.set(seg.mid.x, seg.mid.y, seg.mid.z);
+        sprite.userData.segmentKey = seg.key;
+        sprite.position.set(card.x, card.y, card.z);
         group.add(sprite);
+        sprites.push(sprite);
+
+        const leader = makeLine({
+          positions: [seg.mid.x, seg.mid.y, seg.mid.z, card.x, card.y, card.z],
+          color,
+          linewidth: LINEWIDTH_EXTENSION,
+          resolution,
+          dashed: true,
+        });
+        leader.raycast = () => {}; // never picked
+        leader.visible = displaced;
+        group.add(leader);
+
+        group.userData.rulerSegments.push({
+          key: seg.key,
+          midLocal: new Vector3(seg.mid.x, seg.mid.y, seg.mid.z),
+          sprite,
+          leader,
+        });
       });
 
       parentGroup.add(group);
       groupsRef.current.push(group);
     });
 
+    setDimensionObjects("RULER", sprites);
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [rulers, selectedRulerId, annotationsLoadTick]);
+  }, [rulers, selectedRulerId, selectedPartId, annotationsLoadTick]);
 
   return null;
 }

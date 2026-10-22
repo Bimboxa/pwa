@@ -1,5 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
+import { remapRulerLabelOffsets } from "./getRulerSegmentKey";
+
 /**
  * Mint brand-new db.points records for a cloned annotation so the duplicate
  * no longer shares point refs with its source.
@@ -116,6 +118,14 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
 
   if (Array.isArray(annotation.points)) {
     nextAnnotation.points = remapRefs(annotation.points);
+    // RULER: the value-card offsets are keyed by point ids — follow them.
+    if (annotation.rulerLabelOffsets) {
+      nextAnnotation.rulerLabelOffsets = remapRulerLabelOffsets(
+        annotation.rulerLabelOffsets,
+        annotation.points,
+        nextAnnotation.points
+      );
+    }
   }
 
   if (Array.isArray(annotation.cuts)) {

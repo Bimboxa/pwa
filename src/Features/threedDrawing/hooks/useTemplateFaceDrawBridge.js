@@ -18,6 +18,7 @@ import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelec
 import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
 
 import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
+import { selectIsTemplateRulerDrawActive } from "../utils/templateRulerDrawSelectors";
 import {
   selectIsFaceCutDrawActive,
   selectIsTemplateFaceDrawActive,
@@ -73,7 +74,8 @@ export default function useTemplateFaceDrawBridge() {
       selectIsFaceCutDrawActive(s) ||
       selectIsMeshBrushActive(s) ||
       selectIsRevolutionAxisDrawThreedActive(s) ||
-      selectIsTemplateCoteDrawActive(s)
+      selectIsTemplateCoteDrawActive(s) ||
+      selectIsTemplateRulerDrawActive(s)
   );
   // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the
   // 2D editor has no use for its drawing mode).

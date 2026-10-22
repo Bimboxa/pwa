@@ -75,6 +75,8 @@ import commitDrawnPolylineService, {
   commitDrawnPolyline,
 } from "../services/commitDrawnPolylineService";
 import commitDrawnCoteService from "../services/commitDrawnCoteService";
+import commitDrawnRulerService from "../services/commitDrawnRulerService";
+import { isRulerDraftFor3d } from "../utils/templateRulerDrawSelectors";
 import commitDrawnDiscService, {
   DISC_COMMIT_NOT_PARALLEL,
   DISC_COMMIT_NO_SCALE,
@@ -155,6 +157,16 @@ const DOUBLE_CLICK_MS = 500;
 // (commitDrawnCoteService) — the typed length constrains it like a segment.
 // The tool stays armed for the next cote; Enter is ignored, Escape drops the
 // 1st point / exits the tool.
+//
+// Ruler (RULER draft on the polyline modes — a template row or the "Dessin"
+// tool on its ruler type, isRulerDraftFor3d): an N-click chain on the same
+// snap cascade, with the template-less key semantics — Enter / double click
+// / Escape end it (commitDrawnRulerService), "Règle (2 clics)" commits at
+// the 2nd click, a click back on the first point only adds a vertex (2D
+// parity: a ruler never closes). Checked before the template-less branch: a
+// template-less ruler must not commit as a polyline, and a template ruler
+// must never reach the generic template branch (Enter would flush it as a
+// wireframe trait).
 //
 // Template-less, face-cut and cote clicks and keys run one at a time, in
 // order (a commit awaits the db): each step reads the live drawing state
@@ -307,6 +319,12 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
+    // RULER draft (template or "Dessin" on its ruler type): its own N-click
+    // chain flow, see the header. Checked before the template-less branch.
+    function isRulerDraw() {
+      return isRulerDraftFor3d(newAnnotationRef.current, enabledDrawingMode);
+    }
+
     // REVOLUTION_AXIS draft (A): the disc's 2-click flow, no template.
     function isAxisDraw() {
       return (
@@ -357,6 +375,43 @@ export default function useDrawingPointerHandlers() {
         // the cote then belongs to the plan selected in 2D.
         preferredBaseMapId: mainBaseMapId ?? null,
       });
+    }
+
+    // RULER from its drawn chain (world): in-plane chains share the 2D
+    // encoding, lifted ones carry offsets (commitDrawnRulerService). True
+    // when committed.
+    async function endRuler(points) {
+      if (points.length < 2) return false;
+      try {
+        const created = await commitDrawnRulerService({
+          verticesInOrder: points,
+          baseMaps: baseMaps || [],
+          projectId,
+          listingId,
+          scopeId,
+          templateProps: newAnnotationRef.current,
+          layerId: activeLayerIdRef.current ?? null,
+          createAnnotationFn: createAnnotation,
+          // Vertices snapped on annotations / axis locks carry no base map:
+          // the ruler then belongs to the plan selected in 2D.
+          preferredBaseMapId: mainBaseMapId ?? null,
+        });
+        if (!created) {
+          console.warn(
+            "[threedDrawing] ruler commit returned null (see abort reason above)"
+          );
+          return false;
+        }
+        console.log(
+          `[threedDrawing] ruler annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
+        );
+        warnIfOffMainBaseMap(created);
+        finishCommit();
+        return true;
+      } catch (err) {
+        console.error("[threedDrawing] ruler commit failed", err);
+        return false;
+      }
     }
 
     async function commitDisc(center, rim) {
@@ -683,6 +738,37 @@ export default function useDrawingPointerHandlers() {
       } catch (err) {
         console.error("[threedDrawing] cote commit failed", err);
       }
+    }
+
+    // Ruler: the chain grows click by click; a double click ends it, "Règle
+    // (2 clics)" commits at the 2nd point. No closure, no scan path, no
+    // rectangle (the ruler tools are the two polyline click modes).
+    async function onRulerClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      const newVertex = toDrawingVertex(snap);
+      const last = inProgress[inProgress.length - 1];
+      if (last && isSamePoint(last, newVertex)) {
+        // Double click: ends a click-drawn chain.
+        if (behavior !== "SEGMENT" && inProgress.length >= 2) {
+          await endRuler(inProgress);
+        }
+        return;
+      }
+      // The typed length was applied to this point (preview snap): consumed.
+      if (last) releaseLengthConstraint();
+
+      if (inProgress.length === 0) {
+        dispatch(pushDrawingVertex(newVertex));
+        return;
+      }
+      // "Règle (2 clics)": a one-segment ruler, committed here.
+      if (behavior === "SEGMENT") {
+        if (!(await endRuler([...inProgress, newVertex]))) {
+          dispatch(cancelInProgressPolyline());
+        }
+        return;
+      }
+      dispatch(pushDrawingVertex(newVertex));
     }
 
     async function onTemplatelessClick(snap) {
@@ -1299,6 +1385,10 @@ export default function useDrawingPointerHandlers() {
         await enqueueClick(onCoteClick, snap, clickTime);
         return;
       }
+      if (isRulerDraw()) {
+        await enqueueClick(onRulerClick, snap, clickTime);
+        return;
+      }
       if (isFaceCutDraw()) {
         await enqueueClick(onFaceCutClick, snap, clickTime);
         return;
@@ -1568,6 +1658,42 @@ export default function useDrawingPointerHandlers() {
         }
         dispatch(setEnabledDrawingMode(null));
         dispatch(setNewAnnotation({}));
+        return;
+      }
+      if (isRulerDraw()) {
+        // Template-less key semantics for the chain (2D parity): Enter ends a
+        // click-drawn chain; Escape ends it too, or discards a segment in
+        // progress; with nothing drawn Escape drops the typed length, then
+        // leaves the tool (template or template-less: clearing the 2D drawing
+        // state makes the bridge close the 3D mode).
+        if (e.key === "Enter") {
+          if (behavior === "SEGMENT") return;
+          await enqueue(async () => {
+            // A pending `*N` is appended first, then the chain ends.
+            applyPendingPatternRepeat();
+            const { inProgress } = getLiveDrawing();
+            if (inProgress.length >= 2) await endRuler(inProgress);
+          });
+        } else if (e.key === "Escape") {
+          if (inProgressPolyline.length === 0) {
+            if (store.getState().mapEditor.constraintBuffer) {
+              dispatch(clearConstraintBuffer());
+              return;
+            }
+            dispatch(setEnabledDrawingMode(null));
+            dispatch(setNewAnnotation({}));
+            return;
+          }
+          await enqueue(async () => {
+            const { inProgress } = getLiveDrawing();
+            if (!inProgress.length) return;
+            const committed =
+              behavior !== "SEGMENT" &&
+              inProgress.length >= 2 &&
+              (await endRuler(inProgress));
+            if (!committed) dispatch(cancelInProgressPolyline());
+          });
+        }
         return;
       }
       if (isTemplatelessDraw()) {
