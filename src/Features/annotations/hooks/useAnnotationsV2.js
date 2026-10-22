@@ -485,7 +485,9 @@ function getRevolutionPhiForAxis(axis, { onPlan = false } = {}) {
 //     (the axis centre in plan pixels); the lathe revolves around the plan
 //     normal through that centre, radius = plan distance, height = the arc's
 //     own offsetZ + the point's offsetBottom (buildRevolutionMesh `onPlan`).
-//     No half-view there (it needs a vertical image as the section plane).
+//     The half-view cuts along the axis's own vertical plane (diameter
+//     direction), whose camera side is tracked per axis
+//     (revolutionSectionSideByAxisId) — see getRevolutionPartialPhi.
 async function resolveRevolutionAxes(annotations, baseMapById) {
   const revolutionArcs = annotations.filter(
     (a) =>
@@ -566,7 +568,9 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
       arc.revolutionAxisCenter = { x: cx, y: cy };
       arc.revolutionPhi = getRevolutionPhiForAxis(axis, { onPlan: true });
       arc._revolutionAxis = axis;
-      arc.revolutionHalfView = false;
+      // Same AXIS property as the vertical case; the 3D builder reads the
+      // axis's diameter direction from `_revolutionAxis` to place the cut.
+      arc.revolutionHalfView = axis.halfViewIn3d !== false;
       continue;
     }
 

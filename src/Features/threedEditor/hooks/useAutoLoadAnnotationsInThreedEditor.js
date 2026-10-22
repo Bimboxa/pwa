@@ -367,7 +367,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     (s) => s.threedEditor.revolutionSectionSideByAxisId
   );
 
-  // { axisId: 1 | -1 }: camera side per half-viewed axis. An arc of the axis
+  // { axisId: 1 | -1 }: camera side per half-viewed axis (lathes of arcs
+  // hosted by the axis's own plan read it too). An arc of the axis
   // half-viewed on a vertical base map gives the side the lathes actually
   // use (the planes coincide: the base map was posed from the axis's
   // diameter); otherwise the axis's own cut plane tracker does.

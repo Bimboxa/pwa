@@ -132,6 +132,18 @@ function buildRevolutionAxisBasePoints({ cx, cy, r, annotation }) {
   return points;
 }
 
+// Start (plan local frame, y up, CCW) of the half KEPT by the half-view of a
+// REVOLUTION_AXIS for a camera `side` (1 | -1): the half is [theta, theta + π].
+// Shared by the axis base circle split and the on-plan lathes so both always
+// show the same half.
+function getRevolutionAxisHalfViewTheta(axis, side) {
+  return (
+    (Number(axis.directionDeg) || 0) * DEG_TO_RAD +
+    (axis.invertHalf ? Math.PI : 0) +
+    (side === -1 ? Math.PI : 0)
+  );
+}
+
 // Half-view split of the axis base circle, in basemap-local metres (z = 0):
 // `[{ points, visible }]`, one entry per half. The cut runs along the axis's
 // diameter (directionDeg / invertHalf, plan local frame, y up) and the kept
@@ -142,10 +154,7 @@ function buildRevolutionAxisBasePoints({ cx, cy, r, annotation }) {
 // getRevolutionAxisContourArcs shows [theta, theta + π], so the side only
 // turns theta by π. Each arc is sampled at the full-circle density.
 function buildRevolutionAxisHalfArcs({ cx, cy, r, annotation, side }) {
-  const theta =
-    (Number(annotation.directionDeg) || 0) * DEG_TO_RAD +
-    (annotation.invertHalf ? Math.PI : 0) +
-    (side === -1 ? Math.PI : 0);
+  const theta = getRevolutionAxisHalfViewTheta(annotation, side);
   return getRevolutionAxisContourArcs({ theta, halfView: true }).map((arc) => {
     const span = arc.to - arc.from;
     const segments = Math.max(
@@ -174,6 +183,14 @@ function buildRevolutionAxisHalfArcs({ cx, cy, r, annotation, side }) {
 // VERTICAL base-map local frame the lathe is unrotated and LatheGeometry places
 // φ ∈ (−π/2, π/2) on local +Z (the image-facing side): side 1 (camera in front)
 // keeps the back half, side -1 the front one.
+// An arc hosted by the axis's OWN plan (`revolutionAxisOnPlan`) has no image
+// to cut along: the section plane is the axis's own vertical plane (diameter
+// direction), whose camera side is tracked per axis
+// (options.revolutionSectionByAxisId). The lathe is then built in the plan
+// frame (rotateX(π/2)), where a plan angle ψ maps to φ = ψ + π/2 (see
+// getRevolutionPhi with θ = 0), so the kept half [θ, θ + π] of
+// getRevolutionAxisHalfViewTheta starts at φ = θ + π/2 — the same half the
+// axis base circle shows thick.
 // Quantities are untouched — the headless carve/qty path builds without this
 // option (full lathe), and the analytic surface is always full-turn.
 function getRevolutionPartialPhi(annotation, baseMap, options) {
@@ -182,6 +199,18 @@ function getRevolutionPartialPhi(annotation, baseMap, options) {
   // resolved per arc by useAnnotationsV2): two axes posed on the same base
   // map may differ.
   if (!annotation.revolutionHalfView) return {};
+  if (annotation.revolutionAxisOnPlan) {
+    const axis = annotation._revolutionAxis;
+    const side =
+      options?.revolutionSectionByAxisId?.[
+        annotation.shape3D?.axisAnnotationId
+      ];
+    if (!axis || !side) return {};
+    return {
+      phiStart: getRevolutionAxisHalfViewTheta(axis, side) + Math.PI / 2,
+      phiLength: Math.PI,
+    };
+  }
   const sectionSide = options?.revolutionSection?.[annotation.baseMapId];
   if (sectionSide && baseMap.orientation === "VERTICAL") {
     return {

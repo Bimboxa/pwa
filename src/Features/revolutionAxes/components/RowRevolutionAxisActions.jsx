@@ -10,7 +10,6 @@ import {
   Tooltip,
 } from "@mui/material";
 import {
-  Add as AddIcon,
   ArrowForward as ArrowForwardIcon,
   Contrast as HalfViewIcon,
   DonutLarge as PartialIcon,
@@ -19,6 +18,7 @@ import {
 } from "@mui/icons-material";
 
 import ToolbarAnnotationActions from "Features/annotations/components/ToolbarAnnotationActions";
+import IconCreateBaseMap from "Features/icons/IconCreateBaseMap";
 
 import useCreateRevolutionAxisBaseMap from "../hooks/useCreateRevolutionAxisBaseMap";
 import useRevolutionAxisActions from "../hooks/useRevolutionAxisActions";
@@ -136,7 +136,7 @@ export default function RowRevolutionAxisActions({ axis, accentColor }) {
             ) : hasLinked ? (
               <ArrowForwardIcon fontSize="small" />
             ) : (
-              <AddIcon fontSize="small" />
+              <IconCreateBaseMap fontSize="small" />
             )}
           </IconButton>
         </span>
