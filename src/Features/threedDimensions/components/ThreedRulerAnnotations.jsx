@@ -14,11 +14,12 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import { setDimensionObjects } from "../services/dimensionObjectsStore";
+import { applyPendingDimensionPatch } from "../services/dimensionPendingPatchStore";
 import computeRulerGeometry3d from "../utils/computeRulerGeometry3d";
 import {
-  getRulerLabelPartId,
-  RULER_LABEL_PART_TYPE,
-} from "../utils/rulerLabelPart";
+  DIMENSION_LABEL_PART_TYPE,
+  getDimensionLabelPartId,
+} from "../utils/dimensionLabelPart";
 
 // Thin ink (screen px): a dimension line reads as precise, not as a stroke.
 const LINEWIDTH = 1;
@@ -78,10 +79,12 @@ function makeLine({ positions, color, linewidth, resolution, dashed }) {
 // around the 1 px ink, attachFatLineRaycast); the value cards are published
 // to dimensionObjectsStore under "RULER" so the sprite pre-pass selects the
 // ruler from any card, then sub-selects the clicked card of the selected
-// ruler (RULER_LABEL part). A card sits at `seg.mid + rulerLabelOffsets[key]`
+// ruler (DIMENSION_LABEL part: the line and the other cards drop their
+// selection style, the card alone is emphasized). A card sits at `seg.mid + rulerLabelOffsets[key]`
 // (base-map-local metres, per segment key) with a dashed leader back to its
-// default position when displaced — dragged by useRulerLabelDragHandlers
-// through `group.userData.rulerSegments`.
+// default position when displaced — dragging one card moves every card of
+// the ruler by the same vector (useRulerLabelDragHandlers, through
+// `group.userData.rulerSegments`).
 export default function ThreedRulerAnnotations({ annotations }) {
   const rulers = useMemo(
     () => (annotations || []).filter((a) => a?.type === "RULER"),
@@ -104,7 +107,9 @@ export default function ThreedRulerAnnotations({ annotations }) {
     const items = selectSelectedItems(s);
     if (items.length !== 1) return null;
     const it = items[0];
-    return it?.partType === RULER_LABEL_PART_TYPE ? (it.partId ?? null) : null;
+    return it?.partType === DIMENSION_LABEL_PART_TYPE
+      ? (it.partId ?? null)
+      : null;
   });
 
   // Re-run once loadAnnotations has ensured the basemap groups exist — on a
@@ -134,7 +139,10 @@ export default function ThreedRulerAnnotations({ annotations }) {
     const sprites = [];
     const resolution = getCanvasResolution(editor);
 
-    rulers.forEach((ruler) => {
+    rulers.forEach((rulerRow) => {
+      // Fields just written by a drag win over the row until the live query
+      // delivers the updated row (no snap-back frame).
+      const ruler = applyPendingDimensionPatch(rulerRow);
       const baseMap = imagesManager.baseMapsMap?.[ruler.baseMapId];
       const parentGroup = imagesManager.getGroup?.(ruler.baseMapId);
       // Annotations reload after maps load, so a missing group self-heals on
@@ -158,8 +166,16 @@ export default function ThreedRulerAnnotations({ annotations }) {
       if (!geom || !geom.segments.length) return;
 
       const isSelected = ruler.id === selectedRulerId;
+      // One of its cards is the selection: the ruler's own selection style
+      // recedes (thin line, plain cards), the card alone is emphasized.
+      const isLabelSelected =
+        isSelected &&
+        geom.segments.some(
+          (seg) => getDimensionLabelPartId(ruler.id, seg.key) === selectedPartId
+        );
       const color = ruler.strokeColor || "#000000";
-      const linewidth = isSelected ? LINEWIDTH_SELECTED : LINEWIDTH;
+      const linewidth =
+        isSelected && !isLabelSelected ? LINEWIDTH_SELECTED : LINEWIDTH;
       const labelOffsets = ruler.rulerLabelOffsets || {};
 
       const group = new Group();
@@ -228,7 +244,7 @@ export default function ThreedRulerAnnotations({ annotations }) {
           y: seg.mid.y + (displaced ? offset.y || 0 : 0),
           z: seg.mid.z + (displaced ? offset.z || 0 : 0),
         };
-        const partId = getRulerLabelPartId(ruler.id, seg.key);
+        const partId = getDimensionLabelPartId(ruler.id, seg.key);
         const sprite = createDimensionLabelSprite({
           text: getCoteDisplayValue({
             p1: geom.pixelPoints[seg.index],
@@ -241,8 +257,8 @@ export default function ThreedRulerAnnotations({ annotations }) {
           }),
           coteId: `${ruler.id}::${seg.key}`,
           color,
-          selected: isSelected,
-          emphasis: isSelected && selectedPartId === partId,
+          selected: isSelected && !isLabelSelected,
+          emphasis: isLabelSelected && selectedPartId === partId,
         });
         sprite.userData.annotationId = ruler.id;
         sprite.userData.annotationType = "RULER";

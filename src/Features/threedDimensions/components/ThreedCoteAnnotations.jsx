@@ -12,6 +12,12 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import { setDimensionObjects } from "../services/dimensionObjectsStore";
+import { applyPendingDimensionPatch } from "../services/dimensionPendingPatchStore";
+import {
+  COTE_LABEL_SEGMENT_KEY,
+  DIMENSION_LABEL_PART_TYPE,
+  getDimensionLabelPartId,
+} from "../utils/dimensionLabelPart";
 import computeCoteGeometry3d from "../utils/computeCoteGeometry3d";
 import getSingleSelectedAnnotationId from "../utils/getSingleSelectedAnnotationId";
 
@@ -116,6 +122,15 @@ export default function ThreedCoteAnnotations({ annotations }) {
     const id = getSingleSelectedAnnotationId(selectSelectedItems(s));
     return id && coteIdsKey.split(",").includes(id) ? id : null;
   });
+  // The sub-selected value card of the selected cote, if any.
+  const selectedPartId = useSelector((s) => {
+    const items = selectSelectedItems(s);
+    if (items.length !== 1) return null;
+    const it = items[0];
+    return it?.partType === DIMENSION_LABEL_PART_TYPE
+      ? (it.partId ?? null)
+      : null;
+  });
 
   // Re-run once loadAnnotations has ensured the basemap groups exist — on a
   // fresh page load landing directly on 3D, the first run below happens
@@ -144,7 +159,10 @@ export default function ThreedCoteAnnotations({ annotations }) {
     const sprites = [];
     const resolution = getCanvasResolution(editor);
 
-    cotes.forEach((cote) => {
+    cotes.forEach((coteRow) => {
+      // Fields just written by a drag win over the row until the live query
+      // delivers the updated row (no snap-back frame).
+      const cote = applyPendingDimensionPatch(coteRow);
       const baseMap = imagesManager.baseMapsMap?.[cote.baseMapId];
       const parentGroup = imagesManager.getGroup?.(cote.baseMapId);
       // Annotations reload after maps load, so a missing group self-heals on
@@ -169,6 +187,10 @@ export default function ThreedCoteAnnotations({ annotations }) {
       if (!geom) return;
 
       const isSelected = cote.id === selectedCoteId;
+      // Its card is the selection: the cote's own selection style recedes
+      // (thin line), the card alone is emphasized.
+      const isLabelSelected =
+        isSelected && selectedPartId === getDimensionLabelPartId(cote.id);
       const color = cote.strokeColor || "#000000";
 
       const group = new Group();
@@ -199,7 +221,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
           geom.D2.z,
         ],
         color,
-        linewidth: isSelected ? LINEWIDTH_SELECTED : LINEWIDTH,
+        linewidth:
+          isSelected && !isLabelSelected ? LINEWIDTH_SELECTED : LINEWIDTH,
         resolution,
       });
       attachSegmentRaycast(
@@ -244,10 +267,12 @@ export default function ThreedCoteAnnotations({ annotations }) {
         }),
         coteId: cote.id,
         color,
-        selected: isSelected,
+        selected: isSelected && !isLabelSelected,
+        emphasis: isLabelSelected,
       });
       sprite.userData.annotationId = cote.id;
       sprite.userData.annotationType = "COTE";
+      sprite.userData.segmentKey = COTE_LABEL_SEGMENT_KEY;
       sprite.userData.listingId = cote.listingId;
       sprite.userData.annotationTemplateId = cote.annotationTemplateId;
       sprite.position.set(geom.mid.x, geom.mid.y, geom.mid.z);
@@ -265,7 +290,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [cotes, selectedCoteId, annotationsLoadTick]);
+  }, [cotes, selectedCoteId, selectedPartId, annotationsLoadTick]);
 
   return null;
 }
