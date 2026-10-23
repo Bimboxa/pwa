@@ -2,13 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import {
-  Box,
-  CircularProgress,
-  MenuItem,
-  Select,
-  Typography,
-} from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { Map as MapIcon } from "@mui/icons-material";
 
 import db from "App/db/db";
@@ -18,14 +12,19 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
 import fetchNotesAppBaseMaps from "../services/fetchNotesAppBaseMaps";
 import { clearNotesAppBaseMapMapping } from "../utils/resolveNotesAppScopeLink";
+import ToggleButtonGroupMappingTarget, {
+  IGNORE,
+  LINK,
+} from "./ToggleButtonGroupMappingTarget";
 
 const DEFAULT = "__DEFAULT__";
-const IGNORE = "__IGNORE__";
 
 // Mapping table between the linked notes-app project's plans and the
-// project's base-map listings. One row per remote plan; target = a base-map
-// listing of the project (default = the "Fonds de plan" listing, created at
-// sync time when the project has none) or ignore. The sync moves an already
+// project's base-map listings. One row per remote plan (name on top, target
+// picker below); target = a base-map listing of the project, picked from the
+// dropdown (default = the "Fonds de plan" listing, created at sync time when
+// the project has none) or ignore. Ignoring keeps the picked listing, so
+// re-linking restores it. The sync moves an already
 // imported plan when its target changes. Local status + the plan's Krnet
 // locations (resolved to business objects) are shown under the name.
 export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
@@ -33,6 +32,7 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
 
   const titleS = `Plans ${appName} → fonds de plan de la mission`;
   const createS = "Créer une liste « Fonds de plan »";
+  const createShortS = "+ Fonds de plan";
   const ignoreS = "Ignorer";
   const errorS = "Impossible de récupérer les plans.";
   const emptyS = `Aucun plan dans le dossier ${appName}.`;
@@ -46,6 +46,7 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
 
   const { scope, link, setBaseMapMapping } = useNotesAppScopeLink();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const refreshKey = useSelector((s) => s.notesApp.remoteRefreshKey);
   const targetListings = useProjectBaseMapListings() ?? [];
   const defaultListing =
     targetListings.find((l) => l.key === "mapsGeneric") ?? targetListings[0];
@@ -109,24 +110,32 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
     return () => {
       cancelled = true;
     };
-  }, [link?.projectId, link?.lastSyncAt]);
+  }, [link?.projectId, link?.lastSyncAt, refreshKey]);
 
   // helpers
 
   const getEntry = (remote) =>
     link?.baseMapsMapping?.find((m) => m.remoteBaseMapId === remote.id);
 
-  const getRowValue = (remote) => {
+  const getRowValue = (remote) =>
+    getEntry(remote)?.mode === "ignored" ? IGNORE : LINK;
+
+  // Target listing key (kept while ignored). A mapped listing deleted since
+  // falls back to the default (the sync orchestrator applies the same rule).
+  const getTargetKey = (remote) => {
     const entry = getEntry(remote);
-    if (!entry) return DEFAULT;
-    if (entry.mode === "ignored") return IGNORE;
-    // A mapped listing deleted since: fall back to the default (the sync
-    // orchestrator applies the same rule).
     const stillExists = targetListings.some(
-      (l) => l.id === entry.localListingId
+      (l) => l.id === entry?.localListingId
     );
-    return stillExists ? entry.localListingId : DEFAULT;
+    if (!stillExists || entry.localListingId === defaultListing?.id)
+      return DEFAULT;
+    return entry.localListingId;
   };
+
+  const getTargetListing = (targetKey) =>
+    targetKey === DEFAULT
+      ? defaultListing
+      : targetListings.find((l) => l.id === targetKey);
 
   const getStatusS = (remote) => {
     const entry = getEntry(remote);
@@ -151,6 +160,20 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
 
   // handlers
 
+  async function handleIgnore(remote) {
+    const targetKey = getTargetKey(remote);
+    try {
+      await setBaseMapMapping({
+        remoteBaseMapId: remote.id,
+        remoteBaseMapName: remote.name,
+        localListingId: targetKey === DEFAULT ? null : targetKey,
+        mode: "ignored",
+      });
+    } catch (e) {
+      console.log("[notesApp] set base map mapping failed", e);
+    }
+  }
+
   async function handleTargetChange(remote, value) {
     try {
       if (value === DEFAULT) {
@@ -158,13 +181,6 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
         await clearNotesAppBaseMapMapping({
           scope,
           remoteBaseMapId: remote.id,
-        });
-      } else if (value === IGNORE) {
-        await setBaseMapMapping({
-          remoteBaseMapId: remote.id,
-          remoteBaseMapName: remote.name,
-          localListingId: null,
-          mode: "ignored",
         });
       } else {
         await setBaseMapMapping({
@@ -215,19 +231,33 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
         </Typography>
       )}
 
-      {!loading && !error && (
-        <Box sx={{ overflow: "auto", px: 1, py: 0.5 }}>
-          {(remoteBaseMaps ?? []).map((remote) => {
+      {!loading && !error && remoteBaseMaps?.length > 0 && (
+        <Box
+          sx={{
+            overflow: "auto",
+            mx: 1,
+            my: 0.5,
+            bgcolor: "white",
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: 1,
+          }}
+        >
+          {remoteBaseMaps.map((remote, index) => {
             const locationsS = getLocationsS(remote);
+            const targetKey = getTargetKey(remote);
+            const targetListing = getTargetListing(targetKey);
+            const value = getRowValue(remote);
             return (
               <Box
                 key={remote.id}
                 sx={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 1,
-                  py: 0.5,
+                  flexDirection: "column",
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.75,
+                  borderTop: (theme) =>
+                    index > 0 ? `1px solid ${theme.palette.divider}` : "none",
                 }}
               >
                 <Box
@@ -236,7 +266,6 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
                     alignItems: "center",
                     gap: 1,
                     minWidth: 0,
-                    flexGrow: 1,
                   }}
                 >
                   <MapIcon fontSize="small" color="action" />
@@ -264,27 +293,46 @@ export default function SectionNotesAppBaseMapsMapping({ appName = "Krnet" }) {
                     )}
                   </Box>
                 </Box>
-                <Select
-                  size="small"
-                  value={getRowValue(remote)}
-                  onChange={(e) => handleTargetChange(remote, e.target.value)}
-                  sx={{ minWidth: 140, maxWidth: 160 }}
-                >
-                  {!defaultListing && (
-                    <MenuItem value={DEFAULT}>{createS}</MenuItem>
-                  )}
-                  {targetListings.map((listing) => (
-                    <MenuItem
-                      key={listing.id}
-                      value={
-                        listing.id === defaultListing?.id ? DEFAULT : listing.id
-                      }
-                    >
-                      {listing.name}
-                    </MenuItem>
-                  ))}
-                  <MenuItem value={IGNORE}>{ignoreS}</MenuItem>
-                </Select>
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <ToggleButtonGroupMappingTarget
+                    value={value}
+                    linkContent={
+                      <Box
+                        component="span"
+                        sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
+                      >
+                        {targetListing?.name ?? createShortS}
+                      </Box>
+                    }
+                    linkTooltip={targetListing ? targetListing.name : createS}
+                    ignoreLabel={ignoreS}
+                    menuItems={[
+                      ...(defaultListing
+                        ? []
+                        : [
+                            {
+                              key: DEFAULT,
+                              label: createS,
+                              selected: value === LINK,
+                            },
+                          ]),
+                      ...targetListings.map((listing) => {
+                        const key =
+                          listing.id === defaultListing?.id
+                            ? DEFAULT
+                            : listing.id;
+                        return {
+                          key,
+                          label: listing.name,
+                          selected: value === LINK && key === targetKey,
+                        };
+                      }),
+                    ]}
+                    onLink={() => handleTargetChange(remote, targetKey)}
+                    onIgnore={() => handleIgnore(remote)}
+                    onSelectMenuItem={(key) => handleTargetChange(remote, key)}
+                  />
+                </Box>
               </Box>
             );
           })}

@@ -23,6 +23,8 @@ export const DEFAULT_BUSINESS_OBJECT_TYPE_KEY = "STANDARD";
 // (utils/resolveBusinessObjectType), never this registry directly.
 const STANDARD_STRINGS = {
   objectLabel: "Ouvrage",
+  // plural, e.g. counts ("32 localisations")
+  objectsLabel: "Ouvrages",
   newObject: "Nouvel ouvrage",
   // + ` "${parent.label}"`
   newChildPrefix: "Nouveau sous-ouvrage de",
@@ -43,6 +45,7 @@ const STANDARD_STRINGS = {
 // Quantities: a DPGF-like list of quantities (QUANTITY type).
 const QUANTITY_STRINGS = {
   objectLabel: "Quantité",
+  objectsLabel: "Quantités",
   newObject: "Nouvelle quantité",
   newChildPrefix: "Nouvelle sous-quantité de",
   editObject: "Modifier la quantité",
@@ -59,6 +62,7 @@ const QUANTITY_STRINGS = {
 // Nomenclatures: category trees — the objects are the categories.
 const NOMENCLATURE_STRINGS = {
   objectLabel: "Catégorie",
+  objectsLabel: "Catégories",
   newObject: "Nouvelle catégorie",
   newChildPrefix: "Nouvelle sous-catégorie de",
   editObject: "Modifier la catégorie",
@@ -75,6 +79,7 @@ const NOMENCLATURE_STRINGS = {
 // Locations ("Localisations"): the zones of a plan (levels, rooms, areas...).
 const LOCATION_STRINGS = {
   objectLabel: "Localisation",
+  objectsLabel: "Localisations",
   newObject: "Nouvelle localisation",
   newChildPrefix: "Nouvelle sous-localisation de",
   editObject: "Modifier la localisation",
@@ -217,6 +222,7 @@ const BUSINESS_OBJECT_TYPES = [
     editors: ["MAP", "THREED"],
     strings: {
       objectLabel: "Tâche",
+  objectsLabel: "Tâches",
       newObject: "Nouvelle tâche",
       newChildPrefix: "Nouvelle sous-tâche de",
       editObject: "Modifier la tâche",
@@ -255,6 +261,7 @@ const BUSINESS_OBJECT_TYPES = [
     editors: ["MAP", "THREED"],
     strings: {
       objectLabel: "Point",
+  objectsLabel: "Points",
       newObject: "Nouveau point",
       newChildPrefix: "Nouveau sous-point de",
       editObject: "Modifier le point",

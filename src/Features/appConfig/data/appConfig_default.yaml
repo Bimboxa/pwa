@@ -43,9 +43,9 @@ strings:
     businessObjects: "Ouvrages"
   # Wording of the objects of each business object type, key by key
   # (keys of the `strings` blocks of businessObjectTypesCatalog.js:
-  # objectLabel, newObject, newChildPrefix, editObject, addChild, empty,
-  # noLinkedAnnotations, linkTo, listLabel, createListing, linkResourceTo,
-  # linkedObjects). Missing keys keep the catalog default, e.g.
+  # objectLabel, objectsLabel (plural), newObject, newChildPrefix,
+  # editObject, addChild, empty, noLinkedAnnotations, linkTo, listLabel,
+  # createListing, linkResourceTo, linkedObjects). Missing keys keep the catalog default, e.g.
   # businessObjectTypes:
   #   STANDARD:
   #     objectLabel: "Matériau"

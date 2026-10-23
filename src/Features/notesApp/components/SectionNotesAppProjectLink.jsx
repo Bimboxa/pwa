@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+
+import { bumpNotesAppRemoteRefreshKey } from "../notesAppSlice";
 
 import {
   Box,
@@ -9,7 +12,7 @@ import {
   ListItemText,
   Typography,
 } from "@mui/material";
-import { Link as LinkIcon } from "@mui/icons-material";
+import { Link as LinkIcon, Refresh } from "@mui/icons-material";
 
 import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
 import fetchNotesAppProjects from "../services/fetchNotesAppProjects";
@@ -22,10 +25,12 @@ export default function SectionNotesAppProjectLink({ appName = "Krnet" }) {
   const selectS = `Choisissez le dossier ${appName} à lier à cette mission`;
   const emptyS = "Aucun dossier accessible avec ce compte.";
   const unlinkS = "Délier";
+  const refreshS = "Rafraîchir";
   const errorS = "Impossible de récupérer les dossiers.";
 
   // data
 
+  const dispatch = useDispatch();
   const { link, linkProject, unlinkProject } = useNotesAppScopeLink();
 
   // state
@@ -68,6 +73,10 @@ export default function SectionNotesAppProjectLink({ appName = "Krnet" }) {
     }
   }
 
+  function handleRefresh() {
+    dispatch(bumpNotesAppRemoteRefreshKey());
+  }
+
   async function handleUnlink() {
     try {
       await unlinkProject();
@@ -96,9 +105,18 @@ export default function SectionNotesAppProjectLink({ appName = "Krnet" }) {
             {link.projectName ?? link.projectId}
           </Typography>
         </Box>
-        <Button size="small" onClick={handleUnlink}>
-          {unlinkS}
-        </Button>
+        <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          <Button
+            size="small"
+            startIcon={<Refresh fontSize="small" />}
+            onClick={handleRefresh}
+          >
+            {refreshS}
+          </Button>
+          <Button size="small" onClick={handleUnlink}>
+            {unlinkS}
+          </Button>
+        </Box>
       </Box>
     );
   }

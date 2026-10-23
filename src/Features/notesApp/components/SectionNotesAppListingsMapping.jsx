@@ -1,38 +1,50 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
-import {
-  Box,
-  CircularProgress,
-  MenuItem,
-  Select,
-  Typography,
-} from "@mui/material";
+import { selectModuleIconKeysByKey } from "Features/scopeConfig/utils/scopeConfigSelectors";
+
+import { Box, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Add } from "@mui/icons-material";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
+import resolveBusinessObjectType from "Features/businessObjects/utils/resolveBusinessObjectType";
+import getBusinessObjectTypeOfListing from "Features/businessObjects/utils/getBusinessObjectTypeOfListing";
+import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import { getModuleIconComponent } from "Features/viewers/data/moduleIconsMap";
+
 import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
 import fetchNotesAppListings from "../services/fetchNotesAppListings";
+import getNotesAppBusinessObjectType from "../utils/getNotesAppBusinessObjectType";
 import { clearNotesAppListingMapping } from "../utils/resolveNotesAppScopeLink";
+import ToggleButtonGroupMappingTarget, {
+  IGNORE,
+  LINK,
+} from "./ToggleButtonGroupMappingTarget";
 
 const CREATE = "__CREATE__";
-const IGNORE = "__IGNORE__";
 
 // Mapping table between the linked notes-app project's lists and the scope's
-// listings. One row per remote list; target = create a linked listing
-// (default), an existing listing of the scope, or ignore. Plans have their
-// own table (SectionNotesAppBaseMapsMapping).
+// listings. One row per remote list: name + last sync count on top, target
+// picker below — "+ <type icon> <list label>" (a linked listing of the business object type the sync
+// creates), another listing of the scope picked from the dropdown, or
+// ignore. Ignoring keeps the local listing id, so re-linking does not create
+// a duplicate. Plans have their own table (SectionNotesAppBaseMapsMapping).
 export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
   // strings
 
   const titleS = `Listes ${appName} → listes d'ouvrages de la mission`;
-  const createS = "Créer une liste d'ouvrages";
-  const ignoreS = "Ignorer";
   const errorS = "Impossible de récupérer les listes.";
 
   // data
 
   const { scope, link, setListingMapping } = useNotesAppScopeLink();
   const { value: scopeListings } = useListingsByScope();
+  const appConfigStringsByType = useSelector(
+    (s) => s.appConfig.value?.strings?.businessObjectTypes
+  );
+  const moduleIconKeysByKey = useSelector(selectModuleIconKeysByKey);
+  const refreshKey = useSelector((s) => s.notesApp.remoteRefreshKey);
 
   // state
 
@@ -61,7 +73,7 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
     return () => {
       cancelled = true;
     };
-  }, [link?.projectId]);
+  }, [link?.projectId, refreshKey]);
 
   // helpers
 
@@ -70,40 +82,93 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
     (l) => l.entityModelKey === "businessObject" && !l.deletedAt
   );
 
-  const getRowValue = (remoteListing) => {
-    const entry = link?.listingsMapping?.find(
-      (m) => m.remoteListingId === remoteListing.id
+  const getEntry = (remoteListing) =>
+    link?.listingsMapping?.find((m) => m.remoteListingId === remoteListing.id);
+
+  // A mapped listing deleted since reads as unmapped (the sync orchestrator
+  // creates a new one, same rule).
+  const getLocalListing = (entry) =>
+    entry?.localListingId
+      ? targetListings.find((l) => l.id === entry.localListingId)
+      : null;
+
+  const getRowValue = (remoteListing) =>
+    getEntry(remoteListing)?.mode === "ignored" ? IGNORE : LINK;
+
+  // Same icon as the type's module in the left band (scope override first).
+  const getTypeIcon = (typeKey, defaultIconKey) => {
+    const Icon = getModuleIconComponent(
+      moduleIconKeysByKey[getBusinessObjectsModuleKey(typeKey)],
+      defaultIconKey
     );
-    if (!entry) return CREATE;
-    if (entry.mode === "ignored") return IGNORE;
-    // A mapped listing deleted since: fall back to CREATE (the sync
-    // orchestrator applies the same rule).
-    const stillExists = targetListings.some((l) => l.id === entry.localListingId);
-    return stillExists ? entry.localListingId : CREATE;
+    return <Icon fontSize="small" />;
+  };
+
+  const getCreateType = (remoteListing) =>
+    resolveBusinessObjectType({
+      typeKey: getNotesAppBusinessObjectType(remoteListing.settings),
+      appConfigStringsByType,
+    });
+
+  const getListingType = (listing) =>
+    resolveBusinessObjectType({
+      typeKey: getBusinessObjectTypeOfListing(listing).key,
+      appConfigStringsByType,
+    });
+
+  // "32 localisations", "1 matériau"
+  const getObjectsCountS = (count, type) => {
+    const { objectLabel, objectsLabel } = type.strings;
+    const label = count > 1 ? (objectsLabel ?? `${objectLabel}s`) : objectLabel;
+    return `${count} ${label.toLowerCase()}`;
+  };
+
+  const getCountTooltipS = (counts, type) => {
+    const entitiesS = getObjectsCountS(counts.entities ?? 0, type);
+    const positions = counts.positions ?? 0;
+    if (!positions) return entitiesS;
+    return `${entitiesS}, ${positions} position${positions > 1 ? "s" : ""}`;
+  };
+
+  const getListingIcon = (listing) => {
+    const type = getBusinessObjectTypeOfListing(listing);
+    return getTypeIcon(type.key, type.defaultIconKey);
   };
 
   // handlers
 
-  async function handleTargetChange(remoteListing, value) {
+  async function handleLink(remoteListing) {
+    const localListing = getLocalListing(getEntry(remoteListing));
+    await handleSelect(remoteListing, localListing?.id ?? CREATE);
+  }
+
+  async function handleIgnore(remoteListing) {
+    const localListing = getLocalListing(getEntry(remoteListing));
     try {
-      if (value === CREATE) {
+      await setListingMapping({
+        remoteListingId: remoteListing.id,
+        remoteListingName: remoteListing.name,
+        localListingId: localListing?.id ?? null,
+        mode: "ignored",
+      });
+    } catch (e) {
+      console.log("[notesApp] set mapping failed", e);
+    }
+  }
+
+  async function handleSelect(remoteListing, key) {
+    try {
+      if (key === CREATE) {
         // absence of entry = default "create a linked listing" at sync time
         await clearNotesAppListingMapping({
           scope,
           remoteListingId: remoteListing.id,
         });
-      } else if (value === IGNORE) {
-        await setListingMapping({
-          remoteListingId: remoteListing.id,
-          remoteListingName: remoteListing.name,
-          localListingId: null,
-          mode: "ignored",
-        });
       } else {
         await setListingMapping({
           remoteListingId: remoteListing.id,
           remoteListingName: remoteListing.name,
-          localListingId: value,
+          localListingId: key,
           mode: "mapped",
         });
       }
@@ -118,7 +183,11 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ px: 1, pt: 1 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ px: 1, pt: 1 }}
+      >
         {titleS}
       </Typography>
 
@@ -134,51 +203,113 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
         </Typography>
       )}
 
-      {!loading && !error && (
-        <Box sx={{ overflow: "auto", px: 1, py: 0.5 }}>
-          {(remoteListings ?? []).map((remoteListing) => {
-            const entry = link?.listingsMapping?.find(
-              (m) => m.remoteListingId === remoteListing.id
+      {!loading && !error && remoteListings?.length > 0 && (
+        <Box
+          sx={{
+            overflow: "auto",
+            mx: 1,
+            my: 0.5,
+            bgcolor: "white",
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: 1,
+          }}
+        >
+          {remoteListings.map((remoteListing, index) => {
+            const entry = getEntry(remoteListing);
+            const value = getRowValue(remoteListing);
+            const localListing = getLocalListing(entry);
+            const createType = getCreateType(remoteListing);
+            const createIcon = getTypeIcon(
+              createType.key,
+              createType.defaultIconKey
             );
+            const createS = `+ ${createType.strings.listLabel}`;
+            const countType = localListing
+              ? getListingType(localListing)
+              : createType;
             return (
               <Box
                 key={remoteListing.id}
                 sx={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 1,
-                  py: 0.5,
+                  flexDirection: "column",
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.75,
+                  borderTop: (theme) =>
+                    index > 0 ? `1px solid ${theme.palette.divider}` : "none",
                 }}
               >
-                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography variant="body2" noWrap>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
                     {remoteListing.name}
                   </Typography>
                   {entry?.lastSyncCounts && (
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {`${entry.lastSyncCounts.entities ?? 0} ouvrage(s), ${
-                        entry.lastSyncCounts.positions ?? 0
-                      } position(s)`}
-                    </Typography>
+                    <Tooltip
+                      title={getCountTooltipS(entry.lastSyncCounts, countType)}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.disabled"
+                        sx={{ flexShrink: 0 }}
+                      >
+                        {entry.lastSyncCounts.entities ?? 0}
+                      </Typography>
+                    </Tooltip>
                   )}
                 </Box>
-                <Select
-                  size="small"
-                  value={getRowValue(remoteListing)}
-                  onChange={(e) =>
-                    handleTargetChange(remoteListing, e.target.value)
-                  }
-                  sx={{ minWidth: 140, maxWidth: 160 }}
-                >
-                  <MenuItem value={CREATE}>{createS}</MenuItem>
-                  <MenuItem value={IGNORE}>{ignoreS}</MenuItem>
-                  {targetListings.map((listing) => (
-                    <MenuItem key={listing.id} value={listing.id}>
-                      {listing.name}
-                    </MenuItem>
-                  ))}
-                </Select>
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <ToggleButtonGroupMappingTarget
+                    value={value}
+                    linkContent={
+                      <>
+                        {!localListing && <Add fontSize="small" />}
+                        {localListing
+                          ? getListingIcon(localListing)
+                          : createIcon}
+                        <Box
+                          component="span"
+                          sx={{
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {localListing
+                            ? localListing.name
+                            : createType.strings.listLabel}
+                        </Box>
+                      </>
+                    }
+                    linkTooltip={localListing ? localListing.name : createS}
+                    menuItems={[
+                      {
+                        key: CREATE,
+                        label: createS,
+                        icon: createIcon,
+                        selected: value === LINK && !localListing,
+                      },
+                      ...targetListings.map((listing) => ({
+                        key: listing.id,
+                        label: listing.name,
+                        icon: getListingIcon(listing),
+                        selected:
+                          value === LINK && localListing?.id === listing.id,
+                      })),
+                    ]}
+                    onLink={() => handleLink(remoteListing)}
+                    onIgnore={() => handleIgnore(remoteListing)}
+                    onSelectMenuItem={(key) => handleSelect(remoteListing, key)}
+                  />
+                </Box>
               </Box>
             );
           })}

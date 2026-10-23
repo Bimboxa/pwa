@@ -10,6 +10,10 @@ const initialState = {
 
   remoteListingsByProjectId: {}, // { [projectId]: [{ id, name, color, ... }] }
 
+  // Bumped by the "Rafraîchir" button: the mapping tables re-fetch the
+  // remote lists / plans of the linked project (no import).
+  remoteRefreshKey: 0,
+
   syncStatus: { status: "idle", step: null, message: null }, // idle | syncing | success | error
 
   // Selected tab of the business-object properties panel ("PROPS" | "QTY"
@@ -48,6 +52,9 @@ const notesAppSlice = createSlice({
       const { projectId, listings } = action.payload;
       state.remoteListingsByProjectId[projectId] = listings ?? [];
     },
+    bumpNotesAppRemoteRefreshKey: (state) => {
+      state.remoteRefreshKey += 1;
+    },
     setNotesAppSyncStatus: (state, action) => {
       state.syncStatus = { ...state.syncStatus, ...action.payload };
     },
@@ -76,6 +83,7 @@ export const {
   setNotesAppRemoteProjects,
   setNotesAppRemoteProjectsStatus,
   setNotesAppRemoteListings,
+  bumpNotesAppRemoteRefreshKey,
   setNotesAppSyncStatus,
   setNotesAppObjectPropertiesTab,
   pushListingConfigView,
