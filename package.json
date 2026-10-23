@@ -35,7 +35,7 @@
     "dayjs": "^1.11.23",
     "dexie": "^4.2.1",
     "dexie-export-import": "^4.1.4",
-    "dexie-react-hooks": "^1.1.7",
+    "dexie-react-hooks": "^4.4.0",
     "dropbox": "^10.34.0",
     "dxf-parser": "^1.1.2",
     "exceljs": "^4.4.0",
