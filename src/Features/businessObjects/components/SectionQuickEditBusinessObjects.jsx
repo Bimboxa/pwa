@@ -24,7 +24,7 @@ import {
   buildQuickEditDiff,
 } from "../utils/businessObjectsQuickEdit";
 import applyBusinessObjectsQuickEditService from "../services/applyBusinessObjectsQuickEditService";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 
 // One chip style per change kind of the review list.
@@ -57,7 +57,7 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
   // strings
 
   const objectLabelS =
-    getBusinessObjectTypeOfListing(listing).strings.objectLabel.toLowerCase();
+    useBusinessObjectTypeOfListing(listing).strings.objectLabel.toLowerCase();
 
   // data
 
@@ -244,9 +244,8 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
     >
       <Typography variant="caption" color="text.secondary">
         Une ligne par {objectLabelS}, TAB pour l&apos;indentation. Unité entre
-        parenthèses, en un seul mot : (m²), (ml), (u), (ens)… — sans
-        parenthèses : pas d&apos;unité. Titres entre crochets : [m²], ou []
-        sans unité.
+        parenthèses, en un seul mot : (m²), (ml), (u), (ens)… — sans parenthèses
+        : pas d&apos;unité. Titres entre crochets : [m²], ou [] sans unité.
       </Typography>
 
       {!review && (

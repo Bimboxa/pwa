@@ -6,7 +6,7 @@ import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 import DialogDeleteBusinessObject from "./DialogDeleteBusinessObject";
 import MenuItemAssignBusinessObjectAnnotations from "./MenuItemAssignBusinessObjectAnnotations";
 
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 
 export default function MenuActionsBusinessObject({
   anchorEl,
@@ -22,7 +22,7 @@ export default function MenuActionsBusinessObject({
 
   // helpers
 
-  const type = getBusinessObjectTypeOfListing(listing);
+  const type = useBusinessObjectTypeOfListing(listing);
 
   // handlers
 

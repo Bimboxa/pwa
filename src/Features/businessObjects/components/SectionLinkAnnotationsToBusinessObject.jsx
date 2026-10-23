@@ -16,9 +16,9 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import useBusinessObjectListings from "../hooks/useBusinessObjectListings";
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useLinkAnnotationsToBusinessObject from "../hooks/useLinkAnnotationsToBusinessObject";
+import useGetBusinessObjectTypeOfListing from "../hooks/useGetBusinessObjectTypeOfListing";
 
 import buildBusinessObjectsTree from "../utils/buildBusinessObjectsTree";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 
 // "Lier à un ouvrage" action of the multi-annotation selection panel: a menu
 // of the scope's business objects (grouped by listing, tree-indented); picking
@@ -33,6 +33,8 @@ export default function SectionLinkAnnotationsToBusinessObject({
   const listings = useBusinessObjectListings();
   const { value: businessObjects } = useBusinessObjects({ scopeId });
   const linkAnnotationsToBusinessObject = useLinkAnnotationsToBusinessObject();
+  // type strings resolved for the org (appConfig strings.businessObjectTypes)
+  const getBusinessObjectTypeOfListing = useGetBusinessObjectTypeOfListing();
 
   // state
 
@@ -53,7 +55,7 @@ export default function SectionLinkAnnotationsToBusinessObject({
         ),
       }))
       .filter((g) => g.flatTree.length > 0);
-  }, [listings, businessObjects]);
+  }, [listings, businessObjects, getBusinessObjectTypeOfListing]);
 
   // Button wording from the types present (listings of every type are
   // offered: linking annotations to a task is the planning workflow).

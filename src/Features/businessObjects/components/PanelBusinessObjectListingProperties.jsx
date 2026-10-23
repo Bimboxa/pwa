@@ -54,6 +54,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnnotationTemplate";
 
 import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTemplates";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import renumberBusinessObjectsService from "../services/renumberBusinessObjectsService";
 import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
@@ -176,7 +177,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
   const isEditingName = nameValue !== null;
   const displayName = isEditingName ? nameValue : listing?.name || "";
-  const listingType = getBusinessObjectTypeOfListing(listing);
+  const listingType = useBusinessObjectTypeOfListing(listing);
   const titleS = listingType.strings.listLabel;
   // codes card / location opt-in: types carrying them only
   const hasCode = Boolean(listingType.features.code);

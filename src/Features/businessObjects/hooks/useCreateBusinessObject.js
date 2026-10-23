@@ -11,7 +11,7 @@ import {
   DEFAULT_BUSINESS_OBJECT_COLOR,
   DEFAULT_BUSINESS_OBJECT_UNIT,
 } from "../constants/businessObjectEntityModel";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useGetBusinessObjectTypeOfListing from "./useGetBusinessObjectTypeOfListing";
 
 // code: article number (free text); unit: free text; refQty: reference
 // quantity (source document), compared with the quantity rolled up from the
@@ -21,6 +21,7 @@ import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfList
 // otherwise. Tasks pass unit: null — the quantity unit belongs to articles.
 export default function useCreateBusinessObject() {
   const dispatch = useDispatch();
+  const getBusinessObjectTypeOfListing = useGetBusinessObjectTypeOfListing();
 
   const create = async ({
     listing,

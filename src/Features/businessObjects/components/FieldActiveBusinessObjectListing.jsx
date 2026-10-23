@@ -48,10 +48,7 @@ import DialogRenameBusinessObjectListing from "./DialogRenameBusinessObjectListi
 
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectTypeKey from "../utils/selectSelectedBusinessObjectTypeKey";
-import {
-  DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
-  getBusinessObjectType,
-} from "../data/businessObjectTypesCatalog";
+import useBusinessObjectType from "../hooks/useBusinessObjectType";
 
 import db from "App/db/db";
 
@@ -64,7 +61,11 @@ import db from "App/db/db";
 // becomes the create CTA.
 // ---------------------------------------------------------------------------
 
-function SortableMenuItemBusinessObjectListing({ listing, selected, onSelect }) {
+function SortableMenuItemBusinessObjectListing({
+  listing,
+  selected,
+  onSelect,
+}) {
   const {
     attributes,
     listeners,
@@ -131,11 +132,10 @@ export default function FieldActiveBusinessObjectListing({
   const dispatch = useDispatch();
 
   // data — type of the module (the module IS the type): wording of the
-  // creation button ("Créer une liste d'ouvrages" / "... de quantités"...)
+  // creation button ("Créer une liste d'ouvrages" / "... de quantités"...),
+  // resolved for the org (appConfig strings.businessObjectTypes)
   const moduleTypeKey = useSelector(selectSelectedBusinessObjectTypeKey);
-  const moduleType =
-    getBusinessObjectType(moduleTypeKey) ??
-    getBusinessObjectType(DEFAULT_BUSINESS_OBJECT_TYPE_KEY);
+  const moduleType = useBusinessObjectType(moduleTypeKey ?? undefined);
 
   // strings
 

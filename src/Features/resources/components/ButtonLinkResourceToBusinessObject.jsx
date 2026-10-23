@@ -11,7 +11,7 @@ import db from "App/db/db";
 
 import useRelsBusinessObjectResource from "Features/businessObjects/hooks/useRelsBusinessObjectResource";
 import linkResourceToBusinessObjectService from "Features/businessObjects/services/linkResourceToBusinessObjectService";
-import getBusinessObjectTypeOfListing from "Features/businessObjects/utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "Features/businessObjects/hooks/useBusinessObjectTypeOfListing";
 import isWholeResourceRel from "Features/businessObjects/utils/isWholeResourceRel";
 import selectSelectedBusinessObjectId from "Features/businessObjects/utils/selectSelectedBusinessObjectId";
 
@@ -53,7 +53,7 @@ export default function ButtonLinkResourceToBusinessObject({ resource }) {
   // helpers
 
   const businessObject = target?.businessObject ?? null;
-  const type = getBusinessObjectTypeOfListing(target?.listing);
+  const type = useBusinessObjectTypeOfListing(target?.listing);
   const rel =
     (rels ?? []).find(
       (r) => isWholeResourceRel(r) && r.resourceId === resource.id

@@ -38,7 +38,7 @@ import buildBusinessObjectsTree, {
   getBusinessObjectDescendants,
   getBusinessObjectsTreeDisplayMeta,
 } from "../utils/buildBusinessObjectsTree";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import { isBusinessObjectClosed } from "../utils/getBusinessObjectStatus";
 import { getHoursBudgetByObjectId } from "../utils/getBusinessObjectHoursBudget";
@@ -69,7 +69,7 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
 
   // data
 
-  const type = getBusinessObjectTypeOfListing(listing);
+  const type = useBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   // PLANNING listings: per-task planned / done share over the work packages
   const hasWorkPackages = Boolean(type.features?.workPackages);
