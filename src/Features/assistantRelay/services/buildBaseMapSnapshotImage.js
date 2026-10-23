@@ -3,7 +3,8 @@ import db from "App/db/db";
 const DEFAULT_MAX_LONG_EDGE = 1600;
 const DEFAULT_JPEG_QUALITY = 0.8;
 
-async function getBaseMapBlob(baseMap) {
+// Raw bytes of the active version's image (no reference-frame placement).
+export async function getBaseMapBlob(baseMap) {
   const url = baseMap?.getUrl?.();
   if (url) {
     const res = await fetch(url);

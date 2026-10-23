@@ -1,6 +1,14 @@
 import { useState } from "react";
 
-import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  FormControlLabel,
+  Switch,
+  Typography,
+} from "@mui/material";
 import { Download, Architecture } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -9,15 +17,19 @@ import exportAnnotationsAsDxf from "Features/print/services/exportAnnotationsAsD
 // "Export DXF" card of the Export tool — module Dessin, 2D editor only (the
 // gate lives in PanelPrint). One-click export of the active base map's
 // annotations; annotations must come fully resolved from useAnnotationsV2.
+// With the base map picture: a .zip (DXF + picture referenced by the DXF).
 export default function SectionDxfExport({ annotations, baseMap }) {
   // state
 
   const [exporting, setExporting] = useState(false);
+  const [includeBaseMapImage, setIncludeBaseMapImage] = useState(true);
 
   // helpers
 
   const meterByPx = baseMap?.getMeterByPx?.() ?? null;
-  const disabled = !baseMap || annotations.length === 0 || exporting;
+  const disabled =
+    !baseMap || (annotations.length === 0 && !includeBaseMapImage) || exporting;
+  const extension = includeBaseMapImage ? "zip" : "dxf";
 
   // handlers
 
@@ -27,7 +39,11 @@ export default function SectionDxfExport({ annotations, baseMap }) {
     // Let the spinner paint before the synchronous DXF build.
     await new Promise((r) => requestAnimationFrame(r));
     try {
-      exportAnnotationsAsDxf({ annotations, baseMap });
+      await exportAnnotationsAsDxf({
+        annotations,
+        baseMap,
+        includeBaseMapImage,
+      });
     } catch (e) {
       console.error("[SectionDxfExport] DXF export failed", e);
     } finally {
@@ -63,8 +79,24 @@ export default function SectionDxfExport({ annotations, baseMap }) {
         sx={{ display: "block", mb: 1 }}
       >
         Annotations du fond de plan actif, un calque par liste.
+        {includeBaseMapImage &&
+          " Image du fond jointe au DXF dans un .zip (à décompresser avant ouverture)."}
         {!meterByPx && " Échelle non définie — export en pixels."}
       </Typography>
+
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={includeBaseMapImage}
+            onChange={(e) => setIncludeBaseMapImage(e.target.checked)}
+          />
+        }
+        label={
+          <Typography variant="caption">Inclure le fond de plan</Typography>
+        }
+        sx={{ display: "flex", ml: 0, mb: 1, gap: 1 }}
+      />
 
       <Button
         size="small"
@@ -81,7 +113,7 @@ export default function SectionDxfExport({ annotations, baseMap }) {
         onClick={handleDownload}
         sx={{ textTransform: "none" }}
       >
-        {exporting ? "Export en cours…" : "Télécharger (.dxf)"}
+        {exporting ? "Export en cours…" : `Télécharger (.${extension})`}
       </Button>
     </WhiteSectionGeneric>
   );
