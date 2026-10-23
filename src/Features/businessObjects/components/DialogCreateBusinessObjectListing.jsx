@@ -18,10 +18,10 @@ import {
 } from "@mui/material";
 
 import useCreateBusinessObjectListing from "../hooks/useCreateBusinessObjectListing";
+import useBusinessObjectType from "../hooks/useBusinessObjectType";
 import selectSelectedBusinessObjectTypeKey from "../utils/selectSelectedBusinessObjectTypeKey";
 import BUSINESS_OBJECT_TYPES, {
   DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
-  getBusinessObjectType,
 } from "../data/businessObjectTypesCatalog";
 
 // Creation dialog of a business-object listing.
@@ -75,9 +75,8 @@ export default function DialogCreateBusinessObjectListing({
   // helpers
 
   const createdTypeKey = fixedTypeKey ?? selectedTypeKey;
-  const createdType =
-    getBusinessObjectType(createdTypeKey) ??
-    getBusinessObjectType(DEFAULT_BUSINESS_OBJECT_TYPE_KEY);
+  // strings resolved for the org (appConfig strings.businessObjectTypes)
+  const createdType = useBusinessObjectType(createdTypeKey);
   const hasLocate = Boolean(createdType.features.locate);
   // A pinned type names the family in the title; a free one lets the
   // selector say it.

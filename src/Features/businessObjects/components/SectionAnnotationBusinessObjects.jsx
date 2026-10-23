@@ -10,8 +10,8 @@ import db from "App/db/db";
 
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 import useOpenBusinessObject from "../hooks/useOpenBusinessObject";
+import useGetBusinessObjectTypeOfListing from "../hooks/useGetBusinessObjectTypeOfListing";
 
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import { isBusinessObjectClosed } from "../utils/getBusinessObjectStatus";
 
 // Business objects linked to one annotation (db.relsBusinessObjectAnnotation),
@@ -32,6 +32,7 @@ export default function SectionAnnotationBusinessObjects({ annotation }) {
     annotationId: annotation?.id,
   });
   const openBusinessObject = useOpenBusinessObject();
+  const getBusinessObjectTypeOfListing = useGetBusinessObjectTypeOfListing();
 
   const relIdsKey = (rels ?? []).map((r) => r.id).join(",");
   const groups = useLiveQuery(async () => {
@@ -60,7 +61,7 @@ export default function SectionAnnotationBusinessObjects({ annotation }) {
       });
     });
     return Object.values(groupByTypeKey);
-  }, [relIdsKey, businessObjectsUpdatedAt]);
+  }, [relIdsKey, businessObjectsUpdatedAt, getBusinessObjectTypeOfListing]);
 
   // handlers
 

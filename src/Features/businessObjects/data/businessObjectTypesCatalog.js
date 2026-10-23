@@ -16,6 +16,11 @@ export const DEFAULT_BUSINESS_OBJECT_TYPE_KEY = "STANDARD";
 // Wording of the objects of a type (French UI strings, read by the tree,
 // the create/edit dialog, the actions menu and the properties panel through
 // utils/getBusinessObjectTypeOfListing) and feature flags.
+// An org overrides the strings of a type key by key through
+// appConfig.strings.businessObjectTypes.<TYPE_KEY> (e.g. lei names the
+// STANDARD objects "Matériau"): the components read the resolved strings
+// through hooks/useBusinessObjectType / useBusinessObjectTypeOfListing
+// (utils/resolveBusinessObjectType), never this registry directly.
 const STANDARD_STRINGS = {
   objectLabel: "Ouvrage",
   newObject: "Nouvel ouvrage",
@@ -49,6 +54,22 @@ const QUANTITY_STRINGS = {
   createListing: "Créer une liste de quantités",
   linkResourceTo: "Lier à la quantité active",
   linkedObjects: "Quantités liées",
+};
+
+// Nomenclatures: category trees — the objects are the categories.
+const NOMENCLATURE_STRINGS = {
+  objectLabel: "Catégorie",
+  newObject: "Nouvelle catégorie",
+  newChildPrefix: "Nouvelle sous-catégorie de",
+  editObject: "Modifier la catégorie",
+  addChild: "Ajouter une sous-catégorie",
+  empty: "Aucune catégorie",
+  noLinkedAnnotations: "Aucune annotation liée à cette catégorie",
+  linkTo: "Lier à une catégorie",
+  listLabel: "Nomenclature",
+  createListing: "Créer une nomenclature",
+  linkResourceTo: "Lier à la catégorie active",
+  linkedObjects: "Catégories liées",
 };
 
 // Locations ("Localisations"): the zones of a plan (levels, rooms, areas...).
@@ -140,7 +161,7 @@ const BUSINESS_OBJECT_TYPES = [
     defaultLabel: "Nomenclatures",
     defaultIconKey: "category",
     editors: ["MAP", "THREED"],
-    strings: STANDARD_STRINGS,
+    strings: NOMENCLATURE_STRINGS,
     features: STANDARD_FEATURES,
   },
   {

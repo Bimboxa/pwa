@@ -25,7 +25,7 @@ import {
   DEFAULT_BUSINESS_OBJECT_COLOR,
   DEFAULT_HOURS_RATIO_MODE,
 } from "../constants/businessObjectEntityModel";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
@@ -57,7 +57,7 @@ export default function DialogBusinessObjectForm({
 
   // data
 
-  const type = getBusinessObjectTypeOfListing(listing);
+  const type = useBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
   const hasQuantities = Boolean(type.features?.quantities);

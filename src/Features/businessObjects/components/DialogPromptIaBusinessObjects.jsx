@@ -29,7 +29,7 @@ import SectionPromptIaZipDownload from "Features/promptIa/components/SectionProm
 import useCreateListingFromPromptIa from "../hooks/useCreateListingFromPromptIa";
 import buildPromptIaBusinessObjectsZip from "../services/buildPromptIaBusinessObjectsZip";
 import parsePromptIaBusinessObjects from "../utils/parsePromptIaBusinessObjects";
-import { getBusinessObjectType } from "../data/businessObjectTypesCatalog";
+import useBusinessObjectType from "../hooks/useBusinessObjectType";
 import { extractJsonText } from "Features/promptIa/utils/parsePromptIaOutput";
 
 const INSTRUCTION_MAX_LENGTH = 4000;
@@ -62,7 +62,7 @@ export default function DialogPromptIaBusinessObjects({
 
   // strings
 
-  const type = getBusinessObjectType(typeKey);
+  const type = useBusinessObjectType(typeKey);
   const objectLabelS = type.strings.objectLabel.toLowerCase();
 
   const titleS = `Prompt IA — ${type.defaultLabel.toLowerCase()}`;

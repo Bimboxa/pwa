@@ -64,7 +64,7 @@ import buildBusinessObjectDebugPayload from "../utils/buildBusinessObjectDebugPa
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
-import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import resolveBusinessObjectAnnotationLinks from "../utils/resolveBusinessObjectAnnotationLinks";
 import { isTemplateLinked } from "../utils/linkedTemplateIds";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
@@ -139,7 +139,7 @@ export default function PanelBusinessObjectProperties() {
         : null,
     [businessObject?.listingId]
   );
-  const type = getBusinessObjectTypeOfListing(listing);
+  const type = useBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
   const hasQuantities = Boolean(type.features?.quantities);
