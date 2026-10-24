@@ -34,6 +34,8 @@ const STANDARD_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cet ouvrage",
   linkTo: "Lier à un ouvrage",
   listLabel: "Liste d'ouvrages",
+  // header of the module's listings panel (BandActiveBusinessObjectListing)
+  listings: "Listes d'ouvrages",
   // creation button of the module's listing selector (empty state)
   createListing: "Créer une liste d'ouvrages",
   // whole-resource link button of the RESOURCES panel
@@ -54,6 +56,7 @@ const QUANTITY_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cette quantité",
   linkTo: "Lier à une quantité",
   listLabel: "Liste de quantités",
+  listings: "Listes de quantités",
   createListing: "Créer une liste de quantités",
   linkResourceTo: "Lier à la quantité active",
   linkedObjects: "Quantités liées",
@@ -71,6 +74,7 @@ const NOMENCLATURE_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cette catégorie",
   linkTo: "Lier à une catégorie",
   listLabel: "Nomenclature",
+  listings: "Nomenclatures",
   createListing: "Créer une nomenclature",
   linkResourceTo: "Lier à la catégorie active",
   linkedObjects: "Catégories liées",
@@ -88,6 +92,7 @@ const LOCATION_STRINGS = {
   noLinkedAnnotations: "Aucune annotation liée à cette localisation",
   linkTo: "Lier à une localisation",
   listLabel: "Liste de localisations",
+  listings: "Listes de localisations",
   createListing: "Créer une liste de localisations",
   linkResourceTo: "Lier à la localisation active",
   linkedObjects: "Localisations liées",
@@ -231,6 +236,7 @@ const BUSINESS_OBJECT_TYPES = [
       noLinkedAnnotations: "Aucune annotation liée à cette tâche",
       linkTo: "Lier à une tâche",
       listLabel: "Liste de tâches",
+      listings: "Listes de tâches",
       createListing: "Créer une liste de tâches",
       linkResourceTo: "Lier à la tâche active",
       linkedObjects: "Tâches liées",
@@ -270,6 +276,7 @@ const BUSINESS_OBJECT_TYPES = [
       noLinkedAnnotations: "Aucune annotation liée à ce point",
       linkTo: "Lier à un point",
       listLabel: "Liste de points",
+      listings: "Listes de points",
       createListing: "Créer une liste de points",
       linkResourceTo: "Lier au point actif",
       linkedObjects: "Points liés",

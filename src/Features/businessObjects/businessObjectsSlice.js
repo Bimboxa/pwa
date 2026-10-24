@@ -21,6 +21,12 @@ const businessObjectsInitialState = {
   // drawer state — own listing selection (s.listings.selectedListingId is the
   // Dessin module's active listing and must not be reused here).
   selectedListingId: null,
+  // Listings panel of the module (BandActiveBusinessObjectListing: the
+  // listings as rows between the header and the active listing's objects),
+  // expanded by default. Own flag: popperMapListings.listingsPanelExpanded
+  // is the Dessin module's. Shared by the left panel and the popper, and it
+  // survives the popper remount between the 2D and 3D editors.
+  listingsPanelExpanded: true,
   // ACTIVE object = the one the module works on. Set by the row click
   // alongside the {type: "BUSINESS_OBJECT"} selection, but PERSISTENT where
   // the selection is not: it survives the map selections that drawing an
@@ -129,6 +135,9 @@ export const businessObjectsSlice = createSlice({
     setStatusFilter: (state, action) => {
       state.statusFilter = action.payload;
     },
+    setListingsPanelExpanded: (state, action) => {
+      state.listingsPanelExpanded = Boolean(action.payload);
+    },
   },
   extraReducers: (builder) => {
     // A module switch clears the active object, the solo and the picking mode
@@ -161,6 +170,7 @@ export const {
   toggleBusinessObjectCollapsed,
   setLinkingBusinessObjectId,
   setStatusFilter,
+  setListingsPanelExpanded,
 } = businessObjectsSlice.actions;
 
 export default businessObjectsSlice.reducer;

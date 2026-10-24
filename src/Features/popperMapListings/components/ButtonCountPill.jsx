@@ -6,6 +6,8 @@ import { Box, Tooltip, Typography } from "@mui/material";
 // accent while visible, outlined while hidden. With a count of 0 the pill
 // has no background nor border — just the figure, in the accent while
 // visible, greyed (like the hidden row's name) while hidden.
+// Without `onClick` the pill is a plain figure (business-object listings,
+// which have no visibility toggle): default cursor, no hover.
 // ---------------------------------------------------------------------------
 
 export default function ButtonCountPill({
@@ -19,22 +21,25 @@ export default function ButtonCountPill({
   // helpers
 
   const empty = !count;
+  const isStatic = !onClick;
 
   const colorSx = empty
     ? {
         borderColor: "transparent",
         bgcolor: "transparent",
         color: hidden ? "text.disabled" : accent,
-        "&:hover": { bgcolor: "action.hover" },
+        ...(!isStatic && { "&:hover": { bgcolor: "action.hover" } }),
       }
     : {
         borderColor: hidden ? "panel.border" : "transparent",
         bgcolor: hidden ? "transparent" : accent,
         color: hidden ? "text.disabled" : contrastColor,
-        "&:hover": {
-          filter: "brightness(1.1)",
-          borderColor: hidden ? "text.secondary" : "transparent",
-        },
+        ...(!isStatic && {
+          "&:hover": {
+            filter: "brightness(1.1)",
+            borderColor: hidden ? "text.secondary" : "transparent",
+          },
+        }),
       };
 
   // render
@@ -58,7 +63,7 @@ export default function ButtonCountPill({
           flexShrink: 0,
           borderRadius: 999,
           border: "1px solid",
-          cursor: "pointer",
+          cursor: isStatic ? "default" : "pointer",
           transition: "0.2s",
           ...colorSx,
         }}

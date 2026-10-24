@@ -6,23 +6,29 @@ import { setSelectedListingId } from "Features/businessObjects/businessObjectsSl
 import { Box } from "@mui/material";
 
 import useBusinessObjectListings from "Features/businessObjects/hooks/useBusinessObjectListings";
+import useBusinessObjectCountsByListingId from "Features/businessObjects/hooks/useBusinessObjectCountsByListingId";
 
-import FieldActiveBusinessObjectListing from "Features/businessObjects/components/FieldActiveBusinessObjectListing";
+import BandActiveBusinessObjectListing from "Features/businessObjects/components/BandActiveBusinessObjectListing";
 import BusinessObjectsTree from "Features/businessObjects/components/BusinessObjectsTree";
 
+import activeListingCardSx from "../utils/activeListingCardSx";
+
 // "Objets" side of PopperMapListings (business-objects modules, labelled
-// after the module: "Ouvrages", "Quantités"…): the module's listings
-// (FieldActiveBusinessObjectListing — create / rename / delete / reorder)
-// and the objects tree of the active listing (BusinessObjectsTree — add,
-// edit, move, link…). Same content as the module's left panel
-// (PanelBusinessObjects), reachable while that panel is hidden (fullscreen
-// editors). typeKey: the business object type of the module.
+// after the module: "Ouvrages", "Quantités"…), organised like the Dessin
+// side: the module's listings block on top (BandActiveBusinessObjectListing
+// — header, listings as rows, active listing band: create / rename / delete
+// / reorder) and the objects tree of the active listing below in a white
+// accent card (BusinessObjectsTree — add, edit, move, link…). Same content
+// as the module's left panel (PanelBusinessObjects), reachable while that
+// panel is hidden (fullscreen editors). typeKey: the business object type of
+// the module.
 export default function SectionPopperBusinessObjects({ typeKey }) {
   const dispatch = useDispatch();
 
   // data
 
   const listings = useBusinessObjectListings({ typeKey });
+  const countsByListingId = useBusinessObjectCountsByListingId();
   const selectedListingId = useSelector(
     (s) => s.businessObjects.selectedListingId
   );
@@ -52,12 +58,37 @@ export default function SectionPopperBusinessObjects({ typeKey }) {
         flex: 1,
       }}
     >
-      <FieldActiveBusinessObjectListing
-        listings={listings}
-        activeListing={activeListing}
-      />
-      <Box sx={{ overflow: "auto", flex: 1, minHeight: 0 }}>
-        {activeListing && <BusinessObjectsTree listing={activeListing} />}
+      <Box sx={{ flexShrink: 0 }}>
+        <BandActiveBusinessObjectListing
+          typeKey={typeKey}
+          listings={listings}
+          activeListing={activeListing}
+          countsByListingId={countsByListingId}
+        />
+      </Box>
+
+      {/* Scrollable grey area (the popper Paper is white) holding the
+          objects card of the active listing. */}
+      <Box
+        sx={{
+          overflowY: "auto",
+          flex: 1,
+          minHeight: 0,
+          pb: 1,
+          bgcolor: "background.default",
+        }}
+      >
+        {activeListing && (
+          <Box
+            sx={{
+              mx: 1,
+              overflow: "clip",
+              ...activeListingCardSx("secondary.main"),
+            }}
+          >
+            <BusinessObjectsTree listing={activeListing} />
+          </Box>
+        )}
       </Box>
     </Box>
   );
