@@ -1,36 +1,62 @@
 // Builds a flattened tree from flat business-object rows:
-// [{businessObject, depth}], siblings ordered by fractional sortIndex,
-// children right after their parent (depth-first). Orphan objects
-// (deleted/missing parent) are treated as roots.
+// [{businessObject, depth, parentPath}], siblings ordered by fractional
+// sortIndex, children right after their parent (depth-first). Orphan
+// objects (deleted/missing parent) are treated as roots.
+//
+// `scopeId` (Krnet TreeList "scope"): the walk starts under that object —
+// depth 0 = its children — and `parentPath` joins the labels of the
+// ancestors between the scope (excluded) and the object (excluded) with
+// " / ". An unknown scope id falls back to the root (the Viewer panel may
+// display another listing than the one the stored scope belongs to).
 
-export default function buildBusinessObjectsTree(businessObjects) {
-  if (!businessObjects?.length) return [];
+const PATH_SEPARATOR = " / ";
 
-  const ids = new Set(businessObjects.map((o) => o.id));
-
+// parentId (or "ROOT") -> children sorted by sortIndex. Objects whose
+// parent is not in `businessObjects` hang from the root.
+export function buildBusinessObjectsChildrenMap(businessObjects) {
+  const ids = new Set((businessObjects ?? []).map((o) => o.id));
   const childrenByParentId = {};
-  businessObjects.forEach((object) => {
+  (businessObjects ?? []).forEach((object) => {
     const parentKey =
       object.parentId && ids.has(object.parentId) ? object.parentId : "ROOT";
     if (!childrenByParentId[parentKey]) childrenByParentId[parentKey] = [];
     childrenByParentId[parentKey].push(object);
   });
-
   Object.values(childrenByParentId).forEach((siblings) =>
     siblings.sort((a, b) =>
       String(a.sortIndex ?? "").localeCompare(String(b.sortIndex ?? ""))
     )
   );
+  return childrenByParentId;
+}
+
+export default function buildBusinessObjectsTree(
+  businessObjects,
+  { scopeId = null } = {}
+) {
+  if (!businessObjects?.length) return [];
+
+  const childrenByParentId = buildBusinessObjectsChildrenMap(businessObjects);
+  const hasScope =
+    scopeId != null && businessObjects.some((o) => o.id === scopeId);
 
   const flat = [];
-  const visit = (parentKey, depth) => {
+  const visited = new Set(); // cycle guard
+  const visit = (parentKey, depth, path) => {
     const siblings = childrenByParentId[parentKey] ?? [];
     siblings.forEach((object) => {
-      flat.push({ businessObject: object, depth });
-      visit(object.id, depth + 1);
+      if (visited.has(object.id)) return;
+      visited.add(object.id);
+      flat.push({ businessObject: object, depth, parentPath: path });
+      const label = object.label ?? "";
+      visit(
+        object.id,
+        depth + 1,
+        path ? `${path}${PATH_SEPARATOR}${label}` : label
+      );
     });
   };
-  visit("ROOT", 0);
+  visit(hasScope ? scopeId : "ROOT", 0, "");
 
   return flat;
 }
@@ -67,17 +93,18 @@ export function getBusinessObjectsTreeDisplayMeta(flatTree) {
   });
 }
 
-export function getBusinessObjectDescendants(businessObjects, businessObjectId) {
-  const childrenByParentId = {};
-  businessObjects.forEach((object) => {
-    const parentKey = object.parentId ?? "ROOT";
-    if (!childrenByParentId[parentKey]) childrenByParentId[parentKey] = [];
-    childrenByParentId[parentKey].push(object);
-  });
+export function getBusinessObjectDescendants(
+  businessObjects,
+  businessObjectId
+) {
+  const childrenByParentId = buildBusinessObjectsChildrenMap(businessObjects);
 
   const descendants = [];
+  const visited = new Set(); // cycle guard
   const visit = (id) => {
     (childrenByParentId[id] ?? []).forEach((child) => {
+      if (visited.has(child.id)) return;
+      visited.add(child.id);
       descendants.push(child);
       visit(child.id);
     });
@@ -85,4 +112,24 @@ export function getBusinessObjectDescendants(businessObjects, businessObjectId) 
   visit(businessObjectId);
 
   return descendants;
+}
+
+// Ancestors of an object, root first, parent last (Krnet getAncestorPath).
+// Stops on an unknown parent or a cycle.
+export function getBusinessObjectAncestors(businessObjects, businessObjectId) {
+  const byId = {};
+  (businessObjects ?? []).forEach((o) => {
+    byId[o.id] = o;
+  });
+  const ancestors = [];
+  const seen = new Set([businessObjectId]);
+  let current = byId[businessObjectId];
+  while (current?.parentId && byId[current.parentId]) {
+    const parent = byId[current.parentId];
+    if (seen.has(parent.id)) break;
+    seen.add(parent.id);
+    ancestors.unshift(parent);
+    current = parent;
+  }
+  return ancestors;
 }

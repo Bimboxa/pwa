@@ -1,15 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setStatusFilter } from "../businessObjectsSlice";
+import {
+  setTreeMode,
+  setTreeScopeId,
+  setTreeStateFilter,
+} from "../businessObjectsSlice";
 
 import {
   Box,
   List,
   ListItemButton,
   ListItemText,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Add } from "@mui/icons-material";
@@ -27,6 +29,13 @@ import {
 } from "@dnd-kit/sortable";
 import { generateKeyBetween } from "fractional-indexing";
 
+import SearchBar from "Features/search/components/SearchBar";
+import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
+import {
+  COLOR_HEX,
+  getPrimaryStateModel,
+} from "Features/notesApp/utils/notesAppStateModels";
+
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useMoveBusinessObject from "../hooks/useMoveBusinessObject";
 import useBusinessObjectQties from "../hooks/useBusinessObjectQties";
@@ -35,28 +44,46 @@ import useRelsBusinessObjectResource from "../hooks/useRelsBusinessObjectResourc
 import sortDocumentRels from "../utils/sortDocumentRels";
 import useTaskPlanningProgress from "Features/planning/hooks/useTaskPlanningProgress";
 import buildBusinessObjectsTree, {
+  buildBusinessObjectsChildrenMap,
+  getBusinessObjectAncestors,
   getBusinessObjectDescendants,
   getBusinessObjectsTreeDisplayMeta,
 } from "../utils/buildBusinessObjectsTree";
+import matchesBusinessObjectSearch from "../utils/matchesBusinessObjectSearch";
+import isBusinessObjectsTreeListing from "../utils/isBusinessObjectsTreeListing";
+import getBusinessObjectStateId from "../utils/getBusinessObjectStateId";
 import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
-import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import { isBusinessObjectClosed } from "../utils/getBusinessObjectStatus";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
+import scrollTreeRowIntoView from "../utils/scrollTreeRowIntoView";
 import { getHoursBudgetByObjectId } from "../utils/getBusinessObjectHoursBudget";
 import { formatHours } from "../utils/hoursRatioConversions";
 
+import BandBusinessObjectsTreeScope from "./BandBusinessObjectsTreeScope";
+import ChipsBusinessObjectsStateFilter from "./ChipsBusinessObjectsStateFilter";
 import BusinessObjectTreeItem from "./BusinessObjectTreeItem";
 import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 
-// Objects tree of the selected business-objects listing: dnd reorder /
-// reparent (drop rule + cycle guard cloned from the zonings tree), per-row
-// quantities from the linked annotations. PLANNING listings (type feature
-// hoursBudget) add the rolled-up hours per row and a total band. With the
-// listing setting `listCard` (Krnet "Aperçu de l'objet"), the object rows
-// render the configured avatar + primary + secondary texts instead.
-// Types with a status (ISSUE, type feature status) get an "Ouverts / Tous"
-// filter band: "Ouverts" hides the closed objects, except the ancestors of a
-// displayed row and the selected / active object (a row never vanishes under
-// the pointer when its checkbox is ticked).
+// Objects of the selected business-objects listing, navigated by level like
+// the Krnet mobile app (notes-app TreeList / EntityListScreen):
+// 1. a search bar;
+// 2. a state filter band — "Tous" + the open / closed status (ISSUE type) +
+//   the states of the listing's primary Krnet state model —, hidden when the
+//   listing carries neither;
+// 3. the level band: back button, current parent (the listing at the root),
+//   and the display mode toggle: CHILDREN (children of the level only, "N ›"
+//   drill-down buttons) | DESCENDANTS (every descendant, indented);
+// 4. the rows. Searching or filtering forces the DESCENDANTS mode over the
+//   matching rows, each one showing its path under the level as secondary
+//   text; the dnd is off meanwhile.
+// The level and the filter live in redux (shared by the left panel and the
+// popper, reset on listing switch); the search text is per instance and
+// cleared on level change. Dnd reorder / reparent (drop rule + cycle guard
+// cloned from the zonings tree), per-row quantities from the linked
+// annotations. PLANNING listings (type feature hoursBudget) add the
+// rolled-up hours per row and a total band. With the listing setting
+// `listCard` (Krnet "Aperçu de l'objet"), the object rows render the
+// configured avatar + primary + secondary texts instead.
 // `readOnly` (Viewer module): no creation, no dnd, no edition / linking
 // actions on the rows.
 export default function BusinessObjectsTree({ listing, readOnly = false }) {
@@ -64,8 +91,11 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
 
   // strings
 
-  const openS = "Ouverts";
   const allS = "Tous";
+  const openS = "Ouverts";
+  const closedS = "Fermés";
+  const searchS = "Rechercher...";
+  const noResultS = "Aucun résultat";
 
   // data
 
@@ -81,14 +111,30 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     listingId: listing.id,
   });
   const moveBusinessObject = useMoveBusinessObject();
-  const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
   const hasStatus = Boolean(type.features?.status);
-  const statusFilter = useSelector((s) => s.businessObjects.statusFilter);
-  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  // Krnet "Mode arbre" off (Sondages, Prélèvements…): flat list — no level
+  // band, no drill-down, no indentation, no sub-object creation.
+  const isTree = isBusinessObjectsTreeListing(listing);
+  const treeMode = useSelector((s) => s.businessObjects.treeMode);
+  const treeScopeId = useSelector((s) => s.businessObjects.treeScopeId);
+  const treeStateFilter = useSelector((s) => s.businessObjects.treeStateFilter);
+  const listCard = useBusinessObjectsListCard({ listing, businessObjects });
+  // object the user works on: the active one (row click), else the selected
+  // one (read-only rows only select)
   const activeBusinessObjectId = useSelector(
     (s) => s.businessObjects.activeBusinessObjectId
   );
-  const listCard = useBusinessObjectsListCard({ listing, businessObjects });
+  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const focusBusinessObjectId =
+    activeBusinessObjectId ?? selectedBusinessObjectId ?? null;
+
+  // Krnet listing model: the primary state model feeds the filter chips and
+  // the row badges, its state field (if any) the local values.
+  const { fields, stateModels } = useNotesAppListingConfig(listing);
+  const primaryStateModel = useMemo(
+    () => getPrimaryStateModel(stateModels),
+    [stateModels]
+  );
 
   const {
     qtiesByObjectId,
@@ -111,22 +157,68 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     return byObjectId;
   }, [documentRels]);
 
+  // state
+
+  // {parentBusinessObject} | null — object creation dialog target
+  const [createTarget, setCreateTarget] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  // row to bring into view once rendered (navigation recentered on the
+  // object picked while searching / filtering)
+  const [pendingScrollId, setPendingScrollId] = useState(null);
+
+  // refs
+
+  const headerRef = useRef(null);
+  const listRef = useRef(null);
+  // object picked (row click) WHILE searching / filtering, or null
+  const pickedWhileFilteringRef = useRef(null);
+  const prevFilteringRef = useRef(false);
+  const prevScopeIdRef = useRef(treeScopeId);
+
+  // helpers — tree
+
+  const objectById = useMemo(() => {
+    const byId = {};
+    (businessObjects ?? []).forEach((o) => {
+      byId[o.id] = o;
+    });
+    return byId;
+  }, [businessObjects]);
+  const childrenMap = useMemo(
+    () => buildBusinessObjectsChildrenMap(businessObjects ?? []),
+    [businessObjects]
+  );
+  // current level: an id unknown to this listing (another listing's scope
+  // shown by the Viewer panel, deleted object) reads as the root
+  const scopeNode =
+    isTree && treeScopeId ? (objectById[treeScopeId] ?? null) : null;
+  const scopeKey = scopeNode?.id ?? "ROOT";
+
+  // full tree: numbering, codes layout, dnd direction
+  const flatTree = useMemo(
+    () => buildBusinessObjectsTree(businessObjects),
+    [businessObjects]
+  );
+  const flatIds = useMemo(
+    () => flatTree.map(({ businessObject }) => businessObject.id),
+    [flatTree]
+  );
+  // descendants of the level, depth-first, depth and path relative to it
+  const scopedTree = useMemo(
+    () => buildBusinessObjectsTree(businessObjects, { scopeId: scopeNode?.id }),
+    [businessObjects, scopeNode?.id]
+  );
+
   // Solo target of a row click: the object's own linked annotations + its
   // descendants' (the row display keeps the own-only counts — no hierarchical
   // aggregation). Memoized bottom-up with a cycle guard.
   const soloAnnotationsByObjectId = useMemo(() => {
-    const childrenByParentId = {};
-    (businessObjects ?? []).forEach((o) => {
-      const key = o.parentId ?? "ROOT";
-      if (!childrenByParentId[key]) childrenByParentId[key] = [];
-      childrenByParentId[key].push(o);
-    });
     const byId = {};
     const collect = (id) => {
       if (byId[id]) return byId[id];
       byId[id] = []; // cycle guard
       const own = annotationsByObjectId[id] ?? [];
-      const childAnnotations = (childrenByParentId[id] ?? []).flatMap((c) =>
+      const childAnnotations = (childrenMap[id] ?? []).flatMap((c) =>
         collect(c.id)
       );
       byId[id] = [...own, ...childAnnotations];
@@ -134,7 +226,7 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     };
     (businessObjects ?? []).forEach((o) => collect(o.id));
     return byId;
-  }, [businessObjects, annotationsByObjectId]);
+  }, [businessObjects, childrenMap, annotationsByObjectId]);
 
   // Hours budget per task (own + descendants) and listing total — tasks only.
   const hoursBudget = useMemo(
@@ -143,22 +235,6 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
         ? getHoursBudgetByObjectId(businessObjects ?? [], qtiesByObjectId)
         : null,
     [hasHoursBudget, businessObjects, qtiesByObjectId]
-  );
-
-  // state
-
-  // {parentBusinessObject} | null — object creation dialog target
-  const [createTarget, setCreateTarget] = useState(null);
-
-  // helpers
-
-  const flatTree = useMemo(
-    () => buildBusinessObjectsTree(businessObjects),
-    [businessObjects]
-  );
-  const flatIds = useMemo(
-    () => flatTree.map(({ businessObject }) => businessObject.id),
-    [flatTree]
   );
 
   // Listing with codes (stored `code` of the objects — imported, typed or
@@ -179,82 +255,199 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     });
     return byId;
   }, [flatTree]);
-  const parentIds = useMemo(
-    () =>
-      new Set((businessObjects ?? []).map((o) => o.parentId).filter(Boolean)),
-    [businessObjects]
-  );
 
-  // Status filter "Ouverts": ids of the rows kept — the open objects, the
-  // selected / active one, and their ancestors (a closed parent of a kept
-  // row stays, greyed). null = no filtering.
-  const openCount = useMemo(
-    () =>
-      (businessObjects ?? []).filter((o) => !isBusinessObjectClosed(o)).length,
-    [businessObjects]
-  );
-  const keptIds = useMemo(() => {
-    if (!hasStatus || statusFilter !== "OPEN") return null;
+  // helpers — states
+
+  // state id of every object in the primary state model
+  const stateIdById = useMemo(() => {
     const byId = {};
+    if (!primaryStateModel) return byId;
     (businessObjects ?? []).forEach((o) => {
-      byId[o.id] = o;
+      byId[o.id] = getBusinessObjectStateId(o, primaryStateModel.id, fields);
     });
-    const kept = new Set();
-    const keepWithAncestors = (object) => {
-      let current = object;
-      // cycle guard: a kept id stops the walk
-      while (current && !kept.has(current.id)) {
-        kept.add(current.id);
-        current = current.parentId ? byId[current.parentId] : null;
-      }
-    };
-    (businessObjects ?? []).forEach((o) => {
-      if (
-        !isBusinessObjectClosed(o) ||
-        o.id === selectedBusinessObjectId ||
-        o.id === activeBusinessObjectId
-      )
-        keepWithAncestors(o);
+    return byId;
+  }, [businessObjects, primaryStateModel, fields]);
+  const stateById = useMemo(
+    () =>
+      Object.fromEntries(
+        (primaryStateModel?.states ?? []).map((s) => [s.id, s])
+      ),
+    [primaryStateModel]
+  );
+
+  // Filter chips: counts over the level's descendants (the whole listing at
+  // the root), like Krnet.
+  const filterOptions = useMemo(() => {
+    const scoped = scopedTree.map(({ businessObject }) => businessObject);
+    const options = [{ value: "ALL", label: allS, count: scoped.length }];
+    if (hasStatus) {
+      const closed = scoped.filter(isBusinessObjectClosed).length;
+      options.push(
+        { value: "OPEN", label: openS, count: scoped.length - closed },
+        { value: "CLOSED", label: closedS, count: closed }
+      );
+    }
+    (primaryStateModel?.states ?? []).forEach((state) => {
+      options.push({
+        value: state.id,
+        label: state.name,
+        count: scoped.filter((o) => stateIdById[o.id] === state.id).length,
+        color: COLOR_HEX[state.color] ?? COLOR_HEX.blue,
+      });
     });
-    return kept;
+    return options;
+  }, [scopedTree, hasStatus, primaryStateModel, stateIdById]);
+  const showStateFilter = hasStatus || Boolean(primaryStateModel);
+  // a stored filter unknown to this listing reads as "Tous"
+  const stateFilter = filterOptions.some((o) => o.value === treeStateFilter)
+    ? treeStateFilter
+    : "ALL";
+
+  const matchesStateFilter = (o) => {
+    if (stateFilter === "ALL") return true;
+    if (stateFilter === "OPEN") return !isBusinessObjectClosed(o);
+    if (stateFilter === "CLOSED") return isBusinessObjectClosed(o);
+    return stateIdById[o.id] === stateFilter;
+  };
+
+  // helpers — rows
+
+  const query = searchText.trim();
+  const filtering = Boolean(query) || stateFilter !== "ALL";
+  const effectiveMode = filtering || !isTree ? "DESCENDANTS" : treeMode;
+  const childrenMode = effectiveMode === "CHILDREN";
+
+  const rows = useMemo(() => {
+    if (childrenMode) {
+      return (childrenMap[scopeKey] ?? []).map((businessObject) => ({
+        businessObject,
+        depth: 0,
+        parentPath: "",
+      }));
+    }
+    if (!filtering) return scopedTree;
+    return scopedTree.filter(
+      ({ businessObject }) =>
+        matchesBusinessObjectSearch(businessObject, query) &&
+        matchesStateFilter(businessObject)
+    );
   }, [
-    hasStatus,
-    statusFilter,
-    businessObjects,
-    selectedBusinessObjectId,
-    activeBusinessObjectId,
+    childrenMode,
+    childrenMap,
+    scopeKey,
+    filtering,
+    scopedTree,
+    query,
+    stateFilter,
+    stateIdById,
   ]);
+  const rowIds = useMemo(
+    () => rows.map(({ businessObject }) => businessObject.id),
+    [rows]
+  );
 
-  // Hide the rows whose any ancestor is collapsed (the flat tree is
-  // depth-first: a collapsed node at depth d hides the following rows with
-  // depth > d until a row at depth <= d shows up), and the rows filtered out
-  // by the status filter (a filtered-out row has no kept descendant).
-  const visibleTree = useMemo(() => {
-    const visible = [];
-    let hiddenBelowDepth = null;
-    flatTree.forEach(({ businessObject, depth }) => {
-      if (hiddenBelowDepth != null && depth > hiddenBelowDepth) return;
-      hiddenBelowDepth = null;
-      if (keptIds && !keptIds.has(businessObject.id)) return;
-      visible.push({ businessObject, depth });
-      if (collapsedIds.includes(businessObject.id)) hiddenBelowDepth = depth;
-    });
-    return visible;
-  }, [flatTree, collapsedIds, keptIds]);
+  // level band texts
+  const listingName = listing.name ?? listing.label ?? type.strings.listLabel;
+  const scopeTitle = scopeNode ? scopeNode.label : listingName;
+  const scopeSubtitle = scopeNode
+    ? [
+        listingName,
+        ...getBusinessObjectAncestors(businessObjects ?? [], scopeNode.id).map(
+          (o) => o.label
+        ),
+      ].join(" / ")
+    : null;
 
-  // objects exist but the status filter hides them all
-  const emptyS =
-    flatTree.length > 0 ? `${type.strings.empty} ouvert` : type.strings.empty;
+  const emptyS = filtering ? noResultS : type.strings.empty;
+  const addS = scopeNode ? type.strings.addChild : type.strings.newObject;
+  const canAddChildren = isTree && !readOnly;
 
   // dnd — 5px activation so plain clicks keep selecting the object
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
+  // effects — a level change clears the search (Krnet handleScopeChange)
+
+  useEffect(() => {
+    setSearchText("");
+  }, [treeScopeId]);
+
+  // effects — an object picked while searching / filtering is remembered…
+
+  useEffect(() => {
+    if (filtering && focusBusinessObjectId && objectById[focusBusinessObjectId])
+      pickedWhileFilteringRef.current = focusBusinessObjectId;
+  }, [filtering, focusBusinessObjectId, objectById]);
+
+  // …and when the filtering ends, the navigation recenters on it: CHILDREN
+  // mode shows its siblings (level = its parent); DESCENDANTS mode keeps the
+  // level when the object lies under it, else moves to its parent too; the
+  // row is then scrolled to the top. Not when the filtering ended because the
+  // user changed level himself (back button clears the search).
+
+  useEffect(() => {
+    const wasFiltering = prevFilteringRef.current;
+    const scopeChanged = prevScopeIdRef.current !== treeScopeId;
+    prevFilteringRef.current = filtering;
+    prevScopeIdRef.current = treeScopeId;
+    if (filtering || !wasFiltering) return;
+    const pickedId = pickedWhileFilteringRef.current;
+    pickedWhileFilteringRef.current = null;
+    if (scopeChanged || !pickedId) return;
+    const picked = objectById[pickedId];
+    if (!picked) return;
+    const parentId =
+      picked.parentId && objectById[picked.parentId] ? picked.parentId : null;
+    const underScope =
+      !scopeNode ||
+      getBusinessObjectAncestors(businessObjects ?? [], pickedId).some(
+        (o) => o.id === scopeNode.id
+      );
+    if (isTree && (treeMode === "CHILDREN" || !underScope)) {
+      dispatch(setTreeScopeId(parentId));
+    }
+    setPendingScrollId(pickedId);
+  }, [
+    filtering,
+    treeScopeId,
+    treeMode,
+    scopeNode,
+    objectById,
+    businessObjects,
+    isTree,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    if (!rowIds.includes(pendingScrollId)) return;
+    const row = listRef.current?.querySelector(
+      `[data-business-object-id="${pendingScrollId}"]`
+    );
+    if (row) scrollTreeRowIntoView(row, headerRef.current);
+    setPendingScrollId(null);
+  }, [pendingScrollId, rowIds]);
+
   // handlers
 
-  function handleStatusFilterChange(_e, value) {
-    if (value) dispatch(setStatusFilter(value));
+  function handleStateFilterChange(value) {
+    dispatch(setTreeStateFilter(value));
+  }
+
+  function handleModeChange(value) {
+    dispatch(setTreeMode(value));
+  }
+
+  function handleDrill(businessObject) {
+    dispatch(setTreeScopeId(businessObject.id));
+  }
+
+  function handleBack() {
+    const parentId = scopeNode?.parentId;
+    dispatch(
+      setTreeScopeId(parentId && objectById[parentId] ? parentId : null)
+    );
   }
 
   // Drop rule (zonings clone): the dragged object lands next to the hovered
@@ -262,7 +455,7 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   // before/after the target among the target's siblings, depending on the
   // drag direction.
   async function handleDragEnd({ active, over }) {
-    if (readOnly) return;
+    if (readOnly || filtering) return;
     if (!over || active.id === over.id) return;
     const dragged = businessObjects?.find((o) => o.id === active.id);
     const target = businessObjects?.find((o) => o.id === over.id);
@@ -317,67 +510,106 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   // render
 
   return (
-    <Box sx={{ p: 1 }}>
-      {hasStatus && (
-        <ToggleButtonGroup
-          exclusive
-          fullWidth
-          size="small"
-          value={statusFilter}
-          onChange={handleStatusFilterChange}
-          sx={{ mb: 1, "& .MuiToggleButton-root": { py: 0.25 } }}
-        >
-          <ToggleButton value="OPEN" sx={{ textTransform: "none" }}>
-            {`${openS} (${openCount})`}
-          </ToggleButton>
-          <ToggleButton value="ALL" sx={{ textTransform: "none" }}>
-            {`${allS} (${flatTree.length})`}
-          </ToggleButton>
-        </ToggleButtonGroup>
-      )}
+    <Box>
+      {/* Search, filter chips and level band stick to the top of the host's
+          scroll area (the host card clips without scrolling). */}
+      <Box
+        ref={headerRef}
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Box sx={{ p: 1 }}>
+          <SearchBar
+            value={searchText}
+            onChange={setSearchText}
+            placeholder={searchS}
+            fullWidth
+          />
+        </Box>
+
+        {showStateFilter && (
+          <ChipsBusinessObjectsStateFilter
+            options={filterOptions}
+            value={stateFilter}
+            onChange={handleStateFilterChange}
+          />
+        )}
+
+        {isTree && (
+          <BandBusinessObjectsTreeScope
+            title={scopeTitle}
+            subtitle={scopeSubtitle}
+            onBack={scopeNode ? handleBack : null}
+            mode={effectiveMode}
+            onModeChange={handleModeChange}
+          />
+        )}
+      </Box>
+
       <DndContext
         id={`business-objects-dnd-${listing.id}`}
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={flatIds} strategy={verticalListSortingStrategy}>
-          <List dense disablePadding>
-            {visibleTree.map(({ businessObject, depth }) => (
-              <BusinessObjectTreeItem
-                key={businessObject.id}
-                businessObject={businessObject}
-                depth={depth}
-                hasChildren={parentIds.has(businessObject.id)}
-                listing={listing}
-                readOnly={readOnly}
-                showCodes={showCodes}
-                card={
-                  listCard && !businessObject.isTitle
-                    ? listCard.getCard(businessObject)
-                    : null
-                }
-                displayMeta={displayMetaById[businessObject.id]}
-                qties={qtiesByObjectId[businessObject.id]}
-                linkedAnnotations={annotationsByObjectId[businessObject.id]}
-                soloAnnotations={soloAnnotationsByObjectId[businessObject.id]}
-                mainRels={mainRelsByObjectId[businessObject.id]}
-                documentRels={documentRelsByObjectId[businessObject.id]}
-                mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
-                hoursBudget={hoursBudget?.totalById[businessObject.id] ?? null}
-                planningProgress={
-                  planningProgress.byTaskId[businessObject.id] ?? null
-                }
-                onAddChildBusinessObject={() =>
-                  setCreateTarget({ parentBusinessObject: businessObject })
-                }
-              />
-            ))}
-            {visibleTree.length === 0 && (
+        <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+          <List dense disablePadding ref={listRef}>
+            {rows.map(({ businessObject, depth, parentPath }) => {
+              const childCount = (childrenMap[businessObject.id] ?? []).length;
+              const showDrill = childrenMode && (!readOnly || childCount > 0);
+              const stateId = stateIdById[businessObject.id];
+              return (
+                <BusinessObjectTreeItem
+                  key={businessObject.id}
+                  businessObject={businessObject}
+                  depth={depth}
+                  indent={isTree && !childrenMode}
+                  drillCount={showDrill ? childCount : null}
+                  onDrill={handleDrill}
+                  pathLabel={filtering ? parentPath : null}
+                  stateBadge={stateId ? (stateById[stateId] ?? null) : null}
+                  dndDisabled={filtering}
+                  listing={listing}
+                  readOnly={readOnly}
+                  showCodes={showCodes}
+                  card={
+                    listCard && !businessObject.isTitle
+                      ? listCard.getCard(businessObject)
+                      : null
+                  }
+                  displayMeta={displayMetaById[businessObject.id]}
+                  qties={qtiesByObjectId[businessObject.id]}
+                  linkedAnnotations={annotationsByObjectId[businessObject.id]}
+                  soloAnnotations={soloAnnotationsByObjectId[businessObject.id]}
+                  mainRels={mainRelsByObjectId[businessObject.id]}
+                  documentRels={documentRelsByObjectId[businessObject.id]}
+                  mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
+                  hoursBudget={
+                    hoursBudget?.totalById[businessObject.id] ?? null
+                  }
+                  planningProgress={
+                    planningProgress.byTaskId[businessObject.id] ?? null
+                  }
+                  onAddChildBusinessObject={
+                    canAddChildren
+                      ? () =>
+                          setCreateTarget({
+                            parentBusinessObject: businessObject,
+                          })
+                      : undefined
+                  }
+                />
+              );
+            })}
+            {rows.length === 0 && (
               <Typography
                 variant="caption"
                 color="text.disabled"
-                sx={{ pl: 2, py: 0.5, display: "block" }}
+                sx={{ pl: 2, py: 1, display: "block" }}
               >
                 {emptyS}
               </Typography>
@@ -386,14 +618,15 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
         </SortableContext>
       </DndContext>
 
+      {/* creation under the current level (Krnet "Ajouter") */}
       {!readOnly && (
         <ListItemButton
-          onClick={() => setCreateTarget({ parentBusinessObject: null })}
+          onClick={() => setCreateTarget({ parentBusinessObject: scopeNode })}
           sx={{ pl: 2, color: "text.disabled" }}
         >
           <Add sx={{ fontSize: 20, mr: 1 }} color="disabled" />
           <ListItemText
-            primary={type.strings.newObject}
+            primary={addS}
             slotProps={{
               primary: { variant: "body2", color: "text.disabled" },
             }}
@@ -402,14 +635,12 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
       )}
 
       {/* listing total of the hours budget — sticky at the bottom of the
-          panel's scroll area (the negative margins cancel the root padding) */}
+          panel's scroll area */}
       {hasHoursBudget && (
         <Box
           sx={{
             position: "sticky",
             bottom: 0,
-            mx: -1,
-            mb: -1,
             px: 2,
             py: 0.75,
             display: "flex",

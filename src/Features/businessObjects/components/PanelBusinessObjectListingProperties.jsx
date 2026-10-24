@@ -57,6 +57,9 @@ import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTempla
 import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import renumberBusinessObjectsService from "../services/renumberBusinessObjectsService";
 import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
+import isBusinessObjectsTreeListing from "../utils/isBusinessObjectsTreeListing";
+import useUpdateListingNotesAppConfig from "Features/notesApp/hooks/useUpdateListingNotesAppConfig";
+import { setBooleanSetting } from "Features/notesApp/utils/notesAppListingSettings";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
 
@@ -117,6 +120,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const renumberS = "Renuméroter";
   const numberingCaptionS =
     "Écrit la numérotation de l'arborescence (1, 1.1, 1.2…) dans le code des ouvrages. Les codes existants sont remplacés.";
+  const treeModeS = "Mode arbre (hiérarchie)";
   const canLocateS = "Localisation sur les plans";
   const canLocateCaptionS =
     "Les ouvrages peuvent être localisés sur les plans : dessiner un modèle de localisation crée l'annotation principale de l'ouvrage. Les localisations existantes sont conservées.";
@@ -182,6 +186,12 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   // codes card / location opt-in: types carrying them only
   const hasCode = Boolean(listingType.features.code);
   const hasLocate = Boolean(listingType.features.locate);
+  // Krnet "Mode arbre": tree (sub-objects, level navigation) or flat list
+  const isTree = isBusinessObjectsTreeListing(listing);
+  const updateNotesAppConfig = useUpdateListingNotesAppConfig(listing);
+  const treeModeCaptionS = isTree
+    ? `Les ${listingType.strings.objectsLabel.toLowerCase()} s'organisent en arborescence : sous-éléments, navigation par niveau. Décochez pour une liste simple, sans hiérarchie (réglage partagé avec Krnet).`
+    : `Liste simple, sans hiérarchie. Cochez pour organiser les ${listingType.strings.objectsLabel.toLowerCase()} en arborescence : sous-éléments, navigation par niveau (réglage partagé avec Krnet).`;
 
   const objectsCount = businessObjects?.length ?? 0;
   const canLocate =
@@ -270,6 +280,12 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     });
     await db.listings.update(listing.id, { businessObjectType });
     dispatch(triggerListingsUpdate());
+  }
+
+  function handleToggleTreeMode(e) {
+    updateNotesAppConfig.updateSettings((s) =>
+      setBooleanSetting(s, "treeMode", e.target.checked)
+    );
   }
 
   async function handleToggleCanLocate(e) {
@@ -453,6 +469,28 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
               </Box>
             </WhiteSectionGeneric>
           )}
+
+          <WhiteSectionGeneric>
+            <Box sx={{ p: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={isTree}
+                    onChange={handleToggleTreeMode}
+                  />
+                }
+                label={<Typography variant="body2">{treeModeS}</Typography>}
+                sx={{ ml: 0 }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {treeModeCaptionS}
+              </Typography>
+            </Box>
+          </WhiteSectionGeneric>
 
           {hasLocate && (
             <WhiteSectionGeneric>

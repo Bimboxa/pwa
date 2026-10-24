@@ -40,7 +40,9 @@ export default function MenuActionsBusinessObject({
         anchorEl={anchorEl}
         onClose={onClose}
       >
-        <MenuItem onClick={handleAddChild}>{type.strings.addChild}</MenuItem>
+        {onAddChildBusinessObject && (
+          <MenuItem onClick={handleAddChild}>{type.strings.addChild}</MenuItem>
+        )}
         <MenuItem onClick={() => setOpenEdit(true)}>Modifier</MenuItem>
         {type.features.assignByGeometry && (
           <MenuItemAssignBusinessObjectAnnotations

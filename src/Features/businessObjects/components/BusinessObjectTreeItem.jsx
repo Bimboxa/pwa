@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setActiveBusinessObjectId,
   setLinkingBusinessObjectId,
-  toggleBusinessObjectCollapsed,
 } from "../businessObjectsSlice";
 import {
   clearSelection,
@@ -29,7 +28,6 @@ import {
   DragIndicator,
   AddLink,
   DescriptionOutlined,
-  ExpandMore,
   ChevronRight,
   FilterAlt,
   FilterAltOutlined,
@@ -46,6 +44,7 @@ import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDoc
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import PopperBusinessObjectQtyGap from "./PopperBusinessObjectQtyGap";
+import ChipBusinessObjectState from "./ChipBusinessObjectState";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getBusinessObjectQtyValue from "../utils/getBusinessObjectQtyValue";
@@ -60,12 +59,14 @@ import {
 } from "../utils/getBusinessObjectStatus";
 import isWholeResourceRel from "../utils/isWholeResourceRel";
 import { formatHours, formatHoursRatio } from "../utils/hoursRatioConversions";
+import selectedBusinessObjectBgcolor from "../utils/selectedBusinessObjectBgcolor";
 
-// Per-level row backgrounds. Title rows: grey band, darker at each TITLE
-// nesting level. Object rows: white, then greyer at each OBJECT nesting
-// level ("sous-détail"). Both capped at the 3rd level.
+// Row backgrounds. Title rows: grey band, darker at each TITLE nesting
+// level (capped at the 3rd). Object rows: white at every level — the level
+// navigation and the indentation carry the hierarchy —, the selected /
+// active one tinted with the secondary color (selectedBusinessObjectBgcolor).
 const TITLE_BGCOLORS = ["grey.200", "grey.300", "grey.400"];
-const OBJECT_BGCOLORS = ["background.paper", "grey.50", "grey.100"];
+const OBJECT_BGCOLOR = "background.paper";
 
 // Rows are top-aligned (labels wrap on several lines): the side items are
 // centered on the FIRST line of the label.
@@ -79,8 +80,22 @@ const firstLineSx = {
 
 export default function BusinessObjectTreeItem({
   businessObject,
-  depth,
-  hasChildren,
+  // depth relative to the displayed level; indents the row only with
+  // `indent` (DESCENDANTS mode of the tree, no codes layout)
+  depth = 0,
+  indent = false,
+  // Krnet TreeList drill-down: "N ›" button stepping into the object (its
+  // children become the displayed level) — CHILDREN mode only, null hides it
+  drillCount = null,
+  onDrill,
+  // secondary text while searching / filtering: path of the ancestors between
+  // the displayed level and the object
+  pathLabel,
+  // {name, color} of the object's state in the listing's primary Krnet state
+  // model, or null
+  stateBadge,
+  // dnd off while searching / filtering (a filtered order is meaningless)
+  dndDisabled = false,
   listing,
   // Viewer module: display, solo, linked documents and selection only
   readOnly = false,
@@ -120,7 +135,6 @@ export default function BusinessObjectTreeItem({
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
   );
-  const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
 
   const toggleBusinessObjectSolo = useToggleBusinessObjectSolo();
   const openDocumentLink = useOpenBusinessObjectDocumentLink();
@@ -138,7 +152,7 @@ export default function BusinessObjectTreeItem({
     useSortable({
       id: businessObject.id,
       data: { type: "businessObject", listingId: businessObject.listingId },
-      disabled: readOnly,
+      disabled: readOnly || dndDisabled,
     });
 
   const sortableStyle = {
@@ -152,7 +166,6 @@ export default function BusinessObjectTreeItem({
   const isActive = activeBusinessObjectId === businessObject.id;
   const isSolo = soloBusinessObjectId === businessObject.id;
   const isLinking = linkingBusinessObjectId === businessObject.id;
-  const collapsed = collapsedIds.includes(businessObject.id);
   const isTitle = Boolean(businessObject.isTitle);
 
   const linkedCount = linkedAnnotations?.length ?? 0;
@@ -208,6 +221,7 @@ export default function BusinessObjectTreeItem({
     ? "Quitter le mode liaison"
     : "Lier des annotations au clic sur la carte";
   const menuS = "Plus d'actions";
+  const drillS = "Voir le contenu";
   const qtyLabel =
     hasQuantities && linkedCount > 0
       ? getBusinessObjectQtyLabel(
@@ -258,9 +272,10 @@ export default function BusinessObjectTreeItem({
   const qtyGap = getBusinessObjectQtyGap(computedQty, businessObject.refQty);
   const showQtyGap = Boolean(qtyGap?.isOver);
   // card rows: the configured texts; the tasks caption follows the
-  // secondary text on the same line
+  // secondary text on the same line. Searching / filtering: the path of the
+  // row comes first (Krnet _parentPath).
   const primaryLabel = card?.primary || businessObject.label;
-  const secondaryLine = [card?.secondary, captionLabel]
+  const secondaryLine = [pathLabel, card?.secondary, captionLabel]
     .filter(Boolean)
     .join(" · ");
 
@@ -268,13 +283,7 @@ export default function BusinessObjectTreeItem({
     displayMeta?.titleAncestors ?? 0,
     TITLE_BGCOLORS.length - 1
   );
-  const objectLevel = Math.min(
-    displayMeta?.objectAncestors ?? 0,
-    OBJECT_BGCOLORS.length - 1
-  );
-  const rowBgcolor = isTitle
-    ? TITLE_BGCOLORS[titleLevel]
-    : OBJECT_BGCOLORS[objectLevel];
+  const rowBgcolor = isTitle ? TITLE_BGCOLORS[titleLevel] : OBJECT_BGCOLOR;
   const labelFontWeight = isTitle ? (titleLevel === 0 ? 700 : 600) : 400;
 
   // handlers
@@ -331,9 +340,9 @@ export default function BusinessObjectTreeItem({
     toggleBusinessObjectSolo(businessObject, soloAnnotations, mainAnnotations);
   }
 
-  function handleToggleCollapsed(e) {
+  function handleDrillClick(e) {
     e.stopPropagation();
-    dispatch(toggleBusinessObjectCollapsed(businessObject.id));
+    onDrill?.(businessObject);
   }
 
   // Arms / disarms the picking mode on this object: annotation clicks on the
@@ -372,24 +381,44 @@ export default function BusinessObjectTreeItem({
 
   // render
 
-  const chevron = hasChildren ? (
-    <Box
-      onClick={handleToggleCollapsed}
-      sx={{
-        ...firstLineSx,
-        mr: 0.25,
-        ml: -0.75,
-        color: "text.secondary",
-        cursor: "pointer",
-      }}
-    >
-      {collapsed ? (
-        <ChevronRight sx={{ fontSize: 16 }} />
-      ) : (
-        <ExpandMore sx={{ fontSize: 16 }} />
-      )}
-    </Box>
-  ) : null;
+  // Drill-down button "N ›" (Krnet TreeList drillBtn). Stops the pointer
+  // events: neither the row click nor the dnd must fire.
+  const drill =
+    drillCount != null ? (
+      <Box sx={{ ...firstLineSx, ml: 1 }}>
+        <Box
+          component="button"
+          onClick={handleDrillClick}
+          onPointerDown={(e) => e.stopPropagation()}
+          title={drillS}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.25,
+            height: 22,
+            minWidth: 22,
+            px: 0.5,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
+            bgcolor: "action.hover",
+            color: drillCount > 0 ? "text.primary" : "text.disabled",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.selected" },
+          }}
+        >
+          {drillCount > 0 && (
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, lineHeight: 1 }}
+            >
+              {drillCount}
+            </Typography>
+          )}
+          <ChevronRight sx={{ fontSize: 16 }} />
+        </Box>
+      </Box>
+    ) : null;
 
   const actions = hasActions ? (
     <Box
@@ -454,18 +483,27 @@ export default function BusinessObjectTreeItem({
         {...attributes}
         {...listeners}
         component="div"
+        data-business-object-id={businessObject.id}
         divider
         selected={isSelected || (!readOnly && isActive)}
         onClick={handleClick}
         sx={{
           // Listing with codes: flat 3-column rows — the code carries the
-          // hierarchy, no indentation. Tree mode keeps the indentation.
-          pl: showCodes ? 1.5 : 2 + depth * 2,
+          // hierarchy, no indentation. DESCENDANTS mode indents by the depth
+          // relative to the displayed level; CHILDREN mode is flat.
+          pl: showCodes ? 1.5 : indent ? 2 + depth * 2 : 2,
           pr: 1.5,
           alignItems: "flex-start",
           // the actions line (100% wide) wraps under the row content
           flexWrap: "wrap",
           bgcolor: rowBgcolor,
+          "&.Mui-selected": {
+            bgcolor: (theme) => selectedBusinessObjectBgcolor(theme),
+          },
+          "&.Mui-selected:hover": {
+            bgcolor: (theme) =>
+              selectedBusinessObjectBgcolor(theme, { hover: true }),
+          },
           ...sortableStyle,
           "&:hover .row-drag-handle": { opacity: 1 },
         }}
@@ -486,8 +524,6 @@ export default function BusinessObjectTreeItem({
             }}
           />
         )}
-        {chevron}
-
         {/* col 1: code (listings with codes only) */}
         {showCodes && (
           <Typography
@@ -595,6 +631,13 @@ export default function BusinessObjectTreeItem({
           </Typography>
         )}
 
+        {/* state badge: primary Krnet state model of the listing */}
+        {stateBadge && (
+          <Box sx={{ ...firstLineSx, ml: 0.5 }}>
+            <ChipBusinessObjectState state={stateBadge} />
+          </Box>
+        )}
+
         {/* located indicator: main annotation(s) on the plans */}
         {locatedS && (
           <Tooltip title={locatedS}>
@@ -652,6 +695,7 @@ export default function BusinessObjectTreeItem({
             {rightLabel}
           </Typography>
         )}
+        {drill}
         {actions}
       </ListItemButton>
 

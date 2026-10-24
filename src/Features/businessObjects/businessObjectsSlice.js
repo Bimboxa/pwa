@@ -44,10 +44,20 @@ const businessObjectsInitialState = {
   // row click itself.
   soloBusinessObjectId: null,
   soloWorkPackageId: null,
-  collapsedIds: [],
-  // Tree filter of the types with a status (ISSUE): "OPEN" (open objects
-  // only) | "ALL". A display preference: kept across listings and modules.
-  statusFilter: "OPEN",
+  // Tree navigation (Krnet TreeList pattern, shared by the left panel, the
+  // popper and the Viewer panel):
+  // - treeMode: "CHILDREN" (children of the current level only, drill-down
+  //   buttons) | "DESCENDANTS" (every descendant of the level, indented). A
+  //   global display preference: never reset.
+  // - treeScopeId: id of the current level (parent object), null = root.
+  //   Reset on listing / module / panel tab switch. An id unknown to the
+  //   displayed listing falls back to the root at read time.
+  // - treeStateFilter: active chip of the state filter band — "ALL" |
+  //   "OPEN" | "CLOSED" (types with a status, ISSUE) | a Krnet state id of
+  //   the listing's primary state model. Reset with the scope.
+  treeMode: "CHILDREN",
+  treeScopeId: null,
+  treeStateFilter: "ALL",
   // picking mode: business object armed for link/unlink clicks on the map
   linkingBusinessObjectId: null,
   // picking mode: work package armed for link/unlink clicks on the map
@@ -64,6 +74,12 @@ function resetObjectFocus(state) {
   state.soloWorkPackageId = null;
   state.linkingBusinessObjectId = null;
   state.linkingWorkPackageId = null;
+}
+
+// Tree navigation targets ONE listing: back to the root, no state filter.
+function resetTreeNavigation(state) {
+  state.treeScopeId = null;
+  state.treeStateFilter = "ALL";
 }
 
 export const businessObjectsSlice = createSlice({
@@ -89,6 +105,7 @@ export const businessObjectsSlice = createSlice({
     setSelectedListingId: (state, action) => {
       state.selectedListingId = action.payload;
       resetObjectFocus(state);
+      resetTreeNavigation(state);
     },
     setActiveBusinessObjectId: (state, action) => {
       state.activeBusinessObjectId = action.payload;
@@ -116,24 +133,24 @@ export const businessObjectsSlice = createSlice({
     setPanelTabKey: (state, action) => {
       state.panelTabKey = action.payload;
       resetObjectFocus(state);
+      resetTreeNavigation(state);
     },
     setListingPropertiesTab: (state, action) => {
       state.listingPropertiesTab = action.payload;
     },
-    toggleBusinessObjectCollapsed: (state, action) => {
-      const id = action.payload;
-      if (state.collapsedIds.includes(id)) {
-        state.collapsedIds = state.collapsedIds.filter((i) => i !== id);
-      } else {
-        state.collapsedIds.push(id);
-      }
+    setTreeMode: (state, action) => {
+      state.treeMode =
+        action.payload === "DESCENDANTS" ? "DESCENDANTS" : "CHILDREN";
+    },
+    setTreeScopeId: (state, action) => {
+      state.treeScopeId = action.payload ?? null;
     },
     setLinkingBusinessObjectId: (state, action) => {
       state.linkingBusinessObjectId = action.payload;
       if (action.payload) state.linkingWorkPackageId = null;
     },
-    setStatusFilter: (state, action) => {
-      state.statusFilter = action.payload;
+    setTreeStateFilter: (state, action) => {
+      state.treeStateFilter = action.payload ?? "ALL";
     },
     setListingsPanelExpanded: (state, action) => {
       state.listingsPanelExpanded = Boolean(action.payload);
@@ -149,6 +166,7 @@ export const businessObjectsSlice = createSlice({
     // must survive it. useSwitchViewer never re-dispatches the same key.
     builder.addCase(setSelectedViewerKey, (state) => {
       resetObjectFocus(state);
+      resetTreeNavigation(state);
     });
   },
 });
@@ -167,9 +185,10 @@ export const {
   setLinkingWorkPackageId,
   setPanelTabKey,
   setListingPropertiesTab,
-  toggleBusinessObjectCollapsed,
+  setTreeMode,
+  setTreeScopeId,
   setLinkingBusinessObjectId,
-  setStatusFilter,
+  setTreeStateFilter,
   setListingsPanelExpanded,
 } = businessObjectsSlice.actions;
 

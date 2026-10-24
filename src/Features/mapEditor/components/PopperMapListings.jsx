@@ -19,7 +19,11 @@ import {
   setSelectedListingId,
   setScopeModuleShowAllListings,
 } from "Features/listings/listingsSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import {
+  clearSelection,
+  setSelectedItem,
+} from "Features/selection/selectionSlice";
+import { setActiveBusinessObjectId } from "Features/businessObjects/businessObjectsSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -82,6 +86,7 @@ import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScope
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
+import selectedBusinessObjectBgcolor from "Features/businessObjects/utils/selectedBusinessObjectBgcolor";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
 import PanelFooter from "Features/layout/components/PanelFooter";
@@ -1911,6 +1916,7 @@ export default function PopperMapListings() {
   }, [allAnnotations]);
 
   const propertiesS = "Propriétés";
+  const leaveActiveObjectS = "Quitter la sélection";
 
   const titleS =
     isBusinessObjectsModule && activeBusinessObject
@@ -1984,6 +1990,11 @@ export default function PopperMapListings() {
   // there).
   const showSideProperties =
     !isBaseMapsViewer && !isViewerModule && !isScopeModule;
+  // Business-objects module with an ACTIVE object: the header is titled with
+  // the object on its tinted background (same as its tree row) and the
+  // properties button gives way to a cross leaving the selection.
+  const hasActiveObjectHeader =
+    isBusinessObjectsModule && Boolean(activeBusinessObject);
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2334,7 +2345,9 @@ export default function PopperMapListings() {
           pl: 0.25,
           pr: 1,
           py: 0.75,
-          bgcolor: "panel.headerBg",
+          bgcolor: hasActiveObjectHeader
+            ? (theme) => selectedBusinessObjectBgcolor(theme)
+            : "panel.headerBg",
           borderBottom: collapsed ? "none" : "1px solid",
           borderColor: "panel.border",
           cursor: "grab",
@@ -2371,7 +2384,24 @@ export default function PopperMapListings() {
             module and the BaseMaps module (read-only legends, no popper
             properties there). On the objects side the button is kept in the
             layout, invisible, so the header does not jump between sides. */}
-        {showSideProperties && (
+        {hasActiveObjectHeader && (
+          <Tooltip title={leaveActiveObjectS} arrow placement="top">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch(setActiveBusinessObjectId(null));
+                dispatch(clearSelection());
+              }}
+              sx={{ color: "panel.textSecondary", p: 0.25 }}
+            >
+              <Close sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {showSideProperties && !hasActiveObjectHeader && (
           <Tooltip title={propertiesS} arrow placement="top">
             <IconButton
               size="small"
