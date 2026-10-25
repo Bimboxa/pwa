@@ -20,6 +20,15 @@ export function getDrawToolsGate(ctx) {
   return null;
 }
 
+// Gate of the templateless « Dessin » commands: offered where the drawing
+// tools are, and in the locate-business-object mode too (an object of a
+// located listing is active: the free draw locates it, without template)
+// although the other tool groups stay hidden there.
+export function getTemplatelessDrawGate(ctx) {
+  if (ctx.isLocateBusinessObjectMode) return null;
+  return getDrawToolsGate(ctx);
+}
+
 // State of a 2D/3D tool group command (DRAWING_TOOLS_BY_TYPE type).
 export function getToolGroupState(ctx, toolType) {
   const gate = getDrawToolsGate(ctx);

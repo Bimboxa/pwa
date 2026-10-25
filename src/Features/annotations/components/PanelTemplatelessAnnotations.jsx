@@ -70,7 +70,9 @@ export default function PanelTemplatelessAnnotations() {
   const annotations = useMemo(
     () =>
       (allAnnotations ?? [])
-        .filter(isTemplatelessAnnotation)
+        // scope-level rows only: the ones drawn on a located business
+        // object belong to its listing's « Sans modèle » row
+        .filter((a) => isTemplatelessAnnotation(a) && !a.listingId)
         .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)),
     [allAnnotations]
   );

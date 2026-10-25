@@ -19,10 +19,13 @@ import {
 } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 
 import db from "App/db/db";
-import { TEMPLATELESS_TEMPLATE_ID } from "Features/annotations/utils/templatelessAnnotations";
+import { isTemplatelessTemplateKey } from "Features/annotations/utils/templatelessAnnotations";
 import { ORPHAN_TEMPLATE_ID } from "Features/annotations/utils/orphanAnnotations";
 
-const SENTINEL_TEMPLATE_IDS = [TEMPLATELESS_TEMPLATE_ID, ORPHAN_TEMPLATE_ID];
+// Sentinel ids of the « Dessin » rows (global and per business-objects
+// listing) and of the orphan rows.
+const isSentinelTemplateId = (id) =>
+  isTemplatelessTemplateKey(id) || id === ORPHAN_TEMPLATE_ID;
 
 // « Supprimer les filtres » of the SCOPE module « Contenu » tab: the display
 // filters set on the two other tabs of the popper —
@@ -58,7 +61,7 @@ export default function useScopeContentFilters() {
   const hiddenTemplateIdsKey = hiddenTemplateIds.join(",");
   const hasLiveHiddenTemplate = useLiveQuery(async () => {
     const ids = hiddenTemplateIdsKey ? hiddenTemplateIdsKey.split(",") : [];
-    if (ids.some((id) => SENTINEL_TEMPLATE_IDS.includes(id))) return true;
+    if (ids.some(isSentinelTemplateId)) return true;
     if (!ids.length) return false;
     const rows = await db.annotationTemplates.bulkGet(ids);
     return rows.some((row) => row && !row.deletedAt);

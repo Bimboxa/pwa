@@ -374,7 +374,6 @@ import stabilizeAnnotationsIdentity from "Features/annotations/utils/stabilizeAn
 import {
   getAnnotationTemplateKey,
   isTemplatelessAnnotation,
-  TEMPLATELESS_TEMPLATE_ID,
 } from "Features/annotations/utils/templatelessAnnotations";
 import { ORPHAN_TEMPLATE_ID } from "Features/annotations/utils/orphanAnnotations";
 import {
@@ -861,9 +860,12 @@ export default function useAnnotationsV2(options) {
     const mainBusinessObjectLabelByAnnotationId =
       useMainBusinessObjectLabelByAnnotationId();
 
-    // eye of the templateless annotations ("Dessin" tool row)
-    const hideTemplateless = useSelector((s) =>
-      selectHiddenAnnotationTemplateIdSet(s).has(TEMPLATELESS_TEMPLATE_ID)
+    // eyes of the templateless annotations: the global « Annotations sans
+    // modèle » row of the Dessin module and the per-listing « Sans modèle »
+    // rows of the located business-objects listings (sentinel keys, see
+    // getAnnotationTemplateKey) — memoized Set, stable while nothing changes
+    const hiddenTemplateIdSet = useSelector(
+      selectHiddenAnnotationTemplateIdSet
     );
     // eye of the orphan annotations (« Annot. sans modèle » row)
     const hideOrphans = useSelector((s) =>
@@ -1230,9 +1232,11 @@ export default function useAnnotationsV2(options) {
           // them rather than making them vanish.
           if (isRevolutionHelper(a))
             return !a.scopeId || a.scopeId === scope.id;
-          // Templateless annotations ("Dessin" tool): no listing either,
-          // scoped by their own `scopeId`.
-          if (isTemplatelessAnnotation(a)) return a.scopeId === scope.id;
+          // Scope-level templateless annotations ("Dessin" tool): no listing
+          // either, scoped by their own `scopeId`. The ones drawn on a
+          // located business object carry its listing and follow it.
+          if (isTemplatelessAnnotation(a) && !a.listingId)
+            return a.scopeId === scope.id;
           return scopeListingIds.has(a.listingId);
         });
       }
@@ -2792,9 +2796,10 @@ export default function useAnnotationsV2(options) {
         } else {
           const baseMap = baseMapById[annotation?.baseMapId];
           // Templateless annotations ("Dessin" tool) carry their own style;
-          // their eye is the sentinel id of the hidden templates list.
+          // their eye is a sentinel id of the hidden templates list (global,
+          // or per business-objects listing).
           if (isTemplatelessAnnotation(annotation)) {
-            return hideTemplateless
+            return hiddenTemplateIdSet.has(getAnnotationTemplateKey(annotation))
               ? { ...annotation, hidden: true }
               : annotation;
           }
@@ -3396,7 +3401,7 @@ export default function useAnnotationsV2(options) {
       playWorkPackageIdByAnnotationId,
       playActive,
       mainBusinessObjectLabelByAnnotationId,
-      hideTemplateless,
+      hiddenTemplateIdSet,
       hideOrphans,
       templatesLoaded,
       soloTemplateId,

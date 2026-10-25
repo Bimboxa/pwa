@@ -88,8 +88,10 @@ export default function useCreateAnnotation() {
       }
 
       // Templateless annotations ("Dessin" tool) belong to a scope + a base
-      // map only: same rule, never re-attached to the selected listing.
-      if (isTemplatelessAnnotation(_annotation)) {
+      // map only: same rule, never re-attached to the selected listing. The
+      // ones drawn on a located business object carry that listing's id on
+      // purpose (useHandleCommitDrawing) and keep it.
+      if (isTemplatelessAnnotation(_annotation) && !annotation?.listingId) {
         _annotation.listingId = null;
       }
 

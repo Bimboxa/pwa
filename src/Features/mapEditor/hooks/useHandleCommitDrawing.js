@@ -148,20 +148,27 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
-        // Templateless draw ("Dessin" tool, hotkey D): no annotation template,
-        // no listing — the annotation belongs to the base map + the scope
-        // only (its points carry no listingId either).
+        // Templateless draw ("Dessin" tool, hotkey D): no annotation template.
+        // No listing either — the annotation belongs to the base map + the
+        // scope only (its points carry no listingId either) — unless the
+        // draft carries one: locate mode of a business-objects module, the
+        // annotation is written in the object's listing (startTemplatelessDraw).
         const isTemplateless = isTemplatelessAnnotation(newAnnotation)
             && !newAnnotation?.annotationTemplateId;
+        const templatelessListingId = isTemplateless
+            ? (newAnnotation?.listingId || null)
+            : null;
         // Revolution axes / placements drawn from the "Axe de révolution"
         // tool carry no template: they belong to the base map + the scope
         // too, never to the selected listing.
         const isScopeBoundRevolutionHelper =
             isRevolutionHelperType(newAnnotation?.type)
             && !newAnnotation?.annotationTemplateId;
-        const listingId = isTemplateless || isScopeBoundRevolutionHelper
-            ? undefined
-            : selectedListingId;
+        const listingId = isTemplateless
+            ? (templatelessListingId ?? undefined)
+            : isScopeBoundRevolutionHelper
+                ? undefined
+                : selectedListingId;
 
         // IMAGE one-click placement: the click is the image centre; the two
         // corners feed the bbox commit below. Done here (not in the editor)
@@ -430,7 +437,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 baseMapId,
                 projectId,
                 ...(isTemplateless
-                    ? { scopeId: selectedScopeId ?? null, listingId: null }
+                    ? { scopeId: selectedScopeId ?? null, listingId: templatelessListingId }
                     : { listingId }),
                 ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
 
@@ -759,7 +766,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 // cannot flow through the listing visibility filters, so
                 // useAnnotationsV2 keeps them visible through `scopeId`.
                 ...(isTemplateless
-                    ? { scopeId: selectedScopeId ?? null, listingId: null }
+                    ? { scopeId: selectedScopeId ?? null, listingId: templatelessListingId }
                     : isRevolutionHelper && !newAnnotation.annotationTemplateId
                         ? { scopeId: selectedScopeId ?? null, listingId: null }
                         : { listingId }),

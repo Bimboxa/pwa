@@ -8,7 +8,7 @@ import { ALL_EDITORS, EDITOR_2D } from "../constants/commandEditors";
 import {
   DRAW_IN_PROGRESS_REASON,
   TOOL_IN_PROGRESS_REASON,
-  getDrawToolsGate,
+  getTemplatelessDrawGate,
 } from "./drawToolCommandState";
 
 // Shapes the "Dessin" commands offer in the displayed editor (3D: lines,
@@ -33,10 +33,13 @@ export function getRememberedTemplatelessShapeKey(ctx) {
   return keys[0] ?? null;
 }
 
-// One « Dessin » command per annotation type drawn WITHOUT template nor
-// listing (templateless draft): Ligne, Surface, Disque, Repère, Point,
-// Étiquette, Texte, Détail, Image, Cote, Règle — one button each in the
-// toolbar. They share the « D » hotkey: only the remembered shape's command
+// One « Dessin » command per annotation type drawn WITHOUT template
+// (templateless draft): Ligne, Surface, Disque, Repère, Point, Étiquette,
+// Texte, Détail, Image, Cote, Règle — one button each in the toolbar. In the
+// Dessin module the annotation has no listing either; in a business-objects
+// module with an active object of a located listing (locate mode) it is
+// written in that listing and LOCATES the object (ctx.locateBusinessObject).
+// They share the « D » hotkey: only the remembered shape's command
 // fires (the others yield) and carries the badge, so « D » keeps drawing the
 // last-used type as before. `Icon` (a component) replaces the shape's icon
 // element in the toolbar only (the shape pickers keep their own icon).
@@ -59,12 +62,13 @@ export default function createTemplatelessDrawCommand(shapeKey, { Icon } = {}) {
       showBadgeWhen: isRemembered,
     },
     getState(ctx) {
-      // Templateless annotations belong to a scope of the Dessin module,
-      // never to the ZONES / business-objects flows.
-      if (ctx.viewerKey !== "MAP") {
+      // Templateless annotations belong to a scope of the Dessin module, or
+      // locate the active object of a located business-objects listing —
+      // never to the ZONES flows.
+      if (ctx.viewerKey !== "MAP" && !ctx.isLocateBusinessObjectMode) {
         return { enabled: false, reason: "Réservé au module Dessin" };
       }
-      const gate = getDrawToolsGate(ctx);
+      const gate = getTemplatelessDrawGate(ctx);
       if (gate) return gate;
       if (ctx.viewerMode) return { enabled: false, reason: ctx.readOnlyReason };
       if (ctx.interactionMode !== "DRAW" && ctx.interactionMode != null) {
@@ -88,6 +92,7 @@ export default function createTemplatelessDrawCommand(shapeKey, { Icon } = {}) {
     run(ctx, { dispatch, store }) {
       startTemplatelessDraw(dispatch, store.getState(), shapeKey, {
         threed: ctx.isThreedEditor,
+        locate: ctx.locateBusinessObject,
       });
     },
   };

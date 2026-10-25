@@ -4,7 +4,9 @@
 // DRAW), always in the ZONES module (openings / splits on the zone
 // delimitation polygons) and in a business-objects module without an active
 // object (edit-only panel: cuts / openings on existing annotations stay
-// possible). Never in locate-business-object mode.
+// possible). Never in locate-business-object mode — except the templateless
+// « Dessin » commands, which gate themselves (getTemplatelessDrawGate) to
+// locate the active object.
 export default function selectShowDrawingTools({
   effectiveInteractionMode,
   isZonesViewer,

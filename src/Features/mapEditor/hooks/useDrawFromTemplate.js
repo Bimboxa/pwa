@@ -20,6 +20,7 @@ import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/ge
 import getLinkBusinessObjectDraftProps from "Features/businessObjects/utils/getLinkBusinessObjectDraftProps";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
+import { isLocationTemplateForListing } from "Features/businessObjects/utils/getLocationTemplateListingIds";
 
 // Drawing shapes allowed to start a draw while the Dessin module is toggled to
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
@@ -39,9 +40,19 @@ const THREED_TOGGLED_DRAWABLE_SHAPES = [
 // useDrawFromTemplate — tool resolution + start-draw dispatches for one
 // annotation template. Shared by PopperMapListings' AnnotationTemplateRow and
 // the Dessin left panel rows.
+//
+// options.locateListing: the ACTIVE object's business-objects listing, passed
+// by the locate-mode blocks of PopperMapListings only — drawing a location
+// template of that listing (its own templates or its libraries') LOCATES the
+// object (see below). Elsewhere (Dessin panel, regular listing rows) a draw
+// while an object is active LINKS the annotation to it.
 // ---------------------------------------------------------------------------
 
-export default function useDrawFromTemplate(annotationTemplate, listingId) {
+export default function useDrawFromTemplate(
+  annotationTemplate,
+  listingId,
+  { locateListing = null } = {}
+) {
   const dispatch = useDispatch();
 
   // data
@@ -58,22 +69,25 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   // "3D" in the Dessin module's 3D editor: the tool lists then offer the
   // 3D-only tools (« Pinceau »).
   const toolsEditor = useSelector(selectDrawingToolsEditor);
-  // Ouvrages module: drawing with a location template (the business-objects
-  // listing's own templates) while an object is ACTIVE LOCATES it — the
-  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor. The ACTIVE
-  // id (not the selection) is what survives the map selection each committed
-  // location produces, so several base maps can be located in a row. Only for
-  // located listings (opt-in listing.canLocateBusinessObjects, read on the
-  // template's own listing through the Dexie mirror listingsById).
-  const isLocateTemplate = useSelector((s) => {
-    if (
-      !isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) ||
-      !annotationTemplate?.isBusinessObjectAnnotation
-    )
-      return false;
-    const listing = s.listings.listingsById?.[annotationTemplate.listingId];
-    return canLocateBusinessObjects(listing);
-  });
+  // Ouvrages module: drawing a location template of the ACTIVE object's
+  // listing — one of the listing's own templates, or a template of one of
+  // its libraries (listing.locationTemplateListingIds, the annotation then
+  // stays in its library listing) — LOCATES the object: the draft carries
+  // the LOCATE_BUSINESS_OBJECT commit interceptor. The ACTIVE id (not the
+  // selection) is what survives the map selection each committed location
+  // produces, so several base maps can be located in a row. Only for located
+  // listings (opt-in listing.canLocateBusinessObjects); the libraries are
+  // resolved through the Dexie mirror listingsById.
+  const isLocateTemplate = useSelector(
+    (s) =>
+      isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) &&
+      canLocateBusinessObjects(locateListing) &&
+      isLocationTemplateForListing(
+        annotationTemplate,
+        locateListing,
+        s.listings.listingsById
+      )
+  );
   const activeBusinessObjectId = useSelector((s) =>
     isBusinessObjectsModuleKey(s.viewers.selectedViewerKey)
       ? (s.businessObjects?.activeBusinessObjectId ?? null)
