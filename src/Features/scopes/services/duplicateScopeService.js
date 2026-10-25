@@ -344,6 +344,12 @@ export default async function duplicateScopeService({
     delete copy.remoteSource;
     if (l.notesApp)
       copy.notesApp = copyNotesAppConfig(l.notesApp, listingIdMap);
+    // located business-objects listing: template libraries follow the
+    // copied annotation listings (a library left behind is dropped)
+    if (Array.isArray(l.locationTemplateListingIds))
+      copy.locationTemplateListingIds = l.locationTemplateListingIds
+        .map((id) => listingIdMap[id])
+        .filter(Boolean);
     return copy;
   });
 

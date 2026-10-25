@@ -245,6 +245,18 @@ export default function remapDexieExportIds(jsonData, opts) {
         };
       }
 
+      // Located business-objects listings: template libraries (annotation
+      // listing ids — see getLocationTemplateListingIds; unknown ids are
+      // dropped at read time).
+      if (
+        tableName === "listings" &&
+        Array.isArray(row.locationTemplateListingIds)
+      ) {
+        row.locationTemplateListingIds = row.locationTemplateListingIds.map(
+          (id) => remapId("listings", id)
+        );
+      }
+
       // REVOLUTION shape3D: nested ref to the plan axis annotation.
       if (tableName === "annotations" && row.shape3D?.axisAnnotationId) {
         row.shape3D = {

@@ -57,11 +57,13 @@ import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTempla
 import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import renumberBusinessObjectsService from "../services/renumberBusinessObjectsService";
 import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
+import allowsMultipleLocationAnnotations from "../utils/allowsMultipleLocationAnnotations";
 import isBusinessObjectsTreeListing from "../utils/isBusinessObjectsTreeListing";
 import useUpdateListingNotesAppConfig from "Features/notesApp/hooks/useUpdateListingNotesAppConfig";
 import { setBooleanSetting } from "Features/notesApp/utils/notesAppListingSettings";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
+import SectionLocationTemplateLibraries from "./SectionLocationTemplateLibraries";
 
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import useNotesAppScopeLink from "Features/notesApp/hooks/useNotesAppScopeLink";
@@ -93,11 +95,15 @@ const LISTING_TYPES = BUSINESS_OBJECT_TYPES.filter((type) =>
 // arrow of the object properties panel (selection: {type: "LISTING"}). Name
 // edition, the "Renuméroter" action (tree numbering written into the
 // objects' code), the
-// "Localisation sur les plans" opt-in (listing.canLocateBusinessObjects) and,
-// when it is on, the location templates: the listing's OWN
-// annotationTemplates, created with the same "Nouveau modèle" dialog as the
-// Dessin popper and flagged isBusinessObjectAnnotation — drawing one from
-// the popper (business-object mode) creates the object's main annotation.
+// "Localisation sur les plans" opt-in (listing.canLocateBusinessObjects) with
+// its « Plusieurs annotations par plan » sub-option
+// (listing.multipleLocationAnnotations, missing = type default) and, when
+// the opt-in is on, the location templates: the listing's OWN
+// annotationTemplates (« Modèles spécifiques », created with the same
+// "Nouveau modèle" dialog as the Dessin popper and flagged
+// isBusinessObjectAnnotation) and the « Bibliothèques » (annotation listings
+// of the scope, listing.locationTemplateListingIds) — drawing one from the
+// popper (business-object mode) creates the object's main annotation.
 // Turning the option off hides the templates card only: templates and
 // existing main annotations are kept. When the org has the Krnet
 // integration the panel gets two tabs: "Général" (the cards above) and
@@ -124,10 +130,14 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const canLocateS = "Localisation sur les plans";
   const canLocateCaptionS =
     "Les ouvrages peuvent être localisés sur les plans : dessiner un modèle de localisation crée l'annotation principale de l'ouvrage. Les localisations existantes sont conservées.";
+  const multipleS = "Plusieurs annotations par plan";
+  const multipleCaptionS =
+    "Chaque dessin de localisation ajoute une annotation principale sur le plan. Décoché : la nouvelle annotation remplace la précédente sur ce plan.";
   const locationS = "Modèles de localisation";
   const locationCaptionS =
-    "Les ouvrages sont localisés sur les plans avec ces modèles : l'annotation dessinée devient l'annotation principale de l'ouvrage et porte son nom.";
-  const locationEmptyS = "Aucun modèle — les ouvrages ne sont pas localisés.";
+    "Les ouvrages sont localisés sur les plans avec ces modèles : l'annotation dessinée devient l'annotation principale de l'ouvrage et porte son nom. Le dessin libre (outil D) localise aussi, sans modèle.";
+  const ownTemplatesS = "Modèles spécifiques";
+  const locationEmptyS = "Aucun modèle spécifique.";
   const newTemplateS = "Nouveau modèle";
   const deleteTemplateS = "Supprimer le modèle";
   const cancelS = "Annuler";
@@ -197,6 +207,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const canLocate =
     Boolean(getBusinessObjectTypeOfListing(listing).features.locate) &&
     canLocateBusinessObjects(listing);
+  const isMultiple = allowsMultipleLocationAnnotations(listing);
   // PLANNING listings only (type feature): the drawing lists feeding the
   // planning.
   const showAnnotationListings = Boolean(
@@ -292,6 +303,14 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     if (!listing?.id || !guardEditRecord(listing)) return;
     await db.listings.update(listing.id, {
       canLocateBusinessObjects: e.target.checked,
+    });
+    dispatch(triggerListingsUpdate());
+  }
+
+  async function handleToggleMultiple(e) {
+    if (!listing?.id || !guardEditRecord(listing)) return;
+    await db.listings.update(listing.id, {
+      multipleLocationAnnotations: e.target.checked,
     });
     dispatch(triggerListingsUpdate());
   }
@@ -512,6 +531,29 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                 >
                   {canLocateCaptionS}
                 </Typography>
+                {canLocate && (
+                  <Box sx={{ mt: 1, ml: 2 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={isMultiple}
+                          onChange={handleToggleMultiple}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2">{multipleS}</Typography>
+                      }
+                      sx={{ ml: 0 }}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{ display: "block", color: "text.secondary" }}
+                    >
+                      {multipleCaptionS}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             </WhiteSectionGeneric>
           )}
@@ -531,6 +573,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                 </Box>
                 <Typography variant="caption" color="text.secondary">
                   {locationCaptionS}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  {ownTemplatesS}
                 </Typography>
                 {locationTemplates.length === 0 ? (
                   <Typography variant="caption" color="text.disabled">
@@ -585,6 +630,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                 >
                   {newTemplateS}
                 </Button>
+                <SectionLocationTemplateLibraries listing={listing} />
               </Box>
             </WhiteSectionGeneric>
           )}
