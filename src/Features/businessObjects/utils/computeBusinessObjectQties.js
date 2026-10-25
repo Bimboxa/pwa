@@ -22,7 +22,8 @@ import { getQtyFormulasByTemplateId } from "./qtyFormula.js";
 // links — a caller omitting them falls back to the rels and the unit rule.
 // => {qtiesByObjectId, annotationsByObjectId, mainRelsByObjectId,
 //     mainAnnotationsByObjectId} — the last two hold the objects' MAIN
-// annotations (rels flagged isMain, one per base map).
+// annotations (rels flagged isMain; one per base map, or several when the
+// listing allows it — allowsMultipleLocationAnnotations).
 export default function computeBusinessObjectQties({
   rels,
   annotations,

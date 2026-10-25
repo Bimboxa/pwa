@@ -1,7 +1,7 @@
 import db from "App/db/db";
 
-// Live rels flagged isMain (main annotation per base map) of the given
-// business objects. isMain is not indexable: filtered in memory after the
+// Live rels flagged isMain (main annotations — one per base map, or several
+// when the listing allows it) of the given business objects. isMain is not indexable: filtered in memory after the
 // businessObjectId index lookup.
 export default async function getMainRelsOfBusinessObjectsService(
   businessObjectIds

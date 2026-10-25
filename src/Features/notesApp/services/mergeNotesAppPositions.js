@@ -3,6 +3,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 
 import isRemoteNewer from "../utils/isRemoteNewer";
+import allowsMultipleLocationAnnotations from "Features/businessObjects/utils/allowsMultipleLocationAnnotations";
 
 const clamp01 = (v) => Math.min(Math.max(Number(v) || 0, 0), 1);
 
@@ -21,7 +22,10 @@ const FALLBACK_IMAGE_WIDTH = 2000;
 // - it is the object's MAIN annotation on its base map: rel
 //   { isMain: true, baseMapId } with the same invariants as
 //   setMainAnnotationForBusinessObjectService (one live isMain per
-//   (object, baseMap) — conflicting rels are demoted, Krnet wins);
+//   (object, baseMap) unless the listing allows several main annotations
+//   per base map — allowsMultipleLocationAnnotations, then the Krnet
+//   position is one main among the others; one isMain per annotation
+//   always — conflicting rels are demoted, Krnet wins);
 // - LABEL geometry is INLINE normalized (targetPoint = Krnet x/y, labelPoint
 //   = chip offset), no db.points row involved.
 //
@@ -68,6 +72,10 @@ export default async function prepareNotesAppPositionsMerge({
   const localByIdMaster = new Map(
     [...legacyRows, ...localRows].map((a) => [a.idMaster, a])
   );
+
+  // several main annotations per base map allowed: a Krnet position never
+  // demotes the object's other mains on its base map
+  const multipleLocations = allowsMultipleLocationAnnotations(listing);
 
   // --- rels of the listing, loaded once (pair lookup + isMain conflicts)
   const listingRels = (
@@ -187,7 +195,9 @@ export default async function prepareNotesAppPositionsMerge({
         r.businessObjectId === localObjectId;
       if (samePair) continue;
       // (a) other main annotation of this object on this base map
+      // (single-location listings only)
       if (
+        !multipleLocations &&
         r.isMain &&
         r.businessObjectId === localObjectId &&
         r.baseMapId === localBaseMapId

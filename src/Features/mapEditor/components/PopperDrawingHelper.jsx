@@ -15,6 +15,7 @@ import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useR
 import selectLocatingBusinessObjectId from "Features/businessObjects/utils/selectLocatingBusinessObjectId";
 import selectLinkBusinessObjectDraftId from "Features/businessObjects/utils/selectLinkBusinessObjectDraftId";
 import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
+import allowsMultipleLocationAnnotations from "Features/businessObjects/utils/allowsMultipleLocationAnnotations";
 import { softGradientCardSx } from "Features/dashboard/utils/dashboardStyles";
 
 // ---------------------------------------------------------------------------
@@ -29,7 +30,9 @@ export default function PopperDrawingHelper() {
 
   // data — "Localiser" draw (Ouvrages module): the draft carries the
   // LOCATE_BUSINESS_OBJECT interceptor; the header names the object and a
-  // warning tells when its main annotation on this base map gets replaced.
+  // warning tells when its main annotation on this base map gets replaced
+  // (single-location listings only: a listing allowing several main
+  // annotations per base map adds the new one instead).
 
   // A LINK draw (regular template drawn while an object is active) names the
   // object too — the created annotation links to it, nothing is replaced.
@@ -50,9 +53,17 @@ export default function PopperDrawingHelper() {
   const { value: locatingRels } = useRelsBusinessObjectAnnotation({
     businessObjectId: locatingBusinessObjectId,
   });
-  const replacesMainOnBaseMap = (locatingRels ?? []).some(
-    (r) => r.isMain && r.baseMapId === selectedBaseMapId
+  const locatingListing = useSelector((s) =>
+    draftBusinessObject?.listingId
+      ? (s.listings.listingsById?.[draftBusinessObject.listingId] ?? null)
+      : null
   );
+  const multipleLocations = allowsMultipleLocationAnnotations(locatingListing);
+  const replacesMainOnBaseMap =
+    !multipleLocations &&
+    (locatingRels ?? []).some(
+      (r) => r.isMain && r.baseMapId === selectedBaseMapId
+    );
 
   // Extruder / Déplacer / Tourner: the helper is titled after the tool.
   const transformToolTitle = useSelector(selectTransformToolTitle);
@@ -142,6 +153,12 @@ export default function PopperDrawingHelper() {
             <Typography variant="caption" color="warning.main">
               L&apos;ouvrage est déjà localisé sur ce plan : son annotation
               principale actuelle sera remplacée.
+            </Typography>
+          )}
+          {multipleLocations && (
+            <Typography variant="caption" color="text.secondary">
+              Chaque dessin ajoute une annotation principale sur ce plan. Échap
+              pour terminer.
             </Typography>
           )}
         </Box>

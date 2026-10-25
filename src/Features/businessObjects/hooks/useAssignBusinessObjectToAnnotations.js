@@ -15,12 +15,15 @@ import getBusinessObjectLinkWrites from "../utils/getBusinessObjectLinkWrites";
 import isSingleObjectPerAnnotationListing from "../utils/isSingleObjectPerAnnotationListing";
 
 // "Affecter les annotations à l'intérieur" (types with the `assignByGeometry`
-// feature, e.g. the locations): the MAIN POLYGON annotation of the object on
-// the current base map links every annotation lying inside it to the object,
-// splitting the POLYGON / POLYLINE / STRIP annotations crossed by its
-// perimeter so that only the inner part gets linked (geometry:
+// feature, e.g. the locations): the MAIN POLYGON annotation(s) of the object
+// on the current base map link every annotation lying inside them to the
+// object, splitting the POLYGON / POLYLINE / STRIP annotations crossed by
+// their perimeter so that only the inner part gets linked (geometry:
 // annotations/services/splitAnnotationsByContourService — same pipeline as
-// the zonings' "Affecter la zone").
+// the zonings' "Affecter la zone"). Several main polygons (listings allowing
+// several main annotations per base map) run one pass each over the
+// candidates not yet touched by a previous pass: an annotation crossing two
+// polygons is cut by the first one only (v1).
 // Links follow the listing rule (utils/getBusinessObjectLinkWrites). The
 // pieces created by a split inherit the plain links of their source
 // annotation, so cutting a surface never drops it from its other objects.
@@ -105,35 +108,49 @@ export default function useAssignBusinessObjectToAnnotations() {
       if (r.businessObjectId === businessObject.id)
         ownMainAnnotationIds.add(r.annotationId);
     });
-    const contourAnnotation = (annotations ?? []).find(
+    const contourAnnotations = (annotations ?? []).filter(
       (a) =>
         a &&
         ownMainAnnotationIds.has(a.id) &&
         a.type === "POLYGON" &&
         (a.points?.length ?? 0) >= 3
     );
-    if (!contourAnnotation) return { noPolygon: true };
+    if (contourAnnotations.length === 0) return { noPolygon: true };
 
-    const {
-      pointsToSave,
-      annotationUpdates,
-      newAnnotationRows,
-      newMappingRels,
-      linkedAnnotationIds,
-      sourceIdByNewRowId,
-      splitCount,
-    } = await splitAnnotationsByContourService({
-      contourAnnotation,
-      annotations: (annotations ?? []).filter(
-        (a) =>
-          a &&
-          !mainAnnotationIds.has(a.id) &&
-          !a.isZoneAnnotation &&
-          !a.isBaseMapAnnotation &&
-          !a.isMeshCell
-      ),
-      imageSize,
-    });
+    // one pass per main polygon; the rows written by a pass (cut annotations,
+    // inner ones) leave the candidate set of the next passes
+    const pointsToSave = [];
+    const annotationUpdates = [];
+    const newAnnotationRows = [];
+    const newMappingRels = [];
+    const linkedAnnotationIds = [];
+    const sourceIdByNewRowId = {};
+    let splitCount = 0;
+    const touchedIds = new Set();
+    for (const contourAnnotation of contourAnnotations) {
+      const pass = await splitAnnotationsByContourService({
+        contourAnnotation,
+        annotations: (annotations ?? []).filter(
+          (a) =>
+            a &&
+            !mainAnnotationIds.has(a.id) &&
+            !touchedIds.has(a.id) &&
+            !a.isZoneAnnotation &&
+            !a.isBaseMapAnnotation &&
+            !a.isMeshCell
+        ),
+        imageSize,
+      });
+      pointsToSave.push(...pass.pointsToSave);
+      annotationUpdates.push(...pass.annotationUpdates);
+      newAnnotationRows.push(...pass.newAnnotationRows);
+      newMappingRels.push(...pass.newMappingRels);
+      linkedAnnotationIds.push(...pass.linkedAnnotationIds);
+      Object.assign(sourceIdByNewRowId, pass.sourceIdByNewRowId);
+      splitCount += pass.splitCount;
+      pass.annotationUpdates.forEach((u) => touchedIds.add(u.id));
+      pass.linkedAnnotationIds.forEach((id) => touchedIds.add(id));
+    }
 
     // links of the inner annotations (listing rule)
     const linkedIdSet = new Set(linkedAnnotationIds);
