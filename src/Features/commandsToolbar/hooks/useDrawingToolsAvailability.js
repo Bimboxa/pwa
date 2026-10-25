@@ -11,8 +11,9 @@ import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBu
 // Déplacer, Tourner…) apply in the displayed module: the gates the
 // former "Commandes" rows of PopperMapListings used
 // (selectShowDrawingTools), including the business-objects module ones that
-// need the active object's listing (locate mode: no tools; no active object:
-// edit-only tools).
+// need the active object's listing (locate mode: no tools but the
+// templateless « Dessin » commands, which locate the object; no active
+// object: edit-only tools).
 export default function useDrawingToolsAvailability() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
@@ -53,9 +54,19 @@ export default function useDrawingToolsAvailability() {
     isLocateBusinessObjectMode,
   });
 
+  // Locate mode: the object the templateless « Dessin » commands locate, and
+  // the business-objects listing the drawn annotation is written in.
+  const locateBusinessObject = isLocateBusinessObjectMode
+    ? {
+        businessObjectId: activeBusinessObject.id,
+        listingId: activeBusinessObject.listingId,
+      }
+    : null;
+
   return {
     showDrawingTools,
     isLocateBusinessObjectMode,
     isBusinessObjectsModuleNoObject,
+    locateBusinessObject,
   };
 }

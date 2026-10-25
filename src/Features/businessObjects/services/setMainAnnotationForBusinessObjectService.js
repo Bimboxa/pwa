@@ -4,10 +4,13 @@ import db from "App/db/db";
 
 // Makes `annotation` the MAIN annotation of `businessObject` on the
 // annotation's base map. Invariants enforced here:
-// (a) at most one live isMain rel per (businessObjectId, baseMapId) — the
-//     previous main annotation of this object on that base map is returned in
+// (a) replacePreviousMain (default, single-location listings): at most one
+//     live isMain rel per (businessObjectId, baseMapId) — the previous main
+//     annotation of this object on that base map is returned in
 //     replacedMainAnnotationIds, the CALLER decides its fate (the "Localiser"
-//     flow deletes it);
+//     flow deletes it). Listings allowing several main annotations per base
+//     map (utils/allowsMultipleLocationAnnotations) pass false: the new main
+//     is added next to the existing ones, nothing is returned;
 // (b) at most one live isMain rel per annotationId — other objects' main rels
 //     on this annotation are demoted to plain links.
 // The rel row denormalizes baseMapId so per-base-map lookups need no
@@ -15,6 +18,7 @@ import db from "App/db/db";
 export default async function setMainAnnotationForBusinessObjectService({
   businessObject,
   annotation,
+  replacePreviousMain = true,
 }) {
   if (!businessObject?.id || !annotation?.id) return null;
   const baseMapId = annotation.baseMapId ?? null;
@@ -28,14 +32,16 @@ export default async function setMainAnnotationForBusinessObjectService({
     ).filter((r) => !r.deletedAt);
 
     // (a) previous main on the same base map (other annotations only)
-    const replacedMainAnnotationIds = objectRels
-      .filter(
-        (r) =>
-          r.isMain &&
-          r.baseMapId === baseMapId &&
-          r.annotationId !== annotation.id
-      )
-      .map((r) => r.annotationId);
+    const replacedMainAnnotationIds = replacePreviousMain
+      ? objectRels
+          .filter(
+            (r) =>
+              r.isMain &&
+              r.baseMapId === baseMapId &&
+              r.annotationId !== annotation.id
+          )
+          .map((r) => r.annotationId)
+      : [];
 
     // (b) other objects' main rels on this annotation → plain links
     const annotationRels = (

@@ -70,7 +70,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const { showDrawingTools, isLocateBusinessObjectMode } =
+  const { showDrawingTools, isLocateBusinessObjectMode, locateBusinessObject } =
     useDrawingToolsAvailability();
 
   // data — modes
@@ -239,6 +239,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedScopeId,
       showDrawingTools,
       isLocateBusinessObjectMode,
+      locateBusinessObject,
       // modes
       enabledDrawingMode,
       activeToolType: getToolTypeForDrawingMode(enabledDrawingMode),
@@ -299,6 +300,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedScopeId,
       showDrawingTools,
       isLocateBusinessObjectMode,
+      locateBusinessObject?.businessObjectId,
+      locateBusinessObject?.listingId,
       enabledDrawingMode,
       newAnnotation?.isTemplateless,
       selectedToolKeyByTemplateId,

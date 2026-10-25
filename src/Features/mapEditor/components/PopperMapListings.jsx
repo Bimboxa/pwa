@@ -88,7 +88,9 @@ import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsLis
 import IconButtonToggleDetached from "Features/popperMapListings/components/IconButtonToggleDetached";
 import selectedBusinessObjectBgcolor from "Features/businessObjects/utils/selectedBusinessObjectBgcolor";
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
+import RowListingTemplatelessAnnotations from "Features/mapEditor/components/RowListingTemplatelessAnnotations";
 import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
+import IconListingVariantBasic from "Features/listings/components/IconListingVariantBasic";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -115,8 +117,8 @@ import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/Ic
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import {
   TEMPLATELESS_LABEL,
-  TEMPLATELESS_TEMPLATE_ID,
   isTemplatelessAnnotationInScope,
+  isTemplatelessTemplateKey,
 } from "Features/annotations/utils/templatelessAnnotations";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import { RULER_DRAWING_MODES } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
@@ -151,6 +153,7 @@ import {
   isBusinessObjectsModuleKey,
 } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
+import getLocationTemplateListingIds from "Features/businessObjects/utils/getLocationTemplateListingIds";
 import useBusinessObjectsModuleLabel from "Features/businessObjects/hooks/useBusinessObjectsModuleLabel";
 import SectionPopperBusinessObjects from "Features/popperMapListings/components/SectionPopperBusinessObjects";
 
@@ -217,6 +220,9 @@ function AnnotationTemplateRow({
   // read-only display entry — no draw / edit / tool / reassign, no drag; the
   // eye and the solo stay (host-side display actions).
   readOnly = false,
+  // Locate mode (business-objects module, active object of a located
+  // listing): the listing whose location templates locate the object.
+  locateListing = null,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -244,7 +250,7 @@ function AnnotationTemplateRow({
     nextDraftProps,
     startDraw,
     selectToolAndDraw,
-  } = useDrawFromTemplate(annotationTemplate, listingId);
+  } = useDrawFromTemplate(annotationTemplate, listingId, { locateListing });
   // Module / display overrides (Maillage, 3D, ?mode=viewer, ZONES → SELECT;
   // business-objects module without an active object → EDIT) → use the
   // effective mode for all behavior gating in this row.
@@ -907,13 +913,31 @@ function AnnotationTemplatesForListing({
   // Listing linked from another scope: read-only rows, no reorder, no
   // "Nouveau modèle".
   readOnly = false,
+  // Locate mode (business-objects module, active object of a located
+  // listing): the object's listing, forwarded to the rows — drawing one of
+  // its location templates locates the object.
+  locateListing = null,
+  // Library of a located listing (locate mode, listing.locationTemplateListingIds):
+  // drawing rows only — no orphan row, no "Nouveau modèle" / empty state,
+  // no procedures; an empty library says so.
+  libraryMode = false,
 }) {
+  // strings
+
+  const emptyLibraryS = "Aucun modèle";
+
   // data
 
   const allTemplates = useAnnotationTemplates({
     filterByListingId: listingId,
     sortByOrder: true,
   });
+  // « Sans modèle » row of a business-objects listing (own block of the
+  // locate mode): the annotations drawn without template on its objects.
+  const isBusinessObjectsListing = useSelector(
+    (s) =>
+      s.listings.listingsById?.[listingId]?.entityModelKey === "businessObject"
+  );
 
   // In SELECT contexts, only show templates that have a visible annotation.
   const annotationTemplates = useMemo(
@@ -984,8 +1008,11 @@ function AnnotationTemplatesForListing({
   // the rows + dashed add row (`allTemplates` is undefined while loading).
   // Not in 3D (read-only), while SELECT-filtering nor for a linked listing.
 
-  const canEdit = !isThreedViewer && !visibleTemplateIds && !readOnly;
+  const canEdit =
+    !isThreedViewer && !visibleTemplateIds && !readOnly && !libraryMode;
   const showEmptyState = canEdit && allTemplates && allTemplates.length === 0;
+  const showEmptyLibrary =
+    libraryMode && allTemplates && allTemplates.length === 0;
 
   // render
 
@@ -1062,6 +1089,7 @@ function AnnotationTemplatesForListing({
                       DIMENSION_SHAPES.includes(resolveDrawingShape(item))
                     }
                     readOnly={readOnly}
+                    locateListing={locateListing}
                   />
                 );
               })}
@@ -1070,9 +1098,26 @@ function AnnotationTemplatesForListing({
         </DndContext>
       )}
 
-      {/* « Annot. sans modèle » (orphan annotations of the listing) then
-          + Nouveau modele — hidden in 3D (read-only), while SELECT-filtering
-          and for a listing linked from another scope */}
+      {showEmptyLibrary && (
+        <Typography
+          variant="caption"
+          sx={{ display: "block", pl: 3, py: 0.5, color: "text.disabled" }}
+        >
+          {emptyLibraryS}
+        </Typography>
+      )}
+
+      {/* « Sans modèle » (business-objects listing: annotations drawn with
+          the « Dessin » command on its objects), « Annot. sans modèle »
+          (orphan annotations of the listing) then + Nouveau modele — hidden
+          in 3D (read-only), while SELECT-filtering, for a listing linked from
+          another scope and for a library */}
+      {canEdit && isBusinessObjectsListing && (
+        <RowListingTemplatelessAnnotations
+          listingId={listingId}
+          variant="popper"
+        />
+      )}
       {canEdit && (
         <RowOrphanAnnotations listingId={listingId} variant="popper" />
       )}
@@ -1596,7 +1641,7 @@ export default function PopperMapListings() {
   );
   const soloTemplate = useLiveQuery(
     () =>
-      soloTemplateId === TEMPLATELESS_TEMPLATE_ID
+      isTemplatelessTemplateKey(soloTemplateId)
         ? { label: TEMPLATELESS_LABEL }
         : soloTemplateId
           ? db.annotationTemplates.get(soloTemplateId)
@@ -1744,6 +1789,20 @@ export default function PopperMapListings() {
     isBusinessObjectsModule &&
     Boolean(activeBusinessObject) &&
     canLocateBusinessObjects(activeBusinessObjectListing);
+  // Locate mode: the template libraries of the object's listing (annotation
+  // listings of the scope, listing.locationTemplateListingIds), shown below
+  // its own templates — dangling ids dropped at read time.
+  const listingsById = useSelector((s) => s.listings.listingsById);
+  const locationLibraries = useMemo(
+    () =>
+      isLocateBusinessObjectMode
+        ? getLocationTemplateListingIds(
+            activeBusinessObjectListing,
+            listingsById
+          ).map((id) => listingsById[id])
+        : [],
+    [isLocateBusinessObjectMode, activeBusinessObjectListing, listingsById]
+  );
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
@@ -2711,6 +2770,11 @@ export default function PopperMapListings() {
               {/* Viewer module: full legend — every listing at once (no chips
                   selector), each row always expanded with its templates. The
                   row's hover eye toggles all the listing's template eyes. */}
+              {/* Locate mode: the object's listing — its own location
+                  templates (« Modèles spécifiques »), the « Sans modèle »
+                  and orphan rows, « Nouveau modèle » — then one block per
+                  template library (annotation listing of the scope): drawing
+                  any of these rows locates the active object. */}
               {isLocateBusinessObjectMode && (
                 <Box sx={{ pt: 0.5 }}>
                   <AnnotationTemplatesForListing
@@ -2721,7 +2785,39 @@ export default function PopperMapListings() {
                     annotationTemplateById={annotationTemplateById}
                     paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                     templateDefaults={{ isBusinessObjectAnnotation: true }}
+                    locateListing={activeBusinessObjectListing}
                   />
+                  {locationLibraries.map((library) => (
+                    <Box key={library.id} sx={{ mt: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          pl: 1.5,
+                          pr: 1,
+                          py: 0.5,
+                        }}
+                      >
+                        <IconListingVariantBasic listing={library} />
+                        <Typography
+                          variant="body2"
+                          noWrap
+                          sx={{ flex: 1, minWidth: 0, fontWeight: 500 }}
+                        >
+                          {library.name || "Sans nom"}
+                        </Typography>
+                      </Box>
+                      <AnnotationTemplatesForListing
+                        listingId={library.id}
+                        annotations={annotationsByListingId?.[library.id]}
+                        annotationTemplateById={annotationTemplateById}
+                        paintedQtiesByTemplateId={paintedQtiesByTemplateId}
+                        locateListing={activeBusinessObjectListing}
+                        libraryMode
+                      />
+                    </Box>
+                  ))}
                 </Box>
               )}
               {isLocateBusinessObjectMode

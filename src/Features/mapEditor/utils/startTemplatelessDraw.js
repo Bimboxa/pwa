@@ -1,4 +1,5 @@
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 import {
   setEnabledDrawingMode,
   setTemplatelessDrawingShape,
@@ -6,6 +7,7 @@ import {
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
+import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
 import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
 import { pickDrawingTool } from "Features/mapEditor/utils/filterDrawingToolsForEditor";
 import {
@@ -52,6 +54,11 @@ export function getTemplatelessDraft(drawingShape, rememberedProps) {
 // surface and cote types make sense there (THREED_DRAWING_SHAPES): another
 // remembered type falls back to POLYLINE without being overwritten. The
 // draft itself is the same as in 2D.
+// options.locate: { businessObjectId, listingId } — locate mode of a
+// business-objects module (active object of a located listing): the draft
+// keeps `isTemplateless` but carries the business-objects listingId (the
+// annotation is written in that listing, « Sans modèle » row) and the
+// LOCATE_BUSINESS_OBJECT interceptor (main annotation of the object).
 export default function startTemplatelessDraw(
   dispatch,
   state,
@@ -78,6 +85,15 @@ export default function startTemplatelessDraw(
     shape,
     state.mapEditor.draftPropsByTemplateId?.[key]
   );
+  const locate = options.locate;
+  if (locate?.businessObjectId && locate?.listingId) {
+    draft.listingId = locate.listingId;
+    Object.assign(
+      draft,
+      getLocateBusinessObjectDraftProps(locate.businessObjectId)
+    );
+    dispatch(setSelectedListingId(locate.listingId));
+  }
 
   if (shape === requested) dispatch(setTemplatelessDrawingShape(shape));
   dispatch(

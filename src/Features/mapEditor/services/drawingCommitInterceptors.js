@@ -11,6 +11,7 @@ import { LOCATE_BUSINESS_OBJECT_INTERCEPTOR_KEY } from "Features/businessObjects
 import { LINK_BUSINESS_OBJECT_INTERCEPTOR_KEY } from "Features/businessObjects/constants/linkBusinessObjectInterceptor";
 import setMainAnnotationForBusinessObjectService from "Features/businessObjects/services/setMainAnnotationForBusinessObjectService";
 import linkAnnotationsToBusinessObjectService from "Features/businessObjects/services/linkAnnotationsToBusinessObjectService";
+import allowsMultipleLocationAnnotations from "Features/businessObjects/utils/allowsMultipleLocationAnnotations";
 
 // ---------------------------------------------------------------------------
 // drawingCommitInterceptors — declarative registry for the deferred drawing
@@ -80,10 +81,17 @@ const registry = {
   },
 
   // "Localiser" an object (business-objects modules): the drawn annotation
-  // becomes the object's MAIN annotation on its base map (rel isMain). The
-  // previous main annotation of the object on that base map is deleted, and
-  // the tool disarms (one-shot placement): a second click would otherwise
-  // create a second main annotation.
+  // becomes the object's MAIN annotation on its base map (rel isMain). Two
+  // regimes, per the object's listing (allowsMultipleLocationAnnotations):
+  // - single (default): the previous main annotation of the object on that
+  //   base map is deleted, and the tool disarms (one-shot placement) — a
+  //   second click would otherwise create a second main annotation;
+  // - multiple (e.g. locations = several polygons): the new main is added,
+  //   nothing is replaced, and the draft keeps the interceptor (like LINK)
+  //   so the next draws locate the same object; Escape or the active-object
+  //   sync (useSyncBusinessObjectDrawDraft) end the series.
+  // Edits of an EXISTING annotation (openings, holes, snap-merge) return no
+  // created annotation and are skipped.
   [LOCATE_BUSINESS_OBJECT_INTERCEPTOR_KEY]: {
     intercept: async () => ({ proceed: {} }),
     afterCommit: async ({ result, newAnnotation, context, deps }) => {
@@ -95,12 +103,17 @@ const registry = {
         context.businessObjectId
       );
       if (!businessObject || businessObject.deletedAt) return;
+      const listing = businessObject.listingId
+        ? await db.listings.get(businessObject.listingId)
+        : null;
+      const multiple = allowsMultipleLocationAnnotations(listing);
 
       try {
         const { replacedMainAnnotationIds } =
           (await setMainAnnotationForBusinessObjectService({
             businessObject,
             annotation,
+            replacePreviousMain: !multiple,
           })) ?? {};
         if (replacedMainAnnotationIds?.length && deleteAnnotations) {
           await deleteAnnotations(replacedMainAnnotationIds);
@@ -127,9 +140,11 @@ const registry = {
           })
         );
       } finally {
-        // one-shot: disarm the tool and drop the interceptor from the draft
-        dispatch?.(setEnabledDrawingMode(null));
-        dispatch?.(setNewAnnotation(newAnnotation));
+        if (!multiple) {
+          // one-shot: disarm the tool and drop the interceptor from the draft
+          dispatch?.(setEnabledDrawingMode(null));
+          dispatch?.(setNewAnnotation(newAnnotation));
+        }
       }
     },
   },

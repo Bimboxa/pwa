@@ -116,6 +116,9 @@ const STANDARD_FEATURES = { hoursBudget: false, color: true };
 // filter) — see utils/getBusinessObjectStatus.
 // locateByDefault: a new listing opts in the "Localisation" unless told
 // otherwise.
+// multipleLocationsByDefault: a located listing accepts SEVERAL main
+// annotations per base map unless listing.multipleLocationAnnotations says
+// otherwise (see utils/allowsMultipleLocationAnnotations).
 // singleObjectPerAnnotation: an annotation is linked to at most ONE object of
 // a listing — linking it to another object of the same listing replaces the
 // previous plain link (see utils/isSingleObjectPerAnnotationListing).
@@ -140,6 +143,7 @@ const FEATURE_DEFAULTS = {
   locate: true,
   status: false,
   locateByDefault: false,
+  multipleLocationsByDefault: false,
   singleObjectPerAnnotation: false,
   assignByGeometry: false,
   autoNumbering: false,
@@ -191,6 +195,7 @@ const BUSINESS_OBJECT_TYPES = [
     features: {
       ...STANDARD_FEATURES,
       locateByDefault: true,
+      multipleLocationsByDefault: true,
       singleObjectPerAnnotation: true,
       assignByGeometry: true,
     },
