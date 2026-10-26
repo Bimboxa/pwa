@@ -13,6 +13,7 @@ import {
 } from "three";
 import { lighten } from "@mui/material/styles";
 
+import splitTJunctions from "../../geometry/utils/splitTJunctions.js";
 import computePlaneBasis from "./computePlaneBasis.js";
 import { projectLoopTo2d } from "./planeProjection.js";
 import { MESH3D_LIFT_M } from "./mesh3dConstants.js";
@@ -58,7 +59,10 @@ export default function buildFaceGeometry(
     shape.holes.push(path);
   }
 
-  const geometry = new ShapeGeometry(shape);
+  // Holes aligned with each other leave earcut T-junctions (see the util).
+  const geometry = shape.holes.length
+    ? splitTJunctions(new ShapeGeometry(shape))
+    : new ShapeGeometry(shape);
 
   // Shape space (x, y, z) → world: x·u + y·v + z·n + origin, with the origin
   // lifted along the normal.

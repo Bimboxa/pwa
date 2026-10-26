@@ -21,6 +21,7 @@ import {
   expandRingWithOffsets,
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
+import splitTJunctions from "Features/geometry/utils/splitTJunctions";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
 import buildGridEdgeLines from "./buildGridEdgeLines";
@@ -354,6 +355,11 @@ export default function extrudeClosedShape(
       if (isoLines) group.add(isoLines);
     }
   }
+
+  // earcut bridges the holes to the contour and merges the bridges with the
+  // aligned hole edges on one side only, leaving T-junctions on the caps:
+  // EdgesGeometry and the hatch band would then draw a line joining the holes.
+  if (holes?.length) geometry = splitTJunctions(geometry);
 
   // DoubleSide for both flat and extruded paths: pixelToWorld inverts Y which
   // flips winding, and polygons-with-holes can produce inconsistent normals

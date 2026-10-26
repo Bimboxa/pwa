@@ -13,6 +13,7 @@ import {
 import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import splitTJunctions from "Features/geometry/utils/splitTJunctions";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 import {
   getFaceArea,
@@ -68,7 +69,8 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new Float32BufferAttribute(normals, 3));
-  return geometry;
+  // Holes aligned with each other leave earcut T-junctions (see the util).
+  return holes2d.length ? splitTJunctions(geometry) : geometry;
 }
 
 // The 3D object of an `isMesh3d` annotation: its stored polygon faces
