@@ -62,7 +62,7 @@ const mapEditorInitialState = {
   // the floor polygons at the foot of a thick wall, a flat face, a horizontal
   // edge…) is created as a 2D annotation of the armed template instead of a
   // db.meshPaints row (commitMeshBrush2dService).
-  meshBrushCreate2dIfPossible: true,
+  meshBrushCreate2dIfPossible: false,
   // « Pinceau » in the 2D editor (template brush): when true, a clicked
   // annotation keeps its template and a DUPLICATE carrying the armed template
   // is created instead (drawing helper switch « Dupliquer l'annotation
