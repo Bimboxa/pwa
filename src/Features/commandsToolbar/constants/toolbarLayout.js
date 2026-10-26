@@ -99,6 +99,7 @@ const DEFAULT_LAYOUT = [
   "SETTING_OUT",
   "CONVERT",
   "REENTRANT_ANGLES",
+  // « Inverser le sens » stands alone, always visible next to the group
   {
     type: "group",
     key: "LINE_EDIT",
@@ -106,12 +107,12 @@ const DEFAULT_LAYOUT = [
     commandKeys: [
       "TOGGLE_STRIP_TYPE",
       "TOGGLE_CLOSE_LINE",
-      "FLIP_STRIP",
       "FLIP_EXTRUSION",
       "ANCHOR",
       "DETECT_SIMILAR_STRIPS",
     ],
   },
+  "FLIP_STRIP",
   {
     type: "group",
     key: "WALLS",
