@@ -13,6 +13,7 @@ import useNotesAppSession from "../hooks/useNotesAppSession";
 import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
 import useSyncNotesAppScope from "../hooks/useSyncNotesAppScope";
 
+import IconButtonNotesAppSignOut from "./IconButtonNotesAppSignOut";
 import SectionNotesAppConnection from "./SectionNotesAppConnection";
 import SectionNotesAppProjectLink from "./SectionNotesAppProjectLink";
 import SectionNotesAppListingsMapping from "./SectionNotesAppListingsMapping";
@@ -64,7 +65,12 @@ export default function PanelNotesAppSync() {
 
   return (
     <BoxFlexVStretch>
-      <HeaderTitleClose title={titleS} onClose={handleClose} />
+      <HeaderTitleClose
+        title={titleS}
+        subtitle={session?.email}
+        actions={session && <IconButtonNotesAppSignOut />}
+        onClose={handleClose}
+      />
 
       <SectionNotesAppConnection appName={appName} />
 
@@ -74,12 +80,7 @@ export default function PanelNotesAppSync() {
         </Typography>
       )}
 
-      {session && scope?.id && (
-        <>
-          <Divider />
-          <SectionNotesAppProjectLink appName={appName} />
-        </>
-      )}
+      {session && scope?.id && <SectionNotesAppProjectLink appName={appName} />}
 
       {session && scope?.id && link?.projectId && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>

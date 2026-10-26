@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { bumpNotesAppRemoteRefreshKey } from "../notesAppSlice";
@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Divider,
   List,
   ListItemButton,
   ListItemText,
@@ -99,7 +100,9 @@ export default function SectionNotesAppProjectLink({ appName = "Krnet" }) {
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}
+        >
           <LinkIcon fontSize="small" color="action" />
           <Typography variant="body2" noWrap sx={{ fontWeight: "bold" }}>
             {link.projectName ?? link.projectId}
@@ -148,17 +151,26 @@ export default function SectionNotesAppProjectLink({ appName = "Krnet" }) {
       )}
 
       {!loading && projects?.length > 0 && (
-        <List dense sx={{ overflow: "auto" }}>
-          {projects.map((project) => (
-            <ListItemButton
-              key={project.projectId}
-              onClick={() => handleSelectProject(project)}
-            >
-              <ListItemText
-                primary={project.projectName}
-                secondary={project.role}
-              />
-            </ListItemButton>
+        <List
+          dense
+          disablePadding
+          sx={{
+            overflow: "auto",
+            bgcolor: "white",
+            borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          {projects.map((project, index) => (
+            <Fragment key={project.projectId}>
+              {index > 0 && <Divider component="li" />}
+              <ListItemButton onClick={() => handleSelectProject(project)}>
+                <ListItemText
+                  primary={project.projectName}
+                  secondary={project.role}
+                />
+              </ListItemButton>
+            </Fragment>
           ))}
         </List>
       )}
