@@ -29,6 +29,8 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
  *   commitMeshBrush2dService — CREATED → action "CREATED_2D" (no paint row);
  *   NO_GROUND (thick wall facet without a floor polygon at its foot) →
  *   nothing written, reason "NO_GROUND" (the caller shows a toaster);
+ *   DUPLICATE (a live annotation of the same template and type already at
+ *   that place) → nothing written, reason "DUPLICATE" (toaster too);
  *   FALLBACK → the paint row as usual.
  *
  * @param {object} params
@@ -148,6 +150,9 @@ export default async function commitMeshBrushTargetService({
     }
     if (result.status === BRUSH_2D_STATUS.NO_GROUND) {
       return refuse("NO_GROUND");
+    }
+    if (result.status === BRUSH_2D_STATUS.DUPLICATE) {
+      return refuse("DUPLICATE");
     }
     // FALLBACK: the paint row below.
   }

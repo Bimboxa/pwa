@@ -60,6 +60,10 @@ export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
 //   - ignoreTemplateHeight: a PARALLEL face stays flat (height 0) instead of
 //     taking the template's extrusion height (a painted face is a coating)
 //   - extraFields: spread last on the annotation (provenance markers…)
+//   - checkBeforeCommit: async ({host, projectedPoints, projectedHoles,
+//     annotationFields}) → a reason string to refuse the commit (nothing is
+//     written, not even points), or falsy to go on — the « Pinceau »
+//     duplicate guard
 //
 // Returns the created annotation record, or null on failure (no template, no
 // host baseMap, degenerate geometry, etc.).
@@ -85,6 +89,7 @@ export async function commitDrawnFace({
   preferredBaseMapId = null,
   ignoreTemplateHeight = false,
   extraFields = null,
+  checkBeforeCommit = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -234,6 +239,16 @@ export async function commitDrawnFace({
     }
     default:
       return abort(`unknown classification kind ${classification.kind}`);
+  }
+
+  if (checkBeforeCommit) {
+    const reason = await checkBeforeCommit({
+      host,
+      projectedPoints,
+      projectedHoles: projectedHoles,
+      annotationFields,
+    });
+    if (reason) return abort(`refused before commit: ${reason}`, reason);
   }
 
   const pointRefs = await insertOrReusePoints({

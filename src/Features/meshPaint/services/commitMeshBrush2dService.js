@@ -12,6 +12,7 @@ import buildWallBandAnnotationFields from "Features/meshPaint/utils/buildWallBan
 import classifyMeshBrushLocalPart, {
   BRUSH_2D_KIND,
 } from "Features/meshPaint/utils/classifyMeshBrushLocalPart";
+import findSamePlace2dAnnotationService from "Features/meshPaint/services/findSamePlace2dAnnotationService";
 import getMeshPaintMetrics from "Features/meshPaint/utils/getMeshPaintMetrics";
 import matchWallFaceToGroundPolygons from "Features/meshPaint/utils/matchWallFaceToGroundPolygons";
 import { commitDrawnFace } from "Features/threedDrawing/services/commitDrawnFaceService";
@@ -35,6 +36,12 @@ import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnn
 //   POLYLINE_2D commitDrawnPolyline (horizontal edge) → else FALLBACK.
 //   PAINT       FALLBACK (curved / multi-polygon facet, sloped edge).
 //
+// Duplicate guard (every kind): before anything is written, the plan is
+// searched for a LIVE annotation of the armed template and the same type at
+// the same place (findSamePlace2dAnnotationService — the « Détection des
+// doublons » criterion). Found → DUPLICATE, nothing written (no paint row
+// either: the click is refused, the caller shows a toaster).
+//
 // Created annotations: the armed template + its listing, the host's layer,
 // `autoCreatedFrom: hostId` + `autoGenKind: "MESH_BRUSH"` (provenance only:
 // they are independent of the host, unlike a paint row). One click = one
@@ -43,11 +50,13 @@ import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnn
 //
 // Returns { status: "CREATED", annotationIds }
 //       | { status: "NO_GROUND" }
+//       | { status: "DUPLICATE", duplicateOfId }
 //       | { status: "FALLBACK", reason }.
 
 export const BRUSH_2D_STATUS = Object.freeze({
   CREATED: "CREATED",
   NO_GROUND: "NO_GROUND",
+  DUPLICATE: "DUPLICATE",
   FALLBACK: "FALLBACK",
 });
 
@@ -109,6 +118,31 @@ export default async function commitMeshBrush2dService({
     return { x: v.x, y: v.y, z: v.z, baseMapId };
   };
 
+  // commitDrawnFace / commitDrawnPolyline hook: the projected (normalized)
+  // geometry is known, nothing is written yet.
+  let duplicateOfId = null;
+  const checkBeforeCommit = async ({
+    host: hostBaseMap,
+    projectedPoints,
+    projectedHoles,
+    annotationFields,
+  }) => {
+    duplicateOfId = await findSamePlace2dAnnotationService({
+      baseMapId: hostBaseMap?.id ?? baseMapId,
+      metrics: getMeshPaintMetrics(hostBaseMap) ?? metrics,
+      annotationTemplateId: template.id,
+      type: annotationFields?.type,
+      closeLine: annotationFields?.closeLine,
+      normalizedPoints: projectedPoints,
+      normalizedCuts: projectedHoles,
+    });
+    return duplicateOfId ? BRUSH_2D_STATUS.DUPLICATE : null;
+  };
+  const duplicate = () => ({
+    status: BRUSH_2D_STATUS.DUPLICATE,
+    duplicateOfId,
+  });
+
   let result;
   if (plan.kind === BRUSH_2D_KIND.WALL_BAND) {
     result = await commitWallBand({
@@ -127,10 +161,16 @@ export default async function commitMeshBrush2dService({
         cornersInOrder: polygon.contour.map(toWorld),
         holes: (polygon.holes || []).map((hole) => hole.map(toWorld)),
         ignoreTemplateHeight: true,
+        checkBeforeCommit,
         ...common,
       });
-      return annotation
-        ? { status: BRUSH_2D_STATUS.CREATED, annotationIds: [annotation.id] }
+      if (annotation)
+        return {
+          status: BRUSH_2D_STATUS.CREATED,
+          annotationIds: [annotation.id],
+        };
+      return reason === BRUSH_2D_STATUS.DUPLICATE
+        ? duplicate()
         : fallback(reason ?? "NO_2D_ENCODING");
     });
   } else {
@@ -143,10 +183,16 @@ export default async function commitMeshBrush2dService({
         verticesInOrder: vertices,
         closeLine: Boolean(plan.closeLine),
         ignoreTemplateHeight: true,
+        checkBeforeCommit,
         ...common,
       });
-      return annotation
-        ? { status: BRUSH_2D_STATUS.CREATED, annotationIds: [annotation.id] }
+      if (annotation)
+        return {
+          status: BRUSH_2D_STATUS.CREATED,
+          annotationIds: [annotation.id],
+        };
+      return reason === BRUSH_2D_STATUS.DUPLICATE
+        ? duplicate()
         : fallback(reason ?? "NO_2D_ENCODING");
     });
   }
@@ -215,11 +261,27 @@ async function commitWallBand({
   const hostBaseMap =
     (baseMaps || []).find((bm) => bm.id === baseMap.id) ?? baseMap;
 
+  // Duplicate guard before any write: one band already on the plan refuses
+  // the whole click (a partial creation would duplicate on the next one).
+  const bands = runs
+    .map((run) => buildWallBandAnnotationFields(run, metrics))
+    .filter(Boolean);
+  for (const fields of bands) {
+    const duplicateOfId = await findSamePlace2dAnnotationService({
+      baseMapId: baseMap.id,
+      metrics,
+      annotationTemplateId: template.id,
+      type: "POLYLINE",
+      closeLine: fields.closeLine,
+      normalizedPoints: fields.points,
+    });
+    if (duplicateOfId)
+      return { status: BRUSH_2D_STATUS.DUPLICATE, duplicateOfId };
+  }
+
   return withUndoGroup(async () => {
     const annotationIds = [];
-    for (const run of runs) {
-      const fields = buildWallBandAnnotationFields(run, metrics);
-      if (!fields) continue;
+    for (const fields of bands) {
       const pointRefs = await insertOrReusePoints({
         projectedPoints: fields.points,
         baseMap: hostBaseMap,

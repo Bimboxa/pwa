@@ -70,6 +70,7 @@ export async function commitDrawnPolyline({
   // extrusion height); extraFields are spread last (provenance markers…).
   ignoreTemplateHeight = false,
   extraFields = null,
+  checkBeforeCommit = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -169,6 +170,16 @@ export async function commitDrawnPolyline({
     classificationFields,
     templateProps,
   });
+
+  if (checkBeforeCommit) {
+    const reason = await checkBeforeCommit({
+      host,
+      projectedPoints,
+      projectedHoles: [],
+      annotationFields,
+    });
+    if (reason) return abort(`refused before commit: ${reason}`, reason);
+  }
 
   const pointRefs = await insertOrReusePoints({
     projectedPoints,

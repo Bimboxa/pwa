@@ -108,7 +108,9 @@ function disposeObject(object) {
 //   .meshBrushCreate2dIfPossible): a bare part (nothing to remove / replace)
 //   the plan can hold becomes a 2D annotation of the armed template instead
 //   of a paint row — the helper then reads « Annotation 2D »; a thick wall
-//   facet without a floor polygon at its foot gets a toaster, nothing else;
+//   facet without a floor polygon at its foot gets a toaster, nothing else,
+//   and so does a part whose annotation already exists on the plan (same
+//   template and type at the same place: no duplicate, no paint either);
 // - the orbit pivot follows the cursor on press (like the selection mode);
 // - Escape (outside fields) leaves the brush.
 export default function useMeshBrushPointerHandlers() {
@@ -497,6 +499,14 @@ export default function useMeshBrushPointerHandlers() {
                 message:
                   "L'annotation doit être posée sur un sol pour être peinte",
                 severity: "warning",
+              })
+            );
+          } else if (!result?.action && result?.reason === "DUPLICATE") {
+            dispatch(
+              setToaster({
+                message:
+                  "Annotation non créée pour éviter un doublon : une annotation de ce modèle existe déjà à cet endroit",
+                isError: true,
               })
             );
           } else if (!result?.action && result?.reason) {
