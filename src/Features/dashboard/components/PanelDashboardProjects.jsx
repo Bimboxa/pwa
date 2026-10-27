@@ -98,7 +98,21 @@ export default function PanelDashboardProjects({
         position: "relative",
       }}
     >
-      {/* line 1: starting dialog + search + create (pill style, model 2a) */}
+      {/* top-left corner: « Démarrer avec Krto », above the search line so it
+          never competes with it */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          left: 24,
+          zIndex: 1,
+          ...fadeUp(0.05),
+        }}
+      >
+        <ButtonOpenStarting />
+      </Box>
+
+      {/* line 1: search + create (pill style, model 2a) */}
       <Box
         sx={{
           px: 4,
@@ -109,7 +123,6 @@ export default function PanelDashboardProjects({
           ...fadeUp(0.05),
         }}
       >
-        <ButtonOpenStarting />
         <Box sx={{ flex: 1, minWidth: 0, ...PILL_SEARCH_SX }}>
           <SearchBar
             value={searchText}

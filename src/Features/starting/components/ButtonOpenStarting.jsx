@@ -40,8 +40,8 @@ export default function ButtonOpenStarting() {
         flexShrink: 0,
         whiteSpace: "nowrap",
         borderRadius: 999,
-        height: 48,
-        px: 2,
+        height: 40,
+        px: 1.5,
         fontWeight: 600,
       }}
     >
