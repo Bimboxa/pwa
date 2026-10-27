@@ -27,7 +27,6 @@ export default function useScanProjection({
   const verticalKey = frame
     ? JSON.stringify(frame.rows.slice(8).map((n) => +n.toFixed(9)))
     : "";
-  const [fullHeight, setFullHeight] = useState(false);
   const usefulHeight = useMemo(() => {
     if (!frame || !view) return { min: 0, max: 1 };
     return getUsefulScanHeight(view.data.positions, frame.rows.slice(8), {
@@ -36,10 +35,7 @@ export default function useScanProjection({
     });
   }, [frame, view]);
   const domain = frame
-    ? getSliceDomain(
-        fullHeight ? frame.min[2] : usefulHeight.min,
-        fullHeight ? frame.max[2] : usefulHeight.max
-      )
+    ? getSliceDomain(usefulHeight.min, usefulHeight.max)
     : { min: 0, max: 1 };
   const middle = (domain.min + domain.max) / 2;
   const [selection, setSelection] = useState(null);
@@ -51,7 +47,6 @@ export default function useScanProjection({
     selection?.key === verticalKey
       ? Math.max(domain.min, Math.min(domain.max, selection.values[1]))
       : Math.min(domain.max, middle + 0.5);
-  const [tolerance, setTolerance] = useState(2);
   const [clip, setClip] = useState(false);
   const [mode, setMode] = useState("density");
   const [output, setOutput] = useState(null);
@@ -68,7 +63,6 @@ export default function useScanProjection({
     setOutput(null);
     setSelection(null);
     setClip(false);
-    setFullHeight(false);
   }, [view]);
 
   useEffect(() => {
@@ -143,8 +137,8 @@ export default function useScanProjection({
     };
   }, [editor, view, frame, showBounds, hidden]);
   useEffect(() => {
-    overlayRef.current?.setRange(lower, upper, tolerance / 100);
-  }, [frame, lower, upper, tolerance, showBounds, hidden]);
+    overlayRef.current?.setRange(lower, upper, 0.02);
+  }, [frame, lower, upper, showBounds, hidden]);
   useEffect(() => {
     if (!view) return;
     view.setSliceClip(clip && active ? { lower, upper } : null);
@@ -155,12 +149,8 @@ export default function useScanProjection({
     frame,
     verticalKey,
     domain,
-    fullHeight,
-    setFullHeight,
     lower,
     upper,
-    tolerance,
-    setTolerance,
     clip,
     setClip,
     mode,

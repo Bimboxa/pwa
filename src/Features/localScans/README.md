@@ -69,8 +69,9 @@ fails. No bulk migration or change to unrelated resources occurs.
   selected density/RGB raster through the standard base-map creator, with
   `meterByPx`, an initial version and `createdFrom` scan provenance. It stays
   local (no initial remote save), and does not switch the current base map.
-- **Projection**: inclusive Z limits, density and mean-RGB images, boundary
-  tolerance, PNG exports and optional hiding of points outside the slice.
+- **Projection**: compact inclusive Z limits, centered density/mean-RGB selector,
+  a download button for the selected raster and optional hiding of points outside
+  the slice. Boundary highlighting uses a fixed ±2 cm tolerance.
 - **Position**: axis/scale, point inspection, move-to-origin and two-click
   horizontal alignment in the shared preview.
 
@@ -164,8 +165,7 @@ The separate five-million Gaussian limit is unchanged.
 
 Open the **Projection** tab to select an inclusive horizontal interval with
 one vertical, two-handle slider or numeric Z limits. Slider bounds follow the
-placed cloud's useful height interval (1st–99th percentiles by default, or exact
-minimum and maximum with the full-extent switch), with 5% padding on each side (at least
+placed cloud's useful height interval (1st–99th percentiles), with 5% padding on each side (at least
 5 mm for a flat cloud). Values are metres in the
 placed scan's displayed frame, including origin, scale, vertical-axis selection
 and gizmo yaw. The image is orthographic (+X right, +Y up), with fixed XY bounds
@@ -177,7 +177,7 @@ an absolute density scale across slices. Density highlights aligned vertical
 surfaces but does not classify walls: furniture and uneven scan coverage also
 contribute. Gaussian input uses centers, not rendered splat opacity.
 
-Orange and cyan boundary planes and points within a configurable tolerance
+Orange and cyan boundary planes and points within a fixed ±2 cm tolerance
 (default +/-2 cm) update on the GPU while dragging. The overlay shares the scan's
 vertex buffers. The image uses the exact interval, not the boundary tolerance.
 A worker computes both rasters after a 250 ms debounce, yielding periodically to
@@ -234,6 +234,6 @@ and generated base maps use only `smoke-project` and may occupy local storage.
 
 The Z slider defaults to estimated 1st–99th percentile heights (a bounded
 65,536-point sample), padded by 5%, so isolated outliers do not consume its
-travel. A switch restores exact full-cloud bounds. This only changes slider
+travel. This only changes slider
 limits; no source points are deleted or excluded from projection. Heights
 are evaluated after placement; fewer than 100 points use exact bounds.

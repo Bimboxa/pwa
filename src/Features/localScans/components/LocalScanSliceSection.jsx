@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 import {
   Box,
-  Button,
   FormControlLabel,
   Slider,
   Stack,
@@ -13,20 +12,8 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import ScanProjectionPreview from "./ScanProjectionPreview";
 
 export default function LocalScanSliceSection({ projection, onDownload }) {
-  const {
-    domain,
-    fullHeight,
-    setFullHeight,
-    verticalKey,
-    lower,
-    upper,
-    changeRange,
-    tolerance,
-    setTolerance,
-    clip,
-    setClip,
-    current,
-  } = projection;
+  const { domain, verticalKey, lower, upper, changeRange, clip, setClip } =
+    projection;
   function commit(index, input) {
     const value = Number(input.value);
     if (!input.value || !Number.isFinite(value)) {
@@ -47,6 +34,11 @@ export default function LocalScanSliceSection({ projection, onDownload }) {
       type="number"
       size="small"
       defaultValue={+value.toFixed(3)}
+      sx={{
+        width: 84,
+        "& .MuiInputBase-root": { height: 32, fontSize: "0.8125rem" },
+        "& .MuiInputBase-input": { px: 1, py: 0.5 },
+      }}
       slotProps={{
         htmlInput: { step: 0.01, min: domain.min, max: domain.max },
       }}
@@ -61,30 +53,14 @@ export default function LocalScanSliceSection({ projection, onDownload }) {
       <WhiteSectionGeneric>
         <Stack spacing={1.5}>
           <Typography variant="subtitle2">Tranche et image projetée</Typography>
-          <Typography variant="caption" color="text.secondary">
-            Z en mètres après placement. Orange : Z inf · Bleu : Z sup.
-            {fullHeight
-              ? " Étendue complète des points, avec 5 % de marge."
-              : " Bornes utiles estimées sur les 98 % centraux des hauteurs, avec 5 % de marge."}{" "}
-            Écartez le sol et le plafond pour distinguer les parois.
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={fullHeight}
-                onChange={(_, value) => setFullHeight(value)}
-              />
-            }
-            label="Inclure les points isolés dans les bornes"
-          />
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "100px minmax(0, 1fr)",
+              gridTemplateColumns: "84px minmax(0, 1fr)",
               gap: 1,
             }}
           >
-            <Stack spacing={1} alignItems="center">
+            <Stack spacing={0.5} alignItems="center">
               {limitField(1, upper)}
               <Typography variant="caption">
                 {domain.max.toFixed(2)} m
@@ -112,7 +88,10 @@ export default function LocalScanSliceSection({ projection, onDownload }) {
               </Typography>
               {limitField(0, lower)}
             </Stack>
-            <ScanProjectionPreview projection={projection} />
+            <ScanProjectionPreview
+              projection={projection}
+              onDownload={onDownload}
+            />
           </Box>
         </Stack>
       </WhiteSectionGeneric>
@@ -122,48 +101,18 @@ export default function LocalScanSliceSection({ projection, onDownload }) {
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 checked={clip}
                 onChange={(_, checked) => setClip(checked)}
               />
             }
             label="Masquer les points hors de la tranche en 3D"
+            sx={{
+              m: 0,
+              gap: 0.5,
+              "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
+            }}
           />
-          <TextField
-            label="Tolérance du repérage 3D ± (cm)"
-            type="number"
-            size="small"
-            value={tolerance}
-            onChange={(event) =>
-              setTolerance(
-                Math.max(0.1, Math.min(50, Number(event.target.value) || 0.1))
-              )
-            }
-          />
-          <Typography variant="caption" color="text.secondary">
-            La tolérance concerne les deux limites colorées. La projection et le
-            masquage utilisent exactement Z inf–Z sup. Densité : les pixels
-            sombres contiennent davantage de points ; le mobilier peut aussi
-            apparaître.
-          </Typography>
-        </Stack>
-      </WhiteSectionGeneric>
-      <WhiteSectionGeneric>
-        <Typography variant="subtitle2">Exporter les images</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button
-            size="small"
-            disabled={!current}
-            onClick={() => onDownload("density")}
-          >
-            PNG densité
-          </Button>
-          <Button
-            size="small"
-            disabled={!current}
-            onClick={() => onDownload("rgb")}
-          >
-            PNG couleurs
-          </Button>
         </Stack>
       </WhiteSectionGeneric>
     </Stack>

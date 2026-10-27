@@ -473,7 +473,10 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                 <WhiteSectionGeneric>
                   <Stack spacing={1}>
                     <Typography variant="subtitle2">Image projetée</Typography>
-                    <ScanProjectionPreview projection={projection} />
+                    <ScanProjectionPreview
+                      projection={projection}
+                      onDownload={download}
+                    />
                     {projection.result && (
                       <ButtonCreateScanBaseMap
                         projection={projection}
@@ -632,6 +635,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     <ScanProjectionPreview
                       projection={projection}
                       onRotate={rotate}
+                      onDownload={download}
                     />
                     <Typography variant="caption">
                       Rotation : {placement.yaw.toFixed(1)}°. L’axe choisi dans
