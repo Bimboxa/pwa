@@ -3,9 +3,12 @@ import { Box, Typography } from "@mui/material";
 import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import ListHighlightable from "./ListHighlightable";
 
-// Two-column layout of the diagram sections: the highlightable list on the
-// left (with the description of the highlighted item and an optional note),
-// the SVG diagram (children) on the right.
+import { CARD_BORDER } from "Features/dashboard/utils/dashboardStyles";
+
+// Layout of the diagram sections: a narrow dense column on the left (the
+// highlightable list, the description of the highlighted item, an optional
+// note), the SVG diagram (children) taking every remaining pixel on the
+// right — the diagram is what the page is about.
 export default function LayoutDiagramSection({
   title,
   intro,
@@ -23,25 +26,39 @@ export default function LayoutDiagramSection({
   // render
 
   return (
-    <Box sx={{ display: "flex", gap: 3, p: 3, minHeight: "100%" }}>
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        gap: 2,
+        px: 3,
+        pb: 2,
+        pt: 1,
+      }}
+    >
       <Box
         sx={{
-          width: 340,
-          minWidth: 340,
+          width: 250,
+          minWidth: 250,
           display: "flex",
           flexDirection: "column",
-          gap: 1.5,
+          gap: 1,
+          minHeight: 0,
         }}
       >
         <Box
           sx={{
             bgcolor: "white",
-            borderRadius: 1,
-            border: (theme) => `1px solid ${theme.palette.divider}`,
-            py: 1,
+            borderRadius: 2,
+            border: `1px solid ${CARD_BORDER}`,
+            py: 0.5,
+            overflow: "auto",
           }}
         >
-          <WhiteSectionTitle sx={{ px: 2, pb: 0.5 }}>{title}</WhiteSectionTitle>
+          <WhiteSectionTitle sx={{ px: 1.5, py: 0.5 }}>
+            {title}
+          </WhiteSectionTitle>
           <ListHighlightable
             items={items}
             vocabulary={vocabulary}
@@ -52,37 +69,33 @@ export default function LayoutDiagramSection({
         </Box>
         <Typography
           variant="body2"
-          sx={{ px: 1, minHeight: 60, color: "text.secondary" }}
+          sx={{ px: 0.5, minHeight: 56, color: "text.secondary" }}
         >
           {descriptionS}
         </Typography>
         {note && (
-          <Typography variant="caption" sx={{ px: 1, color: "text.disabled" }}>
+          <Typography
+            variant="caption"
+            sx={{ px: 0.5, color: "text.disabled" }}
+          >
             {note}
           </Typography>
         )}
       </Box>
       <Box
         sx={{
-          flexGrow: 1,
+          flex: 1,
           minWidth: 0,
+          minHeight: 0,
           display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "center",
+          bgcolor: "white",
+          borderRadius: 2,
+          border: `1px solid ${CARD_BORDER}`,
+          boxShadow: "0 2px 10px rgba(28,27,26,.06)",
+          p: 1.5,
         }}
       >
-        <Box
-          sx={{
-            width: 1,
-            maxWidth: 1200,
-            bgcolor: "white",
-            borderRadius: 2,
-            border: (theme) => `1px solid ${theme.palette.divider}`,
-            p: 2,
-          }}
-        >
-          {children}
-        </Box>
+        {children}
       </Box>
     </Box>
   );

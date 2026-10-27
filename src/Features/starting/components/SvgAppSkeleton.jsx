@@ -41,9 +41,11 @@ export default function SvgAppSkeleton({
     <Box
       component="svg"
       viewBox="0 0 1200 720"
+      preserveAspectRatio="xMidYMid meet"
       sx={{
         width: 1,
-        height: "auto",
+        height: 1,
+        minHeight: 0,
         display: "block",
         fontSize: 12,
         fontFamily: "inherit",

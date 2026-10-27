@@ -44,9 +44,11 @@ export default function SvgConceptsDiagram({
     <Box
       component="svg"
       viewBox="0 0 1200 720"
+      preserveAspectRatio="xMidYMid meet"
       sx={{
         width: 1,
-        height: "auto",
+        height: 1,
+        minHeight: 0,
         display: "block",
         fontSize: 12,
         fontFamily: "inherit",
@@ -102,7 +104,7 @@ export default function SvgConceptsDiagram({
             stroke={dark}
             strokeWidth="3"
           />
-          <circle cx="60" cy="160" r="5" fill={dark} />
+          <circle cx="60" cy="216" r="5" fill={dark} />
           <circle cx="60" cy="640" r="5" fill={dark} />
         </>
       )}
@@ -110,9 +112,9 @@ export default function SvgConceptsDiagram({
         "link-project-spine",
         <line
           x1="60"
-          y1="160"
-          x2="200"
-          y2="160"
+          y1="216"
+          x2="125"
+          y2="216"
           stroke={dark}
           strokeWidth="2"
         />
@@ -129,13 +131,13 @@ export default function SvgConceptsDiagram({
         />
       )}
 
-      {/* scope spine + pills */}
+      {/* scope spine: the two scopes of the project, more may come */}
       {zone(
         "scope-spine",
         <>
           <text
             x="200"
-            y="148"
+            y="186"
             textAnchor="middle"
             fontWeight="700"
             fill={orange}
@@ -144,14 +146,25 @@ export default function SvgConceptsDiagram({
           </text>
           <line
             x1="200"
-            y1="160"
+            y1="216"
             x2="200"
-            y2="640"
+            y2="282"
             stroke={orange}
             strokeWidth="3"
           />
-          <circle cx="200" cy="216" r="5" fill={orange} />
-          <circle cx="200" cy="282" r="5" fill={orange} />
+          <line
+            x1="200"
+            y1="302"
+            x2="200"
+            y2="360"
+            stroke={orange}
+            strokeWidth="3"
+            strokeDasharray="6 6"
+            strokeLinecap="round"
+          />
+          <text x="200" y="384" textAnchor="middle" fontSize="11" fill={orange}>
+            …
+          </text>
         </>
       )}
       {zone(

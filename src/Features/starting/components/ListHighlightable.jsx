@@ -1,9 +1,9 @@
-import { List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { List, ListItemButton, ListItemText } from "@mui/material";
 
-// Clickable / hoverable list of the diagram sections (concepts, app
+// Dense clickable / hoverable list of the diagram sections (concepts, app
 // components). Hover previews the highlight, click pins it, clicking the
 // pinned item again clears it. `children` of an item are rendered indented
-// right below it. `vocabulary` resolves the label / description functions.
+// right below it. `vocabulary` resolves the label functions.
 export default function ListHighlightable({
   items,
   vocabulary,
@@ -20,7 +20,6 @@ export default function ListHighlightable({
   // render
 
   function renderItem(item, depth) {
-    const label = item.label(vocabulary);
     return (
       <ListItemButton
         key={item.key}
@@ -28,17 +27,17 @@ export default function ListHighlightable({
         onClick={() => handleClick(item.key)}
         onMouseEnter={() => onHover(item.key)}
         onMouseLeave={() => onHover(null)}
-        sx={{ pl: 2 + depth * 2, py: depth ? 0.25 : 0.75 }}
+        sx={{ pl: 1.5 + depth * 2, pr: 1.5, py: 0.25, minHeight: 28 }}
       >
         <ListItemText
-          primary={
-            <Typography
-              variant={depth ? "body2" : "body1"}
-              sx={{ fontWeight: depth ? 500 : 600 }}
-            >
-              {label}
-            </Typography>
-          }
+          primary={item.label(vocabulary)}
+          slotProps={{
+            primary: {
+              variant: "body2",
+              noWrap: true,
+              sx: { fontWeight: depth ? 400 : 600 },
+            },
+          }}
         />
       </ListItemButton>
     );

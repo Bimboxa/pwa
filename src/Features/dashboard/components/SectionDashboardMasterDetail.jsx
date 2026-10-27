@@ -17,19 +17,14 @@ import useCreateProject from "Features/projects/hooks/useCreateProject";
 import db from "App/db/db";
 
 import { Box } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 
+import BackgroundDashboard from "./BackgroundDashboard";
 import PanelDashboardProjects from "./PanelDashboardProjects";
 import PanelDashboardProjectDetail from "./PanelDashboardProjectDetail";
 import SectionFavoriteKrtos from "./SectionFavoriteKrtos";
 import SectionDailyScopes from "./SectionDailyScopes";
 
-import {
-  PAGE_BG,
-  CARD_BORDER,
-  AMBER_GLOW,
-  glow,
-} from "../utils/dashboardStyles";
+import { PAGE_BG, CARD_BORDER } from "../utils/dashboardStyles";
 
 export default function SectionDashboardMasterDetail() {
   const dispatch = useDispatch();
@@ -195,57 +190,7 @@ export default function SectionDashboardMasterDetail() {
         bgcolor: PAGE_BG,
       }}
     >
-      {/* warm gradient band + orange glows (model 2a) */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 340,
-          pointerEvents: "none",
-          background: (theme) =>
-            `linear-gradient(180deg, ${alpha(
-              theme.palette.secondary.main,
-              0.1
-            )} 0%, ${alpha(theme.palette.secondary.main, 0.03)} 70%, ${alpha(
-              theme.palette.secondary.main,
-              0
-            )} 100%)`,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: -120,
-          right: -80,
-          width: 520,
-          height: 520,
-          borderRadius: "50%",
-          pointerEvents: "none",
-          background: (theme) =>
-            `radial-gradient(circle, ${alpha(
-              theme.palette.secondary.main,
-              0.14
-            )} 0%, ${alpha(theme.palette.secondary.main, 0)} 70%)`,
-          ...glow,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          top: -60,
-          left: "22%",
-          width: 380,
-          height: 380,
-          borderRadius: "50%",
-          pointerEvents: "none",
-          background: `radial-gradient(circle, ${alpha(
-            AMBER_GLOW,
-            0.12
-          )} 0%, ${alpha(AMBER_GLOW, 0)} 70%)`,
-        }}
-      />
+      <BackgroundDashboard />
       <PanelDashboardProjects
         searchText={searchText}
         onSearchTextChange={setSearchText}
