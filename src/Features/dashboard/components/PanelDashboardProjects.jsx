@@ -67,6 +67,15 @@ export default function PanelDashboardProjects({
   const typeOptions =
     appConfig?.features?.projectSelector?.filterByType?.options ?? [];
 
+  // Table header: the selected type, or every type when no filter is set
+  // (« Projets / Opportunités / Chantiers »).
+  const shownTypeOptions = typeFilter
+    ? typeOptions.filter((o) => o.key === typeFilter)
+    : typeOptions;
+  const projectsLabel = shownTypeOptions.length
+    ? shownTypeOptions.map((o) => o.label).join(" / ")
+    : undefined;
+
   const hasSearch = Boolean(searchText?.trim());
   const empty = !items?.length && !cloudItems?.length && !remoteSearchLoading;
 
@@ -240,6 +249,7 @@ export default function PanelDashboardProjects({
               expandedKeys={expandedKeys}
               onSelectItem={onSelectItem}
               onToggleExpand={handleToggleExpand}
+              projectsLabel={projectsLabel}
             />
           </Box>
         )}
