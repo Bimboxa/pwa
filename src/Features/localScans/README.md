@@ -186,10 +186,11 @@ an absolute density scale across slices. Density highlights aligned vertical
 surfaces but does not classify walls: furniture and uneven scan coverage also
 contribute. Gaussian input uses centers, not rendered splat opacity.
 
-Only the orange and cyan boundary planes follow slider changes in real time.
-**Calculer** starts the projection and highlights points within ±2 cm of each
-boundary. Changing either bound immediately removes the point highlights,
-cancels unfinished work and marks the previous image stale. Stale images cannot
+The orange and cyan boundary planes and points within ±2 cm of each boundary
+follow slider changes in real time. Point highlighting runs on the GPU using
+the scan’s shared vertex buffers, independently of the projection worker.
+**Calculer** alone starts image generation. Changing either bound cancels
+unfinished image work and marks the previous image stale. Stale images cannot
 be exported, used for alignment or converted into base maps. The optional 3D
 clipping applies to the calculated range and is suspended when it becomes stale.
 The image uses the exact interval, not the boundary tolerance.

@@ -135,8 +135,8 @@ export default function useScanProjection({
   }, [editor, view, frame, showBounds, hidden]);
   useEffect(() => {
     overlayRef.current?.setRange(lower, upper, 0.02);
-    overlayRef.current?.setHighlight(requested && !error);
-  }, [frame, lower, upper, showBounds, hidden, requested, error]);
+    overlayRef.current?.setHighlight(true);
+  }, [frame, lower, upper, showBounds, hidden]);
   useEffect(() => {
     if (!view) return;
     view.setSliceClip(
@@ -174,8 +174,7 @@ export default function useScanProjection({
     error,
     changeRange: (values) => {
       if (values[0] === lower && values[1] === upper) return;
-      // Hide colored points immediately; only the two planes follow dragging.
-      overlayRef.current?.setHighlight(false);
+      // Keep GPU boundary highlights live; invalidate only the image calculation.
       setRequest(null);
       setError(null);
       setSelection({ key: verticalKey, values });
