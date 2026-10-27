@@ -185,7 +185,7 @@ export default function DialogLocalScanZone({
           <Paper sx={{ px: 2, py: 1, maxWidth: 360 }}>
             <Typography variant="subtitle2">{titleS}</Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
-              {file.name}
+              {file.name ?? ""}
               {sample &&
                 ` · aperçu ${sample.count.toLocaleString("fr-FR")} / ${sample.sourceCount.toLocaleString("fr-FR")} points`}
             </Typography>
