@@ -383,11 +383,13 @@ export default function SvgConceptsDiagram({
       {zone(
         "plan-thumbs",
         <>
+          {/* every base map of the scope carries annotations of the same
+              business theme (surface, line, point) */}
           {[
-            { x: 560, label: "N1", current: true },
-            { x: 644, label: "N2" },
-            { x: 728, label: "Coupe A" },
-          ].map(({ x, label, current }) => (
+            { x: 560, label: "N1", current: true, rect: true, point: true },
+            { x: 644, label: "N2", rect: true, line: true },
+            { x: 728, label: "Coupe A", line: true, point: true },
+          ].map(({ x, label, current, rect, line, point }) => (
             <g key={label}>
               <rect
                 x={x}
@@ -404,6 +406,28 @@ export default function SvgConceptsDiagram({
                 stroke={grey[400]}
                 strokeWidth="2"
               />
+              {rect && (
+                <rect
+                  x={x + 16}
+                  y="416"
+                  width="18"
+                  height="12"
+                  fill={alpha(orange, 0.45)}
+                  stroke={orange}
+                  strokeWidth="1"
+                />
+              )}
+              {line && (
+                <line
+                  x1={x + 38}
+                  y1="430"
+                  x2={x + 56}
+                  y2="430"
+                  stroke={blue}
+                  strokeWidth="2"
+                />
+              )}
+              {point && <circle cx={x + 50} cy="419" r="2.5" fill={blue} />}
               <text
                 x={x + 36}
                 y="466"

@@ -17,6 +17,8 @@ export const CONCEPTS = [
     description: (v) =>
       v.scopeDescriptionS ??
       `Un ${v.scopeS} est un dossier de plans de repérage de même type, rattaché à un ${v.projectLowerS}.`,
+    // A scope = several annotated base maps on one business theme: its
+    // base maps and the annotations drawn on them light up with it.
     zones: [
       "scope-spine",
       "scope-pill-a",
@@ -24,6 +26,12 @@ export const CONCEPTS = [
       "scope-frame",
       "scope-title",
       "link-pill-frame",
+      "plan",
+      "plan-label",
+      "plan-thumbs",
+      "box-3d",
+      ...ANNOTATION_ZONES,
+      "box-3d-annotations",
     ],
   },
   {
