@@ -59,6 +59,14 @@ strings:
     create: "Créez un nouveau projet"
     noProject: Aucun projet disponible
     nameLabel: Nom du projet
+    clientRef: "Référence"
+    # Dashboard (home page): "create" button of the projects list, tooltip of
+    # a project not installed locally, and the project type chip labels,
+    # keyed by project.type (unknown types fall back to PROJECT).
+    createInDashboard: "Nouveau projet"
+    notInstalledTooltip: "Projet non installé sur cet appareil"
+    typeLabels:
+      PROJECT: "Projet"
 
   scope:
     dashboardTitle: "Dossiers"
@@ -97,6 +105,20 @@ strings:
     restoreWarning: "Toutes les données locales du dossier seront remplacées."
     noBackup: "Aucune sauvegarde pour ce dossier."
     existingOnProject: "Dossiers existants sur le projet"
+    # Dashboard (home page)
+    searchProject: "Rechercher un projet"
+    onCloud: "Sur le cloud"
+    noProjectInstalled: "Aucun projet installé"
+    noProjectInstalledHint: "Recherchez un projet ci-dessus pour l'ouvrir depuis le cloud, ou récupérez tous vos dossiers."
+    loadMyKrtos: "Charger mes dossiers"
+    noProjectFound: "Aucun projet trouvé pour cette recherche."
+    dailyScope: "Dossiers du jour"
+    dailyScopeEmptyTitle: "Rien pour aujourd'hui"
+    dailyScopeEmptyHint: "Les dossiers que vous ouvrez ou modifiez aujourd'hui apparaîtront ici pour un suivi rapide."
+    dailyScopeEmptyTitleOtherDay: "Rien ce jour-là"
+    dailyScopeEmptyHintOtherDay: "Aucun dossier ouvert ou modifié ce jour-là."
+    # "Mes dossiers" filter of the daily list leaves nothing
+    dailyScopeEmptyHintMine: "Aucun de vos dossiers n'a été ouvert ou modifié ce jour-là."
 
   listing:
     namePlural: "Listes"

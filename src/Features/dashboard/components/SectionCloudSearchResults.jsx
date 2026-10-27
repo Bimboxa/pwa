@@ -1,16 +1,18 @@
-import { Box, Typography, List, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { Cloud } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import ListItemDashboardProject from "./ListItemDashboardProject";
+import TableDashboardProjects from "./TableDashboardProjects";
 
 export default function SectionCloudSearchResults({
   cloudItems,
   loading,
   selectedKey,
   installingKey,
+  expandedKeys,
   onSelectItem,
+  onToggleExpand,
 }) {
   // data
 
@@ -25,7 +27,7 @@ export default function SectionCloudSearchResults({
   if (!loading && !cloudItems?.length) return null;
 
   return (
-    <Box sx={{ mt: 1 }}>
+    <Box sx={{ mt: 2 }}>
       <Typography
         variant="overline"
         sx={{
@@ -40,17 +42,16 @@ export default function SectionCloudSearchResults({
         <Cloud sx={{ fontSize: "0.95rem" }} /> {titleS}
         {loading && <CircularProgress size={12} sx={{ ml: 0.5 }} />}
       </Typography>
-      <List disablePadding>
-        {(cloudItems ?? []).map((item) => (
-          <ListItemDashboardProject
-            key={item.key}
-            item={item}
-            selected={item.key === selectedKey}
-            installing={item.key === installingKey}
-            onClick={() => onSelectItem(item)}
-          />
-        ))}
-      </List>
+      <TableDashboardProjects
+        items={cloudItems}
+        selectedKey={selectedKey}
+        installingKey={installingKey}
+        expandedKeys={expandedKeys}
+        onSelectItem={onSelectItem}
+        onToggleExpand={onToggleExpand}
+        showHeader={false}
+        animated={false}
+      />
     </Box>
   );
 }

@@ -18,6 +18,10 @@ export const TEXT_FAINT = "#9A918B";
 export const TEXT_FADED = "#B8B0AA";
 export const ICON_FADED = "#C9C1BB";
 
+// projects table (TableDashboardProjects): project | POV previews | Krtos
+export const PROJECTS_TABLE_COLUMNS = "minmax(0, 1fr) 84px 118px";
+export const TABLE_ROW_BG_EXPANDED = "#FBF8F6";
+
 // sx fragments — spread into the target component's sx
 
 export const PILL_BUTTON_SX = {

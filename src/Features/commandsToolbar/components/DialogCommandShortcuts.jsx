@@ -95,31 +95,39 @@ export default function DialogCommandShortcuts() {
     );
   }
 
+  // Each section is one tile of the masonry below (CSS columns): it must
+  // never be split across two columns.
   function renderSection(section) {
     return (
-      <WhiteSectionGeneric key={section.key}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <WhiteSectionTitle sx={{ px: 1 }}>{section.label}</WhiteSectionTitle>
-          <List disablePadding>
-            {section.entries.map((entry) => {
-              if (typeof entry === "string") return renderCommandRow(entry);
-              if (entry?.type !== "group") return null;
-              return (
-                <Box key={`group-${entry.key}`}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: "block", px: 1, pt: 0.75, pb: 0.25 }}
-                  >
-                    {entry.label}
-                  </Typography>
-                  {entry.commandKeys.map((key) => renderCommandRow(key, true))}
-                </Box>
-              );
-            })}
-          </List>
-        </Box>
-      </WhiteSectionGeneric>
+      <Box key={section.key} sx={{ breakInside: "avoid", mb: 2 }}>
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <WhiteSectionTitle sx={{ px: 1 }}>
+              {section.label}
+            </WhiteSectionTitle>
+            <List disablePadding>
+              {section.entries.map((entry) => {
+                if (typeof entry === "string") return renderCommandRow(entry);
+                if (entry?.type !== "group") return null;
+                return (
+                  <Box key={`group-${entry.key}`}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", px: 1, pt: 0.75, pb: 0.25 }}
+                    >
+                      {entry.label}
+                    </Typography>
+                    {entry.commandKeys.map((key) =>
+                      renderCommandRow(key, true)
+                    )}
+                  </Box>
+                );
+              })}
+            </List>
+          </Box>
+        </WhiteSectionGeneric>
+      </Box>
     );
   }
 
@@ -145,16 +153,12 @@ export default function DialogCommandShortcuts() {
           >
             {introS}
           </Typography>
+          {/* Masonry: CSS columns, the tiles stack in each column without
+              the row-aligned gaps of a grid. */}
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(2, 1fr)",
-                lg: "repeat(3, 1fr)",
-              },
-              gap: 2,
-              alignItems: "start",
+              columnCount: { xs: 1, md: 2, lg: 3 },
+              columnGap: 2,
             }}
           >
             {TOOLBAR_SECTIONS.DEFAULT.map(renderSection)}

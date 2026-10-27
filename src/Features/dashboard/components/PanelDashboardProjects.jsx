@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Box, Typography, List, Button } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { Add, TravelExplore, CloudOff } from "@mui/icons-material";
 
@@ -10,12 +10,13 @@ import SearchBar from "Features/search/components/SearchBar";
 import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ButtonFetchMyKrtos from "./ButtonFetchMyKrtos";
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
-import ListItemDashboardProject from "./ListItemDashboardProject";
+import TableDashboardProjects from "./TableDashboardProjects";
 import SectionCloudSearchResults from "./SectionCloudSearchResults";
 import DialogCreateProject from "./DialogCreateProject";
 
 import {
   ICON_FADED,
+  PILL_TEXT,
   PILL_BUTTON_SX,
   PILL_SEARCH_SX,
   SEGMENT_TOGGLE_SX,
@@ -43,16 +44,19 @@ export default function PanelDashboardProjects({
   // state
 
   const [openCreateProject, setOpenCreateProject] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
 
   // strings
 
   const searchS =
     appConfig?.strings?.scope?.searchProject ?? "Rechercher un projet";
+  const createProjectS =
+    appConfig?.strings?.project?.createInDashboard ?? "Nouveau projet";
   const noProjectS =
     appConfig?.strings?.scope?.noProjectInstalled ?? "Aucun projet installé";
   const noProjectHintS =
     appConfig?.strings?.scope?.noProjectInstalledHint ??
-    "Recherchez un projet ci-dessus pour l'ouvrir depuis le cloud, ou récupérez tous vos plans de repérage.";
+    "Recherchez un projet ci-dessus pour l'ouvrir depuis le cloud, ou récupérez tous vos dossiers.";
   const noProjectFoundS =
     appConfig?.strings?.scope?.noProjectFound ??
     "Aucun projet trouvé pour cette recherche.";
@@ -69,6 +73,15 @@ export default function PanelDashboardProjects({
 
   function handleCreateClick() {
     setOpenCreateProject(true);
+  }
+
+  function handleToggleExpand(item) {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.key)) next.delete(item.key);
+      else next.add(item.key);
+      return next;
+    });
   }
 
   // render
@@ -103,7 +116,7 @@ export default function PanelDashboardProjects({
           />
         </Box>
         <Button
-          variant="contained"
+          variant="outlined"
           color="secondary"
           startIcon={<Add />}
           onClick={handleCreateClick}
@@ -113,17 +126,19 @@ export default function PanelDashboardProjects({
             borderRadius: 999,
             height: 48,
             px: 3,
-            boxShadow: (theme) =>
-              `0 6px 18px ${alpha(theme.palette.secondary.main, 0.32)}`,
+            color: PILL_TEXT,
+            bgcolor: alpha("#ffffff", 0.7),
+            borderColor: (theme) => alpha(theme.palette.secondary.main, 0.45),
+            "& .MuiButton-startIcon": { color: "secondary.main" },
             transition: "all .2s",
             "&:hover": {
-              transform: "translateY(-1px)",
-              boxShadow: (theme) =>
-                `0 8px 24px ${alpha(theme.palette.secondary.main, 0.4)}`,
+              color: "secondary.main",
+              borderColor: "secondary.main",
+              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.06),
             },
           }}
         >
-          Nouveau projet
+          {createProjectS}
         </Button>
       </Box>
 
@@ -202,18 +217,16 @@ export default function PanelDashboardProjects({
         )}
 
         {items?.length > 0 && (
-          <List disablePadding sx={{ py: 0.5 }}>
-            {items.map((item, index) => (
-              <ListItemDashboardProject
-                key={item.key}
-                item={item}
-                index={index}
-                selected={item.key === selectedKey}
-                installing={item.key === installingKey}
-                onClick={() => onSelectItem(item)}
-              />
-            ))}
-          </List>
+          <Box sx={{ py: 0.5 }}>
+            <TableDashboardProjects
+              items={items}
+              selectedKey={selectedKey}
+              installingKey={installingKey}
+              expandedKeys={expandedKeys}
+              onSelectItem={onSelectItem}
+              onToggleExpand={handleToggleExpand}
+            />
+          </Box>
         )}
 
         {hasSearch && (
@@ -222,7 +235,9 @@ export default function PanelDashboardProjects({
             loading={remoteSearchLoading}
             selectedKey={selectedKey}
             installingKey={installingKey}
+            expandedKeys={expandedKeys}
             onSelectItem={onSelectItem}
+            onToggleExpand={handleToggleExpand}
           />
         )}
       </Box>

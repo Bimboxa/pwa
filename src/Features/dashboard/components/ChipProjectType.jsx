@@ -1,11 +1,27 @@
 import { Chip } from "@mui/material";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import { getProjectTypeProps } from "../utils/projectTypes";
 
 export default function ChipProjectType({ type }) {
-  if (!type) return null;
+  // data
 
-  const { label, color } = getProjectTypeProps(type);
+  const appConfig = useAppConfig();
+
+  // strings
+
+  const typeLabels = appConfig?.strings?.project?.typeLabels;
+  const projectS = appConfig?.strings?.project?.nameSingular ?? "Projet";
+
+  // helpers
+
+  const { key, color } = getProjectTypeProps(type);
+  const label = typeLabels?.[type] ?? typeLabels?.[key] ?? projectS;
+
+  // render
+
+  if (!type) return null;
 
   return (
     <Chip

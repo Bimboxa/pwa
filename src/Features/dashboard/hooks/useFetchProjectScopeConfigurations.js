@@ -7,6 +7,7 @@ import { setProjectConfigurations } from "Features/remoteScopeConfigurations/rem
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeConfigurationsByProject from "Features/remoteScopeConfigurations/hooks/useScopeConfigurationsByProject";
 import useSearchScopeConfigurations from "Features/remoteScopeConfigurations/hooks/useSearchScopeConfigurations";
+import normalizeProjectIdMaster from "../utils/normalizeProjectIdMaster";
 
 // Fetches the remote scope configurations of the selected dashboard item
 // and stores them in Redux, where useDashboardProjectItems merges them into
@@ -33,7 +34,7 @@ export default function useFetchProjectScopeConfigurations(item) {
   const searchConfig =
     appConfig?.features?.remoteScopeConfigurations?.searchAndFilters;
 
-  const idMaster = item?.idMaster ? String(item.idMaster) : null;
+  const idMaster = normalizeProjectIdMaster(item?.idMaster);
   const clientRef = item?.clientRef ? String(item.clientRef) : null;
   const projectId = item?.projectId ? String(item.projectId) : null;
   const canFetch = Boolean(
