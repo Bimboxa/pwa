@@ -62,7 +62,7 @@ test("two image picks rotate the model to positive displayed X while keeping its
           (i) =>
             r[i] * point.x + r[i + 1] * point.y + r[i + 2] * point.z + r[i + 3]
         );
-        return { x: coordinates[0], y: -coordinates[1], z: coordinates[2] };
+        return { x: coordinates[0], y: coordinates[1], z: coordinates[2] };
       };
       const a = project(start),
         b = project(end);

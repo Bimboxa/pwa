@@ -51,8 +51,7 @@ import {
   subscribeScanPanelHost,
 } from "../services/scanPanelHost";
 import sliceImageFile from "../utils/sliceImageFile";
-
-const DEFAULT_PLACEMENT = { up: "Z", scale: 1, origin: [0, 0, 0], yaw: 0 };
+import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/localScanPlacement";
 
 export default function LocalScansPanel({ editor, projectId, hidden = false }) {
   // data

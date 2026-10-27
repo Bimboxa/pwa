@@ -1,5 +1,7 @@
 // Every source point in the inclusive Z interval contributes once. Empty
 // pixels stay white; no interpolation or guessed wall geometry is introduced.
+// Row 0 is the frame's minimum Y: displayed Y is world +Z, so the image top
+// is world -Z, the view from above shared with horizontal base maps.
 export default async function projectLocalScanSlice(
   { positions, colors },
   { frame, lower, upper, resolution = 768 },
@@ -43,7 +45,7 @@ export default async function projectLocalScanSlice(
       );
       const row = Math.max(
         0,
-        Math.min(height - 1, Math.floor((max[1] - v) / pixelSize))
+        Math.min(height - 1, Math.floor((v - min[1]) / pixelSize))
       );
       const pixel = row * width + col;
       const count = ++counts[pixel];

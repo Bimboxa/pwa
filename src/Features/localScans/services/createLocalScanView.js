@@ -8,6 +8,7 @@ import {
   Vector3,
 } from "three";
 import applyLocalScanPlacement from "../utils/applyLocalScanPlacement";
+import { DEFAULT_LOCAL_SCAN_PLACEMENT } from "../constants/localScanPlacement";
 import readLocalScanInWorker from "./readLocalScanInWorker";
 
 // One independently owned scene root. Never enters the existing annotation,
@@ -59,7 +60,7 @@ ${shader.vertexShader}`;
   let loading = null;
   const decodeController = new AbortController();
   let mode = "POINTS";
-  let placement = { up: "Z", scale: 1, origin: [0, 0, 0] };
+  let placement = DEFAULT_LOCAL_SCAN_PLACEMENT;
   const requestRender = () => {
     if (!disposed) editor.requestRender();
   };

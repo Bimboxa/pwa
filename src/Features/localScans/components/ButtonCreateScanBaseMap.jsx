@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { CropPortrait, CropLandscape } from "@mui/icons-material";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
-import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
+import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
 
@@ -30,13 +30,13 @@ export default function ButtonCreateScanBaseMap({
     try {
       const { result, mode, frame } = projection;
       const name = `${modelName.replace(/\.ply$/i, "")} · ${mode === "density" ? "Densité" : "Couleurs"} · Z ${result.lower.toFixed(2)} à ${result.upper.toFixed(2)} m`;
-      const prepared = prepareScanBaseMap(result, frame, mode, altitude);
-      const file = await sliceImageFile(prepared.image, mode);
+      const placement = prepareScanBaseMap(result, frame, altitude);
+      const file = await sliceImageFile(result, mode);
       const entity = await create({
         file,
         name,
         meterByPx: result.pixelSize,
-        ...prepared.placement,
+        ...placement,
         source: "local-scan",
         selectOnCreate: false,
         triggerInitialSave: false,
@@ -45,7 +45,6 @@ export default function ButtonCreateScanBaseMap({
           resourceId: resourceId ?? null,
           mode,
           altitude,
-          imageFlippedY: true,
           lower: result.lower,
           upper: result.upper,
           frame: { min: frame.min, max: frame.max, rows: frame.rows },
@@ -85,15 +84,12 @@ export default function ButtonCreateScanBaseMap({
             </Tooltip>
           </ToggleButton>
         </ToggleButtonGroup>
-        <FieldAnnotationHeight
-          annotation={{ z: altitude }}
-          field="z"
+        <FieldNumberCompact
           label="Z"
           unit="m"
-          displayDecimals={3}
-          debounceMs={0}
+          value={altitude}
           disabled={busy}
-          onChange={({ z }) => setAltitude(z)}
+          onChange={setAltitude}
         />
         <Button
           sx={{ flex: 1 }}

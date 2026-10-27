@@ -86,12 +86,12 @@ stale images cannot create a base map. Source data never enters Redux.
 
 Base-map creation uses the same compact Z input as the top bar (default 0 m).
 The new map stores its world-space center and yaw along with the raster scale.
-Its center includes the raster's partial edge pixels. Creation reverses image
-rows to match horizontal base-map coordinates; the preview/download stay
-unchanged. This aligns the image with the projected scan after translation,
+Its center includes the raster's partial edge pixels. Projection rows already
+follow horizontal base-map coordinates (image top = world -Z, the view from
+above), so the preview, the PNG download and the base map are the same
+picture. This aligns the image with the projected scan after translation,
 scaling and rotation, including rotated editor axes. The selected Z only sets
 the new map altitude and does not change the projection slice.
-
 
 `Scan3dPanelHost` is the ordinary tool drawer; the persistent scan controller
 portals its controls there. The scene/input overlay stays in the editor. With
@@ -177,7 +177,8 @@ one vertical, two-handle slider or numeric Z limits. Slider bounds follow the
 placed cloud's useful height interval (1st–99th percentiles), with 5% padding on each side (at least
 5 mm for a flat cloud). Values are metres in the
 placed scan's displayed frame, including origin, scale, vertical-axis selection
-and gizmo yaw. The image is orthographic (+X right, +Y up), with fixed XY bounds
+and gizmo yaw. The image is orthographic (+X right, displayed +Y down, i.e. world -Z up as
+seen from above), with fixed XY bounds
 and square pixels; its longest side is 768 pixels. Each source point inside the
 interval contributes once, without sampling. **Densité** maps log(1 + point count)
 to dark pixels; **Couleurs** averages RGB per occupied pixel. Empty pixels remain
@@ -230,7 +231,6 @@ input, density/RGB modes, PNG download, wheel zoom, pan and two-point alignment.
 The alignment tests cover both vertical-axis choices, nonzero origin/scale, an
 existing model rotation and rotated editor axes. The full NavVis projection was
 validated computationally; full NavVis browser interaction remains to be assessed.
-
 
 ## Slice clipping
 
