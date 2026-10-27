@@ -19,8 +19,12 @@ export const CONCEPTS = [
       v.scopeDescriptionS ??
       `Un ${v.scopeS} est un dossier de plans de repérage de même type, rattaché à un ${v.projectLowerS}.`,
     // A scope = several annotated base maps on one business theme: its
-    // base maps and the annotations drawn on them light up with it.
+    // base maps and the annotations drawn on them light up with it, and so
+    // does the project it hangs off (with the link).
     zones: [
+      "project-label",
+      "project-line",
+      "link-project-spine",
       "scope-spine",
       "scope-pill-a",
       "scope-pill-b",
@@ -88,13 +92,17 @@ export const CONCEPTS = [
     label: () => "Dossier de fonds de plan",
     description: (v) =>
       `Les fonds de plan du ${v.projectLowerS} (plans de niveau, coupes), partagés entre les ${v.scopePluralS}.`,
+    // Lit with the project it belongs to and both links (to the project,
+    // to the scope's base maps).
     zones: [
+      "project-label",
+      "project-line",
+      "link-project-folder",
       "folder-frame",
       "folder-title",
       "folder-levels",
       "folder-sections",
       "link-folder-plan",
-      "link-project-folder",
     ],
   },
   {
