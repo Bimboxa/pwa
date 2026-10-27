@@ -68,10 +68,12 @@ fails. No bulk migration or change to unrelated resources occurs.
 
 ## Tool tabs and lifecycle
 
-- **Général**: file information, local persistence, points/realistic mode,
-  shared projection preview, and **Créer un fond de plan**. Creation uses the
-  selected density/RGB raster through the standard base-map creator, with
-  `meterByPx`, an initial version and `createdFrom` scan provenance. It stays
+- **Général**: file information, local persistence, points/realistic mode and
+  point size (stored in `resource.scan.display` and restored on reopening,
+  « Réaliste » included), shared projection preview, and **Créer un fond de
+  plan**. Creation uses the selected density/RGB raster through the standard
+  base-map creator, with `meterByPx`, an initial version, `createdFrom` scan
+  provenance and, for a saved scan, `localScan` (see Scan base maps). It stays
   local (no initial remote save), and does not switch the current base map.
 - **Projection**: compact inclusive Z limits, centered density/mean-RGB selector,
   a download button for the selected raster and optional hiding of points outside
