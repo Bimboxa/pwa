@@ -174,8 +174,10 @@ export default function MenuCommandShortcuts({ ctx, deps }) {
               position: "fixed",
               left: lastPosition.x,
               top: lastPosition.y,
-              width: 1,
-              height: 1,
+              // px units: in sx, `width: 1` would mean 100% and the popups
+              // anchored on the bottom edge would land at the viewport bottom
+              width: "1px",
+              height: "1px",
               pointerEvents: "none",
             }}
           />
