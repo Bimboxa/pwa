@@ -221,7 +221,6 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
         origin: ray.origin.toArray(),
         direction: ray.direction.toArray(),
         scale: view.root.scale.x,
-        pixelAngle: 2 / (camera.projectionMatrix.elements[5] * rect.height),
       },
     });
   };

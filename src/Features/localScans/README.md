@@ -84,9 +84,17 @@ normal canvas interaction. Walk/capture modes and scan preparation suspend it.
 
 A worker holds one extra copy of the source positions only while inspection is
 active. It finds the nearest source center within six CSS pixels of the ray,
-then fits a local plane with bounded RANSAC and a covariance refinement. Sparse,
-linear, ambiguous and grazing neighbourhoods retain the center position without
-claiming a plane. Empty clicks clear the result. Camera/placement changes while
+then searches a cube of exactly 1 m per edge centred on that hit (accounting for
+import scale). A deterministic reservoir retains up to 4,096 points; 640 RANSAC
+triplets propose distinct planes using a ±2.5 cm inlier tolerance. Candidates
+need at least 12 inliers and 15% support, plus a genuinely two-dimensional patch.
+Covariance refinement is applied twice. Nearby candidates are preferred over
+more distant, denser planes; distances within the noise tolerance tie by support.
+At grazing angles a bounded orthogonal projection replaces an unstable ray
+intersection, so a valid plane can still be displayed. Sparse or linear
+neighbourhoods without a supported plane retain the original center position.
+The panel reports the total cube population and sampled inlier percentage;
+these are diagnostics, not a guarantee of physical surface accuracy. Empty clicks clear the result. Camera/placement changes while
 a request is running discard stale results. For Gaussian scans this uses centers,
 not rendered opacity/depth, so it is an approximate visual pick, not metrology.
 

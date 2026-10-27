@@ -2,7 +2,6 @@ import { mat3SmallestEigenvector } from "../../photoPlans/utils/mat3.js";
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sub = (a, b) => a.map((v, i) => v - b[i]);
-const distance2 = (a, b) => dot(sub(a, b), sub(a, b));
 
 // All calculations use source coordinates. Only a bounded neighbourhood is
 // fitted; the full cloud stays in the worker and never blocks pointer events.
@@ -34,11 +33,11 @@ export default function pickLocalScanPoint(positions, query) {
   }
   if (best < 0) return null;
   const point = Array.from(positions.subarray(best, best + 3));
-  const radius = Math.max(
-    0.04 / scale,
-    Math.min(0.4 / scale, nearest * query.pixelAngle * 32)
-  );
-  const tolerance = radius * 0.045;
+  // Fixed physical search volume: one metre per edge, centred on the hit.
+  // Placement is a uniform scale and an axis permutation, so a source-space
+  // cube maps to the same scene-space cube after applying the import scale.
+  const radius = 0.5 / scale;
+  const tolerance = 0.025 / scale;
   const neighbours = [];
   let seen = 0;
   let seed = 1234567;
@@ -48,63 +47,133 @@ export default function pickLocalScanPoint(positions, query) {
     const dx = positions[i] - point[0],
       dy = positions[i + 1] - point[1],
       dz = positions[i + 2] - point[2];
-    if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
+    if (Math.abs(dx) > radius || Math.abs(dy) > radius || Math.abs(dz) > radius)
+      continue;
     seen++;
     const slot =
-      neighbours.length < 1024
+      neighbours.length < 4096
         ? neighbours.length
         : Math.floor(random() * seen);
-    if (slot < 1024)
+    if (slot < 4096)
       neighbours[slot] = [positions[i], positions[i + 1], positions[i + 2]];
   }
-  const fallback = { point, normal: null, radius, support: 0 };
-  if (neighbours.length < 15) return fallback;
-  let inliers = [];
-  for (let trial = 0; trial < 80; trial++) {
+  const fallback = {
+    point,
+    normal: null,
+    radius,
+    support: 0,
+    neighbourCount: seen,
+    sampleCount: neighbours.length,
+  };
+  const minimumSupport = Math.max(12, Math.ceil(neighbours.length * 0.15));
+  if (neighbours.length < minimumSupport) return fallback;
+
+  // Keep several distinct hypotheses. A wall can be less dense than the
+  // neighbouring floor/furniture, so a majority requirement is inappropriate.
+  // Distances within the noise tolerance tie; then prefer the larger support.
+  const rank = (a, b) =>
+    Math.floor(a.distance / tolerance) - Math.floor(b.distance / tolerance) ||
+    b.count - a.count;
+  const candidates = [];
+  for (let trial = 0; trial < 640; trial++) {
     const a = neighbours[Math.floor(random() * neighbours.length)];
     const u = sub(neighbours[Math.floor(random() * neighbours.length)], a);
     const v = sub(neighbours[Math.floor(random() * neighbours.length)], a);
-    let n = [
+    let normal = [
       u[1] * v[2] - u[2] * v[1],
       u[2] * v[0] - u[0] * v[2],
       u[0] * v[1] - u[1] * v[0],
     ];
-    const length = Math.hypot(...n);
-    if (length < radius * radius * 0.01) continue;
-    n = n.map((value) => value / length);
-    if (Math.abs(dot(n, sub(point, a))) > tolerance * 2) continue;
-    const matches = neighbours.filter(
-      (p) => Math.abs(dot(n, sub(p, a))) <= tolerance
-    );
-    if (matches.length > inliers.length) inliers = matches;
+    const length = Math.hypot(...normal);
+    if (length < radius * radius * 0.002) continue;
+    normal = normal.map((value) => value / length);
+    const offset = dot(normal, a);
+    const distance = Math.abs(dot(normal, point) - offset);
+    if (distance > radius) continue;
+    let count = 0;
+    for (const p of neighbours)
+      if (Math.abs(dot(normal, p) - offset) <= tolerance) count++;
+    if (count < minimumSupport) continue;
+    const candidate = { normal, offset, distance, count };
+    const duplicate = candidates.findIndex((other) => {
+      const alignment = dot(other.normal, normal);
+      return (
+        Math.abs(alignment) > 0.995 &&
+        Math.abs(other.offset * Math.sign(alignment) - offset) < tolerance
+      );
+    });
+    if (duplicate >= 0) {
+      if (rank(candidate, candidates[duplicate]) >= 0) continue;
+      candidates.splice(duplicate, 1);
+    }
+    candidates.push(candidate);
+    candidates.sort(rank);
+    if (candidates.length > 24) candidates.pop();
   }
-  if (inliers.length < 15 || inliers.length < neighbours.length * 0.6)
-    return fallback;
-  const center = [0, 0, 0];
-  for (const p of inliers)
-    for (let j = 0; j < 3; j++) center[j] += p[j] / inliers.length;
-  const covariance = Array(9).fill(0);
-  for (const p of inliers) {
-    const d = sub(p, center);
-    for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 3; c++)
-        covariance[3 * r + c] += (d[r] * d[c]) / inliers.length;
+
+  let chosen = null;
+  for (const candidate of candidates) {
+    let normal = candidate.normal;
+    let offset = candidate.offset;
+    let center;
+    let values;
+    // Refit, reclassify, then refit once more to reduce random-triplet bias.
+    for (let pass = 0; pass < 2; pass++) {
+      const inliers = neighbours.filter(
+        (p) => Math.abs(dot(normal, p) - offset) <= tolerance
+      );
+      if (inliers.length < minimumSupport) {
+        center = null;
+        break;
+      }
+      center = [0, 0, 0];
+      for (const p of inliers)
+        for (let j = 0; j < 3; j++) center[j] += p[j] / inliers.length;
+      const covariance = Array(9).fill(0);
+      for (const p of inliers) {
+        const d = sub(p, center);
+        for (let r = 0; r < 3; r++)
+          for (let c = 0; c < 3; c++)
+            covariance[3 * r + c] += (d[r] * d[c]) / inliers.length;
+      }
+      const eigen = mat3SmallestEigenvector(covariance);
+      normal = eigen.vector;
+      values = eigen.values;
+      offset = dot(normal, center);
+    }
+    if (!center) continue;
+    // Require a two-dimensional patch, not a line or a thick volume.
+    if (values[1] < (0.05 / scale) ** 2 || values[0] > values[1] * 0.12)
+      continue;
+    const count = neighbours.filter(
+      (p) => Math.abs(dot(normal, p) - offset) <= tolerance
+    ).length;
+    if (count < minimumSupport) continue;
+    const distance = Math.abs(dot(normal, point) - offset);
+    if (distance > radius) continue;
+    const refined = { normal, offset, distance, count };
+    if (!chosen || rank(refined, chosen) < 0) chosen = refined;
   }
-  const { vector: normal, values } = mat3SmallestEigenvector(covariance);
-  // Reject thin lines and volumetric blobs instead of inventing a surface.
-  if (values[1] < radius * radius * 0.015 || values[0] > values[1] * 0.08)
-    return fallback;
+  if (!chosen) return fallback;
+  const { normal, offset } = chosen;
   const denominator = dot(normal, direction);
-  if (Math.abs(denominator) < 0.15) return fallback;
-  const t = dot(normal, sub(center, origin)) / denominator;
+  const t =
+    Math.abs(denominator) > 0.02
+      ? (offset - dot(normal, origin)) / denominator
+      : -1;
   const intersection = origin.map((value, i) => value + t * direction[i]);
-  if (t <= 0 || distance2(intersection, point) > radius * radius * 0.25)
-    return fallback;
+  const insideCube =
+    t > 0 &&
+    intersection.every((value, i) => Math.abs(value - point[i]) <= radius);
+  // A grazing ray must not suppress an otherwise good plane or send the
+  // result far away. Fall back to the nearest orthogonal point on the plane.
+  const signedDistance = dot(normal, point) - offset;
+  const projected = point.map((value, i) => value - signedDistance * normal[i]);
   if (denominator > 0) for (let i = 0; i < 3; i++) normal[i] *= -1;
   return {
-    point: intersection,
+    ...fallback,
+    point: insideCube ? intersection : projected,
     normal,
-    radius,
-    support: inliers.length / neighbours.length,
+    support: chosen.count / neighbours.length,
   };
 }

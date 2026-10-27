@@ -458,8 +458,9 @@ export default function LocalScansPanel({
                   <Stack spacing={1} aria-live="polite">
                     <Typography variant="caption">
                       Cliquez sur le scan pour relever un point. Glissez pour
-                      naviguer. Grille : 2 m × 2 m, mailles de 10 cm. Les outils
-                      de dessin sont suspendus sur cette vue pendant le relevé.
+                      naviguer. Recherche du plan dans un cube de 1 m de côté.
+                      Grille : 2 m × 2 m, mailles de 10 cm. Les outils de dessin
+                      sont suspendus sur cette vue pendant le relevé.
                     </Typography>
                     {pickMessage && (
                       <Typography variant="caption">{pickMessage}</Typography>
@@ -495,6 +496,11 @@ export default function LocalScansPanel({
                           </Button>
                         </Stack>
                         <Typography variant="caption" color="text.secondary">
+                          Cube de 1 m :{" "}
+                          {picked.neighbourCount?.toLocaleString("fr-FR")}{" "}
+                          points.
+                          {picked.normal &&
+                            ` Plan soutenu par ${Math.round(picked.support * 100)} % des points analysés.`}{" "}
                           Repère affiché, Z vertical.{" "}
                           {picked.normal
                             ? "Point estimé sur le plan local."
