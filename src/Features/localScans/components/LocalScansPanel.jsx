@@ -422,36 +422,46 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     <Typography variant="subtitle2">
                       Affichage du modèle
                     </Typography>
-                    <ToggleButtonGroup
-                      size="small"
-                      exclusive
-                      value={mode}
-                      onChange={(_, value) => void changeMode(value)}
-                    >
-                      <ToggleButton value="POINTS">Points</ToggleButton>
-                      <ToggleButton
-                        value="SPLAT"
-                        disabled={loaded.kind !== "SPLAT"}
-                      >
-                        Réaliste
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-                    {mode === "POINTS" && (
-                      <TextField
-                        label="Taille des points (px)"
-                        type="number"
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ToggleButtonGroup
                         size="small"
-                        value={pointSize}
-                        onChange={(event) => {
-                          const size = Math.max(
-                            1,
-                            Math.min(12, Number(event.target.value) || 1)
-                          );
-                          setPointSize(size);
-                          view.setPointSize(size);
-                        }}
-                      />
-                    )}
+                        exclusive
+                        value={mode}
+                        aria-label="Mode d’affichage du modèle"
+                        onChange={(_, value) => void changeMode(value)}
+                      >
+                        <ToggleButton value="POINTS">Points</ToggleButton>
+                        <ToggleButton
+                          value="SPLAT"
+                          disabled={loaded.kind !== "SPLAT"}
+                        >
+                          Réaliste
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                      {mode === "POINTS" && (
+                        <ToggleButtonGroup
+                          size="small"
+                          exclusive
+                          value={pointSize}
+                          aria-label="Taille des points"
+                          onChange={(_, size) => {
+                            if (size === null) return;
+                            setPointSize(size);
+                            view.setPointSize(size);
+                          }}
+                        >
+                          {[1, 2, 4].map((size) => (
+                            <ToggleButton
+                              key={size}
+                              value={size}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              {size} px
+                            </ToggleButton>
+                          ))}
+                        </ToggleButtonGroup>
+                      )}
+                    </Stack>
                     {loaded.kind === "SPLAT" && (
                       <Typography variant="caption" color="text.secondary">
                         Les points sont les centres des gaussiennes, pas un
@@ -479,16 +489,27 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                       Actions du modèle
                     </Typography>
                     <Stack direction="row" spacing={1}>
-                      <Button onClick={() => view.fit()}>
-                        Cadrer le modèle
+                      <Button
+                        variant="outlined"
+                        title="Recentrer la caméra et ajuster le zoom pour voir tout le modèle"
+                        onClick={() => view.fit()}
+                      >
+                        Cadrer
                       </Button>
-                      <Button onClick={() => setPicker(true)}>
-                        Charger un autre modèle
+                      <Button
+                        variant="outlined"
+                        onClick={() => setPicker(true)}
+                      >
+                        + Nouveau
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={closeScan}
+                      >
+                        Fermer
                       </Button>
                     </Stack>
-                    <Button color="inherit" onClick={closeScan}>
-                      Fermer le modèle
-                    </Button>
                   </Stack>
                 </WhiteSectionGeneric>
               </>
