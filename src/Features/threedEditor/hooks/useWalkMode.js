@@ -38,6 +38,7 @@ import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 import WalkModeController from "../js/WalkModeController";
 import { createWalkCollisionProbe } from "../services/walkCollisionProbe";
 import { createWalkMeasureController } from "../services/walkMeasureController";
+import getPerpendicularFoot from "../utils/getPerpendicularFoot";
 import createLocalScanRayPicker from "Features/localScans/services/createLocalScanRayPicker";
 import createScanPlanePulse from "Features/localScans/services/createScanPlanePulse";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
@@ -310,11 +311,35 @@ export default function useWalkMode() {
     };
     let firstHit = null;
 
+    // Shift held: the second point is measured perpendicular to the plane of
+    // the first one (scan plane or mesh face) — from the aimed point straight
+    // back to that plane, i.e. the distance between the two faces.
+    let shiftHeld = false;
+    const onShift = (event) => {
+      if (event.key === "Shift") shiftHeld = event.type === "keydown";
+    };
+    const onBlur = () => {
+      shiftHeld = false;
+    };
+    window.addEventListener("keydown", onShift, true);
+    window.addEventListener("keyup", onShift, true);
+    window.addEventListener("blur", onBlur);
+    const getOrthoStart = (point) => {
+      const start = measure.getState().startPoint;
+      if (!shiftHeld || !point || !start || !firstHit?.normal) return null;
+      return getPerpendicularFoot(point, start, firstHit.normal);
+    };
+
     // One laser meter shot = one point, only on a real surface (the void is
     // not measurable); the second one persists the cote.
-    const shootMeasure = (hit) => {
+    const shootMeasure = (hit, { ortho = false } = {}) => {
       if (!hit.isHit) return;
-      const pair = measure.shoot(hit.point);
+      const start = measure.getState().startPoint;
+      const from =
+        ortho && start && firstHit?.normal
+          ? getPerpendicularFoot(hit.point, start, firstHit.normal)
+          : null;
+      const pair = measure.shoot(hit.point, { from });
       if (!pair) {
         firstHit = hit;
       } else {
@@ -379,9 +404,10 @@ export default function useWalkMode() {
       onPrimaryStart: () => {
         if (tool === "MEASURE") {
           if (scanShotPending) return;
+          const ortho = shiftHeld;
           const hit = centerPick();
           if (!scanPicker.hasDisplayedScans()) {
-            shootMeasure(hit);
+            shootMeasure(hit, { ortho });
             return;
           }
           // A scan point nearer than the surface hit wins; its plane
@@ -395,7 +421,7 @@ export default function useWalkMode() {
                 ? sceneManager.camera.position.distanceTo(hit.point)
                 : Infinity;
               if (!scanHit || scanHit.distance >= meshDistance) {
-                shootMeasure(hit);
+                shootMeasure(hit, { ortho });
                 return;
               }
               stopScanPulse?.();
@@ -407,12 +433,16 @@ export default function useWalkMode() {
                 normal: scanHit.normal,
               });
               emitShoot({ targetDistM: scanHit.distance });
-              shootMeasure({
-                point: scanHit.point,
-                isHit: true,
-                isScan: true,
-                baseMapId: scanHit.baseMapId,
-              });
+              shootMeasure(
+                {
+                  point: scanHit.point,
+                  isHit: true,
+                  isScan: true,
+                  baseMapId: scanHit.baseMapId,
+                  normal: scanHit.normal,
+                },
+                { ortho }
+              );
             })
             .finally(() => {
               scanShotPending = false;
@@ -499,7 +529,9 @@ export default function useWalkMode() {
           ? meshDist
           : null;
       if (tool === "MEASURE") {
-        const measureLiveM = measure.updatePreview(isHit ? point : null);
+        const measureLiveM = measure.updatePreview(isHit ? point : null, {
+          from: isHit ? getOrthoStart(point) : null,
+        });
         emitShoot({ targetDistM, measureLiveM });
       } else {
         emitShoot({ targetDistM });
@@ -508,6 +540,9 @@ export default function useWalkMode() {
 
     return () => {
       walkDisposed = true;
+      window.removeEventListener("keydown", onShift, true);
+      window.removeEventListener("keyup", onShift, true);
+      window.removeEventListener("blur", onBlur);
       controllerRef.current = null;
       clearInterval(distIntervalId);
       scanPicker.dispose();

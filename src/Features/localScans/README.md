@@ -250,6 +250,12 @@ plane is snapped to horizontal or vertical within 12° of world Y
 distance also reads the clouds, one worker search at a time, at most every
 250 ms.
 
+With **Maj** held after the first point, the second point is measured
+perpendicular to the first point's plane (scan plane, or face normal of a mesh
+hit): the cote — and its dashed preview while aiming — runs from the aimed
+point straight back to that plane (`getPerpendicularFoot`), i.e. the distance
+between the two faces. Without a plane on the first point, Maj changes nothing.
+
 ## Large point-cloud trial
 
 The NavVis MLX example (1,179,096,338 bytes, 32,752,655 vertices) is accepted at

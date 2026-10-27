@@ -128,6 +128,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
   let startMarker = null;
   let previewLine = null;
   let previewTarget = null; // Vector3 | null, last preview end point
+  let previewStart = null; // Vector3 | null, last preview start point
 
   function render() {
     editor?.renderScene?.();
@@ -139,6 +140,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     disposeObject(previewLine);
     previewLine = null;
     previewTarget = null;
+    previewStart = null;
   }
 
   function dropStart() {
@@ -173,8 +175,9 @@ export function createWalkMeasureController({ sceneManager, editor }) {
   // First call: arms the start point (returns null). Second call: commits
   // the measure and returns its {a, b, lengthM} (world Vector3s) — the
   // caller may persist it as a COTE annotation and drop the ephemeral copy
-  // with removeLast().
-  function shoot(point) {
+  // with removeLast(). `from` replaces the armed point as the measure start
+  // (perpendicular shot: foot of the second point on the first plane).
+  function shoot(point, { from = null } = {}) {
     if (!point) return null;
     const p = point.clone();
     if (!startPoint) {
@@ -184,8 +187,8 @@ export function createWalkMeasureController({ sceneManager, editor }) {
       render();
       return null;
     }
-    if (startPoint.distanceTo(p) < MIN_LENGTH_M) return null;
-    const a = startPoint;
+    const a = from ? from.clone() : startPoint;
+    if (a.distanceTo(p) < MIN_LENGTH_M) return null;
     dropStart();
     commit(a, p);
     render();
@@ -202,10 +205,12 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     render();
   }
 
-  // Dashed segment from the armed start point to the aimed point (null =
-  // aiming the void). Returns the live length in meters, or null.
-  function updatePreview(point) {
+  // Dashed segment from the armed start point — or `from` (perpendicular
+  // preview) — to the aimed point (null = aiming the void). Returns the
+  // live length in meters, or null.
+  function updatePreview(point, { from = null } = {}) {
     if (!startPoint) return null;
+    const a = from ?? startPoint;
     if (!point) {
       if (previewLine) {
         dropPreview();
@@ -213,21 +218,26 @@ export function createWalkMeasureController({ sceneManager, editor }) {
       }
       return null;
     }
-    // 10 Hz poll: skip the rebuild while the aim doesn't move.
-    if (previewTarget && previewTarget.distanceToSquared(point) < 1e-8) {
-      return startPoint.distanceTo(previewTarget);
+    // 10 Hz poll: skip the rebuild while the aim (and start) don't move.
+    if (
+      previewTarget &&
+      previewTarget.distanceToSquared(point) < 1e-8 &&
+      previewStart?.distanceToSquared(a) < 1e-8
+    ) {
+      return a.distanceTo(previewTarget);
     }
     dropPreview();
     previewTarget = point.clone();
+    previewStart = a.clone();
     previewLine = makeDashedLine({
-      a: startPoint,
+      a,
       b: previewTarget,
       resolution: getCanvasResolution(sceneManager),
       camera,
     });
     root.add(previewLine);
     render();
-    return startPoint.distanceTo(previewTarget);
+    return a.distanceTo(previewTarget);
   }
 
   // Drop the pending first point (tool switch).
