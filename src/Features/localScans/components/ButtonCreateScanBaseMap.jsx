@@ -140,77 +140,95 @@ export default function ButtonCreateScanBaseMap({
 
   // render
 
+  const orientationToggle = (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={projection.previewOrientation}
+      aria-label="Orientation de l’aperçu"
+      sx={{ flexShrink: 0 }}
+      onChange={(_, orientation) =>
+        orientation && projection.setPreviewOrientation(orientation)
+      }
+    >
+      <ToggleButton value="PORTRAIT" aria-label="Portrait">
+        <Tooltip title="Portrait">
+          <CropPortrait fontSize="small" />
+        </Tooltip>
+      </ToggleButton>
+      <ToggleButton value="LANDSCAPE" aria-label="Paysage">
+        <Tooltip title="Paysage">
+          <CropLandscape fontSize="small" />
+        </Tooltip>
+      </ToggleButton>
+    </ToggleButtonGroup>
+  );
+
   return (
     <Stack spacing={1}>
+      {linkedBaseMap && (
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {linkedS(linkedBaseMap.name)}
+        </Typography>
+      )}
+      {/* One line: preview format, altitude, name, « + » (or the update). */}
       <Stack direction="row" spacing={1} alignItems="center">
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={projection.previewOrientation}
-          aria-label="Orientation de l’aperçu"
-          onChange={(_, orientation) =>
-            orientation && projection.setPreviewOrientation(orientation)
-          }
-        >
-          <ToggleButton value="PORTRAIT" aria-label="Portrait">
-            <Tooltip title="Portrait">
-              <CropPortrait fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="LANDSCAPE" aria-label="Paysage">
-            <Tooltip title="Paysage">
-              <CropLandscape fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-        </ToggleButtonGroup>
-        {!linkedBaseMap && (
-          <FieldNumberCompact
-            label="Z"
-            unit="m"
-            value={altitude}
-            disabled={busy}
-            onChange={setAltitude}
-          />
-        )}
-      </Stack>
-      {linkedBaseMap ? (
-        <>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {linkedS(linkedBaseMap.name)}
-          </Typography>
-          <Button variant="contained" disabled={!canRun} onClick={handleUpdate}>
+        {orientationToggle}
+        {linkedBaseMap ? (
+          <Button
+            sx={{ flex: 1 }}
+            variant="contained"
+            disabled={!canRun}
+            onClick={handleUpdate}
+          >
             {busy ? "Mise à jour…" : updateS}
           </Button>
-        </>
-      ) : (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            size="small"
-            fullWidth
-            placeholder={defaultName || nameS}
-            aria-label={nameS}
-            value={name}
-            disabled={busy}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => {
-              event.stopPropagation();
-              if (event.key === "Enter") void handleCreate();
-            }}
-          />
-          <Tooltip title={createS}>
-            <span>
-              <IconButton
-                color="primary"
-                aria-label={createS}
-                disabled={!canRun || !Number.isFinite(altitude)}
-                onClick={handleCreate}
-              >
-                <Add />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
-      )}
+        ) : (
+          <>
+            <FieldNumberCompact
+              label="Z"
+              unit="m"
+              value={altitude}
+              disabled={busy}
+              onChange={setAltitude}
+            />
+            <TextField
+              size="small"
+              sx={{ flex: 1, minWidth: 0 }}
+              placeholder={defaultName || nameS}
+              aria-label={nameS}
+              value={name}
+              disabled={busy}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === "Enter") void handleCreate();
+              }}
+            />
+            <Tooltip title={createS}>
+              <span>
+                <IconButton
+                  aria-label={createS}
+                  disabled={!canRun || !Number.isFinite(altitude)}
+                  onClick={handleCreate}
+                  sx={{
+                    flexShrink: 0,
+                    bgcolor: "secondary.main",
+                    color: "secondary.contrastText",
+                    "&:hover": { bgcolor: "secondary.dark" },
+                    "&.Mui-disabled": {
+                      bgcolor: "action.disabledBackground",
+                      color: "action.disabled",
+                    },
+                  }}
+                >
+                  <Add />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </>
+        )}
+      </Stack>
       {status && <Alert severity={status.severity}>{status.message}</Alert>}
     </Stack>
   );
