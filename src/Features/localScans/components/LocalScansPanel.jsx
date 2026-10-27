@@ -122,6 +122,14 @@ export default function LocalScansPanel({
   useEffect(() => {
     if (tab === "PROJECTION" && view) setProjectionActive(true);
   }, [tab, view]);
+  // The tool shows this scan itself: its base maps leave it out (no double).
+  const toolResourceId = view ? (loaded?.resourceId ?? null) : null;
+  useEffect(() => {
+    const imagesManager = editor?.sceneManager?.imagesManager;
+    if (!imagesManager || !toolResourceId) return;
+    imagesManager.setLocalScanState({ toolResourceId });
+    return () => imagesManager.setLocalScanState({ toolResourceId: null });
+  }, [editor, toolResourceId]);
   useEffect(() => {
     if (!canInspect || !surfaceRef.current) return;
     try {
@@ -551,6 +559,7 @@ export default function LocalScansPanel({
             {tab === "GENERAL" && (
               <TabScanGeneral
                 loaded={loaded}
+                view={view}
                 mode={mode}
                 pointSize={pointSize}
                 modelVisible={modelVisible}

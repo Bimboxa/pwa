@@ -11,6 +11,9 @@ import { FADED_IMAGE_OPACITY } from "Features/baseMaps/constants/baseMapsImageMo
 import attachScene3dToBaseMapGroup, {
   getScene3dGroupKey,
 } from "./utilsImagesManager/attachScene3dToBaseMapGroup";
+import attachLocalScanToBaseMapGroup, {
+  getLocalScanGroupKey,
+} from "./utilsImagesManager/attachLocalScanToBaseMapGroup";
 import getRendererSupportsS3tc from "./utils/getRendererSupportsS3tc";
 
 import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
@@ -67,6 +70,16 @@ export default class ImagesManager {
     // ensureBaseMapPreview), kept for the session: id → { signature,
     // promise }.
     this.previewTextureById = {};
+    // Point clouds of the base maps projected from a local scan, mirrored
+    // from redux by useApplyBaseMapsScanModeIn3d (bottom bar « Scan 3D »)
+    // and from the Scan 3D tool: display mode, resource shown by the tool
+    // itself (its base maps then stay empty), main base map (preferred
+    // carrier when several base maps share one scan).
+    this.localScanState = {
+      mode: "NONE",
+      toolResourceId: null,
+      mainBaseMapId: null,
+    };
   }
 
   // Resolve + apply one basemap's desired opacity to its mesh material.
@@ -212,6 +225,7 @@ export default class ImagesManager {
     if (this.imagesMap[image.id]) {
       this.ensureImageTexture(image);
       this.syncScene3d(image.id);
+      this.syncLocalScans();
       return;
     }
     const { group, ready } = createImageObject(image);
@@ -230,6 +244,7 @@ export default class ImagesManager {
     this.scene.add(group);
     // syncScene3d applies the recorded scan visibility to the scanWrap.
     this.syncScene3d(image.id);
+    this.syncLocalScans();
     // Base maps grid open: a group created meanwhile joins its sheet pose.
     this.sceneManager.baseMapsGridManager?.onGroupCreated(image.id, group);
     // Re-render once the texture is in. The group is already in the scene
@@ -306,6 +321,60 @@ export default class ImagesManager {
     }
   }
 
+  // Scan base maps projected from a local point cloud: one carrier per
+  // resource — the main base map when it carries the scan, otherwise the
+  // first visible loaded one — so several slices of one scan never show it
+  // twice. Re-run whenever the mode, the tool, the main base map, the
+  // visibilities or the loaded groups change.
+  setLocalScanState(patch) {
+    Object.assign(this.localScanState, patch);
+    this.syncLocalScans();
+  }
+
+  syncLocalScans() {
+    const { mode, toolResourceId, mainBaseMapId } = this.localScanState;
+    const carriers = {};
+    if (mode !== "NONE")
+      Object.keys(this.imagesMap)
+        .sort()
+        .forEach((id) => {
+          const baseMap = this.baseMapsMap[id];
+          if (!getLocalScanGroupKey(baseMap)) return;
+          if (this.groupVisibleByBaseMapId[id] === false) return;
+          const { resourceId } = baseMap.localScan;
+          if (resourceId === toolResourceId) return;
+          if (!carriers[resourceId] || id === mainBaseMapId)
+            carriers[resourceId] = id;
+        });
+    Object.entries(this.imagesMap).forEach(([id, group]) => {
+      const baseMap = this.baseMapsMap[id];
+      const resourceId = baseMap?.localScan?.resourceId;
+      const key =
+        resourceId && carriers[resourceId] === id
+          ? getLocalScanGroupKey(baseMap)
+          : null;
+      if (group.userData.localScanKey !== key) {
+        group.userData.localScan?.dispose();
+        delete group.userData.localScan;
+        group.userData.localScanKey = key;
+        if (key)
+          group.userData.localScan = attachLocalScanToBaseMapGroup(
+            group,
+            baseMap,
+            {
+              sceneManager: this.sceneManager,
+              mode,
+              onLoaded: () => {
+                this.sceneManager.clippingManager?.reapply?.();
+                this.sceneManager.renderScene();
+              },
+            }
+          );
+      }
+      group.userData.localScan?.setMode(mode);
+    });
+  }
+
   // Editor teardown: release every scan reference so the shared cache can
   // evict the resources uploaded to this renderer (kept otherwise — with
   // their CPU copies released — and replayed on the next renderer, which
@@ -315,6 +384,9 @@ export default class ImagesManager {
       group.userData.disposeScene3d?.();
       delete group.userData.disposeScene3d;
       delete group.userData.scene3dKey;
+      group.userData.localScan?.dispose();
+      delete group.userData.localScan;
+      delete group.userData.localScanKey;
     });
   }
 
@@ -326,13 +398,18 @@ export default class ImagesManager {
     if (!group || group.userData.textureStatus !== "none") return false;
     const meshWrap = group.userData.meshWrap;
     const scanWrap = group.userData.scanWrap;
+    const localScanWrap = group.userData.localScanWrap;
     if (
-      group.children.some((child) => child !== meshWrap && child !== scanWrap)
+      group.children.some(
+        (child) =>
+          child !== meshWrap && child !== scanWrap && child !== localScanWrap
+      )
     )
       return false;
     // a preview of the table is not a texture
     removeBaseMapPreviewMesh(group);
     group.userData.disposeScene3d?.();
+    group.userData.localScan?.dispose();
     this.scene.remove(group);
     delete this.imagesMap[baseMapId];
     delete this.baseMapsMap[baseMapId];
@@ -466,6 +543,8 @@ export default class ImagesManager {
     Object.entries(scanVisibleById).forEach(([id, visible]) =>
       this.setBaseMapScanVisible(id, visible)
     );
+    // The carrier of a shared scan is the first VISIBLE base map.
+    this.syncLocalScans();
   }
 
   // Look up a basemap's group (parent for annotations attached to that map).
@@ -536,6 +615,7 @@ export default class ImagesManager {
         // annotations' (AnnotationsManager owns those). Walk into the
         // meshWrap to find the basemap mesh.
         group.userData.disposeScene3d?.();
+        group.userData.localScan?.dispose();
         this.scene.remove(group);
         group.traverse?.((child) => {
           if (child.userData?.isBasemap) {

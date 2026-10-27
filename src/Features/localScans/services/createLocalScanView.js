@@ -13,7 +13,10 @@ import readLocalScanInWorker from "./readLocalScanInWorker";
 
 // One independently owned scene root. Never enters the existing annotation,
 // mesh picking, clipping or export registries. The host renderer is unchanged.
-export default function createLocalScanView(editor, data) {
+// editor: {sceneManager, requestRender}. With `parent` (the wrap of a scan
+// base map, which carries the pose) the root joins it untransformed instead
+// of the scene: setPlacement is then left to the tool's own view.
+export default function createLocalScanView(editor, data, { parent } = {}) {
   const manager = editor.sceneManager;
   const root = new Group();
   root.name = "Local scan";
@@ -49,8 +52,9 @@ ${shader.vertexShader}`;
   material.customProgramCacheKey = () => "local-scan-slice-v1";
   const points = new Points(geometry, material);
   points.raycast = () => false;
+  points.userData.isDecor = true;
   root.add(points);
-  manager.scene.add(root);
+  (parent ?? manager.scene).add(root);
   let disposed = false;
   let clipRange = null,
     splatClipEdit = null,
@@ -163,7 +167,7 @@ ${shader.vertexShader}`;
     if (spark) spark.visible = root.visible && mode === "SPLAT";
     requestRender();
   }
-  setPlacement(placement);
+  if (!parent) setPlacement(placement);
   return {
     root,
     pointGeometry: geometry,

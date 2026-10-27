@@ -84,6 +84,10 @@ export default class BaseMap {
     // a photogrammetry scan whose mesh + height map live in the local-only
     // db.scene3dAssets — see docs/baseMaps/SCENE_3D_BASE_MAPS.md.
     scene3d,
+    // Base map projected from a local point cloud (Scan 3D tool):
+    // {resourceId, matrix} — the scan pose in the base map group frame, so
+    // the 3D scan follows the base map (localScans/README.md).
+    localScan,
     fromDXF,
     dxf,
     // Print zone (« Zone d'impression »): { format, orientation, scale, x, y,
@@ -122,6 +126,7 @@ export default class BaseMap {
     this.detailRef = detailRef ?? null;
     this.printZone = printZone ?? null;
     this.scene3d = scene3d ?? null;
+    this.localScan = localScan ?? null;
     this.fromDXF = Boolean(fromDXF);
     this.dxf = dxf ?? null;
     // version system
@@ -518,6 +523,7 @@ export default class BaseMap {
       rotation2D: this.rotation2D,
       printZone: this.printZone ?? null,
       scene3d: this.scene3d ?? null,
+      localScan: this.localScan ?? null,
       fromDXF: this.fromDXF,
       dxf: this.dxf ?? null,
     };

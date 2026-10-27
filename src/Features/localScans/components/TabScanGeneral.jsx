@@ -15,6 +15,7 @@ import ButtonCreateScanBaseMap from "./ButtonCreateScanBaseMap";
 // « Général » tab of the Scan 3D tool: model display and base map creation.
 export default function TabScanGeneral({
   loaded,
+  view,
   mode,
   pointSize,
   modelVisible,
@@ -127,6 +128,7 @@ export default function TabScanGeneral({
           />
           <ButtonCreateScanBaseMap
             projection={projection}
+            view={view}
             modelName={loaded.name}
             resourceId={loaded.resourceId}
           />

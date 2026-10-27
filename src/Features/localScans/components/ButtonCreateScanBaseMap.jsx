@@ -13,9 +13,14 @@ import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapF
 import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
+import getLocalScanMatrixInBaseMap from "../utils/getLocalScanMatrixInBaseMap";
 
+// The base map keeps the scan pose in its own frame (localScan.matrix): the
+// point cloud then follows every later move of the map (bottom bar « Scan
+// 3D »). Unsaved scans (no resource) only get the image.
 export default function ButtonCreateScanBaseMap({
   projection,
+  view,
   modelName,
   resourceId,
 }) {
@@ -32,11 +37,22 @@ export default function ButtonCreateScanBaseMap({
       const name = `${modelName.replace(/\.ply$/i, "")} · ${mode === "density" ? "Densité" : "Couleurs"} · Z ${result.lower.toFixed(2)} à ${result.upper.toFixed(2)} m`;
       const placement = prepareScanBaseMap(result, frame, altitude);
       const file = await sliceImageFile(result, mode);
+      view.root.updateMatrixWorld(true);
+      const localScan = resourceId
+        ? {
+            resourceId,
+            matrix: getLocalScanMatrixInBaseMap(
+              view.root.matrixWorld,
+              placement
+            ),
+          }
+        : null;
       const entity = await create({
         file,
         name,
         meterByPx: result.pixelSize,
         ...placement,
+        localScan,
         source: "local-scan",
         selectOnCreate: false,
         triggerInitialSave: false,

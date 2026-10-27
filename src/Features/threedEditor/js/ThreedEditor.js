@@ -43,7 +43,7 @@ export default class ThreedEditor {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();
     // Scan base maps: hand the GPU cache references back (the renderer dies
-    // with this editor).
+    // with this editor), and the local point clouds of scan base maps.
     this.sceneManager?.imagesManager?.releaseScene3dAssets?.();
     this.sceneManager?.baseMapsGridManager?.dispose?.();
     this.sceneManager?.renderModeManager?.dispose?.();
@@ -101,6 +101,7 @@ export default class ThreedEditor {
       // data, display toggle).
       if (imagesManager.hasCurrentImageObject(baseMap.id, image)) {
         imagesManager.syncScene3d(baseMap.id);
+        imagesManager.syncLocalScans();
         return;
       }
       imagesManager.addImageObject(image, baseMap);
