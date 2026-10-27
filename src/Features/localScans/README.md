@@ -222,8 +222,8 @@ a request is running discard stale results. For Gaussian scans this uses centers
 not rendered opacity/depth, so it is an approximate visual pick, not metrology.
 
 The pulse (neon orange `#ff6a2b`, the first-person HUD accent,
-`createScanPlanePulse`, drawn in world space) and a 2 m × 2 m grid (10 cm
-cells) fade over 2.2 seconds
+`createScanPlanePulse`, drawn in world space) and a 2 m × 2 m grid (fat
+lines, 10 cm cells, 50 cm major lines, light veil) fade over 2.2 seconds
 on a supported plane; an isolated marker is used
 when the fit is unreliable. Animation frames, geometry and materials are freed
 at the end or on cleanup. Coordinates are metres in the displayed axes (including

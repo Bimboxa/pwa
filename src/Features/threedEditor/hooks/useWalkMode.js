@@ -401,6 +401,7 @@ export default function useWalkMode() {
               stopScanPulse?.();
               stopScanPulse = createScanPlanePulse({
                 parent: sceneManager.scene,
+                renderer: sceneManager.renderer,
                 requestRender: () => editor.renderScene?.(),
                 point: scanHit.point,
                 normal: scanHit.normal,

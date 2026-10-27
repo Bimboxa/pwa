@@ -39,6 +39,7 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
     view.root.updateMatrixWorld(true);
     stopPulse = createScanPlanePulse({
       parent: editor.sceneManager.scene,
+      renderer: editor.sceneManager.renderer,
       requestRender: editor.requestRender,
       point: new Vector3(...result.point).applyMatrix4(view.root.matrixWorld),
       normal: result.normal
