@@ -36,20 +36,29 @@ export default function SectionKeyHints() {
   // render
 
   function renderKeys(item) {
-    if (item.icon) {
-      const Icon = ICONS[item.icon];
-      return <Icon sx={{ fontSize: 26, color: "text.primary" }} />;
-    }
-    return item.keys.map((k, i) => (
-      <Fragment key={k}>
-        {i > 0 && (
-          <Typography component="span" variant="body2" sx={{ mx: 0.5 }}>
-            +
-          </Typography>
+    const keys = item.keys ?? [];
+    const Icon = item.icon ? ICONS[item.icon] : null;
+    const plus = (
+      <Typography component="span" variant="body2" sx={{ mx: 0.5 }}>
+        +
+      </Typography>
+    );
+    return (
+      <>
+        {keys.map((k, i) => (
+          <Fragment key={k}>
+            {i > 0 && plus}
+            <KeyCap>{k}</KeyCap>
+          </Fragment>
+        ))}
+        {Icon && (
+          <>
+            {keys.length > 0 && plus}
+            <Icon sx={{ fontSize: 26, color: "text.primary" }} />
+          </>
         )}
-        <KeyCap>{k}</KeyCap>
-      </Fragment>
-    ));
+      </>
+    );
   }
 
   return (
