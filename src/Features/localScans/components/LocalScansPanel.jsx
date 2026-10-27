@@ -8,35 +8,19 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  IconButton,
-  Tooltip,
   LinearProgress,
-  List,
-  ListItemButton,
-  ListItemText,
   Stack,
-  Skeleton,
-  Switch,
   Tab,
   Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
-import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import Scan3dEmptyState from "./Scan3dEmptyState";
 import Scan3dHeader from "./Scan3dHeader";
 import LocalScanSliceSection from "./LocalScanSliceSection";
-import ScanProjectionPreview from "./ScanProjectionPreview";
-import ButtonCreateScanBaseMap from "./ButtonCreateScanBaseMap";
+import TabScanGeneral from "./TabScanGeneral";
+import TabScanPosition from "./TabScanPosition";
+import DialogPickLocalScan from "./DialogPickLocalScan";
 import useScanProjection from "../hooks/useScanProjection";
 import inspectLocalScan from "../services/inspectLocalScan";
 import readLocalScanInWorker from "../services/readLocalScanInWorker";
@@ -52,6 +36,8 @@ import {
 } from "../services/scanPanelHost";
 import sliceImageFile from "../utils/sliceImageFile";
 import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/localScanPlacement";
+
+const DEFAULT_DISPLAY = { mode: "POINTS", pointSize: 2 };
 
 export default function LocalScansPanel({ editor, projectId, hidden = false }) {
   // data
@@ -174,7 +160,8 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     setBusy(true);
     setProgress(0);
     setError(null);
-    let nextView;
+    let nextView,
+      restoreSplat = false;
     try {
       const source = file ?? (await getAvailableScanSource(resource));
       if (!source)
@@ -220,9 +207,14 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         }
       }
       if (epoch !== epochRef.current) return;
+      const display = {
+        ...DEFAULT_DISPLAY,
+        ...(!resource?.legacy && resource?.scan?.display),
+      };
+      restoreSplat = display.mode === "SPLAT" && data.kind === "SPLAT";
       nextView = createLocalScanView(editor, data);
       nextView.setPlacement(nextPlacement);
-      nextView.setPointSize(pointSize);
+      nextView.setPointSize(display.pointSize);
       viewRef.current?.dispose();
       viewRef.current = nextView;
       sourceRef.current = source;
@@ -236,6 +228,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         resourceId: saved?.id,
       });
       setMode("POINTS");
+      setPointSize(display.pointSize);
       setModelVisible(true);
       setInspection(false);
       setPicked(null);
@@ -250,6 +243,13 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     } finally {
       if (epoch === epochRef.current) setBusy(false);
     }
+    // The saved « Réaliste » mode needs its own (Spark) decode.
+    if (
+      restoreSplat &&
+      epoch === epochRef.current &&
+      viewRef.current === nextView
+    )
+      await changeMode("SPLAT", { target: nextView, file: sourceRef.current });
   }
   async function saveCurrent() {
     if (!view || !sourceRef.current || busy) return;
@@ -285,14 +285,30 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
       }
     }
   }
-  async function changeMode(next) {
-    if (!next || !view || busy) return;
+  async function saveDisplay(patch) {
+    if (!loaded?.resourceId) return;
+    try {
+      await resources.update(loaded.resourceId, {
+        display: { mode, pointSize, ...patch },
+      });
+    } catch {
+      setError("L’affichage n’a pas pu être enregistré dans la ressource.");
+    }
+  }
+  async function changeMode(
+    next,
+    { target = view, file = sourceRef.current } = {}
+  ) {
+    if (!next || !target || (busy && target === view)) return;
     const epoch = epochRef.current;
     setBusy(true);
     setError(null);
     try {
-      await view.setMode(next, sourceRef.current);
-      if (epoch === epochRef.current) setMode(next);
+      await target.setMode(next, file);
+      if (epoch === epochRef.current) {
+        setMode(next);
+        if (target === view) void saveDisplay({ mode: next });
+      }
     } catch (failure) {
       if (epoch === epochRef.current) {
         setError(`Rendu réaliste indisponible : ${failure.message}`);
@@ -301,6 +317,21 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     } finally {
       if (epoch === epochRef.current) setBusy(false);
     }
+  }
+  function toggleVisible() {
+    const visible = !modelVisible;
+    view.setVisible(visible);
+    setModelVisible(visible);
+  }
+  function changePointSize(size) {
+    setPointSize(size);
+    view.setPointSize(size);
+    void saveDisplay({ pointSize: size });
+  }
+  function changeInspection(value) {
+    setInspection(value);
+    setPicked(null);
+    setPickMessage(null);
   }
   function rotate(delta) {
     setInspection(false);
@@ -402,131 +433,17 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         {loaded && !busy && (
           <>
             {tab === "GENERAL" && (
-              <>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Typography variant="subtitle2">
-                        Affichage du modèle
-                      </Typography>
-                      <Tooltip
-                        title={
-                          modelVisible
-                            ? "Masquer le modèle"
-                            : "Afficher le modèle"
-                        }
-                      >
-                        <IconButton
-                          size="small"
-                          aria-label={
-                            modelVisible
-                              ? "Masquer le modèle"
-                              : "Afficher le modèle"
-                          }
-                          onClick={() => {
-                            const visible = !modelVisible;
-                            view.setVisible(visible);
-                            setModelVisible(visible);
-                          }}
-                        >
-                          {modelVisible ? (
-                            <Visibility fontSize="small" />
-                          ) : (
-                            <VisibilityOff fontSize="small" />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="center"
-                      sx={{
-                        flexWrap: "wrap",
-                        columnGap: 3,
-                        rowGap: 1,
-                        "& .MuiToggleButton-root": {
-                          px: 1,
-                          py: 0.25,
-                          fontSize: "0.75rem",
-                        },
-                      }}
-                    >
-                      <ToggleButtonGroup
-                        size="small"
-                        exclusive
-                        value={mode}
-                        aria-label="Mode d’affichage du modèle"
-                        onChange={(_, value) => void changeMode(value)}
-                      >
-                        <ToggleButton value="POINTS">Points</ToggleButton>
-                        <ToggleButton
-                          value="SPLAT"
-                          disabled={loaded.kind !== "SPLAT"}
-                        >
-                          Réaliste
-                        </ToggleButton>
-                      </ToggleButtonGroup>
-                      {mode === "POINTS" && (
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ whiteSpace: "nowrap" }}
-                          >
-                            Taille des points
-                          </Typography>
-                          <ToggleButtonGroup
-                            size="small"
-                            exclusive
-                            value={pointSize}
-                            aria-label="Taille des points"
-                            onChange={(_, size) => {
-                              if (size === null) return;
-                              setPointSize(size);
-                              view.setPointSize(size);
-                            }}
-                          >
-                            {[1, 2, 4].map((size) => (
-                              <ToggleButton
-                                key={size}
-                                value={size}
-                                sx={{ whiteSpace: "nowrap" }}
-                              >
-                                {size} px
-                              </ToggleButton>
-                            ))}
-                          </ToggleButtonGroup>
-                        </Stack>
-                      )}
-                    </Stack>
-                    {loaded.kind === "SPLAT" && (
-                      <Typography variant="caption" color="text.secondary">
-                        Les points sont les centres des gaussiennes, pas un
-                        relevé laser.
-                      </Typography>
-                    )}
-                  </Stack>
-                </WhiteSectionGeneric>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2">Image projetée</Typography>
-                    <ScanProjectionPreview
-                      projection={projection}
-                      onDownload={download}
-                    />
-                    <ButtonCreateScanBaseMap
-                      projection={projection}
-                      modelName={loaded.name}
-                      resourceId={loaded.resourceId}
-                    />
-                  </Stack>
-                </WhiteSectionGeneric>
-              </>
+              <TabScanGeneral
+                loaded={loaded}
+                mode={mode}
+                pointSize={pointSize}
+                modelVisible={modelVisible}
+                projection={projection}
+                onToggleVisible={toggleVisible}
+                onChangeMode={(value) => void changeMode(value)}
+                onChangePointSize={changePointSize}
+                onDownload={download}
+              />
             )}
             {tab === "PROJECTION" && (
               <LocalScanSliceSection
@@ -535,258 +452,31 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
               />
             )}
             {tab === "POSITION" && (
-              <>
-                <WhiteSectionGeneric>
-                  <Stack
-                    spacing={1}
-                    sx={{
-                      "& .MuiToggleButton-root": {
-                        px: 1,
-                        py: 0.25,
-                        fontSize: "0.75rem",
-                      },
-                    }}
-                  >
-                    <Typography variant="subtitle2">
-                      Placement du modèle
-                    </Typography>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Typography variant="body2">Axe vertical</Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        size="small"
-                        value={placement.up}
-                        aria-label="Axe vertical"
-                        onChange={(_, value) => {
-                          if (value) void place({ up: value });
-                        }}
-                      >
-                        <ToggleButton value="Z">Z</ToggleButton>
-                        <ToggleButton value="Y">Y</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Stack>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Typography variant="body2">Mètres / unité</Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        size="small"
-                        value={placement.scale}
-                        aria-label="Mètres par unité"
-                        onChange={(_, value) => {
-                          if (value !== null) void place({ scale: value });
-                        }}
-                      >
-                        {[1, 2, 3].map((scale) => (
-                          <ToggleButton key={scale} value={scale}>
-                            {scale}
-                          </ToggleButton>
-                        ))}
-                      </ToggleButtonGroup>
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      Échelle à confirmer avec une distance connue.
-                    </Typography>
-                  </Stack>
-                </WhiteSectionGeneric>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Typography variant="subtitle2">
-                        Point de référence
-                      </Typography>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            size="small"
-                            checked={inspection}
-                            onChange={(_, value) => {
-                              setInspection(value);
-                              setPicked(null);
-                              setPickMessage(null);
-                            }}
-                          />
-                        }
-                        label="Activer"
-                        labelPlacement="start"
-                        sx={{
-                          m: 0,
-                          gap: 0.5,
-                          "& .MuiFormControlLabel-label": {
-                            fontSize: "0.8125rem",
-                          },
-                        }}
-                      />
-                    </Stack>
-                    {inspection && (
-                      <Typography variant="caption">
-                        Cliquez sur le modèle pour relever un point. Glissez
-                        pour naviguer. Plan recherché dans un cube de 1 m ;
-                        grille temporaire de 2 × 2 m.
-                      </Typography>
-                    )}
-                    {inspection && !picked && (
-                      <Stack
-                        spacing={0.5}
-                        role="status"
-                        aria-label="En attente du clic sur le modèle"
-                      >
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <Box sx={{ flex: 1 }}>
-                            {["X", "Y", "Z"].map((axis) => (
-                              <Skeleton
-                                key={axis}
-                                variant="text"
-                                width={110}
-                                height={22}
-                              />
-                            ))}
-                          </Box>
-                          <Skeleton variant="rounded" width={145} height={32} />
-                        </Stack>
-                        <Skeleton variant="text" width="85%" height={18} />
-                      </Stack>
-                    )}
-                    {pickMessage && (
-                      <Typography variant="caption">{pickMessage}</Typography>
-                    )}
-                    {picked && (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Box sx={{ flex: 1 }}>
-                          {coordinates.map(({ key, value }) => (
-                            <Typography key={key} variant="body2">
-                              {key} :{" "}
-                              {Math.abs(value) < 0.0005
-                                ? "0,000"
-                                : value.toLocaleString("fr-FR", {
-                                    minimumFractionDigits: 3,
-                                    maximumFractionDigits: 3,
-                                  })}{" "}
-                              m
-                            </Typography>
-                          ))}
-                        </Box>
-                        <Button
-                          onClick={() => {
-                            setInspection(false);
-                            void place({ origin: picked.point });
-                          }}
-                        >
-                          Mettre à l’origine
-                        </Button>
-                      </Stack>
-                    )}
-                    {picked && (
-                      <Typography variant="caption" color="text.secondary">
-                        {picked.neighbourCount?.toLocaleString("fr-FR")} points
-                        dans le cube.{" "}
-                        {picked.normal
-                          ? `Plan soutenu par ${Math.round(picked.support * 100)} % des points analysés.`
-                          : "Centre du point ; aucun plan fiable."}
-                      </Typography>
-                    )}
-                  </Stack>
-                </WhiteSectionGeneric>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2">Axe X du modèle</Typography>
-                    <ScanProjectionPreview
-                      projection={projection}
-                      onRotate={rotate}
-                      showProjectionTools={false}
-                    />
-                    {projection.result && !projection.current && (
-                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          disabled={!projection.canCalculate}
-                          onClick={projection.calculate}
-                        >
-                          {projection.pending
-                            ? "Calcul…"
-                            : "Calculer la projection"}
-                        </Button>
-                      </Box>
-                    )}
-                    <Typography variant="caption">
-                      Rotation : {placement.yaw.toFixed(1)}°. L’axe choisi dans
-                      l’image fait pivoter le modèle 3D autour de son origine.
-                    </Typography>
-                    <Button
-                      disabled={placement.yaw === 0}
-                      onClick={() => {
-                        setInspection(false);
-                        void place({ yaw: 0 });
-                      }}
-                    >
-                      Réinitialiser la rotation
-                    </Button>
-                  </Stack>
-                </WhiteSectionGeneric>
-              </>
+              <TabScanPosition
+                placement={placement}
+                inspection={inspection}
+                picked={picked}
+                pickMessage={pickMessage}
+                coordinates={coordinates}
+                projection={projection}
+                onPlace={(patch) => {
+                  if ("origin" in patch || "yaw" in patch) setInspection(false);
+                  void place(patch);
+                }}
+                onInspectionChange={changeInspection}
+                onRotate={rotate}
+              />
             )}
           </>
         )}
       </Stack>
-      <Dialog
+      <DialogPickLocalScan
         open={picker}
+        available={available}
         onClose={() => setPicker(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Charger un scan 3D</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            <Button
-              variant="outlined"
-              onClick={() => inputRef.current?.click()}
-            >
-              Choisir un fichier PLY sur cet appareil
-            </Button>
-            <Typography variant="caption" color="text.secondary">
-              Le fichier sera enregistré dans les ressources du projet.
-            </Typography>
-            {available.length > 0 && (
-              <>
-                <Typography variant="subtitle2">
-                  Scans locaux du projet
-                </Typography>
-                <List>
-                  {available.map((row) => (
-                    <ListItemButton
-                      key={row.id}
-                      onClick={() => void load(null, row)}
-                    >
-                      <ListItemText
-                        primary={row.name}
-                        secondary={stringifyFileSize(row.fileSize ?? row.size)}
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPicker(false)}>Annuler</Button>
-        </DialogActions>
-      </Dialog>
+        onChooseFile={() => inputRef.current?.click()}
+        onPick={(row) => void load(null, row)}
+      />
     </>
   );
   return (

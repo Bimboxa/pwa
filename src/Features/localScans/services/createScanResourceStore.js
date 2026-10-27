@@ -60,15 +60,20 @@ export default function createScanResourceStore(db, newId) {
       });
       return resource;
     },
-    async place(resourceId, placement) {
+    // Merges `patch` into the resource's scan metadata (placement, display,
+    // zone); the source file is never rewritten.
+    async update(resourceId, patch) {
       await db.transaction("rw", db.resources, async () => {
         const row = await db.resources.get(resourceId);
         if (!row || row.deletedAt)
           throw new Error("La ressource du scan n’est plus disponible.");
         await db.resources.update(resourceId, {
-          scan: { ...row.scan, placement },
+          scan: { ...row.scan, ...patch },
         });
       });
+    },
+    place(resourceId, placement) {
+      return this.update(resourceId, { placement });
     },
   };
 }
