@@ -316,8 +316,11 @@ The preview supports pointer-anchored wheel zoom, drag-to-pan and a top-right
 **Recadrer l’image** icon. Density/color controls overlay the top-left corner.
 Its frame remains visible before projection, with the setup prompt inside.
 Portrait/landscape buttons beside base-map creation select the A4/A3 preview
-aspect ratio across tabs. Framing and zoom only affect the preview, not the
-output resolution or exported PNG. **Définir l'axe horizontal (2 points)** picks image coordinates
+aspect ratio across tabs. The base map image is what the Général preview frames
+(format, zoom, pan): the raster is re-cut to that rectangle at the same scale,
+white around the cloud, and the base map is centred on it
+(`frameProjectionRaster`; also used by a re-framed « Mettre à jour »). The
+resolution is unchanged and the exported PNG stays the raw projection. **Définir l'axe horizontal (2 points)** picks image coordinates
 through the zoom/pan transform. The confirmed axis remains visible on the previous image until **Calculer la
 projection** is pressed in Position. After the second click the scan itself rotates
 about world Y (displayed vertical Z) around its current source anchor. The vector

@@ -126,6 +126,7 @@ export default function TabScanGeneral({
           <ScanProjectionPreview
             projection={projection}
             onDownload={onDownload}
+            reportFraming
           />
           <ButtonCreateScanBaseMap
             projection={projection}

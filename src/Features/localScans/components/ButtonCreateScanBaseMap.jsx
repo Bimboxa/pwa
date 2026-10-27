@@ -20,6 +20,7 @@ import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompac
 import updateScanBaseMapService from "../services/updateScanBaseMapService";
 import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
+import frameProjectionRaster from "../utils/frameProjectionRaster";
 import getLocalScanMatrixInBaseMap from "../utils/getLocalScanMatrixInBaseMap";
 
 // Base map of the current slice. Without a linked base map: name + « + »
@@ -62,6 +63,15 @@ export default function ButtonCreateScanBaseMap({
   const canRun =
     projection.current && !projection.error && !busy && Boolean(view);
 
+  // The base map image is what the preview frames (format, zoom, pan):
+  // the raster re-cut to that rectangle, white around the cloud.
+  function getFramedRaster() {
+    const { frame, framing } = projection;
+    return framing
+      ? frameProjectionRaster(result, frame, framing)
+      : { result, frame };
+  }
+
   // handlers
 
   async function handleCreate() {
@@ -69,9 +79,9 @@ export default function ButtonCreateScanBaseMap({
     setBusy(true);
     setStatus(null);
     try {
-      const { frame } = projection;
-      const placement = prepareScanBaseMap(result, frame, altitude);
-      const file = await sliceImageFile(result, mode);
+      const { result: image, frame } = getFramedRaster();
+      const placement = prepareScanBaseMap(image, frame, altitude);
+      const file = await sliceImageFile(image, mode);
       view.root.updateMatrixWorld(true);
       const localScan = resourceId
         ? {
@@ -85,7 +95,7 @@ export default function ButtonCreateScanBaseMap({
       const entity = await create({
         file,
         name: name.trim() || defaultName,
-        meterByPx: result.pixelSize,
+        meterByPx: image.pixelSize,
         ...placement,
         localScan,
         source: "local-scan",
@@ -122,6 +132,7 @@ export default function ButtonCreateScanBaseMap({
         baseMapId: linkedBaseMap.id,
         view,
         projection,
+        framed: getFramedRaster(),
       });
       dispatch(triggerBaseMapsUpdate());
       dispatch(triggerEntitiesTableUpdate("baseMaps"));

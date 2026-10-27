@@ -20,11 +20,15 @@ export default async function updateScanBaseMapService({
   baseMapId,
   view,
   projection,
+  // {result, frame}: the slice re-cut to the preview framing (re-framed
+  // update); the projection's own raster otherwise.
+  framed = null,
 }) {
   const baseMap = await db.baseMaps.get(baseMapId);
   if (!baseMap?.localScan)
     throw new Error("Ce fond de plan n’est pas un scan.");
-  const { result, frame, mode } = projection;
+  const { mode } = projection;
+  const { result, frame } = framed ?? projection;
   const { lower, upper } = result;
   view.root.updateMatrixWorld(true);
   const root = view.root.matrixWorld;

@@ -50,6 +50,9 @@ export default function useScanProjection({
   const [clip, setClip] = useState(false);
   const [mode, setMode] = useState("density");
   const [previewOrientation, setPreviewOrientation] = useState("LANDSCAPE");
+  // Image rectangle framed by the preview next to the base map creation
+  // (format, zoom, pan): the base map image follows it.
+  const [framing, setFraming] = useState(null);
   const [output, setOutput] = useState(null);
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(null);
@@ -157,6 +160,8 @@ export default function useScanProjection({
     setMode,
     previewOrientation,
     setPreviewOrientation,
+    framing: framing?.result === result ? framing.rect : null,
+    setFraming,
     result,
     current,
     pending,

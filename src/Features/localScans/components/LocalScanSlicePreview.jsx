@@ -27,6 +27,7 @@ export default function LocalScanSlicePreview({
   onRotate,
   overlayControls,
   aspectRatio = 297 / 210,
+  onFramingChange,
 }) {
   // state
   const canvasRef = useRef(null);
@@ -201,6 +202,27 @@ export default function LocalScanSlicePreview({
     canvas.addEventListener("wheel", wheel, { passive: false });
     return () => canvas.removeEventListener("wheel", wheel);
   }, [size, result]);
+
+  // Framed image rectangle (canvas corners in image px) for the base map.
+  useEffect(() => {
+    if (!onFramingChange) return;
+    if (!result) return onFramingChange(null);
+    const transform = getPreviewTransform(size, result, viewport);
+    const topLeft = previewToImage({ x: 0, y: 0 }, transform);
+    const bottomRight = previewToImage(
+      { x: size.width, y: size.height },
+      transform
+    );
+    onFramingChange({
+      result,
+      rect: {
+        x: topLeft.x,
+        y: topLeft.y,
+        width: bottomRight.x - topLeft.x,
+        height: bottomRight.y - topLeft.y,
+      },
+    });
+  }, [onFramingChange, result, size, viewport]);
 
   // handlers
   function zoom(factor) {

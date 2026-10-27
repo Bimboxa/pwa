@@ -15,6 +15,8 @@ export default function ScanProjectionPreview({
   onRotate,
   onDownload,
   showProjectionTools = true,
+  // This preview frames the base map image (the one beside its creation).
+  reportFraming = false,
 }) {
   const { result, mode, setMode, pending, current, error } = projection;
   return (
@@ -52,6 +54,7 @@ export default function ScanProjectionPreview({
           )
         }
         onRotate={current && !error ? onRotate : undefined}
+        onFramingChange={reportFraming ? projection.setFraming : undefined}
       />
       {showProjectionTools && result && (
         <Stack
