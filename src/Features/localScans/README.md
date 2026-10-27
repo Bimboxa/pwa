@@ -159,7 +159,9 @@ it opens that scan if another one is shown (no zone dialog; shared decode with
 the base map carrier), places it at the base map pose
 (`getLocalScanPlacementFromMatrix` of `getLocalScanWorldMatrix`) and keeps
 following later moves of the map. The slice range and image mode come from
-`createdFrom`. Position edits are not written to the resource while linked:
+`createdFrom`. The panel eye and the base map « Scan » chip are one state
+(`hiddenScene3dBaseMapIdsIn3d`); before the base map exists the eye is local to
+the panel. Position edits are not written to the resource while linked:
 the base map owns the pose. The creation row becomes **Mettre à jour le fond de
 plan** (`updateScanBaseMapService`), enabled once the current slice is
 calculated. It replaces the active version image in place and updates

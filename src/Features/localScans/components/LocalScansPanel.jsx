@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import { setScan3dTab } from "Features/rightPanel/rightPanelSlice";
+import { toggleScene3dHiddenIn3d } from "Features/threedEditor/threedEditorSlice";
 import useToggleModuleEditor from "Features/viewers/hooks/useToggleModuleEditor";
 import { Vector3 } from "three";
 import {
@@ -79,6 +80,10 @@ export default function LocalScansPanel({
       const record = await db.baseMaps.get(mainBaseMapId);
       return record?.localScan?.matrix && !record.deletedAt ? record : null;
     }, [mainBaseMapId]) ?? null;
+  // « Scan » chips of the base maps list (hidden scans).
+  const hiddenScanIds = useSelector(
+    (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
+  );
   const host = useSyncExternalStore(subscribeScanPanelHost, getScanPanelHost);
   const toggleEditor = useToggleModuleEditor();
   const paused = hidden || inactive;
@@ -89,8 +94,20 @@ export default function LocalScansPanel({
   const [loaded, setLoaded] = useState(null);
   const [placement, setPlacement] = useState(DEFAULT_PLACEMENT);
   const [mode, setMode] = useState("POINTS");
-  const [modelVisible, setModelVisible] = useState(true);
+  // Visibility of a scan not linked to a base map yet (before its creation).
+  const [unlinkedVisible, setUnlinkedVisible] = useState(true);
   const [pointSize, setPointSize] = useState(2);
+  // One visibility per scan base map: linked, the panel eye IS the « Scan »
+  // chip of the selected base map.
+  const linkedId =
+    linkedBaseMap &&
+    view &&
+    loaded?.resourceId === linkedBaseMap.localScan.resourceId
+      ? linkedBaseMap.id
+      : null;
+  const modelVisible = linkedId
+    ? !(hiddenScanIds ?? []).includes(linkedId)
+    : unlinkedVisible;
   const [inspection, setInspection] = useState(false);
   const [picked, setPicked] = useState(null),
     [pickMessage, setPickMessage] = useState(null);
@@ -146,6 +163,9 @@ export default function LocalScansPanel({
   useEffect(() => {
     if (tab === "PROJECTION" && view) setProjectionActive(true);
   }, [tab, view]);
+  useEffect(() => {
+    view?.setVisible(modelVisible);
+  }, [view, modelVisible]);
   // The tool shows this scan itself: its base maps leave it out (no double).
   const toolResourceId = view ? (loaded?.resourceId ?? null) : null;
   // Linked to the selected scan base map: same scan, placed at the base map
@@ -424,7 +444,7 @@ export default function LocalScansPanel({
       });
       setMode("POINTS");
       setPointSize(display.pointSize);
-      setModelVisible(true);
+      setUnlinkedVisible(true);
       setInspection(false);
       setPicked(null);
       setPickMessage(null);
@@ -524,9 +544,8 @@ export default function LocalScansPanel({
     }
   }
   function toggleVisible() {
-    const visible = !modelVisible;
-    view.setVisible(visible);
-    setModelVisible(visible);
+    if (linkedId) dispatch(toggleScene3dHiddenIn3d(linkedId));
+    else setUnlinkedVisible(!unlinkedVisible);
   }
   function changePointSize(size) {
     setPointSize(size);
