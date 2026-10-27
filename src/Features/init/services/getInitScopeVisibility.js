@@ -4,6 +4,7 @@
 // Krto zip, never subject to the private-scope read-only guard. See
 // Features/scopeVisibility.
 import { isBaseMapsImageMode } from "Features/baseMaps/constants/baseMapsImageMode";
+import { isBaseMapsScanMode } from "Features/baseMaps/constants/baseMapsScanMode";
 
 const STORAGE_KEY_PREFIX = "scopeVisibility:";
 
@@ -64,6 +65,9 @@ export default function getInitScopeVisibility(scopeId) {
       // global base map images display (null = never saved, default applies)
       baseMapsImageMode: isBaseMapsImageMode(parsed.baseMapsImageMode)
         ? parsed.baseMapsImageMode
+        : null,
+      baseMapsScanMode: isBaseMapsScanMode(parsed.baseMapsScanMode)
+        ? parsed.baseMapsScanMode
         : null,
     };
   } catch {

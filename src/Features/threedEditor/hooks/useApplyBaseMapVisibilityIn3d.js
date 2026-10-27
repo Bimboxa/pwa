@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
+import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMode";
+
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -47,6 +49,11 @@ export default function useApplyBaseMapVisibilityIn3d({
   // The global image mode NONE (viewers.baseMapsImageMode, "Fonds de plan"
   // module panel) hides them the same way.
   const hideBaseMaps = useSelector(selectHideBaseMapImagesIn3d);
+  // Bottom bar « Scan 3D » set to Masqué: the « Scène 3D » meshes too (the
+  // local point clouds follow the same mode in ImagesManager).
+  const scansHidden = useSelector(
+    (s) => s.viewers.baseMapsScanMode === BASE_MAPS_SCAN_MODE.NONE
+  );
   // Opt-out image eye of the main basemap (base maps list / top bar selector).
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
@@ -96,7 +103,7 @@ export default function useApplyBaseMapVisibilityIn3d({
         groupVisibleById[bm.id] = true;
         imageVisibleById[bm.id] = eyeOn && !hideBaseMaps;
         scanVisibleById[bm.id] =
-          eyeOn && !hideBaseMaps && !hiddenScan.has(bm.id);
+          eyeOn && !hideBaseMaps && !hiddenScan.has(bm.id) && !scansHidden;
       } else {
         groupVisibleById[bm.id] = false;
       }
@@ -117,5 +124,6 @@ export default function useApplyBaseMapVisibilityIn3d({
     baseMapsKey,
     hideBaseMaps,
     hideMainImage,
+    scansHidden,
   ]);
 }

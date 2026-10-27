@@ -77,6 +77,9 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   if (prev.viewers?.baseMapsImageMode !== state.viewers?.baseMapsImageMode) {
     patch.baseMapsImageMode = state.viewers?.baseMapsImageMode ?? null;
   }
+  if (prev.viewers?.baseMapsScanMode !== state.viewers?.baseMapsScanMode) {
+    patch.baseMapsScanMode = state.viewers?.baseMapsScanMode ?? null;
+  }
   if (changed2d(prev, state)) patch.viewer2d = pick2d(state);
   if (changed3d(prev, state)) patch.threed = pick3d(state);
 

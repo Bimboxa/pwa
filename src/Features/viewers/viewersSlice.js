@@ -10,6 +10,10 @@ import {
   BASE_MAPS_IMAGE_MODE,
   isBaseMapsImageMode,
 } from "Features/baseMaps/constants/baseMapsImageMode";
+import {
+  BASE_MAPS_SCAN_MODE,
+  isBaseMapsScanMode,
+} from "Features/baseMaps/constants/baseMapsScanMode";
 
 const viewersInitialState = {
   // The left-band selection is a MODULE key ("MAP" = Dessin, "THREED",
@@ -52,6 +56,9 @@ const viewersInitialState = {
   // mode: the mode in force before entering it, restored when leaving it
   // (null while outside the module).
   baseMapsImageModeBeforeScope: null,
+  // Scans carried by base maps in 3D (hidden / points / realistic), same
+  // per-scope lifecycle as baseMapsImageMode (bottom bar « Scan 3D »).
+  baseMapsScanMode: BASE_MAPS_SCAN_MODE.NONE,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
   // unmount the component — don't re-arm the fit; reset when the scope
@@ -123,6 +130,11 @@ export const viewersSlice = createSlice({
         ? action.payload
         : BASE_MAPS_IMAGE_MODE.FULL;
     },
+    setBaseMapsScanMode: (state, action) => {
+      state.baseMapsScanMode = isBaseMapsScanMode(action.payload)
+        ? action.payload
+        : BASE_MAPS_SCAN_MODE.NONE;
+    },
     setInitialFitDoneForScopeId: (state, action) => {
       state.initialFitDoneForScopeId = action.payload ?? null;
     },
@@ -142,6 +154,8 @@ export const viewersSlice = createSlice({
       state.annotationsBaseMapIdsIn2d = saved?.annotationsBaseMapIdsIn2d ?? [];
       state.baseMapsImageMode =
         visibility?.baseMapsImageMode ?? BASE_MAPS_IMAGE_MODE.FULL;
+      state.baseMapsScanMode =
+        visibility?.baseMapsScanMode ?? BASE_MAPS_SCAN_MODE.NONE;
       // The restored module may be SCOPE (page reload): same light grey
       // default, the restored mode is what comes back on exit.
       if (state.selectedViewerKey === "SCOPE") {
@@ -165,6 +179,7 @@ export const {
   setVisibleBaseMapIdsIn2d,
   setAnnotationsBaseMapIdsIn2d,
   setBaseMapsImageMode,
+  setBaseMapsScanMode,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,
   //

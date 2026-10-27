@@ -39,8 +39,11 @@ after that first successful online load. No remote CDN or upload is used.
 Source parsing runs in a terminable worker with bounded file reads. Spark's
 decoder pool runs inside a short-lived worker so its WASM heap and nested
 workers can be released on completion or cancellation. Render/sort resources
-belong to the displayed scan and are disposed on close, disable, project change
-or exit from the 3D view. Static shader resources may remain cached by Three.
+belong to the displayed scan and are disposed on close, disable or project
+change. Switching to 2D keeps the scan: the gate stays mounted with the (always
+alive, off-screen) 3D editor and the panel is only `inactive` — no inspection,
+projection or overlay — until the 3D comes back. Static shader resources may
+remain cached by Three.
 
 Each scan owns a separate scene root. It never enters the annotation, mesh,
 base-map, clipping or export registries. Its raycast returns false to stop
@@ -98,11 +101,51 @@ portals its controls there. The scene/input overlay stays in the editor. With
 the tool closed the model and optional clipping remain visible, and ordinary
 editing gestures resume. Other right-hand panels retain their existing widths.
 
+## Load zone
+
+A new PLY (and **Modifier la zone** in the model menu) first reads a regular
+sample of at most 2 M points and shows its top-down density in the
+`Scene3dZoneEditor` of the « Scène 3D » import: whole scan, rectangle or polygon,
+rotation, vertical axis and height range (default: 1st–99th percentiles,
+padded). The full decode (`readLocalPly` with `zone`) then keeps the zone only,
+so the memory peak follows the zone, not the file. The zone (source units) is
+stored in `resource.scan.zone` and reapplied on reopening. Its rotation sets the
+yaw so that the zone X axis becomes the displayed X axis and, with **Centrer sur
+la zone**, the zone centre at the lowest height becomes scene zero
+(`getScanZonePlacement`, pinned by `localScanZone.test.mjs`). In « Réaliste »
+mode the Gaussian decode is not filtered: the zone limits the points only.
+
+## Shared decode (localScanRuntime)
+
+Saved scans are decoded once per resource and zone in a reference-counted
+runtime outside React (`createLocalScanRuntime`), shared by the tool and the
+scan base maps and dropped 15 s after the last release. Workers receive clones
+of the positions, never transfers, so sharing is safe.
+
+## Scan base maps
+
+A base map created from a saved scan stores `baseMap.localScan = {resourceId,
+matrix}`: the scan root pose in the base map group frame at creation
+(`getLocalScanMatrixInBaseMap`). In 3D, `ImagesManager.syncLocalScans` attaches
+the point cloud to that group (`attachLocalScanToBaseMapGroup`, `localScanWrap`
+sibling of `meshWrap`), so it follows 2D recalage, Déplacer / Tourner, the
+gizmo and the altitude; `meterByPx`, versions and the drawing offset do not
+affect it. Each base map keeps its own pose. One carrier per scan: the main
+base map when it carries it, else the first visible loaded one, and none while
+the Scan 3D tool shows that scan itself.
+
+The bottom bar « Scan 3D » selector (`viewers.baseMapsScanMode`: Masqué /
+Points / Réaliste, per scope like the image mode, default Masqué) drives them;
+Masqué also hides the « Scène 3D » meshes. Réaliste falls back to points for a
+plain point cloud. It shows in 3D for projects with scan base maps. The base
+map properties panel shows the source scan, the same mode and whether its file
+is on this device (PLY files stay device-local).
+
 ## Verification
 
 ```sh
 node --test src/Features/localScans/utils/*.test.mjs src/Features/localScans/services/*.test.mjs src/Features/scene3d/utils/*.test.mjs
-npx eslint src/Features/localScans src/Features/scopeConfig/components/PageEditor3d.jsx
+npx eslint src/Features/localScans src/Features/threedEditor/js/utilsImagesManager
 npm run build
 ```
 
@@ -201,7 +244,7 @@ Each explicit calculation creates a worker and clones XYZ/RGB (about 469 MiB
 extra for the full NavVis example). The worker is terminated after completion,
 failure or cancellation, releasing its source copy. Inspection and projection
 are mutually exclusive to avoid retaining both analysis workers.
-Disabling local scans, hiding the editor or replacing the model disposes the
+Disabling local scans, switching to 2D or replacing the model disposes the
 analysis workers and overlays. Settings/previews remain transient until the user
 explicitly creates a base map. Closing the drawer alone retains the model.
 
