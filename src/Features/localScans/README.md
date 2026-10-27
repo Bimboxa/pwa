@@ -216,7 +216,8 @@ Its frame remains visible before projection, with the setup prompt inside.
 Portrait/landscape buttons beside base-map creation select the A4/A3 preview
 aspect ratio across tabs. Framing and zoom only affect the preview, not the
 output resolution or exported PNG. **Définir l'axe horizontal (2 points)** picks image coordinates
-through the zoom/pan transform. After the second click the scan itself rotates
+through the zoom/pan transform. The confirmed axis remains visible on the previous image until **Calculer la
+projection** is pressed in Position. After the second click the scan itself rotates
 about world Y (displayed vertical Z) around its current source anchor. The vector
 from the first point to the second becomes positive displayed X. No project
 geometry or editor axes are rotated. The next **Calculer** uses the transformed

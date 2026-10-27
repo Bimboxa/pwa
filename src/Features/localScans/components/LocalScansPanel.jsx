@@ -710,6 +710,20 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                       onRotate={rotate}
                       showProjectionTools={false}
                     />
+                    {projection.result && !projection.current && (
+                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={!projection.canCalculate}
+                          onClick={projection.calculate}
+                        >
+                          {projection.pending
+                            ? "Calcul…"
+                            : "Calculer la projection"}
+                        </Button>
+                      </Box>
+                    )}
                     <Typography variant="caption">
                       Rotation : {placement.yaw.toFixed(1)}°. L’axe choisi dans
                       l’image fait pivoter le modèle 3D autour de son origine.

@@ -16,11 +16,10 @@ export default function ScanProjectionPreview({
   onDownload,
   showProjectionTools = true,
 }) {
-  const { result, mode, setMode, pending, current, frame, error } = projection;
+  const { result, mode, setMode, pending, current, error } = projection;
   return (
     <Stack spacing={1}>
       <LocalScanSlicePreview
-        key={frame?.rows.join(",") ?? "empty"}
         result={result}
         mode={mode}
         pending={pending}
