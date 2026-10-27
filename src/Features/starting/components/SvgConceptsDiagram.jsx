@@ -10,6 +10,14 @@ import makeZoneProps from "../utils/makeZoneProps";
 // frame (templates listing + annotated base map + thumbnails + 3D box), the
 // exports; at the bottom the project's base maps folder feeding the scope.
 // Every block is a DiagramZone whose id is listed in CONCEPTS[].zones.
+// Thumbnails of the other base maps of the scope: every base map carries
+// annotations of the same business theme (surface, line, point).
+const THUMBS = [
+  { x: 560, label: "N1", current: true, rect: true, point: true },
+  { x: 644, label: "N2", rect: true, line: true },
+  { x: 728, label: "Coupe A", line: true, point: true },
+];
+
 export default function SvgConceptsDiagram({
   highlightedZones,
   onZoneClick,
@@ -124,7 +132,7 @@ export default function SvgConceptsDiagram({
         <line
           x1="60"
           y1="640"
-          x2="320"
+          x2="720"
           y2="640"
           stroke={dark}
           strokeWidth="2"
@@ -379,15 +387,12 @@ export default function SvgConceptsDiagram({
       )}
       {zone("annotation-point", <circle cx="800" cy="180" r="7" fill={blue} />)}
 
-      {/* other base maps of the scope */}
+      {/* other base maps of the scope; their annotations are a zone of
+          their own so « Fond de plan » lights the maps only */}
       {zone(
         "plan-thumbs",
         <>
-          {[
-            { x: 560, label: "N1", current: true },
-            { x: 644, label: "N2" },
-            { x: 728, label: "Coupe A" },
-          ].map(({ x, label, current }) => (
+          {THUMBS.map(({ x, label, current }) => (
             <g key={label}>
               <rect
                 x={x}
@@ -413,6 +418,37 @@ export default function SvgConceptsDiagram({
               >
                 {label}
               </text>
+            </g>
+          ))}
+        </>
+      )}
+      {zone(
+        "thumb-annotations",
+        <>
+          {THUMBS.map(({ x, label, rect, line, point }) => (
+            <g key={label}>
+              {rect && (
+                <rect
+                  x={x + 16}
+                  y="416"
+                  width="18"
+                  height="12"
+                  fill={alpha(orange, 0.45)}
+                  stroke={orange}
+                  strokeWidth="1"
+                />
+              )}
+              {line && (
+                <line
+                  x1={x + 38}
+                  y1="430"
+                  x2={x + 56}
+                  y2="430"
+                  stroke={blue}
+                  strokeWidth="2"
+                />
+              )}
+              {point && <circle cx={x + 50} cy="419" r="2.5" fill={blue} />}
             </g>
           ))}
         </>
@@ -552,7 +588,7 @@ export default function SvgConceptsDiagram({
       {zone(
         "folder-frame",
         <rect
-          x="320"
+          x="720"
           y="580"
           width="400"
           height="120"
@@ -566,7 +602,7 @@ export default function SvgConceptsDiagram({
       )}
       {zone(
         "folder-title",
-        <text x="340" y="604" fontWeight="700">
+        <text x="740" y="604" fontWeight="700">
           Dossier de fonds de plan
         </text>
       )}
@@ -576,7 +612,7 @@ export default function SvgConceptsDiagram({
           {[0, 1, 2].map((i) => (
             <rect
               key={i}
-              x={340 + i * 8}
+              x={740 + i * 8}
               y={615 + i * 6}
               width="64"
               height="44"
@@ -585,12 +621,12 @@ export default function SvgConceptsDiagram({
             />
           ))}
           <path
-            d="M366 636 H400 V654 H366 Z M383 636 V654"
+            d="M766 636 H800 V654 H766 Z M783 636 V654"
             fill="none"
             stroke={grey[500]}
             strokeWidth="2"
           />
-          <text x="388" y="690" textAnchor="middle" fontSize="11" fill={muted}>
+          <text x="788" y="690" textAnchor="middle" fontSize="11" fill={muted}>
             Plans de niveau
           </text>
         </>
@@ -601,7 +637,7 @@ export default function SvgConceptsDiagram({
           {[0, 1].map((i) => (
             <rect
               key={i}
-              x={520 + i * 8}
+              x={920 + i * 8}
               y={615 + i * 6}
               width="64"
               height="44"
@@ -610,12 +646,12 @@ export default function SvgConceptsDiagram({
             />
           ))}
           <path
-            d="M538 654 H582 M548 654 V634 H572 V654"
+            d="M938 654 H982 M948 654 V634 H972 V654"
             fill="none"
             stroke={grey[500]}
             strokeWidth="2"
           />
-          <text x="560" y="690" textAnchor="middle" fontSize="11" fill={muted}>
+          <text x="960" y="690" textAnchor="middle" fontSize="11" fill={muted}>
             Coupes
           </text>
         </>
@@ -623,7 +659,7 @@ export default function SvgConceptsDiagram({
       {zone(
         "link-folder-plan",
         <path
-          d="M420 612 C470 540, 540 500, 594 454"
+          d="M764 578 V452"
           fill="none"
           stroke={orange}
           strokeWidth="2"
