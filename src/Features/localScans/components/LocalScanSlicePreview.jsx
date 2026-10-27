@@ -24,6 +24,7 @@ export default function LocalScanSlicePreview({
   const [viewport, setViewport] = useState(INITIAL_VIEWPORT);
   const [selectAxis, setSelectAxis] = useState(false);
   const [firstPoint, setFirstPoint] = useState(null);
+  const [pointerPosition, setPointerPosition] = useState(null);
   const [message, setMessage] = useState(null);
   const canPick = Boolean(result?.pointCount) && !pending;
 
@@ -42,6 +43,7 @@ export default function LocalScanSlicePreview({
 
   useEffect(() => {
     setFirstPoint(null);
+    setPointerPosition(null);
     setMessage(null);
   }, [result, pending]);
 
@@ -88,6 +90,49 @@ export default function LocalScanSlicePreview({
     if (firstPoint) {
       const x = transform.x + firstPoint.x * transform.scale;
       const y = transform.y + firstPoint.y * transform.scale;
+      if (selectAxis && canPick && pointerPosition) {
+        const candidate = previewToImage(pointerPosition, transform);
+        const dx = pointerPosition.x - x;
+        const dy = pointerPosition.y - y;
+        if (
+          candidate.x >= 0 &&
+          candidate.x < result.width &&
+          candidate.y >= 0 &&
+          candidate.y < result.height &&
+          Math.hypot(dx, dy) > 8
+        ) {
+          const angle = Math.atan2(dy, dx);
+          context.save();
+          context.beginPath();
+          context.moveTo(x, y);
+          context.lineTo(pointerPosition.x, pointerPosition.y);
+          // A white underlay keeps the provisional axis legible on both rasters.
+          context.strokeStyle = "white";
+          context.lineWidth = 4;
+          context.stroke();
+          context.setLineDash([7, 4]);
+          context.strokeStyle = "#ff610d";
+          context.lineWidth = 2;
+          context.stroke();
+          context.setLineDash([]);
+          context.beginPath();
+          context.moveTo(pointerPosition.x, pointerPosition.y);
+          context.lineTo(
+            pointerPosition.x - 11 * Math.cos(angle - Math.PI / 6),
+            pointerPosition.y - 11 * Math.sin(angle - Math.PI / 6)
+          );
+          context.lineTo(
+            pointerPosition.x - 11 * Math.cos(angle + Math.PI / 6),
+            pointerPosition.y - 11 * Math.sin(angle + Math.PI / 6)
+          );
+          context.closePath();
+          context.fillStyle = "#ff610d";
+          context.fill();
+          context.font = "bold 14px sans-serif";
+          context.fillText("2", pointerPosition.x + 10, pointerPosition.y - 8);
+          context.restore();
+        }
+      }
       context.strokeStyle = "#ff610d";
       context.fillStyle = "#ff610d";
       context.lineWidth = 2;
@@ -97,7 +142,17 @@ export default function LocalScanSlicePreview({
       context.font = "bold 14px sans-serif";
       context.fillText("1", x + 10, y - 8);
     }
-  }, [result, mode, pending, size, viewport, firstPoint]);
+  }, [
+    result,
+    mode,
+    pending,
+    size,
+    viewport,
+    firstPoint,
+    pointerPosition,
+    selectAxis,
+    canPick,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -134,6 +189,7 @@ export default function LocalScanSlicePreview({
   function cancelAxis() {
     setSelectAxis(false);
     setFirstPoint(null);
+    setPointerPosition(null);
     setMessage(null);
   }
   function pointerDown(event) {
@@ -150,6 +206,13 @@ export default function LocalScanSlicePreview({
     };
   }
   function pointerMove(event) {
+    if (selectAxis && firstPoint && canPick) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setPointerPosition({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
     const drag = dragRef.current;
     if (!drag || drag.id !== event.pointerId) return;
     const dx = event.clientX - drag.x,
@@ -184,6 +247,10 @@ export default function LocalScanSlicePreview({
     }
     if (!firstPoint) {
       setFirstPoint(point);
+      setPointerPosition({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
       setMessage(null);
       return;
     }
@@ -267,8 +334,10 @@ export default function LocalScanSlicePreview({
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
           onPointerUp={pointerUp}
+          onPointerLeave={() => setPointerPosition(null)}
           onPointerCancel={() => {
             dragRef.current = null;
+            setPointerPosition(null);
           }}
           onLostPointerCapture={() => {
             dragRef.current = null;
