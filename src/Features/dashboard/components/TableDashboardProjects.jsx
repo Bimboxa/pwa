@@ -12,6 +12,8 @@ import {
 
 // Projects of the dashboard as a table: optional header row, then one
 // ListItemDashboardProject row per item. Expanded rows unfold their Krtos.
+// `projectsLabel` = first header cell (the project types shown, e.g. derived
+// from the type filter); falls back to strings.project.namePlural.
 
 export default function TableDashboardProjects({
   items,
@@ -20,6 +22,7 @@ export default function TableDashboardProjects({
   expandedKeys,
   onSelectItem,
   onToggleExpand,
+  projectsLabel,
   showHeader = true,
   animated = true,
 }) {
@@ -29,7 +32,8 @@ export default function TableDashboardProjects({
 
   // strings
 
-  const projectS = appConfig?.strings?.project?.nameSingular ?? "Projet";
+  const projectsS =
+    projectsLabel ?? appConfig?.strings?.project?.namePlural ?? "Projets";
   const scopesS = appConfig?.strings?.scope?.namePlural ?? "Dossiers";
 
   // render
@@ -66,7 +70,7 @@ export default function TableDashboardProjects({
             bgcolor: "#FCFAF9",
           }}
         >
-          <Typography sx={headerCellSx}>{projectS}</Typography>
+          <Typography sx={headerCellSx}>{projectsS}</Typography>
           <Box />
           <Typography sx={{ ...headerCellSx, textAlign: "right", pr: 1 }}>
             {scopesS}

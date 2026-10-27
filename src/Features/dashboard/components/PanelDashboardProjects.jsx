@@ -10,6 +10,7 @@ import SearchBar from "Features/search/components/SearchBar";
 import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ButtonFetchMyKrtos from "./ButtonFetchMyKrtos";
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
+import ButtonOpenStarting from "Features/starting/components/ButtonOpenStarting";
 import TableDashboardProjects from "./TableDashboardProjects";
 import SectionCloudSearchResults from "./SectionCloudSearchResults";
 import DialogCreateProject from "./DialogCreateProject";
@@ -66,6 +67,15 @@ export default function PanelDashboardProjects({
   const typeOptions =
     appConfig?.features?.projectSelector?.filterByType?.options ?? [];
 
+  // Table header: the selected type, or every type when no filter is set
+  // (« Projets / Opportunités / Chantiers »).
+  const shownTypeOptions = typeFilter
+    ? typeOptions.filter((o) => o.key === typeFilter)
+    : typeOptions;
+  const projectsLabel = shownTypeOptions.length
+    ? shownTypeOptions.map((o) => o.label).join(" / ")
+    : undefined;
+
   const hasSearch = Boolean(searchText?.trim());
   const empty = !items?.length && !cloudItems?.length && !remoteSearchLoading;
 
@@ -97,6 +107,20 @@ export default function PanelDashboardProjects({
         position: "relative",
       }}
     >
+      {/* top-left corner: « Démarrer avec Krto », above the search line so it
+          never competes with it */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          left: 24,
+          zIndex: 1,
+          ...fadeUp(0.05),
+        }}
+      >
+        <ButtonOpenStarting />
+      </Box>
+
       {/* line 1: search + create (pill style, model 2a) */}
       <Box
         sx={{
@@ -225,6 +249,7 @@ export default function PanelDashboardProjects({
               expandedKeys={expandedKeys}
               onSelectItem={onSelectItem}
               onToggleExpand={handleToggleExpand}
+              projectsLabel={projectsLabel}
             />
           </Box>
         )}
