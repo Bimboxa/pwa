@@ -51,82 +51,78 @@ export default function useScanProjection({
   const [mode, setMode] = useState("density");
   const [previewOrientation, setPreviewOrientation] = useState("LANDSCAPE");
   const [output, setOutput] = useState(null);
+  const [request, setRequest] = useState(null);
   const [error, setError] = useState(null);
-  const workerRef = useRef(null),
-    sequenceRef = useRef(0),
+  const sequenceRef = useRef(0),
     overlayRef = useRef(null);
   const queryKey = frame ? JSON.stringify([frame.rows, lower, upper]) : "";
-  const workerEnabled = Boolean(view && active && !inspect && !hidden);
   const result = output?.view === view ? output.result : null;
-  const current = Boolean(result && output.key === queryKey);
+  const requested = Boolean(
+    request && request.view === view && request.key === queryKey
+  );
+  const current = Boolean(result && requested && output.request === request);
+  const pending = requested && !current && !error && !inspect && !hidden;
 
   useEffect(() => {
     setOutput(null);
+    setRequest(null);
     setSelection(null);
     setClip(false);
+    setError(null);
   }, [view]);
 
+  // Cancel invalidated work, without automatically restarting when a range,
+  // placement, tab or inspection state changes back.
   useEffect(() => {
-    if (!workerEnabled) return;
+    if (request && (!requested || ((inspect || hidden) && !current))) {
+      setRequest(null);
+    }
+  }, [request, requested, inspect, hidden, current]);
+
+  useEffect(() => {
+    if (!requested || current || inspect || hidden) return;
     let worker;
+    let alive = true;
     try {
       worker = new Worker(
         new URL("../workers/projectLocalScan.worker.js", import.meta.url),
         { type: "module" }
       );
-      workerRef.current = worker;
+      worker.onmessage = ({ data }) => {
+        if (!alive || data.id !== request.id) return;
+        if (data.error) setError(data.error);
+        else {
+          setError(null);
+          setOutput({ view, key: request.key, request, result: data.result });
+        }
+        worker.terminate();
+      };
+      worker.onerror = () => {
+        if (!alive) return;
+        setError(
+          "La projection a échoué. Cliquez sur Calculer pour réessayer."
+        );
+        worker.terminate();
+      };
       worker.postMessage({
         type: "INIT",
         source: { positions: view.data.positions, colors: view.data.colors },
       });
-      worker.onerror = () => {
-        if (workerRef.current !== worker) return;
-        setError(
-          "La projection a échoué. Fermez puis rouvrez le modèle pour réessayer."
-        );
-        worker.terminate();
-        workerRef.current = null;
-      };
+      worker.postMessage({
+        type: "PROJECT",
+        id: request.id,
+        query: request.query,
+      });
     } catch {
+      worker?.terminate();
       setError("Impossible de préparer la projection de ce scan.");
     }
     return () => {
-      sequenceRef.current++;
+      alive = false;
+      // Release the cloned source after completion or cancellation.
       worker?.terminate();
-      workerRef.current = null;
     };
-  }, [view, workerEnabled]);
-
-  useEffect(() => {
-    const worker = workerRef.current;
-    if (!workerEnabled || !worker) return;
-    const id = ++sequenceRef.current;
-    worker.postMessage({ type: "CANCEL", id });
-    setError(null);
-    worker.onmessage = ({ data }) => {
-      if (data.id !== sequenceRef.current || workerRef.current !== worker)
-        return;
-      if (data.error) setError(data.error);
-      else {
-        setError(null);
-        setOutput({ view, key: queryKey, result: data.result });
-      }
-    };
-    const timer = setTimeout(
-      () =>
-        worker.postMessage({
-          type: "PROJECT",
-          id,
-          query: { frame, lower, upper },
-        }),
-      250
-    );
-    return () => {
-      clearTimeout(timer);
-      sequenceRef.current++;
-      worker.postMessage({ type: "CANCEL", id: sequenceRef.current });
-    };
-  }, [view, workerEnabled, frame, lower, upper, queryKey]);
+  }, [request, requested, current, view, inspect, hidden]);
 
   useEffect(() => {
     if (!view || !frame || !showBounds || hidden) return;
@@ -139,12 +135,15 @@ export default function useScanProjection({
   }, [editor, view, frame, showBounds, hidden]);
   useEffect(() => {
     overlayRef.current?.setRange(lower, upper, 0.02);
-  }, [frame, lower, upper, showBounds, hidden]);
+    overlayRef.current?.setHighlight(requested && !error);
+  }, [frame, lower, upper, showBounds, hidden, requested, error]);
   useEffect(() => {
     if (!view) return;
-    view.setSliceClip(clip && active ? { lower, upper } : null);
+    view.setSliceClip(
+      clip && active && requested && !error ? { lower, upper } : null
+    );
     return () => view.setSliceClip(null);
-  }, [view, active, clip, lower, upper]);
+  }, [view, active, clip, lower, upper, requested, error]);
 
   return {
     frame,
@@ -160,8 +159,26 @@ export default function useScanProjection({
     setPreviewOrientation,
     result,
     current,
-    pending: active && !current && !error,
+    pending,
+    canCalculate: Boolean(view && active && !inspect && !hidden && !pending),
+    calculate: () => {
+      if (!view || !frame || inspect || hidden || pending) return;
+      setError(null);
+      setRequest({
+        id: ++sequenceRef.current,
+        view,
+        key: queryKey,
+        query: { frame, lower, upper },
+      });
+    },
     error,
-    changeRange: (values) => setSelection({ key: verticalKey, values }),
+    changeRange: (values) => {
+      if (values[0] === lower && values[1] === upper) return;
+      // Hide colored points immediately; only the two planes follow dragging.
+      overlayRef.current?.setHighlight(false);
+      setRequest(null);
+      setError(null);
+      setSelection({ key: verticalKey, values });
+    },
   };
 }

@@ -23,7 +23,8 @@ export default function ScanProjectionPreview({
         key={frame?.rows.join(",") ?? "empty"}
         result={result}
         mode={mode}
-        pending={result ? !current || Boolean(error) : pending}
+        pending={pending}
+        stale={Boolean(result && (!current || error))}
         aspectRatio={
           projection.previewOrientation === "PORTRAIT" ? 210 / 297 : 297 / 210
         }
@@ -64,7 +65,9 @@ export default function ScanProjectionPreview({
           <Typography variant="caption" aria-live="polite">
             {current
               ? `${result.pointCount.toLocaleString("fr-FR")} points · ${(result.pixelSize * 100).toFixed(2)} cm/pixel`
-              : "Actualisation… aperçu précédent."}
+              : pending
+                ? "Calcul en cours… aperçu précédent."
+                : "Tranche modifiée : cliquez sur Calculer dans Projection."}
           </Typography>
           {onDownload && (
             <Button

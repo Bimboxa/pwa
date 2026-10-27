@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import {
   Box,
+  Button,
   FormControlLabel,
   Slider,
   Stack,
@@ -92,6 +93,16 @@ export default function LocalScanSliceSection({ projection, onDownload }) {
               projection={projection}
               onDownload={onDownload}
             />
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              size="small"
+              variant="contained"
+              disabled={!projection.canCalculate}
+              onClick={projection.calculate}
+            >
+              {projection.pending ? "Calcul…" : "Calculer"}
+            </Button>
           </Box>
         </Stack>
       </WhiteSectionGeneric>

@@ -23,6 +23,7 @@ export default function LocalScanSlicePreview({
   result,
   mode,
   pending,
+  stale = false,
   onRotate,
   overlayControls,
   aspectRatio = 297 / 210,
@@ -37,7 +38,7 @@ export default function LocalScanSlicePreview({
   const [firstPoint, setFirstPoint] = useState(null);
   const [pointerPosition, setPointerPosition] = useState(null);
   const [message, setMessage] = useState(null);
-  const canPick = Boolean(result?.pointCount) && !pending;
+  const canPick = Boolean(result?.pointCount) && !pending && !stale;
 
   // helpers
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function LocalScanSlicePreview({
     setFirstPoint(null);
     setPointerPosition(null);
     setMessage(null);
-  }, [result, pending]);
+  }, [result, pending, stale]);
 
   useEffect(() => {
     if (!result) {
@@ -89,7 +90,7 @@ export default function LocalScanSlicePreview({
     if (!result || !imageRef.current) return;
     const transform = getPreviewTransform(size, result, viewport);
     context.imageSmoothingEnabled = false;
-    context.globalAlpha = pending ? 0.5 : 1;
+    context.globalAlpha = pending || stale ? 0.5 : 1;
     context.drawImage(
       imageRef.current,
       transform.x,
@@ -157,6 +158,7 @@ export default function LocalScanSlicePreview({
     result,
     mode,
     pending,
+    stale,
     size,
     viewport,
     firstPoint,

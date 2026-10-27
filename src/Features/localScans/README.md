@@ -77,12 +77,11 @@ fails. No bulk migration or change to unrelated resources occurs.
   horizontal alignment in the shared preview.
 
 Before a projection exists, every preview says **Définir l’image projetée dans
-l’onglet Projection**. Visiting Projection starts generation. Its controller
+l’onglet Projection**. Only **Calculer** starts generation. Its controller
 lives with the scan rather than inside a tab or the drawer: changing tabs or
 closing the drawer keeps results, bounds and placement. Inspection is active
-only in the visible Position tab. Projection computation is paused while the
-inspection worker holds its source copy, then resumes when inspection ends.
-Moving/rotating the model invalidates the preview until recomputation completes;
+only in the visible Position tab. An unfinished projection is cancelled when inspection starts.
+Moving/rotating the model invalidates the preview until the next manual calculation;
 stale images cannot create a base map. Source data never enters Redux.
 
 Base-map creation uses the same compact Z input as the top bar (default 0 m).
@@ -187,17 +186,19 @@ an absolute density scale across slices. Density highlights aligned vertical
 surfaces but does not classify walls: furniture and uneven scan coverage also
 contribute. Gaussian input uses centers, not rendered splat opacity.
 
-Orange and cyan boundary planes and points within a fixed ±2 cm tolerance
-(default +/-2 cm) update on the GPU while dragging. The overlay shares the scan's
-vertex buffers. The image uses the exact interval, not the boundary tolerance.
-A worker computes both rasters after a 250 ms debounce, yielding periodically to
-cancel obsolete requests; only the latest result is displayed. Previous output
-is visibly marked stale during computation and cannot be exported until current.
+Only the orange and cyan boundary planes follow slider changes in real time.
+**Calculer** starts the projection and highlights points within ±2 cm of each
+boundary. Changing either bound immediately removes the point highlights,
+cancels unfinished work and marks the previous image stale. Stale images cannot
+be exported, used for alignment or converted into base maps. The optional 3D
+clipping applies to the calculated range and is suspended when it becomes stale.
+The image uses the exact interval, not the boundary tolerance.
 PNG export contains the displayed raster, without georeferencing metadata.
 
-The projection worker clones XYZ/RGB once while enabled (about 469 MiB extra for
-the full NavVis example), then receives only range/frame updates. Inspection and
-projection are mutually exclusive to avoid retaining both analysis workers.
+Each explicit calculation creates a worker and clones XYZ/RGB (about 469 MiB
+extra for the full NavVis example). The worker is terminated after completion,
+failure or cancellation, releasing its source copy. Inspection and projection
+are mutually exclusive to avoid retaining both analysis workers.
 Disabling local scans, hiding the editor or replacing the model disposes the
 analysis workers and overlays. Settings/previews remain transient until the user
 explicitly creates a base map. Closing the drawer alone retains the model.
@@ -217,7 +218,7 @@ output resolution or exported PNG. **Définir l'axe horizontal (2 points)** pick
 through the zoom/pan transform. After the second click the scan itself rotates
 about world Y (displayed vertical Z) around its current source anchor. The vector
 from the first point to the second becomes positive displayed X. No project
-geometry or editor axes are rotated. The worker rerenders from the transformed
+geometry or editor axes are rotated. The next **Calculer** uses the transformed
 points, preserving the selected Z interval; **Réinitialiser la rotation** restores
 the imported horizontal orientation. Yaw is persisted with local scan placement,
 with zero as the backward-compatible default for previously saved scans.

@@ -51,6 +51,7 @@ export default function createLocalScanSliceOverlay(editor, view, frame) {
     `,
   });
   const points = new Points(view.pointGeometry, pointMaterial);
+  points.visible = false;
   points.renderOrder = 10002;
   points.raycast = () => false;
   view.root.add(points);
@@ -104,6 +105,11 @@ export default function createLocalScanSliceOverlay(editor, view, frame) {
     return plane;
   });
   return {
+    setHighlight(visible) {
+      if (points.visible === visible) return;
+      points.visible = visible;
+      editor.requestRender();
+    },
     setRange(lower, upper, tolerance) {
       uniforms.lower.value = lower;
       uniforms.upper.value = upper;
