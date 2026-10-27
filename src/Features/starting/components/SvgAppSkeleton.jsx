@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Box } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
@@ -6,6 +6,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import DiagramZone from "./DiagramZone";
 
 import makeZoneProps from "../utils/makeZoneProps";
+import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
 
 // Skeleton of the editor screen (section « Naviguer dans l'appli »), scaled
 // from LayoutDesktop / SectionViewer in the Dessin module: top bar, module
@@ -13,10 +14,12 @@ import makeZoneProps from "../utils/makeZoneProps";
 // the floating annotations panel, properties drawer, tools band, bottom bar.
 // Every block is a DiagramZone whose id is listed in APP_COMPONENTS[].zones.
 //
-// Two controls are live, like in the app: the dock button of the top bar
+// Three controls are live, like in the app: the dock button of the top bar
 // docks / undocks the module panel (the editor widens), the « Propriétés »
-// tool of the tools band opens / closes the properties drawer. Highlighting
-// a hidden panel from the list shows it anyway.
+// tool of the tools band opens / closes the properties drawer, the 2D / 3D
+// button of the editor (or the T key) switches the plan to a generic 3D view
+// of the same drawing. Highlighting a hidden panel from the list shows it
+// anyway.
 const TOP_H = 48;
 const BOTTOM_Y = 684;
 const BAND_W = 80;
@@ -24,6 +27,7 @@ const MODULE_PANEL_W = 280;
 const COMMANDS_W = 40;
 const TOOLS_X = 1130;
 const PROPERTIES_W = 340;
+const WALL_H = 70;
 
 export default function SvgAppSkeleton({
   highlightedZones,
@@ -36,6 +40,22 @@ export default function SvgAppSkeleton({
 
   const [modulePanelDocked, setModulePanelDocked] = useState(true);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [view3d, setView3d] = useState(false);
+
+  // T switches the editor view while the skeleton is shown (capture-phase
+  // window listener, like useDialogQuitHotkey; yields while typing).
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key?.toLowerCase() !== "t") return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setView3d((v) => !v);
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, []);
 
   // helpers
 
@@ -76,6 +96,10 @@ export default function SvgAppSkeleton({
   const propertiesTitleS = propertiesOpen
     ? "Fermer le panneau de propriétés"
     : "Ouvrir le panneau de propriétés";
+  const toggleViewTitleS = view3d
+    ? "Revenir au plan 2D (T)"
+    : "Passer en vue 3D (T)";
+  const editorLabelS = view3d ? "Éditeur 3D" : "Éditeur 2D";
 
   // handlers
 
@@ -87,6 +111,126 @@ export default function SvgAppSkeleton({
   function handlePropertiesToolClick(e) {
     e.stopPropagation();
     setPropertiesOpen((open) => !open);
+  }
+
+  function handleToggleViewClick(e) {
+    e.stopPropagation();
+    setView3d((v) => !v);
+  }
+
+  // The drawing of the editor, in plan coordinates: the walls of a floor,
+  // an orange surface annotation and a blue point. The 3D view projects the
+  // same geometry (oblique projection, walls and surface extruded).
+  const L = editorX + 120;
+  const walls = [
+    [L, 220, 1000, 220],
+    [L, 400, 760, 400],
+    [L, 220, L, 580],
+    [760, 220, 760, 580],
+    [1000, 220, 1000, 580],
+    [L, 580, 1000, 580],
+  ];
+  const surface = { x: L + 40, y: 260, w: 120, h: 90 };
+  const point = { x: 900, y: 300 };
+  const blue = theme.palette.info.main;
+
+  const ox = editorX + 70;
+  const oy = 330;
+  const project = (x, y, z = 0) => [
+    ox + (x - L) * 0.8 + (y - 220) * 0.5,
+    oy + (y - 220) * 0.35 - z,
+  ];
+  const poly = (pts) => pts.map(([x, y]) => `${x},${y}`).join(" ");
+  const quad = (x1, y1, x2, y2, z1, z2) =>
+    poly([
+      project(x1, y1, z1),
+      project(x2, y2, z1),
+      project(x2, y2, z2),
+      project(x1, y1, z2),
+    ]);
+
+  function renderPlan2d() {
+    return (
+      <>
+        {walls.map(([x1, y1, x2, y2], i) => (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={grey[400]}
+            strokeWidth="4"
+          />
+        ))}
+        <rect
+          x={surface.x}
+          y={surface.y}
+          width={surface.w}
+          height={surface.h}
+          fill={alpha(orange, 0.35)}
+          stroke={orange}
+        />
+        <circle cx={point.x} cy={point.y} r="7" fill={blue} />
+      </>
+    );
+  }
+
+  function renderScene3d() {
+    const { x, y, w, h } = surface;
+    const top = (z) =>
+      poly([
+        project(x, y, z),
+        project(x + w, y, z),
+        project(x + w, y + h, z),
+        project(x, y + h, z),
+      ]);
+    const [px, py] = project(point.x, point.y, 0);
+    const [pxTop, pyTop] = project(point.x, point.y, 40);
+    return (
+      <>
+        <polygon
+          points={poly([
+            project(L, 220),
+            project(1000, 220),
+            project(1000, 580),
+            project(L, 580),
+          ])}
+          fill={grey[200]}
+          stroke={grey[400]}
+        />
+        <polygon points={top(0)} fill={alpha(orange, 0.3)} stroke={orange} />
+        <polygon
+          points={quad(x, y + h, x + w, y + h, 0, 30)}
+          fill={alpha(orange, 0.55)}
+          stroke={orange}
+        />
+        <polygon
+          points={quad(x + w, y, x + w, y + h, 0, 30)}
+          fill={alpha(orange, 0.75)}
+          stroke={orange}
+        />
+        <polygon points={top(30)} fill={alpha(orange, 0.5)} stroke={orange} />
+        {walls.map(([x1, y1, x2, y2], i) => (
+          <polygon
+            key={i}
+            points={quad(x1, y1, x2, y2, 0, WALL_H)}
+            fill={alpha(grey[500], 0.3)}
+            stroke={grey[500]}
+            strokeWidth="1.5"
+          />
+        ))}
+        <line
+          x1={px}
+          y1={py}
+          x2={pxTop}
+          y2={pyTop}
+          stroke={blue}
+          strokeWidth="2"
+        />
+        <circle cx={pxTop} cy={pyTop} r="6" fill={blue} />
+      </>
+    );
   }
 
   // render
@@ -240,25 +384,56 @@ export default function SvgAppSkeleton({
             stroke={grey[300]}
             data-accent-stroke=""
           />
-          <path
-            d={`M${editorX + 120} 220 H1000 V580 H${editorX + 120} Z M760 220 V580 M${editorX + 120} 400 H760`}
-            fill="none"
-            stroke={grey[400]}
-            strokeWidth="4"
-          />
-          <rect
-            x={editorX + 160}
-            y="260"
-            width="120"
-            height="90"
-            fill={alpha(orange, 0.35)}
-            stroke={orange}
-          />
-          <circle cx="900" cy="300" r="7" fill={theme.palette.info.main} />
-          <text x="1110" y="672" textAnchor="end" fontSize="10" fill={muted}>
-            Éditeur 2D / 3D
+          {view3d ? renderScene3d() : renderPlan2d()}
+          <text x="1036" y="659" textAnchor="end" fontSize="10" fill={muted}>
+            {editorLabelS}
           </text>
         </>
+      )}
+      {/* 2D / 3D toggle of the editor, bottom-right like in the app; live */}
+      {zone(
+        "editor_toggle",
+        <g data-live="" onClick={handleToggleViewClick}>
+          <title>{toggleViewTitleS}</title>
+          <rect
+            x="1050"
+            y="642"
+            width="64"
+            height="26"
+            rx="6"
+            fill="white"
+            stroke={grey[300]}
+            data-accent-stroke=""
+          />
+          <text
+            x="1070"
+            y="659"
+            textAnchor="middle"
+            fontSize="11"
+            fontWeight="700"
+          >
+            {view3d ? "2D" : "3D"}
+          </text>
+          <rect
+            x="1088"
+            y="647"
+            width="16"
+            height="16"
+            rx="3"
+            fill={grey[50]}
+            stroke={grey[400]}
+          />
+          <text
+            x="1096"
+            y="659"
+            textAnchor="middle"
+            fontSize="9"
+            fontWeight="700"
+            fill={muted}
+          >
+            T
+          </text>
+        </g>
       )}
 
       {/* floating annotations panel */}

@@ -46,4 +46,10 @@ export const KEY_HINTS = [
     label: "Annuler",
     hint: "Annule la dernière action.",
   },
+  {
+    key: "TOGGLE_3D",
+    keys: ["T"],
+    label: "Vue 2D / 3D",
+    hint: "Bascule l'éditeur entre le plan et la 3D.",
+  },
 ];

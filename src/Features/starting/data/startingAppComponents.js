@@ -74,8 +74,8 @@ export const APP_COMPONENTS = [
     key: "EDITOR",
     label: () => "Éditeur 2D / 3D",
     description: () =>
-      "La zone de dessin sur le fond de plan, en plan ou en 3D (touche T).",
-    zones: ["editor"],
+      "La zone de dessin sur le fond de plan, en plan ou en 3D. Le bouton en bas à droite (ou la touche T) bascule la vue : essayez-le.",
+    zones: ["editor", "editor_toggle"],
   },
   {
     key: "COMMANDS_TOOLBAR",
