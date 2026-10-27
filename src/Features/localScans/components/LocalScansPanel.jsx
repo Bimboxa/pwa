@@ -398,7 +398,18 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     <Typography variant="subtitle2">
                       Affichage du modèle
                     </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      sx={{
+                        "& .MuiToggleButton-root": {
+                          px: 1,
+                          py: 0.25,
+                          fontSize: "0.75rem",
+                        },
+                      }}
+                    >
                       <ToggleButtonGroup
                         size="small"
                         exclusive
