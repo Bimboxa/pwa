@@ -400,9 +400,12 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     </Typography>
                     <Stack
                       direction="row"
-                      spacing={1}
                       alignItems="center"
+                      justifyContent="center"
                       sx={{
+                        flexWrap: "wrap",
+                        columnGap: 3,
+                        rowGap: 1,
                         "& .MuiToggleButton-root": {
                           px: 1,
                           py: 0.25,
@@ -426,27 +429,36 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                         </ToggleButton>
                       </ToggleButtonGroup>
                       {mode === "POINTS" && (
-                        <ToggleButtonGroup
-                          size="small"
-                          exclusive
-                          value={pointSize}
-                          aria-label="Taille des points"
-                          onChange={(_, size) => {
-                            if (size === null) return;
-                            setPointSize(size);
-                            view.setPointSize(size);
-                          }}
-                        >
-                          {[1, 2, 4].map((size) => (
-                            <ToggleButton
-                              key={size}
-                              value={size}
-                              sx={{ whiteSpace: "nowrap" }}
-                            >
-                              {size} px
-                            </ToggleButton>
-                          ))}
-                        </ToggleButtonGroup>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ whiteSpace: "nowrap" }}
+                          >
+                            Taille des points
+                          </Typography>
+                          <ToggleButtonGroup
+                            size="small"
+                            exclusive
+                            value={pointSize}
+                            aria-label="Taille des points"
+                            onChange={(_, size) => {
+                              if (size === null) return;
+                              setPointSize(size);
+                              view.setPointSize(size);
+                            }}
+                          >
+                            {[1, 2, 4].map((size) => (
+                              <ToggleButton
+                                key={size}
+                                value={size}
+                                sx={{ whiteSpace: "nowrap" }}
+                              >
+                                {size} px
+                              </ToggleButton>
+                            ))}
+                          </ToggleButtonGroup>
+                        </Stack>
                       )}
                     </Stack>
                     {loaded.kind === "SPLAT" && (
