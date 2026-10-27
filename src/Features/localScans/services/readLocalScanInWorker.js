@@ -1,6 +1,7 @@
+// read: readLocalPly options (maxPoints, zone) for the points decode.
 export default function readLocalScanInWorker(
   file,
-  { signal, onProgress, decodeSplats = false } = {}
+  { signal, onProgress, decodeSplats = false, read } = {}
 ) {
   return new Promise((resolve, reject) => {
     const worker = decodeSplats
@@ -33,6 +34,6 @@ export default function readLocalScanInWorker(
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) abort();
-    else worker.postMessage({ file });
+    else worker.postMessage({ file, options: read });
   });
 }

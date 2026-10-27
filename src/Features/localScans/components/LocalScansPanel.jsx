@@ -21,6 +21,7 @@ import LocalScanSliceSection from "./LocalScanSliceSection";
 import TabScanGeneral from "./TabScanGeneral";
 import TabScanPosition from "./TabScanPosition";
 import DialogPickLocalScan from "./DialogPickLocalScan";
+import DialogLocalScanZone from "./DialogLocalScanZone";
 import useScanProjection from "../hooks/useScanProjection";
 import inspectLocalScan from "../services/inspectLocalScan";
 import readLocalScanInWorker from "../services/readLocalScanInWorker";
@@ -35,6 +36,7 @@ import {
   subscribeScanPanelHost,
 } from "../services/scanPanelHost";
 import sliceImageFile from "../utils/sliceImageFile";
+import { getScanZonePlacement } from "../utils/localScanZone";
 import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/localScanPlacement";
 
 const DEFAULT_DISPLAY = { mode: "POINTS", pointSize: 2 };
@@ -58,6 +60,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
   const [picked, setPicked] = useState(null),
     [pickMessage, setPickMessage] = useState(null);
   const [projectionActive, setProjectionActive] = useState(false);
+  const [zoneRequest, setZoneRequest] = useState(null);
   const [busy, setBusy] = useState(false),
     [progress, setProgress] = useState(0),
     [error, setError] = useState(null);
@@ -151,7 +154,31 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     setProjectionActive(false);
     dispatch(setScan3dTab("GENERAL"));
   }
-  async function load(file, resource = null) {
+  // Opens the zone dialog; resolves {zone, wholePolygon}, rejects with an
+  // AbortError when cancelled (dialog closed or load superseded).
+  function requestZone(file, initialZone, signal) {
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        signal.removeEventListener("abort", abort);
+        setZoneRequest(null);
+      };
+      const abort = () => {
+        finish();
+        reject(new DOMException("Import cancelled", "AbortError"));
+      };
+      signal.addEventListener("abort", abort, { once: true });
+      setZoneRequest({
+        file,
+        initialZone,
+        onConfirm: (result) => {
+          finish();
+          resolve(result);
+        },
+        onCancel: abort,
+      });
+    });
+  }
+  async function load(file, resource = null, { editZone = false } = {}) {
     const epoch = ++epochRef.current;
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -169,9 +196,20 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
           "Le fichier de cette ressource est absent de cet appareil. Rechargez-le depuis Ressources."
         );
       if (epoch !== epochRef.current) return;
+      // A saved zone is reapplied as is; a new source (or « Modifier la
+      // zone ») goes through the zone dialog first.
+      const savedZone = resource?.legacy ? null : resource?.scan?.zone;
+      let zone = savedZone,
+        zoneChosen = null;
+      if (!savedZone || editZone) {
+        zoneChosen = await requestZone(source, savedZone, controller.signal);
+        zone = zoneChosen.zone;
+      }
+      if (epoch !== epochRef.current) return;
       const data = await readLocalScanInWorker(source, {
         signal: controller.signal,
         onProgress: setProgress,
+        read: { zone },
       });
       if (epoch !== epochRef.current) return;
       const nextPlacement = {
@@ -184,8 +222,22 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
               yaw: resource.yaw ?? 0,
             }
           : resource?.scan?.placement),
+        ...(zoneChosen &&
+          getScanZonePlacement(zone, axesYaw, zoneChosen.wholePolygon)),
       };
       let saved = resource && !resource.legacy ? resource : null;
+      if (saved && zoneChosen) {
+        try {
+          await resources.update(saved.id, {
+            zone,
+            placement: nextPlacement,
+            count: data.count,
+            bounds: data.bounds,
+          });
+        } catch {
+          setError("La zone n’a pas pu être enregistrée dans la ressource.");
+        }
+      }
       if (!saved) {
         try {
           saved = await resources.save({
@@ -193,6 +245,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
             file: source,
             data,
             placement: nextPlacement,
+            zone,
             legacyKey: resource?.contextKey,
             signal: controller.signal,
           });
@@ -250,6 +303,14 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
       viewRef.current === nextView
     )
       await changeMode("SPLAT", { target: nextView, file: sourceRef.current });
+  }
+  async function editZone() {
+    if (busy) return;
+    const row = loaded?.resourceId
+      ? await resources.get(loaded.resourceId)
+      : null;
+    if (row) await load(null, row, { editZone: true });
+    else if (sourceRef.current) await load(sourceRef.current);
   }
   async function saveCurrent() {
     if (!view || !sourceRef.current || busy) return;
@@ -378,6 +439,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         onNew={() => setPicker(true)}
         onCloseModel={closeScan}
         onSave={saveCurrent}
+        onEditZone={() => void editZone()}
       />
       <input
         ref={inputRef}
@@ -470,6 +532,14 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
           </>
         )}
       </Stack>
+      {zoneRequest && (
+        <DialogLocalScanZone
+          file={zoneRequest.file}
+          initialZone={zoneRequest.initialZone}
+          onConfirm={zoneRequest.onConfirm}
+          onCancel={zoneRequest.onCancel}
+        />
+      )}
       <DialogPickLocalScan
         open={picker}
         available={available}

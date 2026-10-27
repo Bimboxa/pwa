@@ -12,6 +12,9 @@ export default function createScanResourceStore(db, newId) {
           (row.kind === "LOCAL_SCAN_3D" || row.fileType === "PLY")
       );
     },
+    get(resourceId) {
+      return db.resources.get(resourceId);
+    },
     async source(resource) {
       const row = await db.files.get(resource.fileName);
       const payload = row?.fileBlob ?? row?.fileArrayBuffer;
@@ -21,7 +24,7 @@ export default function createScanResourceStore(db, newId) {
           })
         : null;
     },
-    async save({ projectId, file, data, placement, legacyKey, signal }) {
+    async save({ projectId, file, data, placement, zone, legacyKey, signal }) {
       const id = newId(),
         fileName = `resource_${id}_${file.name}`;
       const resource = {
@@ -40,6 +43,7 @@ export default function createScanResourceStore(db, newId) {
           kind: data.kind,
           bounds: data.bounds,
           placement,
+          ...(zone && { zone }),
         },
         ...(legacyKey && { legacyScanKey: legacyKey }),
       };
