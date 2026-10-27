@@ -13,6 +13,8 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  IconButton,
+  Tooltip,
   LinearProgress,
   List,
   ListItemButton,
@@ -26,6 +28,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
@@ -64,6 +67,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
   const [loaded, setLoaded] = useState(null);
   const [placement, setPlacement] = useState(DEFAULT_PLACEMENT);
   const [mode, setMode] = useState("POINTS");
+  const [modelVisible, setModelVisible] = useState(true);
   const [pointSize, setPointSize] = useState(2);
   const [inspection, setInspection] = useState(false);
   const [picked, setPicked] = useState(null),
@@ -80,7 +84,13 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
   const abortRef = useRef(null),
     epochRef = useRef(0);
   const canInspect = Boolean(
-    inspection && tab === "POSITION" && host && view && !busy && !hidden
+    inspection &&
+    modelVisible &&
+    tab === "POSITION" &&
+    host &&
+    view &&
+    !busy &&
+    !hidden
   );
   const projection = useScanProjection({
     editor,
@@ -90,7 +100,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     active: projectionActive,
     inspect: canInspect,
     hidden: hidden || busy,
-    showBounds: Boolean(host && tab === "PROJECTION" && !busy),
+    showBounds: Boolean(host && tab === "PROJECTION" && !busy && modelVisible),
   });
 
   // helpers
@@ -227,6 +237,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         resourceId: saved?.id,
       });
       setMode("POINTS");
+      setModelVisible(true);
       setInspection(false);
       setPicked(null);
       setPickMessage(null);
@@ -395,9 +406,42 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
               <>
                 <WhiteSectionGeneric>
                   <Stack spacing={1}>
-                    <Typography variant="subtitle2">
-                      Affichage du modèle
-                    </Typography>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Typography variant="subtitle2">
+                        Affichage du modèle
+                      </Typography>
+                      <Tooltip
+                        title={
+                          modelVisible
+                            ? "Masquer le modèle"
+                            : "Afficher le modèle"
+                        }
+                      >
+                        <IconButton
+                          size="small"
+                          aria-label={
+                            modelVisible
+                              ? "Masquer le modèle"
+                              : "Afficher le modèle"
+                          }
+                          onClick={() => {
+                            const visible = !modelVisible;
+                            view.setVisible(visible);
+                            setModelVisible(visible);
+                          }}
+                        >
+                          {modelVisible ? (
+                            <Visibility fontSize="small" />
+                          ) : (
+                            <VisibilityOff fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                     <Stack
                       direction="row"
                       alignItems="center"

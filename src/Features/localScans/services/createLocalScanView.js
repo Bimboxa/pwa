@@ -159,7 +159,7 @@ ${shader.vertexShader}`;
     if (disposed) return;
     points.visible = mode === "POINTS" || !splat;
     if (splat) splat.visible = mode === "SPLAT";
-    if (spark) spark.visible = mode === "SPLAT";
+    if (spark) spark.visible = root.visible && mode === "SPLAT";
     requestRender();
   }
   setPlacement(placement);
@@ -173,6 +173,12 @@ ${shader.vertexShader}`;
     data,
     fit,
     setMode,
+    setVisible(visible) {
+      if (disposed) return;
+      root.visible = visible;
+      if (spark) spark.visible = visible && mode === "SPLAT";
+      requestRender();
+    },
     setPlacement,
     setPointSize(size) {
       material.size = size;
