@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setScan3dTab } from "Features/rightPanel/rightPanelSlice";
+import useToggleModuleEditor from "Features/viewers/hooks/useToggleModuleEditor";
 import { Vector3 } from "three";
 import {
   Alert,
@@ -26,6 +27,7 @@ import useScanProjection from "../hooks/useScanProjection";
 import inspectLocalScan from "../services/inspectLocalScan";
 import readLocalScanInWorker from "../services/readLocalScanInWorker";
 import createLocalScanView from "../services/createLocalScanView";
+import localScanRuntime from "../services/localScanRuntime";
 import { deleteLocalScan } from "../services/localScanStore";
 import resources, {
   listAvailableScans,
@@ -41,12 +43,21 @@ import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/
 
 const DEFAULT_DISPLAY = { mode: "POINTS", pointSize: 2 };
 
-export default function LocalScansPanel({ editor, projectId, hidden = false }) {
+// inactive: the 2D view is displayed — the scan stays loaded (and placed)
+// but inspection, projection and overlays pause until the 3D comes back.
+export default function LocalScansPanel({
+  editor,
+  projectId,
+  hidden = false,
+  inactive = false,
+}) {
   // data
   const dispatch = useDispatch();
   const axesYaw = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
   const tab = useSelector((s) => s.rightPanel.scan3dTab) ?? "GENERAL";
   const host = useSyncExternalStore(subscribeScanPanelHost, getScanPanelHost);
+  const toggleEditor = useToggleModuleEditor();
+  const paused = hidden || inactive;
 
   // state
   const [view, setView] = useState(null),
@@ -70,7 +81,9 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     sourceRef = useRef(null),
     surfaceRef = useRef(null);
   const abortRef = useRef(null),
-    epochRef = useRef(0);
+    epochRef = useRef(0),
+    // Reference on the shared decoded scan (localScanRuntime), if saved.
+    scanHandleRef = useRef(null);
   const canInspect = Boolean(
     inspection &&
     modelVisible &&
@@ -78,7 +91,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     host &&
     view &&
     !busy &&
-    !hidden
+    !paused
   );
   const projection = useScanProjection({
     editor,
@@ -87,8 +100,10 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     placementKey: JSON.stringify(placement),
     active: projectionActive,
     inspect: canInspect,
-    hidden: hidden || busy,
-    showBounds: Boolean(host && tab === "PROJECTION" && !busy && modelVisible),
+    hidden: paused || busy,
+    showBounds: Boolean(
+      host && tab === "PROJECTION" && !busy && !inactive && modelVisible
+    ),
   });
 
   // helpers
@@ -98,6 +113,8 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
       abortRef.current?.abort();
       viewRef.current?.dispose();
       viewRef.current = null;
+      scanHandleRef.current?.release();
+      scanHandleRef.current = null;
       sourceRef.current = null;
     },
     [editor, projectId]
@@ -144,6 +161,8 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     abortRef.current?.abort();
     viewRef.current?.dispose();
     viewRef.current = null;
+    scanHandleRef.current?.release();
+    scanHandleRef.current = null;
     setView(null);
     sourceRef.current = null;
     setLoaded(null);
@@ -188,6 +207,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     setProgress(0);
     setError(null);
     let nextView,
+      handle = null,
       restoreSplat = false;
     try {
       const source = file ?? (await getAvailableScanSource(resource));
@@ -206,11 +226,21 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         zone = zoneChosen.zone;
       }
       if (epoch !== epochRef.current) return;
-      const data = await readLocalScanInWorker(source, {
-        signal: controller.signal,
-        onProgress: setProgress,
-        read: { zone },
-      });
+      // A saved scan reopened as is may already be decoded for a scan base
+      // map: share it.
+      const reopening = Boolean(resource && !resource.legacy && !zoneChosen);
+      let data;
+      if (reopening) {
+        handle = localScanRuntime.acquire(resource, {
+          onProgress: setProgress,
+        });
+        ({ data } = await handle.promise);
+      } else
+        data = await readLocalScanInWorker(source, {
+          signal: controller.signal,
+          onProgress: setProgress,
+          read: { zone },
+        });
       if (epoch !== epochRef.current) return;
       const nextPlacement = {
         ...DEFAULT_PLACEMENT,
@@ -260,6 +290,13 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         }
       }
       if (epoch !== epochRef.current) return;
+      if (saved && !reopening) {
+        handle = localScanRuntime.seed(
+          { id: saved.id, scan: { zone } },
+          { data, source }
+        );
+        ({ data } = await handle.promise);
+      }
       const display = {
         ...DEFAULT_DISPLAY,
         ...(!resource?.legacy && resource?.scan?.display),
@@ -270,6 +307,8 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
       nextView.setPointSize(display.pointSize);
       viewRef.current?.dispose();
       viewRef.current = nextView;
+      scanHandleRef.current?.release();
+      scanHandleRef.current = handle;
       sourceRef.current = source;
       setView(nextView);
       setPlacement(nextPlacement);
@@ -294,6 +333,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
       if (epoch === epochRef.current && failure.name !== "AbortError")
         setError(failure.message);
     } finally {
+      if (handle && handle !== scanHandleRef.current) handle.release();
       if (epoch === epochRef.current) setBusy(false);
     }
     // The saved « Réaliste » mode needs its own (Spark) decode.
@@ -452,7 +492,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
           if (file) void load(file);
         }}
       />
-      {loaded && (
+      {loaded && !inactive && (
         <Tabs
           value={tab}
           onChange={(_, value) => dispatch(setScan3dTab(value))}
@@ -483,16 +523,30 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
           <>
             <LinearProgress
               variant={progress > 0 ? "determinate" : "indeterminate"}
-              value={progress}
+              value={progress * 100}
             />
             <Typography variant="caption">Préparation du modèle…</Typography>
             <Button onClick={closeScan}>Annuler et fermer</Button>
           </>
         )}
         {!loaded && !busy && (
-          <Scan3dEmptyState onLoad={() => setPicker(true)} />
+          <Scan3dEmptyState
+            onLoad={inactive ? toggleEditor : () => setPicker(true)}
+          />
         )}
-        {loaded && !busy && (
+        {loaded && !busy && inactive && (
+          <Alert
+            severity="info"
+            action={
+              <Button color="inherit" size="small" onClick={toggleEditor}>
+                Afficher la 3D
+              </Button>
+            }
+          >
+            Le scan reste chargé. Passez en 3D pour le manipuler.
+          </Alert>
+        )}
+        {loaded && !busy && !inactive && (
           <>
             {tab === "GENERAL" && (
               <TabScanGeneral

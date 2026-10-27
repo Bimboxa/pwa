@@ -1,37 +1,22 @@
-import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
-import Scan3dEmptyState from "./Scan3dEmptyState";
-import Scan3dHeader from "./Scan3dHeader";
-import useToggleModuleEditor from "Features/viewers/hooks/useToggleModuleEditor";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { registerScanPanelHost } from "../services/scanPanelHost";
 
+// Drawer of the Scan 3D tool. The scan controller (LocalScansPanel, mounted
+// with the 3D editor, in 2D too) portals its controls here.
 export default function Scan3dPanelHost() {
-  const viewer = useSelector(selectEffectiveViewerKey);
-  const toggleEditor = useToggleModuleEditor();
   return (
     <Box
       sx={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}
     >
-      {!isThreedFamilyViewerKey(viewer) ? (
-        <>
-          <Scan3dHeader />
-          <Box sx={{ p: 2 }}>
-            <Scan3dEmptyState onLoad={toggleEditor} />
-          </Box>
-        </>
-      ) : (
-        <Box
-          ref={registerScanPanelHost}
-          sx={{
-            minHeight: 0,
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        />
-      )}
+      <Box
+        ref={registerScanPanelHost}
+        sx={{
+          minHeight: 0,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      />
     </Box>
   );
 }

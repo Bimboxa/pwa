@@ -3039,10 +3039,13 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && rendererIsReady && (
+      {/* Mounted in 2D too: the editor stays alive off-screen and so does
+          a loaded scan (inactive = no inspection, projection or overlay). */}
+      {rendererIsReady && (
         <LocalScansGate
           editor={threedEditorRef.current}
           hidden={walkActive || captureFramingActive}
+          inactive={!isThreedViewer}
         />
       )}
       {/* The helper REPLACES the listings panel while the mode is armed, same
