@@ -18,16 +18,16 @@ import { JET_MODES } from "../services/shootSprayController";
 const rpgTransform = (dxPx, dyPx) =>
   `translate(calc(25% + ${dxPx}px), ${dyPx}px) perspective(800px) rotateX(14deg)`;
 
-// Sci-fi HUD palette: dark glass panels, one luminous cyan accent (readable
-// on white plans AND on dark scans, unlike the previous white band), soft
-// glow on the reticle readouts.
-const ACCENT = "#5de4ff";
-const ACCENT_DIM = "rgba(93, 228, 255, 0.45)";
-const ACCENT_FAINT = "rgba(93, 228, 255, 0.14)";
-const TEXT = "rgba(232, 244, 255, 0.92)";
-const TEXT_DIM = "rgba(232, 244, 255, 0.55)";
+// Sci-fi HUD palette: dark glass panels, one luminous accent — a neon take
+// on the theme secondary color (#e85426), readable on white plans AND on
+// dark scans — soft glow on the reticle readouts.
+const ACCENT = "#ff6a2b";
+const ACCENT_DIM = "rgba(255, 106, 43, 0.5)";
+const ACCENT_FAINT = "rgba(255, 106, 43, 0.16)";
+const TEXT = "rgba(255, 244, 236, 0.92)";
+const TEXT_DIM = "rgba(255, 244, 236, 0.55)";
 const PANEL_BG = "rgba(8, 12, 18, 0.66)";
-const GLOW = `0 0 6px rgba(93, 228, 255, 0.85), 0 0 1px #000`;
+const GLOW = `0 0 6px rgba(255, 106, 43, 0.85), 0 0 1px #000`;
 const MONO = "ui-monospace, 'SF Mono', Menlo, 'Roboto Mono', monospace";
 // Chamfered corners (top-right / bottom-left) of the panels.
 const CHAMFER =
@@ -182,7 +182,7 @@ function Reticle({ armed }) {
         transform: "translate(-50%, -50%)",
         width: 40,
         height: 40,
-        filter: "drop-shadow(0 0 3px rgba(93,228,255,0.9))",
+        filter: "drop-shadow(0 0 3px rgba(255,106,43,0.9))",
       }}
     >
       {strokes.map(({ stroke, width }) => (
@@ -452,58 +452,62 @@ function MeasureBody({ targetDistM, measureHasStart, measureCount }) {
   );
 }
 
-// Movement keys + the C toggle: with free climb on, obstacles no longer
-// block and the walker stands on the highest surface (walls, roofs) — the
-// chip makes the state obvious at a glance.
+// Movement keys + the C toggle, on two lines to keep the panel narrow:
+// with free climb on, obstacles no longer block and the walker stands on
+// the highest surface (walls, roofs) — the chip makes the state obvious at
+// a glance.
 function Legend({ freeClimb }) {
+  const rowSx = { display: "flex", alignItems: "center", gap: 0.5 };
   return (
     <Box
       sx={{
         display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        columnGap: 0.5,
-        rowGap: 0.5,
+        flexDirection: "column",
+        gap: 0.5,
         pt: 0.75,
         borderTop: `1px solid ${ACCENT_FAINT}`,
         fontSize: 10,
       }}
     >
-      <Key>↑↓←→</Key>
-      <Hint>marcher</Hint>
-      <Key>Q</Key>
-      <Key>S</Key>
-      <Hint>regard</Hint>
-      <Key>Z</Key>
-      <Key>W</Key>
-      <Hint>monter / descendre</Hint>
-      <Key>R</Key>
-      <Hint>course</Hint>
-      <Key>C</Key>
-      <Hint>{freeClimb ? "franchissement libre" : "collisions actives"}</Hint>
-      {freeClimb && (
-        <Box
-          key="free-climb"
-          component="span"
-          sx={{
-            px: 0.75,
-            height: 16,
-            display: "inline-flex",
-            alignItems: "center",
-            fontSize: 9,
-            fontWeight: 700,
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-            color: "#07111a",
-            bgcolor: ACCENT,
-            boxShadow: `0 0 8px ${ACCENT_DIM}`,
-            borderRadius: "3px",
-            animation: "hudPop 160ms ease-out",
-          }}
-        >
-          Libre
-        </Box>
-      )}
+      <Box sx={rowSx}>
+        <Key>↑↓←→</Key>
+        <Hint>marcher</Hint>
+        <Key>Q</Key>
+        <Key>S</Key>
+        <Hint>regard</Hint>
+        <Key>Z</Key>
+        <Key>W</Key>
+        <Hint>monter / descendre</Hint>
+      </Box>
+      <Box sx={rowSx}>
+        <Key>R</Key>
+        <Hint>course</Hint>
+        <Key>C</Key>
+        <Hint>{freeClimb ? "franchissement libre" : "collisions actives"}</Hint>
+        {freeClimb && (
+          <Box
+            key="free-climb"
+            component="span"
+            sx={{
+              px: 0.75,
+              height: 16,
+              display: "inline-flex",
+              alignItems: "center",
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              textTransform: "uppercase",
+              color: "#07111a",
+              bgcolor: ACCENT,
+              boxShadow: `0 0 8px ${ACCENT_DIM}`,
+              borderRadius: "3px",
+              animation: "hudPop 160ms ease-out",
+            }}
+          >
+            Libre
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }
