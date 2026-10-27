@@ -12,9 +12,11 @@ const TOP_BAR_CHILDREN = [
   {
     key: "DOCK",
     zone: "dock",
+    // Also lights the panel it docks (extraZones).
+    extraZones: ["module_panel"],
     label: () => "Ancrage du panneau du module",
     description: () =>
-      "Épingle le panneau du module à gauche de l'éditeur ou le libère.",
+      "Épingle le panneau du module à gauche de l'éditeur ou le libère. Cliquez le bouton dans le squelette pour l'essayer.",
   },
   {
     key: "PROJECT",
@@ -51,7 +53,7 @@ export const APP_COMPONENTS = [
     zones: ["top_bar", ...TOP_BAR_CHILDREN.map((c) => c.zone)],
     children: TOP_BAR_CHILDREN.map((child) => ({
       ...child,
-      zones: ["top_bar", child.zone],
+      zones: ["top_bar", child.zone, ...(child.extraZones ?? [])],
     })),
   },
   {
@@ -100,7 +102,7 @@ export const APP_COMPONENTS = [
     key: "PROPERTIES_PANEL",
     label: () => "Panneau de propriétés",
     description: () =>
-      "S'ouvre à gauche de la barre d'outils pour modifier la sélection.",
+      "S'ouvre à gauche de la barre d'outils pour modifier la sélection. Cliquez l'outil « Propriétés » dans le squelette pour l'ouvrir ou le fermer.",
     zones: ["properties_panel"],
   },
 ];

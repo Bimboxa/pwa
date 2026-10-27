@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Box } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 
@@ -10,12 +12,30 @@ import makeZoneProps from "../utils/makeZoneProps";
 // band, docked module panel, commands toolbar docked LEFT, 2D/3D editor with
 // the floating annotations panel, properties drawer, tools band, bottom bar.
 // Every block is a DiagramZone whose id is listed in APP_COMPONENTS[].zones.
+//
+// Two controls are live, like in the app: the dock button of the top bar
+// docks / undocks the module panel (the editor widens), the « Propriétés »
+// tool of the tools band opens / closes the properties drawer. Highlighting
+// a hidden panel from the list shows it anyway.
+const TOP_H = 48;
+const BOTTOM_Y = 684;
+const BAND_W = 80;
+const MODULE_PANEL_W = 280;
+const COMMANDS_W = 40;
+const TOOLS_X = 1130;
+const PROPERTIES_W = 340;
+
 export default function SvgAppSkeleton({
   highlightedZones,
   onZoneClick,
   vocabulary: v,
 }) {
   const theme = useTheme();
+
+  // state
+
+  const [modulePanelDocked, setModulePanelDocked] = useState(true);
+  const [propertiesOpen, setPropertiesOpen] = useState(true);
 
   // helpers
 
@@ -34,6 +54,40 @@ export default function SvgAppSkeleton({
       {children}
     </DiagramZone>
   );
+
+  const showModulePanel =
+    modulePanelDocked || Boolean(highlightedZones?.has("module_panel"));
+  const showProperties =
+    propertiesOpen || Boolean(highlightedZones?.has("properties_panel"));
+
+  // x layout, left to right, depending on the docked module panel
+  const panelW = showModulePanel ? MODULE_PANEL_W : 0;
+  const commandsX = BAND_W + panelW;
+  const editorX = commandsX + COMMANDS_W;
+  const editorW = TOOLS_X - editorX;
+  const annotationsX = editorX + 50;
+  const middleH = BOTTOM_Y - TOP_H;
+
+  // strings
+
+  const dockTitleS = modulePanelDocked
+    ? "Libérer le panneau du module"
+    : "Ancrer le panneau du module";
+  const propertiesTitleS = propertiesOpen
+    ? "Fermer le panneau de propriétés"
+    : "Ouvrir le panneau de propriétés";
+
+  // handlers
+
+  function handleDockClick(e) {
+    e.stopPropagation();
+    setModulePanelDocked((docked) => !docked);
+  }
+
+  function handlePropertiesToolClick(e) {
+    e.stopPropagation();
+    setPropertiesOpen((open) => !open);
+  }
 
   // render
 
@@ -54,6 +108,10 @@ export default function SvgAppSkeleton({
           stroke: orange,
           strokeWidth: 2.5,
         },
+        "& [data-live]": { cursor: "pointer" },
+        "& [data-live]:hover rect, & [data-live]:hover circle": {
+          stroke: orange,
+        },
       }}
     >
       <rect
@@ -71,9 +129,9 @@ export default function SvgAppSkeleton({
         <>
           <rect
             x="0"
-            y="48"
-            width="80"
-            height="636"
+            y={TOP_H}
+            width={BAND_W}
+            height={middleH}
             fill={theme.palette.common.black}
           />
           {[0, 1, 2, 3, 4].map((i) => (
@@ -109,47 +167,48 @@ export default function SvgAppSkeleton({
       )}
 
       {/* module panel (docked) */}
-      {zone(
-        "module_panel",
-        <>
-          <rect
-            x="80"
-            y="48"
-            width="280"
-            height="636"
-            fill={grey[50]}
-            stroke={grey[300]}
-            data-accent-stroke=""
-          />
-          <text x="96" y="78" fontWeight="700">
-            Dessin
-          </text>
-          <text x="96" y="100" fontSize="10" fill={muted}>
-            Panneau du module
-          </text>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+      {showModulePanel &&
+        zone(
+          "module_panel",
+          <>
             <rect
-              key={i}
-              x="96"
-              y={116 + i * 28}
-              width={248 - (i % 3) * 40}
-              height="14"
-              rx="4"
-              fill={grey[200]}
+              x={BAND_W}
+              y={TOP_H}
+              width={MODULE_PANEL_W}
+              height={middleH}
+              fill={grey[50]}
+              stroke={grey[300]}
+              data-accent-stroke=""
             />
-          ))}
-        </>
-      )}
+            <text x={BAND_W + 16} y="78" fontWeight="700">
+              Dessin
+            </text>
+            <text x={BAND_W + 16} y="100" fontSize="10" fill={muted}>
+              Panneau du module
+            </text>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <rect
+                key={i}
+                x={BAND_W + 16}
+                y={116 + i * 28}
+                width={248 - (i % 3) * 40}
+                height="14"
+                rx="4"
+                fill={grey[200]}
+              />
+            ))}
+          </>
+        )}
 
       {/* commands toolbar, docked left of the editor */}
       {zone(
         "commands_toolbar",
         <>
           <rect
-            x="360"
-            y="48"
-            width="40"
-            height="636"
+            x={commandsX}
+            y={TOP_H}
+            width={COMMANDS_W}
+            height={middleH}
             fill="white"
             stroke={grey[300]}
             data-accent-stroke=""
@@ -157,7 +216,7 @@ export default function SvgAppSkeleton({
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <rect
               key={i}
-              x="368"
+              x={commandsX + 8}
               y={72 + i * 40}
               width="24"
               height="24"
@@ -173,22 +232,22 @@ export default function SvgAppSkeleton({
         "editor",
         <>
           <rect
-            x="400"
-            y="48"
-            width="730"
-            height="636"
+            x={editorX}
+            y={TOP_H}
+            width={editorW}
+            height={middleH}
             fill={grey[100]}
             stroke={grey[300]}
             data-accent-stroke=""
           />
           <path
-            d="M520 220 H1000 V580 H520 Z M760 220 V580 M520 400 H760"
+            d={`M${editorX + 120} 220 H1000 V580 H${editorX + 120} Z M760 220 V580 M${editorX + 120} 400 H760`}
             fill="none"
             stroke={grey[400]}
             strokeWidth="4"
           />
           <rect
-            x="560"
+            x={editorX + 160}
             y="260"
             width="120"
             height="90"
@@ -207,7 +266,7 @@ export default function SvgAppSkeleton({
         "annotations_panel",
         <>
           <rect
-            x="450"
+            x={annotationsX}
             y="98"
             width="240"
             height="300"
@@ -216,20 +275,20 @@ export default function SvgAppSkeleton({
             stroke={grey[300]}
             data-accent-stroke=""
           />
-          <text x="466" y="124" fontWeight="700">
+          <text x={annotationsX + 16} y="124" fontWeight="700">
             Annotations
           </text>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <g key={i}>
               <rect
-                x="466"
+                x={annotationsX + 16}
                 y={142 + i * 36}
                 width="12"
                 height="12"
                 fill={i % 2 ? theme.palette.info.main : orange}
               />
               <rect
-                x="486"
+                x={annotationsX + 36}
                 y={144 + i * 36}
                 width={140 - (i % 2) * 40}
                 height="8"
@@ -242,79 +301,95 @@ export default function SvgAppSkeleton({
       )}
 
       {/* properties drawer */}
-      {zone(
-        "properties_panel",
-        <>
-          <rect
-            x="790"
-            y="48"
-            width="340"
-            height="636"
-            fill="white"
-            stroke={grey[300]}
-            data-accent-stroke=""
-          />
-          <text x="806" y="78" fontWeight="700">
-            Propriétés
-          </text>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <g key={i}>
-              <rect
-                x="806"
-                y={100 + i * 56}
-                width="90"
-                height="8"
-                rx="3"
-                fill={grey[300]}
-              />
-              <rect
-                x="806"
-                y={114 + i * 56}
-                width="308"
-                height="26"
-                rx="4"
-                fill="white"
-                stroke={grey[300]}
-              />
-            </g>
-          ))}
-        </>
-      )}
+      {showProperties &&
+        zone(
+          "properties_panel",
+          <>
+            <rect
+              x={TOOLS_X - PROPERTIES_W}
+              y={TOP_H}
+              width={PROPERTIES_W}
+              height={middleH}
+              fill="white"
+              stroke={grey[300]}
+              data-accent-stroke=""
+            />
+            <text x={TOOLS_X - PROPERTIES_W + 16} y="78" fontWeight="700">
+              Propriétés
+            </text>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <g key={i}>
+                <rect
+                  x={TOOLS_X - PROPERTIES_W + 16}
+                  y={100 + i * 56}
+                  width="90"
+                  height="8"
+                  rx="3"
+                  fill={grey[300]}
+                />
+                <rect
+                  x={TOOLS_X - PROPERTIES_W + 16}
+                  y={114 + i * 56}
+                  width="308"
+                  height="26"
+                  rx="4"
+                  fill="white"
+                  stroke={grey[300]}
+                />
+              </g>
+            ))}
+          </>
+        )}
 
-      {/* tools band (right) */}
+      {/* tools band (right); the first tool, « Propriétés », is live */}
       {zone(
         "tools_band",
         <>
           <rect
-            x="1130"
-            y="48"
+            x={TOOLS_X}
+            y={TOP_H}
             width="70"
-            height="636"
+            height={middleH}
             fill="white"
             stroke={grey[300]}
             data-accent-stroke=""
           />
-          {["I", "E", "C", "X", "V", "H"].map((k, i) => (
-            <g key={k}>
-              <rect
-                x="1149"
-                y={72 + i * 72}
-                width="32"
-                height="32"
-                rx="6"
-                fill={i === 0 ? alpha(orange, 0.2) : grey[200]}
-              />
-              <text
-                x="1165"
-                y={122 + i * 72}
-                textAnchor="middle"
-                fontSize="10"
-                fill={muted}
-              >
-                {k}
-              </text>
-            </g>
-          ))}
+          {["I", "E", "C", "X", "V", "H"].map((k, i) => {
+            const isProperties = i === 0;
+            const icon = (
+              <>
+                <rect
+                  x={TOOLS_X + 19}
+                  y={72 + i * 72}
+                  width="32"
+                  height="32"
+                  rx="6"
+                  fill={
+                    isProperties && propertiesOpen
+                      ? alpha(orange, 0.2)
+                      : grey[200]
+                  }
+                  stroke={isProperties && propertiesOpen ? orange : "none"}
+                />
+                <text
+                  x={TOOLS_X + 35}
+                  y={122 + i * 72}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill={muted}
+                >
+                  {k}
+                </text>
+              </>
+            );
+            if (!isProperties) return <g key={k}>{icon}</g>;
+            return (
+              <g key={k} data-live="" onClick={handlePropertiesToolClick}>
+                <title>{propertiesTitleS}</title>
+                {icon}
+              </g>
+            );
+          })}
         </>
       )}
 
@@ -325,7 +400,7 @@ export default function SvgAppSkeleton({
           x="0"
           y="0"
           width="1200"
-          height="48"
+          height={TOP_H}
           fill="white"
           stroke={grey[300]}
           data-accent-stroke=""
@@ -352,15 +427,16 @@ export default function SvgAppSkeleton({
       )}
       {zone(
         "dock",
-        <>
+        <g data-live="" onClick={handleDockClick}>
+          <title>{dockTitleS}</title>
           <rect
             x="48"
             y="12"
             width="24"
             height="24"
             rx="4"
-            fill={grey[100]}
-            stroke={grey[300]}
+            fill={modulePanelDocked ? alpha(orange, 0.2) : grey[100]}
+            stroke={modulePanelDocked ? orange : grey[300]}
             data-accent-stroke=""
           />
           <rect
@@ -380,7 +456,7 @@ export default function SvgAppSkeleton({
             stroke={text}
             strokeWidth="1.4"
           />
-        </>
+        </g>
       )}
       {zone(
         "project",
@@ -486,7 +562,7 @@ export default function SvgAppSkeleton({
         <>
           <rect
             x="0"
-            y="684"
+            y={BOTTOM_Y}
             width="1200"
             height="36"
             fill={grey[50]}
