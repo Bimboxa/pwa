@@ -91,6 +91,7 @@ import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/select
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
+import LocalScansGate from "Features/localScans/components/LocalScansGate";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
@@ -3038,6 +3039,14 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
+      {isThreedViewer && rendererIsReady && (
+        <LocalScansGate
+          editor={threedEditorRef.current}
+          hidden={walkActive || captureFramingActive}
+          rightInset={rightPanelOpen ? rightPanelWidth : 0}
+          bottomInset={planningBottomInset}
+        />
+      )}
       {/* The helper REPLACES the listings panel while the mode is armed, same
           as the 2D chain in PopperMapListings (which is 2D-only). */}
       {isThreedViewer &&

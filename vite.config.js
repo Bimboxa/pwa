@@ -51,7 +51,26 @@ export default defineConfig({
         ],
         // version.json must always be fetched fresh from the network so the
         // client can detect when a new app version is deployed.
-        globIgnores: ["**/version.json"],
+        // Optional scan code is cached on first use, never eagerly downloaded
+        // for devices where the experimental engine is disabled.
+        globIgnores: [
+          "**/version.json",
+          "**/spark.module-*.js",
+          "**/LocalScansPanel-*.js",
+          "**/localScan.worker-*.js",
+          "**/decodeLocalSplats.worker-*.js",
+        ],
+        runtimeCaching: [
+          {
+            urlPattern:
+              /\/assets\/(?:spark\.module|LocalScansPanel|localScan\.worker|decodeLocalSplats\.worker)-[^/]+\.js$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "local-scan-engine-v1",
+              expiration: { maxEntries: 12 },
+            },
+          },
+        ],
       },
       includeAssets: [
         "favicon.svg",
