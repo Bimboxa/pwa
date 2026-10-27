@@ -68,9 +68,11 @@ fails. No bulk migration or change to unrelated resources occurs.
 
 ## Tool tabs and lifecycle
 
-- **Général**: file information, local persistence, points/realistic mode and
-  point size (stored in `resource.scan.display` and restored on reopening,
-  « Réaliste » included), shared projection preview, and the base map of the
+- **Général**: file information, local persistence, points/realistic mode
+  (one state with the bottom bar « Scan 3D » selector, `viewers.baseMapsScanMode`;
+  Masqué or unset show points here, a non-Gaussian scan stays in points) and
+  point size (stored in `resource.scan.display`, kept visible but disabled in
+  « Réaliste »), shared projection preview, and the base map of the
   slice: a name field (default: scan · mode · Z range) and a « + » button.
   Creation uses the selected density/RGB raster through the standard base-map
   creator, with `meterByPx`, an initial version, `createdFrom` scan provenance

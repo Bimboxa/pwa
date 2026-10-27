@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import { setScan3dTab } from "Features/rightPanel/rightPanelSlice";
 import { toggleScene3dHiddenIn3d } from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsScanMode } from "Features/viewers/viewersSlice";
 import useToggleModuleEditor from "Features/viewers/hooks/useToggleModuleEditor";
 import { Vector3 } from "three";
 import {
@@ -46,7 +47,8 @@ import { getLocalScanWorldMatrix } from "../utils/getLocalScanMatrixInBaseMap";
 import getLocalScanPlacementFromMatrix from "../utils/getLocalScanPlacementFromMatrix";
 import db from "App/db/db";
 
-const DEFAULT_DISPLAY = { mode: "POINTS", pointSize: 2 };
+// Display stored on the resource (the mode is the shared bottom bar state).
+const DEFAULT_DISPLAY = { pointSize: 2 };
 
 // Placement of the scan glued to a base map, at the base map's current pose.
 const getLinkedPlacement = (baseMap, up) =>
@@ -80,6 +82,9 @@ export default function LocalScansPanel({
       const record = await db.baseMaps.get(mainBaseMapId);
       return record?.localScan?.matrix && !record.deletedAt ? record : null;
     }, [mainBaseMapId]) ?? null;
+  // Points / Réaliste: one state with the bottom bar « Scan 3D » selector
+  // (Masqué or never chosen show the points here; the eye hides the scan).
+  const scanMode = useSelector((s) => s.viewers.baseMapsScanMode);
   // « Scan » chips of the base maps list (hidden scans).
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
@@ -108,6 +113,10 @@ export default function LocalScansPanel({
   const modelVisible = linkedId
     ? !(hiddenScanIds ?? []).includes(linkedId)
     : unlinkedVisible;
+  // Mode the view should render: Réaliste needs Gaussian data.
+  const wantedMode =
+    loaded?.kind === "SPLAT" && scanMode === "SPLAT" ? "SPLAT" : "POINTS";
+  const failedSplatRef = useRef(null);
   const [inspection, setInspection] = useState(false);
   const [picked, setPicked] = useState(null),
     [pickMessage, setPickMessage] = useState(null);
@@ -166,6 +175,13 @@ export default function LocalScansPanel({
   useEffect(() => {
     view?.setVisible(modelVisible);
   }, [view, modelVisible]);
+  // Follow the shared mode (bottom bar or this panel); a failed realistic
+  // decode is not retried for the same view.
+  useEffect(() => {
+    if (!view || busy || wantedMode === mode) return;
+    if (wantedMode === "SPLAT" && failedSplatRef.current === view) return;
+    void changeMode(wantedMode);
+  }, [view, busy, wantedMode, mode]);
   // The tool shows this scan itself: its base maps leave it out (no double).
   const toolResourceId = view ? (loaded?.resourceId ?? null) : null;
   // Linked to the selected scan base map: same scan, placed at the base map
@@ -325,8 +341,7 @@ export default function LocalScansPanel({
     setProgress(0);
     setError(null);
     let nextView,
-      handle = null,
-      restoreSplat = false;
+      handle = null;
     try {
       const source = file ?? (await getAvailableScanSource(resource));
       if (!source)
@@ -424,7 +439,6 @@ export default function LocalScansPanel({
         ...DEFAULT_DISPLAY,
         ...(!resource?.legacy && resource?.scan?.display),
       };
-      restoreSplat = display.mode === "SPLAT" && data.kind === "SPLAT";
       nextView = createLocalScanView(editor, data);
       nextView.setPlacement(nextPlacement);
       nextView.setPointSize(display.pointSize);
@@ -459,13 +473,6 @@ export default function LocalScansPanel({
       if (handle && handle !== scanHandleRef.current) handle.release();
       if (epoch === epochRef.current) setBusy(false);
     }
-    // The saved « Réaliste » mode needs its own (Spark) decode.
-    if (
-      restoreSplat &&
-      epoch === epochRef.current &&
-      viewRef.current === nextView
-    )
-      await changeMode("SPLAT", { target: nextView, file: sourceRef.current });
   }
   async function editZone() {
     if (busy) return;
@@ -514,29 +521,26 @@ export default function LocalScansPanel({
     if (!loaded?.resourceId) return;
     try {
       await resources.update(loaded.resourceId, {
-        display: { mode, pointSize, ...patch },
+        display: { pointSize, ...patch },
       });
     } catch {
       setError("L’affichage n’a pas pu être enregistré dans la ressource.");
     }
   }
-  async function changeMode(
-    next,
-    { target = view, file = sourceRef.current } = {}
-  ) {
-    if (!next || !target || (busy && target === view)) return;
+  async function changeMode(next) {
+    if (!next || !view || busy) return;
+    const target = view;
     const epoch = epochRef.current;
     setBusy(true);
     setError(null);
     try {
-      await target.setMode(next, file);
-      if (epoch === epochRef.current) {
-        setMode(next);
-        if (target === view) void saveDisplay({ mode: next });
-      }
+      await target.setMode(next, sourceRef.current);
+      if (epoch === epochRef.current) setMode(next);
     } catch (failure) {
       if (epoch === epochRef.current) {
+        failedSplatRef.current = target;
         setError(`Rendu réaliste indisponible : ${failure.message}`);
+        await target.setMode("POINTS");
         setMode("POINTS");
       }
     } finally {
@@ -676,12 +680,14 @@ export default function LocalScansPanel({
                 loaded={loaded}
                 linkedBaseMap={linked}
                 view={view}
-                mode={mode}
+                mode={wantedMode}
                 pointSize={pointSize}
                 modelVisible={modelVisible}
                 projection={projection}
                 onToggleVisible={toggleVisible}
-                onChangeMode={(value) => void changeMode(value)}
+                onChangeMode={(value) => {
+                  if (value) dispatch(setBaseMapsScanMode(value));
+                }}
                 onChangePointSize={changePointSize}
                 onDownload={download}
               />

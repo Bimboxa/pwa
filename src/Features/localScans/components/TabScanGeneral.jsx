@@ -82,36 +82,36 @@ export default function TabScanGeneral({
                 Réaliste
               </ToggleButton>
             </ToggleButtonGroup>
-            {mode === "POINTS" && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ whiteSpace: "nowrap" }}
-                >
-                  Taille des points
-                </Typography>
-                <ToggleButtonGroup
-                  size="small"
-                  exclusive
-                  value={pointSize}
-                  aria-label="Taille des points"
-                  onChange={(_, size) => {
-                    if (size !== null) onChangePointSize(size);
-                  }}
-                >
-                  {[1, 2, 4].map((size) => (
-                    <ToggleButton
-                      key={size}
-                      value={size}
-                      sx={{ whiteSpace: "nowrap" }}
-                    >
-                      {size} px
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              </Stack>
-            )}
+            {/* Kept in place in « Réaliste » (disabled): no layout jump. */}
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography
+                variant="caption"
+                color={mode === "POINTS" ? "text.secondary" : "text.disabled"}
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                Taille des points
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={pointSize}
+                aria-label="Taille des points"
+                disabled={mode !== "POINTS"}
+                onChange={(_, size) => {
+                  if (size !== null) onChangePointSize(size);
+                }}
+              >
+                {[1, 2, 4].map((size) => (
+                  <ToggleButton
+                    key={size}
+                    value={size}
+                    sx={{ whiteSpace: "nowrap" }}
+                  >
+                    {size} px
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
           </Stack>
           {loaded.kind === "SPLAT" && (
             <Typography variant="caption" color="text.secondary">
