@@ -102,7 +102,7 @@ export const APP_COMPONENTS = [
     key: "PROPERTIES_PANEL",
     label: () => "Panneau de propriétés",
     description: () =>
-      "S'ouvre à gauche de la barre d'outils pour modifier la sélection. Cliquez l'outil « Propriétés » dans le squelette pour l'ouvrir ou le fermer.",
+      "S'ouvre à gauche de la barre d'outils pour modifier la sélection. Cliquez l'outil « Propriétés » dans le squelette (ou appuyez sur I) pour l'ouvrir ou le fermer.",
     zones: ["properties_panel"],
   },
 ];

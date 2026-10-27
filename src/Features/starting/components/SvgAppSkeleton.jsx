@@ -39,19 +39,25 @@ export default function SvgAppSkeleton({
   // state
 
   const [modulePanelDocked, setModulePanelDocked] = useState(true);
-  const [propertiesOpen, setPropertiesOpen] = useState(true);
+  // The properties drawer starts closed, like in the app before a
+  // selection: it shows when highlighted from the list, or once opened with
+  // the « Propriétés » tool / the I key.
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [view3d, setView3d] = useState(false);
 
-  // T switches the editor view while the skeleton is shown (capture-phase
-  // window listener, like useDialogQuitHotkey; yields while typing).
+  // T switches the editor view, I toggles the properties drawer, while the
+  // skeleton is shown (capture-phase window listener, like
+  // useDialogQuitHotkey; yields while typing).
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key?.toLowerCase() !== "t") return;
+      const key = e.key?.toLowerCase();
+      if (key !== "t" && key !== "i") return;
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       if (isEditableTarget(e.target)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      setView3d((v) => !v);
+      if (key === "t") setView3d((v) => !v);
+      else setPropertiesOpen((open) => !open);
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
@@ -94,8 +100,8 @@ export default function SvgAppSkeleton({
     ? "Libérer le panneau du module"
     : "Ancrer le panneau du module";
   const propertiesTitleS = propertiesOpen
-    ? "Fermer le panneau de propriétés"
-    : "Ouvrir le panneau de propriétés";
+    ? "Fermer le panneau de propriétés (I)"
+    : "Ouvrir le panneau de propriétés (I)";
   const toggleViewTitleS = view3d
     ? "Revenir au plan 2D (T)"
     : "Passer en vue 3D (T)";
