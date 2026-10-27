@@ -386,13 +386,7 @@ export default function SectionBaseMapsList({
               }
             : { count, on: false, onToggle: null };
 
-    const scanButton = map.scene3d
-      ? {
-          on: !hiddenScanIds.includes(map.id),
-          disabled: getScene3dDisplay3d(map) !== "MESH",
-          onToggle: () => dispatch(toggleScene3dHiddenIn3d(map.id)),
-        }
-      : null;
+    const scanButton = getScanButton(map);
 
     // The Viewer module has no version selector in the top bar.
     const versionChip =
@@ -406,6 +400,18 @@ export default function SectionBaseMapsList({
     return { isMain, imageEye, annotationsBadge, scanButton, versionChip };
   }
 
+  // « Scan » chip of the base maps carrying a scan: « Scène 3D » mesh
+  // (disabled unless displayed as a mesh) or local point cloud (shown with
+  // the bottom bar « Scan 3D » mode).
+  function getScanButton(map) {
+    if (!map.scene3d && !map.localScan) return null;
+    return {
+      on: !hiddenScanIds.includes(map.id),
+      disabled: Boolean(map.scene3d) && getScene3dDisplay3d(map) !== "MESH",
+      onToggle: () => dispatch(toggleScene3dHiddenIn3d(map.id)),
+    };
+  }
+
   // Pinned grid rows (see the header comment).
   function getPinnedRowProps(map) {
     const imageEye = {
@@ -417,13 +423,7 @@ export default function SectionBaseMapsList({
       on: !gridHiddenAnnotationsIds.includes(map.id),
       onToggle: () => dispatch(toggleBaseMapsGridAnnotationsHidden(map.id)),
     };
-    const scanButton = map.scene3d
-      ? {
-          on: !hiddenScanIds.includes(map.id),
-          disabled: getScene3dDisplay3d(map) !== "MESH",
-          onToggle: () => dispatch(toggleScene3dHiddenIn3d(map.id)),
-        }
-      : null;
+    const scanButton = getScanButton(map);
     return {
       // highlighted row = the sheet selected on the table
       isMain: map.id === gridSelectedBaseMapId,

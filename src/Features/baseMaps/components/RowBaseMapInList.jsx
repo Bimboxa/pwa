@@ -10,7 +10,7 @@ import LayersIcon from "@mui/icons-material/Layers";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
-// drag handle | name (+ version chip) | "3D" scan button | annotations badge
+// drag handle | name (+ version chip) | « Scan » button | annotations badge
 // | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
 // row inside its listing — the row must live in a dnd-kit SortableContext.
 // The name wraps on several lines rather than being truncated.
@@ -230,7 +230,7 @@ export default function RowBaseMapInList({
         </Tooltip>
       )}
 
-      {/* "3D" scan button — scan base maps only, left of the badge */}
+      {/* « Scan » button — base maps carrying a scan, left of the badge */}
       {scanButton && (
         <Tooltip
           title={
@@ -273,7 +273,7 @@ export default function RowBaseMapInList({
                   : "text.disabled",
               }}
             >
-              3D
+              Scan
             </Typography>
           </Box>
         </Tooltip>

@@ -52,14 +52,20 @@ export default function useApplyBaseMapVisibilityIn3d({
   // Bottom bar « Scan 3D » explicitly set to Masqué: the « Scène 3D » meshes
   // too (never chosen = null keeps them; the local point clouds follow the
   // mode in ImagesManager).
-  const scansHidden = useSelector(
-    (s) => s.viewers.baseMapsScanMode === BASE_MAPS_SCAN_MODE.NONE
-  );
+  const scanMode = useSelector((s) => s.viewers.baseMapsScanMode);
+  const scansHidden = scanMode === BASE_MAPS_SCAN_MODE.NONE;
+  // Points / Réaliste: a base map projected from a local scan takes part in
+  // the 3D scene for its point cloud alone (« Scan » chip on), even with its
+  // image and annotations off — the image plane would hide the points.
+  const localScansShown =
+    scanMode === BASE_MAPS_SCAN_MODE.POINTS ||
+    scanMode === BASE_MAPS_SCAN_MODE.SPLAT;
   // Opt-out image eye of the main basemap (base maps list / top bar selector).
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
-  // Scan base maps whose mesh is hidden ("3D" button of the base maps list).
+  // Scan base maps whose scan is hidden (« Scan » chip of the base maps
+  // list): « Scène 3D » mesh or local point cloud.
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
@@ -95,7 +101,9 @@ export default function useApplyBaseMapVisibilityIn3d({
       const annoOn =
         bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
       const isDisabled = disabledIds.has(bm.id);
-      const shouldParticipate = !isDisabled && (eyeOn || annoOn);
+      const localScanOn =
+        localScansShown && Boolean(bm.localScan) && !hiddenScan.has(bm.id);
+      const shouldParticipate = !isDisabled && (eyeOn || annoOn || localScanOn);
 
       if (shouldParticipate) {
         if (!imagesManager.hasTexturedImageObject(bm.id)) {
@@ -126,5 +134,6 @@ export default function useApplyBaseMapVisibilityIn3d({
     hideBaseMaps,
     hideMainImage,
     scansHidden,
+    localScansShown,
   ]);
 }

@@ -5,7 +5,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMode";
 
 // Mirrors the bottom bar « Scan 3D » mode (viewers.baseMapsScanMode) and the
-// main base map to ImagesManager, which attaches the point clouds of the
+// main base map and the « Scan » chips to ImagesManager, which attaches the point clouds of the
 // base maps projected from a local scan. Same record-then-apply contract
 // (and `rendererIsReady` dependency) as useApplyBaseMapOpacityIn3d.
 export default function useApplyBaseMapsScanModeIn3d({ rendererIsReady } = {}) {
@@ -14,9 +14,17 @@ export default function useApplyBaseMapsScanModeIn3d({ rendererIsReady } = {}) {
     (s) => s.viewers.baseMapsScanMode ?? BASE_MAPS_SCAN_MODE.NONE
   );
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  // « Scan » chip off in the base maps list.
+  const hiddenIds = useSelector(
+    (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
+  );
 
   useEffect(() => {
     const imagesManager = getActiveThreedEditor()?.sceneManager?.imagesManager;
-    imagesManager?.setLocalScanState({ mode, mainBaseMapId });
-  }, [rendererIsReady, mode, mainBaseMapId]);
+    imagesManager?.setLocalScanState({
+      mode,
+      mainBaseMapId,
+      hiddenBaseMapIds: hiddenIds ?? [],
+    });
+  }, [rendererIsReady, mode, mainBaseMapId, hiddenIds]);
 }

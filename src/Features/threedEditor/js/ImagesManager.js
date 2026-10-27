@@ -79,6 +79,8 @@ export default class ImagesManager {
       mode: "NONE",
       toolResourceId: null,
       mainBaseMapId: null,
+      // « Scan » chip off in the base maps list
+      hiddenBaseMapIds: [],
     };
   }
 
@@ -332,7 +334,8 @@ export default class ImagesManager {
   }
 
   syncLocalScans() {
-    const { mode, toolResourceId, mainBaseMapId } = this.localScanState;
+    const { mode, toolResourceId, mainBaseMapId, hiddenBaseMapIds } =
+      this.localScanState;
     const carriers = {};
     if (mode !== "NONE")
       Object.keys(this.imagesMap)
@@ -341,6 +344,7 @@ export default class ImagesManager {
           const baseMap = this.baseMapsMap[id];
           if (!getLocalScanGroupKey(baseMap)) return;
           if (this.groupVisibleByBaseMapId[id] === false) return;
+          if (hiddenBaseMapIds.includes(id)) return;
           const { resourceId } = baseMap.localScan;
           if (resourceId === toolResourceId) return;
           if (!carriers[resourceId] || id === mainBaseMapId)
