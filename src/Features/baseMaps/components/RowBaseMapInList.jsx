@@ -258,8 +258,12 @@ export default function RowBaseMapInList({
               flexShrink: 0,
               bgcolor: scanButton.on ? "secondary.main" : "transparent",
               border: "1px solid",
-              borderColor: scanButton.on ? "transparent" : "divider",
-              opacity: scanButton.disabled ? 0.4 : 1,
+              borderColor: scanButton.on
+                ? "transparent"
+                : isMain
+                  ? "rgba(255,255,255,0.25)"
+                  : "divider",
+              opacity: scanButton.disabled ? (isMain ? 0.6 : 0.4) : 1,
               cursor: scanButton.disabled ? "default" : "pointer",
             }}
           >
@@ -270,7 +274,9 @@ export default function RowBaseMapInList({
                 lineHeight: 1.4,
                 color: scanButton.on
                   ? "secondary.contrastText"
-                  : "text.disabled",
+                  : isMain
+                    ? "grey.400"
+                    : "text.disabled",
               }}
             >
               Scan
