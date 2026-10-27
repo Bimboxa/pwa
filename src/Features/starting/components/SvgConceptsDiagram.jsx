@@ -10,6 +10,14 @@ import makeZoneProps from "../utils/makeZoneProps";
 // frame (templates listing + annotated base map + thumbnails + 3D box), the
 // exports; at the bottom the project's base maps folder feeding the scope.
 // Every block is a DiagramZone whose id is listed in CONCEPTS[].zones.
+// Thumbnails of the other base maps of the scope: every base map carries
+// annotations of the same business theme (surface, line, point).
+const THUMBS = [
+  { x: 560, label: "N1", current: true, rect: true, point: true },
+  { x: 644, label: "N2", rect: true, line: true },
+  { x: 728, label: "Coupe A", line: true, point: true },
+];
+
 export default function SvgConceptsDiagram({
   highlightedZones,
   onZoneClick,
@@ -379,17 +387,12 @@ export default function SvgConceptsDiagram({
       )}
       {zone("annotation-point", <circle cx="800" cy="180" r="7" fill={blue} />)}
 
-      {/* other base maps of the scope */}
+      {/* other base maps of the scope; their annotations are a zone of
+          their own so « Fond de plan » lights the maps only */}
       {zone(
         "plan-thumbs",
         <>
-          {/* every base map of the scope carries annotations of the same
-              business theme (surface, line, point) */}
-          {[
-            { x: 560, label: "N1", current: true, rect: true, point: true },
-            { x: 644, label: "N2", rect: true, line: true },
-            { x: 728, label: "Coupe A", line: true, point: true },
-          ].map(({ x, label, current, rect, line, point }) => (
+          {THUMBS.map(({ x, label, current }) => (
             <g key={label}>
               <rect
                 x={x}
@@ -406,6 +409,24 @@ export default function SvgConceptsDiagram({
                 stroke={grey[400]}
                 strokeWidth="2"
               />
+              <text
+                x={x + 36}
+                y="466"
+                textAnchor="middle"
+                fontSize="10"
+                fill={muted}
+              >
+                {label}
+              </text>
+            </g>
+          ))}
+        </>
+      )}
+      {zone(
+        "thumb-annotations",
+        <>
+          {THUMBS.map(({ x, label, rect, line, point }) => (
+            <g key={label}>
               {rect && (
                 <rect
                   x={x + 16}
@@ -428,15 +449,6 @@ export default function SvgConceptsDiagram({
                 />
               )}
               {point && <circle cx={x + 50} cy="419" r="2.5" fill={blue} />}
-              <text
-                x={x + 36}
-                y="466"
-                textAnchor="middle"
-                fontSize="10"
-                fill={muted}
-              >
-                {label}
-              </text>
             </g>
           ))}
         </>

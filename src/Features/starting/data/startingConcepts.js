@@ -8,6 +8,7 @@ const ANNOTATION_ZONES = [
   "annotation-rect",
   "annotation-line",
   "annotation-point",
+  "thumb-annotations",
 ];
 
 export const CONCEPTS = [
