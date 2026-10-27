@@ -2958,7 +2958,7 @@ export default function PopperMapListings() {
         onToggleCollapsed={() => dispatch(setCollapsed(!collapsed))}
       >
         {showBaseMapsBody && !isBaseMapsListOnly && (
-          <IconButtonToggleDetached />
+          <IconButtonToggleDetached tooltipPlacement="bottom" />
         )}
       </PanelFooter>
     </Paper>
