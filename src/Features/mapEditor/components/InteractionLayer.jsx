@@ -8053,6 +8053,10 @@ const InteractionLayer = forwardRef(({
   const handleMarkerMouseDown = (e) => {
     // CAPTURE / image mode: skip snap markers entirely.
     if (imageModeEnabledRef.current) return;
+    // Left button only: a right click on a PROJECTION / MIDPOINT marker of
+    // the selected annotation would insert a vertex (usePointDrag) instead of
+    // opening the shortcuts menu (handleContextMenu).
+    if (e.button !== 0) return;
     // 1. Prevent Viewport Pan
     e.stopPropagation();
     e.preventDefault();
