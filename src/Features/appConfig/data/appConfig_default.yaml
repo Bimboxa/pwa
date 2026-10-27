@@ -170,6 +170,9 @@ features:
   # in its « Vidéo de prise en main » section; empty = no video.
   starting:
     videoUrl: ""
+    # Words taking turns on the « 0 » screen of the countdown (blinking,
+    # anaglyph style); default ["GO"].
+    goWords: ["GO"]
   # Authentication for the Chat tool and its relay requests.
   chat:
     connection:

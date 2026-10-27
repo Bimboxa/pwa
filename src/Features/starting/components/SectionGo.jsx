@@ -4,34 +4,36 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box } from "@mui/material";
 
-import getStartingVocabulary from "../utils/getStartingVocabulary";
-
-// Step « 0 » of the countdown: a black screen where « GO » and the app name
-// alternate, blinking, with a stereoscopic (anaglyph) red / cyan fringe.
+// Step « 0 » of the countdown, over the dialog backdrop: the words of
+// appConfig.features.starting.goWords (default ["GO"]; edx: GO, KRTO…) take
+// turns, blinking, with a stereoscopic (anaglyph) red / cyan fringe.
 const WORD_MS = 900;
+const DEFAULT_WORDS = ["GO"];
 
 export default function SectionGo() {
   // data
 
   const appConfig = useAppConfig();
 
-  // strings
+  // helpers
 
-  const goS = "GO";
-  const { appName } = getStartingVocabulary(appConfig);
-  const words = [goS, appName.toUpperCase()];
+  const configWords = appConfig?.features?.starting?.goWords;
+  const words =
+    Array.isArray(configWords) && configWords.length
+      ? configWords.map(String)
+      : DEFAULT_WORDS;
 
   // state
 
-  const [index, setIndex] = useState(0);
+  // `tick` keys the word element so the blink restarts at every beat, even
+  // with a single word.
+  const [tick, setTick] = useState(0);
+  const word = words[tick % words.length];
 
   useEffect(() => {
-    const timer = setInterval(
-      () => setIndex((i) => (i + 1) % words.length),
-      WORD_MS
-    );
+    const timer = setInterval(() => setTick((t) => t + 1), WORD_MS);
     return () => clearInterval(timer);
-  }, [words.length]);
+  }, []);
 
   // render
 
@@ -43,16 +45,16 @@ export default function SectionGo() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        bgcolor: "common.black",
         overflow: "hidden",
         userSelect: "none",
       }}
     >
       <Box
-        key={index}
+        key={tick}
+        data-word={word}
         sx={{
           position: "relative",
-          color: "white",
+          color: "primary.main",
           fontWeight: 900,
           fontSize: "clamp(96px, 22vw, 320px)",
           lineHeight: 1,
@@ -73,7 +75,8 @@ export default function SectionGo() {
             position: "absolute",
             top: 0,
             left: 0,
-            mixBlendMode: "screen",
+            mixBlendMode: "multiply",
+            opacity: 0.85,
             animation: "startingGoShift 1.8s ease-in-out infinite",
           },
           "&::before": {
@@ -81,7 +84,7 @@ export default function SectionGo() {
             "--shift": "-1",
           },
           "&::after": {
-            color: "#2af5ff",
+            color: "#00c8ff",
             "--shift": "1",
             animationDelay: "-0.9s",
           },
@@ -92,9 +95,8 @@ export default function SectionGo() {
             "50%": { transform: "translateX(calc(var(--shift) * 0.09em))" },
           },
         }}
-        data-word={words[index]}
       >
-        {words[index]}
+        {word}
       </Box>
     </Box>
   );
