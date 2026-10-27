@@ -10,6 +10,7 @@ import {
 import applyLocalScanPlacement from "../utils/applyLocalScanPlacement";
 import { DEFAULT_LOCAL_SCAN_PLACEMENT } from "../constants/localScanPlacement";
 import readLocalScanInWorker from "./readLocalScanInWorker";
+import { registerLocalScanView } from "./localScanViewRegistry";
 
 // One independently owned scene root. Never enters the existing annotation,
 // mesh picking, clipping or export registries. The host renderer is unchanged.
@@ -168,7 +169,8 @@ ${shader.vertexShader}`;
     requestRender();
   }
   if (!parent) setPlacement(placement);
-  return {
+  let unregister = null;
+  const view = {
     root,
     pointGeometry: geometry,
     setSliceClip,
@@ -192,6 +194,7 @@ ${shader.vertexShader}`;
     dispose() {
       if (disposed) return;
       disposed = true;
+      unregister?.();
       decodeController.abort();
       root.removeFromParent();
       splat?.dispose();
@@ -203,4 +206,6 @@ ${shader.vertexShader}`;
       if (manager.renderer.domElement.isConnected) editor.requestRender();
     },
   };
+  unregister = registerLocalScanView(view);
+  return view;
 }

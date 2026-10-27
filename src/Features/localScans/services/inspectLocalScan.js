@@ -1,15 +1,5 @@
-import {
-  GridHelper,
-  Matrix4,
-  Mesh,
-  MeshBasicMaterial,
-  Raycaster,
-  RingGeometry,
-  SphereGeometry,
-  Vector2,
-  Vector3,
-  DoubleSide,
-} from "three";
+import { Matrix4, Raycaster, Vector2, Vector3 } from "three";
+import createScanPlanePulse from "./createScanPlanePulse";
 
 // A transparent input surface isolates inspection from drawing/selection.
 // Camera-controls temporarily follows that surface, preserving normal drags.
@@ -27,10 +17,6 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
   const pointers = new Set();
   let busy = false;
   let disposed = false;
-  let frame = null;
-  let mark = null;
-  let ring = null;
-  let grid = null;
   let requestMatrix = "";
   const matrices = () => {
     camera.updateMatrixWorld();
@@ -43,92 +29,24 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
       view.clipRange?.upper ?? "",
     ].join(",");
   };
+  let stopPulse = null;
   function clearEffect() {
-    if (frame !== null) cancelAnimationFrame(frame);
-    frame = null;
-    for (const object of [mark, ring, grid]) {
-      object?.removeFromParent();
-      object?.geometry.dispose();
-      if (object) {
-        const materials = Array.isArray(object.material)
-          ? object.material
-          : [object.material];
-        materials.forEach((material) => material.dispose());
-      }
-    }
-    mark = ring = grid = null;
-    editor.requestRender();
+    stopPulse?.();
+    stopPulse = null;
   }
   function pulse(result) {
     clearEffect();
-    const material = () =>
-      new MeshBasicMaterial({
-        color: 0x00d8ff,
-        transparent: true,
-        opacity: 1,
-        depthTest: false,
-        depthWrite: false,
-        side: DoubleSide,
-        toneMapped: false,
-      });
-    mark = new Mesh(
-      new SphereGeometry(result.radius * 0.045, 12, 8),
-      material()
-    );
-    mark.position.fromArray(result.point);
-    mark.renderOrder = 10000;
-    mark.raycast = () => false;
-    view.root.add(mark);
-    if (result.normal) {
-      ring = new Mesh(new RingGeometry(0.94, 1, 64), material());
-      ring.position.copy(mark.position);
-      ring.quaternion.setFromUnitVectors(
-        new Vector3(0, 0, 1),
-        new Vector3(...result.normal)
-      );
-      ring.scale.setScalar(0.08 / view.root.scale.x);
-      ring.renderOrder = 10000;
-      ring.raycast = () => false;
-      view.root.add(ring);
-      // GridHelper lies in XZ. Source units are converted so the displayed
-      // square is always 2 metres wide, independently of the import scale.
-      grid = new GridHelper(2 / view.root.scale.x, 20, 0x00efff, 0x00a8dd);
-      grid.position.copy(mark.position);
-      grid.quaternion.setFromUnitVectors(
-        new Vector3(0, 1, 0),
-        new Vector3(...result.normal)
-      );
-      grid.material.transparent = true;
-      grid.material.opacity = 0.85;
-      grid.material.depthTest = false;
-      grid.material.depthWrite = false;
-      grid.material.toneMapped = false;
-      grid.renderOrder = 9999;
-      grid.raycast = () => false;
-      view.root.add(grid);
-    }
-    const initialScale = view.root.scale.x;
-    const start = performance.now();
-    const animate = (now) => {
-      const t = (now - start) / 2200;
-      if (disposed || t >= 1) {
-        clearEffect();
-        return;
-      }
-      mark.material.opacity = 1 - t;
-      if (grid) {
-        grid.material.opacity = 0.85 * (1 - t) ** 1.5;
-        grid.scale.setScalar(initialScale / view.root.scale.x);
-      }
-      if (ring) {
-        ring.scale.setScalar((0.08 + 0.92 * t) / view.root.scale.x);
-        ring.material.opacity = (1 - t) * 0.9;
-      }
-      editor.requestRender();
-      frame = requestAnimationFrame(animate);
-    };
-    editor.renderScene();
-    frame = requestAnimationFrame(animate);
+    view.root.updateMatrixWorld(true);
+    stopPulse = createScanPlanePulse({
+      parent: editor.sceneManager.scene,
+      requestRender: editor.requestRender,
+      point: new Vector3(...result.point).applyMatrix4(view.root.matrixWorld),
+      normal: result.normal
+        ? new Vector3(...result.normal).transformDirection(
+            view.root.matrixWorld
+          )
+        : null,
+    });
   }
   worker.onmessage = ({ data }) => {
     if (disposed) return;

@@ -221,7 +221,9 @@ these are diagnostics, not a guarantee of physical surface accuracy. Empty click
 a request is running discard stale results. For Gaussian scans this uses centers,
 not rendered opacity/depth, so it is an approximate visual pick, not metrology.
 
-The cyan pulse and a 2 m × 2 m grid (10 cm cells) fade over 2.2 seconds
+The pulse (neon orange `#ff6a2b`, the first-person HUD accent,
+`createScanPlanePulse`, drawn in world space) and a 2 m × 2 m grid (10 cm
+cells) fade over 2.2 seconds
 on a supported plane; an isolated marker is used
 when the fit is unreliable. Animation frames, geometry and materials are freed
 at the end or on cleanup. Coordinates are metres in the displayed axes (including
@@ -231,6 +233,20 @@ survives axis/scale changes and is stored with placement when a local copy exist
 The grid shows the estimated plane extended over two metres, not a guarantee
 that the surrounding scan is planar. The original file, project annotations,
 camera and other assets are unchanged.
+
+## First-person laser meter
+
+Local point clouds answer no raycast, so the walk-mode laser meter searches
+them itself (`createLocalScanRayPicker`): every displayed cloud (tool view or
+scan base map carrier, from `localScanViewRegistry`) gets a pick worker at its
+first search, kept until the walk ends. A shot runs the inspection search under
+the crosshair (nearest point within 6 px, plane in a 1 m cube); a scan point
+nearer than the mesh hit becomes the measured point (cote hosted by the
+carrying base map) and pulses with the same dot, sonar ring and 2 m grid. The
+plane is snapped to horizontal or vertical within 12° of world Y
+(`classifyScanPlaneNormal`), oblique planes keep their fitted normal. The HUD
+distance also reads the clouds, one worker search at a time, at most every
+250 ms.
 
 ## Large point-cloud trial
 
