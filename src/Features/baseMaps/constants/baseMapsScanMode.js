@@ -3,8 +3,9 @@ import { BlurOff, Grain, ViewInArOutlined } from "@mui/icons-material";
 // Global display of the scans carried by base maps in 3D: the point clouds
 // of the base maps projected from a local scan (Scan 3D tool) and, for
 // NONE only, the meshes of the « Scène 3D » base maps. Per-scope local
-// state (viewers.baseMapsScanMode). NONE by default: no point cloud is
-// decoded before the user asks for it.
+// state (viewers.baseMapsScanMode), null until chosen: no point cloud is
+// decoded before the user asks for it, and the « Scène 3D » meshes only hide
+// on an explicit NONE.
 export const BASE_MAPS_SCAN_MODE = {
   NONE: "NONE",
   POINTS: "POINTS",

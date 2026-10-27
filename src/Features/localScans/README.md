@@ -135,8 +135,9 @@ base map when it carries it, else the first visible loaded one, and none while
 the Scan 3D tool shows that scan itself.
 
 The bottom bar « Scan 3D » selector (`viewers.baseMapsScanMode`: Masqué /
-Points / Réaliste, per scope like the image mode, default Masqué) drives them;
-Masqué also hides the « Scène 3D » meshes. Réaliste falls back to points for a
+Points / Réaliste, per scope like the image mode) drives them. Until a mode is
+chosen in a Krto (null) no point cloud is loaded, no button is highlighted and
+the « Scène 3D » meshes keep showing; only an explicit Masqué hides them too. Réaliste falls back to points for a
 plain point cloud. It shows in 3D for projects with scan base maps. The base
 map properties panel shows the source scan, the same mode and whether its file
 is on this device (PLY files stay device-local).

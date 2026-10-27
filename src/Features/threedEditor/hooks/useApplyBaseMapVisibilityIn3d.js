@@ -49,8 +49,9 @@ export default function useApplyBaseMapVisibilityIn3d({
   // The global image mode NONE (viewers.baseMapsImageMode, "Fonds de plan"
   // module panel) hides them the same way.
   const hideBaseMaps = useSelector(selectHideBaseMapImagesIn3d);
-  // Bottom bar « Scan 3D » set to Masqué: the « Scène 3D » meshes too (the
-  // local point clouds follow the same mode in ImagesManager).
+  // Bottom bar « Scan 3D » explicitly set to Masqué: the « Scène 3D » meshes
+  // too (never chosen = null keeps them; the local point clouds follow the
+  // mode in ImagesManager).
   const scansHidden = useSelector(
     (s) => s.viewers.baseMapsScanMode === BASE_MAPS_SCAN_MODE.NONE
   );
