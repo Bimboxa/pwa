@@ -29,6 +29,7 @@ import {
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import Scan3dEmptyState from "./Scan3dEmptyState";
 import Scan3dHeader from "./Scan3dHeader";
 import LocalScanSliceSection from "./LocalScanSliceSection";
 import ScanProjectionPreview from "./ScanProjectionPreview";
@@ -386,15 +387,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
           </>
         )}
         {!loaded && !busy && (
-          <WhiteSectionGeneric>
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={() => setPicker(true)}
-            >
-              Charger un modèle 3D…
-            </Button>
-          </WhiteSectionGeneric>
+          <Scan3dEmptyState onLoad={() => setPicker(true)} />
         )}
         {loaded && !busy && (
           <>
@@ -667,7 +660,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Charger un modèle 3D</DialogTitle>
+        <DialogTitle>Charger un scan 3D</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
             <Button
@@ -682,7 +675,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
             {available.length > 0 && (
               <>
                 <Typography variant="subtitle2">
-                  Modèles locaux du projet
+                  Scans locaux du projet
                 </Typography>
                 <List>
                   {available.map((row) => (

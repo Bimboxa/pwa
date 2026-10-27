@@ -6,7 +6,7 @@ a binary PLY. The engine starts only when the tool is first opened. The drawer
 starts at 500 px and can be resized from its left edge. It uses the standard
 property-panel header/sections, with the file name/count/size in the header and a model-action menu. The tool
 button carries a **Beta** badge. With no
-model loaded it shows only **Charger un modèle 3D…** below that header.
+model loaded it shows a grayscale point-cloud room illustration and **Charger un scan 3D** below that header.
 The real-world scale and vertical axis must be confirmed by the operator.
 
 ## Supported data
