@@ -62,7 +62,9 @@ function createItemsIndex() {
   const byClientRef = {};
 
   function add(item) {
-    const projectIdClient = item.isLocal ? item.projectId : item.projectIdClient;
+    const projectIdClient = item.isLocal
+      ? item.projectId
+      : item.projectIdClient;
     if (projectIdClient) {
       byProjectIdClient[String(projectIdClient)] ??= item;
     }

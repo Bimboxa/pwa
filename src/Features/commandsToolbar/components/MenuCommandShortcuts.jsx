@@ -19,8 +19,11 @@ import {
   Menu,
   MenuItem,
   Portal,
+  Typography,
 } from "@mui/material";
 import IconRightClickShortcut from "Features/icons/IconRightClickShortcut";
+
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 
 import CommandMenuContext from "./CommandMenuContext";
 import CommandSlot from "./CommandSlot";
@@ -44,7 +47,10 @@ import toSlotItem from "../utils/toSlotItem";
 // floating toolbar is CSS-transformed) and stays where the menu last opened
 // so the popups keep a live anchor. Only the shortcuts present in the current
 // module's layout are listed; a non-relevant command is disabled with its
-// reason, never hidden (toolbar rule). Footer: « Raccourcis… » opens the
+// reason, never hidden (toolbar rule). Header: the selection the shortcuts
+// act on (the template label of the single selected annotation, like the
+// header of ToolbarEditAnnotation, or the count of a multi-selection); the
+// icons take the toolbar's accent color. Footer: « Raccourcis… » opens the
 // dialog.
 export default function MenuCommandShortcuts({ ctx, deps }) {
   const dispatch = useDispatch();
@@ -118,9 +124,28 @@ export default function MenuCommandShortcuts({ ctx, deps }) {
   );
 
   const menuCtx = useMemo(
-    () => ({ variant: "menu", anchorEl, closeMenu, onItemClick }),
+    () => ({
+      variant: "menu",
+      anchorEl,
+      closeMenu,
+      onItemClick,
+      accentIcons: true,
+    }),
     [anchorEl, closeMenu, onItemClick]
   );
+
+  // Header: the selection the shortcuts act on.
+  const selectedCount = ctx.selectedAnnotations.length;
+  const selectedAnnotation = ctx.selectedAnnotation;
+  const selectionLabel =
+    selectedCount > 1
+      ? `${selectedCount} annotations sélectionnées`
+      : selectedAnnotation
+        ? selectedAnnotation.templateLabel ||
+          selectedAnnotation.annotationTemplateProps?.label ||
+          selectedAnnotation.label ||
+          "-"
+        : null;
 
   const items = shortcutKeys
     .filter((key) => layoutKeys.has(key))
@@ -167,6 +192,38 @@ export default function MenuCommandShortcuts({ ctx, deps }) {
       >
         {hasOpened ? (
           <CommandMenuContext.Provider value={menuCtx}>
+            {selectionLabel && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 2,
+                  pt: 0.75,
+                  pb: 0.5,
+                  mb: 0.5,
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                {selectedAnnotation && (
+                  <AnnotationTemplateIcon
+                    template={
+                      selectedAnnotation.annotationTemplate ??
+                      selectedAnnotation
+                    }
+                    size={16}
+                  />
+                )}
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{ fontWeight: 600, fontSize: "0.8rem", minWidth: 0 }}
+                >
+                  {selectionLabel}
+                </Typography>
+              </Box>
+            )}
             {items.map((item) => (
               <CommandSlot key={item.key} item={item} ctx={ctx} deps={deps} />
             ))}

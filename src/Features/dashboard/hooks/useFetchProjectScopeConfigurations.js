@@ -38,8 +38,7 @@ export default function useFetchProjectScopeConfigurations(item) {
   const clientRef = item?.clientRef ? String(item.clientRef) : null;
   const projectId = item?.projectId ? String(item.projectId) : null;
   const canFetch = Boolean(
-    jwt &&
-      ((idMaster && getByProjectConfig) || (clientRef && searchConfig))
+    jwt && ((idMaster && getByProjectConfig) || (clientRef && searchConfig))
   );
 
   // state
