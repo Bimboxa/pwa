@@ -6,6 +6,7 @@ import getScopeRelevantListings from "Features/krtoFile/utils/getScopeRelevantLi
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import { isScopeBoundAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import upsertCurrentUserInDirectory from "Features/usersDirectory/services/upsertCurrentUserInDirectory";
+import generateImagePreview from "Features/images/utils/generateImagePreview";
 import JSZip from "jszip";
 
 export default async function createKrtoZip(scopeId, options) {
@@ -37,6 +38,16 @@ export default async function createKrtoZip(scopeId, options) {
     const projectId = scope.projectId;
     const project = await db.projects.get(projectId);
     if (!project) throw new Error(`Project ${projectId} not found`);
+
+    // Base map folders hidden in this scope (the eye of the SCOPE module's
+    // « Contenu » tab). Their metadata rows (listings, baseMaps,
+    // baseMapVersions, inline thumbnails / previews, hosted annotations) ship
+    // as usual so the imported scope stays complete, but their heavy image
+    // files are left out of the zip — the main lever against the backend's
+    // request size limit (HTTP 413) on multi-folder projects.
+    const disabledListingIds = new Set(
+        scope.baseMapsSettings?.disabledListingIds ?? []
+    );
 
     // 2. Récupération des listings liés au scope
     // - Listings avec scopeId === scopeId (scoped: LOCATED_ENTITY, BLUEPRINT)
@@ -167,14 +178,15 @@ export default async function createKrtoZip(scopeId, options) {
     // uploaded resources, their single-page file DOES ship — it is what
     // makes "Régénérer depuis le PDF" work after an import on another
     // device. Whitelisted like POV thumbnails (their file rows carry no
-    // listingId). Only pages referenced by a live base map of the project.
+    // listingId). Only pages referenced by a live base map of the project,
+    // outside the hidden folders (their heavy files stay out, like the images).
     const projectBaseMaps = await db.baseMaps
         .where("projectId")
         .equals(projectId)
         .toArray();
     const referencedResourceIds = new Set(
         projectBaseMaps
-            .filter((b) => !b.deletedAt)
+            .filter((b) => !b.deletedAt && !disabledListingIds.has(b.listingId))
             .map((b) => b.createdFrom?.resourceId)
             .filter(Boolean)
     );
@@ -193,6 +205,23 @@ export default async function createKrtoZip(scopeId, options) {
             )
             .map((r) => r.fileName)
     );
+
+    // 2quinquies. Inline low-res previews for the base maps of the hidden
+    // folders: their image files are not shipped (see the files filter
+    // below), so the importing device draws the preview under the
+    // annotations instead of a blank page (BaseMap.createFromRecord). The
+    // preview is generated once, lazily, from the local file and persisted on
+    // the row — only here, only for hidden folders: base maps that never get
+    // hidden never pay for it. A failure must not block the save.
+    // System write: a metadata backfill must not trip the local-change
+    // tracker mid-save.
+    if (disabledListingIds.size > 0) {
+        await backfillHiddenBaseMapPreviews({
+            versions,
+            projectBaseMaps,
+            disabledListingIds,
+        });
+    }
 
     // 3. Export via Dexie
     const blob = await db.export({
@@ -238,6 +267,11 @@ export default async function createKrtoZip(scopeId, options) {
             if (table === "points") return referencedPointIds.has(value.id);
 
             // Fichiers : on exclut les images des versions supprimées orphelines
+            // et celles des dossiers de fonds de plan masqués dans le scope.
+            // Whole row excluded, not just its blob: the import is a bulkPut
+            // (overwriteValues), so a blob-less row would overwrite the file
+            // the importing device may already have. An absent row leaves the
+            // local row untouched.
             if (table === "files") {
                 if (
                     povImageFileNames.has(value.fileName) ||
@@ -249,6 +283,7 @@ export default async function createKrtoZip(scopeId, options) {
                 return (
                     value.projectId === projectId &&
                     listingIds.has(value.listingId) &&
+                    !disabledListingIds.has(value.listingId) &&
                     !deletedVersionFileNames.has(value.fileName)
                 );
             }
@@ -371,4 +406,47 @@ export default async function createKrtoZip(scopeId, options) {
     });
 
     return new File([zipBlob], filename, { type: "application/zip" });
+}
+
+// Generates and persists `image.preview` (generateImagePreview) on the live
+// base map versions — and legacy version-less base maps — of the hidden
+// folders that lack one, when their image file is available locally. Never
+// throws: a preview is a nicety of the imported scope, not a save condition.
+async function backfillHiddenBaseMapPreviews({
+    versions,
+    projectBaseMaps,
+    disabledListingIds,
+}) {
+    const baseMapIdsWithVersions = new Set(versions.map((v) => v.baseMapId));
+
+    // [table, id, image] of every image row needing a preview
+    const targets = [];
+    for (const v of versions) {
+        if (v.deletedAt || !disabledListingIds.has(v.listingId)) continue;
+        if (!v.image?.fileName || v.image.preview) continue;
+        targets.push(["baseMapVersions", v.id, v.image]);
+    }
+    for (const b of projectBaseMaps) {
+        if (b.deletedAt || !disabledListingIds.has(b.listingId)) continue;
+        if (baseMapIdsWithVersions.has(b.id)) continue;
+        if (!b.image?.fileName || b.image.preview) continue;
+        targets.push(["baseMaps", b.id, b.image]);
+    }
+    if (targets.length === 0) return;
+
+    for (const [table, id, image] of targets) {
+        try {
+            const fileRecord = await db.files.get(image.fileName);
+            if (!fileRecord?.fileArrayBuffer) continue;
+            const file = new File([fileRecord.fileArrayBuffer], image.fileName, {
+                type: fileRecord.fileMime,
+            });
+            const preview = await generateImagePreview(file);
+            await withSystemWrite(() =>
+                db.table(table).update(id, { "image.preview": preview })
+            );
+        } catch (error) {
+            console.warn("[createKrtoZip] preview backfill failed", table, id, error);
+        }
+    }
 }

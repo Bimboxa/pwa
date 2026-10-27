@@ -10,6 +10,15 @@ export default async function clearScopeDataService(scopeId) {
     const listings = await db.listings.where("scopeId").equals(scopeId).toArray();
     const listingIds = listings.map((l) => l.id);
     const listingKeys = listings.map((l) => l.key).filter(Boolean);
+    // Base map image files are project-shared and a restored zip may not
+    // carry them (folders hidden in the scope at save time ship their
+    // baseMaps / baseMapVersions rows without their files — createKrtoZip).
+    // Hard-deleting them here would lose the local images for good, so they
+    // are kept: the import's bulkPut overwrites the rows the zip carries and
+    // a leftover orphan blob is harmless.
+    const fileListingIds = listings
+        .filter((l) => l.entityModel?.type !== "BASE_MAP")
+        .map((l) => l.id);
 
     // 2. Hard delete en cascade
     await withHardDelete(async () => {
@@ -54,7 +63,9 @@ export default async function clearScopeDataService(scopeId) {
         if (listingIds.length > 0) {
             await db.entities.where("listingId").anyOf(listingIds).delete();
             await db.maps.where("listingId").anyOf(listingIds).delete();
-            await db.files.where("listingId").anyOf(listingIds).delete();
+            if (fileListingIds.length > 0) {
+                await db.files.where("listingId").anyOf(fileListingIds).delete();
+            }
             await db.zonings.where("listingId").anyOf(listingIds).delete();
             await db.relsZoneEntity.where("listingId").anyOf(listingIds).delete();
             await db.zones.where("listingId").anyOf(listingIds).delete();

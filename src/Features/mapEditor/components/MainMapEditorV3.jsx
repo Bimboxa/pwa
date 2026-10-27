@@ -98,6 +98,7 @@ import PhotoPlanMaskLayer from "Features/photoPlans/components/PhotoPlanMaskLaye
 import PhotoPlanGuideLinesLayer from "Features/photoPlans/components/PhotoPlanGuideLinesLayer";
 import PhotoPlanReprojectedAnnotationsLayer from "Features/photoPlans/components/PhotoPlanReprojectedAnnotationsLayer";
 import TopPhotoPlanChips from "Features/photoPlans/components/TopPhotoPlanChips";
+import WarningBaseMapFileMissing from "./WarningBaseMapFileMissing";
 import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
@@ -2961,6 +2962,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           {/* PhotoPlan chips band (photo baseMaps) */}
           {baseMap?.isPhoto && !imageModeActive && (
             <TopPhotoPlanChips baseMap={baseMap} />
+          )}
+
+          {/* Image file missing on this device (hidden folder at save time):
+              low-res preview or blank page under the annotations */}
+          {baseMap?.isFileMissing?.() && !imageModeActive && (
+            <WarningBaseMapFileMissing hasPreview={baseMap.isPreviewOnly()} />
           )}
 
           {/* Version compare slider overlay */}

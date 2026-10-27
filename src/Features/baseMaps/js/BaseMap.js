@@ -18,6 +18,25 @@ function getImageCacheKey(image) {
   return base;
 }
 
+// Stand-in image when the db.files row is missing on this device (the
+// folder was hidden in the scope when the Krto was saved, so the zip shipped
+// the row without its file — createKrtoZip): the inline low-res preview is
+// drawn in the REAL image frame (imageSize from the record), so annotations
+// stay aligned. Flagged isPreviewOnly: never cached, so the full image takes
+// over as soon as the file is back (new version / replacement / import).
+function createPreviewOnlyImage(image) {
+  if (!image?.preview) return null;
+  const previewImage = new ImageObject({
+    fileName: image.fileName,
+    fileSize: image.fileSize,
+    imageSize: image.imageSize,
+    imageUrlClient: image.preview,
+    thumbnail: image.thumbnail,
+  });
+  previewImage.isPreviewOnly = true;
+  return previewImage;
+}
+
 export default class BaseMap {
   constructor({
     id,
@@ -206,10 +225,17 @@ export default class BaseMap {
                   imageFile: file,
                   thumbnail: v.image.thumbnail,
                 });
+              } else {
+                loadedImage = createPreviewOnlyImage(v.image);
               }
             }
 
-            cachedImages[v.id] = { key, image: loadedImage };
+            // A preview-only image is not cached: the next live-query pass
+            // retries db.files, so a re-attached file is picked up at once.
+            cachedImages[v.id] = {
+              key,
+              image: loadedImage?.isPreviewOnly ? null : loadedImage,
+            };
             return { ...v, image: loadedImage || v.image };
           })
         );
@@ -253,6 +279,8 @@ export default class BaseMap {
             imageFile: file,
             thumbnail: record.image.thumbnail,
           });
+        } else {
+          bmImage = createPreviewOnlyImage(record.image);
         }
       }
 
@@ -275,13 +303,15 @@ export default class BaseMap {
       editor.baseMapsCache[record.id] = {
         imageKey,
         imageEnhancedKey,
-        image: bmImage,
+        image: bmImage?.isPreviewOnly ? null : bmImage,
         imageEnhanced: bmImageEnhanced,
       };
 
       const baseMap = new BaseMap({
         ...record,
-        image: bmImage,
+        // No file and no preview: keep the record image (imageSize /
+        // thumbnail stay usable, getUrl() stays null) like the versions path.
+        image: bmImage ?? record.image,
         imageEnhanced: bmImageEnhanced,
       });
 
@@ -359,6 +389,25 @@ export default class BaseMap {
     const imageToUse =
       this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.thumbnail;
+  };
+
+  // The active image expects a db.files row that this device does not have
+  // (hidden folder at save time, file not re-attached yet): drawn from the
+  // inline preview when there is one, blank otherwise. Detail base maps
+  // without a file are regenerated from their PDF — not a missing file.
+  isFileMissing = () => {
+    if (this.isDetail && !this.image?.fileName) return false;
+    const activeVersion = this.getActiveVersion();
+    const img = activeVersion ? activeVersion.image : this.image;
+    if (!img?.fileName) return false;
+    return Boolean(img.isPreviewOnly) || !this.getUrl();
+  };
+
+  // Whether the active image is the inline low-res preview (file missing).
+  isPreviewOnly = () => {
+    const activeVersion = this.getActiveVersion();
+    const img = activeVersion ? activeVersion.image : this.image;
+    return Boolean(img?.isPreviewOnly);
   };
 
   // Returns reference coordinate space (used for annotation resolution)
