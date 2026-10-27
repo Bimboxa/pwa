@@ -50,6 +50,9 @@ export default function useScanProjection({
   const [clip, setClip] = useState(false);
   const [mode, setMode] = useState("density");
   const [previewOrientation, setPreviewOrientation] = useState("LANDSCAPE");
+  // Image rectangle framed by the preview next to the base map creation
+  // (format, zoom, pan): the base map image follows it.
+  const [framing, setFraming] = useState(null);
   const [output, setOutput] = useState(null);
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(null);
@@ -135,15 +138,15 @@ export default function useScanProjection({
   }, [editor, view, frame, showBounds, hidden]);
   useEffect(() => {
     overlayRef.current?.setRange(lower, upper, 0.02);
-    overlayRef.current?.setHighlight(requested && !error);
-  }, [frame, lower, upper, showBounds, hidden, requested, error]);
+    overlayRef.current?.setHighlight(true);
+  }, [frame, lower, upper, showBounds, hidden]);
   useEffect(() => {
     if (!view) return;
-    view.setSliceClip(
-      clip && active && requested && !error ? { lower, upper } : null
-    );
+    // Live: the 3D hides the points outside the current Z bounds as soon as
+    // the switch is on, whether or not the image is calculated.
+    view.setSliceClip(clip && active ? { lower, upper } : null);
     return () => view.setSliceClip(null);
-  }, [view, active, clip, lower, upper, requested, error]);
+  }, [view, active, clip, lower, upper]);
 
   return {
     frame,
@@ -157,6 +160,8 @@ export default function useScanProjection({
     setMode,
     previewOrientation,
     setPreviewOrientation,
+    framing: framing?.result === result ? framing.rect : null,
+    setFraming,
     result,
     current,
     pending,
@@ -174,8 +179,7 @@ export default function useScanProjection({
     error,
     changeRange: (values) => {
       if (values[0] === lower && values[1] === upper) return;
-      // Hide colored points immediately; only the two planes follow dragging.
-      overlayRef.current?.setHighlight(false);
+      // Keep GPU boundary highlights live; invalidate only the image calculation.
       setRequest(null);
       setError(null);
       setSelection({ key: verticalKey, values });

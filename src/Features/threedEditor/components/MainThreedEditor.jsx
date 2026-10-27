@@ -17,6 +17,7 @@ import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotation
 import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnotationOnKeyboardInThreedEditor";
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
+import useApplyBaseMapsScanModeIn3d from "../hooks/useApplyBaseMapsScanModeIn3d";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
 import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
@@ -941,6 +942,8 @@ export default function MainThreedEditor() {
   useApplyBaseMapOpacityIn3d({ rendererIsReady });
 
   useApplyBaseMapVisibilityIn3d({ rendererIsReady });
+
+  useApplyBaseMapsScanModeIn3d({ rendererIsReady });
 
   useApplyBaseMapTransformsIn3d();
 
@@ -3039,10 +3042,13 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && rendererIsReady && (
+      {/* Mounted in 2D too: the editor stays alive off-screen and so does
+          a loaded scan (inactive = no inspection, projection or overlay). */}
+      {rendererIsReady && (
         <LocalScansGate
           editor={threedEditorRef.current}
           hidden={walkActive || captureFramingActive}
+          inactive={!isThreedViewer}
         />
       )}
       {/* The helper REPLACES the listings panel while the mode is armed, same

@@ -38,6 +38,9 @@ import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 import WalkModeController from "../js/WalkModeController";
 import { createWalkCollisionProbe } from "../services/walkCollisionProbe";
 import { createWalkMeasureController } from "../services/walkMeasureController";
+import getPerpendicularIntercept from "../utils/getPerpendicularIntercept";
+import createLocalScanRayPicker from "Features/localScans/services/createLocalScanRayPicker";
+import createScanPlanePulse from "Features/localScans/services/createScanPlanePulse";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
 import { WALK_MODE_TOGGLE_KEY, toggleWalkMode } from "../utils/walkModeToggle";
 
@@ -48,6 +51,8 @@ const SPREAD_STEP_FACTOR = 1.2;
 // HUD crosshair-to-target distance refresh (same center raycast as the
 // spray aim and the measure preview; 10 Hz is plenty for a readout).
 const TARGET_DIST_POLL_MS = 100;
+// Same readout on the local point clouds (worker search over the cloud).
+const SCAN_DIST_POLL_MS = 250;
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -230,6 +235,12 @@ export default function useWalkMode() {
       },
     });
     const measure = createWalkMeasureController({ sceneManager, editor });
+    // Local point clouds (Scan 3D) answer no raycast: the laser meter picks
+    // them through their own workers, with the plane of the shot.
+    const scanPicker = createLocalScanRayPicker({ sceneManager });
+    let scanShotPending = false,
+      walkDisposed = false,
+      stopScanPulse = null;
     // Ground + obstacles of the scene geometry (base map planes, annotation
     // solids, mailles). Built before enter() so the landing already targets
     // the right surface; refreshed by the controller's tick afterwards.
@@ -300,6 +311,57 @@ export default function useWalkMode() {
     };
     let firstHit = null;
 
+    // Shift held: the measure leaves the first point perpendicular to its
+    // plane (scan plane or mesh face) and stops on the facing plane aimed at
+    // (scan plane / mesh face under the crosshair), i.e. the distance
+    // between the two faces.
+    let shiftHeld = false;
+    const onShift = (event) => {
+      if (event.key === "Shift") shiftHeld = event.type === "keydown";
+    };
+    const onBlur = () => {
+      shiftHeld = false;
+    };
+    window.addEventListener("keydown", onShift, true);
+    window.addEventListener("keyup", onShift, true);
+    window.addEventListener("blur", onBlur);
+    // → {end, planeNormal} | null (aim: {point, normal} under the crosshair)
+    const getOrthoIntercept = (aim) => {
+      const start = measure.getState().startPoint;
+      if (!aim?.point || !start || !firstHit?.normal) return null;
+      return getPerpendicularIntercept(
+        start,
+        firstHit.normal,
+        aim.point,
+        aim.normal ?? null
+      );
+    };
+
+    // One laser meter shot = one point, only on a real surface (the void is
+    // not measurable); the second one persists the cote.
+    const shootMeasure = (hit, { ortho = false } = {}) => {
+      if (!hit.isHit) return;
+      const intercept = ortho ? getOrthoIntercept(hit) : null;
+      const pair = measure.shoot(intercept?.end ?? hit.point);
+      if (!pair) {
+        firstHit = hit;
+      } else {
+        const hitA = firstHit;
+        firstHit = null;
+        persistCote(pair, hitA, hit)
+          .then((created) => {
+            if (!created) return;
+            // Rendered by ThreedCoteAnnotations from now on.
+            measure.removeLast();
+            cotesCreated += 1;
+            emitMeasureState();
+          })
+          .catch((err) => console.error("[walkMode] cote commit failed", err));
+      }
+      emitShoot({ measureLiveM: null });
+      emitMeasureState();
+    };
+
     // Live aim of the stream, re-read every frame while Space is held.
     // Origin: with the RPG image displayed, the jet exits its nozzle —
     // measure the on-screen image rect (robust to resize and to the CSS
@@ -340,37 +402,60 @@ export default function useWalkMode() {
       onRequestExit: () => dispatch(setWalkModeActive(false)),
       // Space pressed. Lance: continuous jet while held, the recoil/shake
       // animation of the weapon overlay runs for the whole hold (firingUntil
-      // far ahead, reset on release). Measure: one shot = one point, only
-      // on a real surface (the void is not measurable).
+      // far ahead, reset on release). Measure: shootMeasure, after the
+      // local point clouds were searched when some are displayed.
       onPrimaryStart: () => {
         if (tool === "MEASURE") {
+          if (scanShotPending) return;
+          const ortho = shiftHeld;
           const hit = centerPick();
-          if (!hit.isHit) return;
-          const pair = measure.shoot(hit.point);
-          if (!pair) {
-            firstHit = hit;
-          } else {
-            const hitA = firstHit;
-            firstHit = null;
-            persistCote(pair, hitA, hit)
-              .then((created) => {
-                if (!created) return;
-                // Rendered by ThreedCoteAnnotations from now on.
-                measure.removeLast();
-                cotesCreated += 1;
-                emitMeasureState();
-              })
-              .catch((err) =>
-                console.error("[walkMode] cote commit failed", err)
-              );
+          if (!scanPicker.hasDisplayedScans()) {
+            shootMeasure(hit, { ortho });
+            return;
           }
-          emitShoot({ measureLiveM: null });
-          emitMeasureState();
+          // A scan point nearer than the surface hit wins; its plane
+          // (horizontal / vertical when close) pulses in the HUD color.
+          scanShotPending = true;
+          scanPicker
+            .pick()
+            .then((scanHit) => {
+              if (walkDisposed || tool !== "MEASURE") return;
+              const meshDistance = hit.isHit
+                ? sceneManager.camera.position.distanceTo(hit.point)
+                : Infinity;
+              if (!scanHit || scanHit.distance >= meshDistance) {
+                shootMeasure(hit, { ortho });
+                return;
+              }
+              stopScanPulse?.();
+              stopScanPulse = createScanPlanePulse({
+                parent: sceneManager.scene,
+                renderer: sceneManager.renderer,
+                requestRender: () => editor.renderScene?.(),
+                point: scanHit.point,
+                normal: scanHit.normal,
+              });
+              emitShoot({ targetDistM: scanHit.distance });
+              shootMeasure(
+                {
+                  point: scanHit.point,
+                  isHit: true,
+                  isScan: true,
+                  baseMapId: scanHit.baseMapId,
+                  normal: scanHit.normal,
+                },
+                { ortho }
+              );
+            })
+            .finally(() => {
+              scanShotPending = false;
+            });
           return;
         }
         spray.startStream(getStreamAim);
         emitShoot({ firingUntil: Date.now() + 3600 * 1000 });
       },
+
       onPrimaryStop: () => {
         if (tool === "MEASURE") return;
         spray.stopStream();
@@ -413,12 +498,47 @@ export default function useWalkMode() {
 
     // Live crosshair-to-target distance for the HUD (null = the void) and,
     // with the measure tool armed, the dashed preview + live length.
+    // The point clouds are searched in their workers, one live search at a
+    // time and at most every SCAN_DIST_POLL_MS: the readout lags a little.
+    let liveScanHit = null,
+      liveScanPending = false,
+      liveScanAt = 0;
     const distIntervalId = setInterval(() => {
-      const { point, isHit } = centerPick();
-      const targetDistM =
-        isHit && point ? sceneManager.camera.position.distanceTo(point) : null;
+      if (scanPicker.hasDisplayedScans()) {
+        const now = Date.now();
+        if (!liveScanPending && now - liveScanAt >= SCAN_DIST_POLL_MS) {
+          liveScanPending = true;
+          liveScanAt = now;
+          scanPicker
+            .pick()
+            .then((scanHit) => {
+              liveScanHit = scanHit;
+            })
+            .finally(() => {
+              liveScanPending = false;
+            });
+        }
+      } else liveScanHit = null;
+      const meshHit = centerPick();
+      const meshDist = meshHit.isHit
+        ? sceneManager.camera.position.distanceTo(meshHit.point)
+        : Infinity;
+      const scanNearer = liveScanHit && liveScanHit.distance < meshDist;
+      const aim = scanNearer ? liveScanHit : meshHit;
+      const point = aim.point;
+      const isHit = scanNearer || meshHit.isHit;
+      const targetDistM = scanNearer
+        ? liveScanHit.distance
+        : isHit
+          ? meshDist
+          : null;
       if (tool === "MEASURE") {
-        const measureLiveM = measure.updatePreview(isHit ? point : null);
+        const intercept = shiftHeld && isHit ? getOrthoIntercept(aim) : null;
+        const measureLiveM = intercept
+          ? measure.updatePreview(intercept.end, {
+              planeNormal: intercept.planeNormal,
+            })
+          : measure.updatePreview(isHit ? point : null);
         emitShoot({ targetDistM, measureLiveM });
       } else {
         emitShoot({ targetDistM });
@@ -426,8 +546,14 @@ export default function useWalkMode() {
     }, TARGET_DIST_POLL_MS);
 
     return () => {
+      walkDisposed = true;
+      window.removeEventListener("keydown", onShift, true);
+      window.removeEventListener("keyup", onShift, true);
+      window.removeEventListener("blur", onBlur);
       controllerRef.current = null;
       clearInterval(distIntervalId);
+      scanPicker.dispose();
+      stopScanPulse?.();
       controller.exit();
       collisionProbe.dispose();
       spray.dispose();

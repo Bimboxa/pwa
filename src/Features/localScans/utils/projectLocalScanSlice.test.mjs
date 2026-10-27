@@ -14,7 +14,7 @@ const source = (positions, colors = positions.map(() => 120)) => ({
   positions: new Float32Array(positions),
   colors: new Uint8Array(colors),
 });
-test("inclusive Z selection averages RGB and counts density with +Y at the image top", async () => {
+test("inclusive Z selection averages RGB and counts density with -Y at the image top", async () => {
   const data = source(
     [0.2, 15.8, 1, 0.3, 15.7, 2, 0.2, 15.8, 0, 15.9, 0.1, 1],
     [255, 0, 0, 0, 0, 255, 0, 255, 0, 80, 120, 160]
@@ -28,11 +28,12 @@ test("inclusive Z selection averages RGB and counts density with +Y at the image
   assert.equal(result.pointCount, 3);
   assert.equal(result.maxCount, 2);
   assert.equal(result.pixelSize, 1);
-  assert.deepEqual(Array.from(result.rgb.slice(0, 4)), [128, 0, 128, 255]);
-  assert.deepEqual(Array.from(result.rgb.slice(-4)), [80, 120, 160, 255]);
-  assert.equal(result.density[0], 0);
-  assert.ok(result.density.at(-4) > 0 && result.density.at(-4) < 255);
-  assert.deepEqual(Array.from(result.rgb.slice(4, 8)), [255, 255, 255, 255]);
+  // (0.2, 15.8) lands bottom-left (pixel 240), (15.9, 0.1) top-right (15).
+  assert.deepEqual(Array.from(result.rgb.slice(960, 964)), [128, 0, 128, 255]);
+  assert.deepEqual(Array.from(result.rgb.slice(60, 64)), [80, 120, 160, 255]);
+  assert.equal(result.density[960], 0);
+  assert.ok(result.density[60] > 0 && result.density[60] < 255);
+  assert.deepEqual(Array.from(result.rgb.slice(0, 4)), [255, 255, 255, 255]);
 });
 test("maximal XY boundaries stay inside the raster and empty slices remain blank", async () => {
   const data = source([16, 0, 1]);
@@ -43,7 +44,7 @@ test("maximal XY boundaries stay inside the raster and empty slices remain blank
     resolution: 16,
   });
   assert.equal(result.pointCount, 1);
-  assert.equal(result.rgb.at(-4), 120);
+  assert.equal(result.rgb[60], 120);
   const empty = await project(data, {
     frame,
     lower: 2,

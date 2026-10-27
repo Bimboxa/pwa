@@ -62,7 +62,8 @@ export default function useAutoLoadMapsInThreedEditor({
   // Keyed on the blob url STRING (stable per version thanks to the
   // baseMapsCache in BaseMap.createFromRecord; it changes exactly when the
   // active version or its file changes) + the version transform + meterByPx
-  // + the scan content of a scan base map (reload, display toggle).
+  // + the scan content of a scan base map (reload, display toggle) + the
+  // point cloud of a base map projected from a local scan.
   const versionKeyOf = (b) => {
     const t = b?.getActiveVersionTransform?.() || {};
     return [
@@ -71,6 +72,7 @@ export default function useAutoLoadMapsInThreedEditor({
       b?.meterByPx ?? "",
       b?.scene3d?.sceneId ?? "",
       b?.scene3d?.display3d ?? "",
+      b?.localScan?.resourceId ?? "",
     ].join(":");
   };
   const repairKey =

@@ -64,6 +64,7 @@ import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 import SectionBaseMapScene3d from "Features/scene3d/components/SectionBaseMapScene3d";
+import SectionBaseMapLocalScan from "Features/localScans/components/SectionBaseMapLocalScan";
 import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
 import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseMapOpacityIn3d";
 
@@ -326,6 +327,8 @@ export default function PanelBaseMapProperties() {
         </WhiteSectionGeneric>
 
         {baseMap?.scene3d && <SectionBaseMapScene3d baseMap={baseMap} />}
+
+        {baseMap?.localScan && <SectionBaseMapLocalScan baseMap={baseMap} />}
 
         <WhiteSectionGeneric>
           {/* "Position 3D" drill-in, with the plane orientation toggle

@@ -23,8 +23,8 @@ for (const yaw of [0, 37, 90, -120]) {
       { positions, colors },
       { frame, lower: frame.min[2], upper: frame.max[2], resolution: 64 }
     );
-    const original = result.rgb.slice();
-    const { image, placement } = prepare(result, frame, "rgb", 2.75);
+    const image = result;
+    const placement = prepare(result, frame, 2.75);
     const map = new Object3D();
     const euler = getBaseMapEuler(placement);
     map.rotation.set(euler.x, euler.y, euler.z, BASE_MAP_ROTATION_ORDER);
@@ -61,32 +61,20 @@ for (const yaw of [0, 37, 90, -120]) {
         `${actual.toArray()} vs ${expected.toArray()}`
       );
     }
-    assert.deepEqual(
-      result.rgb,
-      original,
-      "The preview raster stays unchanged"
-    );
   });
 }
 
-test("density rows are reversed without shifting the partial raster extent", () => {
-  const result = {
-    width: 1,
-    height: 2,
-    pixelSize: 0.6,
-    density: new Uint8ClampedArray([10, 10, 10, 255, 20, 20, 20, 255]),
-  };
+test("the center includes the partial raster extent", () => {
+  const result = { width: 1, height: 2, pixelSize: 0.6 };
   const frame = {
     min: [10, 20, 0],
     max: [10.5, 21, 2],
     xDirection: [1, 0, 0],
     yDirection: [0, 0, 1],
   };
-  const { image, placement } = prepare(result, frame, "density");
-  assert.deepEqual(
-    Array.from(image.density),
-    [20, 20, 20, 255, 10, 10, 10, 255]
-  );
-  assert.deepEqual(placement.position, { x: 10.3, y: 0, z: 20.4 });
-  assert.throws(() => prepare(result, frame, "density", NaN));
+  const { position } = prepare(result, frame);
+  assert.ok(Math.abs(position.x - 10.3) < 1e-9);
+  assert.equal(position.y, 0);
+  assert.ok(Math.abs(position.z - 20.6) < 1e-9);
+  assert.throws(() => prepare(result, frame, NaN));
 });

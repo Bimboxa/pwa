@@ -35,6 +35,10 @@ test("scans are project resources with local Blob files and independent placemen
   assert.equal(updated.scan.count, 3);
   assert.equal(updated.scan.placement.yaw, 32);
   assert.equal(updated.legacyScanKey, "old-scope");
+  await store.update(row.id, { display: { mode: "SPLAT", pointSize: 4 } });
+  const displayed = (await db.resources.get(row.id)).scan;
+  assert.deepEqual(displayed.display, { mode: "SPLAT", pointSize: 4 });
+  assert.equal(displayed.placement.yaw, 32);
   assert.equal(await (await store.source(row)).text(), "ply test");
   const abort = new AbortController();
   abort.abort();

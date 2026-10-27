@@ -27,6 +27,7 @@ export default function LocalScanSlicePreview({
   onRotate,
   overlayControls,
   aspectRatio = 297 / 210,
+  onFramingChange,
 }) {
   // state
   const canvasRef = useRef(null);
@@ -36,6 +37,7 @@ export default function LocalScanSlicePreview({
   const [viewport, setViewport] = useState(INITIAL_VIEWPORT);
   const [selectAxis, setSelectAxis] = useState(false);
   const [firstPoint, setFirstPoint] = useState(null);
+  const [confirmedAxis, setConfirmedAxis] = useState(null);
   const [pointerPosition, setPointerPosition] = useState(null);
   const [message, setMessage] = useState(null);
   const canPick = Boolean(result?.pointCount) && !pending && !stale;
@@ -58,6 +60,10 @@ export default function LocalScanSlicePreview({
     setPointerPosition(null);
     setMessage(null);
   }, [result, pending, stale]);
+
+  useEffect(() => {
+    setConfirmedAxis(null);
+  }, [result, pending]);
 
   useEffect(() => {
     if (!result) {
@@ -99,13 +105,20 @@ export default function LocalScanSlicePreview({
       result.height * transform.scale
     );
     context.globalAlpha = 1;
-    if (firstPoint) {
-      const x = transform.x + firstPoint.x * transform.scale;
-      const y = transform.y + firstPoint.y * transform.scale;
-      if (selectAxis && canPick && pointerPosition) {
-        const candidate = previewToImage(pointerPosition, transform);
-        const dx = pointerPosition.x - x;
-        const dy = pointerPosition.y - y;
+    const start = confirmedAxis?.first ?? firstPoint;
+    const endpoint = confirmedAxis
+      ? {
+          x: transform.x + confirmedAxis.second.x * transform.scale,
+          y: transform.y + confirmedAxis.second.y * transform.scale,
+        }
+      : pointerPosition;
+    if (start) {
+      const x = transform.x + start.x * transform.scale;
+      const y = transform.y + start.y * transform.scale;
+      if ((confirmedAxis || (selectAxis && canPick)) && endpoint) {
+        const candidate = previewToImage(endpoint, transform);
+        const dx = endpoint.x - x;
+        const dy = endpoint.y - y;
         if (
           candidate.x >= 0 &&
           candidate.x < result.width &&
@@ -117,31 +130,31 @@ export default function LocalScanSlicePreview({
           context.save();
           context.beginPath();
           context.moveTo(x, y);
-          context.lineTo(pointerPosition.x, pointerPosition.y);
-          // A white underlay keeps the provisional axis legible on both rasters.
+          context.lineTo(endpoint.x, endpoint.y);
+          // A white underlay keeps the axis legible on both rasters.
           context.strokeStyle = "white";
           context.lineWidth = 4;
           context.stroke();
-          context.setLineDash([7, 4]);
+          context.setLineDash(confirmedAxis ? [] : [7, 4]);
           context.strokeStyle = "#ff610d";
           context.lineWidth = 2;
           context.stroke();
           context.setLineDash([]);
           context.beginPath();
-          context.moveTo(pointerPosition.x, pointerPosition.y);
+          context.moveTo(endpoint.x, endpoint.y);
           context.lineTo(
-            pointerPosition.x - 11 * Math.cos(angle - Math.PI / 6),
-            pointerPosition.y - 11 * Math.sin(angle - Math.PI / 6)
+            endpoint.x - 11 * Math.cos(angle - Math.PI / 6),
+            endpoint.y - 11 * Math.sin(angle - Math.PI / 6)
           );
           context.lineTo(
-            pointerPosition.x - 11 * Math.cos(angle + Math.PI / 6),
-            pointerPosition.y - 11 * Math.sin(angle + Math.PI / 6)
+            endpoint.x - 11 * Math.cos(angle + Math.PI / 6),
+            endpoint.y - 11 * Math.sin(angle + Math.PI / 6)
           );
           context.closePath();
           context.fillStyle = "#ff610d";
           context.fill();
           context.font = "bold 14px sans-serif";
-          context.fillText("2", pointerPosition.x + 10, pointerPosition.y - 8);
+          context.fillText("2", endpoint.x + 10, endpoint.y - 8);
           context.restore();
         }
       }
@@ -162,6 +175,7 @@ export default function LocalScanSlicePreview({
     size,
     viewport,
     firstPoint,
+    confirmedAxis,
     pointerPosition,
     selectAxis,
     canPick,
@@ -188,6 +202,27 @@ export default function LocalScanSlicePreview({
     canvas.addEventListener("wheel", wheel, { passive: false });
     return () => canvas.removeEventListener("wheel", wheel);
   }, [size, result]);
+
+  // Framed image rectangle (canvas corners in image px) for the base map.
+  useEffect(() => {
+    if (!onFramingChange) return;
+    if (!result) return onFramingChange(null);
+    const transform = getPreviewTransform(size, result, viewport);
+    const topLeft = previewToImage({ x: 0, y: 0 }, transform);
+    const bottomRight = previewToImage(
+      { x: size.width, y: size.height },
+      transform
+    );
+    onFramingChange({
+      result,
+      rect: {
+        x: topLeft.x,
+        y: topLeft.y,
+        width: bottomRight.x - topLeft.x,
+        height: bottomRight.y - topLeft.y,
+      },
+    });
+  }, [onFramingChange, result, size, viewport]);
 
   // handlers
   function zoom(factor) {
@@ -275,6 +310,7 @@ export default function LocalScanSlicePreview({
       );
       return;
     }
+    setConfirmedAxis({ first: firstPoint, second: point });
     cancelAxis();
     onRotate(angle);
   }
@@ -290,6 +326,7 @@ export default function LocalScanSlicePreview({
           onClick={() => {
             if (selectAxis) cancelAxis();
             else {
+              setConfirmedAxis(null);
               setSelectAxis(true);
               setMessage(null);
             }

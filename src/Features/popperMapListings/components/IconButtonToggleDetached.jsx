@@ -10,11 +10,12 @@ import OpenInNew from "@mui/icons-material/OpenInNew";
 // IconButtonToggleDetached — detach / attach icon of the base maps list, small
 // and light grey, in the bottom band (PanelFooter) of the poppers: the list
 // leaves the "Fonds de plan" side of the annotations popper for its own
-// popper (PopperBaseMapsList) and back. (The former "TOOLS" target is gone:
+// popper (PopperBaseMapsList) and back. `tooltipPlacement` is "bottom" in the
+// footers (room below the panel), "top" elsewhere. (The former "TOOLS" target is gone:
 // the commands live in the unified commands toolbar.)
 // ---------------------------------------------------------------------------
 
-export default function IconButtonToggleDetached() {
+export default function IconButtonToggleDetached({ tooltipPlacement = "top" }) {
   const dispatch = useDispatch();
 
   // data
@@ -40,7 +41,11 @@ export default function IconButtonToggleDetached() {
   // render
 
   return (
-    <Tooltip title={detached ? attachS : detachS} arrow placement="top">
+    <Tooltip
+      title={detached ? attachS : detachS}
+      arrow
+      placement={tooltipPlacement}
+    >
       <IconButton
         size="small"
         onMouseDown={(e) => e.stopPropagation()}

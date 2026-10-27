@@ -1,3 +1,5 @@
+import { createScanZoneFilter } from "./localScanZone.js";
+
 const TYPES = {
   float: [4, "getFloat32"],
   float32: [4, "getFloat32"],
@@ -110,14 +112,31 @@ export async function readLocalPlyHeader(file) {
 const clampByte = (value) => Math.round(Math.max(0, Math.min(255, value)));
 
 // Bounded reads avoid retaining a second full copy of the source file.
-export async function readLocalPly(file, onProgress = () => {}) {
+// options:
+//   maxPoints  keep one vertex out of ceil(count / maxPoints) (preview sample)
+//   zone       keep only the vertices of a load zone (createScanZoneFilter);
+//              the decoded arrays then hold the zone only.
+export async function readLocalPly(
+  file,
+  onProgress = () => {},
+  { maxPoints, zone } = {}
+) {
   const header = await readLocalPlyHeader(file);
   const { count, stride, headerLength, properties, littleEndian, kind } =
     header;
-  const positions = new Float32Array(count * 3);
-  const colors = new Uint8Array(count * 3);
+  const step = maxPoints > 0 ? Math.max(1, Math.ceil(count / maxPoints)) : 1;
+  const keep = createScanZoneFilter(zone);
+  // Without a zone the kept count is known: fill one allocation. With a zone
+  // it is not: collect per-slice buffers and join them at the end.
+  const capacity = Math.ceil(count / step);
+  let positions = keep ? null : new Float32Array(capacity * 3);
+  let colors = keep ? null : new Uint8Array(capacity * 3);
+  const parts = [];
+  let kept = 0;
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
+  const point = [0, 0, 0],
+    color = [0, 0, 0];
   for (let start = 0; start < count; start += 65536) {
     const length = Math.min(65536, count - start);
     const view = new DataView(
@@ -132,27 +151,64 @@ export async function readLocalPly(file, onProgress = () => {}) {
       const p = properties[key];
       return p ? view[p.read](i * stride + p.offset, littleEndian) : fallback;
     };
-    for (let i = 0; i < length; i++) {
+    const slicePositions = keep ? new Float32Array(length * 3) : positions;
+    const sliceColors = keep ? new Uint8Array(length * 3) : colors;
+    let sliceKept = keep ? 0 : kept;
+    for (let i = (step - (start % step)) % step; i < length; i += step) {
       for (let axis = 0; axis < 3; axis++) {
         const value = read(i, ["x", "y", "z"][axis]);
         if (!Number.isFinite(value) || Math.abs(value) > 1e7)
           throw new Error(
             "Coordonnées invalides ou trop éloignées de l'origine. Exportez dans un repère local."
           );
-        const index = (start + i) * 3 + axis;
-        positions[index] = value;
-        min[axis] = Math.min(min[axis], value);
-        max[axis] = Math.max(max[axis], value);
+        point[axis] = value;
+      }
+      if (keep && !keep(point[0], point[1], point[2])) continue;
+      for (let axis = 0; axis < 3; axis++) {
         const key = ["red", "green", "blue"][axis];
-        const color =
+        const value =
           kind === "SPLAT"
             ? (0.5 + 0.28209479177387814 * read(i, `f_dc_${axis}`)) * 255
             : read(i, key, 180) / (properties[key]?.size === 2 ? 257 : 1);
-        if (!Number.isFinite(color)) throw new Error("Couleurs PLY invalides.");
-        colors[index] = clampByte(color);
+        if (!Number.isFinite(value)) throw new Error("Couleurs PLY invalides.");
+        color[axis] = clampByte(value);
       }
+      const index = sliceKept * 3;
+      for (let axis = 0; axis < 3; axis++) {
+        slicePositions[index + axis] = point[axis];
+        sliceColors[index + axis] = color[axis];
+        min[axis] = Math.min(min[axis], point[axis]);
+        max[axis] = Math.max(max[axis], point[axis]);
+      }
+      sliceKept++;
     }
+    if (keep) {
+      if (sliceKept)
+        parts.push([
+          slicePositions.slice(0, sliceKept * 3),
+          sliceColors.slice(0, sliceKept * 3),
+        ]);
+      kept += sliceKept;
+    } else kept = sliceKept;
     onProgress((start + length) / count);
   }
-  return { positions, colors, count, kind, bounds: { min, max } };
+  if (!kept) throw new Error("Aucun point dans la zone choisie.");
+  if (keep) {
+    positions = new Float32Array(kept * 3);
+    colors = new Uint8Array(kept * 3);
+    let offset = 0;
+    for (const [p, c] of parts) {
+      positions.set(p, offset);
+      colors.set(c, offset);
+      offset += p.length;
+    }
+  }
+  return {
+    positions,
+    colors,
+    count: kept,
+    sourceCount: count,
+    kind,
+    bounds: { min, max },
+  };
 }

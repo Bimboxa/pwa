@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 
 import SelectorBaseMapsImageMode from "./SelectorBaseMapsImageMode";
+import SelectorBaseMapsScanMode from "./SelectorBaseMapsScanMode";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import ButtonToggleAntiAliasingShrink from "Features/threedEditor/components/ButtonToggleAntiAliasingShrink";
@@ -12,9 +13,11 @@ import {
   selectEffectiveViewerKey,
 } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import useHasScanBaseMaps from "Features/baseMaps/hooks/useHasScanBaseMaps";
 
 // Bottom bar controls of the displayed editor: the base map image display
-// mode (hidden / faded / as is), the « Séparer les surfaces en contact »
+// mode (hidden / faded / as is), the scans display mode (3D editor, project
+// with scan base maps: hidden / points / realistic), the « Séparer les surfaces en contact »
 // toggle (3D editor only) and the base maps grid button (2D grid layer, or
 // the 3D "lay the base maps flat" mode) — formerly the top-right rows of
 // the editors. Rendered for the 2D map editors and the 3D editor; the
@@ -29,6 +32,7 @@ export default function SectionBaseMapsBottomBarControls() {
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
+  const hasScanBaseMaps = useHasScanBaseMaps();
 
   // helpers
 
@@ -58,6 +62,7 @@ export default function SectionBaseMapsBottomBarControls() {
       }}
     >
       <SelectorBaseMapsImageMode />
+      {is3dEditor && hasScanBaseMaps && <SelectorBaseMapsScanMode />}
       {is3dEditor && <ButtonToggleAntiAliasingShrink />}
       {is3dEditor ? <ButtonOpenBaseMapsGrid3d /> : <ButtonOpenBaseMapsGrid />}
     </Box>

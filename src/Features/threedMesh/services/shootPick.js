@@ -1,4 +1,4 @@
-import { Raycaster, Vector2 } from "three";
+import { Matrix3, Raycaster, Vector2 } from "three";
 
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import {
@@ -38,8 +38,22 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
     )
   );
 
-  let best = intersects.length
-    ? { point: intersects[0].point.clone(), distance: intersects[0].distance }
+  // World normal of the face hit (meshes only): the plane of a laser meter
+  // first point, for a perpendicular second shot.
+  const first = intersects[0];
+  let best = first
+    ? {
+        point: first.point.clone(),
+        distance: first.distance,
+        normal: first.face
+          ? first.face.normal
+              .clone()
+              .applyMatrix3(
+                new Matrix3().getNormalMatrix(first.object.matrixWorld)
+              )
+              .normalize()
+          : null,
+      }
     : null;
 
   // A pending scan (picking data still being built) is simply not hit yet.
@@ -63,6 +77,7 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
       isHit: true,
       isScan: !!best.isScan,
       baseMapId: best.baseMapId ?? null,
+      normal: best.normal ?? null,
     };
   return {
     point: raycaster.ray.origin

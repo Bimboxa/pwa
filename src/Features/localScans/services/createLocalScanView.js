@@ -8,11 +8,16 @@ import {
   Vector3,
 } from "three";
 import applyLocalScanPlacement from "../utils/applyLocalScanPlacement";
+import { DEFAULT_LOCAL_SCAN_PLACEMENT } from "../constants/localScanPlacement";
 import readLocalScanInWorker from "./readLocalScanInWorker";
+import { registerLocalScanView } from "./localScanViewRegistry";
 
 // One independently owned scene root. Never enters the existing annotation,
 // mesh picking, clipping or export registries. The host renderer is unchanged.
-export default function createLocalScanView(editor, data) {
+// editor: {sceneManager, requestRender}. With `parent` (the wrap of a scan
+// base map, which carries the pose) the root joins it untransformed instead
+// of the scene: setPlacement is then left to the tool's own view.
+export default function createLocalScanView(editor, data, { parent } = {}) {
   const manager = editor.sceneManager;
   const root = new Group();
   root.name = "Local scan";
@@ -48,8 +53,9 @@ ${shader.vertexShader}`;
   material.customProgramCacheKey = () => "local-scan-slice-v1";
   const points = new Points(geometry, material);
   points.raycast = () => false;
+  points.userData.isDecor = true;
   root.add(points);
-  manager.scene.add(root);
+  (parent ?? manager.scene).add(root);
   let disposed = false;
   let clipRange = null,
     splatClipEdit = null,
@@ -59,7 +65,7 @@ ${shader.vertexShader}`;
   let loading = null;
   const decodeController = new AbortController();
   let mode = "POINTS";
-  let placement = { up: "Z", scale: 1, origin: [0, 0, 0] };
+  let placement = DEFAULT_LOCAL_SCAN_PLACEMENT;
   const requestRender = () => {
     if (!disposed) editor.requestRender();
   };
@@ -162,8 +168,9 @@ ${shader.vertexShader}`;
     if (spark) spark.visible = root.visible && mode === "SPLAT";
     requestRender();
   }
-  setPlacement(placement);
-  return {
+  if (!parent) setPlacement(placement);
+  let unregister = null;
+  const view = {
     root,
     pointGeometry: geometry,
     setSliceClip,
@@ -187,6 +194,7 @@ ${shader.vertexShader}`;
     dispose() {
       if (disposed) return;
       disposed = true;
+      unregister?.();
       decodeController.abort();
       root.removeFromParent();
       splat?.dispose();
@@ -198,4 +206,6 @@ ${shader.vertexShader}`;
       if (manager.renderer.domElement.isConnected) editor.requestRender();
     },
   };
+  unregister = registerLocalScanView(view);
+  return view;
 }

@@ -25,7 +25,11 @@ class ScanBoundary extends Component {
   }
 }
 
-export default function LocalScansGate({ editor, hidden = false }) {
+export default function LocalScansGate({
+  editor,
+  hidden = false,
+  inactive = false,
+}) {
   const enabled = useSelector(
     (s) =>
       !selectDisabledToolKeys(s).includes("SCAN_3D") &&
@@ -79,6 +83,7 @@ export default function LocalScansGate({ editor, hidden = false }) {
         projectId={projectId}
         scopeId={scopeId}
         hidden={hidden}
+        inactive={inactive}
       />
     </ScanBoundary>
   ) : null;

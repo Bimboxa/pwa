@@ -69,7 +69,7 @@ export default function PanelFooter({
       )}
 
       {!collapsed && (
-        <Tooltip title={fitContentS} arrow placement="top">
+        <Tooltip title={fitContentS} arrow placement="bottom">
           <Box
             component="button"
             onMouseDown={(e) => e.stopPropagation()}
@@ -101,7 +101,11 @@ export default function PanelFooter({
       {children}
 
       {onToggleCollapsed && (
-        <Tooltip title={collapsed ? expandS : collapseS} arrow placement="top">
+        <Tooltip
+          title={collapsed ? expandS : collapseS}
+          arrow
+          placement="bottom"
+        >
           <Box
             component="button"
             onMouseDown={(e) => e.stopPropagation()}

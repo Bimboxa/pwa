@@ -1,4 +1,14 @@
-import { Group, Vector2, Vector3 } from "three";
+import {
+  CircleGeometry,
+  DoubleSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+  RingGeometry,
+  Vector2,
+  Vector3,
+} from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -27,6 +37,7 @@ const MEASURE_COLOR = 0xe65100;
 const MEASURE_COLOR_HEX = "#e65100";
 const LINEWIDTH = 2.5;
 const LINEWIDTH_PREVIEW = 3;
+const LINEWIDTH_ORTHO = 1.5; // perpendicular preview (Shift): thin, solid
 // Segments shorter than this are ignored (double shot on the same spot).
 const MIN_LENGTH_M = 0.001;
 
@@ -53,10 +64,10 @@ function disposeObject(obj) {
 
 const noRaycast = () => {};
 
-function makeSolidLine({ a, b, resolution }) {
+function makeSolidLine({ a, b, resolution, linewidth = LINEWIDTH }) {
   const mat = new LineMaterial({
     color: MEASURE_COLOR,
-    linewidth: LINEWIDTH,
+    linewidth,
     resolution,
     worldUnits: false,
     transparent: true,
@@ -95,6 +106,40 @@ function makeDashedLine({ a, b, resolution, camera }) {
   return line;
 }
 
+// Target at the end of a perpendicular preview, lying in the plane it
+// intercepts: translucent disc + ring + cross, sized with the distance so it
+// reads the same on screen.
+function makeTarget({ point, normal, camera }) {
+  const radius = Math.max(0.05, camera.position.distanceTo(point) * 0.025);
+  const material = (opacity) =>
+    new MeshBasicMaterial({
+      color: MEASURE_COLOR,
+      transparent: true,
+      opacity,
+      depthTest: false,
+      depthWrite: false,
+      side: DoubleSide,
+      toneMapped: false,
+    });
+  const target = new Group();
+  target.raycast = noRaycast;
+  const parts = [
+    new Mesh(new CircleGeometry(1, 48), material(0.18)),
+    new Mesh(new RingGeometry(0.9, 1, 48), material(0.95)),
+    new Mesh(new PlaneGeometry(1.6, 0.06), material(0.95)),
+    new Mesh(new PlaneGeometry(0.06, 1.6), material(0.95)),
+  ];
+  parts.forEach((part) => {
+    part.raycast = noRaycast;
+    part.renderOrder = 1003;
+    target.add(part);
+  });
+  target.position.copy(point);
+  target.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
+  target.scale.setScalar(radius);
+  return target;
+}
+
 function makeMarkers(points) {
   const markers = buildDrawingVertexMarkers(points, MEASURE_COLOR);
   if (markers) markers.renderOrder = 1003;
@@ -128,6 +173,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
   let startMarker = null;
   let previewLine = null;
   let previewTarget = null; // Vector3 | null, last preview end point
+  let previewKey = ""; // perpendicular preview: intercepted plane normal
 
   function render() {
     editor?.renderScene?.();
@@ -139,6 +185,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     disposeObject(previewLine);
     previewLine = null;
     previewTarget = null;
+    previewKey = "";
   }
 
   function dropStart() {
@@ -202,10 +249,13 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     render();
   }
 
-  // Dashed segment from the armed start point to the aimed point (null =
-  // aiming the void). Returns the live length in meters, or null.
-  function updatePreview(point) {
+  // Segment from the armed start point to the aimed point (null = aiming
+  // the void): dashed, or — `planeNormal` given, perpendicular measure
+  // (Shift) — thin and solid with a target lying in the intercepted plane.
+  // Returns the live length in meters, or null.
+  function updatePreview(point, { planeNormal = null } = {}) {
     if (!startPoint) return null;
+    const a = startPoint;
     if (!point) {
       if (previewLine) {
         dropPreview();
@@ -213,21 +263,36 @@ export function createWalkMeasureController({ sceneManager, editor }) {
       }
       return null;
     }
-    // 10 Hz poll: skip the rebuild while the aim doesn't move.
-    if (previewTarget && previewTarget.distanceToSquared(point) < 1e-8) {
-      return startPoint.distanceTo(previewTarget);
+    // 10 Hz poll: skip the rebuild while the aim (and start) don't move.
+    const key = planeNormal ? planeNormal.toArray().join(",") : "";
+    if (
+      previewTarget &&
+      previewTarget.distanceToSquared(point) < 1e-8 &&
+      previewKey === key
+    ) {
+      return a.distanceTo(previewTarget);
     }
     dropPreview();
     previewTarget = point.clone();
-    previewLine = makeDashedLine({
-      a: startPoint,
-      b: previewTarget,
-      resolution: getCanvasResolution(sceneManager),
-      camera,
-    });
+    previewKey = key;
+    const resolution = getCanvasResolution(sceneManager);
+    if (planeNormal) {
+      previewLine = new Group();
+      previewLine.raycast = noRaycast;
+      previewLine.add(
+        makeSolidLine({
+          a,
+          b: previewTarget,
+          resolution,
+          linewidth: LINEWIDTH_ORTHO,
+        }),
+        makeTarget({ point: previewTarget, normal: planeNormal, camera })
+      );
+    } else
+      previewLine = makeDashedLine({ a, b: previewTarget, resolution, camera });
     root.add(previewLine);
     render();
-    return startPoint.distanceTo(previewTarget);
+    return a.distanceTo(previewTarget);
   }
 
   // Drop the pending first point (tool switch).

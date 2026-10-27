@@ -2,8 +2,10 @@ import { readLocalPly } from "../utils/readLocalPly.js";
 
 self.onmessage = async ({ data }) => {
   try {
-    const result = await readLocalPly(data.file, (ratio) =>
-      self.postMessage({ type: "PROGRESS", ratio })
+    const result = await readLocalPly(
+      data.file,
+      (ratio) => self.postMessage({ type: "PROGRESS", ratio }),
+      data.options
     );
     self.postMessage({ type: "RESULT", result }, [
       result.positions.buffer,

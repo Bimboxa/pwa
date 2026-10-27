@@ -16,6 +16,7 @@ import {
   Add,
   CenterFocusStrong,
   Close,
+  CropFree,
   MoreHoriz,
   SaveOutlined,
 } from "@mui/icons-material";
@@ -28,6 +29,7 @@ export default function Scan3dHeader({
   onNew,
   onCloseModel,
   onSave,
+  onEditZone,
 }) {
   const dispatch = useDispatch();
   const [anchor, setAnchor] = useState(null);
@@ -101,6 +103,14 @@ export default function Scan3dHeader({
               </ListItemIcon>
               <ListItemText>Cadrer</ListItemText>
             </MenuItem>
+            {onEditZone && (
+              <MenuItem onClick={() => run(onEditZone)}>
+                <ListItemIcon>
+                  <CropFree fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Modifier la zone</ListItemText>
+              </MenuItem>
+            )}
             <MenuItem onClick={() => run(onNew)}>
               <ListItemIcon>
                 <Add fontSize="small" />

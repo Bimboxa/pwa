@@ -15,12 +15,13 @@ export default function ScanProjectionPreview({
   onRotate,
   onDownload,
   showProjectionTools = true,
+  // This preview frames the base map image (the one beside its creation).
+  reportFraming = false,
 }) {
-  const { result, mode, setMode, pending, current, frame, error } = projection;
+  const { result, mode, setMode, pending, current, error } = projection;
   return (
     <Stack spacing={1}>
       <LocalScanSlicePreview
-        key={frame?.rows.join(",") ?? "empty"}
         result={result}
         mode={mode}
         pending={pending}
@@ -53,6 +54,7 @@ export default function ScanProjectionPreview({
           )
         }
         onRotate={current && !error ? onRotate : undefined}
+        onFramingChange={reportFraming ? projection.setFraming : undefined}
       />
       {showProjectionTools && result && (
         <Stack

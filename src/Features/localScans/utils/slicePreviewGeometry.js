@@ -37,11 +37,12 @@ export function zoomPreviewAt(viewport, factor, point, size) {
   };
 }
 
-// Image Y points down. Rotate the model (not the frame) about world Y.
-// The first-to-second vector will point right in the recomputed projection.
+// Image Y points down, along displayed +Y (world +Z). Rotate the model (not
+// the frame) about world Y: the first-to-second vector will point right in
+// the recomputed projection.
 export function getSliceAlignmentYaw(first, second) {
   const dx = second.x - first.x,
     dy = second.y - first.y;
   if (Math.hypot(dx, dy) < 2) return null;
-  return (-Math.atan2(dy, dx) * 180) / Math.PI;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
 }

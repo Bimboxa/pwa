@@ -10,7 +10,7 @@ import LayersIcon from "@mui/icons-material/Layers";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
-// drag handle | name (+ version chip) | "3D" scan button | annotations badge
+// drag handle | name (+ version chip) | « Scan » button | annotations badge
 // | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
 // row inside its listing — the row must live in a dnd-kit SortableContext.
 // The name wraps on several lines rather than being truncated.
@@ -230,7 +230,7 @@ export default function RowBaseMapInList({
         </Tooltip>
       )}
 
-      {/* "3D" scan button — scan base maps only, left of the badge */}
+      {/* « Scan » button — base maps carrying a scan, left of the badge */}
       {scanButton && (
         <Tooltip
           title={
@@ -258,8 +258,12 @@ export default function RowBaseMapInList({
               flexShrink: 0,
               bgcolor: scanButton.on ? "secondary.main" : "transparent",
               border: "1px solid",
-              borderColor: scanButton.on ? "transparent" : "divider",
-              opacity: scanButton.disabled ? 0.4 : 1,
+              borderColor: scanButton.on
+                ? "transparent"
+                : isMain
+                  ? "rgba(255,255,255,0.25)"
+                  : "divider",
+              opacity: scanButton.disabled ? (isMain ? 0.6 : 0.4) : 1,
               cursor: scanButton.disabled ? "default" : "pointer",
             }}
           >
@@ -270,10 +274,12 @@ export default function RowBaseMapInList({
                 lineHeight: 1.4,
                 color: scanButton.on
                   ? "secondary.contrastText"
-                  : "text.disabled",
+                  : isMain
+                    ? "grey.400"
+                    : "text.disabled",
               }}
             >
-              3D
+              Scan
             </Typography>
           </Box>
         </Tooltip>
