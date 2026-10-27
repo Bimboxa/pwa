@@ -7,6 +7,7 @@ import {
   PointsMaterial,
   Vector3,
 } from "three";
+import applyLocalScanPlacement from "../utils/applyLocalScanPlacement";
 import readLocalScanInWorker from "./readLocalScanInWorker";
 
 // One independently owned scene root. Never enters the existing annotation,
@@ -37,16 +38,14 @@ export default function createLocalScanView(editor, data) {
   let loading = null;
   const decodeController = new AbortController();
   let mode = "POINTS";
-  let placement = { up: "Z", scale: 1 };
+  let placement = { up: "Z", scale: 1, origin: [0, 0, 0] };
   const requestRender = () => {
     if (!disposed) editor.requestRender();
   };
 
   function setPlacement(next) {
     placement = next;
-    root.rotation.x = next.up === "Z" ? -Math.PI / 2 : 0;
-    root.scale.setScalar(next.scale);
-    root.updateMatrixWorld(true);
+    applyLocalScanPlacement(root, next);
     requestRender();
   }
   function fit() {

@@ -15,8 +15,13 @@ test("local sources are isolated by scope; placement does not rewrite source dat
   const info = { count: 2, kind: "POINTS" };
   await saveLocalScan("a", first, info);
   await saveLocalScan("b", second, info);
-  await updateLocalScanPlacement("a", { scale: 0.001, up: "Y" });
+  await updateLocalScanPlacement("a", {
+    scale: 0.001,
+    up: "Y",
+    origin: [4, -2, 7],
+  });
   assert.equal((await getLocalScan("a")).scale, 0.001);
+  assert.deepEqual((await getLocalScan("a")).origin, [4, -2, 7]);
   assert.equal((await getLocalScan("b")).scale, 1);
   assert.equal(await (await getLocalScanSource("a")).text(), "first");
   await deleteLocalScan("a");

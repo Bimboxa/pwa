@@ -59,11 +59,12 @@ export default defineConfig({
           "**/LocalScansPanel-*.js",
           "**/localScan.worker-*.js",
           "**/decodeLocalSplats.worker-*.js",
+          "**/pickLocalScan.worker-*.js",
         ],
         runtimeCaching: [
           {
             urlPattern:
-              /\/assets\/(?:spark\.module|LocalScansPanel|localScan\.worker|decodeLocalSplats\.worker)-[^/]+\.js$/,
+              /\/assets\/(?:spark\.module|LocalScansPanel|localScan\.worker|decodeLocalSplats\.worker|pickLocalScan\.worker)-[^/]+\.js$/,
             handler: "CacheFirst",
             options: {
               cacheName: "local-scan-engine-v1",
