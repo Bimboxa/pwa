@@ -250,11 +250,13 @@ plane is snapped to horizontal or vertical within 12° of world Y
 distance also reads the clouds, one worker search at a time, at most every
 250 ms.
 
-With **Maj** held after the first point, the second point is measured
-perpendicular to the first point's plane (scan plane, or face normal of a mesh
-hit): the cote — and its dashed preview while aiming — runs from the aimed
-point straight back to that plane (`getPerpendicularFoot`), i.e. the distance
-between the two faces. Without a plane on the first point, Maj changes nothing.
+With **Maj** held after the first point, the measure leaves the first point
+perpendicular to its plane (scan plane, or face normal of a mesh hit) and stops
+on the facing plane under the crosshair (scan plane or mesh face; without one,
+or nearly parallel to the direction, the plane through the aimed point parallel
+to the first) — `getPerpendicularIntercept`. The preview is then a thin solid
+line ending on a target lying in the intercepted plane, and Maj + Espace
+commits that cote. Without a plane on the first point, Maj changes nothing.
 
 ## Large point-cloud trial
 

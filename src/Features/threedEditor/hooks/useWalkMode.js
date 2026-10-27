@@ -38,7 +38,7 @@ import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 import WalkModeController from "../js/WalkModeController";
 import { createWalkCollisionProbe } from "../services/walkCollisionProbe";
 import { createWalkMeasureController } from "../services/walkMeasureController";
-import getPerpendicularFoot from "../utils/getPerpendicularFoot";
+import getPerpendicularIntercept from "../utils/getPerpendicularIntercept";
 import createLocalScanRayPicker from "Features/localScans/services/createLocalScanRayPicker";
 import createScanPlanePulse from "Features/localScans/services/createScanPlanePulse";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
@@ -311,9 +311,10 @@ export default function useWalkMode() {
     };
     let firstHit = null;
 
-    // Shift held: the second point is measured perpendicular to the plane of
-    // the first one (scan plane or mesh face) — from the aimed point straight
-    // back to that plane, i.e. the distance between the two faces.
+    // Shift held: the measure leaves the first point perpendicular to its
+    // plane (scan plane or mesh face) and stops on the facing plane aimed at
+    // (scan plane / mesh face under the crosshair), i.e. the distance
+    // between the two faces.
     let shiftHeld = false;
     const onShift = (event) => {
       if (event.key === "Shift") shiftHeld = event.type === "keydown";
@@ -324,22 +325,24 @@ export default function useWalkMode() {
     window.addEventListener("keydown", onShift, true);
     window.addEventListener("keyup", onShift, true);
     window.addEventListener("blur", onBlur);
-    const getOrthoStart = (point) => {
+    // → {end, planeNormal} | null (aim: {point, normal} under the crosshair)
+    const getOrthoIntercept = (aim) => {
       const start = measure.getState().startPoint;
-      if (!shiftHeld || !point || !start || !firstHit?.normal) return null;
-      return getPerpendicularFoot(point, start, firstHit.normal);
+      if (!aim?.point || !start || !firstHit?.normal) return null;
+      return getPerpendicularIntercept(
+        start,
+        firstHit.normal,
+        aim.point,
+        aim.normal ?? null
+      );
     };
 
     // One laser meter shot = one point, only on a real surface (the void is
     // not measurable); the second one persists the cote.
     const shootMeasure = (hit, { ortho = false } = {}) => {
       if (!hit.isHit) return;
-      const start = measure.getState().startPoint;
-      const from =
-        ortho && start && firstHit?.normal
-          ? getPerpendicularFoot(hit.point, start, firstHit.normal)
-          : null;
-      const pair = measure.shoot(hit.point, { from });
+      const intercept = ortho ? getOrthoIntercept(hit) : null;
+      const pair = measure.shoot(intercept?.end ?? hit.point);
       if (!pair) {
         firstHit = hit;
       } else {
@@ -521,7 +524,8 @@ export default function useWalkMode() {
         ? sceneManager.camera.position.distanceTo(meshHit.point)
         : Infinity;
       const scanNearer = liveScanHit && liveScanHit.distance < meshDist;
-      const point = scanNearer ? liveScanHit.point : meshHit.point;
+      const aim = scanNearer ? liveScanHit : meshHit;
+      const point = aim.point;
       const isHit = scanNearer || meshHit.isHit;
       const targetDistM = scanNearer
         ? liveScanHit.distance
@@ -529,9 +533,12 @@ export default function useWalkMode() {
           ? meshDist
           : null;
       if (tool === "MEASURE") {
-        const measureLiveM = measure.updatePreview(isHit ? point : null, {
-          from: isHit ? getOrthoStart(point) : null,
-        });
+        const intercept = shiftHeld && isHit ? getOrthoIntercept(aim) : null;
+        const measureLiveM = intercept
+          ? measure.updatePreview(intercept.end, {
+              planeNormal: intercept.planeNormal,
+            })
+          : measure.updatePreview(isHit ? point : null);
         emitShoot({ targetDistM, measureLiveM });
       } else {
         emitShoot({ targetDistM });
