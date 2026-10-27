@@ -10,6 +10,7 @@ import SearchBar from "Features/search/components/SearchBar";
 import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ButtonFetchMyKrtos from "./ButtonFetchMyKrtos";
 import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
+import ButtonOpenStarting from "Features/starting/components/ButtonOpenStarting";
 import TableDashboardProjects from "./TableDashboardProjects";
 import SectionCloudSearchResults from "./SectionCloudSearchResults";
 import DialogCreateProject from "./DialogCreateProject";
@@ -97,7 +98,7 @@ export default function PanelDashboardProjects({
         position: "relative",
       }}
     >
-      {/* line 1: search + create (pill style, model 2a) */}
+      {/* line 1: starting dialog + search + create (pill style, model 2a) */}
       <Box
         sx={{
           px: 4,
@@ -108,6 +109,7 @@ export default function PanelDashboardProjects({
           ...fadeUp(0.05),
         }}
       >
+        <ButtonOpenStarting />
         <Box sx={{ flex: 1, minWidth: 0, ...PILL_SEARCH_SX }}>
           <SearchBar
             value={searchText}

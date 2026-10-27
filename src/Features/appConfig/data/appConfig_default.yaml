@@ -124,6 +124,11 @@ strings:
     namePlural: "Listes"
     locatedEntities: "Annotations"
 
+  # « Démarrer avec <scope> » dialog of the dashboard (Features/starting):
+  # label of its button and title (default: « Démarrer avec <appName> »).
+  starting:
+    start: "Démarrer avec Krto"
+
   presetConfig:
     title: "Type de dossier"
     select: "Sélectionnez un type de dossier"
@@ -160,6 +165,11 @@ orgaData:
 # FEATURES
 
 features:
+  # « Démarrer avec <scope> » dialog of the dashboard (Features/starting):
+  # share link (YouTube, Drive or Vimeo) of the getting-started video shown
+  # in its « Vidéo de prise en main » section; empty = no video.
+  starting:
+    videoUrl: ""
   # Authentication for the Chat tool and its relay requests.
   chat:
     connection:

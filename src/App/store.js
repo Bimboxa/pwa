@@ -13,6 +13,7 @@ import listPanelReducer from "Features/listPanel/listPanelSlice";
 import rightPanelReducer from "Features/rightPanel/rightPanelSlice";
 import contextMenuReducer from "Features/contextMenu/contextMenuSlice";
 import onboardingReducer from "Features/onboarding/onboardingSlice";
+import startingReducer from "Features/starting/startingSlice";
 import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import masterProjectPicturesReducer from "Features/masterProjectPictures/masterProjectPicturesSlice";
 import projectsReducer from "Features/projects/projectsSlice";
@@ -103,6 +104,7 @@ const store = configureStore({
     dashboard: dashboardReducer,
     layout: layoutReducer,
     onboarding: onboardingReducer,
+    starting: startingReducer,
     leftPanel: leftPanelReducer,
     listPanel: listPanelReducer,
     rightPanel: rightPanelReducer,

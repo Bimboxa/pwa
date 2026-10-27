@@ -41,6 +41,7 @@ import PageDownloadKrtro from "Features/krtoFile/components/PageDownloadKrto";
 import PageDocumentation from "Features/documentation/components/PageDocumentation";
 
 import DialogConfiguration from "Features/scopeConfig/components/DialogConfiguration";
+import DialogStarting from "Features/starting/components/DialogStarting";
 
 startDexieSync();
 
@@ -109,6 +110,9 @@ function App({ pca, runningIn }) {
                       dialog: serves the main app (desktop + mobile), the
                       dashboard and the project/scope selector pages. */}
                   <DialogConfiguration />
+                  {/* « Démarrer avec <appName> » full-page dialog, opened from
+                      the dashboard. */}
+                  <DialogStarting />
                 </AuthGate>
               </ClerkProviderCustom>
             </OnboardingGate>
