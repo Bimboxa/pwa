@@ -124,7 +124,7 @@ export default function SvgConceptsDiagram({
         <line
           x1="60"
           y1="640"
-          x2="320"
+          x2="720"
           y2="640"
           stroke={dark}
           strokeWidth="2"
@@ -552,7 +552,7 @@ export default function SvgConceptsDiagram({
       {zone(
         "folder-frame",
         <rect
-          x="320"
+          x="720"
           y="580"
           width="400"
           height="120"
@@ -566,7 +566,7 @@ export default function SvgConceptsDiagram({
       )}
       {zone(
         "folder-title",
-        <text x="340" y="604" fontWeight="700">
+        <text x="740" y="604" fontWeight="700">
           Dossier de fonds de plan
         </text>
       )}
@@ -576,7 +576,7 @@ export default function SvgConceptsDiagram({
           {[0, 1, 2].map((i) => (
             <rect
               key={i}
-              x={340 + i * 8}
+              x={740 + i * 8}
               y={615 + i * 6}
               width="64"
               height="44"
@@ -585,12 +585,12 @@ export default function SvgConceptsDiagram({
             />
           ))}
           <path
-            d="M366 636 H400 V654 H366 Z M383 636 V654"
+            d="M766 636 H800 V654 H766 Z M783 636 V654"
             fill="none"
             stroke={grey[500]}
             strokeWidth="2"
           />
-          <text x="388" y="690" textAnchor="middle" fontSize="11" fill={muted}>
+          <text x="788" y="690" textAnchor="middle" fontSize="11" fill={muted}>
             Plans de niveau
           </text>
         </>
@@ -601,7 +601,7 @@ export default function SvgConceptsDiagram({
           {[0, 1].map((i) => (
             <rect
               key={i}
-              x={520 + i * 8}
+              x={920 + i * 8}
               y={615 + i * 6}
               width="64"
               height="44"
@@ -610,12 +610,12 @@ export default function SvgConceptsDiagram({
             />
           ))}
           <path
-            d="M538 654 H582 M548 654 V634 H572 V654"
+            d="M938 654 H982 M948 654 V634 H972 V654"
             fill="none"
             stroke={grey[500]}
             strokeWidth="2"
           />
-          <text x="560" y="690" textAnchor="middle" fontSize="11" fill={muted}>
+          <text x="960" y="690" textAnchor="middle" fontSize="11" fill={muted}>
             Coupes
           </text>
         </>
@@ -623,7 +623,7 @@ export default function SvgConceptsDiagram({
       {zone(
         "link-folder-plan",
         <path
-          d="M420 612 C470 540, 540 500, 594 454"
+          d="M764 578 V452"
           fill="none"
           stroke={orange}
           strokeWidth="2"
