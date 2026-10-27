@@ -20,6 +20,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import LocalScanSliceSection from "./LocalScanSliceSection";
 import readLocalScanInWorker from "../services/readLocalScanInWorker";
 import createLocalScanView from "../services/createLocalScanView";
 import {
@@ -41,8 +42,10 @@ export default function LocalScansPanel({
 
   // state
   const [inspection, setInspection] = useState(false);
+  const [sliceEnabled, setSliceEnabled] = useState(false);
   const [picked, setPicked] = useState(null);
   const [pickMessage, setPickMessage] = useState(null);
+  const [yaw, setYaw] = useState(0);
   const [origin, setOrigin] = useState([0, 0, 0]);
   const surfaceRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -148,6 +151,7 @@ export default function LocalScansPanel({
         up: existing?.up ?? "Z",
         scale: existing?.scale ?? 1,
         origin: existing?.origin ?? [0, 0, 0],
+        yaw: existing?.yaw ?? 0,
       };
       let persisted = Boolean(existing);
       if (!existing && keepLocal) {
@@ -180,6 +184,7 @@ export default function LocalScansPanel({
       setPicked(null);
       setPickMessage(null);
       setOrigin(placement.origin);
+      setYaw(placement.yaw);
       setMode("POINTS");
       setUp(placement.up);
       setScale(String(placement.scale));
@@ -212,16 +217,18 @@ export default function LocalScansPanel({
     }
   }
 
-  async function place(nextUp, nextScale, nextOrigin = origin) {
+  async function place(nextUp, nextScale, nextOrigin = origin, nextYaw = yaw) {
     const numeric = Number(nextScale);
     setUp(nextUp);
     setScale(nextScale);
     if (!Number.isFinite(numeric) || numeric <= 0 || numeric > 1000) return;
     setOrigin(nextOrigin);
+    setYaw(nextYaw);
     viewRef.current?.setPlacement({
       up: nextUp,
       scale: numeric,
       origin: nextOrigin,
+      yaw: nextYaw,
     });
     if (loaded?.saved) {
       try {
@@ -229,9 +236,18 @@ export default function LocalScansPanel({
           up: nextUp,
           scale: numeric,
           origin: nextOrigin,
+          yaw: nextYaw,
         });
         setSaved((row) =>
-          row ? { ...row, up: nextUp, scale: numeric, origin: nextOrigin } : row
+          row
+            ? {
+                ...row,
+                up: nextUp,
+                scale: numeric,
+                origin: nextOrigin,
+                yaw: nextYaw,
+              }
+            : row
         );
       } catch {
         setError("Le placement n'a pas pu être enregistré.");
@@ -283,9 +299,9 @@ export default function LocalScansPanel({
           bottom: 90 + bottomInset,
           right: 16 + rightInset,
           zIndex: 11,
-          width: open ? 340 : "auto",
+          width: open ? (sliceEnabled ? 720 : 340) : "auto",
           maxWidth: "calc(100% - 32px)",
-          maxHeight: "65%",
+          maxHeight: sliceEnabled ? "78%" : "65%",
           overflow: "auto",
           p: 1,
         }}
@@ -443,10 +459,45 @@ export default function LocalScansPanel({
                 <FormControlLabel
                   control={
                     <Switch
+                      checked={sliceEnabled}
+                      disabled={busy}
+                      onChange={(_, value) => {
+                        setSliceEnabled(value);
+                        if (value) {
+                          setInspection(false);
+                          setPicked(null);
+                          setPickMessage(null);
+                        }
+                      }}
+                    />
+                  }
+                  label="Coupe Z et projection"
+                />
+                {sliceEnabled && !busy && !hidden && viewRef.current && (
+                  <LocalScanSliceSection
+                    editor={editor}
+                    view={viewRef.current}
+                    placementKey={viewRef.current.root.matrixWorld.elements.join(
+                      ","
+                    )}
+                    axesYaw={axesYaw}
+                    rotation={yaw}
+                    onRotate={(delta) => {
+                      const nextYaw =
+                        ((((yaw + delta + 180) % 360) + 360) % 360) - 180;
+                      void place(up, scale, origin, nextYaw);
+                    }}
+                    onResetRotation={() => void place(up, scale, origin, 0)}
+                  />
+                )}
+                <FormControlLabel
+                  control={
+                    <Switch
                       checked={inspection}
                       disabled={busy}
                       onChange={(_, value) => {
                         setInspection(value);
+                        if (value) setSliceEnabled(false);
                         setPicked(null);
                         setPickMessage(null);
                       }}

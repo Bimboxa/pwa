@@ -122,3 +122,56 @@ picking still scans the full cloud in its worker. Desktop performance must be
 assessed separately from parser correctness; this is not a mobile memory budget.
 Local storage quota failures continue to fall back to viewing without saving.
 The separate five-million Gaussian limit is unchanged.
+
+## Horizontal slice projection
+
+Enable **Coupe Z et projection** to select an inclusive horizontal interval with
+one vertical, two-handle slider or numeric Z limits. Slider bounds follow the
+placed cloud's minimum and maximum Z with 5% padding on each side (at least
+5 mm for a flat cloud). Values are metres in the
+placed scan's displayed frame, including origin, scale, vertical-axis selection
+and gizmo yaw. The image is orthographic (+X right, +Y up), with fixed XY bounds
+and square pixels; its longest side is 768 pixels. Each source point inside the
+interval contributes once, without sampling. **Densité** maps log(1 + point count)
+to dark pixels; **Couleurs** averages RGB per occupied pixel. Empty pixels remain
+white. Contrast is normalized independently for each slice, so darkness is not
+an absolute density scale across slices. Density highlights aligned vertical
+surfaces but does not classify walls: furniture and uneven scan coverage also
+contribute. Gaussian input uses centers, not rendered splat opacity.
+
+Orange and cyan boundary planes and points within a configurable tolerance
+(default +/-2 cm) update on the GPU while dragging. The overlay shares the scan's
+vertex buffers. The image uses the exact interval, not the boundary tolerance.
+A worker computes both rasters after a 250 ms debounce, yielding periodically to
+cancel obsolete requests; only the latest result is displayed. Previous output
+is visibly marked stale during computation and cannot be exported until current.
+PNG export contains the displayed raster, without georeferencing metadata.
+
+The projection worker clones XYZ/RGB once while enabled (about 469 MiB extra for
+the full NavVis example), then receives only range/frame updates. Inspection and
+projection are mutually exclusive to avoid retaining both analysis workers.
+Disabling the tool, hiding the scan or replacing it disposes overlays and workers.
+Projection settings and images are transient and are not added to project data.
+
+Validation includes placed-coordinate/axis tests, inclusive range and image
+orientation tests, mean RGB, density, empty/flat bounds and cancellation. The
+full NavVis file projected 8,794,600 points between source Z=-0.5 and +0.5 m into
+502 x 768 pixels (4.01 cm/pixel), with a 357 ms Node computation on the development
+machine. This is a computational check, not a browser frame-rate guarantee.
+
+The preview supports pointer-anchored wheel zoom, drag-to-pan, zoom buttons and
+**Cadrer l'image**. Zoom affects inspection of the raster, not its output resolution
+or exported PNG. **Définir l'axe horizontal (2 points)** picks image coordinates
+through the zoom/pan transform. After the second click the scan itself rotates
+about world Y (displayed vertical Z) around its current source anchor. The vector
+from the first point to the second becomes positive displayed X. No project
+geometry or editor axes are rotated. The worker rerenders from the transformed
+points, preserving the selected Z interval; **Réinitialiser la rotation** restores
+the imported horizontal orientation. Yaw is persisted with local scan placement,
+with zero as the backward-compatible default for previously saved scans.
+
+Browser verification with PortalCam covers boundary overlays, slider and numeric
+input, density/RGB modes, PNG download, wheel zoom, pan and two-point alignment.
+The alignment tests cover both vertical-axis choices, nonzero origin/scale, an
+existing model rotation and rotated editor axes. The full NavVis projection was
+validated computationally; full NavVis browser interaction remains to be assessed.

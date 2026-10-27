@@ -117,6 +117,7 @@ export default function createLocalScanView(editor, data) {
   setPlacement(placement);
   return {
     root,
+    pointGeometry: geometry,
     data,
     fit,
     setMode,

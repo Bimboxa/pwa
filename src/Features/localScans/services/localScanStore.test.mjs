@@ -19,9 +19,11 @@ test("local sources are isolated by scope; placement does not rewrite source dat
     scale: 0.001,
     up: "Y",
     origin: [4, -2, 7],
+    yaw: -32.3,
   });
   assert.equal((await getLocalScan("a")).scale, 0.001);
   assert.deepEqual((await getLocalScan("a")).origin, [4, -2, 7]);
+  assert.equal((await getLocalScan("a")).yaw, -32.3);
   assert.equal((await getLocalScan("b")).scale, 1);
   assert.equal(await (await getLocalScanSource("a")).text(), "first");
   await deleteLocalScan("a");
