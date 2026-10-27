@@ -6,6 +6,7 @@ import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { isLetterClaimed } from "Features/commandsToolbar/utils/hotkeyClaims";
+import isKeydownInsidePopup from "Features/commandsToolbar/utils/isKeydownInsidePopup";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -60,6 +61,9 @@ export default function useRightPanelToolHotkeys() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
+      // An open MUI menu / popover / dialog (the shortcuts menu, the
+      // Raccourcis or Configuration dialogs…) owns the keyboard.
+      if (isKeydownInsidePopup(e)) return;
 
       const letter = e.key.toLowerCase();
       const targetKey = toolKeyByLetterRef.current[letter];

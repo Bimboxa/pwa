@@ -25,6 +25,7 @@ import extrudeCommand from "./extrude/extrudeCommand";
 import moveAnnotationCommand from "./moveAnnotation/moveAnnotationCommand";
 import rotateAnnotationCommand from "./rotateAnnotation/rotateAnnotationCommand";
 import wrapperModeCommand from "./wrapperMode/wrapperModeCommand";
+import changeStyleCommand from "./changeStyle/changeStyleCommand";
 import cloneCommand from "./clone/cloneCommand";
 import mergeCommand from "./merge/mergeCommand";
 import dilateCommand from "./dilate/dilateCommand";
@@ -111,6 +112,7 @@ export const COMMANDS = [
   rotateAnnotationCommand,
   // selection
   wrapperModeCommand,
+  changeStyleCommand,
   cloneCommand,
   mergeCommand,
   dilateCommand,

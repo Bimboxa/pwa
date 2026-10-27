@@ -2117,8 +2117,11 @@ const InteractionLayer = forwardRef(({
   // pointer cursor and hide the ScreenCursor crosshair.
   // MESH_BRUSH: the « Pinceau » armed in 2D converts / duplicates the clicked
   // annotation (template brush) — same click-on-geometry interaction.
-  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", ...TRANSFORM_TOOL_MODES];
+  // CHANGE_STYLE: « Changer de style » armed from the commands toolbar — a
+  // click selects the annotation (shift toggles it), the helper panel applies
+  // the template.
+  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH", "CHANGE_STYLE"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", "CHANGE_STYLE", ...TRANSFORM_TOOL_MODES];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -4791,6 +4794,15 @@ const InteractionLayer = forwardRef(({
             }
           }
 
+          // CHANGE_STYLE: Escape only leaves the mode, the selection it
+          // built is kept (same contract as the X of the helper panel,
+          // useExitDrawingMode).
+          if (enabledDrawingMode === "CHANGE_STYLE") {
+            dispatch(setEnabledDrawingMode(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Reset split polyline state if active
           onSplitPolylineResetRef.current?.();
 
@@ -5937,6 +5949,39 @@ const InteractionLayer = forwardRef(({
             annotationTemplateId: editTarget.id,
           });
         }
+      }
+      return;
+    }
+
+    // --- CHANGE_STYLE (« Changer de style » armed from the commands
+    // toolbar): a click selects the annotation, shift toggles it in the
+    // selection, a click on empty does nothing — the helper panel applies the
+    // template to the selection. Draggable nodes (disc, cote, label…) never
+    // reach here: handleMouseDownCapture absorbs them and handleMouseUp's
+    // pending-click path selects them (clickOnly in this mode).
+    if (enabledDrawingMode === "CHANGE_STYLE") {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      const nodeId = hit?.dataset?.nodeId;
+      if (!nodeId || isForeignFootprintId(nodeId) || isAnnotationLabelNodeId(nodeId)) return;
+      const annotation = annotations?.find((a) => a.id === nodeId);
+      const newItem = {
+        id: nodeId,
+        nodeId,
+        type: "NODE",
+        nodeType: "ANNOTATION",
+        annotationType: hit.dataset.annotationType,
+        listingId: hit.dataset.nodeListingId,
+        annotationTemplateId: annotation?.annotationTemplateId,
+        nodeContext: hit.dataset.nodeContext,
+        partId: null,
+        partType: null,
+      };
+      if (event.shiftKey) {
+        dispatch(toggleItemSelection(newItem));
+      } else {
+        dispatch(setSelectedItem(newItem));
+        dispatch(setShowAnnotationsProperties(true));
       }
       return;
     }
@@ -8642,6 +8687,12 @@ const InteractionLayer = forwardRef(({
     // logic. Pan still works via MapEditorViewport's own onMouseDown.
     if (imageModeEnabledRef.current) return;
 
+    // Right / middle button: never a drag nor a selection gesture here — the
+    // right click belongs to handleContextMenu (the shortcuts menu). Without
+    // this, a right mousedown on a draggable node went through the pending
+    // click path of handleMouseUp and replaced the selection.
+    if (e.button !== 0) return;
+
     // ==================
     // Annotation
     // ==================
@@ -8702,6 +8753,13 @@ const InteractionLayer = forwardRef(({
     // points must win over any transform.
     if (enabledDrawingModeRef.current === "IMAGE_SCALE") {
       draggableGroup = null;
+      resizeHandle = null;
+      rotateHandle = null;
+    }
+    // CHANGE_STYLE: clicks only (re)build the selection — no resize / rotate
+    // of the selected annotation (the draggables are selected without moving,
+    // see clickOnly below).
+    if (enabledDrawingModeRef.current === "CHANGE_STYLE") {
       resizeHandle = null;
       rotateHandle = null;
     }
@@ -8921,7 +8979,8 @@ const InteractionLayer = forwardRef(({
       const clickOnly =
         (isLabelPart && !labelNodeSelected) ||
         isUnselectedPlacement ||
-        isNodeOwnedDrag;
+        isNodeOwnedDrag ||
+        enabledDrawingModeRef.current === "CHANGE_STYLE";
 
       // Marker-like whole-moves can snap; the snap lands the annotation's own
       // reference point (not the cursor) on the target, so capture it now.
@@ -8998,6 +9057,11 @@ const InteractionLayer = forwardRef(({
   };
 
 
+  // Right click → the shortcuts menu of the commands toolbar
+  // (MenuCommandShortcuts, anchored on contextMenu.anchorPosition). The
+  // right-clicked annotation becomes the selection unless it already belongs
+  // to it (a multi-selection containing it is kept, so the shortcuts act on
+  // the whole selection); a right click on empty leaves the selection as is.
   function handleContextMenu(e) {
     e.preventDefault();
 
@@ -9005,33 +9069,35 @@ const InteractionLayer = forwardRef(({
     // already blocks the browser menu, just bail before the annotation logic).
     if (imageModeEnabledRef.current) return;
 
-    // Detect if clicking on a node
     const nativeTarget = e.nativeEvent?.target || e.target;
-    const hit = nativeTarget.closest?.("[data-node-type]");
+    const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+    const nodeId = hit?.dataset?.nodeId;
 
-    if (hit) {
-      const { nodeId, nodeListingId, nodeType, annotationType, pointIndex } =
-        hit.dataset;
-      dispatch(
-        setClickedNode({
-          id: nodeId,
-          nodeListingId,
-          nodeType,
-          annotationType,
-          pointIndex,
-        })
-      );
-    } else {
-      dispatch(setClickedNode(null));
+    if (nodeId && !isForeignFootprintId(nodeId) && !isAnnotationLabelNodeId(nodeId)) {
+      const alreadySelected = selectedItems?.some((i) => i.nodeId === nodeId);
+      if (!alreadySelected) {
+        const annotation = annotations?.find((a) => a.id === nodeId);
+        dispatch(
+          setSelectedItem({
+            id: nodeId,
+            nodeId,
+            type: "NODE",
+            nodeType: "ANNOTATION",
+            annotationType: hit.dataset.annotationType,
+            listingId: hit.dataset.nodeListingId,
+            annotationTemplateId: annotation?.annotationTemplateId,
+            nodeContext: hit.dataset.nodeContext,
+            partId: null,
+            partType: null,
+          })
+        );
+        dispatch(setShowAnnotationsProperties(true));
+      }
     }
 
-    // Use client coordinates for Popper anchor
-    dispatch(
-      setAnchorPosition({
-        x: e.clientX,
-        y: e.clientY,
-      })
-    );
+    dispatch(setClickedNode(null));
+    // Client coordinates: the menu anchors at the cursor
+    dispatch(setAnchorPosition({ x: e.clientX, y: e.clientY }));
   }
 
   // Drag n Drop

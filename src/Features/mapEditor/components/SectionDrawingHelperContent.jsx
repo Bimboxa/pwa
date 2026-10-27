@@ -57,6 +57,8 @@ import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThr
 import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
+import SectionChangeStyleHelper from "Features/commandsToolbar/commands/changeStyle/SectionChangeStyleHelper";
+import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = [
@@ -445,6 +447,12 @@ export default function SectionDrawingHelperContent() {
         <SectionTransformToolHelper2d mode={enabledDrawingMode} />
       </Box>
     );
+  }
+
+  // « Changer de style » armed from the commands toolbar (2D and 3D): the
+  // selection + the template picker, no loupe / smart detect.
+  if (enabledDrawingMode === CHANGE_STYLE_MODE) {
+    return <SectionChangeStyleHelper />;
   }
 
   return (
