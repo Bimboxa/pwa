@@ -494,7 +494,16 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
             {tab === "POSITION" && (
               <>
                 <WhiteSectionGeneric>
-                  <Stack spacing={1}>
+                  <Stack
+                    spacing={1}
+                    sx={{
+                      "& .MuiToggleButton-root": {
+                        px: 1,
+                        py: 0.25,
+                        fontSize: "0.75rem",
+                      },
+                    }}
+                  >
                     <Typography variant="subtitle2">
                       Placement du modèle
                     </Typography>
