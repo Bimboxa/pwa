@@ -50,6 +50,16 @@ export function clearScopeSyncStorage(scopeId) {
   localStorage.removeItem(LAST_SYNC_PREFIX + scopeId);
 }
 
+// Local activity timestamps of a scope on this device (epoch ms or null):
+// last user edit and last save to the server — used by the dashboard "daily
+// scopes" list to surface Krtos worked on locally.
+export function getScopeLocalActivityFromStorage(scopeId) {
+  return {
+    lastLocalChangeAt: getLastLocalChangeFromStorage(scopeId),
+    lastSyncAt: getLastSyncFromStorage(scopeId),
+  };
+}
+
 function getLastSyncFromStorage(scopeId) {
   if (!scopeId) return null;
   return getNumberFromStorage(LAST_SYNC_PREFIX + scopeId);

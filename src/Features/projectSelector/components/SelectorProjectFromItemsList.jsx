@@ -50,7 +50,8 @@ export default function SelectorProjectFromItemsList({
   // helpers
 
   const filterByType = appConfig?.features?.projectSelector?.filterByType;
-  const valueOptions = filterByType?.options;
+  // référentiel types only (free projects are not in the référentiel)
+  const valueOptions = filterByType?.options?.filter((o) => !o.isFreeProject);
 
 
   // handlers

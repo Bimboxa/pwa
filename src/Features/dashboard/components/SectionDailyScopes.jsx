@@ -30,6 +30,8 @@ import "dayjs/locale/fr";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
+import useLocalDailyScopes from "Features/dailyScopes/hooks/useLocalDailyScopes";
+import useOpenDashboardScope from "../hooks/useOpenDashboardScope";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 import getLocalDateString from "Features/dailyScopes/utils/getLocalDateString";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
@@ -48,6 +50,7 @@ export default function SectionDailyScopes() {
 
   const appConfig = useAppConfig();
   const { dailyScopes, dailyScopesDate, fetchDailyScopes } = useDailyScopes();
+  const openScope = useOpenDashboardScope();
   const currentUserId = useSelector((s) =>
     normalizeOwnerId(getUserIdMaster(s.auth.userProfile))
   );
@@ -64,13 +67,47 @@ export default function SectionDailyScopes() {
   const dateS = dailyScopesDate ?? todayS;
   const isToday = dateS === todayS;
 
-  // items — most recent first, optionally restricted to the current user's
+  const localDailyScopes = useLocalDailyScopes(dateS);
+
+  // items — server list merged with the Krtos worked on locally that day
+  // (one row per scope, most recent activity wins), most recent first,
+  // optionally restricted to the current user's
+
+  const allItems = useMemo(() => {
+    const byScopeId = new Map();
+    (dailyScopes ?? []).forEach((item) =>
+      byScopeId.set(String(item.scopeId), item)
+    );
+    localDailyScopes.forEach((local) => {
+      const id = String(local.scopeId);
+      const remote = byScopeId.get(id);
+      if (!remote) {
+        byScopeId.set(id, local);
+        return;
+      }
+      const localIsNewer =
+        (parseBackendDate(local.lastConfigurationAt) ?? 0) >
+        (parseBackendDate(remote.lastConfigurationAt) ?? 0);
+      byScopeId.set(id, {
+        ...remote,
+        isLocal: true,
+        hasLocalActivity: true,
+        projectId: local.projectId,
+        projectType: remote.projectType ?? local.projectType,
+        ...(localIsNewer && {
+          lastConfigurationAt: local.lastConfigurationAt,
+        }),
+      });
+    });
+    return [...byScopeId.values()];
+  }, [dailyScopes, localDailyScopes]);
 
   const items = useMemo(() => {
-    return [...(dailyScopes ?? [])]
+    return allItems
       .filter(
         (item) =>
           !onlyMine ||
+          item.hasLocalActivity ||
           (currentUserId !== null &&
             normalizeOwnerId(item.createdBy?.idMaster) === currentUserId)
       )
@@ -79,7 +116,7 @@ export default function SectionDailyScopes() {
           (parseBackendDate(b.lastConfigurationAt) ?? 0) -
           (parseBackendDate(a.lastConfigurationAt) ?? 0)
       );
-  }, [dailyScopes, onlyMine, currentUserId]);
+  }, [allItems, onlyMine, currentUserId]);
 
   // strings
 
@@ -91,7 +128,7 @@ export default function SectionDailyScopes() {
     : (appConfig?.strings?.scope?.dailyScopeEmptyTitleOtherDay ??
       "Rien ce jour-là");
   const emptyHintS =
-    onlyMine && dailyScopes?.length
+    onlyMine && allItems.length
       ? (appConfig?.strings?.scope?.dailyScopeEmptyHintMine ??
         "Aucun de vos dossiers n'a été ouvert ou modifié ce jour-là.")
       : isToday
@@ -150,7 +187,14 @@ export default function SectionDailyScopes() {
   }
 
   function handleOpen(item) {
-    navigate(`/scopes/${item.scopeId}`);
+    if (item.isLocal) {
+      openScope({
+        row: { scopeId: item.scopeId, isLocal: true },
+        projectId: item.projectId,
+      });
+    } else {
+      navigate(`/scopes/${item.scopeId}`);
+    }
   }
 
   // render

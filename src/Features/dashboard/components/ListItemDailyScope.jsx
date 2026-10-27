@@ -11,11 +11,12 @@ import getScopeConfigMetaData from "Features/remoteScopeConfigurations/utils/get
 
 import AvatarPovPreview from "./AvatarPovPreview";
 import ChipsScopeStats from "./ChipsScopeStats";
+import ChipProjectType from "./ChipProjectType";
 
 import { TEXT_FAINT } from "../utils/dashboardStyles";
 
 // One row of the "daily scopes" list: POV preview thumbnail (when shared)
-// then project name over scope name on the left, author trigram + creation
+// then project name (+ project type chip) over scope name on the left, author trigram + creation
 // time on one line over an "open" button on the right. Private scopes
 // created by another user get a "lecture seule" chip left of the trigram.
 
@@ -23,12 +24,8 @@ export default function ListItemDailyScope({ item, onOpen }) {
   // data
 
   const appConfig = useAppConfig();
-  const localScope = useSelector(
-    (s) => s.scopes.scopesById?.[item.scopeId]
-  );
-  const currentUserId = useSelector((s) =>
-    getUserIdMaster(s.auth.userProfile)
-  );
+  const localScope = useSelector((s) => s.scopes.scopesById?.[item.scopeId]);
+  const currentUserId = useSelector((s) => getUserIdMaster(s.auth.userProfile));
 
   // strings
 
@@ -80,9 +77,14 @@ export default function ListItemDailyScope({ item, onOpen }) {
       >
         <AvatarPovPreview povPreviews={item.povPreviews} />
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
-            {item.projectName}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
+              {item.projectName}
+            </Typography>
+            <Box sx={{ flexShrink: 0, display: "flex" }}>
+              <ChipProjectType type={item.projectType} />
+            </Box>
+          </Box>
           <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
             {item.scopeName}
           </Typography>

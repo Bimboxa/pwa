@@ -6,11 +6,18 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import AvatarPovPreview from "./AvatarPovPreview";
 import ChipsScopeStats from "./ChipsScopeStats";
 
-// Compact krto row of the projects table dropdown: POV preview, name over
-// "author, date", content stats (base maps / annotations). Clicking the row
-// opens the krto. `row` = getDashboardScopeRows item.
+import { CARD_BORDER, PILL_HOVER_BG } from "../utils/dashboardStyles";
 
-export default function ListItemDashboardProjectScope({ row, onOpen }) {
+// Compact krto cell of the projects table dropdown: POV preview, name over
+// "author, date", content stats (base maps / annotations). Clicking the row
+// opens the krto. `row` = getDashboardScopeRows item. `showPreview` reserves
+// the preview column (when at least one sibling row has a preview).
+
+export default function ListItemDashboardProjectScope({
+  row,
+  showPreview,
+  onOpen,
+}) {
   // data
 
   const appConfig = useAppConfig();
@@ -32,18 +39,22 @@ export default function ListItemDashboardProjectScope({ row, onOpen }) {
           display: "flex",
           alignItems: "center",
           gap: 1.25,
-          pl: 2,
-          pr: 1.5,
+          px: 1.5,
           py: 0.75,
-          minHeight: 44,
+          minHeight: 48,
           cursor: "pointer",
-          borderRadius: 1.5,
-          "&:hover": { bgcolor: "rgba(0,0,0,0.04)" },
+          bgcolor: "white",
+          borderBottom: `1px solid ${CARD_BORDER}`,
+          "&:last-of-type": { borderBottom: "none" },
+          transition: "background-color .15s",
+          "&:hover": { bgcolor: PILL_HOVER_BG },
         }}
       >
-        <Box sx={{ width: 34, flexShrink: 0, display: "flex" }}>
-          <AvatarPovPreview povPreviews={row.povPreviews} />
-        </Box>
+        {showPreview && (
+          <Box sx={{ width: 34, flexShrink: 0, display: "flex" }}>
+            <AvatarPovPreview povPreviews={row.povPreviews} />
+          </Box>
+        )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <Typography sx={{ fontWeight: 500, fontSize: 13 }} noWrap>

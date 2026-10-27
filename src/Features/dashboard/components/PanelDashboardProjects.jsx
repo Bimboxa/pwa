@@ -19,7 +19,7 @@ import {
   PILL_TEXT,
   PILL_BUTTON_SX,
   PILL_SEARCH_SX,
-  SEGMENT_TOGGLE_SX,
+  PILL_TOGGLE_SX,
   fadeUp,
 } from "../utils/dashboardStyles";
 
@@ -155,7 +155,7 @@ export default function PanelDashboardProjects({
           ...fadeUp(0.15),
         }}
       >
-        <Box sx={{ flexShrink: 0, ...SEGMENT_TOGGLE_SX }}>
+        <Box sx={{ flexShrink: 0, ...PILL_TOGGLE_SX }}>
           <ToggleProjectType
             value={typeFilter}
             valueOptions={typeOptions}

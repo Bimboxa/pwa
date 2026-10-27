@@ -78,6 +78,38 @@ export const SEGMENT_TOGGLE_SX = {
   },
 };
 
+// wrapper Box around a ToggleButtonGroup — separate pill chips matching the
+// outlined pill buttons (PILL_BUTTON_SX): white when unselected, orange tint
+// when selected
+export const PILL_TOGGLE_SX = {
+  "& .MuiToggleButtonGroup-root": { gap: 1 },
+  "& .MuiToggleButton-root": {
+    height: 30,
+    px: 1.5,
+    py: 0,
+    fontSize: 13,
+    fontWeight: 500,
+    textTransform: "none",
+    whiteSpace: "nowrap",
+    color: PILL_TEXT,
+    bgcolor: "white",
+    border: `1px solid ${PILL_BORDER} !important`,
+    borderRadius: "999px !important",
+    ml: "0 !important",
+    "&:hover": { bgcolor: PILL_HOVER_BG },
+  },
+  "& .MuiToggleButton-root.Mui-selected": {
+    color: "secondary.main",
+    fontWeight: 600,
+    bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
+    borderColor: (theme) =>
+      `${alpha(theme.palette.secondary.main, 0.5)} !important`,
+    "&:hover": {
+      bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+    },
+  },
+};
+
 export function fadeUp(delay = 0) {
   return {
     animation: `dashboardFadeUp .5s ease ${delay}s both`,

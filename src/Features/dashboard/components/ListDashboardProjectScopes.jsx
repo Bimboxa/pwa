@@ -9,7 +9,7 @@ import useOpenDashboardScope from "../hooks/useOpenDashboardScope";
 import ListItemDashboardProjectScope from "./ListItemDashboardProjectScope";
 
 import getDashboardScopeRows from "../utils/getDashboardScopeRows";
-import { TEXT_FADED } from "../utils/dashboardStyles";
+import { CARD_BORDER, TEXT_FADED } from "../utils/dashboardStyles";
 
 // Krtos of a project, unfolded under its row in the projects table. Mounted
 // only while unfolded: it fetches the project configurations from the server
@@ -40,6 +40,8 @@ export default function ListDashboardProjectScopes({ item }) {
     userConfigurations,
   });
 
+  const showPreview = rows.some((row) => row.povPreviews?.length > 0);
+
   // handlers
 
   function handleOpen(row) {
@@ -49,14 +51,25 @@ export default function ListDashboardProjectScopes({ item }) {
   // render
 
   return (
-    <Box sx={{ pl: 2, pr: 1, pb: 1 }}>
-      {rows.map((row) => (
-        <ListItemDashboardProjectScope
-          key={row.scopeId}
-          row={row}
-          onOpen={handleOpen}
-        />
-      ))}
+    <Box sx={{ pl: 4, pr: 2, pb: 1.5 }}>
+      {rows.length > 0 && (
+        <Box
+          sx={{
+            border: `1px solid ${CARD_BORDER}`,
+            borderRadius: 1.5,
+            overflow: "hidden",
+          }}
+        >
+          {rows.map((row) => (
+            <ListItemDashboardProjectScope
+              key={row.scopeId}
+              row={row}
+              showPreview={showPreview}
+              onOpen={handleOpen}
+            />
+          ))}
+        </Box>
+      )}
       {loading && (
         <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
           <CircularProgress size={16} sx={{ color: TEXT_FADED }} />

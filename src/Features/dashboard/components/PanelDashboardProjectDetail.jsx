@@ -101,8 +101,6 @@ export default function PanelDashboardProjectDetail({ item }) {
   const createFirstScopeHintS =
     appConfig?.strings?.scope?.createFirstScopeHint ??
     `Créez le premier ${scopeS} pour commencer le repérage.`;
-  const createFirstScopeS =
-    appConfig?.strings?.scope?.createFirstScope ?? `Créer le premier ${scopeS}`;
   const newScopeS =
     appConfig?.strings?.scope?.new ?? "Créer un plan de repérage";
 
@@ -354,16 +352,6 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Typography variant="body2" sx={{ mt: 0.5 }}>
               {createFirstScopeHintS}
             </Typography>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<Add />}
-              onClick={handleNewKrto}
-              disabled={!item.projectId}
-              sx={{ mt: 2 }}
-            >
-              {createFirstScopeS}
-            </Button>
           </Box>
         ) : (
           <Box

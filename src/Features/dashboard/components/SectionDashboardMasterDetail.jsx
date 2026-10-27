@@ -49,7 +49,7 @@ export default function SectionDashboardMasterDetail() {
   // state
 
   const [searchText, setSearchText] = useState("");
-  const [typeFilter, setTypeFilter] = useState(null); // CHANTIER | OPPORTUNITE | null
+  const [typeFilter, setTypeFilter] = useState(null); // project type key (filterByType options) | null
   const [myKrtosLoading, setMyKrtosLoading] = useState(false);
   const [installingKey, setInstallingKey] = useState(null);
   const [favoritesRefreshing, setFavoritesRefreshing] = useState(false);

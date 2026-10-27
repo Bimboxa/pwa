@@ -8,6 +8,7 @@ import useScopes from "Features/scopes/hooks/useScopes";
 import getFoundItems from "Features/search/getFoundItems";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 import normalizeProjectIdMaster from "../utils/normalizeProjectIdMaster";
+import { getProjectTypeProps } from "../utils/projectTypes";
 
 // Unified project items for the dashboard master list.
 // One item per project, local (Dexie) or remote-only (cloud):
@@ -90,6 +91,14 @@ function createItemsIndex() {
   }
 
   return { add, find, findForConfig };
+}
+
+// type filter: unknown / legacy types count as PROJECT (free project); a
+// référentiel project whose type is not known yet stays visible
+function matchesTypeFilter({ type, idMaster }, typeFilter) {
+  if (!typeFilter) return true;
+  if (!type && idMaster) return true;
+  return getProjectTypeProps(type).key === typeFilter;
 }
 
 // attaches a remote configuration to an item: POV previews, sort date and —
@@ -276,8 +285,8 @@ export default function useDashboardProjectItems({
       // 4.a remote projects from the référentiel search (chantiers /
       // opportunités), unless already listed in the main list
       (remoteProjects ?? []).forEach((mp) => {
-        if (typeFilter && mp.type && mp.type !== typeFilter) return;
         const idMaster = normalizeProjectIdMaster(mp.idMaster);
+        if (!matchesTypeFilter({ type: mp.type, idMaster }, typeFilter)) return;
         const query = { idMaster, clientRef: mp.clientRef };
         if (mainIndex.find(query) || cloudIndex.find(query)) return;
         const item = createRemoteItem({
@@ -295,12 +304,11 @@ export default function useDashboardProjectItems({
       // 4.b remaining configurations: attached to their cloud project, or a
       // new cloud item derived from the configuration (search results only)
       pendingCloudConfigs.forEach(({ config, canCreate }) => {
-        if (
-          typeFilter &&
-          config.projectType &&
-          config.projectType !== typeFilter
-        )
-          return;
+        const configType = {
+          type: config.projectType,
+          idMaster: normalizeProjectIdMaster(config.projectIdMaster),
+        };
+        if (!matchesTypeFilter(configType, typeFilter)) return;
         let item = cloudIndex.findForConfig(config);
         if (!item) {
           if (!canCreate) return;
@@ -324,11 +332,9 @@ export default function useDashboardProjectItems({
 
     allItems.forEach(finalizeItem);
 
-    // 5. Type filter (chantier / opportunité) — keep untyped items visible
+    // 5. Type filter (projet / opportunité / chantier)
 
-    let visibleItems = typeFilter
-      ? allItems.filter((i) => !i.type || i.type === typeFilter)
-      : allItems;
+    let visibleItems = allItems.filter((i) => matchesTypeFilter(i, typeFilter));
 
     // 6. Search filter on the main list
 
