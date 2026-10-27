@@ -12,12 +12,14 @@ import useListings from "Features/listings/hooks/useListings";
 // queries: render it only while its popup is open so the ~7 commands do not
 // keep 14 live queries running in the toolbar.
 // `filterTemplate(template, { listings })` keeps the eligible templates;
-// `onChange(templateId, template)`.
+// `onChange(templateId, template)`; `getItemSuffix(template)` is the optional
+// right-hand text of a row (SelectorAnnotationTemplateVariantDense).
 export default function ListPickAnnotationTemplate({
   filterTemplate,
   onChange,
   selectedAnnotationTemplateId = null,
   emptyText = "Aucun modèle éligible",
+  getItemSuffix = null,
 }) {
   // data
 
@@ -61,6 +63,7 @@ export default function ListPickAnnotationTemplate({
       onChange={handleChange}
       annotationTemplates={templates}
       listings={listings}
+      getItemSuffix={getItemSuffix}
     />
   );
 }

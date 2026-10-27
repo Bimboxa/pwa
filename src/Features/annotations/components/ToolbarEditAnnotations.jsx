@@ -10,15 +10,15 @@ import {
 
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
 import useUpdateAnnotations from "../hooks/useUpdateAnnotations";
-import useAnnotationTemplateCandidates, {
-  isTemplateCompatibleWithAnnotation,
-} from "../hooks/useAnnotationTemplateCandidates";
+import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
+import useChangeAnnotationsTemplate, {
+  getTemplateChangeTargets,
+} from "../hooks/useChangeAnnotationsTemplate";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
-import getAnnotationTemplateChangeUpdates from "../utils/getAnnotationTemplateChangeUpdates";
 
 import {
   Box,
@@ -82,6 +82,7 @@ export default function ToolbarEditAnnotations({
   const { candidates: sameTypeCandidates, listings: sameTypeListings } =
     useAnnotationTemplateCandidates(annotations, { variant: "sameType" }) ?? {};
   const updateAnnotations = useUpdateAnnotations();
+  const changeAnnotationsTemplate = useChangeAnnotationsTemplate();
 
   // state
 
@@ -268,9 +269,7 @@ export default function ToolbarEditAnnotations({
 
   // Selected rows a candidate template may be assigned to (same shape).
   function getTemplateTargets(template) {
-    return annotations.filter((a) =>
-      isTemplateCompatibleWithAnnotation(a, template, { variant: "sameType" })
-    );
+    return getTemplateChangeTargets(annotations, template);
   }
 
   // The selection's common template, when it has exactly one.
@@ -293,17 +292,9 @@ export default function ToolbarEditAnnotations({
     );
     if (!template) return;
 
-    // Diff-only patch per row (same path as the single-selection toolbar):
-    // template fields the merge actually changed, the new template's ids and
-    // lock set, `type` only when it changes, and a templateless row ("Dessin"
-    // tool) becomes a regular listing annotation. Incompatible rows of a
-    // mixed selection are left untouched.
-    const updates = getTemplateTargets(template)
-      .map((annotation) =>
-        getAnnotationTemplateChangeUpdates({ annotation, template, baseMap })
-      )
-      .filter(Boolean);
-    if (updates.length > 0) await updateAnnotations(updates);
+    // Batch diff-only patch of the compatible rows (same path as the
+    // single-selection toolbar and the « Changer de style » command).
+    await changeAnnotationsTemplate(annotations, template, { baseMap });
     handleTemplateDropdownClose();
   }
 

@@ -10,45 +10,21 @@ import {
   setCommandsToolbarLastUsed,
 } from "../commandsToolbarSlice";
 
+import ButtonOpenShortcutsDialog from "./ButtonOpenShortcutsDialog";
 import CommandGroupButton from "./CommandGroupButton";
 import CommandSlot from "./CommandSlot";
+import DialogCommandShortcuts from "./DialogCommandShortcuts";
+import MenuCommandShortcuts from "./MenuCommandShortcuts";
 import { COMMANDS_BY_KEY } from "../commands";
 import getToolbarLayout from "../constants/toolbarLayout";
 import useCommandsContext from "../hooks/useCommandsContext";
 import useCommandsHotkeys from "../hooks/useCommandsHotkeys";
 import useToolbarDockDrag from "../hooks/useToolbarDockDrag";
-import getCommandState from "../utils/getCommandState";
+import toSlotItem from "../utils/toSlotItem";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 // Floating toolbar: wraps on several lines up to this width.
 const FLOATING_MAX_WIDTH = 640;
-
-// Hotkey badge of a command for the displayed editor (none when the letter
-// belongs to another editor — « E » Évider 2D / Extruder 3D).
-function getHotkeyLabel(command, ctx) {
-  const hotkey = command.hotkey;
-  if (!hotkey?.key) return null;
-  if (hotkey.editors && !hotkey.editors.includes(ctx.editor)) return null;
-  // A letter shared by several commands (D = the last-used « Dessin » type)
-  // is badged on the one that would fire.
-  if (hotkey.showBadgeWhen && !hotkey.showBadgeWhen(ctx)) return null;
-  return hotkey.key.toUpperCase();
-}
-
-// One slot item of a command: what CommandSlot / CommandGroupButton render.
-function toSlotItem(command, ctx, deps) {
-  return {
-    key: command.key,
-    command,
-    label: command.label,
-    Icon: command.Icon,
-    icon: command.icon,
-    hotkeyLabel: getHotkeyLabel(command, ctx),
-    state: getCommandState(command, ctx),
-    Button: command.Button,
-    run: () => command.run?.(ctx, deps),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // CommandsToolbar — the single toolbar gathering every annotation command of
@@ -60,7 +36,9 @@ function toSlotItem(command, ctx, deps) {
 // - FLOATING: absolute layer inside the editors area, dragged by its grip,
 //   wrapping on several lines; released near an edge it docks there.
 // Groups of constants/toolbarLayout.js and commands with variants render as
-// split buttons (CommandGroupButton).
+// split buttons (CommandGroupButton). The last button opens the « Raccourcis »
+// dialog; the toolbar also renders the right-click shortcuts menu of the
+// editors (MenuCommandShortcuts), the only place owning ctx / deps.
 // ---------------------------------------------------------------------------
 export default function CommandsToolbar({ dock, containerRef }) {
   const dispatch = useDispatch();
@@ -98,17 +76,19 @@ export default function CommandsToolbar({ dock, containerRef }) {
 
   // render
 
+  function renderDivider(key) {
+    return (
+      <Divider
+        key={key}
+        orientation={isVertical ? "horizontal" : "vertical"}
+        flexItem
+        sx={isVertical ? { my: 0.5, mx: 0.5 } : { mx: 0.5, my: 0.5 }}
+      />
+    );
+  }
+
   function renderEntry(entry, index) {
-    if (entry?.type === "divider") {
-      return (
-        <Divider
-          key={`divider-${index}`}
-          orientation={isVertical ? "horizontal" : "vertical"}
-          flexItem
-          sx={isVertical ? { my: 0.5, mx: 0.5 } : { mx: 0.5, my: 0.5 }}
-        />
-      );
-    }
+    if (entry?.type === "divider") return renderDivider(`divider-${index}`);
 
     if (entry?.type === "group") {
       const items = entry.commandKeys
@@ -255,7 +235,11 @@ export default function CommandsToolbar({ dock, containerRef }) {
       >
         {grip}
         {getToolbarLayout(ctx.viewerKey).map(renderEntry)}
+        {renderDivider("divider-shortcuts")}
+        <ButtonOpenShortcutsDialog />
       </Paper>
+      <MenuCommandShortcuts ctx={ctx} deps={deps} />
+      <DialogCommandShortcuts />
       {/* Dock preview while dragging near an edge */}
       {isDragging && snapDock && (
         <Box

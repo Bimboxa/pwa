@@ -9,7 +9,7 @@ import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import useExitDrawingMode from "Features/mapEditor/hooks/useExitDrawingMode";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
+import selectDrawingHelperTitle from "Features/mapEditor/utils/selectDrawingHelperTitle";
 
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingHelper — drawing-mode content of the Dessin panel
@@ -30,8 +30,9 @@ export default function SectionPanelDrawingHelper() {
   const isThreedEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  // Extruder / Déplacer / Tourner: the helper is titled after the tool.
-  const transformToolTitle = useSelector(selectTransformToolTitle);
+  // Extruder / Déplacer / Tourner / Changer de style: the helper is titled
+  // after the tool.
+  const transformToolTitle = useSelector(selectDrawingHelperTitle);
 
   // strings
 

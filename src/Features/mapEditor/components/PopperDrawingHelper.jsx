@@ -14,7 +14,7 @@ import useExitDrawingMode from "../hooks/useExitDrawingMode";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
 import selectLocatingBusinessObjectId from "Features/businessObjects/utils/selectLocatingBusinessObjectId";
 import selectLinkBusinessObjectDraftId from "Features/businessObjects/utils/selectLinkBusinessObjectDraftId";
-import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
+import selectDrawingHelperTitle from "../utils/selectDrawingHelperTitle";
 import allowsMultipleLocationAnnotations from "Features/businessObjects/utils/allowsMultipleLocationAnnotations";
 import { softGradientCardSx } from "Features/dashboard/utils/dashboardStyles";
 
@@ -65,8 +65,9 @@ export default function PopperDrawingHelper() {
       (r) => r.isMain && r.baseMapId === selectedBaseMapId
     );
 
-  // Extruder / Déplacer / Tourner: the helper is titled after the tool.
-  const transformToolTitle = useSelector(selectTransformToolTitle);
+  // Extruder / Déplacer / Tourner / Changer de style: the helper is titled
+  // after the tool.
+  const transformToolTitle = useSelector(selectDrawingHelperTitle);
 
   const titleS = draftBusinessObject
     ? locatingBusinessObjectId

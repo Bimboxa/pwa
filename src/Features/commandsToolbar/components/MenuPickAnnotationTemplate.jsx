@@ -3,7 +3,8 @@ import { Menu } from "@mui/material";
 import ListPickAnnotationTemplate from "./ListPickAnnotationTemplate";
 
 // Menu wrapping ListPickAnnotationTemplate (the list, hence its queries, only
-// exists while the menu is open). `children` go above the list (options).
+// exists while the menu is open). `children` go above the list (options);
+// `getItemSuffix(template)` is the optional right-hand text of a row.
 export default function MenuPickAnnotationTemplate({
   open,
   anchorEl,
@@ -12,6 +13,7 @@ export default function MenuPickAnnotationTemplate({
   onChange,
   selectedAnnotationTemplateId = null,
   emptyText,
+  getItemSuffix,
   minWidth = 240,
   children,
 }) {
@@ -31,6 +33,7 @@ export default function MenuPickAnnotationTemplate({
           onChange={onChange}
           selectedAnnotationTemplateId={selectedAnnotationTemplateId}
           emptyText={emptyText}
+          getItemSuffix={getItemSuffix}
         />
       )}
     </Menu>

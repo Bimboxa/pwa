@@ -39,6 +39,15 @@ join, walls…) → move / rotate / view toggles of one annotation → quality
 (duplicates, cleanup, simplify, arcs). This order is display only: the
 registry order of `commands/index.js` drives the hotkey resolution.
 
+The layout is written as **named sections** (`{ key, label, entries }`,
+`TOOLBAR_SECTIONS` / `getToolbarSections(moduleKey)`): the toolbar renders
+the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
+« Raccourcis » dialog lists the commands under the section labels (« Repère »,
+« Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
+« Soustraction / Évidement », « Faces (3D) », « Créer / modifier depuis la
+sélection », « Déplacer / Affichage », « Qualité »). The last button of the
+toolbar (`ButtonOpenShortcutsDialog`, not a command) opens that dialog.
+
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
 drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device
 preference): « Orienter le repère » is a 2-click tool
@@ -54,6 +63,62 @@ tombstones, orphan points, dead mesh paints — `purgeDeletedAnnotationsService`
 the same service as « Purger les suppressions » in the 2D editor settings)
 after a confirmation dialog that announces the counts (dry run); « Réparer la
 géométrie » repairs the selected line / surface / strip.
+
+## Right-click shortcuts (« Raccourcis »)
+
+A right click in the 2D editor (`InteractionLayer.handleContextMenu`) or the
+3D editor (`MainThreedEditor.handleClick`, `event.button === 2` — a right
+drag stays the camera pan) opens the **shortcuts menu**
+(`components/MenuCommandShortcuts.jsx`, rendered by `CommandsToolbar`, the
+only owner of `ctx` / `deps`): the user's ordered shortcut commands as menu
+items, rendered exactly like a group menu (`CommandSlot` under
+`CommandMenuContext`), so a `run` command fires and a popup-owning command
+opens its popup on the menu anchor (the menu is `keepMounted`). Before the
+menu opens, the right-clicked annotation becomes the selection unless it
+already belongs to it (a multi-selection containing it is kept); a right
+click on empty keeps the selection. The anchor travels through
+`contextMenu.anchorPosition` (`Features/contextMenu/contextMenuSlice.js`,
+`closeContextMenu` on close); the menu element is a 1×1 fixed anchor portaled
+to body. Only the shortcuts present in the module's layout are listed; a
+non-relevant command stays visible, disabled with its reason. The footer
+« Raccourcis… » opens the dialog. No menu where the toolbar is hidden
+(`useShowCommandsToolbar`). In the 2D editor the right mousedown never starts
+a drag (`handleMouseDownCapture` filters `e.button !== 0`).
+
+The **« Raccourcis » dialog** (`components/DialogCommandShortcuts.jsx`,
+full page, « Quitter » + `Q` through the shared
+`layout/components/HeaderDialogFullPage` / `layout/hooks/useDialogQuitHotkey`
+also used by the Configuration dialog): every command of the default layout
+by section and group with a checkbox on the left, the ordered recap of the
+menu on the right (`ListSortableShortcuts`, dnd-kit drag handle, remove,
+« Réinitialiser »). The ordered keys persist per device in the toolbar's
+localStorage entry (`commandsToolbar.shortcutCommandKeys`,
+`setShortcutCommandKeys` / `toggleShortcutCommand`); default
+`constants/defaultShortcuts.js` = `["CHANGE_STYLE"]`, which keeps the former
+right-click « change template » gesture one click away.
+
+### « Changer de style » (`CHANGE_STYLE`)
+
+`commands/changeStyle/`: re-templates the selected annotations (same drawing
+shape — `useChangeAnnotationsTemplate`, the batch sibling of
+`useChangeAnnotationTemplate`, diff-only patch per compatible row). Two
+behaviours in `ButtonChangeStyle` (`useCommandMenu()`):
+
+- in a menu (right-click shortcuts, group menu): the item acts on the
+  selection now (selection gate) and opens `MenuPickChangeStyleTemplate` on
+  the menu anchor — candidates compatible with at least one selected row, the
+  common template highlighted, « · n » suffix on a mixed selection;
+- in the toolbar row: toggles the `CHANGE_STYLE` drawing mode
+  (`mapEditor.enabledDrawingMode`, constant in `changeStyleMode.js`). The
+  drawing helper (`SectionChangeStyleHelper`, through
+  `SectionDrawingHelperContent` — docked panel, floating popper, 3D panel;
+  title « Changer de style » via `mapEditor/utils/selectDrawingHelperTitle`)
+  lists the selection grouped by template and holds the « Changer le style »
+  button. A click selects an annotation (shift toggles it,
+  `POINTER_CLICK_MODES` / `NO_SMART_DETECT_MODES`, draggables select without
+  moving), a click on empty does nothing, Escape leaves the mode and keeps the
+  selection; the mode stays armed after a change. The 3D editor ignores this
+  2D mode flag: its clicks select as usual.
 
 ## Command contract
 

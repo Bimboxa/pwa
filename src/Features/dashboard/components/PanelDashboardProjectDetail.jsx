@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
 
 import {
   DndContext,
@@ -29,8 +28,8 @@ import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeCon
 import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import useDeleteProject from "Features/projects/hooks/useDeleteProject";
 import useDownloadProjectExportZip from "Features/projects/hooks/useDownloadProjectExportZip";
-import parseBackendDate from "Features/date/utils/parseBackendDate";
-import getScopeConfigMetaData from "Features/remoteScopeConfigurations/utils/getScopeConfigMetaData";
+import useOpenDashboardScope from "../hooks/useOpenDashboardScope";
+import getDashboardScopeRows from "../utils/getDashboardScopeRows";
 
 import {
   Box,
@@ -57,7 +56,6 @@ import DialogRenameProject from "./DialogRenameProject";
 
 export default function PanelDashboardProjectDetail({ item }) {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   // data
 
@@ -79,6 +77,7 @@ export default function PanelDashboardProjectDetail({ item }) {
   const deleteProjectLocalData = useDeleteProject();
   const { download: downloadProjectData, loading: downloadingProjectData } =
     useDownloadProjectExportZip();
+  const openScope = useOpenDashboardScope();
 
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -102,74 +101,17 @@ export default function PanelDashboardProjectDetail({ item }) {
   const createFirstScopeHintS =
     appConfig?.strings?.scope?.createFirstScopeHint ??
     `Créez le premier ${scopeS} pour commencer le repérage.`;
-  const createFirstScopeS =
-    appConfig?.strings?.scope?.createFirstScope ?? `Créer le premier ${scopeS}`;
   const newScopeS =
     appConfig?.strings?.scope?.new ?? "Créer un plan de repérage";
 
   // helpers
 
-  function formatDate(value) {
-    return parseBackendDate(value)?.toLocaleDateString() ?? null;
-  }
-
-  // latest scopeConfiguration pushed for this scope, when we know it —
-  // authoritative for the "author, last update" sub text and POV previews.
-  // The project fetch (same key rule as useFetchProjectScopeConfigurations)
-  // also covers installed scopes, absent from the ByUser list.
-  const projectConfigs =
-    projectConfigurations?.[String(item?.idMaster ?? item?.clientRef ?? "")] ??
-    [];
-
-  function findScopeConfig(scopeId) {
-    return [...projectConfigs, ...(userConfigurations ?? [])].find(
-      (c) => String(c.scopeId) === String(scopeId)
-    );
-  }
-
-  function getScopeSubText({ config, fallbackAuthor, fallbackDate }) {
-    const author = config?.createdBy?.trigram ?? fallbackAuthor;
-    const date = formatDate(config?.createdAt ?? fallbackDate);
-    return [author, date].filter(Boolean).join(", ");
-  }
-
-  const rows = item
-    ? [
-        ...item.scopes.map((scope) => {
-          const config = findScopeConfig(scope.id);
-          const metaData = getScopeConfigMetaData(config);
-          return {
-            scopeId: scope.id,
-            name: scope.name,
-            subText: getScopeSubText({
-              config,
-              fallbackAuthor: scope.createdBy,
-              fallbackDate: scope.updatedAt ?? scope.createdAt,
-            }),
-            isLocal: true,
-            isFavorite: isFavorite(scope.id),
-            povPreviews: config?.povPreviews,
-            annotationsCount: metaData.annotationsCount,
-            baseMapsCount: metaData.baseMapsCount,
-          };
-        }),
-        ...item.remoteConfigs.map((config) => {
-          const metaData = getScopeConfigMetaData(config);
-          return {
-            scopeId: config.scopeId,
-            name: config.scopeName,
-            subText: [config.createdBy?.trigram, formatDate(config.createdAt)]
-              .filter(Boolean)
-              .join(", "),
-            isLocal: false,
-            isFavorite: isFavorite(config.scopeId),
-            povPreviews: config.povPreviews,
-            annotationsCount: metaData.annotationsCount,
-            baseMapsCount: metaData.baseMapsCount,
-          };
-        }),
-      ]
-    : [];
+  const rows = getDashboardScopeRows({
+    item,
+    projectConfigurations,
+    userConfigurations,
+    isFavorite,
+  });
 
   const count = rows.length;
 
@@ -203,14 +145,7 @@ export default function PanelDashboardProjectDetail({ item }) {
   }
 
   function handleOpen(row) {
-    if (row.isLocal) {
-      dispatch(setSelectedScopeId(row.scopeId));
-      dispatch(setSelectedProjectId(item.projectId));
-      navigate("/");
-    } else {
-      // remote scope — install & open via the existing loader flow
-      navigate(`/scopes/${row.scopeId}`);
-    }
+    openScope({ row, projectId: item.projectId });
   }
 
   function handleNewKrto() {
@@ -417,16 +352,6 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Typography variant="body2" sx={{ mt: 0.5 }}>
               {createFirstScopeHintS}
             </Typography>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<Add />}
-              onClick={handleNewKrto}
-              disabled={!item.projectId}
-              sx={{ mt: 2 }}
-            >
-              {createFirstScopeS}
-            </Button>
           </Box>
         ) : (
           <Box

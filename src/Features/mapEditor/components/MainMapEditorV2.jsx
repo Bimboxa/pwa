@@ -91,7 +91,6 @@ import BlockEntityMarker from "Features/markers/components/BlockEntityMarker";
 import PopperEditScale from "./PopperEditScale";
 import PopperEditLatLng from "./PopperEditLatLng";
 import PopperEditAnnotation from "./PopperEditAnnotation";
-import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 
 import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
 
@@ -1294,7 +1293,6 @@ export default function MainMapEditorV2() {
 
       <PopperEditScale />
       <PopperEditLatLng />
-      <PopperContextMenu />
       <LayerMapEditor svgElement={svgRef.current} />
       {showScreenCursor && (
         <LayerScreenCursor containerEl={containerRef?.current} />

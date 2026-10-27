@@ -126,7 +126,6 @@ import PopperImageScale from "./PopperImageScale";
 import DialogChangeAnnotationImage from "Features/imageAnnotations/components/DialogChangeAnnotationImage";
 import MenuLinkBaseMapOutlet from "Features/baseMapLinks/components/MenuLinkBaseMapOutlet";
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
-import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
@@ -3021,7 +3020,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           <PopperImageScale viewerKey={forViewerKey} />
           <DialogChangeAnnotationImage />
           <MenuLinkBaseMapOutlet />
-          <PopperContextMenu />
 
           {/* <DialogAutoMigrateToMapEditorV3 /> */}
 

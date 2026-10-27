@@ -18,7 +18,8 @@ import { useCommandMenu } from "./CommandMenuContext";
 //   span so the tooltip still shows. `hotkeyLabel` hangs a small boxed letter
 //   on the bottom-right corner.
 // - inside a group menu (CommandMenuContext variant "menu"): MenuItem with
-//   icon + label, `selected` when active.
+//   icon + label, `selected` when active; `menu.accentIcons` colors the icon
+//   of every enabled item like the toolbar row (right-click shortcuts menu).
 // `onClick(event, anchor)`: `anchor` is the element a popup must anchor to —
 // the button itself in the row, the group button in a menu.
 // `Icon` is a component, `icon` an already built element (drawing shapes).
@@ -69,7 +70,8 @@ function CommandButton({
         <ListItemIcon
           sx={{
             minWidth: 32,
-            color: active ? accentColor : "inherit",
+            color:
+              active || (menu.accentIcons && enabled) ? accentColor : "inherit",
             "& .MuiSvgIcon-root": { fontSize: 18 },
           }}
         >

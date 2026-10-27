@@ -10,7 +10,10 @@ const MIN_SEARCH_LENGTH = 2;
 
 // masterProjects origin keys by project type (same mapping as the scopeCreator
 // project selector — see SelectorProjectFromItemsList).
-const ORIGIN_KEY_BY_TYPE = { CHANTIER: "chantiers", OPPORTUNITE: "opportunités" };
+const ORIGIN_KEY_BY_TYPE = {
+  CHANTIER: "chantiers",
+  OPPORTUNITE: "opportunités",
+};
 
 export default function useDashboardRemoteSearch(searchText, typeFilter) {
   // data
@@ -51,16 +54,23 @@ export default function useDashboardRemoteSearch(searchText, typeFilter) {
       const filterByOriginKey = typeFilter
         ? ORIGIN_KEY_BY_TYPE[typeFilter]
         : null;
+      // a type with no référentiel origin (free projects): configurations only
+      const skipMasterProjects = Boolean(typeFilter && !filterByOriginKey);
       const [projects, configs] = await Promise.all([
-        fetchMasterProjects({
-          jwt,
-          userProfile,
-          searchValue,
-          filterByOriginKey,
-        }).catch((e) => {
-          console.error("[useDashboardRemoteSearch] masterProjects error", e);
-          return [];
-        }),
+        skipMasterProjects
+          ? []
+          : fetchMasterProjects({
+              jwt,
+              userProfile,
+              searchValue,
+              filterByOriginKey,
+            }).catch((e) => {
+              console.error(
+                "[useDashboardRemoteSearch] masterProjects error",
+                e
+              );
+              return [];
+            }),
         searchScopeConfigurations({ searchValue }).catch((e) => {
           console.error("[useDashboardRemoteSearch] scopeConfigs error", e);
           return [];

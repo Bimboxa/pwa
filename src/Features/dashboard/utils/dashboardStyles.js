@@ -18,6 +18,10 @@ export const TEXT_FAINT = "#9A918B";
 export const TEXT_FADED = "#B8B0AA";
 export const ICON_FADED = "#C9C1BB";
 
+// projects table (TableDashboardProjects): project | POV previews | Krtos
+export const PROJECTS_TABLE_COLUMNS = "minmax(0, 1fr) 84px 118px";
+export const TABLE_ROW_BG_EXPANDED = "#FBF8F6";
+
 // sx fragments — spread into the target component's sx
 
 export const PILL_BUTTON_SX = {
@@ -71,6 +75,38 @@ export const SEGMENT_TOGGLE_SX = {
     fontWeight: 600,
     boxShadow: "0 1px 4px rgba(0,0,0,.08)",
     "&:hover": { bgcolor: "white" },
+  },
+};
+
+// wrapper Box around a ToggleButtonGroup — separate pill chips matching the
+// outlined pill buttons (PILL_BUTTON_SX): white when unselected, orange tint
+// when selected
+export const PILL_TOGGLE_SX = {
+  "& .MuiToggleButtonGroup-root": { gap: 1 },
+  "& .MuiToggleButton-root": {
+    height: 30,
+    px: 1.5,
+    py: 0,
+    fontSize: 13,
+    fontWeight: 500,
+    textTransform: "none",
+    whiteSpace: "nowrap",
+    color: PILL_TEXT,
+    bgcolor: "white",
+    border: `1px solid ${PILL_BORDER} !important`,
+    borderRadius: "999px !important",
+    ml: "0 !important",
+    "&:hover": { bgcolor: PILL_HOVER_BG },
+  },
+  "& .MuiToggleButton-root.Mui-selected": {
+    color: "secondary.main",
+    fontWeight: 600,
+    bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
+    borderColor: (theme) =>
+      `${alpha(theme.palette.secondary.main, 0.5)} !important`,
+    "&:hover": {
+      bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+    },
   },
 };
 

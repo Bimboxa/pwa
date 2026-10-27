@@ -63,8 +63,11 @@ export default function DialogLinkProjectToReferentiel({
 
   // helpers
 
+  // référentiel types only (free projects are not in the référentiel)
   const typeOptions =
-    appConfig?.features?.projectSelector?.filterByType?.options;
+    appConfig?.features?.projectSelector?.filterByType?.options?.filter(
+      (o) => !o.isFreeProject
+    );
 
   const items = (remoteProjects ?? []).filter(
     (mp) => !typeFilter || !mp.type || mp.type === typeFilter

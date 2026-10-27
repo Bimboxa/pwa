@@ -101,7 +101,6 @@ import {
   clearActiveThreedEditor,
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
-import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import {
   setAnchorPosition,
   setClickedNode,
@@ -1035,6 +1034,11 @@ export default function MainThreedEditor() {
       // In BASEMAP_POSITION mode the pointer is reserved for the transform
       // gizmo and the camera — annotation selection is intentionally disabled.
       if (editorModeRef.current === "BASEMAP_POSITION") return;
+      // Right click (a right drag is the camera pan and never reaches here):
+      // selects like a left click, except that a selection already holding
+      // the hit annotation is kept, then opens the shortcuts menu of the
+      // commands toolbar (MenuCommandShortcuts) at the cursor.
+      const isRightClick = event.button === 2;
       // Drawing mode owns the pointer; useDrawingPointerHandlers handles clicks.
       if (drawingActiveRef.current) return;
       // Meshing mode owns the pointer; useMeshingPointerHandlers handles it
@@ -1413,9 +1417,8 @@ export default function MainThreedEditor() {
             // - mesh annotation: the face mesh carries its index;
             // - regular annotation: the face is located on the in-memory
             //   conversion of the displayed object (getDisplayedMesh3d).
-            // A right click never picks a part: it opens the template menu
-            // of the whole annotation (below).
-            const isRightClick = event.button === 2;
+            // A right click never picks a part: it opens the shortcuts menu
+            // for the whole annotation (below).
             if (nodeId === soloId && !isRightClick) {
               let meshPartId = null;
               if (object.userData.isAnnotationMesh3d) {
@@ -1485,12 +1488,20 @@ export default function MainThreedEditor() {
             };
             const position = { x: event.clientX, y: event.clientY };
 
-            if (event.shiftKey) {
+            // Right click on an annotation already in the selection: keep it
+            // (the shortcuts act on the whole multi-selection).
+            const alreadySelected =
+              isRightClick &&
+              selectSelectedItems(store.getState()).some(
+                (i) => i.nodeId === nodeId
+              );
+
+            if (event.shiftKey && !isRightClick) {
               // Shift+click: toggle this annotation in the selection. Don't
               // touch setSelectedNode (single-slot legacy state) so existing
               // single-selection consumers stay sane.
               dispatch(toggleItemSelection(item));
-            } else {
+            } else if (!alreadySelected) {
               dispatch(
                 setSelectedNode({
                   id: nodeId,
@@ -1515,19 +1526,11 @@ export default function MainThreedEditor() {
             dispatch(setAnnotationToolbarPosition(position));
             dispatch(setAnnotationsToolbarPosition(position));
 
-            // Right click: select (above), then open the "change template"
-            // menu at the cursor — same menu as the 2D editor
-            // (PopperContextMenu, tagged THREED so only our instance opens).
-            if (isRightClick && !event.shiftKey && nodeType === "ANNOTATION") {
-              dispatch(
-                setClickedNode({
-                  id: nodeId,
-                  nodeListingId: listingId,
-                  nodeType,
-                  annotationType,
-                  viewerKey: "THREED",
-                })
-              );
+            // Right click: select (above), then open the shortcuts menu at
+            // the cursor — same menu as the 2D editor (MenuCommandShortcuts,
+            // rendered by the commands toolbar).
+            if (isRightClick) {
+              dispatch(setClickedNode(null));
               dispatch(setAnchorPosition(position));
             }
 
@@ -1544,7 +1547,7 @@ export default function MainThreedEditor() {
       // untouched on purpose: changing it reloads the 3D scene (displayed
       // annotations + visible basemaps reset). `baseMaps.selectedBaseMapId`
       // only drives the properties panels (useSelectedBaseMap).
-      if (baseMapHitId && !event.shiftKey) {
+      if (baseMapHitId && !event.shiftKey && !isRightClick) {
         dispatch(setSelectedBaseMapId(baseMapHitId));
         dispatch(setSelectedNode(null));
         dispatch(setSelectedItem({ id: baseMapHitId, type: "BASE_MAP" }));
@@ -1552,6 +1555,14 @@ export default function MainThreedEditor() {
         dispatch(clearSubSelection());
         dispatch(setAnnotationToolbarPosition(null));
         dispatch(setAnnotationsToolbarPosition(null));
+        return;
+      }
+
+      // Right click on empty (or on a base map): the selection is kept, the
+      // shortcuts menu opens on it.
+      if (isRightClick) {
+        dispatch(setClickedNode(null));
+        dispatch(setAnchorPosition({ x: event.clientX, y: event.clientY }));
         return;
       }
 
@@ -3050,7 +3061,6 @@ export default function MainThreedEditor() {
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}
       {/* Right click on an annotation: "change template" menu */}
-      {isThreedViewer && <PopperContextMenu viewerKey="THREED" />}
       {/* "Evider" dialog requested from the toolbar above (the 2D editors
           host their own outlet while they are the active viewer) */}
       {isThreedViewer && <DialogHollowOutAnnotationOutlet />}
