@@ -70,11 +70,13 @@ fails. No bulk migration or change to unrelated resources occurs.
 
 - **Général**: file information, local persistence, points/realistic mode and
   point size (stored in `resource.scan.display` and restored on reopening,
-  « Réaliste » included), shared projection preview, and **Créer un fond de
-  plan**. Creation uses the selected density/RGB raster through the standard
-  base-map creator, with `meterByPx`, an initial version, `createdFrom` scan
-  provenance and, for a saved scan, `localScan` (see Scan base maps). It stays
-  local (no initial remote save), and does not switch the current base map.
+  « Réaliste » included), shared projection preview, and the base map of the
+  slice: a name field (default: scan · mode · Z range) and a « + » button.
+  Creation uses the selected density/RGB raster through the standard base-map
+  creator, with `meterByPx`, an initial version, `createdFrom` scan provenance
+  and, for a saved scan, `localScan` (see Scan base maps). It stays local (no
+  initial remote save) and selects the new base map, which links the panel to
+  it (see Linked base map).
 - **Projection**: compact inclusive Z limits, centered density/mean-RGB selector,
   a download button for the selected raster and optional hiding of points outside
   the slice. Boundary highlighting uses a fixed ±2 cm tolerance.
@@ -137,6 +139,11 @@ affect it. Each base map keeps its own pose. One carrier per scan: the main
 base map when it carries it, else the first visible loaded one, and none while
 the Scan 3D tool shows that scan itself.
 
+Each scan base map row of the base maps list has a « Scan » chip (shared with
+the « Scène 3D » meshes, `hiddenScene3dBaseMapIdsIn3d`). With Points /
+Réaliste, a local scan base map whose chip is on takes part in the 3D scene for
+its cloud alone, even with its image and annotations off.
+
 The bottom bar « Scan 3D » selector (`viewers.baseMapsScanMode`: Masqué /
 Points / Réaliste, per scope like the image mode) drives them. Until a mode is
 chosen in a Krto (null) no point cloud is loaded, no button is highlighted and
@@ -144,6 +151,25 @@ the « Scène 3D » meshes keep showing; only an explicit Masqué hides them too
 plain point cloud. It shows in 3D for projects with scan base maps. The base
 map properties panel shows the source scan, the same mode and whether its file
 is on this device (PLY files stay device-local).
+
+## Linked base map
+
+When the selected (main) base map carries a local scan, the panel follows it:
+it opens that scan if another one is shown (no zone dialog; shared decode with
+the base map carrier), places it at the base map pose
+(`getLocalScanPlacementFromMatrix` of `getLocalScanWorldMatrix`) and keeps
+following later moves of the map. The slice range and image mode come from
+`createdFrom`. Position edits are not written to the resource while linked:
+the base map owns the pose. The creation row becomes **Mettre à jour le fond de
+plan** (`updateScanBaseMapService`), enabled once the current slice is
+calculated. It replaces the active version image in place and updates
+`localScan.matrix` and `createdFrom`:
+
+- base map without annotations: re-framed like at creation (raster, scale,
+  centre, angle; the altitude is kept);
+- base map with annotations: the slice is re-rendered in the existing raster
+  (`getLocalScanBaseMapFrame`, same size, scale and pose) so every annotation
+  stays in place; what falls outside the image is cropped.
 
 ## Verification
 
@@ -240,7 +266,7 @@ the scan’s shared vertex buffers, independently of the projection worker.
 **Calculer** alone starts image generation. Changing either bound cancels
 unfinished image work and marks the previous image stale. Stale images cannot
 be exported, used for alignment or converted into base maps. The optional 3D
-clipping applies to the calculated range and is suspended when it becomes stale.
+clipping follows the current bounds live, calculated or not.
 The image uses the exact interval, not the boundary tolerance.
 PNG export contains the displayed raster, without georeferencing metadata.
 

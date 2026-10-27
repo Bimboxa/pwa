@@ -139,11 +139,11 @@ export default function useScanProjection({
   }, [frame, lower, upper, showBounds, hidden]);
   useEffect(() => {
     if (!view) return;
-    view.setSliceClip(
-      clip && active && requested && !error ? { lower, upper } : null
-    );
+    // Live: the 3D hides the points outside the current Z bounds as soon as
+    // the switch is on, whether or not the image is calculated.
+    view.setSliceClip(clip && active ? { lower, upper } : null);
     return () => view.setSliceClip(null);
-  }, [view, active, clip, lower, upper, requested, error]);
+  }, [view, active, clip, lower, upper]);
 
   return {
     frame,

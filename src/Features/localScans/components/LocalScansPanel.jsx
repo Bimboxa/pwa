@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 import { setScan3dTab } from "Features/rightPanel/rightPanelSlice";
 import useToggleModuleEditor from "Features/viewers/hooks/useToggleModuleEditor";
 import { Vector3 } from "three";
@@ -40,8 +41,23 @@ import {
 import sliceImageFile from "../utils/sliceImageFile";
 import { getScanZonePlacement } from "../utils/localScanZone";
 import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/localScanPlacement";
+import { getLocalScanWorldMatrix } from "../utils/getLocalScanMatrixInBaseMap";
+import getLocalScanPlacementFromMatrix from "../utils/getLocalScanPlacementFromMatrix";
+import db from "App/db/db";
 
 const DEFAULT_DISPLAY = { mode: "POINTS", pointSize: 2 };
+
+// Placement of the scan glued to a base map, at the base map's current pose.
+const getLinkedPlacement = (baseMap, up) =>
+  getLocalScanPlacementFromMatrix(getLocalScanWorldMatrix(baseMap), up);
+
+const samePlacement = (a, b) =>
+  a.up === b.up &&
+  [
+    [a.scale, b.scale],
+    [a.yaw, b.yaw],
+    ...[0, 1, 2].map((i) => [a.origin?.[i] ?? 0, b.origin?.[i] ?? 0]),
+  ].every(([x, y]) => Math.abs(x - y) < 1e-6);
 
 // inactive: the 2D view is displayed — the scan stays loaded (and placed)
 // but inspection, projection and overlays pause until the 3D comes back.
@@ -55,6 +71,14 @@ export default function LocalScansPanel({
   const dispatch = useDispatch();
   const axesYaw = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
   const tab = useSelector((s) => s.rightPanel.scan3dTab) ?? "GENERAL";
+  // Selected base map projected from a local scan: the panel follows it.
+  const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const linkedBaseMap =
+    useLiveQuery(async () => {
+      if (!mainBaseMapId) return null;
+      const record = await db.baseMaps.get(mainBaseMapId);
+      return record?.localScan?.matrix && !record.deletedAt ? record : null;
+    }, [mainBaseMapId]) ?? null;
   const host = useSyncExternalStore(subscribeScanPanelHost, getScanPanelHost);
   const toggleEditor = useToggleModuleEditor();
   const paused = hidden || inactive;
@@ -124,6 +148,66 @@ export default function LocalScansPanel({
   }, [tab, view]);
   // The tool shows this scan itself: its base maps leave it out (no double).
   const toolResourceId = view ? (loaded?.resourceId ?? null) : null;
+  // Linked to the selected scan base map: same scan, placed at the base map
+  // pose (so it follows the 2D / 3D moves of the map), slice of its image,
+  // « Mettre à jour le fond de plan » instead of the creation.
+  const linked =
+    linkedBaseMap &&
+    loaded?.resourceId === linkedBaseMap.localScan.resourceId &&
+    view
+      ? linkedBaseMap
+      : null;
+  const linkPoseKey = linkedBaseMap
+    ? JSON.stringify([
+        linkedBaseMap.id,
+        linkedBaseMap.position,
+        linkedBaseMap.angleDeg,
+        linkedBaseMap.orientation,
+        linkedBaseMap.localScan,
+      ])
+    : "";
+  const linkTriedRef = useRef(null),
+    // Last base map pose applied to the tool: a pending alignment (« Mettre à
+    // jour » not clicked yet) survives mode changes and 2D / 3D switches.
+    poseAppliedRef = useRef(null),
+    rangeAppliedRef = useRef(null);
+  useEffect(() => {
+    if (!linkedBaseMap) linkTriedRef.current = null;
+  }, [linkedBaseMap]);
+  useEffect(() => {
+    if (!linkedBaseMap || inactive || busy) return;
+    const { resourceId } = linkedBaseMap.localScan;
+    if (view && loaded?.resourceId === resourceId) {
+      if (poseAppliedRef.current === linkPoseKey) return;
+      poseAppliedRef.current = linkPoseKey;
+      const next = getLinkedPlacement(linkedBaseMap, placement.up);
+      if (samePlacement(next, placement)) return;
+      view.setPlacement(next);
+      setPlacement(next);
+      return;
+    }
+    // Open the scan of the selected base map, once per selection.
+    if (linkTriedRef.current === linkedBaseMap.id) return;
+    linkTriedRef.current = linkedBaseMap.id;
+    resources.get(resourceId).then((row) => {
+      if (row && !row.deletedAt) void load(null, row, { link: linkedBaseMap });
+      else
+        setError(
+          "Le scan de ce fond de plan n’est plus dans les ressources du projet."
+        );
+    });
+    // placement / load are read at the pose or selection change only.
+  }, [linkPoseKey, loaded?.resourceId, view, inactive, busy]);
+  useEffect(() => {
+    if (!linked || !projection.frame) return;
+    const key = `${linked.id}|${projection.verticalKey}`;
+    if (rangeAppliedRef.current === key) return;
+    rangeAppliedRef.current = key;
+    const { lower, upper, mode: imageMode } = linked.createdFrom ?? {};
+    if (Number.isFinite(lower) && Number.isFinite(upper))
+      projection.changeRange([lower, upper]);
+    if (imageMode) projection.setMode(imageMode);
+  }, [linked, projection]);
   useEffect(() => {
     const imagesManager = editor?.sceneManager?.imagesManager;
     if (!imagesManager || !toolResourceId) return;
@@ -205,7 +289,13 @@ export default function LocalScansPanel({
       });
     });
   }
-  async function load(file, resource = null, { editZone = false } = {}) {
+  // link: the selected scan base map whose scan is opened (no zone dialog,
+  // placement = the base map pose).
+  async function load(
+    file,
+    resource = null,
+    { editZone = false, link = null } = {}
+  ) {
     const epoch = ++epochRef.current;
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -229,7 +319,7 @@ export default function LocalScansPanel({
       const savedZone = resource?.legacy ? null : resource?.scan?.zone;
       let zone = savedZone,
         zoneChosen = null;
-      if (!savedZone || editZone) {
+      if ((!savedZone && !link) || editZone) {
         zoneChosen = await requestZone(source, savedZone, controller.signal);
         zone = zoneChosen.zone;
       }
@@ -263,6 +353,11 @@ export default function LocalScansPanel({
         ...(zoneChosen &&
           getScanZonePlacement(zone, axesYaw, zoneChosen.wholePolygon)),
       };
+      if (link)
+        Object.assign(
+          nextPlacement,
+          getLinkedPlacement(link, nextPlacement.up)
+        );
       let saved = resource && !resource.legacy ? resource : null;
       if (saved && zoneChosen) {
         try {
@@ -386,7 +481,8 @@ export default function LocalScansPanel({
       return;
     view?.setPlacement(next);
     setPlacement(next);
-    if (loaded?.resourceId) {
+    // Linked: the base map owns the pose — saved by « Mettre à jour ».
+    if (loaded?.resourceId && !linked) {
       try {
         await resources.place(loaded.resourceId, next);
       } catch {
@@ -559,6 +655,7 @@ export default function LocalScansPanel({
             {tab === "GENERAL" && (
               <TabScanGeneral
                 loaded={loaded}
+                linkedBaseMap={linked}
                 view={view}
                 mode={mode}
                 pointSize={pointSize}
