@@ -4,11 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setOpenLandingPage } from "Features/init/initSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
-import { Box, Typography, Button } from "@mui/material";
-
-import BoxCenter from "Features/layout/components/BoxCenter";
-
-import LogoAnimated from "Features/layout/components/LogoAnimated";
+import { Box, LinearProgress } from "@mui/material";
 
 export default function PageLanding() {
   const dispatch = useDispatch();
@@ -67,27 +63,27 @@ export default function PageLanding() {
       sx={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "black",
+        bgcolor: "#0a0a0a",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         zIndex: 1300,
         opacity: fadeOut ? 0 : 1,
         transition: "opacity 1s ease-in-out",
       }}
     >
-      <Box
-        sx={{
-          width: 1,
-          height: 1,
-          display: "flex",
-          top: 0,
-          left: 0,
-          position: "absolute",
-          bgcolor: "background.default",
-        }}
-      >
-        <BoxCenter sx={{ display: "flex", flexDirection: "column" }}>
-          <LogoAnimated />
-
-        </BoxCenter>
+      <Box sx={{ width: 280 }}>
+        <LinearProgress
+          sx={{
+            height: 4,
+            borderRadius: 2,
+            bgcolor: "rgba(255,255,255,0.1)",
+            "& .MuiLinearProgress-bar": {
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.85)",
+            },
+          }}
+        />
       </Box>
     </Box>
   );
