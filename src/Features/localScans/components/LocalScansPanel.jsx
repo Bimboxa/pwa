@@ -17,12 +17,11 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  MenuItem,
   Stack,
+  Skeleton,
   Switch,
   Tab,
   Tabs,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -530,34 +529,48 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     <Typography variant="subtitle2">
                       Placement du modèle
                     </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <TextField
-                        select
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      spacing={1}
+                    >
+                      <Typography variant="body2">Axe vertical</Typography>
+                      <ToggleButtonGroup
+                        exclusive
                         size="small"
-                        label="Axe vertical"
                         value={placement.up}
-                        onChange={(event) =>
-                          void place({ up: event.target.value })
-                        }
-                        sx={{ flex: 1 }}
-                      >
-                        <MenuItem value="Z">Z</MenuItem>
-                        <MenuItem value="Y">Y</MenuItem>
-                      </TextField>
-                      <TextField
-                        key={placement.scale}
-                        type="number"
-                        size="small"
-                        label="Mètres / unité"
-                        defaultValue={placement.scale}
-                        onBlur={(event) =>
-                          void place({ scale: Number(event.target.value) })
-                        }
-                        slotProps={{
-                          htmlInput: { min: 0.000001, max: 1000, step: 0.01 },
+                        aria-label="Axe vertical"
+                        onChange={(_, value) => {
+                          if (value) void place({ up: value });
                         }}
-                        sx={{ flex: 1 }}
-                      />
+                      >
+                        <ToggleButton value="Z">Z</ToggleButton>
+                        <ToggleButton value="Y">Y</ToggleButton>
+                      </ToggleButtonGroup>
+                    </Stack>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      spacing={1}
+                    >
+                      <Typography variant="body2">Mètres / unité</Typography>
+                      <ToggleButtonGroup
+                        exclusive
+                        size="small"
+                        value={placement.scale}
+                        aria-label="Mètres par unité"
+                        onChange={(_, value) => {
+                          if (value !== null) void place({ scale: value });
+                        }}
+                      >
+                        {[1, 2, 3].map((scale) => (
+                          <ToggleButton key={scale} value={scale}>
+                            {scale}
+                          </ToggleButton>
+                        ))}
+                      </ToggleButtonGroup>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
                       Échelle à confirmer avec une distance connue.
@@ -566,28 +579,66 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                 </WhiteSectionGeneric>
                 <WhiteSectionGeneric>
                   <Stack spacing={1}>
-                    <Typography variant="subtitle2">
-                      Point de référence
-                    </Typography>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={inspection}
-                          onChange={(_, value) => {
-                            setInspection(value);
-                            setPicked(null);
-                            setPickMessage(null);
-                          }}
-                        />
-                      }
-                      label="Coordonnées au clic"
-                    />
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      spacing={1}
+                    >
+                      <Typography variant="subtitle2">
+                        Point de référence
+                      </Typography>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={inspection}
+                            onChange={(_, value) => {
+                              setInspection(value);
+                              setPicked(null);
+                              setPickMessage(null);
+                            }}
+                          />
+                        }
+                        label="Activer"
+                        labelPlacement="start"
+                        sx={{
+                          m: 0,
+                          gap: 0.5,
+                          "& .MuiFormControlLabel-label": {
+                            fontSize: "0.8125rem",
+                          },
+                        }}
+                      />
+                    </Stack>
                     {inspection && (
                       <Typography variant="caption">
                         Cliquez sur le modèle pour relever un point. Glissez
                         pour naviguer. Plan recherché dans un cube de 1 m ;
                         grille temporaire de 2 × 2 m.
                       </Typography>
+                    )}
+                    {inspection && !picked && (
+                      <Stack
+                        spacing={0.5}
+                        role="status"
+                        aria-label="En attente du clic sur le modèle"
+                      >
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Box sx={{ flex: 1 }}>
+                            {["X", "Y", "Z"].map((axis) => (
+                              <Skeleton
+                                key={axis}
+                                variant="text"
+                                width={110}
+                                height={22}
+                              />
+                            ))}
+                          </Box>
+                          <Skeleton variant="rounded" width={145} height={32} />
+                        </Stack>
+                        <Skeleton variant="text" width="85%" height={18} />
+                      </Stack>
                     )}
                     {pickMessage && (
                       <Typography variant="caption">{pickMessage}</Typography>
@@ -635,7 +686,7 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                     <ScanProjectionPreview
                       projection={projection}
                       onRotate={rotate}
-                      onDownload={download}
+                      showProjectionTools={false}
                     />
                     <Typography variant="caption">
                       Rotation : {placement.yaw.toFixed(1)}°. L’axe choisi dans

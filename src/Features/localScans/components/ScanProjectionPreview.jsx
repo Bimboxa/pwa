@@ -14,6 +14,7 @@ export default function ScanProjectionPreview({
   projection,
   onRotate,
   onDownload,
+  showProjectionTools = true,
 }) {
   const { result, mode, setMode, pending, current, frame, error } = projection;
   if (!result)
@@ -30,16 +31,18 @@ export default function ScanProjectionPreview({
     );
   return (
     <Stack spacing={1}>
-      <ToggleButtonGroup
-        exclusive
-        size="small"
-        sx={{ alignSelf: "center" }}
-        value={mode}
-        onChange={(_, value) => value && setMode(value)}
-      >
-        <ToggleButton value="density">Densité</ToggleButton>
-        <ToggleButton value="rgb">Couleurs</ToggleButton>
-      </ToggleButtonGroup>
+      {showProjectionTools && (
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          sx={{ alignSelf: "center" }}
+          value={mode}
+          onChange={(_, value) => value && setMode(value)}
+        >
+          <ToggleButton value="density">Densité</ToggleButton>
+          <ToggleButton value="rgb">Couleurs</ToggleButton>
+        </ToggleButtonGroup>
+      )}
       <LocalScanSlicePreview
         key={frame.rows.join(",")}
         result={result}
@@ -47,30 +50,32 @@ export default function ScanProjectionPreview({
         pending={!current || Boolean(error)}
         onRotate={current && !error ? onRotate : undefined}
       />
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        spacing={0.5}
-        sx={{ flexWrap: "wrap" }}
-      >
-        <Typography variant="caption" aria-live="polite">
-          {current
-            ? `${result.pointCount.toLocaleString("fr-FR")} points · ${(result.pixelSize * 100).toFixed(2)} cm/pixel`
-            : "Actualisation… aperçu précédent."}
-        </Typography>
-        {onDownload && (
-          <Button
-            size="small"
-            startIcon={<FileDownloadOutlined />}
-            disabled={!current || Boolean(error)}
-            onClick={() => onDownload(mode)}
-            sx={{ ml: "auto !important" }}
-          >
-            Télécharger
-          </Button>
-        )}
-      </Stack>
+      {showProjectionTools && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={0.5}
+          sx={{ flexWrap: "wrap" }}
+        >
+          <Typography variant="caption" aria-live="polite">
+            {current
+              ? `${result.pointCount.toLocaleString("fr-FR")} points · ${(result.pixelSize * 100).toFixed(2)} cm/pixel`
+              : "Actualisation… aperçu précédent."}
+          </Typography>
+          {onDownload && (
+            <Button
+              size="small"
+              startIcon={<FileDownloadOutlined />}
+              disabled={!current || Boolean(error)}
+              onClick={() => onDownload(mode)}
+              sx={{ ml: "auto !important" }}
+            >
+              Télécharger
+            </Button>
+          )}
+        </Stack>
+      )}
       {error && <Alert severity="warning">{error}</Alert>}
     </Stack>
   );
