@@ -20,6 +20,7 @@ import db from "App/db/db";
  *   stored verbatim on the record
  *   orientation: 3D plane orientation ("HORIZONTAL" | "VERTICAL"); wins over
  *   the listing's verticalBaseMaps default
+ *   position / angleDeg: optional world-space placement applied at creation
  *   selectOnCreate: pass false to keep the current main base map (e.g. a
  *   procedure creating its output map mid-flow must not switch the view)
  */
@@ -40,6 +41,8 @@ export default function useCreateBaseMapFromImage() {
     geo,
     scene3d,
     orientation,
+    position,
+    angleDeg,
     printZone,
     source = "image",
     createdFrom,
@@ -54,6 +57,9 @@ export default function useCreateBaseMapFromImage() {
       name,
       image: { file },
       meterByPx,
+      ...(orientation && { orientation }),
+      ...(position && { position }),
+      ...(Number.isFinite(angleDeg) && { angleDeg }),
       ...(createdFrom && { createdFrom }),
       ...(latLng && { latLng }),
       ...(geo && { geo }),

@@ -17,6 +17,7 @@ export default function FieldAnnotationHeight({
   // Millimeter by default — a stored value carrying float noise
   // (-1.0000000128…) must not flood the toolbar.
   displayDecimals = 3,
+  debounceMs = 400,
 }) {
   const field = fieldProp ?? "height";
   // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")
@@ -87,8 +88,8 @@ export default function FieldAnnotationHeight({
       clearTimeout(debounceTimer.current);
     }
 
-    // 3. Set new timer (Debounce 400ms)
-    debounceTimer.current = setTimeout(() => {
+    // Commit immediately when a creation form needs the latest value on submit.
+    const commit = () => {
       const finalValue = processValue(newValue);
 
       // Transient typing states ("2.", "abc") must stay local: persisting a
@@ -99,7 +100,9 @@ export default function FieldAnnotationHeight({
         return;
       }
       onChange({ ...annotation, [field]: finalValue });
-    }, 400);
+    };
+    if (debounceMs === 0) commit();
+    else debounceTimer.current = setTimeout(commit, debounceMs);
   }
 
   function handleKeyDown(e) {

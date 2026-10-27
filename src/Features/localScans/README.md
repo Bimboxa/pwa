@@ -85,6 +85,15 @@ inspection worker holds its source copy, then resumes when inspection ends.
 Moving/rotating the model invalidates the preview until recomputation completes;
 stale images cannot create a base map. Source data never enters Redux.
 
+Base-map creation uses the same compact Z input as the top bar (default 0 m).
+The new map stores its world-space center and yaw along with the raster scale.
+Its center includes the raster's partial edge pixels. Creation reverses image
+rows to match horizontal base-map coordinates; the preview/download stay
+unchanged. This aligns the image with the projected scan after translation,
+scaling and rotation, including rotated editor axes. The selected Z only sets
+the new map altitude and does not change the projection slice.
+
+
 `Scan3dPanelHost` is the ordinary tool drawer; the persistent scan controller
 portals its controls there. The scene/input overlay stays in the editor. With
 the tool closed the model and optional clipping remain visible, and ordinary

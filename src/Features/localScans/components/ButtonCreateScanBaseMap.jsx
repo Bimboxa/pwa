@@ -10,6 +10,8 @@ import {
 } from "@mui/material";
 import { CropPortrait, CropLandscape } from "@mui/icons-material";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
+import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
+import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
 
 export default function ButtonCreateScanBaseMap({
@@ -18,21 +20,23 @@ export default function ButtonCreateScanBaseMap({
   resourceId,
 }) {
   const create = useCreateBaseMapFromImage();
+  const [altitude, setAltitude] = useState(0);
   const [busy, setBusy] = useState(false),
     [status, setStatus] = useState(null);
   async function handleCreate() {
-    if (!projection.current || busy) return;
+    if (!projection.current || busy || !Number.isFinite(altitude)) return;
     setBusy(true);
     setStatus(null);
     try {
       const { result, mode, frame } = projection;
       const name = `${modelName.replace(/\.ply$/i, "")} · ${mode === "density" ? "Densité" : "Couleurs"} · Z ${result.lower.toFixed(2)} à ${result.upper.toFixed(2)} m`;
-      const file = await sliceImageFile(result, mode);
+      const prepared = prepareScanBaseMap(result, frame, mode, altitude);
+      const file = await sliceImageFile(prepared.image, mode);
       const entity = await create({
         file,
         name,
         meterByPx: result.pixelSize,
-        orientation: "HORIZONTAL",
+        ...prepared.placement,
         source: "local-scan",
         selectOnCreate: false,
         triggerInitialSave: false,
@@ -40,6 +44,8 @@ export default function ButtonCreateScanBaseMap({
           type: "LOCAL_SCAN",
           resourceId: resourceId ?? null,
           mode,
+          altitude,
+          imageFlippedY: true,
           lower: result.lower,
           upper: result.upper,
           frame: { min: frame.min, max: frame.max, rows: frame.rows },
@@ -48,8 +54,7 @@ export default function ButtonCreateScanBaseMap({
       if (!entity?.id) throw new Error("Le fond de plan n’a pas pu être créé.");
       setStatus({
         severity: "success",
-        message:
-          "Fond de plan créé à l’échelle dans les fonds de plan du projet.",
+        message: `Fond de plan créé et positionné à Z = ${altitude} m.`,
       });
     } catch (error) {
       setStatus({ severity: "error", message: error.message });
@@ -80,10 +85,25 @@ export default function ButtonCreateScanBaseMap({
             </Tooltip>
           </ToggleButton>
         </ToggleButtonGroup>
+        <FieldAnnotationHeight
+          annotation={{ z: altitude }}
+          field="z"
+          label="Z"
+          unit="m"
+          displayDecimals={3}
+          debounceMs={0}
+          disabled={busy}
+          onChange={({ z }) => setAltitude(z)}
+        />
         <Button
           sx={{ flex: 1 }}
           variant="contained"
-          disabled={!projection.current || Boolean(projection.error) || busy}
+          disabled={
+            !projection.current ||
+            Boolean(projection.error) ||
+            busy ||
+            !Number.isFinite(altitude)
+          }
           onClick={handleCreate}
         >
           {busy ? "Création…" : "Créer un fond de plan"}
