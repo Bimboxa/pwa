@@ -53,9 +53,19 @@ export default function SectionKeyHints() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 760 }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 3,
+      }}
+    >
       <Box
         sx={{
+          width: 1,
+          maxWidth: 760,
           bgcolor: "white",
           borderRadius: 1,
           border: (theme) => `1px solid ${theme.palette.divider}`,

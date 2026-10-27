@@ -3,10 +3,11 @@ import { Box } from "@mui/material";
 import SectionConcepts from "./SectionConcepts";
 import SectionNavigateApp from "./SectionNavigateApp";
 import SectionKeyHints from "./SectionKeyHints";
-import SectionVideo from "./SectionVideo";
+import SectionGo from "./SectionGo";
 
 // Body of the starting dialog: the section selected in the header band,
 // filling the rest of the page (the diagram sections size their SVG to it).
+// SectionVideo exists but is not wired for now (see data/startingSections).
 export default function PanelStarting({ sectionKey }) {
   // render
 
@@ -14,7 +15,7 @@ export default function PanelStarting({ sectionKey }) {
   if (sectionKey === "CONCEPTS") section = <SectionConcepts />;
   else if (sectionKey === "NAVIGATE") section = <SectionNavigateApp />;
   else if (sectionKey === "KEYS") section = <SectionKeyHints />;
-  else if (sectionKey === "VIDEO") section = <SectionVideo />;
+  else if (sectionKey === "GO") section = <SectionGo />;
 
   return (
     <Box
