@@ -1,6 +1,14 @@
 /* eslint-disable react/prop-types */
 import { useState } from "react";
-import { Alert, Button, Stack } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+} from "@mui/material";
+import { CropPortrait, CropLandscape } from "@mui/icons-material";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 import sliceImageFile from "../utils/sliceImageFile";
 
@@ -51,13 +59,36 @@ export default function ButtonCreateScanBaseMap({
   }
   return (
     <Stack spacing={1}>
-      <Button
-        variant="contained"
-        disabled={!projection.current || Boolean(projection.error) || busy}
-        onClick={handleCreate}
-      >
-        {busy ? "Création…" : "Créer un fond de plan"}
-      </Button>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={projection.previewOrientation}
+          aria-label="Orientation de l’aperçu"
+          onChange={(_, orientation) =>
+            orientation && projection.setPreviewOrientation(orientation)
+          }
+        >
+          <ToggleButton value="PORTRAIT" aria-label="Portrait">
+            <Tooltip title="Portrait">
+              <CropPortrait fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="LANDSCAPE" aria-label="Paysage">
+            <Tooltip title="Paysage">
+              <CropLandscape fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <Button
+          sx={{ flex: 1 }}
+          variant="contained"
+          disabled={!projection.current || Boolean(projection.error) || busy}
+          onClick={handleCreate}
+        >
+          {busy ? "Création…" : "Créer un fond de plan"}
+        </Button>
+      </Stack>
       {status && <Alert severity={status.severity}>{status.message}</Alert>}
     </Stack>
   );

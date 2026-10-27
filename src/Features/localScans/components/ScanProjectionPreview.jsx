@@ -17,40 +17,43 @@ export default function ScanProjectionPreview({
   showProjectionTools = true,
 }) {
   const { result, mode, setMode, pending, current, frame, error } = projection;
-  if (!result)
-    return (
-      <Stack spacing={1}>
-        <Typography variant="body2" color="text.secondary">
-          Définir l’image projetée dans l’onglet Projection.
-        </Typography>
-        {pending && (
-          <Typography variant="caption">Calcul de la projection…</Typography>
-        )}
-        {error && <Alert severity="warning">{error}</Alert>}
-      </Stack>
-    );
   return (
     <Stack spacing={1}>
-      {showProjectionTools && (
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          sx={{ alignSelf: "center" }}
-          value={mode}
-          onChange={(_, value) => value && setMode(value)}
-        >
-          <ToggleButton value="density">Densité</ToggleButton>
-          <ToggleButton value="rgb">Couleurs</ToggleButton>
-        </ToggleButtonGroup>
-      )}
       <LocalScanSlicePreview
-        key={frame.rows.join(",")}
+        key={frame?.rows.join(",") ?? "empty"}
         result={result}
         mode={mode}
-        pending={!current || Boolean(error)}
+        pending={result ? !current || Boolean(error) : pending}
+        aspectRatio={
+          projection.previewOrientation === "PORTRAIT" ? 210 / 297 : 297 / 210
+        }
+        overlayControls={
+          showProjectionTools && (
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              disabled={!result}
+              aria-label="Type d’image projetée"
+              value={mode}
+              onChange={(_, value) => value && setMode(value)}
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                "& .MuiToggleButton-root": {
+                  px: 1,
+                  py: 0.25,
+                  fontSize: "0.75rem",
+                },
+              }}
+            >
+              <ToggleButton value="density">Densité</ToggleButton>
+              <ToggleButton value="rgb">Couleurs</ToggleButton>
+            </ToggleButtonGroup>
+          )
+        }
         onRotate={current && !error ? onRotate : undefined}
       />
-      {showProjectionTools && (
+      {showProjectionTools && result && (
         <Stack
           direction="row"
           alignItems="center"

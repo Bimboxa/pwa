@@ -476,13 +476,11 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                       projection={projection}
                       onDownload={download}
                     />
-                    {projection.result && (
-                      <ButtonCreateScanBaseMap
-                        projection={projection}
-                        modelName={loaded.name}
-                        resourceId={loaded.resourceId}
-                      />
-                    )}
+                    <ButtonCreateScanBaseMap
+                      projection={projection}
+                      modelName={loaded.name}
+                      resourceId={loaded.resourceId}
+                    />
                   </Stack>
                 </WhiteSectionGeneric>
                 <WhiteSectionGeneric>

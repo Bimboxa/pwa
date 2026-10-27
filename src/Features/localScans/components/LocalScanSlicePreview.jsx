@@ -1,6 +1,15 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, LinearProgress, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { ZoomOut } from "@mui/icons-material";
 import {
   getPreviewTransform,
   previewToImage,
@@ -15,6 +24,8 @@ export default function LocalScanSlicePreview({
   mode,
   pending,
   onRotate,
+  overlayControls,
+  aspectRatio = 297 / 210,
 }) {
   // state
   const canvasRef = useRef(null);
@@ -157,6 +168,7 @@ export default function LocalScanSlicePreview({
   useEffect(() => {
     const canvas = canvasRef.current;
     const wheel = (event) => {
+      if (!result) return;
       event.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const factor = Math.exp(
@@ -173,7 +185,7 @@ export default function LocalScanSlicePreview({
     };
     canvas.addEventListener("wheel", wheel, { passive: false });
     return () => canvas.removeEventListener("wheel", wheel);
-  }, [size]);
+  }, [size, result]);
 
   // handlers
   function zoom(factor) {
@@ -193,7 +205,7 @@ export default function LocalScanSlicePreview({
     setMessage(null);
   }
   function pointerDown(event) {
-    if (event.button !== 0 || dragRef.current) return;
+    if (!result || event.button !== 0 || dragRef.current) return;
     event.preventDefault();
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -268,28 +280,6 @@ export default function LocalScanSlicePreview({
   // render
   return (
     <Stack spacing={0.5}>
-      <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
-        <Button
-          size="small"
-          aria-label="Dézoomer l’image"
-          onClick={() => zoom(1 / 1.5)}
-        >
-          −
-        </Button>
-        <Button
-          size="small"
-          aria-label="Zoomer l’image"
-          onClick={() => zoom(1.5)}
-        >
-          +
-        </Button>
-        <Button size="small" onClick={() => setViewport(INITIAL_VIEWPORT)}>
-          Cadrer l’image
-        </Button>
-        <Typography variant="caption" sx={{ alignSelf: "center" }}>
-          {Math.round(viewport.zoom * 100)} %
-        </Typography>
-      </Stack>
       {onRotate && (
         <Button
           size="small"
@@ -306,19 +296,23 @@ export default function LocalScanSlicePreview({
           {selectAxis ? "Annuler l’axe" : "Définir l’axe horizontal (2 points)"}
         </Button>
       )}
-      <Typography variant="caption" aria-live="polite">
-        {message ||
-          (selectAxis
-            ? firstPoint
-              ? "Cliquez le second point : la direction 1 → 2 deviendra horizontale vers la droite."
-              : "Cliquez le premier point de l’axe dans l’image."
-            : onRotate
-              ? "Molette : zoom · Glisser : déplacer. L’axe choisi fait pivoter le scan en 3D autour de son origine."
-              : "Molette : zoom · Glisser : déplacer.")}
-      </Typography>
+      {result && (
+        <Typography variant="caption" aria-live="polite">
+          {message ||
+            (selectAxis
+              ? firstPoint
+                ? "Cliquez le second point : la direction 1 → 2 deviendra horizontale vers la droite."
+                : "Cliquez le premier point de l’axe dans l’image."
+              : onRotate
+                ? "Molette : zoom · Glisser : déplacer. L’axe choisi fait pivoter le scan en 3D autour de son origine."
+                : "Molette : zoom · Glisser : déplacer.")}
+        </Typography>
+      )}
       <Box
         sx={{
           position: "relative",
+          width: "100%",
+          aspectRatio,
           border: 1,
           borderColor: "divider",
           bgcolor: "white",
@@ -329,7 +323,7 @@ export default function LocalScanSlicePreview({
           component="canvas"
           ref={canvasRef}
           role="img"
-          tabIndex={0}
+          tabIndex={result ? 0 : -1}
           aria-label="Image de la coupe horizontale"
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
@@ -358,13 +352,61 @@ export default function LocalScanSlicePreview({
             }
           }}
           sx={{
+            position: "absolute",
+            inset: 0,
             display: "block",
             width: "100%",
-            height: 280,
+            height: "100%",
             touchAction: "none",
-            cursor: selectAxis ? "crosshair" : "grab",
+            cursor: !result ? "default" : selectAxis ? "crosshair" : "grab",
           }}
         />
+        {!result && (
+          <Stack
+            spacing={1}
+            sx={{
+              position: "absolute",
+              inset: 0,
+              p: 3,
+              pt: 6,
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Définir l’image projetée dans l’onglet Projection.
+            </Typography>
+            {pending && (
+              <Typography variant="caption">
+                Calcul de la projection…
+              </Typography>
+            )}
+          </Stack>
+        )}
+        {overlayControls && (
+          <Box sx={{ position: "absolute", top: 6, left: 6 }}>
+            {overlayControls}
+          </Box>
+        )}
+        <Tooltip title="Recadrer l’image">
+          <Box component="span" sx={{ position: "absolute", top: 6, right: 6 }}>
+            <IconButton
+              size="small"
+              aria-label="Recadrer l’image"
+              disabled={!result}
+              onClick={() => setViewport(INITIAL_VIEWPORT)}
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                "&:hover": { bgcolor: "background.default" },
+              }}
+            >
+              <ZoomOut fontSize="small" />
+            </IconButton>
+          </Box>
+        </Tooltip>
         {pending && (
           <LinearProgress
             sx={{ position: "absolute", bottom: 0, left: 0, right: 0 }}

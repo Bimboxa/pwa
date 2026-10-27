@@ -49,6 +49,7 @@ export default function useScanProjection({
       : Math.min(domain.max, middle + 0.5);
   const [clip, setClip] = useState(false);
   const [mode, setMode] = useState("density");
+  const [previewOrientation, setPreviewOrientation] = useState("LANDSCAPE");
   const [output, setOutput] = useState(null);
   const [error, setError] = useState(null);
   const workerRef = useRef(null),
@@ -155,6 +156,8 @@ export default function useScanProjection({
     setClip,
     mode,
     setMode,
+    previewOrientation,
+    setPreviewOrientation,
     result,
     current,
     pending: active && !current && !error,

@@ -198,9 +198,12 @@ full NavVis file projected 8,794,600 points between source Z=-0.5 and +0.5 m int
 502 x 768 pixels (4.01 cm/pixel), with a 357 ms Node computation on the development
 machine. This is a computational check, not a browser frame-rate guarantee.
 
-The preview supports pointer-anchored wheel zoom, drag-to-pan, zoom buttons and
-**Cadrer l'image**. Zoom affects inspection of the raster, not its output resolution
-or exported PNG. **Définir l'axe horizontal (2 points)** picks image coordinates
+The preview supports pointer-anchored wheel zoom, drag-to-pan and a top-right
+**Recadrer l’image** icon. Density/color controls overlay the top-left corner.
+Its frame remains visible before projection, with the setup prompt inside.
+Portrait/landscape buttons beside base-map creation select the A4/A3 preview
+aspect ratio across tabs. Framing and zoom only affect the preview, not the
+output resolution or exported PNG. **Définir l'axe horizontal (2 points)** picks image coordinates
 through the zoom/pan transform. After the second click the scan itself rotates
 about world Y (displayed vertical Z) around its current source anchor. The vector
 from the first point to the second becomes positive displayed X. No project
