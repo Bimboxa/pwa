@@ -19,7 +19,7 @@ import {
   ViewInAr,
 } from "@mui/icons-material";
 
-import { Box } from "@mui/material";
+import { Badge, Box } from "@mui/material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import IconCatStarEyes from "Features/icons/IconCatStarEyes";
@@ -229,7 +229,24 @@ export default function useRightPanelTools() {
     {
       key: "SCAN_3D",
       label: "Scan 3D",
-      icon: <ViewInAr />,
+      icon: (
+        <Badge
+          badgeContent="Beta"
+          color="warning"
+          sx={{
+            "& .MuiBadge-badge": {
+              fontSize: "0.5rem",
+              top: -3,
+              right: -4,
+              height: 13,
+              minWidth: 0,
+              px: 0.5,
+            },
+          }}
+        >
+          <ViewInAr />
+        </Badge>
+      ),
       viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS", "ZONES"],
       contextual: true,
     },

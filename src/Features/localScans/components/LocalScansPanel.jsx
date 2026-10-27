@@ -29,6 +29,7 @@ import {
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import Scan3dHeader from "./Scan3dHeader";
 import LocalScanSliceSection from "./LocalScanSliceSection";
 import ScanProjectionPreview from "./ScanProjectionPreview";
 import ButtonCreateScanBaseMap from "./ButtonCreateScanBaseMap";
@@ -328,6 +329,14 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
     : [];
   const body = (
     <>
+      <Scan3dHeader
+        model={loaded}
+        busy={busy}
+        onFrame={() => view?.fit()}
+        onNew={() => setPicker(true)}
+        onCloseModel={closeScan}
+        onSave={saveCurrent}
+      />
       <input
         ref={inputRef}
         type="file"
@@ -393,31 +402,6 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
               <>
                 <WhiteSectionGeneric>
                   <Stack spacing={1}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ overflowWrap: "anywhere" }}
-                    >
-                      {loaded.name}
-                    </Typography>
-                    <Typography variant="caption">
-                      {loaded.count.toLocaleString("fr-FR")}{" "}
-                      {loaded.kind === "SPLAT" ? "gaussiennes" : "points"} ·{" "}
-                      {stringifyFileSize(loaded.size)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {loaded.resourceId
-                        ? "Enregistré comme ressource locale du projet."
-                        : "Ouvert temporairement sur cet appareil."}
-                    </Typography>
-                    {!loaded.resourceId && (
-                      <Button onClick={saveCurrent}>
-                        Enregistrer dans les ressources du projet
-                      </Button>
-                    )}
-                  </Stack>
-                </WhiteSectionGeneric>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
                     <Typography variant="subtitle2">
                       Affichage du modèle
                     </Typography>
@@ -481,35 +465,6 @@ export default function LocalScansPanel({ editor, projectId, hidden = false }) {
                       modelName={loaded.name}
                       resourceId={loaded.resourceId}
                     />
-                  </Stack>
-                </WhiteSectionGeneric>
-                <WhiteSectionGeneric>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2">
-                      Actions du modèle
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="outlined"
-                        title="Recentrer la caméra et ajuster le zoom pour voir tout le modèle"
-                        onClick={() => view.fit()}
-                      >
-                        Cadrer
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setPicker(true)}
-                      >
-                        + Nouveau
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="inherit"
-                        onClick={closeScan}
-                      >
-                        Fermer
-                      </Button>
-                    </Stack>
                   </Stack>
                 </WhiteSectionGeneric>
               </>

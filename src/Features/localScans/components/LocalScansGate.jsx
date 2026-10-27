@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { Component, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { Alert } from "@mui/material";
+import ScanPanelError from "./ScanPanelError";
 import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
@@ -15,13 +15,10 @@ class ScanBoundary extends Component {
   }
   render() {
     return this.state.failed ? (
-      <Alert
-        severity="error"
-        sx={{ position: "absolute", bottom: 80, right: 16 }}
-      >
-        Le module de scans a rencontré une erreur. Désactivez puis réactivez
-        l’outil Scan 3D pour réessayer.
-      </Alert>
+      <ScanPanelError onRetry={() => this.setState({ failed: false })}>
+        Le module de scans a rencontré une erreur. Réessayez pour recharger
+        l’outil.
+      </ScanPanelError>
     ) : (
       this.props.children
     );
@@ -50,6 +47,7 @@ export default function LocalScansGate({ editor, hidden = false }) {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const [Panel, setPanel] = useState(null);
   const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!active) return;
     let alive = true;
@@ -59,25 +57,19 @@ export default function LocalScansGate({ editor, hidden = false }) {
         if (alive) setPanel(() => module.default);
       },
       () => {
-        if (alive)
-          setError(
-            "Impossible de charger le module de scans. Désactivez puis réactivez l’outil Scan 3D pour réessayer."
-          );
+        if (alive) setError("Impossible de charger le module de scans.");
       }
     );
     return () => {
       alive = false;
     };
-  }, [active]);
+  }, [active, attempt]);
   if (!active || !editor || !projectId || !scopeId) return null;
   if (error)
     return (
-      <Alert
-        severity="error"
-        sx={{ position: "absolute", bottom: 80, left: 16 }}
-      >
+      <ScanPanelError onRetry={() => setAttempt((value) => value + 1)}>
         {error}
-      </Alert>
+      </ScanPanelError>
     );
   const contextKey = projectId;
   return Panel ? (

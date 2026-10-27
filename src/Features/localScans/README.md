@@ -4,7 +4,8 @@ Enable **Configuration → Outils → Scan 3D**, using the normal per-scope
 and per-module tool activation. Open the right-hand **Scan 3D** tool and load
 a binary PLY. The engine starts only when the tool is first opened. The drawer
 starts at 500 px and can be resized from its left edge. It uses the standard
-property-panel header/sections, with an **Outil expérimental** header chip. With no
+property-panel header/sections, with the file name/count/size in the header and a model-action menu. The tool
+button carries a **Beta** badge. With no
 model loaded it shows only **Charger un modèle 3D…** below that header.
 The real-world scale and vertical axis must be confirmed by the operator.
 
@@ -240,3 +241,8 @@ The Z slider defaults to estimated 1st–99th percentile heights (a bounded
 travel. This only changes slider
 limits; no source points are deleted or excluded from projection. Heights
 are evaluated after placement; fewer than 100 points use exact bounds.
+
+Scan import/render errors are portaled exclusively into the Scan 3D drawer;
+closing it hides them without placing text or buttons over the 3D scene.
+`tests/smoke.html?panel-error` exercises the error panel, hide/reopen and retry
+flow without deliberately crashing the renderer.

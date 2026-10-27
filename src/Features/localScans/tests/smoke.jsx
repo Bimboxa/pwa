@@ -5,6 +5,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { BoxGeometry, Mesh, MeshBasicMaterial } from "three";
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
+import ScanPanelError from "../components/ScanPanelError";
 import Gate from "../components/LocalScansGate";
 import reducer from "Features/threedEditor/threedEditorSlice";
 import applicationStore from "App/store";
@@ -50,6 +51,9 @@ const store = configureStore({
 export function Harness() {
   const host = useRef(null);
   const [editor, setEditor] = useState(null);
+  const [simulatePanelError, setSimulatePanelError] = useState(() =>
+    new URLSearchParams(window.location.search).has("panel-error")
+  );
   useEffect(() => {
     const instance = new ThreedEditor({
       containerEl: host.current,
@@ -81,7 +85,14 @@ export function Harness() {
         <CssBaseline />
         <Box sx={{ position: "relative", height: "100vh" }}>
           <Box ref={host} sx={{ position: "absolute", inset: 0 }} />
-          <Gate editor={editor} />
+          {simulatePanelError ? (
+            <ScanPanelError onRetry={() => setSimulatePanelError(false)}>
+              Le module de scans a rencontré une erreur. Réessayez pour
+              recharger l’outil.
+            </ScanPanelError>
+          ) : (
+            <Gate editor={editor} />
+          )}
           <Box
             sx={{
               position: "absolute",
