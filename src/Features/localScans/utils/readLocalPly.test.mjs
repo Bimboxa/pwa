@@ -180,11 +180,11 @@ test("samples one vertex out of ceil(count / maxPoints)", async () => {
   assert.deepEqual([...result.positions], [0, 0, 0, 3, 0, 0, 6, 0, 0]);
 });
 
-test("keeps only the zone vertices and recomputes the bounds", async () => {
+test("keeps only the zone vertices, every height, and recomputes the bounds", async () => {
   const positions = [
     [0.5, 0.5, 1],
     [5, 5, 1],
-    [0.5, 0.5, 4],
+    [0.5, 0.5, 40],
     [0.8, 0.2, 2],
   ];
   const zone = {
@@ -195,24 +195,32 @@ test("keeps only the zone vertices and recomputes the bounds", async () => {
       [1, 1],
       [0, 1],
     ],
+    // Legacy height bounds are ignored.
     zMin: 0,
     zMax: 2,
   };
   const result = await readLocalPly(fixture({ positions }), undefined, {
     zone,
   });
-  assert.equal(result.count, 2);
+  assert.equal(result.count, 3);
   assert.deepEqual(
     [...result.positions].map((v) => +v.toFixed(3)),
-    [0.5, 0.5, 1, 0.8, 0.2, 2]
+    [0.5, 0.5, 1, 0.5, 0.5, 40, 0.8, 0.2, 2]
   );
   assert.deepEqual(
     result.bounds.max.map((v) => +v.toFixed(3)),
-    [0.8, 0.5, 2]
+    [0.8, 0.5, 40]
   );
   await assert.rejects(
     readLocalPly(fixture({ positions }), undefined, {
-      zone: { ...zone, zMin: 10, zMax: 11 },
+      zone: {
+        ...zone,
+        polygon: [
+          [10, 10],
+          [11, 10],
+          [11, 11],
+        ],
+      },
     }),
     /Aucun point/
   );
@@ -232,8 +240,6 @@ test("an up-Y zone reads the horizontal frame as (x, -z)", async () => {
         [1, 1],
         [0, 1],
       ],
-      zMin: 2,
-      zMax: 4,
     },
   });
   assert.deepEqual([...result.positions], [0.5, 3, -0.5]);

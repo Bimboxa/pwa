@@ -57,7 +57,7 @@ test("the zone X axis becomes the displayed X axis and its centre scene zero", (
           [6, 3],
           [2, 3],
         ];
-        const zone = { up, polygon, rotationDeg, zMin: 0.5, recenter: true };
+        const zone = { up, polygon, rotationDeg, baseZ: 0.5, recenter: true };
         const placement = { scale: 1, ...getScanZonePlacement(zone, axesYaw) };
         const root = new Group();
         applyPlacement(root, placement);

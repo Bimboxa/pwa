@@ -8,7 +8,6 @@ import {
   FormControlLabel,
   LinearProgress,
   Paper,
-  Slider,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -27,7 +26,7 @@ const EMPTY_VALUE = { rotationDeg: 0, polygonScan: null };
 
 // Zone of a point cloud chosen before it is decoded: a top-down density map
 // of a regular sample, the Scene3dZoneEditor of the « Scène 3D » import and
-// a height range. → onConfirm({zone, wholePolygon}) — see localScanZone.js.
+// the vertical axis. Every height is kept. → onConfirm({zone, wholePolygon}) — see localScanZone.js.
 export default function DialogLocalScanZone({
   file,
   initialZone,
@@ -39,15 +38,12 @@ export default function DialogLocalScanZone({
   const titleS = "Zone à charger";
   const readingS = "Lecture d’un échantillon du nuage…";
   const upS = "Axe vertical";
-  const heightS = "Hauteur";
   const recenterS = "Centrer sur la zone";
   const loadS = "Charger";
   const splatS =
     "Mode Réaliste : la zone limite les points, les gaussiennes restent entières.";
   const sizeS = (zone) =>
     `Zone : ${zone.width.toFixed(1)} × ${zone.height.toFixed(1)} m`;
-  const heightLabelS = ([min, max]) =>
-    `${min.toFixed(2)} à ${max.toFixed(2)} m`;
 
   // state
 
@@ -64,7 +60,6 @@ export default function DialogLocalScanZone({
         }
       : EMPTY_VALUE
   );
-  const [range, setRange] = useState(null);
   const [recenter, setRecenter] = useState(initialZone?.recenter ?? true);
 
   // helpers
@@ -89,13 +84,6 @@ export default function DialogLocalScanZone({
         url = next.url;
         if (!alive) return URL.revokeObjectURL(url);
         setPreview(next);
-        setRange((previous) => {
-          if (previous) return [next.useful.min, next.useful.max];
-          const saved = initialZone?.up === up ? initialZone : null;
-          return Number.isFinite(saved?.zMin) && Number.isFinite(saved?.zMax)
-            ? [saved.zMin, saved.zMax]
-            : [next.useful.min, next.useful.max];
-        });
       },
       (failure) => {
         if (alive) setError(failure.message);
@@ -124,14 +112,14 @@ export default function DialogLocalScanZone({
   }
 
   function handleConfirm() {
-    if (!preview || !range) return;
+    if (!preview) return;
     onConfirm({
       zone: {
         up,
         polygon: value.polygonScan,
         rotationDeg: value.rotationDeg ?? 0,
-        zMin: range[0],
-        zMax: range[1],
+        // Scan floor: scene zero height when recentred. Not a filter.
+        baseZ: preview.floor,
         recenter,
       },
       wholePolygon,
@@ -181,8 +169,18 @@ export default function DialogLocalScanZone({
           </Paper>
         )}
 
-        <Box sx={{ position: "absolute", top: 16, left: 16, zIndex: 2 }}>
-          <Paper sx={{ px: 2, py: 1, maxWidth: 360 }}>
+        {/* Top centre: the editor's own tools (Rectangle / Polygone /
+            Tout le scan, rotation) sit in the top-left corner. */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+          }}
+        >
+          <Paper sx={{ px: 2, py: 1, maxWidth: 420 }}>
             <Typography variant="subtitle2">{titleS}</Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
               {file.name ?? ""}
@@ -207,7 +205,7 @@ export default function DialogLocalScanZone({
           </Paper>
         </Box>
 
-        {preview && range && (
+        {preview && (
           <Box
             sx={{
               position: "absolute",
@@ -244,20 +242,6 @@ export default function DialogLocalScanZone({
                   <ToggleButton value="Z">Z</ToggleButton>
                   <ToggleButton value="Y">Y</ToggleButton>
                 </ToggleButtonGroup>
-              </Stack>
-              <Stack sx={{ width: 220 }}>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {heightS} : {heightLabelS(range)}
-                </Typography>
-                <Slider
-                  size="small"
-                  value={range}
-                  min={preview.extent.min}
-                  max={preview.extent.max}
-                  step={(preview.extent.max - preview.extent.min) / 500 || 0.01}
-                  disableSwap
-                  onChange={(_, next) => setRange(next)}
-                />
               </Stack>
               <FormControlLabel
                 control={

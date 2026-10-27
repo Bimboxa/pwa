@@ -2,8 +2,10 @@ import { pointInPolygon } from "../../scene3d/utils/clipScene3dChunk.js";
 import { getZoneFromPolygon } from "../../scene3d/utils/scene3dZoneTransform.js";
 
 // Zone of interest chosen on the load-time preview, in SOURCE units:
-//   {up, polygon: [[h1, h2], …] | null (whole scan), rotationDeg, zMin, zMax,
+//   {up, polygon: [[h1, h2], …] | null (whole scan), rotationDeg, baseZ,
 //    recenter}
+// Every height is kept: baseZ (scan floor) only sets the height of scene
+// zero when recentred. (Zones saved with zMin / zMax use zMin as baseZ.)
 // The horizontal frame (h1, h2) is the source seen from above, right-handed:
 // up Z → (x, y), up Y → (x, −z). `rotationDeg` is the Scene3dZoneEditor
 // preview rotation (θ): the zone's own X axis is R(θ)·(1, 0) in that frame.
@@ -35,15 +37,11 @@ export function getScanPreviewFrame(bounds, up) {
 
 // → (x, y, z) => boolean, or null when the zone keeps every point.
 export function createScanZoneFilter(zone) {
-  if (!zone) return null;
-  const { up, polygon } = zone;
-  const zMin = Number.isFinite(zone.zMin) ? zone.zMin : -Infinity;
-  const zMax = Number.isFinite(zone.zMax) ? zone.zMax : Infinity;
-  if (!polygon && zMin === -Infinity && zMax === Infinity) return null;
+  const polygon = zone?.polygon;
+  if (!polygon) return null;
   return (x, y, z) => {
-    const [h1, h2, vertical] = toScanHorizontal(up, x, y, z);
-    if (vertical < zMin || vertical > zMax) return false;
-    return !polygon || pointInPolygon(h1, h2, polygon);
+    const [h1, h2] = toScanHorizontal(zone.up, x, y, z);
+    return pointInPolygon(h1, h2, polygon);
   };
 }
 
@@ -51,7 +49,7 @@ const normalizeDeg = (deg) => ((((deg + 180) % 360) + 360) % 360) - 180;
 
 // Initial placement of a scan loaded through a zone: the zone's X axis
 // becomes the displayed X axis (editor axes yaw included) and, with
-// `recenter`, the zone centre at zMin becomes scene zero. `wholePolygon`
+// `recenter`, the zone centre at the scan floor (baseZ) becomes scene zero. `wholePolygon`
 // (the preview extent) is centred when the zone keeps the whole scan.
 export function getScanZonePlacement(zone, axesYawDeg = 0, wholePolygon) {
   const up = zone.up === "Y" ? "Y" : "Z";
@@ -62,7 +60,7 @@ export function getScanZonePlacement(zone, axesYawDeg = 0, wholePolygon) {
   const polygon = zone.polygon ?? wholePolygon;
   if (!zone.recenter || !polygon) return placement;
   const [c1, c2] = getZoneFromPolygon(polygon, zone.rotationDeg).center;
-  const base = Number.isFinite(zone.zMin) ? zone.zMin : 0;
+  const base = [zone.baseZ, zone.zMin].find(Number.isFinite) ?? 0;
   return {
     ...placement,
     origin: up === "Y" ? [c1, base, -c2] : [c1, c2, base],

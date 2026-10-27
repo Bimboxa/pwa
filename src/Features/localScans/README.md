@@ -108,12 +108,13 @@ editing gestures resume. Other right-hand panels retain their existing widths.
 A new PLY (and **Modifier la zone** in the model menu) first reads a regular
 sample of at most 2 M points and shows its top-down density in the
 `Scene3dZoneEditor` of the « Scène 3D » import: whole scan, rectangle or polygon,
-rotation, vertical axis and height range (default: 1st–99th percentiles,
-padded). The full decode (`readLocalPly` with `zone`) then keeps the zone only,
+rotation and vertical axis. Every height is kept. The full decode
+(`readLocalPly` with `zone`) then keeps the points inside the zone polygon only,
 so the memory peak follows the zone, not the file. The zone (source units) is
 stored in `resource.scan.zone` and reapplied on reopening. Its rotation sets the
 yaw so that the zone X axis becomes the displayed X axis and, with **Centrer sur
-la zone**, the zone centre at the lowest height becomes scene zero
+la zone**, the zone centre at the scan floor (`baseZ`, 1st height percentile
+of the sample) becomes scene zero
 (`getScanZonePlacement`, pinned by `localScanZone.test.mjs`). In « Réaliste »
 mode the Gaussian decode is not filtered: the zone limits the points only.
 
