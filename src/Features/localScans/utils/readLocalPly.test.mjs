@@ -70,10 +70,10 @@ test("rejects ASCII, missing coordinates, excessive counts and nonfinite data", 
   await assert.rejects(
     readLocalPlyHeader(
       new Blob([
-        "ply\nformat binary_little_endian 1.0\nelement vertex 9000000\nend_header\n",
+        "ply\nformat binary_little_endian 1.0\nelement vertex 40000001\nend_header\n",
       ])
     ),
-    /5 millions/
+    /40 millions/
   );
   await assert.rejects(
     readLocalPlyHeader(
@@ -121,4 +121,51 @@ test("reads RGB attributes with mixed scalar widths", async () => {
     bytes,
   ]);
   assert.deepEqual([...(await readLocalPly(file)).colors], [255, 10, 20]);
+});
+
+// Header-only virtual files exercise large limits without allocating gigabytes.
+function virtualCloud(count, { splat = false } = {}) {
+  const keys = splat
+    ? "x y z f_dc_0 f_dc_1 f_dc_2 opacity scale_0 scale_1 scale_2 rot_0 rot_1 rot_2 rot_3".split(
+        " "
+      )
+    : ["x", "y", "z"];
+  const header = new Blob([
+    `ply\nformat binary_little_endian 1.0\nelement vertex ${count}\n${keys.map((key) => `property float ${key}`).join("\n")}\nend_header\n`,
+  ]);
+  return {
+    size: header.size + count * keys.length * 4,
+    slice: (...args) => header.slice(...args),
+  };
+}
+
+test("accepts full-resolution large point clouds up to forty million vertices", async () => {
+  for (const count of [32_752_655, 40_000_000]) {
+    const header = await readLocalPlyHeader(virtualCloud(count));
+    assert.equal(header.count, count);
+    assert.equal(header.kind, "POINTS");
+  }
+});
+
+test("large-file support does not raise the Gaussian allocation budget", async () => {
+  await assert.rejects(
+    readLocalPlyHeader(virtualCloud(5_000_001, { splat: true })),
+    /5 millions de gaussiennes/
+  );
+  assert.equal(
+    (await readLocalPlyHeader(virtualCloud(5_000_000, { splat: true }))).kind,
+    "SPLAT"
+  );
+});
+
+test("rejects sources above two GiB before reading any bytes", async () => {
+  await assert.rejects(
+    readLocalPlyHeader({
+      size: 2 * 1024 ** 3 + 1,
+      slice() {
+        assert.fail("An oversized source must not be read");
+      },
+    }),
+    /2 Gio/
+  );
 });

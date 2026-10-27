@@ -16,13 +16,14 @@ const TYPES = {
   int: [4, "getInt32"],
   int32: [4, "getInt32"],
 };
-export const MAX_SCAN_POINTS = 5_000_000;
-export const MAX_SCAN_BYTES = 512 * 1024 * 1024;
+export const MAX_SCAN_POINTS = 40_000_000;
+export const MAX_SPLAT_POINTS = 5_000_000;
+export const MAX_SCAN_BYTES = 2 * 1024 * 1024 * 1024;
 
 export async function readLocalPlyHeader(file) {
   if (file.size > MAX_SCAN_BYTES)
     throw new Error(
-      "Ce prototype accepte les fichiers jusqu'à 512 Mio. Exportez une zone plus petite."
+      "Ce prototype accepte les fichiers jusqu'à 2 Gio. Exportez une zone plus petite."
     );
   const bytes = new Uint8Array(await file.slice(0, 65536).arrayBuffer());
   const text = new TextDecoder("latin1").decode(bytes);
@@ -70,7 +71,7 @@ export async function readLocalPlyHeader(file) {
     count > MAX_SCAN_POINTS
   )
     throw new Error(
-      "Nombre de points invalide ou supérieur à la limite de 5 millions."
+      "Nombre de points invalide ou supérieur à la limite de 40 millions."
     );
   if (!["x", "y", "z"].every((key) => properties[key]))
     throw new Error("Le PLY ne contient pas de coordonnées x, y, z.");
@@ -90,6 +91,10 @@ export async function readLocalPlyHeader(file) {
     "rot_3",
   ];
   const isSplat = splatKeys.every((key) => properties[key]);
+  if (isSplat && count > MAX_SPLAT_POINTS)
+    throw new Error(
+      "Le rendu Gaussian Splatting reste limité à 5 millions de gaussiennes."
+    );
   if (!isSplat && splatKeys.some((key) => properties[key]))
     throw new Error("Les propriétés Gaussian Splatting sont incomplètes.");
   return {

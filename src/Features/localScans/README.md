@@ -11,7 +11,7 @@ The real-world scale and vertical axis must be confirmed by the operator.
 - Gaussian PLY rendering with pinned Spark 2.4.0, including its SH attributes.
 - Explicit local persistence, reopen, replace, delete, frame, axis and scale.
 - One saved source per project/scope in a separate IndexedDB database.
-- Limits: 5 million points and 512 MiB per file. No ASCII or triangle meshes
+- Limits: 40 million points (5 million Gaussians) and 2 GiB per file. No ASCII or triangle meshes
   in this entry point. Existing mesh imports remain unchanged.
 
 This milestone is a viewer with optional point inspection and a local RANSAC
@@ -108,3 +108,17 @@ survives axis/scale changes and is stored with placement when a local copy exist
 The grid shows the estimated plane extended over two metres, not a guarantee
 that the surrounding scan is planar. The original file, project annotations,
 camera and other assets are unchanged.
+
+
+## Large point-cloud trial
+
+The NavVis MLX example (1,179,096,338 bytes, 32,752,655 vertices) is accepted at
+full resolution. The reader retains only XYZ and RGB, using bounded slices;
+normal/intensity/curvature fields are skipped. No automatic downsampling occurs.
+This example needs about 469 MiB for decoded positions/colors, a similar GPU
+allocation, and another 375 MiB of positions when point inspection is enabled.
+The source Blob and other renderer/browser allocations are additional. Point
+picking still scans the full cloud in its worker. Desktop performance must be
+assessed separately from parser correctness; this is not a mobile memory budget.
+Local storage quota failures continue to fall back to viewing without saving.
+The separate five-million Gaussian limit is unchanged.
