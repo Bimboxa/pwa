@@ -10,14 +10,17 @@ export default function useReattachResourceFile() {
   return async function reattachResourceFile(resource, file) {
     if (!resource?.fileName || !file) return;
 
-    const fileArrayBuffer = await file.arrayBuffer();
+    const payload =
+      resource.kind === "LOCAL_SCAN_3D"
+        ? { fileBlob: file }
+        : { fileArrayBuffer: await file.arrayBuffer() };
 
     await db.transaction("rw", db.resources, db.files, async () => {
       await db.files.put({
         fileName: resource.fileName,
         fileMime: file.type,
         srcFileName: file.name,
-        fileArrayBuffer,
+        ...payload,
         projectId: resource.projectId,
         fileType: getResourceFileType(file),
       });

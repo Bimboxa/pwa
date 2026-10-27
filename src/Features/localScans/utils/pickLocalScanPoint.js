@@ -13,6 +13,11 @@ export default function pickLocalScanPoint(positions, query) {
     const x = positions[i],
       y = positions[i + 1],
       z = positions[i + 2];
+    if (query.slice) {
+      const { row, lower, upper } = query.slice;
+      const height = row[0] * x + row[1] * y + row[2] * z + row[3];
+      if (height < lower || height > upper) continue;
+    }
     const w = m[3] * x + m[7] * y + m[11] * z + m[15];
     if (w <= 0) continue;
     const clipZ = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w;

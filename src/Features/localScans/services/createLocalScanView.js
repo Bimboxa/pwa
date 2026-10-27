@@ -28,11 +28,32 @@ export default function createLocalScanView(editor, data) {
     vertexColors: true,
     toneMapped: false,
   });
+  const sliceUniforms = {
+    scanSliceEnabled: { value: false },
+    scanSliceLower: { value: 0 },
+    scanSliceUpper: { value: 0 },
+  };
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, sliceUniforms);
+    shader.vertexShader = `uniform bool scanSliceEnabled; uniform float scanSliceLower; uniform float scanSliceUpper;
+${shader.vertexShader}`;
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <project_vertex>",
+      `#include <project_vertex>
+      float scanZ = (modelMatrix * vec4(position, 1.0)).y;
+      if (scanSliceEnabled && (scanZ < scanSliceLower || scanZ > scanSliceUpper)) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    `
+    );
+  };
+  material.customProgramCacheKey = () => "local-scan-slice-v1";
   const points = new Points(geometry, material);
   points.raycast = () => false;
   root.add(points);
   manager.scene.add(root);
   let disposed = false;
+  let clipRange = null,
+    splatClipEdit = null,
+    splatClipPlanes = null;
   let splat = null;
   let spark = null;
   let loading = null;
@@ -46,6 +67,25 @@ export default function createLocalScanView(editor, data) {
   function setPlacement(next) {
     placement = next;
     applyLocalScanPlacement(root, next);
+    requestRender();
+  }
+  function setSliceClip(range) {
+    if (disposed) return;
+    clipRange = range;
+    sliceUniforms.scanSliceEnabled.value = Boolean(range);
+    if (range) {
+      sliceUniforms.scanSliceLower.value = range.lower;
+      sliceUniforms.scanSliceUpper.value = range.upper;
+    }
+    if (splat && splatClipEdit) {
+      if (range) {
+        splatClipPlanes[0].position.y = range.lower;
+        splatClipPlanes[1].position.y = range.upper;
+        splatClipPlanes.forEach((plane) => plane.updateMatrixWorld(true));
+      }
+      splat.edits = range ? [splatClipEdit] : [];
+      splat.needsUpdate = true;
+    }
     requestRender();
   }
   function fit() {
@@ -63,7 +103,7 @@ export default function createLocalScanView(editor, data) {
   }
   async function loadSplats(file) {
     // The engine and its workers are loaded only for a requested splat view.
-    const { SplatMesh, SparkRenderer, PackedSplats } =
+    const { SplatMesh, SparkRenderer, PackedSplats, SplatEdit, SplatEditSdf } =
       await import("@sparkjsdev/spark");
     if (disposed) return;
     const packed = await readLocalScanInWorker(file, {
@@ -74,7 +114,7 @@ export default function createLocalScanView(editor, data) {
     const candidate = new SplatMesh({
       packedSplats: new PackedSplats(packed),
       raycastable: false,
-      editable: false,
+      editable: true,
     });
     try {
       await candidate.initialized;
@@ -91,6 +131,14 @@ export default function createLocalScanView(editor, data) {
       // Explicit renderer avoids Spark's implicit renderer creation/leaks.
       manager.scene.add(spark);
       splat = candidate;
+      splatClipPlanes = [-Math.PI / 2, Math.PI / 2].map((rotation) => {
+        const plane = new SplatEditSdf({ type: "plane", opacity: 0 });
+        plane.rotation.x = rotation;
+        return plane;
+      });
+      // Explicit per-mesh edits never affect other Spark models in the scene.
+      splatClipEdit = new SplatEdit({ sdfs: splatClipPlanes });
+      setSliceClip(clipRange);
       root.add(splat);
       splat.visible = mode === "SPLAT";
       points.visible = mode !== "SPLAT";
@@ -118,6 +166,10 @@ export default function createLocalScanView(editor, data) {
   return {
     root,
     pointGeometry: geometry,
+    setSliceClip,
+    get clipRange() {
+      return clipRange;
+    },
     data,
     fit,
     setMode,

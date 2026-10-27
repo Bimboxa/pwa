@@ -46,3 +46,14 @@ export function deleteLocalScan(contextKey) {
     await db.sources.delete(contextKey);
   });
 }
+
+// Legacy scope-local scans remain readable until explicitly reopened as resources.
+export async function listLegacyProjectScans(projectId) {
+  return (await db.scans.toArray()).filter((row) => {
+    try {
+      return JSON.parse(row.contextKey)[0] === projectId;
+    } catch {
+      return false;
+    }
+  });
+}

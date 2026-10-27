@@ -132,3 +132,19 @@ test("volumetric noise alone is not enough to claim a plane", () => {
   });
   assert.equal(result.normal, null);
 });
+
+test("inspection ignores centers hidden outside the active placed Z slice", () => {
+  const points = new Float32Array([...plane(0), ...plane(0.8)]);
+  const result = pick(points, {
+    ...query,
+    slice: { row: [0, 0, 2, 3], lower: 2.9, upper: 3.1 },
+  });
+  assert.ok(Math.abs(result.point[2]) < 1e-6);
+  assert.equal(
+    pick(points, {
+      ...query,
+      slice: { row: [0, 0, 2, 3], lower: 6, upper: 7 },
+    }),
+    null
+  );
+});

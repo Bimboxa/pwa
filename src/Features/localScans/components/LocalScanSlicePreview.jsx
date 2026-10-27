@@ -223,27 +223,31 @@ export default function LocalScanSlicePreview({
           {Math.round(viewport.zoom * 100)} %
         </Typography>
       </Stack>
-      <Button
-        size="small"
-        variant={selectAxis ? "contained" : "outlined"}
-        disabled={!canPick && !selectAxis}
-        onClick={() => {
-          if (selectAxis) cancelAxis();
-          else {
-            setSelectAxis(true);
-            setMessage(null);
-          }
-        }}
-      >
-        {selectAxis ? "Annuler l’axe" : "Définir l’axe horizontal (2 points)"}
-      </Button>
+      {onRotate && (
+        <Button
+          size="small"
+          variant={selectAxis ? "contained" : "outlined"}
+          disabled={!canPick && !selectAxis}
+          onClick={() => {
+            if (selectAxis) cancelAxis();
+            else {
+              setSelectAxis(true);
+              setMessage(null);
+            }
+          }}
+        >
+          {selectAxis ? "Annuler l’axe" : "Définir l’axe horizontal (2 points)"}
+        </Button>
+      )}
       <Typography variant="caption" aria-live="polite">
         {message ||
           (selectAxis
             ? firstPoint
               ? "Cliquez le second point : la direction 1 → 2 deviendra horizontale vers la droite."
               : "Cliquez le premier point de l’axe dans l’image."
-            : "Molette : zoom · Glisser : déplacer. L’axe choisi fait pivoter le scan en 3D autour de son origine.")}
+            : onRotate
+              ? "Molette : zoom · Glisser : déplacer. L’axe choisi fait pivoter le scan en 3D autour de son origine."
+              : "Molette : zoom · Glisser : déplacer.")}
       </Typography>
       <Box
         sx={{

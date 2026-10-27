@@ -1,16 +1,19 @@
 # Local scan viewer (experimental)
 
-Enable **Configuration → Éditeur 3D → Scans locaux : points et Gaussian
-Splatting**. The preference is device-local and defaults to off. In the 3D
-view, open **Scans locaux**, select a binary PLY and choose Points or Réaliste.
+Enable **Configuration → Outils → Scan 3D**, using the normal per-scope
+and per-module tool activation. Open the right-hand **Scan 3D** tool and load
+a binary PLY. The engine starts only when the tool is first opened. The drawer
+starts at 500 px and can be resized from its left edge. It uses the standard
+property-panel header/sections, with an **Outil expérimental** header chip. With no
+model loaded it shows only **Charger un modèle 3D…** below that header.
 The real-world scale and vertical axis must be confirmed by the operator.
 
-## First milestone
+## Supported data
 
 - Binary little- or big-endian PLY points; RGB or Gaussian DC colors.
 - Gaussian PLY rendering with pinned Spark 2.4.0, including its SH attributes.
-- Explicit local persistence, reopen, replace, delete, frame, axis and scale.
-- One saved source per project/scope in a separate IndexedDB database.
+- Automatic project-local persistence, reopen, replace, delete, frame, axis and scale.
+- Multiple project-level resources; one model displayed at a time.
 - Limits: 40 million points (5 million Gaussians) and 2 GiB per file. No ASCII or triangle meshes
   in this entry point. Existing mesh imports remain unchanged.
 
@@ -23,10 +26,11 @@ these scans. Their visibility is independent of existing base-map visibility.
 ## Isolation and lifecycle
 
 `LocalScansGate` is the only integration into `MainThreedEditor`. With the
-option off there is no scan database access, worker, Spark import or GPU
-allocation. `SectionLocalScans` only writes the device preference.
+tool disabled or before its first opening there is no scan database access,
+worker, Spark import or GPU allocation. Closing the panel keeps the model;
+disabling the tool releases it without deleting its saved resource.
 
-The panel is dynamically imported on enable; Spark and its isolated decoder
+The panel is dynamically imported on first opening; Spark and its isolated decoder
 are imported only when a Gaussian view is requested. These optional chunks
 are excluded from PWA precaching, cached on first use, and available offline
 after that first successful online load. No remote CDN or upload is used.
@@ -34,7 +38,7 @@ after that first successful online load. No remote CDN or upload is used.
 Source parsing runs in a terminable worker with bounded file reads. Spark's
 decoder pool runs inside a short-lived worker so its WASM heap and nested
 workers can be released on completion or cancellation. Render/sort resources
-belong to the displayed scan and are disposed on close, disable, scope change
+belong to the displayed scan and are disposed on close, disable, project change
 or exit from the 3D view. Static shader resources may remain cached by Three.
 
 Each scan owns a separate scene root. It never enters the annotation, mesh,
@@ -43,12 +47,46 @@ recursive picking by existing tools. The editor's renderer, antialiasing,
 camera controls and render path are unchanged. Spark's dirty callback requests
 coalesced renders instead of adding a permanent animation loop.
 
-Metadata and source blobs are stored separately in `krto-local-scans-v1`.
-Replacement/deletion use transactions. A failed import preserves the previous
-scan. Quota failures still allow viewing without persistence. Local copies
-are not included in project exports/sync; deleting a project does not purge
-this separate experimental store. Use the panel's local-delete action before
-deleting the project, or clear this database in browser storage settings.
+Models saved locally are `db.resources` rows with `kind: LOCAL_SCAN_3D`,
+`visibility: PROJECT` and `projectId`. Metadata includes point count, source
+bounds and placement. Main files live in `db.files.fileBlob`, without `listingId`,
+to keep multi-GB PLYs out of ArrayBuffer allocation and scope-file exports. The
+resource reader/download and reattachment paths accept this Blob form. Resource
+metadata follows normal project export/deletion rules; files remain device-local
+and may be reattached through Resources after an import. Removing a resource uses
+the existing resource-delete flow. Quota failures still permit temporary viewing.
+
+Legacy `krto-local-scans-v1` scope entries are listed for their parent project.
+Opening one copies it transactionally into a project resource, preserves its
+placement and only then releases the old copy. A failed migration leaves the
+original intact. `legacyScanKey` prevents duplicate entries if legacy cleanup
+fails. No bulk migration or change to unrelated resources occurs.
+
+## Tool tabs and lifecycle
+
+- **Général**: file information, local persistence, points/realistic mode,
+  shared projection preview, and **Créer un fond de plan**. Creation uses the
+  selected density/RGB raster through the standard base-map creator, with
+  `meterByPx`, an initial version and `createdFrom` scan provenance. It stays
+  local (no initial remote save), and does not switch the current base map.
+- **Projection**: inclusive Z limits, density and mean-RGB images, boundary
+  tolerance, PNG exports and optional hiding of points outside the slice.
+- **Position**: axis/scale, point inspection, move-to-origin and two-click
+  horizontal alignment in the shared preview.
+
+Before a projection exists, every preview says **Définir l’image projetée dans
+l’onglet Projection**. Visiting Projection starts generation. Its controller
+lives with the scan rather than inside a tab or the drawer: changing tabs or
+closing the drawer keeps results, bounds and placement. Inspection is active
+only in the visible Position tab. Projection computation is paused while the
+inspection worker holds its source copy, then resumes when inspection ends.
+Moving/rotating the model invalidates the preview until recomputation completes;
+stale images cannot create a base map. Source data never enters Redux.
+
+`Scan3dPanelHost` is the ordinary tool drawer; the persistent scan controller
+portals its controls there. The scene/input overlay stays in the editor. With
+the tool closed the model and optional clipping remain visible, and ordinary
+editing gestures resume. Other right-hand panels retain their existing widths.
 
 ## Verification
 
@@ -76,7 +114,7 @@ when its source is absent).
 
 ## Point inspection and scan origin
 
-Enable **Coordonnées au clic** in the scan panel, then click the scan. Dragging
+Enable **Coordonnées au clic** in the Position tab, then click the scan. Dragging
 still navigates. A transparent input surface receives inspection gestures;
 camera-controls temporarily connects to it so existing canvas drawing and
 selection handlers do not receive those gestures. Disable the switch to restore
@@ -109,7 +147,6 @@ The grid shows the estimated plane extended over two metres, not a guarantee
 that the surrounding scan is planar. The original file, project annotations,
 camera and other assets are unchanged.
 
-
 ## Large point-cloud trial
 
 The NavVis MLX example (1,179,096,338 bytes, 32,752,655 vertices) is accepted at
@@ -125,9 +162,10 @@ The separate five-million Gaussian limit is unchanged.
 
 ## Horizontal slice projection
 
-Enable **Coupe Z et projection** to select an inclusive horizontal interval with
+Open the **Projection** tab to select an inclusive horizontal interval with
 one vertical, two-handle slider or numeric Z limits. Slider bounds follow the
-placed cloud's minimum and maximum Z with 5% padding on each side (at least
+placed cloud's useful height interval (1st–99th percentiles by default, or exact
+minimum and maximum with the full-extent switch), with 5% padding on each side (at least
 5 mm for a flat cloud). Values are metres in the
 placed scan's displayed frame, including origin, scale, vertical-axis selection
 and gizmo yaw. The image is orthographic (+X right, +Y up), with fixed XY bounds
@@ -150,8 +188,9 @@ PNG export contains the displayed raster, without georeferencing metadata.
 The projection worker clones XYZ/RGB once while enabled (about 469 MiB extra for
 the full NavVis example), then receives only range/frame updates. Inspection and
 projection are mutually exclusive to avoid retaining both analysis workers.
-Disabling the tool, hiding the scan or replacing it disposes overlays and workers.
-Projection settings and images are transient and are not added to project data.
+Disabling local scans, hiding the editor or replacing the model disposes the
+analysis workers and overlays. Settings/previews remain transient until the user
+explicitly creates a base map. Closing the drawer alone retains the model.
 
 Validation includes placed-coordinate/axis tests, inclusive range and image
 orientation tests, mean RGB, density, empty/flat bounds and cancellation. The
@@ -175,3 +214,26 @@ input, density/RGB modes, PNG download, wheel zoom, pan and two-point alignment.
 The alignment tests cover both vertical-axis choices, nonzero origin/scale, an
 existing model rotation and rotated editor axes. The full NavVis projection was
 validated computationally; full NavVis browser interaction remains to be assessed.
+
+
+## Slice clipping
+
+**Masquer les points hors de la tranche en 3D** filters centers by placed world Y
+(displayed Z). Points use a dedicated material shader with live uniforms; splats
+use two explicit per-mesh Spark plane edits with zero opacity outside the range.
+No global renderer clipping setting, other mesh or source buffer is modified.
+The boundary diagnostic overlay retains its small tolerance. Picking ignores
+centers outside the active slice. Clipping survives tab changes and is reversible.
+
+The project-resource unit test verifies project isolation, Blob round trips,
+placement preservation, missing sources, deleted resources and transaction aborts.
+The development harness now exercises the real right drawer with an independent
+Redux store and synthetic project IDs; it does not dispatch selection actions
+that write the user's remembered project/scope to localStorage. Test resources
+and generated base maps use only `smoke-project` and may occupy local storage.
+
+The Z slider defaults to estimated 1st–99th percentile heights (a bounded
+65,536-point sample), padded by 5%, so isolated outliers do not consume its
+travel. A switch restores exact full-cloud bounds. This only changes slider
+limits; no source points are deleted or excluded from projection. Heights
+are evaluated after placement; fewer than 100 points use exact bounds.

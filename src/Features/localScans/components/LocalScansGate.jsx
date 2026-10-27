@@ -2,6 +2,10 @@
 import { Component, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Alert } from "@mui/material";
+import {
+  selectDisabledToolKeys,
+  selectDisabledToolKeysByModule,
+} from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 // No database, worker or splat engine is imported until explicitly enabled.
 class ScanBoundary extends Component {
@@ -16,7 +20,7 @@ class ScanBoundary extends Component {
         sx={{ position: "absolute", bottom: 80, right: 16 }}
       >
         Le module de scans a rencontré une erreur. Désactivez puis réactivez
-        l’option pour réessayer.
+        l’outil Scan 3D pour réessayer.
       </Alert>
     ) : (
       this.props.children
@@ -24,19 +28,30 @@ class ScanBoundary extends Component {
   }
 }
 
-export default function LocalScansGate({
-  editor,
-  hidden = false,
-  rightInset = 0,
-  bottomInset = 0,
-}) {
-  const enabled = useSelector((s) => s.threedEditor.localScansEnabled);
+export default function LocalScansGate({ editor, hidden = false }) {
+  const enabled = useSelector(
+    (s) =>
+      !selectDisabledToolKeys(s).includes("SCAN_3D") &&
+      !(
+        selectDisabledToolKeysByModule(s)[s.viewers.selectedViewerKey] ?? []
+      ).includes("SCAN_3D")
+  );
+  const selected = useSelector(
+    (s) => s.rightPanel.selectedMenuItemKey === "SCAN_3D"
+  );
+  const [requested, setRequested] = useState(false);
+  // Keep a loaded model visible when closing the panel, until the tool is disabled.
+  useEffect(() => {
+    if (!enabled) setRequested(false);
+    else if (selected) setRequested(true);
+  }, [enabled, selected]);
+  const active = enabled && requested;
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const [Panel, setPanel] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    if (!enabled) return;
+    if (!active) return;
     let alive = true;
     setError(null);
     import("./LocalScansPanel").then(
@@ -46,15 +61,15 @@ export default function LocalScansGate({
       () => {
         if (alive)
           setError(
-            "Impossible de charger le module de scans. Désactivez puis réactivez l'option pour réessayer."
+            "Impossible de charger le module de scans. Désactivez puis réactivez l’outil Scan 3D pour réessayer."
           );
       }
     );
     return () => {
       alive = false;
     };
-  }, [enabled]);
-  if (!enabled || !editor || !projectId || !scopeId) return null;
+  }, [active]);
+  if (!active || !editor || !projectId || !scopeId) return null;
   if (error)
     return (
       <Alert
@@ -64,15 +79,14 @@ export default function LocalScansGate({
         {error}
       </Alert>
     );
-  const contextKey = JSON.stringify([projectId, scopeId]);
+  const contextKey = projectId;
   return Panel ? (
     <ScanBoundary key={contextKey}>
       <Panel
         editor={editor}
-        contextKey={contextKey}
+        projectId={projectId}
+        scopeId={scopeId}
         hidden={hidden}
-        rightInset={rightInset}
-        bottomInset={bottomInset}
       />
     </ScanBoundary>
   ) : null;

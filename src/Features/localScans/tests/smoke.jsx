@@ -3,19 +3,48 @@ import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { BoxGeometry, Mesh, MeshBasicMaterial } from "three";
-import { Box, CssBaseline } from "@mui/material";
+import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import ThreedEditor from "Features/threedEditor/js/ThreedEditor";
 import Gate from "../components/LocalScansGate";
-import Section from "../components/SectionLocalScans";
 import reducer from "Features/threedEditor/threedEditorSlice";
+import applicationStore from "App/store";
+import rightPanelReducer from "Features/rightPanel/rightPanelSlice";
+import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
+import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
+import theme from "Styles/theme";
 
 // Deliberately uses a synthetic scope, never the user's current project.
-const store = configureStore({
-  reducer: {
-    threedEditor: reducer,
-    projects: () => ({ selectedProjectId: "smoke-project" }),
-    scopes: () => ({ selectedScopeId: "smoke-scope" }),
+const initial = applicationStore.getState();
+const seed = {
+  ...initial,
+  projects: { ...initial.projects, selectedProjectId: "smoke-project" },
+  scopes: { ...initial.scopes, selectedScopeId: "smoke-scope" },
+  viewers: { ...initial.viewers, selectedViewerKey: "THREED" },
+  rightPanel: { ...initial.rightPanel, selectedMenuItemKey: "SCAN_3D" },
+  layout: {
+    ...initial.layout,
+    deviceType: "DESKTOP",
+    windowHeight: window.innerHeight,
   },
+  appConfig: {
+    ...initial.appConfig,
+    value: {
+      features: { tools: [] },
+      entityModelsObject: {
+        baseMap: { key: "baseMap", defaultTable: "baseMaps" },
+      },
+    },
+  },
+};
+// Never dispatch project/scope selection actions: those write shared localStorage.
+const store = configureStore({
+  middleware: (defaults) => defaults({ serializableCheck: false }),
+  reducer: (state = seed, action) => ({
+    ...state,
+    threedEditor: reducer(state.threedEditor, action),
+    rightPanel: rightPanelReducer(state.rightPanel, action),
+    mapEditor: mapEditorReducer(state.mapEditor, action),
+  }),
 });
 
 export function Harness() {
@@ -48,24 +77,29 @@ export function Harness() {
   }, []);
   return (
     <Provider store={store}>
-      <CssBaseline />
-      <Box sx={{ position: "relative", height: "100vh" }}>
-        <Box ref={host} sx={{ position: "absolute", inset: 0 }} />
-        <Box
-          sx={{
-            position: "absolute",
-            top: 10,
-            left: 10,
-            width: 330,
-            zIndex: 30,
-          }}
-        >
-          <Section />
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ position: "relative", height: "100vh" }}>
+          <Box ref={host} sx={{ position: "absolute", inset: 0 }} />
+          <Gate editor={editor} />
+          <Box
+            sx={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              display: "flex",
+            }}
+          >
+            <RightPanelContainer />
+          </Box>
         </Box>
-        <Gate editor={editor} />
-      </Box>
+      </ThemeProvider>
     </Provider>
   );
 }
 
-createRoot(document.getElementById("root")).render(<Harness />);
+const root =
+  import.meta.hot?.data.root ?? createRoot(document.getElementById("root"));
+if (import.meta.hot) import.meta.hot.data.root = root;
+root.render(<Harness />);

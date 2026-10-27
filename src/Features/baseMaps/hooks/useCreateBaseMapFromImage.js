@@ -42,6 +42,8 @@ export default function useCreateBaseMapFromImage() {
     orientation,
     printZone,
     source = "image",
+    createdFrom,
+    triggerInitialSave = true,
     selectOnCreate = true,
   }) {
     // first project listing, created when the project has none yet
@@ -52,6 +54,7 @@ export default function useCreateBaseMapFromImage() {
       name,
       image: { file },
       meterByPx,
+      ...(createdFrom && { createdFrom }),
       ...(latLng && { latLng }),
       ...(geo && { geo }),
       ...(scene3d && { scene3d }),
@@ -86,7 +89,7 @@ export default function useCreateBaseMapFromImage() {
       }
 
       if (selectOnCreate) dispatch(setSelectedMainBaseMapId(_entity.id));
-      triggerInitialSaveIfNeeded();
+      if (triggerInitialSave) triggerInitialSaveIfNeeded();
 
       logAppEvent("BASE_MAP_CREATED", { name, source, size: file?.size });
     }

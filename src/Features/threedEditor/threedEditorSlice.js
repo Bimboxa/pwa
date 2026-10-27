@@ -1,8 +1,4 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-  loadLocalScansEnabled,
-  storeLocalScansEnabled,
-} from "Features/localScans/services/localScanPreference";
 
 import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
 import {
@@ -61,7 +57,6 @@ function closeMergeFacesMode(state) {
 }
 
 const threedEditorInitialState = {
-  localScansEnabled: loadLocalScansEnabled(),
   showGrid: false,
   // When true, basemap images are hidden in the live 3D view AND omitted from
   // the 3D scene export (USDZ / OBJ) — annotation objects are unaffected.
@@ -495,10 +490,6 @@ export const threedEditorSlice = createSlice({
       if (!isViewDistance(action.payload)) return;
       state.maxViewDistance = action.payload;
       storeMaxViewDistance(state.maxViewDistance);
-    },
-    setLocalScansEnabled: (state, action) => {
-      state.localScansEnabled = action.payload === true;
-      storeLocalScansEnabled(state.localScansEnabled);
     },
     setShowAxesGizmo: (state, action) => {
       state.axesSettings.showGizmo = !!action.payload;
@@ -1374,7 +1365,6 @@ export const {
   setEnvironment3d,
   setNavigationPreset,
   setMaxViewDistance,
-  setLocalScansEnabled,
   setShowAxesGizmo,
   setShowSceneAxes,
   setAxesYawDeg,

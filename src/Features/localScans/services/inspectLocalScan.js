@@ -39,6 +39,8 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
       ...camera.matrixWorld.elements,
       ...camera.projectionMatrix.elements,
       ...view.root.matrixWorld.elements,
+      view.clipRange?.lower ?? "",
+      view.clipRange?.upper ?? "",
     ].join(",");
   };
   function clearEffect() {
@@ -221,6 +223,12 @@ export default function inspectLocalScan(editor, view, surface, onResult) {
         origin: ray.origin.toArray(),
         direction: ray.direction.toArray(),
         scale: view.root.scale.x,
+        slice: view.clipRange
+          ? {
+              ...view.clipRange,
+              row: [1, 5, 9, 13].map((i) => view.root.matrixWorld.elements[i]),
+            }
+          : null,
       },
     });
   };

@@ -3043,8 +3043,6 @@ export default function MainThreedEditor() {
         <LocalScansGate
           editor={threedEditorRef.current}
           hidden={walkActive || captureFramingActive}
-          rightInset={rightPanelOpen ? rightPanelWidth : 0}
-          bottomInset={planningBottomInset}
         />
       )}
       {/* The helper REPLACES the listings panel while the mode is armed, same

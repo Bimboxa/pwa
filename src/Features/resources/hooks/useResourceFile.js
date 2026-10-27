@@ -16,9 +16,9 @@ export default function useResourceFile(resource) {
   }, [fileName]);
 
   const file = useMemo(() => {
-    if (!fileRecord?.fileArrayBuffer) return null;
+    if (!fileRecord?.fileArrayBuffer && !fileRecord?.fileBlob) return null;
     return new File(
-      [fileRecord.fileArrayBuffer],
+      [fileRecord.fileBlob ?? fileRecord.fileArrayBuffer],
       resource?.name ?? fileRecord.srcFileName ?? "file",
       { type: fileRecord.fileMime || "application/octet-stream" }
     );

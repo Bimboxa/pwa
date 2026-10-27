@@ -25,12 +25,12 @@ export default async function duplicateResourceToProject(
     ).filter((r) => !r.deletedAt && r.fileName && r.projectId === projectId);
     for (const twin of twins) {
       const f = await db.files.get(twin.fileName);
-      if (f?.fileArrayBuffer) return twin;
+      if (f?.fileArrayBuffer || f?.fileBlob) return twin;
     }
   }
 
   const fileRecord = await db.files.get(resource.fileName);
-  if (!fileRecord?.fileArrayBuffer) return null;
+  if (!fileRecord?.fileArrayBuffer && !fileRecord?.fileBlob) return null;
 
   const id = nanoid();
   const name = resource.name;
@@ -56,7 +56,9 @@ export default async function duplicateResourceToProject(
       fileName,
       fileMime: fileRecord.fileMime,
       srcFileName: fileRecord.srcFileName ?? name,
-      fileArrayBuffer: fileRecord.fileArrayBuffer.slice(0),
+      ...(fileRecord.fileBlob
+        ? { fileBlob: fileRecord.fileBlob }
+        : { fileArrayBuffer: fileRecord.fileArrayBuffer.slice(0) }),
       projectId,
       fileType: fileRecord.fileType,
     });

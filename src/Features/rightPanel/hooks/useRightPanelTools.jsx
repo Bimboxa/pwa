@@ -16,6 +16,7 @@ import {
   CloudSync,
   SmartToy,
   School,
+  ViewInAr,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -225,6 +226,13 @@ export default function useRightPanelTools() {
   // is inserted at its own slot while its viewer is active (see below).
 
   const contextualTools = [
+    {
+      key: "SCAN_3D",
+      label: "Scan 3D",
+      icon: <ViewInAr />,
+      viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS", "ZONES"],
+      contextual: true,
+    },
     // Settings of the editor actually displayed (3D view settings — the
     // former "Vue 3D" tool — when a 3D editor is active, 2D editor settings
     // otherwise). No `viewers` constraint: available in every module.
@@ -337,6 +345,7 @@ export default function useRightPanelTools() {
   }
 
   const activeContextualTools = contextualTools
+    .filter((t) => !t.disabled)
     .filter((t) => !t.viewers || t.viewers.includes(selectedViewerKey))
     .filter((t) => !isScopeDisabled(t.key));
 

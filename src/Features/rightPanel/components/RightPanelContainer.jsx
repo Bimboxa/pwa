@@ -1,21 +1,16 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  setSelectedMenuItemKey,
   setElevationViewerWidth,
   setResourcesWidth,
+  setScan3dWidth,
 } from "../rightPanelSlice";
 
-import VerticalMenu from "Features/layout/components/VerticalMenu";
-
-import { Download, Info, Visibility } from "@mui/icons-material";
-
-import { Box, Paper, Slide } from "@mui/material";
+import { Box, Slide } from "@mui/material";
 
 import PanelShower from "Features/shower/components/PanelShower";
 import PanelEditorExport from "Features/editorExport/components/PanelEditorExport";
 import VerticalMenuRightPanel from "./VerticalMenuRightPanel";
-import PanelAnnotationFormat from "Features/annotations/components/PanelAnnotationFormat";
 import PanelEditEntity from "Features/entities/components/PanelEditEntity";
 import PanelNodeFormat from "Features/mapEditor/components/PanelNodeFormat";
 import PanelSelection from "Features/selection/components/PanelSelection";
@@ -25,7 +20,6 @@ import PanelOpencv from "Features/opencv/components/PanelOpencv.jsx";
 import PanelTools from "Features/tools/components/PanelTools";
 import PanelMasterProjectPictures from "Features/masterProjectPictures/components/PanelMasterProjectPictures";
 import PanelChat from "Features/chat/components/PanelChat";
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelSelectionProperties from "Features/selection/components/PanelSelectionProperties";
 import PanelAdminEntityModel from "Features/entityModels/components/PanelAdminEntityModel";
 import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing";
@@ -40,6 +34,7 @@ import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjects
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelAssistantRelay from "Features/assistantRelay/components/PanelAssistantRelay";
 import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
+import Scan3dPanelHost from "Features/localScans/components/Scan3dPanelHost";
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
 import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
@@ -67,7 +62,9 @@ export default function RightPanelContainer() {
   // Maillage panel is a normal fixed-width panel).
   const isElevation = selectedKey === "ELEVATION";
   const isResources = selectedKey === "RESOURCES";
-  const isResizable = isElevation || isResources;
+  const isScan = selectedKey === "SCAN_3D";
+  const scanWidth = useSelector((s) => s.rightPanel.scan3dWidth);
+  const isResizable = isElevation || isResources || isScan;
 
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : 1200;
@@ -89,15 +86,17 @@ export default function RightPanelContainer() {
   );
   const isCaptureCondensed = selectedKey === "CAPTURE" && capturePanelCondensed;
 
-  const width = isCaptureCondensed
-    ? CAPTURE_TOOLBAR_WIDTH
-    : isElevation
-      ? (elevationViewerWidth ?? elevationDefaultWidth)
-      : isResources
-        ? (resourcesWidth ?? resourcesDefaultWidth)
-        : isThreedSettings
-          ? 380
-          : fixedWidth;
+  const width = isScan
+    ? Math.min(scanWidth, Math.max(280, viewportWidth - 100))
+    : isCaptureCondensed
+      ? CAPTURE_TOOLBAR_WIDTH
+      : isElevation
+        ? (elevationViewerWidth ?? elevationDefaultWidth)
+        : isResources
+          ? (resourcesWidth ?? resourcesDefaultWidth)
+          : isThreedSettings
+            ? 380
+            : fixedWidth;
 
   // handlers - resize: each resizable tool updates its own width; the fixed
   // tools keep theirs.
@@ -113,7 +112,11 @@ export default function RightPanelContainer() {
         maxWidth
       );
       dispatch(
-        isResources ? setResourcesWidth(next) : setElevationViewerWidth(next)
+        isScan
+          ? setScan3dWidth(Math.max(360, Math.min(next, viewportWidth - 100)))
+          : isResources
+            ? setResourcesWidth(next)
+            : setElevationViewerWidth(next)
       );
     }
     function onUp() {
@@ -125,14 +128,6 @@ export default function RightPanelContainer() {
     window.addEventListener("mouseup", onUp);
     document.body.style.cursor = "ew-resize";
   }
-
-  const windowHeight = useSelector((s) => s.layout.windowHeight);
-  const bottomBarHeight = useSelector((s) => s.layout.bottomBarHeightDesktop);
-  const topBarHeight = useSelector((s) => s.layout.topBarHeight);
-
-  // helper - maxHeight
-
-  const height = windowHeight - topBarHeight - bottomBarHeight;
 
   // helper - the open panel floats over the viewer, so it would mask the
   // fullscreen create-baseMap section; keep it closed while that section shows.
@@ -212,6 +207,7 @@ export default function RightPanelContainer() {
           {selectedKey === "CAPTURE" && <PanelCaptureTool />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
+          {selectedKey === "SCAN_3D" && <Scan3dPanelHost />}
           {selectedKey === "RESOURCES" && <PanelResources />}
           {selectedKey === "OBJECTS_LIBRARY" && <PanelObjectsLibrary />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
