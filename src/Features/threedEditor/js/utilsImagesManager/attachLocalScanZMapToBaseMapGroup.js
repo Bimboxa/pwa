@@ -44,16 +44,26 @@ function createHeightColorAt() {
 // snap, export) leave it alone.
 // `shown` false keeps the mesh out of the render (no colour, no depth)
 // while it still answers the raycaster — the altimetry works over the
-// points / splats alone. options: {sceneManager, shown, onLoaded}. Returns
-// {dispose, setShown}.
+// points / splats alone. `raycast` false (the panel switch « Activer la
+// Zmap pour le raycaster » off) makes it a pure display: no pick, no
+// altimetry. options: {sceneManager, shown, raycast, onLoaded}. Returns
+// {dispose, setShown, setRaycast}.
+const noRaycast = () => {};
+
 export default function attachLocalScanZMapToBaseMapGroup(
   group,
   baseMap,
-  { sceneManager, shown = true, onLoaded } = {}
+  { sceneManager, shown = true, raycast = true, onLoaded } = {}
 ) {
   let disposed = false,
     mesh = null,
-    isShown = shown;
+    isShown = shown,
+    isRaycast = raycast;
+
+  function applyRaycast() {
+    if (!mesh) return;
+    mesh.raycast = isRaycast ? Mesh.prototype.raycast : noRaycast;
+  }
 
   // `visible` stays true (the pick filter drops invisible chains): the
   // material simply writes nothing.
@@ -105,6 +115,7 @@ export default function attachLocalScanZMapToBaseMapGroup(
       return;
     }
     applyShown();
+    applyRaycast();
     group.add(mesh);
     group.userData.localScanZMap = mesh;
     onLoaded?.();
@@ -113,6 +124,11 @@ export default function attachLocalScanZMapToBaseMapGroup(
   });
 
   return {
+    setRaycast(next) {
+      if (isRaycast === Boolean(next)) return;
+      isRaycast = Boolean(next);
+      applyRaycast();
+    },
     setShown(next) {
       if (isShown === Boolean(next)) return;
       isShown = Boolean(next);

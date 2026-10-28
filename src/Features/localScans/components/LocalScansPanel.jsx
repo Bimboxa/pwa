@@ -469,6 +469,16 @@ export default function LocalScansPanel({
       if (epoch === epochRef.current) setBusy(false);
     }
   }
+  async function changeZMapRaycast(value) {
+    if (!linked) return;
+    try {
+      await db.baseMaps.update(linked.id, {
+        "localScan.zMapRaycast": Boolean(value),
+      });
+    } catch {
+      setError("Le réglage de la Zmap n’a pas pu être enregistré.");
+    }
+  }
   function toggleVisible() {
     // Hidden by the bottom bar: showing the scan here switches the bar to
     // Points (and unhides the base map chip).
@@ -559,6 +569,8 @@ export default function LocalScansPanel({
               mode={wantedMode}
               pointSize={pointSize}
               modelVisible={modelVisible}
+              zMapRaycast={linked?.localScan?.zMapRaycast !== false}
+              onZMapRaycastChange={linked ? changeZMapRaycast : undefined}
               onToggleVisible={toggleVisible}
               onChangeMode={(value) => {
                 if (value) dispatch(setBaseMapsScanMode(value));

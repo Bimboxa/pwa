@@ -144,15 +144,13 @@ export default function useWalkMode() {
   // outside the zone, empty cell) falls back to the plane in the controller.
   const sceneId = mainBaseMap?.scene3d?.sceneId ?? null;
   // Base map projected from a local point cloud: its Zmap (height map in
-  // the base map frame) is the ground while the scan shows in any form
-  // (points, splats or Zmap) — on the bare image, the plane.
-  const scanShown = useSelector(
-    (s) =>
-      Boolean(s.viewers.baseMapsZMapVisible) ||
-      (s.viewers.baseMapsScanMode ?? "NONE") !== "NONE"
-  );
+  // the base map frame) is the ground, shown or not, as long as the base
+  // map's « Zmap pour le raycaster » switch is on (default) — else the
+  // plane.
   const localScanSceneId =
-    !sceneId && scanShown && mainBaseMap?.localScan?.resourceId
+    !sceneId &&
+    mainBaseMap?.localScan?.resourceId &&
+    mainBaseMap.localScan.zMapRaycast !== false
       ? getLocalScanHeightSceneId(mainBaseMap.id)
       : null;
   const groundSampler = useMemo(() => {

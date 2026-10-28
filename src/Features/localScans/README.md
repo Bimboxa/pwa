@@ -243,15 +243,17 @@ map version bumped by every build). Unlike the point cloud it answers the
 raycaster: the 3D altimetry badge reads it, drawings land on the relief; it
 is `isDecor` for the other scene passes. A scan base map therefore has
 three 3D artefacts: the points (or splats), the Zmap and the image plane.
-The « 3D » chip of the base maps list hides the Zmap with the points. The
-mesh is attached as soon as the scan shows in any form (points, splats or
-Zmap) and, with the Zmap toggle off, writes neither colour nor depth: the
-raycaster still meets the relief under the points. The toggle sits in its
+The « 3D » chip of the base maps list hides the Zmap with the points. With the
+Zmap toggle off the mesh writes neither colour nor depth: the raycaster
+still meets the relief under the points. The toggle sits in its
 own bottom bar button, apart from the Masqué / Points / Réaliste group. In
-first person, **V** cycles that group (hidden → points → realistic). While
-the scan shows in any form, the walker stands on the Zmap of the main base
-map (`createLocalScanGroundSampler`, same contract as the mesh scans'
-`createScene3dGroundSampler`); on the bare image it walks on the plane.
+first person, **V** cycles that group (hidden → points → realistic). The
+walker stands on the Zmap of the main base map (`createLocalScanGroundSampler`, same contract as the mesh scans'
+`createScene3dGroundSampler`). The « Activer la Zmap pour le raycaster »
+switch of the panel (`baseMap.localScan.zMapRaycast`, default on) drives
+both: on, the mesh is always attached (rendered only with the toggle) and
+the walker and the 3D altimetry read the relief shown or not; off, the
+mesh is a pure display (no pick) and the walker uses the plane.
 
 ## Verification
 

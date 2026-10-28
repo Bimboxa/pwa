@@ -1,7 +1,9 @@
 /* eslint-disable react/prop-types */
 import {
+  FormControlLabel,
   IconButton,
   Stack,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -11,16 +13,20 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 // « Affichage du modèle » section of the Scan 3D tool: visibility (the
-// « 3D » chip of the base map), Points / Réaliste (the bottom bar mode) and
-// the point size.
+// « 3D » chip of the base map), Points / Réaliste (the bottom bar mode),
+// the point size and the « Zmap pour le raycaster » switch of the base map
+// (first person walks on the relief, the 3D altimetry reads it — shown or
+// not; stored as baseMap.localScan.zMapRaycast).
 export default function SectionScanDisplay({
   loaded,
   mode,
   pointSize,
   modelVisible,
+  zMapRaycast = true,
   onToggleVisible,
   onChangeMode,
   onChangePointSize,
+  onZMapRaycastChange,
 }) {
   // render
   return (
@@ -111,6 +117,29 @@ export default function SectionScanDisplay({
         {loaded.kind === "SPLAT" && (
           <Typography variant="caption" color="text.secondary">
             Les points sont les centres des gaussiennes, pas un relevé laser.
+          </Typography>
+        )}
+        {onZMapRaycastChange && (
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={zMapRaycast}
+                onChange={(_, checked) => onZMapRaycastChange(checked)}
+              />
+            }
+            label="Activer la Zmap pour le raycaster"
+            sx={{
+              m: 0,
+              gap: 0.5,
+              "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
+            }}
+          />
+        )}
+        {onZMapRaycastChange && (
+          <Typography variant="caption" color="text.secondary">
+            Première personne et altitude sous la souris lisent le relief de la
+            Zmap, affichée ou non.
           </Typography>
         )}
       </Stack>
