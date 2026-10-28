@@ -9,9 +9,12 @@ import { darken, lighten } from "@mui/material/styles";
 
 import theme from "Styles/theme";
 import {
-  getLocalScanHeightRange,
+  getLocalScanSliceLocalRange,
   loadLocalScanHeightMap,
 } from "Features/localScans/services/localScanHeightMapService";
+
+// The relief shows through: the points and the image stay readable.
+const ZMAP_OPACITY = 0.5;
 import buildLocalScanZMapGeometry from "Features/localScans/utils/buildLocalScanZMapGeometry";
 
 // Colour ramp of the Zmap: light to dark variants of the secondary colour
@@ -52,7 +55,9 @@ export default function attachLocalScanZMapToBaseMapGroup(
     const heightMap = await loadLocalScanHeightMap(baseMap);
     if (disposed || !heightMap) return;
     const geometryData = buildLocalScanZMapGeometry(heightMap, {
-      range: getLocalScanHeightRange(baseMap),
+      // finite range: the slice (the kept points below / above would give
+      // an infinite one and black colours)
+      range: getLocalScanSliceLocalRange(baseMap) ?? undefined,
       colorAt: createHeightColorAt(),
     });
     if (geometryData.triangleCount === 0) return;
@@ -69,6 +74,8 @@ export default function attachLocalScanZMapToBaseMapGroup(
       vertexColors: true,
       side: DoubleSide,
       toneMapped: false,
+      transparent: true,
+      opacity: ZMAP_OPACITY,
       // above the base map plane in every depth contest
       polygonOffset: true,
       polygonOffsetFactor: -1,

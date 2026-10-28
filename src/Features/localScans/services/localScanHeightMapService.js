@@ -70,6 +70,16 @@ export function getLocalScanHeightRange(baseMap, options) {
   ];
 }
 
+// Slice of the base map image in the base map frame (above the plane):
+// the colour ramp of the Zmap runs over it (light at Z inf, dark at Z sup),
+// whatever the points kept below / above. → [hMin, hMax] | null
+export function getLocalScanSliceLocalRange(baseMap) {
+  const { lower, upper } = baseMap?.createdFrom ?? {};
+  if (!Number.isFinite(lower) || !Number.isFinite(upper)) return null;
+  const altitude = baseMap?.position?.y ?? 0;
+  return [lower - altitude, upper - altitude];
+}
+
 // data: decoded points ({positions, bounds}); rootMatrixWorld: the scan root
 // pose (three.js Matrix4); baseMap: {position, angleDeg, orientation,
 // refWidth, refHeight, meterByPx, createdFrom} of the base map; options:
