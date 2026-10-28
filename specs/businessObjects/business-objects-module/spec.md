@@ -126,6 +126,16 @@ UI :
   les annotations exclues (barrées) avec « Réintégrer », et offre « Exclure » par
   ligne sur un modèle lié.
 
+## Tooltip de survol (tous les modules)
+
+`MapTooltip` (2D et 3D via `ThreedHoverTooltip`) liste, sous un séparateur,
+les objets à quantités que l'annotation survolée alimente (rel ou lien par
+modèle non exclu, tous types à `features.quantities`, tous modules) : une
+ligne par objet — numéro (numérotation d'arbre si `autoNumbering`, sinon le
+code), libellé, quantité de l'annotation dans l'unité de l'objet (formule de
+l'objet pour le modèle si définie, sinon règle par défaut).
+`useAnnotationLinkedBusinessObjectRows`.
+
 ## Codes ("Renuméroter") + row layout + per-level styles
 
 The object properties panel header has a back arrow navigating to the
