@@ -19,6 +19,7 @@ import { Add } from "@mui/icons-material";
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
@@ -79,13 +80,18 @@ import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 // The level and the filter live in redux (shared by the left panel and the
 // popper, reset on listing switch); the search text is per instance and
 // cleared on level change. Dnd reorder / reparent (drop rule + cycle guard
-// cloned from the zonings tree), per-row quantities from the linked
+// cloned from the zonings tree; in DESCENDANTS mode, dropping onto the middle
+// of a row nests the object under it), per-row quantities from the linked
 // annotations. PLANNING listings (type feature hoursBudget) add the
 // rolled-up hours per row and a total band. With the listing setting
 // `listCard` (Krnet "Aperçu de l'objet"), the object rows render the
 // configured avatar + primary + secondary texts instead.
 // `readOnly` (Viewer module): no creation, no dnd, no edition / linking
 // actions on the rows.
+
+// sortable strategy keeping the non-dragged rows in place
+const noShiftStrategy = () => null;
+
 export default function BusinessObjectsTree({ listing, readOnly = false }) {
   const dispatch = useDispatch();
 
@@ -165,6 +171,9 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   // row to bring into view once rendered (navigation recentered on the
   // object picked while searching / filtering)
   const [pendingScrollId, setPendingScrollId] = useState(null);
+  // {id, position: "BEFORE" | "INSIDE" | "AFTER"} | null — hovered drop zone
+  // while dragging in DESCENDANTS mode
+  const [dropTarget, setDropTarget] = useState(null);
 
   // refs
 
@@ -366,6 +375,9 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+  // DESCENDANTS mode ("Liste"): drop zones per row (before / inside / after),
+  // the rows stay still so the hovered target doesn't slip under the pointer
+  const nestDnd = isTree && !childrenMode && !filtering && !readOnly;
 
   // effects — a level change clears the search (Krnet handleScopeChange)
 
@@ -450,25 +462,81 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     );
   }
 
+  // helpers — dnd
+
+  // pointer position in the hovered row: top quarter → BEFORE, middle half →
+  // INSIDE, bottom quarter → AFTER
+  function getDropPosition({ activatorEvent, delta, over }) {
+    const rect = over?.rect;
+    if (!rect?.height || activatorEvent?.clientY == null) return null;
+    const ratio = (activatorEvent.clientY + delta.y - rect.top) / rect.height;
+    if (ratio < 0.25) return "BEFORE";
+    if (ratio > 0.75) return "AFTER";
+    return "INSIDE";
+  }
+
+  // cycle guard: never drop an object into its own subtree
+  function isValidDrop(dragged, target) {
+    if (!dragged || !target || dragged.id === target.id) return false;
+    return !getBusinessObjectDescendants(businessObjects, dragged.id).some(
+      (d) => d.id === target.id
+    );
+  }
+
+  // handlers — dnd
+
+  function handleDragMove(event) {
+    if (!nestDnd) return;
+    const { active, over } = event;
+    const position = over ? getDropPosition(event) : null;
+    const valid =
+      position && isValidDrop(objectById[active.id], objectById[over.id]);
+    const next = valid ? { id: over.id, position } : null;
+    setDropTarget((prev) =>
+      prev?.id === next?.id && prev?.position === next?.position ? prev : next
+    );
+  }
+
+  function handleDragCancel() {
+    setDropTarget(null);
+  }
+
   // Drop rule (zonings clone): the dragged object lands next to the hovered
   // one, adopting its parent. The new fractional sortIndex slots it
-  // before/after the target among the target's siblings, depending on the
-  // drag direction.
+  // before/after the target among the target's siblings — depending on the
+  // hovered zone of the row in DESCENDANTS mode, on the drag direction
+  // otherwise. DESCENDANTS mode, middle of the row: the object becomes the
+  // last child of the target.
   async function handleDragEnd({ active, over }) {
+    const dropPosition = dropTarget?.position ?? null;
+    setDropTarget(null);
     if (readOnly || filtering) return;
     if (!over || active.id === over.id) return;
     const dragged = businessObjects?.find((o) => o.id === active.id);
     const target = businessObjects?.find((o) => o.id === over.id);
-    if (!dragged || !target) return;
+    if (!isValidDrop(dragged, target)) return;
 
-    // cycle guard: never drop an object into its own subtree
-    const descendants = getBusinessObjectDescendants(
-      businessObjects,
-      dragged.id
-    );
-    if (descendants.some((d) => d.id === target.id)) return;
+    const position = nestDnd
+      ? dropPosition
+      : flatIds.indexOf(active.id) < flatIds.indexOf(over.id)
+        ? "AFTER"
+        : "BEFORE";
+    if (!position) return;
 
-    const movingDown = flatIds.indexOf(active.id) < flatIds.indexOf(over.id);
+    if (position === "INSIDE") {
+      const lastChild = (childrenMap[target.id] ?? [])
+        .filter((o) => o.id !== dragged.id)
+        .at(-1);
+      let sortIndex;
+      try {
+        sortIndex = generateKeyBetween(lastChild?.sortIndex ?? null, null);
+      } catch (e) {
+        console.warn("[BusinessObjectsTree] sortIndex generation failed", e);
+        return;
+      }
+      await moveBusinessObject(dragged.id, { parentId: target.id, sortIndex });
+      return;
+    }
 
     const targetParentId = target.parentId ?? null;
     const siblings = businessObjects
@@ -483,7 +551,7 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
 
     let sortIndex;
     try {
-      if (movingDown) {
+      if (position === "AFTER") {
         const next = siblings[targetIdx + 1];
         sortIndex = generateKeyBetween(
           target.sortIndex ?? null,
@@ -553,10 +621,16 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
       <DndContext
         id={`business-objects-dnd-${listing.id}`}
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={nestDnd ? pointerWithin : closestCenter}
+        onDragMove={handleDragMove}
+        onDragOver={handleDragMove}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={rowIds}
+          strategy={nestDnd ? noShiftStrategy : verticalListSortingStrategy}
+        >
           <List dense disablePadding ref={listRef}>
             {rows.map(({ businessObject, depth, parentPath }) => {
               const childCount = (childrenMap[businessObject.id] ?? []).length;
@@ -573,6 +647,11 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
                   pathLabel={filtering ? parentPath : null}
                   stateBadge={stateId ? (stateById[stateId] ?? null) : null}
                   dndDisabled={filtering}
+                  dropIndicator={
+                    dropTarget?.id === businessObject.id
+                      ? dropTarget.position
+                      : null
+                  }
                   listing={listing}
                   readOnly={readOnly}
                   showCodes={showCodes}

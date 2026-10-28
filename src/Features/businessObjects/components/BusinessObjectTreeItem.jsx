@@ -98,6 +98,9 @@ export default function BusinessObjectTreeItem({
   stateBadge,
   // dnd off while searching / filtering (a filtered order is meaningless)
   dndDisabled = false,
+  // hovered drop zone while dragging another row: "BEFORE" | "INSIDE" |
+  // "AFTER" (nest under this object), or null
+  dropIndicator = null,
   listing,
   // Viewer module: display, solo, linked documents and selection only
   readOnly = false,
@@ -538,6 +541,18 @@ export default function BusinessObjectTreeItem({
               selectedBusinessObjectBgcolor(theme, { hover: true }),
           },
           ...sortableStyle,
+          ...(dropIndicator === "INSIDE" && {
+            outline: "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: "-2px",
+          }),
+          ...(dropIndicator === "BEFORE" && {
+            boxShadow: (theme) => `inset 0 2px 0 ${theme.palette.primary.main}`,
+          }),
+          ...(dropIndicator === "AFTER" && {
+            boxShadow: (theme) =>
+              `inset 0 -2px 0 ${theme.palette.primary.main}`,
+          }),
           "&:hover .row-drag-handle": { opacity: 1 },
         }}
       >
