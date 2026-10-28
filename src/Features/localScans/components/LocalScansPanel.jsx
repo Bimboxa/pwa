@@ -117,9 +117,11 @@ export default function LocalScansPanel({
     loaded?.resourceId === linkedBaseMap.localScan.resourceId
       ? linkedBaseMap.id
       : null;
-  const modelVisible = linkedId
-    ? !(hiddenScanIds ?? []).includes(linkedId)
-    : true;
+  // An explicit « Masqué » in the bottom bar hides the scan here too.
+  const scansHiddenGlobally = scanMode === "NONE";
+  const modelVisible =
+    !scansHiddenGlobally &&
+    (linkedId ? !(hiddenScanIds ?? []).includes(linkedId) : true);
   // Mode the view should render: Réaliste needs Gaussian data.
   const wantedMode =
     loaded?.kind === "SPLAT" && scanMode === "SPLAT" ? "SPLAT" : "POINTS";
@@ -455,6 +457,14 @@ export default function LocalScansPanel({
     }
   }
   function toggleVisible() {
+    // Hidden by the bottom bar: showing the scan here switches the bar to
+    // Points (and unhides the base map chip).
+    if (scansHiddenGlobally) {
+      dispatch(setBaseMapsScanMode("POINTS"));
+      if (linkedId && (hiddenScanIds ?? []).includes(linkedId))
+        dispatch(toggleScene3dHiddenIn3d(linkedId));
+      return;
+    }
     if (linkedId) dispatch(toggleScene3dHiddenIn3d(linkedId));
   }
   function changePointSize(size) {
