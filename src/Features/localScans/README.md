@@ -248,7 +248,10 @@ mesh is attached as soon as the scan shows in any form (points, splats or
 Zmap) and, with the Zmap toggle off, writes neither colour nor depth: the
 raycaster still meets the relief under the points. The toggle sits in its
 own bottom bar button, apart from the Masqué / Points / Réaliste group. In
-first person, **V** cycles that group (hidden → points → realistic).
+first person, **V** cycles that group (hidden → points → realistic). While
+the scan shows in any form, the walker stands on the Zmap of the main base
+map (`createLocalScanGroundSampler`, same contract as the mesh scans'
+`createScene3dGroundSampler`); on the bare image it walks on the plane.
 
 ## Verification
 

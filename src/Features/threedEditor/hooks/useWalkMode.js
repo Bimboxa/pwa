@@ -21,6 +21,9 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { prepareScene3dPicking } from "Features/scene3d/services/intersectScene3d";
 import createScene3dGroundSampler from "Features/scene3d/utils/createScene3dGroundSampler";
+import createLocalScanGroundSampler from "Features/localScans/utils/createLocalScanGroundSampler";
+import { ensureLocalScanHeightMap } from "Features/localScans/services/localScanHeightMapService";
+import { getLocalScanHeightSceneId } from "Features/localScans/utils/localScanHeightSceneId";
 import {
   ensureScene3dHeightMap,
   getScene3dHeightMap,
@@ -140,8 +143,27 @@ export default function useWalkMode() {
   // plane. The sampler reads the height map lazily — null (still loading,
   // outside the zone, empty cell) falls back to the plane in the controller.
   const sceneId = mainBaseMap?.scene3d?.sceneId ?? null;
+  // Base map projected from a local point cloud: its Zmap (height map in
+  // the base map frame) is the ground while the scan shows in any form
+  // (points, splats or Zmap) — on the bare image, the plane.
+  const scanShown = useSelector(
+    (s) =>
+      Boolean(s.viewers.baseMapsZMapVisible) ||
+      (s.viewers.baseMapsScanMode ?? "NONE") !== "NONE"
+  );
+  const localScanSceneId =
+    !sceneId && scanShown && mainBaseMap?.localScan?.resourceId
+      ? getLocalScanHeightSceneId(mainBaseMap.id)
+      : null;
   const groundSampler = useMemo(() => {
-    if (!sceneId || transform.orientation !== "HORIZONTAL") return null;
+    if (transform.orientation !== "HORIZONTAL") return null;
+    if (localScanSceneId)
+      return createLocalScanGroundSampler({
+        transform,
+        planeY: groundY,
+        getHeightMap: () => getScene3dHeightMap(localScanSceneId),
+      });
+    if (!sceneId) return null;
     return createScene3dGroundSampler({
       baseMap: mainBaseMap,
       transform,
@@ -151,6 +173,7 @@ export default function useWalkMode() {
     // The transform is rebuilt every render: key on its scalar parts.
   }, [
     sceneId,
+    localScanSceneId,
     mainBaseMap,
     groundY,
     transform.orientation,
@@ -164,12 +187,17 @@ export default function useWalkMode() {
   // Make the height map of the scan available while walking (rasterized at
   // import; rebuilt once for older scans — see scene3dHeightMapStore).
   useEffect(() => {
-    if (!walkActive || !sceneId) return;
+    if (!walkActive) return;
+    if (localScanSceneId) {
+      ensureLocalScanHeightMap(mainBaseMap);
+      return;
+    }
+    if (!sceneId) return;
     ensureScene3dHeightMap(sceneId, {
       bbox: mainBaseMap?.scene3d?.bbox,
       projectId: mainBaseMap?.projectId,
     });
-  }, [walkActive, sceneId, mainBaseMap]);
+  }, [walkActive, sceneId, localScanSceneId, mainBaseMap]);
 
   // P hotkey — only while a 3D-family viewer is effectively displayed.
   // Registered at mount, i.e. BEFORE the controller's capture listeners: P
