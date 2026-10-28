@@ -19,6 +19,9 @@ export default function SoloIconToggle({
   title,
   // Slot size (px).
   size = 24,
+  // Slot width override (px or sx value) — a text slot (the business-object
+  // row number) is wider than it is tall; defaults to `size`.
+  width,
   children,
 }) {
   // strings
@@ -46,7 +49,7 @@ export default function SoloIconToggle({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: size,
+          width: width ?? size,
           height: size,
           flexShrink: 0,
           borderRadius: 1,

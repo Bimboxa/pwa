@@ -90,11 +90,22 @@ remap Krto `annotationTemplates` / `annotations`).
 
 UI :
 - Mode de pointage sur la carte : `businessObjects.linkingBusinessObjectId` +
-  `linkingMode` (`"LINK"` | `"EXCLUDE"`). Le mode EXCLUDE (« liaison − », icône
-  `LinkOff` sur la ligne de l'arbre et bouton « Mode exclusion » du panneau) n'est
-  proposé que si l'objet a un lien par modèle ; un clic sur une annotation d'un
-  modèle non lié est ignoré (toast). Échap quitte le mode, le mode revient à
-  LINK dès que l'id est effacé.
+  `linkingMode` (`"LINK"` | `"EXCLUDE"`), armé par les icônes « annotation + »
+  / « annotation − » (`IconAnnotationLinkAdd` / `IconAnnotationLinkRemove`,
+  pentagone + badge) de la ligne de l'arbre et du panneau. Le mode EXCLUDE
+  n'est proposé que si l'objet a un lien par modèle ; un clic sur une annotation
+  d'un modèle non lié est ignoré (toast). Échap quitte le mode, le mode revient
+  à LINK dès que l'id est effacé.
+- Le mode est un « mode » comme le dessin : `PopperLinkBusinessObjectHelper`
+  (carte `PopperDrawingHelper` : poignée, titre « Liaison / Exclusion — objet »,
+  compteur, croix et Échap) **remplace** le popper des listings via la chaîne
+  d'early-returns de `PopperMapListings` (après le helper de dessin, qui
+  prime). Il n'est plus monté à part dans `MainMapEditorV3`.
+- 2D et 3D : le clic est traité par `pickAnnotationForBusinessObjectLinkService`
+  (toggle + rafraîchissement des miroirs + toast), appelé par `InteractionLayer`
+  (hit DOM) et par `MainThreedEditor.handleClick` (hit raycast, à côté du pick
+  de soustraction ; clic dans le vide = no-op, hachures pleines cliquables).
+  Échap en 3D : `useBusinessObjectLinkHotkeysInThreedEditor`.
 - Bandeau « Associer à « objet » » (`SectionBusinessObjectBandInToolbar`) en bas
   de `ToolbarEditAnnotation(s)` dans les modules objets métier dont le type a des
   quantités, tant qu'un objet est ACTIF (`activeBusinessObjectId`, qui survit à
@@ -134,12 +145,19 @@ As soon as one object of the listing has a code, the tree turns into a flat
 3-column DPGF-like rendering: code (left), label, quantity (right); no
 indentation, no color chip, no link-count chip.
 
-Rows (`BusinessObjectTreeItem.jsx`):
+Rows (`BusinessObjectTreeItem.jsx`, annotation-template rows pattern):
 - the label wraps on several lines (rows are top-aligned, side items sit on
   the first line);
-- the quantity + unit is flush right — the hover actions are an overlay, out
-  of the flow. Computed quantity when annotations are linked; else `refQty`,
-  greyed; else "– unit", greyed; nothing for a unit-less row;
+- the LEFT SLOT is the SOLO toggle (`SoloIconToggle`, like the template icon):
+  the code (listings with codes), else the color chip (colored types, object
+  rows), else a grey pentagon. Button shape on row hover, secondary ring while
+  soloed; no affordance when the object has nothing to isolate;
+- the quantity + unit is flush right, same type size as the label (`body2`).
+  Computed quantity when annotations are linked; else `refQty`, greyed; else
+  "– unit", greyed; nothing for a unit-less row. On row hover (and on the
+  active / armed row) the action buttons — documents, « annotation + »,
+  « annotation − » (template link present), « … » — REPLACE the quantity
+  (its slot is kept, no reflow), as on the template rows;
 - when both the computed and the reference quantities exist and differ by
   more than 5 % (`getBusinessObjectQtyGap`), a warning button opens
   `PopperBusinessObjectQtyGap`: reference, computed, gap, and the computed
@@ -212,6 +230,5 @@ model and viewer behaviour:
 - Non-tree listings (`isTree: false`).
 - Custom quantity formulas.
 - Scope duplication of business objects (zones parity — neither is copied).
-- 3D picking mode (linking in 3D goes through the selection panel).
 - Gitignored org mirrors (`appConfig_edx.yaml`, `Data/edx/configurations/*.js`):
   updated by hand by the user.

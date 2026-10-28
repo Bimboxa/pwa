@@ -117,9 +117,8 @@ import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnota
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
 import bakeSubtractionPickService from 'Features/annotationMesh3d/services/bakeSubtractionPickService';
-import toggleAnnotationBusinessObjectLinkService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectLinkService';
-import toggleAnnotationBusinessObjectExclusionService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectExclusionService';
-import { setLinkingBusinessObjectId, triggerBusinessObjectsUpdate, triggerRelsBusinessObjectAnnotationUpdate, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
+import pickAnnotationForBusinessObjectLinkService from 'Features/businessObjects/services/pickAnnotationForBusinessObjectLinkService';
+import { setLinkingBusinessObjectId, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
 import toggleAnnotationWorkPackageLinkService from 'Features/businessObjects/services/toggleAnnotationWorkPackageLinkService';
 import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
@@ -5850,64 +5849,13 @@ const InteractionLayer = forwardRef(({
       const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
       // A footprint is a projection, not a linkable annotation.
       if (hit && !isForeignFootprintId(hit.dataset.nodeId)) {
-        const annotationId = hit.dataset.nodeId;
-        const businessObject = await db.businessObjects.get(
-          linkingBusinessObjectId
-        );
-        if (businessObject && !businessObject.deletedAt && linkingMode === "EXCLUDE") {
-          const result = await toggleAnnotationBusinessObjectExclusionService({
-            businessObject,
-            annotationId,
-          });
-          if (result !== "skipped") {
-            dispatch(triggerBusinessObjectsUpdate());
-            dispatch(triggerRelsBusinessObjectAnnotationUpdate());
-          }
-          dispatch(
-            setToaster(
-              result === "skipped"
-                ? {
-                  message: `Le modèle de cette annotation n'est pas lié par modèle à "${businessObject.label}"`,
-                  severity: "warning",
-                }
-                : result === "excluded"
-                ? {
-                  message: `Annotation exclue de "${businessObject.label}"`,
-                  severity: "info",
-                }
-                : {
-                  message: `Annotation réintégrée dans "${businessObject.label}"`,
-                  severity: "success",
-                }
-            )
-          );
-        } else if (businessObject && !businessObject.deletedAt) {
-          const result = await toggleAnnotationBusinessObjectLinkService({
-            businessObject,
-            annotationId,
-          });
-          dispatch(triggerRelsBusinessObjectAnnotationUpdate());
-          // linking may have lifted an exclusion on the object row
-          if (result === "linked") dispatch(triggerBusinessObjectsUpdate());
-          dispatch(
-            setToaster(
-              result === "skipped"
-                ? {
-                  message: "Cette annotation délimite déjà un autre objet de la liste",
-                  severity: "warning",
-                }
-                : result === "linked"
-                ? {
-                  message: `Annotation liée à "${businessObject.label}"`,
-                  severity: "success",
-                }
-                : {
-                  message: `Annotation déliée de "${businessObject.label}"`,
-                  severity: "info",
-                }
-            )
-          );
-        }
+        // shared with the 3D editor (toggle + Dexie mirrors + toast)
+        await pickAnnotationForBusinessObjectLinkService({
+          annotationId: hit.dataset.nodeId,
+          linkingBusinessObjectId,
+          linkingMode,
+          dispatch,
+        });
       }
       // Stay in link mode; only Escape exits it.
       return;

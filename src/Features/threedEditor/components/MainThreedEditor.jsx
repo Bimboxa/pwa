@@ -113,6 +113,9 @@ import PopperBaseMapsList from "Features/popperMapListings/components/PopperBase
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
+import useBusinessObjectLinkHotkeysInThreedEditor from "../hooks/useBusinessObjectLinkHotkeysInThreedEditor";
+import pickAnnotationForBusinessObjectLinkService from "Features/businessObjects/services/pickAnnotationForBusinessObjectLinkService";
+import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
@@ -612,6 +615,10 @@ export default function MainThreedEditor() {
   // Escape exits the mode: InteractionLayer owns that in 2D but is not mounted
   // here.
   useSubtractPickHotkeysInThreedEditor();
+  // Same for the business-object picking mode (LINK / EXCLUDE), armed from
+  // the Quantités modules' object rows; its clicks are handled in handleClick
+  // below, reading the slice through the store (no re-render).
+  useBusinessObjectLinkHotkeysInThreedEditor();
 
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
@@ -1154,21 +1161,24 @@ export default function MainThreedEditor() {
         }
       }
 
-      // Scene hits: the subtraction pick keeps the full surface of hatched
-      // fills, like every tool.
+      // Scene hits: the subtraction / business-object picks keep the full
+      // surface of hatched fills, like every tool.
       const isSubtractionPick = Boolean(
         subtractSourceAnnotationIdRef.current ||
         subtractTargetAnnotationIdRef.current
       );
+      const { linkingBusinessObjectId: linkingId, linkingMode } =
+        store.getState().businessObjects;
+      const isPickMode = isSubtractionPick || Boolean(linkingId);
       const intersects = raycastScene(event, rect, {
-        hatchGaps: !isSubtractionPick,
+        hatchGaps: !isPickMode,
       });
 
       // Painted part (« Pinceau », db.meshPaints) clicked: a paint has no
       // panel of its own — its HOST is selected and the paint highlighted
       // (3D stipple / line + its row in the host's « Parties peintes »
       // section). Shift / right click are plain clicks here.
-      const paintHit = isSubtractionPick
+      const paintHit = isPickMode
         ? null
         : pickPaintUnderCursor(event, rect, intersects);
       if (paintHit) {
@@ -1412,6 +1422,23 @@ export default function MainThreedEditor() {
               return;
             }
 
+            // Business-object picking mode (Quantités modules): the click
+            // links / unlinks the annotation to the armed object (or toggles
+            // its exclusion) instead of selecting — same service as the 2D
+            // InteractionLayer. A footprint is a projection, not linkable.
+            if (linkingId && nodeType === "ANNOTATION") {
+              if (!isForeignFootprintId(nodeId)) {
+                pickAnnotationForBusinessObjectLinkService({
+                  annotationId: nodeId,
+                  linkingBusinessObjectId: linkingId,
+                  linkingMode,
+                  dispatch,
+                });
+              }
+              // Stay in the mode; only Escape exits it.
+              return;
+            }
+
             // Annotation first, face second: a click on an annotation that is
             // not the selected one selects the whole annotation (below). On
             // the already selected annotation, it selects the face (or the
@@ -1544,7 +1571,11 @@ export default function MainThreedEditor() {
         }
       }
 
-      // No annotation hit. A plain click on a basemap image selects it as a
+      // No annotation hit. Business-object picking mode: empty-space clicks do
+      // nothing (2D parity — the selection is kept, only Escape exits).
+      if (linkingId) return;
+
+      // A plain click on a basemap image selects it as a
       // BASE_MAP selection item so PanelSelectionProperties routes to the
       // baseMap properties panel — shift stays reserved for the annotation
       // multi-selection / lasso. The MAIN basemap (mapEditor slice) is left
