@@ -106,7 +106,6 @@ export default function SectionCreateBaseMapFullscreen({
   const a3S = "A3";
   const otherS = "Autre…";
   const chooseZoneS = "Choisir une zone";
-  const chooseFilesS = "Choisir les fichiers";
   const soonS = "Prochainement";
 
   const dwgSoonS = "Le format DWG arrive prochainement";
@@ -662,7 +661,7 @@ export default function SectionCreateBaseMapFullscreen({
                         size="small"
                         onClick={() => setOpenScene3d(true)}
                       >
-                        {chooseFilesS}
+                        {computerS}
                       </Button>
                       {hasScanResources && (
                         <Button
