@@ -229,6 +229,22 @@ The 2D « Altimétrie » badge reads it through `scene3dHeightMapStore` +
 The orphan purge and the base map deletion of the scene3d services know the
 `localScan:` rows.
 
+## Zmap (height map mesh in 3D)
+
+The bottom bar « Scan 3D » selector carries an independent **Zmap**
+toggle (`viewers.baseMapsZMapVisible`, per scope like the mode): every
+scan base map of the scene gets its height map as a mesh
+(`buildLocalScanZMapGeometry`, block-maximum downsample to 512 cells per
+side, quads only where the four corners hold a surface, vertex colours =
+the secondary ramp of the panel heat map over the slice) attached to the
+base map group by `attachLocalScanZMapToBaseMapGroup`
+(`ImagesManager.syncLocalScans`, keyed on the base map id and the height
+map version bumped by every build). Unlike the point cloud it answers the
+raycaster: the 3D altimetry badge reads it, drawings land on the relief; it
+is `isDecor` for the other scene passes. A scan base map therefore has
+three 3D artefacts: the points (or splats), the Zmap and the image plane.
+The « 3D » chip of the base maps list hides the Zmap with the points.
+
 ## Verification
 
 ```sh

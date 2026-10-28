@@ -58,6 +58,8 @@ const viewersInitialState = {
   // null = never chosen in this scope: no point cloud is decoded and the
   // « Scène 3D » meshes keep showing.
   baseMapsScanMode: null,
+  // bottom bar « Zmap »: height map meshes of the scan base maps (3D)
+  baseMapsZMapVisible: false,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
   // unmount the component — don't re-arm the fit; reset when the scope
@@ -134,6 +136,9 @@ export const viewersSlice = createSlice({
         ? action.payload
         : null;
     },
+    setBaseMapsZMapVisible: (state, action) => {
+      state.baseMapsZMapVisible = Boolean(action.payload);
+    },
     setInitialFitDoneForScopeId: (state, action) => {
       state.initialFitDoneForScopeId = action.payload ?? null;
     },
@@ -154,6 +159,7 @@ export const viewersSlice = createSlice({
       state.baseMapsImageMode =
         visibility?.baseMapsImageMode ?? BASE_MAPS_IMAGE_MODE.FULL;
       state.baseMapsScanMode = visibility?.baseMapsScanMode ?? null;
+      state.baseMapsZMapVisible = Boolean(visibility?.baseMapsZMapVisible);
       // The restored module may be SCOPE (page reload): same light grey
       // default, the restored mode is what comes back on exit.
       if (state.selectedViewerKey === "SCOPE") {
@@ -178,6 +184,7 @@ export const {
   setAnnotationsBaseMapIdsIn2d,
   setBaseMapsImageMode,
   setBaseMapsScanMode,
+  setBaseMapsZMapVisible,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,
   //

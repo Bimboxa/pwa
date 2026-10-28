@@ -1,5 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
+
+import {
+  getLocalScanHeightMapVersion,
+  subscribeLocalScanHeightMapVersion,
+} from "Features/localScans/services/localScanHeightMapService";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMode";
@@ -18,6 +23,12 @@ export default function useApplyBaseMapsScanModeIn3d({ rendererIsReady } = {}) {
   const hiddenIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
+  // Bottom bar « Zmap » + the height map rebuilds (the meshes follow).
+  const zMap = useSelector((s) => s.viewers.baseMapsZMapVisible);
+  const zMapTick = useSyncExternalStore(
+    subscribeLocalScanHeightMapVersion,
+    getLocalScanHeightMapVersion
+  );
 
   useEffect(() => {
     const imagesManager = getActiveThreedEditor()?.sceneManager?.imagesManager;
@@ -25,6 +36,8 @@ export default function useApplyBaseMapsScanModeIn3d({ rendererIsReady } = {}) {
       mode,
       mainBaseMapId,
       hiddenBaseMapIds: hiddenIds ?? [],
+      zMap: Boolean(zMap),
+      zMapTick,
     });
-  }, [rendererIsReady, mode, mainBaseMapId, hiddenIds]);
+  }, [rendererIsReady, mode, mainBaseMapId, hiddenIds, zMap, zMapTick]);
 }

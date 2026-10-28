@@ -195,10 +195,13 @@ export default function SectionBaseMapsList({
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
-  // Bottom bar « Scan 3D » selector: an explicit « Masqué » hides every
-  // scan whatever the chips, which are then frozen (off, not editable).
-  const scansHiddenGlobally =
-    useSelector((s) => s.viewers.baseMapsScanMode) === "NONE";
+  // Bottom bar « Scan 3D » selector: an explicit « Masqué » (with the
+  // « Zmap » off) hides every scan whatever the chips, which are then
+  // frozen (off, not editable).
+  const scansHiddenGlobally = useSelector(
+    (s) =>
+      s.viewers.baseMapsScanMode === "NONE" && !s.viewers.baseMapsZMapVisible
+  );
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
   );

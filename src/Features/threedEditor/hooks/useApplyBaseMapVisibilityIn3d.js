@@ -57,9 +57,12 @@ export default function useApplyBaseMapVisibilityIn3d({
   // Points / Réaliste: a base map projected from a local scan takes part in
   // the 3D scene for its point cloud alone (« Scan » chip on), even with its
   // image and annotations off — the image plane would hide the points.
+  // (the « Zmap » height map meshes count the same way)
+  const zMapShown = useSelector((s) => s.viewers.baseMapsZMapVisible);
   const localScansShown =
     scanMode === BASE_MAPS_SCAN_MODE.POINTS ||
-    scanMode === BASE_MAPS_SCAN_MODE.SPLAT;
+    scanMode === BASE_MAPS_SCAN_MODE.SPLAT ||
+    Boolean(zMapShown);
   // Opt-out image eye of the main basemap (base maps list / top bar selector).
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d

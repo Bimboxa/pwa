@@ -4,7 +4,9 @@ import { getScene3dHeightId } from "Features/scene3d/utils/scene3dAssetIds";
 import {
   ensureScene3dHeightMap,
   evictScene3dHeightMap,
+  getScene3dHeightMap,
   getScene3dHeightMapEntryStatus,
+  subscribeScene3dHeightMapStatus,
 } from "Features/scene3d/services/scene3dHeightMapStore";
 
 import localScanRuntime from "./localScanRuntime";
@@ -20,6 +22,25 @@ import { getLocalScanHeightSceneId } from "../utils/localScanHeightSceneId";
 // localScanHeightSceneId). Built at the creation of the base map and at
 // each « Mettre à jour le fond de plan »; rebuilt once for the base maps
 // created before, from the shared decoded scan (localScanRuntime).
+
+// Version of the height maps (bumped at each build): the 3D Zmap meshes
+// (attachLocalScanZMapToBaseMapGroup) rebuild on it. Tiny external store.
+let heightMapVersion = 0;
+const versionListeners = new Set();
+
+export function getLocalScanHeightMapVersion() {
+  return heightMapVersion;
+}
+
+export function subscribeLocalScanHeightMapVersion(listener) {
+  versionListeners.add(listener);
+  return () => versionListeners.delete(listener);
+}
+
+function bumpLocalScanHeightMapVersion() {
+  heightMapVersion += 1;
+  versionListeners.forEach((listener) => listener());
+}
 
 // Default options of the map (baseMap.createdFrom.heightMap): the points
 // below the slice count (the floor), the points above do not (the
@@ -76,6 +97,7 @@ export async function buildLocalScanHeightMap({
   });
   // the store reads the new row at the next request
   evictScene3dHeightMap(sceneId);
+  bumpLocalScanHeightMapVersion();
   return heightMap;
 }
 
@@ -141,4 +163,25 @@ export function getLocalScanHeightMapStatus(baseMap) {
   const sceneId = getLocalScanHeightSceneId(baseMap.id);
   if (rebuilds.has(sceneId)) return "LOADING";
   return getScene3dHeightMapEntryStatus(sceneId);
+}
+
+// The height map of a scan base map as a promise: the stored row, else the
+// rebuild from the resource; null when the device cannot build it (file
+// missing, rebuild failed). Used by the 3D Zmap.
+export function loadLocalScanHeightMap(baseMap) {
+  const sceneId = getLocalScanHeightSceneId(baseMap?.id);
+  return new Promise((resolve) => {
+    const settle = () => {
+      const status = ensureLocalScanHeightMap(baseMap);
+      if (status === "LOADING") return false;
+      resolve(status === "READY" ? getScene3dHeightMap(sceneId) : null);
+      return true;
+    };
+    if (settle()) return;
+    // the store notifies the READY / MISSING of the row; the rebuild ends
+    // with an ensure of its own, which notifies too
+    const unsubscribe = subscribeScene3dHeightMapStatus(() => {
+      if (settle()) unsubscribe();
+    });
+  });
 }

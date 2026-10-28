@@ -69,6 +69,7 @@ export default function getInitScopeVisibility(scopeId) {
       baseMapsScanMode: isBaseMapsScanMode(parsed.baseMapsScanMode)
         ? parsed.baseMapsScanMode
         : null,
+      baseMapsZMapVisible: Boolean(parsed.baseMapsZMapVisible),
     };
   } catch {
     return null;

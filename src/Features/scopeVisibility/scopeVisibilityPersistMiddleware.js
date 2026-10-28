@@ -80,6 +80,11 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   if (prev.viewers?.baseMapsScanMode !== state.viewers?.baseMapsScanMode) {
     patch.baseMapsScanMode = state.viewers?.baseMapsScanMode ?? null;
   }
+  if (
+    prev.viewers?.baseMapsZMapVisible !== state.viewers?.baseMapsZMapVisible
+  ) {
+    patch.baseMapsZMapVisible = Boolean(state.viewers?.baseMapsZMapVisible);
+  }
   if (changed2d(prev, state)) patch.viewer2d = pick2d(state);
   if (changed3d(prev, state)) patch.threed = pick3d(state);
 
