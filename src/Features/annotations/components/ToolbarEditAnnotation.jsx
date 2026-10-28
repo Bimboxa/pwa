@@ -65,7 +65,6 @@ import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
-import SectionBusinessObjectBandInToolbar from "Features/businessObjects/components/SectionBusinessObjectBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
@@ -786,16 +785,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <SectionZonesBandInToolbar annotations={[selectedAnnotation]} />
         )}
 
-        {/* Row 6 - Business object band (business-objects modules, active
-            object): link / exclude the selection, U / L / S formula */}
-        {!hasPart && selectedAnnotation && (
-          <SectionBusinessObjectBandInToolbar
-            annotations={[selectedAnnotation]}
-          />
-        )}
-
-        {/* Row 7 - Linked business objects (business-objects modules): one
-            row per object the annotation is linked to, unlink / exclude */}
+        {/* Row 6 - Linked business objects (business-objects modules): one
+            row per object the annotation feeds (unlink / exclude), then the
+            active object to link it to */}
         {!hasPart && selectedAnnotation && (
           <SectionLinkedBusinessObjectsInToolbar
             annotations={[selectedAnnotation]}
