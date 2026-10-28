@@ -38,14 +38,17 @@ function buildHeatRamp(secondary) {
 }
 
 // Heat map raster (RGBA canvas) of a height preview, empty pixels left
-// transparent.
-function buildHeatCanvas(preview, ramp) {
-  const { width, height, heights, min, max } = preview;
+// transparent. The ramp runs over the slice: light at Z inf and below (the
+// floor), dark at Z sup and above — not over the extreme heights, which a
+// few stray points would stretch.
+function buildHeatCanvas(preview, ramp, lower, upper) {
+  const { width, height, heights } = preview;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const pixels = new Uint8ClampedArray(width * height * 4);
-  const span = max - min || 1;
+  const min = lower;
+  const span = upper - lower || 1;
   for (let i = 0; i < heights.length; i++) {
     const value = heights[i];
     if (Number.isNaN(value)) continue;
@@ -148,7 +151,12 @@ export default function LocalScanSlicePreview({
       heatRef.current = null;
       return;
     }
-    heatRef.current = buildHeatCanvas(heightPreview, buildHeatRamp(secondary));
+    heatRef.current = buildHeatCanvas(
+      heightPreview,
+      buildHeatRamp(secondary),
+      result.lower,
+      result.upper
+    );
   }, [heightPreview, result, secondary]);
 
   useEffect(() => {

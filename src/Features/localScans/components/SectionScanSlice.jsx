@@ -248,7 +248,7 @@ export default function SectionScanSlice({
             {heightPending
               ? "Carte de profondeur en cours…"
               : heightPreview?.count
-                ? `Carte de profondeur : du clair (${heightPreview.min.toFixed(2)} m) au foncé (${heightPreview.max.toFixed(2)} m), point le plus haut vu de dessus.`
+                ? `Carte de profondeur : point le plus haut vu de dessus, clair à Z inf (${result.lower.toFixed(2)} m) et en dessous, foncé à Z sup (${result.upper.toFixed(2)} m). Un plafond sous Z sup compte : baissez Z sup pour l’exclure.`
                 : "Carte de profondeur : aucun point dans l’intervalle choisi."}
           </Typography>
         )}
