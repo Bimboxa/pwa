@@ -39,8 +39,6 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
   // strings
 
   const titleS = "Documents";
-  const emptyS =
-    "Aucun document lié. Dans Ressources, liez une ressource ou surlignez un texte d'un document.";
   const pageS = "p.";
   const missingS = "Document introuvable";
   const unlinkPassageS = "Délier ce passage";
@@ -84,6 +82,8 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
 
   // render
 
+  if (rows.length === 0) return null;
+
   return (
     <Box sx={{ p: 1.5 }}>
       <WhiteSectionGeneric>
@@ -103,68 +103,58 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
           </Typography>
         </Box>
 
-        {rows.length === 0 ? (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 0.5 }}
-          >
-            {emptyS}
-          </Typography>
-        ) : (
-          <List dense disablePadding sx={{ mt: 0.5 }}>
-            {rows.map((rel) => {
-              const resource = resourceByRelId?.[rel.id];
-              const isMissing = resourceByRelId && !resource;
-              const name = resource?.name ?? rel.resourceName ?? "";
-              const isWhole = isWholeResourceRel(rel);
-              const Icon = isWhole ? InsertDriveFileOutlined : PictureAsPdf;
-              return (
-                <ListItemButton
-                  key={rel.id}
-                  disableGutters
-                  onClick={() => handleOpen(rel, resource)}
-                  sx={{
-                    py: 0.25,
-                    px: 0.5,
-                    borderRadius: 1,
-                    opacity: isMissing ? 0.5 : 1,
-                    "&:hover .business-object-unlink": {
-                      visibility: "visible",
-                    },
+        <List dense disablePadding sx={{ mt: 0.5 }}>
+          {rows.map((rel) => {
+            const resource = resourceByRelId?.[rel.id];
+            const isMissing = resourceByRelId && !resource;
+            const name = resource?.name ?? rel.resourceName ?? "";
+            const isWhole = isWholeResourceRel(rel);
+            const Icon = isWhole ? InsertDriveFileOutlined : PictureAsPdf;
+            return (
+              <ListItemButton
+                key={rel.id}
+                disableGutters
+                onClick={() => handleOpen(rel, resource)}
+                sx={{
+                  py: 0.25,
+                  px: 0.5,
+                  borderRadius: 1,
+                  opacity: isMissing ? 0.5 : 1,
+                  "&:hover .business-object-unlink": {
+                    visibility: "visible",
+                  },
+                }}
+              >
+                <Icon sx={{ fontSize: 18, mr: 1, color: "text.secondary" }} />
+                <ListItemText
+                  primary={rel.text ? `« ${rel.text} »` : name}
+                  secondary={
+                    isWhole
+                      ? isMissing
+                        ? missingS
+                        : null
+                      : `${
+                          isMissing ? `${missingS} · ` : ""
+                        }${name} · ${pageS} ${rel.pageNumber}`
+                  }
+                  slotProps={{
+                    primary: { variant: "body2", noWrap: true },
+                    secondary: { variant: "caption", noWrap: true },
                   }}
+                />
+                <IconButton
+                  className="business-object-unlink"
+                  size="small"
+                  onClick={(e) => handleUnlink(e, rel)}
+                  title={isWhole ? unlinkResourceS : unlinkPassageS}
+                  sx={{ ml: 0.5, visibility: "hidden" }}
                 >
-                  <Icon sx={{ fontSize: 18, mr: 1, color: "text.secondary" }} />
-                  <ListItemText
-                    primary={rel.text ? `« ${rel.text} »` : name}
-                    secondary={
-                      isWhole
-                        ? isMissing
-                          ? missingS
-                          : null
-                        : `${
-                            isMissing ? `${missingS} · ` : ""
-                          }${name} · ${pageS} ${rel.pageNumber}`
-                    }
-                    slotProps={{
-                      primary: { variant: "body2", noWrap: true },
-                      secondary: { variant: "caption", noWrap: true },
-                    }}
-                  />
-                  <IconButton
-                    className="business-object-unlink"
-                    size="small"
-                    onClick={(e) => handleUnlink(e, rel)}
-                    title={isWhole ? unlinkResourceS : unlinkPassageS}
-                    sx={{ ml: 0.5, visibility: "hidden" }}
-                  >
-                    <LinkOff sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </ListItemButton>
-              );
-            })}
-          </List>
-        )}
+                  <LinkOff sx={{ fontSize: 16 }} />
+                </IconButton>
+              </ListItemButton>
+            );
+          })}
+        </List>
       </WhiteSectionGeneric>
     </Box>
   );
