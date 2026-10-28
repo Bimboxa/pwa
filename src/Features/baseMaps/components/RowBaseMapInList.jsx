@@ -32,7 +32,7 @@ export default function RowBaseMapInList({
   isMain,
   imageEye, // null | { on, onToggle }
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
-  scanButton, // null | { on, disabled, onToggle }
+  scanButton, // null | { on, disabled, disabledTooltip?, onToggle }
   versionChip, // null | { label, onOpen }
   actions = null, // null | ReactNode
   renaming = null, // null | { value, onChange, onConfirm, onCancel }
@@ -236,7 +236,7 @@ export default function RowBaseMapInList({
         <Tooltip
           title={
             scanButton.disabled
-              ? scanOffS
+              ? (scanButton.disabledTooltip ?? scanOffS)
               : scanButton.on
                 ? hideScanS
                 : showScanS
