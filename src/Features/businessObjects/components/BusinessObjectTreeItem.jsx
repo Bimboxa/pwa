@@ -216,7 +216,11 @@ export default function BusinessObjectTreeItem({
   const canSolo =
     isSolo || soloAnnotations?.length > 0 || mainAnnotations?.length > 0;
   const showDocuments = documentRels?.length > 0;
-  const hasActions = showDocuments || !readOnly;
+  // « Désactiver le bouton relier » (properties panel): the row hides its
+  // « annotation + » — the picking mode stays reachable from the panel.
+  const showLinking = !readOnly && !businessObject.linkingDisabled;
+  const showExcluding = !readOnly && hasTemplateLinks;
+  const hasActions = showDocuments || showLinking || showExcluding;
   const soloS = isSolo
     ? "Tout afficher"
     : `Afficher uniquement « ${businessObject.label} »`;
@@ -522,7 +526,7 @@ export default function BusinessObjectTreeItem({
           </IconButton>
         </Tooltip>
       )}
-      {!readOnly && (
+      {showLinking && (
         <Tooltip title={linkingS}>
           <IconButton
             size="small"
@@ -537,7 +541,7 @@ export default function BusinessObjectTreeItem({
           </IconButton>
         </Tooltip>
       )}
-      {!readOnly && hasTemplateLinks && (
+      {showExcluding && (
         <Tooltip title={excludingS}>
           <IconButton
             size="small"

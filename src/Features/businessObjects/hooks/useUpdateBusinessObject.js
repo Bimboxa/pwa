@@ -57,10 +57,15 @@ export default function useUpdateBusinessObject() {
       fieldValues,
       // "OPEN" | "CLOSED" (types with the status feature); closedAt follows
       status,
+      // true hides the « annotation + » (picking mode) button of the tree
+      // row — « Désactiver le bouton relier » in the properties panel
+      linkingDisabled,
     } = {}
   ) => {
     const updates = {};
     if (label != null) updates.label = label;
+    if (linkingDisabled !== undefined)
+      updates.linkingDisabled = Boolean(linkingDisabled);
     if (color != null) updates.color = color;
     if (description != null) updates.description = description;
     if (code !== undefined) updates.code = code || null;

@@ -27,12 +27,13 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  AddLink,
-  LinkOff,
   ArrowBack as Back,
   CloudDownload,
   LocationOff,
 } from "@mui/icons-material";
+
+import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
+import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
 
 import db from "App/db/db";
 
@@ -478,6 +479,12 @@ export default function PanelBusinessObjectProperties() {
     );
   }
 
+  function handleLinkingDisabledChange(e) {
+    updateBusinessObject(businessObject.id, {
+      linkingDisabled: e.target.checked,
+    });
+  }
+
   // Back to the object's listing properties: the LISTING selection wins over
   // the object branch in the routing. The solo display is untouched — the
   // object row toggle owns it.
@@ -901,7 +908,7 @@ export default function PanelBusinessObjectProperties() {
                         title="Délier cette annotation"
                         sx={{ visibility: "hidden" }}
                       >
-                        <LinkOff sx={{ fontSize: 16 }} />
+                        <IconAnnotationLinkRemove sx={{ fontSize: 16 }} />
                       </IconButton>
                     </ListItem>
                   );
@@ -934,7 +941,7 @@ export default function PanelBusinessObjectProperties() {
               variant={isLinking ? "contained" : "outlined"}
               fullWidth
               onClick={handleToggleLinking}
-              startIcon={<AddLink fontSize="small" />}
+              startIcon={<IconAnnotationLinkAdd fontSize="small" />}
             >
               {isLinking ? "Quitter le mode liaison (Échap)" : "Mode liaison"}
             </Button>
@@ -944,13 +951,35 @@ export default function PanelBusinessObjectProperties() {
                 variant={isExcluding ? "contained" : "outlined"}
                 fullWidth
                 onClick={handleToggleExcluding}
-                startIcon={<LinkOff fontSize="small" />}
+                startIcon={<IconAnnotationLinkRemove fontSize="small" />}
               >
                 {isExcluding
                   ? "Quitter le mode exclusion (Échap)"
                   : "Mode exclusion"}
               </Button>
             )}
+          </Box>
+
+          {/* « Désactiver le bouton relier »: the tree row hides its
+              « annotation + » (the picking mode stays reachable here) */}
+          <Box
+            sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={Boolean(businessObject.linkingDisabled)}
+                  onChange={handleLinkingDisabledChange}
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Désactiver le bouton « relier » de la ligne
+                </Typography>
+              }
+              sx={{ ml: 0 }}
+            />
           </Box>
 
           {/* hours budget (tasks) + quantity summary + template cards */}

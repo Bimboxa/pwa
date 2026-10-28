@@ -54,7 +54,8 @@ A new left-band module `BUSINESS_OBJECTS` (default label "Ouvrages"):
 
 ```js
 businessObjects: "id,listingId,projectId,scopeId,parentId"
-// {id, listingId, parentId|null, code?, label, color, description?, sortIndex, unit, refQty?, scopeId, projectId}
+// {id, listingId, parentId|null, code?, label, color, description?, sortIndex, unit, refQty?, linkingDisabled?, scopeId, projectId}
+// linkingDisabled: « Désactiver le bouton relier » (properties panel) — the tree row hides its « annotation + »
 relsBusinessObjectAnnotation: "id,projectId,annotationId,businessObjectId,listingId"
 // N-N; invariant: at most one live rel per (annotationId, businessObjectId)
 ```
@@ -164,7 +165,8 @@ Rows (`BusinessObjectTreeItem.jsx`, annotation-template rows pattern):
   Computed quantity when annotations are linked; else `refQty`, greyed; else
   "– unit", greyed; nothing for a unit-less row. The action buttons follow
   it, always visible: documents (resource links), « annotation + » (picking
-  mode), « annotation − » (template link present). No « … » menu on the row:
+  mode — hidden when `businessObject.linkingDisabled`, toggled in the
+  properties panel), « annotation − » (template link present). No « … » menu on the row:
   the object actions live in its properties panel;
 - when both the computed and the reference quantities exist and differ by
   more than 5 % (`getBusinessObjectQtyGap`), a warning button opens
