@@ -11,6 +11,10 @@ import {
   isBaseMapsImageMode,
 } from "Features/baseMaps/constants/baseMapsImageMode";
 import { isBaseMapsScanMode } from "Features/baseMaps/constants/baseMapsScanMode";
+import {
+  DEFAULT_SOLO_DIM_STYLE,
+  isSoloDimStyle,
+} from "Features/annotations/constants/soloDimStyle";
 
 const viewersInitialState = {
   // The left-band selection is a MODULE key ("MAP" = Dessin, "THREED",
@@ -58,6 +62,10 @@ const viewersInitialState = {
   // null = never chosen in this scope: no point cloud is decoded and the
   // « Scène 3D » meshes keep showing.
   baseMapsScanMode: null,
+  // Look of the annotations left out of a solo (hidden / light grey
+  // wireframe / translucent), same in the 2D editors and the 3D scene. Same
+  // per-scope lifecycle as baseMapsImageMode (bottom bar ButtonSoloDimStyle).
+  soloDimStyle: DEFAULT_SOLO_DIM_STYLE,
   // bottom bar « Zmap »: height map meshes of the scan base maps (3D)
   baseMapsZMapVisible: false,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
@@ -136,6 +144,11 @@ export const viewersSlice = createSlice({
         ? action.payload
         : null;
     },
+    setSoloDimStyle: (state, action) => {
+      state.soloDimStyle = isSoloDimStyle(action.payload)
+        ? action.payload
+        : DEFAULT_SOLO_DIM_STYLE;
+    },
     setBaseMapsZMapVisible: (state, action) => {
       state.baseMapsZMapVisible = Boolean(action.payload);
     },
@@ -159,6 +172,7 @@ export const viewersSlice = createSlice({
       state.baseMapsImageMode =
         visibility?.baseMapsImageMode ?? BASE_MAPS_IMAGE_MODE.FULL;
       state.baseMapsScanMode = visibility?.baseMapsScanMode ?? null;
+      state.soloDimStyle = visibility?.soloDimStyle ?? DEFAULT_SOLO_DIM_STYLE;
       state.baseMapsZMapVisible = Boolean(visibility?.baseMapsZMapVisible);
       // The restored module may be SCOPE (page reload): same light grey
       // default, the restored mode is what comes back on exit.
@@ -184,6 +198,7 @@ export const {
   setAnnotationsBaseMapIdsIn2d,
   setBaseMapsImageMode,
   setBaseMapsScanMode,
+  setSoloDimStyle,
   setBaseMapsZMapVisible,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,

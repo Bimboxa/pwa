@@ -2,6 +2,7 @@ import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
+import ButtonSoloDimStyle from "Features/annotations/components/ButtonSoloDimStyle";
 import SelectorBaseMapsImageMode from "./SelectorBaseMapsImageMode";
 import SelectorBaseMapsScanMode from "./SelectorBaseMapsScanMode";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
@@ -14,8 +15,11 @@ import {
 } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import useHasScanBaseMaps from "Features/baseMaps/hooks/useHasScanBaseMaps";
+import selectIsAnySoloActive from "Features/annotations/utils/selectIsAnySoloActive";
 
-// Bottom bar controls of the displayed editor: the base map image display
+// Bottom bar controls of the displayed editor: the look of the annotations
+// left out of a solo (while a solo is active: hidden / wireframe /
+// translucent, ButtonSoloDimStyle), the base map image display
 // mode (hidden / faded / as is), the scans display mode (3D editor, project
 // with scan base maps: hidden / points / realistic), the « Séparer les surfaces en contact »
 // toggle (3D editor only) and the base maps grid button (2D grid layer, or
@@ -33,6 +37,7 @@ export default function SectionBaseMapsBottomBarControls() {
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const hasScanBaseMaps = useHasScanBaseMaps();
+  const isAnySoloActive = useSelector(selectIsAnySoloActive);
 
   // helpers
 
@@ -61,6 +66,7 @@ export default function SectionBaseMapsBottomBarControls() {
         },
       }}
     >
+      {isAnySoloActive && <ButtonSoloDimStyle />}
       <SelectorBaseMapsImageMode />
       {is3dEditor && hasScanBaseMaps && <SelectorBaseMapsScanMode />}
       {is3dEditor && <ButtonToggleAntiAliasingShrink />}

@@ -12,6 +12,7 @@ import {
 
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
+import getSoloDimmedAnnotation2d from "Features/annotations/utils/getSoloDimmedAnnotation2d";
 import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
@@ -38,6 +39,11 @@ function StaticMapContent({
   baseMapMeterByPx,
   baseMapImageScale = 1,
   annotations,
+  // annotations left out of the active solo, drawn as ghosts under the
+  // annotations (viewers.soloDimStyle: wireframe / transparent — hidden ones
+  // never reach here). Display only: no hover, no selection, no snap.
+  soloDimmedAnnotations,
+  soloDimStyle,
   labelOverridesById,
   legendItems,
   legendFormat,
@@ -159,6 +165,22 @@ function StaticMapContent({
         filterAnnotationsByViewBox(baseMapAnnotations, visibleViewBox)
       ),
     [baseMapAnnotations, visibleViewBox]
+  );
+
+  // Solo ghosts: same culling, drawn under the annotations of the solo.
+  const visibleSoloDimmedAnnotations = useMemo(
+    () =>
+      soloDimmedAnnotations?.length
+        ? sortOpeningsLast(
+            filterAnnotationsByViewBox(
+              soloDimmedAnnotations.filter(
+                ({ baseMapId, hidden }) => Boolean(baseMapId) && !hidden
+              ),
+              visibleViewBox
+            )
+          )
+        : null,
+    [soloDimmedAnnotations, visibleViewBox]
   );
 
   // [MODIF 2] Calculer les annotations touchées par le point sélectionné (Topologie)
@@ -410,6 +432,31 @@ function StaticMapContent({
           spriteImage={spriteImage}
           sizeVariant={sizeVariant}
         />
+
+        {/* --- SOLO GHOSTS ---
+            Annotations left out of the solo, under the solo's annotations.
+            Labels (if any) render inline: they belong to the ghost, not to
+            the hoisted labels pass. */}
+        {visibleSoloDimmedAnnotations?.map((dimmed) => {
+          const { annotation, wrapperStyle } = getSoloDimmedAnnotation2d(
+            dimmed,
+            soloDimStyle
+          );
+          return (
+            <g key={"solo-dimmed::" + annotation.id} style={wrapperStyle}>
+              <NodeAnnotationStatic
+                annotation={annotation}
+                spriteImage={spriteImage}
+                sizeVariant={sizeVariant}
+                containerK={basePose.k}
+                baseMapMeterByPx={baseMapMeterByPx}
+                baseMapImageScale={baseMapImageScale}
+                showBgImage={showBgImage}
+                disableVertexEditing
+              />
+            </g>
+          );
+        })}
 
         {visibleBaseMapAnnotations?.map((annotation) => {
           // A. Caché par le Drag topology (segment split) — toujours via hiddenAnnotationIds

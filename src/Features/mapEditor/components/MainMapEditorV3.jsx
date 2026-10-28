@@ -1,4 +1,10 @@
-import { useRef, useEffect, useLayoutEffect, useMemo } from "react";
+import {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -67,6 +73,7 @@ import useHandleSurfaceCutCommit from "Features/surfaceCut/hooks/useHandleSurfac
 import { SURFACE_CUT_TOOL_TYPE } from "Features/surfaceCut/utils/surfaceCutTools";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
@@ -239,6 +246,8 @@ function _track(label, value) {
   }
   return value;
 }
+
+const EMPTY_ANNOTATIONS = [];
 
 export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const dispatch = useDispatch();
@@ -570,6 +579,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   );
 
   track("newAnnotation", newAnnotation?.id);
+  // Look of the annotations left out of a solo (bottom bar ButtonSoloDimStyle):
+  // hidden = filtered out by useAnnotationsV2 as before; otherwise kept,
+  // tagged `_soloDimmed`, and drawn as ghosts by StaticMapContent only
+  // (interaction, snapping, legend and quantities never see them).
+  const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
+  const keepSoloDimmed = soloDimStyle !== SOLO_DIM_STYLE.HIDDEN;
   const rawAnnotations = useAnnotationsV2({
     caller: "MainMapEditorV3",
     // BaseMaps module: the "Afficher les annotations" switch of the Fond de
@@ -592,6 +607,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // Viewer module's 2D editor while the popper's Photos tab is active
     // (read-only consultation, hover preview + click-select in the grid).
     withPhotos: isPhotosModule || (isViewerModule && viewerPhotosTabActive),
+    keepSoloDimmed,
   });
 
   // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
@@ -599,21 +615,43 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // Mirrors useAutoLoadAnnotationsInThreedEditor.
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
-  const annotations = useMemo(() => {
-    if (!rawAnnotations) return rawAnnotations;
-    if (hideAnnotations) return [];
-    if (!showMeshCells) return rawAnnotations.filter((a) => !a.isMeshCell);
-    // show the cells; shade adjacent ones (by meshCellIndex) so they're
-    // distinguishable while staying close to the parent's color.
-    return rawAnnotations
-      .filter((a) => !parentIdSet.has(a.id))
-      .map((a) => {
-        if (!a.isMeshCell) return a;
-        const base = a.strokeColor || a.fillColor;
-        const shaded = shadeMeshCellColor(base, a.label);
-        return { ...a, strokeColor: shaded, fillColor: shaded };
-      });
-  }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
+  const applyMeshCellsDisplay = useCallback(
+    (list) => {
+      if (!list) return list;
+      if (hideAnnotations) return [];
+      if (!showMeshCells) return list.filter((a) => !a.isMeshCell);
+      // show the cells; shade adjacent ones (by meshCellIndex) so they're
+      // distinguishable while staying close to the parent's color.
+      return list
+        .filter((a) => !parentIdSet.has(a.id))
+        .map((a) => {
+          if (!a.isMeshCell) return a;
+          const base = a.strokeColor || a.fillColor;
+          const shaded = shadeMeshCellColor(base, a.label);
+          return { ...a, strokeColor: shaded, fillColor: shaded };
+        });
+    },
+    [hideAnnotations, showMeshCells, parentIdSet]
+  );
+  // Everything below (interaction, snapping, edit layers, legend, qties)
+  // works on the annotations of the solo only.
+  const annotations = useMemo(
+    () =>
+      applyMeshCellsDisplay(
+        keepSoloDimmed && rawAnnotations
+          ? rawAnnotations.filter((a) => !a._soloDimmed)
+          : rawAnnotations
+      ),
+    [rawAnnotations, keepSoloDimmed, applyMeshCellsDisplay]
+  );
+  // Ghosts of the solo (StaticMapContent + PrintableMap only).
+  const soloDimmedAnnotations = useMemo(
+    () =>
+      keepSoloDimmed && rawAnnotations
+        ? applyMeshCellsDisplay(rawAnnotations.filter((a) => a._soloDimmed))
+        : EMPTY_ANNOTATIONS,
+    [rawAnnotations, keepSoloDimmed, applyMeshCellsDisplay]
+  );
 
   // Altimetry under the cursor: have the height map of a scan base map
   // ready before the first pointer move (see InteractionLayer).
@@ -2787,6 +2825,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                       baseMap?.getImageSize?.() || baseMap?.getImageSize?.()
                     }
                     annotations={displayAnnotations}
+                    soloDimmedAnnotations={soloDimmedAnnotations}
+                    soloDimStyle={soloDimStyle}
                     labelOverridesById={labelOverridesById}
                     legendItems={imageModeActive ? null : legendItems}
                     legendFormat={legendFormat}
@@ -2997,6 +3037,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 baseMap?.getImageSize?.() || baseMap?.getImageSize?.()
               }
               annotations={displayAnnotations}
+              soloDimmedAnnotations={soloDimmedAnnotations}
+              soloDimStyle={soloDimStyle}
               spriteImage={spriteImage}
               baseMapMeterByPx={baseMap?.getMeterByPx()}
               legendItems={legendItems}

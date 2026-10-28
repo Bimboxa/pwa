@@ -63,8 +63,11 @@ import applyAnnotationMaterialState, {
   STATE_DIM,
   STATE_HOVER,
   STATE_NONE,
+  STATE_SOLO_TRANSPARENT,
+  STATE_SOLO_WIREFRAME,
   setHighlightClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
+import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import {
   buildEdgeHelper,
   buildVertexHelper,
@@ -676,7 +679,12 @@ export default function MainThreedEditor() {
       const object =
         threedEditorRef.current?.sceneManager?.annotationsManager
           ?.annotationsObjectsMap?.[id];
-      if (object?.userData?.soloDimmed === true) return STATE_DIM;
+      if (object?.userData?.soloDimmed === true) {
+        return store.getState().viewers?.soloDimStyle ===
+          SOLO_DIM_STYLE.WIREFRAME
+          ? STATE_SOLO_WIREFRAME
+          : STATE_SOLO_TRANSPARENT;
+      }
       return STATE_NONE;
     },
     [store]

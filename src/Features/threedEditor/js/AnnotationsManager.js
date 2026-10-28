@@ -198,15 +198,18 @@ export default class AnnotationsManager {
     // profile sweeps) and after a CSG carve so late children / swapped
     // geometry are covered too.
     // - castShadow: REALISTIC + PHOTOREAL (only PHOTOREAL enables the shadow
-    //   map, so it stays inert in REALISTIC).
+    //   map, so it stays inert in REALISTIC) — never for an annotation left
+    //   out of a solo (`_soloDimmed`: translucent or wireframe, its shadow
+    //   would read as a solid).
     // - receiveShadow: PHOTOREAL only — annotation-on-annotation shadows are
     //   a large part of the archviz look (the basemap keeps its ShadowMaterial
     //   catcher, see RenderModeManager).
     // - world-box UVs: meshes whose material3d preset is textured (the flag is
     //   set synchronously at material creation); the carve strips the uv
     //   attribute, so the post-carve call re-projects it.
-    const applyShadowFlags = (root) => {
+    const applyShadowFlags = (root, annotation) => {
       if (!options?.realisticShading || !root) return;
+      const castShadow = !annotation?._soloDimmed;
       root.traverse?.((child) => {
         if (
           !child.isMesh ||
@@ -214,7 +217,7 @@ export default class AnnotationsManager {
           child.userData?.isDecor
         )
           return;
-        child.castShadow = true;
+        child.castShadow = castShadow;
         if (options?.photorealShading) child.receiveShadow = true;
         if (child.material?.userData?.material3dNeedsBoxUvs) {
           applyWorldBoxUVs(child);
@@ -232,9 +235,9 @@ export default class AnnotationsManager {
     // after a CSG carve, so the lines always match the displayed mesh.
     // Hatched fills (band + lines) are derived from the CURRENT solid
     // geometry too, and come first: the passes below must see their meshes.
-    const finishRoot = (root) => {
+    const finishRoot = (root, annotation) => {
       applyHatchFill(root, { resolution });
-      applyShadowFlags(root);
+      applyShadowFlags(root, annotation);
       if (options?.aquarelleShading) applySketchEdges(root, { resolution });
       applyWireframeSettings(root, this.wireframeSettings);
     };
@@ -250,7 +253,7 @@ export default class AnnotationsManager {
           resolution,
         });
         if (!object) return;
-        finishRoot(object);
+        finishRoot(object, annotation);
         this.annotationsObjectsMap[annotation.id] = object;
         this._buildStateById.set(annotation.id, {
           sourceRef: annotation,
@@ -280,7 +283,7 @@ export default class AnnotationsManager {
       const finishHostRoot = (root) => {
         if (!root) return;
         applySurfaceCuts(root, annotation, baseMapForRender);
-        finishRoot(root);
+        finishRoot(root, annotation);
       };
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {

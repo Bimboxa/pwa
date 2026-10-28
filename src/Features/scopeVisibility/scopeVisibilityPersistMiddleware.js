@@ -80,6 +80,9 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   if (prev.viewers?.baseMapsScanMode !== state.viewers?.baseMapsScanMode) {
     patch.baseMapsScanMode = state.viewers?.baseMapsScanMode ?? null;
   }
+  if (prev.viewers?.soloDimStyle !== state.viewers?.soloDimStyle) {
+    patch.soloDimStyle = state.viewers?.soloDimStyle ?? null;
+  }
   if (
     prev.viewers?.baseMapsZMapVisible !== state.viewers?.baseMapsZMapVisible
   ) {

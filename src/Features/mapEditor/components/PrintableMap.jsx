@@ -4,6 +4,7 @@ import NodeSvgImage from 'Features/mapEditorGeneric/components/NodeSvgImage';
 import NodeAnnotationStatic from 'Features/mapEditorGeneric/components/NodeAnnotationStatic'; // ou NodePolylineStatic + NodeMarkerStati
 import NodeLegendStatic from 'Features/mapEditorGeneric/components/NodeLegendStatic';
 import { sortOpeningsLast } from 'Features/annotations/utils/isOpeningAnnotation';
+import getSoloDimmedAnnotation2d from 'Features/annotations/utils/getSoloDimmedAnnotation2d';
 
 const PrintableMap = forwardRef(({
     bgImageUrl,
@@ -13,6 +14,9 @@ const PrintableMap = forwardRef(({
     bgPose = { x: 0, y: 0, k: 1 },         // { x, y, k }
     basePose,       // { x, y, k }
     annotations,
+    // ghosts of the active solo (see StaticMapContent)
+    soloDimmedAnnotations,
+    soloDimStyle,
     legendItems,
     legendFormat,
     showBgImage,
@@ -33,6 +37,13 @@ const PrintableMap = forwardRef(({
     const baseMapAnnotations = sortOpeningsLast(
         annotations.filter(({ baseMapId }) => Boolean(baseMapId))
     );
+    const soloDimmed = soloDimmedAnnotations?.length
+        ? sortOpeningsLast(
+              soloDimmedAnnotations.filter(
+                  ({ baseMapId, hidden }) => Boolean(baseMapId) && !hidden
+              )
+          ).map((a) => getSoloDimmedAnnotation2d(a, soloDimStyle))
+        : null;
 
     return (
         <svg
@@ -91,6 +102,18 @@ const PrintableMap = forwardRef(({
                             height={baseMapImageSize?.height}
                         />
                     )}
+
+                    {soloDimmed?.map(({ annotation, wrapperStyle }) => (
+                        <g key={'solo-dimmed::' + annotation.id} style={wrapperStyle}>
+                            <NodeAnnotationStatic
+                                annotation={annotation}
+                                baseMapMeterByPx={baseMapMeterByPx}
+                                spriteImage={spriteImage}
+                                worldScale={1}
+                                containerK={basePose.k}
+                            />
+                        </g>
+                    ))}
 
                     {baseMapAnnotations?.map(ann => (
                         <NodeAnnotationStatic

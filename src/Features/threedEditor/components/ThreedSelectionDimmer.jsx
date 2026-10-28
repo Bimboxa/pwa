@@ -8,7 +8,10 @@ import { isBaseMapAnnotationsOnIn3d } from "Features/baseMapsGrid3d/utils/baseMa
 import applyAnnotationMaterialState, {
   STATE_DIM,
   STATE_NONE,
+  STATE_SOLO_TRANSPARENT,
+  STATE_SOLO_WIREFRAME,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
+import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 
 // Owns the selection-driven dim state for the 3D viewer. Lives as a child of
 // MainThreedEditor so that re-renders triggered by selection changes do NOT
@@ -26,7 +29,10 @@ import applyAnnotationMaterialState, {
 //                                              → STATE_DIM   (greyed on the
 //     table instead of absent — the display filters are ignored there,
 //     only the selection dims the rest)
-//   - dimmed by solo (not in the soloed set)   → STATE_DIM   (grey, translucent)
+//   - dimmed by solo (not in the soloed set)   → STATE_SOLO_TRANSPARENT (light
+//     grey, translucent) or STATE_SOLO_WIREFRAME (light grey edges only) per
+//     the solo style of the bottom bar (viewers.soloDimStyle — HIDDEN ones
+//     are not loaded)
 //   - selection non-empty (and not selected)   → STATE_DIM   (grey, opacity 0.6)
 //     — except while the vertex offset mode is active (snap targets)
 //   - otherwise                                → STATE_NONE  (original)
@@ -67,6 +73,10 @@ export default function ThreedSelectionDimmer({
   );
   const vertexOffsetActiveRef = useRef(vertexOffsetActive);
   vertexOffsetActiveRef.current = vertexOffsetActive;
+  // Look of the annotations left out of a solo (ButtonSoloDimStyle).
+  const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
+  const soloDimStyleRef = useRef(soloDimStyle);
+  soloDimStyleRef.current = soloDimStyle;
 
   const selectedIdsRef = useRef([]);
   selectedIdsRef.current = getSelectedAnnotationIds(selectedItems);
@@ -127,7 +137,11 @@ export default function ThreedSelectionDimmer({
           state = STATE_DIM;
         else state = STATE_NONE;
       } else if (!isMain && mode === "DIMMED") state = STATE_DIM;
-      else if (isSoloDimmed) state = STATE_DIM;
+      else if (isSoloDimmed)
+        state =
+          soloDimStyleRef.current === SOLO_DIM_STYLE.WIREFRAME
+            ? STATE_SOLO_WIREFRAME
+            : STATE_SOLO_TRANSPARENT;
       else if (hasSelectionRef.current && !vertexOffsetActiveRef.current)
         state = STATE_DIM;
       else state = STATE_NONE;
@@ -157,6 +171,7 @@ export default function ThreedSelectionDimmer({
     vertexOffsetActive,
     dessinGridOpen,
     hideMainAnnotations,
+    soloDimStyle,
     computeAndApply,
     threedEditorRef,
   ]);

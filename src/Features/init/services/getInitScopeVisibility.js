@@ -5,6 +5,7 @@
 // Features/scopeVisibility.
 import { isBaseMapsImageMode } from "Features/baseMaps/constants/baseMapsImageMode";
 import { isBaseMapsScanMode } from "Features/baseMaps/constants/baseMapsScanMode";
+import { isSoloDimStyle } from "Features/annotations/constants/soloDimStyle";
 
 const STORAGE_KEY_PREFIX = "scopeVisibility:";
 
@@ -68,6 +69,10 @@ export default function getInitScopeVisibility(scopeId) {
         : null,
       baseMapsScanMode: isBaseMapsScanMode(parsed.baseMapsScanMode)
         ? parsed.baseMapsScanMode
+        : null,
+      // look of the annotations left out of a solo (null = default applies)
+      soloDimStyle: isSoloDimStyle(parsed.soloDimStyle)
+        ? parsed.soloDimStyle
         : null,
       baseMapsZMapVisible: Boolean(parsed.baseMapsZMapVisible),
     };

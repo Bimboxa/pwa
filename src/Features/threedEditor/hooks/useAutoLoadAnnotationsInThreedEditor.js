@@ -23,6 +23,7 @@ import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 
 // Annotations built WITHOUT the anti-aliasing shrink (« Pinceau »): copies
 // tagged `_noAntiAliasingShrink`, memoized per source row so the copy keeps
@@ -117,6 +118,10 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // get their group (the table textures them with a preview), never the
   // full image.
   const gridDessin = useSelector(selectBaseMapsGridDessinOpen);
+  // Look of the annotations left out of a solo (bottom bar
+  // ButtonSoloDimStyle): HIDDEN drops them from the scene, the other styles
+  // keep them (`_soloDimmed`) for ThreedSelectionDimmer.
+  const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
   const dessinSheetIds = useDessinGridBaseMapIds();
   const sheetIdsKey = useMemo(() => {
     const sheetIds = gridPinned
@@ -164,8 +169,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // COTE / RULER only when template.showIn3d or row.isDrawnIn3d.
     excludeDimensionsHiddenIn3d: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
-    // ThreedSelectionDimmer renders them translucent.
-    keepSoloDimmed: !gridDessin,
+    // ThreedSelectionDimmer renders them translucent or as light grey
+    // edges — unless the solo style is "hidden".
+    keepSoloDimmed: !gridDessin && soloDimStyle !== SOLO_DIM_STYLE.HIDDEN,
   });
 
   // Leaving the 3D viewer must NOT unload the scene (meshes stay alive while
