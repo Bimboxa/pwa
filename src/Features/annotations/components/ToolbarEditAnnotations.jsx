@@ -46,7 +46,6 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
-import SectionBusinessObjectBandInToolbar from "Features/businessObjects/components/SectionBusinessObjectBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
@@ -525,12 +524,9 @@ export default function ToolbarEditAnnotations({
           {/* Zones band (ZONES module): link the selection to zones */}
           <SectionZonesBandInToolbar annotations={annotations} />
 
-          {/* Business object band (business-objects modules, active object):
-              link / exclude the selection, U / L / S formula */}
-          <SectionBusinessObjectBandInToolbar annotations={annotations} />
-
           {/* Linked business objects (business-objects modules): one row per
-              object the selection is linked to, unlink / exclude */}
+              object the selection feeds (unlink / exclude), then the active
+              object to link it to */}
           <SectionLinkedBusinessObjectsInToolbar annotations={annotations} />
         </Box>
 

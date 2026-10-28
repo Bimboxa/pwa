@@ -107,21 +107,21 @@ UI :
   (hit DOM) et par `MainThreedEditor.handleClick` (hit raycast, à côté du pick
   de soustraction ; clic dans le vide = no-op, hachures pleines cliquables).
   Échap en 3D : `useBusinessObjectLinkHotkeysInThreedEditor`.
-- Bandeau « Associer à « objet » » (`SectionBusinessObjectBandInToolbar`) en bas
-  de `ToolbarEditAnnotation(s)` dans les modules objets métier dont le type a des
-  quantités, tant qu'un objet est ACTIF (`activeBusinessObjectId`, qui survit à
-  la sélection d'une annotation) : toggle U / L / S = formule de l'objet pour
-  le(s) modèle(s) de la sélection (objet sans unité : fixe l'unité u / ml / m²),
-  « annotation + » (`IconAnnotationLinkAdd`) lie par annotation (grisé quand
-  tout est déjà lié), « annotation − » exclut / réintègre (visible seulement
-  si un modèle de la sélection est lié par modèle). Pas de statut texte : la
-  liste dessous le porte.
-- Liste « Quantités liées » (`SectionLinkedBusinessObjectsInToolbar`) sous le
-  bandeau, dans les deux toolbars, modules objets métier : une ligne par objet
-  du type du module lié à la sélection (libellé, chemin des parents en
-  secondaire, « lié par modèle » / « exclue » / « k/N liées »), bouton
-  « annotation − » à droite : délie (rel) ou exclut / réintègre (lien par
-  modèle, ligne barrée quand exclue).
+- Section « quantités liées » (`SectionLinkedBusinessObjectsInToolbar`) en bas
+  de `ToolbarEditAnnotation(s)` dans les modules objets métier (remplace
+  l'ancien bandeau « Associer à ») : sans en-tête, une ligne par objet du type
+  du module alimenté par la sélection — libellé, chemin des parents en
+  secondaire (« lié par modèle » / « exclue » / « k/N liées »), la quantité
+  que la sélection représente dans l'unité de l'objet (formule de l'objet pour
+  le modèle si définie, sinon règle par défaut de l'unité ; typo des mesures
+  de la toolbar) et « annotation − » qui délie (rel) ou exclut / réintègre
+  (lien par modèle, ligne barrée quand exclue). Séparateurs entre les lignes.
+  En bas, surlignée secondary light (`selectedBusinessObjectBgcolor`), la
+  ligne de l'objet ACTIF (`activeBusinessObjectId`, qui survit à la sélection
+  d'une annotation) tant que la sélection ne l'alimente pas entièrement : la
+  quantité qu'elle ajouterait (« + 4,8 m² ») et « annotation + » qui lie par
+  annotation. Plus de toggle U / L / S ici (formule par défaut de l'unité si
+  aucune n'est définie ; le panneau de propriétés garde l'édition).
 - Panneau droit : la carte du modèle affiche « k exclues » ; le sous-panneau liste
   les annotations exclues (barrées) avec « Réintégrer », et offre « Exclure » par
   ligne sur un modèle lié.
