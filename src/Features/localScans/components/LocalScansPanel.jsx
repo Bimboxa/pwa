@@ -373,7 +373,8 @@ export default function LocalScansPanel({
       setMode("POINTS");
       setPointSize(display.pointSize);
       setOffsetZ(0);
-      await nextView.fit();
+      // No camera move: the scan is already in place on its base map (the
+      // « Cadrer » menu item frames it on demand).
     } catch (failure) {
       if (viewRef.current !== nextView) nextView?.dispose();
       if (epoch === epochRef.current && failure.name !== "AbortError")
