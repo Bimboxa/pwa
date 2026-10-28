@@ -3,10 +3,50 @@ import { mat3SmallestEigenvector } from "../../photoPlans/utils/mat3.js";
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sub = (a, b) => a.map((v, i) => v - b[i]);
 
+// Depth of the first dense slab along the ray (see the ray pick above):
+// the slabs start at each point; a slab counts the points within `slab`
+// beyond its start. → the mean depth of that slab's points, or null.
+export function findDenseSlabDepth(depths, { slab, minPoints = 6 }) {
+  if (!depths.length) return null;
+  depths.sort((a, b) => a - b);
+  const counts = new Array(depths.length);
+  let densest = 0;
+  for (let i = 0, j = 0; i < depths.length; i++) {
+    const limit = depths[i] + slab;
+    while (j < depths.length && depths[j] <= limit) j++;
+    counts[i] = j - i;
+    if (counts[i] > densest) densest = counts[i];
+  }
+  const threshold = Math.max(minPoints, Math.ceil(densest * 0.25));
+  for (let i = 0; i < depths.length; i++) {
+    if (counts[i] < threshold) continue;
+    let sum = 0;
+    for (let k = i; k < i + counts[i]; k++) sum += depths[k];
+    return sum / counts[i];
+  }
+  return null;
+}
+
 // All calculations use source coordinates. Only a bounded neighbourhood is
 // fitted; the full cloud stays in the worker and never blocks pointer events.
+//
+// Two ways to pick the seed point along `origin`/`direction`:
+// - screen pick (default): the nearest point within 6 px of `ndc` on screen
+//   (`matrix`, `width`, `height` — the camera ray);
+// - ray pick (`query.ray = {radius, minDepth, slab, minPoints}`, source
+//   units): a disc of `radius` advancing along the ray from `minDepth` (a
+//   ray leaving a surface must skip that surface's own points) and stopping
+//   at the first slab of `slab` thickness dense enough — at least
+//   `minPoints` and a quarter of the densest slab met along the ray: a
+//   stray point in the air is not a surface. The seed is the centre of that
+//   slab, on the ray. The ray is arbitrary (no camera), so a fixed ray
+//   always picks the same point.
 export default function pickLocalScanPoint(positions, query) {
   const { matrix: m, ndc, width, height, origin, direction, scale } = query;
+  const ray = query.ray ?? null;
+  const rayRadius2 = ray ? ray.radius * ray.radius : 0;
+  const minDepth = ray?.minDepth ?? 0;
+  const depths = []; // ray pick: depths of the points inside the cylinder
   let best = -1;
   let nearest = Infinity;
   for (let i = 0; i < positions.length; i += 3) {
@@ -18,6 +58,17 @@ export default function pickLocalScanPoint(positions, query) {
       const height = row[0] * x + row[1] * y + row[2] * z + row[3];
       if (height < lower || height > upper) continue;
     }
+    const ox = x - origin[0],
+      oy = y - origin[1],
+      oz = z - origin[2];
+    const depth = ox * direction[0] + oy * direction[1] + oz * direction[2];
+    if (depth <= minDepth) continue;
+    if (ray) {
+      const perp2 = ox * ox + oy * oy + oz * oz - depth * depth;
+      if (perp2 <= rayRadius2) depths.push(depth);
+      continue;
+    }
+    if (depth >= nearest) continue;
     const w = m[3] * x + m[7] * y + m[11] * z + m[15];
     if (w <= 0) continue;
     const clipZ = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w;
@@ -27,17 +78,18 @@ export default function pickLocalScanPoint(positions, query) {
     const dy =
       (((m[1] * x + m[5] * y + m[9] * z + m[13]) / w - ndc[1]) * height) / 2;
     if (dx * dx + dy * dy > 36) continue;
-    const depth =
-      (x - origin[0]) * direction[0] +
-      (y - origin[1]) * direction[1] +
-      (z - origin[2]) * direction[2];
-    if (depth > 0 && depth < nearest) {
-      nearest = depth;
-      best = i;
-    }
+    nearest = depth;
+    best = i;
   }
-  if (best < 0) return null;
-  const point = Array.from(positions.subarray(best, best + 3));
+  let point;
+  if (ray) {
+    const depth = findDenseSlabDepth(depths, ray);
+    if (depth === null) return null;
+    point = origin.map((value, i) => value + depth * direction[i]);
+  } else {
+    if (best < 0) return null;
+    point = Array.from(positions.subarray(best, best + 3));
+  }
   // Fixed physical search volume: one metre per edge, centred on the hit.
   // Placement is a uniform scale and an axis permutation, so a source-space
   // cube maps to the same scene-space cube after applying the import scale.
@@ -171,9 +223,13 @@ export default function pickLocalScanPoint(positions, query) {
     t > 0 &&
     intersection.every((value, i) => Math.abs(value - point[i]) <= radius);
   // A grazing ray must not suppress an otherwise good plane or send the
-  // result far away. Fall back to the nearest orthogonal point on the plane.
+  // result far away. Fall back to the nearest orthogonal point on the plane
+  // (screen pick) or to the picked point itself, which lies on the ray
+  // (ray pick: the result must stay on the ray).
   const signedDistance = dot(normal, point) - offset;
-  const projected = point.map((value, i) => value - signedDistance * normal[i]);
+  const projected = ray
+    ? point
+    : point.map((value, i) => value - signedDistance * normal[i]);
   if (denominator > 0) for (let i = 0; i < 3; i++) normal[i] *= -1;
   return {
     ...fallback,

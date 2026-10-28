@@ -331,12 +331,19 @@ distance also reads the clouds, one worker search at a time, at most every
 250 ms.
 
 With **Maj** held after the first point, the measure leaves the first point
-perpendicular to its plane (scan plane, or face normal of a mesh hit) and stops
-on the facing plane under the crosshair (scan plane or mesh face; without one,
-or nearly parallel to the direction, the plane through the aimed point parallel
-to the first) — `getPerpendicularIntercept`. The preview is then a thin solid
-line ending on a target lying in the intercepted plane, and Maj + Espace
-commits that cote. Without a plane on the first point, Maj changes nothing.
+along a half-axis of the displayed frame (± X / Y / Z of the gizmo,
+`getUserAxesWorldDirections`) and stops on the first surface met along that
+fixed ray, the crosshair only picking the half-axis (`getOrthoRayAxis`: the one
+most aligned with first point → aimed point). The surface is the nearest of the
+meshes and scan base maps (`pickWorldHitAlongRay`) and of the displayed point
+clouds (`pickRay` of the scan picker: a 10 cm disc advancing along the ray
+stops at the first 5 cm slab dense enough — at least 6 points and a quarter of
+the densest slab met — never at a lone point; the plane fitted there gives the
+exact ray intersection). The ray never moves, so each half-axis is searched
+once per first point and cached (`walkOrthoRay`): the end point stays put while
+the crosshair sweeps the same way. The preview is a thin solid line in the axis
+colour ending on a target lying in the surface met; Maj + Espace commits that
+cote, and does nothing when the ray meets no surface that way.
 
 ## Large point-cloud trial
 

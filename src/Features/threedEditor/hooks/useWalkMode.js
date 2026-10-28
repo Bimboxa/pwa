@@ -43,7 +43,7 @@ import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 import WalkModeController from "../js/WalkModeController";
 import { createWalkCollisionProbe } from "../services/walkCollisionProbe";
 import { createWalkMeasureController } from "../services/walkMeasureController";
-import getPerpendicularIntercept from "../utils/getPerpendicularIntercept";
+import { createWalkOrthoRay } from "../services/walkOrthoRay";
 import createLocalScanRayPicker from "Features/localScans/services/createLocalScanRayPicker";
 import createScanPlanePulse from "Features/localScans/services/createScanPlanePulse";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
@@ -339,10 +339,11 @@ export default function useWalkMode() {
     };
     let firstHit = null;
 
-    // Shift held: the measure leaves the first point perpendicular to its
-    // plane (scan plane or mesh face) and stops on the facing plane aimed at
-    // (scan plane / mesh face under the crosshair), i.e. the distance
-    // between the two faces.
+    // Shift held after the first point: the measure leaves it along a
+    // half-axis of the displayed frame (± X / Y / Z of the gizmo) and stops
+    // on the first surface met along that fixed ray, the aim only picking
+    // the half-axis (walkOrthoRay). The end point therefore stays put while
+    // the crosshair sweeps the same way; the preview takes the axis colour.
     let shiftHeld = false;
     const onShift = (event) => {
       if (event.key === "Shift") shiftHeld = event.type === "keydown";
@@ -353,24 +354,19 @@ export default function useWalkMode() {
     window.addEventListener("keydown", onShift, true);
     window.addEventListener("keyup", onShift, true);
     window.addEventListener("blur", onBlur);
-    // → {end, planeNormal} | null (aim: {point, normal} under the crosshair)
-    const getOrthoIntercept = (aim) => {
-      const start = measure.getState().startPoint;
-      if (!aim?.point || !start || !firstHit?.normal) return null;
-      return getPerpendicularIntercept(
-        start,
-        firstHit.normal,
-        aim.point,
-        aim.normal ?? null
-      );
-    };
+    const orthoRay = createWalkOrthoRay({
+      sceneManager,
+      editor,
+      scanPicker,
+      getYawDeg: () => store.getState().threedEditor.axesSettings?.yawDeg ?? 0,
+    });
 
     // One laser meter shot = one point, only on a real surface (the void is
     // not measurable); the second one persists the cote.
-    const shootMeasure = (hit, { ortho = false } = {}) => {
+    const shootMeasure = (hit) => {
       if (!hit.isHit) return;
-      const intercept = ortho ? getOrthoIntercept(hit) : null;
-      const pair = measure.shoot(intercept?.end ?? hit.point);
+      const pair = measure.shoot(hit.point);
+      orthoRay.reset();
       if (!pair) {
         firstHit = hit;
       } else {
@@ -435,10 +431,33 @@ export default function useWalkMode() {
       onPrimaryStart: () => {
         if (tool === "MEASURE") {
           if (scanShotPending) return;
-          const ortho = shiftHeld;
+          // Shift + Space: the point at the end of the axis ray aimed at
+          // (nothing there → no shot).
+          const start = shiftHeld ? measure.getState().startPoint : null;
+          const axis = start && orthoRay.getAxis(start, readAim().point);
+          if (axis) {
+            scanShotPending = true;
+            orthoRay
+              .resolve(start, axis)
+              .then((result) => {
+                if (walkDisposed || tool !== "MEASURE" || !result) return;
+                if (measure.getState().startPoint !== start) return;
+                shootMeasure({
+                  point: result.end,
+                  isHit: true,
+                  isScan: !!result.hit.isScan,
+                  baseMapId: result.hit.baseMapId ?? null,
+                  normal: result.hit.normal ?? null,
+                });
+              })
+              .finally(() => {
+                scanShotPending = false;
+              });
+            return;
+          }
           const hit = centerPick();
           if (!scanPicker.hasDisplayedScans()) {
-            shootMeasure(hit, { ortho });
+            shootMeasure(hit);
             return;
           }
           // A scan point nearer than the surface hit wins; its plane
@@ -452,7 +471,7 @@ export default function useWalkMode() {
                 ? sceneManager.camera.position.distanceTo(hit.point)
                 : Infinity;
               if (!scanHit || scanHit.distance >= meshDistance) {
-                shootMeasure(hit, { ortho });
+                shootMeasure(hit);
                 return;
               }
               stopScanPulse?.();
@@ -464,16 +483,13 @@ export default function useWalkMode() {
                 normal: scanHit.normal,
               });
               emitShoot({ targetDistM: scanHit.distance });
-              shootMeasure(
-                {
-                  point: scanHit.point,
-                  isHit: true,
-                  isScan: true,
-                  baseMapId: scanHit.baseMapId,
-                  normal: scanHit.normal,
-                },
-                { ortho }
-              );
+              shootMeasure({
+                point: scanHit.point,
+                isHit: true,
+                isScan: true,
+                baseMapId: scanHit.baseMapId,
+                normal: scanHit.normal,
+              });
             })
             .finally(() => {
               scanShotPending = false;
@@ -495,6 +511,7 @@ export default function useWalkMode() {
         spray.stopStream();
         measure.cancelStart();
         firstHit = null;
+        orthoRay.reset();
         tool = tool === "LANCE" ? "MEASURE" : "LANCE";
         emitShoot({ tool, firingUntil: 0, measureLiveM: null });
         emitMeasureState();
@@ -505,6 +522,7 @@ export default function useWalkMode() {
       onClear: () => {
         if (tool === "MEASURE") {
           firstHit = null;
+          orthoRay.reset();
           measure.clearAll();
           emitShoot({ measureLiveM: null });
           emitMeasureState();
@@ -538,7 +556,28 @@ export default function useWalkMode() {
     // time and at most every SCAN_DIST_POLL_MS: the readout lags a little.
     let liveScanHit = null,
       liveScanPending = false,
-      liveScanAt = 0;
+      liveScanAt = 0,
+      lastMeasureLiveM = null;
+    // Point under the crosshair: the nearer of the mesh hit (fresh) and the
+    // last cloud hit (throttled); the void's far point otherwise.
+    // → {point, isHit, targetDistM}
+    const readAim = () => {
+      const meshHit = centerPick();
+      const meshDist = meshHit.isHit
+        ? sceneManager.camera.position.distanceTo(meshHit.point)
+        : Infinity;
+      const scanNearer = liveScanHit && liveScanHit.distance < meshDist;
+      const isHit = scanNearer || meshHit.isHit;
+      return {
+        point: scanNearer ? liveScanHit.point : meshHit.point,
+        isHit,
+        targetDistM: scanNearer
+          ? liveScanHit.distance
+          : isHit
+            ? meshDist
+            : null,
+      };
+    };
     const distIntervalId = setInterval(() => {
       if (scanPicker.hasDisplayedScans()) {
         const now = Date.now();
@@ -555,30 +594,26 @@ export default function useWalkMode() {
             });
         }
       } else liveScanHit = null;
-      const meshHit = centerPick();
-      const meshDist = meshHit.isHit
-        ? sceneManager.camera.position.distanceTo(meshHit.point)
-        : Infinity;
-      const scanNearer = liveScanHit && liveScanHit.distance < meshDist;
-      const aim = scanNearer ? liveScanHit : meshHit;
-      const point = aim.point;
-      const isHit = scanNearer || meshHit.isHit;
-      const targetDistM = scanNearer
-        ? liveScanHit.distance
-        : isHit
-          ? meshDist
-          : null;
-      if (tool === "MEASURE") {
-        const intercept = shiftHeld && isHit ? getOrthoIntercept(aim) : null;
-        const measureLiveM = intercept
-          ? measure.updatePreview(intercept.end, {
-              planeNormal: intercept.planeNormal,
-            })
-          : measure.updatePreview(isHit ? point : null);
-        emitShoot({ targetDistM, measureLiveM });
-      } else {
+      const { point, isHit, targetDistM } = readAim();
+      if (tool !== "MEASURE") {
         emitShoot({ targetDistM });
+        return;
       }
+      const start = shiftHeld ? measure.getState().startPoint : null;
+      const axis = start && orthoRay.getAxis(start, point);
+      if (axis) {
+        // Axis preview: the cached end point of the half-axis aimed at, in
+        // the axis colour; while its search runs, the last preview stays.
+        const result = orthoRay.get(start, axis);
+        if (result.status === "HIT")
+          lastMeasureLiveM = measure.updatePreview(result.end, {
+            planeNormal: result.planeNormal,
+            color: axis.color,
+          });
+        else if (result.status === "NONE")
+          lastMeasureLiveM = measure.updatePreview(null);
+      } else lastMeasureLiveM = measure.updatePreview(isHit ? point : null);
+      emitShoot({ targetDistM, measureLiveM: lastMeasureLiveM });
     }, TARGET_DIST_POLL_MS);
 
     return () => {

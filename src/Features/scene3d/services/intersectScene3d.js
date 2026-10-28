@@ -56,14 +56,18 @@ export function prepareScene3dPicking(editor) {
 //     still being built: the caller must NOT fall back to what lies behind
 //     (the point would silently land on the plan under the scan);
 //   null — no scan under the pointer.
-export default function intersectScene3d(editor, ndc, camera) {
+//
+// `ray` (world three.js Ray) replaces the camera ray through `ndc` (the
+// walk-mode perpendicular measure shoots from a point of the scene).
+export default function intersectScene3d(editor, ndc, camera, { ray } = {}) {
   const sceneManager = editor?.sceneManager;
-  if (!sceneManager || !camera) return null;
+  if (!sceneManager || (!camera && !ray)) return null;
 
   const roots = getPickableRoots(editor);
   if (roots.length === 0) return null;
 
-  _raycaster.setFromCamera(ndc, camera);
+  if (ray) _raycaster.ray.copy(ray);
+  else _raycaster.setFromCamera(ndc, camera);
   const worldRay = _raycaster.ray;
   const clippingPlane = getActiveClippingPlane(sceneManager);
 

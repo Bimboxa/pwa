@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Group, Matrix4, Vector3 } from "three";
-import pick from "./pickLocalScanPoint.js";
+import pick, { findDenseSlabDepth } from "./pickLocalScanPoint.js";
 import applyPlacement from "./applyLocalScanPlacement.js";
 
 const query = {
@@ -144,6 +144,56 @@ test("inspection ignores centers hidden outside the active placed Z slice", () =
     pick(points, {
       ...query,
       slice: { row: [0, 0, 2, 3], lower: 6, upper: 7 },
+    }),
+    null
+  );
+});
+test("ray pick: a disc advancing along the ray stops at the first dense slab", () => {
+  // Wall z = 0 (the start surface) and a facing wall z = 2.5, both wider
+  // than the 1 m cube; the ray leaves (0.1, 0.1, 0) along +Z.
+  const points = [];
+  for (let i = -60; i <= 60; i++)
+    for (let j = -60; j <= 60; j++)
+      points.push(i * 0.02, j * 0.02, 0, i * 0.02, j * 0.02, 2.5);
+  // Three stray points in the air on the ray, before the facing wall.
+  points.push(0.1, 0.1, 1.2, 0.12, 0.09, 1.21, 0.08, 0.11, 1.19);
+  const rayQuery = {
+    origin: [0.1, 0.1, 0],
+    direction: [0, 0, 1],
+    scale: 1,
+    ray: { radius: 0.1, minDepth: 0.05, slab: 0.05, minPoints: 6 },
+  };
+  const result = pick(new Float32Array(points), rayQuery);
+  assert.ok(result?.normal);
+  // The ray ∩ fitted plane: exactly on the ray, on the facing wall.
+  assert.ok(Math.abs(result.point[0] - 0.1) < 1e-6);
+  assert.ok(Math.abs(result.point[1] - 0.1) < 1e-6);
+  assert.ok(Math.abs(result.point[2] - 2.5) < 1e-6);
+  assert.ok(result.normal[2] < -0.999);
+  // Backward: nothing behind the start wall.
+  assert.equal(
+    pick(new Float32Array(points), { ...rayQuery, direction: [0, 0, -1] }),
+    null
+  );
+  // Same ray → same answer.
+  assert.deepEqual(
+    pick(new Float32Array(points), rayQuery).point,
+    result.point
+  );
+});
+
+test("findDenseSlabDepth skips sparse slabs and returns the slab centre", () => {
+  // 3 stray points at ~1 m, a 40-point surface spread over 3 cm at ~2 m.
+  const depths = [1, 1.01, 1.02];
+  for (let i = 0; i < 40; i++) depths.push(2 + (i % 4) * 0.01);
+  const depth = findDenseSlabDepth(depths, { slab: 0.05, minPoints: 6 });
+  assert.ok(Math.abs(depth - 2.015) < 1e-9);
+  assert.equal(findDenseSlabDepth([1, 1.01], { slab: 0.05 }), null);
+  // Below the absolute minimum, a thin surface is still ignored.
+  assert.equal(
+    findDenseSlabDepth([1, 1.01, 1.02, 1.03, 1.04], {
+      slab: 0.05,
+      minPoints: 6,
     }),
     null
   );

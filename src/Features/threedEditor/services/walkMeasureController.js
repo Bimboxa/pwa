@@ -37,7 +37,7 @@ const MEASURE_COLOR = 0xe65100;
 const MEASURE_COLOR_HEX = "#e65100";
 const LINEWIDTH = 2.5;
 const LINEWIDTH_PREVIEW = 3;
-const LINEWIDTH_ORTHO = 1.5; // perpendicular preview (Shift): thin, solid
+const LINEWIDTH_ORTHO = 1.5; // axis preview (Shift): thin, solid
 // Segments shorter than this are ignored (double shot on the same spot).
 const MIN_LENGTH_M = 0.001;
 
@@ -64,9 +64,15 @@ function disposeObject(obj) {
 
 const noRaycast = () => {};
 
-function makeSolidLine({ a, b, resolution, linewidth = LINEWIDTH }) {
+function makeSolidLine({
+  a,
+  b,
+  resolution,
+  linewidth = LINEWIDTH,
+  color = MEASURE_COLOR,
+}) {
   const mat = new LineMaterial({
-    color: MEASURE_COLOR,
+    color,
     linewidth,
     resolution,
     worldUnits: false,
@@ -106,14 +112,14 @@ function makeDashedLine({ a, b, resolution, camera }) {
   return line;
 }
 
-// Target at the end of a perpendicular preview, lying in the plane it
-// intercepts: translucent disc + ring + cross, sized with the distance so it
-// reads the same on screen.
-function makeTarget({ point, normal, camera }) {
+// Target at the end of an axis preview, lying in the surface it meets:
+// translucent disc + ring + cross, sized with the distance so it reads the
+// same on screen.
+function makeTarget({ point, normal, camera, color = MEASURE_COLOR }) {
   const radius = Math.max(0.05, camera.position.distanceTo(point) * 0.025);
   const material = (opacity) =>
     new MeshBasicMaterial({
-      color: MEASURE_COLOR,
+      color,
       transparent: true,
       opacity,
       depthTest: false,
@@ -173,7 +179,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
   let startMarker = null;
   let previewLine = null;
   let previewTarget = null; // Vector3 | null, last preview end point
-  let previewKey = ""; // perpendicular preview: intercepted plane normal
+  let previewKey = ""; // axis preview: surface normal + colour
 
   function render() {
     editor?.renderScene?.();
@@ -250,10 +256,11 @@ export function createWalkMeasureController({ sceneManager, editor }) {
   }
 
   // Segment from the armed start point to the aimed point (null = aiming
-  // the void): dashed, or — `planeNormal` given, perpendicular measure
-  // (Shift) — thin and solid with a target lying in the intercepted plane.
-  // Returns the live length in meters, or null.
-  function updatePreview(point, { planeNormal = null } = {}) {
+  // the void): dashed, or — `planeNormal` given, axis measure (Shift) —
+  // thin and solid in `color` (the axis colour, CSS string or number) with
+  // a target lying in the surface met. Returns the live length in meters,
+  // or null.
+  function updatePreview(point, { planeNormal = null, color = null } = {}) {
     if (!startPoint) return null;
     const a = startPoint;
     if (!point) {
@@ -264,7 +271,9 @@ export function createWalkMeasureController({ sceneManager, editor }) {
       return null;
     }
     // 10 Hz poll: skip the rebuild while the aim (and start) don't move.
-    const key = planeNormal ? planeNormal.toArray().join(",") : "";
+    const key = planeNormal
+      ? `${planeNormal.toArray().join(",")}|${color ?? ""}`
+      : "";
     if (
       previewTarget &&
       previewTarget.distanceToSquared(point) < 1e-8 &&
@@ -277,6 +286,7 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     previewKey = key;
     const resolution = getCanvasResolution(sceneManager);
     if (planeNormal) {
+      const lineColor = color ?? MEASURE_COLOR;
       previewLine = new Group();
       previewLine.raycast = noRaycast;
       previewLine.add(
@@ -285,8 +295,14 @@ export function createWalkMeasureController({ sceneManager, editor }) {
           b: previewTarget,
           resolution,
           linewidth: LINEWIDTH_ORTHO,
+          color: lineColor,
         }),
-        makeTarget({ point: previewTarget, normal: planeNormal, camera })
+        makeTarget({
+          point: previewTarget,
+          normal: planeNormal,
+          camera,
+          color: lineColor,
+        })
       );
     } else
       previewLine = makeDashedLine({ a, b: previewTarget, resolution, camera });

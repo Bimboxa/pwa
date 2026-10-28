@@ -1,4 +1,4 @@
-import { Matrix4, Raycaster, Vector2, Vector3 } from "three";
+import { Matrix4, Ray, Raycaster, Vector2, Vector3 } from "three";
 import { getLocalScanViews } from "./localScanViewRegistry";
 import classifyScanPlaneNormal from "../utils/classifyScanPlaneNormal";
 
@@ -29,6 +29,11 @@ function getCarrierBaseMapId(root) {
 // pick(ndc) → Promise<{point, normal, orientation, distance, baseMapId} |
 // null> (world space; normal null when no plane is supported). The ray is
 // taken at call time, so the camera may move while the worker searches.
+// pickRay(origin, direction, {radius, minDepth, slab, minPoints}) → same
+// shape, along an arbitrary world ray (no camera): a disc of `radius`
+// metres advancing along the ray from `minDepth` and stopping at the first
+// slab (`slab` metres thick) dense enough (pickLocalScanPoint), the point
+// being the ray ∩ the plane fitted there.
 export default function createLocalScanRayPicker({ sceneManager }) {
   const workers = new Map(); // view → {worker, requests: Map(id → resolve)}
   let nextId = 0,
@@ -56,13 +61,17 @@ export default function createLocalScanRayPicker({ sceneManager }) {
     return entry;
   }
 
-  function pickView(view, ndc) {
+  // worldRay: a three.js Ray in world space; without one, the camera ray
+  // through `ndc` (screen pick). rayQuery: {radius, minDepth, slab,
+  // minPoints}, metres (see pickRay).
+  function pickView(view, { ndc = null, worldRay = null, rayQuery = null }) {
     const { camera, renderer } = sceneManager;
     const root = view.root;
     root.updateMatrixWorld(true);
     camera.updateMatrixWorld();
     const raycaster = new Raycaster();
-    raycaster.setFromCamera(ndc, camera);
+    if (worldRay) raycaster.ray.copy(worldRay);
+    else raycaster.setFromCamera(ndc, camera);
     const ray = raycaster.ray
       .clone()
       .applyMatrix4(root.matrixWorld.clone().invert());
@@ -102,12 +111,22 @@ export default function createLocalScanRayPicker({ sceneManager }) {
         type: "PICK",
         query: {
           matrix: matrix.elements,
-          ndc: ndc.toArray(),
+          ndc: ndc ? ndc.toArray() : [0, 0],
           width: canvas.clientWidth,
           height: canvas.clientHeight,
           origin: ray.origin.toArray(),
+          // Unit vector (Ray.applyMatrix4 renormalizes): depths and the
+          // ray-pick radius / slab are in source units.
           direction: ray.direction.toArray(),
           scale,
+          ray: rayQuery
+            ? {
+                radius: rayQuery.radius / scale,
+                minDepth: rayQuery.minDepth / scale,
+                slab: rayQuery.slab / scale,
+                minPoints: rayQuery.minPoints,
+              }
+            : null,
           slice: view.clipRange
             ? {
                 ...view.clipRange,
@@ -127,25 +146,17 @@ export default function createLocalScanRayPicker({ sceneManager }) {
       );
     },
     async pick(ndc = new Vector2(0, 0)) {
-      if (disposed) return null;
-      // Workers of clouds gone meanwhile (scan closed, base map unloaded).
-      const live = new Set(getLocalScanViews());
-      workers.forEach(({ worker, requests }, view) => {
-        if (live.has(view)) return;
-        requests.forEach((resolve) => resolve(null));
-        worker.terminate();
-        workers.delete(view);
+      return pickAll({ ndc });
+    },
+    async pickRay(
+      origin,
+      direction,
+      { radius = 0.1, minDepth = 0.05, slab = 0.05, minPoints = 6 } = {}
+    ) {
+      return pickAll({
+        worldRay: new Ray(origin.clone(), direction.clone().normalize()),
+        rayQuery: { radius, minDepth, slab, minPoints },
       });
-      const views = [...live].filter((view) =>
-        isDisplayed(view.root, sceneManager.scene)
-      );
-      const hits = (
-        await Promise.all(views.map((view) => pickView(view, ndc)))
-      ).filter(Boolean);
-      if (disposed || !hits.length) return null;
-      return hits.reduce((best, hit) =>
-        hit.distance < best.distance ? hit : best
-      );
     },
     dispose() {
       disposed = true;
@@ -156,4 +167,26 @@ export default function createLocalScanRayPicker({ sceneManager }) {
       workers.clear();
     },
   };
+
+  async function pickAll(target) {
+    if (disposed) return null;
+    // Workers of clouds gone meanwhile (scan closed, base map unloaded).
+    const live = new Set(getLocalScanViews());
+    workers.forEach(({ worker, requests }, view) => {
+      if (live.has(view)) return;
+      requests.forEach((resolve) => resolve(null));
+      worker.terminate();
+      workers.delete(view);
+    });
+    const views = [...live].filter((view) =>
+      isDisplayed(view.root, sceneManager.scene)
+    );
+    const hits = (
+      await Promise.all(views.map((view) => pickView(view, target)))
+    ).filter(Boolean);
+    if (disposed || !hits.length) return null;
+    return hits.reduce((best, hit) =>
+      hit.distance < best.distance ? hit : best
+    );
+  }
 }

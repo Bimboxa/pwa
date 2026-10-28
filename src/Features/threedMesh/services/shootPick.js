@@ -22,6 +22,28 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
   const raycaster = new Raycaster();
   const ndc = new Vector2(ndcX, ndcY);
   raycaster.setFromCamera(ndc, sceneManager.camera);
+  return pickWorldHit({ sceneManager, raycaster, ndc, editor });
+}
+
+// Same pick along an arbitrary world ray (origin + unit direction): hits
+// nearer than `minDistance` are skipped (a ray leaving a surface must not
+// hit that surface). → {point, distance, normal, isScan, baseMapId} | null
+// (no void fallback: nothing along the ray is nothing).
+export function pickWorldHitAlongRay({
+  sceneManager,
+  origin,
+  direction,
+  editor = null,
+  minDistance = 0,
+}) {
+  const raycaster = new Raycaster(origin, direction.clone().normalize());
+  raycaster.near = minDistance;
+  const hit = pickWorldHit({ sceneManager, raycaster, ndc: null, editor });
+  if (!hit.isHit || hit.distance < minDistance) return null;
+  return hit;
+}
+
+function pickWorldHit({ sceneManager, raycaster, ndc, editor }) {
   const clippingPlane = getActiveClippingPlane(sceneManager);
 
   const targets = [];
@@ -58,14 +80,21 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
 
   // A pending scan (picking data still being built) is simply not hit yet.
   const scanHit = editor
-    ? intersectScene3d(editor, ndc, sceneManager.camera)
+    ? intersectScene3d(editor, ndc, sceneManager.camera, {
+        ray: ndc ? null : raycaster.ray,
+      })
     : null;
-  if (scanHit?.position && (!best || scanHit.distance < best.distance)) {
+  if (
+    scanHit?.position &&
+    scanHit.distance >= raycaster.near &&
+    (!best || scanHit.distance < best.distance)
+  ) {
     best = {
       point: scanHit.position.clone(),
       distance: scanHit.distance,
       isScan: true,
       baseMapId: scanHit.baseMapId ?? null,
+      normal: scanHit.normal ?? null,
     };
   }
 
@@ -74,6 +103,7 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
   if (best)
     return {
       point: best.point,
+      distance: best.distance,
       isHit: true,
       isScan: !!best.isScan,
       baseMapId: best.baseMapId ?? null,
