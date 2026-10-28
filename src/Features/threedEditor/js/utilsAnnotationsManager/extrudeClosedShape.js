@@ -25,6 +25,7 @@ import splitTJunctions from "Features/geometry/utils/splitTJunctions";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
 import buildGridEdgeLines from "./buildGridEdgeLines";
+import { buildView3dRunEdges, getWallEdgeLevels } from "./buildView3dEdgeLines";
 
 // Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
 // surface so mesh and quantities agree): a full circle reads as ~24 segments,
@@ -250,6 +251,48 @@ export default function extrudeClosedShape(
 
   const isExtruded = height && height > 0;
   const group = new Group();
+
+  // "Affichage 3D" of a SOLO business object link (options.view3d, see
+  // businessObjects/utils/templateView3d): fat lines along the rings (outer
+  // contour + holes) at the top and / or bottom level — `outline` of a
+  // POLYGON (top face), `topEdge` / `bottomEdge` of a CM wall footprint
+  // (options.wallEdges) — and the solid skipped when `surface` is false.
+  // Same z convention as triangulateAnnotationGeometry (per-vertex path) /
+  // the flat Shape path (offsets all 0 there).
+  const view3d = options.view3d ?? null;
+  const withSurface = view3d?.surface !== false;
+  const edgeLevels = options.wallEdges
+    ? getWallEdgeLevels(view3d)
+    : view3d?.outline
+      ? ["top"]
+      : [];
+  if (edgeLevels.length > 0) {
+    const rings = [points, ...(holes || [])]
+      .filter((ring) => ring && ring.length >= 3)
+      .map((ring) => expandRingWithOffsets(ring, ARC_SAMPLES, true));
+    const h = isExtruded ? height : 0;
+    group.add(
+      ...buildView3dRunEdges(
+        rings.map((ring) => ({ points: ring, closed: true })),
+        {
+          levels: edgeLevels,
+          zOf: {
+            top: (p) =>
+              verticalLift +
+              h +
+              (p.offsetBottom ?? 0) +
+              (p.offsetTop ?? 0) +
+              Z_FIGHT_OFFSET,
+            bottom: (p) =>
+              verticalLift + (p.offsetBottom ?? 0) + Z_FIGHT_OFFSET,
+          },
+          color: material.color.getHex(),
+          resolution: options.resolution,
+        }
+      )
+    );
+  }
+  if (!withSurface) return group;
 
   // Fast path: no per-vertex offsets. Use the original Shape + ShapeGeometry /
   // ExtrudeGeometry construction (zero behavior change for existing data).

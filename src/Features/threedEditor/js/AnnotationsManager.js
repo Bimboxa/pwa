@@ -349,7 +349,10 @@ export default class AnnotationsManager {
       // A carve started by a previous build of this id no longer stands
       // for the object built here.
       this._carveTokens.delete(annotation.id);
-      if (subtractionTargets.length > 0) {
+      // No solid to carve when the solo "Affichage 3D" hides the surface
+      // (edges only): the edge lines are not interrupted by the openings.
+      const hasSolidToCarve = annotation._view3d?.surface !== false;
+      if (subtractionTargets.length > 0 && hasSolidToCarve) {
         const carveToken = {};
         this._carveTokens.set(annotation.id, carveToken);
         // Ends the pending state of THIS build's carve (false when a newer

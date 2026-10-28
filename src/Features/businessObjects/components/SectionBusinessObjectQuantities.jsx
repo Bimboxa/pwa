@@ -26,6 +26,10 @@ import getBusinessObjectQtyGap from "../utils/getBusinessObjectQtyGap";
 import { getBusinessObjectUnitLabel } from "../utils/getBusinessObjectQtyLabel";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import setQtyFormulaForTemplate from "../utils/setQtyFormulaForTemplate";
+import {
+  getTemplateView3d,
+  setTemplateView3dForTemplate,
+} from "../utils/templateView3d";
 import { getDefaultQtyFormula, getQtyFormulaKey } from "../utils/qtyFormula";
 import { parseHoursRatioInput } from "../utils/hoursRatioConversions";
 
@@ -204,6 +208,16 @@ export default function SectionBusinessObjectQuantities({
     });
   }
 
+  function handleView3dChange(annotationTemplateId, view) {
+    updateBusinessObject(businessObject.id, {
+      templateViews3d: setTemplateView3dForTemplate(
+        businessObject.templateViews3d,
+        annotationTemplateId,
+        view
+      ),
+    });
+  }
+
   function handleLinkAll(row) {
     const annotationIds =
       unlinkedIdsByKey[getQtyFormulaKey(row.annotationTemplateId)];
@@ -345,7 +359,9 @@ export default function SectionBusinessObjectQuantities({
                 ?.length ?? 0
             }
             spriteImage={spriteImage}
+            view3d={getTemplateView3d(businessObject, row.annotationTemplateId)}
             onFormulaChange={handleFormulaChange}
+            onView3dChange={handleView3dChange}
             onLinkAll={handleLinkAll}
             onUnlinkAll={handleUnlinkAll}
             onOpen={(r) =>

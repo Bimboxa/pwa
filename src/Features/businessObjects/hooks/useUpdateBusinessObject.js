@@ -16,7 +16,8 @@ export default function useUpdateBusinessObject() {
 
   // Edit a business object's props (label / code / color / description /
   // unit / refQty / isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit /
-  // globalLayerId / qtyFormulas / status). code: "" or null clears the code; refQty: null (or a
+  // globalLayerId / qtyFormulas / linkedTemplateIds / templateViews3d /
+  // status). code: "" or null clears the code; refQty: null (or a
   // non-finite value) clears the reference quantity.
   // unit: null
   // clears the unit (unit-less row, and every task — the quantity unit is an
@@ -43,6 +44,10 @@ export default function useUpdateBusinessObject() {
       // object ("Lien par modèle", see utils/linkedTemplateIds), replaced
       // as a whole
       linkedTemplateIds,
+      // [{annotationTemplateId, surface, topEdge, bottomEdge, outline}] —
+      // non-default 3D display of the annotations of a template while the
+      // object is SOLO (see utils/templateView3d), replaced as a whole
+      templateViews3d,
       // {[fieldId]: value} — listing-model field values (Fiche tab), merged
       // into businessObject.fieldValues; an empty value drops the key
       fieldValues,
@@ -70,6 +75,8 @@ export default function useUpdateBusinessObject() {
     if (Array.isArray(qtyFormulas)) updates.qtyFormulas = qtyFormulas;
     if (Array.isArray(linkedTemplateIds))
       updates.linkedTemplateIds = linkedTemplateIds;
+    if (Array.isArray(templateViews3d))
+      updates.templateViews3d = templateViews3d;
     if (status != null) {
       const closed = status === BUSINESS_OBJECT_STATUS.CLOSED;
       updates.status = closed

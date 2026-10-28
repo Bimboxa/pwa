@@ -310,6 +310,19 @@ export default function remapDexieExportIds(jsonData, opts) {
           ),
         }));
       }
+      // Business objects: 3D display per annotation template (solo).
+      if (
+        tableName === "businessObjects" &&
+        Array.isArray(row.templateViews3d)
+      ) {
+        row.templateViews3d = row.templateViews3d.map((item) => ({
+          ...item,
+          annotationTemplateId: remapId(
+            "annotationTemplates",
+            item?.annotationTemplateId
+          ),
+        }));
+      }
       // Business objects: whole-template links ("Lien par modèle").
       if (
         tableName === "businessObjects" &&
