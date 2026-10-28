@@ -48,6 +48,7 @@ import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
+import FieldBusinessObjectUnit from "./FieldBusinessObjectUnit";
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
@@ -390,6 +391,14 @@ export default function PanelBusinessObjectProperties() {
     if (next !== getBusinessObjectUnitText(businessObject.unit))
       updateBusinessObject(businessObject.id, { unit: next || null });
     else setUnit(next);
+  }
+
+  // kind toggle: the chosen default unit text is persisted at once (no blur
+  // fires on the text field)
+  function handleUnitKindChange(unitText) {
+    if (!businessObject) return;
+    if (unitText !== getBusinessObjectUnitText(businessObject.unit))
+      updateBusinessObject(businessObject.id, { unit: unitText });
   }
 
   function handleRefQtyBlur() {
@@ -754,16 +763,15 @@ export default function PanelBusinessObjectProperties() {
                   onBlur={handleRefQtyBlur}
                   onKeyDown={blurOnEnter}
                 />
-                {/* free text; empty = unit-less row (a title, typically) */}
-                <TextField
-                  size="small"
-                  label="Unité"
-                  placeholder="u, ml, m²…"
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
+                {/* kind toggle (U / L / S fills the text, saved at once) +
+                    free unit text (saved on blur) */}
+                <FieldBusinessObjectUnit
+                  unit={unit}
+                  onUnitChange={setUnit}
+                  onKindChange={handleUnitKindChange}
                   onBlur={handleUnitBlur}
                   onKeyDown={blurOnEnter}
-                  sx={{ width: 110, flexShrink: 0 }}
+                  width={90}
                 />
               </Box>
             )}

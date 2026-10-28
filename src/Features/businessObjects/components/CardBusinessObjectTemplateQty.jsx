@@ -5,6 +5,8 @@ import {
   Chip,
   IconButton,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -21,12 +23,43 @@ import {
   normalizeQtyFormula,
   parseQtyFormula,
 } from "../utils/qtyFormula";
+import {
+  DEFAULT_TEMPLATE_VIEW3D,
+  normalizeTemplateView3d,
+} from "../utils/templateView3d";
 
 const CHIP_SX = {
   height: 18,
   fontSize: "0.65rem",
   "& .MuiChip-label": { px: 0.75 },
 };
+
+// "Affichage 3D" options per template geometry (key of the view, label,
+// tooltip); types not listed have no 3D display setting.
+const VIEW3D_OPTIONS_BY_TYPE = {
+  POLYLINE: [
+    { key: "surface", label: "Surface", title: "Surface complète du mur" },
+    {
+      key: "topEdge",
+      label: "Arête haute",
+      title: "Arête horizontale supérieure",
+    },
+    {
+      key: "bottomEdge",
+      label: "Arête basse",
+      title: "Arête horizontale inférieure",
+    },
+  ],
+  POLYGON: [
+    { key: "surface", label: "Surface", title: "Surface complète" },
+    {
+      key: "outline",
+      label: "Détourage",
+      title: "Contour de la surface (extérieur et trous)",
+    },
+  ],
+};
+VIEW3D_OPTIONS_BY_TYPE.RECTANGLE = VIEW3D_OPTIONS_BY_TYPE.POLYGON;
 
 // Card of one annotation template feeding a business object ("Quantités"
 // tab): template + bulk actions (link / unlink every annotation of the
@@ -42,6 +75,9 @@ const CHIP_SX = {
 // annotations of the template excluded from the template link.
 // onUnlinkAll: removes the template link when the row is linked by template,
 // else deletes the rels (two steps when both link kinds coexist).
+// view3d / onView3dChange: "Affichage 3D" of the template's annotations while
+// the object is SOLO (utils/templateView3d) — POLYLINE: surface / top edge /
+// bottom edge, POLYGON: surface / outline; a multi-choice, at least one on.
 export default function CardBusinessObjectTemplateQty({
   row,
   template,
@@ -49,7 +85,9 @@ export default function CardBusinessObjectTemplateQty({
   unlinkedCount,
   excludedCount = 0,
   spriteImage,
+  view3d,
   onFormulaChange,
+  onView3dChange,
   onLinkAll,
   onUnlinkAll,
   onOpen,
@@ -82,11 +120,17 @@ export default function CardBusinessObjectTemplateQty({
       ? ` · ${excludedCount} exclue${excludedCount > 1 ? "s" : ""}`
       : "");
   const excludedChipS = `${excludedCount} exclue${excludedCount > 1 ? "s" : ""}`;
+  const view3dS = "Affichage 3D (solo)";
 
   // data
 
   const defaultFormula = getDefaultQtyFormula(unit);
   const formula = row.formula ?? defaultFormula ?? "";
+  const view3dOptions = template ? VIEW3D_OPTIONS_BY_TYPE[template.type] : null;
+  const view = normalizeTemplateView3d(view3d ?? DEFAULT_TEMPLATE_VIEW3D);
+  const view3dValue = view3dOptions
+    ? view3dOptions.filter((o) => view[o.key]).map((o) => o.key)
+    : [];
 
   // state
 
@@ -137,6 +181,15 @@ export default function CardBusinessObjectTemplateQty({
       setText(formula);
       setError(null);
     }
+  }
+
+  // non-exclusive group: keys = the options on; nothing on → default
+  function handleView3dChange(_e, keys) {
+    const next = {};
+    view3dOptions.forEach((o) => {
+      next[o.key] = keys.includes(o.key);
+    });
+    onView3dChange(row.annotationTemplateId, normalizeTemplateView3d(next));
   }
 
   // render
@@ -250,6 +303,40 @@ export default function CardBusinessObjectTemplateQty({
           },
         }}
       />
+
+      {/* 3D display (solo) */}
+      {view3dOptions && (
+        <Box sx={{ mt: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 0.5 }}
+          >
+            {view3dS}
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            value={view3dValue}
+            onChange={handleView3dChange}
+            sx={{
+              "& .MuiToggleButton-root": {
+                px: 1,
+                py: 0.25,
+                fontSize: "0.75rem",
+                textTransform: "none",
+              },
+            }}
+          >
+            {view3dOptions.map((o) => (
+              <ToggleButton key={o.key} value={o.key}>
+                <Tooltip title={o.title} placement="top" arrow>
+                  <span>{o.label}</span>
+                </Tooltip>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+      )}
     </WhiteSectionGeneric>
   );
 }

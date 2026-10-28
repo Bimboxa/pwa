@@ -392,7 +392,7 @@ import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpeni
 import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
-import useBusinessObjectSoloAnnotationIdSet from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
+import { useBusinessObjectSoloAnnotations } from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
 import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { getLayersAsync } from "Features/layers/utils/layersMode";
@@ -832,12 +832,17 @@ export default function useAnnotationsV2(options) {
 
     // business-object SOLO (Ouvrages module): the row's filter icon shows
     // only the annotations linked to the object or to its descendants. Same
-    // ignoreSolo / keepSoloDimmed semantics as the zone solo.
+    // ignoreSolo / keepSoloDimmed semantics as the zone solo. The soloed
+    // annotations whose (object, template) link has a non-default
+    // "Affichage 3D" carry `_view3d` (edges / outline instead of, or over,
+    // the surface — read by createAnnotationObject3D only).
     const soloBusinessObjectId = useSelector(
       (s) => s.businessObjects?.soloBusinessObjectId ?? null
     );
-    const businessObjectSoloAnnotationIdSet =
-      useBusinessObjectSoloAnnotationIdSet(soloBusinessObjectId);
+    const {
+      idSet: businessObjectSoloAnnotationIdSet,
+      view3dByAnnotationId: businessObjectSoloView3dById,
+    } = useBusinessObjectSoloAnnotations(soloBusinessObjectId);
 
     // work-package SOLO (PLANNING module): only the annotations linked to
     // the soloed package show (null outside the business-objects modules).
@@ -3178,12 +3183,18 @@ export default function useAnnotationsV2(options) {
       if (!ignoreSolo && soloBusinessObjectId) {
         const isInBusinessObjectSolo = (a) =>
           a.isBaseMapAnnotation || businessObjectSoloAnnotationIdSet.has(a.id);
+        const withView3d = (a) => {
+          const view3d = businessObjectSoloView3dById.get(a.id);
+          return view3d ? { ...a, _view3d: view3d } : a;
+        };
         if (keepSoloDimmed) {
           result = result.map((a) =>
-            isInBusinessObjectSolo(a) ? a : { ...a, _soloDimmed: true }
+            isInBusinessObjectSolo(a)
+              ? withView3d(a)
+              : { ...a, _soloDimmed: true }
           );
         } else {
-          result = result.filter(isInBusinessObjectSolo);
+          result = result.filter(isInBusinessObjectSolo).map(withView3d);
         }
       }
 
@@ -3395,6 +3406,7 @@ export default function useAnnotationsV2(options) {
       zoneSoloAnnotationIdSet,
       soloBusinessObjectId,
       businessObjectSoloAnnotationIdSet,
+      businessObjectSoloView3dById,
       soloWorkPackageId,
       workPackageSoloAnnotationIdSet,
       playStatusByWorkPackageId,

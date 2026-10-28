@@ -213,6 +213,9 @@ export default function subtractAnnotationGeometries(
       (c) => !holdsCarvedMesh(c)
     )) {
       if (child.userData?.isGridEdge) continue; // handled below
+      // "Affichage 3D" edges of a solo business object link trace the
+      // stored edges, not the carved outline: kept as built.
+      if (child.userData?.isView3dEdge) continue;
       child.geometry?.dispose?.();
       child.material?.dispose?.();
       sourceObject.remove(child);

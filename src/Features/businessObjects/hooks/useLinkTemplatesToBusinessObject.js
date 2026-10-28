@@ -12,6 +12,7 @@ import {
   getExcludedAnnotationIds,
   removeExcludedAnnotationIds,
 } from "../utils/excludedAnnotationIds";
+import { removeTemplateView3d } from "../utils/templateView3d";
 
 // "Lien par modèle": links / unlinks a business object to whole annotation
 // templates (businessObject.linkedTemplateIds, see utils/linkedTemplateIds).
@@ -62,9 +63,14 @@ export default function useLinkTemplatesToBusinessObject() {
   }) {
     if (!businessObject?.id || !annotationTemplateId) return;
     try {
+      // the template's 3D display goes with the link
       const updates = {
         linkedTemplateIds: removeLinkedTemplateId(
           businessObject,
+          annotationTemplateId
+        ),
+        templateViews3d: removeTemplateView3d(
+          businessObject.templateViews3d,
           annotationTemplateId
         ),
       };

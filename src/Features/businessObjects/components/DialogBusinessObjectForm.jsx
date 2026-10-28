@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 
 import FieldColorV2 from "Features/form/components/FieldColorV2";
+import FieldBusinessObjectUnit from "./FieldBusinessObjectUnit";
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 
@@ -259,14 +260,11 @@ export default function DialogBusinessObjectForm({
               value={refQtyText}
               onChange={(e) => setRefQtyText(e.target.value)}
             />
-            {/* free text; empty = unit-less row (a title, typically) */}
-            <TextField
-              size="small"
-              label="Unité"
-              placeholder="u, ml, m²…"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              sx={{ width: 130, flexShrink: 0 }}
+            {/* kind toggle (U / L / S fills the text) + free unit text */}
+            <FieldBusinessObjectUnit
+              unit={unit}
+              onUnitChange={setUnit}
+              width={100}
             />
           </Box>
         )}

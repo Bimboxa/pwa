@@ -740,7 +740,11 @@ function extrudeWallPolygon(
       [innerLocal],
       verticalLift,
       [],
-      { wallEdges: true }
+      {
+        wallEdges: true,
+        view3d: annotation._view3d,
+        resolution: options?.resolution,
+      }
     );
   }
 
@@ -779,7 +783,11 @@ function extrudeWallPolygon(
     undefined,
     verticalLift,
     [],
-    { wallEdges: true }
+    {
+      wallEdges: true,
+      view3d: annotation._view3d,
+      resolution: options?.resolution,
+    }
   );
 }
 
@@ -939,6 +947,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         innerPts,
         {
           gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
+          view3d: annotation._view3d,
+          resolution: options?.resolution,
           isoLines: hasGuideLineRamp,
           isoHeightChords,
           ...(shellProfiles.length
@@ -963,7 +973,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         undefined,
         verticalLift,
         [],
-        { gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg }
+        {
+          gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
+          view3d: annotation._view3d,
+          resolution: options?.resolution,
+        }
       );
       break;
     }
@@ -1132,7 +1146,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         !!annotation.closeLine,
         verticalLift,
         expandedHidden,
-        { resolution: options?.resolution }
+        { resolution: options?.resolution, view3d: annotation._view3d }
       );
       break;
     }

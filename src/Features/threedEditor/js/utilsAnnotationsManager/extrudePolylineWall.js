@@ -17,6 +17,10 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
 import attachFatLineRaycast from "./attachFatLineRaycast.js";
+import {
+  buildView3dRunEdges,
+  getWallEdgeLevels,
+} from "./buildView3dEdgeLines.js";
 
 // Screen-space thickness (px) of a polyline without any vertical extent — a
 // plain line in space (e.g. drawn between two points of a scan base map). A
@@ -147,8 +151,13 @@ export default function extrudePolylineWall(
   closeLine,
   verticalLift = 0,
   hiddenSegmentsIdx = null,
-  // {resolution}: canvas pixel size (Vector2), needed by the fat line of the
-  // flat fallback.
+  // {resolution, view3d}: resolution = canvas pixel size (Vector2), needed
+  // by the fat lines (flat fallback, view3d edges); view3d = "Affichage 3D"
+  // of a SOLO business object link ({surface, topEdge, bottomEdge}, see
+  // businessObjects/utils/templateView3d): the strip is built only when
+  // `surface` is not false, and the top / bottom horizontal edges are drawn
+  // as fat lines following the same corners (hidden segments and
+  // negative-span parts skipped alike). Ignored by the flat fallback.
   options = null
 ) {
   if (!points || points.length < 2) return null;
@@ -218,14 +227,39 @@ export default function extrudePolylineWall(
     return group;
   }
 
+  const view3d = options?.view3d ?? null;
+  const withSurface = view3d?.surface !== false;
+  const edgeLevels = getWallEdgeLevels(view3d);
+
   const segmentCount = closeLine ? points.length : points.length - 1;
   const positions = [];
   const indices = [];
   let v = 0;
+  // Edge runs: consecutive visible sub-segments chained while each one
+  // starts where the previous ended (same corner object, or the same
+  // x / y / offsets after a split); a hidden or dropped part starts a new
+  // run. A closed line with a single uninterrupted run closes the loop.
+  const runs = [];
+  let run = null;
+  let interrupted = false;
+  const sameCorner = (a, b) =>
+    a === b ||
+    (a.x === b.x &&
+      a.y === b.y &&
+      (a.offsetBottom ?? 0) === (b.offsetBottom ?? 0) &&
+      (a.offsetTop ?? 0) === (b.offsetTop ?? 0));
   for (let i = 0; i < segmentCount; i++) {
-    if (hiddenSet?.has(i)) continue;
+    if (hiddenSet?.has(i)) {
+      interrupted = true;
+      run = null;
+      continue;
+    }
     const j = (i + 1) % points.length;
     const subs = visibleSubSegments(points[i], points[j], height);
+    if (subs.length === 0) {
+      interrupted = true;
+      run = null;
+    }
     for (const [a, b] of subs) {
       const aBottom = verticalLift + (a.offsetBottom ?? 0);
       const bBottom = verticalLift + (b.offsetBottom ?? 0);
@@ -237,11 +271,43 @@ export default function extrudePolylineWall(
       positions.push(a.x, a.y, aTop);
       indices.push(v, v + 1, v + 2, v, v + 2, v + 3);
       v += 4;
+
+      if (run && sameCorner(run.points[run.points.length - 1], a)) {
+        run.points.push(b);
+      } else {
+        if (run) interrupted = true;
+        run = { points: [a, b], closed: false };
+        runs.push(run);
+      }
+      // a split sub-segment ends before the corner: the next one starts anew
+      if (b !== points[j]) {
+        interrupted = true;
+        run = null;
+      }
     }
   }
+  if (closeLine && runs.length === 1 && !interrupted) {
+    // the loop's last corner is the first one: drop the duplicate
+    runs[0].points.pop();
+    runs[0].closed = true;
+  }
 
-  if (indices.length === 0) {
-    // All segments hidden — nothing to render.
+  if (edgeLevels.length > 0) {
+    group.add(
+      ...buildView3dRunEdges(runs, {
+        levels: edgeLevels,
+        zOf: {
+          top: (p) => verticalLift + height + (p.offsetTop ?? 0),
+          bottom: (p) => verticalLift + (p.offsetBottom ?? 0),
+        },
+        color: material.color.getHex(),
+        resolution: options?.resolution,
+      })
+    );
+  }
+
+  if (indices.length === 0 || !withSurface) {
+    // All segments hidden (nothing to render), or edges only.
     return group;
   }
 
