@@ -33,6 +33,7 @@ import sliceImageFile from "../utils/sliceImageFile";
 import { getScanZonePlacement } from "../utils/localScanZone";
 import { DEFAULT_LOCAL_SCAN_PLACEMENT as DEFAULT_PLACEMENT } from "../constants/localScanPlacement";
 import { getLocalScanWorldMatrix } from "../utils/getLocalScanMatrixInBaseMap";
+import { DEFAULT_HEIGHT_MAP_OPTIONS } from "../services/localScanHeightMapService";
 import getLocalScanPlacementFromMatrix from "../utils/getLocalScanPlacementFromMatrix";
 import db from "App/db/db";
 
@@ -107,6 +108,11 @@ export default function LocalScansPanel({
   const [pointSize, setPointSize] = useState(2);
   // « Voir en 3D »: the coloured points near the two cut planes.
   const [boundsIn3d, setBoundsIn3d] = useState(true);
+  // « Carte de profondeur »: points outside the slice feeding the height
+  // map (the stored choice of the base map, else the defaults).
+  const [heightMapOptions, setHeightMapOptions] = useState(
+    DEFAULT_HEIGHT_MAP_OPTIONS
+  );
   // Vertical offset of the scan relative to the pose stored on the base
   // map (0 at each pose application; saved by « Mettre à jour »).
   const [offsetZ, setOffsetZ] = useState(0);
@@ -147,6 +153,7 @@ export default function LocalScansPanel({
     showBounds: Boolean(
       host && !busy && !inactive && modelVisible && boundsIn3d
     ),
+    heightMapOptions,
   });
 
   // helpers
@@ -235,10 +242,16 @@ export default function LocalScansPanel({
     const key = linked.id;
     if (rangeAppliedRef.current === key) return;
     rangeAppliedRef.current = key;
-    const { lower, upper, mode: imageMode } = linked.createdFrom ?? {};
+    const {
+      lower,
+      upper,
+      mode: imageMode,
+      heightMap,
+    } = linked.createdFrom ?? {};
     if (Number.isFinite(lower) && Number.isFinite(upper))
       projection.changeRange([lower, upper]);
     if (imageMode) projection.setMode(imageMode);
+    setHeightMapOptions({ ...DEFAULT_HEIGHT_MAP_OPTIONS, ...heightMap });
   }, [linked, projection]);
   useEffect(() => {
     const imagesManager = editor?.sceneManager?.imagesManager;
@@ -557,6 +570,8 @@ export default function LocalScansPanel({
               onDownload={download}
               boundsIn3d={boundsIn3d}
               onBoundsIn3dChange={setBoundsIn3d}
+              heightMapOptions={heightMapOptions}
+              onHeightMapOptionsChange={setHeightMapOptions}
             />
             <SectionScanCalibration
               placement={placement}
@@ -581,6 +596,7 @@ export default function LocalScansPanel({
             projection={projection}
             view={view}
             linkedBaseMap={linked}
+            heightMapOptions={heightMapOptions}
             disabled={busy}
           />
         </Box>

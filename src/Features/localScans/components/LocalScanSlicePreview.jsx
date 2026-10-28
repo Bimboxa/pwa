@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useRef, useState } from "react";
+import { darken, lighten, useTheme } from "@mui/material/styles";
 import {
   Box,
   Button,
@@ -19,6 +20,50 @@ import {
 
 const INITIAL_VIEWPORT = { zoom: 1, x: 0, y: 0 };
 
+// 256-entry colour ramp of the height heat map: light to dark variants of
+// the secondary colour (low to high). → [r, g, b][]
+function buildHeatRamp(secondary) {
+  const parse = (css) => {
+    const match = /rgb\((\d+),\s*(\d+),\s*(\d+)/.exec(css);
+    return match ? match.slice(1, 4).map(Number) : [0, 0, 0];
+  };
+  const low = parse(lighten(secondary, 0.85));
+  const mid = parse(secondary);
+  const high = parse(darken(secondary, 0.45));
+  return Array.from({ length: 256 }, (_, i) => {
+    const t = i / 255;
+    const [a, b, k] = t < 0.5 ? [low, mid, t * 2] : [mid, high, (t - 0.5) * 2];
+    return a.map((value, c) => Math.round(value + (b[c] - value) * k));
+  });
+}
+
+// Heat map raster (RGBA canvas) of a height preview, empty pixels left
+// transparent.
+function buildHeatCanvas(preview, ramp) {
+  const { width, height, heights, min, max } = preview;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  const span = max - min || 1;
+  for (let i = 0; i < heights.length; i++) {
+    const value = heights[i];
+    if (Number.isNaN(value)) continue;
+    const [r, g, b] =
+      ramp[
+        Math.max(0, Math.min(255, Math.round(((value - min) / span) * 255)))
+      ];
+    pixels[i * 4] = r;
+    pixels[i * 4 + 1] = g;
+    pixels[i * 4 + 2] = b;
+    pixels[i * 4 + 3] = 215;
+  }
+  canvas
+    .getContext("2d")
+    .putImageData(new ImageData(pixels, width, height), 0, 0);
+  return canvas;
+}
+
 export default function LocalScanSlicePreview({
   result,
   mode,
@@ -30,10 +75,18 @@ export default function LocalScanSlicePreview({
   sideControls,
   aspectRatio = 297 / 210,
   onFramingChange,
+  // Height preview (projectLocalScanHeightPreview result) drawn as a heat
+  // map over the image, same raster.
+  heightPreview = null,
 }) {
+  // data
+  const theme = useTheme();
+  const secondary = theme.palette.secondary.main;
+
   // state
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
+  const heatRef = useRef(null);
   const dragRef = useRef(null);
   const [size, setSize] = useState({ width: 1, height: 280 });
   const [viewport, setViewport] = useState(INITIAL_VIEWPORT);
@@ -86,6 +139,19 @@ export default function LocalScanSlicePreview({
   }, [result, mode]);
 
   useEffect(() => {
+    if (
+      !heightPreview ||
+      !result ||
+      heightPreview.width !== result.width ||
+      heightPreview.height !== result.height
+    ) {
+      heatRef.current = null;
+      return;
+    }
+    heatRef.current = buildHeatCanvas(heightPreview, buildHeatRamp(secondary));
+  }, [heightPreview, result, secondary]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const dpr = window.devicePixelRatio || 1;
     const width = Math.round(size.width * dpr),
@@ -106,6 +172,14 @@ export default function LocalScanSlicePreview({
       result.width * transform.scale,
       result.height * transform.scale
     );
+    if (heatRef.current)
+      context.drawImage(
+        heatRef.current,
+        transform.x,
+        transform.y,
+        result.width * transform.scale,
+        result.height * transform.scale
+      );
     context.globalAlpha = 1;
     const start = confirmedAxis?.first ?? firstPoint;
     const endpoint = confirmedAxis
@@ -174,6 +248,8 @@ export default function LocalScanSlicePreview({
     mode,
     pending,
     stale,
+    heightPreview,
+    secondary,
     size,
     viewport,
     firstPoint,

@@ -32,7 +32,7 @@ test("the height under an image pixel is the highest point there", async () => {
     meterByPx: result.pixelSize,
   };
   const frame = getHeightFrame(root.matrixWorld, baseMap, bounds);
-  const heightMap = rasterize(positions, frame);
+  const heightMap = rasterize(positions, { ...frame, fillPasses: 0 });
   assert.ok(heightMap.cols > 0 && heightMap.rows > 0);
   // the image pixel under the stacked points (the map is finer than the
   // image: sample where the points are, not at every pixel centre)
@@ -69,7 +69,7 @@ test("a moved base map keeps the same heights (frame glued to the map)", async (
   applyPlacement(root, { up: "Z", scale: 1, origin: [0, 0, 0], yaw: 0 });
   const bounds = { min: [0, 0, 0], max: [2, 2, 1] };
   // away from the cell boundaries (1 cm cells)
-  const positions = new Float32Array([1.004, 1.003, 0.75]);
+  const positions = new Float32Array([0.504, 0.503, 0.75]);
   const baseMap = {
     orientation: "HORIZONTAL",
     angleDeg: 0,
@@ -78,10 +78,10 @@ test("a moved base map keeps the same heights (frame glued to the map)", async (
     refHeight: 20,
     meterByPx: 0.1,
   };
-  const a = rasterize(
-    positions,
-    getHeightFrame(root.matrixWorld, baseMap, bounds)
-  );
+  const a = rasterize(positions, {
+    ...getHeightFrame(root.matrixWorld, baseMap, bounds),
+    fillPasses: 0,
+  });
   // the base map and its glued scan move together: the moved root is
   // group(moved) · group(base)⁻¹ · root
   const moved = { ...baseMap, position: { x: 5, y: 2, z: -3 }, angleDeg: 40 };
@@ -90,12 +90,54 @@ test("a moved base map keeps the same heights (frame glued to the map)", async (
     .copy(getBaseMapGroupMatrix(moved))
     .multiply(getBaseMapGroupMatrix(baseMap).invert())
     .multiply(root.matrixWorld);
-  const b = rasterize(
-    positions,
-    getHeightFrame(movedRoot.matrixWorld, moved, bounds)
+  const b = rasterize(positions, {
+    ...getHeightFrame(movedRoot.matrixWorld, moved, bounds),
+    fillPasses: 0,
+  });
+  assert.ok(
+    a.data.some((v) => v > 0),
+    "the point is inside the raster"
   );
   assert.deepEqual([...a.data], [...b.data]);
   for (const key of ["min", "max"])
     for (let axis = 0; axis < 3; axis++)
       assert.ok(Math.abs(a.bbox[key][axis] - b.bbox[key][axis]) < 1e-9);
+});
+
+test("the height range keeps the floor and drops the ceiling", () => {
+  const root = new Group();
+  applyPlacement(root, { up: "Z", scale: 1, origin: [0, 0, 0], yaw: 0 });
+  const bounds = { min: [0, 0, 0], max: [2, 2, 3] };
+  // floor point, a table at 0.8 m and the ceiling at 2.7 m, same column
+  const positions = new Float32Array([
+    0.504, 0.503, 0.02, 0.504, 0.503, 0.8, 0.504, 0.503, 2.7,
+  ]);
+  const baseMap = {
+    orientation: "HORIZONTAL",
+    angleDeg: 0,
+    position: { x: 0, y: 0, z: 0 },
+    refWidth: 20,
+    refHeight: 20,
+    meterByPx: 0.1,
+  };
+  const frame = getHeightFrame(root.matrixWorld, baseMap, bounds);
+  const sample = (map) =>
+    getHeightAtPx(
+      { imageSize: { width: 20, height: 20 }, meterByPx: 0.1 },
+      { x: 10 + 0.504 / 0.1, y: 10 - 0.503 / 0.1 },
+      map
+    );
+  // slice 0.5 .. 1.5, below included, above excluded: the table wins
+  const table = sample(
+    rasterize(positions, { ...frame, range: [-Infinity, 1.5] })
+  );
+  assert.ok(Math.abs(table - 0.8) < 0.01, `got ${table}`);
+  // everything: the ceiling wins
+  const ceiling = sample(rasterize(positions, frame));
+  assert.ok(Math.abs(ceiling - 2.7) < 0.01, `got ${ceiling}`);
+  // slice only: still the table
+  const sliceOnly = sample(
+    rasterize(positions, { ...frame, range: [0.5, 1.5] })
+  );
+  assert.ok(Math.abs(sliceOnly - 0.8) < 0.01, `got ${sliceOnly}`);
 });

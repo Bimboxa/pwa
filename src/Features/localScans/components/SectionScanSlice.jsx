@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   FormControlLabel,
   Paper,
   Slider,
@@ -18,6 +19,7 @@ import {
   CropLandscape,
   CropPortrait,
   FileDownloadOutlined,
+  Terrain,
 } from "@mui/icons-material";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import LocalScanSlicePreview from "./LocalScanSlicePreview";
@@ -29,11 +31,16 @@ import LocalScanSlicePreview from "./LocalScanSlicePreview";
 // download and the 3D clipping of the points outside the slice.
 // boundsIn3d / onBoundsIn3dChange: « Voir en 3D » — the coloured points
 // near the two cut planes in the 3D scene.
+// heightMapOptions / onHeightMapOptionsChange: « Carte de profondeur » —
+// whether the points below Z inf / above Z sup feed the height map of the
+// base map (altimetry under the cursor) at the next update.
 export default function SectionScanSlice({
   projection,
   onDownload,
   boundsIn3d = true,
   onBoundsIn3dChange,
+  heightMapOptions,
+  onHeightMapOptionsChange,
 }) {
   const {
     domain,
@@ -49,6 +56,10 @@ export default function SectionScanSlice({
     pending,
     current,
     error,
+    heightMapVisible,
+    setHeightMapVisible,
+    heightPreview,
+    heightPending,
   } = projection;
 
   // helpers
@@ -135,27 +146,53 @@ export default function SectionScanSlice({
     </Paper>
   );
 
+  const overlaySx = {
+    bgcolor: "background.paper",
+    boxShadow: 1,
+    "& .MuiToggleButton-root": {
+      px: 1,
+      py: 0.25,
+      fontSize: "0.75rem",
+    },
+  };
   const modeToggle = (
-    <ToggleButtonGroup
-      exclusive
-      size="small"
-      disabled={!result}
-      aria-label="Type d’image projetée"
-      value={mode}
-      onChange={(_, value) => value && setMode(value)}
-      sx={{
-        bgcolor: "background.paper",
-        boxShadow: 1,
-        "& .MuiToggleButton-root": {
-          px: 1,
-          py: 0.25,
-          fontSize: "0.75rem",
-        },
-      }}
-    >
-      <ToggleButton value="density">Densité</ToggleButton>
-      <ToggleButton value="rgb">Couleurs</ToggleButton>
-    </ToggleButtonGroup>
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        disabled={!result}
+        aria-label="Type d’image projetée"
+        value={mode}
+        onChange={(_, value) => value && setMode(value)}
+        sx={overlaySx}
+      >
+        <ToggleButton value="density">Densité</ToggleButton>
+        <ToggleButton value="rgb">Couleurs</ToggleButton>
+      </ToggleButtonGroup>
+      {/* Heat map of the heights seen from above (the base map height map
+          to come, same filter as « Carte de profondeur »). */}
+      <Tooltip
+        title={
+          heightMapVisible
+            ? "Masquer la carte de profondeur"
+            : "Afficher la carte de profondeur"
+        }
+      >
+        <span>
+          <ToggleButton
+            value="height"
+            size="small"
+            selected={heightMapVisible}
+            disabled={!result || !current}
+            aria-label="Carte de profondeur"
+            onChange={() => setHeightMapVisible(!heightMapVisible)}
+            sx={{ ...overlaySx, px: 0.75, py: 0.25 }}
+          >
+            <Terrain fontSize="small" />
+          </ToggleButton>
+        </span>
+      </Tooltip>
+    </Stack>
   );
 
   const orientationToggle = (
@@ -204,7 +241,17 @@ export default function SectionScanSlice({
           overlayControls={modeToggle}
           sideControls={sliderOverlay}
           onFramingChange={projection.setFraming}
+          heightPreview={heightPreview}
         />
+        {heightMapVisible && current && (
+          <Typography variant="caption" color="text.secondary">
+            {heightPending
+              ? "Carte de profondeur en cours…"
+              : heightPreview?.count
+                ? `Carte de profondeur : du clair (${heightPreview.min.toFixed(2)} m) au foncé (${heightPreview.max.toFixed(2)} m), point le plus haut vu de dessus.`
+                : "Carte de profondeur : aucun point dans l’intervalle choisi."}
+          </Typography>
+        )}
         {/* Z limits aligned with « Calculer » */}
         <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 1 }}>
           {limitField(0, lower)}
@@ -280,6 +327,44 @@ export default function SectionScanSlice({
             "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
           }}
         />
+        {heightMapOptions && (
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ flexWrap: "wrap", rowGap: 0.5 }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Carte de profondeur :
+            </Typography>
+            {[
+              ["includeBelow", "points sous Z inf"],
+              ["includeAbove", "points au-dessus de Z sup"],
+            ].map(([key, label]) => (
+              <FormControlLabel
+                key={key}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={Boolean(heightMapOptions[key])}
+                    onChange={(_, checked) =>
+                      onHeightMapOptionsChange?.({
+                        ...heightMapOptions,
+                        [key]: checked,
+                      })
+                    }
+                    sx={{ p: 0.5 }}
+                  />
+                }
+                label={label}
+                sx={{
+                  m: 0,
+                  "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
+                }}
+              />
+            ))}
+          </Stack>
+        )}
       </Stack>
     </WhiteSectionGeneric>
   );

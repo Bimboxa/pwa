@@ -3,6 +3,7 @@ import getLocalScanSliceFrame from "../utils/getLocalScanSliceFrame";
 import getUsefulScanHeight from "../utils/getUsefulScanHeight";
 import { getSliceDomain } from "../utils/slicePreviewGeometry";
 import createLocalScanSliceOverlay from "../services/createLocalScanSliceOverlay";
+import { buildLocalScanHeightPreviewInWorker } from "../services/projectLocalScanInWorker";
 
 export default function useScanProjection({
   editor,
@@ -13,6 +14,9 @@ export default function useScanProjection({
   inspect,
   showBounds,
   hidden,
+  // {includeBelow, includeAbove}: points outside the slice feeding the
+  // height heat map of the preview (same filter as the base map height map).
+  heightMapOptions,
 }) {
   const frame = useMemo(() => {
     if (!view) return null;
@@ -55,6 +59,9 @@ export default function useScanProjection({
   const [framing, setFraming] = useState(null);
   const [output, setOutput] = useState(null);
   const [request, setRequest] = useState(null);
+  // Height heat map laid over the calculated image (« carte de profondeur »).
+  const [heightMapVisible, setHeightMapVisible] = useState(false);
+  const [heightOutput, setHeightOutput] = useState(null);
   const [error, setError] = useState(null);
   const sequenceRef = useRef(0),
     overlayRef = useRef(null),
@@ -140,6 +147,49 @@ export default function useScanProjection({
     };
   }, [request, requested, current, view, inspect, hidden]);
 
+  // Heat map of the calculated image: the highest point per pixel among
+  // the points of the slice, below it and / or above it (options), computed
+  // in a short-lived worker on the image raster.
+  const includeBelow = heightMapOptions?.includeBelow ?? true;
+  const includeAbove = heightMapOptions?.includeAbove ?? false;
+  const heightKey =
+    current && heightMapVisible
+      ? JSON.stringify([output.key, includeBelow, includeAbove])
+      : "";
+  useEffect(() => {
+    if (!heightKey || hidden) return;
+    if (heightOutput?.key === heightKey) return;
+    let alive = true;
+    const { frame: queryFrame } = output.request.query;
+    buildLocalScanHeightPreviewInWorker(view.data, {
+      frame: queryFrame,
+      raster: {
+        width: result.width,
+        height: result.height,
+        pixelSize: result.pixelSize,
+      },
+      range: [
+        includeBelow ? -Infinity : result.lower,
+        includeAbove ? Infinity : result.upper,
+      ],
+    }).then(
+      (preview) => {
+        if (alive) setHeightOutput({ key: heightKey, preview });
+      },
+      (failure) => {
+        if (alive) setError(failure.message);
+      }
+    );
+    return () => {
+      alive = false;
+    };
+    // keyed on the image and the options only
+  }, [heightKey, hidden]);
+  const heightPreview =
+    heightMapVisible && heightOutput?.key === heightKey
+      ? heightOutput.preview
+      : null;
+
   useEffect(() => {
     if (!view || !frame || !showBounds || hidden) return;
     const overlay = createLocalScanSliceOverlay(editor, view, frame);
@@ -178,6 +228,10 @@ export default function useScanProjection({
     result,
     current,
     pending,
+    heightMapVisible,
+    setHeightMapVisible,
+    heightPreview,
+    heightPending: Boolean(heightKey && !heightPreview),
     canCalculate: Boolean(view && active && !inspect && !hidden && !pending),
     calculate: () => {
       if (!view || !frame || inspect || hidden || pending) return;

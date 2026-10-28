@@ -21,17 +21,50 @@ import { getLocalScanHeightSceneId } from "../utils/localScanHeightSceneId";
 // each « Mettre à jour le fond de plan »; rebuilt once for the base maps
 // created before, from the shared decoded scan (localScanRuntime).
 
+// Default options of the map (baseMap.createdFrom.heightMap): the points
+// below the slice count (the floor), the points above do not (the
+// ceiling of an indoor scan would hide everything).
+export const DEFAULT_HEIGHT_MAP_OPTIONS = {
+  includeBelow: true,
+  includeAbove: false,
+};
+
+// Height interval (base map frame: above the plane) of the points that
+// feed the map, from the slice of the base map image (createdFrom lower /
+// upper, world Y) and the options. baseMap: {position, createdFrom}.
+// → [hMin, hMax] | null (every point)
+export function getLocalScanHeightRange(baseMap, options) {
+  const { lower, upper } = baseMap?.createdFrom ?? {};
+  const { includeBelow, includeAbove } = {
+    ...DEFAULT_HEIGHT_MAP_OPTIONS,
+    ...baseMap?.createdFrom?.heightMap,
+    ...options,
+  };
+  if (!Number.isFinite(lower) || !Number.isFinite(upper)) return null;
+  // horizontal base map: local Z = world Y − altitude
+  const altitude = baseMap?.position?.y ?? 0;
+  return [
+    includeBelow ? -Infinity : lower - altitude,
+    includeAbove ? Infinity : upper - altitude,
+  ];
+}
+
 // data: decoded points ({positions, bounds}); rootMatrixWorld: the scan root
 // pose (three.js Matrix4); baseMap: {position, angleDeg, orientation,
-// refWidth, refHeight, meterByPx} of the base map.
+// refWidth, refHeight, meterByPx, createdFrom} of the base map; options:
+// {includeBelow, includeAbove} (default: the stored ones).
 export async function buildLocalScanHeightMap({
   baseMapId,
   projectId,
   data,
   rootMatrixWorld,
   baseMap,
+  options,
 }) {
-  const frame = getLocalScanHeightFrame(rootMatrixWorld, baseMap, data.bounds);
+  const frame = {
+    ...getLocalScanHeightFrame(rootMatrixWorld, baseMap, data.bounds),
+    range: getLocalScanHeightRange(baseMap, options),
+  };
   const heightMap = await buildLocalScanHeightMapInWorker(data, frame);
   const sceneId = getLocalScanHeightSceneId(baseMapId);
   await db.scene3dAssets.put({

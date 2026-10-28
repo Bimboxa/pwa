@@ -32,3 +32,8 @@ export default function projectLocalScanInWorker(data, query) {
 export function buildLocalScanHeightMapInWorker(data, frame) {
   return runLocalScanWorkerJob(data, "HEIGHT_MAP", frame);
 }
+
+// query: {frame, raster, range} → projectLocalScanHeightPreview result
+export function buildLocalScanHeightPreviewInWorker(data, query) {
+  return runLocalScanWorkerJob(data, "HEIGHT_PREVIEW", query);
+}

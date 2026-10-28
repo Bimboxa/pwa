@@ -5,7 +5,10 @@ import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
 import getLocalScanBaseMapFrame from "../utils/getLocalScanBaseMapFrame";
 import getLocalScanMatrixInBaseMap from "../utils/getLocalScanMatrixInBaseMap";
-import { buildLocalScanHeightMap } from "./localScanHeightMapService";
+import {
+  buildLocalScanHeightMap,
+  DEFAULT_HEIGHT_MAP_OPTIONS,
+} from "./localScanHeightMapService";
 
 // « Mettre à jour le fond de plan »: the image of a scan base map is
 // replaced by the current slice of the Scan 3D tool (Z range, scan pose
@@ -25,6 +28,9 @@ export default async function updateScanBaseMapService({
   // {result, frame}: the slice re-cut to the preview framing (re-framed
   // update); the projection's own raster otherwise.
   framed = null,
+  // {includeBelow, includeAbove}: points of the height map outside the
+  // slice (stored in createdFrom.heightMap for the rebuilds).
+  heightMapOptions = DEFAULT_HEIGHT_MAP_OPTIONS,
 }) {
   const baseMap = await db.baseMaps.get(baseMapId);
   if (!baseMap?.localScan)
@@ -107,6 +113,7 @@ export default async function updateScanBaseMapService({
           lower,
           upper,
           frame: { min: frame.min, max: frame.max, rows: frame.rows },
+          heightMap: { ...heightMapOptions },
         },
       });
     }
@@ -117,7 +124,12 @@ export default async function updateScanBaseMapService({
       projectId: baseMap.projectId,
       data: view.data,
       rootMatrixWorld: root,
-      baseMap: { ...baseMap, ...patch },
+      baseMap: {
+        ...baseMap,
+        ...patch,
+        createdFrom: { ...baseMap.createdFrom, lower, upper },
+      },
+      options: heightMapOptions,
     });
   } catch (error) {
     // rebuilt later from the resource (ensureLocalScanHeightMap)

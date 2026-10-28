@@ -16,6 +16,7 @@ export default function ButtonUpdateScanBaseMap({
   projection,
   view,
   linkedBaseMap,
+  heightMapOptions,
   disabled = false,
 }) {
   const dispatch = useDispatch();
@@ -61,6 +62,7 @@ export default function ButtonUpdateScanBaseMap({
         view,
         projection,
         framed: getFramedRaster(),
+        heightMapOptions,
       });
       dispatch(triggerBaseMapsUpdate());
       dispatch(triggerEntitiesTableUpdate("baseMaps"));

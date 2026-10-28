@@ -104,8 +104,11 @@ base map selected it only says so. No tabs — the sections, top to bottom:
 - **Tranche et image projetée**: the preview on the full panel width with
   the two-handle vertical slider laid over its left edge, the density /
   mean-RGB selector over its top-left corner, the portrait / landscape
-  format beside the title; below the image the inclusive Z limits, the
-  **Voir en 3D** switch (the coloured points near the two cut planes in the
+  format beside the title, a terrain toggle beside Densité / Couleurs
+  drawing the height heat map of the calculated image (light to dark
+  secondary colour, `projectLocalScanHeightPreview`, same filter and hole
+  closing as the base map height map); below the image the inclusive Z
+  limits, the **Voir en 3D** switch (the coloured points near the two cut planes in the
   3D scene) and **Calculer** on one row, the count / resolution line with the PNG download,
   and at the bottom the optional hiding of the points outside the slice
   in 3D. Boundary highlighting uses a fixed ±2 cm tolerance. The preview
@@ -210,7 +213,12 @@ calculated, replaces the active version image in place, updates
 Each scan base map carries a height map in `db.scene3dAssets` (kind HEIGHT,
 scene id `localScan:<baseMapId>` — `localScanHeightSceneId`), the same
 Uint16 "highest point seen from above" grid as the « Scène 3D » meshes
-(`rasterizeLocalScanHeightMap`, ≤ 2048 cells, 1 cm min), built in a
+(`rasterizeLocalScanHeightMap`, ≤ 2048 cells, 2 cm min for points), the
+gaps between points closed into a sheet by `fillHeightGridHoles` (mean of
+the filled 8-neighbours, 6 passes; wider holes stay empty), filtered by the
+slice of the image (`createdFrom.heightMap` {includeBelow, includeAbove} —
+the « Carte de profondeur » checkboxes of the panel, floor kept and ceiling
+dropped by default), built in a
 projection worker in the BASE MAP GROUP frame (`getLocalScanHeightFrame`:
 u = image X, w = image up, h = height above the plane) so it survives every
 later move of the map (the cloud is glued to it). Built at creation and at
