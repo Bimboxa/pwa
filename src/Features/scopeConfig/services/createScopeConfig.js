@@ -5,6 +5,7 @@ import {
   getDefaultDisabledModuleKeys,
   CONFIGURABLE_MODULE_KEYS,
   DEFAULT_DISABLED_TOOL_KEYS,
+  DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
 } from "../utils/scopeConfigSelectors";
 
 /*
@@ -46,10 +47,12 @@ export default async function createScopeConfig({
       knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
       disabledToolKeys: disabledToolKeys ?? [...DEFAULT_DISABLED_TOOL_KEYS],
       disabledToolKeysByModule: disabledToolKeysByModule ?? {},
-      // creation sources of the Fonds de plan section (absent => app default)
-      ...(disabledBaseMapSourceKeys !== undefined && {
-        disabledBaseMapSourceKeys,
-      }),
+      // creation sources of the Fonds de plan section: materialized at
+      // creation so the row keeps the default of its time (Scène 3D stays
+      // off unless the configuration lists the sources it hides)
+      disabledBaseMapSourceKeys: disabledBaseMapSourceKeys ?? [
+        ...DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
+      ],
       ...(moduleLabelsByKey !== undefined && { moduleLabelsByKey }),
       ...(moduleIconKeysByKey !== undefined && { moduleIconKeysByKey }),
       ...(moduleOrder !== undefined && { moduleOrder }),

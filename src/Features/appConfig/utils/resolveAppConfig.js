@@ -283,7 +283,9 @@ export default async function resolveAppConfig(appConfig) {
   //       disabledBaseMapSourceKeys }, // optional: creation sources hidden
   //                                 // from the Fonds de plan section (keys
   //                                 // of baseMapSourceCatalog; absent =>
-  //                                 // app default DXF + DWG)
+  //                                 // app default DXF + DWG + SCENE_3D, so
+  //                                 // a configuration enables the scans by
+  //                                 // listing ["DXF", "DWG"])
   //     tutorial }                  // NOT declared in the file: derived here
   //                                 // from configurations/tutorials/<key>.md
   //                                 // when that file exists =>
