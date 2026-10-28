@@ -162,10 +162,10 @@ Rows (`BusinessObjectTreeItem.jsx`, annotation-template rows pattern):
 - the quantity + unit is flush right, in the measurements typography of
   `ToolbarEditAnnotation` (caption, monospace, 500, `warning.main`).
   Computed quantity when annotations are linked; else `refQty`, greyed; else
-  "– unit", greyed; nothing for a unit-less row. On row hover (and on the
-  active / armed row) the action buttons — documents, « annotation + »,
-  « annotation − » (template link present), « … » — REPLACE the quantity
-  (its slot is kept, no reflow), as on the template rows;
+  "– unit", greyed; nothing for a unit-less row. The action buttons follow
+  it, always visible: documents (resource links), « annotation + » (picking
+  mode), « annotation − » (template link present). No « … » menu on the row:
+  the object actions live in its properties panel;
 - when both the computed and the reference quantities exist and differ by
   more than 5 % (`getBusinessObjectQtyGap`), a warning button opens
   `PopperBusinessObjectQtyGap`: reference, computed, gap, and the computed

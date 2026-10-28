@@ -24,7 +24,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  MoreHoriz,
   DragIndicator,
   DescriptionOutlined,
   ChevronRight,
@@ -43,7 +42,6 @@ import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDoc
 import SoloIconToggle from "Features/mapEditor/components/SoloIconToggle";
 import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
 import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
-import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import PopperBusinessObjectQtyGap from "./PopperBusinessObjectQtyGap";
 import ChipBusinessObjectState from "./ChipBusinessObjectState";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
@@ -124,7 +122,6 @@ export default function BusinessObjectTreeItem({
   // {total, planned, done, plannedRatio, doneRatio} over the work packages
   // (useTaskPlanningProgress) — PLANNING listings only
   planningProgress,
-  onAddChildBusinessObject,
 }) {
   const dispatch = useDispatch();
 
@@ -148,11 +145,10 @@ export default function BusinessObjectTreeItem({
 
   // state
 
-  const [menuAnchor, setMenuAnchor] = useState(null);
   const [gapAnchor, setGapAnchor] = useState(null);
   const [documentsAnchor, setDocumentsAnchor] = useState(null);
   // hover in React state (AnnotationTemplateRow pattern): drives the solo
-  // slot affordance and the action buttons replacing the quantity
+  // slot affordance
   const [isHovered, setIsHovered] = useState(false);
 
   // dnd — the whole row is draggable (5px activation keeps clicks working),
@@ -214,15 +210,13 @@ export default function BusinessObjectTreeItem({
 
   // Left slot = SOLO toggle (template rows pattern): an affordance only when
   // there are annotations to isolate (own + descendants') — or to leave the
-  // solo. Action buttons (right column, over the quantity): shown on hover,
-  // on the active row and on the armed row (exit of the picking mode always
-  // reachable); the documents button when the object links to a resource.
+  // solo. Action buttons (right of the quantity, always visible): the link
+  // button(s) of the picking mode, the documents button when the object links
+  // to a resource.
   const canSolo =
     isSolo || soloAnnotations?.length > 0 || mainAnnotations?.length > 0;
   const showDocuments = documentRels?.length > 0;
-  const hasHoverButtons = showDocuments || !readOnly;
-  const showActions =
-    hasHoverButtons && (isHovered || isArmed || (!readOnly && isActive));
+  const hasActions = showDocuments || !readOnly;
   const soloS = isSolo
     ? "Tout afficher"
     : `Afficher uniquement « ${businessObject.label} »`;
@@ -241,7 +235,6 @@ export default function BusinessObjectTreeItem({
   const excludingS = isExcluding
     ? "Quitter le mode exclusion"
     : "Exclure des annotations au clic sur la carte (lien par modèle)";
-  const menuS = "Plus d'actions";
   const drillS = "Voir le contenu";
   const qtyLabel =
     hasQuantities && linkedCount > 0
@@ -406,11 +399,6 @@ export default function BusinessObjectTreeItem({
     setGapAnchor(gapAnchor ? null : e.currentTarget);
   }
 
-  function handleMenuClick(e) {
-    e.stopPropagation();
-    setMenuAnchor(e.currentTarget);
-  }
-
   // render
 
   // Drill-down button "N ›" (Krnet TreeList drillBtn). Stops the pointer
@@ -509,21 +497,17 @@ export default function BusinessObjectTreeItem({
     </Box>
   );
 
-  // Hover action buttons, over the quantity column (its slot is kept so the
-  // label never reflows). Pointer events stopped: neither the row click nor
-  // the dnd sensor must fire.
+  // Action buttons at the right of the quantity. Pointer events stopped:
+  // neither the row click nor the dnd sensor must fire.
   const actionButtonSx = { p: 0.5 };
   const stopPointerDown = (e) => e.stopPropagation();
-  const actions = showActions ? (
+  const actions = hasActions ? (
     <Box
       sx={{
-        position: "absolute",
-        right: 0,
-        top: "50%",
-        transform: "translateY(-50%)",
-        display: "flex",
-        alignItems: "center",
+        ...firstLineSx,
         gap: 0.25,
+        ml: 0.5,
+        mr: -0.5,
       }}
     >
       {showDocuments && (
@@ -565,18 +549,6 @@ export default function BusinessObjectTreeItem({
             }}
           >
             <IconAnnotationLinkRemove sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      )}
-      {!readOnly && (
-        <Tooltip title={menuS}>
-          <IconButton
-            size="small"
-            onClick={handleMenuClick}
-            onPointerDown={stopPointerDown}
-            sx={{ ...actionButtonSx, color: "panel.textMuted" }}
-          >
-            <MoreHoriz sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       )}
@@ -770,36 +742,25 @@ export default function BusinessObjectTreeItem({
         {/* col 3: quantity + unit (tasks: rolled-up hours), flush right —
             the measurements typography of ToolbarEditAnnotation
             (AnnotationMeasurements: caption, monospace, 500, warning.main),
-            greyed when it is not computed from linked annotations; hidden
-            (slot kept) under the hover action buttons. */}
-        {(rightLabel || showActions) && (
-          <Box
+            greyed when it is not computed from linked annotations. The
+            action buttons follow it. */}
+        {rightLabel && (
+          <Typography
+            variant="caption"
+            noWrap
             sx={{
-              ...firstLineSx,
-              position: "relative",
-              justifyContent: "flex-end",
               ml: 1,
-              minWidth: 56,
+              flexShrink: 0,
+              fontFamily: "monospace",
+              fontWeight: 500,
+              lineHeight: `${FIRST_LINE_HEIGHT}px`,
+              color: rightLabelMuted ? "text.disabled" : "warning.main",
             }}
           >
-            {rightLabel && (
-              <Typography
-                variant="caption"
-                noWrap
-                sx={{
-                  fontFamily: "monospace",
-                  fontWeight: 500,
-                  lineHeight: `${FIRST_LINE_HEIGHT}px`,
-                  color: rightLabelMuted ? "text.disabled" : "warning.main",
-                  visibility: showActions ? "hidden" : "visible",
-                }}
-              >
-                {rightLabel}
-              </Typography>
-            )}
-            {actions}
-          </Box>
+            {rightLabel}
+          </Typography>
         )}
+        {actions}
         {drill}
       </ListItemButton>
 
@@ -841,16 +802,6 @@ export default function BusinessObjectTreeItem({
             </MenuItem>
           ))}
         </Menu>
-      )}
-
-      {menuAnchor && (
-        <MenuActionsBusinessObject
-          anchorEl={menuAnchor}
-          businessObject={businessObject}
-          listing={listing}
-          onAddChildBusinessObject={onAddChildBusinessObject}
-          onClose={() => setMenuAnchor(null)}
-        />
       )}
     </>
   );
