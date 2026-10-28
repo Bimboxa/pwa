@@ -46,6 +46,7 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
+import SectionBusinessObjectBandInToolbar from "Features/businessObjects/components/SectionBusinessObjectBandInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -522,6 +523,10 @@ export default function ToolbarEditAnnotations({
 
           {/* Zones band (ZONES module): link the selection to zones */}
           <SectionZonesBandInToolbar annotations={annotations} />
+
+          {/* Business object band (business-objects modules, active object):
+              link / exclude the selection, U / L / S formula */}
+          <SectionBusinessObjectBandInToolbar annotations={annotations} />
         </Box>
 
         {/* Template change menu (same type) */}

@@ -28,6 +28,8 @@ import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import setQtyFormulaForTemplate from "../utils/setQtyFormulaForTemplate";
 import { getDefaultQtyFormula, getQtyFormulaKey } from "../utils/qtyFormula";
 import { parseHoursRatioInput } from "../utils/hoursRatioConversions";
+import { isTemplateLinked } from "../utils/linkedTemplateIds";
+import { getExcludedAnnotationIds } from "../utils/excludedAnnotationIds";
 
 function getRefQtyText(refQty) {
   return Number.isFinite(refQty) ? formatBusinessObjectNumber(refQty, 3) : "";
@@ -124,19 +126,39 @@ export default function SectionBusinessObjectQuantities({
     [linkedRows, businessObject, relAnnotationIds, annotationTemplateById]
   );
 
-  // annotations of each template not feeding the object yet (mesh cells
-  // skipped: their parent is the one to link)
-  const unlinkedIdsByKey = useMemo(() => {
+  // annotations of each linked template EXCLUDED from its expansion (the
+  // resolver drops them from linkedRows; exclusions of a template not linked
+  // by template are moot and ignored)
+  const excludedIdsByKey = useMemo(() => {
+    const excludedIds = new Set(getExcludedAnnotationIds(businessObject));
     const byKey = {};
+    if (excludedIds.size === 0) return byKey;
     (annotations ?? []).forEach((annotation) => {
-      if (annotation.isMeshCell || linkedAnnotationIdSet.has(annotation.id))
+      if (annotation.isMeshCell || !excludedIds.has(annotation.id)) return;
+      if (!isTemplateLinked(businessObject, annotation.annotationTemplateId))
         return;
       const key = getQtyFormulaKey(annotation.annotationTemplateId);
       if (!byKey[key]) byKey[key] = [];
       byKey[key].push(annotation.id);
     });
     return byKey;
-  }, [annotations, linkedAnnotationIdSet]);
+  }, [annotations, businessObject]);
+
+  // annotations of each template not feeding the object yet (mesh cells
+  // skipped: their parent is the one to link; excluded annotations of a
+  // linked template are "excluded", not "unlinked")
+  const unlinkedIdsByKey = useMemo(() => {
+    const byKey = {};
+    (annotations ?? []).forEach((annotation) => {
+      if (annotation.isMeshCell || linkedAnnotationIdSet.has(annotation.id))
+        return;
+      const key = getQtyFormulaKey(annotation.annotationTemplateId);
+      if (excludedIdsByKey[key]?.includes(annotation.id)) return;
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(annotation.id);
+    });
+    return byKey;
+  }, [annotations, linkedAnnotationIdSet, excludedIdsByKey]);
 
   // helpers — summary: total = Σ of the template rows, in the object's unit
 
@@ -212,12 +234,15 @@ export default function SectionBusinessObjectQuantities({
   }
 
   // linked by template: the template link goes first (a second click on a
-  // row still linked by annotation then deletes the rels)
+  // row still linked by annotation then deletes the rels); the exclusions of
+  // the template's annotations go with it
   async function handleUnlinkAll(row) {
     if (row.isLinkedByTemplate) {
       await unlinkTemplate({
         businessObject,
         annotationTemplateId: row.annotationTemplateId,
+        annotationIdsToForget:
+          excludedIdsByKey[getQtyFormulaKey(row.annotationTemplateId)],
       });
       return;
     }
@@ -342,6 +367,10 @@ export default function SectionBusinessObjectQuantities({
             unit={unit}
             unlinkedCount={
               unlinkedIdsByKey[getQtyFormulaKey(row.annotationTemplateId)]
+                ?.length ?? 0
+            }
+            excludedCount={
+              excludedIdsByKey[getQtyFormulaKey(row.annotationTemplateId)]
                 ?.length ?? 0
             }
             spriteImage={spriteImage}

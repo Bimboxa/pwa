@@ -38,7 +38,8 @@ const CHIP_SX = {
 // a plain number is the quantity of the whole template.
 // row: one item of getBusinessObjectQtiesByTemplate; unit: the unit the
 // object's quantity is read in; unlinkedCount: annotations of the template
-// not feeding the object yet (0 when linked by template).
+// not feeding the object yet (0 when linked by template); excludedCount:
+// annotations of the template excluded from the template link.
 // onUnlinkAll: removes the template link when the row is linked by template,
 // else deletes the rels (two steps when both link kinds coexist).
 export default function CardBusinessObjectTemplateQty({
@@ -46,6 +47,7 @@ export default function CardBusinessObjectTemplateQty({
   template,
   unit,
   unlinkedCount,
+  excludedCount = 0,
   spriteImage,
   onFormulaChange,
   onLinkAll,
@@ -72,9 +74,14 @@ export default function CardBusinessObjectTemplateQty({
     ? "Retirer le lien par modèle"
     : "Délier toutes les annotations du modèle";
   const openS = "Voir les annotations liées";
-  const countS = `${row.annotationsCount} annotation${
-    row.annotationsCount > 1 ? "s" : ""
-  }${isByTemplate ? " du modèle" : ""}`;
+  const countS =
+    `${row.annotationsCount} annotation${row.annotationsCount > 1 ? "s" : ""}${
+      isByTemplate ? " du modèle" : ""
+    }` +
+    (excludedCount > 0
+      ? ` · ${excludedCount} exclue${excludedCount > 1 ? "s" : ""}`
+      : "");
+  const excludedChipS = `${excludedCount} exclue${excludedCount > 1 ? "s" : ""}`;
 
   // data
 
@@ -188,6 +195,15 @@ export default function CardBusinessObjectTemplateQty({
               variant="outlined"
               color="primary"
               label={byTemplateS}
+              sx={CHIP_SX}
+            />
+          )}
+          {isByTemplate && excludedCount > 0 && (
+            <Chip
+              size="small"
+              variant="outlined"
+              color="warning"
+              label={excludedChipS}
               sx={CHIP_SX}
             />
           )}

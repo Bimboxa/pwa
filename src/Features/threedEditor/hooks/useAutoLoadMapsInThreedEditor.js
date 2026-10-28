@@ -73,6 +73,8 @@ export default function useAutoLoadMapsInThreedEditor({
       b?.scene3d?.sceneId ?? "",
       b?.scene3d?.display3d ?? "",
       b?.localScan?.resourceId ?? "",
+      // « Zmap pour le raycaster » switch of the Scan 3D panel
+      b?.localScan?.zMapRaycast === false ? "noray" : "",
     ].join(":");
   };
   const repairKey =

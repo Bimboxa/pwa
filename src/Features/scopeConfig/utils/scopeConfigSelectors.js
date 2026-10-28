@@ -88,9 +88,12 @@ export const DEFAULT_DISABLED_TOOL_KEYS = [
 ];
 
 // BaseMap creation sources (keys of baseMaps/data/baseMapSourceCatalog.js)
-// hidden by default from the creation section: DXF is opt-in, and DWG import
-// is not shipped yet. Explicit per-scope source settings take precedence.
-export const DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS = ["DXF", "DWG"];
+// hidden by default from the creation section: DXF is opt-in, DWG import is
+// not shipped yet and the « Scène 3D » scans are opt-in (a Krto
+// configuration enables them through scopeConfig.disabledBaseMapSourceKeys,
+// e.g. edx TUTO_SCAN_3D). Explicit per-scope source settings take
+// precedence.
+export const DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS = ["DXF", "DWG", "SCENE_3D"];
 
 const EMPTY_OBJ = {};
 

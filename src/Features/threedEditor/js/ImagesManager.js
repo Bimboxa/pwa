@@ -11,6 +11,7 @@ import { FADED_IMAGE_OPACITY } from "Features/baseMaps/constants/baseMapsImageMo
 import attachScene3dToBaseMapGroup, {
   getScene3dGroupKey,
 } from "./utilsImagesManager/attachScene3dToBaseMapGroup";
+import attachLocalScanZMapToBaseMapGroup from "./utilsImagesManager/attachLocalScanZMapToBaseMapGroup";
 import attachLocalScanToBaseMapGroup, {
   getLocalScanGroupKey,
 } from "./utilsImagesManager/attachLocalScanToBaseMapGroup";
@@ -79,8 +80,12 @@ export default class ImagesManager {
       mode: "NONE",
       toolResourceId: null,
       mainBaseMapId: null,
-      // « Scan » chip off in the base maps list
+      // « 3D » chip off in the base maps list
       hiddenBaseMapIds: [],
+      // bottom bar « Zmap »: the height map meshes of the scan base maps
+      zMap: false,
+      // bumped when a height map is rebuilt (localScanHeightMapService)
+      zMapTick: 0,
     };
   }
 
@@ -334,8 +339,14 @@ export default class ImagesManager {
   }
 
   syncLocalScans() {
-    const { mode, toolResourceId, mainBaseMapId, hiddenBaseMapIds } =
-      this.localScanState;
+    const {
+      mode,
+      toolResourceId,
+      mainBaseMapId,
+      hiddenBaseMapIds,
+      zMap,
+      zMapTick,
+    } = this.localScanState;
     const carriers = {};
     if (mode !== "NONE")
       Object.keys(this.imagesMap)
@@ -376,6 +387,37 @@ export default class ImagesManager {
           );
       }
       group.userData.localScan?.setMode(mode);
+      // Zmap: one mesh per scan base map (its own height map), independent
+      // of the points carrier; hidden with the group or its « 3D » chip.
+      // Attached whenever shown or, with the base map's « Zmap pour le
+      // raycaster » switch on (default), always: the raycaster — the 3D
+      // altimetry — meets the relief even while the Zmap is not rendered.
+      const zMapRaycast = baseMap?.localScan?.zMapRaycast !== false;
+      const zMapKey =
+        (zMap || zMapRaycast) &&
+        baseMap?.localScan?.resourceId &&
+        this.groupVisibleByBaseMapId[id] !== false &&
+        !hiddenBaseMapIds.includes(id)
+          ? `${id}|${zMapTick}`
+          : null;
+      if (group.userData.localScanZMapKey !== zMapKey) {
+        group.userData.localScanZMapHandle?.dispose();
+        delete group.userData.localScanZMapHandle;
+        group.userData.localScanZMapKey = zMapKey;
+        if (zMapKey)
+          group.userData.localScanZMapHandle =
+            attachLocalScanZMapToBaseMapGroup(group, baseMap, {
+              sceneManager: this.sceneManager,
+              shown: zMap,
+              raycast: zMapRaycast,
+              onLoaded: () => {
+                this.sceneManager.clippingManager?.reapply?.();
+                this.sceneManager.renderScene();
+              },
+            });
+      }
+      group.userData.localScanZMapHandle?.setShown(zMap);
+      group.userData.localScanZMapHandle?.setRaycast(zMapRaycast);
     });
   }
 
@@ -391,6 +433,9 @@ export default class ImagesManager {
       group.userData.localScan?.dispose();
       delete group.userData.localScan;
       delete group.userData.localScanKey;
+      group.userData.localScanZMapHandle?.dispose();
+      delete group.userData.localScanZMapHandle;
+      delete group.userData.localScanZMapKey;
     });
   }
 

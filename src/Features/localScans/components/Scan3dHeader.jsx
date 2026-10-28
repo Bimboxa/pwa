@@ -13,22 +13,20 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  Add,
   CenterFocusStrong,
   Close,
   CropFree,
   MoreHoriz,
-  SaveOutlined,
 } from "@mui/icons-material";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
+// Header of the Scan 3D tool: the scan of the selected base map (name,
+// count, size), the panel close and the model actions (frame, load zone).
 export default function Scan3dHeader({
   model,
+  baseMapName,
   busy = false,
   onFrame,
-  onNew,
-  onCloseModel,
-  onSave,
   onEditZone,
 }) {
   const dispatch = useDispatch();
@@ -51,8 +49,8 @@ export default function Scan3dHeader({
       }}
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2" noWrap title={model?.name}>
-          {model?.name ?? "Scan 3D"}
+        <Typography variant="subtitle2" noWrap title={baseMapName ?? ""}>
+          {baseMapName ?? "Scan 3D"}
         </Typography>
         {model && (
           <Typography
@@ -60,8 +58,9 @@ export default function Scan3dHeader({
             color="text.secondary"
             noWrap
             sx={{ display: "block" }}
+            title={model.name}
           >
-            {model.count.toLocaleString("fr-FR")}{" "}
+            {model.name} · {model.count.toLocaleString("fr-FR")}{" "}
             {model.kind === "SPLAT" ? "gaussiennes" : "points"} ·{" "}
             {stringifyFileSize(model.size)}
           </Typography>
@@ -111,28 +110,6 @@ export default function Scan3dHeader({
                 <ListItemText>Modifier la zone</ListItemText>
               </MenuItem>
             )}
-            <MenuItem onClick={() => run(onNew)}>
-              <ListItemIcon>
-                <Add fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Nouveau</ListItemText>
-            </MenuItem>
-            {!model.resourceId && (
-              <MenuItem onClick={() => run(onSave)}>
-                <ListItemIcon>
-                  <SaveOutlined fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>
-                  Enregistrer dans les ressources du projet
-                </ListItemText>
-              </MenuItem>
-            )}
-            <MenuItem onClick={() => run(onCloseModel)}>
-              <ListItemIcon>
-                <Close fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Fermer</ListItemText>
-            </MenuItem>
           </Menu>
         </>
       )}

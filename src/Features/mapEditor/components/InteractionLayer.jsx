@@ -118,7 +118,8 @@ import addAnnotationSubtraction from 'Features/annotations/services/addAnnotatio
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
 import bakeSubtractionPickService from 'Features/annotationMesh3d/services/bakeSubtractionPickService';
 import toggleAnnotationBusinessObjectLinkService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectLinkService';
-import { setLinkingBusinessObjectId, triggerRelsBusinessObjectAnnotationUpdate, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
+import toggleAnnotationBusinessObjectExclusionService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectExclusionService';
+import { setLinkingBusinessObjectId, triggerBusinessObjectsUpdate, triggerRelsBusinessObjectAnnotationUpdate, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
 import toggleAnnotationWorkPackageLinkService from 'Features/businessObjects/services/toggleAnnotationWorkPackageLinkService';
 import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
@@ -135,6 +136,9 @@ import getBaseMapTransform from 'Features/baseMaps/js/getBaseMapTransform';
 import getAnnotationHeightAtPoint from 'Features/annotations/utils/getAnnotationHeightAtPoint';
 import getScene3dHeightAtPx, { getScene3dScanPointFromPx } from 'Features/scene3d/utils/getScene3dHeightAtPx';
 import { ensureScene3dHeightMap, getScene3dHeightMap, getScene3dHeightMapEntryStatus } from 'Features/scene3d/services/scene3dHeightMapStore';
+import getLocalScanHeightAtPx from 'Features/localScans/utils/getLocalScanHeightAtPx';
+import { getLocalScanHeightSceneId } from 'Features/localScans/utils/localScanHeightSceneId';
+import { ensureLocalScanHeightMap } from 'Features/localScans/services/localScanHeightMapService';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
@@ -678,6 +682,7 @@ const InteractionLayer = forwardRef(({
   const subtractPermanently = useSelector((s) => s.mapEditor.subtractPermanently);
   // Business-object link mode (clicks toggle links to this "Ouvrages" object)
   const linkingBusinessObjectId = useSelector((s) => s.businessObjects.linkingBusinessObjectId);
+  const linkingMode = useSelector((s) => s.businessObjects.linkingMode);
   // Work-package link mode (clicks move annotations into this PLANNING package)
   const linkingWorkPackageId = useSelector((s) => s.businessObjects.linkingWorkPackageId);
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
@@ -5837,8 +5842,9 @@ const InteractionLayer = forwardRef(({
     }
 
     // Business-object link mode ("Ouvrages"): each click on an annotation
-    // toggles its N-N link to the armed object. Multi-pick: empty-space
-    // clicks do nothing, only Escape exits.
+    // toggles its N-N link to the armed object — or, in the EXCLUDE flavour,
+    // its exclusion from the object's "Lien par modèle". Multi-pick:
+    // empty-space clicks do nothing, only Escape exits.
     if (linkingBusinessObjectId && !enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
@@ -5848,12 +5854,41 @@ const InteractionLayer = forwardRef(({
         const businessObject = await db.businessObjects.get(
           linkingBusinessObjectId
         );
-        if (businessObject && !businessObject.deletedAt) {
+        if (businessObject && !businessObject.deletedAt && linkingMode === "EXCLUDE") {
+          const result = await toggleAnnotationBusinessObjectExclusionService({
+            businessObject,
+            annotationId,
+          });
+          if (result !== "skipped") {
+            dispatch(triggerBusinessObjectsUpdate());
+            dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+          }
+          dispatch(
+            setToaster(
+              result === "skipped"
+                ? {
+                  message: `Le modèle de cette annotation n'est pas lié par modèle à "${businessObject.label}"`,
+                  severity: "warning",
+                }
+                : result === "excluded"
+                ? {
+                  message: `Annotation exclue de "${businessObject.label}"`,
+                  severity: "info",
+                }
+                : {
+                  message: `Annotation réintégrée dans "${businessObject.label}"`,
+                  severity: "success",
+                }
+            )
+          );
+        } else if (businessObject && !businessObject.deletedAt) {
           const result = await toggleAnnotationBusinessObjectLinkService({
             businessObject,
             annotationId,
           });
           dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+          // linking may have lifted an exclusion on the object row
+          if (result === "linked") dispatch(triggerBusinessObjectsUpdate());
           dispatch(
             setToaster(
               result === "skipped"
@@ -7179,6 +7214,41 @@ const InteractionLayer = forwardRef(({
         }
       } else {
         const height = getScene3dHeightAtPx(scanBaseMap, localPos, heightMap);
+        if (height !== null) {
+          badge.update({
+            x: viewportPos.x,
+            y: viewportPos.y,
+            main: `Z ${formatAltitude(baseMapZ + height)}`,
+            secondary: "",
+          });
+          return;
+        }
+      }
+    }
+
+    // 3. base map projected from a local point cloud: relief under the
+    // pointer (height map built at creation / update, rebuilt once for the
+    // older base maps — localScanHeightMapService)
+    if (!sceneId && baseMap?.localScan?.resourceId) {
+      const imageSize = baseMap.getImageSize?.();
+      const scanBaseMap = {
+        imageSize,
+        meterByPx: meterByPxRef.current || 0,
+      };
+      const heightMap = getScene3dHeightMap(
+        getLocalScanHeightSceneId(baseMap.id)
+      );
+      if (!heightMap) {
+        const status = ensureLocalScanHeightMap(baseMap);
+        const insideImage =
+          imageSize &&
+          localPos.x >= 0 &&
+          localPos.y >= 0 &&
+          localPos.x < imageSize.width &&
+          localPos.y < imageSize.height;
+        if (status === "LOADING" && insideImage) pending = true;
+      } else {
+        const height = getLocalScanHeightAtPx(scanBaseMap, localPos, heightMap);
         if (height !== null) {
           badge.update({
             x: viewportPos.x,

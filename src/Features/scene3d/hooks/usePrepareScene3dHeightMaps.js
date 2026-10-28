@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { ensureScene3dHeightMap } from "../services/scene3dHeightMapStore";
+import { ensureLocalScanHeightMap } from "Features/localScans/services/localScanHeightMapService";
 import useScene3dHeightMapStatus from "./useScene3dHeightMapStatus";
 
 const READY_MESSAGE =
@@ -18,7 +19,8 @@ const ERROR_MESSAGE = "Le relief du scan n'a pas pu être préparé.";
 // maps existed) is done.
 //
 // active: the mode is on; scans: the scan base maps (records or BaseMap
-// instances carrying `scene3d`) displayed in the editor.
+// instances carrying `scene3d` — mesh — or `localScan` — point cloud)
+// displayed in the editor.
 export default function usePrepareScene3dHeightMaps(active, scans) {
   const dispatch = useDispatch();
 
@@ -29,7 +31,13 @@ export default function usePrepareScene3dHeightMaps(active, scans) {
   // A new scan (creation, reload, Krto load) is prepared too: key on the
   // scene ids.
   const sceneIdsKey = (scans ?? [])
-    .map((b) => b?.scene3d?.sceneId)
+    .map((b) =>
+      b?.scene3d?.sceneId
+        ? b.scene3d.sceneId
+        : b?.localScan?.resourceId
+          ? `localScan:${b.id}`
+          : null
+    )
     .filter(Boolean)
     .join("|");
 
@@ -37,11 +45,14 @@ export default function usePrepareScene3dHeightMaps(active, scans) {
     if (!active || !sceneIdsKey) return;
     (scans ?? []).forEach((baseMap) => {
       const scene3d = baseMap?.scene3d;
-      if (!scene3d?.sceneId) return;
-      ensureScene3dHeightMap(scene3d.sceneId, {
-        bbox: scene3d.bbox,
-        projectId: baseMap.projectId,
-      });
+      if (scene3d?.sceneId) {
+        ensureScene3dHeightMap(scene3d.sceneId, {
+          bbox: scene3d.bbox,
+          projectId: baseMap.projectId,
+        });
+      } else if (baseMap?.localScan?.resourceId) {
+        ensureLocalScanHeightMap(baseMap);
+      }
     });
   }, [active, sceneIdsKey]);
 

@@ -42,26 +42,39 @@ import getScene3dBaseMapDescriptor, {
 } from "../utils/getScene3dBaseMapDescriptor";
 import { getZoneFromPolygon } from "../utils/scene3dZoneTransform";
 
+import scanResources from "Features/localScans/services/scanResources";
+import {
+  buildLocalScanZonePreview,
+  readLocalScanSample,
+} from "Features/localScans/services/createLocalScanZonePreview";
+import createScanBaseMapFromZoneService from "Features/localScans/services/createScanBaseMapFromZoneService";
+
 const IMPORT_STEP_LABELS = {
   MESH: "Lecture du maillage",
   TEXTURES: "Conversion des textures",
   TOP_VIEW: "Projection sur le plan",
+  SAMPLE: "Lecture d’un échantillon du nuage",
 };
 // share of each step in the import progress bar
 const IMPORT_STEP_RANGES = {
   MESH: [0, 0.2],
   TEXTURES: [0.2, 0.97],
   TOP_VIEW: [0.97, 1],
+  SAMPLE: [0, 1],
 };
 const FINALIZE_STEP_LABELS = {
   CLIP: "Découpe du maillage",
   BAKE: "Rendu de l'image du fond de plan",
   CREATE: "Création du fond de plan",
+  DECODE: "Lecture du nuage de points",
+  PROJECT: "Projection sur le plan",
 };
 const FINALIZE_STEP_RANGES = {
   CLIP: [0, 0.5],
   BAKE: [0.5, 0.95],
   CREATE: [0.95, 1],
+  DECODE: [0, 0.7],
+  PROJECT: [0.7, 0.95],
 };
 
 const IMAGE_SIZE_OPTIONS = [
@@ -72,8 +85,6 @@ const IMAGE_SIZE_OPTIONS = [
 const ERROR_MESSAGES = {
   PLY_ASCII_UNSUPPORTED:
     "Les fichiers PLY au format ASCII ne sont pas pris en charge (exporter en binaire).",
-  PLY_NO_FACES:
-    "Ce fichier PLY ne contient pas de faces (les nuages de points ne sont pas pris en charge).",
   PLY_TRUNCATED: "Le fichier PLY est incomplet.",
   PLY_INVALID: "Ce fichier n'est pas un PLY valide.",
   PLY_UNSUPPORTED_LAYOUT:
@@ -86,16 +97,26 @@ function getProgressRatio(ranges, progress) {
   return from + (to - from) * progress.ratio;
 }
 
-// Creation of a scan base map (« Scène 3D »): a photogrammetry scan (.ply
-// mesh + its texture atlases) becomes a base map whose image is the top-down
-// projection of a zone of interest, with the mesh + height map kept locally
-// (db.scene3dAssets). Three steps:
-//   FILES     pick the files, convert the scan (importScene3dFilesService);
-//   ZONE      draw the zone of interest (rectangle / polygon) and rotate the
-//             projection on the whole-scan preview (Scene3dZoneEditor);
-//   FINALIZE  clip the scan to the zone, bake the zone image, create the
-//             base map.
-// Reload mode (`reloadBaseMap`, "Recharger les fichiers" of a scan base map
+const stripExtension = (fileName) => {
+  const dot = fileName.lastIndexOf(".");
+  return dot > 0 ? fileName.slice(0, dot) : fileName;
+};
+
+// Creation of a scan base map (« Scène 3D »): a 3D scan becomes a base map
+// whose image is the top-down projection of a zone of interest. Two kinds of
+// PLY, told apart by the header (faces or not), same screens:
+//   MESH    photogrammetry mesh (.ply + its texture atlases): converted
+//           (importScene3dFilesService), zone drawn on the whole-scan
+//           preview, then clipped + baked; the mesh and its height map are
+//           kept locally (db.scene3dAssets) — baseMap.scene3d;
+//   POINTS  point cloud (the Scan 3D tool files): a sample is projected for
+//           the zone preview (density or colours, also the image of the
+//           base map), the zone is decoded, saved as a project resource and
+//           projected over its whole height (createScanBaseMapFromZoneService)
+//           — baseMap.localScan, editable later in the Scan 3D tool.
+// Three steps: FILES (pick the files, or a scan of the Ressources through
+// `scanResource`) → ZONE (Scene3dZoneEditor) → FINALIZE.
+// Reload mode (`reloadBaseMap`, "Recharger les fichiers" of a mesh base map
 // whose data is missing on this device): FILES only, then the stored zone is
 // applied to the new scan (reloadScene3dBaseMapService).
 export default function DialogCreateBaseMapFromScene3d({
@@ -104,6 +125,7 @@ export default function DialogCreateBaseMapFromScene3d({
   listing,
   onCreated,
   reloadBaseMap = null,
+  scanResource = null,
 }) {
   const dispatch = useDispatch();
   const filesInputRef = useRef(null);
@@ -115,7 +137,7 @@ export default function DialogCreateBaseMapFromScene3d({
 
   const titleS = reloadBaseMap ? "Recharger la scène 3D" : "Scène 3D";
   const helperS =
-    "Sélectionnez le maillage (.ply) et ses textures (.jpg), ou le dossier qui les contient.";
+    "Sélectionnez le scan (.ply : maillage avec ses textures .jpg, ou nuage de points), ou le dossier qui les contient.";
   const reloadHelperS =
     "Les données du scan ne sont pas sur cet appareil : rechargez les mêmes fichiers. La zone, l'échelle et l'altitude du fond de plan sont conservées.";
   const dropS = "Glisser-déposer les fichiers ou le dossier du scan ici";
@@ -125,14 +147,26 @@ export default function DialogCreateBaseMapFromScene3d({
   const importS = "Charger";
   const cancelS = "Annuler";
   const noPlyS = "Aucun fichier .ply dans la sélection.";
+  const reloadPointsS =
+    "Ce fond de plan est un maillage : rechargez un PLY avec des faces.";
+  const missingFileS =
+    "Le fichier de ce scan est absent de cet appareil. Rechargez-le depuis Ressources.";
   const namePlaceholderS = "Nom du fond de plan";
   const createS = "Créer le fond de plan";
+  const upS = "Axe vertical";
+  const imageModeS = "Image";
+  const densityS = "Densité";
+  const rgbS = "Couleurs";
+  const pointsS = "Nuage de points";
+  const splatS =
+    "Mode Réaliste : la zone limite les points, les gaussiennes restent entières.";
   const zoneSizeS = (zone) =>
     `Zone : ${zone.width.toFixed(1)} m × ${zone.height.toFixed(1)} m`;
 
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const axesYawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
   const createBaseMapFromImage = useCreateBaseMapFromImage();
   const isReload = Boolean(reloadBaseMap);
 
@@ -152,9 +186,15 @@ export default function DialogCreateBaseMapFromScene3d({
     polygonScan: null,
   });
   const [name, setName] = useState("");
+  // point cloud: the preview sample, its vertical axis and image mode
+  const [sample, setSample] = useState(null);
+  const [up, setUp] = useState("Z");
+  const [imageMode, setImageMode] = useState("density");
+  const [pointPreview, setPointPreview] = useState(null);
 
   const isImporting = Boolean(importProgress);
   const isFinalizing = step === "FINALIZE";
+  const isPoints = selection?.kind === "POINTS";
   importedRef.current = imported;
 
   // effects — a fresh dialog starts clean; leftovers of abandoned imports
@@ -168,14 +208,58 @@ export default function DialogCreateBaseMapFromScene3d({
     setFinalizeProgress(null);
     setErrorMessage(null);
     setImported(null);
+    setSample(null);
+    setPointPreview(null);
     setZoneValue({ rotationDeg: 0, polygonScan: null });
+    setUp("Z");
+    setImageMode("density");
     setName("");
     purgeOrphanScene3dAssetsService().catch((error) => {
       console.error("[scene3d] orphan purge failed", error);
     });
   }, [open]);
 
-  // preview object URL
+  // A scan of the Ressources: its file is the selection, read right away.
+  useEffect(() => {
+    if (!open || !scanResource) return;
+    let alive = true;
+    scanResources.source(scanResource).then(
+      (file) => {
+        if (!alive) return;
+        if (!file) {
+          setErrorMessage(missingFileS);
+          return;
+        }
+        const zone = scanResource.scan?.zone;
+        const next = {
+          plyFile: file,
+          kind: "POINTS",
+          resource: scanResource,
+          vertexCount: scanResource.scan?.count ?? null,
+          totalBytes: file.size,
+        };
+        setSelection(next);
+        setName(stripExtension(file.name));
+        if (zone) {
+          setUp(zone.up === "Y" ? "Y" : "Z");
+          setZoneValue({
+            rotationDeg: zone.rotationDeg ?? 0,
+            polygonScan: zone.polygon ?? null,
+          });
+        }
+        void handleImport(next);
+      },
+      (error) => {
+        if (alive) setErrorMessage(error?.message ?? missingFileS);
+      }
+    );
+    return () => {
+      alive = false;
+    };
+    // the resource is read once per opening
+  }, [open, scanResource]);
+
+  // mesh preview object URL
   useEffect(() => {
     if (!imported?.preview?.blob) {
       setPreviewUrl(null);
@@ -186,7 +270,32 @@ export default function DialogCreateBaseMapFromScene3d({
     return () => URL.revokeObjectURL(url);
   }, [imported]);
 
-  // a converted scan that leaves the dialog without a base map is deleted
+  // point cloud preview: top-down projection of the sample for the chosen
+  // vertical axis, in the image mode of the future base map
+  useEffect(() => {
+    if (!sample) {
+      setPointPreview(null);
+      return undefined;
+    }
+    let alive = true,
+      url = null;
+    buildLocalScanZonePreview(sample, up, imageMode).then(
+      (next) => {
+        url = next.url;
+        if (!alive) return URL.revokeObjectURL(url);
+        setPointPreview(next);
+      },
+      (error) => {
+        if (alive) setErrorMessage(error?.message);
+      }
+    );
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [sample, up, imageMode]);
+
+  // a converted mesh that leaves the dialog without a base map is deleted
   useEffect(() => {
     if (open) return undefined;
     const pending = importedRef.current;
@@ -206,13 +315,31 @@ export default function DialogCreateBaseMapFromScene3d({
   const canImport = Boolean(selection?.plyFile) && !isImporting;
   const canCreate = step === "ZONE" && name.trim().length > 0 && !isFinalizing;
 
-  const bbox = imported?.descriptor?.bbox;
+  const bbox = isPoints ? pointPreview?.bbox : imported?.descriptor?.bbox;
+  const wholePolygon = bbox ? getScene3dBboxPolygon(bbox) : null;
   const currentZone =
-    bbox &&
+    wholePolygon &&
     getZoneFromPolygon(
-      zoneValue.polygonScan ?? getScene3dBboxPolygon(bbox),
+      zoneValue.polygonScan ?? wholePolygon,
       zoneValue.rotationDeg
     );
+  const zoneEditorProps = isPoints
+    ? pointPreview && {
+        previewUrl: pointPreview.url,
+        previewSize: pointPreview.size,
+        bbox: pointPreview.bbox,
+        pxPerMeter: pointPreview.pxPerMeter,
+      }
+    : imported &&
+      previewUrl && {
+        previewUrl,
+        previewSize: {
+          width: imported.preview.width,
+          height: imported.preview.height,
+        },
+        bbox,
+        pxPerMeter: imported.preview.pxPerMeter,
+      };
 
   // handlers
 
@@ -264,22 +391,39 @@ export default function DialogCreateBaseMapFromScene3d({
         size: plyFile.size,
         read: (start, end) => plyFile.slice(start, end).arrayBuffer(),
       });
-      const { textureFiles, missingNames } = matchScene3dFiles(
-        header.textureNames,
-        imageFiles
-      );
-      const usedFiles = textureFiles.filter(Boolean);
-      setSelection({
-        plyFile,
-        imageFiles: usedFiles,
-        textureCount: header.textureNames.length,
-        missingNames,
-        totalBytes: usedFiles.reduce((sum, f) => sum + f.size, plyFile.size),
-      });
-      if (!name) {
-        const dot = plyFile.name.lastIndexOf(".");
-        setName(dot > 0 ? plyFile.name.slice(0, dot) : plyFile.name);
+      const faceCount =
+        header.elements.find((element) => element.name === "face")?.count ?? 0;
+      if (faceCount > 0) {
+        const { textureFiles, missingNames } = matchScene3dFiles(
+          header.textureNames,
+          imageFiles
+        );
+        const usedFiles = textureFiles.filter(Boolean);
+        setSelection({
+          kind: "MESH",
+          plyFile,
+          imageFiles: usedFiles,
+          textureCount: header.textureNames.length,
+          missingNames,
+          totalBytes: usedFiles.reduce((sum, f) => sum + f.size, plyFile.size),
+        });
+      } else {
+        if (isReload) {
+          setSelection(null);
+          setErrorMessage(reloadPointsS);
+          return;
+        }
+        setSelection({
+          kind: "POINTS",
+          plyFile,
+          resource: null,
+          vertexCount:
+            header.elements.find((element) => element.name === "vertex")
+              ?.count ?? null,
+          totalBytes: plyFile.size,
+        });
       }
+      if (!name) setName(stripExtension(plyFile.name));
     } catch (error) {
       setSelection(null);
       setErrorMessage(ERROR_MESSAGES[error?.code] ?? error?.message);
@@ -294,14 +438,38 @@ export default function DialogCreateBaseMapFromScene3d({
 
   async function handleImportClick() {
     if (!canImport) return;
+    await handleImport(selection);
+  }
+
+  async function handleImport(current) {
     const controller = new AbortController();
     abortRef.current = controller;
     setErrorMessage(null);
+    if (current.kind === "POINTS") {
+      setImportProgress({ step: "SAMPLE", ratio: 0 });
+      try {
+        const next = await readLocalScanSample(current.plyFile, {
+          signal: controller.signal,
+          onProgress: (ratio) => setImportProgress({ step: "SAMPLE", ratio }),
+        });
+        setSample(next);
+        setStep("ZONE");
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error("[scene3d] point cloud sample failed", error);
+          setErrorMessage(error?.message ?? "La lecture du nuage a échoué.");
+        }
+      } finally {
+        setImportProgress(null);
+        abortRef.current = null;
+      }
+      return;
+    }
     setImportProgress({ step: "MESH", ratio: 0 });
     try {
       const result = await importScene3dFilesService({
-        plyFile: selection.plyFile,
-        imageFiles: selection.imageFiles,
+        plyFile: current.plyFile,
+        imageFiles: current.imageFiles,
         projectId,
         onProgress: setImportProgress,
         signal: controller.signal,
@@ -309,7 +477,7 @@ export default function DialogCreateBaseMapFromScene3d({
       if (isReload) {
         await handleReload(result);
       } else {
-        setImported({ ...result, imageFiles: selection.imageFiles });
+        setImported({ ...result, imageFiles: current.imageFiles });
         setStep("ZONE");
       }
     } catch (error) {
@@ -352,8 +520,21 @@ export default function DialogCreateBaseMapFromScene3d({
     }
   }
 
+  function handleUpChange(_event, next) {
+    if (!next || next === up) return;
+    // The drawn polygon belongs to the previous horizontal frame.
+    setZoneValue({ rotationDeg: 0, polygonScan: null });
+    setPointPreview(null);
+    setUp(next);
+  }
+
   async function handleCreateClick() {
-    if (!canCreate || !imported) return;
+    if (!canCreate) return;
+    if (isPoints) {
+      await handleCreatePoints();
+      return;
+    }
+    if (!imported) return;
     const { descriptor, atlases, textureNames, imageFiles } = imported;
     const { sceneId } = descriptor;
     const rotationDeg = zoneValue.rotationDeg || 0;
@@ -424,6 +605,53 @@ export default function DialogCreateBaseMapFromScene3d({
     }
   }
 
+  // Point cloud: the zone (source units, localScanZone.js) is decoded and
+  // projected over its whole height in the preview image mode.
+  async function handleCreatePoints() {
+    if (!pointPreview || !sample) return;
+    const zone = {
+      up,
+      polygon: zoneValue.polygonScan,
+      rotationDeg: zoneValue.rotationDeg ?? 0,
+      // scan floor = scene zero height (recentred on the zone)
+      baseZ: pointPreview.floor,
+      recenter: true,
+    };
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setStep("FINALIZE");
+    setErrorMessage(null);
+    setFinalizeProgress({ step: "DECODE", ratio: 0 });
+    try {
+      const entity = await createScanBaseMapFromZoneService({
+        source: selection.plyFile,
+        resource: selection.resource,
+        zone,
+        wholePolygon,
+        mode: imageMode,
+        name: name.trim(),
+        listing,
+        projectId,
+        axesYawDeg,
+        createBaseMapFromImage,
+        onProgress: setFinalizeProgress,
+        signal: controller.signal,
+      });
+      setFinalizeProgress({ step: "CREATE", ratio: 1 });
+      onCreated?.(entity);
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("[localScans] base map creation failed", error);
+      const message = error?.message ?? "La création du fond de plan a échoué.";
+      setErrorMessage(message);
+      dispatch(setToaster({ message, isError: true }));
+      setStep("ZONE");
+    } finally {
+      setFinalizeProgress(null);
+      abortRef.current = null;
+    }
+  }
+
   // render
 
   const importRatio = getProgressRatio(IMPORT_STEP_RANGES, importProgress);
@@ -431,6 +659,16 @@ export default function DialogCreateBaseMapFromScene3d({
     FINALIZE_STEP_RANGES,
     finalizeProgress
   );
+
+  const selectionInfoS = selection
+    ? isPoints
+      ? `${pointsS}${
+          selection.vertexCount
+            ? ` · ${selection.vertexCount.toLocaleString("fr-FR")} points`
+            : ""
+        } · ${formatScene3dBytes(selection.totalBytes)}`
+      : `${selection.imageFiles.length} / ${selection.textureCount} textures · ${formatScene3dBytes(selection.totalBytes)}`
+    : "";
 
   const filesPanel = (
     <Paper
@@ -523,9 +761,9 @@ export default function DialogCreateBaseMapFromScene3d({
             {selection.plyFile.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {`${selection.imageFiles.length} / ${selection.textureCount} textures · ${formatScene3dBytes(selection.totalBytes)}`}
+            {selectionInfoS}
           </Typography>
-          {selection.missingNames.length > 0 && (
+          {!isPoints && selection.missingNames.length > 0 && (
             <Alert severity="warning" sx={{ mt: 0.5 }}>
               {`Textures manquantes (affichées sans image) : ${selection.missingNames.join(", ")}`}
             </Alert>
@@ -533,7 +771,7 @@ export default function DialogCreateBaseMapFromScene3d({
         </Box>
       )}
 
-      {!isReload && (
+      {!isReload && !isPoints && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2" sx={{ flex: 1 }}>
             {imageSizeS}
@@ -604,6 +842,17 @@ export default function DialogCreateBaseMapFromScene3d({
     </Paper>
   );
 
+  // point cloud: the preview of the sample is being rebuilt (axis / image
+  // mode change)
+  const pointPreviewPanel = (
+    <Paper sx={{ p: 2, width: 360 }}>
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        {errorMessage ?? "Projection de l’aperçu du nuage…"}
+      </Typography>
+      {!errorMessage && <LinearProgress />}
+    </Paper>
+  );
+
   return (
     <Dialog open={open} onClose={handleClose} fullScreen>
       <Box
@@ -619,24 +868,49 @@ export default function DialogCreateBaseMapFromScene3d({
           justifyContent: "center",
         }}
       >
-        {step === "ZONE" && imported && previewUrl && (
+        {step === "ZONE" && zoneEditorProps && (
           <Box sx={{ position: "absolute", inset: 0 }}>
             <Scene3dZoneEditor
-              previewUrl={previewUrl}
-              previewSize={{
-                width: imported.preview.width,
-                height: imported.preview.height,
-              }}
-              bbox={bbox}
-              pxPerMeter={imported.preview.pxPerMeter}
+              key={isPoints ? up : "mesh"}
+              {...zoneEditorProps}
               value={zoneValue}
               onChange={setZoneValue}
             />
           </Box>
         )}
+        {step === "ZONE" && isPoints && !zoneEditorProps && pointPreviewPanel}
 
         {step === "FILES" && filesPanel}
         {step === "FINALIZE" && finalizePanel}
+
+        {step === "ZONE" && isPoints && sample && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 2,
+            }}
+          >
+            <Paper sx={{ px: 2, py: 1, maxWidth: 420 }}>
+              <Typography variant="subtitle2">{titleS}</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {selection.plyFile.name}
+                {` · aperçu ${sample.count.toLocaleString("fr-FR")} / ${sample.sourceCount.toLocaleString("fr-FR")} points`}
+              </Typography>
+              {sample.kind === "SPLAT" && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block" }}
+                >
+                  {splatS}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        )}
 
         {step !== "FINALIZE" && (
           <Box sx={{ position: "absolute", top: 16, right: 16, zIndex: 2 }}>
@@ -670,6 +944,38 @@ export default function DialogCreateBaseMapFromScene3d({
                   {zoneSizeS(currentZone)}
                 </Typography>
               )}
+              {isPoints && (
+                <>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" noWrap>
+                      {upS}
+                    </Typography>
+                    <ToggleButtonGroup
+                      size="small"
+                      exclusive
+                      value={up}
+                      onChange={handleUpChange}
+                    >
+                      <ToggleButton value="Z">Z</ToggleButton>
+                      <ToggleButton value="Y">Y</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" noWrap>
+                      {imageModeS}
+                    </Typography>
+                    <ToggleButtonGroup
+                      size="small"
+                      exclusive
+                      value={imageMode}
+                      onChange={(_e, next) => next && setImageMode(next)}
+                    >
+                      <ToggleButton value="density">{densityS}</ToggleButton>
+                      <ToggleButton value="rgb">{rgbS}</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                </>
+              )}
               <TextField
                 size="small"
                 placeholder={namePlaceholderS}
@@ -681,7 +987,7 @@ export default function DialogCreateBaseMapFromScene3d({
                 label={createS}
                 variant="contained"
                 color="secondary"
-                disabled={!canCreate}
+                disabled={!canCreate || (isPoints && !pointPreview)}
                 onClick={handleCreateClick}
               />
             </Paper>

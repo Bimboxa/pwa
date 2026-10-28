@@ -60,6 +60,11 @@ const businessObjectsInitialState = {
   treeStateFilter: "ALL",
   // picking mode: business object armed for link/unlink clicks on the map
   linkingBusinessObjectId: null,
+  // picking mode flavour — "LINK": a click toggles a rel ("Lien par
+  // annotation"); "EXCLUDE": a click toggles an exclusion from the object's
+  // "Lien par modèle" (excludedAnnotationIds). Meaningful only while
+  // linkingBusinessObjectId is set; back to "LINK" whenever it is cleared.
+  linkingMode: "LINK",
   // picking mode: work package armed for link/unlink clicks on the map
   // (one live link per annotation and listing — replace rule)
   linkingWorkPackageId: null,
@@ -73,6 +78,7 @@ function resetObjectFocus(state) {
   state.soloBusinessObjectId = null;
   state.soloWorkPackageId = null;
   state.linkingBusinessObjectId = null;
+  state.linkingMode = "LINK";
   state.linkingWorkPackageId = null;
 }
 
@@ -116,6 +122,7 @@ export const businessObjectsSlice = createSlice({
       if (action.payload) {
         state.activeBusinessObjectId = null;
         state.linkingBusinessObjectId = null;
+        state.linkingMode = "LINK";
       }
     },
     setSoloBusinessObjectId: (state, action) => {
@@ -128,7 +135,10 @@ export const businessObjectsSlice = createSlice({
     },
     setLinkingWorkPackageId: (state, action) => {
       state.linkingWorkPackageId = action.payload;
-      if (action.payload) state.linkingBusinessObjectId = null;
+      if (action.payload) {
+        state.linkingBusinessObjectId = null;
+        state.linkingMode = "LINK";
+      }
     },
     setPanelTabKey: (state, action) => {
       state.panelTabKey = action.payload;
@@ -145,9 +155,16 @@ export const businessObjectsSlice = createSlice({
     setTreeScopeId: (state, action) => {
       state.treeScopeId = action.payload ?? null;
     },
+    // payload: an object id (LINK mode) | {id, mode: "LINK" | "EXCLUDE"} |
+    // null (exit the picking mode)
     setLinkingBusinessObjectId: (state, action) => {
-      state.linkingBusinessObjectId = action.payload;
-      if (action.payload) state.linkingWorkPackageId = null;
+      const payload = action.payload;
+      const isObject = payload !== null && typeof payload === "object";
+      const id = (isObject ? payload.id : payload) ?? null;
+      const mode = isObject && payload.mode === "EXCLUDE" ? "EXCLUDE" : "LINK";
+      state.linkingBusinessObjectId = id;
+      state.linkingMode = id ? mode : "LINK";
+      if (id) state.linkingWorkPackageId = null;
     },
     setTreeStateFilter: (state, action) => {
       state.treeStateFilter = action.payload ?? "ALL";

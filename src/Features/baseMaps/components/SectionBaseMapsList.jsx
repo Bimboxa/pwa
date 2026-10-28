@@ -156,6 +156,8 @@ export default function SectionBaseMapsList({
   const emptyS = "Aucun fond de plan";
   const othersS = "Autres";
   const versionS = "Version";
+  const scansHiddenGloballyS =
+    "3D masquée par le sélecteur Scan 3D de la barre du bas";
   const newBaseMapS = "Nouveau fond de plan";
   const autoVisibilityS = "Visibilité auto";
   const autoVisibilityTooltipS =
@@ -192,6 +194,13 @@ export default function SectionBaseMapsList({
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
+  );
+  // Bottom bar « Scan 3D » selector: an explicit « Masqué » (with the
+  // « Zmap » off) hides every scan whatever the chips, which are then
+  // frozen (off, not editable).
+  const scansHiddenGlobally = useSelector(
+    (s) =>
+      s.viewers.baseMapsScanMode === "NONE" && !s.viewers.baseMapsZMapVisible
   );
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
@@ -400,11 +409,19 @@ export default function SectionBaseMapsList({
     return { isMain, imageEye, annotationsBadge, scanButton, versionChip };
   }
 
-  // « Scan » chip of the base maps carrying a scan: « Scène 3D » mesh
+  // « 3D » chip of the base maps carrying a 3D model: « Scène 3D » mesh
   // (disabled unless displayed as a mesh) or local point cloud (shown with
   // the bottom bar « Scan 3D » mode).
   function getScanButton(map) {
     if (!map.scene3d && !map.localScan) return null;
+    if (scansHiddenGlobally) {
+      return {
+        on: false,
+        disabled: true,
+        disabledTooltip: scansHiddenGloballyS,
+        onToggle: null,
+      };
+    }
     return {
       on: !hiddenScanIds.includes(map.id),
       disabled: Boolean(map.scene3d) && getScene3dDisplay3d(map) !== "MESH",

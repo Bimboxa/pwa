@@ -32,7 +32,7 @@ export default function RowBaseMapInList({
   isMain,
   imageEye, // null | { on, onToggle }
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
-  scanButton, // null | { on, disabled, onToggle }
+  scanButton, // null | { on, disabled, disabledTooltip?, onToggle }
   versionChip, // null | { label, onOpen }
   actions = null, // null | ReactNode
   renaming = null, // null | { value, onChange, onConfirm, onCancel }
@@ -45,9 +45,9 @@ export default function RowBaseMapInList({
   const showImageS = "Afficher l'image du fond de plan";
   const hideAnnotationsS = "Masquer les annotations";
   const showAnnotationsS = "Afficher les annotations";
-  const hideScanS = "Masquer le scan 3D";
-  const showScanS = "Afficher le scan 3D";
-  const scanOffS = "Scan non affiché (Affichage 3D : projection / masqué)";
+  const hideScanS = "Masquer la 3D du fond de plan (scan ou maillage)";
+  const showScanS = "Afficher la 3D du fond de plan (scan ou maillage)";
+  const scanOffS = "3D non affichée (Affichage 3D : projection / masqué)";
   const versionS = "Changer de version";
 
   // data
@@ -230,12 +230,13 @@ export default function RowBaseMapInList({
         </Tooltip>
       )}
 
-      {/* « Scan » button — base maps carrying a scan, left of the badge */}
+      {/* « 3D » button — base maps carrying a 3D model (point cloud or
+          mesh), left of the badge */}
       {scanButton && (
         <Tooltip
           title={
             scanButton.disabled
-              ? scanOffS
+              ? (scanButton.disabledTooltip ?? scanOffS)
               : scanButton.on
                 ? hideScanS
                 : showScanS
@@ -279,7 +280,7 @@ export default function RowBaseMapInList({
                     : "text.disabled",
               }}
             >
-              Scan
+              3D
             </Typography>
           </Box>
         </Tooltip>

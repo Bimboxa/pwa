@@ -2,6 +2,7 @@
 import { Component, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import ScanPanelError from "./ScanPanelError";
+import useHasLocalScanBaseMaps from "../hooks/useHasLocalScanBaseMaps";
 import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
@@ -30,13 +31,17 @@ export default function LocalScansGate({
   hidden = false,
   inactive = false,
 }) {
-  const enabled = useSelector(
-    (s) =>
-      !selectDisabledToolKeys(s).includes("SCAN_3D") &&
-      !(
-        selectDisabledToolKeysByModule(s)[s.viewers.selectedViewerKey] ?? []
-      ).includes("SCAN_3D")
-  );
+  // The tool exists only with a scan base map in an active folder (same
+  // gate as the right band, useRightPanelTools).
+  const hasLocalScanBaseMaps = useHasLocalScanBaseMaps();
+  const enabled =
+    useSelector(
+      (s) =>
+        !selectDisabledToolKeys(s).includes("SCAN_3D") &&
+        !(
+          selectDisabledToolKeysByModule(s)[s.viewers.selectedViewerKey] ?? []
+        ).includes("SCAN_3D")
+    ) && hasLocalScanBaseMaps;
   const selected = useSelector(
     (s) => s.rightPanel.selectedMenuItemKey === "SCAN_3D"
   );

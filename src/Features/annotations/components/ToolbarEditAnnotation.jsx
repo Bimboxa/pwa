@@ -65,6 +65,7 @@ import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
+import SectionBusinessObjectBandInToolbar from "Features/businessObjects/components/SectionBusinessObjectBandInToolbar";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
@@ -782,6 +783,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
         {/* Row 5 - Zones band (ZONES module): link the selection to zones */}
         {!hasPart && selectedAnnotation && (
           <SectionZonesBandInToolbar annotations={[selectedAnnotation]} />
+        )}
+
+        {/* Row 6 - Business object band (business-objects modules, active
+            object): link / exclude the selection, U / L / S formula */}
+        {!hasPart && selectedAnnotation && (
+          <SectionBusinessObjectBandInToolbar
+            annotations={[selectedAnnotation]}
+          />
         )}
 
         {/* Template selector menu (same type) */}

@@ -12,6 +12,7 @@ import { LINK_BUSINESS_OBJECT_INTERCEPTOR_KEY } from "Features/businessObjects/c
 import setMainAnnotationForBusinessObjectService from "Features/businessObjects/services/setMainAnnotationForBusinessObjectService";
 import linkAnnotationsToBusinessObjectService from "Features/businessObjects/services/linkAnnotationsToBusinessObjectService";
 import allowsMultipleLocationAnnotations from "Features/businessObjects/utils/allowsMultipleLocationAnnotations";
+import { isTemplateLinked } from "Features/businessObjects/utils/linkedTemplateIds";
 
 // ---------------------------------------------------------------------------
 // drawingCommitInterceptors — declarative registry for the deferred drawing
@@ -168,6 +169,11 @@ const registry = {
         context.businessObjectId
       );
       if (!businessObject || businessObject.deletedAt) return;
+      // A template linked by template already feeds the object with the new
+      // annotation: no redundant rel (an exclusion later would have to
+      // delete a rel the user never saw).
+      if (isTemplateLinked(businessObject, annotation.annotationTemplateId))
+        return;
 
       try {
         const newRels = await linkAnnotationsToBusinessObjectService({

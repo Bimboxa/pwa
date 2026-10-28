@@ -98,3 +98,63 @@ test("objects are independent", () => {
   assert.equal(rows(result, "o2")[0].byAnnotation, true);
   assert.equal(rows(result, "o2")[0].byTemplate, true);
 });
+
+test("excluded annotation leaves the template expansion", () => {
+  const result = resolveBusinessObjectAnnotationLinks({
+    rels: [],
+    annotations,
+    businessObjects: [
+      { id: "o1", linkedTemplateIds: ["t1"], excludedAnnotationIds: ["a1"] },
+    ],
+  });
+  assert.deepEqual(
+    rows(result, "o1").map((r) => r.annotation.id),
+    ["a2"]
+  );
+});
+
+test("exclusion of an annotation whose template is not linked is ignored", () => {
+  const result = resolveBusinessObjectAnnotationLinks({
+    rels: [{ id: "r1", annotationId: "a3", businessObjectId: "o1" }],
+    annotations,
+    businessObjects: [
+      { id: "o1", linkedTemplateIds: ["t1"], excludedAnnotationIds: ["a3"] },
+    ],
+  });
+  // a3 (t2, rel-linked) still counts; t1 expands fully
+  assert.deepEqual(
+    rows(result, "o1").map((r) => r.annotation.id),
+    ["a3", "a1", "a2"]
+  );
+});
+
+test("rel + exclusion on the same pair: the rel wins", () => {
+  const rel = { id: "r1", annotationId: "a1", businessObjectId: "o1" };
+  const result = resolveBusinessObjectAnnotationLinks({
+    rels: [rel],
+    annotations,
+    businessObjects: [
+      { id: "o1", linkedTemplateIds: ["t1"], excludedAnnotationIds: ["a1"] },
+    ],
+  });
+  const o1 = rows(result, "o1");
+  assert.deepEqual(
+    o1.map((r) => r.annotation.id),
+    ["a1", "a2"]
+  );
+  assert.equal(o1[0].rel, rel);
+  assert.equal(o1[0].byAnnotation, true);
+  assert.equal(o1[0].byTemplate, false);
+});
+
+test("exclusions on a rels-only object change nothing", () => {
+  const result = resolveBusinessObjectAnnotationLinks({
+    rels: [{ id: "r1", annotationId: "a1", businessObjectId: "o1" }],
+    annotations,
+    businessObjects: [{ id: "o1", excludedAnnotationIds: ["a1", "a2"] }],
+  });
+  assert.deepEqual(
+    rows(result, "o1").map((r) => r.annotation.id),
+    ["a1"]
+  );
+});

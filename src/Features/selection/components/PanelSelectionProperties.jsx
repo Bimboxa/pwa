@@ -91,7 +91,14 @@ export default function PanelSelectionProperties() {
 
   // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
   // node / point / segment / guideline selections resolve the same way in both.
-  const isCanvasViewer = isMapViewer || isBaseMapsViewer;
+  // The business-objects modules display the shared "MAP" editor instance
+  // (get2dEditorKeyForModule): without them here, a multi-annotation or vertex
+  // selection fell through to showAnnotationsProperties and showed the
+  // single-annotation panel of the first clicked item.
+  const isCanvasViewer =
+    isMapViewer ||
+    isBaseMapsViewer ||
+    isBusinessObjectsModuleKey(selectedViewerKey);
 
   // Root of the selection: nothing selected. Each module then shows its own
   // default panel (getModuleRootPanelType). A typeless item (`{}` left by

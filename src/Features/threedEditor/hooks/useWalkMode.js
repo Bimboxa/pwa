@@ -4,6 +4,8 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { Vector3 } from "three";
 
 import { setWalkModeActive } from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsScanMode } from "Features/viewers/viewersSlice";
+import { BASE_MAPS_SCAN_MODE_OPTIONS } from "Features/baseMaps/constants/baseMapsScanMode";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
@@ -19,6 +21,9 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { prepareScene3dPicking } from "Features/scene3d/services/intersectScene3d";
 import createScene3dGroundSampler from "Features/scene3d/utils/createScene3dGroundSampler";
+import createLocalScanGroundSampler from "Features/localScans/utils/createLocalScanGroundSampler";
+import { ensureLocalScanHeightMap } from "Features/localScans/services/localScanHeightMapService";
+import { getLocalScanHeightSceneId } from "Features/localScans/utils/localScanHeightSceneId";
 import {
   ensureScene3dHeightMap,
   getScene3dHeightMap,
@@ -138,8 +143,25 @@ export default function useWalkMode() {
   // plane. The sampler reads the height map lazily — null (still loading,
   // outside the zone, empty cell) falls back to the plane in the controller.
   const sceneId = mainBaseMap?.scene3d?.sceneId ?? null;
+  // Base map projected from a local point cloud: its Zmap (height map in
+  // the base map frame) is the ground, shown or not, as long as the base
+  // map's « Zmap pour le raycaster » switch is on (default) — else the
+  // plane.
+  const localScanSceneId =
+    !sceneId &&
+    mainBaseMap?.localScan?.resourceId &&
+    mainBaseMap.localScan.zMapRaycast !== false
+      ? getLocalScanHeightSceneId(mainBaseMap.id)
+      : null;
   const groundSampler = useMemo(() => {
-    if (!sceneId || transform.orientation !== "HORIZONTAL") return null;
+    if (transform.orientation !== "HORIZONTAL") return null;
+    if (localScanSceneId)
+      return createLocalScanGroundSampler({
+        transform,
+        planeY: groundY,
+        getHeightMap: () => getScene3dHeightMap(localScanSceneId),
+      });
+    if (!sceneId) return null;
     return createScene3dGroundSampler({
       baseMap: mainBaseMap,
       transform,
@@ -149,6 +171,7 @@ export default function useWalkMode() {
     // The transform is rebuilt every render: key on its scalar parts.
   }, [
     sceneId,
+    localScanSceneId,
     mainBaseMap,
     groundY,
     transform.orientation,
@@ -162,12 +185,17 @@ export default function useWalkMode() {
   // Make the height map of the scan available while walking (rasterized at
   // import; rebuilt once for older scans — see scene3dHeightMapStore).
   useEffect(() => {
-    if (!walkActive || !sceneId) return;
+    if (!walkActive) return;
+    if (localScanSceneId) {
+      ensureLocalScanHeightMap(mainBaseMap);
+      return;
+    }
+    if (!sceneId) return;
     ensureScene3dHeightMap(sceneId, {
       bbox: mainBaseMap?.scene3d?.bbox,
       projectId: mainBaseMap?.projectId,
     });
-  }, [walkActive, sceneId, mainBaseMap]);
+  }, [walkActive, sceneId, localScanSceneId, mainBaseMap]);
 
   // P hotkey — only while a 3D-family viewer is effectively displayed.
   // Registered at mount, i.e. BEFORE the controller's capture listeners: P
@@ -492,6 +520,14 @@ export default function useWalkMode() {
       onSprayNarrow: () => emitShoot(spray.scaleSpread(1 / SPREAD_STEP_FACTOR)),
       // C: free climb on / off, mirrored into the HUD legend.
       onToggleFreeClimb: (freeClimb) => emitShoot({ freeClimb }),
+      // V: scans display of the bottom bar, hidden → points → realistic
+      // (never chosen counts as hidden).
+      onCycleScanMode: () => {
+        const keys = BASE_MAPS_SCAN_MODE_OPTIONS.map((o) => o.key);
+        const current = store.getState().viewers.baseMapsScanMode;
+        const index = keys.indexOf(current);
+        dispatch(setBaseMapsScanMode(keys[(index + 1) % keys.length]));
+      },
     });
     controller.enter();
     controllerRef.current = controller;

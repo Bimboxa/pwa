@@ -43,6 +43,10 @@ export default function useUpdateBusinessObject() {
       // object ("Lien par modèle", see utils/linkedTemplateIds), replaced
       // as a whole
       linkedTemplateIds,
+      // [annotationId] — annotations removed from the template expansion
+      // ("Lien par modèle" exclusions, see utils/excludedAnnotationIds),
+      // replaced as a whole
+      excludedAnnotationIds,
       // {[fieldId]: value} — listing-model field values (Fiche tab), merged
       // into businessObject.fieldValues; an empty value drops the key
       fieldValues,
@@ -70,6 +74,8 @@ export default function useUpdateBusinessObject() {
     if (Array.isArray(qtyFormulas)) updates.qtyFormulas = qtyFormulas;
     if (Array.isArray(linkedTemplateIds))
       updates.linkedTemplateIds = linkedTemplateIds;
+    if (Array.isArray(excludedAnnotationIds))
+      updates.excludedAnnotationIds = excludedAnnotationIds;
     if (status != null) {
       const closed = status === BUSINESS_OBJECT_STATUS.CLOSED;
       updates.status = closed

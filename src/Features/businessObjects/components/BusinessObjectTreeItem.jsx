@@ -27,6 +27,7 @@ import {
   MoreHoriz,
   DragIndicator,
   AddLink,
+  LinkOff,
   DescriptionOutlined,
   ChevronRight,
   FilterAlt,
@@ -53,6 +54,7 @@ import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import { getLinkedTemplateIds } from "../utils/linkedTemplateIds";
 import {
   BUSINESS_OBJECT_STATUS,
   isBusinessObjectClosed,
@@ -135,6 +137,7 @@ export default function BusinessObjectTreeItem({
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
   );
+  const linkingMode = useSelector((s) => s.businessObjects.linkingMode);
 
   const toggleBusinessObjectSolo = useToggleBusinessObjectSolo();
   const openDocumentLink = useOpenBusinessObjectDocumentLink();
@@ -165,7 +168,12 @@ export default function BusinessObjectTreeItem({
   const isSelected = selectedBusinessObjectId === businessObject.id;
   const isActive = activeBusinessObjectId === businessObject.id;
   const isSolo = soloBusinessObjectId === businessObject.id;
-  const isLinking = linkingBusinessObjectId === businessObject.id;
+  const isArmed = linkingBusinessObjectId === businessObject.id;
+  const isLinking = isArmed && linkingMode === "LINK";
+  const isExcluding = isArmed && linkingMode === "EXCLUDE";
+  // "Lien par modèle" present: the EXCLUDE picking mode ("liaison −") is
+  // offered
+  const hasTemplateLinks = getLinkedTemplateIds(businessObject).length > 0;
   const isTitle = Boolean(businessObject.isTitle);
 
   const linkedCount = linkedAnnotations?.length ?? 0;
@@ -220,6 +228,9 @@ export default function BusinessObjectTreeItem({
   const linkingS = isLinking
     ? "Quitter le mode liaison"
     : "Lier des annotations au clic sur la carte";
+  const excludingS = isExcluding
+    ? "Quitter le mode exclusion"
+    : "Exclure des annotations au clic sur la carte (lien par modèle)";
   const menuS = "Plus d'actions";
   const drillS = "Voir le contenu";
   const qtyLabel =
@@ -352,6 +363,17 @@ export default function BusinessObjectTreeItem({
     dispatch(setLinkingBusinessObjectId(isLinking ? null : businessObject.id));
   }
 
+  // Same, EXCLUDE flavour: annotation clicks exclude / re-include the
+  // annotation from the object's "Lien par modèle".
+  function handleExcludingClick(e) {
+    e.stopPropagation();
+    dispatch(
+      setLinkingBusinessObjectId(
+        isExcluding ? null : { id: businessObject.id, mode: "EXCLUDE" }
+      )
+    );
+  }
+
   // Opens the linked document at the highlighted zone; several links: the
   // menu lists them.
   function handleDocumentsClick(e) {
@@ -463,6 +485,17 @@ export default function BusinessObjectTreeItem({
             color={isLinking ? "primary" : "default"}
           >
             <AddLink sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
+      {!readOnly && hasTemplateLinks && (
+        <Tooltip title={excludingS}>
+          <IconButton
+            size="small"
+            onClick={handleExcludingClick}
+            color={isExcluding ? "primary" : "default"}
+          >
+            <LinkOff sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       )}

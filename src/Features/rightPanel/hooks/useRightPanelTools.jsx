@@ -31,6 +31,8 @@ import {
   selectToolOrder,
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
+import useHasLocalScanBaseMaps from "Features/localScans/hooks/useHasLocalScanBaseMaps";
+
 import sortToolsByOrder from "../utils/sortToolsByOrder";
 
 // Tools that can never be disabled from the Configuration dialog:
@@ -100,6 +102,9 @@ export default function useRightPanelTools() {
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
   const toolOrder = useSelector(selectToolOrder);
   const hasTutorial = Boolean(useSelector(selectSelectedScopeTutorial));
+  // SCAN_3D edits the base maps projected from a point cloud: shown only
+  // while an active folder of the scope holds one.
+  const hasLocalScanBaseMaps = useHasLocalScanBaseMaps();
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -249,6 +254,7 @@ export default function useRightPanelTools() {
       ),
       viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS", "ZONES"],
       contextual: true,
+      disabled: !hasLocalScanBaseMaps,
     },
     // Settings of the editor actually displayed (3D view settings — the
     // former "Vue 3D" tool — when a 3D editor is active, 2D editor settings
