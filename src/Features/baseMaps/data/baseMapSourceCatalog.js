@@ -48,7 +48,7 @@ const BASE_MAP_SOURCE_CATALOG = [
   {
     key: "SCENE_3D",
     label: "Scène 3D",
-    caption: "Scan 3D (PLY + textures)",
+    caption: "Maillage ou nuage de points (PLY)",
   },
 ];
 

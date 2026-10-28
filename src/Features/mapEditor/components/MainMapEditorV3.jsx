@@ -622,7 +622,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     (s) => s.mapEditor.cursorAltitudeEnabled
   );
   const scene3dBaseMaps = useMemo(
-    () => (baseMap?.scene3d ? [baseMap] : []),
+    () => (baseMap?.scene3d || baseMap?.localScan ? [baseMap] : []),
     [baseMap]
   );
   usePrepareScene3dHeightMaps(cursorAltitudeEnabled, scene3dBaseMaps);

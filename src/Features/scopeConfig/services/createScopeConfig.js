@@ -19,6 +19,7 @@ export default async function createScopeConfig({
   disabledModuleKeys,
   disabledToolKeys,
   disabledToolKeysByModule,
+  disabledBaseMapSourceKeys,
   moduleLabelsByKey,
   moduleIconKeysByKey,
   moduleOrder,
@@ -45,6 +46,10 @@ export default async function createScopeConfig({
       knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
       disabledToolKeys: disabledToolKeys ?? [...DEFAULT_DISABLED_TOOL_KEYS],
       disabledToolKeysByModule: disabledToolKeysByModule ?? {},
+      // creation sources of the Fonds de plan section (absent => app default)
+      ...(disabledBaseMapSourceKeys !== undefined && {
+        disabledBaseMapSourceKeys,
+      }),
       ...(moduleLabelsByKey !== undefined && { moduleLabelsByKey }),
       ...(moduleIconKeysByKey !== undefined && { moduleIconKeysByKey }),
       ...(moduleOrder !== undefined && { moduleOrder }),

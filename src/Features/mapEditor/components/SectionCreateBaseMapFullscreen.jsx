@@ -49,6 +49,9 @@ import DialogCreateBaseMapFromSatellite from "Features/satelliteMap/components/D
 import DialogCreateBaseMapFromScene3d from "Features/scene3d/components/DialogCreateBaseMapFromScene3d";
 import DialogSelectPdfResource from "Features/resources/components/DialogSelectPdfResource";
 
+import useResources from "Features/resources/hooks/useResources";
+import isLocalScanResource from "Features/localScans/utils/isLocalScanResource";
+
 import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
 
@@ -94,7 +97,9 @@ export default function SectionCreateBaseMapFullscreen({
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
   const scene3dTitleS = "Scène 3D";
-  const scene3dSubtitleS = "Scan 3D (PLY + textures)";
+  const scene3dSubtitleS = "Maillage ou nuage de points (PLY)";
+  const scanResourcesTitleS = "Choisir un scan 3D des ressources";
+  const noScanResourceS = "Aucun scan 3D dans les ressources du projet.";
 
   const computerS = "Ordinateur";
   const resourcesS = "Ressources";
@@ -125,6 +130,9 @@ export default function SectionCreateBaseMapFullscreen({
   const [openBlank, setOpenBlank] = useState(false);
   const [openSatellite, setOpenSatellite] = useState(false);
   const [openScene3d, setOpenScene3d] = useState(false);
+  // scan of the Ressources opened in the « Scène 3D » dialog (point cloud)
+  const [scene3dResource, setScene3dResource] = useState(null);
+  const [openScanResource, setOpenScanResource] = useState(false);
   const [openPdfResource, setOpenPdfResource] = useState(false);
 
   // data
@@ -134,6 +142,8 @@ export default function SectionCreateBaseMapFullscreen({
     useDefaultBaseMapsListingProps().name ?? "Fonds de plan";
   const createBaseMapFromImage = useCreateBaseMapFromImage();
   const openBaseMapCreatorFromResource = useOpenBaseMapCreatorFromResource();
+  // « Ressources » of the Scène 3D card: only with a scan 3D resource
+  const hasScanResources = useResources().some(isLocalScanResource);
 
   const selectedBaseMapsListingId = useSelector(
     (s) => s.mapEditor.selectedBaseMapsListingId
@@ -341,8 +351,21 @@ export default function SectionCreateBaseMapFullscreen({
 
   function handleScene3dCreated(entity) {
     setOpenScene3d(false);
+    setScene3dResource(null);
     onCreated?.(entity);
     onClose?.();
+  }
+
+  function handleScene3dClose() {
+    setOpenScene3d(false);
+    setScene3dResource(null);
+  }
+
+  function handleScanResourceSelect(resource) {
+    setScene3dResource(resource);
+    setOpenScanResource(false);
+    setOpenScene3d(true);
+    return true;
   }
 
   // render
@@ -632,14 +655,26 @@ export default function SectionCreateBaseMapFullscreen({
                   subtitle={scene3dSubtitleS}
                   illustration={<IllustrationScene3d />}
                   actions={
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      size="small"
-                      onClick={() => setOpenScene3d(true)}
-                    >
-                      {chooseFilesS}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        onClick={() => setOpenScene3d(true)}
+                      >
+                        {chooseFilesS}
+                      </Button>
+                      {hasScanResources && (
+                        <Button
+                          variant="outlined"
+                          color="inherit"
+                          size="small"
+                          onClick={() => setOpenScanResource(true)}
+                        >
+                          {resourcesS}
+                        </Button>
+                      )}
+                    </>
                   }
                 />
               )}
@@ -746,9 +781,19 @@ export default function SectionCreateBaseMapFullscreen({
 
       <DialogCreateBaseMapFromScene3d
         open={openScene3d}
-        onClose={() => setOpenScene3d(false)}
+        onClose={handleScene3dClose}
         listing={listing}
         onCreated={handleScene3dCreated}
+        scanResource={scene3dResource}
+      />
+
+      <DialogSelectPdfResource
+        open={openScanResource}
+        onClose={() => setOpenScanResource(false)}
+        onSelect={handleScanResourceSelect}
+        filter={isLocalScanResource}
+        title={scanResourcesTitleS}
+        emptyLabel={noScanResourceS}
       />
 
       <DialogSelectPdfResource

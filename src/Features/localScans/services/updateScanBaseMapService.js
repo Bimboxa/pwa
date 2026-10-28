@@ -5,6 +5,7 @@ import prepareScanBaseMap from "../utils/prepareScanBaseMap";
 import sliceImageFile from "../utils/sliceImageFile";
 import getLocalScanBaseMapFrame from "../utils/getLocalScanBaseMapFrame";
 import getLocalScanMatrixInBaseMap from "../utils/getLocalScanMatrixInBaseMap";
+import { buildLocalScanHeightMap } from "./localScanHeightMapService";
 
 // « Mettre à jour le fond de plan »: the image of a scan base map is
 // replaced by the current slice of the Scan 3D tool (Z range, scan pose
@@ -14,8 +15,9 @@ import getLocalScanMatrixInBaseMap from "../utils/getLocalScanMatrixInBaseMap";
 //   - annotations: the slice is re-rendered in the EXISTING raster (same
 //     size, scale and pose), so every annotation stays where it was; what
 //     falls outside the image is cropped.
-// The active version image is replaced in place and localScan.matrix
-// follows the scan pose. → {reframed}
+// The active version image is replaced in place, localScan.matrix follows
+// the scan pose and the height map (altimetry under the cursor) is rebuilt.
+// → {reframed}
 export default async function updateScanBaseMapService({
   baseMapId,
   view,
@@ -109,5 +111,17 @@ export default async function updateScanBaseMapService({
       });
     }
   );
+  try {
+    await buildLocalScanHeightMap({
+      baseMapId,
+      projectId: baseMap.projectId,
+      data: view.data,
+      rootMatrixWorld: root,
+      baseMap: { ...baseMap, ...patch },
+    });
+  } catch (error) {
+    // rebuilt later from the resource (ensureLocalScanHeightMap)
+    console.warn("[localScans] height map not rebuilt", error);
+  }
   return { reframed: !keepFrame };
 }

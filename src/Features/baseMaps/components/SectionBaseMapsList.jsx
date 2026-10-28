@@ -400,7 +400,7 @@ export default function SectionBaseMapsList({
     return { isMain, imageEye, annotationsBadge, scanButton, versionChip };
   }
 
-  // « Scan » chip of the base maps carrying a scan: « Scène 3D » mesh
+  // « 3D » chip of the base maps carrying a 3D model: « Scène 3D » mesh
   // (disabled unless displayed as a mesh) or local point cloud (shown with
   // the bottom bar « Scan 3D » mode).
   function getScanButton(map) {

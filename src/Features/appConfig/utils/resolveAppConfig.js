@@ -279,7 +279,11 @@ export default async function resolveAppConfig(appConfig) {
   //       disabledCoreModuleKeys,   // optional core modules to disable
   //                                 // (["SCOPE"]; enabled when absent)
   //       disabledToolKeys,        // root-disabled tools (persisted form)
-  //       disabledToolKeysByModule },
+  //       disabledToolKeysByModule,
+  //       disabledBaseMapSourceKeys }, // optional: creation sources hidden
+  //                                 // from the Fonds de plan section (keys
+  //                                 // of baseMapSourceCatalog; absent =>
+  //                                 // app default DXF + DWG)
   //     tutorial }                  // NOT declared in the file: derived here
   //                                 // from configurations/tutorials/<key>.md
   //                                 // when that file exists =>

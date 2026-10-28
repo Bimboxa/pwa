@@ -1,4 +1,5 @@
 import projectLocalScanSlice from "../utils/projectLocalScanSlice.js";
+import rasterizeLocalScanHeightMap from "../utils/rasterizeLocalScanHeightMap.js";
 
 let source,
   pending,
@@ -12,6 +13,16 @@ async function drain() {
       const job = pending;
       pending = null;
       try {
+        if (job.type === "HEIGHT_MAP") {
+          // Height map of a scan base map (one shot, no cancellation).
+          const result = rasterizeLocalScanHeightMap(
+            source.positions,
+            job.query
+          );
+          if (latestId === job.id)
+            self.postMessage({ id: job.id, result }, [result.data.buffer]);
+          continue;
+        }
         const result = await projectLocalScanSlice(source, job.query, {
           isCancelled: () => latestId !== job.id,
           yieldControl: () => new Promise((resolve) => setTimeout(resolve, 0)),

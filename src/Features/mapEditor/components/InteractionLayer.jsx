@@ -135,6 +135,9 @@ import getBaseMapTransform from 'Features/baseMaps/js/getBaseMapTransform';
 import getAnnotationHeightAtPoint from 'Features/annotations/utils/getAnnotationHeightAtPoint';
 import getScene3dHeightAtPx, { getScene3dScanPointFromPx } from 'Features/scene3d/utils/getScene3dHeightAtPx';
 import { ensureScene3dHeightMap, getScene3dHeightMap, getScene3dHeightMapEntryStatus } from 'Features/scene3d/services/scene3dHeightMapStore';
+import getLocalScanHeightAtPx from 'Features/localScans/utils/getLocalScanHeightAtPx';
+import { getLocalScanHeightSceneId } from 'Features/localScans/utils/localScanHeightSceneId';
+import { ensureLocalScanHeightMap } from 'Features/localScans/services/localScanHeightMapService';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
@@ -7179,6 +7182,41 @@ const InteractionLayer = forwardRef(({
         }
       } else {
         const height = getScene3dHeightAtPx(scanBaseMap, localPos, heightMap);
+        if (height !== null) {
+          badge.update({
+            x: viewportPos.x,
+            y: viewportPos.y,
+            main: `Z ${formatAltitude(baseMapZ + height)}`,
+            secondary: "",
+          });
+          return;
+        }
+      }
+    }
+
+    // 3. base map projected from a local point cloud: relief under the
+    // pointer (height map built at creation / update, rebuilt once for the
+    // older base maps — localScanHeightMapService)
+    if (!sceneId && baseMap?.localScan?.resourceId) {
+      const imageSize = baseMap.getImageSize?.();
+      const scanBaseMap = {
+        imageSize,
+        meterByPx: meterByPxRef.current || 0,
+      };
+      const heightMap = getScene3dHeightMap(
+        getLocalScanHeightSceneId(baseMap.id)
+      );
+      if (!heightMap) {
+        const status = ensureLocalScanHeightMap(baseMap);
+        const insideImage =
+          imageSize &&
+          localPos.x >= 0 &&
+          localPos.y >= 0 &&
+          localPos.x < imageSize.width &&
+          localPos.y < imageSize.height;
+        if (status === "LOADING" && insideImage) pending = true;
+      } else {
+        const height = getLocalScanHeightAtPx(scanBaseMap, localPos, heightMap);
         if (height !== null) {
           badge.update({
             x: viewportPos.x,

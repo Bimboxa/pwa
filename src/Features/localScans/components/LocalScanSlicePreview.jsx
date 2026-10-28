@@ -26,6 +26,8 @@ export default function LocalScanSlicePreview({
   stale = false,
   onRotate,
   overlayControls,
+  // Controls laid over the left edge of the image (the slice slider).
+  sideControls,
   aspectRatio = 297 / 210,
   onFramingChange,
 }) {
@@ -415,7 +417,7 @@ export default function LocalScanSlicePreview({
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              Définir l’image projetée dans l’onglet Projection.
+              Choisissez la tranche, puis cliquez sur Calculer.
             </Typography>
             {pending && (
               <Typography variant="caption">
@@ -424,8 +426,11 @@ export default function LocalScanSlicePreview({
             )}
           </Stack>
         )}
+        {sideControls}
         {overlayControls && (
-          <Box sx={{ position: "absolute", top: 6, left: 6 }}>
+          <Box
+            sx={{ position: "absolute", top: 6, left: sideControls ? 56 : 6 }}
+          >
             {overlayControls}
           </Box>
         )}

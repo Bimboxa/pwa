@@ -1,13 +1,17 @@
 # Local scan viewer (experimental)
 
-Enable **Configuration → Outils → Scan 3D**, using the normal per-scope
-and per-module tool activation. Open the right-hand **Scan 3D** tool and load
-a binary PLY. The engine starts only when the tool is first opened. The drawer
-starts at 500 px and can be resized from its left edge. It uses the standard
-property-panel header/sections, with the file name/count/size in the header and a model-action menu. The tool
-button carries a **Beta** badge. With no
-model loaded it shows a grayscale point-cloud room illustration and **Charger un scan 3D** below that header.
-The real-world scale and vertical axis must be confirmed by the operator.
+The **Scan 3D** tool of the right band edits the base maps projected from a
+point cloud. It appears only while an active folder of the scope holds one
+(`useHasLocalScanBaseMaps`; the per-scope / per-module tool activation of
+**Configuration → Outils** still applies). Those base maps are created from
+the **« Scène 3D »** card of the Fonds de plan creation
+(`DialogCreateBaseMapFromScene3d`, shared with the photogrammetry meshes —
+see "Base map creation" below). The drawer starts at 500 px and can be
+resized from its left edge. It uses the standard property-panel
+header/sections, with the base map name and the scan file/count/size in the
+header and a model-action menu (frame, load zone). The tool button carries a
+**Beta** badge. The real-world scale and vertical axis must be confirmed by
+the operator.
 
 ## Supported data
 
@@ -66,53 +70,76 @@ placement and only then releases the old copy. A failed migration leaves the
 original intact. `legacyScanKey` prevents duplicate entries if legacy cleanup
 fails. No bulk migration or change to unrelated resources occurs.
 
-## Tool tabs and lifecycle
+## Base map creation (« Scène 3D » card)
 
-- **Général**: file information, local persistence, points/realistic mode
-  (one state with the bottom bar « Scan 3D » selector, `viewers.baseMapsScanMode`;
-  Masqué or unset show points here, a non-Gaussian scan stays in points) and
-  point size (stored in `resource.scan.display`, kept visible but disabled in
-  « Réaliste »), shared projection preview, and the base map of the
-  slice: a name field (default: scan · mode · Z range) and a « + » button.
-  Creation uses the selected density/RGB raster through the standard base-map
-  creator, with `meterByPx`, an initial version, `createdFrom` scan provenance
-  and, for a saved scan, `localScan` (see Scan base maps). It stays local (no
-  initial remote save) and selects the new base map, which links the panel to
-  it (see Linked base map).
-- **Projection**: compact inclusive Z limits, centered density/mean-RGB selector,
-  a download button for the selected raster and optional hiding of points outside
-  the slice. Boundary highlighting uses a fixed ±2 cm tolerance.
-- **Position**: axis/scale, point inspection, move-to-origin and two-click
-  horizontal alignment in the shared preview.
+The « Scène 3D » card of the Fonds de plan creation accepts both PLY kinds,
+told apart by the header (`face` element or not): a mesh goes through the
+scene3d import, a point cloud through this feature. For a point cloud:
+**Choisir les fichiers** (or **Ressources**, shown only when the project
+holds a `LOCAL_SCAN_3D` resource — `isLocalScanResource`) reads a regular
+sample (≤ 2 M points, `readLocalScanSample`), shows its top-down projection
+in the `Scene3dZoneEditor` (zone rectangle / polygon / whole scan, rotation)
+with the vertical axis and the image type (**Densité** / **Couleurs**,
+`buildLocalScanZonePreview(sample, up, mode)`) in the bottom bar, then
+**Créer le fond de plan** runs `createScanBaseMapFromZoneService`: full
+decode of the zone, resource saved (or re-zoned when picked from the
+Ressources), placement `getScanZonePlacement` (zone X axis = displayed X,
+zone centre at the scan floor = scene zero), projection of the WHOLE height
+in the preview mode over the zone rectangle (`getLocalScanZoneFrame`,
+longest side 1024 px), base map at Z = 0 with `localScan`, `createdFrom`
+(type LOCAL_SCAN, mode, lower / upper = the full range) and its height map
+(see below). The decoded points are seeded in `localScanRuntime` so the 3D
+attaches the cloud without a second decode.
 
-Before a projection exists, every preview says **Définir l’image projetée dans
-l’onglet Projection**. Only **Calculer** starts generation. Its controller
-lives with the scan rather than inside a tab or the drawer: changing tabs or
-closing the drawer keeps results, bounds and placement. Inspection is active
-only in the visible Position tab. An unfinished projection is cancelled when inspection starts.
-Moving/rotating the model invalidates the preview until the next manual calculation;
-stale images cannot create a base map. Source data never enters Redux.
+## Panel sections and lifecycle
 
-Base-map creation uses the same compact Z input as the top bar (default 0 m).
-The new map stores its world-space center and yaw along with the raster scale.
-Its center includes the raster's partial edge pixels. Projection rows already
-follow horizontal base-map coordinates (image top = world -Z, the view from
-above), so the preview, the PNG download and the base map are the same
-picture. This aligns the image with the projected scan after translation,
-scaling and rotation, including rotated editor axes. The selected Z only sets
-the new map altitude and does not change the projection slice.
+The panel follows the SELECTED base map (see Linked base map); with another
+base map selected it only says so. No tabs — the sections, top to bottom:
+
+- **Affichage du modèle**: eye (the « 3D » chip of the base map), Points /
+  Réaliste (one state with the bottom bar « Scan 3D » selector,
+  `viewers.baseMapsScanMode`; Masqué or unset show points here, a
+  non-Gaussian scan stays in points) and point size (stored in
+  `resource.scan.display`, kept visible but disabled in « Réaliste »).
+- **Tranche et image projetée**: the preview on the full panel width with
+  the two-handle vertical slider laid over its left edge, the density /
+  mean-RGB selector over its top-left corner, the portrait / landscape
+  format beside the title; below the image the inclusive Z limits aligned
+  with **Calculer**, the count / resolution line with the PNG download,
+  and at the bottom the optional hiding of the points outside the slice
+  in 3D. Boundary highlighting uses a fixed ±2 cm tolerance. The preview
+  framing (format, zoom, pan) is the base map image of a re-framed update.
+- **Calibration**: vertical axis, metres per source unit (both written to
+  the resource placement so a later base map of the same scan starts
+  calibrated) and **Décalage Z du scan**: the vertical offset of the cloud
+  relative to the pose stored on the base map (0 at each pose application;
+  an edit shifts the placement origin along the source vertical axis).
+- Footer: **Mettre à jour le fond de plan** (`updateScanBaseMapService`),
+  enabled once the current slice is calculated.
+
+The former rotation sections (two-point horizontal axis, reset) are gone:
+the orientation is set from the 3D scene through the base map image. The
+point inspection (« Point de référence ») is gone too; the first-person
+laser meter keeps its own picker.
+
+Only **Calculer** starts generation. Its controller lives with the scan
+rather than inside the drawer: closing the drawer keeps results, bounds and
+placement. Moving the model invalidates the preview until the next manual
+calculation; stale images cannot update a base map. Source data never
+enters Redux.
 
 `Scan3dPanelHost` is the ordinary tool drawer; the persistent scan controller
-portals its controls there. The scene/input overlay stays in the editor. With
-the tool closed the model and optional clipping remain visible, and ordinary
-editing gestures resume. Other right-hand panels retain their existing widths.
+portals its controls there. With the tool closed the model and optional
+clipping remain visible, and ordinary editing gestures resume. Other
+right-hand panels retain their existing widths.
 
 ## Load zone
 
-A new PLY (and **Modifier la zone** in the model menu) first reads a regular
-sample of at most 2 M points and shows its top-down density in the
-`Scene3dZoneEditor` of the « Scène 3D » import: whole scan, rectangle or polygon,
-rotation and vertical axis. Every height is kept. The full decode
+**Modifier la zone** in the model menu (and the « Scène 3D » creation, see
+above) first reads a regular sample of at most 2 M points and shows its
+top-down density in the `Scene3dZoneEditor` of the « Scène 3D » import: whole
+scan, rectangle or polygon, rotation and vertical axis. From the panel the
+base map pose is kept: only the point set changes until **Mettre à jour**. Every height is kept. The full decode
 (`readLocalPly` with `zone`) then keeps the points inside the zone polygon only,
 so the memory peak follows the zone, not the file. The zone (source units) is
 stored in `resource.scan.zone` and reapplied on reopening. Its rotation sets the
@@ -141,7 +168,7 @@ affect it. Each base map keeps its own pose. One carrier per scan: the main
 base map when it carries it, else the first visible loaded one, and none while
 the Scan 3D tool shows that scan itself.
 
-Each scan base map row of the base maps list has a « Scan » chip (shared with
+Each scan base map row of the base maps list has a « 3D » chip (shared with
 the « Scène 3D » meshes, `hiddenScene3dBaseMapIdsIn3d`). With Points /
 Réaliste, a local scan base map whose chip is on takes part in the 3D scene for
 its cloud alone, even with its image and annotations off.
@@ -163,17 +190,34 @@ the base map carrier), places it at the base map pose
 following later moves of the map. The slice range and image mode come from
 `createdFrom`. The panel eye and the base map « Scan » chip are one state
 (`hiddenScene3dBaseMapIdsIn3d`); before the base map exists the eye is local to
-the panel. Position edits are not written to the resource while linked:
-the base map owns the pose. The creation row becomes **Mettre à jour le fond de
+the panel. Position edits are not written to the resource while linked (axis and scale
+excepted): the base map owns the pose. Deselecting it (or selecting a base
+map without scan) closes the scan in the tool. **Mettre à jour le fond de
 plan** (`updateScanBaseMapService`), enabled once the current slice is
-calculated. It replaces the active version image in place and updates
-`localScan.matrix` and `createdFrom`:
+calculated, replaces the active version image in place, updates
+`localScan.matrix`, `createdFrom` and the height map:
 
 - base map without annotations: re-framed like at creation (raster, scale,
   centre, angle; the altitude is kept);
 - base map with annotations: the slice is re-rendered in the existing raster
   (`getLocalScanBaseMapFrame`, same size, scale and pose) so every annotation
   stays in place; what falls outside the image is cropped.
+
+## Height map (altimetry under the cursor)
+
+Each scan base map carries a height map in `db.scene3dAssets` (kind HEIGHT,
+scene id `localScan:<baseMapId>` — `localScanHeightSceneId`), the same
+Uint16 "highest point seen from above" grid as the « Scène 3D » meshes
+(`rasterizeLocalScanHeightMap`, ≤ 2048 cells, 1 cm min), built in a
+projection worker in the BASE MAP GROUP frame (`getLocalScanHeightFrame`:
+u = image X, w = image up, h = height above the plane) so it survives every
+later move of the map (the cloud is glued to it). Built at creation and at
+each update (`buildLocalScanHeightMap`); base maps created before are
+rebuilt once from the resource (`ensureLocalScanHeightMap`, shared decode).
+The 2D « Altimétrie » badge reads it through `scene3dHeightMapStore` +
+`getLocalScanHeightAtPx` (InteractionLayer, `usePrepareScene3dHeightMaps`).
+The orphan purge and the base map deletion of the scene3d services know the
+`localScan:` rows.
 
 ## Verification
 
@@ -190,9 +234,9 @@ an actual project. It is not a production entry point. Use a separate browser
 profile; its IndexedDB source still occupies disk until deleted.
 
 Browser checks performed in desktop Chrome with the supplied PortalCam PLY
-(186,516,805 bytes, 2,742,882 Gaussians): points, splats, local save/reopen,
-placement persistence, invalid replacement, cancellation, disabling and
-resource removal. No external requests were issued by the harness. A test
+(186,516,805 bytes, 2,742,882 Gaussians) before the creation moved to the
+« Scène 3D » card: points, splats, local save/reopen, placement persistence,
+invalid replacement, cancellation, disabling and resource removal. No external requests were issued by the harness. A test
 production build with the same harness as an extra entry point also verified
 full-page reload and reopening/rendering offline through the service worker.
 Tablet performance and broad interaction with all editor tools are not yet

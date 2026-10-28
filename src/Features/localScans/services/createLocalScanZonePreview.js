@@ -16,10 +16,11 @@ export function readLocalScanSample(file, { signal, onProgress } = {}) {
   });
 }
 
-// Top-down density of the sample for one vertical axis. The caller revokes
+// Top-down projection of the sample for one vertical axis, in density
+// (default) or mean colours (`mode`: "density" | "rgb"). The caller revokes
 // `url`. → {url, size, pxPerMeter, bbox, floor}
 //   floor  1st height percentile of the sample (scan floor, outliers aside)
-export async function buildLocalScanZonePreview(sample, up) {
+export async function buildLocalScanZonePreview(sample, up, mode = "density") {
   const frame = getScanPreviewFrame(sample.bounds, up);
   const result = await projectLocalScanSlice(sample, {
     frame,
@@ -27,7 +28,7 @@ export async function buildLocalScanZonePreview(sample, up) {
     upper: frame.max[2],
     resolution: 1024,
   });
-  const file = await sliceImageFile(result, "density", "scan-zone.png");
+  const file = await sliceImageFile(result, mode, "scan-zone.png");
   const height = getUsefulScanHeight(sample.positions, frame.rows.slice(8), {
     min: frame.min[2],
     max: frame.max[2],

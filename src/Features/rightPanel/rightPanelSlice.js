@@ -2,7 +2,6 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const rightPanelInitialState = {
   scan3dWidth: 500,
-  scan3dTab: "GENERAL",
   width: 340, // fixed width for all tools except resizable ones
   elevationWidth: 300, // resizable width, MESH tool
   // Resizable width for the ELEVATION baseMap-viewer panel. Null = not yet
@@ -33,9 +32,6 @@ export const rightPanelSlice = createSlice({
     setScan3dWidth: (state, action) => {
       state.scan3dWidth = action.payload;
     },
-    setScan3dTab: (state, action) => {
-      state.scan3dTab = action.payload;
-    },
     setResourcesWidth: (state, action) => {
       state.resourcesWidth = action.payload;
     },
@@ -48,7 +44,6 @@ export const {
   setElevationViewerWidth,
   setResourcesWidth,
   setScan3dWidth,
-  setScan3dTab,
 } = rightPanelSlice.actions;
 
 export default rightPanelSlice.reducer;
