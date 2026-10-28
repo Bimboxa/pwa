@@ -319,6 +319,15 @@ export default function remapDexieExportIds(jsonData, opts) {
           remapId("annotationTemplates", id)
         );
       }
+      // Business objects: annotations excluded from the template links.
+      if (
+        tableName === "businessObjects" &&
+        Array.isArray(row.excludedAnnotationIds)
+      ) {
+        row.excludedAnnotationIds = row.excludedAnnotationIds.map((id) =>
+          remapId("annotations", id)
+        );
+      }
 
       // layerId may point at a GLOBAL layer (scope in layersMode "GLOBAL"):
       // the SIMPLE_FK pass above targets db.layers and falls through for an
@@ -328,11 +337,19 @@ export default function remapDexieExportIds(jsonData, opts) {
       }
       if (tableName === "baseMaps" && row.dxf) {
         row.dxf.listingId = remapId("listings", row.dxf.listingId);
-        row.dxf.annotationsVersionId = remapId("baseMapVersions", row.dxf.annotationsVersionId);
-        row.dxf.referenceVersionId = remapId("baseMapVersions", row.dxf.referenceVersionId);
+        row.dxf.annotationsVersionId = remapId(
+          "baseMapVersions",
+          row.dxf.annotationsVersionId
+        );
+        row.dxf.referenceVersionId = remapId(
+          "baseMapVersions",
+          row.dxf.referenceVersionId
+        );
         row.dxf.layers = (row.dxf.layers ?? []).map((layer) => ({
           ...layer,
-          layerId: idMap.globalLayers?.[layer.layerId] ?? remapId("layers", layer.layerId),
+          layerId:
+            idMap.globalLayers?.[layer.layerId] ??
+            remapId("layers", layer.layerId),
         }));
       }
 

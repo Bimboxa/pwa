@@ -41,6 +41,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
+import useSetBusinessObjectAnnotationExclusions from "../hooks/useSetBusinessObjectAnnotationExclusions";
 import useBusinessObjectHoursBudget from "../hooks/useBusinessObjectHoursBudget";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
@@ -66,7 +67,11 @@ import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import useBusinessObjectTypeOfListing from "../hooks/useBusinessObjectTypeOfListing";
 import resolveBusinessObjectAnnotationLinks from "../utils/resolveBusinessObjectAnnotationLinks";
-import { isTemplateLinked } from "../utils/linkedTemplateIds";
+import {
+  getLinkedTemplateIds,
+  isTemplateLinked,
+} from "../utils/linkedTemplateIds";
+import { getExcludedAnnotationIds } from "../utils/excludedAnnotationIds";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import {
   BUSINESS_OBJECT_STATUS,
@@ -123,6 +128,7 @@ export default function PanelBusinessObjectProperties() {
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
   );
+  const linkingMode = useSelector((s) => s.businessObjects.linkingMode);
 
   const businessObject = useLiveQuery(async () => {
     if (!businessObjectId) return null;
@@ -171,6 +177,7 @@ export default function PanelBusinessObjectProperties() {
   const annotationTemplates = useAnnotationTemplates();
   const spriteImage = useAnnotationSpriteImage();
   const updateBusinessObject = useUpdateBusinessObject();
+  const setExclusions = useSetBusinessObjectAnnotationExclusions();
 
   const { value: baseMaps } = useBaseMaps();
   const baseMapNameById = useMemo(() => {
@@ -314,7 +321,34 @@ export default function PanelBusinessObjectProperties() {
     [linkedRows, openedTemplateKey]
   );
 
-  const isLinking = linkingBusinessObjectId === businessObject?.id;
+  // annotations of the opened template EXCLUDED from its template link
+  // (dropped from linkedRows by the resolver, listed apart in the sub-panel)
+  const openedTemplateExcludedRows = useMemo(() => {
+    if (
+      openedTemplateKey === null ||
+      !businessObject ||
+      !isTemplateLinked(businessObject, openedTemplateKey)
+    )
+      return [];
+    const excludedIds = new Set(getExcludedAnnotationIds(businessObject));
+    if (excludedIds.size === 0) return [];
+    return (annotations ?? [])
+      .filter(
+        (annotation) =>
+          !annotation.isMeshCell &&
+          excludedIds.has(annotation.id) &&
+          getQtyFormulaKey(annotation.annotationTemplateId) ===
+            openedTemplateKey
+      )
+      .map((annotation) => ({ annotation, rel: null, excluded: true }));
+  }, [annotations, businessObject, openedTemplateKey]);
+
+  const isArmed = linkingBusinessObjectId === businessObject?.id;
+  const isLinking = isArmed && linkingMode === "LINK";
+  const isExcluding = isArmed && linkingMode === "EXCLUDE";
+  // "Lien par modèle" present: exclusions (and the EXCLUDE picking mode)
+  // make sense
+  const hasTemplateLinks = getLinkedTemplateIds(businessObject).length > 0;
 
   // helpers — hours budget of the selected task
 
@@ -427,6 +461,14 @@ export default function PanelBusinessObjectProperties() {
     dispatch(setLinkingBusinessObjectId(isLinking ? null : businessObject.id));
   }
 
+  function handleToggleExcluding() {
+    dispatch(
+      setLinkingBusinessObjectId(
+        isExcluding ? null : { id: businessObject.id, mode: "EXCLUDE" }
+      )
+    );
+  }
+
   // Back to the object's listing properties: the LISTING selection wins over
   // the object branch in the routing. The solo display is untouched — the
   // object row toggle owns it.
@@ -442,6 +484,23 @@ export default function PanelBusinessObjectProperties() {
     if (!rel) return;
     await db.relsBusinessObjectAnnotation.delete(rel.id);
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+  }
+
+  // "Lien par modèle" exclusions of ONE annotation (sub-panel rows)
+  function handleExclude(annotation) {
+    setExclusions({
+      businessObject,
+      annotationIds: [annotation.id],
+      excluded: true,
+    });
+  }
+
+  function handleReinclude(annotation) {
+    setExclusions({
+      businessObject,
+      annotationIds: [annotation.id],
+      excluded: false,
+    });
   }
 
   async function handlePull() {
@@ -497,11 +556,14 @@ export default function PanelBusinessObjectProperties() {
         businessObject={businessObject}
         template={annotationTemplateById[openedTemplateKey]}
         rows={openedTemplateRows}
+        excludedRows={openedTemplateExcludedRows}
         isLinkedByTemplate={isTemplateLinked(businessObject, openedTemplateKey)}
         baseMapNameById={baseMapNameById}
         spriteImage={spriteImage}
         onBack={() => setOpenedTemplateKey(null)}
         onUnlink={handleUnlink}
+        onExclude={handleExclude}
+        onReinclude={handleReinclude}
       />
     );
   }
@@ -849,8 +911,16 @@ export default function PanelBusinessObjectProperties() {
 
       {effectiveTab === "QTY" && (
         <>
-          {/* action: picking mode */}
-          <Box sx={{ p: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+          {/* actions: picking modes (link / exclude from the template links) */}
+          <Box
+            sx={{
+              p: 1,
+              display: "flex",
+              gap: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
             <Button
               size="small"
               variant={isLinking ? "contained" : "outlined"}
@@ -860,6 +930,19 @@ export default function PanelBusinessObjectProperties() {
             >
               {isLinking ? "Quitter le mode liaison (Échap)" : "Mode liaison"}
             </Button>
+            {hasTemplateLinks && (
+              <Button
+                size="small"
+                variant={isExcluding ? "contained" : "outlined"}
+                fullWidth
+                onClick={handleToggleExcluding}
+                startIcon={<LinkOff fontSize="small" />}
+              >
+                {isExcluding
+                  ? "Quitter le mode exclusion (Échap)"
+                  : "Mode exclusion"}
+              </Button>
+            )}
           </Box>
 
           {/* hours budget (tasks) + quantity summary + template cards */}

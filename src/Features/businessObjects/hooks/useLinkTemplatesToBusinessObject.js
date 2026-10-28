@@ -8,6 +8,10 @@ import {
   addLinkedTemplateIds,
   removeLinkedTemplateId,
 } from "../utils/linkedTemplateIds";
+import {
+  getExcludedAnnotationIds,
+  removeExcludedAnnotationIds,
+} from "../utils/excludedAnnotationIds";
 
 // "Lien par modèle": links / unlinks a business object to whole annotation
 // templates (businessObject.linkedTemplateIds, see utils/linkedTemplateIds).
@@ -48,15 +52,33 @@ export default function useLinkTemplatesToBusinessObject() {
     }
   }
 
-  async function unlinkTemplate({ businessObject, annotationTemplateId }) {
+  // annotationIdsToForget (optional): the template's annotation ids, whose
+  // exclusions become moot once the template link is gone (dropped from
+  // excludedAnnotationIds in the same write)
+  async function unlinkTemplate({
+    businessObject,
+    annotationTemplateId,
+    annotationIdsToForget,
+  }) {
     if (!businessObject?.id || !annotationTemplateId) return;
     try {
-      await updateBusinessObject(businessObject.id, {
+      const updates = {
         linkedTemplateIds: removeLinkedTemplateId(
           businessObject,
           annotationTemplateId
         ),
-      });
+      };
+      const forget = new Set(annotationIdsToForget ?? []);
+      if (
+        forget.size > 0 &&
+        getExcludedAnnotationIds(businessObject).some((id) => forget.has(id))
+      ) {
+        updates.excludedAnnotationIds = removeExcludedAnnotationIds(
+          businessObject,
+          [...forget]
+        );
+      }
+      await updateBusinessObject(businessObject.id, updates);
       dispatch(
         setToaster({
           message: `Lien par modèle retiré de "${businessObject.label}"`,

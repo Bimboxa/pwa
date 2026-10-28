@@ -2,23 +2,28 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { Paper, Box, Typography } from "@mui/material";
-import { AddLink as LinkIcon } from "@mui/icons-material";
+import { AddLink as LinkIcon, LinkOff } from "@mui/icons-material";
 
 import db from "App/db/db";
 
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import { getExcludedAnnotationIds } from "../utils/excludedAnnotationIds";
 
 // Floating helper shown while the business-object link mode is active
 // (PopperSubtractHelper pattern): the armed object, an instruction, the live
-// count of linked annotations, and the Escape shortcut to exit the mode.
+// count of linked (or excluded, in the EXCLUDE flavour) annotations, and the
+// Escape shortcut to exit the mode.
 // Mounted unconditionally in MainMapEditorV3 — self-guards on the flag.
 export default function PopperLinkBusinessObjectHelper() {
   // data
 
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
+  );
+  const isExcludeMode = useSelector(
+    (s) => s.businessObjects.linkingMode === "EXCLUDE"
   );
   const businessObjectsUpdatedAt = useSelector(
     (s) => s.businessObjects.businessObjectsUpdatedAt
@@ -47,7 +52,23 @@ export default function PopperLinkBusinessObjectHelper() {
 
   // helpers
 
-  const count = rels?.length ?? 0;
+  const count = isExcludeMode
+    ? getExcludedAnnotationIds(businessObject).length
+    : (rels?.length ?? 0);
+  const plural = count > 1 ? "s" : "";
+
+  // strings
+
+  const titleS = isExcludeMode ? "Mode exclusion" : "Mode liaison";
+  const instructionS = isExcludeMode
+    ? "Cliquez sur une annotation d'un modèle lié pour l'exclure du calcul, un second clic la réintègre."
+    : "Cliquez sur une annotation pour la lier à l'ouvrage, un second clic la délie.";
+  const countS = isExcludeMode
+    ? `${count} annotation${plural} exclue${plural}`
+    : `${count} annotation${plural} liée${plural}`;
+  const escapeS = isExcludeMode
+    ? "Quitter le mode exclusion"
+    : "Quitter le mode liaison";
 
   // render
 
@@ -80,16 +101,19 @@ export default function PopperLinkBusinessObjectHelper() {
           borderTopRightRadius: (t) => t.shape.borderRadius,
         }}
       >
-        <LinkIcon fontSize="small" />
+        {isExcludeMode ? (
+          <LinkOff fontSize="small" />
+        ) : (
+          <LinkIcon fontSize="small" />
+        )}
         <Typography variant="subtitle2" noWrap>
-          {`Mode liaison — ${businessObject.label}`}
+          {`${titleS} — ${businessObject.label}`}
         </Typography>
       </Box>
 
       <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Typography variant="body2" color="text.secondary">
-          Cliquez sur une annotation pour la lier à l&apos;ouvrage, un second
-          clic la délie.
+          {instructionS}
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -105,9 +129,7 @@ export default function PopperLinkBusinessObjectHelper() {
             />
           )}
           <Typography variant="caption" color="text.secondary">
-            {`${count} annotation${count > 1 ? "s" : ""} liée${
-              count > 1 ? "s" : ""
-            }`}
+            {countS}
           </Typography>
         </Box>
 
@@ -127,7 +149,7 @@ export default function PopperLinkBusinessObjectHelper() {
             Esc
           </Box>
           <Typography variant="caption" color="text.secondary">
-            Quitter le mode liaison
+            {escapeS}
           </Typography>
         </Box>
       </Box>

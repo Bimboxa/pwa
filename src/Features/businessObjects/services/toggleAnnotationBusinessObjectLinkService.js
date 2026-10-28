@@ -2,12 +2,17 @@ import db from "App/db/db";
 
 import getBusinessObjectLinkWrites from "../utils/getBusinessObjectLinkWrites";
 import isSingleObjectPerAnnotationListing from "../utils/isSingleObjectPerAnnotationListing";
+import {
+  isAnnotationExcluded,
+  removeExcludedAnnotationIds,
+} from "../utils/excludedAnnotationIds";
 
 // Picking mode: one click on an annotation links it to the armed business
 // object, a second click unlinks it. Linking follows the rule of
 // linkAnnotationsToBusinessObjectService (exclusive listings replace the
 // link to the other objects of the listing; the main annotation of another
-// object of the listing is left alone).
+// object of the listing is left alone) and lifts a "Lien par modèle"
+// exclusion of the annotation (a rel and an exclusion never coexist).
 // Returns "linked" | "unlinked" | "skipped".
 export default async function toggleAnnotationBusinessObjectLinkService({
   businessObject,
@@ -17,6 +22,7 @@ export default async function toggleAnnotationBusinessObjectLinkService({
     "rw",
     db.relsBusinessObjectAnnotation,
     db.listings,
+    db.businessObjects,
     async () => {
       const listingRels = (
         await db.relsBusinessObjectAnnotation
@@ -49,6 +55,15 @@ export default async function toggleAnnotationBusinessObjectLinkService({
         await db.relsBusinessObjectAnnotation.bulkDelete(relIdsToDelete);
       }
       await db.relsBusinessObjectAnnotation.bulkAdd(relsToAdd);
+
+      const current = await db.businessObjects.get(businessObject.id);
+      if (isAnnotationExcluded(current, annotationId)) {
+        await db.businessObjects.update(businessObject.id, {
+          excludedAnnotationIds: removeExcludedAnnotationIds(current, [
+            annotationId,
+          ]),
+        });
+      }
       return "linked";
     }
   );

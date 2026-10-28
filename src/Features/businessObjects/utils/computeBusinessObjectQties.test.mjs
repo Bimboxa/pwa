@@ -100,3 +100,25 @@ test("stale template id: nothing counted", () => {
   });
   assert.equal(qtiesByObjectId.o1, undefined);
 });
+
+test("template link: an excluded annotation leaves the sum", () => {
+  const { qtiesByObjectId, annotationsByObjectId } = computeBusinessObjectQties(
+    {
+      rels: [],
+      annotations,
+      businessObjects: [
+        {
+          id: "o1",
+          unit: "m²",
+          linkedTemplateIds: ["t1"],
+          excludedAnnotationIds: ["a2"],
+        },
+      ],
+    }
+  );
+  assert.equal(qtiesByObjectId.o1.surface, 10);
+  assert.deepEqual(
+    annotationsByObjectId.o1.map((a) => a.id),
+    ["a1"]
+  );
+});

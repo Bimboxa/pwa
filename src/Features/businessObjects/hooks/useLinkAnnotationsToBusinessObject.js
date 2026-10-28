@@ -1,6 +1,9 @@
 import { useDispatch } from "react-redux";
 
-import { triggerRelsBusinessObjectAnnotationUpdate } from "../businessObjectsSlice";
+import {
+  triggerBusinessObjectsUpdate,
+  triggerRelsBusinessObjectAnnotationUpdate,
+} from "../businessObjectsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import linkAnnotationsToBusinessObjectService from "../services/linkAnnotationsToBusinessObjectService";
@@ -15,6 +18,8 @@ export default function useLinkAnnotationsToBusinessObject() {
     });
 
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+    // the service may have lifted exclusions on the object row
+    dispatch(triggerBusinessObjectsUpdate());
 
     const total = annotationIds?.length ?? 0;
     const skipped = total - newRels.length;
@@ -24,7 +29,9 @@ export default function useLinkAnnotationsToBusinessObject() {
         : `${newRels.length} annotation${newRels.length > 1 ? "s" : ""} liée${
             newRels.length > 1 ? "s" : ""
           } à "${businessObject.label}"` +
-          (skipped > 0 ? ` (${skipped} déjà liée${skipped > 1 ? "s" : ""})` : "");
+          (skipped > 0
+            ? ` (${skipped} déjà liée${skipped > 1 ? "s" : ""})`
+            : "");
     dispatch(setToaster({ message }));
 
     return newRels;

@@ -1,11 +1,18 @@
 import { getLinkedTemplateIds } from "./linkedTemplateIds.js";
+import { getExcludedAnnotationIds } from "./excludedAnnotationIds.js";
 
 // Annotations feeding each business object = the rel-linked ones ("Lien par
 // annotation", db.relsBusinessObjectAnnotation) ∪ the template-linked ones
 // ("Lien par modèle", businessObject.linkedTemplateIds: every annotation of
 // the template among `annotations`, mesh cells and templateless annotations
-// excluded). One row per (object, annotation) whatever the number of links,
-// so the rollups never count an annotation twice.
+// excluded) minus the object's exclusions (businessObject.excludedAnnotationIds,
+// see excludedAnnotationIds.js). One row per (object, annotation) whatever
+// the number of links, so the rollups never count an annotation twice.
+//
+// An exclusion only removes an annotation from the template expansion: a
+// rel-linked annotation always counts (the writers keep the two mutually
+// exclusive; if both exist, the rel wins here), and an exclusion whose
+// template is not linked by template is ignored.
 //
 // Shared by computeBusinessObjectQties (tree, gap popper, SCOPE recap,
 // Prompt IA, hours budget) and the object properties panel (linkedRows).
@@ -62,11 +69,15 @@ export default function resolveBusinessObjectAnnotationLinks({
   (businessObjects ?? []).forEach((businessObject) => {
     const templateIds = getLinkedTemplateIds(businessObject);
     if (templateIds.length === 0) return;
+    const excludedIds = new Set(getExcludedAnnotationIds(businessObject));
     templateIds.forEach((templateId) => {
       const templateAnnotations = annotationsByTemplateId[templateId];
       if (!templateAnnotations) return;
       const map = getMap(businessObject.id);
       templateAnnotations.forEach((annotation) => {
+        // excluded from the template expansion (a rel on the same pair, if
+        // any, was inserted above and keeps counting)
+        if (excludedIds.has(annotation.id)) return;
         const row = map.get(annotation.id);
         if (row) {
           row.byTemplate = true;

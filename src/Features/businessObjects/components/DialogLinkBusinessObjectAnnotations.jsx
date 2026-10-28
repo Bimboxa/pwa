@@ -45,7 +45,7 @@ export default function DialogLinkBusinessObjectAnnotations({
     "Cliquez les annotations à lier sur le plan (mode liaison).";
   const byTemplateS = "Par modèle";
   const byTemplateHelperS =
-    "Toutes les annotations du modèle dans le scope, présentes et futures.";
+    "Toutes les annotations du modèle dans le scope, présentes et futures (exclusions possibles ensuite).";
   const templateTitleS = "Lier par modèle";
   const emptyS = "Aucun modèle à lier dans ce scope";
   const cancelS = "Annuler";

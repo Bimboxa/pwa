@@ -1,6 +1,9 @@
 import { useDispatch } from "react-redux";
 
-import { triggerRelsBusinessObjectAnnotationUpdate } from "../businessObjectsSlice";
+import {
+  triggerBusinessObjectsUpdate,
+  triggerRelsBusinessObjectAnnotationUpdate,
+} from "../businessObjectsSlice";
 
 import toggleAnnotationBusinessObjectLinkService from "../services/toggleAnnotationBusinessObjectLinkService";
 
@@ -13,6 +16,8 @@ export default function useToggleAnnotationBusinessObjectLink() {
       annotationId,
     });
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+    // linking may have lifted an exclusion on the object row
+    if (result === "linked") dispatch(triggerBusinessObjectsUpdate());
     return result;
   };
 

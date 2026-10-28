@@ -66,6 +66,47 @@ per-table FK override (`businessObjects.parentId → businessObjects`, NOT the g
 Cleanup: project wipe, scope clear, annotation-delete cascade, listing delete
 (`useDeleteBusinessObjectListing`).
 
+## Lien par modèle + exclusions
+
+Deux façons d'alimenter un objet en annotations, fusionnées par
+`resolveBusinessObjectAnnotationLinks` (une ligne par paire, jamais comptée deux
+fois) :
+
+- **Lien par annotation** : une rel `relsBusinessObjectAnnotation`.
+- **Lien par modèle** : `businessObject.linkedTemplateIds = [annotationTemplateId]`
+  → toutes les annotations du modèle dans le scope, présentes et futures.
+- **Exclusions** : `businessObject.excludedAnnotationIds = [annotationId]`
+  (`utils/excludedAnnotationIds.js`) retirent une annotation de l'expansion du
+  modèle. Règle : une exclusion ne vaut que si le modèle de l'annotation est lié
+  par modèle ; sinon elle est ignorée (on ne soustrait jamais d'un lien par
+  annotation). Rel et exclusion sont maintenues mutuellement exclusives par les
+  écrivains (exclure supprime la rel de la paire ; lier retire l'exclusion ;
+  l'interceptor LINK du dessin ne crée pas de rel pour un modèle déjà lié) ; si
+  les deux coexistent malgré tout, la rel gagne. Retirer le lien par modèle
+  oublie les exclusions de ses annotations.
+
+Pas de bump Dexie pour ces deux champs (whitelist `useUpdateBusinessObject`,
+remap Krto `annotationTemplates` / `annotations`).
+
+UI :
+- Mode de pointage sur la carte : `businessObjects.linkingBusinessObjectId` +
+  `linkingMode` (`"LINK"` | `"EXCLUDE"`). Le mode EXCLUDE (« liaison − », icône
+  `LinkOff` sur la ligne de l'arbre et bouton « Mode exclusion » du panneau) n'est
+  proposé que si l'objet a un lien par modèle ; un clic sur une annotation d'un
+  modèle non lié est ignoré (toast). Échap quitte le mode, le mode revient à
+  LINK dès que l'id est effacé.
+- Bandeau « Associer à « objet » » (`SectionBusinessObjectBandInToolbar`) en bas
+  de `ToolbarEditAnnotation(s)` dans les modules objets métier dont le type a des
+  quantités, tant qu'un objet est ACTIF (`activeBusinessObjectId`, qui survit à
+  la sélection d'une annotation) : toggle U / L / S = formule de l'objet pour
+  le(s) modèle(s) de la sélection (objet sans unité : fixe l'unité u / ml / m²),
+  « + » lie par annotation (bascule → délier quand tout est déjà lié par rel ;
+  grisé quand tout est déjà compté par le modèle), « − » exclut / réintègre
+  (visible seulement si un modèle de la sélection est lié par modèle).
+- Panneau droit : la carte du modèle affiche « k exclues » ; le sous-panneau liste
+  les annotations exclues (barrées) avec « Réintégrer », et offre « Exclure » par
+  ligne sur un modèle lié.
+
 ## Codes ("Renuméroter") + row layout + per-level styles
 
 The object properties panel header has a back arrow navigating to the
