@@ -47,6 +47,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import SectionBusinessObjectBandInToolbar from "Features/businessObjects/components/SectionBusinessObjectBandInToolbar";
+import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -527,6 +528,10 @@ export default function ToolbarEditAnnotations({
           {/* Business object band (business-objects modules, active object):
               link / exclude the selection, U / L / S formula */}
           <SectionBusinessObjectBandInToolbar annotations={annotations} />
+
+          {/* Linked business objects (business-objects modules): one row per
+              object the selection is linked to, unlink / exclude */}
+          <SectionLinkedBusinessObjectsInToolbar annotations={annotations} />
         </Box>
 
         {/* Template change menu (same type) */}

@@ -111,9 +111,16 @@ UI :
   quantités, tant qu'un objet est ACTIF (`activeBusinessObjectId`, qui survit à
   la sélection d'une annotation) : toggle U / L / S = formule de l'objet pour
   le(s) modèle(s) de la sélection (objet sans unité : fixe l'unité u / ml / m²),
-  « + » lie par annotation (bascule → délier quand tout est déjà lié par rel ;
-  grisé quand tout est déjà compté par le modèle), « − » exclut / réintègre
-  (visible seulement si un modèle de la sélection est lié par modèle).
+  « annotation + » (`IconAnnotationLinkAdd`) lie par annotation (grisé quand
+  tout est déjà lié), « annotation − » exclut / réintègre (visible seulement
+  si un modèle de la sélection est lié par modèle). Pas de statut texte : la
+  liste dessous le porte.
+- Liste « Quantités liées » (`SectionLinkedBusinessObjectsInToolbar`) sous le
+  bandeau, dans les deux toolbars, modules objets métier : une ligne par objet
+  du type du module lié à la sélection (libellé, chemin des parents en
+  secondaire, « lié par modèle » / « exclue » / « k/N liées »), bouton
+  « annotation − » à droite : délie (rel) ou exclut / réintègre (lien par
+  modèle, ligne barrée quand exclue).
 - Panneau droit : la carte du modèle affiche « k exclues » ; le sous-panneau liste
   les annotations exclues (barrées) avec « Réintégrer », et offre « Exclure » par
   ligne sur un modèle lié.

@@ -1,9 +1,6 @@
 import { useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
-
-import { triggerRelsBusinessObjectAnnotationUpdate } from "../businessObjectsSlice";
-import { setToaster } from "Features/layout/layoutSlice";
 
 import {
   Box,
@@ -13,9 +10,11 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { AddLink, LinkOff } from "@mui/icons-material";
 
 import db from "App/db/db";
+
+import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
+import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
 
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
@@ -62,13 +61,13 @@ const TOGGLE_SX = {
 // business-objects modules while an object is ACTIVE (the tree row clicked
 // last — the map selection replaces the BUSINESS_OBJECT selection item, the
 // active id survives it): « Associer à « objet » » + the U / L / S toggle of
-// the object's formula for the selection's template(s) + a « + » (link the
-// selection by annotation / unlink it) + a « − » (exclude the selection from
-// the object's "Lien par modèle" / re-include it — offered only when a
-// selected annotation's template is linked by template).
+// the object's formula for the selection's template(s) + an « annotation + »
+// (link the selection by annotation) + an « annotation − » (exclude the
+// selection from the object's "Lien par modèle" / re-include it — offered
+// only when a selected annotation's template is linked by template).
+// Unlinking lives in the linked-objects list below the band
+// (SectionLinkedBusinessObjectsInToolbar).
 export default function SectionBusinessObjectBandInToolbar({ annotations }) {
-  const dispatch = useDispatch();
-
   // data
 
   const isBusinessObjectsModule = useSelector((s) =>
@@ -145,7 +144,6 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
   }, [businessObject, allRels, targets]);
 
   const toLink = entries.filter((e) => !e.fed);
-  const withRel = entries.filter((e) => e.rel);
   const applicable = entries.filter((e) => e.byTemplate);
   const allApplicableExcluded =
     applicable.length > 0 && applicable.every((e) => e.excluded);
@@ -183,9 +181,7 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
   const plusS =
     toLink.length > 0
       ? `Lier à « ${label} »`
-      : withRel.length > 0
-        ? `Délier de « ${label} »`
-        : "Déjà comptée(s) par le lien par modèle";
+      : `Déjà liée${entries.length > 1 ? "s" : ""} à « ${label} »`;
   const minusS = allApplicableExcluded
     ? `Réintégrer dans « ${label} »`
     : `Exclure de « ${label} » (lien par modèle)`;
@@ -193,23 +189,6 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
     kindValue === null && templateIds.length > 0
       ? "Formule personnalisée ou mixte — choisir U / L / S la remplace"
       : "Quantité de l'annotation comptée dans l'objet";
-
-  const statusS = (() => {
-    if (entries.length === 0) return "";
-    if (entries.length === 1) {
-      const e = entries[0];
-      if (e.rel) return "Liée";
-      if (e.excluded) return "Exclue";
-      if (e.byTemplate) return "Liée par modèle";
-      return "Non liée";
-    }
-    const linked = entries.filter((e) => e.fed).length;
-    const excluded = entries.filter((e) => e.excluded).length;
-    return (
-      `${linked}/${entries.length} liées` +
-      (excluded > 0 ? ` · ${excluded} exclue${excluded > 1 ? "s" : ""}` : "")
-    );
-  })();
 
   // handlers
 
@@ -235,35 +214,11 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
   }
 
   async function handlePlus() {
-    if (!businessObject) return;
-    if (toLink.length > 0) {
-      await linkAnnotations({
-        businessObject,
-        annotationIds: toLink.map((e) => e.annotation.id),
-      });
-      return;
-    }
-    if (withRel.length === 0) return;
-    try {
-      // soft-delete middleware sets deletedAt
-      await db.relsBusinessObjectAnnotation.bulkDelete(
-        withRel.map((e) => e.rel.id)
-      );
-      dispatch(triggerRelsBusinessObjectAnnotationUpdate());
-      const n = withRel.length;
-      dispatch(
-        setToaster({
-          message: `${n} annotation${n > 1 ? "s" : ""} déliée${
-            n > 1 ? "s" : ""
-          } de "${businessObject.label}"`,
-        })
-      );
-    } catch (error) {
-      console.error("[SectionBusinessObjectBandInToolbar] unlink", error);
-      dispatch(
-        setToaster({ message: error?.message ?? `${error}`, isError: true })
-      );
-    }
+    if (!businessObject || toLink.length === 0) return;
+    await linkAnnotations({
+      businessObject,
+      annotationIds: toLink.map((e) => e.annotation.id),
+    });
   }
 
   async function handleMinus() {
@@ -325,12 +280,10 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
           <IconButton
             size="small"
             onClick={handlePlus}
-            disabled={toLink.length === 0 && withRel.length === 0}
-            color={
-              toLink.length === 0 && withRel.length > 0 ? "primary" : "default"
-            }
+            disabled={toLink.length === 0}
+            sx={{ color: "panel.textMuted" }}
           >
-            <AddLink sx={{ fontSize: 18 }} />
+            <IconAnnotationLinkAdd sx={{ fontSize: 18 }} />
           </IconButton>
         </span>
       </Tooltip>
@@ -340,21 +293,15 @@ export default function SectionBusinessObjectBandInToolbar({ annotations }) {
           <IconButton
             size="small"
             onClick={handleMinus}
-            color={allApplicableExcluded ? "primary" : "default"}
+            sx={{
+              color: allApplicableExcluded
+                ? "secondary.main"
+                : "panel.textMuted",
+            }}
           >
-            <LinkOff sx={{ fontSize: 18 }} />
+            <IconAnnotationLinkRemove sx={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
-      )}
-
-      {statusS && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ flexBasis: "100%" }}
-        >
-          {statusS}
-        </Typography>
       )}
     </Box>
   );
