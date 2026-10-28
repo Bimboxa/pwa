@@ -57,7 +57,10 @@ export default function useScanProjection({
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(null);
   const sequenceRef = useRef(0),
-    overlayRef = useRef(null);
+    overlayRef = useRef(null),
+    // Slice to adopt once the vertical frame changes (shiftRange): a scan
+    // moved along the vertical keeps its slice relative to the points.
+    shiftRef = useRef(null);
   const queryKey = frame ? JSON.stringify([frame.rows, lower, upper]) : "";
   const result = output?.view === view ? output.result : null;
   const requested = Boolean(
@@ -72,7 +75,17 @@ export default function useScanProjection({
     setSelection(null);
     setClip(false);
     setError(null);
+    shiftRef.current = null;
   }, [view]);
+
+  // The vertical frame changed after shiftRange: the shifted slice replaces
+  // the default one.
+  useEffect(() => {
+    if (!shiftRef.current || selection?.key === verticalKey) return;
+    setSelection({ key: verticalKey, values: shiftRef.current });
+    shiftRef.current = null;
+    // runs on the frame change only
+  }, [verticalKey]);
 
   // Cancel invalidated work, without automatically restarting when a range,
   // placement, tab or inspection state changes back.
@@ -183,6 +196,14 @@ export default function useScanProjection({
       setRequest(null);
       setError(null);
       setSelection({ key: verticalKey, values });
+    },
+    // The scan is about to move by `delta` along the vertical (Z offset):
+    // the slice follows the points instead of resetting with the frame.
+    shiftRange: (delta) => {
+      if (!delta) return;
+      shiftRef.current = [lower + delta, upper + delta];
+      setRequest(null);
+      setError(null);
     },
   };
 }

@@ -225,9 +225,12 @@ export default function LocalScansPanel({
     });
     // placement / load are read at the pose or selection change only.
   }, [linkPoseKey, loaded?.resourceId, view, inactive, busy]);
+  // Slice of the base map image, applied once per opened scan (a later
+  // frame change — Z offset, axis, scale — keeps or resets the slice in the
+  // projection hook, never re-applies the stored one).
   useEffect(() => {
     if (!linked || !projection.frame) return;
-    const key = `${linked.id}|${projection.verticalKey}`;
+    const key = linked.id;
     if (rangeAppliedRef.current === key) return;
     rangeAppliedRef.current = key;
     const { lower, upper, mode: imageMode } = linked.createdFrom ?? {};
@@ -373,6 +376,7 @@ export default function LocalScansPanel({
       setMode("POINTS");
       setPointSize(display.pointSize);
       setOffsetZ(0);
+      rangeAppliedRef.current = null;
       // No camera move: the scan is already in place on its base map (the
       // « Cadrer » menu item frames it on demand).
     } catch (failure) {
@@ -410,9 +414,12 @@ export default function LocalScansPanel({
   }
   function changeOffsetZ(value) {
     const delta = value - offsetZ;
+    if (!delta) return;
     const axis = upVector(placement.up);
     const origin = placement.origin ?? [0, 0, 0];
     setOffsetZ(value);
+    // the slice (Z inf / Z sup) moves with the points
+    projection.shiftRange(delta);
     void place({
       origin: origin.map((v, i) => v - (delta / placement.scale) * axis[i]),
     });

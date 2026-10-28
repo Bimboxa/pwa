@@ -114,7 +114,8 @@ base map selected it only says so. No tabs — the sections, top to bottom:
   the resource placement so a later base map of the same scan starts
   calibrated) and **Décalage Z du scan**: the vertical offset of the cloud
   relative to the pose stored on the base map (0 at each pose application;
-  an edit shifts the placement origin along the source vertical axis).
+  an edit shifts the placement origin along the source vertical axis, and
+  the slice Z inf / Z sup follow the points — `shiftRange`).
 - Footer: **Mettre à jour le fond de plan** (`updateScanBaseMapService`),
   enabled once the current slice is calculated.
 
