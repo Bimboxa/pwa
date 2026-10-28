@@ -243,7 +243,12 @@ map version bumped by every build). Unlike the point cloud it answers the
 raycaster: the 3D altimetry badge reads it, drawings land on the relief; it
 is `isDecor` for the other scene passes. A scan base map therefore has
 three 3D artefacts: the points (or splats), the Zmap and the image plane.
-The « 3D » chip of the base maps list hides the Zmap with the points.
+The « 3D » chip of the base maps list hides the Zmap with the points. The
+mesh is attached as soon as the scan shows in any form (points, splats or
+Zmap) and, with the Zmap toggle off, writes neither colour nor depth: the
+raycaster still meets the relief under the points. The toggle sits in its
+own bottom bar button, apart from the Masqué / Points / Réaliste group. In
+first person, **V** cycles that group (hidden → points → realistic).
 
 ## Verification
 

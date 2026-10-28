@@ -482,6 +482,8 @@ function Legend({ freeClimb }) {
       <Box sx={rowSx}>
         <Key>R</Key>
         <Hint>course</Hint>
+        <Key>V</Key>
+        <Hint>vue 3D des scans</Hint>
         <Key>C</Key>
         <Hint>{freeClimb ? "franchissement libre" : "collisions actives"}</Hint>
         {freeClimb && (

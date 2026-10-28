@@ -389,8 +389,11 @@ export default class ImagesManager {
       group.userData.localScan?.setMode(mode);
       // Zmap: one mesh per scan base map (its own height map), independent
       // of the points carrier; hidden with the group or its « 3D » chip.
+      // Attached as soon as the scan shows in any form (points, splats or
+      // Zmap) so the raycaster — the 3D altimetry — meets the relief even
+      // while the Zmap itself is not rendered.
       const zMapKey =
-        zMap &&
+        (zMap || mode !== "NONE") &&
         baseMap?.localScan?.resourceId &&
         this.groupVisibleByBaseMapId[id] !== false &&
         !hiddenBaseMapIds.includes(id)
@@ -404,12 +407,14 @@ export default class ImagesManager {
           group.userData.localScanZMapHandle =
             attachLocalScanZMapToBaseMapGroup(group, baseMap, {
               sceneManager: this.sceneManager,
+              shown: zMap,
               onLoaded: () => {
                 this.sceneManager.clippingManager?.reapply?.();
                 this.sceneManager.renderScene();
               },
             });
       }
+      group.userData.localScanZMapHandle?.setShown(zMap);
     });
   }
 

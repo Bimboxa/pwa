@@ -4,6 +4,8 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { Vector3 } from "three";
 
 import { setWalkModeActive } from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsScanMode } from "Features/viewers/viewersSlice";
+import { BASE_MAPS_SCAN_MODE_OPTIONS } from "Features/baseMaps/constants/baseMapsScanMode";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
@@ -492,6 +494,14 @@ export default function useWalkMode() {
       onSprayNarrow: () => emitShoot(spray.scaleSpread(1 / SPREAD_STEP_FACTOR)),
       // C: free climb on / off, mirrored into the HUD legend.
       onToggleFreeClimb: (freeClimb) => emitShoot({ freeClimb }),
+      // V: scans display of the bottom bar, hidden → points → realistic
+      // (never chosen counts as hidden).
+      onCycleScanMode: () => {
+        const keys = BASE_MAPS_SCAN_MODE_OPTIONS.map((o) => o.key);
+        const current = store.getState().viewers.baseMapsScanMode;
+        const index = keys.indexOf(current);
+        dispatch(setBaseMapsScanMode(keys[(index + 1) % keys.length]));
+      },
     });
     controller.enter();
     controllerRef.current = controller;

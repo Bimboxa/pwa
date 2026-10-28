@@ -5,7 +5,7 @@ import {
   setBaseMapsZMapVisible,
 } from "Features/viewers/viewersSlice";
 
-import { Box, Divider, IconButton, Paper, Tooltip } from "@mui/material";
+import { Box, IconButton, Paper, Tooltip } from "@mui/material";
 import { Terrain } from "@mui/icons-material";
 
 import { FLOATING_BUTTON_PADDING } from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
@@ -31,55 +31,58 @@ export default function SelectorBaseMapsScanMode() {
 
   // render
 
+  const paperSx = { borderRadius: "10px", display: "flex", overflow: "hidden" };
+
   return (
-    <Paper
-      elevation={3}
-      sx={{ borderRadius: "10px", display: "flex", overflow: "hidden" }}
-    >
-      {BASE_MAPS_SCAN_MODE_OPTIONS.map(({ key, tooltip, Icon }) => {
-        const selected = key === scanMode;
-        return (
-          <Tooltip key={key} title={tooltip}>
-            <Box
-              sx={{
-                display: "flex",
-                ...(selected && {
-                  bgcolor: "action.active",
-                  color: "common.white",
-                }),
-              }}
-            >
-              <IconButton
-                color={selected ? "inherit" : "default"}
-                onClick={() => dispatch(setBaseMapsScanMode(key))}
-                sx={{ p: FLOATING_BUTTON_PADDING }}
+    <>
+      <Paper elevation={3} sx={paperSx}>
+        {BASE_MAPS_SCAN_MODE_OPTIONS.map(({ key, tooltip, Icon }) => {
+          const selected = key === scanMode;
+          return (
+            <Tooltip key={key} title={tooltip}>
+              <Box
+                sx={{
+                  display: "flex",
+                  ...(selected && {
+                    bgcolor: "action.active",
+                    color: "common.white",
+                  }),
+                }}
               >
-                <Icon />
-              </IconButton>
-            </Box>
-          </Tooltip>
-        );
-      })}
-      <Divider orientation="vertical" flexItem />
-      <Tooltip title={zMapS}>
-        <Box
-          sx={{
-            display: "flex",
-            ...(zMapVisible && {
-              bgcolor: "action.active",
-              color: "common.white",
-            }),
-          }}
-        >
-          <IconButton
-            color={zMapVisible ? "inherit" : "default"}
-            onClick={() => dispatch(setBaseMapsZMapVisible(!zMapVisible))}
-            sx={{ p: FLOATING_BUTTON_PADDING }}
+                <IconButton
+                  color={selected ? "inherit" : "default"}
+                  onClick={() => dispatch(setBaseMapsScanMode(key))}
+                  sx={{ p: FLOATING_BUTTON_PADDING }}
+                >
+                  <Icon />
+                </IconButton>
+              </Box>
+            </Tooltip>
+          );
+        })}
+      </Paper>
+      {/* Independent of the mode: its own button */}
+      <Paper elevation={3} sx={paperSx}>
+        <Tooltip title={zMapS}>
+          <Box
+            sx={{
+              display: "flex",
+              ...(zMapVisible && {
+                bgcolor: "action.active",
+                color: "common.white",
+              }),
+            }}
           >
-            <Terrain />
-          </IconButton>
-        </Box>
-      </Tooltip>
-    </Paper>
+            <IconButton
+              color={zMapVisible ? "inherit" : "default"}
+              onClick={() => dispatch(setBaseMapsZMapVisible(!zMapVisible))}
+              sx={{ p: FLOATING_BUTTON_PADDING }}
+            >
+              <Terrain />
+            </IconButton>
+          </Box>
+        </Tooltip>
+      </Paper>
+    </>
   );
 }

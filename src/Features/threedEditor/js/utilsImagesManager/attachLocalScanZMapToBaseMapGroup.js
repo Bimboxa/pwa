@@ -42,14 +42,27 @@ function createHeightColorAt() {
 // badge reads its hits, and drawings land on the relief. Tagged `isDecor`
 // so the per-object scene passes (shadows, sketch edges, hover swap, vertex
 // snap, export) leave it alone.
-// options: {sceneManager, onLoaded}. Returns {dispose}.
+// `shown` false keeps the mesh out of the render (no colour, no depth)
+// while it still answers the raycaster — the altimetry works over the
+// points / splats alone. options: {sceneManager, shown, onLoaded}. Returns
+// {dispose, setShown}.
 export default function attachLocalScanZMapToBaseMapGroup(
   group,
   baseMap,
-  { sceneManager, onLoaded } = {}
+  { sceneManager, shown = true, onLoaded } = {}
 ) {
   let disposed = false,
-    mesh = null;
+    mesh = null,
+    isShown = shown;
+
+  // `visible` stays true (the pick filter drops invisible chains): the
+  // material simply writes nothing.
+  function applyShown() {
+    if (!mesh) return;
+    mesh.material.colorWrite = isShown;
+    mesh.material.depthWrite = isShown;
+    mesh.material.needsUpdate = true;
+  }
 
   (async () => {
     const heightMap = await loadLocalScanHeightMap(baseMap);
@@ -91,6 +104,7 @@ export default function attachLocalScanZMapToBaseMapGroup(
       material.dispose();
       return;
     }
+    applyShown();
     group.add(mesh);
     group.userData.localScanZMap = mesh;
     onLoaded?.();
@@ -99,6 +113,12 @@ export default function attachLocalScanZMapToBaseMapGroup(
   });
 
   return {
+    setShown(next) {
+      if (isShown === Boolean(next)) return;
+      isShown = Boolean(next);
+      applyShown();
+      sceneManager?.renderScene?.();
+    },
     dispose() {
       if (disposed) return;
       disposed = true;

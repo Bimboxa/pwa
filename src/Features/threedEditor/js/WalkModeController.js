@@ -19,6 +19,7 @@ import { MathUtils, Vector3 } from "three";
 //   current tool's traces (onClear);
 // - B cycles the nozzle shape (onCycleJetMode), + / - widen / narrow the
 //   nozzle aperture (onSprayWiden / onSprayNarrow, key-repeat sweeps);
+// - V cycles the scans display (onCycleScanMode: hidden / points / realistic).
 // - C toggles "free climb" (onToggleFreeClimb): obstacles stop blocking and
 //   the ground becomes the highest surface at the walker's (x, z).
 //
@@ -120,6 +121,7 @@ export default class WalkModeController {
     onSprayWiden,
     onSprayNarrow,
     onToggleFreeClimb,
+    onCycleScanMode,
   }) {
     this.sceneManager = sceneManager;
     // Plane ground (fallback) and the live ground under the camera.
@@ -137,6 +139,7 @@ export default class WalkModeController {
     this.onSprayWiden = onSprayWiden;
     this.onSprayNarrow = onSprayNarrow;
     this.onToggleFreeClimb = onToggleFreeClimb;
+    this.onCycleScanMode = onCycleScanMode;
 
     this._yaw = 0;
     this._pitch = 0;
@@ -502,6 +505,13 @@ export default class WalkModeController {
       }
       if (key === "b") {
         if (!e.repeat) this.onCycleJetMode?.();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (key === "v") {
+        // « Vue 3D » of the scans: hidden → points → realistic.
+        if (!e.repeat) this.onCycleScanMode?.();
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
