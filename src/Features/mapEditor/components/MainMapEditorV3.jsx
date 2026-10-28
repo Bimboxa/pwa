@@ -138,7 +138,6 @@ import PopperBaseMapsList from "Features/popperMapListings/components/PopperBase
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
-import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
 import PopperLinkWorkPackageHelper from "Features/businessObjects/components/PopperLinkWorkPackageHelper";
 import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
 import ImageModeOverlay from "./ImageModeOverlay";
@@ -3062,14 +3061,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             </>
           )}
 
-          {/* Business-object link mode helper ("Ouvrages") — self-guards on
-                the linkingBusinessObjectId flag, armed from the
-                business-objects modules (not the Dessin panel). */}
+          {/* Work-package link mode helper (PLANNING) — self-guards on the
+                linkingWorkPackageId flag. (The business-object one lives in
+                the helper chain of PopperMapListings, like the drawing
+                helper.) */}
           {!versionCompareEnabled && !imageModeActive && (
-            <>
-              <PopperLinkBusinessObjectHelper />
-              <PopperLinkWorkPackageHelper />
-            </>
+            <PopperLinkWorkPackageHelper />
           )}
 
           {imageModeActive && (

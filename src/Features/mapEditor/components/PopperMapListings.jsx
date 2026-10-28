@@ -66,6 +66,7 @@ import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHe
 import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperPasteHelper from "Features/mapEditor/components/PopperPasteHelper";
 import PopperDuplicatesHelper from "Features/duplicatesDetection/components/PopperDuplicatesHelper";
+import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
 import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/duplicatesDetectionSlice";
 import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
@@ -1665,6 +1666,11 @@ export default function PopperMapListings() {
   const duplicatesActive = useSelector(selectDuplicatesDetectionActive);
   // truthy in either subtraction pick direction (see utils/subtractPickMode)
   const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
+  // business object armed for the picking mode (LINK / EXCLUDE), from the
+  // business-objects modules: the linking helper replaces the panel
+  const linkingBusinessObjectId = useSelector(
+    (s) => s.businessObjects.linkingBusinessObjectId
+  );
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -2090,6 +2096,7 @@ export default function PopperMapListings() {
       subtractPickAnnotationId ||
       Boolean(enabledDrawingMode) ||
       activeThreedTool ||
+      linkingBusinessObjectId ||
       duplicatesActive)
   );
   const [frameHeight, setFrameHeight] = useState(0);
@@ -2349,6 +2356,14 @@ export default function PopperMapListings() {
   // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor).
   if (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) {
     return <PopperDrawingHelper />;
+  }
+
+  // Business-object picking mode (LINK / EXCLUDE), armed from an object row:
+  // the helper replaces the panel, in 2D and in the module's 3D editor. The
+  // draw above wins while both are armed (InteractionLayer ignores the
+  // picking mode during a draw).
+  if (helpersEnabled && linkingBusinessObjectId) {
+    return <PopperLinkBusinessObjectHelper />;
   }
 
   // « Détection des doublons » result (duplicatesDetectionSlice): one row per

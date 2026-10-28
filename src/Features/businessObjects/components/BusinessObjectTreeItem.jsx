@@ -26,12 +26,9 @@ import {
 import {
   MoreHoriz,
   DragIndicator,
-  AddLink,
-  LinkOff,
   DescriptionOutlined,
   ChevronRight,
-  FilterAlt,
-  FilterAltOutlined,
+  Pentagon,
   Place,
   WarningAmber,
 } from "@mui/icons-material";
@@ -43,6 +40,9 @@ import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
 import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDocumentLink";
 
+import SoloIconToggle from "Features/mapEditor/components/SoloIconToggle";
+import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
+import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import PopperBusinessObjectQtyGap from "./PopperBusinessObjectQtyGap";
 import ChipBusinessObjectState from "./ChipBusinessObjectState";
@@ -151,6 +151,9 @@ export default function BusinessObjectTreeItem({
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [gapAnchor, setGapAnchor] = useState(null);
   const [documentsAnchor, setDocumentsAnchor] = useState(null);
+  // hover in React state (AnnotationTemplateRow pattern): drives the solo
+  // slot affordance and the action buttons replacing the quantity
+  const [isHovered, setIsHovered] = useState(false);
 
   // dnd — the whole row is draggable (5px activation keeps clicks working),
   // with a grab handle revealed on hover, like the zones drawer rows.
@@ -209,13 +212,17 @@ export default function BusinessObjectTreeItem({
     : {};
   const statusS = isClosed ? "Rouvrir" : "Fermer";
 
-  // Action buttons (bottom right of the row): the solo button only shows when
+  // Left slot = SOLO toggle (template rows pattern): an affordance only when
   // there are annotations to isolate (own + descendants') — or to leave the
-  // solo —, the documents button when the object links to a resource.
-  const showSolo =
+  // solo. Action buttons (right column, over the quantity): shown on hover,
+  // on the active row and on the armed row (exit of the picking mode always
+  // reachable); the documents button when the object links to a resource.
+  const canSolo =
     isSolo || soloAnnotations?.length > 0 || mainAnnotations?.length > 0;
   const showDocuments = documentRels?.length > 0;
-  const hasActions = showSolo || showDocuments || !readOnly;
+  const hasHoverButtons = showDocuments || !readOnly;
+  const showActions =
+    hasHoverButtons && (isHovered || isArmed || (!readOnly && isActive));
   const soloS = isSolo
     ? "Tout afficher"
     : `Afficher uniquement « ${businessObject.label} »`;
@@ -349,8 +356,8 @@ export default function BusinessObjectTreeItem({
     });
   }
 
-  function handleSoloClick(e) {
-    e.stopPropagation();
+  // SoloIconToggle stops the propagation itself (no event forwarded)
+  function handleSoloClick() {
     toggleBusinessObjectSolo(businessObject, soloAnnotations, mainAnnotations);
   }
 
@@ -445,37 +452,88 @@ export default function BusinessObjectTreeItem({
       </Box>
     ) : null;
 
-  const actions = hasActions ? (
-    <Box
+  // Left slot content: the number (listings with codes), else the color chip
+  // (colored types, object rows), else a grey annotation glyph. The slot is
+  // the SOLO toggle when there is something to isolate.
+  const slotWidth = showCodes ? 44 : 24;
+  const slotContent = showCodes ? (
+    <Typography
+      variant="caption"
       sx={{
-        // own line under the row content, flush bottom right: always
-        // visible, never over the label or the quantity column
-        flexBasis: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        mr: -0.5,
-        mb: -0.5,
+        fontFamily: "monospace",
+        lineHeight: `${FIRST_LINE_HEIGHT}px`,
+        color: isTitle ? "text.primary" : "text.secondary",
+        fontWeight: labelFontWeight,
+        whiteSpace: "nowrap",
       }}
     >
-      {showSolo && (
-        <Tooltip title={soloS}>
-          <IconButton
-            size="small"
-            onClick={handleSoloClick}
-            color={isSolo ? "primary" : "default"}
-          >
-            {isSolo ? (
-              <FilterAlt sx={{ fontSize: 16 }} />
-            ) : (
-              <FilterAltOutlined sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
-      )}
+      {hasAutoNumbering ? displayMeta?.number : businessObject.code}
+    </Typography>
+  ) : hasColor && !isTitle && !card ? (
+    <Box
+      sx={{
+        width: 12,
+        height: 12,
+        minWidth: 12,
+        borderRadius: "2px",
+        bgcolor: businessObject.color,
+      }}
+    />
+  ) : (
+    <Pentagon sx={{ fontSize: 16, color: "text.disabled" }} />
+  );
+
+  const slot = canSolo ? (
+    <SoloIconToggle
+      isSolo={isSolo}
+      isRowHovered={isHovered}
+      onToggle={handleSoloClick}
+      title={soloS}
+      size={FIRST_LINE_HEIGHT}
+      width={slotWidth}
+    >
+      {slotContent}
+    </SoloIconToggle>
+  ) : (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: slotWidth,
+        height: FIRST_LINE_HEIGHT,
+        flexShrink: 0,
+      }}
+    >
+      {slotContent}
+    </Box>
+  );
+
+  // Hover action buttons, over the quantity column (its slot is kept so the
+  // label never reflows). Pointer events stopped: neither the row click nor
+  // the dnd sensor must fire.
+  const actionButtonSx = { p: 0.5 };
+  const stopPointerDown = (e) => e.stopPropagation();
+  const actions = showActions ? (
+    <Box
+      sx={{
+        position: "absolute",
+        right: 0,
+        top: "50%",
+        transform: "translateY(-50%)",
+        display: "flex",
+        alignItems: "center",
+        gap: 0.25,
+      }}
+    >
       {showDocuments && (
         <Tooltip title={documentsS}>
-          <IconButton size="small" onClick={handleDocumentsClick}>
+          <IconButton
+            size="small"
+            onClick={handleDocumentsClick}
+            onPointerDown={stopPointerDown}
+            sx={{ ...actionButtonSx, color: "panel.textMuted" }}
+          >
             <DescriptionOutlined sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
@@ -485,9 +543,13 @@ export default function BusinessObjectTreeItem({
           <IconButton
             size="small"
             onClick={handleLinkingClick}
-            color={isLinking ? "primary" : "default"}
+            onPointerDown={stopPointerDown}
+            sx={{
+              ...actionButtonSx,
+              color: isLinking ? "secondary.main" : "panel.textMuted",
+            }}
           >
-            <AddLink sx={{ fontSize: 16 }} />
+            <IconAnnotationLinkAdd sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       )}
@@ -496,15 +558,24 @@ export default function BusinessObjectTreeItem({
           <IconButton
             size="small"
             onClick={handleExcludingClick}
-            color={isExcluding ? "primary" : "default"}
+            onPointerDown={stopPointerDown}
+            sx={{
+              ...actionButtonSx,
+              color: isExcluding ? "secondary.main" : "panel.textMuted",
+            }}
           >
-            <LinkOff sx={{ fontSize: 16 }} />
+            <IconAnnotationLinkRemove sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       )}
       {!readOnly && (
         <Tooltip title={menuS}>
-          <IconButton size="small" onClick={handleMenuClick}>
+          <IconButton
+            size="small"
+            onClick={handleMenuClick}
+            onPointerDown={stopPointerDown}
+            sx={{ ...actionButtonSx, color: "panel.textMuted" }}
+          >
             <MoreHoriz sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
@@ -523,6 +594,8 @@ export default function BusinessObjectTreeItem({
         divider
         selected={isSelected || (!readOnly && isActive)}
         onClick={handleClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         sx={{
           // Listing with codes: flat 3-column rows — the code carries the
           // hierarchy, no indentation. DESCENDANTS mode indents by the depth
@@ -530,8 +603,6 @@ export default function BusinessObjectTreeItem({
           pl: showCodes ? 1.5 : indent ? 2 + depth * 2 : 2,
           pr: 1.5,
           alignItems: "flex-start",
-          // the actions line (100% wide) wraps under the row content
-          flexWrap: "wrap",
           bgcolor: rowBgcolor,
           "&.Mui-selected": {
             bgcolor: (theme) => selectedBusinessObjectBgcolor(theme),
@@ -572,23 +643,8 @@ export default function BusinessObjectTreeItem({
             }}
           />
         )}
-        {/* col 1: code (listings with codes only) */}
-        {showCodes && (
-          <Typography
-            variant="caption"
-            sx={{
-              fontFamily: "monospace",
-              minWidth: 44,
-              mr: 1,
-              flexShrink: 0,
-              lineHeight: `${FIRST_LINE_HEIGHT}px`,
-              color: isTitle ? "text.primary" : "text.secondary",
-              fontWeight: labelFontWeight,
-            }}
-          >
-            {hasAutoNumbering ? displayMeta?.number : businessObject.code}
-          </Typography>
-        )}
+        {/* col 1: number / color chip / glyph slot — the SOLO toggle */}
+        <Box sx={{ ...firstLineSx, mr: 1 }}>{slot}</Box>
 
         {/* card avatar: photo thumbnail, else initial on a colored disc */}
         {card && (
@@ -607,21 +663,6 @@ export default function BusinessObjectTreeItem({
           >
             {card.initial}
           </Avatar>
-        )}
-
-        {/* color chip: colored types, tree mode only, object rows only */}
-        {hasColor && !showCodes && !isTitle && !card && (
-          <Box
-            sx={{
-              width: 12,
-              height: 12,
-              minWidth: 12,
-              borderRadius: "2px",
-              bgcolor: businessObject.color,
-              mr: 1,
-              mt: "4px",
-            }}
-          />
         )}
 
         {/* status checkbox: types with a status, object rows only. Stops the
@@ -727,24 +768,37 @@ export default function BusinessObjectTreeItem({
         )}
 
         {/* col 3: quantity + unit (tasks: rolled-up hours), flush right —
-            greyed when it is not computed from linked annotations */}
-        {rightLabel && (
-          <Typography
-            variant="caption"
+            greyed when it is not computed from linked annotations. Same
+            type size as the label; hidden (slot kept) under the hover
+            action buttons. */}
+        {(rightLabel || showActions) && (
+          <Box
             sx={{
+              ...firstLineSx,
+              position: "relative",
+              justifyContent: "flex-end",
               ml: 1,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              textAlign: "right",
-              lineHeight: `${FIRST_LINE_HEIGHT}px`,
-              color: rightLabelMuted ? "text.disabled" : "text.secondary",
+              minWidth: 56,
             }}
           >
-            {rightLabel}
-          </Typography>
+            {rightLabel && (
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{
+                  fontWeight: labelFontWeight,
+                  lineHeight: `${FIRST_LINE_HEIGHT}px`,
+                  color: rightLabelMuted ? "text.disabled" : "text.secondary",
+                  visibility: showActions ? "hidden" : "visible",
+                }}
+              >
+                {rightLabel}
+              </Typography>
+            )}
+            {actions}
+          </Box>
         )}
         {drill}
-        {actions}
       </ListItemButton>
 
       {gapAnchor && showQtyGap && (

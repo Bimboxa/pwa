@@ -1,22 +1,39 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Paper, Box, Typography } from "@mui/material";
-import { AddLink as LinkIcon, LinkOff } from "@mui/icons-material";
+import { setLinkingBusinessObjectId } from "../businessObjectsSlice";
+
+import { Box, IconButton, Paper, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import CloseIcon from "@mui/icons-material/Close";
 
 import db from "App/db/db";
 
+import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
+import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
+import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import { getExcludedAnnotationIds } from "../utils/excludedAnnotationIds";
+import { softGradientCardSx } from "Features/dashboard/utils/dashboardStyles";
 
-// Floating helper shown while the business-object link mode is active
-// (PopperSubtractHelper pattern): the armed object, an instruction, the live
-// count of linked (or excluded, in the EXCLUDE flavour) annotations, and the
-// Escape shortcut to exit the mode.
-// Mounted unconditionally in MainMapEditorV3 — self-guards on the flag.
+// ---------------------------------------------------------------------------
+// PopperLinkBusinessObjectHelper — floating helper shown while the
+// business-object picking mode is armed (LINK: annotation clicks toggle a
+// rel; EXCLUDE: they toggle an exclusion from the "Lien par modèle").
+//
+// Rendered by the helper chain of PopperMapListings IN PLACE of the listings
+// panel — the PopperDrawingHelper pattern (same card, drag handle and exit
+// cross), in the 2D editor and in the 3D editor of the business-objects
+// modules alike. Self-guards on the linkingBusinessObjectId flag.
+// ---------------------------------------------------------------------------
+
 export default function PopperLinkBusinessObjectHelper() {
+  const dispatch = useDispatch();
+
   // data
 
   const linkingBusinessObjectId = useSelector(
@@ -50,6 +67,10 @@ export default function PopperLinkBusinessObjectHelper() {
     getBusinessObjectTypeOfListing(listing).features?.color
   );
 
+  // state
+
+  const { position, isDragging, handleMouseDown } = usePanelDrag();
+
   // helpers
 
   const count = isExcludeMode
@@ -59,7 +80,8 @@ export default function PopperLinkBusinessObjectHelper() {
 
   // strings
 
-  const titleS = isExcludeMode ? "Mode exclusion" : "Mode liaison";
+  const modeS = isExcludeMode ? "Exclusion" : "Liaison";
+  const titleS = `${modeS} — ${businessObject?.label ?? ""}`;
   const instructionS = isExcludeMode
     ? "Cliquez sur une annotation d'un modèle lié pour l'exclure du calcul, un second clic la réintègre."
     : "Cliquez sur une annotation pour la lier à l'ouvrage, un second clic la délie.";
@@ -70,49 +92,90 @@ export default function PopperLinkBusinessObjectHelper() {
     ? "Quitter le mode exclusion"
     : "Quitter le mode liaison";
 
+  // handlers
+
+  function handleExit() {
+    dispatch(setLinkingBusinessObjectId(null));
+  }
+
   // render
 
   if (!linkingBusinessObjectId || !businessObject) return null;
+
+  const ModeIcon = isExcludeMode
+    ? IconAnnotationLinkRemove
+    : IconAnnotationLinkAdd;
 
   return (
     <Paper
       elevation={4}
       data-capture-hide
-      sx={{
+      sx={(theme) => ({
+        ...softGradientCardSx(theme.palette.secondary.main),
         position: "absolute",
-        top: 50,
-        left: 50,
+        top: 16,
+        left: 16,
         zIndex: 10,
-        width: 290,
+        width: "fit-content",
+        maxWidth: 400,
         display: "flex",
         flexDirection: "column",
-      }}
+        borderRadius: 2,
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
+      })}
     >
+      {/* Drag handle header — the X stops the mousedown so it never drags */}
       <Box
-        sx={{
+        onMouseDown={handleMouseDown}
+        sx={(theme) => ({
           display: "flex",
           alignItems: "center",
-          gap: 1,
-          px: 1.5,
-          py: 1,
-          bgcolor: "grey.900",
-          color: "common.white",
-          borderTopLeftRadius: (t) => t.shape.borderRadius,
-          borderTopRightRadius: (t) => t.shape.borderRadius,
-        }}
+          gap: 0.5,
+          pl: 1,
+          pr: 0.75,
+          py: 0.5,
+          borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.18)}`,
+          cursor: "grab",
+          "&:active": { cursor: "grabbing" },
+          userSelect: "none",
+        })}
       >
-        {isExcludeMode ? (
-          <LinkOff fontSize="small" />
-        ) : (
-          <LinkIcon fontSize="small" />
-        )}
-        <Typography variant="subtitle2" noWrap>
-          {`${titleS} — ${businessObject.label}`}
+        <DragIndicatorIcon fontSize="small" sx={{ color: "panel.textLight" }} />
+        <ModeIcon sx={{ fontSize: 16, color: "secondary.main" }} />
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{ flex: 1, fontWeight: 500, color: "panel.textMuted" }}
+        >
+          {titleS}
         </Typography>
+        <IconButton
+          size="small"
+          title={escapeS}
+          aria-label={escapeS}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={handleExit}
+          sx={(theme) => ({
+            color: "secondary.main",
+            bgcolor: alpha(theme.palette.secondary.main, 0.1),
+            "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.22) },
+          })}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </Box>
 
-      <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="body2" color="text.secondary">
+      <Box
+        sx={{
+          px: 1.5,
+          py: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
           {instructionS}
         </Typography>
 
@@ -128,30 +191,12 @@ export default function PopperLinkBusinessObjectHelper() {
               }}
             />
           )}
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
             {countS}
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              px: 0.75,
-              py: 0.25,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 0.5,
-              fontSize: "0.7rem",
-              fontWeight: 600,
-              lineHeight: 1.4,
-            }}
-          >
-            Esc
-          </Box>
-          <Typography variant="caption" color="text.secondary">
-            {escapeS}
-          </Typography>
-        </Box>
+        <SectionShortcutHelpers shortcuts={[{ key: "Esc", label: escapeS }]} />
       </Box>
     </Paper>
   );
