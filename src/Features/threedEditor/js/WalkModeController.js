@@ -20,8 +20,10 @@ import { MathUtils, Vector3 } from "three";
 // - B cycles the nozzle shape (onCycleJetMode), + / - widen / narrow the
 //   nozzle aperture (onSprayWiden / onSprayNarrow, key-repeat sweeps);
 // - V cycles the scans display (onCycleScanMode: hidden / points / realistic).
-// - C toggles "free climb" (onToggleFreeClimb): obstacles stop blocking and
-//   the ground becomes the highest surface at the walker's (x, z).
+// - C toggles "free climb" (onToggleFreeClimb): the scene geometry stops
+//   counting altogether — no obstacle, and neither the meshes nor the scan
+//   relief (Zmap) make the ground: the walker glides on the selected base
+//   map plane (Z / W to fly).
 //
 // Movement model (user-validated):
 // - entry leaves the camera exactly where the orbit view had it (position
@@ -36,8 +38,8 @@ import { MathUtils, Vector3 } from "three";
 //   map) and the scene geometry under the camera (collisionProbe: base map
 //   planes, annotation solids, mailles). With the step constraint on, only
 //   the geometry below the feet + MAX_STEP counts (slabs, steps): a wall top
-//   is not a floor. With free climb (C) the highest surface wins whatever
-//   its height — on the walls, on the roofs (and, under a roof, up onto it);
+//   is not a floor. With free climb (C) the ground is the plane alone: the
+//   scan relief and the scene geometry are ignored;
 // - obstacles: with the step constraint on, horizontal moves are probed in
 //   the body band (BODY_HEIGHTS above the feet, BODY_RADIUS ahead) and
 //   stopped at the obstacle, the remainder sliding along it. Free climb
@@ -188,17 +190,18 @@ export default class WalkModeController {
     const feet = y - EYE_HEIGHT;
     let groundY = this._baseGroundY;
 
+    // Free climb: the plane alone — no scan relief, no scene geometry.
+    if (this._freeClimb) {
+      this.groundY = groundY;
+      return;
+    }
+
     const scanY = this._sampleGroundY?.(x, z);
     if (Number.isFinite(scanY)) groundY = Math.max(groundY, scanY);
 
     const probe = this._collisionProbe;
     if (probe) {
-      const probeY = this._freeClimb
-        ? probe.sampleGroundY(x, z, probe.getBounds().max.y + 1, {
-            // An upper level's plan over the head is not a floor.
-            skipBasemapsAbove: feet + EYE_HEIGHT,
-          })
-        : probe.sampleGroundY(x, z, feet + MAX_STEP + GROUND_EPS);
+      const probeY = probe.sampleGroundY(x, z, feet + MAX_STEP + GROUND_EPS);
       if (Number.isFinite(probeY)) groundY = Math.max(groundY, probeY);
     }
 
@@ -217,8 +220,10 @@ export default class WalkModeController {
       floorY = floorY === null ? v : Math.max(floorY, v);
     };
     consider(this._baseGroundY);
-    consider(this._sampleGroundY?.(x, z));
-    consider(this._collisionProbe?.sampleGroundY(x, z, y));
+    if (!this._freeClimb) {
+      consider(this._sampleGroundY?.(x, z));
+      consider(this._collisionProbe?.sampleGroundY(x, z, y));
+    }
     return floorY ?? 0;
   };
 
