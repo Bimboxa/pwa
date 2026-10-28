@@ -105,6 +105,8 @@ export default function LocalScansPanel({
   const [placement, setPlacement] = useState(DEFAULT_PLACEMENT);
   const [mode, setMode] = useState("POINTS");
   const [pointSize, setPointSize] = useState(2);
+  // « Voir en 3D »: the coloured points near the two cut planes.
+  const [boundsIn3d, setBoundsIn3d] = useState(true);
   // Vertical offset of the scan relative to the pose stored on the base
   // map (0 at each pose application; saved by « Mettre à jour »).
   const [offsetZ, setOffsetZ] = useState(0);
@@ -140,7 +142,9 @@ export default function LocalScansPanel({
     active: Boolean(view) && !paused,
     inspect: false,
     hidden: paused || busy,
-    showBounds: Boolean(host && !busy && !inactive && modelVisible),
+    showBounds: Boolean(
+      host && !busy && !inactive && modelVisible && boundsIn3d
+    ),
   });
 
   // helpers
@@ -504,9 +508,7 @@ export default function LocalScansPanel({
             <Button onClick={closeScan}>Annuler</Button>
           </>
         )}
-        {!linkedBaseMap && !busy && (
-          <Alert severity="info">{noBaseMapS}</Alert>
-        )}
+        {!linkedBaseMap && !busy && <Alert severity="info">{noBaseMapS}</Alert>}
         {loaded && !busy && inactive && (
           <Alert
             severity="info"
@@ -532,7 +534,12 @@ export default function LocalScansPanel({
               }}
               onChangePointSize={changePointSize}
             />
-            <SectionScanSlice projection={projection} onDownload={download} />
+            <SectionScanSlice
+              projection={projection}
+              onDownload={download}
+              boundsIn3d={boundsIn3d}
+              onBoundsIn3dChange={setBoundsIn3d}
+            />
             <SectionScanCalibration
               placement={placement}
               offsetZ={offsetZ}

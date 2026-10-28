@@ -27,7 +27,14 @@ import LocalScanSlicePreview from "./LocalScanSlicePreview";
 // projected image (the one « Mettre à jour » writes — its framing, format,
 // zoom and pan are the base map image), the density / colours choice, the
 // download and the 3D clipping of the points outside the slice.
-export default function SectionScanSlice({ projection, onDownload }) {
+// boundsIn3d / onBoundsIn3dChange: « Voir en 3D » — the coloured points
+// near the two cut planes in the 3D scene.
+export default function SectionScanSlice({
+  projection,
+  onDownload,
+  boundsIn3d = true,
+  onBoundsIn3dChange,
+}) {
   const {
     domain,
     verticalKey,
@@ -199,9 +206,26 @@ export default function SectionScanSlice({ projection, onDownload }) {
           onFramingChange={projection.setFraming}
         />
         {/* Z limits aligned with « Calculer » */}
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 1 }}>
           {limitField(0, lower)}
           {limitField(1, upper)}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={boundsIn3d}
+                onChange={(_, checked) => onBoundsIn3dChange?.(checked)}
+              />
+            }
+            label="Voir en 3D"
+            sx={{
+              m: 0,
+              ml: 0.5,
+              gap: 0.5,
+              whiteSpace: "nowrap",
+              "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
+            }}
+          />
           <Box sx={{ flex: 1 }} />
           <Button
             size="small"

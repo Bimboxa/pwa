@@ -104,8 +104,9 @@ base map selected it only says so. No tabs — the sections, top to bottom:
 - **Tranche et image projetée**: the preview on the full panel width with
   the two-handle vertical slider laid over its left edge, the density /
   mean-RGB selector over its top-left corner, the portrait / landscape
-  format beside the title; below the image the inclusive Z limits aligned
-  with **Calculer**, the count / resolution line with the PNG download,
+  format beside the title; below the image the inclusive Z limits, the
+  **Voir en 3D** switch (the coloured points near the two cut planes in the
+  3D scene) and **Calculer** on one row, the count / resolution line with the PNG download,
   and at the bottom the optional hiding of the points outside the slice
   in 3D. Boundary highlighting uses a fixed ±2 cm tolerance. The preview
   framing (format, zoom, pan) is the base map image of a re-framed update.
