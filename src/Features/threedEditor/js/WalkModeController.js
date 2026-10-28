@@ -23,6 +23,12 @@ import { MathUtils, Vector3 } from "three";
 //   the ground becomes the highest surface at the walker's (x, z).
 //
 // Movement model (user-validated):
+// - entry leaves the camera exactly where the orbit view had it (position
+//   AND gaze): the walker hovers "airborne" until the first arrow press,
+//   which drops it (eased descent, gaze untouched) onto the floor below —
+//   the highest surface under the camera (scene geometry, scan relief,
+//   selected baseMap plane), else world altitude 0. Z / W meanwhile fly
+//   freely (no gravity, no drop); the gaze turns as usual;
 // - eye at groundY + EYE_HEIGHT (+ the Z/W altitude offset) above the
 //   ground. The ground is the highest of: the selected baseMap plane, the
 //   scan relief under the camera (sampleGroundY, height map of a scan base
@@ -61,10 +67,9 @@ const GRAVITY_RATE = 5; // 1/s, exponential glide back to eye height
 const EXIT_TARGET_DIST = 5; // m, orbit target handed back on exit
 const MIN_HEAD_CLEARANCE = 0.3; // m, floor clamp while descending
 
-// Entry "landing" animation: the camera descends from its orbit pose onto
-// the walking eye height while the gaze levels out to the horizon. Duration
-// scales with the drop height so short hops don't drag and long dives don't
-// snap.
+// Drop animation (first arrow press): the camera descends from its hovering
+// pose onto the walking eye height. Duration scales with the drop height so
+// short hops don't drag and long dives don't snap.
 const LANDING_MS_PER_M = 60;
 const LANDING_MS_MIN = 500;
 const LANDING_MS_MAX = 1500;
@@ -148,12 +153,13 @@ export default class WalkModeController {
     this._lastT = 0;
     this._prevRotationOrder = null;
 
-    // Landing animation state (see _tick).
+    // Hovering at the entry pose until the first arrow press (see _tick).
+    this._airborne = false;
+    // Drop animation state (see _startDrop / _tick).
     this._landing = false;
     this._landingT0 = 0;
     this._landingMs = 0;
     this._landingFromY = 0;
-    this._landingFromPitch = 0;
   }
 
   setGroundY = (y) => {
@@ -169,17 +175,14 @@ export default class WalkModeController {
 
   // Ground under the camera: the highest of the plane, the scan relief and
   // the scene geometry (walkable part only unless free climb, see header).
-  // feetY: where the feet are taken to be — the camera's by default; the
-  // entry landing passes the selected plane (the orbit camera may hang high
-  // above a roof or an upper level: landing must target the plane's level).
-  _updateGround = ({ feetY = null } = {}) => {
+  _updateGround = () => {
     const camera = this.sceneManager?.camera;
     if (!camera) {
       this.groundY = this._baseGroundY;
       return;
     }
     const { x, y, z } = camera.position;
-    const feet = Number.isFinite(feetY) ? feetY : y - EYE_HEIGHT;
+    const feet = y - EYE_HEIGHT;
     let groundY = this._baseGroundY;
 
     const scanY = this._sampleGroundY?.(x, z);
@@ -197,6 +200,44 @@ export default class WalkModeController {
     }
 
     this.groundY = groundY;
+  };
+
+  // Floor the airborne walker drops onto: the highest surface BELOW the
+  // camera among the scene geometry (base map planes, solids, mailles — no
+  // step limit, the camera may hang far above), the scan relief and the
+  // selected plane; world altitude 0 when nothing lies below.
+  _dropFloorY = () => {
+    const { x, y, z } = this.sceneManager.camera.position;
+    let floorY = null;
+    const consider = (v) => {
+      if (!Number.isFinite(v) || v > y) return;
+      floorY = floorY === null ? v : Math.max(floorY, v);
+    };
+    consider(this._baseGroundY);
+    consider(this._sampleGroundY?.(x, z));
+    consider(this._collisionProbe?.sampleGroundY(x, z, y));
+    return floorY ?? 0;
+  };
+
+  // First arrow press while airborne: drop onto the floor below (eased
+  // descent, gaze untouched); walking resumes on touchdown.
+  _startDrop = (now) => {
+    const camera = this.sceneManager.camera;
+    const floorY = this._dropFloorY();
+    // A selected plane hanging above the landing floor must not pull the
+    // walker back up afterwards (it is the lower bound of _updateGround).
+    this._baseGroundY = Math.min(this._baseGroundY, floorY);
+    this.groundY = floorY;
+    this._altitudeOffset = 0;
+    this._landingFromY = camera.position.y;
+    this._landingMs = MathUtils.clamp(
+      Math.abs(this._refEyeY() - camera.position.y) * LANDING_MS_PER_M,
+      LANDING_MS_MIN,
+      LANDING_MS_MAX
+    );
+    this._landingT0 = now;
+    this._landing = true;
+    this._airborne = false;
   };
 
   // Horizontal move of `delta` (y ignored) stopped at the first obstacle of
@@ -274,21 +315,12 @@ export default class WalkModeController {
       PITCH_LIMIT
     );
 
-    // Land onto the ground plane (keep x/z): animate the descent to walking
-    // eye height while the gaze levels out to the horizon.
+    // The camera stays put (position and gaze): the walker hovers until the
+    // first arrow press drops it onto the floor below (_startDrop).
     this._keys = emptyKeys();
     this._altitudeOffset = 0;
-    this._updateGround({ feetY: this._baseGroundY });
-    const eyeY = this._refEyeY();
-    this._landingFromY = camera.position.y;
-    this._landingFromPitch = this._pitch;
-    this._landingMs = MathUtils.clamp(
-      Math.abs(eyeY - camera.position.y) * LANDING_MS_PER_M,
-      LANDING_MS_MIN,
-      LANDING_MS_MAX
-    );
-    this._landingT0 = performance.now();
-    this._landing = true;
+    this._airborne = true;
+    this._landing = false;
 
     this._prevRotationOrder = camera.rotation.order;
     camera.rotation.order = "YXZ";
@@ -388,8 +420,6 @@ export default class WalkModeController {
 
   _onPointerMove = (e) => {
     if (!this._locked) return;
-    // The landing animation owns the gaze — mouse look resumes on touchdown.
-    if (this._landing) return;
     this._yaw -= e.movementX * SENSITIVITY;
     this._pitch = MathUtils.clamp(
       this._pitch - e.movementY * SENSITIVITY,
@@ -536,16 +566,32 @@ export default class WalkModeController {
     const camera = this.sceneManager.camera;
     let moved = false;
 
+    const keys = this._keys;
+    const runMul = keys.run ? RUN_MULTIPLIER : 1;
+    const fwdSign = (keys.fwd ? 1 : 0) - (keys.back ? 1 : 0);
+    const strafeSign = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    const turnSign = (keys.turnLeft ? 1 : 0) - (keys.turnRight ? 1 : 0);
+    const vertSign = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
+
+    if (turnSign) {
+      // Same sign convention as the mouse: yaw grows when turning left.
+      this._yaw += turnSign * TURN_SPEED * dt;
+      this._lookDirty = true;
+    }
+
     if (this._landing) {
-      // Entry animation: eased vertical descent onto the walking eye height,
-      // gaze leveling out to the horizon. Movement keys wait for touchdown.
+      // Drop: eased vertical descent onto the walking eye height, the gaze
+      // free (mouse / Q / S). Movement keys wait for touchdown.
       const p = Math.min((now - this._landingT0) / this._landingMs, 1);
-      const eased = easeInOutCubic(p);
-      const eyeY = this._refEyeY();
-      camera.position.y = MathUtils.lerp(this._landingFromY, eyeY, eased);
-      this._pitch = MathUtils.lerp(this._landingFromPitch, 0, eased);
-      this._applyLook();
-      this._lookDirty = false;
+      camera.position.y = MathUtils.lerp(
+        this._landingFromY,
+        this._refEyeY(),
+        easeInOutCubic(p)
+      );
+      if (this._lookDirty) {
+        this._applyLook();
+        this._lookDirty = false;
+      }
       if (p >= 1) this._landing = false;
       this._renderTick(true);
       return;
@@ -555,20 +601,30 @@ export default class WalkModeController {
     // reach the probe within a second.
     this._collisionProbe?.maybeRefresh(now);
 
-    const keys = this._keys;
-    const runMul = keys.run ? RUN_MULTIPLIER : 1;
-    const speed = SPEED * runMul;
-    const fwdSign = (keys.fwd ? 1 : 0) - (keys.back ? 1 : 0);
-    const strafeSign = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-    const turnSign = (keys.turnLeft ? 1 : 0) - (keys.turnRight ? 1 : 0);
-    const vertSign = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
-    const climbing = Math.abs(this._pitch) > CLIMB_PITCH;
-
-    if (turnSign) {
-      // Same sign convention as the mouse: yaw grows when turning left.
-      this._yaw += turnSign * TURN_SPEED * dt;
-      this._lookDirty = true;
+    if (this._airborne) {
+      // Hovering at the entry pose: the first arrow press drops the walker
+      // onto the floor below; until then Z / W fly freely (no gravity, no
+      // floor clamp) and the gaze turns.
+      if (fwdSign || strafeSign) {
+        this._startDrop(now);
+        this._renderTick(true);
+        return;
+      }
+      if (vertSign) {
+        camera.position.y += vertSign * VERTICAL_SPEED * runMul * dt;
+        moved = true;
+      }
+      if (this._lookDirty) {
+        this._applyLook();
+        this._lookDirty = false;
+        moved = true;
+      }
+      this._renderTick(moved);
+      return;
     }
+
+    const speed = SPEED * runMul;
+    const climbing = Math.abs(this._pitch) > CLIMB_PITCH;
 
     if (fwdSign || strafeSign) {
       // One horizontal delta for forward/back + strafe (a diagonal move is

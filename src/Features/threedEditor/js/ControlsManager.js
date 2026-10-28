@@ -606,10 +606,15 @@ export default class ControlsManager {
     });
   };
 
-  // Jump the camera to an explicit pose, no transition. Used by the 2D->3D
-  // viewer switch to pre-position the (hidden) 3D view before it is shown.
+  // Jump the camera to an explicit pose, no transition. The pose is EXACT
+  // (position + look axis): a stale focal offset (left by the
+  // orbit-around-cursor setOrbitPoint calls) would be re-applied on top of
+  // it as a lateral shift — zero it first, as applyPoseAndAnimateFov does.
+  // Used by the walk mode exit to hand the camera back where the walker
+  // stands.
   applyPoseInstant = ({ position, target }) => {
     if (!this.cameraControls || !position || !target) return;
+    this.cameraControls.setFocalOffset(0, 0, 0, false);
     this.cameraControls.setLookAt(
       position.x,
       position.y,
