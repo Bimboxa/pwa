@@ -152,7 +152,8 @@ Rows (`BusinessObjectTreeItem.jsx`, annotation-template rows pattern):
   the code (listings with codes), else the color chip (colored types, object
   rows), else a grey pentagon. Button shape on row hover, secondary ring while
   soloed; no affordance when the object has nothing to isolate;
-- the quantity + unit is flush right, same type size as the label (`body2`).
+- the quantity + unit is flush right, in the measurements typography of
+  `ToolbarEditAnnotation` (caption, monospace, 500, `warning.main`).
   Computed quantity when annotations are linked; else `refQty`, greyed; else
   "– unit", greyed; nothing for a unit-less row. On row hover (and on the
   active / armed row) the action buttons — documents, « annotation + »,

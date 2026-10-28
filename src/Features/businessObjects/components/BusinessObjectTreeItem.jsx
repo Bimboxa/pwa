@@ -768,9 +768,10 @@ export default function BusinessObjectTreeItem({
         )}
 
         {/* col 3: quantity + unit (tasks: rolled-up hours), flush right —
-            greyed when it is not computed from linked annotations. Same
-            type size as the label; hidden (slot kept) under the hover
-            action buttons. */}
+            the measurements typography of ToolbarEditAnnotation
+            (AnnotationMeasurements: caption, monospace, 500, warning.main),
+            greyed when it is not computed from linked annotations; hidden
+            (slot kept) under the hover action buttons. */}
         {(rightLabel || showActions) && (
           <Box
             sx={{
@@ -783,12 +784,13 @@ export default function BusinessObjectTreeItem({
           >
             {rightLabel && (
               <Typography
-                variant="body2"
+                variant="caption"
                 noWrap
                 sx={{
-                  fontWeight: labelFontWeight,
+                  fontFamily: "monospace",
+                  fontWeight: 500,
                   lineHeight: `${FIRST_LINE_HEIGHT}px`,
-                  color: rightLabelMuted ? "text.disabled" : "text.secondary",
+                  color: rightLabelMuted ? "text.disabled" : "warning.main",
                   visibility: showActions ? "hidden" : "visible",
                 }}
               >
