@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux';
 import { Box, Typography, Stack, alpha } from '@mui/material';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 
+import KeyChip from './KeyChip';
+
 // `shortcuts` prop overrides the drawing-mode-derived list (e.g. the 3D
 // OBJECT_3D placement mode shows its own rotation shortcuts).
 export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
@@ -90,29 +92,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
                             {shortcut.label}
                         </Typography>
 
-                        <Box
-                            component="span"
-                            sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                minWidth: '28px',
-                                height: '24px',
-                                px: 0.5,
-                                borderRadius: '6px',
-                                border: '1px solid',
-                                borderColor: 'text.disabled',
-                                backgroundColor: (theme) => theme.palette.action.hover,
-                                borderBottomWidth: '3px',
-                                color: 'text.primary',
-                                fontFamily: 'monospace',
-                                fontWeight: 'bold',
-                                fontSize: '0.75rem',
-                                lineHeight: 1,
-                            }}
-                        >
-                            {shortcut.key}
-                        </Box>
+                        <KeyChip>{shortcut.key}</KeyChip>
                     </Box>
                 ))}
             </Stack>

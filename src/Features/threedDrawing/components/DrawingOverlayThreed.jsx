@@ -22,8 +22,10 @@ import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBas
 import { getSectionContourAdjacency } from "Features/threedDimensions/services/sectionContourSnapStore";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import findNearestVertexSnapInAdjacency from "Features/threedDimensions/utils/findNearestVertexSnapInAdjacency";
+import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
 import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { setDrawingArrowAxes } from "Features/threedEditor/threedEditorSlice";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import {
   isFaceCutAxisMode,
@@ -45,6 +47,10 @@ import {
   setRectangleFrame,
 } from "../services/rectangleFrameStore";
 import applyFixedLengthConstraint3d from "../utils/applyFixedLengthConstraint3d";
+import { buildAxisLockLine, removeAxisLockLine } from "../utils/axisLockLine";
+import computeArrowAxisMapping, {
+  isSameArrowAxisMapping,
+} from "../utils/computeArrowAxisMapping";
 import buildUserAxesPlaneHit, {
   getUserAxesInPlane,
 } from "../utils/buildUserAxesPlaneHit";
@@ -207,6 +213,10 @@ export default function DrawingOverlayThreed() {
   // Yaw of the gizmo frame: the axis locks, the natural / locked planes'
   // axes and the helpers' colours follow the user axes.
   const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
+  // Arrow-key axis lock (useDrawingPointerHandlers): the next point is
+  // forced on this user axis through the last vertex, whatever is under
+  // the cursor. Released by ← and by every placed point.
+  const axisLock = useSelector((s) => s.threedEditor.drawingMode.axisLock);
   // A polygon (template or "Dessin") locks its plane after 3 points — a
   // line too while « Points coplanaires » (drawing helper switch) is on.
   const isPlaneLockedDraft = useSelector((s) => {
@@ -296,6 +306,8 @@ export default function DrawingOverlayThreed() {
   // moves the preview without a mouse move (FaceCutAxisOverlayThreed pattern).
   const lastClientRef = useRef(null);
   const rerunRef = useRef(null);
+  // Dashed guide line along the arrow-locked axis through the last vertex.
+  const axisLockLineRef = useRef(null);
   // Letters of the rectangle sides last published (rectangleFrameStore +
   // mapEditor.rectSideAxes), to dispatch only on change.
   const rectSideAxesRef = useRef(null);
@@ -491,6 +503,57 @@ export default function DrawingOverlayThreed() {
     getActiveThreedEditor()?.sceneManager?.renderScene?.();
   }, [patternRepeatBuffer, inProgressPolyline, enabledDrawingMode, active]);
 
+  // Arrow keys → user axes (computeArrowAxisMapping), from the camera
+  // orientation: published to the store after each render (the camera may
+  // have moved), only when a letter changes. One source for the keys
+  // (useDrawingPointerHandlers) and the drawing helper card.
+  useEffect(() => {
+    if (!active) return;
+    const sceneManager = getActiveThreedEditor()?.sceneManager;
+    if (!sceneManager?.addRenderListener) return;
+    const userAxes = getUserAxesWorldDirections(yawDeg);
+    let published = null;
+    const publish = () => {
+      const mapping = computeArrowAxisMapping(sceneManager.camera, userAxes);
+      if (!mapping || isSameArrowAxisMapping(mapping, published)) return;
+      published = mapping;
+      dispatch(setDrawingArrowAxes(mapping));
+    };
+    publish();
+    sceneManager.addRenderListener(publish);
+    return () => sceneManager.removeRenderListener?.(publish);
+  }, [active, yawDeg, dispatch]);
+
+  // Guide line of the arrow-key axis lock: dashed, in the axis colour,
+  // through the last vertex, while the lock holds.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const editor = getActiveThreedEditor();
+    const camera = editor?.sceneManager?.camera;
+    const last = inProgressPolyline[inProgressPolyline.length - 1];
+    const axis = getUserAxesWorldDirections(yawDeg).find(
+      (a) => a.key === axisLock
+    );
+    if (!axisLock || !last || !axis || !camera) return;
+    const line = buildAxisLockLine({
+      editor,
+      camera,
+      origin: new Vector3(last.x, last.y, last.z),
+      dir: axis.dir,
+      axis: axis.key,
+    });
+    if (!line) return;
+    root.add(line);
+    axisLockLineRef.current = line;
+    editor.sceneManager.renderScene?.();
+    return () => {
+      removeAxisLockLine(line);
+      if (axisLockLineRef.current === line) axisLockLineRef.current = null;
+      editor.sceneManager.renderScene?.();
+    };
+  }, [axisLock, inProgressPolyline, yawDeg, active]);
+
   // pointer-move: snap detection + hover marker + plane cross + alignment
   // markers (SVG, screen-space) + dashed preview segment or rectangle loop
   // (Line2 with thick LineMaterial)
@@ -548,6 +611,11 @@ export default function DrawingOverlayThreed() {
     const userAxes = getUserAxesWorldDirections(yawDeg);
     const snapAxes = userAxes.map((a) => ({ key: a.key, dir: a.dir }));
     const axisKeyOf = (from, to) => getSegmentUserAxis(from, to, userAxes);
+    // Arrow-key lock: the user axis the next point is forced on (null = the
+    // regular snap cascade).
+    const lockedAxis = axisLock
+      ? (snapAxes.find((a) => a.key === axisLock) ?? null)
+      : null;
     const camForward = new Vector3();
     const getCamForward = () => camera.getWorldDirection(camForward);
 
@@ -1270,66 +1338,93 @@ export default function DrawingOverlayThreed() {
         : null;
       rectPlane = resolveRectanglePlane();
       const lockedPlane = faceLock?.planeWorld ?? draftPlane ?? null;
-      const rawSnap = computeSnapTarget({
-        mouseNdc: ndc,
-        camera,
-        canvasSize,
-        // While a rectangle anchor is set, the lastVertex-anchored modes
-        // (AXIS / FREE / ortho) and the snap back onto the anchor itself are
-        // meaningless — the second corner lives on the anchor's plan.
-        lastVertex: anchor
-          ? undefined
-          : inProgressPolyline[inProgressPolyline.length - 1],
-        // Template-less drawing / face cut: the ends of the traits already
-        // drawn are snap targets too.
-        inProgressPolyline: anchor
-          ? []
-          : isMeshDraw
-            ? [...traitPoints, ...inProgressPolyline]
-            : inProgressPolyline,
-        // A cote measures on the section first: the cut contour of the
-        // clipping plane (sectionContourSnapStore, empty without a cut)
-        // takes priority over the full mesh — vertices and edges.
-        findNearestVertex: (mNdc, cam, sz, options) =>
-          (isDimensionDraw
-            ? findNearestVertexSnapInAdjacency(
-                getSectionContourAdjacency(),
-                mNdc,
-                cam,
-                sz
-              )
-            : null) ?? findNearestSnap(mNdc, cam, sz, undefined, options),
-        findNearestEdge: (mNdc, cam, sz, options) =>
-          (isDimensionDraw
-            ? findNearestEdgeSnap(
-                getSectionContourAdjacency(),
+      // Arrow-key axis lock: the point of the locked axis (through the last
+      // vertex) closest to the cursor ray, whatever is under the cursor —
+      // the whole cascade (vertices, edges, planes, faces, locked plane) is
+      // bypassed; the explicit lock wins over the polygon's plane too. Null
+      // (no target) when the cursor ray runs along the axis.
+      const lockOrigin =
+        lockedAxis && !anchor
+          ? inProgressPolyline[inProgressPolyline.length - 1]
+          : null;
+      const forcedAxisSnap = lockOrigin
+        ? computeAxisLockSnap({
+            mouseNdc: ndc,
+            camera,
+            canvasSize,
+            origin: new Vector3(lockOrigin.x, lockOrigin.y, lockOrigin.z),
+            axes: [lockedAxis],
+          })
+        : null;
+      const rawSnap = lockOrigin
+        ? forcedAxisSnap && {
+            position: forcedAxisSnap.position,
+            kind: `AXIS_${forcedAxisSnap.axis}`,
+            axis: forcedAxisSnap.axis,
+            isForcedAxis: true,
+          }
+        : computeSnapTarget({
+            mouseNdc: ndc,
+            camera,
+            canvasSize,
+            // While a rectangle anchor is set, the lastVertex-anchored modes
+            // (AXIS / FREE / ortho) and the snap back onto the anchor itself are
+            // meaningless — the second corner lives on the anchor's plan.
+            lastVertex: anchor
+              ? undefined
+              : inProgressPolyline[inProgressPolyline.length - 1],
+            // Template-less drawing / face cut: the ends of the traits already
+            // drawn are snap targets too.
+            inProgressPolyline: anchor
+              ? []
+              : isMeshDraw
+                ? [...traitPoints, ...inProgressPolyline]
+                : inProgressPolyline,
+            // A cote measures on the section first: the cut contour of the
+            // clipping plane (sectionContourSnapStore, empty without a cut)
+            // takes priority over the full mesh — vertices and edges.
+            findNearestVertex: (mNdc, cam, sz, options) =>
+              (isDimensionDraw
+                ? findNearestVertexSnapInAdjacency(
+                    getSectionContourAdjacency(),
+                    mNdc,
+                    cam,
+                    sz
+                  )
+                : null) ?? findNearestSnap(mNdc, cam, sz, undefined, options),
+            findNearestEdge: (mNdc, cam, sz, options) =>
+              (isDimensionDraw
+                ? findNearestEdgeSnap(
+                    getSectionContourAdjacency(),
+                    mNdc,
+                    cam,
+                    sz,
+                    undefined,
+                    options
+                  )
+                : null) ??
+              findNearestEdgeSnap(
+                getMeshAdjacency(),
                 mNdc,
                 cam,
                 sz,
                 undefined,
                 options
-              )
-            : null) ??
-          findNearestEdgeSnap(
-            getMeshAdjacency(),
-            mNdc,
-            cam,
-            sz,
-            undefined,
-            options
-          ),
-        intersectPlane,
-        alignAdjacency: getMeshAdjacency(),
-        attachFaceToPointSnaps:
-          (isMeshDraw || isDimensionDraw || inProgressPolyline.length === 0) &&
-          !anchor,
-        lockedPlane,
-        axes: snapAxes,
-        // Off every surface: the natural plane (not while bound to a plane
-        // nor for a rectangle's second corner, which has its own plane).
-        intersectFallbackPlane:
-          anchor || lockedPlane ? null : intersectFallbackPlane,
-      });
+              ),
+            intersectPlane,
+            alignAdjacency: getMeshAdjacency(),
+            attachFaceToPointSnaps:
+              (isMeshDraw ||
+                isDimensionDraw ||
+                inProgressPolyline.length === 0) &&
+              !anchor,
+            lockedPlane,
+            axes: snapAxes,
+            // Off every surface: the natural plane (not while bound to a plane
+            // nor for a rectangle's second corner, which has its own plane).
+            intersectFallbackPlane:
+              anchor || lockedPlane ? null : intersectFallbackPlane,
+          });
       // Typed length: the rubber band (and the click, through lastSnap) is
       // rescaled from the last vertex. A ";" series spans its total — the
       // click then splits it into its segments (expandSeriesVertices). Not
@@ -1423,20 +1518,22 @@ export default function DrawingOverlayThreed() {
     dispatch,
     meterByPx,
     yawDeg,
+    axisLock,
     isPlaneLockedDraft,
     isCenterRadiusDraft,
     isAxisDraft,
   ]);
 
-  // Typed length changed (digit / Backspace / consumed by a click): re-run
-  // the hover from the last pointer position so the rubber band and the
-  // badge follow the typing without a mouse move. Declared after the
-  // pointer-move effect: on a click, pushDrawingVertex + clearConstraintBuffer
-  // are batched, the effect above re-closes over the new vertex first, then
-  // this one redraws the free preview from it.
+  // Typed length changed (digit / Backspace / consumed by a click), or the
+  // arrow-key axis lock set / released: re-run the hover from the last
+  // pointer position so the rubber band and the badge follow the key
+  // without a mouse move. Declared after the pointer-move effect: on a
+  // click, pushDrawingVertex + clearConstraintBuffer are batched, the effect
+  // above re-closes over the new vertex first, then this one redraws the
+  // free preview from it.
   useEffect(() => {
     rerunRef.current?.();
-  }, [constraintBuffer, patternRepeatBuffer]);
+  }, [constraintBuffer, patternRepeatBuffer, axisLock]);
 
   if (!active) return null;
   return (

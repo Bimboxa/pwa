@@ -16,6 +16,13 @@ const FACE_DRAW_TOOL_KEYS = new Set(
   )
 );
 
+// Tool keys of a RULER draft (templateRulerDrawSelectors.RULER_DRAWING_MODES).
+const RULER_TOOL_KEYS = new Set(
+  getToolsForShape("RULER").map(
+    (key) => getDrawingToolByKey(key)?.drawingMode ?? key
+  )
+);
+
 // Template-driven 3D face drawing is fully derived state: the template row
 // click in PopperMapListings dispatches the regular 2D drawing state
 // (newAnnotation + enabledDrawingMode); when the Dessin module is toggled to
@@ -92,6 +99,32 @@ export function selectIsThreedPolylineClickDraw(s) {
     s.viewers.selectedViewerKey === "MAP" &&
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+}
+
+// The arrow-key axis lock (↑ → ↓ force the next point on a user axis, ←
+// releases — useDrawingPointerHandlers / DrawingOverlayThreed) applies to
+// the point-by-point 3D flows anchored on a last vertex: a line / polygon
+// (template or "Dessin"), a cote, a ruler. Not the rectangles (the second
+// corner lives on the anchor's plan), the disc / revolution axis (rim on
+// the centre's plane), the face cuts (bound to a face), the brush, nor the
+// OBJECT_3D placement — and not in walk mode, whose arrows move the walker.
+// Shown in the drawing helper on the same condition.
+export function selectIsThreedAxisLockAvailable(s) {
+  if (s.viewers.selectedViewerKey !== "MAP") return false;
+  if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(s))) return false;
+  if (s.threedEditor.walkMode?.active) return false;
+  const mode = s.mapEditor.enabledDrawingMode;
+  if (isFaceCutDrawingMode(mode)) return false;
+  const na = s.annotations.newAnnotation;
+  // Cote / ruler modes: their own selectors import this module, hence the
+  // inline checks (templateCoteDrawSelectors / templateRulerDrawSelectors).
+  if (na?.type === "COTE") return mode === "COTE_TWO_CLICK";
+  if (na?.type === "RULER") return RULER_TOOL_KEYS.has(mode);
+  if (!FACE_DRAW_TOOL_KEYS.has(mode)) return false;
+  if (na?.isOpening) return false;
+  if (na?.type !== "POLYGON" && na?.type !== "POLYLINE") return false;
+  const behavior = getDrawingToolByKey(mode)?.behavior;
+  return behavior !== "RECTANGLE" && behavior !== "CIRCLE_RADIUS";
 }
 
 export function selectIsTemplateFaceDrawActive(s) {
