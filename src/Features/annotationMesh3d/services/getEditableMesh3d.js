@@ -9,6 +9,7 @@ import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotations
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 
 import isAnnotationConvertibleToMesh3d from "../utils/isAnnotationConvertibleToMesh3d";
+import { isMesh3dOriented } from "../utils/isMesh3dClosed";
 import { mesh3dToLocal } from "../utils/mesh3dFrame";
 import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
 
@@ -42,10 +43,18 @@ import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
 // which candidate the path cuts) passes false and reads the displayed
 // object as is (`isShrunk`), so a host the tool never touches keeps its
 // shrink.
+//
+// allowOpen (default false): a regular annotation whose solid is an OPEN
+// surface of several faces (a PX polyline wall extruded by « Extruder »: one
+// zero-thickness quad per segment) is converted too, provided its faces are
+// consistently oriented (isMesh3dOriented) — the face cut and the part
+// deletion opt in, the tools that need a solid (merge, push/pull) keep the
+// default and get null for it.
 export default async function getEditableMesh3d({
   editor,
   annotationId,
   unshrink = true,
+  allowOpen = false,
 }) {
   const sceneManager = editor?.sceneManager;
   const annotation = await db.annotations.get(annotationId);
@@ -91,8 +100,8 @@ export default async function getEditableMesh3d({
   });
   const object =
     sceneManager.annotationsManager?.annotationsObjectsMap?.[annotationId];
-  const mesh = convertObject3DToMesh3d(object, baseMapGroup);
-  if (!mesh) return null;
+  const mesh = convertObject3DToMesh3d(object, baseMapGroup, { allowOpen });
+  if (!mesh || (allowOpen && !isMesh3dOriented(mesh))) return null;
   return {
     annotation,
     mesh,

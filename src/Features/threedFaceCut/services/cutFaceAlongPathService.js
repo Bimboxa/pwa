@@ -59,6 +59,8 @@ const VERTICAL_FACE_MAX_NORMAL_Z = 0.05;
 //   is opened there).
 // Otherwise — another face, a host of openings / subtractions, a mesh
 // annotation — the annotation's mesh is split (converted to a mesh first).
+// An open surface (a PX polyline wall swept by « Extruder »: one
+// zero-thickness quad per segment) is converted like a solid (allowOpen).
 // A cut bound to a selected face (`target`) always splits the mesh: the plan
 // encodings above would cut the whole solid, not that face only.
 //
@@ -109,6 +111,7 @@ export default async function cutFaceAlongPathService({
       editor,
       annotationId,
       unshrink: false,
+      allowOpen: true,
     });
     if (!ctx) {
       console.warn(
@@ -178,7 +181,11 @@ export default async function cutFaceAlongPathService({
 
     // The mesh is written: split the un-shrunk object.
     if (ctx.isShrunk) {
-      const unshrunk = await getEditableMesh3d({ editor, annotationId });
+      const unshrunk = await getEditableMesh3d({
+        editor,
+        annotationId,
+        allowOpen: true,
+      });
       if (unshrunk) {
         faceIndices = getTargetFaceIndices(target, unshrunk, { remap: true });
       }

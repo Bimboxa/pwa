@@ -20,8 +20,9 @@ import writeMesh3dService from "./writeMesh3dService";
 //
 // A REGULAR annotation (parts selected on its displayed object, see
 // getDisplayedMesh3d) is converted first: the parts are re-located on the
-// un-shrunk conversion, and the annotation is stored as a mesh. `editor` (the
-// active 3D editor) is only needed for that case.
+// un-shrunk conversion, and the annotation is stored as a mesh — an open
+// surface (a PX polyline wall) included (allowOpen). `editor` (the active 3D
+// editor) is only needed for that case.
 //
 // parts: parsed part ids (parseMesh3dPartId). Returns
 //   { ok: true } | { ok: false, reason: "LAST_FACE" | "EDGE_NOT_MERGEABLE" |
@@ -51,7 +52,7 @@ export default async function deleteMesh3dPartsService({
     // Read the displayed mesh BEFORE getEditableMesh3d rebuilds the object.
     const displayed = getDisplayedMesh3d(editor, annotationId);
     const editable = displayed
-      ? await getEditableMesh3d({ editor, annotationId })
+      ? await getEditableMesh3d({ editor, annotationId, allowOpen: true })
       : null;
     if (editable?.isConversion) {
       ctx = editable;
