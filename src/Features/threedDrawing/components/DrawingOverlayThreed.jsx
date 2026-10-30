@@ -59,7 +59,7 @@ import computeDraftPlane from "../utils/computeDraftPlane";
 import expandArcsInPath3d from "../utils/expandArcsInPath3d";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
-import computeSnapTarget from "../utils/computeSnapTarget";
+import computeSnapTarget, { ndcDistance } from "../utils/computeSnapTarget";
 import getSegmentUserAxis from "../utils/getSegmentUserAxis";
 import pickNaturalPlane from "../utils/pickNaturalPlane";
 import intersectAnnotationFace, {
@@ -136,6 +136,9 @@ const PATTERN_REPEAT_OPACITY = 0.55;
 
 // Pixel radius of the snap-helper circle, matching the 2D SnappingLayer.
 const SNAP_CIRCLE_RADIUS_PX = 6;
+// Screen radius of the vertex snap (useVertexSnap's default), reused for the
+// points of the drawing in progress under the arrow-key axis lock.
+const VERTEX_SNAP_THRESHOLD_PX = 12;
 // Rectangle preview: screen px between a side's midpoint and its length
 // badge, outside the rectangle (2D InteractionLayer parity).
 const RECT_DIM_BADGE_OFFSET_PX = 22;
@@ -1327,6 +1330,69 @@ export default function DrawingOverlayThreed() {
       });
     }
 
+    // Arrow-key axis lock: the target on the locked axis through the last
+    // vertex `origin`. By default the point of the axis closest to the
+    // cursor ray (computeAxisLockSnap, no threshold). When the cursor snaps
+    // an existing vertex (the usual screen-proximity vertex snap: mesh
+    // index, or a point of the drawing in progress), the target is instead
+    // where the plane orthogonal to the axis through that vertex crosses
+    // the axis — the vertex is reported as `alignFrom` (marker + leader to
+    // the target). Null (no target) when the cursor ray runs along the axis
+    // and nothing is snapped.
+    function forcedAxisSnapAt(origin, canvasSize) {
+      const originVec = new Vector3(origin.x, origin.y, origin.z);
+      const dir = lockedAxis.dir;
+      const axisSnap = {
+        kind: `AXIS_${lockedAxis.key}`,
+        axis: lockedAxis.key,
+        isForcedAxis: true,
+      };
+      const meshVertex = findNearestSnap(ndc, camera, canvasSize)?.position;
+      // The origin itself (the last vertex may sit on an indexed vertex) is
+      // no target: the point would stick there.
+      const snappedVertex =
+        meshVertex && meshVertex.distanceToSquared(originVec) >= 1e-12
+          ? meshVertex
+          : nearestInProgressPoint(originVec, canvasSize);
+      if (snappedVertex) {
+        const t = snappedVertex.clone().sub(originVec).dot(dir);
+        const position = originVec.clone().addScaledVector(dir, t);
+        return {
+          ...axisSnap,
+          position,
+          alignFrom: [{ position: snappedVertex, footprint: position }],
+        };
+      }
+      const free = computeAxisLockSnap({
+        mouseNdc: ndc,
+        camera,
+        canvasSize,
+        origin: originVec,
+        axes: [lockedAxis],
+      });
+      return free ? { ...axisSnap, position: free.position } : null;
+    }
+
+    // Point of the drawing in progress (and the ends of the traits already
+    // drawn) under the cursor, the last vertex excluded — the mesh index
+    // does not hold them until the path is committed.
+    function nearestInProgressPoint(originVec, canvasSize) {
+      let best = null;
+      let bestDistance = VERTEX_SNAP_THRESHOLD_PX;
+      const candidates = isMeshDraw
+        ? [...traitPoints, ...inProgressPolyline]
+        : inProgressPolyline;
+      for (const p of candidates) {
+        const v = new Vector3(p.x, p.y, p.z);
+        if (v.distanceToSquared(originVec) < 1e-12) continue;
+        const { distance, behind } = ndcDistance(v, ndc, camera, canvasSize);
+        if (behind || distance >= bestDistance) continue;
+        bestDistance = distance;
+        best = v;
+      }
+      return best;
+    }
+
     function onPointerMove(e) {
       const rect = dom.getBoundingClientRect();
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1338,31 +1404,17 @@ export default function DrawingOverlayThreed() {
         : null;
       rectPlane = resolveRectanglePlane();
       const lockedPlane = faceLock?.planeWorld ?? draftPlane ?? null;
-      // Arrow-key axis lock: the point of the locked axis (through the last
-      // vertex) closest to the cursor ray, whatever is under the cursor —
-      // the whole cascade (vertices, edges, planes, faces, locked plane) is
-      // bypassed; the explicit lock wins over the polygon's plane too. Null
-      // (no target) when the cursor ray runs along the axis.
+      // Arrow-key axis lock (forcedAxisSnapAt): the target stays on the
+      // locked axis through the last vertex, whatever is under the cursor —
+      // the whole cascade (edges, planes, faces, locked plane) is bypassed;
+      // the explicit lock wins over the polygon's plane too. Only a snapped
+      // vertex still counts, through its orthogonal plane.
       const lockOrigin =
         lockedAxis && !anchor
           ? inProgressPolyline[inProgressPolyline.length - 1]
           : null;
-      const forcedAxisSnap = lockOrigin
-        ? computeAxisLockSnap({
-            mouseNdc: ndc,
-            camera,
-            canvasSize,
-            origin: new Vector3(lockOrigin.x, lockOrigin.y, lockOrigin.z),
-            axes: [lockedAxis],
-          })
-        : null;
       const rawSnap = lockOrigin
-        ? forcedAxisSnap && {
-            position: forcedAxisSnap.position,
-            kind: `AXIS_${forcedAxisSnap.axis}`,
-            axis: forcedAxisSnap.axis,
-            isForcedAxis: true,
-          }
+        ? forcedAxisSnapAt(lockOrigin, canvasSize)
         : computeSnapTarget({
             mouseNdc: ndc,
             camera,
