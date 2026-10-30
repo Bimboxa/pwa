@@ -197,9 +197,15 @@ const threedEditorInitialState = {
     // Persistent 3D wireframe segments (memory-only v1). Produced by Enter
     // when nothing commits; drawn as guide lines by DrawingOverlayThreed.
     trait3DSegments: [], // [{a:{x,y,z}, b:{x,y,z}}]
-    // Auto-detected dominant world axis when Shift is held during
-    // mouse-move; null otherwise.
+    // User axis (X / Y / Z of the gizmo frame) the next point is forced on,
+    // set by the arrow keys while drawing (useDrawingPointerHandlers,
+    // snap in DrawingOverlayThreed); null = free. Released by ← and by
+    // every placed point.
     axisLock: null, // null | "X" | "Y" | "Z"
+    // Which user axis each arrow key locks, from the camera orientation
+    // (computeArrowAxisMapping, published by DrawingOverlayThreed): ↑ the
+    // axis most vertical on screen, → the most horizontal, ↓ the third.
+    arrowAxes: { up: "Z", right: "X", down: "Y" },
     // Bumped each time a face is committed, so useVertexSnap rebuilds the
     // mesh-vertex + mesh-edge index to include the freshly-rendered
     // annotation. The bump fires after a small delay to give the
@@ -655,12 +661,16 @@ export const threedEditorSlice = createSlice({
       state.subSelection.vertexIndex = null;
       state.subSelection.vertexIndexB = null;
     },
+    // A placed point releases the arrow-key axis lock (it only holds for
+    // the segment being drawn).
     pushDrawingVertex: (state, action) => {
       state.drawingMode.inProgressPolyline.push(action.payload);
+      state.drawingMode.axisLock = null;
     },
     // « Répétition du motif » (`*N`): the repeated vertices at once.
     appendDrawingVertices: (state, action) => {
       state.drawingMode.inProgressPolyline.push(...action.payload);
+      state.drawingMode.axisLock = null;
     },
     cancelInProgressPolyline: (state) => {
       state.drawingMode.inProgressPolyline = [];
@@ -690,6 +700,25 @@ export const threedEditorSlice = createSlice({
     },
     setDrawingAxisLock: (state, action) => {
       state.drawingMode.axisLock = action.payload;
+    },
+    // { up, right, down } axis keys; no-op when unchanged (dispatched on
+    // every render while drawing).
+    setDrawingArrowAxes: (state, action) => {
+      const next = action.payload;
+      const prev = state.drawingMode.arrowAxes;
+      if (
+        !next ||
+        (prev.up === next.up &&
+          prev.right === next.right &&
+          prev.down === next.down)
+      ) {
+        return;
+      }
+      state.drawingMode.arrowAxes = {
+        up: next.up,
+        right: next.right,
+        down: next.down,
+      };
     },
     // Dispatched only when the camera crosses a vertical base map plane
     // (rare) — the value feeds the annotations build epoch, so each change
@@ -1397,6 +1426,7 @@ export const {
   toggleFaceCutSide,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,
+  setDrawingArrowAxes,
   bumpSnapIndexEpoch,
   bumpAnnotationsLoadTick,
   bumpBaseMapsLoadTick,

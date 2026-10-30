@@ -33,6 +33,7 @@ import {
   cancelInProgressPolyline,
   flushInProgressAsTrait3D,
   pushDrawingVertex,
+  setDrawingAxisLock,
   toggleFaceCutSide,
   toggleLastDrawingVertexType,
 } from "Features/threedEditor/threedEditorSlice";
@@ -97,6 +98,7 @@ import {
   isRevolutionAxisDraftFor3d,
   isTemplatelessDraft,
   isPolylineClickDraftFor3d,
+  selectIsThreedAxisLockAvailable,
 } from "../utils/templateFaceDrawSelectors";
 
 // Pointer movement (in CSS px) above which a press-release pair is treated as
@@ -106,6 +108,14 @@ const DRAG_THRESHOLD_PX = 4;
 
 // Two drawn points closer than this (m) are the same point.
 const SAME_POINT_EPS_M = 1e-4;
+// Arrow keys of the axis lock (onAxisLockKey): the drawingMode.arrowAxes
+// entry each one locks, ← releases.
+const ARROW_KEY_DIRECTIONS = {
+  ArrowUp: "up",
+  ArrowRight: "right",
+  ArrowDown: "down",
+  ArrowLeft: "release",
+};
 
 // Two clicks on one point within this delay (ms) are a double click.
 const DOUBLE_CLICK_MS = 500;
@@ -1221,6 +1231,34 @@ export default function useDrawingPointerHandlers() {
       return false;
     }
 
+    // Arrow keys: ↑ / → / ↓ force the next point on a user axis through
+    // the last vertex (the axis each arrow stands for follows the camera —
+    // drawingMode.arrowAxes, published by DrawingOverlayThreed; the snap is
+    // done there too), ← releases it. Only once a point is placed (the lock
+    // is released by every click), for the flows anchored on a last vertex
+    // (selectIsThreedAxisLockAvailable: not the rectangles, disc / axis,
+    // face cuts) and never in walk mode (its arrows move the walker). True
+    // when consumed.
+    function onAxisLockKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
+      const dir = ARROW_KEY_DIRECTIONS[e.key];
+      if (!dir) return false;
+      const s = store.getState();
+      if (!selectIsThreedAxisLockAvailable(s)) return false;
+      if (s.threedEditor.drawingMode.inProgressPolyline.length === 0) {
+        return false;
+      }
+      e.preventDefault();
+      if (e.repeat) return true;
+      const axis =
+        dir === "release" ? null : s.threedEditor.drawingMode.arrowAxes?.[dir];
+      if (axis === undefined) return true;
+      if (s.threedEditor.drawingMode.axisLock !== axis) {
+        dispatch(setDrawingAxisLock(axis));
+      }
+      return true;
+    }
+
     // T (2D parity, InteractionLayer): the last placed point of a line
     // becomes an arc point, or a corner again — DrawingOverlayThreed curves
     // the band through it, the commit keeps it as a "circle" point. Not
@@ -1722,6 +1760,7 @@ export default function useDrawingPointerHandlers() {
         onRectangleDimsKey(e)
       )
         return;
+      if (onAxisLockKey(e)) return;
       if (onPatternRepeatKey(e)) return;
       if (onLengthKey(e)) return;
       if (onArcToggleKey(e)) return;

@@ -32,6 +32,7 @@ import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintCon
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import {
   selectIsFaceCutDrawActive,
+  selectIsThreedAxisLockAvailable,
   selectIsThreedPolylineClickDraw,
 } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
@@ -55,6 +56,7 @@ import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/tem
 import { selectIsTemplateRulerDrawActive } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
+import SectionThreedAxisLockHelper from "Features/threedDrawing/components/SectionThreedAxisLockHelper";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import SectionChangeStyleHelper from "Features/commandsToolbar/commands/changeStyle/SectionChangeStyleHelper";
@@ -326,6 +328,11 @@ export default function SectionDrawingHelperContent() {
     selectIsThreedPolylineClickDraw
   );
   const coplanarPoints3d = useSelector((s) => s.mapEditor.coplanarPoints3d);
+  // Arrow-key axis lock (↑ → ↓ / ←) of the point-by-point 3D flows: its
+  // own card, with the axis each arrow locks from the camera orientation.
+  const isThreedAxisLockAvailable = useSelector(
+    selectIsThreedAxisLockAvailable
+  );
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
   // Launched on a selected face: the cut is bound to it.
@@ -577,6 +584,9 @@ export default function SectionDrawingHelperContent() {
             onChange={(e) => dispatch(setCoplanarPoints3d(e.target.checked))}
           />
         </Paper>
+      )}
+      {isThreedToggledEditor && isThreedAxisLockAvailable && (
+        <SectionThreedAxisLockHelper />
       )}
       {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
       {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
