@@ -462,6 +462,46 @@ test("oblique neighbors: pull adds side faces, push is refused", () => {
   assert.ok(signedVolume(pulled) > 0);
 });
 
+test("push range ignores a neighbor vertex beside the face's footprint", () => {
+  // Stepped plan: the floor bends at y = 0.5 beyond x = 4, far from the
+  // left half of the x = 0 face (y in [1, 2]) pushed toward +x.
+  const mesh = buildMesh3dFromTriangles({
+    positions: extrudeSoup(
+      [
+        [0, 0],
+        [4, 0],
+        [4, 0.5],
+        [5, 0.5],
+        [5, 2],
+        [0, 2],
+      ],
+      [
+        [0, 1, 2],
+        [0, 2, 5],
+        [2, 3, 4],
+        [2, 4, 5],
+      ],
+      3
+    ),
+  });
+  assert.ok(isMesh3dClosed(mesh));
+  near(getMesh3dQties(mesh).volume, (4 * 2 + 1 * 1.5) * 3);
+
+  const split = splitMesh3dFace(mesh, [v(0, 1, 0), v(0, 1, 3)]);
+  const face = findFace(
+    split,
+    (n, f) =>
+      n.x < -0.99 && f.loop.every((vi) => split.vertices[vi].y >= 1 - 1e-9)
+  );
+  // The material behind spans the whole plan (x = 5), not the bend at x = 4.
+  near(getPushPullRange(split, face).min, -(5 - 0.01));
+
+  const pushed = pushPullMesh3dFace(split, face, -1);
+  assert.ok(isMesh3dClosed(pushed));
+  near(getMesh3dQties(pushed).volume, (4 * 2 + 1 * 1.5) * 3 - 1 * 1 * 3);
+  assert.ok(signedVolume(pushed) > 0);
+});
+
 test("plan projection of a solid, a vertical sheet and a frame", () => {
   const box = projectMesh3dToRings(makeBox());
   assert.equal(box.contour.length, 4);

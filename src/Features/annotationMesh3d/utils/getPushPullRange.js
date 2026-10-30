@@ -20,8 +20,10 @@ const EPS = 1e-6;
 // - refused (min = 0) when a neighbor is oblique — the swept volume would
 //   have to be carved out of it, which needs a real boolean;
 // - otherwise limited by the material behind the face: the nearest vertex
-//   level of the perpendicular neighbors, and the first face hit behind the
-//   face's own vertices — minus MIN_THICKNESS_M.
+//   level of the perpendicular neighbors within the face's footprint (a
+//   neighbor vertex beside the face, e.g. a bend of the floor further along,
+//   is not in the swept volume), and the first face hit behind the face's
+//   own vertices — minus MIN_THICKNESS_M.
 //
 // through: { depth } when the mesh is a plain prism along the face (the face,
 // its perpendicular sides and ONE opposite cap, `depth` behind it), null
@@ -36,6 +38,7 @@ export default function getPushPullRange(mesh, faceIndex) {
   const normal = getFaceNormal(vertices, face);
   const normals = faces.map((f) => getFaceNormal(vertices, f));
   const edgeMap = buildEdgeMap(mesh);
+  const face2d = getFace2d(vertices, face);
 
   let hasNeighbor = false;
   let depth = Infinity;
@@ -57,11 +60,19 @@ export default function getPushPullRange(mesh, faceIndex) {
         return { min: 0, max: Infinity, through: null }; // oblique neighbor
       }
       sides.add(partner.faceIndex);
-      // Perpendicular neighbor: nearest vertex level behind the face.
+      // Perpendicular neighbor: nearest vertex level behind the face, among
+      // the vertices that project inside the face (or on its contour).
       for (const neighborLoop of getFaceLoops(faces[partner.faceIndex])) {
         for (const vi of neighborLoop) {
           const h = dot(sub(vertices[vi], vertices[a]), normal);
-          if (h < -EPS && -h < depth) depth = -h;
+          if (h >= -EPS || -h >= depth) continue;
+          const where = classifyPointOnFace(
+            face2d,
+            face,
+            projectPointTo2d(vertices[vi], face2d.basis),
+            ON_BOUNDARY_TOL_M
+          );
+          if (where.kind !== "OUTSIDE") depth = -h;
         }
       }
     }
