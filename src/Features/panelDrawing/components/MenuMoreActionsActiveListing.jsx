@@ -38,6 +38,10 @@ import { OwnershipError } from "App/db/ownership";
 // rename (dialog), favorites toggle, duplicate, delete unused templates (of
 // this listing only, the listing is kept), delete. Duplicate / delete
 // mirror IconButtonMoreActionsListing.
+// The dialogs outlive the menu: a host may reset `listing` to null when the
+// menu closes (SectionPopperListings keeps it in the same state as the
+// anchor), so the listing targeted by a dialog is frozen on the menu click
+// (targetListing) instead of being read from the prop at confirm time.
 // ---------------------------------------------------------------------------
 
 export default function MenuMoreActionsActiveListing({
@@ -84,14 +88,31 @@ export default function MenuMoreActionsActiveListing({
   const [openRename, setOpenRename] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openDeleteUnused, setOpenDeleteUnused] = useState(false);
+  // Listing frozen when a dialog opens (see header comment).
+  const [targetListing, setTargetListing] = useState(null);
 
   // helpers
 
   const favorite = isFavorite(listing?.id);
+  const dialogListing = targetListing ?? listing;
+
+  const closeRename = () => {
+    setOpenRename(false);
+    setTargetListing(null);
+  };
+  const closeDeleteUnused = () => {
+    setOpenDeleteUnused(false);
+    setTargetListing(null);
+  };
+  const closeDelete = () => {
+    setOpenDelete(false);
+    setTargetListing(null);
+  };
 
   // handlers
 
   const handleRename = () => {
+    setTargetListing(listing);
     onClose();
     setOpenRename(true);
   };
@@ -119,12 +140,14 @@ export default function MenuMoreActionsActiveListing({
   };
 
   const handleDeleteUnusedTemplates = () => {
+    setTargetListing(listing);
     onClose();
     if (!guardEditRecord(listing)) return;
     setOpenDeleteUnused(true);
   };
 
   const handleDelete = () => {
+    setTargetListing(listing);
     onClose();
     if (!guardEditRecord(listing)) return;
     setOpenDelete(true);
@@ -269,29 +292,29 @@ export default function MenuMoreActionsActiveListing({
       {openRename && (
         <DialogRenameListing
           open={openRename}
-          onClose={() => setOpenRename(false)}
-          listing={listing}
+          onClose={closeRename}
+          listing={dialogListing}
         />
       )}
 
       {openDeleteUnused && (
         <DialogDeleteUnusedAnnotationTemplates
           open={openDeleteUnused}
-          onClose={() => setOpenDeleteUnused(false)}
-          listingId={listing?.id}
+          onClose={closeDeleteUnused}
+          listingId={dialogListing?.id}
         />
       )}
 
       <DialogDeleteRessource
         open={openDelete}
-        onClose={() => setOpenDelete(false)}
+        onClose={closeDelete}
         onConfirmAsync={async () => {
           try {
-            await deleteListing(listing.id);
+            await deleteListing(dialogListing.id);
           } catch (error) {
             if (!(error instanceof OwnershipError)) throw error;
           }
-          setOpenDelete(false);
+          closeDelete();
         }}
       />
     </>
