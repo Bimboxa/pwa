@@ -455,6 +455,7 @@ export default function FaceCutAxisOverlayThreed() {
           editor,
           annotationId: hit.nodeId,
           unshrink: false,
+          allowOpen: true,
         })
       );
       if (disposed || myRequest !== requestId) return;

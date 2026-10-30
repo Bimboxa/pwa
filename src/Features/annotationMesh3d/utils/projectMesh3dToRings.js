@@ -8,8 +8,11 @@ import { getFaceLoops } from "./mesh3dTopology.js";
 // annotation of an isMesh3d annotation draws.
 //
 // Returns { contour: [{x, y}], holes: [[{x, y}]], isSegment } in local
-// meters (open loops), or null for an empty mesh. isSegment: no face has a
-// plan area — the contour is the thin quad around the projected segment
+// meters (open loops), or null for an empty mesh. A mesh with no face of
+// plan area (vertical walls only) casts, per face, a thin quad around that
+// face's projected segment: a ring of walls projects as a thin closed band,
+// a chain of walls as a thin open band — polygons of about no area.
+// isSegment: the mesh is ONE such face — the contour is that thin quad
 // (buildThinQuad), drawn as a line in 2D.
 
 // Snap grid (meters) applied before the union so the shared edges of
@@ -103,18 +106,30 @@ function buildThinQuad(vertices) {
   };
 }
 
+// The thin quad of a face seen edge-on, as a closed ring for the union.
+function buildFaceThinQuadRing(vertices, face) {
+  const quad = buildThinQuad(face.loop.map((vi) => vertices[vi]));
+  if (!quad) return null;
+  const ring = quad.contour.map((p) => [snap(p.x), snap(p.y)]);
+  return [...ring, ring[0]];
+}
+
 export default function projectMesh3dToRings(mesh) {
   if (!mesh?.vertices?.length || !mesh?.faces?.length) return null;
   const { vertices, faces } = mesh;
 
   const polygons = [];
+  const edgeOn = [];
   for (const face of faces) {
     const rings = getFaceLoops(face)
       .map((loop) =>
         loop.map((vi) => [snap(vertices[vi].x), snap(vertices[vi].y)])
       )
       .filter((ring) => ring.length >= 3);
-    if (!rings.length || Math.abs(ringArea(rings[0])) < MIN_FACE_AREA_M2) {
+    if (!rings.length) continue;
+    if (Math.abs(ringArea(rings[0])) < MIN_FACE_AREA_M2) {
+      const ring = buildFaceThinQuadRing(vertices, face);
+      if (ring) edgeOn.push([ring]);
       continue;
     }
     polygons.push(
@@ -123,7 +138,13 @@ export default function projectMesh3dToRings(mesh) {
         .map((ring) => [...ring, ring[0]])
     );
   }
-  if (!polygons.length) return buildThinQuad(vertices);
+  // No face has a plan area: the walls' own footprints — one wall is the
+  // segment (buildThinQuad), several are the union of their thin quads (a
+  // ring of walls: a closed band, not the diagonal joining its corners).
+  if (!polygons.length) {
+    if (edgeOn.length <= 1) return buildThinQuad(vertices);
+    polygons.push(...edgeOn);
+  }
 
   let merged;
   try {

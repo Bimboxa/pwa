@@ -6,8 +6,8 @@ import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotations
 import buildMesh3dFromCarvedTriangles from "../utils/buildMesh3dFromCarvedTriangles";
 import buildMesh3dFromTriangles from "../utils/buildMesh3dFromTriangles";
 import { getMesh3dSignedVolume } from "../utils/getMesh3dQties";
-import isMesh3dClosed from "../utils/isMesh3dClosed";
-import { reverseFace } from "../utils/mesh3dTopology";
+import isMesh3dClosed, { isMesh3dOriented } from "../utils/isMesh3dClosed";
+import { getLoopAreaVector, reverseFace } from "../utils/mesh3dTopology";
 
 // Beyond this the source is a generated shape (sampled arcs...), not something
 // to hand-edit face by face.
@@ -23,9 +23,13 @@ const MAX_FACES = 2000;
 // not convertible: CSG-carved, neither closed nor a single flat face, etc.
 //
 // options.allowOpen: an OPEN mesh of several faces (the zero-thickness quads
-// of a PX polyline wall, a sloped band...) is returned as it is instead of
-// null — for a display-only use (face selection, getDisplayedMesh3d), never
-// for a write: its winding is not normalized.
+// of a PX polyline wall, a sloped band...) is returned instead of null — for
+// the face selection (getDisplayedMesh3d) and, when its faces are
+// consistently oriented (isMesh3dOriented), for the writes that opt in
+// (getEditableMesh3d allowOpen). Such a mesh is wound away from its centroid
+// (a ring of walls faces outward, like buildRibbonMesh3d) — a convention
+// that is harmless for an open chain, whose faces only need to agree with
+// each other. A soup whose faces disagree is returned as it is (display).
 //
 // options.carved: the object IS the output of a CSG subtraction (the
 // « Soustraire définitivement » bake): its coplanar triangles only share
@@ -82,6 +86,35 @@ export default function convertObject3DToMesh3d(
       : mesh;
   }
   // A flat polygon (height 0) is a one-face sheet.
-  if (mesh.faces.length === 1 || allowOpen) return mesh;
-  return null;
+  if (mesh.faces.length === 1) return mesh;
+  if (!allowOpen) return null;
+  return isMesh3dOriented(mesh) ? orientAwayFromCentroid(mesh) : mesh;
+}
+
+// Consistently oriented open mesh wound away from its centroid: the faces
+// flip all together (the shared edges keep running in opposite directions)
+// when their area vectors mostly point at the centroid.
+function orientAwayFromCentroid(mesh) {
+  const { vertices, faces } = mesh;
+  const centroid = { x: 0, y: 0, z: 0 };
+  for (const p of vertices) {
+    centroid.x += p.x / vertices.length;
+    centroid.y += p.y / vertices.length;
+    centroid.z += p.z / vertices.length;
+  }
+  let outward = 0;
+  for (const face of faces) {
+    const area = getLoopAreaVector(vertices, face.loop);
+    const c = { x: 0, y: 0, z: 0 };
+    for (const vi of face.loop) {
+      c.x += vertices[vi].x / face.loop.length;
+      c.y += vertices[vi].y / face.loop.length;
+      c.z += vertices[vi].z / face.loop.length;
+    }
+    outward +=
+      area.x * (c.x - centroid.x) +
+      area.y * (c.y - centroid.y) +
+      area.z * (c.z - centroid.z);
+  }
+  return outward < 0 ? { vertices, faces: faces.map(reverseFace) } : mesh;
 }

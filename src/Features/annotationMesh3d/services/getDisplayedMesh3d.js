@@ -38,8 +38,9 @@ const getGeometryKey = (solids) =>
 // on such sheets.
 //
 // Open meshes (a PX polyline wall: one zero-thickness quad per segment) are
-// accepted here: their faces are selectable like any other, only the writes
-// of several open faces (getEditableMesh3d) keep rejecting them.
+// accepted here: their faces are selectable like any other; the writes take
+// them only when they opt in (getEditableMesh3d allowOpen: the face cut, the
+// part deletion).
 //
 // A CARVED host (a subtraction carved live by the CSG: `hasSubtraction` on
 // its solid) is read through the carved-soup conversion (coplanar union per
