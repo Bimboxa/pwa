@@ -3,7 +3,6 @@ import {
   setVertexOffsetModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
-import getDisplayedMesh3d from "Features/annotationMesh3d/services/getDisplayedMesh3d";
 import {
   MESH3D_FACE_PART,
   getSelectedMesh3dParts,
@@ -22,9 +21,10 @@ export function isVertexOffsetSource(annotation) {
 
 // The face « Déplacer » (M) would move the vertices of, read from the current
 // selection: the solo-selected regular annotation with exactly ONE selected
-// MESH3D_FACE part — or, without any part, whose displayed mesh is a single
-// face (a 1-segment wall, a flat polygon: that lone face IS the annotation).
-// Returns { annotationId, faceIndex } or null (the regular move then applies).
+// MESH3D_FACE part. An annotation selected without a face — even a flat
+// one-face sheet (a 1-segment PX wall, a flat polygon) — gets the regular
+// move: its lone face is selected by a second click on the sheet, M then
+// arms the vertex offset. Returns { annotationId, faceIndex } or null.
 export default function resolveVertexOffsetTarget(state, editor) {
   const items = state.selection.selectedItems || [];
   const ids = getSelectedAnnotationIds(items);
@@ -41,18 +41,8 @@ export default function resolveVertexOffsetTarget(state, editor) {
     state.selection.selectedPartIds
   );
   const faces = parts.filter((part) => part.partType === MESH3D_FACE_PART);
-  if (faces.length === 1) {
-    return { annotationId, faceIndex: faces[0].faceIndex };
-  }
-  if (parts.length) return null;
-
-  const displayed = getDisplayedMesh3d(editor, annotationId, {
-    allowSingleFace: true,
-  });
-  if (displayed?.mesh?.faces?.length === 1) {
-    return { annotationId, faceIndex: 0 };
-  }
-  return null;
+  if (faces.length !== 1) return null;
+  return { annotationId, faceIndex: faces[0].faceIndex };
 }
 
 // The « Déplacer » entry points (tool row, M key) share this: a selected face
