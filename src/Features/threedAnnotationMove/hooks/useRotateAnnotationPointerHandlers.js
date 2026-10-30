@@ -21,6 +21,7 @@ import { ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE } from "Features/annotationTrans
 
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
+import pickGrabbedAnnotationId from "../utils/pickGrabbedAnnotationId";
 import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
 import commitAnnotationsTransformFrom3d from "../services/commitAnnotationsTransformFrom3d";
 import setRotateAngleBufferService from "../services/setRotateAngleBufferService";
@@ -134,14 +135,35 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) isDragging = true;
     }
 
-    // The annotation a pivot click grabs: the owner of the snapped vertex,
-    // or — free pivot — the first carriable annotation of the selection
-    // (the whole selection then follows through the implicit-selection
-    // rule). Returns { grabbed, group } or null (toasted).
+    // The annotation a pivot click grabs (pickGrabbedAnnotationId): a
+    // selection made before arming the tool is what turns — the clicked
+    // vertex is only the pivot, even when it is shared with an unselected
+    // annotation (whose mesh the snap resolves to); a free pivot turns the
+    // first carriable annotation of the selection. Without a carriable
+    // selection, the owner of the snapped vertex (the whole selection then
+    // follows through the implicit-selection rule).
+    // Returns { grabbed, group } or null (toasted).
     function resolveGrabbedAtPivot(snap) {
       const resolved =
         snap.kind === "VERTEX" ? resolveAnnotationFromSnap(editor, snap) : null;
-      if (resolved?.annotationId) {
+      const grabbedId = pickGrabbedAnnotationId({
+        snapAnnotationId: resolved?.annotationId ?? null,
+        selectedItems: store.getState().selection.selectedItems,
+        annotations: annotationsRef.current,
+      });
+
+      if (!grabbedId) {
+        dispatch(
+          setToaster({
+            message: resolved
+              ? "Sélectionnez un point d'une annotation"
+              : ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE,
+          })
+        );
+        return null;
+      }
+
+      if (grabbedId === resolved?.annotationId) {
         if (
           isForeignFootprintId(resolved.annotationId) ||
           !resolved.group ||
@@ -165,17 +187,9 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         return { grabbed: resolved, group: resolved.group };
       }
 
-      const selectedIds = (store.getState().selection.selectedItems ?? [])
-        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
-        .map((i) => i.nodeId ?? i.id);
-      const first = selectedIds
-        .map((id) => annotationsRef.current?.find((a) => a.id === id))
-        .find(
-          (a) =>
-            a &&
-            !isForeignFootprintId(a.id) &&
-            isPointBasedAnnotationType(a.type)
-        );
+      // Selected (carriable by construction) annotation: its own base map
+      // group frames the pivot.
+      const first = annotationsRef.current?.find((a) => a.id === grabbedId);
       const group = first
         ? editor?.sceneManager?.imagesManager?.getGroup(first.baseMapId)
         : null;

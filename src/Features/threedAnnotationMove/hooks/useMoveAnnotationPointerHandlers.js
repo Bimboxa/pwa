@@ -32,6 +32,7 @@ import rearmMoveAnnotationAfterCommit from "../services/rearmMoveAnnotationAfter
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMoveFrom3d";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
+import pickGrabbedAnnotationId from "../utils/pickGrabbedAnnotationId";
 import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
 import applyMoveAnnotationsPose, {
   computeMoveDeltaLocal,
@@ -155,7 +156,29 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
     }
 
     function grabAtSnap(snap) {
-      const resolved = resolveAnnotationFromSnap(editor, snap);
+      let resolved = resolveAnnotationFromSnap(editor, snap);
+      // A selection made before arming the tool is what the tool carries:
+      // the clicked vertex is only the anchor — at a vertex shared with an
+      // unselected annotation, the snapped mesh belongs to that other
+      // annotation and must not hand the gesture over to it.
+      const grabbedId = pickGrabbedAnnotationId({
+        snapAnnotationId: resolved.annotationId,
+        selectedItems: store.getState().selection.selectedItems,
+        annotations: annotationsRef.current,
+      });
+      if (grabbedId && grabbedId !== resolved.annotationId) {
+        const a = annotationsRef.current?.find((ann) => ann.id === grabbedId);
+        resolved = {
+          annotationId: a?.id ?? null,
+          annotationType: a?.type ?? null,
+          listingId: a?.listingId ?? null,
+          annotationTemplateId: a?.annotationTemplateId ?? null,
+          baseMapId: a?.baseMapId ?? null,
+          group: a
+            ? editor?.sceneManager?.imagesManager?.getGroup(a.baseMapId)
+            : null,
+        };
+      }
       if (
         !resolved.annotationId ||
         isForeignFootprintId(resolved.annotationId) ||

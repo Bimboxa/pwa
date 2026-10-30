@@ -8,6 +8,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getCarriedAnnotationIdsFromSelection from "Features/threedAnnotationMove/utils/getCarriedAnnotationIdsFromSelection";
+import pickGrabbedAnnotationId from "Features/threedAnnotationMove/utils/pickGrabbedAnnotationId";
 
 import moveRevolutionAxisCenterService from "Features/revolutionAxes/services/moveRevolutionAxisCenterService";
 
@@ -142,22 +143,17 @@ export default function useAnnotationTransformTool({
     (kind, snap) => {
       // A selection made before arming the tool is what the tool carries:
       // the clicked point is only the reference point — it must not hand the
-      // gesture over to another annotation that happens to share that point.
+      // gesture over to another annotation that happens to share that point
+      // (pickGrabbedAnnotationId, shared with the 3D tools).
       const selectedItems = store.getState().selection.selectedItems;
-      const selectedIds = (selectedItems ?? [])
-        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
-        .map((i) => i.nodeId ?? i.id);
       const snapAnnotationId = snap?.annotationId ?? snap?.previewAnnotationId;
       const isCarriableType = (type) => isTransformable2dType(kind, type);
-      const selectedCarriable = selectedIds.filter((id) => {
-        const a = annotationsRef.current?.find((ann) => ann.id === id);
-        return a && !isForeignFootprintId(id) && isCarriableType(a.type);
+      const annotationId = pickGrabbedAnnotationId({
+        snapAnnotationId,
+        selectedItems,
+        annotations: annotationsRef.current,
+        isCarriableType,
       });
-      const annotationId = selectedCarriable.length
-        ? selectedCarriable.includes(snapAnnotationId)
-          ? snapAnnotationId
-          : selectedCarriable[0]
-        : snapAnnotationId;
       const annotation = annotationId
         ? annotationsRef.current?.find((a) => a.id === annotationId)
         : null;

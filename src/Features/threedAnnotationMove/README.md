@@ -18,8 +18,14 @@ Les modes sont mutuellement exclusifs avec les autres outils 3D (slice
 
 1. **Saisie** : clic sur un sommet d'une annotation (aimantation « annotations
    seulement », `useAnnotationsOnlyVertexSnap`). `resolveAnnotationFromSnap`
-   remonte l'annotation, son fond de plan (`group`) et son type ;
-   `getCarriedAnnotationIdsFromSelection` décide des annotations emportées.
+   remonte l'annotation propriétaire du mesh aimanté, son fond de plan
+   (`group`) et son type ; `pickGrabbedAnnotationId` (partagé avec la 2D)
+   tranche : **la sélection l'emporte** — si des annotations emportables
+   sont sélectionnées, le sommet cliqué n'est que le point d'ancrage, même
+   s'il est partagé avec une annotation non sélectionnée (dont le mesh porte
+   l'aimantation) ; sans sélection emportable, c'est l'annotation du sommet.
+   `getCarriedAnnotationIdsFromSelection` décide ensuite des annotations
+   emportées.
    Le grab (`moveAnnotationSessionStore`) mémorise le point saisi en monde
    et en **local du fond de plan** (`startLocal`), les poses de départ des
    roots (`rootStartPoses`) et un index d'aimantation **sans** les roots
@@ -84,7 +90,10 @@ normale du plan, local +Z — identique pour un plan horizontal ou vertical) :
 
 1. **Pivot** : la cascade du 1er point d'un tracé (`computeSnapTarget`,
    `computePivotSnap`) : un sommet (celui d'une annotation fait tourner cette
-   annotation, règle de sélection implicite), sinon une arête, sinon un point
+   annotation, règle de sélection implicite — sauf si des annotations
+   emportables sont sélectionnées : elles tournent, le sommet, même partagé
+   avec une autre annotation, n'est que le pivot ; `pickGrabbedAnnotationId`),
+   sinon une arête, sinon un point
    du plan de fond de plan sous le curseur — ou du plan du fond de plan
    sélectionné en 2D hors de tout plan — **aligné sur les sommets existants**
    le long des axes du plan (marqueurs rouges, bras pleins dans la couleur de
@@ -145,9 +154,9 @@ leur pose de départ, fantômes jetés) → sortie du mode.
   clavier + carte du helper), `buildMoveAnnotationGrab`,
   `rearmMoveAnnotationAfterCommit`, `armMoveCopyThreedService`.
 - `utils/` : poses (`applyMoveAnnotationsPose`, `applyRotateAnnotationsPose`),
-  `computeAxisLockSnap`, `getCarriedAnnotationIdsFromSelection`,
-  `resolveAnnotationFromSnap`, `annotationTransformTypes` (partagés avec la
-  2D).
+  `computeAxisLockSnap`, `pickGrabbedAnnotationId`,
+  `getCarriedAnnotationIdsFromSelection`, `resolveAnnotationFromSnap`,
+  `annotationTransformTypes` (partagés avec la 2D).
 
 ## Tests
 

@@ -88,10 +88,12 @@ Réutilisées depuis `threedAnnotationMove/utils/` :
 - **Annotations emportées** (`getCarriedAnnotationIdsFromSelection.js`) : si
   l'annotation saisie fait partie de la sélection, toute la sélection suit ;
   sinon elle devient la seule sélectionnée et la seule emportée.
-- **En 2D, la sélection prime** : si des annotations sont sélectionnées quand
-  on clique le point, c'est la sélection qui est emportée — le point cliqué
-  n'est que le point de référence, même s'il appartient aussi à une autre
-  annotation.
+- **La sélection prime** (`pickGrabbedAnnotationId.js`, 2D et 3D) : si des
+  annotations emportables sont sélectionnées quand on clique le point, c'est
+  la sélection qui est emportée (ou tournée) — le point cliqué n'est que le
+  point de référence (ancre ou pivot), même s'il appartient aussi à une autre
+  annotation (sommet partagé : en 3D l'aimantation remonte le mesh de cette
+  autre annotation). Sans sélection emportable, l'annotation du point cliqué.
 - **Droits** : `canEditAnnotation` sur chaque annotation emportée (créateur,
   liste liée en lecture seule, scope requis).
 
