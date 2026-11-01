@@ -28,6 +28,7 @@ import wrapperModeCommand from "./wrapperMode/wrapperModeCommand";
 import changeStyleCommand from "./changeStyle/changeStyleCommand";
 import cloneCommand from "./clone/cloneCommand";
 import mergeCommand from "./merge/mergeCommand";
+import addIntersectionPointsCommand from "./addIntersectionPoints/addIntersectionPointsCommand";
 import dilateCommand from "./dilate/dilateCommand";
 import splitInSegmentsCommand from "./splitInSegments/splitInSegmentsCommand";
 import settingOutCommand from "./settingOut/settingOutCommand";
@@ -115,6 +116,7 @@ export const COMMANDS = [
   changeStyleCommand,
   cloneCommand,
   mergeCommand,
+  addIntersectionPointsCommand,
   dilateCommand,
   splitInSegmentsCommand,
   settingOutCommand,

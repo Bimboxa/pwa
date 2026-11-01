@@ -135,6 +135,7 @@ const DEFAULT_SECTIONS = [
       "CLONE",
       "MERGE",
       "JOIN_ANNOTATIONS",
+      "ADD_INTERSECTION_POINTS",
       "DILATE",
       "SPLIT_IN_SEGMENTS",
       "SETTING_OUT",

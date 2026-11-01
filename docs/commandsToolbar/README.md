@@ -64,6 +64,16 @@ the same service as « Purger les suppressions » in the 2D editor settings)
 after a confirmation dialog that announces the counts (dry run); « Réparer la
 géométrie » repairs the selected line / surface / strip.
 
+« Ajouter les points d'intersection » (`ADD_INTERSECTION_POINTS`, section
+« Créer / modifier depuis la sélection »): with exactly two lines / surfaces
+selected, inserts a vertex in BOTH annotations at every crossing of their main
+rings (`findPolylineIntersections`: arcs sampled then refined on the exact
+circle). The two annotations share one point id per crossing (one `db.points`
+row, the junction convention), arcs are preserved through `splitArcOnInsert`,
+the per-segment flags are remapped, the hosted openings reflow and the whole
+write is one undo step. Cuts / guide lines are not crossed, and
+`meshLinesBySegment` is not remapped (like the other insertion paths).
+
 ## Right-click shortcuts (« Raccourcis »)
 
 A right click in the 2D editor (`InteractionLayer.handleContextMenu`) or the
