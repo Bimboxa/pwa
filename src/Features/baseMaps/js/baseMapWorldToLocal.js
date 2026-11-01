@@ -1,6 +1,6 @@
 import { Object3D, Vector3 } from "three";
 
-import { BASE_MAP_ROTATION_ORDER, getBaseMapEuler } from "./getBaseMapTransform";
+import { BASE_MAP_ROTATION_ORDER, getBaseMapEuler } from "./getBaseMapTransform.js";
 
 // Inverse of `baseMapLocalToWorld`: express a 3D world point in a basemap's
 // local metre frame (the frame `pixelToWorld` outputs, with a perpendicular Z).

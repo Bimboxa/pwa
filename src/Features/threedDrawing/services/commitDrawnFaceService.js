@@ -64,6 +64,8 @@ export const FACE_COMMIT_NO_2D_ENCODING = "NO_2D_ENCODING";
 //     annotationFields}) → a reason string to refuse the commit (nothing is
 //     written, not even points), or falsy to go on — the « Pinceau »
 //     duplicate guard
+//   - reuseExistingPoints: false mints new db.points instead of reusing the
+//     plan's (insertOrReusePoints) — a duplicate independent of its source
 //
 // Returns the created annotation record, or null on failure (no template, no
 // host baseMap, degenerate geometry, etc.).
@@ -90,6 +92,7 @@ export async function commitDrawnFace({
   ignoreTemplateHeight = false,
   extraFields = null,
   checkBeforeCommit = null,
+  reuseExistingPoints = true,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -256,6 +259,7 @@ export async function commitDrawnFace({
     baseMap: host,
     projectId,
     listingId: isTemplateless ? undefined : listingId,
+    reuseExistingPoints,
   });
   const cuts = [];
   for (const ring of projectedHoles) {
@@ -264,6 +268,7 @@ export async function commitDrawnFace({
       baseMap: host,
       projectId,
       listingId: isTemplateless ? undefined : listingId,
+      reuseExistingPoints,
     });
     cuts.push({ id: nanoid(), points: refs });
   }

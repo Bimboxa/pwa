@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Box,
@@ -13,6 +13,7 @@ import {
 } from "@mui/icons-material";
 
 import useAnnotationTemplateCandidates from "Features/annotations/hooks/useAnnotationTemplateCandidates";
+import useCloneAnnotation3d from "Features/mapEditor/hooks/useCloneAnnotation3d";
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
 
 import SelectorAnnotationTemplateVariantDense from "Features/annotations/components/SelectorAnnotationTemplateVariantDense";
@@ -36,7 +37,11 @@ import {
 // a guide sub-selected, the part is cloned instead of the whole annotation. A
 // single selected vertex is not a clonable part — the whole annotation is
 // duplicated. `selectedAnnotation` / `selectedPart` come from the toolbar
-// context (already resolved).
+// context (already resolved). `facePart` ({annotationId, faceIndex}): the
+// face selected in 3D (second click) — the clone then builds that face's
+// closed polyline or surface; a 3D line / surface off its plan is likewise
+// re-encoded through the 3D drawing commits (useCloneAnnotation3d) before
+// the plain point copy.
 export default function CloneAnnotationFlow({
   open,
   onClose,
@@ -45,13 +50,25 @@ export default function CloneAnnotationFlow({
   menuAlign = "left",
   selectedAnnotation,
   selectedPart,
+  facePart = null,
 }) {
   // data
 
   const part = selectedPart?.kind === "POINT" ? null : selectedPart;
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
+  const cloneAnnotation3d = useCloneAnnotation3d();
+  // A selected face is cloned as a line or a surface whatever its host is
+  // (a mesh only accepts POLYGON models otherwise): candidates of a plain
+  // POLYGON.
+  const candidatesReference = useMemo(
+    () =>
+      facePart && selectedAnnotation
+        ? { ...selectedAnnotation, isMesh3d: false, type: "POLYGON" }
+        : selectedAnnotation,
+    [facePart, selectedAnnotation]
+  );
   const { candidates: cloneCandidates, listings: cloneListings } =
-    useAnnotationTemplateCandidates(selectedAnnotation) ?? {};
+    useAnnotationTemplateCandidates(candidatesReference) ?? {};
 
   // state
 
@@ -68,10 +85,14 @@ export default function CloneAnnotationFlow({
 
   const { hasPart, disabled, tooltip } = getCloneAnnotationPartState(part);
 
-  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part);
-  const defaultCloneType = hasPart
-    ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
-    : selectedAnnotation?.type;
+  const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part, {
+    facePart,
+  });
+  const defaultCloneType = facePart
+    ? "POLYLINE"
+    : hasPart
+      ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
+      : selectedAnnotation?.type;
   const cloneType = selectedCloneType ?? defaultCloneType;
 
   const showStripElevation =
@@ -120,6 +141,18 @@ export default function CloneAnnotationFlow({
 
     // Override type if user selected a different one
     if (cloneType) newAnnotation.type = cloneType;
+
+    // 3D line ↔ surface (and the selected face): the 3D drawing commits.
+    const handledIn3d = await cloneAnnotation3d(selectedAnnotation, {
+      template,
+      cloneType,
+      facePart: hasPart ? null : facePart,
+      keepOriginalPoints,
+    });
+    if (handledIn3d) {
+      onClose?.();
+      return;
+    }
 
     await cloneAnnotationAndEntity(selectedAnnotation, {
       newAnnotation,
