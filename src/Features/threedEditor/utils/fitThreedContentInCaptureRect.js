@@ -81,23 +81,29 @@ export default async function fitThreedContentInCaptureRect({
   const halfH = extentAlong(up);
   const halfD = extentAlong(forward);
 
-  // Distance from the bbox center so the content fits BOTH rect dimensions,
-  // measured at the center's depth plane (+ halfD so the near half of the
-  // box does not overflow the frame).
-  const fovDeg = camera.getEffectiveFOV?.() ?? camera.fov;
+  // Visible height (metres over the host height, at the content's depth)
+  // so the content fits BOTH rect dimensions, then the distance from the
+  // bbox center showing it under the perspective fov (+ halfD so the near
+  // half of the box does not overflow the frame). Orthographic camera
+  // (« Caméra ortho »): the frame comes from the frustum height instead —
+  // the distance only places the orbit point at the content's depth.
+  const persp = sceneManager.perspectiveCamera ?? camera;
+  const isOrtho = Boolean(camera.isOrthographicCamera);
+  const fovDeg = persp.getEffectiveFOV?.() ?? persp.fov ?? 75;
   const tanHalf = Math.tan((fovDeg * Math.PI) / 360); // vertical fov
+  const aspect = persp.aspect || hostBounds.width / hostBounds.height;
   const margin = 0.95; // small breathing margin inside the frame
-  const distance =
-    Math.max(
-      halfH / (tanHalf * (rect.height / hostBounds.height) * margin),
-      halfW /
-        (tanHalf * camera.aspect * (rect.width / hostBounds.width) * margin)
-    ) + halfD;
+  const neededHeight = Math.max(
+    (2 * halfH) / ((rect.height / hostBounds.height) * margin),
+    (2 * halfW) / (aspect * (rect.width / hostBounds.width) * margin)
+  );
+  const distance = neededHeight / (2 * tanHalf) + halfD;
 
   // Truck so the bbox center projects at the rect center. Zero when the rect
   // is centered in the host (the default: getCaptureRectBounds centers it),
   // kept for robustness.
-  const worldPerPx = (2 * distance * tanHalf) / hostBounds.height;
+  const worldPerPx =
+    (isOrtho ? neededHeight : 2 * distance * tanHalf) / hostBounds.height;
   const ox = (rect.left + rect.width / 2 - hostBounds.width / 2) * worldPerPx;
   const oy = (rect.top + rect.height / 2 - hostBounds.height / 2) * worldPerPx;
 
@@ -132,6 +138,9 @@ export default async function fitThreedContentInCaptureRect({
   const prevMaxDistance = controls.maxDistance;
   controls.maxDistance = Infinity;
   try {
+    if (isOrtho) {
+      sceneManager.controlsManager?.setOrthoVisibleHeight(neededHeight);
+    }
     await controls.setLookAt(
       position.x,
       position.y,

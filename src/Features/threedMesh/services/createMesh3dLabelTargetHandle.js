@@ -7,6 +7,7 @@ import {
 } from "three";
 
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
+import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
 
 // Constant on-screen size (sizeAttenuation: false), like the label card.
 const HANDLE_SCREEN_SIZE = 0.022;
@@ -55,7 +56,7 @@ export default function createMesh3dLabelTargetHandle({
   });
 
   const sprite = new Sprite(material);
-  sprite.scale.set(HANDLE_SCREEN_SIZE, HANDLE_SCREEN_SIZE, 1);
+  sizeSpriteInViewportFraction(sprite, { fraction: HANDLE_SCREEN_SIZE });
   sprite.renderOrder = 1004;
   sprite.userData = {
     mesh3dId,

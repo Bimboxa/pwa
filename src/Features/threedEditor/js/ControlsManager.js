@@ -90,6 +90,11 @@ export default class ControlsManager {
     // pose owned by another controller.
     this._suspended = false;
 
+    // « Caméra ortho » preference (threedEditor.cameraOrtho, via
+    // setOrthographic). Applied by _applyProjection — except while suspended
+    // (walk mode is perspective only): the swap then waits for the resume.
+    this._orthoWanted = false;
+
     // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
     this._stashedMaxDistance = null;
     // Regular range requested while a transition had lifted the limit (see
@@ -193,8 +198,14 @@ export default class ControlsManager {
       this._navigationPreset,
       modifierState
     );
+    // In orthographic projection the orbit distance is invisible: a DOLLY
+    // button zooms the frustum instead (same remap as the wheel, see
+    // _applyWheelAndTouches).
+    const ortho = this.isOrthographic;
     MOUSE_BUTTON_NAMES.forEach((name) => {
-      const want = CameraControls.ACTION[actions[name]];
+      const action =
+        ortho && actions[name] === "DOLLY" ? "ZOOM" : actions[name];
+      const want = CameraControls.ACTION[action];
       if (controls.mouseButtons[name] !== want) {
         controls.mouseButtons[name] = want;
       }
@@ -249,6 +260,132 @@ export default class ControlsManager {
   setSuspended = (suspended) => {
     this._suspended = !!suspended;
     if (!suspended) this._clock.getDelta();
+    // Walk mode is perspective only: suspending puts the perspective camera
+    // back, resuming re-applies the « Caméra ortho » preference.
+    this._applyProjection();
+  };
+
+  // ----- projection (« Caméra ortho ») -----------------------------------
+
+  get isOrthographic() {
+    return Boolean(this.sceneManager?.camera?.isOrthographicCamera);
+  }
+
+  // The perspective camera, whichever camera is active: the fov / far plane
+  // bookkeeping of this manager (dolly limits, 2D/3D dolly-zoom) always
+  // speaks of it — the orthographic depth range is fixed (SceneManager).
+  _perspectiveCamera = () =>
+    this.sceneManager?.perspectiveCamera ?? this.sceneManager?.camera;
+
+  _tanHalfFov = () => {
+    const persp = this._perspectiveCamera();
+    const fovDeg = persp?.getEffectiveFOV?.() ?? persp?.fov ?? 75;
+    return Math.tan((fovDeg * Math.PI) / 360);
+  };
+
+  // « Caméra ortho » toggle (threedEditor.cameraOrtho, synced by
+  // MainThreedEditor). The swap keeps the displayed scale: the orthographic
+  // frustum height is the perspective visible height at the orbit distance
+  // (h = 2·d·tan(fov/2)) and back.
+  setOrthographic = (enabled) => {
+    this._orthoWanted = Boolean(enabled);
+    this._applyProjection();
+  };
+
+  _applyProjection = () => {
+    const controls = this.cameraControls;
+    const sm = this.sceneManager;
+    const persp = sm?.perspectiveCamera;
+    const ortho = sm?.orthographicCamera;
+    if (!controls || !persp || !ortho) return;
+    const wantOrtho = this._orthoWanted && !this._suspended;
+    const isOrtho = sm.camera === ortho;
+    if (wantOrtho === isOrtho) return;
+
+    // Settle any in-flight transition: the pose read below is the displayed
+    // one (camera-controls only writes the camera inside update()).
+    controls.update(0);
+    if (wantOrtho) {
+      const h = 2 * controls.distance * this._tanHalfFov();
+      ortho.position.copy(persp.position);
+      ortho.quaternion.copy(persp.quaternion);
+      ortho.up.copy(persp.up);
+      sm.setOrthoVisibleHeight(h);
+      // camera-controls tracks the zoom itself and writes it onto its camera
+      // at each update: start the orthographic view at zoom 1.
+      controls.minZoom = 0.01;
+      controls.maxZoom = Infinity;
+      controls.zoomTo(1, false);
+      controls.camera = ortho;
+      this._syncOrthoZoomLimits();
+      sm.setActiveCamera(ortho);
+    } else {
+      // Visible height of the orthographic view → perspective orbit distance.
+      const h = (ortho.top - ortho.bottom) / (ortho.zoom || 1);
+      const d = h / (2 * this._tanHalfFov());
+      // Reset the tracked zoom BEFORE handing the perspective camera over,
+      // or the ortho zoom would be written onto it.
+      controls.minZoom = 0.01;
+      controls.maxZoom = Infinity;
+      controls.zoomTo(1, false);
+      ortho.zoom = 1;
+      controls.camera = persp;
+      controls.dollyTo(
+        Math.min(controls.maxDistance, Math.max(controls.minDistance, d)),
+        false
+      );
+      sm.setActiveCamera(persp);
+    }
+    this._applyMouseButtons({});
+    this._applyWheelAndTouches();
+    controls.update(0);
+    sm.camera.updateMatrixWorld(true);
+    sm.requestRender?.();
+  };
+
+  // Wheel and two-finger gestures: DOLLY (orbit distance) in perspective,
+  // ZOOM (frustum) in orthographic — camera-controls picks them from the
+  // camera type at construction only.
+  _applyWheelAndTouches = () => {
+    const controls = this.cameraControls;
+    if (!controls) return;
+    const ortho = this.isOrthographic;
+    const { ACTION } = CameraControls;
+    controls.mouseButtons.wheel = ortho ? ACTION.ZOOM : ACTION.DOLLY;
+    controls.touches.two = ortho
+      ? ACTION.TOUCH_ZOOM_TRUCK
+      : ACTION.TOUCH_DOLLY_TRUCK;
+  };
+
+  // Orthographic zoom range matching the dolly range of the perspective
+  // camera (minDistance / maxDistance, boosts included): zoom = h0 / h where
+  // h0 is the frustum base height (top - bottom) and h the visible height.
+  _syncOrthoZoomLimits = () => {
+    const controls = this.cameraControls;
+    const ortho = this.sceneManager?.orthographicCamera;
+    if (!controls || !ortho || !this.isOrthographic) return;
+    const h0 = ortho.top - ortho.bottom;
+    if (!(h0 > 0)) return;
+    const tanHalf = this._tanHalfFov();
+    const maxD = Number.isFinite(controls.maxDistance)
+      ? controls.maxDistance
+      : (this._stashedMaxDistance ?? DEFAULT_MAX_DISTANCE);
+    const minD = Math.max(controls.minDistance, 1e-3);
+    controls.minZoom = h0 / (2 * maxD * tanHalf);
+    controls.maxZoom = h0 / (2 * minD * tanHalf);
+  };
+
+  // Orthographic view only: show `heightM` metres over the viewport height
+  // (through camera-controls' tracked zoom, instant). Used by the 2D/3D
+  // switch and the framing helpers in place of a dolly.
+  setOrthoVisibleHeight = (heightM) => {
+    const controls = this.cameraControls;
+    const ortho = this.sceneManager?.orthographicCamera;
+    if (!controls || !ortho || !this.isOrthographic) return;
+    if (!(heightM > 0) || !Number.isFinite(heightM)) return;
+    const h0 = ortho.top - ortho.bottom;
+    if (!(h0 > 0)) return;
+    controls.zoomTo(h0 / heightM, false);
   };
 
   _loop = () => {
@@ -370,7 +507,7 @@ export default class ControlsManager {
   // (far = Infinity would break the projection: nothing renders).
   setDistanceBoost = (distance) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera) return;
     this.clearDistanceBoost();
     if (!Number.isFinite(distance) || distance <= 0) return;
@@ -400,6 +537,7 @@ export default class ControlsManager {
       camera.far = far;
       camera.updateProjectionMatrix();
     }
+    this._syncOrthoZoomLimits();
   };
 
   // Sets the REGULAR zoom-out range (dolly limit + camera far plane at twice
@@ -409,7 +547,7 @@ export default class ControlsManager {
   // (ortho-like fov of the 3D → 2D switch) is updated there.
   setRegularMaxDistance = (distance) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera) return;
     if (!Number.isFinite(distance) || distance <= 0) return;
 
@@ -433,6 +571,7 @@ export default class ControlsManager {
     }
 
     if (boostRequest != null) this.setDistanceBoost(boostRequest);
+    this._syncOrthoZoomLimits();
     this.sceneManager.requestRender?.();
   };
 
@@ -442,7 +581,7 @@ export default class ControlsManager {
   clearDistanceBoost = () => {
     const boost = this._distanceBoost;
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!boost || !controls || !camera) return;
     this._distanceBoost = null;
 
@@ -463,6 +602,7 @@ export default class ControlsManager {
       camera.far = far;
       camera.updateProjectionMatrix();
     }
+    this._syncOrthoZoomLimits();
   };
 
   // Face-on framing of a world-space Box3: pivot the camera onto the plane
@@ -522,7 +662,7 @@ export default class ControlsManager {
     padding = 0.5,
   }) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera || !box || box.isEmpty()) return;
     if (!Number.isFinite(azimuthRad) || !Number.isFinite(polarRad)) return;
 
@@ -583,6 +723,11 @@ export default class ControlsManager {
     } finally {
       controls.enabled = prevEnabled;
     }
+    // Orthographic: the distance above frames nothing by itself — show the
+    // same visible height as the perspective camera would at that distance.
+    if (this.isOrthographic) {
+      this.setOrthoVisibleHeight(2 * distance * tanHalfV);
+    }
     this.syncCameraNow();
     this.sceneManager.requestRender?.();
   };
@@ -638,7 +783,7 @@ export default class ControlsManager {
     durationMs = 500,
   }) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera || !position || !target) return;
 
     const prevEnabled = controls.enabled;
@@ -690,7 +835,7 @@ export default class ControlsManager {
   // is shown.
   animateFovTo = async ({ fovTo, durationMs = 500 }) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera) return;
 
     const prevEnabled = controls.enabled;
@@ -711,7 +856,7 @@ export default class ControlsManager {
   // 3D view right after the switch to 2D.
   restorePerspectiveFov = ({ fovDeg }) => {
     const controls = this.cameraControls;
-    const camera = this.sceneManager?.camera;
+    const camera = this._perspectiveCamera();
     if (!controls || !camera || !(fovDeg > 0)) return;
 
     // Keep h = 2 * d * tan(fov/2) constant across the fov change.
@@ -737,7 +882,7 @@ export default class ControlsManager {
   _animateFovKeepingScale = ({ fovTo, durationMs, distance }) =>
     new Promise((resolve) => {
       const controls = this.cameraControls;
-      const camera = this.sceneManager?.camera;
+      const camera = this._perspectiveCamera();
       if (!controls || !camera || !(durationMs > 0) || !(fovTo > 0)) {
         resolve();
         return;

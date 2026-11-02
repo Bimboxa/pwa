@@ -214,6 +214,9 @@ export function computeTopDownPivotFrom3d({ camera, ctx }) {
 
 // 3D -> 2D, step 2: the {x, y, k} camera matrix that shows the image at the
 // same place/size as the settled top-down 3D view (pivot at screen center).
+// `metersPerScreenPx`, when given, is the 3D scale as measured (orthographic
+// camera: frustum height / viewport height) and replaces the perspective
+// `distance` / `fovDeg` derivation.
 export function computeTwodCameraMatrixFromTopDown({
   storedPx,
   distance,
@@ -222,13 +225,18 @@ export function computeTwodCameraMatrixFromTopDown({
   basePose,
   ctx,
   fovDeg,
+  metersPerScreenPx: metersPerScreenPxGiven,
 }) {
   if (!(viewport2d?.width > 0) || !(viewport2d?.height > 0)) return null;
   if (!(viewport3d?.height > 0)) return null;
-  if (!(distance > 0) || !(fovDeg > 0) || fovDeg >= 180) return null;
+  const hasScale = metersPerScreenPxGiven > 0;
+  if (!hasScale && (!(distance > 0) || !(fovDeg > 0) || fovDeg >= 180)) {
+    return null;
+  }
 
-  const metersPerScreenPx =
-    (2 * distance * tanHalfFov(fovDeg)) / viewport3d.height;
+  const metersPerScreenPx = hasScale
+    ? metersPerScreenPxGiven
+    : (2 * distance * tanHalfFov(fovDeg)) / viewport3d.height;
   const k = ctx.meterByPx / (metersPerScreenPx * basePose.k);
   if (!Number.isFinite(k) || k <= 0) return null;
 

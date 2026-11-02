@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+
 // The pose the 3D camera ACTUALLY shows, as {position, target, fovDeg} with
 // the target on the look axis.
 //
@@ -30,6 +32,11 @@ export default function getEffective3dCameraPose({ camera, controls }) {
       z: camera.position.z,
     },
     target: { x: target.x, y: target.y, z: target.z },
-    fovDeg: camera.getEffectiveFOV?.() ?? camera.fov,
+    // Orthographic camera (« Caméra ortho »): the POV flows are perspective
+    // ones — keep the reference fov the perspective camera will show.
+    fovDeg: camera.isPerspectiveCamera
+      ? (camera.getEffectiveFOV?.() ?? camera.fov)
+      : (getActiveThreedEditor()?.sceneManager?.controlsManager?.referenceFov ??
+        75),
   };
 }

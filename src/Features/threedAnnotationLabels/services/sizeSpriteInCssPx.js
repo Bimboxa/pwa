@@ -9,7 +9,10 @@ import { Vector3 } from "three";
 //
 // This resizes the sprite before every render from the LIVE camera + canvas so
 // it measures exactly `cssHeight` CSS px, like its 2D counterpart, and stays
-// right across window resizes and fov animations.
+// right across window resizes and fov animations. Orthographic camera
+// (« Caméra ortho »): the shader applies no distance factor, the scale is in
+// world units — the on-screen height is `scale.y · zoom / (top - bottom)` of
+// the viewport, so the sprite is sized from the frustum instead.
 //
 // onBeforeRender runs before three computes modelViewMatrix, and the sprite
 // shader reads its scale from matrixWorld — hence the explicit update.
@@ -34,9 +37,17 @@ export default function sizeSpriteInCssPx(
 
   sprite.onBeforeRender = (renderer, scene, camera) => {
     const h = renderer?.domElement?.clientHeight || 0;
-    if (!h || !camera?.isPerspectiveCamera) return;
-    const fovDeg = camera.getEffectiveFOV?.() ?? camera.fov;
-    let scaleY = (cssHeight * 2 * Math.tan((fovDeg * Math.PI) / 360)) / h;
+    if (!h) return;
+    let scaleY;
+    if (camera?.isOrthographicCamera) {
+      scaleY =
+        (cssHeight * (camera.top - camera.bottom)) / (camera.zoom || 1) / h;
+    } else if (camera?.isPerspectiveCamera) {
+      const fovDeg = camera.getEffectiveFOV?.() ?? camera.fov;
+      scaleY = (cssHeight * 2 * Math.tan((fovDeg * Math.PI) / 360)) / h;
+    } else {
+      return;
+    }
     if (compensateParentScale && sprite.parent) {
       sprite.parent.getWorldScale(_parentScale);
       scaleY /= _parentScale.y || 1;

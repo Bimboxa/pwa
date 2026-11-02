@@ -8,6 +8,7 @@ import {
 import { lighten } from "@mui/material/styles";
 
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
+import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
 
 function safeLighten(color, amount, fallback) {
   try {
@@ -138,7 +139,7 @@ export default function createMesh3dLabelSprite({
   // Constant on-screen title size: the card grows with its content (the
   // secondary line) instead of squeezing both lines into a fixed height.
   const screenH = (CARD_SCREEN_HEIGHT * canvasH) / singleLineCanvasH;
-  sprite.scale.set(screenH * aspect, screenH, 1);
+  sizeSpriteInViewportFraction(sprite, { fraction: screenH, aspect });
   sprite.renderOrder = 1003;
 
   sprite.userData = {

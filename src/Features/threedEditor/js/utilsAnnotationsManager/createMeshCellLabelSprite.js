@@ -11,6 +11,7 @@ import { polygonCentroid } from "Features/mesh/utils/meshGeometry";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 
 import pixelToWorld from "./pixelToWorld";
+import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
 
 // Small lift (basemap-local Z, becomes world Y after the group rotation) so the
 // card floats just above its cell surface instead of z-fighting with it.
@@ -92,7 +93,14 @@ export default function createMeshCellLabelSprite(annotation, baseMap) {
   const ctx = canvas.getContext("2d");
 
   const inset = borderWidth / 2;
-  roundRect(ctx, inset, inset, canvasW - borderWidth, canvasH - borderWidth, radius);
+  roundRect(
+    ctx,
+    inset,
+    inset,
+    canvasW - borderWidth,
+    canvasH - borderWidth,
+    radius
+  );
   ctx.fillStyle = fillBg;
   ctx.fill();
   ctx.lineWidth = borderWidth;
@@ -132,9 +140,12 @@ export default function createMeshCellLabelSprite(annotation, baseMap) {
   const sprite = new Sprite(material);
 
   // Constant on-screen size: scale.y = card screen-height fraction, scale.x
-  // keeps the canvas aspect ratio.
+  // keeps the canvas aspect ratio (re-sized under the orthographic camera).
   const aspect = canvasW / canvasH;
-  sprite.scale.set(CARD_SCREEN_HEIGHT * aspect, CARD_SCREEN_HEIGHT, 1);
+  sizeSpriteInViewportFraction(sprite, {
+    fraction: CARD_SCREEN_HEIGHT,
+    aspect,
+  });
 
   // Horizontal placement: the cell footprint centroid (plan space).
   const centroid = polygonCentroid(annotation.points);
@@ -154,7 +165,8 @@ export default function createMeshCellLabelSprite(annotation, baseMap) {
   let bandMid = 0;
   if (pts.length > 0) {
     let sum = 0;
-    for (const p of pts) sum += ((p.offsetBottom ?? 0) + (p.offsetTop ?? 0)) / 2;
+    for (const p of pts)
+      sum += ((p.offsetBottom ?? 0) + (p.offsetTop ?? 0)) / 2;
     bandMid = sum / pts.length;
   }
   const z =
