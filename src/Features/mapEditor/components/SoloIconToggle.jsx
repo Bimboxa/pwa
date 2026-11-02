@@ -40,7 +40,7 @@ export default function SoloIconToggle({
   // render
 
   return (
-    <Tooltip title={tooltipS} arrow placement="left">
+    <Tooltip title={tooltipS} arrow placement="right">
       <Box
         onClick={handleClick}
         onDoubleClick={(e) => e.stopPropagation()}

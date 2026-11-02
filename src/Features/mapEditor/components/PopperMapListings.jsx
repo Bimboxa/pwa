@@ -505,7 +505,7 @@ function AnnotationTemplateRow({
           <Tooltip
             title={isEditing ? "" : isSolo ? exitSoloS : soloS}
             arrow
-            placement="left"
+            placement="right"
           >
             <Box
               onClick={isEditing ? undefined : handleToggleSolo}

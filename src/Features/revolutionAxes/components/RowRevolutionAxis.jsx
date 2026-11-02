@@ -260,7 +260,7 @@ export default function RowRevolutionAxis({
           sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}
         >
           {/* Icon — click toggles the solo of the axis */}
-          <Tooltip title={isSolo ? exitSoloS : soloS} arrow placement="left">
+          <Tooltip title={isSolo ? exitSoloS : soloS} arrow placement="right">
             <Box
               onClick={handleToggleSolo}
               sx={{
