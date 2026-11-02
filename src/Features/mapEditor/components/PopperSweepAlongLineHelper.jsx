@@ -1,0 +1,140 @@
+import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import { setSweepProfileAnnotationId } from "Features/mapEditor/mapEditorSlice";
+
+import { Paper, Box, Typography, Button } from "@mui/material";
+
+import IconExtrudeAlongLine from "Features/icons/IconExtrudeAlongLine";
+
+import db from "App/db/db";
+import {
+  getSweepMode,
+  SWEEP_MODE_ELEVATION,
+} from "Features/annotations/services/sweepAlongLineService";
+
+// Floating helper shown while the « Extruder le long d'une ligne » pick mode
+// is armed (mapEditor.sweepProfileAnnotationId): the armed profile, the
+// instruction to click the guide, how the profile will be registered, and
+// the Escape shortcut. Mirrors PopperSubtractHelper (same mount points: the
+// PopperMapListings chain, the docked Dessin panel, the 3D viewers).
+export default function PopperSweepAlongLineHelper() {
+  const dispatch = useDispatch();
+
+  // data
+
+  const profileAnnotationId = useSelector(
+    (s) => s.mapEditor.sweepProfileAnnotationId
+  );
+  const profile = useLiveQuery(
+    () =>
+      profileAnnotationId ? db.annotations.get(profileAnnotationId) : null,
+    [profileAnnotationId]
+  );
+  const template = useLiveQuery(
+    () =>
+      profile?.annotationTemplateId
+        ? db.annotationTemplates.get(profile.annotationTemplateId)
+        : null,
+    [profile?.annotationTemplateId]
+  );
+
+  // strings
+
+  const title = "Extruder le long d'une ligne";
+  const instruction =
+    "Cliquez sur la ligne ou la surface qui servira de guide : une nouvelle annotation est créée, le profil sélectionné balayé le long de ce guide.";
+  const profileLabel = profile?.label || template?.label || "Ligne sans nom";
+  const modeS =
+    profile && getSweepMode(profile) === SWEEP_MODE_ELEVATION
+      ? "Le profil a un point de référence : il est lu comme un dessin d'élévation (X = largeur, Y = hauteur) et posé sur le guide."
+      : "Sans point de référence, l'extrusion passe par le profil tel qu'il est dessiné (même fond de plan que le guide).";
+  const cancelS = "Annuler";
+
+  // handlers
+
+  function handleCancel() {
+    dispatch(setSweepProfileAnnotationId(null));
+  }
+
+  // render
+
+  if (!profileAnnotationId) return null;
+
+  return (
+    <Paper
+      elevation={4}
+      data-capture-hide
+      sx={{
+        position: "absolute",
+        top: 50,
+        left: 50,
+        zIndex: 10,
+        width: 290,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          px: 1.5,
+          py: 1,
+          bgcolor: "grey.900",
+          color: "common.white",
+          borderTopLeftRadius: (t) => t.shape.borderRadius,
+          borderTopRightRadius: (t) => t.shape.borderRadius,
+        }}
+      >
+        <IconExtrudeAlongLine fontSize="small" />
+        <Typography variant="subtitle2">{title}</Typography>
+      </Box>
+
+      <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontWeight: 600 }}
+          >
+            Profil
+          </Typography>
+          <Typography variant="body2">{profileLabel}</Typography>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary">
+          {instruction}
+        </Typography>
+
+        <Typography variant="caption" color="text.secondary">
+          {modeS}
+        </Typography>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              px: 0.75,
+              py: 0.25,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 0.5,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              lineHeight: 1.4,
+            }}
+          >
+            Esc
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+            Quitter le mode
+          </Typography>
+          <Button size="small" color="inherit" onClick={handleCancel}>
+            {cancelS}
+          </Button>
+        </Box>
+      </Box>
+    </Paper>
+  );
+}

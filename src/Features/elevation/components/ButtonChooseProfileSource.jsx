@@ -4,11 +4,12 @@ import { Button, Menu, MenuItem, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import db from "App/db/db";
+import listProfileAnnotations from "Features/annotations/utils/listProfileAnnotations";
 
 // Bottom-bar button of the elevation section editor: opens the list of the
-// project's annotations flagged `isProfile` (see the Propriétés panel switch)
-// and applies the picked one as the edited profile's source. The list is
-// fetched on open (transient menu — no live query needed).
+// project's annotations flagged `isProfile` (see the Propriétés panel switch,
+// listProfileAnnotations) and applies the picked one as the edited profile's
+// source. The list is fetched on open (transient menu — no live query needed).
 export default function ButtonChooseProfileSource({
   annotationId,
   onSelectSource,
@@ -22,33 +23,11 @@ export default function ButtonChooseProfileSource({
     setAnchorEl(e.currentTarget);
     setItems(null);
     const ann = await db.annotations.get(annotationId);
-    const all = await db.annotations
-      .filter(
-        (a) =>
-          Boolean(a.isProfile) &&
-          !a.deletedAt &&
-          a.id !== annotationId &&
-          (!ann?.projectId || a.projectId === ann.projectId)
-      )
-      .toArray();
-    // fallback labels from the annotation templates
-    const templateIds = [
-      ...new Set(all.map((a) => a.annotationTemplateId).filter(Boolean)),
-    ];
-    const templates = templateIds.length
-      ? await db.annotationTemplates.bulkGet(templateIds)
-      : [];
-    const templateById = new Map(
-      templates.filter(Boolean).map((t) => [t.id, t])
-    );
     setItems(
-      all.map((a) => ({
-        id: a.id,
-        label:
-          a.label ||
-          templateById.get(a.annotationTemplateId)?.label ||
-          "Sans nom",
-      }))
+      await listProfileAnnotations({
+        projectId: ann?.projectId,
+        excludeAnnotationId: annotationId,
+      })
     );
   }
 

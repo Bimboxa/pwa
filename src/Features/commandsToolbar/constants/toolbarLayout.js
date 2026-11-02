@@ -120,11 +120,11 @@ const DEFAULT_SECTIONS = [
       "HOLLOW_OUT",
     ],
   },
-  // faces (3D editor)
+  // faces (3D editor) + the profile sweep along a line (2D / 3D)
   {
     key: "FACES",
-    label: "Faces (3D)",
-    entries: ["EXTRUDE", "ISOLATE_FACE", "MERGE_FACES"],
+    label: "Faces / Extrusion",
+    entries: ["EXTRUDE", "EXTRUDE_ALONG_LINE", "ISOLATE_FACE", "MERGE_FACES"],
   },
   // create / modify from the selected annotations
   {

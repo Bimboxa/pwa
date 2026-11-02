@@ -271,6 +271,7 @@ const mapEditorInitialState = {
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
   subtractTargetAnnotationId: null, // annotation being SUBTRACTED; clicked annotations become the carved sources
+  sweepProfileAnnotationId: null, // POLYLINE used as PROFILE by « Extruder le long d'une ligne »; next clicked annotation is the guide
   subtractPermanently: false, // « Soustraire définitivement » (S): the picks are baked into the host mesh, no relation is kept
 
   // ortho snap
@@ -866,6 +867,7 @@ export const mapEditorSlice = createSlice({
     setSubtractSourceAnnotationId: (state, action) => {
       state.subtractSourceAnnotationId = action.payload;
       state.subtractTargetAnnotationId = null; // the two directions are exclusive
+      if (action.payload) state.sweepProfileAnnotationId = null;
       state.showLayerScreenCursor = Boolean(action.payload);
       // Destructive option: off again every time a mode is armed.
       if (action.payload) state.subtractPermanently = false;
@@ -876,8 +878,21 @@ export const mapEditorSlice = createSlice({
     setSubtractTargetAnnotationId: (state, action) => {
       state.subtractTargetAnnotationId = action.payload;
       state.subtractSourceAnnotationId = null; // the two directions are exclusive
+      if (action.payload) state.sweepProfileAnnotationId = null;
       state.showLayerScreenCursor = Boolean(action.payload);
       if (action.payload) state.subtractPermanently = false;
+    },
+
+    // « Extruder le long d'une ligne » pick mode — the armed annotation is
+    // the PROFILE, the next clicked annotation the guide (one shot). Exclusive
+    // with the subtraction pick modes.
+    setSweepProfileAnnotationId: (state, action) => {
+      state.sweepProfileAnnotationId = action.payload;
+      state.showLayerScreenCursor = Boolean(action.payload);
+      if (action.payload) {
+        state.subtractSourceAnnotationId = null;
+        state.subtractTargetAnnotationId = null;
+      }
     },
 
     // « Soustraire définitivement » switch of the subtraction pick modes.
@@ -1198,6 +1213,7 @@ export const {
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
   setSubtractTargetAnnotationId,
+  setSweepProfileAnnotationId,
   setSubtractPermanently,
   toggleSubtractPermanently,
 

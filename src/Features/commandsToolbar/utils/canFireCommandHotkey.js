@@ -1,4 +1,5 @@
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
+import { selectSweepPickAnnotationId } from "Features/mapEditor/utils/sweepPickMode";
 
 import isEditableTarget from "./isEditableTarget";
 import isKeydownInsidePopup from "./isKeydownInsidePopup";
@@ -15,7 +16,7 @@ import isKeydownInsidePopup from "./isKeydownInsidePopup";
 // - an armed draw owns its own letters (in-draw variants —
 //   useDrawingToolHotkeys); the 3D tool modes are NOT drawing modes, so their
 //   toggles stay reachable (the command's getState decides).
-// - paste / subtract pick modes own their letters.
+// - paste / subtract / sweep pick modes own their letters.
 // - docked Dessin panel on a template detail view: the pre-draw template
 //   shortcuts (ToolbarStartDrawTemplate) own the plain letters there — the
 //   toolbar buttons stay clickable, only the hotkeys yield.
@@ -27,6 +28,7 @@ export default function canFireCommandHotkey(e, state) {
   if (state.mapEditor.enabledDrawingMode) return false;
   if (state.mapEditor.pasteClipboard) return false;
   if (selectSubtractPickAnnotationId(state)) return false;
+  if (selectSweepPickAnnotationId(state)) return false;
   if (state.threedEditor.walkMode.active) return false;
   if (state.leftPanel.leftPanelDocked && state.panelDrawing.detailTemplateId)
     return false;

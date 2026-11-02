@@ -10,6 +10,7 @@ import {
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
+import { selectSweepPickAnnotationId } from "Features/mapEditor/utils/sweepPickMode";
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
@@ -97,6 +98,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const anchorSourceAnnotationId = useSelector(
     (s) => s.mapEditor.anchorSourceAnnotationId
   );
+  const sweepProfileAnnotationId = useSelector(selectSweepPickAnnotationId);
   const smartDetectEnabled = useSelector((s) =>
     Boolean(s.mapEditor.smartDetectEnabled)
   );
@@ -260,6 +262,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       subtractSourceAnnotationId,
       subtractTargetAnnotationId,
       anchorSourceAnnotationId,
+      sweepProfileAnnotationId,
       smartDetectEnabled,
       walkActive,
       // view toggles
@@ -318,6 +321,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       subtractSourceAnnotationId,
       subtractTargetAnnotationId,
       anchorSourceAnnotationId,
+      sweepProfileAnnotationId,
       smartDetectEnabled,
       walkActive,
       wrapperMode,

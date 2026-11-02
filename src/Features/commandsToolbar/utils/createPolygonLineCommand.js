@@ -9,7 +9,8 @@ import { getSingleAnnotationState } from "./selectionCommandState";
 // `drawingMode` of the 2D InteractionLayer, whose branch commits the drawn
 // polyline onto the selected annotation (no newAnnotation draft). Active
 // while its mode is armed (the button / Escape disarm it); another armed
-// draw disables it.
+// draw disables it. An optional `Button` (popup-owning command, e.g. the
+// « Ajouter un profil » menu) is passed through; `run` stays the plain toggle.
 export default function createPolygonLineCommand({
   key,
   label,
@@ -18,11 +19,13 @@ export default function createPolygonLineCommand({
   types,
   typesReason,
   extraCheck,
+  Button,
 }) {
   return {
     key,
     label,
     Icon,
+    ...(Button ? { Button } : {}),
     editors: [EDITOR_2D],
     getState(ctx) {
       if (ctx.enabledDrawingMode === drawingMode) {

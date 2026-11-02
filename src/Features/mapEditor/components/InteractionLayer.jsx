@@ -29,6 +29,7 @@ import {
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
   setSubtractTargetAnnotationId,
+  setSweepProfileAnnotationId,
   setFixedLength,
   toggleSmartDetectEnabled,
   cycleLoupeAspect,
@@ -121,6 +122,8 @@ import pickAnnotationForBusinessObjectLinkService from 'Features/businessObjects
 import { setLinkingBusinessObjectId, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
 import toggleAnnotationWorkPackageLinkService from 'Features/businessObjects/services/toggleAnnotationWorkPackageLinkService';
 import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
+import { createSweepAlongLineService, SWEEP_ERROR_MESSAGES } from 'Features/annotations/services/sweepAlongLineService';
+import buildAnnotationSelectionItem from 'Features/annotations/utils/buildAnnotationSelectionItem';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
@@ -679,6 +682,8 @@ const InteractionLayer = forwardRef(({
   const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
   // « Soustraire définitivement »: the picks are baked into the host mesh
   const subtractPermanently = useSelector((s) => s.mapEditor.subtractPermanently);
+  // « Extruder le long d'une ligne » pick mode (this polyline is the profile; the clicked annotation is the guide)
+  const sweepProfileAnnotationId = useSelector((s) => s.mapEditor.sweepProfileAnnotationId);
   // Business-object link mode (clicks toggle links to this "Ouvrages" object)
   const linkingBusinessObjectId = useSelector((s) => s.businessObjects.linkingBusinessObjectId);
   const linkingMode = useSelector((s) => s.businessObjects.linkingMode);
@@ -3155,6 +3160,11 @@ const InteractionLayer = forwardRef(({
     subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
   }, [subtractTargetAnnotationId]);
 
+  const sweepProfileAnnotationIdRef = useRef(sweepProfileAnnotationId);
+  useEffect(() => {
+    sweepProfileAnnotationIdRef.current = sweepProfileAnnotationId;
+  }, [sweepProfileAnnotationId]);
+
   const linkingBusinessObjectIdRef = useRef(linkingBusinessObjectId);
   useEffect(() => {
     linkingBusinessObjectIdRef.current = linkingBusinessObjectId;
@@ -4723,6 +4733,13 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Cancel the « Extruder le long d'une ligne » pick mode if active
+          if (sweepProfileAnnotationIdRef.current) {
+            dispatch(setSweepProfileAnnotationId(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Cancel business-object link mode if active
           if (linkingBusinessObjectIdRef.current) {
             dispatch(setLinkingBusinessObjectId(null));
@@ -5693,7 +5710,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId && !linkingBusinessObjectId && !linkingWorkPackageId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId && !sweepProfileAnnotationId && !linkingBusinessObjectId && !linkingWorkPackageId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -5729,6 +5746,51 @@ const InteractionLayer = forwardRef(({
         // Click on empty space cancels anchor mode
         dispatch(setAnchorSourceAnnotationId(null));
       }
+      return;
+    }
+
+    // « Extruder le long d'une ligne » pick mode: the clicked annotation is
+    // the guide, the armed polyline the profile — one shot: the swept
+    // annotation is created and selected, the mode exits. A click on empty
+    // space cancels the mode (like the anchor pick).
+    if (sweepProfileAnnotationId && !enabledDrawingMode) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      const guideId = hit?.dataset?.nodeId;
+      if (!guideId || isForeignFootprintId(guideId)) {
+        dispatch(setSweepProfileAnnotationId(null));
+        return;
+      }
+      const result = await createSweepAlongLineService({
+        profileAnnotationId: sweepProfileAnnotationId,
+        guideAnnotationId: guideId,
+        dispatch,
+      });
+      if (result?.error) {
+        dispatch(
+          setToaster({
+            message: SWEEP_ERROR_MESSAGES[result.error] ?? "Extrusion impossible",
+            severity: "warning",
+          })
+        );
+        // Stay armed on a wrong target so the user can pick another guide.
+        return;
+      }
+      dispatch(setSweepProfileAnnotationId(null));
+      const created = await db.annotations.get(result.annotationId);
+      const item = buildAnnotationSelectionItem(created);
+      if (item) {
+        dispatch(setSelectedItem(item));
+        dispatch(setShowAnnotationsProperties(true));
+      }
+      dispatch(
+        setToaster({
+          message: result.profileApplied
+            ? "Annotation extrudée le long du guide"
+            : "Annotation créée, mais le profil n'a pas pu être appliqué",
+          severity: result.profileApplied ? "success" : "warning",
+        })
+      );
       return;
     }
 
