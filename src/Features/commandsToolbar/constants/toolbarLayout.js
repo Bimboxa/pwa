@@ -155,13 +155,14 @@ const DEFAULT_SECTIONS = [
         ],
       },
       "FLIP_STRIP",
+      // « Contours » stands alone, always visible next to the walls group
+      "CONTOURS",
       {
         type: "group",
         key: "WALLS",
         label: "Murs",
         commandKeys: [
           "VECTORISE",
-          "CONTOURS",
           "CLOSE_ENVELOPE",
           "CLOSE_WALL_FOOTPRINT",
           "AUTO_WALLS",
