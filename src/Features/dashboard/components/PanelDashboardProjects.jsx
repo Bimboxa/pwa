@@ -67,6 +67,12 @@ export default function PanelDashboardProjects({
   const typeOptions =
     appConfig?.features?.projectSelector?.filterByType?.options ?? [];
 
+  // "text": discreet text button (same style as « Démarrer avec Krto »), to
+  // steer users towards the référentiel search rather than a free project;
+  // anything else: the outlined pill.
+  const createButtonIsText =
+    appConfig?.creation?.createProjectButtonVariant === "text";
+
   // Table header: the selected type, or every type when no filter is set
   // (« Projets / Opportunités / Chantiers »).
   const shownTypeOptions = typeFilter
@@ -140,27 +146,40 @@ export default function PanelDashboardProjects({
           />
         </Box>
         <Button
-          variant="outlined"
+          variant={createButtonIsText ? "text" : "outlined"}
           color="secondary"
           startIcon={<Add />}
           onClick={handleCreateClick}
-          sx={{
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-            borderRadius: 999,
-            height: 48,
-            px: 3,
-            color: PILL_TEXT,
-            bgcolor: alpha("#ffffff", 0.7),
-            borderColor: (theme) => alpha(theme.palette.secondary.main, 0.45),
-            "& .MuiButton-startIcon": { color: "secondary.main" },
-            transition: "all .2s",
-            "&:hover": {
-              color: "secondary.main",
-              borderColor: "secondary.main",
-              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.06),
-            },
-          }}
+          sx={
+            createButtonIsText
+              ? {
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  borderRadius: 999,
+                  height: 40,
+                  px: 1.5,
+                  fontWeight: 600,
+                }
+              : {
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  borderRadius: 999,
+                  height: 48,
+                  px: 3,
+                  color: PILL_TEXT,
+                  bgcolor: alpha("#ffffff", 0.7),
+                  borderColor: (theme) =>
+                    alpha(theme.palette.secondary.main, 0.45),
+                  "& .MuiButton-startIcon": { color: "secondary.main" },
+                  transition: "all .2s",
+                  "&:hover": {
+                    color: "secondary.main",
+                    borderColor: "secondary.main",
+                    bgcolor: (theme) =>
+                      alpha(theme.palette.secondary.main, 0.06),
+                  },
+                }
+          }
         >
           {createProjectS}
         </Button>

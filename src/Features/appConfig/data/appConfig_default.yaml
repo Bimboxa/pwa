@@ -67,6 +67,15 @@ strings:
     notInstalledTooltip: "Projet non installé sur cet appareil"
     typeLabels:
       PROJECT: "Projet"
+    # Dashboard: warning shown at the top of the "create project" dialog
+    # (e.g. « prefer creating from an existing chantier / opportunité »);
+    # absent = no warning section.
+    # createWarning: ""
+    # Dashboard: warning band of an installed project not linked to the
+    # référentiel (orgs with features.masterProjects only); absent =
+    # component defaults.
+    # linkToReferentielHint: "Relier le projet à une opportunité / chantier"
+    # linkToReferentielButton: "Relier"
 
   scope:
     dashboardTitle: "Dossiers"
@@ -276,6 +285,9 @@ sync:
 creation:
   #canCreateProject: false
   canCreateProject: true
+  # Dashboard « Nouveau projet » button: "text" = discreet text button (like
+  # « Démarrer avec Krto »), anything else / absent = outlined pill (default).
+  # createProjectButtonVariant: text
 
 # DATA
 

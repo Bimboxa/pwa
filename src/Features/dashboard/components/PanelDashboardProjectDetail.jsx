@@ -53,6 +53,7 @@ import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
 import DialogRenameProject from "./DialogRenameProject";
+import BandLinkProjectToReferentiel from "./BandLinkProjectToReferentiel";
 
 export default function PanelDashboardProjectDetail({ item }) {
   const dispatch = useDispatch();
@@ -114,6 +115,12 @@ export default function PanelDashboardProjectDetail({ item }) {
   });
 
   const count = rows.length;
+
+  // nudge band: installed project with no référentiel entity — same rules as
+  // the « Relier à un chantier / opportunité » entry of the header menu
+  const showLinkBand = Boolean(
+    hasReferentiel && item?.isLocal && item?.projectId && !item?.idMaster
+  );
 
   // helpers - drag & drop reorder (local scopes only: a remote-only
   // configuration has no scope record to rank, it stays after the local ones)
@@ -250,6 +257,10 @@ export default function PanelDashboardProjectDetail({ item }) {
         }
         downloadingProjectData={downloadingProjectData}
       />
+
+      {showLinkBand && (
+        <BandLinkProjectToReferentiel onLink={() => setLinkOpen(true)} />
+      )}
 
       {/* krtos bar */}
       <Box

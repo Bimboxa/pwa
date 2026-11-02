@@ -7,7 +7,7 @@ import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Alert } from "@mui/material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import FormProject from "Features/projects/components/FormProject";
@@ -36,6 +36,9 @@ export default function DialogCreateProject({ open, onClose }) {
 
   const titleS = "Créer un nouveau projet";
   const createS = "Créer";
+  // org-level nudge (e.g. « prefer creating from an existing chantier /
+  // opportunité »); nothing rendered when the config has no message
+  const warningS = appConfig?.strings?.project?.createWarning;
 
   // helpers
 
@@ -72,6 +75,11 @@ export default function DialogCreateProject({ open, onClose }) {
   return (
     <DialogGeneric open={open} onClose={handleClose} title={titleS} width={400}>
       <Box sx={{ px: 2, py: 1, width: 1 }}>
+        {warningS && (
+          <Alert severity="warning" sx={{ mb: 1.5, py: 0 }}>
+            {warningS}
+          </Alert>
+        )}
         <FormProject project={tempProject} onChange={setTempProject} />
       </Box>
       <ButtonInPanelV2
