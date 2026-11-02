@@ -3122,11 +3122,14 @@ export default function useAnnotationsV2(options) {
       }
 
       // exclude profile-template annotations (3D viewer only — they stay
-      // visible in 2D, but are dropped from the 3D scene)
+      // visible in 2D, but are dropped from the 3D scene). An annotation
+      // swept along a line (sweepSources) inherits the profile's template
+      // but is an output, not a profile: it stays in the scene.
       if (excludeProfileTemplates) {
         result = result.filter(
           (a) =>
             a.isBaseMapAnnotation ||
+            Boolean(a.sweepSources) ||
             !annotationTemplatesMap[a.annotationTemplateId]?.isProfile
         );
       }

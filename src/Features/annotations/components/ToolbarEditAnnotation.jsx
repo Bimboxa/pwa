@@ -22,6 +22,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
+import RowSweepSourcesRefresh from "./RowSweepSourcesRefresh";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useChangeAnnotationTemplate from "../hooks/useChangeAnnotationTemplate";
@@ -739,6 +740,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               </IconButton>
             </Tooltip>
           </Box>
+        )}
+
+        {/* Row 2c - swept along a line (sweepSources): sources + refresh */}
+        {!hasPart && selectedAnnotation?.sweepSources && (
+          <RowSweepSourcesRefresh annotation={selectedAnnotation} />
         )}
 
         {/* Row 3 - Measurements (right-aligned) — hidden in MIXED (group rows

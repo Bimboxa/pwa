@@ -34,6 +34,7 @@ import {
   setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
+import db from "App/db/db";
 import { setToaster } from "Features/layout/layoutSlice";
 import addAnnotationSubtraction from "Features/annotations/services/addAnnotationSubtraction";
 import bakeSubtractionPickService from "Features/annotationMesh3d/services/bakeSubtractionPickService";
@@ -116,6 +117,14 @@ import PopperBaseMapsList from "Features/popperMapListings/components/PopperBase
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
+import PopperSweepAlongLineHelper from "Features/mapEditor/components/PopperSweepAlongLineHelper";
+import useSweepPickHotkeysInThreedEditor from "../hooks/useSweepPickHotkeysInThreedEditor";
+import { setSweepProfileAnnotationId } from "Features/mapEditor/mapEditorSlice";
+import {
+  createSweepAlongLineService,
+  SWEEP_ERROR_MESSAGES,
+} from "Features/annotations/services/sweepAlongLineService";
+import buildAnnotationSelectionItem from "Features/annotations/utils/buildAnnotationSelectionItem";
 import useBusinessObjectLinkHotkeysInThreedEditor from "../hooks/useBusinessObjectLinkHotkeysInThreedEditor";
 import pickAnnotationForBusinessObjectLinkService from "Features/businessObjects/services/pickAnnotationForBusinessObjectLinkService";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
@@ -615,9 +624,21 @@ export default function MainThreedEditor() {
     subtractSourceAnnotationId || subtractTargetAnnotationId
   );
 
+  // « Extruder le long d'une ligne » pick mode (the armed polyline is the
+  // profile, the clicked annotation the guide) — same ref mirroring.
+  const sweepProfileAnnotationId = useSelector(
+    (s) => s.mapEditor.sweepProfileAnnotationId
+  );
+  const sweepProfileAnnotationIdRef = useRef(sweepProfileAnnotationId);
+  useEffect(() => {
+    sweepProfileAnnotationIdRef.current = sweepProfileAnnotationId;
+  }, [sweepProfileAnnotationId]);
+  const sweepPickActive = Boolean(sweepProfileAnnotationId);
+
   // Escape exits the mode: InteractionLayer owns that in 2D but is not mounted
   // here.
   useSubtractPickHotkeysInThreedEditor();
+  useSweepPickHotkeysInThreedEditor();
   // Same for the business-object picking mode (LINK / EXCLUDE), armed from
   // the Quantités modules' object rows; its clicks are handled in handleClick
   // below, reading the slice through the store (no re-render).
@@ -1177,7 +1198,10 @@ export default function MainThreedEditor() {
       );
       const { linkingBusinessObjectId: linkingId, linkingMode } =
         store.getState().businessObjects;
-      const isPickMode = isSubtractionPick || Boolean(linkingId);
+      const isPickMode =
+        isSubtractionPick ||
+        Boolean(sweepProfileAnnotationIdRef.current) ||
+        Boolean(linkingId);
       const intersects = raycastScene(event, rect, {
         hatchGaps: !isPickMode,
       });
@@ -1368,6 +1392,48 @@ export default function MainThreedEditor() {
               listingId,
               annotationTemplateId,
             } = object.userData;
+
+            // « Extruder le long d'une ligne » pick mode: the nearest
+            // annotation along the ray is the guide; the swept annotation is
+            // created, selected, and the mode exits (one shot). A wrong
+            // target keeps the mode armed (toaster).
+            const sweepProfileId = sweepProfileAnnotationIdRef.current;
+            if (sweepProfileId && nodeType === "ANNOTATION") {
+              if (isForeignFootprintId(nodeId)) return;
+              createSweepAlongLineService({
+                profileAnnotationId: sweepProfileId,
+                guideAnnotationId: nodeId,
+                dispatch,
+              }).then(async (result) => {
+                if (result?.error) {
+                  dispatch(
+                    setToaster({
+                      message:
+                        SWEEP_ERROR_MESSAGES[result.error] ??
+                        "Extrusion impossible",
+                      severity: "warning",
+                    })
+                  );
+                  return;
+                }
+                dispatch(setSweepProfileAnnotationId(null));
+                const created = await db.annotations.get(result.annotationId);
+                const item = buildAnnotationSelectionItem(created);
+                if (item) {
+                  dispatch(setSelectedItem(item));
+                  dispatch(setShowAnnotationsProperties(true));
+                }
+                dispatch(
+                  setToaster({
+                    message: result.profileApplied
+                      ? "Annotation extrudée le long du guide"
+                      : "Annotation créée, mais le profil n'a pas pu être appliqué",
+                    severity: result.profileApplied ? "success" : "warning",
+                  })
+                );
+              });
+              return;
+            }
 
             // Subtraction pick mode: the click creates a relation instead of
             // selecting. One annotation per click — the nearest along the ray,
@@ -2411,7 +2477,8 @@ export default function MainThreedEditor() {
     const isPlainHover =
       !drawingActiveRef.current &&
       !subtractSourceAnnotationIdRef.current &&
-      !subtractTargetAnnotationIdRef.current;
+      !subtractTargetAnnotationIdRef.current &&
+      !sweepProfileAnnotationIdRef.current;
     const intersects = raycastScene(event, rect, { hatchGaps: isPlainHover });
 
     // Painted part under the cursor: its own helper + tooltip (painting
@@ -3098,7 +3165,8 @@ export default function MainThreedEditor() {
         !dessinGridOpen &&
         !viewerPanelDocked &&
         !captureFramingActive &&
-        !subtractPickActive && (
+        !subtractPickActive &&
+        !sweepPickActive && (
           /* Rendered in the layout-level host (over the top bar, under the
              editors' panels). Hidden (not unmounted) in walk mode, so the
              poppers keep their state. */
@@ -3109,6 +3177,7 @@ export default function MainThreedEditor() {
           </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
+      {isThreedViewer && sweepPickActive && <PopperSweepAlongLineHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}

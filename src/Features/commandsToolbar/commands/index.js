@@ -22,6 +22,7 @@ import faceCutCommand from "./faceCut/faceCutCommand";
 import isolateFaceCommand from "./isolateFace/isolateFaceCommand";
 import mergeFacesCommand from "./mergeFaces/mergeFacesCommand";
 import extrudeCommand from "./extrude/extrudeCommand";
+import extrudeAlongLineCommand from "./extrudeAlongLine/extrudeAlongLineCommand";
 import moveAnnotationCommand from "./moveAnnotation/moveAnnotationCommand";
 import rotateAnnotationCommand from "./rotateAnnotation/rotateAnnotationCommand";
 import wrapperModeCommand from "./wrapperMode/wrapperModeCommand";
@@ -109,6 +110,7 @@ export const COMMANDS = [
   isolateFaceCommand,
   mergeFacesCommand,
   extrudeCommand,
+  extrudeAlongLineCommand,
   moveAnnotationCommand,
   rotateAnnotationCommand,
   // selection

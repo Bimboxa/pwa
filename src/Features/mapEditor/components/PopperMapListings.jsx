@@ -63,6 +63,7 @@ import EmptyStateCreateAnnotationTemplate from "Features/annotations/components/
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
+import PopperSweepAlongLineHelper from "Features/mapEditor/components/PopperSweepAlongLineHelper";
 import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperPasteHelper from "Features/mapEditor/components/PopperPasteHelper";
 import PopperDuplicatesHelper from "Features/duplicatesDetection/components/PopperDuplicatesHelper";
@@ -71,6 +72,7 @@ import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/du
 import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
+import { selectSweepPickAnnotationId } from "Features/mapEditor/utils/sweepPickMode";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
@@ -1666,6 +1668,8 @@ export default function PopperMapListings() {
   const duplicatesActive = useSelector(selectDuplicatesDetectionActive);
   // truthy in either subtraction pick direction (see utils/subtractPickMode)
   const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
+  // profile armed by « Extruder le long d'une ligne » (utils/sweepPickMode)
+  const sweepPickAnnotationId = useSelector(selectSweepPickAnnotationId);
   // business object armed for the picking mode (LINK / EXCLUDE), from the
   // business-objects modules: the linking helper replaces the panel
   const linkingBusinessObjectId = useSelector(
@@ -2094,6 +2098,7 @@ export default function PopperMapListings() {
     !isBaseMapsLegendThreed &&
     (pasteClipboard ||
       subtractPickAnnotationId ||
+      sweepPickAnnotationId ||
       Boolean(enabledDrawingMode) ||
       activeThreedTool ||
       linkingBusinessObjectId ||
@@ -2350,6 +2355,10 @@ export default function PopperMapListings() {
 
   if (helpersEnabled && subtractPickAnnotationId) {
     return <PopperSubtractHelper />;
+  }
+
+  if (helpersEnabled && sweepPickAnnotationId) {
+    return <PopperSweepAlongLineHelper />;
   }
 
   // An armed draw, or a threedEditor tool armed from « Outils de dessin »

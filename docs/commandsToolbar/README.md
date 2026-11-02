@@ -44,7 +44,7 @@ The layout is written as **named sections** (`{ key, label, entries }`,
 the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
 « Raccourcis » dialog lists the commands under the section labels (« Repère »,
 « Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
-« Soustraction / Évidement », « Faces (3D) », « Créer / modifier depuis la
+« Soustraction / Évidement », « Faces / Extrusion », « Créer / modifier depuis la
 sélection », « Déplacer / Affichage », « Qualité »). The last button of the
 toolbar (`ButtonOpenShortcutsDialog`, not a command) opens that dialog.
 
@@ -129,6 +129,49 @@ behaviours in `ButtonChangeStyle` (`useCommandMenu()`):
   moving), a click on empty does nothing, Escape leaves the mode and keeps the
   selection; the mode stays armed after a change. The 3D editor ignores this
   2D mode flag: its clicks select as usual.
+
+### « Ajouter un profil » (`ADD_PROFILE_LINE`)
+
+`commands/addProfileLine/`: built by `createPolygonLineCommand` (2D, host
+POLYGON / POLYLINE) with a `Button` (`ButtonAddProfileLine`) opening an
+intermediate menu on the click anchor:
+
+- « Dessiner un profil » arms the `ADD_PROFILE_LINE` drawing mode (`run`, the
+  only behaviour of the hotkey / shortcuts path; a click while armed disarms
+  without the menu);
+- « Profils existants »: the project's annotations flagged « Profil »
+  (`annotation.isProfile`, `annotations/utils/listProfileAnnotations`, shared
+  with the Élévation « Choisir un profil » button). Picking one calls
+  `applyProfileFromAnnotationService` on the selected POLYLINE (seed segment
+  0) and sub-selects the new profile line; on a POLYGON host the items are
+  disabled (« Réservé aux lignes », the service's contract).
+
+### « Extruder le long d'une ligne » (`EXTRUDE_ALONG_LINE`)
+
+`commands/extrudeAlongLine/` (2D + 3D, next to « Extruder », no hotkey): the
+selected POLYLINE is the PROFILE. `run` arms the sweep pick mode
+(`mapEditor.sweepProfileAnnotationId`, `mapEditor/utils/sweepPickMode`,
+exclusive with the subtraction picks, blocks the plain-letter hotkeys) and
+clears the selection; the helper `PopperSweepAlongLineHelper` replaces the
+listings popper (chain of `PopperMapListings`, `FloatingHelpersDessin` when
+the Dessin panel is docked, the 3D viewers). The next click on an annotation
+— 2D `InteractionLayer`, 3D `MainThreedEditor.handleClick` (nearest hit) — is
+the GUIDE (POLYLINE / POLYGON): `annotations/services/sweepAlongLineService`
+creates a third POLYLINE = independent copy of the guide's ring + the profile
+as `profileLines[0]` (the inline-extrusion 3D build), tagged
+`sweepSources: { guideAnnotationId, profileAnnotationId }`, template = the
+profile's (templateless profile → templateless result, its style copied;
+« Changer le modèle » works as usual; a template-level « Profil » flag no
+longer hides a swept annotation from the 3D scene). One shot: the result is
+selected and the mode exits; a wrong target keeps it armed (toaster), an
+empty click or Escape cancels. Profile registration: a « Point de référence »
+on the profile → elevation reading (`applyProfileFromAnnotationService`, X =
+abscissa, Y = height, seed segment nearest to the base point); none → the
+profile stays in place (its plan vertices + vertex offsets as heights, same
+base map required). `ToolbarEditAnnotation` shows a « Extrudé le long d'une
+ligne » row (`RowSweepSourcesRefresh`) whose « Actualiser la 3D » rebuilds
+the ring from the guide and re-applies the profile
+(`refreshSweepAlongLineService`, one undo step).
 
 ## Command contract
 
