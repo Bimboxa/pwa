@@ -125,6 +125,14 @@ import {
   SWEEP_ERROR_MESSAGES,
 } from "Features/annotations/services/sweepAlongLineService";
 import buildAnnotationSelectionItem from "Features/annotations/utils/buildAnnotationSelectionItem";
+import { makeInRect } from "Features/annotations/utils/segmentCrossesRect";
+import {
+  getLassoMode,
+  LASSO_MODE_CROSSING,
+} from "Features/mapEditorGeneric/utils/lassoMode";
+import box3HitsLassoRect, {
+  projectWorldToClient,
+} from "Features/threedEditor/utils/box3HitsLassoRect";
 import useBusinessObjectLinkHotkeysInThreedEditor from "../hooks/useBusinessObjectLinkHotkeysInThreedEditor";
 import pickAnnotationForBusinessObjectLinkService from "Features/businessObjects/services/pickAnnotationForBusinessObjectLinkService";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
@@ -1915,57 +1923,54 @@ export default function MainThreedEditor() {
 
   // Lasso helpers ---------------------------------------------------------
 
-  // Compute the screen-space (client) center of an annotation 3D object.
-  // Returns null if the object has no renderable geometry (e.g. an OBJECT_3D
+  // Lasso hit-test of an annotation / maille 3D object against the client
+  // rect (`rect.mode` = WINDOW | CROSSING, see box3HitsLassoRect). Returns
+  // false if the object has no renderable geometry (e.g. an OBJECT_3D
   // placeholder whose GLB hasn't loaded yet).
-  const projectAnnotationToClient = useCallback(
-    (object3D, camera, canvasRect, plane = null) => {
+  const objectHitsLassoRect = useCallback(
+    (object3D, camera, canvasRect, rect, plane = null) => {
       const box = new Box3();
       box.makeEmpty();
       box.setFromObject(object3D);
-      if (box.isEmpty() || !isFinite(box.min.x)) return null;
-      const center = new Vector3();
-      box.getCenter(center);
+      if (box.isEmpty() || !isFinite(box.min.x)) return false;
       // Center-based heuristic: drop the annotation when its bbox center is
-      // hidden by the clipping plane (consistent with the existing center-point
-      // lasso model; an annotation whose center is clipped but whose edges peek
-      // through is excluded).
-      if (plane && !isWorldPointVisible(plane, center)) return null;
-      center.project(camera); // → NDC space [-1, 1]
-      const sx = canvasRect.left + (center.x * 0.5 + 0.5) * canvasRect.width;
-      const sy = canvasRect.top + (-center.y * 0.5 + 0.5) * canvasRect.height;
-      return { x: sx, y: sy };
+      // hidden by the clipping plane (an annotation whose center is clipped
+      // but whose edges peek through is excluded).
+      if (plane) {
+        const center = new Vector3();
+        box.getCenter(center);
+        if (!isWorldPointVisible(plane, center)) return false;
+      }
+      return box3HitsLassoRect({ box, camera, canvasRect, rect });
     },
     []
   );
 
   // COTE / RULER groups (ThreedCoteAnnotations / ThreedRulerAnnotations) are
   // not in annotationsObjectsMap; they publish `userData.lassoPoints`
-  // (parent-local: measured points, dimension-line ends, value cards). The
-  // group is hit when ANY of them projects inside the rect — a bbox center
-  // would miss a long ruler whose cards alone are lassoed.
+  // (parent-local: measured points, dimension-line ends, value cards).
+  // CROSSING: the group is hit when ANY of them projects inside the rect — a
+  // bbox center would miss a long ruler whose cards alone are lassoed.
+  // WINDOW: every visible lasso point must project inside the rect.
   const dimensionGroupHitsRect = useCallback(
     (group, camera, canvasRect, rect, plane = null) => {
       const points = group?.userData?.lassoPoints;
       const parent = group?.parent;
       if (!points?.length || !parent) return false;
+      const isWindow = rect.mode !== LASSO_MODE_CROSSING;
+      const inRect = makeInRect(rect);
       const world = new Vector3();
+      let seen = false;
       for (const p of points) {
         world.copy(p).applyMatrix4(parent.matrixWorld);
         if (plane && !isWorldPointVisible(plane, world)) continue;
-        world.project(camera);
-        const sx = canvasRect.left + (world.x * 0.5 + 0.5) * canvasRect.width;
-        const sy = canvasRect.top + (-world.y * 0.5 + 0.5) * canvasRect.height;
-        if (
-          sx >= rect.x &&
-          sx <= rect.x + rect.width &&
-          sy >= rect.y &&
-          sy <= rect.y + rect.height
-        ) {
-          return true;
-        }
+        const client = projectWorldToClient(world, camera, canvasRect);
+        const inside = Boolean(client) && inRect(client);
+        if (!isWindow && inside) return true;
+        if (isWindow && !inside) return false;
+        seen = true;
       }
-      return false;
+      return isWindow && seen;
     },
     []
   );
@@ -2022,22 +2027,17 @@ export default function MainThreedEditor() {
     const canvasRect = renderer.domElement.getBoundingClientRect();
     const plane = getActiveClippingPlane(editor?.sceneManager);
 
-    const insideRect = (point) =>
-      point.x >= rect.x &&
-      point.x <= rect.x + rect.width &&
-      point.y >= rect.y &&
-      point.y <= rect.y + rect.height;
-
-    // Mailles inside the rect (MESHES viewer only — empty elsewhere).
+    // Mailles hit by the rect (MESHES viewer only — empty elsewhere).
     const mesh3dGroups = collectMesh3dGroups();
     const newMesh3dSet = new Set();
     mesh3dGroups.forEach((group, mesh3dId) => {
       if (group.visible === false) return;
-      const point = projectAnnotationToClient(group, camera, canvasRect, plane);
-      if (point && insideRect(point)) newMesh3dSet.add(mesh3dId);
+      if (objectHitsLassoRect(group, camera, canvasRect, rect, plane)) {
+        newMesh3dSet.add(mesh3dId);
+      }
     });
 
-    // Annotations inside the rect. Mirrors the commit rule (mailles win over
+    // Annotations hit by the rect. Mirrors the commit rule (mailles win over
     // annotations): when mailles are hit, no annotation previews as green.
     const newSet = new Set();
     if (newMesh3dSet.size === 0) {
@@ -2046,13 +2046,9 @@ export default function MainThreedEditor() {
         if (!object || object.visible === false) continue;
         // scan base maps are a backdrop: never lasso-selected in 3D.
         if (object.userData?.isDecor) continue;
-        const point = projectAnnotationToClient(
-          object,
-          camera,
-          canvasRect,
-          plane
-        );
-        if (point && insideRect(point)) newSet.add(id);
+        if (objectHitsLassoRect(object, camera, canvasRect, rect, plane)) {
+          newSet.add(id);
+        }
       }
     }
 
@@ -2118,7 +2114,7 @@ export default function MainThreedEditor() {
     lassoLiveDimensionIdsRef.current = newDimensionSet;
 
     if (changed) editor.renderScene?.();
-  }, [getStateForId, projectAnnotationToClient, collectDimensionGroupsInRect]);
+  }, [getStateForId, objectHitsLassoRect, collectDimensionGroupsInRect]);
 
   const finalizeLasso = useCallback(() => {
     const startCoords = lassoStartRef.current;
@@ -2179,23 +2175,11 @@ export default function MainThreedEditor() {
     const map = manager.annotationsObjectsMap || {};
     const plane = getActiveClippingPlane(editor?.sceneManager);
 
-    const insideRect = (point) =>
-      point.x >= rect.x &&
-      point.x <= rect.x + rect.width &&
-      point.y >= rect.y &&
-      point.y <= rect.y + rect.height;
-
     const annotationItems = [];
     Object.values(map).forEach((object) => {
       if (!object || object.visible === false) return;
       if (object.userData?.isDecor) return; // scan base maps (backdrop)
-      const point = projectAnnotationToClient(
-        object,
-        camera,
-        canvasRect,
-        plane
-      );
-      if (!point || !insideRect(point)) return;
+      if (!objectHitsLassoRect(object, camera, canvasRect, rect, plane)) return;
       const {
         nodeId,
         nodeType,
@@ -2235,13 +2219,12 @@ export default function MainThreedEditor() {
 
     // Mailles are lasso candidates whenever they are in the scene (MESHES
     // viewer — collectMesh3dGroups is empty elsewhere). Maille groups are the
-    // parents of the published face meshes; their bbox center follows the
-    // annotation rule.
+    // parents of the published face meshes; their bbox follows the annotation
+    // rule.
     const mesh3dItems = [];
     collectMesh3dGroups().forEach((group, mesh3dId) => {
       if (group.visible === false) return;
-      const point = projectAnnotationToClient(group, camera, canvasRect, plane);
-      if (!point || !insideRect(point)) return;
+      if (!objectHitsLassoRect(group, camera, canvasRect, rect, plane)) return;
       mesh3dItems.push({
         id: mesh3dId,
         nodeId: mesh3dId,
@@ -2269,7 +2252,7 @@ export default function MainThreedEditor() {
     }
   }, [
     dispatch,
-    projectAnnotationToClient,
+    objectHitsLassoRect,
     getStateForId,
     collectDimensionGroupsInRect,
     clearDimensionLassoPreview,
@@ -2385,7 +2368,11 @@ export default function MainThreedEditor() {
         const y = Math.min(startY, event.clientY);
         const width = Math.abs(event.clientX - startX);
         const height = Math.abs(event.clientY - startY);
-        lassoRectRef.current = { x, y, width, height };
+        // AutoCAD-like: left → right = WINDOW, right → left = CROSSING (see
+        // lassoMode). Carried by the rect so the overlay style, the live
+        // preview and the commit all follow the same mode.
+        const mode = getLassoMode(startX, event.clientX);
+        lassoRectRef.current = { x, y, width, height, mode };
         lassoOverlayRef.current?.setRect(lassoRectRef.current);
         // Coalesce live-preview passes into a single rAF tick so we don't
         // re-project every annotation on every pixel of pointermove.

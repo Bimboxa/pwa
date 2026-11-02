@@ -1,5 +1,14 @@
 import { useState, useRef, useCallback } from "react";
 
+import {
+  makeInRect,
+  makeSegmentCrossesRect,
+} from "Features/annotations/utils/segmentCrossesRect";
+import {
+  getLassoMode,
+  LASSO_MODE_CROSSING,
+} from "Features/mapEditorGeneric/utils/lassoMode";
+
 // Below this screen-pixel movement the gesture is a click, not a lasso drag.
 const LASSO_MOVE_THRESHOLD = 4;
 
@@ -26,17 +35,14 @@ export default function useLassoPointSelection({
   const [lassoRect, setLassoRect] = useState(null);
   const startScreenPosRef = useRef(null);
 
-  const startLasso = useCallback(
-    (e) => {
-      if (e.shiftKey && e.button === 0) {
-        startScreenPosRef.current = { x: e.clientX, y: e.clientY };
-        setLassoRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 });
-        return true;
-      }
-      return false;
-    },
-    []
-  );
+  const startLasso = useCallback((e) => {
+    if (e.shiftKey && e.button === 0) {
+      startScreenPosRef.current = { x: e.clientX, y: e.clientY };
+      setLassoRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 });
+      return true;
+    }
+    return false;
+  }, []);
 
   const updateLasso = useCallback((e) => {
     if (!startScreenPosRef.current) return;
@@ -50,8 +56,11 @@ export default function useLassoPointSelection({
     const y = Math.min(startY, currentY);
     const width = Math.abs(currentX - startX);
     const height = Math.abs(currentY - startY);
+    // AutoCAD-like: left → right = WINDOW, right → left = CROSSING (see
+    // lassoMode). Re-evaluated on every move.
+    const mode = getLassoMode(startX, currentX);
 
-    setLassoRect({ x, y, width, height });
+    setLassoRect({ x, y, width, height, mode });
   }, []);
 
   // Returns { committed }. committed === false means the gesture was a click
@@ -89,25 +98,29 @@ export default function useLassoPointSelection({
       height: Math.abs(p2_local.y - p1_local.y),
     };
 
-    const inBox = (pt) =>
-      pt &&
-      pt.x >= selectionBox.x &&
-      pt.x <= selectionBox.x + selectionBox.width &&
-      pt.y >= selectionBox.y &&
-      pt.y <= selectionBox.y + selectionBox.height;
+    const { mode } = lassoRect;
+    const inRect = makeInRect(selectionBox);
+    const inBox = (pt) => Boolean(pt) && inRect(pt);
 
-    // Hit-test individual points
+    // Hit-test individual points (same rule in both modes).
     const points = getSelectedAnnotationPoints?.() || [];
     const hitPointIds = [];
     points.forEach((pt) => {
       if (inBox(pt)) hitPointIds.push(pt.id);
     });
 
-    // Hit-test segments — both endpoints must be inside the rectangle.
+    // Hit-test segments — WINDOW: both endpoints inside the rectangle;
+    // CROSSING: an endpoint inside or the segment crossing a side.
+    const segmentHit =
+      mode === LASSO_MODE_CROSSING
+        ? makeSegmentCrossesRect(selectionBox)
+        : (p0, p1) => inBox(p0) && inBox(p1);
     const segments = getSelectedAnnotationSegments?.() || [];
     const hitPartIds = [];
     segments.forEach((seg) => {
-      if (inBox(seg.p0) && inBox(seg.p1)) hitPartIds.push(seg.partId);
+      if (seg?.p0 && seg?.p1 && segmentHit(seg.p0, seg.p1)) {
+        hitPartIds.push(seg.partId);
+      }
     });
 
     // When the lasso caught no vertex and no segment of the selected
@@ -126,7 +139,7 @@ export default function useLassoPointSelection({
     startScreenPosRef.current = null;
     setLassoRect(null);
 
-    return { committed: true, empty, selectionBox, anchorPosition };
+    return { committed: true, empty, selectionBox, anchorPosition, mode };
   }, [
     lassoRect,
     viewportRef,
