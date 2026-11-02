@@ -10,10 +10,10 @@ import {
   setCommandsToolbarLastUsed,
 } from "../commandsToolbarSlice";
 
-import ButtonOpenShortcutsDialog from "./ButtonOpenShortcutsDialog";
+import ButtonOpenCommandsDialog from "./ButtonOpenCommandsDialog";
 import CommandGroupButton from "./CommandGroupButton";
 import CommandSlot from "./CommandSlot";
-import DialogCommandShortcuts from "./DialogCommandShortcuts";
+import DialogCommands from "./DialogCommands";
 import MenuCommandShortcuts from "./MenuCommandShortcuts";
 import { COMMANDS_BY_KEY } from "../commands";
 import getToolbarLayout from "../constants/toolbarLayout";
@@ -36,7 +36,7 @@ const FLOATING_MAX_WIDTH = 640;
 // - FLOATING: absolute layer inside the editors area, dragged by its grip,
 //   wrapping on several lines; released near an edge it docks there.
 // Groups of constants/toolbarLayout.js and commands with variants render as
-// split buttons (CommandGroupButton). The last button opens the « Raccourcis »
+// split buttons (CommandGroupButton). The last button opens the « Commandes »
 // dialog; the toolbar also renders the right-click shortcuts menu of the
 // editors (MenuCommandShortcuts), the only place owning ctx / deps.
 // ---------------------------------------------------------------------------
@@ -236,10 +236,10 @@ export default function CommandsToolbar({ dock, containerRef }) {
         {grip}
         {getToolbarLayout(ctx.viewerKey).map(renderEntry)}
         {renderDivider("divider-shortcuts")}
-        <ButtonOpenShortcutsDialog />
+        <ButtonOpenCommandsDialog />
       </Paper>
       <MenuCommandShortcuts ctx={ctx} deps={deps} />
-      <DialogCommandShortcuts />
+      <DialogCommands />
       {/* Dock preview while dragging near an edge */}
       {isDragging && snapDock && (
         <Box

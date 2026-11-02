@@ -8,7 +8,7 @@ import {
 import {
   selectShortcutCommandKeys,
   setCommandsToolbarLastUsed,
-  setShortcutsDialogOpen,
+  setCommandsDialogOpen,
 } from "../commandsToolbarSlice";
 
 import {
@@ -35,7 +35,7 @@ import toSlotItem from "../utils/toSlotItem";
 
 // Right-click shortcuts menu of the editors, rendered by CommandsToolbar (the
 // owner of ctx / deps): the user's ordered shortcut commands
-// (commandsToolbar.shortcutCommandKeys, chosen in DialogCommandShortcuts) as
+// (commandsToolbar.shortcutCommandKeys, chosen in DialogCommands) as
 // menu items — the same CommandSlot / CommandMenuContext rendering as a
 // group menu, so a `run` command fires and a popup-owning command (template
 // pickers, dialogs) opens its popup on the menu anchor. The menu is
@@ -50,14 +50,14 @@ import toSlotItem from "../utils/toSlotItem";
 // reason, never hidden (toolbar rule). Header: the selection the shortcuts
 // act on (the template label of the single selected annotation, like the
 // header of ToolbarEditAnnotation, or the count of a multi-selection); the
-// icons take the toolbar's accent color. Footer: « Raccourcis… » opens the
+// icons take the toolbar's accent color. Footer: « Commandes… » opens the
 // dialog.
 export default function MenuCommandShortcuts({ ctx, deps }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const configureS = "Raccourcis…";
+  const configureS = "Commandes…";
 
   // data
 
@@ -159,7 +159,7 @@ export default function MenuCommandShortcuts({ ctx, deps }) {
 
   function handleOpenDialog() {
     closeMenu();
-    dispatch(setShortcutsDialogOpen(true));
+    dispatch(setCommandsDialogOpen(true));
   }
 
   // render

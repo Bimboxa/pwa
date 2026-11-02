@@ -17,8 +17,8 @@ import { DEFAULT_SHORTCUT_COMMAND_KEYS } from "./constants/defaultShortcuts";
 // - lastUsedByGroup: command (or variant) key shown as the primary slot of
 //   every UI group of constants/toolbarLayout.js.
 // - shortcutCommandKeys: ordered command keys of the right-click shortcuts
-//   menu of the editors (MenuCommandShortcuts), chosen in the « Raccourcis »
-//   dialog (shortcutsDialogOpen — not persisted).
+//   menu of the editors (MenuCommandShortcuts), chosen in the « Commandes »
+//   dialog (commandsDialogOpen — not persisted).
 const persisted = loadCommandsToolbarLayout();
 
 const initialState = {
@@ -27,7 +27,7 @@ const initialState = {
   lastUsedByGroup: persisted.lastUsedByGroup ?? {},
   shortcutCommandKeys:
     persisted.shortcutCommandKeys ?? DEFAULT_SHORTCUT_COMMAND_KEYS,
-  shortcutsDialogOpen: false,
+  commandsDialogOpen: false,
 };
 
 function uniqueKeys(keys) {
@@ -72,8 +72,8 @@ const commandsToolbarSlice = createSlice({
         shortcutCommandKeys: state.shortcutCommandKeys,
       });
     },
-    setShortcutsDialogOpen: (state, action) => {
-      state.shortcutsDialogOpen = Boolean(action.payload);
+    setCommandsDialogOpen: (state, action) => {
+      state.commandsDialogOpen = Boolean(action.payload);
     },
   },
 });
@@ -84,7 +84,7 @@ export const {
   setCommandsToolbarLastUsed,
   setShortcutCommandKeys,
   toggleShortcutCommand,
-  setShortcutsDialogOpen,
+  setCommandsDialogOpen,
 } = commandsToolbarSlice.actions;
 
 export const selectCommandsToolbarDock = (s) => s.commandsToolbar.dock;
@@ -93,7 +93,7 @@ export const selectCommandsToolbarLastUsedByGroup = (s) =>
   s.commandsToolbar.lastUsedByGroup;
 export const selectShortcutCommandKeys = (s) =>
   s.commandsToolbar.shortcutCommandKeys;
-export const selectShortcutsDialogOpen = (s) =>
-  s.commandsToolbar.shortcutsDialogOpen;
+export const selectCommandsDialogOpen = (s) =>
+  s.commandsToolbar.commandsDialogOpen;
 
 export default commandsToolbarSlice.reducer;

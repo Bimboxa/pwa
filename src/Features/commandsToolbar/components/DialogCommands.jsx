@@ -1,11 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  selectCommandsDialogOpen,
   selectShortcutCommandKeys,
-  selectShortcutsDialogOpen,
+  setCommandsDialogOpen,
   setShortcutCommandKeys,
-  setShortcutsDialogOpen,
   toggleShortcutCommand,
 } from "../commandsToolbarSlice";
 
@@ -15,30 +15,42 @@ import IconRightClickShortcut from "Features/icons/IconRightClickShortcut";
 
 import HeaderDialogFullPage from "Features/layout/components/HeaderDialogFullPage";
 import useDialogQuitHotkey from "Features/layout/hooks/useDialogQuitHotkey";
+import SearchBar from "Features/search/components/SearchBar";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
-import RowShortcutCommand from "./RowShortcutCommand";
+import RowCommand from "./RowCommand";
+import DialogCommandHelper from "./DialogCommandHelper";
 import ListSortableShortcuts from "./ListSortableShortcuts";
 import { COMMANDS_BY_KEY } from "../commands";
 import { TOOLBAR_SECTIONS } from "../constants/toolbarLayout";
 import { DEFAULT_SHORTCUT_COMMAND_KEYS } from "../constants/defaultShortcuts";
+import useCommandHelpers from "../hooks/useCommandHelpers";
+import matchesCommandSearch, {
+  getSearchWords,
+} from "../utils/matchesCommandSearch";
 
-// Full-page « Raccourcis » dialog (opened by the last toolbar button and by
-// the footer of the right-click menu): on the left every command of the
-// toolbar by section and group, checked = offered in the right-click menu of
-// the editors; on the right the ordered recap of the menu, reorderable by
-// drag & drop. Per-device preference (commandsToolbar.shortcutCommandKeys,
-// localStorage). Closes on Q (useDialogQuitHotkey) like the Configuration
-// dialog; the focus stays trapped in the dialog, so the editor hotkeys are
-// off while it is open.
-export default function DialogCommandShortcuts() {
+// Full-page « Commandes » dialog (opened by the last toolbar button and by
+// the footer of the right-click menu): the reference list of every command
+// of the toolbar, by section and group. A search field (header) filters the
+// list on the label and on the helper description; a command with a helper
+// (Data/<org>/commands/<KEY>.md: description and / or gif) shows an « i »
+// opening DialogCommandHelper. The checkbox of a row = offered in the
+// right-click menu of the editors; on the right the ordered recap of the
+// menu, reorderable by drag & drop. Per-device preference
+// (commandsToolbar.shortcutCommandKeys, localStorage). Closes on Q
+// (useDialogQuitHotkey) like the Configuration dialog — the letter yields
+// while typing in the search field; the focus stays trapped in the dialog,
+// so the editor hotkeys are off while it is open.
+export default function DialogCommands() {
   const dispatch = useDispatch();
 
   // strings
 
-  const titleS = "Raccourcis du clic droit";
+  const titleS = "Commandes";
   const introS =
-    "Cochez les commandes à proposer au clic droit dans les éditeurs 2D et 3D. Le menu affiche les raccourcis dans l'ordre de la liste de droite ; une commande non applicable à la sélection y reste visible, désactivée.";
+    "Toutes les commandes des éditeurs 2D et 3D. Cochez celles à proposer au clic droit : le menu les affiche dans l'ordre de la liste de droite ; une commande non applicable à la sélection y reste visible, désactivée.";
+  const searchS = "Rechercher une commande…";
+  const noMatchS = "Aucune commande ne correspond à";
   const menuTitleS = "Menu clic droit";
   const menuHelperS = "Glissez les poignées pour changer l'ordre d'affichage.";
   const emptyS = "Aucun raccourci : cochez des commandes à gauche.";
@@ -46,8 +58,24 @@ export default function DialogCommandShortcuts() {
 
   // data
 
-  const open = useSelector(selectShortcutsDialogOpen);
+  const open = useSelector(selectCommandsDialogOpen);
   const shortcutKeys = useSelector(selectShortcutCommandKeys);
+  const { orgaCode, basePath, byKey: helpersByKey } = useCommandHelpers();
+
+  // state
+
+  const [search, setSearch] = useState("");
+  const [helperCommandKey, setHelperCommandKey] = useState(null);
+
+  // effects
+
+  // A fresh dialog on every opening.
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setHelperCommandKey(null);
+    }
+  }, [open]);
 
   // helpers
 
@@ -59,10 +87,41 @@ export default function DialogCommandShortcuts() {
     shortcutKeys.length === DEFAULT_SHORTCUT_COMMAND_KEYS.length &&
     shortcutKeys.every((k, i) => k === DEFAULT_SHORTCUT_COMMAND_KEYS[i]);
 
+  const searchWords = useMemo(() => getSearchWords(search), [search]);
+  const searching = searchWords.length > 0;
+
+  // Sections filtered by the search: a group keeps its matching commands
+  // only, an empty group / section disappears. Without a search, the layout
+  // is rendered as is.
+  const sections = useMemo(() => {
+    if (!searching) return TOOLBAR_SECTIONS.DEFAULT;
+    const matches = (key) => {
+      const command = COMMANDS_BY_KEY[key];
+      if (!command) return false;
+      return matchesCommandSearch(command, helpersByKey[key], searchWords);
+    };
+    return TOOLBAR_SECTIONS.DEFAULT.map((section) => {
+      const entries = section.entries
+        .map((entry) => {
+          if (typeof entry === "string") return matches(entry) ? entry : null;
+          if (entry?.type !== "group") return null;
+          const commandKeys = entry.commandKeys.filter(matches);
+          return commandKeys.length > 0 ? { ...entry, commandKeys } : null;
+        })
+        .filter(Boolean);
+      return entries.length > 0 ? { ...section, entries } : null;
+    }).filter(Boolean);
+  }, [searching, searchWords, helpersByKey]);
+
+  const helperCommand = helperCommandKey
+    ? COMMANDS_BY_KEY[helperCommandKey]
+    : null;
+  const helper = helperCommandKey ? helpersByKey[helperCommandKey] : null;
+
   // handlers
 
   const handleClose = useCallback(() => {
-    dispatch(setShortcutsDialogOpen(false));
+    dispatch(setCommandsDialogOpen(false));
   }, [dispatch]);
 
   function handleToggle(key) {
@@ -77,6 +136,14 @@ export default function DialogCommandShortcuts() {
     dispatch(setShortcutCommandKeys(DEFAULT_SHORTCUT_COMMAND_KEYS));
   }
 
+  function handleInfo(key) {
+    setHelperCommandKey(key);
+  }
+
+  function handleCloseHelper() {
+    setHelperCommandKey(null);
+  }
+
   useDialogQuitHotkey(open, handleClose);
 
   // render
@@ -85,11 +152,12 @@ export default function DialogCommandShortcuts() {
     const command = COMMANDS_BY_KEY[key];
     if (!command) return null;
     return (
-      <RowShortcutCommand
+      <RowCommand
         key={key}
         command={command}
         checked={checked.has(key)}
         onToggle={handleToggle}
+        onInfo={helpersByKey[key] ? handleInfo : null}
         indent={indent}
       />
     );
@@ -133,7 +201,16 @@ export default function DialogCommandShortcuts() {
 
   return (
     <Dialog fullScreen open={open} onClose={handleClose}>
-      <HeaderDialogFullPage title={titleS} onClose={handleClose} />
+      <HeaderDialogFullPage title={titleS} onClose={handleClose}>
+        <Box sx={{ flex: 1, maxWidth: 420, minWidth: 0 }}>
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder={searchS}
+            fullWidth
+          />
+        </Box>
+      </HeaderDialogFullPage>
       <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
         {/* Left: every command, by section / group */}
         <Box
@@ -153,16 +230,22 @@ export default function DialogCommandShortcuts() {
           >
             {introS}
           </Typography>
-          {/* Masonry: CSS columns, the tiles stack in each column without
-              the row-aligned gaps of a grid. */}
-          <Box
-            sx={{
-              columnCount: { xs: 1, md: 2, lg: 3 },
-              columnGap: 2,
-            }}
-          >
-            {TOOLBAR_SECTIONS.DEFAULT.map(renderSection)}
-          </Box>
+          {sections.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+              {`${noMatchS} « ${search.trim()} ».`}
+            </Typography>
+          ) : (
+            // Masonry: CSS columns, the tiles stack in each column without
+            // the row-aligned gaps of a grid.
+            <Box
+              sx={{
+                columnCount: { xs: 1, md: 2, lg: 3 },
+                columnGap: 2,
+              }}
+            >
+              {sections.map(renderSection)}
+            </Box>
+          )}
         </Box>
 
         {/* Right: the ordered menu */}
@@ -218,6 +301,14 @@ export default function DialogCommandShortcuts() {
           </Box>
         </Box>
       </Box>
+      <DialogCommandHelper
+        open={Boolean(helperCommand)}
+        command={helperCommand}
+        helper={helper}
+        orgaCode={orgaCode}
+        basePath={basePath}
+        onClose={handleCloseHelper}
+      />
     </Dialog>
   );
 }

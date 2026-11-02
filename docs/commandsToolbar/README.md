@@ -42,11 +42,11 @@ registry order of `commands/index.js` drives the hotkey resolution.
 The layout is written as **named sections** (`{ key, label, entries }`,
 `TOOLBAR_SECTIONS` / `getToolbarSections(moduleKey)`): the toolbar renders
 the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
-« Raccourcis » dialog lists the commands under the section labels (« Repère »,
+« Commandes » dialog lists the commands under the section labels (« Repère »,
 « Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
 « Soustraction / Évidement », « Faces / Extrusion », « Créer / modifier depuis la
 sélection », « Déplacer / Affichage », « Qualité »). The last button of the
-toolbar (`ButtonOpenShortcutsDialog`, not a command) opens that dialog.
+toolbar (`ButtonOpenCommandsDialog`, not a command) opens that dialog.
 
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
 drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device
@@ -74,7 +74,7 @@ the per-segment flags are remapped, the hosted openings reflow and the whole
 write is one undo step. Cuts / guide lines are not crossed, and
 `meshLinesBySegment` is not remapped (like the other insertion paths).
 
-## Right-click shortcuts (« Raccourcis »)
+## Right-click shortcuts and the « Commandes » dialog
 
 A right click in the 2D editor (`InteractionLayer.handleContextMenu`) or the
 3D editor (`MainThreedEditor.handleClick`, `event.button === 2` — a right
@@ -91,21 +91,65 @@ click on empty keeps the selection. The anchor travels through
 `closeContextMenu` on close); the menu element is a 1×1 fixed anchor portaled
 to body. Only the shortcuts present in the module's layout are listed; a
 non-relevant command stays visible, disabled with its reason. The footer
-« Raccourcis… » opens the dialog. No menu where the toolbar is hidden
+« Commandes… » opens the dialog. No menu where the toolbar is hidden
 (`useShowCommandsToolbar`). In the 2D editor the right mousedown never starts
 a drag (`handleMouseDownCapture` filters `e.button !== 0`).
 
-The **« Raccourcis » dialog** (`components/DialogCommandShortcuts.jsx`,
-full page, « Quitter » + `Q` through the shared
-`layout/components/HeaderDialogFullPage` / `layout/hooks/useDialogQuitHotkey`
-also used by the Configuration dialog): every command of the default layout
-by section and group with a checkbox on the left, the ordered recap of the
-menu on the right (`ListSortableShortcuts`, dnd-kit drag handle, remove,
-« Réinitialiser »). The ordered keys persist per device in the toolbar's
-localStorage entry (`commandsToolbar.shortcutCommandKeys`,
-`setShortcutCommandKeys` / `toggleShortcutCommand`); default
-`constants/defaultShortcuts.js` = `["CHANGE_STYLE"]`, which keeps the former
-right-click « change template » gesture one click away.
+The **« Commandes » dialog** (`components/DialogCommands.jsx`, full page,
+« Quitter » + `Q` through the shared `layout/components/HeaderDialogFullPage`
+/ `layout/hooks/useDialogQuitHotkey` also used by the Configuration dialog;
+opened by `ButtonOpenCommandsDialog` / the menu footer,
+`commandsToolbar.commandsDialogOpen`) is the reference list of every command
+of the default layout, by section and group (`RowCommand`: checkbox, icon,
+label, `CommandBadges` = 2D / 3D chip + hotkey letter):
+
+- **search** — a `SearchBar` in the header filters the rows on the label and
+  on the helper description (`utils/matchesCommandSearch.js`: accent- and
+  case-insensitive, every typed word must match); a group keeps its matching
+  commands only, an empty section disappears, no match shows a message. The
+  `Q` quit letter yields while typing (`isEditableTarget`).
+- **helper « i »** — when the org provides a helper for the command, an
+  info button at the end of the row opens `DialogCommandHelper` (nested MUI
+  dialog: the gif, lazy through `useDataImageUrl`, above the Markdown
+  description rendered by `commandHelperMarkdownComponents.jsx` — no images
+  in the body). No helper, no button. Helpers come from
+  `hooks/useCommandHelpers.js` ← `appConfig.features.commandHelpers`.
+- **right-click menu** — the checkbox of a row = offered in the menu; the
+  ordered recap on the right (`ListSortableShortcuts`, dnd-kit drag handle,
+  remove, « Réinitialiser »). The ordered keys persist per device in the
+  toolbar's localStorage entry (`commandsToolbar.shortcutCommandKeys`,
+  `setShortcutCommandKeys` / `toggleShortcutCommand`); default
+  `constants/defaultShortcuts.js` = `["CHANGE_STYLE"]`, which keeps the
+  former right-click « change template » gesture one click away.
+
+### Command helpers (`Data/<org>/commands/`)
+
+Per-org, gitignored, resolved by `appConfig/utils/resolveAppConfig.js`
+(`COMMAND_HELPERS_MD_LOADERS`, eager raw Markdown) into
+`features.commandHelpers = { basePath: "commands", byKey }`. One file per
+command key of the registry:
+
+```
+src/Data/edx/commands/
+├── CHANGE_STYLE.md
+├── CLONE.md
+└── assets/
+    └── change_style.gif
+```
+
+```md
+---
+gif: ./assets/change_style.gif
+---
+Applique un autre modèle d'annotation aux annotations sélectionnées…
+```
+
+The YAML frontmatter is optional (`gif`, path relative to the `commands`
+folder, resolved by `resolveTutorialImagePath` and loaded through the
+`Data/**/*.{png,jpg,jpeg,webp,gif}` glob of `dataImageUrlLoaders.js`); the
+body is the description (Markdown, searched by the dialog). A file with a
+frontmatter only shows the gif alone; a file with neither description nor
+gif is dropped (no « i »).
 
 ### « Changer de style » (`CHANGE_STYLE`)
 

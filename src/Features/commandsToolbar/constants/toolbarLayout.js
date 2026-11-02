@@ -2,7 +2,7 @@
 // per module (getToolbarLayout): the editing modules share the DEFAULT
 // sections, the BaseMaps module shows its two base map placement commands
 // alone. The layout is written as NAMED SECTIONS ({ key, label, entries }),
-// the labels feeding the « Raccourcis » dialog (DialogCommandShortcuts); the
+// the labels feeding the « Commandes » dialog (DialogCommands); the
 // toolbar renders the flat form (getToolbarLayout), sections separated by a
 // divider. Entries of a section:
 //   "COMMAND_KEY"                               one button (CommandSlot)
