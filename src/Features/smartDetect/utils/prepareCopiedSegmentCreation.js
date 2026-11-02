@@ -17,8 +17,11 @@ export function isCopiedSegment(clipboard) {
   );
 }
 
-// Join only nearby straight segments. Endpoints slide along their own axes;
-// unrelated annotations sharing a point id will not be moved at persistence.
+// Join the new segment to the nearby segments of existing POLYLINE / STRIP
+// annotations (two-point or multi-point, open or closed). Endpoints slide
+// along their own axes; only a true end of an open polyline may move (L
+// corner), and unrelated annotations sharing a point id will not be moved at
+// persistence.
 export function joinCopiedSegment({
   match,
   annotation,
@@ -36,13 +39,7 @@ export function joinCopiedSegment({
         }
       : { lo: -width / 2, hi: width / 2 };
   const neighbors = buildJunctionNeighbors(
-    annotations.filter(
-      (ann) =>
-        !ann.deletedAt &&
-        !ann.closeLine &&
-        !ann.hiddenSegmentsIdx?.length &&
-        !ann.points?.some((p) => p.type === "circle")
-    ),
+    annotations.filter((ann) => !ann.deletedAt),
     meterByPx
   ).map((neighbor) => ({
     ...neighbor,
@@ -127,12 +124,9 @@ export function joinCopiedSegment({
       .reverse()
       .map((p) => ({ x: p.x + band.hi * n.x, y: p.y + band.hi * n.y })),
   ];
-  const junctionEdits = repaired.neighborEdits.map((edit) => {
-    const neighbor = neighbors.find((nb) => nb.id === edit.annotationId);
-    const before =
-      neighbor?.pointIds?.[0] === edit.pointId ? neighbor.p1 : neighbor?.p2;
-    return { ...edit, before };
-  });
+  // `before` (the vertex position the edit was computed from) is checked at
+  // persistence against the stored point.
+  const junctionEdits = repaired.neighborEdits;
   return {
     match: {
       ...match,

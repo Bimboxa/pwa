@@ -1423,11 +1423,12 @@ const InteractionLayer = forwardRef(({
           return;
         }
 
-        // Final pass: L / T junction repair vs existing orthogonal 2-pt
-        // POLYLINE / STRIP annotations. Axes are never moved — endpoints
-        // slide along their own axis (candidate ends snap 1 cm inside the
-        // neighbor band; the L case also slides the neighbor's endpoint,
-        // persisted on Space commit via pointEdits). Thresholds are
+        // Final pass: L / T junction repair vs the orthogonal segments of
+        // existing POLYLINE / STRIP annotations (any point count, open or
+        // closed). Axes are never moved — endpoints slide along their own
+        // axis (candidate ends snap 1 cm inside the neighbor band; the L case
+        // also slides a true end vertex of an open neighbor, persisted on
+        // Space commit via pointEdits). Thresholds are
         // physical (14 cm max initial gap to the nearest band edge, 1 cm
         // overlap) → skipped when uncalibrated.
         if (meterByPx > 0) {

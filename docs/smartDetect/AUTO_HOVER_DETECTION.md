@@ -11,7 +11,11 @@ No suitable band means no write and an informational message that names the reas
 Space uses its own pipeline, `detectCopiedSegmentAtCursor.js` (see
 [Space pipeline](#space-pipeline-copied-segment)); junction repair
 then snaps endpoints along their own axes. L/T joints use the existing repair
-algorithm (14 cm gap, 1 cm overlap when calibrated). Nearly collinear segments
+algorithm (14 cm gap, 1 cm overlap when calibrated) against every segment of
+the existing STRIP / POLYLINE annotations, whatever their point count, open or
+closed (`buildJunctionNeighbors`, one neighbor per segment). A T enters the
+host band by 1 cm; an L also slides the host's first / last vertex, never an
+interior corner. Nearly collinear segments
 with equivalent thickness close small end-to-end gaps without merging records.
 Uncalibrated plans use bounded pixel tolerances. Only editable neighbor endpoints
 can move. Those points receive fresh normalized IDs, so other annotations sharing
@@ -119,8 +123,13 @@ make the ends plausible:
 Minimum length is `max(3 px, min(width, 0.6 × copied length))`. Over the final
 span at least one face must be supported (both for hollow bands).
 
-**4. Junction** — `joinCopiedSegment`, unchanged (skipped by « Copie exacte »,
-and for the walls « Fusionner » will fuse with).
+**4. Junction** — `joinCopiedSegment` (skipped by « Copie exacte », and for
+the walls « Fusionner » will fuse with). Hosts are the segments of every
+existing STRIP / POLYLINE of the base map, hand-drawn multi-point walls
+included: the end of the new segment enters the host band by 1 cm (T), and
+when it lands at a true end of an open host, that vertex is slid to close the
+corner (L). An interior vertex of the host (a corner of an exterior wall) is
+never moved.
 
 **Options** — the « Segment similaire » card of the paste helper
 (`SectionPasteHelperContent.jsx`, state `mapEditor.pasteSegmentOptions`):

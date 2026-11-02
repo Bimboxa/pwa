@@ -197,6 +197,167 @@ test("strip joints use the one-sided band and canonical CM width", () => {
   assert.equal(result.match.placedPoints[1].y, 211);
 });
 
+// Multi-point neighbors: every segment of an existing polyline is a T host;
+// only its first / last vertex may move for an L corner.
+const SS_METER_BY_PX = 0.0029672897196261682;
+const exteriorStrip = (extra = {}) => ({
+  id: "exterior",
+  type: "STRIP",
+  strokeWidth: 30,
+  strokeWidthUnit: "CM",
+  stripOrientation: -1,
+  points: [
+    { id: "e0", x: 519.202, y: 3171.657 },
+    { id: "e1", x: 519.202, y: 1988.255 },
+    { id: "e2", x: 519.202, y: 1543.653 },
+    { id: "e3", x: 1349.354, y: 1526.74 },
+  ],
+  ...extra,
+});
+const interiorWall = {
+  type: "POLYLINE",
+  strokeWidth: 20,
+  strokeWidthUnit: "CM",
+};
+
+test("T junction enters the band of a multi-point STRIP by 1 cm", () => {
+  // The detected end stops 0.65 px below the top wall's inner face.
+  const result = joinCopiedSegment({
+    match: {
+      placedPoints: [
+        { x: 926.739, y: 1536 },
+        { x: 926.739, y: 1957.991 },
+      ],
+    },
+    annotation: interiorWall,
+    meterByPx: SS_METER_BY_PX,
+    annotations: [exteriorStrip()],
+    canEditAnnotation: () => true,
+  });
+  const [top, bottom] = result.match.placedPoints;
+  const overlapPx = 0.01 / SS_METER_BY_PX;
+  // Inner face of the top wall at x = 926.739 (its band lies above).
+  const faceY =
+    1543.653 +
+    ((926.739 - 519.202) / (1349.354 - 519.202)) * (1526.74 - 1543.653);
+  assert.ok(Math.abs(top.y - (faceY - overlapPx)) < 0.1, `${top.y}`);
+  assert.equal(top.x, 926.739);
+  assert.deepEqual(bottom, { x: 926.739, y: 1957.991 });
+  // The junction sits on an interior segment: no vertex of the strip moves.
+  assert.deepEqual(result.junctionEdits, []);
+});
+
+test("an interior vertex of the neighbor is a T, never an L", () => {
+  const result = joinCopiedSegment({
+    match: {
+      placedPoints: [
+        { x: 519.202, y: 1988.255 },
+        { x: 629.916, y: 1988.255 },
+      ],
+    },
+    annotation: interiorWall,
+    meterByPx: SS_METER_BY_PX,
+    annotations: [exteriorStrip()],
+    canEditAnnotation: () => true,
+  });
+  const [start] = result.match.placedPoints;
+  assert.ok(Math.abs(start.x - (519.202 - 0.01 / SS_METER_BY_PX)) < 0.01);
+  assert.equal(start.y, 1988.255);
+  assert.deepEqual(result.junctionEdits, []);
+});
+
+test("L junction moves the last vertex of a multi-point neighbor, with its own position as before", () => {
+  const annotations = [
+    neighbor([
+      { x: 20, y: 300 },
+      { x: 20, y: 220 },
+      { x: 100, y: 220 },
+    ]),
+  ];
+  const result = joinCopiedSegment({
+    match,
+    annotation: ann,
+    meterByPx: 0.01,
+    annotations,
+    canEditAnnotation: () => true,
+  });
+  assert.deepEqual(result.match.placedPoints, [
+    { x: 100, y: 100 },
+    { x: 100, y: 211 },
+  ]);
+  assert.deepEqual(result.junctionEdits, [
+    {
+      annotationId: "neighbor",
+      pointId: "p2",
+      x: 110,
+      y: 220,
+      before: { x: 100, y: 220 },
+    },
+  ]);
+});
+
+test("a closed polyline is a T host on every segment and never moves", () => {
+  const result = joinCopiedSegment({
+    match,
+    annotation: ann,
+    meterByPx: 0.01,
+    annotations: [
+      {
+        ...neighbor([
+          { x: 20, y: 220 },
+          { x: 180, y: 220 },
+          { x: 180, y: 400 },
+          { x: 20, y: 400 },
+        ]),
+        closeLine: true,
+      },
+    ],
+    canEditAnnotation: () => true,
+  });
+  assert.deepEqual(result.match.placedPoints, [
+    { x: 100, y: 100 },
+    { x: 100, y: 211 },
+  ]);
+  assert.deepEqual(result.junctionEdits, []);
+  // The closing segment (last → first vertex) is a host too.
+  const closing = joinCopiedSegment({
+    match,
+    annotation: ann,
+    meterByPx: 0.01,
+    annotations: [
+      {
+        ...neighbor([
+          { x: 180, y: 220 },
+          { x: 180, y: 400 },
+          { x: 20, y: 400 },
+          { x: 20, y: 220 },
+        ]),
+        closeLine: true,
+      },
+    ],
+  });
+  assert.equal(closing.match.placedPoints[1].y, 211);
+});
+
+test("hidden segments of a neighbor are not junction hosts", () => {
+  const result = joinCopiedSegment({
+    match,
+    annotation: ann,
+    meterByPx: 0.01,
+    annotations: [
+      {
+        ...neighbor([
+          { x: 20, y: 300 },
+          { x: 20, y: 220 },
+          { x: 180, y: 220 },
+        ]),
+        hiddenSegmentsIdx: [1],
+      },
+    ],
+  });
+  assert.deepEqual(result.match.placedPoints, match.placedPoints);
+});
+
 test("only a single straight copied segment uses this workflow", () => {
   const f = fixture();
   assert.ok(isCopiedSegment(f.clipboard));
