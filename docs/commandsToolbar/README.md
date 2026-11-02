@@ -103,8 +103,9 @@ opened by `ButtonOpenCommandsDialog` / the menu footer,
 of the default layout, by section and group (`RowCommand`: checkbox, icon,
 label, `CommandBadges` = 2D / 3D chip + hotkey letter):
 
-- **search** — a `SearchBar` in the header highlights (`secondary.light`
-  band, `RowCommand.highlighted`) the rows matching the label or the helper
+- **search** — a `SearchBar` in the header highlights (`RowCommand.highlighted`:
+  `alpha(secondary.main, 0.12)` band + 3px secondary left bar, the selected
+  row look of the Contenu tab) the rows matching the label or the helper
   description (`utils/matchesCommandSearch.js`: accent- and case-insensitive,
   every typed word must match); the layout is never filtered, the sections
   stay as landmarks, no match shows a message above the list. The `Q` quit

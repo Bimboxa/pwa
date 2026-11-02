@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import { alpha } from "@mui/material/styles";
 
 import CommandBadges from "./CommandBadges";
 
@@ -16,7 +17,8 @@ import CommandBadges from "./CommandBadges";
 // the state. Icon + label, the editor / hotkey badges, and when the org
 // provides a helper for the command (Data/<org>/commands/<KEY>.md) an « i »
 // button opening it (onInfo, null otherwise — the button is then absent).
-// `highlighted` = matches the search of the dialog (secondary.light band).
+// `highlighted` = matches the search of the dialog (secondary band + left
+// bar, the selected-row look of the Contenu tab).
 export default function RowCommand({
   command,
   checked,
@@ -66,9 +68,15 @@ export default function RowCommand({
           py: 0.5,
           pl: indent ? 3 : 1,
           borderRadius: 1,
+          // Same accent as the selected row of the Contenu tab
+          // (listingViewer/RowListingInGroup): secondary band + left bar.
           ...(highlighted && {
-            bgcolor: "secondary.light",
-            "&:hover": { bgcolor: "secondary.light" },
+            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+            boxShadow: (theme) =>
+              `inset 3px 0 0 ${theme.palette.secondary.main}`,
+            "&:hover": {
+              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.18),
+            },
           }),
         }}
       >
