@@ -34,7 +34,10 @@ const TYPE_OPTIONS_MAP = {
 // be built from that part's geometry:
 //   - segment(s) / cut_seg / guide → open polyline (or STRIP built from it)
 //   - cut (closed ring) → polygon (or STRIP / polyline)
-export default function getCloneTypeOptions(sourceType, part) {
+//   - a face selected in 3D (`facePart`) → closed polyline on its edges, or
+//     the face as a surface (useCloneAnnotation3d)
+export default function getCloneTypeOptions(sourceType, part, { facePart } = {}) {
+  if (facePart) return [OPTIONS.POLYLINE, OPTIONS.POLYGON];
   if (part && part.kind && part.kind !== "NONE") {
     if (part.kind === "POINT") return null;
     if (part.kind === "CUT") {

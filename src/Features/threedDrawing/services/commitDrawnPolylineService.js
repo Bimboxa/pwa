@@ -71,6 +71,9 @@ export async function commitDrawnPolyline({
   ignoreTemplateHeight = false,
   extraFields = null,
   checkBeforeCommit = null,
+  // false mints new db.points instead of reusing the plan's (a duplicate
+  // independent of its source) — see insertOrReusePoints.
+  reuseExistingPoints = true,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -186,6 +189,7 @@ export async function commitDrawnPolyline({
     baseMap: host,
     projectId,
     listingId: isTemplateless ? undefined : listingId,
+    reuseExistingPoints,
   });
 
   const annotation = {

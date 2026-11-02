@@ -3,7 +3,7 @@ import { Object3D, Vector3 } from "three";
 import getBaseMapTransform, {
   BASE_MAP_ROTATION_ORDER,
   getBaseMapEuler,
-} from "./getBaseMapTransform";
+} from "./getBaseMapTransform.js";
 
 // Inverse of `baseMapLocalToWorld` + `pixelToWorld`.
 //

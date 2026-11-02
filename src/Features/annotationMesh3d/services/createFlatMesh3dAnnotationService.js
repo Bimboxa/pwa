@@ -5,6 +5,8 @@ import db from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
+import baseMapWorldToLocal from "Features/baseMaps/js/baseMapWorldToLocal";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnnotationFields";
 import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
@@ -23,8 +25,10 @@ import { buildMesh3dStorage } from "./writeMesh3dService";
 // draft of the "Dessin" tool (the sheet belongs to the base map + `scopeId`
 // only). vertices: drawn world points [{x, y, z, baseMapId?}].
 // preferredBaseMapId: the base map selected in 2D, host of the sheet when
-// the vertices carry none (resolveHostBaseMap). Returns the created
-// annotation, or null.
+// the vertices carry none (resolveHostBaseMap). `editor` is optional: without
+// the live scene (the clone flow in the 2D editor) the vertices are expressed
+// in the host's local frame from its stored pose, and the face is not
+// oriented toward a camera. Returns the created annotation, or null.
 export default async function createFlatMesh3dAnnotationService({
   editor,
   vertices,
@@ -45,16 +49,25 @@ export default async function createFlatMesh3dAnnotationService({
   const sceneManager = editor?.sceneManager;
   const group = host ? sceneManager?.imagesManager?.getGroup?.(host.id) : null;
   const metrics = getBaseMapForRender(host);
-  if (!host || !group || !metrics) return null;
+  if (!host || !metrics) return null;
 
-  group.updateWorldMatrix(true, false);
-  const toLocal = (p) => {
-    const local = group.worldToLocal(new Vector3(p.x, p.y, p.z));
-    return { x: local.x, y: local.y, z: local.z };
-  };
+  let toLocal;
+  if (group) {
+    group.updateWorldMatrix(true, false);
+    toLocal = (p) => {
+      const local = group.worldToLocal(new Vector3(p.x, p.y, p.z));
+      return { x: local.x, y: local.y, z: local.z };
+    };
+  } else {
+    const transform = getBaseMapTransform(host);
+    toLocal = (p) => {
+      const local = baseMapWorldToLocal(p, transform);
+      return { x: local.x, y: local.y, z: local.z };
+    };
+  }
   const local = vertices.map(toLocal);
   // Face the side the user is looking from.
-  const eye = sceneManager.camera
+  const eye = sceneManager?.camera
     ? toLocal(sceneManager.camera.position)
     : null;
   const hint = eye

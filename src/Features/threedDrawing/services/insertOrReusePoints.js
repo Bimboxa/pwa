@@ -19,11 +19,17 @@ export const POINT_REUSE_EPS = 5e-4;
 // The points of a mesh annotation (isMesh3d) are never reused: they are only
 // the plan projection of its mesh, locked in 2D (usePointDrag) — sharing one
 // would lock the new annotation's vertex too.
+//
+// reuseExistingPoints: false mints new points for every vertex instead of
+// reusing the plan's (a duplicate meant to be independent of its source);
+// vertices of the same call still share one point (a riser keeps its two
+// refs on the same id).
 export default async function insertOrReusePoints({
   projectedPoints,
   baseMap,
   projectId,
   listingId,
+  reuseExistingPoints = true,
 }) {
   const [existing, hostAnnotations] = await Promise.all([
     db.points.where("baseMapId").equals(baseMap.id).toArray(),
@@ -40,9 +46,9 @@ export default async function insertOrReusePoints({
       if (ref?.id) meshPointIds.add(ref.id);
     }
   }
-  const liveExisting = existing.filter(
-    (p) => !p.deletedAt && !meshPointIds.has(p.id)
-  );
+  const liveExisting = reuseExistingPoints
+    ? existing.filter((p) => !p.deletedAt && !meshPointIds.has(p.id))
+    : [];
 
   const pointRefs = [];
   await db.transaction("rw", db.points, async () => {

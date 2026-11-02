@@ -22,6 +22,7 @@ export default function ButtonClone({ command, ctx, state, hotkeyLabel }) {
 
   const targets = getTargets(ctx);
   const isSingle = ctx.selectedAnnotations.length === 1;
+  const facePart = ctx.facePart ?? null;
   const selectionKey = ctx.selectedAnnotationIds.join("|");
 
   // handlers
@@ -53,6 +54,7 @@ export default function ButtonClone({ command, ctx, state, hotkeyLabel }) {
           accentColor={getAnnotationColor(ctx.selectedAnnotation) || "#6366F1"}
           selectedAnnotation={ctx.selectedAnnotation}
           selectedPart={ctx.selectedPart}
+          facePart={facePart}
         />
       )}
       {hasOpened && !isSingle && targets.length > 0 && (
