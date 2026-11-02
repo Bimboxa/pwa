@@ -1002,9 +1002,11 @@ function AnnotationTemplatesForListing({
   const handleDragEnd = useCallback(
     (event) => {
       if (readOnly) return;
-      reorderAnnotationTemplates(event, annotationTemplates);
+      // Reorder against the full sorted list (not the SELECT-mode filtered
+      // view) so the regenerated orderIndex keys cover the hidden templates.
+      reorderAnnotationTemplates(event, allTemplates);
     },
-    [reorderAnnotationTemplates, annotationTemplates, readOnly]
+    [reorderAnnotationTemplates, allTemplates, readOnly]
   );
 
   // helpers - empty listing: the explicit create-first-template box replaces
