@@ -103,11 +103,12 @@ opened by `ButtonOpenCommandsDialog` / the menu footer,
 of the default layout, by section and group (`RowCommand`: checkbox, icon,
 label, `CommandBadges` = 2D / 3D chip + hotkey letter):
 
-- **search** — a `SearchBar` in the header filters the rows on the label and
-  on the helper description (`utils/matchesCommandSearch.js`: accent- and
-  case-insensitive, every typed word must match); a group keeps its matching
-  commands only, an empty section disappears, no match shows a message. The
-  `Q` quit letter yields while typing (`isEditableTarget`).
+- **search** — a `SearchBar` in the header highlights (`secondary.light`
+  band, `RowCommand.highlighted`) the rows matching the label or the helper
+  description (`utils/matchesCommandSearch.js`: accent- and case-insensitive,
+  every typed word must match); the layout is never filtered, the sections
+  stay as landmarks, no match shows a message above the list. The `Q` quit
+  letter yields while typing (`isEditableTarget`).
 - **helper « i »** — when the org provides a helper for the command, an
   info button at the end of the row opens `DialogCommandHelper` (nested MUI
   dialog: the gif, lazy through `useDataImageUrl`, above the Markdown
