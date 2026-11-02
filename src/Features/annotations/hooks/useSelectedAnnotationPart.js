@@ -141,11 +141,11 @@ export function resolveSelectedAnnotationPart({
     };
   }
 
-  if (!effectivePartType || effectivePartType === "MAIN") {
-    return { kind: "NONE" };
-  }
-
   // --- VERTEX (single point) -------------------------------------------------
+  // Checked BEFORE the partType guard: a vertex click may land in the
+  // selection as pointId / selectedPointIds alone (partType left null by
+  // the drag-less click path), and the right panel already treats any
+  // selected point of a NODE as a point selection.
   if (
     effectivePartType === "VERTEX" ||
     pointId ||
@@ -163,6 +163,10 @@ export function resolveSelectedAnnotationPart({
       geometryPx: [found.pointPx],
       targetAnnotationType: null,
     };
+  }
+
+  if (!effectivePartType || effectivePartType === "MAIN") {
+    return { kind: "NONE" };
   }
 
   // --- GUIDE (one guideLine of the ordered sequence) ------------------------

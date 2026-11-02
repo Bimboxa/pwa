@@ -557,8 +557,8 @@ export default function usePointDrag({
         dispatch(setSelectedPointIds([pointId]));
       }
 
-      // Sub-sélection du point
-      dispatch(setSubSelection({ pointId }));
+      // Sub-sélection du point (same shape as the InteractionLayer click path)
+      dispatch(setSubSelection({ pointId, partType: "VERTEX" }));
 
       // Cleanup immédiat
       setDragState(null);
