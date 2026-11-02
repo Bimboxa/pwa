@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import theme from "Styles/theme";
 import applyFixedDimsConstraint from "Features/mapEditorGeneric/utils/applyFixedDimsConstraint";
 import getFixedDimsMeterFromString from "Features/mapEditorGeneric/utils/getFixedDimsMeterFromString";
+import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 
 export default function NodeRectangle({
   rectangle,
@@ -198,9 +199,7 @@ export default function NodeRectangle({
       strokeWidth: computedStrokeWidthPx,
     };
     if (strokeType === "DASHED") {
-      const dash = computedStrokeWidthPx * 3;
-      const gap = computedStrokeWidthPx * 2;
-      props.strokeDasharray = `${dash} ${gap}`;
+      props.strokeDasharray = getStrokeDasharray(computedStrokeWidthPx);
     }
     return props;
   }, [strokeType, strokeColor, strokeOpacity, computedStrokeWidthPx]);

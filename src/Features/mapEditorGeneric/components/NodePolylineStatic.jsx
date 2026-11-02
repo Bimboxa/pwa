@@ -73,6 +73,7 @@ import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeom
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
+import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 import getArrowsAlongPolyline from "Features/annotations/utils/getArrowsAlongPolyline";
 import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dSegmentFromQuad";
 
@@ -984,7 +985,7 @@ function NodePolylineStatic({
           stroke={run.displayColor}
           strokeWidth={run.strokeWidth ?? computedStrokeWidth}
           strokeOpacity={run.strokeOpacity}
-          strokeLinecap={isDashed ? "bevel" : "butt"}
+          strokeLinecap="butt"
           strokeLinejoin={isDashed ? "bevel" : "round"}
           vectorEffect={
             run.forceNonScaling || !scalesWithZoom
@@ -992,7 +993,11 @@ function NodePolylineStatic({
               : undefined
           }
           style={{ pointerEvents: "none", transition: "stroke 0.2s" }}
-          {...(isDashed && { strokeDasharray: "1 1" })}
+          {...(isDashed && {
+            strokeDasharray: getStrokeDasharray(
+              run.strokeWidth ?? computedStrokeWidth
+            ),
+          })}
         />
       );
     });

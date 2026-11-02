@@ -34,6 +34,7 @@ import {
 
 import theme from "Styles/theme";
 import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
+import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -255,13 +256,15 @@ const DrawingLayer = forwardRef(
     // - POLYGON / STRIP / RAMP: legacy "5,5" guide dashes.
     const previewTempDashArray = previewUsesAnnotationStyle
       ? strokeType === "DASHED"
-        ? "1 1"
+        ? getStrokeDasharray(previewStrokeWidth)
         : undefined
       : "5,5";
     // Dash pattern of the already-validated segments (static stroke): solid,
     // unless the POLYLINE / segment annotation style is DASHED.
     const previewStaticDashArray =
-      previewUsesAnnotationStyle && strokeType === "DASHED" ? "1 1" : undefined;
+      previewUsesAnnotationStyle && strokeType === "DASHED"
+        ? getStrokeDasharray(previewStrokeWidth)
+        : undefined;
 
     // Mirror NodePolylineStatic: for POLYGON the visible stroke matches the
     // fillColor, so the live drawing preview must do the same — otherwise the
