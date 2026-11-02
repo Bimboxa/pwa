@@ -49,6 +49,12 @@ export function closestPointOnAxis(camPos, cursorDir, last, axisVec) {
 }
 
 export function getCursorDir(mouseNdc, camera) {
+  // Orthographic camera (« Caméra ortho »): every cursor ray is parallel to
+  // the view axis — the unprojected point minus the camera position would
+  // tilt it toward the camera point.
+  if (camera.isOrthographicCamera) {
+    return camera.getWorldDirection(new Vector3());
+  }
   const v = new Vector3(mouseNdc.x, mouseNdc.y, 0.5).unproject(camera);
   return v.sub(camera.position).normalize();
 }

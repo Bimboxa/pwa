@@ -8,6 +8,7 @@ import {
 import { lighten } from "@mui/material/styles";
 
 import { DEFAULT_COTE_COLOR } from "../utils/coteConstants";
+import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
 
 function safeLighten(color, amount, fallback) {
   try {
@@ -148,7 +149,8 @@ export default function createDimensionLabelSprite({
       ? fontSize / REFERENCE_FONT_SIZE_PT
       : 1;
   const screenH = (CARD_SCREEN_HEIGHT * fontScale * canvasH) / cardCanvasH;
-  sprite.scale.set(screenH * aspect, screenH, 1);
+  // Constant on-screen size under both cameras (« Caméra ortho »).
+  sizeSpriteInViewportFraction(sprite, { fraction: screenH, aspect });
   // Draw on top of meshes/lines so the card is never hidden.
   sprite.renderOrder = 1003;
 

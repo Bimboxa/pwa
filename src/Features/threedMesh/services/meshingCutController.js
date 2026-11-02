@@ -28,6 +28,7 @@ import {
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
 import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
+import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
 import cutMesh3dByPlaneNear from "../utils/cutMesh3dByPlaneNear";
 import cutShellByPlaneNear from "../utils/cutShellByPlaneNear";
 import getAxisCutPlane from "../utils/getAxisCutPlane";
@@ -95,7 +96,7 @@ function createMarkerSprite(shape = "RING") {
     sizeAttenuation: false,
   });
   const sprite = new Sprite(material);
-  sprite.scale.set(RING_SCREEN_SIZE, RING_SCREEN_SIZE, 1);
+  sizeSpriteInViewportFraction(sprite, { fraction: RING_SCREEN_SIZE });
   sprite.renderOrder = 1004;
   sprite.raycast = () => {};
   sprite.userData.dispose = () => {

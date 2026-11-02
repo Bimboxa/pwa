@@ -74,7 +74,7 @@ const threedEditorInitialState = {
   // ensureBaseMapLoaded). Consumed by what depends on the base map groups
   // alone — the picking data of the scan base maps (usePrepareScene3dPicking).
   baseMapsLoadTick: 0,
-  // « Séparer les surfaces en contact » (top-right toggle of the 3D view +
+  // « Séparer les surfaces en contact » (bottom bar toggle of the 3D view +
   // switch of the 3D settings panel), ON by default. OFF = geometry at its
   // drawn dimensions. ON: CM-width POLYLINE and STRIP footprints are contracted by
   // 10 mm per side and their top face lowered by 5 mm before extrusion
@@ -82,6 +82,13 @@ const threedEditorInitialState = {
   // offset 3D » lift (getAnnotationVerticalLift) — both kill the
   // coplanar-face aliasing of touching elements. Session-only.
   antiAliasingShrink: true,
+  // « Caméra ortho » (bottom bar toggle of the 3D view, right of « Séparer
+  // les surfaces en contact »): the 3D view renders through an orthographic
+  // (parallel) projection instead of the perspective camera, whatever the
+  // viewing angle. Session-only. The walk mode (first person) always runs
+  // in perspective: while it is active the preference is kept but not
+  // applied (ControlsManager.setOrthographic / setSuspended).
+  cameraOrtho: false,
   // Max dihedral angle (degrees) joining two adjacent facets into the same
   // "face" when hovering / picking a surface in 3D (see faceHoverHighlight).
   // 0 = strictly coplanar facets only; 25 follows a revolution or swept
@@ -468,6 +475,9 @@ export const threedEditorSlice = createSlice({
     },
     setAntiAliasingShrink: (state, action) => {
       state.antiAliasingShrink = action.payload;
+    },
+    setCameraOrtho: (state, action) => {
+      state.cameraOrtho = Boolean(action.payload);
     },
     setFaceSelectionAngleDeg: (state, action) => {
       state.faceSelectionAngleDeg = action.payload;
@@ -1386,6 +1396,7 @@ export const {
   setHideBaseMaps,
   setDisableOpacity,
   setAntiAliasingShrink,
+  setCameraOrtho,
   setFaceSelectionAngleDeg,
   setShowWireframe,
   setShowTessellation,

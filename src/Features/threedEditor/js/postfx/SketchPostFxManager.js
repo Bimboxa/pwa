@@ -28,6 +28,14 @@ export default class SketchPostFxManager {
     if (on) this._ensureComposer();
   };
 
+  // The active camera changed (« Caméra ortho » toggle): the render pass
+  // keeps its own reference. The composer is rebuilt lazily from
+  // sceneManager.camera when it does not exist yet.
+  setCamera = (camera) => {
+    const renderPass = this.composer?.passes?.[0];
+    if (renderPass && camera) renderPass.camera = camera;
+  };
+
   // Called by SceneManager.renderScene when enabled. Self-syncs size AND
   // pixelRatio against the renderer so window resizes, panel-layout resizes
   // and the capture pixelRatio dance (snapshotThreedCanvasForCapture) all
@@ -64,7 +72,8 @@ export default class SketchPostFxManager {
     // antialias: true; the composer's default target has none).
     const target = new WebGLRenderTarget(1, 1, { samples: 4 });
     this.composer = new EffectComposer(renderer, target);
-    // scene/camera are stable refs on SceneManager — lazy creation once is safe.
+    // The scene is a stable ref on SceneManager; the camera may be swapped
+    // later (setCamera).
     this.composer.addPass(new RenderPass(scene, camera));
     // The render target is linear — without this pass the frame reaches the
     // screen without the linear→sRGB conversion and everything looks dark and

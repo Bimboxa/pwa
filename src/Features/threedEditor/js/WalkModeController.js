@@ -306,8 +306,15 @@ export default class WalkModeController {
   enter = () => {
     const sm = this.sceneManager;
     const cm = sm.controlsManager;
-    const camera = sm.camera;
     const dom = sm.renderer.domElement;
+
+    // Take the camera over FIRST: no input processing AND no per-frame pose
+    // overwrite from camera-controls' update loop. Suspending also puts the
+    // perspective camera back when « Caméra ortho » is on (first person is
+    // perspective only) — the camera is read only after that swap.
+    cm.orbitControls.enabled = false;
+    cm.setSuspended(true);
+    const camera = sm.camera;
 
     // Settle any in-flight camera-controls transition before reading the pose.
     cm.syncCameraNow();
@@ -333,11 +340,6 @@ export default class WalkModeController {
     this._prevRotationOrder = camera.rotation.order;
     camera.rotation.order = "YXZ";
     this._applyLook();
-
-    // Take the camera over: no input processing AND no per-frame pose
-    // overwrite from camera-controls' update loop.
-    cm.orbitControls.enabled = false;
-    cm.setSuspended(true);
 
     document.addEventListener("pointerlockchange", this._onLockChange);
     document.addEventListener("pointerlockerror", this._onLockError);

@@ -2,6 +2,7 @@ import {
   Scene,
   WebGLRenderer,
   PerspectiveCamera,
+  OrthographicCamera,
   AmbientLight,
   HemisphereLight,
   DirectionalLight,
@@ -26,6 +27,13 @@ import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 // Length (m) of the in-scene axes helper ("Afficher les axes dans la scène").
 const SCENE_AXES_SIZE_M = 5;
 
+// Depth range of the orthographic camera (« Caméra ortho »), symmetric
+// around the camera plane: in a parallel projection the orbit distance has
+// no visual meaning, so nothing standing "behind" the camera point (a tall
+// element while the camera sits low over the plan) may be clipped away. A
+// linear depth buffer over 2 km keeps a sub-millimetre resolution.
+const ORTHO_HALF_DEPTH_M = 1000;
+
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
     this.containerEl = containerEl;
@@ -41,7 +49,11 @@ export default class SceneManager {
     this.hemisphereLight = null;
     this.directionalLight = null;
 
+    // Active camera (what renders, raycasts and projects): one of the two
+    // below, swapped by setActiveCamera (ControlsManager._applyProjection).
     this.camera = null;
+    this.perspectiveCamera = null;
+    this.orthographicCamera = null;
     this.addGrid = null;
     this.axes = null;
 
@@ -182,13 +194,78 @@ export default class SceneManager {
     this.onRendererIsReady();
   };
 
+  // Both cameras are created up front; the perspective one is the default
+  // active camera. The orthographic frustum is sized on activation
+  // (setOrthoVisibleHeight) from the perspective view it replaces.
   _addCamera = () => {
     const width = this.containerEl.clientWidth;
     const height = this.containerEl.clientHeight;
     const camera = new PerspectiveCamera(75, width / height, 0.1, 1000);
     camera.position.set(10, 10, 10);
     this.scene.add(camera);
+    this.perspectiveCamera = camera;
+
+    const ortho = new OrthographicCamera(
+      -1,
+      1,
+      1,
+      -1,
+      -ORTHO_HALF_DEPTH_M,
+      ORTHO_HALF_DEPTH_M
+    );
+    ortho.position.copy(camera.position);
+    this.scene.add(ortho);
+    this.orthographicCamera = ortho;
     return camera;
+  };
+
+  // Orthographic frustum showing `heightM` metres over the viewport height
+  // (width follows the canvas aspect), zoom reset to 1 — the ortho
+  // counterpart of a perspective camera at distance d: h = 2·d·tan(fov/2).
+  setOrthoVisibleHeight = (heightM) => {
+    const ortho = this.orthographicCamera;
+    if (!ortho || !(heightM > 0) || !Number.isFinite(heightM)) return;
+    const width = this.containerEl?.clientWidth || 1;
+    const height = this.containerEl?.clientHeight || 1;
+    const aspect = width / height;
+    ortho.top = heightM / 2;
+    ortho.bottom = -heightM / 2;
+    ortho.left = (-heightM / 2) * aspect;
+    ortho.right = (heightM / 2) * aspect;
+    ortho.zoom = 1;
+    ortho.updateProjectionMatrix();
+  };
+
+  // Metres spanned by the viewport height for the ACTIVE camera: the scale
+  // invariant of every projection switch (ortho toggle, 2D/3D switch,
+  // capture framing). Perspective: at the orbit distance (the target plane).
+  getVisibleHeightM = () => {
+    const camera = this.camera;
+    if (!camera) return null;
+    if (camera.isOrthographicCamera) {
+      return (camera.top - camera.bottom) / (camera.zoom || 1);
+    }
+    const distance = this.controlsManager?.cameraControls?.distance;
+    if (!(distance > 0)) return null;
+    const fovDeg = camera.getEffectiveFOV?.() ?? camera.fov;
+    return 2 * distance * Math.tan((fovDeg * Math.PI) / 360);
+  };
+
+  // Swap the active camera: everything reading `sceneManager.camera` follows
+  // on its next call; the objects holding their own reference are retargeted
+  // here (the transform gizmos, the clipping gizmos, the AQUARELLE render
+  // pass). camera-controls is retargeted by the caller
+  // (ControlsManager._applyProjection) since the pose conversion is its job.
+  setActiveCamera = (camera) => {
+    if (!camera || camera === this.camera) return;
+    this.camera = camera;
+    const tc = this.transformControlsManager?.controls;
+    if (tc) tc.camera = camera;
+    const cm = this.clippingManager;
+    if (cm?.controlsTranslate) cm.controlsTranslate.camera = camera;
+    if (cm?.controlsRotate) cm.controlsRotate.camera = camera;
+    this.sketchPostFx?.setCamera?.(camera);
+    this.requestRender?.();
   };
 
   _addAmbiantLight = () => {
@@ -250,7 +327,19 @@ export default class SceneManager {
   ///////////   UPDATE   ///////////
 
   _updateCamera = ({ width, height }) => {
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
+    const aspect = width / height;
+    const persp = this.perspectiveCamera ?? this.camera;
+    if (persp?.isPerspectiveCamera) {
+      persp.aspect = aspect;
+      persp.updateProjectionMatrix();
+    }
+    // The orthographic frustum keeps its visible height; the width follows.
+    const ortho = this.orthographicCamera;
+    if (ortho) {
+      const halfH = (ortho.top - ortho.bottom) / 2;
+      ortho.left = -halfH * aspect;
+      ortho.right = halfH * aspect;
+      ortho.updateProjectionMatrix();
+    }
   };
 }

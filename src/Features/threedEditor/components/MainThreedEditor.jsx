@@ -428,6 +428,7 @@ export default function MainThreedEditor() {
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
   // Mouse navigation preset (Standard / Iso 2D + orbite / Iso SketchUp).
   const navigationPreset = useSelector((s) => s.threedEditor.navigationPreset);
+  const cameraOrtho = useSelector((s) => s.threedEditor.cameraOrtho);
   const maxViewDistance = useSelector((s) => s.threedEditor.maxViewDistance);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
@@ -912,6 +913,15 @@ export default function MainThreedEditor() {
       navigationPreset
     );
   }, [navigationPreset, rendererIsReady]);
+
+  // Sync « Caméra ortho » (bottom bar toggle) → ControlsManager projection
+  // (perspective / orthographic camera swap; walk mode keeps perspective).
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.controlsManager?.setOrthographic(
+      cameraOrtho
+    );
+  }, [cameraOrtho, rendererIsReady]);
 
   // Sync clipping plane enabled → ClippingManager (create on first enable).
   useEffect(() => {

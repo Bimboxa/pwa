@@ -22,6 +22,8 @@ import {
 // - 2D->3D: switch on a near-ortho top-down pose, then ease fov up — the
 //   flat view progressively gains perspective.
 // - 3D->2D: rotate to top-down, ease fov down to near-ortho, then switch.
+// « Caméra ortho » (orthographic camera active): the view is flat already —
+// no dolly-zoom in either direction, the frustum height carries the scale.
 //
 // Every failure path still dispatches the toggle (finally), so the switch
 // degrades to the previous plain behavior instead of blocking.
@@ -209,6 +211,7 @@ function getViewersState({ baseMap, basePose }) {
     viewport2d,
     viewport3d,
     fovDeg,
+    isOrtho: Boolean(camera.isOrthographicCamera),
   };
 }
 
@@ -230,6 +233,40 @@ export async function switchMapToThreed({
       if (!s) return;
 
       const cameraMatrix = s.mapEditor.getCameraMatrix?.();
+      if (s.isOrtho) {
+        // Orthographic camera: top-down pose at the orbit distance the
+        // reference fov would need (so a later switch back to perspective
+        // keeps this scale), frustum sized on the 2D scale. No animation.
+        const metersPerScreenPx = metersPerScreenPxFrom2d({
+          cameraMatrix,
+          basePose,
+          ctx: s.ctx,
+        });
+        const pose = computeThreedPoseFrom2d({
+          cameraMatrix,
+          viewport2d: s.viewport2d,
+          viewport3d: s.viewport3d,
+          basePose,
+          ctx: s.ctx,
+          fovDeg: s.fovDeg,
+          maxDistance: s.controlsManager.cameraControls.maxDistance,
+        });
+        if (pose) {
+          probe2d("2D->3D | source 2D view", { cameraMatrix, basePose, s });
+          s.controlsManager.applyPoseInstant({
+            position: pose.position,
+            target: pose.target,
+          });
+          s.controlsManager.setOrthoVisibleHeight(
+            metersPerScreenPx * s.viewport3d.height
+          );
+          s.controlsManager.syncCameraNow();
+          s.controlsManager.sceneManager?.requestRender?.();
+          probe3d("2D->3D | 3D ortho pose", s);
+        }
+        return;
+      }
+
       const orthoFov = computeOrthoFov({
         metersPerScreenPx: metersPerScreenPxFrom2d({
           cameraMatrix,
@@ -314,25 +351,28 @@ export async function switchThreedToMap({
     });
     probe3d("3D->2D | 3D after rotate", s);
 
-    // Flatten the perspective toward ortho, keeping the plan scale constant.
-    const settledDistance =
-      s.controlsManager.cameraControls?.distance ?? pivot.distance;
-    const orthoFov = computeOrthoFov({
-      metersPerScreenPx: metersPerScreenPxFrom3d({
-        distance: settledDistance,
-        fovDeg: fovRef,
+    // Flatten the perspective toward ortho, keeping the plan scale constant
+    // (nothing to flatten under the orthographic camera).
+    if (!s.isOrtho) {
+      const settledDistance =
+        s.controlsManager.cameraControls?.distance ?? pivot.distance;
+      const orthoFov = computeOrthoFov({
+        metersPerScreenPx: metersPerScreenPxFrom3d({
+          distance: settledDistance,
+          fovDeg: fovRef,
+          viewportHeight: s.viewport3d.height,
+        }),
         viewportHeight: s.viewport3d.height,
-      }),
-      viewportHeight: s.viewport3d.height,
-      maxDistanceM: ORTHO_MAX_DISTANCE_M,
-    });
-    // Hidden while the fov is away from its reference value (see
-    // hideFovSensitiveSprites) — restored after the post-switch fov restore.
-    hideFovSensitiveSprites();
-    await s.controlsManager.animateFovTo({
-      fovTo: orthoFov,
-      durationMs: FOV_ANIMATION_MS,
-    });
+        maxDistanceM: ORTHO_MAX_DISTANCE_M,
+      });
+      // Hidden while the fov is away from its reference value (see
+      // hideFovSensitiveSprites) — restored after the post-switch fov restore.
+      hideFovSensitiveSprites();
+      await s.controlsManager.animateFovTo({
+        fovTo: orthoFov,
+        durationMs: FOV_ANIMATION_MS,
+      });
+    }
 
     // Compute the 2D matrix from the camera state ACTUALLY settled at the end
     // of the animations (not from the pre-animation pivot): sync the camera
@@ -342,7 +382,14 @@ export async function switchThreedToMap({
     s.controlsManager.syncCameraNow();
     const settledPivot =
       computeTopDownPivotFrom3d({ camera: s.camera, ctx: s.ctx }) ?? pivot;
-    const fovNow = s.camera.getEffectiveFOV?.() ?? s.camera.fov;
+    const fovNow = s.isOrtho
+      ? fovRef
+      : (s.camera.getEffectiveFOV?.() ?? s.camera.fov);
+    // Orthographic camera: the scale is the frustum height, not a distance.
+    const orthoMetersPerScreenPx = s.isOrtho
+      ? s.controlsManager.sceneManager?.getVisibleHeightM?.() /
+        s.viewport3d.height
+      : undefined;
 
     const cameraMatrix = computeTwodCameraMatrixFromTopDown({
       storedPx: settledPivot.storedPx,
@@ -352,6 +399,7 @@ export async function switchThreedToMap({
       basePose,
       ctx: s.ctx,
       fovDeg: fovNow,
+      metersPerScreenPx: orthoMetersPerScreenPx,
     });
     probe3d("3D->2D | 3D after flatten (last visible frame)", s);
     probe2d("3D->2D | target 2D view", { cameraMatrix, basePose, s });
@@ -365,7 +413,8 @@ export async function switchThreedToMap({
     // other 3D flows keep their usual fov and dolly limits. Deferred past the
     // panel swap paint: restoring synchronously would let the render loop
     // show the restored camera one frame before the 3D panel disappears.
-    if (s && fovRef) {
+    // Nothing to restore under the orthographic camera (no fov animation).
+    if (s && fovRef && !s.isOrtho) {
       const controlsManager = s.controlsManager;
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {

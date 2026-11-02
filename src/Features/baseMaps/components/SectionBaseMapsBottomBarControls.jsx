@@ -8,6 +8,7 @@ import SelectorBaseMapsScanMode from "./SelectorBaseMapsScanMode";
 import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
 import ButtonOpenBaseMapsGrid3d from "Features/baseMapsGrid3d/components/ButtonOpenBaseMapsGrid3d";
 import ButtonToggleAntiAliasingShrink from "Features/threedEditor/components/ButtonToggleAntiAliasingShrink";
+import ButtonToggleCameraOrtho from "Features/threedEditor/components/ButtonToggleCameraOrtho";
 
 import {
   selectCaptureFramingActive,
@@ -22,7 +23,7 @@ import selectIsAnySoloActive from "Features/annotations/utils/selectIsAnySoloAct
 // translucent, ButtonSoloDimStyle), the base map image display
 // mode (hidden / faded / as is), the scans display mode (3D editor, project
 // with scan base maps: hidden / points / realistic), the « Séparer les surfaces en contact »
-// toggle (3D editor only) and the base maps grid button (2D grid layer, or
+// and « Caméra ortho » toggles (3D editor only) and the base maps grid button (2D grid layer, or
 // the 3D "lay the base maps flat" mode) — formerly the top-right rows of
 // the editors. Rendered for the 2D map editors and the 3D editor; the
 // Maillage module (meshing-only) has neither; nothing under a capture / POV
@@ -70,6 +71,7 @@ export default function SectionBaseMapsBottomBarControls() {
       <SelectorBaseMapsImageMode />
       {is3dEditor && hasScanBaseMaps && <SelectorBaseMapsScanMode />}
       {is3dEditor && <ButtonToggleAntiAliasingShrink />}
+      {is3dEditor && <ButtonToggleCameraOrtho />}
       {is3dEditor ? <ButtonOpenBaseMapsGrid3d /> : <ButtonOpenBaseMapsGrid />}
     </Box>
   );
