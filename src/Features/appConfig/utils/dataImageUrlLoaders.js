@@ -12,9 +12,9 @@ export const DATA_SVG_URL_LOADERS = import.meta.glob("../../../Data/**/*.svg", {
   eager: false,
 });
 
-// Raster assets (PNG / JPG / WEBP).
+// Raster assets (PNG / JPG / WEBP / GIF — the command helpers' demos).
 export const DATA_IMAGE_URL_LOADERS = import.meta.glob(
-  "../../../Data/**/*.{png,jpg,jpeg,webp}",
+  "../../../Data/**/*.{png,jpg,jpeg,webp,gif}",
   { as: "url", eager: false }
 );
 

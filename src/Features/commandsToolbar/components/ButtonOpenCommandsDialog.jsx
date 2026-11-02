@@ -1,27 +1,28 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  selectShortcutsDialogOpen,
-  setShortcutsDialogOpen,
+  selectCommandsDialogOpen,
+  setCommandsDialogOpen,
 } from "../commandsToolbarSlice";
 
 import { IconButton, Tooltip } from "@mui/material";
 import IconRightClickShortcut from "Features/icons/IconRightClickShortcut";
 
-// Last button of the commands toolbar: opens the « Raccourcis » dialog
-// (DialogCommandShortcuts) choosing the commands of the right-click menu.
-// Not a command of the registry (it must not be a shortcut itself) — same
-// look as CommandButton in the toolbar row.
-export default function ButtonOpenShortcutsDialog() {
+// Last button of the commands toolbar: opens the « Commandes » dialog
+// (DialogCommands) — the list of every command with its helper, and the
+// choice of the right-click shortcuts. Not a command of the registry (it
+// must not be a shortcut itself) — same look as CommandButton in the
+// toolbar row.
+export default function ButtonOpenCommandsDialog() {
   const dispatch = useDispatch();
 
   // strings
 
-  const labelS = "Raccourcis du clic droit";
+  const labelS = "Commandes : liste et raccourcis";
 
   // data
 
-  const open = useSelector(selectShortcutsDialogOpen);
+  const open = useSelector(selectCommandsDialogOpen);
 
   // render
 
@@ -29,7 +30,7 @@ export default function ButtonOpenShortcutsDialog() {
     <Tooltip title={labelS} enterDelay={400}>
       <IconButton
         size="small"
-        onClick={() => dispatch(setShortcutsDialogOpen(true))}
+        onClick={() => dispatch(setCommandsDialogOpen(true))}
         sx={{
           borderRadius: "8px",
           color: open ? "secondary.contrastText" : "secondary.main",

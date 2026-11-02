@@ -5,6 +5,7 @@
 
 import getRemoteContainerPathFromLocalStorage from "../services/getRemoteContainerPathFromLocalStorage";
 import resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries from "../services/resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries";
+import parseFrontmatter from "Features/documentation/utils/parseFrontmatter";
 // Data image URL loaders (SVG + raster + PDF), shared with the lazy
 // useDataImageUrl hook.
 import {
@@ -120,6 +121,18 @@ const KRTO_CONFIGURATIONS_LOADERS = import.meta.glob(
 // few KB: resolved eagerly with the configuration; its images stay lazy.
 const KRTO_TUTORIALS_MD_LOADERS = import.meta.glob(
   "../../../Data/*/configurations/tutorials/*.md",
+  { query: "?raw", import: "default", eager: false }
+);
+
+// Command helpers — one Markdown file per command key of the commands
+// toolbar registry under Data/<org>/commands/<COMMAND_KEY>.md: optional YAML
+// frontmatter `gif: ./assets/x.gif` (path relative to the commands folder,
+// resolved lazily through useDataImageUrl), body = the description shown by
+// the « Commandes » dialog (Features/commandsToolbar, DialogCommandHelper)
+// and searched by its search field. Raw text, a few KB each: resolved
+// eagerly with the config; the gif stays lazy.
+const COMMAND_HELPERS_MD_LOADERS = import.meta.glob(
+  "../../../Data/*/commands/*.md",
   { query: "?raw", import: "default", eager: false }
 );
 
@@ -585,6 +598,50 @@ export default async function resolveAppConfig(appConfig) {
         );
       }
     }
+  }
+
+  // command helpers — per-org description / gif of the toolbar commands
+  // (see COMMAND_HELPERS_MD_LOADERS). Always exposed (empty map when the org
+  // has no commands folder) so the dialog needs no feature flag:
+  //   features.commandHelpers = { basePath: "commands",
+  //     byKey: { <COMMAND_KEY>: { description, gif } } }
+  //   description: Markdown body (null when empty), gif: path relative to
+  //   Data/<org>/commands/ (null when absent). An entry with neither is
+  //   dropped.
+  {
+    const commandHelpersBasePath = "commands";
+    const byKey = {};
+    if (orgaCode) {
+      const prefix = `../../../Data/${orgaCode}/${commandHelpersBasePath}/`;
+      for (const [path, loader] of Object.entries(COMMAND_HELPERS_MD_LOADERS)) {
+        if (!path.startsWith(prefix)) continue;
+        const key = path.slice(prefix.length).replace(/\.md$/, "");
+        try {
+          const raw = await loader();
+          const { data, content } = parseFrontmatter(raw);
+          const description =
+            typeof content === "string" && content.trim()
+              ? content.trim()
+              : null;
+          const gif =
+            typeof data?.gif === "string" && data.gif.trim()
+              ? data.gif.trim()
+              : null;
+          if (!description && !gif) continue;
+          byKey[key] = { description, gif };
+        } catch (error) {
+          console.error(
+            `[resolveAppConfig] Error loading command helper "${key}":`,
+            error
+          );
+        }
+      }
+    }
+    newAppConfig.features = newAppConfig.features ?? {};
+    newAppConfig.features.commandHelpers = {
+      basePath: commandHelpersBasePath,
+      byKey,
+    };
   }
 
   // object library (Banque d'objets) — expose the 3D-file (.glb) loaders so the
