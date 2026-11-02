@@ -31,8 +31,9 @@ import matchesCommandSearch, {
 
 // Full-page « Commandes » dialog (opened by the last toolbar button and by
 // the footer of the right-click menu): the reference list of every command
-// of the toolbar, by section and group. A search field (header) filters the
-// list on the label and on the helper description; a command with a helper
+// of the toolbar, by section and group. A search field (header) highlights
+// the rows matching the label or the helper description (the layout stays
+// whole, the sections are the landmarks); a command with a helper
 // (Data/<org>/commands/<KEY>.md: description and / or gif) shows an « i »
 // opening DialogCommandHelper. The checkbox of a row = offered in the
 // right-click menu of the editors; on the right the ordered recap of the
@@ -90,27 +91,32 @@ export default function DialogCommands() {
   const searchWords = useMemo(() => getSearchWords(search), [search]);
   const searching = searchWords.length > 0;
 
-  // Sections filtered by the search: a group keeps its matching commands
-  // only, an empty group / section disappears. Without a search, the layout
-  // is rendered as is.
-  const sections = useMemo(() => {
-    if (!searching) return TOOLBAR_SECTIONS.DEFAULT;
-    const matches = (key) => {
-      const command = COMMANDS_BY_KEY[key];
-      if (!command) return false;
-      return matchesCommandSearch(command, helpersByKey[key], searchWords);
-    };
-    return TOOLBAR_SECTIONS.DEFAULT.map((section) => {
-      const entries = section.entries
-        .map((entry) => {
-          if (typeof entry === "string") return matches(entry) ? entry : null;
-          if (entry?.type !== "group") return null;
-          const commandKeys = entry.commandKeys.filter(matches);
-          return commandKeys.length > 0 ? { ...entry, commandKeys } : null;
-        })
-        .filter(Boolean);
-      return entries.length > 0 ? { ...section, entries } : null;
-    }).filter(Boolean);
+  // Keys of the commands matching the search: the layout is never filtered,
+  // the matching rows are highlighted (RowCommand) so the user keeps the
+  // sections / groups as landmarks. Null without a search.
+  const matchingKeys = useMemo(() => {
+    if (!searching) return null;
+    const keys = new Set();
+    TOOLBAR_SECTIONS.DEFAULT.forEach((section) => {
+      section.entries.forEach((entry) => {
+        const entryKeys =
+          typeof entry === "string"
+            ? [entry]
+            : entry?.type === "group"
+              ? entry.commandKeys
+              : [];
+        entryKeys.forEach((key) => {
+          const command = COMMANDS_BY_KEY[key];
+          if (
+            command &&
+            matchesCommandSearch(command, helpersByKey[key], searchWords)
+          ) {
+            keys.add(key);
+          }
+        });
+      });
+    });
+    return keys;
   }, [searching, searchWords, helpersByKey]);
 
   const helperCommand = helperCommandKey
@@ -158,6 +164,7 @@ export default function DialogCommands() {
         checked={checked.has(key)}
         onToggle={handleToggle}
         onInfo={helpersByKey[key] ? handleInfo : null}
+        highlighted={Boolean(matchingKeys?.has(key))}
         indent={indent}
       />
     );
@@ -230,22 +237,21 @@ export default function DialogCommands() {
           >
             {introS}
           </Typography>
-          {sections.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+          {matchingKeys && matchingKeys.size === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {`${noMatchS} « ${search.trim()} ».`}
             </Typography>
-          ) : (
-            // Masonry: CSS columns, the tiles stack in each column without
-            // the row-aligned gaps of a grid.
-            <Box
-              sx={{
-                columnCount: { xs: 1, md: 2, lg: 3 },
-                columnGap: 2,
-              }}
-            >
-              {sections.map(renderSection)}
-            </Box>
           )}
+          {/* Masonry: CSS columns, the tiles stack in each column without
+              the row-aligned gaps of a grid. */}
+          <Box
+            sx={{
+              columnCount: { xs: 1, md: 2, lg: 3 },
+              columnGap: 2,
+            }}
+          >
+            {TOOLBAR_SECTIONS.DEFAULT.map(renderSection)}
+          </Box>
         </Box>
 
         {/* Right: the ordered menu */}

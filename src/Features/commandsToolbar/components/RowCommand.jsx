@@ -16,11 +16,13 @@ import CommandBadges from "./CommandBadges";
 // the state. Icon + label, the editor / hotkey badges, and when the org
 // provides a helper for the command (Data/<org>/commands/<KEY>.md) an « i »
 // button opening it (onInfo, null otherwise — the button is then absent).
+// `highlighted` = matches the search of the dialog (secondary.light band).
 export default function RowCommand({
   command,
   checked,
   onToggle,
   onInfo = null,
+  highlighted = false,
   indent = false,
 }) {
   // strings
@@ -64,6 +66,10 @@ export default function RowCommand({
           py: 0.5,
           pl: indent ? 3 : 1,
           borderRadius: 1,
+          ...(highlighted && {
+            bgcolor: "secondary.light",
+            "&:hover": { bgcolor: "secondary.light" },
+          }),
         }}
       >
         <Checkbox
