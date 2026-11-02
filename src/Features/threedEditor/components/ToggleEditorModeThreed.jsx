@@ -37,7 +37,7 @@ export default function ToggleEditorModeThreed() {
             <ThreeDRotation sx={{ fontSize: 18 }} />
           </ToggleButton>
         </Tooltip>
-        <Tooltip title="Sélection (shift + drag = lasso)">
+        <Tooltip title="Sélection (Maj + glisser = lasso ; de droite à gauche = capture)">
           <ToggleButton value="SELECTION">
             <HighlightAlt sx={{ fontSize: 18 }} />
           </ToggleButton>

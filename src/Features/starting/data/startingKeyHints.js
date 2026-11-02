@@ -26,7 +26,7 @@ export const KEY_HINTS = [
     keys: ["Maj"],
     icon: "ICON_LASSO",
     label: "Sélection lasso",
-    hint: "Maintenez Maj enfoncée et glissez sur l'éditeur pour sélectionner une zone.",
+    hint: "Maintenez Maj et glissez : de gauche à droite, seules les annotations entièrement dans le rectangle sont sélectionnées ; de droite à gauche, toutes celles qu'il touche.",
   },
   {
     key: "RIGHT_CLICK",

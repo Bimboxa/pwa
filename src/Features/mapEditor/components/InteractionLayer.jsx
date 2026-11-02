@@ -8540,7 +8540,7 @@ const InteractionLayer = forwardRef(({
     // stopPropagation'd it — so it won't fire onWorldClick itself).
     if (lassoRect || pointLassoRect) {
       const result = lassoRect ? endLasso() : endPointLasso();
-      const { committed, empty, selectionBox, anchorPosition } = result;
+      const { committed, empty, selectionBox, anchorPosition, mode } = result;
       if (!committed) {
         const worldPos = viewportRef.current?.screenToWorld(
           event.clientX,
@@ -8551,9 +8551,11 @@ const InteractionLayer = forwardRef(({
         handleWorldClick({ event, worldPos, viewportPos });
       } else if (empty && selectionBox) {
         // Point-lasso caught no vertex/segment of the selected annotation:
-        // treat the gesture as an annotation-level multi-selection instead.
+        // treat the gesture as an annotation-level multi-selection instead,
+        // in the same WINDOW / CROSSING mode the user drew.
         const annotationIds = getAnnotationIdsInBox(annotations, selectionBox, {
           meterByPx: baseMapMeterByPx,
+          mode,
         });
         handleLassoSelection({ annotationIds, selectionBox, anchorPosition });
       }

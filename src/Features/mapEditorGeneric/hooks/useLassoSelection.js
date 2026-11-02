@@ -1,6 +1,7 @@
 // Features/interactions/hooks/useLassoSelection.js
 import { useState, useRef, useCallback } from 'react';
 import getAnnotationIdsInBox from 'Features/annotations/utils/getAnnotationIdsInBox';
+import { getLassoMode } from 'Features/mapEditorGeneric/utils/lassoMode';
 
 // Below this screen-pixel movement the gesture is a click, not a lasso drag.
 // Kept a hair above the viewport's pan threshold (3px) so any drag too small
@@ -45,8 +46,13 @@ export default function useLassoSelection({
         const y = Math.min(startY, currentY);
         const width = Math.abs(currentX - startX);
         const height = Math.abs(currentY - startY);
+        // AutoCAD-like: left → right = WINDOW (fully enclosed), right → left =
+        // CROSSING (enclosed or crossed). Re-evaluated on every move so the
+        // mode (and the overlay style) flips live when the cursor crosses back
+        // over the start column.
+        const mode = getLassoMode(startX, currentX);
 
-        setLassoRect({ x, y, width, height });
+        setLassoRect({ x, y, width, height, mode });
     }, []);
 
     // --- 3. END (MouseUp) ---
@@ -82,22 +88,22 @@ export default function useLassoSelection({
             height: Math.abs(p2_local.y - p1_local.y)
         };
 
-        // B. Hit test based on annotation vertices: an annotation is selected
-        // only if at least one of its vertices falls inside the lasso rectangle.
-        // This avoids selecting a large concave shape when the lasso is drawn in
-        // its "encoche" (notch), where the bbox would still intersect.
-        const hitIds = getAnnotationIdsInBox(annotations, selectionBox, { meterByPx });
+        // B. Hit test on the annotation vertices / edges, per lasso mode:
+        // WINDOW keeps only the annotations fully inside the rectangle,
+        // CROSSING also keeps the ones it touches (see getAnnotationIdsInBox).
+        const { mode } = lassoRect;
+        const hitIds = getAnnotationIdsInBox(annotations, selectionBox, { meterByPx, mode });
 
         // C. Commit
         if (onSelectionComplete) {
-            onSelectionComplete({ annotationIds: hitIds, selectionBox, anchorPosition: { x: lassoRect.x, y: lassoRect.y } });
+            onSelectionComplete({ annotationIds: hitIds, selectionBox, anchorPosition: { x: lassoRect.x, y: lassoRect.y }, mode });
         }
 
         // Reset
         startScreenPosRef.current = null;
         setLassoRect(null);
 
-        return { committed: true };
+        return { committed: true, mode };
 
     }, [lassoRect, annotations, viewportRef, toLocalCoords, onSelectionComplete, meterByPx]);
 
