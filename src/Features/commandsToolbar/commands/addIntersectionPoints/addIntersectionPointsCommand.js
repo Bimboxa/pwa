@@ -1,4 +1,4 @@
-import { JoinInner } from "@mui/icons-material";
+import IconIntersectionPoint from "Features/icons/IconIntersectionPoint";
 
 import addIntersectionPointsService from "./addIntersectionPointsService";
 import {
@@ -15,7 +15,7 @@ const TYPES_REASON = "Sélectionnez exactement deux lignes ou surfaces";
 export default {
   key: "ADD_INTERSECTION_POINTS",
   label: "Ajouter les points d'intersection",
-  Icon: JoinInner,
+  Icon: IconIntersectionPoint,
   getState(ctx) {
     const gate = getSelectionGate(ctx, { min: 2 });
     if (gate) return gate;
