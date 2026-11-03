@@ -1,7 +1,10 @@
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
-import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools";
+import {
+  isFaceCutDrawingMode,
+  isFaceCutPathMode,
+} from "Features/threedFaceCut/utils/faceCutTools";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -104,17 +107,19 @@ export function selectIsThreedPolylineClickDraw(s) {
 // The arrow-key axis lock (↑ → ↓ force the next point on a user axis, ←
 // releases — useDrawingPointerHandlers / DrawingOverlayThreed) applies to
 // the point-by-point 3D flows anchored on a last vertex: a line / polygon
-// (template or "Dessin"), a cote, a ruler. Not the rectangles (the second
-// corner lives on the anchor's plan), the disc / revolution axis (rim on
-// the centre's plane), the face cuts (bound to a face), the brush, nor the
-// OBJECT_3D placement — and not in walk mode, whose arrows move the walker.
-// Shown in the drawing helper on the same condition.
+// (template or "Dessin"), a cote, a ruler, the "Coupe face" segment /
+// polyline (the axis rabatted into the face's plane — DrawingOverlayThreed).
+// Not the rectangles (the second corner lives on the anchor's plan), the
+// disc / revolution axis (rim on the centre's plane), the face axis cuts
+// (H / V, no vertex drawn), the brush, nor the OBJECT_3D placement — and
+// not in walk mode, whose arrows move the walker. Shown in the drawing
+// helper on the same condition.
 export function selectIsThreedAxisLockAvailable(s) {
   if (s.viewers.selectedViewerKey !== "MAP") return false;
   if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(s))) return false;
   if (s.threedEditor.walkMode?.active) return false;
   const mode = s.mapEditor.enabledDrawingMode;
-  if (isFaceCutDrawingMode(mode)) return false;
+  if (isFaceCutDrawingMode(mode)) return isFaceCutPathMode(mode);
   const na = s.annotations.newAnnotation;
   // Cote / ruler modes: their own selectors import this module, hence the
   // inline checks (templateCoteDrawSelectors / templateRulerDrawSelectors).

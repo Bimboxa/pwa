@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import intersectLockedFacePlane from "./intersectLockedFacePlane.js";
+import intersectLockedFacePlane, {
+  isPointInsideFace,
+} from "./intersectLockedFacePlane.js";
 
 const v = (x, y, z) => ({ x, y, z });
 const near = (actual, expected, eps = 1e-9) =>
@@ -66,4 +68,16 @@ test("parallel ray, plane behind the camera, clipped point", () => {
     }),
     null
   );
+});
+
+test("isPointInsideFace: inside, in a hole, on the outline, outside", () => {
+  assert.equal(isPointInsideFace(v(0.5, 0.5, 0), face), true);
+  assert.equal(isPointInsideFace(v(1, 0.5, 0), face), false);
+  assert.equal(isPointInsideFace(v(2, 0.5, 0), face), true);
+  assert.equal(isPointInsideFace(v(2.005, 0.5, 0), face), true);
+  assert.equal(isPointInsideFace(v(2.05, 0.5, 0), face), false);
+  // Judged by the footprint on the plane.
+  assert.equal(isPointInsideFace(v(0.5, 0.5, 0.3), face), true);
+  // Unbounded without loops.
+  assert.equal(isPointInsideFace(v(9, 9, 0), { normal: v(0, 0, 1) }), true);
 });

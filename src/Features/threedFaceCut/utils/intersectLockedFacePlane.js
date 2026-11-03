@@ -70,27 +70,35 @@ export default function intersectLockedFacePlane(
   const position = add(ray.origin, scale(ray.direction, distance));
   if (isVisible && !isVisible(position)) return null;
 
-  let inside = true;
-  if (face.loops?.[0]?.length >= 3) {
-    const basis = computePlaneBasis(normal, face.point);
-    const loops2d = face.loops.map((loop) =>
-      loop.map((p) => projectPointTo2d(p, basis))
-    );
-    const p = projectPointTo2d(position, basis);
-    const [contour, ...holes] = loops2d;
-    inside =
-      pointInPolygon2d(p, contour) &&
-      !holes.some((h) => pointInPolygon2d(p, h));
-    if (!inside) {
-      inside =
-        Math.min(...loops2d.map((loop) => distToLoop(p, loop))) <= insideTolM;
-    }
-  }
-
   return {
     position,
     normal: denom > 0 ? scale(normal, -1) : normal,
     distance,
-    inside,
+    inside: isPointInsideFace(position, face, insideTolM),
   };
+}
+
+// Whether a point of the face's plane lies on the face itself: inside the
+// contour and out of the holes, or within `insideTolM` of an outline (a
+// point on a border edge). A face without loops is unbounded (true). The
+// point is projected onto the plane first, so a point slightly off it (an
+// axis-locked target) is judged by its footprint. Pure: node-testable.
+export function isPointInsideFace(point, face, insideTolM = INSIDE_TOL_M) {
+  if (!point || !face?.normal) return false;
+  if (!(face.loops?.[0]?.length >= 3)) return true;
+  const normal = normalize(face.normal);
+  const origin = face.point ?? face.loops[0][0];
+  const basis = computePlaneBasis(normal, origin);
+  const loops2d = face.loops.map((loop) =>
+    loop.map((p) => projectPointTo2d(p, basis))
+  );
+  const p = projectPointTo2d(point, basis);
+  const [contour, ...holes] = loops2d;
+  if (
+    pointInPolygon2d(p, contour) &&
+    !holes.some((h) => pointInPolygon2d(p, h))
+  ) {
+    return true;
+  }
+  return Math.min(...loops2d.map((loop) => distToLoop(p, loop))) <= insideTolM;
 }

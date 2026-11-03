@@ -32,6 +32,7 @@ import {
   isFaceCutDrawingMode,
 } from "Features/threedFaceCut/utils/faceCutTools";
 import getFaceCutBasisWorld from "Features/threedFaceCut/utils/getFaceCutBasisWorld";
+import { isPointInsideFace } from "Features/threedFaceCut/utils/intersectLockedFacePlane";
 import resolveFaceCutLockedFace, {
   intersectLockedFace,
 } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
@@ -62,6 +63,7 @@ import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPl
 import computeSnapTarget, { ndcDistance } from "../utils/computeSnapTarget";
 import getSegmentUserAxis from "../utils/getSegmentUserAxis";
 import pickNaturalPlane from "../utils/pickNaturalPlane";
+import projectAxisDirInPlane from "../utils/projectAxisDirInPlane";
 import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
@@ -528,7 +530,9 @@ export default function DrawingOverlayThreed() {
   }, [active, yawDeg, dispatch]);
 
   // Guide line of the arrow-key axis lock: dashed, in the axis colour,
-  // through the last vertex, while the lock holds.
+  // through the last vertex, while the lock holds. For a "Coupe face" path
+  // the axis is rabatted into the face's plane (the selected face, else the
+  // face the last vertex sits on), as the forced snap is (onPointerMove).
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -539,11 +543,19 @@ export default function DrawingOverlayThreed() {
       (a) => a.key === axisLock
     );
     if (!axisLock || !last || !axis || !camera) return;
+    const faceNormal = isFaceCutDrawingMode(enabledDrawingMode)
+      ? (resolveFaceCutLockedFace(store.getState(), editor)?.planeWorld
+          ?.normal ??
+        last.faceNormal ??
+        null)
+      : null;
+    const dir = projectAxisDirInPlane(axis.dir, faceNormal);
+    if (!dir) return;
     const line = buildAxisLockLine({
       editor,
       camera,
       origin: new Vector3(last.x, last.y, last.z),
-      dir: axis.dir,
+      dir,
       axis: axis.key,
     });
     if (!line) return;
@@ -555,7 +567,7 @@ export default function DrawingOverlayThreed() {
       if (axisLockLineRef.current === line) axisLockLineRef.current = null;
       editor.sceneManager.renderScene?.();
     };
-  }, [axisLock, inProgressPolyline, yawDeg, active]);
+  }, [axisLock, inProgressPolyline, yawDeg, active, enabledDrawingMode, store]);
 
   // pointer-move: snap detection + hover marker + plane cross + alignment
   // markers (SVG, screen-space) + dashed preview segment or rectangle loop
@@ -1339,14 +1351,40 @@ export default function DrawingOverlayThreed() {
     // the axis — the vertex is reported as `alignFrom` (marker + leader to
     // the target). Null (no target) when the cursor ray runs along the axis
     // and nothing is snapped.
-    function forcedAxisSnapAt(origin, canvasSize) {
+    // `dir` is the direction followed: the user axis, or for a "Coupe face"
+    // path that axis rabatted into the face's plane (getFaceCutLockDir) —
+    // the point then keeps the face's host (nodeId / faceNormal of the last
+    // vertex, which the cut service and the typed length rely on) and, on a
+    // selected face, is no target once off that face.
+    function forcedAxisSnapAt(origin, canvasSize, dir) {
       const originVec = new Vector3(origin.x, origin.y, origin.z);
-      const dir = lockedAxis.dir;
       const axisSnap = {
         kind: `AXIS_${lockedAxis.key}`,
         axis: lockedAxis.key,
         isForcedAxis: true,
+        ...(isFaceCut
+          ? {
+              ...(origin.nodeId ? { nodeId: origin.nodeId } : {}),
+              ...(origin.baseMapId ? { baseMapId: origin.baseMapId } : {}),
+              ...(origin.faceNormal
+                ? {
+                    faceNormal: new Vector3(
+                      origin.faceNormal.x,
+                      origin.faceNormal.y,
+                      origin.faceNormal.z
+                    ),
+                  }
+                : {}),
+            }
+          : {}),
       };
+      const onLockedFace = (position) =>
+        !faceLock ||
+        isPointInsideFace(position, {
+          point: faceLock.planeWorld.point,
+          normal: faceLock.planeWorld.normal,
+          loops: faceLock.loopsWorld,
+        });
       const meshVertex = findNearestSnap(ndc, camera, canvasSize)?.position;
       // The origin itself (the last vertex may sit on an indexed vertex) is
       // no target: the point would stick there.
@@ -1357,6 +1395,7 @@ export default function DrawingOverlayThreed() {
       if (snappedVertex) {
         const t = snappedVertex.clone().sub(originVec).dot(dir);
         const position = originVec.clone().addScaledVector(dir, t);
+        if (!onLockedFace(position)) return null;
         return {
           ...axisSnap,
           position,
@@ -1368,9 +1407,23 @@ export default function DrawingOverlayThreed() {
         camera,
         canvasSize,
         origin: originVec,
-        axes: [lockedAxis],
+        axes: [{ key: lockedAxis.key, dir }],
       });
-      return free ? { ...axisSnap, position: free.position } : null;
+      if (!free || !onLockedFace(free.position)) return null;
+      return { ...axisSnap, position: free.position };
+    }
+
+    // Direction the arrow-key lock follows from the last vertex: the user
+    // axis, rabatted into the face's plane for a "Coupe face" path (the
+    // selected face, else the face `last` was placed on) so the point stays
+    // on the face. Null when the axis is perpendicular to that face (the key
+    // handler refuses such a lock already) or without a lock.
+    function getFaceCutLockDir(last) {
+      if (!lockedAxis) return null;
+      const normal = isFaceCut
+        ? (faceLock?.planeWorld?.normal ?? getSupportNormal(last))
+        : null;
+      return projectAxisDirInPlane(lockedAxis.dir, normal);
     }
 
     // Point of the drawing in progress (and the ends of the traits already
@@ -1408,13 +1461,16 @@ export default function DrawingOverlayThreed() {
       // locked axis through the last vertex, whatever is under the cursor —
       // the whole cascade (edges, planes, faces, locked plane) is bypassed;
       // the explicit lock wins over the polygon's plane too. Only a snapped
-      // vertex still counts, through its orthogonal plane.
-      const lockOrigin =
-        lockedAxis && !anchor
-          ? inProgressPolyline[inProgressPolyline.length - 1]
+      // vertex still counts, through its orthogonal plane. A "Coupe face"
+      // path follows the axis rabatted into its face (getFaceCutLockDir).
+      const lastVertex = inProgressPolyline[inProgressPolyline.length - 1];
+      const lockDir =
+        lockedAxis && !anchor && lastVertex
+          ? getFaceCutLockDir(lastVertex)
           : null;
+      const lockOrigin = lockDir ? lastVertex : null;
       const rawSnap = lockOrigin
-        ? forcedAxisSnapAt(lockOrigin, canvasSize)
+        ? forcedAxisSnapAt(lockOrigin, canvasSize, lockDir)
         : computeSnapTarget({
             mouseNdc: ndc,
             camera,

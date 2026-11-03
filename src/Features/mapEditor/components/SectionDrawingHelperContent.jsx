@@ -102,21 +102,24 @@ const SURFACE_CUT_SHORTCUTS = [
 
 // Shortcuts of the "Coupe face" tools (useDrawingToolHotkeys for the tool
 // letters, useDrawingPointerHandlers for the rest). The typed dimension /
-// distance keys are shown by the « Contraintes » card.
+// distance / length keys are shown by the « Contraintes » card, the arrow
+// keys of the segment / polyline by the « Verrou d'axe » card.
 const FACE_CUT_SHORTCUTS = [
   { key: "Tab", label: "Outil suivant" },
   { key: "K / L / R", label: "Segment / Polyligne / Rectangle" },
   { key: "H / V", label: "Découpe horizontale / verticale" },
   { key: "S", label: "Changer de côté (découpe verticale)" },
+  { key: "0-9", label: "Longueur du segment (segment / polyligne)" },
   { key: "Entrée", label: "Couper" },
   { key: "Esc", label: "Annuler le tracé / Quitter" },
 ];
 
 // Message of each "Coupe face" tool, by its key (enabledDrawingMode).
 const FACE_CUT_MESSAGES = {
-  FACE_CUT_SEGMENT: "Cliquez 2 points sur une face pour la couper",
+  FACE_CUT_SEGMENT:
+    "Cliquez 2 points sur une face pour la couper (0-9 : longueur, ↑ → ↓ : verrou d'axe)",
   FACE_CUT_POLYLINE:
-    "Cliquez les points du tracé sur une face (Entrée pour couper)",
+    "Cliquez les points du tracé sur une face (0-9 : longueur, ↑ → ↓ : verrou d'axe, Entrée pour couper)",
   FACE_CUT_RECTANGLE:
     "Cliquez les 2 angles du rectangle sur une face (X / Y pour saisir les dimensions)",
   FACE_CUT_HORIZONTAL:

@@ -25,6 +25,17 @@ export function isFaceCutAxisMode(enabledDrawingMode) {
   return getFaceCutAxis(enabledDrawingMode) !== null;
 }
 
+// The path tools — segment (K) / polyline (L): the ones drawn vertex by
+// vertex on a face (arrow-key axis lock, typed length — like a 3D line).
+export function isFaceCutPathMode(enabledDrawingMode) {
+  const tool = getDrawingToolByKey(enabledDrawingMode);
+  return Boolean(
+    tool &&
+    tool.annotationType === FACE_CUT_TOOL_TYPE &&
+    (tool.behavior === "SEGMENT" || tool.behavior === "CLICK")
+  );
+}
+
 export function isFaceCutRectangleMode(enabledDrawingMode) {
   const tool = getDrawingToolByKey(enabledDrawingMode);
   return Boolean(
