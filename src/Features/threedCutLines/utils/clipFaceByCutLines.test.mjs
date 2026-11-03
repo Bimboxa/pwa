@@ -229,3 +229,38 @@ test("a run end leaving the plane (the line climbs a wall) is prolonged to the b
   const stopped = climbing.slice(0, 2);
   assert.equal(clipFaceByCutLines({ face, cutLines: [stopped] }), null);
 });
+
+test("a line ending on another line (T junction) cuts the piece, whatever the order", () => {
+  const face = {
+    contour: [
+      { x: 0, y: 0, z: 0 },
+      { x: 10, y: 0, z: 0 },
+      { x: 10, y: 0, z: 6 },
+      { x: 0, y: 0, z: 6 },
+    ],
+    holes: [],
+    normal: { x: 0, y: 1, z: 0 },
+  };
+  // Full-width line at z = 3, and a line from the bottom edge ending ON it
+  // (slightly past it: a small overshoot).
+  const across = [
+    { x: 0, y: 0, z: 3 },
+    { x: 10, y: 0, z: 3 },
+  ];
+  const tee = [
+    { x: 4, y: 0, z: 0 },
+    { x: 4, y: 0, z: 3.05 },
+  ];
+  for (const lines of [
+    [across, tee],
+    [tee, across],
+  ]) {
+    const r = clipFaceByCutLines({ face, cutLines: lines });
+    assert.ok(r, "cut");
+    const areas = r.pieces.map((p) => p.area).sort((a, b) => a - b);
+    assert.equal(areas.length, 3);
+    assert.ok(Math.abs(areas[0] - 12) < 1e-6, `piece 12 m², got ${areas}`);
+    assert.ok(Math.abs(areas[1] - 18) < 1e-6);
+    assert.ok(Math.abs(areas[2] - 30) < 1e-6);
+  }
+});

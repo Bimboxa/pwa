@@ -72,17 +72,12 @@ export default function clipFaceByCutLines({
         run,
         tolerance
       );
-      const result = getPathChunksInRegion(loops2d, path2d, {
-        tolerance,
-        extendEnds: false,
-      });
-      if (result.error) continue;
-      chunks.push(...result.chunks);
+      if (path2d.length >= 2) chunks.push(path2d);
     }
   }
   if (!chunks.length) return null;
 
-  const pieces2d = cutRegionByChunks(loops2d, chunks, tolerance);
+  const pieces2d = cutRegionByPaths(loops2d, chunks, tolerance);
   if (!pieces2d) return null;
 
   const pieces = pieces2d.map(({ contour: contour2d, holes: holes2d }) => ({
@@ -192,42 +187,55 @@ function castRayToBoundary(loops, from, end) {
   return { x: end.x + best * ux, y: end.y + best * uy };
 }
 
-// Draws the chunks one after the other on the region: each chunk is clipped
-// to every current piece and cuts the pieces it crosses. The face splitter
-// behind splitFlatRegionAlongChunks cuts one face per path, so a chunk
-// crossing an earlier cut has to be applied piece by piece.
+// Draws the paths on the region, piece by piece and to a FIXED POINT: each
+// path is clipped to every current piece (getPathChunksInRegion — its chunks
+// are the runs of the path going from a boundary of THAT piece to another)
+// and cuts the pieces it crosses; the passes repeat while a pass cut
+// something. The face splitter behind splitFlatRegionAlongChunks cuts one
+// face per path, hence piece by piece; the repetition matters because the
+// cuts of the other lines are boundaries too — a line ending ON another line
+// (a T) cuts the piece once that other line has split it, whatever the
+// order of the lines.
 // Returns [{ contour, holes }] (2D) or null when nothing was cut.
-function cutRegionByChunks(loops2d, chunks, tolerance) {
+function cutRegionByPaths(loops2d, paths, tolerance) {
   let pieces = [{ contour: loops2d[0], holes: loops2d.slice(1) }];
-  let cut = false;
-  for (const chunk of chunks) {
-    const next = [];
-    for (const piece of pieces) {
-      const loops = [piece.contour, ...piece.holes];
-      const result = getPathChunksInRegion(loops, chunk, {
-        tolerance,
-        extendEnds: false,
-      });
-      const split = result.error
-        ? null
-        : splitFlatRegionAlongChunks(loops, result.chunks);
-      if (!split) {
-        next.push(piece);
-        continue;
-      }
-      cut = true;
-      for (const face of split.faces) {
-        next.push({
-          contour: face.loop.map((i) => split.vertices[i]),
-          holes: (face.holes || []).map((hole) =>
-            hole.map((i) => split.vertices[i])
-          ),
+  let cutOnce = false;
+  // Each pass can at most consume one "blocked" line: paths + 1 passes
+  // bound the fixed point.
+  for (let pass = 0; pass <= paths.length; pass++) {
+    let cutInPass = false;
+    for (const path of paths) {
+      const next = [];
+      for (const piece of pieces) {
+        const loops = [piece.contour, ...piece.holes];
+        const result = getPathChunksInRegion(loops, path, {
+          tolerance,
+          extendEnds: false,
         });
+        const split =
+          result.error || !result.chunks.length
+            ? null
+            : splitFlatRegionAlongChunks(loops, result.chunks);
+        if (!split) {
+          next.push(piece);
+          continue;
+        }
+        cutInPass = true;
+        for (const face of split.faces) {
+          next.push({
+            contour: face.loop.map((i) => split.vertices[i]),
+            holes: (face.holes || []).map((hole) =>
+              hole.map((i) => split.vertices[i])
+            ),
+          });
+        }
       }
+      pieces = next;
     }
-    pieces = next;
+    if (!cutInPass) break;
+    cutOnce = true;
   }
-  return cut ? pieces : null;
+  return cutOnce ? pieces : null;
 }
 
 // Area-weighted centroid of a 2D polygon with holes.
