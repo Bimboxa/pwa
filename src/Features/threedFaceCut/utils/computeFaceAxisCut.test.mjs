@@ -17,6 +17,21 @@ const nearPoint = (actual, expected) => {
 // 4 m wide, 3 m high, bottom-left at the origin.
 const RECT = [p(0, 0), p(4, 0), p(4, 3), p(0, 3)];
 
+test("guideDistances: the line snaps on the guide at the given distance from the reference", () => {
+  const r = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 1.95),
+    axis: "H",
+    snapToleranceM: 0.1,
+    guideDistances: [2],
+  });
+  near(r.cut, 2);
+  near(r.distance, 2);
+  assert.equal(r.snapped, true);
+  nearPoint(r.chord2d[0], p(0, 2));
+  nearPoint(r.chord2d[1], p(4, 2));
+});
+
 test("horizontal cut: chord from edge to edge at the cursor height, distance from the bottom", () => {
   const r = computeFaceAxisCut({
     loops2d: [RECT],
