@@ -22,10 +22,8 @@ import {
   CUT_LINE_DASH_M,
   CUT_LINE_END_MARKER_PX,
   CUT_LINE_GAP_M,
-  CUT_LINE_HIDDEN_COLOR,
   CUT_LINE_MARKER_PX,
   CUT_LINE_SELECTED_MARKER_PX,
-  CUT_LINE_WIDTH_HIDDEN_PX,
   CUT_LINE_WIDTH_PX,
   CUT_LINE_WIDTH_SELECTED_PX,
 } from "../constants/cutLineStyle";
@@ -88,10 +86,10 @@ function makeCutLineSegment({ a, b, color, linewidth, resolution, dashed }) {
 // (applyPendingDimensionPatch).
 //
 // Unselected: one continuous fluo line (theme secondary.fluo, the row's
-// strokeColor), the part beyond a « Stop » point not drawn. Selected: thicker,
-// the segments the extension added dashed, a marker on every vertex (bigger
-// at the two visible ends, the sub-selected vertex in the selection colour),
-// the hidden part in thin grey dashes.
+// strokeColor), the part beyond a « Stop » point not drawn (selected or
+// not: the line ends there). Selected: thicker, the segments the extension
+// added dashed, a marker on every visible vertex (bigger at the two ends,
+// the sub-selected vertex in the selection colour).
 //
 // Picking: every visible segment is a Line2 with the shared fat-line raycast,
 // published to cutLineObjectsStore for the click pre-passes (pickCutLine);
@@ -195,45 +193,42 @@ export default function ThreedCutLineAnnotations({ annotations }) {
       };
 
       const lines = [];
+      // The part beyond a « Stop » point is never drawn (selected or not):
+      // the line simply ends there.
       geom.segments.forEach((seg) => {
-        if (seg.hidden && !isSelected) {
+        if (seg.hidden) {
           group.userData.cutLineSegments.push({ index: seg.index, line: null });
           return;
         }
         const line = makeCutLineSegment({
           a: seg.a,
           b: seg.b,
-          color: seg.hidden ? CUT_LINE_HIDDEN_COLOR : color,
-          linewidth: seg.hidden
-            ? CUT_LINE_WIDTH_HIDDEN_PX
-            : isSelected
-              ? CUT_LINE_WIDTH_SELECTED_PX
-              : CUT_LINE_WIDTH_PX,
+          color,
+          linewidth: isSelected
+            ? CUT_LINE_WIDTH_SELECTED_PX
+            : CUT_LINE_WIDTH_PX,
           resolution,
-          dashed: isSelected && (seg.derived || seg.hidden),
+          dashed: isSelected && seg.derived,
         });
         line.userData.annotationId = cutLine.id;
         line.userData.segmentIndex = seg.index;
-        if (seg.hidden) {
-          line.raycast = () => {}; // never picked
-        } else {
-          attachFatLineRaycast(line, [
-            new Vector3(seg.a.x, seg.a.y, seg.a.z),
-            new Vector3(seg.b.x, seg.b.y, seg.b.z),
-          ]);
-          lines.push(line);
-        }
+        attachFatLineRaycast(line, [
+          new Vector3(seg.a.x, seg.a.y, seg.a.z),
+          new Vector3(seg.b.x, seg.b.y, seg.b.z),
+        ]);
+        lines.push(line);
         group.add(line);
         group.userData.cutLineSegments.push({ index: seg.index, line });
       });
 
-      // Vertex markers of the selected line: the two visible ends bigger,
-      // the sub-selected vertex in the selection colour on top.
+      // Vertex markers of the selected line (visible run only): the two
+      // ends bigger, the sub-selected vertex in the selection colour on top.
       if (isSelected) {
         const ends = [];
         const inner = [];
         const picked = [];
         geom.P.forEach((p) => {
+          if (p.index < geom.startIndex || p.index > geom.endIndex) return;
           if (p.id && selectedPointIds.has(p.id)) {
             picked.push(p);
             return;

@@ -68,7 +68,8 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   `lassoPoints`, published to the dimension groups store for the lasso).
   Unselected: continuous fluo line, the part beyond a stop not drawn.
   Selected: thicker, derived segments dashed, vertex markers (ends bigger,
-  sub-selected vertex in the selection colour), hidden part in thin grey.
+  sub-selected vertex in the selection colour); the part beyond a « Stop »
+  is never drawn nor grabbable.
   Segments carry the fat-line raycast and are published to
   `cutLineObjectsStore` with the world vertices and the visible world
   polylines (`version` bumps on every publish).
@@ -80,15 +81,19 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   line, hand cursor over a vertex; click = sub-selection
   (`setSelectedPointIds` + `setSubSelection VERTEX` → `ToolbarEditAnnotation`
   shows `ToolbarEditCutLinePoint`: « Stop », « Point prolongé », « Supprimer
-  le point »); drag = move (free: scene vertex → face → base map plane →
-  camera plane; Shift: `computeAxisLockSnap` on the user axes + the connected
-  segment directions, dashed guide). Commit
-  `commitCutLineVertexMoveService`: a new point row (fork), the line
-  re-encoded, a dragged derived point becomes drawn; one undo step; pending
-  patch via `dimensionPendingPatchStore`.
+  le point »); drag = move, always on a face (free: scene vertex → face
+  under the cursor → plane of a face the vertex sits on → base map plane;
+  Shift: `computeAxisLockSnap` on the user axes lying in those planes + the
+  connected segment directions, dashed guide). The drag is imperative (Line2 /
+  marker buffers updated in place, no React state); on drop the line is
+  REBUILT (`rebuildCutLineService`): the dropped vertex becomes a drawn
+  point on a fresh row, the extension is run again on the scene from the
+  drawn points, derived points are replaced (a Stop on a derived point
+  survives when the new trace passes within 1 cm), the line re-encoded; one
+  undo step; pending patch via `dimensionPendingPatchStore`.
 - `ToolbarEditCutLine` (no sub-selection): points count and « Recalculer le
-  prolongement » (`reextendCutLineService`: the extension re-run from the
-  drawn points on the current scene).
+  prolongement » (`reextendCutLineService`: the same rebuild from the drawn
+  points, without a move).
 
 ## Maillage
 

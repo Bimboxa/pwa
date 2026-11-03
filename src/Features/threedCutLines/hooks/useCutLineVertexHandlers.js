@@ -43,14 +43,19 @@ import {
   CUT_LINE_DRAG_THRESHOLD_PX,
   CUT_LINE_VERTEX_PICK_PX,
 } from "../constants/cutLineStyle";
+import collectSceneTriangles from "../js/collectSceneTriangles";
 import { getCutLineEntry } from "../services/cutLineObjectsStore";
-import commitCutLineVertexMoveService, {
-  computeCutLineVertexMovePatch,
-} from "../services/commitCutLineVertexMoveService";
+import {
+  commitCutLineRebuild,
+  computeCutLineRebuild,
+  findFacePlanesAt,
+} from "../services/rebuildCutLineService";
 
 // Vertex snap distance (px) of a free drop, and the position tolerance
 // (m) matching a marker's vertex in a Points buffer.
 const DROP_VERTEX_SNAP_PX = 12;
+// |axis · face normal| under which a user axis lies in the face (Shift lock).
+const AXIS_IN_PLANE_DOT = 0.1;
 const MARKER_MATCH_EPS = 1e-6;
 const SEGMENT_AXIS_COLOR = theme.palette.secondary.fluo ?? "#ff4d00";
 
@@ -59,18 +64,22 @@ const SEGMENT_AXIS_COLOR = theme.palette.secondary.fluo ?? "#ff4d00";
 //   - a click (no move) sub-selects it (selection.selectedPointIds +
 //     setSubSelection VERTEX) — ToolbarEditAnnotation then shows the point
 //     row (ToolbarEditCutLinePoint: « Stop »);
-//   - a drag moves it: free = vertex of the scene (12 px) → annotation
-//     face → base map plane (user axes) → camera-facing plane through the
-//     vertex; Shift = locked on the user axis (X / Y / Z of the gizmo frame)
-//     or on the direction of a connected segment, whichever is closest to
-//     the cursor on screen (computeAxisLockSnap), with a dashed guide line.
-// The grab is a screen-distance test on the vertices published by the
-// renderer (the markers never raycast). Mirror of useRulerLabelDragHandlers
-// for the gesture plumbing: capture-phase pointerdown, orbit controls off,
-// MainThreedEditor's pointerup stands down past the drag threshold, the
-// dropped position is published to dimensionPendingPatchStore BEFORE the DB
-// write (no snap-back frame). Commit: commitCutLineVertexMoveService (a new
-// point row, the line re-encoded, one undo step).
+//   - a drag moves it, always ON a face (a cut line point never floats):
+//     free = vertex of the scene (12 px) → annotation face under the cursor
+//     → the plane of a face the vertex sits on (home planes) → base map
+//     plane (user axes); Shift = locked on a user axis (X / Y / Z of the
+//     gizmo frame) lying in a home plane, or on the direction of a connected
+//     segment, whichever is closest to the cursor on screen
+//     (computeAxisLockSnap), with a dashed guide line.
+// The gesture is imperative (Line2 / marker buffers updated in place, no
+// React state until the drop). The grab is a screen-distance test on the
+// vertices published by the renderer (the markers never raycast). Mirror of
+// useRulerLabelDragHandlers for the plumbing: capture-phase pointerdown,
+// orbit controls off, MainThreedEditor's pointerup stands down past the drag
+// threshold, the dropped line is published to dimensionPendingPatchStore
+// BEFORE the DB write (no snap-back frame). Drop: the line is rebuilt from
+// its drawn points (rebuildCutLineService — the extension follows the
+// move), one undo step.
 export default function useCutLineVertexHandlers({ rendererIsReady }) {
   const store = useStore();
   const dispatch = useDispatch();
@@ -142,6 +151,8 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       let best = null;
       let bestSq = CUT_LINE_VERTEX_PICK_PX * CUT_LINE_VERTEX_PICK_PX;
       for (const v of entry.vertices) {
+        // The part beyond a « Stop » is not drawn: not grabbable either.
+        if (v.hidden) continue;
         tmp.copy(v.world).project(camera);
         if (tmp.z < -1 || tmp.z > 1) continue;
         const sx = rect.left + ((tmp.x + 1) / 2) * rect.width;
@@ -214,12 +225,22 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
 
     // Shift locks: the three user axes + the directions of the segments
     // connected to the vertex (towards each neighbour).
-    function buildLockAxes(entry, vertex) {
-      const axes = getUserAxesWorldDirections(yawDegRef.current).map((a) => ({
-        key: a.key,
-        dir: a.dir,
-        user: true,
-      }));
+    // Shift locks: the user axes lying in one of the home planes of the
+    // vertex (a locked move must keep the point on a face — an axis
+    // normal to every face it sits on would lift it off), plus the
+    // directions of the connected segments (they run on the faces).
+    function buildLockAxes(entry, vertex, homePlanes) {
+      const inHomePlane = (dir) =>
+        !homePlanes.length ||
+        homePlanes.some(
+          (p) =>
+            Math.abs(
+              dir.x * p.normal.x + dir.y * p.normal.y + dir.z * p.normal.z
+            ) < AXIS_IN_PLANE_DOT
+        );
+      const axes = getUserAxesWorldDirections(yawDegRef.current)
+        .filter((a) => inHomePlane(a.dir))
+        .map((a) => ({ key: a.key, dir: a.dir, user: true }));
       const neighbours = [
         ["SEG_PREV", entry.vertices[vertex.index - 1]],
         ["SEG_NEXT", entry.vertices[vertex.index + 1]],
@@ -233,8 +254,11 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       return axes;
     }
 
-    // Free drop target of the cursor: scene vertex → annotation face → base
-    // map plane → camera-facing plane through the grabbed vertex.
+    // Free drop target of the cursor — always ON a face plane, never
+    // floating: scene vertex → annotation face under the cursor → the plane
+    // of a face the vertex sits on (its home planes, the ray's hit nearest
+    // to the grab point) → base map plane. Null when none applies (the
+    // vertex stays).
     function computeFreeHit(drag, canvasSize) {
       const camera = getCamera();
       if (!drag.index) {
@@ -264,12 +288,19 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
         axes: drag.userAxes,
       });
       if (face?.position) return face.position.clone();
+      let homeHit = null;
+      for (const plane of drag.homePlanes) {
+        const hit = new Vector3();
+        if (!raycaster.ray.intersectPlane(plane, hit)) continue;
+        const d = hit.distanceToSquared(drag.startWorld);
+        if (!homeHit || d < homeHit.d) homeHit = { hit, d };
+      }
+      if (homeHit) return homeHit.hit;
       const plan = intersectBaseMapPlane(editor, ndc, camera, {
         axes: drag.userAxes,
       });
       if (plan?.position) return plan.position.clone();
-      const hit = new Vector3();
-      return raycaster.ray.intersectPlane(drag.plane, hit) ? hit : null;
+      return null;
     }
 
     // Live update of the two segments and the marker holding the vertex.
@@ -348,26 +379,33 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       if (!found) return;
       if (!setRayFromClient(e.clientX, e.clientY)) return;
       const { entry, vertex } = found;
-      const camera = getCamera();
 
       entry.group.updateMatrixWorld(true);
       const startWorld = vertex.world.clone();
-      const planeNormal = camera.getWorldDirection(new Vector3());
-      const plane = new Plane().setFromNormalAndCoplanarPoint(
-        planeNormal,
-        startWorld
-      );
       const controls = sceneManager.controlsManager?.orbitControls;
       const prevControlsEnabled = controls?.enabled ?? true;
       if (controls) controls.enabled = false;
+
+      // Home planes: the scene faces the grabbed vertex sits on (one for a
+      // point on a slab, two at the foot of a wall).
+      const homePlanes = findFacePlanesAt(
+        collectSceneTriangles(sceneManager),
+        startWorld
+      ).map((p) =>
+        new Plane().setFromNormalAndCoplanarPoint(
+          new Vector3(p.normal.x, p.normal.y, p.normal.z),
+          new Vector3(p.point.x, p.point.y, p.point.z)
+        )
+      );
+      const homeNormals = homePlanes.map((p) => ({ normal: p.normal }));
 
       dragRef.current = {
         entry,
         vertex,
         startWorld,
         startLocal: entry.group.worldToLocal(startWorld.clone()),
-        plane,
-        axes: buildLockAxes(entry, vertex),
+        homePlanes,
+        axes: buildLockAxes(entry, vertex, homeNormals),
         userAxes: getUserAxesWorldDirections(yawDegRef.current),
         axis: null,
         axisLine: null,
@@ -479,13 +517,40 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
         const baseMap = (baseMapsRef.current || []).find(
           (b) => b.id === raw?.baseMapId
         );
-        const result = computeCutLineVertexMovePatch({
-          row: raw,
-          // The resolved px points published by the renderer with the entry.
-          resolvedPoints: entry.resolvedPoints ?? null,
-          index: vertex.index,
-          world: drag.lastWorld,
+        if (!raw?.points || raw.points.length !== entry.vertices.length) {
+          console.warn("[threedCutLines] vertex drop ignored: stale line");
+          sceneManager.renderScene?.();
+          return;
+        }
+        // The line is rebuilt from its drawn points with the dropped vertex
+        // (a drawn point from now on, on a fresh row): the extension is run
+        // again on the scene — the derived points follow the move.
+        const drawn = [];
+        const oldDerived = [];
+        entry.vertices.forEach((v, i) => {
+          const ref = raw.points[i];
+          if (i === vertex.index) {
+            const w = drag.lastWorld;
+            drawn.push({ x: w.x, y: w.y, z: w.z, ref, newRow: true });
+            return;
+          }
+          if (ref.derived) {
+            oldDerived.push({
+              x: v.world.x,
+              y: v.world.y,
+              z: v.world.z,
+              stop: ref.stop,
+            });
+          } else {
+            drawn.push({ x: v.world.x, y: v.world.y, z: v.world.z, ref });
+          }
+        });
+        const result = computeCutLineRebuild({
+          raw,
+          drawn,
           baseMap,
+          editor,
+          oldDerived,
         });
         if (!result) {
           console.warn(
@@ -494,17 +559,23 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
           sceneManager.renderScene?.();
           return;
         }
+        const movedRef =
+          result.patch.points[
+            result.derivedStart + drawn.findIndex((d) => d.newRow)
+          ];
         setPendingDimensionPatch(annotationId, {
           baseUpdatedAt: raw?.updatedAt ?? null,
           patch: result.patch,
         });
-        dispatch(setSelectedPointIds([result.pointRow.id]));
-        dispatch(
-          setSubSelection({ pointId: result.pointRow.id, partType: "VERTEX" })
-        );
-        await commitCutLineVertexMoveService({
+        if (movedRef?.id) {
+          dispatch(setSelectedPointIds([movedRef.id]));
+          dispatch(
+            setSubSelection({ pointId: movedRef.id, partType: "VERTEX" })
+          );
+        }
+        await commitCutLineRebuild({
           annotationId,
-          pointRow: result.pointRow,
+          pointRows: result.pointRows,
           patch: result.patch,
         });
       } catch (err) {
