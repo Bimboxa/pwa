@@ -20,6 +20,7 @@ import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/
 import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
 import { selectIsTemplateRulerDrawActive } from "../utils/templateRulerDrawSelectors";
 import {
+  selectIsCutLineDrawActive,
   selectIsFaceCutDrawActive,
   selectIsTemplateFaceDrawActive,
   selectIsThreedTemplatelessDrawActive,
@@ -75,7 +76,10 @@ export default function useTemplateFaceDrawBridge() {
       selectIsMeshBrushActive(s) ||
       selectIsRevolutionAxisDrawThreedActive(s) ||
       selectIsTemplateCoteDrawActive(s) ||
-      selectIsTemplateRulerDrawActive(s)
+      selectIsTemplateRulerDrawActive(s) ||
+      // cut line of the Maillage module (Features/threedCutLines): the
+      // template-less click polyline flow with its own commit
+      selectIsCutLineDrawActive(s)
   );
   // "Coupe face" is a 3D-only tool: leaving the 3D editor disarms it (the
   // 2D editor has no use for its drawing mode).

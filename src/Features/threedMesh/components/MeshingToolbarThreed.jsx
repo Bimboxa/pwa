@@ -26,6 +26,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import NearMeIcon from "@mui/icons-material/NearMe";
 import TimelineIcon from "@mui/icons-material/Timeline";
 
+import ButtonCreateMeshesFromCutLines from "Features/threedCutLines/components/ButtonCreateMeshesFromCutLines";
+
 import FieldNumberCompact from "./FieldNumberCompact";
 
 // Tool glyphs match the mockup: plain strokes for the three cut lines.
@@ -201,6 +203,13 @@ export default function MeshingToolbarThreed() {
             value={numberingNext}
             onChange={handleNumberingNextChange}
           />
+        </Stack>
+
+        {/* Cut lines (Features/threedCutLines): mailles from the drawn
+            lines, one per piece of the faces they cross. */}
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Stack spacing={0.5} sx={{ justifyContent: "center" }}>
+          <ButtonCreateMeshesFromCutLines />
         </Stack>
 
         {!isMeshesViewer && (

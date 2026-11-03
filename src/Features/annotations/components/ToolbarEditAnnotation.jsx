@@ -73,6 +73,8 @@ import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
 import ToolbarEditLayoutLine from "./ToolbarEditLayoutLine";
 import ToolbarEditSegment from "./ToolbarEditSegment";
 import ToolbarEditPoint from "./ToolbarEditPoint";
+import ToolbarEditCutLine from "Features/threedCutLines/components/ToolbarEditCutLine";
+import ToolbarEditCutLinePoint from "Features/threedCutLines/components/ToolbarEditCutLinePoint";
 import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/ToolbarEditMesh3dParts";
 import ToolbarEditSurfacePieces from "Features/threedFaceCut/components/ToolbarEditSurfacePieces";
 import useSelectedSurfacePieces from "Features/threedFaceCut/hooks/useSelectedSurfacePieces";
@@ -129,6 +131,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // Whole annotation: layer chip + delete. A sub-selection has no row (its
   // actions are commands of the unified toolbar).
   const showActionsRow = !hasPart;
+
+  // Cut line (Maillage module, Features/threedCutLines): its own point row
+  // and extension row; no height / thickness / 3D shape fields.
+  const isCutLine = selectedAnnotation?.type === "CUT_LINE";
 
   const accentColor = getAnnotationColor(selectedAnnotation) || "#6366F1";
 
@@ -593,8 +599,15 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <ToolbarEditSegment annotation={selectedAnnotation} part={part} />
         )}
 
-        {/* Point edit row — shape / 3D offsets / reference point (profile) */}
-        {isPointPart && <ToolbarEditPoint />}
+        {/* Point edit row — shape / 3D offsets / reference point (profile);
+            a cut line vertex has its own row (« Stop ») */}
+        {isPointPart &&
+          (isCutLine ? <ToolbarEditCutLinePoint /> : <ToolbarEditPoint />)}
+
+        {/* Cut line row — points count / recompute the extension */}
+        {!hasPart && isCutLine && (
+          <ToolbarEditCutLine annotation={selectedAnnotation} />
+        )}
 
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
         {isMixedPart && (
@@ -611,8 +624,8 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           </Box>
         )}
 
-        {/* Row 2 - 3D geometry props (height + offsetZ) — hidden when a part is selected */}
-        {!hasPart && (
+        {/* Row 2 - 3D geometry props (height + offsetZ) — hidden when a part is selected (a cut line has none) */}
+        {!hasPart && !isCutLine && (
           <Box
             sx={{
               display: "flex",

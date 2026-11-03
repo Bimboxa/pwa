@@ -24,13 +24,15 @@ slice). Default dock: LEFT (vertical strip). A floating toolbar paints over
 the edit poppers (`PanelShowable` is a stacking context).
 
 Visibility (`hooks/useShowCommandsToolbar.js`): the editing modules MAP /
-ZONES / business objects / BASE_MAPS displaying a 2D map editor or the 3D
-editor; never in the read-only Viewer / Maillage modules; hidden under
-capture framing, walk mode, PDF editor, base maps grid, create base map
-section. Buttons and hotkeys share this visibility. The layout is per module
+ZONES / business objects / BASE_MAPS / MESHES displaying a 2D map editor or
+the 3D editor; never in the read-only Viewer module; hidden under capture
+framing, walk mode, PDF editor, base maps grid, create base map section.
+Buttons and hotkeys share this visibility. The layout is per module
 (`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
 module shows its two base map placement commands and the « Repère » group
-alone. `DEFAULT_LAYOUT` is ordered by tool family, from the scene context to
+alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
+coupe » command (`DRAW_CUT_LINE`, `Features/threedCutLines`) alone.
+`DEFAULT_LAYOUT` is ordered by tool family, from the scene context to
 the quality tools: « Repère » → base map placement → draw (the templateless
 types, then the revolution axis) → lines in a surface → cuts (opening,
 segment, surface / face) → topological cuts (subtraction, hollow out) → faces

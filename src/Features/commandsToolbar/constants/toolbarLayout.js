@@ -209,6 +209,15 @@ const DEFAULT_SECTIONS = [
 // commands only, in the same order as the default sections.
 const BASE_MAPS_SECTIONS = [AXES_SECTION, BASE_MAP_SECTION];
 
+// « Maillage » module: the user frame group and the cut lines drawn to
+// prepare the mailles (Features/threedCutLines).
+const CUT_LINES_SECTION = {
+  key: "CUT_LINES",
+  label: "Lignes de coupe",
+  entries: ["DRAW_CUT_LINE"],
+};
+const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION];
+
 // Flat form rendered by the toolbar: the entries of every section, a
 // { type: "divider" } between two sections.
 function flattenSections(sections) {
@@ -230,21 +239,26 @@ export function getLayoutCommandKeys(layout) {
 export const TOOLBAR_SECTIONS = {
   DEFAULT: DEFAULT_SECTIONS,
   BASE_MAPS: BASE_MAPS_SECTIONS,
+  MESHES: MESHES_SECTIONS,
 };
 
 export const TOOLBAR_LAYOUTS = {
   DEFAULT: flattenSections(DEFAULT_SECTIONS),
   BASE_MAPS: flattenSections(BASE_MAPS_SECTIONS),
+  MESHES: flattenSections(MESHES_SECTIONS),
 };
 
+// Layout key of a module: the modules with their own sections, else DEFAULT.
+function getLayoutKey(moduleKey) {
+  if (moduleKey === "BASE_MAPS") return "BASE_MAPS";
+  if (moduleKey === "MESHES") return "MESHES";
+  return "DEFAULT";
+}
+
 export function getToolbarSections(moduleKey) {
-  return moduleKey === "BASE_MAPS"
-    ? TOOLBAR_SECTIONS.BASE_MAPS
-    : TOOLBAR_SECTIONS.DEFAULT;
+  return TOOLBAR_SECTIONS[getLayoutKey(moduleKey)];
 }
 
 export default function getToolbarLayout(moduleKey) {
-  return moduleKey === "BASE_MAPS"
-    ? TOOLBAR_LAYOUTS.BASE_MAPS
-    : TOOLBAR_LAYOUTS.DEFAULT;
+  return TOOLBAR_LAYOUTS[getLayoutKey(moduleKey)];
 }

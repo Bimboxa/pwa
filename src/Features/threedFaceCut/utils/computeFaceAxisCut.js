@@ -21,7 +21,9 @@ const MIN_CHORD = 1e-6;
 //     locking the line there; null to follow the cursor;
 //   - snapToleranceM: the line snaps to the coordinate of a vertex of the
 //     face (contour + holes), or to the middle of an edge it would halve,
-//     closer than this.
+//     closer than this;
+//   - guideDistances: extra snap candidates at these distances (m) from the
+//     reference (the « Décalage » guide of the cut line axis tools).
 //
 // The reference is the bottom of the face: the lowest contour vertex nearest
 // the cursor (H), or the lowest-left / lowest-right one (V). The chord is the
@@ -41,6 +43,7 @@ export default function computeFaceAxisCut({
   side = "LEFT",
   typedDistance = null,
   snapToleranceM = 0,
+  guideDistances = [],
 }) {
   const contour = loops2d?.[0];
   if (!contour || contour.length < 3 || !cursor2d) return null;
@@ -80,6 +83,9 @@ export default function computeFaceAxisCut({
         snapped = true;
       }
     };
+    for (const g of guideDistances) {
+      if (Number.isFinite(g) && g > 0) consider(ref2d[coord] + dir * g);
+    }
     for (const loop of loops2d) {
       const n = loop.length;
       for (let i = 0; i < n; i++) {

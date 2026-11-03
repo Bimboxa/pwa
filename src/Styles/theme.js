@@ -108,6 +108,9 @@ let theme = createTheme(
         //main: blueGrey[600],
         main: "#e85426",
         // main: purple[600],
+        // Saturated "fluo" variant: the unselected cut lines of the 3D editor
+        // (Features/threedCutLines) — reads on top of any face colour.
+        fluo: "#ff4d00",
       },
       background: {
         default: "#F4F4F8",

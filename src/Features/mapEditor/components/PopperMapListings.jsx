@@ -27,6 +27,7 @@ import { setActiveBusinessObjectId } from "Features/businessObjects/businessObje
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 
 import {
   Box,
@@ -1664,6 +1665,9 @@ export default function PopperMapListings() {
   );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // Cut line armed in the Maillage module (Features/threedCutLines): the
+  // drawing helper shows in this popper like a line of the Dessin module.
+  const isCutLineDraw = useSelector(selectIsCutLineDrawActive);
   const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // « Détection des doublons » run displayed (floating helper in drawer mode)
@@ -2348,8 +2352,11 @@ export default function PopperMapListings() {
 
   // Helper chain of the drawing modules (Dessin in 2D and in its 3D editor):
   // off in the 3D-family modules (Viewer, Maillage) and in the BaseMaps
-  // module displaying its 3D editor.
-  const helpersEnabled = !isThreedViewer && !isBaseMapsLegendThreed;
+  // module displaying its 3D editor — except the cut line drawn in the
+  // Maillage module (Features/threedCutLines), whose drawing helper shows
+  // here exactly like a line drawn in the Dessin module's 3D editor.
+  const helpersEnabled =
+    (!isThreedViewer && !isBaseMapsLegendThreed) || isCutLineDraw;
 
   if (helpersEnabled && pasteClipboard) {
     return <PopperPasteHelper />;

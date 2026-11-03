@@ -206,7 +206,10 @@ export default function DrawingOverlayThreed() {
     (s) =>
       s.threedEditor.drawingMode.active &&
       !isMeshBrushDrawingMode(s.mapEditor.enabledDrawingMode) &&
-      !isFaceCutAxisMode(s.mapEditor.enabledDrawingMode)
+      !isFaceCutAxisMode(s.mapEditor.enabledDrawingMode) &&
+      // Cut line axis tool armed (X / Y / Z): CutLineAxisOverlayThreed
+      // hovers the face itself, no vertex is drawn.
+      !s.threedEditor.cutLineDraw?.axis
   );
   const inProgressPolyline = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline
@@ -228,7 +231,8 @@ export default function DrawingOverlayThreed() {
     const type = s.annotations.newAnnotation?.type;
     return (
       type === "POLYGON" ||
-      (type === "POLYLINE" && Boolean(s.mapEditor.coplanarPoints3d))
+      ((type === "POLYLINE" || type === "CUT_LINE") &&
+        Boolean(s.mapEditor.coplanarPoints3d))
     );
   });
   // A disc (centre / radius tool), or a revolution axis drawn from 3D (same

@@ -33,10 +33,13 @@ import {
   cancelInProgressPolyline,
   flushInProgressAsTrait3D,
   pushDrawingVertex,
+  setCutLineDrawAxis,
   setDrawingAxisLock,
+  toggleCutLineDrawSide,
   toggleFaceCutSide,
   toggleLastDrawingVertexType,
 } from "Features/threedEditor/threedEditorSlice";
+import { getCutLineAxisHover } from "Features/threedCutLines/services/cutLineAxisStore";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
@@ -80,6 +83,7 @@ import commitDrawnPolylineService, {
 } from "../services/commitDrawnPolylineService";
 import commitDrawnCoteService from "../services/commitDrawnCoteService";
 import commitDrawnRulerService from "../services/commitDrawnRulerService";
+import commitDrawnCutLineService from "Features/threedCutLines/services/commitDrawnCutLineService";
 import { isRulerDraftFor3d } from "../utils/templateRulerDrawSelectors";
 import expandConstraintLengths3d from "../utils/expandConstraintLengths3d";
 import projectAxisDirInPlane from "../utils/projectAxisDirInPlane";
@@ -346,6 +350,60 @@ export default function useDrawingPointerHandlers() {
     // chain flow, see the header. Checked before the template-less branch.
     function isRulerDraw() {
       return isRulerDraftFor3d(newAnnotationRef.current, enabledDrawingMode);
+    }
+
+    // CUT_LINE draft with an axis tool armed (Features/threedCutLines,
+    // CutLineToolbarThreed X / Y / Z): the click / Enter commits the chord
+    // hovered by CutLineAxisOverlayThreed (no vertex drawn).
+    function getCutLineAxis() {
+      const na = newAnnotationRef.current;
+      if (na?.type !== "CUT_LINE") return null;
+      return store.getState().threedEditor.cutLineDraw?.axis ?? null;
+    }
+
+    async function commitCutLineAxisChord() {
+      const chord = getCutLineAxisHover()?.chordWorld;
+      if (!chord || chord.length < 2) return false;
+      const committed = await commitTemplateless(chord);
+      if (committed) dispatch(clearConstraintBuffer());
+      return committed;
+    }
+
+    // Keys of the cut line axis tool: digits type the distance from the
+    // reference corner, S flips that corner, Enter commits the chord,
+    // Escape drops the typed distance then releases the axis (free mode).
+    function onCutLineAxisKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (/^[0-9.,]$/.test(e.key)) {
+        e.preventDefault();
+        dispatch(appendToConstraintBuffer(e.key === "," ? "." : e.key));
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        dispatch(deleteLastConstraintBuffer());
+        return true;
+      }
+      if (e.key === "s" || e.key === "S") {
+        if (!e.repeat) dispatch(toggleCutLineDrawSide());
+        e.preventDefault();
+        return true;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        enqueue(commitCutLineAxisChord);
+        return true;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (store.getState().mapEditor.constraintBuffer) {
+          dispatch(clearConstraintBuffer());
+        } else {
+          dispatch(setCutLineDrawAxis(null));
+        }
+        return true;
+      }
+      return false;
     }
 
     // REVOLUTION_AXIS draft (A): the disc's 2-click flow, no template.
@@ -666,6 +724,15 @@ export default function useDrawingPointerHandlers() {
               preferredBaseMapId: common.preferredBaseMapId,
             });
           }
+        } else if (draft?.type === "CUT_LINE") {
+          // Cut line (Maillage module): its own commit extends both ends
+          // along the faces of the scene (Features/threedCutLines).
+          if (points.length < 2) return false;
+          created = await commitDrawnCutLineService({
+            ...common,
+            editor,
+            verticesInOrder: points,
+          });
         } else {
           if (points.length < 2) return false;
           const { annotation } = await commitDrawnPolyline({
@@ -875,8 +942,13 @@ export default function useDrawingPointerHandlers() {
       }
 
       // Back on the first point: the contour is closed. One that commits
-      // nothing stays as drawn (Escape discards it).
-      if (inProgress.length >= 3 && isSamePoint(inProgress[0], newVertex)) {
+      // nothing stays as drawn (Escape discards it). A cut line never
+      // closes (its ends are what the commit extends).
+      if (
+        inProgress.length >= 3 &&
+        getLiveDrawing().draft?.type !== "CUT_LINE" &&
+        isSamePoint(inProgress[0], newVertex)
+      ) {
         await endPath(inProgress, { closed: true });
         return;
       }
@@ -1313,6 +1385,8 @@ export default function useDrawingPointerHandlers() {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (e.key !== "t" && e.key !== "T") return false;
       if (!isPolylineClickDraw() || isDiscDraw() || isAxisDraw()) return false;
+      // A cut line has no arcs (its commit extends straight segments).
+      if (newAnnotationRef.current?.type === "CUT_LINE") return false;
       if (getLiveDrawing().inProgress.length === 0) return false;
       e.preventDefault();
       if (!e.repeat) dispatch(toggleLastDrawingVertexType());
@@ -1531,6 +1605,12 @@ export default function useDrawingPointerHandlers() {
       ) {
         if (isTemplatelessDraw()) await enqueue(applyPendingPatternRepeat);
         else applyPendingPatternRepeat();
+        return;
+      }
+      // Cut line axis tool: the hovered chord is the line (no snap: the
+      // drawing overlay is inert while an axis is armed).
+      if (getCutLineAxis()) {
+        await enqueue(commitCutLineAxisChord);
         return;
       }
       if (!snap?.position) {
@@ -1767,6 +1847,10 @@ export default function useDrawingPointerHandlers() {
 
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+      // Cut line axis tool (X / Y / Z armed): its own keys, nothing drawn.
+      if (getCutLineAxis()) {
+        if (onCutLineAxisKey(e)) return;
+      }
       if (isFaceCutDraw()) {
         if (faceCutAxis) {
           if (onFaceCutAxisKey(e)) return;
