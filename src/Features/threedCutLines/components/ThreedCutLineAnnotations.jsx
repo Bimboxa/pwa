@@ -60,7 +60,13 @@ function makeCutLineSegment({ a, b, color, linewidth, resolution, dashed }) {
     resolution,
     worldUnits: false,
     transparent: true,
-    depthTest: false,
+    // Depth-tested (a line wrapping a solid is hidden behind it); the
+    // polygon offset pulls it just in front of the face it lies on.
+    depthTest: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
     ...(dashed
       ? { dashed: true, dashSize: CUT_LINE_DASH_M, gapSize: CUT_LINE_GAP_M }
       : {}),
