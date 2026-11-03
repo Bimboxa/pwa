@@ -236,6 +236,25 @@ export default class SceneManager {
     ortho.updateProjectionMatrix();
   };
 
+  // Depth range of the orthographic camera: ±halfDepthM around the camera
+  // plane, never below ORTHO_HALF_DEPTH_M. Driven by the perspective far
+  // plane (ControlsManager._syncOrthoDepthRange) so an orbit at the dolly
+  // limit never clips its pivot away. Kept symmetric: three's
+  // Raycaster.setFromCamera and camera-controls' zoom-to-cursor both put
+  // NDC z = (near + far) / (near - far) = 0 on the camera plane.
+  setOrthoDepthRange = (halfDepthM) => {
+    const ortho = this.orthographicCamera;
+    if (!ortho) return;
+    const h = Math.max(
+      ORTHO_HALF_DEPTH_M,
+      Number.isFinite(halfDepthM) ? halfDepthM : 0
+    );
+    if (ortho.near === -h && ortho.far === h) return;
+    ortho.near = -h;
+    ortho.far = h;
+    ortho.updateProjectionMatrix();
+  };
+
   // Metres spanned by the viewport height for the ACTIVE camera: the scale
   // invariant of every projection switch (ortho toggle, 2D/3D switch,
   // capture framing). Perspective: at the orbit distance (the target plane).

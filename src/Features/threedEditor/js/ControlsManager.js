@@ -118,6 +118,9 @@ export default class ControlsManager {
     this._pivotQuat = new Quaternion();
     this._pivotHit = new Vector3();
     this._pivotBest = new Vector3();
+    this._pivotApply = new Vector3();
+    this._pivotDir = new Vector3();
+    this._pivotRel = new Vector3();
   }
 
   // Backward-compat alias: the lasso (MainThreedEditor) and the gizmos
@@ -146,6 +149,7 @@ export default class ControlsManager {
     this.cameraControls.draggingSmoothTime = 0.05; // snappier while dragging
     // Wheel zoom converges toward the point under the cursor.
     this.cameraControls.dollyToCursor = true;
+    this._syncOrthoDepthRange();
 
     // Lower navigation sensitivity (camera-controls defaults are 1.0 rotate,
     // 2.0 truck, 1.0 dolly). Halve them for a calmer, more precise feel.
@@ -318,6 +322,7 @@ export default class ControlsManager {
       controls.zoomTo(1, false);
       controls.camera = ortho;
       this._syncOrthoZoomLimits();
+      this._syncOrthoDepthRange();
       sm.setActiveCamera(ortho);
     } else {
       // Visible height of the orthographic view → perspective orbit distance.
@@ -357,6 +362,25 @@ export default class ControlsManager {
       : ACTION.TOUCH_DOLLY_TRUCK;
   };
 
+  // The dolly limit in force: controls.maxDistance, or the parked one while
+  // a transition has lifted it to Infinity.
+  _effectiveMaxDistance = () => {
+    const controls = this.cameraControls;
+    return Number.isFinite(controls?.maxDistance)
+      ? controls.maxDistance
+      : (this._stashedMaxDistance ?? DEFAULT_MAX_DISTANCE);
+  };
+
+  // Orthographic depth range (±half depth around the camera plane) following
+  // the perspective far plane (max(default, 2 × maxDistance)): an orbit at
+  // the dolly limit then keeps its pivot, and the scene around it, inside the
+  // slab. Runs whatever the active camera so the ortho camera is ready for
+  // the next toggle.
+  _syncOrthoDepthRange = () => {
+    const far = this._perspectiveCamera()?.far;
+    this.sceneManager?.setOrthoDepthRange?.(far);
+  };
+
   // Orthographic zoom range matching the dolly range of the perspective
   // camera (minDistance / maxDistance, boosts included): zoom = h0 / h where
   // h0 is the frustum base height (top - bottom) and h the visible height.
@@ -367,9 +391,7 @@ export default class ControlsManager {
     const h0 = ortho.top - ortho.bottom;
     if (!(h0 > 0)) return;
     const tanHalf = this._tanHalfFov();
-    const maxD = Number.isFinite(controls.maxDistance)
-      ? controls.maxDistance
-      : (this._stashedMaxDistance ?? DEFAULT_MAX_DISTANCE);
+    const maxD = this._effectiveMaxDistance();
     const minD = Math.max(controls.minDistance, 1e-3);
     controls.minZoom = h0 / (2 * maxD * tanHalf);
     controls.maxZoom = h0 / (2 * minD * tanHalf);
@@ -538,6 +560,7 @@ export default class ControlsManager {
       camera.updateProjectionMatrix();
     }
     this._syncOrthoZoomLimits();
+    this._syncOrthoDepthRange();
   };
 
   // Sets the REGULAR zoom-out range (dolly limit + camera far plane at twice
@@ -572,6 +595,7 @@ export default class ControlsManager {
 
     if (boostRequest != null) this.setDistanceBoost(boostRequest);
     this._syncOrthoZoomLimits();
+    this._syncOrthoDepthRange();
     this.sceneManager.requestRender?.();
   };
 
@@ -603,6 +627,7 @@ export default class ControlsManager {
       camera.updateProjectionMatrix();
     }
     this._syncOrthoZoomLimits();
+    this._syncOrthoDepthRange();
   };
 
   // Face-on framing of a world-space Box3: pivot the camera onto the plane
@@ -982,11 +1007,19 @@ export default class ControlsManager {
     this._pivotNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this._pivotNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this._pivotRaycaster.setFromCamera(this._pivotNdc, camera);
+    // Orthographic: setFromCamera starts the ray on the camera plane (NDC
+    // z = 0 with the symmetric depth range), so the content displayed behind
+    // that plane could never be hit and the pivot fell through to the
+    // fallback planes. Start from the near plane instead (near < 0).
+    if (camera.isOrthographicCamera) {
+      const { ray } = this._pivotRaycaster;
+      ray.origin.addScaledVector(ray.direction, camera.near);
+    }
 
     const pivot = this._computePivotPoint();
     if (pivot) {
       // setOrbitPoint is immediate and must not run during a transition.
-      this.cameraControls.setOrbitPoint(pivot.x, pivot.y, pivot.z);
+      this._applyOrbitPoint(pivot);
     }
   };
 
@@ -995,7 +1028,46 @@ export default class ControlsManager {
   // updateRotationPivotFromEvent: never fight a gizmo / lasso drag.
   setRotationPivot = (point) => {
     if (!this.cameraControls?.enabled || !point) return;
-    this.cameraControls.setOrbitPoint(point.x, point.y, point.z);
+    this._applyOrbitPoint(point);
+  };
+
+  // Hand a pivot to camera-controls. setOrbitPoint keeps the camera where it
+  // is only while the pivot distance fits in [minDistance, maxDistance]: past
+  // the limit, its dollyTo clamps and the camera is rebuilt closer to the
+  // pivot, i.e. moved along its view axis. In perspective that is a visible
+  // dolly; in orthographic projection the image does not change at all but
+  // the depth slab travels with the camera, and a far fallback-plane hit
+  // (the ground seen at a grazing angle) pushed the scene out of the slab
+  // gesture after gesture. Every point of the cursor ray projects onto the
+  // same pixel in a parallel projection, so the pivot depth is clamped along
+  // the view axis instead: the pivot stays under the cursor and the camera
+  // never moves. `point` is not mutated.
+  _applyOrbitPoint = (point) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera) return;
+    const pivot = this._pivotApply.copy(point);
+    if (camera.isOrthographicCamera) {
+      const dir = camera.getWorldDirection(this._pivotDir);
+      const rel = this._pivotRel.subVectors(pivot, camera.position);
+      // Signed depth: a pivot behind the camera plane is a valid orbit point
+      // (camera-controls looks at it before applying the focal offset).
+      const depth = rel.dot(dir);
+      const lateralSq = Math.max(0, rel.lengthSq() - depth * depth);
+      const maxD = this._effectiveMaxDistance();
+      const minD = Math.max(controls.minDistance, 0);
+      // Off-axis beyond the dolly limit: no depth keeps the camera still —
+      // keep the current orbit point.
+      if (lateralSq >= maxD * maxD) return;
+      const maxDepth = Math.sqrt(maxD * maxD - lateralSq);
+      const minDepth =
+        lateralSq < minD * minD ? Math.sqrt(minD * minD - lateralSq) : 0;
+      const sign = depth < 0 ? -1 : 1;
+      const clamped =
+        sign * Math.min(maxDepth, Math.max(minDepth, Math.abs(depth)));
+      if (clamped !== depth) pivot.addScaledVector(dir, clamped - depth);
+    }
+    controls.setOrbitPoint(pivot.x, pivot.y, pivot.z);
   };
 
   // Resolve the world point under the cursor, in priority order:
@@ -1004,6 +1076,9 @@ export default class ControlsManager {
   //   (b) the nearest basemap plane (infinite — robust even if the basemap
   //       image isn't drawn or is too small),
   //   (c) the ground plane y=0.
+  // The ray is the one set by updateRotationPivotFromEvent (in orthographic
+  // projection it starts on the near plane, so the whole displayed slab is
+  // pickable). A far plane hit is tamed by _applyOrbitPoint.
   // Returns a Vector3 (this._pivotBest) or null.
   _computePivotPoint = () => {
     const ray = this._pivotRaycaster;
