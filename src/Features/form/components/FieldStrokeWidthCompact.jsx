@@ -4,7 +4,6 @@ import {
   Box,
   Typography,
   Popover,
-  InputBase,
   ButtonBase,
   Button,
   ToggleButtonGroup,
@@ -13,6 +12,8 @@ import {
 
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 import StyleGroupLock from "./StyleGroupLock";
+import InputNumberCompact from "./InputNumberCompact";
+import useEmitPatch from "Features/form/hooks/useEmitPatch";
 import { STROKE_WIDTH_FIELDS } from "Features/form/utils/styleFieldGroups";
 
 const WIDTH_UNITS = [
@@ -36,6 +37,7 @@ function previewThickness(width) {
 //
 //   value: { strokeWidth, strokeWidthUnit }
 //   onChange(nextValue)                            — emits the full merged object
+//                                                    (numeric field: on blur / Enter only)
 //   overrideFields / onOverrideFieldsChange        — optional template override lock
 //   disabledFields                                 — optional: grey out & disable
 export default function FieldStrokeWidthCompact({
@@ -50,6 +52,8 @@ export default function FieldStrokeWidthCompact({
 
   const [anchorWidth, setAnchorWidth] = useState(null);
 
+  const emit = useEmitPatch(value, onChange);
+
   const unitLabel = strokeWidthUnit === "CM" ? "cm" : "px";
 
   const widthDisabled =
@@ -57,14 +61,15 @@ export default function FieldStrokeWidthCompact({
 
   // handlers
 
-  function handleWidthChange(raw) {
-    const cleaned = String(raw)
-      .replace(",", ".")
-      .replace(/[^0-9.]/g, "");
-    onChange({ ...value, strokeWidth: cleaned === "" ? 0 : Number(cleaned) });
+  // Blur / Enter commit. An empty or unparsable draft keeps the current
+  // width (returning false reverts the field) instead of writing 0.
+  function handleWidthCommit(raw) {
+    const n = Number(raw);
+    if (raw === "" || Number.isNaN(n)) return false;
+    emit({ strokeWidth: n });
   }
   function handleUnitChange(e, unit) {
-    if (unit !== null) onChange({ ...value, strokeWidthUnit: unit });
+    if (unit !== null) emit({ strokeWidthUnit: unit });
   }
 
   // render
@@ -156,7 +161,7 @@ export default function FieldStrokeWidthCompact({
               return (
                 <ButtonBase
                   key={w}
-                  onClick={() => onChange({ ...value, strokeWidth: w })}
+                  onClick={() => emit({ strokeWidth: w })}
                   title={`${w} px`}
                   sx={{
                     flex: 1,
@@ -184,19 +189,9 @@ export default function FieldStrokeWidthCompact({
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <InputBase
-              value={strokeWidth ?? ""}
-              onChange={(e) => handleWidthChange(e.target.value)}
-              sx={{
-                width: 52,
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                px: 1,
-                height: 28,
-                fontSize: "0.8rem",
-                "& input": { textAlign: "center", p: 0 },
-              }}
+            <InputNumberCompact
+              value={strokeWidth}
+              onCommit={handleWidthCommit}
             />
             <ToggleButtonGroup
               size="small"

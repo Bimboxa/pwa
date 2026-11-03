@@ -6,7 +6,6 @@ import {
   Popover,
   IconButton,
   Slider,
-  InputBase,
   ButtonBase,
   Button,
   ToggleButtonGroup,
@@ -21,6 +20,8 @@ import {
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 import StyleGroupLock from "./StyleGroupLock";
+import InputNumberCompact from "./InputNumberCompact";
+import useEmitPatch from "Features/form/hooks/useEmitPatch";
 import { STRIP_DASH_DEFAULTS } from "Features/geometry/utils/getStripePolygons";
 import { STROKE_FIELDS } from "Features/form/utils/styleFieldGroups";
 
@@ -67,6 +68,8 @@ export default function FieldStrokeCompact({
   const [anchorColor, setAnchorColor] = useState(null);
   const [anchorDash, setAnchorDash] = useState(null);
 
+  const emit = useEmitPatch(value, onChange);
+
   const showDashOptions = withDashOptions && strokeType === "DASHED";
 
   const opacityPct = Math.round((strokeOpacity ?? 1) * 100);
@@ -84,20 +87,25 @@ export default function FieldStrokeCompact({
   // handlers
 
   function handleColorChange(hex) {
-    onChange({ ...value, strokeColor: hex });
+    emit({ strokeColor: hex });
   }
   function handleTypeChange(e, newType) {
-    if (newType !== null) onChange({ ...value, strokeType: newType });
+    if (newType !== null) emit({ strokeType: newType });
   }
   function handleOpacityChange(pct) {
     const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
-    onChange({ ...value, strokeOpacity: clamped / 100 });
+    emit({ strokeOpacity: clamped / 100 });
   }
-  function handleDashFieldChange(field, raw) {
-    const cleaned = String(raw)
-      .replace(",", ".")
-      .replace(/[^0-9.]/g, "");
-    onChange({ ...value, [field]: cleaned === "" ? null : Number(cleaned) });
+  // Blur / Enter commit (dash fields): empty → null (back to the default
+  // shown by the placeholder); unparsable → rejected, the field reverts.
+  function handleDashFieldCommit(field, raw) {
+    if (raw === "") {
+      emit({ [field]: null });
+      return;
+    }
+    const n = Number(raw);
+    if (Number.isNaN(n)) return false;
+    emit({ [field]: n });
   }
 
   // render
@@ -257,20 +265,10 @@ export default function FieldStrokeCompact({
               >
                 {rowLabel}
               </Typography>
-              <InputBase
-                value={inputValue ?? ""}
-                placeholder={String(placeholder)}
-                onChange={(e) => handleDashFieldChange(field, e.target.value)}
-                sx={{
-                  width: 52,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  px: 1,
-                  height: 28,
-                  fontSize: "0.8rem",
-                  "& input": { textAlign: "center", p: 0 },
-                }}
+              <InputNumberCompact
+                value={inputValue}
+                placeholder={placeholder}
+                onCommit={(raw) => handleDashFieldCommit(field, raw)}
               />
               <Typography
                 variant="caption"
