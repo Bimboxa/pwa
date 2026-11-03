@@ -101,6 +101,13 @@ function computeStripPath(pts, distance) {
 
 const STRIP_DEFAULT_WIDTH = 20; // px, same as getStripePolygons default
 
+// Revolution axis placement ghost — mirrors NodeRevolutionAxisPlacementStatic
+// (same fallbacks when the base map has no scale or the axis no scalars).
+const REV_PLACEMENT_BLACK = "#000000";
+const REV_PLACEMENT_CENTER_DOT_PX = 3.5;
+const REV_PLACEMENT_FALLBACK_HALF_PX = 60;
+const REV_PLACEMENT_FALLBACK_HEIGHT_PX = 150;
+
 const DrawingLayer = forwardRef(
   (
     {
@@ -114,6 +121,10 @@ const DrawingLayer = forwardRef(
       orthoSnapAngleOffset = 0,
       rampWidthM = 1,
       onRectanglePreview,
+      // Revolution axis placement ghost: the annotation whose colour and axis
+      // radius / height the inverted T takes (the armed draft, or the
+      // selected placement being repositioned). null = no ghost.
+      revolutionPlacementGhostSource = null,
     },
     ref
   ) => {
@@ -142,6 +153,13 @@ const DrawingLayer = forwardRef(
     const previewRevAxisBlackRef = useRef(null);
     const previewRevAxisDiameterRef = useRef(null);
     const previewRevAxisDotRef = useRef(null); // outer group: translate to centre
+    // Revolution axis PLACEMENT ghost — the inverted T of
+    // NodeRevolutionAxisPlacementStatic (orange plan diameter laid flat, black
+    // dashed stem rising over the axis height, centre dot) under the cursor.
+    const previewRevPlacementGroupRef = useRef(null);
+    const previewRevPlacementStemRef = useRef(null);
+    const previewRevPlacementBarRef = useRef(null);
+    const previewRevPlacementDotRef = useRef(null); // outer group: translate to centre
     // Photo pose preview — view cone sector + direction ray + centre dot.
     const previewPhotoPoseGroupRef = useRef(null);
     const previewPhotoPoseConeRef = useRef(null);
@@ -178,6 +196,10 @@ const DrawingLayer = forwardRef(
 
     const meterByPxRef = useRef(meterByPx);
     meterByPxRef.current = meterByPx;
+    const revolutionPlacementGhostSourceRef = useRef(
+      revolutionPlacementGhostSource
+    );
+    revolutionPlacementGhostSourceRef.current = revolutionPlacementGhostSource;
     const baseMapImageSizeRef = useRef(baseMapImageSize);
     baseMapImageSizeRef.current = baseMapImageSize;
 
@@ -305,6 +327,15 @@ const DrawingLayer = forwardRef(
     // Revolution axis (plan view): same gesture, but the cursor also fixes the
     // diameter orientation, so the preview shows the circle AND its diameter.
     const drawRevolutionAxis = enabledDrawingMode === "REVOLUTION_AXIS_PLAN";
+    // Revolution axis placement (vertical base map): one click drops an
+    // existing plan axis (REVOLUTION_AXIS_PLACEMENT) or moves a placement
+    // (REPOSITION_REVOLUTION_PLACEMENT); the inverted T follows the cursor at
+    // its real size (axis radius / height of the ghost source, in meters /
+    // meterByPx).
+    const drawRevolutionAxisPlacement =
+      ["REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT"].includes(
+        enabledDrawingMode
+      ) && Boolean(revolutionPlacementGhostSource);
     // Photo pose (Photos module): same centre→edge gesture; the preview shows
     // the camera view cone opened toward the cursor.
     const drawPhotoPose = enabledDrawingMode === "PHOTO_POSE";
@@ -379,6 +410,49 @@ const DrawingLayer = forwardRef(
           } else {
             previewImageRef.current.style.display = "none";
           }
+          return;
+        }
+
+        // REVOLUTION_AXIS_PLACEMENT: the inverted T centred on the cursor, at
+        // the size the committed node will have (same fallbacks as
+        // NodeRevolutionAxisPlacementStatic without a scale / scalars).
+        if (
+          drawRevolutionAxisPlacement &&
+          previewRevPlacementGroupRef.current
+        ) {
+          const source = revolutionPlacementGhostSourceRef.current || {};
+          const mbp = meterByPxRef.current;
+          const hasScale = Number.isFinite(mbp) && mbp > 0;
+          const r = Number(source.revolutionAxisRadiusM);
+          const h = Number(source.revolutionAxisHeightM);
+          const halfPx =
+            hasScale && Number.isFinite(r) && r > 0
+              ? r / mbp
+              : REV_PLACEMENT_FALLBACK_HALF_PX;
+          const heightPx =
+            hasScale && Number.isFinite(h) && h > 0
+              ? h / mbp
+              : REV_PLACEMENT_FALLBACK_HEIGHT_PX;
+          const { x, y } = cursorPos;
+          const stem = previewRevPlacementStemRef.current;
+          const bar = previewRevPlacementBarRef.current;
+          if (stem) {
+            stem.setAttribute("x1", x);
+            stem.setAttribute("y1", y);
+            stem.setAttribute("x2", x);
+            stem.setAttribute("y2", y - heightPx);
+          }
+          if (bar) {
+            bar.setAttribute("x1", x - halfPx);
+            bar.setAttribute("y1", y);
+            bar.setAttribute("x2", x + halfPx);
+            bar.setAttribute("y2", y);
+          }
+          previewRevPlacementDotRef.current?.setAttribute(
+            "transform",
+            `translate(${x}, ${y})`
+          );
+          previewRevPlacementGroupRef.current.style.display = "block";
           return;
         }
 
@@ -1027,6 +1101,8 @@ const DrawingLayer = forwardRef(
           previewCoteGroupRef.current.style.display = "none";
         if (previewRevAxisGroupRef.current)
           previewRevAxisGroupRef.current.style.display = "none";
+        if (previewRevPlacementGroupRef.current)
+          previewRevPlacementGroupRef.current.style.display = "none";
         if (previewPhotoPoseGroupRef.current)
           previewPhotoPoseGroupRef.current.style.display = "none";
       },
@@ -1187,6 +1263,46 @@ const DrawingLayer = forwardRef(
             vectorEffect={previewVectorEffect}
             style={{ display: "none", pointerEvents: "none" }}
           />
+        )}
+
+        {/* B3'. Revolution axis PLACEMENT ghost — the inverted T as
+            NodeRevolutionAxisPlacementStatic will draw it once dropped: black
+            dashed stem over the axis height, orange plan diameter, centre
+            dot (fixed screen size). Translucent, hidden until the first
+            mouse move. */}
+        {drawRevolutionAxisPlacement && (
+          <g
+            ref={previewRevPlacementGroupRef}
+            opacity={0.7}
+            style={{ display: "none", pointerEvents: "none" }}
+          >
+            <line
+              ref={previewRevPlacementStemRef}
+              stroke={REV_PLACEMENT_BLACK}
+              strokeWidth={2}
+              strokeDasharray="8 5"
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              ref={previewRevPlacementBarRef}
+              stroke={
+                revolutionPlacementGhostSource?.strokeColor ||
+                theme.palette.secondary.main
+              }
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <g ref={previewRevPlacementDotRef}>
+              <g style={{ transform: scaleTransform }}>
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={REV_PLACEMENT_CENTER_DOT_PX}
+                  fill={REV_PLACEMENT_BLACK}
+                />
+              </g>
+            </g>
+          </g>
         )}
 
         {/* B3. Revolution axis preview — the contour as the committed

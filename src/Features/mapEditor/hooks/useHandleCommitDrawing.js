@@ -811,6 +811,14 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 delete _newAnnotation.isLayer;
             }
 
+            // REVOLUTION_AXIS_PLACEMENT: the draft carries the axis radius /
+            // height for the drawing ghost only — the row never stores them
+            // (useAnnotationsV2 resolves them from the axis at read time).
+            if (_newAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT") {
+                delete _newAnnotation.revolutionAxisRadiusM;
+                delete _newAnnotation.revolutionAxisHeightM;
+            }
+
             // Handle detected cuts from polygon auto-detection
             if (detectedCuts && detectedCuts.length > 0 && width && height) {
                 const cutEntries = [];

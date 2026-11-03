@@ -18,7 +18,10 @@ export function buildRevolutionAxisDraft() {
 // Placement of an existing axis — armed with the REVOLUTION_AXIS_PLACE tool
 // (one click) on a VERTICAL base map: the click is where the axis centre sits
 // in the elevation, and it poses that base map in 3D. A placement is just a
-// point + style: none of the axis geometry scalars.
+// point + style: none of the axis geometry scalars. The draft still carries
+// the axis radius / height (the read-time names of useAnnotationsV2) so the
+// drawing ghost (DrawingLayer) shows the inverted T at its real size under
+// the cursor — useHandleCommitDrawing strips them from the stored row.
 export function buildRevolutionAxisPlacementDraft(axis) {
   return {
     ...getDefaultsForShape("REVOLUTION_AXIS_PLACEMENT"),
@@ -27,5 +30,7 @@ export function buildRevolutionAxisPlacementDraft(axis) {
     drawingShape: "REVOLUTION_AXIS_PLACEMENT",
     revolutionAxisId: axis?.id,
     label: axis?.label,
+    revolutionAxisRadiusM: axis?.radiusM,
+    revolutionAxisHeightM: axis?.height,
   };
 }

@@ -1707,6 +1707,21 @@ const InteractionLayer = forwardRef(({
     selectedAnnotationForCopyRef.current = selectedAnnotation;
   }, [selectedAnnotation]);
 
+  // Source of the revolution axis placement ghost (DrawingLayer's inverted T
+  // under the cursor): the armed draft when dropping an axis on the base map
+  // (REVOLUTION_AXIS_PLACEMENT, the draft carries the axis radius / height),
+  // the selected placement when moving it (« Repositionner », the row is
+  // resolved with those scalars by useAnnotationsV2). null otherwise.
+  const revolutionPlacementGhostSource = useMemo(() => {
+    if (enabledDrawingMode === "REVOLUTION_AXIS_PLACEMENT") return newAnnotation ?? null;
+    if (
+      enabledDrawingMode === "REPOSITION_REVOLUTION_PLACEMENT" &&
+      selectedAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT"
+    )
+      return selectedAnnotation;
+    return null;
+  }, [enabledDrawingMode, newAnnotation, selectedAnnotation]);
+
   // Resolve the FULL set of selected annotations for Ctrl+C: multi-selection
   // items (shift-click / lasso) unioned with the single-selection fallback,
   // deduped by id. Drives multi-annotation copy.
@@ -7946,7 +7961,10 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    // REVOLUTION_AXIS_PLACEMENT / REPOSITION_REVOLUTION_PLACEMENT: single
+    // click, but the inverted-T ghost of the axis follows the cursor
+    // (DrawingLayer) from the first mouse move.
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -9712,7 +9730,10 @@ const InteractionLayer = forwardRef(({
           );
         })()}
 
-        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE"].includes(newAnnotation?.type)))) && (
+        {/* Mounted with no point yet for the single-click ghosts (object / image
+            placement, revolution axis placement / reposition): their preview
+            follows the cursor before the first click. */}
+        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE"].includes(newAnnotation?.type)) || Boolean(revolutionPlacementGhostSource))) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}
@@ -9727,6 +9748,7 @@ const InteractionLayer = forwardRef(({
               orthoSnapAngleOffset={orthoSnapAngleOffset}
               rampWidthM={rampWidthM}
               onRectanglePreview={handleRectanglePreview}
+              revolutionPlacementGhostSource={revolutionPlacementGhostSource}
             />
           </g>
 
