@@ -70,6 +70,7 @@ import rotateBaseMapCommand from "./rotateBaseMap/rotateBaseMapCommand";
 import placeAxesCommand from "./placeAxes/placeAxesCommand";
 import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
 import resetAxesCommand from "./resetAxes/resetAxesCommand";
+import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -162,6 +163,8 @@ export const COMMANDS = [
   placeAxesCommand,
   toggleAxesCommand,
   resetAxesCommand,
+  // cut lines (3D, Maillage module)
+  drawCutLineCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

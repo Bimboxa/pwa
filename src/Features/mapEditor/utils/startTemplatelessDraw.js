@@ -17,8 +17,16 @@ import {
 
 // Annotation types the "Dessin" tool offers in the 3D editor: lines and
 // surfaces (face drawing), the two-click cote and the ruler (dimension
-// chain), both riding the drawing mode.
-export const THREED_DRAWING_SHAPES = ["POLYLINE", "POLYGON", "COTE", "RULER"];
+// chain), both riding the drawing mode — plus the cut line of the Maillage
+// module (DRAW_CUT_LINE command, not a « Dessin » shape: absent from
+// TEMPLATELESS_DRAWING_SHAPES, so the pickers never list it).
+export const THREED_DRAWING_SHAPES = [
+  "POLYLINE",
+  "POLYGON",
+  "COTE",
+  "RULER",
+  "CUT_LINE",
+];
 
 // Active drawing tool of a templateless shape: last used one → first tool of
 // the shape group. The group never offers the tools that need a template
@@ -95,7 +103,11 @@ export default function startTemplatelessDraw(
     dispatch(setSelectedListingId(locate.listingId));
   }
 
-  if (shape === requested) dispatch(setTemplatelessDrawingShape(shape));
+  // options.remember === false: a shape started from its own command (the
+  // cut line) never becomes the « D » hotkey's remembered shape.
+  if (shape === requested && options.remember !== false) {
+    dispatch(setTemplatelessDrawingShape(shape));
+  }
   dispatch(
     setNewAnnotation(
       activeTool.annotationType

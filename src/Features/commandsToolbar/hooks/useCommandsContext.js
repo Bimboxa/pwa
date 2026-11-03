@@ -248,6 +248,9 @@ export default function useCommandsContext({ enabled = true } = {}) {
       isTemplatelessDraft: Boolean(
         enabledDrawingMode && newAnnotation?.isTemplateless
       ),
+      // Type of the armed draft (DRAW_CUT_LINE tells its own draft apart
+      // from the « Dessin » shapes).
+      newAnnotationType: newAnnotation?.type ?? null,
       selectedToolKeyByTemplateId: selectedToolKeyByTemplateId ?? {},
       templatelessDrawingShape,
       activeThreedTool,
@@ -307,6 +310,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       locateBusinessObject?.listingId,
       enabledDrawingMode,
       newAnnotation?.isTemplateless,
+      newAnnotation?.type,
       selectedToolKeyByTemplateId,
       templatelessDrawingShape,
       activeThreedTool,
