@@ -695,7 +695,7 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
-  useMeshingPointerHandlers({ tooltipApiRef });
+  useMeshingPointerHandlers({ tooltipApiRef, rendererIsReady });
   useExtrudePointerHandlers();
   useVertexOffsetPointerHandlers();
   // Mesh annotations: Delete on the selected faces / edges (before the

@@ -81,7 +81,13 @@ const DRAG_THRESHOLD_PX = 4;
 // while meshing, this hook owns it: an annotation face hovered with the
 // SELECT / CREATE tools shows the annotation and the surface of the hovered
 // piece (clipped by the cut lines), like the Dessin module's face hover.
-export default function useMeshingPointerHandlers({ tooltipApiRef } = {}) {
+// `rendererIsReady`: MainThreedEditor's flag — on a page load landing in the
+// Maillage module, meshing is armed before the renderer exists; the effect
+// below must run again once it does.
+export default function useMeshingPointerHandlers({
+  tooltipApiRef,
+  rendererIsReady = true,
+} = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -150,7 +156,7 @@ export default function useMeshingPointerHandlers({ tooltipApiRef } = {}) {
   }, [meshes3d]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !rendererIsReady) return;
     const editor = getActiveThreedEditor();
     const sceneManager = editor?.sceneManager;
     const dom = sceneManager?.renderer?.domElement;
@@ -731,7 +737,7 @@ export default function useMeshingPointerHandlers({ tooltipApiRef } = {}) {
       clearMeshingOverlay();
       dom.style.cursor = "";
     };
-  }, [active, tool, dispatch, store]);
+  }, [active, tool, rendererIsReady, dispatch, store]);
 
   // Typed angle → redraw the V cut in place (the mouse has not moved).
   useEffect(() => {
