@@ -196,3 +196,36 @@ test("a face with a hole keeps the hole on the right piece", () => {
   // The hit point sits inside the hole: no piece contains it.
   assert.equal(result.hitPieceIndex, -1);
 });
+
+test("a run end leaving the plane (the line climbs a wall) is prolonged to the boundary", () => {
+  // Slab 10 × 6 (normal +y); the line runs on it from the bottom edge up to
+  // x = 3.5, z = 4 (the foot of a wall standing ON the slab, which continues
+  // under the wall), then climbs the wall (off-plane points).
+  const face = {
+    contour: [
+      { x: 0, y: 0, z: 0 },
+      { x: 10, y: 0, z: 0 },
+      { x: 10, y: 0, z: 6 },
+      { x: 0, y: 0, z: 6 },
+    ],
+    holes: [],
+    normal: { x: 0, y: 1, z: 0 },
+  };
+  const climbing = [
+    { x: 3.5, y: 0, z: 0 },
+    { x: 3.5, y: 0, z: 4 },
+    { x: 3.5, y: 2, z: 4 },
+    { x: 3.5, y: 2.5, z: 4 },
+  ];
+  const r = clipFaceByCutLines({ face, cutLines: [climbing] });
+  assert.ok(r, "the climbing line cuts the slab");
+  assert.equal(r.pieces.length, 2);
+  const areas = r.pieces.map((p) => p.area).sort((a, b) => a - b);
+  assert.ok(Math.abs(areas[0] - 21) < 1e-6);
+  assert.ok(Math.abs(areas[1] - 39) < 1e-6);
+
+  // The same run ending inside WITHOUT leaving the plane (the line's own
+  // end) does not cut.
+  const stopped = climbing.slice(0, 2);
+  assert.equal(clipFaceByCutLines({ face, cutLines: [stopped] }), null);
+});

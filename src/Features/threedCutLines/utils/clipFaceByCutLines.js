@@ -10,7 +10,10 @@ import {
 } from "../../threedMesh/utils/computeFaceArea.js";
 import pointInPolygon2d from "../../threedMesh/utils/pointInPolygon2d.js";
 import { dot, sub } from "../../threedMesh/utils/vec3Utils.js";
-import getPathChunksInRegion from "../../surfaceCut/utils/getPathChunksInRegion.js";
+import getPathChunksInRegion, {
+  distanceToBoundary,
+  isInsideRegion,
+} from "../../surfaceCut/utils/getPathChunksInRegion.js";
 import splitFlatRegionAlongChunks from "../../surfaceCut/utils/splitFlatRegionAlongChunks.js";
 
 // Pieces of a planar face delimited by the CUT_LINE polylines lying on it.
@@ -57,7 +60,19 @@ export default function clipFaceByCutLines({
   const chunks = [];
   for (const line of cutLines || []) {
     for (const run of splitLineByPlane(line, basis, planeTolerance)) {
-      const result = getPathChunksInRegion(loops2d, run.map(to2d), {
+      // A run end where the line LEAVES the plane (it climbs a wall standing
+      // on this face) is prolonged along its last segment up to the face
+      // boundary — the face usually continues under the wall, so that end
+      // sits strictly inside it and the cut would otherwise be dropped. A
+      // run end that is the line's own end (a « Stop », a drawn end) is
+      // left where it is.
+      const path2d = extendContinuingEnds(
+        loops2d,
+        run.points.map(to2d),
+        run,
+        tolerance
+      );
+      const result = getPathChunksInRegion(loops2d, path2d, {
         tolerance,
         extendEnds: false,
       });
@@ -94,25 +109,87 @@ export default function clipFaceByCutLines({
   return { pieces, hitPieceIndex, loops2d, basis };
 }
 
-// Maximal runs of consecutive points of the line lying on the plane.
+// Maximal runs of consecutive points of the line lying on the plane:
+// [{ points, continuesBefore, continuesAfter }] — the flags tell whether the
+// line goes on off the plane before / after the run.
 function splitLineByPlane(line, basis, planeTolerance) {
+  const points = (line || []).filter(
+    (p) =>
+      Number.isFinite(p?.x) && Number.isFinite(p?.y) && Number.isFinite(p?.z)
+  );
+  const onPlane = points.map(
+    (p) => Math.abs(dot(sub(p, basis.origin), basis.n)) <= planeTolerance
+  );
   const runs = [];
-  let current = [];
-  for (const p of line || []) {
-    const onPlane =
-      Number.isFinite(p?.x) &&
-      Number.isFinite(p?.y) &&
-      Number.isFinite(p?.z) &&
-      Math.abs(dot(sub(p, basis.origin), basis.n)) <= planeTolerance;
-    if (onPlane) {
-      current.push(p);
+  let start = -1;
+  const flush = (end) => {
+    // run = points[start..end] (inclusive)
+    if (start >= 0 && end - start + 1 >= 2) {
+      runs.push({
+        points: points.slice(start, end + 1),
+        continuesBefore: start > 0,
+        continuesAfter: end < points.length - 1,
+      });
+    }
+    start = -1;
+  };
+  for (let i = 0; i < points.length; i++) {
+    if (onPlane[i]) {
+      if (start < 0) start = i;
       continue;
     }
-    if (current.length >= 2) runs.push(current);
-    current = [];
+    flush(i - 1);
   }
-  if (current.length >= 2) runs.push(current);
+  flush(points.length - 1);
   return runs;
+}
+
+// The 2D path of a run with each end that continues off the plane
+// prolonged along its end segment to the first boundary ahead, when that
+// end lies strictly inside the region. Ends on the boundary (or outside)
+// are untouched.
+function extendContinuingEnds(loops, path, run, tolerance) {
+  const out = path.map((p) => ({ x: p.x, y: p.y }));
+  const n = out.length;
+  if (n < 2) return out;
+  const strictlyInside = (p) =>
+    isInsideRegion(loops, p) && distanceToBoundary(loops, p) > tolerance;
+  if (run.continuesBefore && strictlyInside(out[0])) {
+    const hit = castRayToBoundary(loops, out[1], out[0]);
+    if (hit) out[0] = hit;
+  }
+  if (run.continuesAfter && strictlyInside(out[n - 1])) {
+    const hit = castRayToBoundary(loops, out[n - 2], out[n - 1]);
+    if (hit) out[n - 1] = hit;
+  }
+  return out;
+}
+
+// First boundary point on the ray from `end` going away from `from`.
+function castRayToBoundary(loops, from, end) {
+  const dx = end.x - from.x;
+  const dy = end.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-12) return null;
+  const ux = dx / len;
+  const uy = dy / len;
+  let best = null;
+  for (const loop of loops) {
+    for (let i = 0; i < loop.length; i++) {
+      const c = loop[i];
+      const d = loop[(i + 1) % loop.length];
+      const sx = d.x - c.x;
+      const sy = d.y - c.y;
+      const denom = ux * sy - uy * sx;
+      if (Math.abs(denom) < 1e-15) continue;
+      const t = ((c.x - end.x) * sy - (c.y - end.y) * sx) / denom;
+      const v = ((c.x - end.x) * uy - (c.y - end.y) * ux) / denom;
+      if (t <= 1e-9 || v < -1e-9 || v > 1 + 1e-9) continue;
+      if (!best || t < best) best = t;
+    }
+  }
+  if (best === null) return null;
+  return { x: end.x + best * ux, y: end.y + best * uy };
 }
 
 // Draws the chunks one after the other on the region: each chunk is clipped

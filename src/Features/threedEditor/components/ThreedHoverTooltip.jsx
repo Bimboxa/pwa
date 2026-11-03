@@ -1,5 +1,7 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
 
+import { useSelector } from "react-redux";
+
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -49,10 +51,16 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
     []
   );
 
+  // Maillage module: no main base map is selected there (no base map
+  // selector in its top bar) — the 3D scene shows the scope's base maps, so
+  // the hovered annotation must be looked up across them.
+  const isMeshesModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MESHES"
+  );
   const annotations = useAnnotationsV2({
     caller: "ThreedHoverTooltip",
     enabled: true,
-    filterByMainBaseMap: true,
+    filterByMainBaseMap: !isMeshesModule,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
   });
