@@ -44,6 +44,11 @@ export default async function applyProfileFromAnnotationService({
   // Which extremity of the polyline projection the base point touches:
   // false = nearest one (default), true = the opposite one ("Inverser").
   invert = false,
+  // Side of the guide the section extends on: the source X axis maps onto
+  // the seed segment's right normal by default; `mirror` flips it (the
+  // profile swaps sides, the base point stays on the guide — see
+  // mirrorProfileLineService). Re-applied as stored on the line.
+  mirror = false,
   dispatch,
 }) {
   if (!annotationId || !sourceAnnotationId) return null;
@@ -132,7 +137,9 @@ export default async function applyProfileFromAnnotationService({
   const hiddenSet = new Set(
     srcHiddenIds == null
       ? []
-      : segmentPointIdsToIdx(srcHiddenIds, keptSrcRefs, { closed: srcRingClosed })
+      : segmentPointIdsToIdx(srcHiddenIds, keptSrcRefs, {
+          closed: srcRingClosed,
+        })
   );
   // A closed source (circle / closed polyline) stays closed only when nothing
   // was hidden — hiding a segment cuts the loop into an open run.
@@ -205,10 +212,11 @@ export default async function applyProfileFromAnnotationService({
   const farT = nearT === tMin ? tMax : tMin;
   const tStar = invert ? farT : nearT;
 
+  const sideSign = mirror ? -1 : 1;
   const newPoints = samples.map((smp) => ({
     id: nanoid(),
-    x: (M.x + nx * (smp.s + tStar)) / imageSize.width,
-    y: (M.y + ny * (smp.s + tStar)) / imageSize.height,
+    x: (M.x + nx * (sideSign * smp.s + tStar)) / imageSize.width,
+    y: (M.y + ny * (sideSign * smp.s + tStar)) / imageSize.height,
     projectId: ann.projectId,
     baseMapId: ann.baseMapId,
     listingId: ann.listingId,
@@ -226,6 +234,7 @@ export default async function applyProfileFromAnnotationService({
     ...(srcClosed && visiblePts === srcPts ? { closeLine: true } : {}),
     sourceAnnotationId,
     sourceInvert: Boolean(invert),
+    mirror: Boolean(mirror),
   };
 
   const prevLines = Array.isArray(ann.profileLines) ? ann.profileLines : [];

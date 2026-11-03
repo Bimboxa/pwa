@@ -68,6 +68,11 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     hideSlope: annotationTemplate?.hideSlope,
     slopeFontSize: annotationTemplate?.slopeFontSize,
 
+    // « Profil » template: its annotations are profile drawings (base point
+    // marker in 2D, dropped from the 3D scene). Merged as an effective flag
+    // (annotation.isProfile || template.isProfile), never written back.
+    isProfile: annotationTemplate?.isProfile,
+
     // 3D-only vertical delta added to offsetZ at render time (POLYGON);
     // template-owned, never copied onto the annotation's offsetZ.
     deltaOffsetZ3d: annotationTemplate?.deltaOffsetZ3d,
