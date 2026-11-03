@@ -5798,6 +5798,9 @@ const InteractionLayer = forwardRef(({
       const result = await createSweepAlongLineService({
         profileAnnotationId: sweepProfileAnnotationId,
         guideAnnotationId: guideId,
+        // Created on the base map selected in the Dessin module (the main
+        // one in 2D), whatever base maps the profile and the guide live on.
+        targetBaseMapId: calibrationBaseMap?.id ?? null,
         dispatch,
       });
       if (result?.error) {
