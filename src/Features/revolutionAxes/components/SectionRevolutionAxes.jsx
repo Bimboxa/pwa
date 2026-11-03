@@ -20,8 +20,9 @@ import getRevolutionAxisProcedures, {
 // base map). One row per axis
 // (RowRevolutionAxis): navigation to the perpendicular base map the profiles
 // are drawn on, eye / solo of everything linked to the axis, 3D half-view.
-// "Créer un fond de plan…" of a row creates the automatic A3 coupe page of the
-// axis (same hook as the "Fond de plan" button of the axis overlay): page
+// The base map button of a row opens MenuRevolutionAxisBaseMaps (shared with
+// the axis edit toolbar): link an existing vertical base map, or create the
+// automatic A3 coupe page of the axis (same hook as the toolbar button): page
 // sized to the axis, axis posed at its base point, page selected.
 // `hideHeader`: rows only, with `card` the rows sit in a white rounded
 // outlined card, inset in the grey panel with a small inner padding (the

@@ -11,13 +11,10 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import {
   Box,
-  CircularProgress,
-  Divider,
   IconButton,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ListSubheader,
   Menu,
   MenuItem,
   Tooltip,
@@ -25,7 +22,6 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
-  Add,
   ArrowForward,
   Contrast,
   FilterCenterFocus,
@@ -36,7 +32,8 @@ import {
 } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import useStartRevolutionAxisTools from "../hooks/useStartRevolutionAxisTools";
+import IconCreateBaseMap from "Features/icons/IconCreateBaseMap";
+import MenuRevolutionAxisBaseMaps from "./MenuRevolutionAxisBaseMaps";
 import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfViewService";
 import { splitRevolutionAxisProcedures } from "../utils/getRevolutionAxisProcedures";
 
@@ -59,11 +56,13 @@ const MENU_PAPER_SX = {
 //   visible (per-scope local state, like the template eyes);
 // - half-view (hover): "Demi-vue 3D" of the axis (persisted on the axis, but
 //   a view setting anyone may switch — setRevolutionAxisHalfViewService);
-// - arrow: on the plan, goes to the vertical base map the profiles are drawn
-//   on — or, when the axis is not linked yet, picks an existing one (arms the
-//   placement click that links it) or creates the automatic A3 coupe page of
-//   the axis (no click: the axis is posed at its base point, the page is
-//   selected); on a vertical base map, back to the plan;
+// - arrow / « + » base map: on the plan, goes to the vertical base map the
+//   profiles are drawn on — or, when the axis is not linked yet, opens
+//   MenuRevolutionAxisBaseMaps (same icon and menu as the axis edit
+//   toolbar): pick an existing vertical base map (arms the placement click
+//   that links it) or create the automatic A3 coupe page of the axis (no
+//   click: the axis is posed at its base point, the page is selected); on a
+//   vertical base map, back to the plan;
 // - "…" (hover): the systems launched on the axis from a listing « Dessin
 //   auto » band (procedureParams[key].listingId) — relaunch of each one
 //   (DialogProcedureAxisLaunch on that listing, axis preselected).
@@ -94,10 +93,6 @@ export default function RowRevolutionAxis({
   const goToProfilesS = "Voir le fond de plan des profils";
   const linkS = "Lier un fond de plan pour dessiner les profils";
   const goToPlanS = "Voir la vue en plan de l'axe";
-  const linkedS = "Fonds de plan liés";
-  const chooseS = "Choisir un fond de plan";
-  const noVerticalS = "Aucun fond de plan vertical";
-  const createS = "Créer un fond de plan…";
   const moreS = "Plus d'actions";
 
   // data
@@ -108,7 +103,6 @@ export default function RowRevolutionAxis({
   const isHidden = useSelector((s) =>
     (s.scopeVisibility.hiddenRevolutionAxisIds ?? []).includes(axis.id)
   );
-  const { startPlaceAxis } = useStartRevolutionAxisTools();
 
   // state
 
@@ -133,13 +127,6 @@ export default function RowRevolutionAxis({
   const linkedBaseMaps = placements
     .map((p) => baseMapById[p.baseMapId])
     .filter(Boolean);
-  const linkedBaseMapIds = new Set(linkedBaseMaps.map((bm) => bm.id));
-  const candidateGroups = (verticalBaseMapGroups ?? [])
-    .map((g) => ({
-      listing: g.listing,
-      baseMaps: g.baseMaps.filter((bm) => !linkedBaseMapIds.has(bm.id)),
-    }))
-    .filter((g) => g.baseMaps.length > 0);
   const isMenuOpen = Boolean(linkMenuAnchor || moreMenuAnchor);
 
   const navigateTitle = !isOnPlan
@@ -202,24 +189,6 @@ export default function RowRevolutionAxis({
       return;
     }
     setLinkMenuAnchor(e.currentTarget);
-  };
-
-  const handleGoToBaseMap = (baseMapId) => {
-    closeMenus();
-    dispatch(setSelectedMainBaseMapId(baseMapId));
-  };
-
-  // Linking = showing the vertical base map, then one click on it: the click
-  // creates the placement, which poses that base map in 3D.
-  const handleLinkBaseMap = (baseMapId) => {
-    closeMenus();
-    dispatch(setSelectedMainBaseMapId(baseMapId));
-    startPlaceAxis(axis);
-  };
-
-  const handleCreateBaseMap = () => {
-    closeMenus();
-    onCreateBaseMap?.(axis);
   };
 
   const handleOpenMore = (e) => {
@@ -411,7 +380,7 @@ export default function RowRevolutionAxis({
               }}
             >
               {isOnPlan && linkedBaseMaps.length === 0 ? (
-                <Add sx={{ fontSize: 16 }} />
+                <IconCreateBaseMap sx={{ fontSize: 16 }} />
               ) : (
                 <ArrowForward
                   sx={{
@@ -425,76 +394,18 @@ export default function RowRevolutionAxis({
         </Box>
       </ListItemButton>
 
-      {/* Linked base maps / link a base map */}
-      <Menu
+      {/* Linked base maps / link or create a base map (shared with the axis
+          edit toolbar) */}
+      <MenuRevolutionAxisBaseMaps
         anchorEl={linkMenuAnchor}
         open={Boolean(linkMenuAnchor)}
         onClose={closeMenus}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { ...MENU_PAPER_SX, maxHeight: 360 } } }}
-      >
-        {linkedBaseMaps.length > 0 && (
-          <ListSubheader sx={{ lineHeight: "28px" }}>{linkedS}</ListSubheader>
-        )}
-        {linkedBaseMaps.map((bm) => (
-          <MenuItem key={bm.id} dense onClick={() => handleGoToBaseMap(bm.id)}>
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              <ArrowForward sx={{ fontSize: 16 }} />
-            </ListItemIcon>
-            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-              {bm.name}
-            </ListItemText>
-          </MenuItem>
-        ))}
-        {linkedBaseMaps.length > 0 && <Divider />}
-        <ListSubheader sx={{ lineHeight: "28px" }}>{chooseS}</ListSubheader>
-        {candidateGroups.length === 0 && (
-          <MenuItem disabled dense>
-            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-              {noVerticalS}
-            </ListItemText>
-          </MenuItem>
-        )}
-        {candidateGroups.map((group) => [
-          candidateGroups.length > 1 && (
-            <ListSubheader
-              key={`listing-${group.listing.id}`}
-              sx={{ lineHeight: "24px", fontSize: "11px" }}
-            >
-              {group.listing.name}
-            </ListSubheader>
-          ),
-          ...group.baseMaps.map((bm) => (
-            <MenuItem
-              key={bm.id}
-              dense
-              onClick={() => handleLinkBaseMap(bm.id)}
-            >
-              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-                {bm.name}
-              </ListItemText>
-            </MenuItem>
-          )),
-        ])}
-        <Divider />
-        <MenuItem
-          dense
-          onClick={handleCreateBaseMap}
-          disabled={creatingBaseMap}
-        >
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            {creatingBaseMap ? (
-              <CircularProgress size={14} />
-            ) : (
-              <Add sx={{ fontSize: 16 }} />
-            )}
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {createS}
-          </ListItemText>
-        </MenuItem>
-      </Menu>
+        axis={axis}
+        linkedBaseMaps={linkedBaseMaps}
+        verticalBaseMapGroups={verticalBaseMapGroups}
+        creating={creatingBaseMap}
+        onCreate={onCreateBaseMap}
+      />
 
       {/* Systems launched on the axis: relaunch of each one */}
       <Menu
