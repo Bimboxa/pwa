@@ -69,13 +69,20 @@ const TITLE_BGCOLORS = ["grey.200", "grey.300", "grey.400"];
 const OBJECT_BGCOLOR = "background.paper";
 
 // Rows are top-aligned (labels wrap on several lines): the side items are
-// centered on the FIRST line of the label.
-const FIRST_LINE_HEIGHT = 20;
+// centered on the FIRST line of the label. The first line is the height of
+// the 24px small icon buttons (16px icon + 4px padding), the slot of the
+// template rows; the label's first line is padded down to be centered on it.
+const FIRST_LINE_HEIGHT = 24;
+const LABEL_LINE_HEIGHT = 20;
 const firstLineSx = {
   display: "flex",
   alignItems: "center",
-  minHeight: FIRST_LINE_HEIGHT,
+  height: FIRST_LINE_HEIGHT,
   flexShrink: 0,
+};
+const labelSx = {
+  lineHeight: `${LABEL_LINE_HEIGHT}px`,
+  pt: `${(FIRST_LINE_HEIGHT - LABEL_LINE_HEIGHT) / 2}px`,
 };
 
 export default function BusinessObjectTreeItem({
@@ -614,7 +621,7 @@ export default function BusinessObjectTreeItem({
               transition: "0.2s",
               ml: -1.5,
               mr: 0.5,
-              mt: "3px",
+              mt: `${(FIRST_LINE_HEIGHT - 14) / 2}px`,
               flexShrink: 0,
             }}
           />
@@ -662,6 +669,7 @@ export default function BusinessObjectTreeItem({
             <Typography
               variant="body2"
               sx={{
+                ...labelSx,
                 fontWeight: labelFontWeight,
                 overflowWrap: "anywhere",
                 ...closedLabelSx,
@@ -685,6 +693,7 @@ export default function BusinessObjectTreeItem({
           <Typography
             variant="body2"
             sx={{
+              ...labelSx,
               flex: 1,
               minWidth: 0,
               fontWeight: labelFontWeight,
@@ -711,7 +720,7 @@ export default function BusinessObjectTreeItem({
                 fontSize: 14,
                 color: "primary.main",
                 ml: 0.5,
-                mt: "3px",
+                mt: `${(FIRST_LINE_HEIGHT - 14) / 2}px`,
                 flexShrink: 0,
               }}
             />
