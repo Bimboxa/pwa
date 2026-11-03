@@ -73,8 +73,8 @@ const DEFAULT_SECTIONS = [
       "PLACE_REVOLUTION_AXIS",
     ],
   },
-  // lines added inside the selected surface (the guide line and the layout
-  // line stand alone, outside the group)
+  // lines added inside the selected surface (the guide line, the layout
+  // line and the profile stand alone, outside the group)
   {
     key: "SURFACE_LINES",
     label: "Lignes dans une surface",
@@ -83,15 +83,13 @@ const DEFAULT_SECTIONS = [
         type: "group",
         key: "POLYGON_LINES",
         label: "Lignes dans une surface",
-        commandKeys: [
-          "ADD_SLOPE",
-          "AUTO_SLOPE",
-          "ADD_ISO_HEIGHT_LINE",
-          "ADD_PROFILE_LINE",
-        ],
+        commandKeys: ["ADD_SLOPE", "AUTO_SLOPE", "ADD_ISO_HEIGHT_LINE"],
       },
       "ADD_GUIDE_LINE",
       "ADD_LAYOUT_LINE",
+      // standalone (2D + 3D): applying an existing « Profil » annotation on
+      // a POLYLINE works from the 3D editor too
+      "ADD_PROFILE_LINE",
     ],
   },
   // cuts: openings, segment cuts, surface / face cuts

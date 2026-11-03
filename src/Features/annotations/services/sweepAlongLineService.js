@@ -4,6 +4,8 @@ import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import applyProfileFromAnnotationService from "Features/elevation/services/applyProfileFromAnnotationService";
+import mirrorProfilePointsAcrossGuide from "Features/elevation/utils/mirrorProfilePointsAcrossGuide";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import areBaseMapsParallel from "Features/baseMaps/js/areBaseMapsParallel";
 import baseMapPointToBaseMap from "Features/baseMaps/js/baseMapPointToBaseMap";
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
@@ -464,6 +466,35 @@ export async function createSweepAlongLineService({
   return { annotationId: id, mode, profileApplied };
 }
 
+// IN_PLACE refresh of a mirrored line: the fresh copy of the profile's
+// vertices is reflected across the registering segment of the fresh ring
+// (both normalized in the target frame → pixels for the registration, back
+// to normalized). null when degenerate.
+function mirrorInPlaceProfileRecords(built, geometry, frames) {
+  const size = frames.target?.getImageSize?.();
+  if (!size?.width || !size?.height) return null;
+  const toPx = (p) => ({ x: p.x * size.width, y: p.y * size.height });
+  const byId = new Map(geometry.pointRecords.map((r) => [r.id, r]));
+  const guideRaw = (geometry.fields.points ?? [])
+    .map((ref) => {
+      const row = byId.get(ref.id);
+      return row ? { ...toPx(row), type: ref.type } : null;
+    })
+    .filter(Boolean);
+  const closeLine = Boolean(geometry.fields.closeLine);
+  const mirrored = mirrorProfilePointsAcrossGuide({
+    guidePoints: expandArcsInPath(guideRaw, 6, closeLine),
+    closeLine,
+    profilePoints: built.pointRecords.map((r) => ({ ...r, ...toPx(r) })),
+  });
+  if (!mirrored) return null;
+  return mirrored.map((r) => ({
+    ...r,
+    x: r.x / size.width,
+    y: r.y / size.height,
+  }));
+}
+
 // Rebuilds a swept annotation from its sources, on its own base map: the
 // guide's ring is copied again and the profile re-applied (same registration
 // rule). A deleted profile keeps the current profile line (the ring alone is
@@ -502,6 +533,10 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   );
   const ringPointIds = (ann.points ?? []).map((r) => r?.id).filter(Boolean);
 
+  // « Inverser » (mirrorProfileLineService) survives the refresh: the line
+  // re-applied from the source is mirrored again.
+  const mirror = Boolean(prevLines[0]?.mirror);
+
   let profileLines = prevLines;
   let profilePointRecords = [];
   let pointIdsToDelete = ringPointIds;
@@ -513,6 +548,12 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
       ...frames,
     });
     if (!built) return { error: "PROFILE_GEOMETRY" };
+    if (mirror) {
+      const mirrored = mirrorInPlaceProfileRecords(built, geometry, frames);
+      if (!mirrored) return { error: "PROFILE_GEOMETRY" };
+      built.pointRecords = mirrored;
+      built.line = { ...built.line, mirror: true };
+    }
     profileLines = [built.line];
     profilePointRecords = built.pointRecords;
     pointIdsToDelete = [...ringPointIds, ...prevProfilePointIds];
@@ -546,6 +587,7 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
         sourceAnnotationId: sources.profileAnnotationId,
         seedSegmentIndex,
         invert: Boolean(prevLines[0]?.sourceInvert),
+        mirror,
       });
       profileRefreshed = Number.isInteger(idx);
     }

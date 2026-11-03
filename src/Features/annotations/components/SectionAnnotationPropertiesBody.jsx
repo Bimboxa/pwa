@@ -12,6 +12,7 @@ import { Box, Typography, Tabs, Tab } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesContent";
 import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
+import SectionAnnotationProfileLines from "./SectionAnnotationProfileLines";
 import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
@@ -144,6 +145,11 @@ export default function SectionAnnotationPropertiesBody({
             {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
               annotation?.type
             ) && <SectionAnnotationSubtractions annotation={annotation} />}
+            {/* Profil — inline profiles of a POLYLINE (« Ajouter un
+                profil »): invert the side / remove. Self-hiding otherwise. */}
+            {annotation?.type === "POLYLINE" && (
+              <SectionAnnotationProfileLines annotation={annotation} />
+            )}
             {/* Mesh 3D — annotation converted to a mesh: revert to its
                 original 2D geometry. Self-hiding otherwise. */}
             <SectionAnnotationMesh3d annotation={annotation} />

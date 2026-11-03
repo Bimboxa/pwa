@@ -852,13 +852,14 @@ export default function ElevationEditor({
   }, [profileLines, dispatch]);
 
   const handleApplyProfileFromSource = useCallback(
-    async (sourceAnnotationId, { invert = false } = {}) => {
+    async (sourceAnnotationId, { invert = false, mirror = false } = {}) => {
       const idx = await applyProfileFromAnnotationService({
         annotationId,
         sourceAnnotationId,
         profileIndex: editedProfileIndex,
         seedSegmentIndex,
         invert,
+        mirror,
         dispatch,
       });
       if (Number.isInteger(idx)) {
@@ -1026,7 +1027,10 @@ export default function ElevationEditor({
               onClick={() =>
                 handleApplyProfileFromSource(
                   sectionProfile.sourceAnnotationId,
-                  { invert: Boolean(sectionProfile.sourceInvert) }
+                  {
+                    invert: Boolean(sectionProfile.sourceInvert),
+                    mirror: Boolean(sectionProfile.mirror),
+                  }
                 )
               }
             >
@@ -1041,7 +1045,10 @@ export default function ElevationEditor({
               onClick={() =>
                 handleApplyProfileFromSource(
                   sectionProfile.sourceAnnotationId,
-                  { invert: !sectionProfile.sourceInvert }
+                  {
+                    invert: !sectionProfile.sourceInvert,
+                    mirror: Boolean(sectionProfile.mirror),
+                  }
                 )
               }
             >

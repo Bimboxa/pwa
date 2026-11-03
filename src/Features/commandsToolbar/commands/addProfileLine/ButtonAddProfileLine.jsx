@@ -17,6 +17,7 @@ import applyProfileFromAnnotationService from "Features/elevation/services/apply
 import listProfileAnnotations from "Features/annotations/utils/listProfileAnnotations";
 
 import CommandButton from "../../components/CommandButton";
+import { EDITOR_3D } from "../../constants/commandEditors";
 
 const DRAW_LABEL = "Dessiner un profil";
 const EXISTING_LABEL = "Profils existants";
@@ -25,12 +26,18 @@ const EMPTY_LABEL =
   "Aucune annotation « Profil » — activez le switch Profil dans les propriétés d'une annotation.";
 
 // Button of « Ajouter un profil » (commandsToolbar): an intermediate menu —
-// draw the profile (the ADD_PROFILE_LINE drawing mode, `command.run`) or
-// apply an existing annotation flagged « Profil » (applyProfileFromAnnotation
-// Service, POLYLINE hosts only — the service's contract). The menu anchors on
-// the `anchor` argument (the group button inside a group menu, which is
-// keepMounted, so the menu survives its closing). While the drawing mode is
+// draw the profile (the ADD_PROFILE_LINE drawing mode, `command.run`, 2D
+// editor only) or apply an existing annotation flagged « Profil »
+// (applyProfileFromAnnotationService, POLYLINE hosts only — the service's
+// contract). The menu anchors on the `anchor` argument (the group button
+// inside a group menu, which is keepMounted, so the menu survives its
+// closing; the slot's own button otherwise). While the drawing mode is
 // armed, the click disarms it directly (no menu).
+//
+// In the 3D editor only the existing profiles are offered: the applied line
+// is read by the 3D build right away, and the host annotation stays selected
+// (no PROFILE_LINE sub-selection — the 3D view has no part for it) so the
+// « Profils » row of ToolbarEditAnnotation shows up at once.
 export default function ButtonAddProfileLine({
   command,
   ctx,
@@ -42,7 +49,8 @@ export default function ButtonAddProfileLine({
 
   const selected = ctx.selectedAnnotation;
   const isPolylineHost = selected?.type === "POLYLINE";
-  const armed = ctx.enabledDrawingMode === "ADD_PROFILE_LINE";
+  const is3d = ctx.editor === EDITOR_3D;
+  const armed = !is3d && ctx.enabledDrawingMode === "ADD_PROFILE_LINE";
 
   // state
 
@@ -96,6 +104,7 @@ export default function ButtonAddProfileLine({
       );
       return;
     }
+    if (is3d) return;
     // Sub-select the new profile line so the toolbar switches to its row and
     // the Élévation panel targets it (same as the drawn commit).
     deps.dispatch(
@@ -124,13 +133,15 @@ export default function ButtonAddProfileLine({
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
-        <MenuItem dense onClick={handleDraw}>
-          <ListItemIcon sx={{ minWidth: 32 }}>
-            <command.Icon sx={{ fontSize: 18 }} />
-          </ListItemIcon>
-          <ListItemText primary={DRAW_LABEL} />
-        </MenuItem>
-        <Divider />
+        {!is3d && (
+          <MenuItem dense onClick={handleDraw}>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <command.Icon sx={{ fontSize: 18 }} />
+            </ListItemIcon>
+            <ListItemText primary={DRAW_LABEL} />
+          </MenuItem>
+        )}
+        {!is3d && <Divider />}
         <ListSubheader sx={{ lineHeight: "28px" }}>
           {EXISTING_LABEL}
         </ListSubheader>

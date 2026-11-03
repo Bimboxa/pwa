@@ -81,6 +81,10 @@ import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dS
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
 
+// Fixed screen radius of the ring drawn around a profile drawing's base
+// point (« Point de référence »), zoom-invariant via vertexScaleTransform.
+const PROFILE_BASE_POINT_RADIUS_PX = 8;
+
 // A vertical segment drawn in 3D is stored as two consecutive refs to the
 // same point id: one plan position, so one handle (and one React key).
 function uniqueVertexEntries(entries) {
@@ -1259,6 +1263,14 @@ function NodePolylineStatic({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
+  // « Point de référence » of a profile drawing (annotation.isProfile —
+  // effective flag, the template's isProfile merged at resolve time): the
+  // vertex flagged isBasePoint (resolvePoints keeps the flag).
+  const profileBasePoint = useMemo(() => {
+    if (!mergedAnnotation.isProfile) return null;
+    return points.find((p) => p?.isBasePoint) ?? null;
+  }, [mergedAnnotation.isProfile, points]);
+
   // Slope ink (label + arrow glyphs) is sized in page pt of the print zone,
   // hence FIXED relative to the base map — same rule as COTE / FREE_TEXT.
   const slopeFontScale =
@@ -1679,7 +1691,6 @@ function NodePolylineStatic({
     const isCut = cutIndex !== undefined && cutIndex !== null;
     const isInner = source === "INNER";
     const isSliding = !!pt.isSliding;
-    const isBasePoint = !!pt.isBasePoint;
     const isGuide = source === "GUIDE";
     const keyPrefix = isGuide
       ? "guide"
@@ -1709,16 +1720,6 @@ function NodePolylineStatic({
         {...(isGuide ? { "data-guide": "1" } : {})}
       >
         <g style={{ transform: vertexScaleTransform }}>
-          {isBasePoint && (
-            <circle
-              cx={0}
-              cy={0}
-              r={HALF_SIZE + 3}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={2}
-            />
-          )}
           {isCircle ? (
             <circle
               cx={0}
@@ -2091,6 +2092,28 @@ function NodePolylineStatic({
         uniqueVertexEntries(pointEntriesToRender).map(
           ({ point, cutIndex, source }) => renderVertex(point, cutIndex, source)
         )}
+
+      {/* PROFILE BASE POINT — « Point de référence » of a profile drawing
+                (annotation / template isProfile): fixed 8 px ring in the stroke
+                color, always visible (selected or not — the vertex handle draws
+                on top when selected), non-interactive. */}
+      {profileBasePoint && (
+        <g
+          transform={`translate(${profileBasePoint.x}, ${profileBasePoint.y})`}
+          style={{ pointerEvents: "none" }}
+        >
+          <g style={{ transform: vertexScaleTransform }}>
+            <circle
+              cx={0}
+              cy={0}
+              r={PROFILE_BASE_POINT_RADIUS_PX}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={2}
+            />
+          </g>
+        </g>
+      )}
 
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.
                 Small fixed-size cross (zoom-invariant via vertexScaleTransform),
