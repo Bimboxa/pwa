@@ -695,7 +695,7 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
-  useMeshingPointerHandlers();
+  useMeshingPointerHandlers({ tooltipApiRef });
   useExtrudePointerHandlers();
   useVertexOffsetPointerHandlers();
   // Mesh annotations: Delete on the selected faces / edges (before the
@@ -2491,7 +2491,9 @@ export default function MainThreedEditor() {
         threedEditorRef.current?.renderScene?.();
       }
       lastHoveredIdRef.current = null;
-      tooltipApiRef.current?.clear();
+      // While meshing, useMeshingPointerHandlers owns the tooltip (the
+      // hovered face piece and its surface).
+      if (!meshingActiveRef.current) tooltipApiRef.current?.clear();
       clearSubHoverHelper();
       clearFaceHoverOverlay();
       return;

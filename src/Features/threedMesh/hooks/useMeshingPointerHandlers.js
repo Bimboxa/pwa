@@ -77,7 +77,11 @@ const DRAG_THRESHOLD_PX = 4;
 //   delegated to meshingCutController (red cut line, reference/guide vertices,
 //   area chips, split on click). CUT_ANGULAR also captures typed digits into
 //   meshingMode.angleBuffer to constrain its opening angle.
-export default function useMeshingPointerHandlers() {
+// `tooltipApiRef`: MainThreedEditor's hover tooltip (ThreedHoverTooltip) —
+// while meshing, this hook owns it: an annotation face hovered with the
+// SELECT / CREATE tools shows the annotation and the surface of the hovered
+// piece (clipped by the cut lines), like the Dessin module's face hover.
+export default function useMeshingPointerHandlers({ tooltipApiRef } = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -360,11 +364,12 @@ export default function useMeshingPointerHandlers() {
       if (pick?.kind === "ANNOTATION") {
         const x = e.clientX - pick.rect.left;
         const y = e.clientY - pick.rect.top;
-        const surface = getHoveredSurface();
+        // The surface of what the click would create (the piece cut by the
+        // cut lines, or the whole face) is in the hover tooltip; the chip
+        // only stands in when no tooltip is wired.
+        const surface = tooltipApiRef?.current ? null : getHoveredSurface();
         setMeshingOverlay({
           cursor: { x, y, label: "+ nouvelle maille" },
-          // The surface of what the click would create (the piece cut by
-          // the cut lines, or the whole face), under the cursor helper.
           areaChips: Number.isFinite(surface)
             ? [{ x, y: y + 22, text: formatSurfaceM2(surface) }]
             : [],
@@ -382,17 +387,23 @@ export default function useMeshingPointerHandlers() {
       if (!e) return;
       const pick = pickScene(e);
 
-      // Face highlight: mailles in every tool, annotations in CREATE only.
+      // Face highlight: mailles in every tool, annotations in SELECT /
+      // CREATE (the piece delimited by the cut lines, with the tooltip).
+      const annotationHover =
+        (tool === "CREATE" || tool === "SELECT") && pick?.kind === "ANNOTATION";
       if (pick?.kind === "MESH3D") {
         applyStipple(pick.intersect.object, pick.intersect.faceIndex);
-      } else if (tool === "CREATE" && pick?.kind === "ANNOTATION") {
+        clearTooltip();
+      } else if (annotationHover) {
         applyCutLinePieceStipple(
           pick.hitObject,
           pick.intersect.faceIndex,
           pick.intersect.point
         );
+        updateTooltip(e, pick);
       } else {
         clearStipple();
+        clearTooltip();
       }
 
       if (tool === "CREATE") {
@@ -403,6 +414,40 @@ export default function useMeshingPointerHandlers() {
       } else {
         cutController.onHover(e, pick);
       }
+    }
+
+    // Hover tooltip of the hovered annotation face (ThreedHoverTooltip, the
+    // Dessin module's look): the annotation's template / label and the
+    // surface of the hovered piece as "Quantités de la face".
+    function updateTooltip(e, pick) {
+      const api = tooltipApiRef?.current;
+      if (!api) return;
+      let root = pick.hitObject;
+      while (root && root.userData?.nodeType !== "ANNOTATION") {
+        root = root.parent;
+      }
+      if (!root) {
+        api.clear();
+        return;
+      }
+      const { nodeId, nodeType, annotationType, listingId } = root.userData;
+      const surface = getHoveredSurface();
+      api.set(
+        {
+          nodeId,
+          nodeType,
+          annotationType,
+          listingId,
+          partQties: Number.isFinite(surface) ? { surface } : null,
+          partType: Number.isFinite(surface) ? "FACE" : null,
+        },
+        e.clientX - pick.rect.left + 15,
+        e.clientY - pick.rect.top + 15
+      );
+    }
+
+    function clearTooltip() {
+      tooltipApiRef?.current?.clear();
     }
 
     // NUMBER tool: assign the typed number to the clicked maille, then +1.
@@ -600,6 +645,7 @@ export default function useMeshingPointerHandlers() {
         rafId = null;
       }
       clearStipple();
+      clearTooltip();
       cutController.onLeave();
       clearMeshingOverlay();
     }
@@ -680,6 +726,7 @@ export default function useMeshingPointerHandlers() {
       refreshHoverRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       clearStipple();
+      clearTooltip();
       cutController.dispose();
       clearMeshingOverlay();
       dom.style.cursor = "";
