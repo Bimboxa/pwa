@@ -22,4 +22,4 @@ export const CUT_LINE_DRAG_THRESHOLD_PX = 4;
 
 // Points of a line lying within this distance (m) of a face's plane count
 // as drawn ON that face (clipFaceByCutLines).
-export const CUT_LINE_PLANE_TOL_M = 5e-3;
+export const CUT_LINE_PLANE_TOL_M = 1e-2;

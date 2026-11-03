@@ -35,8 +35,12 @@ export default function clipFaceByCutLines({
   face,
   cutLines,
   hitPoint = null,
-  planeTolerance = 5e-3,
-  tolerance = 1e-3,
+  // A line point within this of the face plane lies on it (the extension
+  // walks a 1 mm-quantized section graph, the stored altitudes keep 0.01 mm).
+  planeTolerance = 1e-2,
+  // Boundary snap of the line ends (same 1 mm quantization: an end found on
+  // a face edge may sit a hair inside the face).
+  tolerance = 5e-3,
 }) {
   const contour = face?.contour;
   if (!contour || contour.length < 3 || !face.normal) return null;

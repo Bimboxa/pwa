@@ -1,4 +1,9 @@
-import roundForDisplay from "../../threedDrawing/utils/roundForDisplay.js";
+// Altitudes are kept to 0.01 mm — NOT roundForDisplay (3 significant
+// figures: centimetres off on an upper floor), which would lift the points
+// off the faces they were snapped on (clipFaceByCutLines plane test).
+const ALTITUDE_PRECISION = 1e5;
+const roundAltitude = (v) =>
+  Math.round(v * ALTITUDE_PRECISION) / ALTITUDE_PRECISION;
 
 // Pure Z encoding of a cut line projected on its host base map (the ruler
 // rule, always lifted): offsetZ = lowest offset, per-point
@@ -14,9 +19,9 @@ export default function encodeCutLineRefs(projected) {
   const points = projected.map((p, i) => ({
     x: p.x,
     y: p.y,
-    offsetBottom: roundForDisplay(offsets[i] - min),
+    offsetBottom: roundAltitude(offsets[i] - min),
     ...(p.derived ? { derived: true } : {}),
     ...(p.stop ? { stop: true } : {}),
   }));
-  return { offsetZ: roundForDisplay(min), points };
+  return { offsetZ: roundAltitude(min), points };
 }
