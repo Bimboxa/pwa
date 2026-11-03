@@ -31,6 +31,7 @@ import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/se
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import {
+  selectIsCutLineDrawActive,
   selectIsFaceCutDrawActive,
   selectIsThreedAxisLockAvailable,
   selectIsThreedPolylineClickDraw,
@@ -88,6 +89,18 @@ const THREED_DRAWING_SHORTCUTS = [
 
 // A line drawn click by click in 3D: T toggles its last point to an arc
 // point (2D parity, SectionShortcutHelpers).
+// Cut line of the Maillage module (Features/threedCutLines): a click line
+// whose ends the commit extends along the faces; the axis tools and the
+// « Décalage » live in its bottom toolbar (CutLineToolbarThreed).
+const THREED_CUT_LINE_MESSAGE =
+  "Cliquez les points de la ligne de coupe (plan, face, sommet, arête) — Entrée ou double-clic pour terminer : le trait est prolongé le long des faces";
+const THREED_CUT_LINE_SHORTCUTS = [
+  { key: "0-9", label: "Longueur du segment" },
+  { key: "Entrée", label: "Terminer la ligne de coupe" },
+  { key: "Esc", label: "Terminer / Quitter la ligne de coupe" },
+  { key: "X / Y / Z", label: "Trait selon un axe (barre du bas)" },
+];
+
 const THREED_POLYLINE_SHORTCUTS = [
   ...THREED_DRAWING_SHORTCUTS,
   { key: "T", label: "Basculer le dernier point en arc" },
@@ -336,6 +349,8 @@ export default function SectionDrawingHelperContent() {
   const isThreedAxisLockAvailable = useSelector(
     selectIsThreedAxisLockAvailable
   );
+  // Cut line (Maillage module): its own message and shortcuts (no arc).
+  const isCutLineDraw = useSelector(selectIsCutLineDrawActive);
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
   // Launched on a selected face: the cut is bound to it.
@@ -350,28 +365,32 @@ export default function SectionDrawingHelperContent() {
     : null;
   const threedMessage = isObject3DPlacement
     ? "Cliquez sur le plan pour poser l'objet 3D"
-    : isThreedCoteDraw
-      ? "Cliquez le 1ᵉʳ point de la cote, puis le 2ᵉ (plan, face, sommet, arête ou axe)"
-      : isThreedRulerDraw
-        ? "Cliquez les points de la règle (plan, face, sommet, arête ou axe) — Entrée ou double-clic pour terminer"
-        : isMeshBrush
-          ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
-            ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
-            : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
-          : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
+    : isCutLineDraw
+      ? THREED_CUT_LINE_MESSAGE
+      : isThreedCoteDraw
+        ? "Cliquez le 1ᵉʳ point de la cote, puis le 2ᵉ (plan, face, sommet, arête ou axe)"
+        : isThreedRulerDraw
+          ? "Cliquez les points de la règle (plan, face, sommet, arête ou axe) — Entrée ou double-clic pour terminer"
+          : isMeshBrush
+            ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
+              ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
+              : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
+            : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
   const threedShortcuts = isObject3DPlacement
     ? THREED_PLACEMENT_SHORTCUTS
-    : isThreedCoteDraw
-      ? THREED_COTE_SHORTCUTS
-      : isThreedRulerDraw
-        ? THREED_RULER_SHORTCUTS
-        : isMeshBrush
-          ? THREED_MESH_BRUSH_SHORTCUTS
-          : isFaceCut
-            ? FACE_CUT_SHORTCUTS
-            : isThreedPolylineClickDraw
-              ? THREED_POLYLINE_SHORTCUTS
-              : THREED_DRAWING_SHORTCUTS;
+    : isCutLineDraw
+      ? THREED_CUT_LINE_SHORTCUTS
+      : isThreedCoteDraw
+        ? THREED_COTE_SHORTCUTS
+        : isThreedRulerDraw
+          ? THREED_RULER_SHORTCUTS
+          : isMeshBrush
+            ? THREED_MESH_BRUSH_SHORTCUTS
+            : isFaceCut
+              ? FACE_CUT_SHORTCUTS
+              : isThreedPolylineClickDraw
+                ? THREED_POLYLINE_SHORTCUTS
+                : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit

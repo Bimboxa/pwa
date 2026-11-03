@@ -387,6 +387,9 @@ export default function ToolbarDrawingDraft() {
   // its draft properties must not be editable.
   if (!enabledDrawingMode || enabledDrawingMode === "MEASURE") return null;
   if (isTemplateCoteDraw3d) return null;
+  // Cut line (Maillage module): its own bottom toolbar (CutLineToolbarThreed),
+  // no draft properties.
+  if (newAnnotation?.type === "CUT_LINE") return null;
 
   return (
     <PaperEditorBottomToolbar>

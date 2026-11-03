@@ -1385,6 +1385,8 @@ export default function useDrawingPointerHandlers() {
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       if (e.key !== "t" && e.key !== "T") return false;
       if (!isPolylineClickDraw() || isDiscDraw() || isAxisDraw()) return false;
+      // A cut line has no arcs (its commit extends straight segments).
+      if (newAnnotationRef.current?.type === "CUT_LINE") return false;
       if (getLiveDrawing().inProgress.length === 0) return false;
       e.preventDefault();
       if (!e.repeat) dispatch(toggleLastDrawingVertexType());
