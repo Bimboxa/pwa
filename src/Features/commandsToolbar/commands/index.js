@@ -13,6 +13,7 @@ import drawCoteCommand from "./drawCote/drawCoteCommand";
 import drawRulerCommand from "./drawRuler/drawRulerCommand";
 import cutCommand from "./cut/cutCommand";
 import revolutionAxisCommand from "./revolutionAxis/revolutionAxisCommand";
+import placeRevolutionAxisCommand from "./placeRevolutionAxis/placeRevolutionAxisCommand";
 import splitLineCommand from "./splitLine/splitLineCommand";
 import splitPolylineClickCommand from "./splitPolylineClick/splitPolylineClickCommand";
 import isolateSegmentCommand from "./isolateSegment/isolateSegmentCommand";
@@ -102,6 +103,7 @@ export const COMMANDS = [
   drawRulerCommand,
   cutCommand,
   revolutionAxisCommand,
+  placeRevolutionAxisCommand,
   splitLineCommand,
   splitPolylineClickCommand,
   isolateSegmentCommand,

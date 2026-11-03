@@ -46,7 +46,7 @@ const DEFAULT_SECTIONS = [
   BASE_MAP_SECTION,
   // « Dessin » — the templateless annotation types (the point-like types and
   // the measures packed as split buttons, point / cote as default slot),
-  // then the revolution axis
+  // then the revolution axis and its placement on a cut base map
   {
     key: "DRAW",
     label: "Dessin",
@@ -70,6 +70,7 @@ const DEFAULT_SECTIONS = [
         commandKeys: ["DRAW_COTE", "DRAW_RULER"],
       },
       "REVOLUTION_AXIS",
+      "PLACE_REVOLUTION_AXIS",
     ],
   },
   // lines added inside the selected surface (the guide line and the layout

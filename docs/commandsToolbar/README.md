@@ -155,6 +155,20 @@ body is the description (Markdown, searched by the dialog). A file with a
 frontmatter only shows the gif alone; a file with neither description nor
 gif is dropped (no « i »).
 
+### « Axe de révolution » / « Axe sur plan de coupe »
+
+`commands/revolutionAxis/` (`REVOLUTION_AXIS`, hotkey A) draws a new axis on
+a horizontal plan or on a horizontal base map plane of the 3D editor; on a
+VERTICAL base map it is disabled with a reason pointing to the next command.
+`commands/placeRevolutionAxis/` (`PLACE_REVOLUTION_AXIS`, 2D only, inverted-T
+icon `IconPlaceRevolutionAxis`) poses an EXISTING axis of the scope on the
+current vertical base map (coupe / élévation): its `Button` always opens a
+menu of the scope's axes (`useRevolutionAxes`), disabled while the scope has
+none; picking one arms the one-click `REVOLUTION_AXIS_PLACE` tool
+(`startPlaceRevolutionAxis`, shared file `revolutionAxis/startRevolutionAxisTools.js`),
+whose click creates the `REVOLUTION_AXIS_PLACEMENT` and poses the base map
+in 3D. Both commands sit at the end of the « Dessin » section.
+
 ### « Changer de style » (`CHANGE_STYLE`)
 
 `commands/changeStyle/`: re-templates the selected annotations (same drawing
