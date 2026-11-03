@@ -112,7 +112,7 @@ test("base URL normalization rejects credentials/query/fragment and unsafe schem
   );
   for (const url of [
     "javascript:alert(1)",
-    "https://name:password@example.com",
+    "https://name:password@example.com", // gitleaks:allow
     "https://example.com?token=abc",
     "https://example.com#token",
     "invalid",
