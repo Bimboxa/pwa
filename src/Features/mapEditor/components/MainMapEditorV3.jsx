@@ -1425,14 +1425,24 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const pt = points?.[0];
     const imageSize = baseMap?.getImageSize?.();
     const annotation = annotations.find((a) => a.id === selectedNode?.nodeId);
-    dispatch(setEnabledDrawingMode(null));
-    if (!pt || !annotation?.point?.id || !imageSize?.width) return;
-    if (annotation.type !== "REVOLUTION_AXIS_PLACEMENT") return;
+    const canMove =
+      pt &&
+      annotation?.point?.id &&
+      imageSize?.width &&
+      annotation.type === "REVOLUTION_AXIS_PLACEMENT";
+    if (!canMove) {
+      dispatch(setEnabledDrawingMode(null));
+      return;
+    }
     await db.points.update(annotation.point.id, {
       x: pt.x / imageSize.width,
       y: pt.y / imageSize.height,
     });
     dispatch(triggerAnnotationsUpdate());
+    // Disarmed once the point is written: the placement node, hidden while
+    // the ghost followed the cursor (InteractionLayer), comes back at its
+    // new position rather than flashing the old one.
+    dispatch(setEnabledDrawingMode(null));
     await resyncRevolutionAxisPlacementsService({
       placementId: annotation.id,
       dispatch,

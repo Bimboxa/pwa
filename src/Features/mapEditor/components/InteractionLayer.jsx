@@ -1722,6 +1722,25 @@ const InteractionLayer = forwardRef(({
     return null;
   }, [enabledDrawingMode, newAnnotation, selectedAnnotation]);
 
+  // « Repositionner » a placement: only the ghost under the cursor shows —
+  // the selected placement (drawn by EditedObjectLayer) is hidden while the
+  // mode is armed, and shown again once it ends: at its new position after
+  // the click, where it was on Escape (which disarms without writing).
+  const repositionHidRef = useRef(false);
+  useEffect(() => {
+    const repositionedId =
+      enabledDrawingMode === "REPOSITION_REVOLUTION_PLACEMENT"
+        ? revolutionPlacementGhostSource?.id
+        : null;
+    if (repositionedId) {
+      repositionHidRef.current = true;
+      setHiddenAnnotationIds([repositionedId]);
+    } else if (repositionHidRef.current) {
+      repositionHidRef.current = false;
+      setHiddenAnnotationIds([]);
+    }
+  }, [enabledDrawingMode, revolutionPlacementGhostSource?.id]);
+
   // Resolve the FULL set of selected annotations for Ctrl+C: multi-selection
   // items (shift-click / lasso) unioned with the single-selection fallback,
   // deduped by id. Drives multi-annotation copy.
