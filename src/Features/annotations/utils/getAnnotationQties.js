@@ -432,6 +432,10 @@ function computeAnnotationQties({
     // describes the drawing, it is not part of the work. No quantities.
     if (annotation.type === "RULER") return { enabled: false };
 
+    // CUT_LINE prepares the mailles of the Maillage module: a drawing
+    // helper, no quantities.
+    if (annotation.type === "CUT_LINE") return { enabled: false };
+
     // BASE_MAP_LINK is a section mark (a navigation / posing helper): it
     // describes the drawing, no quantities.
     if (annotation.type === "BASE_MAP_LINK") return { enabled: false };

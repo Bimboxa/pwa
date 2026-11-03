@@ -168,6 +168,15 @@ import {
   pickDimensionCard,
 } from "Features/threedDimensions/services/dimensionCardClick";
 import { getDimensionGroups } from "Features/threedDimensions/services/dimensionObjectsStore";
+import ThreedCutLineAnnotations from "Features/threedCutLines/components/ThreedCutLineAnnotations";
+import CutLineAxisOverlayThreed from "Features/threedCutLines/components/CutLineAxisOverlayThreed";
+import CutLineToolbarThreed from "Features/threedCutLines/components/CutLineToolbarThreed";
+import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import useCutLineVertexHandlers from "Features/threedCutLines/hooks/useCutLineVertexHandlers";
+import {
+  handleCutLineClick,
+  pickCutLine,
+} from "Features/threedCutLines/js/pickCutLine";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
 import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
@@ -464,6 +473,9 @@ export default function MainThreedEditor() {
   // on its cote type): it rides the 3D drawing mode (useDrawingPointerHandlers)
   // and swaps the bottom toolbar for CoteToolbarThreed.
   const coteDrawActive = useSelector(selectIsTemplateCoteDrawActive);
+  // Cut line armed (Features/threedCutLines): its own bottom toolbar
+  // (trace mode Libre / X / Y / Z, « Décalage »).
+  const cutLineDrawActive = useSelector(selectIsCutLineDrawActive);
   // Ruler armed (RULER template row, or the "Dessin" tool on its ruler
   // type): rides the drawing mode too; ToolbarDrawingDraft (SectionViewer)
   // owns the bottom bar — its tool toggle « Règle (clics) / (2 clics) » —
@@ -475,14 +487,32 @@ export default function MainThreedEditor() {
   // PopperMapListings) switches meshing off via the slice's mutual exclusion
   // (the cote rides the drawing mode), so meshing is re-armed as soon as the
   // drawing mode ends — otherwise the meshing tools would stay inert until
-  // the user leaves and re-enters the module.
+  // the user leaves and re-enters the module. Same for the frame placement
+  // and the base map move / rotate commands of the toolbar (3D modes the
+  // slice excludes from meshing too).
+  const axesPlacementModeActive = useSelector(
+    (s) => s.threedEditor.axesPlacementMode.active
+  );
+  const baseMapPoseModeActive = useSelector(
+    (s) =>
+      s.threedEditor.moveBaseMapMode.active ||
+      s.threedEditor.rotateBaseMapMode.active
+  );
   useEffect(() => {
     if (!isMeshesViewer) {
       dispatch(setMeshingModeActive(false));
       return;
     }
-    if (!drawingActive) dispatch(setMeshingModeActive(true));
-  }, [isMeshesViewer, drawingActive, dispatch]);
+    if (!drawingActive && !axesPlacementModeActive && !baseMapPoseModeActive) {
+      dispatch(setMeshingModeActive(true));
+    }
+  }, [
+    isMeshesViewer,
+    drawingActive,
+    axesPlacementModeActive,
+    baseMapPoseModeActive,
+    dispatch,
+  ]);
 
   // Same pattern for meshing mode — useMeshingPointerHandlers owns the
   // pointer (hover stipple, maille creation, cut tools) while active.
@@ -678,6 +708,9 @@ export default function MainThreedEditor() {
   useTemplateFaceDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
   useRulerLabelDragHandlers({ rendererIsReady });
+  // Cut line vertices (Features/threedCutLines): hand cursor, click =
+  // sub-selection, drag = move (Shift locks).
+  useCutLineVertexHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useAnnotationLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
@@ -1173,6 +1206,19 @@ export default function MainThreedEditor() {
           dispatch,
           selectedItems: selectSelectedItems(store.getState()),
           sprite: cardSprite,
+          event,
+        });
+        return;
+      }
+
+      // Cut line hit-test (Features/threedCutLines) — fat lines, same
+      // reason as the cards above.
+      const cutLineHit = pickCutLine(raycasterRef.current, clippingPlane);
+      if (cutLineHit) {
+        handleCutLineClick({
+          dispatch,
+          selectedItems: selectSelectedItems(store.getState()),
+          hit: cutLineHit,
           event,
         });
         return;
@@ -3255,6 +3301,8 @@ export default function MainThreedEditor() {
           <ExtrudeToolbarThreed />
         ) : coteDrawActive ? (
           <CoteToolbarThreed />
+        ) : cutLineDrawActive ? (
+          <CutLineToolbarThreed />
         ) : rulerDrawActive ? null : moveBaseMapActive ? (
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
@@ -3318,6 +3366,7 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <FaceCutAxisOverlayThreed />}
+      {isThreedViewer && <CutLineAxisOverlayThreed />}
       <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
       <SurfacePiecesHighlightThreed
         enabled={isThreedViewer && rendererIsReady}
@@ -3327,6 +3376,9 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && rendererIsReady && (
         <ThreedRulerAnnotations annotations={annotations} />
+      )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedCutLineAnnotations annotations={annotations} />
       )}
       {isThreedViewer && rendererIsReady && (
         <ThreedAnnotationLabels annotations={annotations} />

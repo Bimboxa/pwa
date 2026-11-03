@@ -9,6 +9,7 @@ import {
   setSectionContourAdjacency,
 } from "Features/threedDimensions/services/sectionContourSnapStore";
 
+import collectAnnotationSectionMeshes from "./utilsClipping/collectAnnotationSectionMeshes";
 import computePlaneSectionSegments from "./utilsClipping/computePlaneSectionSegments";
 
 const CONTOUR_COLOR = 0xffaa00; // matches the orange clipping-plane helper
@@ -149,31 +150,10 @@ export default class SectionContourManager {
     return new Vector2(dom.clientWidth || 1, dom.clientHeight || 1);
   }
 
-  // Every renderable Mesh of every annotation object (a single annotation can
-  // hold several meshes: multi-segment POLYLINE walls, REVOLUTION runs, …).
-  // Basemap image planes are intentionally excluded — slicing the flat image
-  // yields a meaningless line, not a shape contour.
+  // Every renderable Mesh of every annotation object (shared filter with
+  // the cut lines: collectAnnotationSectionMeshes).
   _collectAnnotationMeshes() {
-    const meshes = [];
-    const map =
-      this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
-    Object.values(map).forEach((object) => {
-      object?.traverse?.((child) => {
-        // Fat lines (LineSegments2) ARE isMesh but hold instanced segment
-        // geometry, not solid triangles — sectioning them yields garbage
-        // (aquarelle ink edges, revolution section markers).
-        if (child.isLine2 || child.isLineSegments2) return;
-        if (child.userData?.isSectionMarker) return;
-        // scan base maps: their geometry lives on the GPU only.
-        if (child.userData?.isDecor) return;
-        // Face stipples (hover, selected faces): copies of a face's triangles.
-        if (child.userData?.isHoverOverlay) return;
-        // Painted parts (Pinceau): skins over a face, not a solid.
-        if (child.userData?.isPaintOverlay) return;
-        if (child.isMesh && child.geometry) meshes.push(child);
-      });
-    });
-    return meshes;
+    return collectAnnotationSectionMeshes(this.sceneManager.annotationsManager);
   }
 }
 

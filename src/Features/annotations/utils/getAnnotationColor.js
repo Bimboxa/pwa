@@ -23,6 +23,7 @@ export default function getAnnotationColor(annotation) {
   } else if (
     [
       "POLYLINE",
+      "CUT_LINE",
       "LINEAR_LAYOUT",
       "REVOLUTION_AXIS",
       "REVOLUTION_AXIS_PLACEMENT",

@@ -224,6 +224,15 @@ const threedEditorInitialState = {
     // toggles it.
     faceCutSide: "LEFT", // "LEFT" | "RIGHT"
   },
+  // Cut line axis tools (Features/threedCutLines): while a cut line is
+  // armed, `axis` = the user axis (X / Y / Z) the trace runs along (null =
+  // free click polyline), `offset` (m) = the « Décalage » guide from the
+  // reference corner, `side` = that corner (S toggles it).
+  cutLineDraw: {
+    axis: null,
+    offset: 2,
+    side: "LEFT",
+  },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
   // The plane geometry itself lives in ClippingManager (three.js side).
@@ -622,6 +631,9 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
         state.drawingMode.faceCutSide = "LEFT";
+        // The cut line axis tool is released with the draft (its offset
+        // and side are sticky preferences).
+        state.cutLineDraw.axis = null;
       } else {
         // Mutually exclusive with the other 3D modes.
         closeBaseMapsGrid(state);
@@ -699,6 +711,20 @@ export const threedEditorSlice = createSlice({
     toggleFaceCutSide: (state) => {
       state.drawingMode.faceCutSide =
         state.drawingMode.faceCutSide === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    // Cut line axis tools (Features/threedCutLines, CutLineToolbarThreed):
+    // the user axis the trace runs along while a cut line is armed (null =
+    // free click polyline), the « Décalage » guide and its side.
+    setCutLineDrawAxis: (state, action) => {
+      state.cutLineDraw.axis = action.payload ?? null;
+    },
+    setCutLineDrawOffset: (state, action) => {
+      const v = Number(action.payload);
+      state.cutLineDraw.offset = Number.isFinite(v) && v >= 0 ? v : 0;
+    },
+    toggleCutLineDrawSide: (state) => {
+      state.cutLineDraw.side =
+        state.cutLineDraw.side === "LEFT" ? "RIGHT" : "LEFT";
     },
     flushInProgressAsTrait3D: (state) => {
       const pts = state.drawingMode.inProgressPolyline;
@@ -1435,6 +1461,9 @@ export const {
   cancelInProgressPolyline,
   toggleLastDrawingVertexType,
   toggleFaceCutSide,
+  setCutLineDrawAxis,
+  setCutLineDrawOffset,
+  toggleCutLineDrawSide,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,
   setDrawingArrowAxes,

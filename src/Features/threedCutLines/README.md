@@ -1,0 +1,120 @@
+# threedCutLines — « Ligne de coupe » (CUT_LINE)
+
+Cut lines prepare the mailles of the Maillage module (MESHES): polylines
+drawn in the 3D editor on the faces of the annotations, whose two end
+segments are extended along the faces of the scene at commit. The Maillage
+CREATE tool then highlights and creates the piece of a face delimited by the
+lines, and « Créer le maillage » creates one maille per piece of every face
+the lines cross.
+
+## Model
+
+A regular annotation (`db.annotations` + `db.points`), template-less:
+
+```js
+{
+  type: "CUT_LINE", isTemplateless: true, scopeId, listingId: null,
+  baseMapId, isDrawnIn3d: true, height: 0,
+  offsetZ,                                   // lowest vertex (m)
+  strokeColor,                               // theme.palette.secondary.fluo
+  points: [{ id, offsetBottom, derived?: true, stop?: true }, …],
+}
+```
+
+- Vertices are projected on the host base map (`worldToBaseMapNormalized`,
+  `encodeCutLineRefs`: `z = offsetZ + offsetBottom`). **One `db.points` row
+  per vertex, never shared** — `pointId` identifies a vertex (sub-selection,
+  « Stop », drag). The commit mints its own rows (not `insertOrReusePoints`).
+- `derived`: point added by the extension (dashed segments while selected).
+  `stop`: the line ends there (`getCutLineVisiblePoints`: a stop in the
+  extended head truncates the start, any other truncates the end).
+- Not in 2D (no `NodeAnnotationStatic` case), no quantities, not exported to
+  DXF, never a duplicate candidate.
+
+## Drawing
+
+- Command `DRAW_CUT_LINE` (`commandsToolbar/commands/drawCutLine`, MESHES
+  layout of the toolbar, 3D only, enabled in the Maillage module) arms a
+  template-less CUT_LINE draft on the click polyline flow
+  (`CUT_LINE_CLICK` → `POLYLINE_CLICK`, `selectIsCutLineDrawActive` in the
+  draw bridge). Enter / Escape / double click end the line; it never closes
+  on its first point; the tool stays armed after a commit.
+- `commitDrawnCutLineService`: `collectSceneTriangles` (visible annotation
+  solids, world soup with winding normals) → `extendCutLine` → projection →
+  points → annotation. The face under each end vertex is the `faceNormal`
+  the snap carried (face / vertex / edge snaps with a face under the cursor).
+- Extension (`utils/`, pure, node-tested): plane of the polyline (Newell,
+  ≥ 3 non-collinear points) or per end `d × n_face`; `sectionTrianglesByPlane`
+  → `buildSectionGraph` (1 mm keys, T-junctions split) → `walkCutLineTrace`
+  (re-entrant turns > flat > salient, then progress along the drawn
+  direction; stops at a free edge, a visited node, 64 points; collinear
+  nodes simplified). User decision 2026-11-03: the trace continues through
+  salient edges too (over a wall, down its back).
+- Axis tools (`CutLineToolbarThreed`: Libre | X | Y | Z, « Décalage »,
+  `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
+  face region under the cursor and publishes to `cutLineAxisStore` the chord
+  parallel to the user axis (`computeCutLineAxisChord` = `computeFaceAxisCut`
+  in the frame `{u: axis in the face, v: n × u}` — a rotated gizmo frame
+  rotates the trace). Digits type the distance from the reference corner, S
+  flips the corner, the guide at « Décalage » snaps, click / Enter commits
+  the chord as a 2-point line (then extended like a free one). Escape drops
+  the typed distance, then releases the axis. `DrawingOverlayThreed` is
+  inert while an axis is armed.
+
+## Rendering, selection, vertices
+
+- `ThreedCutLineAnnotations` (sibling of `ThreedRulerAnnotations`): one
+  Group per line under its base map group (ANNOTATION userData,
+  `lassoPoints`, published to the dimension groups store for the lasso).
+  Unselected: continuous fluo line, the part beyond a stop not drawn.
+  Selected: thicker, derived segments dashed, vertex markers (ends bigger,
+  sub-selected vertex in the selection colour), hidden part in thin grey.
+  Segments carry the fat-line raycast and are published to
+  `cutLineObjectsStore` with the world vertices and the visible world
+  polylines (`version` bumps on every publish).
+- Click: `pickCutLine` / `handleCutLineClick` pre-pass next to the dimension
+  cards in `MainThreedEditor.handleClick` and in the Maillage SELECT tool
+  (`useMeshingPointerHandlers`) — fat lines are invisible to the `.isMesh`
+  picks.
+- `useCutLineVertexHandlers` (mounted by MainThreedEditor): on the selected
+  line, hand cursor over a vertex; click = sub-selection
+  (`setSelectedPointIds` + `setSubSelection VERTEX` → `ToolbarEditAnnotation`
+  shows `ToolbarEditCutLinePoint`: « Stop », « Point prolongé », « Supprimer
+  le point »); drag = move (free: scene vertex → face → base map plane →
+  camera plane; Shift: `computeAxisLockSnap` on the user axes + the connected
+  segment directions, dashed guide). Commit
+  `commitCutLineVertexMoveService`: a new point row (fork), the line
+  re-encoded, a dragged derived point becomes drawn; one undo step; pending
+  patch via `dimensionPendingPatchStore`.
+- `ToolbarEditCutLine` (no sub-selection): points count and « Recalculer le
+  prolongement » (`reextendCutLineService`: the extension re-run from the
+  drawn points on the current scene).
+
+## Maillage
+
+- CREATE on an annotation face: `applyCutLinePieceStipple` clips the planar
+  region (`buildMeshDataFromRegion` → `clipFaceByCutLines`, cached per
+  region + cut lines version) and stipples the piece under the cursor
+  (`buildPieceStippleOverlay`, world, scene root); the area chip shows the
+  piece's (or the whole region's) surface; the click creates the piece
+  (`createMesh3dService`). Curved regions are not clipped.
+- « Créer le maillage » (`ButtonCreateMeshesFromCutLines`, meshing toolbar):
+  `createMeshesFromCutLinesService` — every planar region of every visible
+  annotation solid, clipped by the lines; one maille per piece; pieces whose
+  centroid lies in an existing coplanar maille are skipped; faces no line
+  crosses produce nothing.
+
+## Tests
+
+`node --test src/Features/threedCutLines/utils/*.test.mjs` (pure utils,
+relative `.js` imports) and
+`node --test src/Features/threedFaceCut/utils/computeFaceAxisCut.test.mjs`
+(the `guideDistances` option).
+
+## Known limits (V1)
+
+- Curved regions (shells) are neither clipped nor meshed from the lines.
+- Paste / duplicate / layer copy of a cut line are not handled.
+- Right click stays inert in the Maillage module (no shortcuts menu there).
+- A closed solid walked around: the extension stops on the first visited
+  node (one full loop at most).

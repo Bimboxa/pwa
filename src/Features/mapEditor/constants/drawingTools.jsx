@@ -456,6 +456,19 @@ const DRAWING_TOOLS = [
     behavior: "SEGMENT",
     drawingMode: "POLYLINE_SEGMENT",
   },
+  // CUT_LINE tool (Maillage module, Features/threedCutLines) — the cut line
+  // draws exactly like a click polyline in 3D and keeps its own type
+  // through the commit (commitDrawnCutLineService extends its ends along
+  // the faces). 3D-only: the 2D editor never offers it.
+  {
+    key: "CUT_LINE_CLICK",
+    label: "Ligne de coupe (clics)",
+    Icon: IconPolylineClick,
+    annotationType: "CUT_LINE",
+    behavior: "CLICK",
+    drawingMode: "POLYLINE_CLICK",
+    editor: "3D",
+  },
   // LINEAR_LAYOUT tool — a calepinage band draws as a plain 2-point segment
   // (the bottom edge of the band), so it delegates the interaction to the
   // POLYLINE_SEGMENT mode while keeping its own annotation type through the

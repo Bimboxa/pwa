@@ -87,7 +87,8 @@ export function isRevolutionAxisDraftFor3d(na, enabledDrawingMode) {
 // the drafts the arc toggle (T) and the « Points coplanaires » switch apply
 // to (useDrawingPointerHandlers, DrawingOverlayThreed, drawing helper).
 export function isPolylineClickDraftFor3d(na, enabledDrawingMode) {
-  if (na?.type !== "POLYLINE" || na?.isOpening) return false;
+  if ((na?.type !== "POLYLINE" && na?.type !== "CUT_LINE") || na?.isOpening)
+    return false;
   if (!FACE_DRAW_TOOL_KEYS.has(enabledDrawingMode)) return false;
   const behavior = getDrawingToolByKey(enabledDrawingMode)?.behavior;
   return behavior !== "SEGMENT" && behavior !== "RECTANGLE";
@@ -99,7 +100,29 @@ export function selectIsThreedPolylineClickDraw(s) {
       s.annotations.newAnnotation,
       s.mapEditor.enabledDrawingMode
     ) &&
-    s.viewers.selectedViewerKey === "MAP" &&
+    (s.viewers.selectedViewerKey === "MAP" || isCutLineDraft(s)) &&
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+}
+
+// Cut line of the Maillage module (Features/threedCutLines): the
+// DRAW_CUT_LINE command arms a template-less CUT_LINE draft on the click
+// polyline mode. Allowed in the Maillage module (its home) and in the
+// Dessin module's 3D editor — a 3D-family editor is required either way.
+export function isCutLineDraft(s) {
+  const na = s.annotations.newAnnotation;
+  return (
+    isTemplatelessDraft(na) &&
+    na.type === "CUT_LINE" &&
+    FACE_DRAW_TOOL_KEYS.has(s.mapEditor.enabledDrawingMode)
+  );
+}
+
+export function selectIsCutLineDrawActive(s) {
+  return (
+    isCutLineDraft(s) &&
+    (s.viewers.selectedViewerKey === "MESHES" ||
+      s.viewers.selectedViewerKey === "MAP") &&
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
 }
@@ -115,9 +138,11 @@ export function selectIsThreedPolylineClickDraw(s) {
 // not in walk mode, whose arrows move the walker. Shown in the drawing
 // helper on the same condition.
 export function selectIsThreedAxisLockAvailable(s) {
-  if (s.viewers.selectedViewerKey !== "MAP") return false;
   if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(s))) return false;
   if (s.threedEditor.walkMode?.active) return false;
+  // The cut line (Maillage module) is a click flow too.
+  if (isCutLineDraft(s)) return true;
+  if (s.viewers.selectedViewerKey !== "MAP") return false;
   const mode = s.mapEditor.enabledDrawingMode;
   if (isFaceCutDrawingMode(mode)) return isFaceCutPathMode(mode);
   const na = s.annotations.newAnnotation;

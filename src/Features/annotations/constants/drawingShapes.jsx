@@ -143,6 +143,26 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    // Cut line of the Maillage module (Features/threedCutLines): a 3D-only
+    // polyline whose ends are extended along the faces it lies on.
+    key: "CUT_LINE",
+    label: "Ligne de coupe",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <polyline
+          points="2,16 9,16 9,5 18,5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="2" cy="16" r="2" fill="currentColor" />
+        <circle cx="18" cy="5" r="2" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "DISC",
     label: "Disque",
     icon: (

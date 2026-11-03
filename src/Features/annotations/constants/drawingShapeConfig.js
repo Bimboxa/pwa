@@ -177,6 +177,25 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
+  // Cut line of the Maillage module (Features/threedCutLines): drawn in 3D
+  // only, click by click like a line (CUT_LINE_CLICK rides POLYLINE_CLICK),
+  // committed by commitDrawnCutLineService which extends its ends along the
+  // faces it lies on. Template-less by construction (DRAW_CUT_LINE command);
+  // its stroke is the theme's fluo secondary so it reads on any face.
+  CUT_LINE: {
+    label: "Ligne de coupe",
+    annotationType: "CUT_LINE",
+    tools: ["CUT_LINE_CLICK"],
+    configurableProps: ["strokeColor"],
+    defaults: {
+      strokeColor: theme.palette.secondary.fluo,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+    },
+    shapeCategory: "polyline",
+  },
   POLYGON: {
     label: "Surface",
     annotationType: "POLYGON",
@@ -630,6 +649,7 @@ const TYPE_TO_SHAPE = {
   COTE: "COTE",
   RULER: "RULER",
   DISC: "DISC",
+  CUT_LINE: "CUT_LINE",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",
   REVOLUTION_AXIS_PLACEMENT: "REVOLUTION_AXIS_PLACEMENT",
 };

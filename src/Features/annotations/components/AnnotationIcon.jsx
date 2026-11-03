@@ -26,6 +26,7 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
         <PointAnnotationIcon {...annotation} size={size} />
       );
     case "POLYLINE":
+    case "CUT_LINE":
       return <PolylineIcon {...annotation} size={size} />;
 
     case "STRIP":
