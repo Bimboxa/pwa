@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -12,19 +13,32 @@ import {
   getSweepMode,
   SWEEP_MODE_ELEVATION,
 } from "Features/annotations/services/sweepAlongLineService";
+import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
 
 // Floating helper shown while the « Extruder le long d'une ligne » pick mode
 // is armed (mapEditor.sweepProfileAnnotationId): the armed profile, the
-// instruction to click the guide, how the profile will be registered, and
-// the Escape shortcut. Mirrors PopperSubtractHelper (same mount points: the
-// PopperMapListings chain, the docked Dessin panel, the 3D viewers).
-export default function PopperSweepAlongLineHelper() {
+// instruction to click the guide, how the profile will be registered, the
+// base map the result is created on, and the Escape shortcut. Mirrors
+// PopperSubtractHelper (same mount points: the PopperMapListings chain, the
+// docked Dessin panel, the 3D viewers).
+//
+// `targetBaseMapId`: the base map the swept annotation lands on (the 3D
+// viewer passes its drawing base map); defaults to the main base map of the
+// Dessin module, which is where the 2D pick creates it.
+export default function PopperSweepAlongLineHelper({ targetBaseMapId = null }) {
   const dispatch = useDispatch();
 
   // data
 
   const profileAnnotationId = useSelector(
     (s) => s.mapEditor.sweepProfileAnnotationId
+  );
+  const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const resolvedTargetBaseMapId = targetBaseMapId ?? mainBaseMapId ?? null;
+  const targetBaseMap = useLiveQuery(
+    () =>
+      resolvedTargetBaseMapId ? db.baseMaps.get(resolvedTargetBaseMapId) : null,
+    [resolvedTargetBaseMapId]
   );
   const profile = useLiveQuery(
     () =>
@@ -48,7 +62,11 @@ export default function PopperSweepAlongLineHelper() {
   const modeS =
     profile && getSweepMode(profile) === SWEEP_MODE_ELEVATION
       ? "Le profil a un point de référence : il est lu comme un dessin d'élévation (X = largeur, Y = hauteur) et posé sur le guide."
-      : "Sans point de référence, l'extrusion passe par le profil tel qu'il est dessiné (même fond de plan que le guide).";
+      : "Sans point de référence, l'extrusion passe par le profil tel qu'il est dessiné, même depuis un autre fond de plan.";
+  const targetLabelS = "Créée sur le fond de plan";
+  const targetName = targetBaseMap
+    ? getBaseMapDisplayName(targetBaseMap)
+    : { label: "fond de plan du guide", isPlaceholder: true };
   const cancelS = "Annuler";
 
   // handlers
@@ -112,6 +130,22 @@ export default function PopperSweepAlongLineHelper() {
           {modeS}
         </Typography>
 
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontWeight: 600 }}
+          >
+            {targetLabelS}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ fontStyle: targetName.isPlaceholder ? "italic" : "normal" }}
+          >
+            {targetName.label}
+          </Typography>
+        </Box>
+
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box
             sx={{
@@ -138,3 +172,7 @@ export default function PopperSweepAlongLineHelper() {
     </Paper>
   );
 }
+
+PopperSweepAlongLineHelper.propTypes = {
+  targetBaseMapId: PropTypes.string,
+};

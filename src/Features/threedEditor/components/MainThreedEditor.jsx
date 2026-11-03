@@ -119,6 +119,7 @@ import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHe
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import PopperSweepAlongLineHelper from "Features/mapEditor/components/PopperSweepAlongLineHelper";
 import useSweepPickHotkeysInThreedEditor from "../hooks/useSweepPickHotkeysInThreedEditor";
+import useDrawingPreferredBaseMapId from "Features/threedDrawing/hooks/useDrawingPreferredBaseMapId";
 import { setSweepProfileAnnotationId } from "Features/mapEditor/mapEditorSlice";
 import {
   createSweepAlongLineService,
@@ -673,6 +674,14 @@ export default function MainThreedEditor() {
     sweepProfileAnnotationIdRef.current = sweepProfileAnnotationId;
   }, [sweepProfileAnnotationId]);
   const sweepPickActive = Boolean(sweepProfileAnnotationId);
+  // Base map the swept annotation is created on: the one selected in the
+  // Dessin module (3D selection, else the 2D main base map) — the same rule
+  // as a 3D drawing that the geometry alone cannot place.
+  const sweepTargetBaseMapId = useDrawingPreferredBaseMapId();
+  const sweepTargetBaseMapIdRef = useRef(sweepTargetBaseMapId);
+  useEffect(() => {
+    sweepTargetBaseMapIdRef.current = sweepTargetBaseMapId;
+  }, [sweepTargetBaseMapId]);
 
   // Escape exits the mode: InteractionLayer owns that in 2D but is not mounted
   // here.
@@ -1467,6 +1476,7 @@ export default function MainThreedEditor() {
               createSweepAlongLineService({
                 profileAnnotationId: sweepProfileId,
                 guideAnnotationId: nodeId,
+                targetBaseMapId: sweepTargetBaseMapIdRef.current,
                 dispatch,
               }).then(async (result) => {
                 if (result?.error) {
@@ -3222,7 +3232,9 @@ export default function MainThreedEditor() {
           </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
-      {isThreedViewer && sweepPickActive && <PopperSweepAlongLineHelper />}
+      {isThreedViewer && sweepPickActive && (
+        <PopperSweepAlongLineHelper targetBaseMapId={sweepTargetBaseMapId} />
+      )}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}

@@ -4,6 +4,9 @@ import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import applyProfileFromAnnotationService from "Features/elevation/services/applyProfileFromAnnotationService";
+import areBaseMapsParallel from "Features/baseMaps/js/areBaseMapsParallel";
+import baseMapPointToBaseMap from "Features/baseMaps/js/baseMapPointToBaseMap";
+import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 
 import createAnnotationService from "./createAnnotationService";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
@@ -32,8 +35,18 @@ import {
 //     points, their vertex offsets (offsetBottom, drawn in 3D) the inline
 //     heights — so the sweep passes exactly through the drawn profile.
 //     getInlineExtrusionSetup registers it against the crossed / nearest guide
-//     segment. A profile drawn flat on the plan gives a flat band. Requires the
-//     profile and the guide on the same base map.
+//     segment. A profile drawn flat on the plan gives a flat band.
+//
+// Base maps: the result is created on `targetBaseMapId` — the base map
+// selected in the Dessin module (the caller's choice; falls back to the
+// guide's base map). The profile and the guide may live on other base maps:
+// every point is re-expressed in the target frame through the 3D placements
+// (baseMapPointToBaseMap). The guide ring is projected along the target
+// normal (its base map must be parallel to the target, else the path would
+// collapse); an IN_PLACE profile keeps its world position — plan trace on the
+// target, altitude relative to the target plane — so a profile drawn on a
+// vertical elevation lands upright on the plan. Cross-base-map conversion
+// needs every base map involved scaled (`meterByPx`).
 //
 // Template: the profile's annotationTemplate props (getNewAnnotationProps…),
 // forced to POLYLINE; a templateless profile gives a templateless result that
@@ -55,8 +68,12 @@ export const SWEEP_ERROR_MESSAGES = {
   GUIDE_MISSING: "Le guide n'existe plus.",
   GUIDE_TYPE: "Le guide doit être une ligne ou une surface.",
   GUIDE_GEOMETRY: "Le guide doit avoir au moins deux points.",
-  BASE_MAP_MISMATCH:
-    "Sans point de référence, le profil doit être sur le même fond de plan que le guide.",
+  TARGET_BASE_MAP_MISSING:
+    "Aucun fond de plan sélectionné pour créer l'annotation.",
+  GUIDE_NOT_PARALLEL:
+    "Le guide doit être sur un fond de plan parallèle au fond de plan sélectionné.",
+  BASE_MAP_SCALE:
+    "Pour extruder entre fonds de plan, le profil, le guide et le fond de plan sélectionné doivent être mis à l'échelle.",
   NOT_A_SWEEP: "Cette annotation n'est pas une extrusion le long d'une ligne.",
 };
 
@@ -78,10 +95,86 @@ async function readRing(refs) {
     .filter(({ row }) => Number.isFinite(row?.x) && Number.isFinite(row?.y));
 }
 
-// Independent copy of the guide's main ring: new db.points at the same
-// normalized coords, refs keeping their per-vertex props (type, offsets) and
-// the hidden-segment flags remapped to the new ids.
-async function copyGuideGeometry(guide, { projectId, listingId }) {
+// Base map record + its reference image size, in the shape the baseMaps/js
+// projections accept (`getImageSize`, the frame db.points are normalized in).
+async function loadBaseMapFrame(baseMapId) {
+  if (!baseMapId) return null;
+  const record = await db.baseMaps.get(baseMapId);
+  if (!record) return null;
+  const versions = await db.baseMapVersions
+    .where("baseMapId")
+    .equals(baseMapId)
+    .toArray();
+  const size = getBaseMapImageSizeFromRecord(record, versions);
+  return { ...record, getImageSize: () => size };
+}
+
+function canProject(frame) {
+  const size = frame?.getImageSize?.();
+  return Boolean(size?.width && size?.height && frame?.meterByPx);
+}
+
+// (rel normalized in `source`, altitude along its normal) → { x, y, offset }
+// in `target`. Identity on the same base map (no float round trip for the
+// single-plan flow).
+function makeFrameConverter(source, target) {
+  if (!source || !target || source.id === target.id) {
+    return (rel, altitude = 0) => ({ x: rel.x, y: rel.y, offset: altitude });
+  }
+  return (rel, altitude = 0) =>
+    baseMapPointToBaseMap(rel, source, target, { altitude });
+}
+
+// Target frame + converters of the two sources, or { error }. The guide must
+// be projectable along the target normal (parallel base maps); the profile
+// only needs a scale when its vertices are swept IN_PLACE (the ELEVATION
+// registration reads it in its own frame — an unscaled profile just loses
+// the seed segment).
+async function resolveFrames({ profile, guide, targetBaseMapId, mode }) {
+  const target =
+    (await loadBaseMapFrame(targetBaseMapId)) ??
+    (await loadBaseMapFrame(guide.baseMapId));
+  if (!target) return { error: "TARGET_BASE_MAP_MISSING" };
+
+  const frameOf = async (baseMapId) =>
+    baseMapId === target.id ? target : await loadBaseMapFrame(baseMapId);
+
+  const guideFrame = await frameOf(guide.baseMapId);
+  if (guideFrame && guideFrame.id !== target.id) {
+    if (!areBaseMapsParallel(guideFrame, target)) {
+      return { error: "GUIDE_NOT_PARALLEL" };
+    }
+    if (!canProject(guideFrame) || !canProject(target)) {
+      return { error: "BASE_MAP_SCALE" };
+    }
+  }
+
+  let profileFrame = profile ? await frameOf(profile.baseMapId) : null;
+  if (profileFrame && profileFrame.id !== target.id) {
+    const projectable = canProject(profileFrame) && canProject(target);
+    if (!projectable && mode === SWEEP_MODE_IN_PLACE) {
+      return { error: "BASE_MAP_SCALE" };
+    }
+    if (!projectable) profileFrame = null;
+  }
+
+  return {
+    target,
+    // A missing guide frame (deleted base map) keeps the coords as they are.
+    guideToTarget: makeFrameConverter(guideFrame ?? target, target),
+    profileToTarget: profileFrame
+      ? makeFrameConverter(profileFrame, target)
+      : null,
+  };
+}
+
+// Independent copy of the guide's main ring: new db.points at the guide's
+// vertices projected on the target base map, refs keeping their per-vertex
+// props (type, offsets) and the hidden-segment flags remapped to the new ids.
+async function copyGuideGeometry(
+  guide,
+  { projectId, listingId, target, guideToTarget }
+) {
   const ring = await readRing(guide.points);
   if (ring.length < 2) return null;
 
@@ -92,12 +185,13 @@ async function copyGuideGeometry(guide, { projectId, listingId }) {
     if (!newId) {
       newId = nanoid();
       idMap.set(ref.id, newId);
+      const p = guideToTarget({ x: row.x, y: row.y }) ?? row;
       pointRecords.push({
         id: newId,
-        x: row.x,
-        y: row.y,
+        x: p.x,
+        y: p.y,
         projectId,
-        baseMapId: guide.baseMapId,
+        baseMapId: target.id,
         listingId: listingId ?? null,
       });
     }
@@ -125,31 +219,35 @@ async function copyGuideGeometry(guide, { projectId, listingId }) {
   };
 }
 
-// IN_PLACE profile line: the profile's own plan vertices, heights = vertex
+// IN_PLACE profile line: the profile's own vertices re-expressed in the
+// target frame (plan trace + altitude above the target plane), heights =
 // altitude relative to the result's offsetZ (inline heights are absolute,
 // the 3D build lifts the sweep by the result's offsetZ).
 async function buildInPlaceProfileLine(
   profile,
-  { resultOffsetZ, projectId, baseMapId, listingId }
+  { resultOffsetZ, projectId, listingId, target, profileToTarget }
 ) {
   const ring = await readRing(profile.points);
   if (ring.length < 2) return null;
-  const lift = _num(profile.offsetZ) - _num(resultOffsetZ);
   const pointRecords = [];
   const points = ring.map(({ ref, row }) => {
     const id = nanoid();
+    const p = profileToTarget(
+      { x: row.x, y: row.y },
+      _num(profile.offsetZ) + _num(ref.offsetBottom)
+    );
     pointRecords.push({
       id,
-      x: row.x,
-      y: row.y,
+      x: p.x,
+      y: p.y,
       projectId,
-      baseMapId,
+      baseMapId: target.id,
       listingId: listingId ?? null,
     });
     return {
       pointId: id,
       type: ref.type === "circle" ? "circle" : "square",
-      height: lift + _num(ref.offsetBottom),
+      height: p.offset - _num(resultOffsetZ),
     };
   });
   return {
@@ -161,24 +259,32 @@ async function buildInPlaceProfileLine(
   };
 }
 
-// ELEVATION registration: the guide segment nearest (in plan) to the
-// profile's base point, when both live on the same base map; else 0.
-async function getSeedSegmentIndex(guide, profile) {
-  if (profile.baseMapId !== guide.baseMapId) return 0;
+// ELEVATION registration: the guide segment nearest (in the target plan) to
+// the profile's base point; 0 when the base point cannot be projected.
+async function getSeedSegmentIndex(
+  guide,
+  profile,
+  { target, guideToTarget, profileToTarget }
+) {
+  if (!profileToTarget) return 0;
   const baseRef = (profile.points ?? []).find((r) => r?.isBasePoint);
   if (!baseRef?.id) return 0;
   const baseRow = await db.points.get(baseRef.id);
   if (!Number.isFinite(baseRow?.x) || !Number.isFinite(baseRow?.y)) return 0;
-  const baseMap = await db.baseMaps.get(guide.baseMapId);
-  const w = baseMap?.image?.imageSize?.width || 1;
-  const h = baseMap?.image?.imageSize?.height || 1;
+  const base = profileToTarget({ x: baseRow.x, y: baseRow.y });
+  if (!base) return 0;
+  const size = target.getImageSize();
+  const w = size?.width || 1;
+  const h = size?.height || 1;
   const ring = await readRing(guide.points);
-  const pts = ring.map(({ row }) => ({ x: row.x * w, y: row.y * h }));
+  const pts = ring
+    .map(({ row }) => guideToTarget({ x: row.x, y: row.y }) ?? row)
+    .map((p) => ({ x: p.x * w, y: p.y * h }));
   const n = pts.length;
   if (n < 2) return 0;
   const closed = guide.type === "POLYGON" || Boolean(guide.closeLine);
   const segCount = closed ? n : n - 1;
-  const P = { x: baseRow.x * w, y: baseRow.y * h };
+  const P = { x: base.x * w, y: base.y * h };
   let best = 0;
   let bestD = Infinity;
   for (let i = 0; i < segCount; i += 1) {
@@ -199,8 +305,10 @@ async function getSeedSegmentIndex(guide, profile) {
 }
 
 // Props of the result annotation: the profile's template (or its own style
-// when templateless), forced to a POLYLINE on the guide's base map.
-async function buildResultProps(profile, guide) {
+// when templateless), forced to a POLYLINE on the target base map. A
+// templateless result keeps the profile's offsetZ as a starting altitude
+// (IN_PLACE heights are absolute anyway; ELEVATION lays the base point there).
+async function buildResultProps(profile, guide, target) {
   const template = profile.annotationTemplateId
     ? await db.annotationTemplates.get(profile.annotationTemplateId)
     : null;
@@ -232,7 +340,7 @@ async function buildResultProps(profile, guide) {
   return {
     ...props,
     projectId: guide.projectId,
-    baseMapId: guide.baseMapId,
+    baseMapId: target.id,
     ...(profile.layerId ? { layerId: profile.layerId } : {}),
   };
 }
@@ -256,11 +364,13 @@ function checkGuide(guide) {
 
 // --- services ----------------------------------------------------------------
 
-// Creates the swept annotation. Resolves to { annotationId, mode } or
-// { error } (a key of SWEEP_ERROR_MESSAGES).
+// Creates the swept annotation on `targetBaseMapId` (the base map selected
+// in the Dessin module; the guide's base map when omitted). Resolves to
+// { annotationId, mode } or { error } (a key of SWEEP_ERROR_MESSAGES).
 export async function createSweepAlongLineService({
   profileAnnotationId,
   guideAnnotationId,
+  targetBaseMapId = null,
   dispatch,
 }) {
   if (!profileAnnotationId || !guideAnnotationId) {
@@ -279,14 +389,19 @@ export async function createSweepAlongLineService({
   if (guideError) return { error: guideError };
 
   const mode = getSweepMode(profile);
-  if (mode === SWEEP_MODE_IN_PLACE && profile.baseMapId !== guide.baseMapId) {
-    return { error: "BASE_MAP_MISMATCH" };
-  }
+  const frames = await resolveFrames({
+    profile,
+    guide,
+    targetBaseMapId,
+    mode,
+  });
+  if (frames.error) return { error: frames.error };
 
-  const props = await buildResultProps(profile, guide);
+  const props = await buildResultProps(profile, guide, frames.target);
   const geometry = await copyGuideGeometry(guide, {
     projectId: guide.projectId,
     listingId: props.listingId,
+    ...frames,
   });
   if (!geometry) return { error: "GUIDE_GEOMETRY" };
 
@@ -303,8 +418,8 @@ export async function createSweepAlongLineService({
     const built = await buildInPlaceProfileLine(profile, {
       resultOffsetZ: annotation.offsetZ,
       projectId: guide.projectId,
-      baseMapId: guide.baseMapId,
       listingId: props.listingId,
+      ...frames,
     });
     if (!built) return { error: "PROFILE_GEOMETRY" };
     annotation.profileLines = [built.line];
@@ -312,7 +427,7 @@ export async function createSweepAlongLineService({
   }
   const seedSegmentIndex =
     mode === SWEEP_MODE_ELEVATION
-      ? await getSeedSegmentIndex(guide, profile)
+      ? await getSeedSegmentIndex(guide, profile, frames)
       : 0;
 
   let profileApplied = mode === SWEEP_MODE_IN_PLACE;
@@ -349,9 +464,10 @@ export async function createSweepAlongLineService({
   return { annotationId: id, mode, profileApplied };
 }
 
-// Rebuilds a swept annotation from its sources: the guide's ring is copied
-// again and the profile re-applied (same registration rule). A deleted
-// profile keeps the current profile line (the ring alone is refreshed).
+// Rebuilds a swept annotation from its sources, on its own base map: the
+// guide's ring is copied again and the profile re-applied (same registration
+// rule). A deleted profile keeps the current profile line (the ring alone is
+// refreshed).
 // Resolves to { annotationId, mode, profileRefreshed } or { error }.
 export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   const ann = await db.annotations.get(annotationId);
@@ -365,13 +481,18 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   if (guideError) return { error: guideError };
 
   const mode = profile ? getSweepMode(profile) : null;
-  if (mode === SWEEP_MODE_IN_PLACE && profile.baseMapId !== guide.baseMapId) {
-    return { error: "BASE_MAP_MISMATCH" };
-  }
+  const frames = await resolveFrames({
+    profile,
+    guide,
+    targetBaseMapId: ann.baseMapId,
+    mode,
+  });
+  if (frames.error) return { error: frames.error };
 
   const geometry = await copyGuideGeometry(guide, {
     projectId: ann.projectId,
     listingId: ann.listingId,
+    ...frames,
   });
   if (!geometry) return { error: "GUIDE_GEOMETRY" };
 
@@ -388,8 +509,8 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
     const built = await buildInPlaceProfileLine(profile, {
       resultOffsetZ: ann.offsetZ,
       projectId: ann.projectId,
-      baseMapId: ann.baseMapId,
       listingId: ann.listingId,
+      ...frames,
     });
     if (!built) return { error: "PROFILE_GEOMETRY" };
     profileLines = [built.line];
@@ -402,7 +523,7 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   }
   const seedSegmentIndex =
     mode === SWEEP_MODE_ELEVATION
-      ? await getSeedSegmentIndex(guide, profile)
+      ? await getSeedSegmentIndex(guide, profile, frames)
       : 0;
 
   let profileRefreshed = mode === SWEEP_MODE_IN_PLACE;
