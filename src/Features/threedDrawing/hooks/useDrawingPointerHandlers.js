@@ -82,6 +82,7 @@ import commitDrawnCoteService from "../services/commitDrawnCoteService";
 import commitDrawnRulerService from "../services/commitDrawnRulerService";
 import { isRulerDraftFor3d } from "../utils/templateRulerDrawSelectors";
 import expandConstraintLengths3d from "../utils/expandConstraintLengths3d";
+import projectAxisDirInPlane from "../utils/projectAxisDirInPlane";
 import commitDrawnDiscService, {
   DISC_COMMIT_NOT_PARALLEL,
   DISC_COMMIT_NO_SCALE,
@@ -1074,6 +1075,28 @@ export default function useDrawingPointerHandlers() {
         }
         return;
       }
+      // A ";" series (polyline): its segments at once, then the next click
+      // is free. The vertices keep the face of the last vertex (the cut
+      // service finds the host through the nodeIds).
+      const pathSeries =
+        behavior !== "SEGMENT" && expandSeriesVertices(snap, last);
+      if (pathSeries) {
+        dispatch(
+          appendDrawingVertices(
+            pathSeries.map((v) => ({
+              ...v,
+              ...(last.nodeId ? { nodeId: last.nodeId } : {}),
+              ...(last.faceNormal ? { faceNormal: last.faceNormal } : {}),
+            }))
+          )
+        );
+        releaseLengthConstraint();
+        return;
+      }
+      // NB: while a length is typed the snap is always exactly that far from
+      // `last`, so the double click / back-on-first-point closures cannot
+      // trigger — Enter ends the polyline.
+      if (last) releaseLengthConstraint();
       if (inProgress.length === 0) {
         dispatch(pushDrawingVertex(newVertex));
         return;
@@ -1195,15 +1218,15 @@ export default function useDrawingPointerHandlers() {
 
     // ";" chains several typed lengths ("6;0.2;2" → one click places that
     // many collinear segments, 2D parity): only for the N-click chains
-    // (templated / template-less polyline, ruler). A cote, a 2-click
-    // segment, a disc / axis radius and a face cut take one value.
+    // (templated / template-less polyline, ruler, "Coupe face" polyline). A
+    // cote, a 2-click segment and a disc / axis radius take one value (the
+    // face axis cuts and rectangle never reach onLengthKey).
     function canChainLengths() {
       return (
         behavior !== "SEGMENT" &&
         !isCoteDraw() &&
         !isDiscDraw() &&
-        !isAxisDraw() &&
-        !isFaceCutDraw()
+        !isAxisDraw()
       );
     }
 
@@ -1237,26 +1260,48 @@ export default function useDrawingPointerHandlers() {
     // done there too), ← releases it. Only once a point is placed (the lock
     // is released by every click), for the flows anchored on a last vertex
     // (selectIsThreedAxisLockAvailable: not the rectangles, disc / axis,
-    // face cuts) and never in walk mode (its arrows move the walker). True
-    // when consumed.
+    // face axis cuts) and never in walk mode (its arrows move the walker).
+    // A "Coupe face" path follows the axis rabatted into its face: an axis
+    // perpendicular to the face (Z on a slab) locks nothing. True when
+    // consumed.
     function onAxisLockKey(e) {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
       const dir = ARROW_KEY_DIRECTIONS[e.key];
       if (!dir) return false;
       const s = store.getState();
       if (!selectIsThreedAxisLockAvailable(s)) return false;
-      if (s.threedEditor.drawingMode.inProgressPolyline.length === 0) {
-        return false;
-      }
+      const { inProgressPolyline: inProgress } = s.threedEditor.drawingMode;
+      if (inProgress.length === 0) return false;
       e.preventDefault();
       if (e.repeat) return true;
       const axis =
         dir === "release" ? null : s.threedEditor.drawingMode.arrowAxes?.[dir];
       if (axis === undefined) return true;
+      if (axis && isFaceCutDraw() && !isFaceCutLockableAxis(s, axis)) {
+        return true;
+      }
       if (s.threedEditor.drawingMode.axisLock !== axis) {
         dispatch(setDrawingAxisLock(axis));
       }
       return true;
+    }
+
+    // "Coupe face": whether the user axis `axisKey` has a direction in the
+    // face's plane — the selected face, else the face the last vertex was
+    // placed on (none known: any axis) — the overlay follows
+    // (projectAxisDirInPlane).
+    function isFaceCutLockableAxis(s, axisKey) {
+      const { inProgressPolyline: inProgress } = s.threedEditor.drawingMode;
+      const last = inProgress[inProgress.length - 1];
+      const normal =
+        resolveFaceCutLockedFace(s, editor)?.planeWorld?.normal ??
+        last?.faceNormal ??
+        null;
+      if (!normal) return true;
+      const axis = getUserAxesWorldDirections(
+        s.threedEditor.axesSettings.yawDeg
+      ).find((a) => a.key === axisKey);
+      return Boolean(axis && projectAxisDirInPlane(axis.dir, normal));
     }
 
     // T (2D parity, InteractionLayer): the last placed point of a line
@@ -1725,11 +1770,17 @@ export default function useDrawingPointerHandlers() {
       if (isFaceCutDraw()) {
         if (faceCutAxis) {
           if (onFaceCutAxisKey(e)) return;
-        } else if (
-          behavior === "RECTANGLE" &&
-          inProgressPolyline.length === 1
-        ) {
-          if (await onFaceCutRectangleKey(e)) return;
+        } else if (behavior === "RECTANGLE") {
+          if (
+            inProgressPolyline.length === 1 &&
+            (await onFaceCutRectangleKey(e))
+          )
+            return;
+        } else {
+          // Segment / polyline: the arrow-key axis lock and the typed
+          // length, as for a 3D line.
+          if (onAxisLockKey(e)) return;
+          if (onLengthKey(e)) return;
         }
         if (e.key === "Enter") {
           if (behavior === "SEGMENT" || behavior === "RECTANGLE") return;
@@ -1739,13 +1790,15 @@ export default function useDrawingPointerHandlers() {
           });
         } else if (e.key === "Escape") {
           // A cut is never made on Escape: the path is dropped (with the
-          // typed dimensions / distance), then the tool is left.
+          // typed dimensions / distance / length), then the typed value
+          // alone, then the tool is left.
           const { constraintBuffer } = store.getState().mapEditor;
           if (inProgressPolyline.length > 0) {
             dispatch(cancelInProgressPolyline());
             dispatch(clearRectDims());
             dispatch(setRectHasFirstPoint(false));
-          } else if (faceCutAxis && constraintBuffer) {
+            releaseLengthConstraint();
+          } else if (constraintBuffer) {
             dispatch(clearConstraintBuffer());
           } else {
             dispatch(setEnabledDrawingMode(null));

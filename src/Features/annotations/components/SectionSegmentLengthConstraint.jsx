@@ -31,9 +31,12 @@ export default function SectionSegmentLengthConstraint() {
   const meterByPx = baseMap?.meterByPx;
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
   const constraintBuffer = useSelector((s) => s.mapEditor.constraintBuffer);
-  // A cote is one segment: no ";" series.
-  const isCote = useSelector(
-    (s) => s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK"
+  // A cote and the "Coupe face" segment are one segment: no ";" series
+  // (useDrawingPointerHandlers.canChainLengths).
+  const isSingleSegment = useSelector(
+    (s) =>
+      s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK" ||
+      s.mapEditor.enabledDrawingMode === "FACE_CUT_SEGMENT"
   );
 
   // state
@@ -101,7 +104,9 @@ export default function SectionSegmentLengthConstraint() {
         </Typography>
       )}
       <ConstraintShortcutRow label={constrainS} keys={["0-9"]} />
-      {!isCote && <ConstraintShortcutRow label={chainS} keys={[";"]} />}
+      {!isSingleSegment && (
+        <ConstraintShortcutRow label={chainS} keys={[";"]} />
+      )}
       <ConstraintShortcutRow label={eraseS} keys={["⌫"]} />
     </Box>
   );
