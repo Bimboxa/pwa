@@ -5,6 +5,7 @@ import { Quaternion, Vector3 } from "three";
 
 import { Box } from "@mui/material";
 
+import { normalizeAxesOrigin } from "Features/threedEditor/constants/axesDisplay";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 
 // Orientation gizmo of the 3D view (top-right corner, 3D view settings
@@ -22,11 +23,19 @@ import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesW
 // camera stands seen from above, in the gizmo's own top view (user X to the
 // right, user Y down, frame yaw included), so it agrees with the axes.
 //
+// At the centre, a « O » hub: clicking it turns the camera, from where it
+// stands, toward the frame origin (axesSettings.origin), which lands at the
+// screen centre and becomes the orbit point of the ring. The hub paints over
+// an axis end that projects onto the centre (axis nearly aligned with the
+// view): that end would only re-frame the current view, and its flip is a
+// ring / orbit gesture away.
+//
 // Pure DOM/SVG overlay: it never touches the renderer. It follows the camera
 // through SceneManager.addRenderListener (fired after every renderScene) and
-// drives the camera through ControlsManager.animateToTopDown (axis clicks)
-// and cameraControls.rotateAzimuthTo (ring drag). The displayed frame yaw
-// (axesSettings) rotates the axes only — purely visual.
+// drives the camera through ControlsManager.animateToTopDown (axis clicks),
+// ControlsManager.animateLookAtTarget (hub) and cameraControls.rotateAzimuthTo
+// (ring drag). The displayed frame yaw (axesSettings) rotates the axes only —
+// purely visual.
 
 const SIZE = 112;
 const CENTER = SIZE / 2;
@@ -36,6 +45,7 @@ const NEG_END_RADIUS = 6; // negative end circle (px)
 const RING_RADIUS = 50; // orbit ring (px)
 const RING_HIT_WIDTH = 14; // invisible grab band along the ring (px)
 const KNOB_RADIUS = 6; // orbit knob (px)
+const HUB_RADIUS = 7; // centre « O » button (px)
 const QUAT_EPSILON = 1e-4;
 const AZIMUTH_EPSILON = 1e-4;
 // Smooth time while the knob is dragged: same reactivity as the controls'
@@ -106,10 +116,12 @@ export default function AxesGizmoThreed({ threedEditorRef, sx }) {
 
   const viewAlongS = (id) => `Vue selon ${id}`;
   const orbitRingS = "Tourner la vue autour de la verticale";
+  const centerOnFrameS = "Centrer la vue sur le repère";
 
   // data
 
   const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
+  const origin = useSelector((s) => s.threedEditor.axesSettings.origin);
 
   // state
 
@@ -220,6 +232,15 @@ export default function AxesGizmoThreed({ threedEditorRef, sx }) {
       Math.max(0.001, Math.acos(Math.min(1, Math.max(-1, dir.y))))
     );
     controlsManager.animateToTopDown({ target, azimuthRad, polarRad });
+  }
+
+  // Hub: aim the camera at the frame origin (world coords), smoothly.
+  function handleHubClick() {
+    const controlsManager =
+      threedEditorRef.current?.sceneManager?.controlsManager;
+    if (!controlsManager?.animateLookAtTarget) return;
+    const [x, y, z] = normalizeAxesOrigin(origin);
+    controlsManager.animateLookAtTarget({ target: new Vector3(x, y, z) });
   }
 
   // Start a ring drag from the knob or from anywhere on the ring. From the
@@ -400,6 +421,36 @@ export default function AxesGizmoThreed({ threedEditorRef, sx }) {
             </g>
           );
         })}
+        {/* Centre hub « O »: aim the camera at the frame origin. */}
+        <g
+          onClick={handleHubClick}
+          onPointerEnter={() => setHovered(true)}
+          onPointerLeave={() => setHovered(false)}
+          style={{ cursor: "pointer", pointerEvents: "auto" }}
+        >
+          <title>{centerOnFrameS}</title>
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={HUB_RADIUS}
+            fill="#fff"
+            stroke="rgba(0,0,0,0.4)"
+            strokeWidth={1.5}
+          />
+          <text
+            x={CENTER}
+            y={CENTER + 0.5}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={9}
+            fontWeight={700}
+            fontFamily="system-ui, sans-serif"
+            fill="#333"
+            style={{ pointerEvents: "none" }}
+          >
+            O
+          </text>
+        </g>
         {/* Orbit knob, last so it paints over everything. Z colour: it turns
             the view around the user's Z axis. */}
         {knob && (

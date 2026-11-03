@@ -981,6 +981,35 @@ export default class ControlsManager {
     }
   };
 
+  // Turn the camera, from where it stands, toward `target`: the target lands
+  // at the screen centre and becomes the orbit point, the camera position is
+  // kept (distance and angles follow). The focal offset (orbit-around-cursor
+  // pivots are stored as a screen-parallel offset) is cleared at the same
+  // time, otherwise the target would settle off-centre. Smooth transition;
+  // resolves when settled. Used by the gizmo hub (« Centrer la vue sur le
+  // repère »).
+  animateLookAtTarget = async ({ target, smoothTime = 0.3 }) => {
+    const controls = this.cameraControls;
+    if (!controls || !target) return;
+
+    const prevSmoothTime = controls.smoothTime;
+    const prevEnabled = controls.enabled;
+    try {
+      controls.enabled = false; // ignore user input mid-flight
+      controls.smoothTime = smoothTime;
+      await Promise.all([
+        controls.setFocalOffset(0, 0, 0, true),
+        controls.setTarget(target.x, target.y, target.z, true),
+      ]);
+      // Snap to the exact pose (the transition settles a hair off).
+      controls.setFocalOffset(0, 0, 0, false);
+      controls.setTarget(target.x, target.y, target.z, false);
+    } finally {
+      controls.smoothTime = prevSmoothTime;
+      controls.enabled = prevEnabled;
+    }
+  };
+
   // Apply the controls' current internal state to the camera object right
   // now (the _loop only does it on its next frame) so reads of the camera
   // matrices reflect the settled end-of-animation pose.
