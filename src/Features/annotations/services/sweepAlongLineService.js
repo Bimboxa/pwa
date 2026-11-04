@@ -414,6 +414,12 @@ export async function createSweepAlongLineService({
     ...geometry.fields,
     sweepSources: { guideAnnotationId, profileAnnotationId },
   };
+  // The ring IS the guide: it rides at the guide's altitude, so the copied
+  // vertex offsets (a chain that climbs) stay where they were drawn. IN_PLACE
+  // heights are absolute and re-expressed against this offsetZ below.
+  if (mode === SWEEP_MODE_IN_PLACE && Number.isFinite(Number(guide.offsetZ))) {
+    annotation.offsetZ = Number(guide.offsetZ);
+  }
 
   let profilePointRecords = [];
   if (mode === SWEEP_MODE_IN_PLACE) {
@@ -540,9 +546,15 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   let profileLines = prevLines;
   let profilePointRecords = [];
   let pointIdsToDelete = ringPointIds;
+  // Same altitude rule as the creation: an IN_PLACE result rides at the
+  // guide's offsetZ (also re-aligns results created before that rule).
+  const resultOffsetZ =
+    mode === SWEEP_MODE_IN_PLACE && Number.isFinite(Number(guide.offsetZ))
+      ? Number(guide.offsetZ)
+      : ann.offsetZ;
   if (mode === SWEEP_MODE_IN_PLACE) {
     const built = await buildInPlaceProfileLine(profile, {
-      resultOffsetZ: ann.offsetZ,
+      resultOffsetZ,
       projectId: ann.projectId,
       listingId: ann.listingId,
       ...frames,
@@ -579,6 +591,7 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
       await db.annotations.update(annotationId, {
         ...geometry.fields,
         profileLines,
+        ...(resultOffsetZ !== ann.offsetZ ? { offsetZ: resultOffsetZ } : {}),
       });
     });
     if (mode === SWEEP_MODE_ELEVATION) {
