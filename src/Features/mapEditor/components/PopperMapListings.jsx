@@ -94,6 +94,7 @@ import selectedBusinessObjectBgcolor from "Features/businessObjects/utils/select
 import RowOrphanAnnotations from "Features/mapEditor/components/RowOrphanAnnotations";
 import RowListingTemplatelessAnnotations from "Features/mapEditor/components/RowListingTemplatelessAnnotations";
 import RowTemplatelessAnnotations from "Features/mapEditor/components/RowTemplatelessAnnotations";
+import RowCutLineAnnotations from "Features/threedCutLines/components/RowCutLineAnnotations";
 import IconListingVariantBasic from "Features/listings/components/IconListingVariantBasic";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
@@ -121,6 +122,7 @@ import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/Ic
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import {
   TEMPLATELESS_LABEL,
+  isCutLineAnnotation,
   isTemplatelessAnnotationInScope,
   isTemplatelessTemplateKey,
 } from "Features/annotations/utils/templatelessAnnotations";
@@ -1898,10 +1900,23 @@ export default function PopperMapListings() {
   // « Annotations sans modèle » row (Dessin popper): the annotations drawn
   // without template in the selected scope, eye-hidden ones included like
   // the template rows — the same scoping as every counter of the panel.
+  // Cut lines (Maillage) have their own row and eye: out of the
+  // « Annotations sans modèle » row.
   const templatelessAnnotations = useMemo(
     () =>
-      (allAnnotationsInclHidden ?? []).filter((a) =>
-        isTemplatelessAnnotationInScope(a, selectedScopeId)
+      (allAnnotationsInclHidden ?? []).filter(
+        (a) =>
+          isTemplatelessAnnotationInScope(a, selectedScopeId) &&
+          !isCutLineAnnotation(a)
+      ),
+    [allAnnotationsInclHidden, selectedScopeId]
+  );
+  const cutLineAnnotations = useMemo(
+    () =>
+      (allAnnotationsInclHidden ?? []).filter(
+        (a) =>
+          isCutLineAnnotation(a) &&
+          isTemplatelessAnnotationInScope(a, selectedScopeId)
       ),
     [allAnnotationsInclHidden, selectedScopeId]
   );
@@ -2646,6 +2661,18 @@ export default function PopperMapListings() {
           {baseMap && !baseMap.meterByPx && !isLegendPopper && (
             <WarningBaseMapNotToScale />
           )}
+
+          {/* « Lignes de coupe » (Maillage, Features/threedCutLines) — pinned
+              at the very top, 2D and 3D (they are drawn in the 3D Maillage
+              module): a debug copy of their data and their own eye. */}
+          {!isBaseMapsLegend &&
+            !isLocateBusinessObjectMode &&
+            !isLegendPopper &&
+            !visibleTemplateIds && (
+              <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
+                <RowCutLineAnnotations annotations={cutLineAnnotations} />
+              </Box>
+            )}
 
           {/* « Annotations sans modèle » — pinned at the very top, above the
               axes, in the same white rounded card as the axis rows (Dessin

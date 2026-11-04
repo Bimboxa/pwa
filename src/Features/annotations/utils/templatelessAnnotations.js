@@ -17,6 +17,15 @@
 
 export const TEMPLATELESS_TEMPLATE_ID = "__TEMPLATELESS__";
 
+// Cut lines (Features/threedCutLines, type CUT_LINE) are template-less
+// scope-level rows too, but they get their own eye: the « Lignes de coupe »
+// row of PopperMapListings toggles this sentinel, not the templateless one.
+export const CUT_LINES_TEMPLATE_ID = "__CUT_LINES__";
+
+export function isCutLineAnnotation(annotation) {
+  return annotation?.type === "CUT_LINE";
+}
+
 export const TEMPLATELESS_LABEL = "Sans modèle";
 
 export const DEFAULT_TEMPLATELESS_DRAWING_SHAPE = "POLYLINE";
@@ -41,12 +50,11 @@ export function isTemplatelessTemplateKey(key) {
 // Template id used by the solo / hidden filters: the sentinel for templateless
 // annotations (per listing when they carry one).
 export function getAnnotationTemplateKey(annotation) {
-  return (
-    annotation?.annotationTemplateId ??
-    (isTemplatelessAnnotation(annotation)
-      ? getTemplatelessTemplateKey(annotation.listingId)
-      : undefined)
-  );
+  if (annotation?.annotationTemplateId) return annotation.annotationTemplateId;
+  if (isCutLineAnnotation(annotation)) return CUT_LINES_TEMPLATE_ID;
+  return isTemplatelessAnnotation(annotation)
+    ? getTemplatelessTemplateKey(annotation.listingId)
+    : undefined;
 }
 
 // Scope-level templateless annotations of a scope (no listing), among rows
