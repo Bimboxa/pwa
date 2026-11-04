@@ -37,6 +37,15 @@ const NEAR_MAX_M = 0.1;
 const WHEEL_BURST_GAP_MS = 300;
 const WHEEL_REANCHOR_MOVE_PX = 8;
 
+// A pivot found on a fallback plane (the infinite extension of a base map,
+// the ground y=0 — see _computePivotPoint) is accepted only within this
+// multiple of the current orbit distance: a grazing hit hundreds of metres
+// away would park the target far from everything on screen, and every
+// gesture that scales with the orbit radius (dolly-to-cursor, orbit) would
+// then run away. Past the limit the current target — the last point really
+// intercepted — is kept.
+const PIVOT_FALLBACK_DISTANCE_FACTOR = 3;
+
 // camera-controls must be installed once with a (subset of) three before use.
 // We pass only the classes it needs so three stays tree-shakeable elsewhere.
 CameraControls.install({
@@ -140,6 +149,15 @@ export default class ControlsManager {
     this._pivotApply = new Vector3();
     this._pivotDir = new Vector3();
     this._pivotRel = new Vector3();
+    // Which pass of _computePivotPoint produced the last pivot:
+    // "mesh" | "basemap" | "ground" | null.
+    this._pivotSource = null;
+
+    // Point grabbed by a pan (TRUCK) gesture, re-applied as the orbit point
+    // once the pan has settled — see _onControlEnd / _loop.
+    this._panAnchor = new Vector3();
+    this._hasPanAnchor = false;
+    this._pendingPanAnchor = false;
   }
 
   // Backward-compat alias: the lasso (MainThreedEditor) and the gizmos
@@ -201,6 +219,9 @@ export default class ControlsManager {
       capture: true,
       passive: true,
     });
+    // End of a pointer gesture: a pan hands its grabbed point back as the
+    // orbit point (see _onControlEnd).
+    this.cameraControls.addEventListener("controlend", this._onControlEnd);
 
     // Prime the internal matrices, render once, then start the update loop.
     this.cameraControls.update(0);
@@ -256,6 +277,9 @@ export default class ControlsManager {
   // window was not focused never fired its keydown.
   _onPointerDownCapture = (event) => {
     this._applyMouseButtons(event);
+    // A new gesture starts from scratch: a pan anchor still pending from the
+    // previous one must not be replayed on top of it.
+    this._clearPanAnchor();
   };
 
   // The middle button navigates (dolly / orbit depending on the preset): stop
@@ -284,6 +308,8 @@ export default class ControlsManager {
     );
     if (gap < WHEEL_BURST_GAP_MS && !(moved > WHEEL_REANCHOR_MOVE_PX)) return;
     if (this._suspended) return;
+    // The wheel sets its own pivot: a pan anchor not yet applied is dropped.
+    this._clearPanAnchor();
     this._lastWheelAnchor.x = event.clientX;
     this._lastWheelAnchor.y = event.clientY;
     this.updateRotationPivotFromEvent(event, { keepCameraStill: true });
@@ -295,21 +321,57 @@ export default class ControlsManager {
     this.cameraControls?.update(0);
   };
 
-  // True when the pressed button starts a gesture that should re-anchor the
-  // orbit point under the cursor (see updateRotationPivotFromEvent): an orbit,
-  // or a pan held by the left / middle button (the grabbed point then stays
-  // under the cursor). Right-drag pan keeps the current orbit point.
-  isPivotGesture = (event) => {
-    if (event.pointerType === "touch") return true;
+  // Navigation action the pressed button starts under the current preset
+  // and the modifiers held: "ROTATE" | "TRUCK" | "DOLLY" | "NONE", or null
+  // for a button the presets do not map. A touch is treated as an orbit.
+  _gestureAction = (event) => {
+    if (event.pointerType === "touch") return "ROTATE";
     const name = MOUSE_BUTTON_NAMES[event.button];
-    if (!name) return false;
+    if (!name) return null;
     const actions = resolveNavigationMouseActions(
       this._navigationPreset,
       event
     );
-    const action = actions[name];
-    if (action === "ROTATE") return true;
-    return action === "TRUCK" && name !== "right";
+    return actions[name] ?? null;
+  };
+
+  // True when the pressed button starts a gesture that should re-anchor the
+  // orbit point under the cursor (see updateRotationPivotFromEvent): an orbit,
+  // or a pan — whatever its button. Anchoring a pan on the grabbed point
+  // keeps that point under the cursor for the whole drag (camera-controls
+  // scales the truck with the distance to the target) and, once the pan has
+  // settled, hands it back as the orbit point (see _onControlEnd): the next
+  // orbit turns around what the user just dragged, not around the previous
+  // target translated along.
+  isPivotGesture = (event) => {
+    const action = this._gestureAction(event);
+    return action === "ROTATE" || action === "TRUCK";
+  };
+
+  // ----- pan anchor (orbit point after a pan) ---------------------------
+
+  _clearPanAnchor = () => {
+    this._hasPanAnchor = false;
+    this._pendingPanAnchor = false;
+  };
+
+  // camera-controls 'controlend': the pointer gesture is over. A pan that
+  // grabbed a point re-anchors the orbit point on it once the truck damping
+  // has settled (_loop) — setOrbitPoint must not run mid-transition. The
+  // truck moved camera and target by the same delta, so the target now sits
+  // where the drag started on screen (a floating point); the grabbed point
+  // itself stayed under the cursor and is the natural orbit point.
+  _onControlEnd = () => {
+    if (this._hasPanAnchor) this._pendingPanAnchor = true;
+  };
+
+  _applyPendingPanAnchor = () => {
+    if (!this._pendingPanAnchor) return;
+    this._pendingPanAnchor = false;
+    this._hasPanAnchor = false;
+    if (!this.cameraControls?.enabled) return;
+    const applied = this._applyOrbitPoint(this._panAnchor);
+    if (applied) this.sceneManager.requestRender?.();
   };
 
   // ----- continuous update loop (render only on change) ----------------
@@ -498,6 +560,10 @@ export default class ControlsManager {
     if (updated) {
       this._syncPerspectiveNear();
       this.sceneManager.renderScene();
+    } else {
+      // Settled: a pan anchor waiting since 'controlend' can be applied
+      // without cutting a transition short.
+      this._applyPendingPanAnchor();
     }
     this._rafId = requestAnimationFrame(this._loop);
   };
@@ -524,6 +590,7 @@ export default class ControlsManager {
       this._rafId = null;
     }
     if (this.cameraControls) {
+      this.cameraControls.removeEventListener("controlend", this._onControlEnd);
       this.cameraControls.dispose();
       this.cameraControls = null;
     }
@@ -1102,9 +1169,13 @@ export default class ControlsManager {
 
   // ----- orbit-around-cursor -------------------------------------------
 
-  // Called on pointerdown (left button): set the orbit point to the point
-  // under the cursor so the subsequent rotate gesture orbits around it.
-  // camera-controls' setOrbitPoint preserves the current view (no jump).
+  // Called on pointerdown (orbit / pan gesture, see isPivotGesture) and at
+  // the start of a wheel burst: set the orbit point to the point under the
+  // cursor so the gesture orbits around / trucks relative to / dollies toward
+  // it. camera-controls' setOrbitPoint preserves the current view (no jump).
+  // A fallback-plane hit far from the current view is ignored (the current
+  // target is kept — see PIVOT_FALLBACK_DISTANCE_FACTOR). For a pan the
+  // applied pivot is remembered as the pan anchor (see _onControlEnd).
   // `options.keepCameraStill`: see _applyOrbitPoint.
   updateRotationPivotFromEvent = (event, options) => {
     if (!this.cameraControls?.enabled) return; // don't fight a gizmo/lasso drag
@@ -1128,19 +1199,49 @@ export default class ControlsManager {
     }
 
     const pivot = this._computePivotPoint();
-    if (pivot) {
-      // setOrbitPoint is immediate and must not run during a transition.
-      this._applyOrbitPoint(pivot, options);
+    if (!pivot) return;
+    if (this._pivotSource !== "mesh" && this._isFallbackPivotTooFar(pivot)) {
+      return;
     }
+    // setOrbitPoint is immediate and must not run during a transition.
+    const applied = this._applyOrbitPoint(pivot, options);
+    if (applied) this._rememberPanAnchor(event, pivot);
   };
 
   // Set the orbit point to a known world point (drawing mode: the snap shown
   // under the marker, i.e. the point a click would place). Same guard as
   // updateRotationPivotFromEvent: never fight a gizmo / lasso drag.
-  // `options.keepCameraStill`: see _applyOrbitPoint.
+  // `options.keepCameraStill`: see _applyOrbitPoint. `options.event`: the
+  // pointerdown starting the gesture, so a pan remembers its anchor.
   setRotationPivot = (point, options) => {
     if (!this.cameraControls?.enabled || !point) return;
-    this._applyOrbitPoint(point, options);
+    const applied = this._applyOrbitPoint(point, options);
+    if (applied && options?.event) {
+      this._rememberPanAnchor(options.event, point);
+    }
+  };
+
+  // A pivot that came from a fallback plane (not from geometry) is only
+  // trusted close to the current view — see PIVOT_FALLBACK_DISTANCE_FACTOR.
+  _isFallbackPivotTooFar = (pivot) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera) return false;
+    const orbitDistance = controls.distance;
+    if (!(orbitDistance > 0)) return false;
+    return (
+      pivot.distanceTo(camera.position) >
+      PIVOT_FALLBACK_DISTANCE_FACTOR * orbitDistance
+    );
+  };
+
+  // The pivot applied at the start of a pan (TRUCK) is the pan anchor,
+  // handed back as the orbit point once the pan has settled.
+  _rememberPanAnchor = (event, pivot) => {
+    if (!event || this._gestureAction(event) !== "TRUCK") return;
+    this._panAnchor.copy(pivot);
+    this._hasPanAnchor = true;
+    this._pendingPanAnchor = false;
   };
 
   // Hand a pivot to camera-controls. setOrbitPoint keeps the camera where it
@@ -1154,19 +1255,20 @@ export default class ControlsManager {
   // same pixel in a parallel projection, so the pivot depth is clamped along
   // the view axis instead: the pivot stays under the cursor and the camera
   // never moves. `point` is not mutated.
-  // `keepCameraStill` (wheel re-anchoring, post-drawing pivot): in perspective
-  // a pivot outside the dolly range would move the camera — keep the current
-  // orbit point instead.
-  _applyOrbitPoint = (point, { keepCameraStill = false } = {}) => {
+  // `keepCameraStill` (default): in perspective a pivot outside the dolly
+  // range would move the camera — keep the current orbit point instead. No
+  // interactive re-anchoring (pointer, wheel, post-drawing pivot, pan
+  // anchor) may move the camera. Returns true when the orbit point was set.
+  _applyOrbitPoint = (point, { keepCameraStill = true } = {}) => {
     const controls = this.cameraControls;
     const camera = this.sceneManager?.camera;
-    if (!controls || !camera) return;
+    if (!controls || !camera) return false;
     const pivot = this._pivotApply.copy(point);
     if (!camera.isOrthographicCamera && keepCameraStill) {
       const distance = pivot.distanceTo(camera.position);
       const maxD = this._effectiveMaxDistance();
       const minD = Math.max(controls.minDistance, 0);
-      if (!(distance >= minD && distance <= maxD)) return;
+      if (!(distance >= minD && distance <= maxD)) return false;
     }
     if (camera.isOrthographicCamera) {
       const dir = camera.getWorldDirection(this._pivotDir);
@@ -1179,7 +1281,7 @@ export default class ControlsManager {
       const minD = Math.max(controls.minDistance, 0);
       // Off-axis beyond the dolly limit: no depth keeps the camera still —
       // keep the current orbit point.
-      if (lateralSq >= maxD * maxD) return;
+      if (lateralSq >= maxD * maxD) return false;
       const maxDepth = Math.sqrt(maxD * maxD - lateralSq);
       const minDepth =
         lateralSq < minD * minD ? Math.sqrt(minD * minD - lateralSq) : 0;
@@ -1189,6 +1291,7 @@ export default class ControlsManager {
       if (clamped !== depth) pivot.addScaledVector(dir, clamped - depth);
     }
     controls.setOrbitPoint(pivot.x, pivot.y, pivot.z);
+    return true;
   };
 
   // Resolve the world point under the cursor, in priority order:
@@ -1199,10 +1302,14 @@ export default class ControlsManager {
   //   (c) the ground plane y=0.
   // The ray is the one set by updateRotationPivotFromEvent (in orthographic
   // projection it starts on the near plane, so the whole displayed slab is
-  // pickable). A far plane hit is tamed by _applyOrbitPoint.
+  // pickable). A far plane hit is dropped by updateRotationPivotFromEvent
+  // (PIVOT_FALLBACK_DISTANCE_FACTOR) and, in orthographic projection, tamed
+  // by _applyOrbitPoint. The pass that produced the point is recorded in
+  // this._pivotSource ("mesh" | "basemap" | "ground").
   // Returns a Vector3 (this._pivotBest) or null.
   _computePivotPoint = () => {
     const ray = this._pivotRaycaster;
+    this._pivotSource = null;
 
     // (a) Meshes first.
     const scene = this.sceneManager.scene;
@@ -1213,6 +1320,7 @@ export default class ControlsManager {
           isPivotCandidate(i.object) &&
           !isMaterialSeeThrough(i.object.material)
         ) {
+          this._pivotSource = "mesh";
           return this._pivotBest.copy(i.point);
         }
       }
@@ -1244,7 +1352,10 @@ export default class ControlsManager {
         }
       }
     }
-    if (found) return this._pivotBest;
+    if (found) {
+      this._pivotSource = "basemap";
+      return this._pivotBest;
+    }
 
     // (c) Ground plane y=0.
     this._pivotPlane.setFromNormalAndCoplanarPoint(
@@ -1252,6 +1363,8 @@ export default class ControlsManager {
       this._pivotHit.set(0, 0, 0)
     );
     const ground = ray.ray.intersectPlane(this._pivotPlane, this._pivotHit);
-    return ground ? this._pivotBest.copy(ground) : null;
+    if (!ground) return null;
+    this._pivotSource = "ground";
+    return this._pivotBest.copy(ground);
   };
 }
