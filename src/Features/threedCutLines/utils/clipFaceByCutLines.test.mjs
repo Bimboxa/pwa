@@ -278,3 +278,22 @@ test("a run ending with a backward stub (gap bridging to a wall foot 1.3 cm insi
   near(result.pieces[0].area, 8, 1e-3);
   near(result.pieces[1].area, 8, 1e-3);
 });
+
+test("two lines bridging the contour to a hole cut the ring in two (neither cuts alone)", () => {
+  // 4×4 square with a central 2×2 hole; one line from the top edge down to
+  // the hole, another from the hole down to the bottom edge, both at x = 2.
+  const face = {
+    contour: [v(0, 0, 0), v(4, 0, 0), v(4, 4, 0), v(0, 4, 0)],
+    holes: [[v(1, 1, 0), v(3, 1, 0), v(3, 3, 0), v(1, 3, 0)]],
+    normal: v(0, 0, 1),
+  };
+  const top = [v(2, 4, 0), v(2, 3.5, 0), v(2, 3, 0)];
+  const bottom = [v(2, 1, 0), v(2, 0.5, 0), v(2, 0, 0)];
+  assert.equal(clipFaceByCutLines({ face, cutLines: [top] }), null);
+  const result = clipFaceByCutLines({ face, cutLines: [top, bottom] });
+  assert.ok(result, "the ring is cut");
+  assert.equal(result.pieces.length, 2);
+  near(result.pieces[0].area, 6, 1e-6);
+  near(result.pieces[1].area, 6, 1e-6);
+  for (const piece of result.pieces) assert.deepEqual(piece.holes, []);
+});
