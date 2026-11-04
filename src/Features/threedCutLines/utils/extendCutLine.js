@@ -6,6 +6,11 @@ import buildSectionGraph, {
 import walkCutLineTrace from "./walkCutLineTrace.js";
 import { copy, cross, distanceSq, dot, normalize, sub } from "./vec3.js";
 
+// Surfaces the trace runs across are detected up to this distance (m): a
+// free edge of a section bridges to the nearest node of another surface's
+// section within it (user decision 2026-11-04: 2 cm).
+export const CUT_LINE_GAP_TOLERANCE_M = 2e-2;
+
 // Collinear points: the polygon's area is under this fraction of its extent
 // squared (a 1 mm wide sliver over 1 m). Same threshold as computeDraftPlane.
 const MIN_AREA_RATIO = 1e-3;
@@ -121,6 +126,11 @@ function samePlane(p, q, tolerance) {
 //   triangles = [{ a, b, c, n }] world triangles of the scene (outward n)
 //   upNormal  = normal of the host plan (world), see describeCutLineEnd
 //   maxPoints = cap on the simplified points added at each end
+//   gapTolerance = distance (m) under which the trace bridges a free edge to
+//               the section of another surface (the surfaces crossed by the
+//               line are drawn independently: a slab edge following a sweep's
+//               guide stops a few cm short of the sheet's foot), and under
+//               which the start falls back to the nearest section node
 //
 // Cutting plane: the polyline's own plane when it has 3+ non-collinear
 // points (shared by both ends), otherwise per end the plane containing the
@@ -143,6 +153,7 @@ export default function extendCutLine({
   tolerance = 1e-3,
   maxPoints = 64,
   upNormal = null,
+  gapTolerance = CUT_LINE_GAP_TOLERANCE_M,
 }) {
   if (!Array.isArray(drawn) || drawn.length < 2) {
     return { points: drawn ?? [], derivedStart: 0, derivedEnd: 0 };
@@ -168,7 +179,11 @@ export default function extendCutLine({
   const locate = (graph, end) => {
     const key = locateOnGraph(graph, end.point, end.direction, tolerance);
     if (key) return { key, perpendicular: false };
-    const near = locateNodeNear(graph, end.point, tolerance * 10);
+    const near = locateNodeNear(
+      graph,
+      end.point,
+      Math.max(tolerance * 10, gapTolerance)
+    );
     return near ? { key: near, perpendicular: true } : null;
   };
   const walkEnd = (graph, end, start, visited) =>
@@ -178,6 +193,7 @@ export default function extendCutLine({
       faceNormal: end.faceNormal,
       planeNormal: end.plane.normal,
       maxPoints,
+      gapTolerance,
       allowPerpendicularStart: start.perpendicular,
       visited,
     });

@@ -287,3 +287,26 @@ test("curved sheet (> 64 raw section nodes): the end reaches the top, at most 64
   const top = r.points[r.points.length - 1];
   nearPoint(top, P(2, 11, 6));
 });
+
+test("gap bridging: a slab edge stopping 1.5 cm short of a sheet's foot still climbs the sheet (2 cm tolerance)", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 3, 0)],
+    endFace: UP,
+    triangles: [...slab({ size: 4.985 }), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  // The slab's free edge (2, 4.985, 0) is collinear with the bridged step
+  // and dropped by the simplification: sheet foot, sheet top.
+  nearPoints(r.points.slice(2), [P(2, 5, 0), P(2, 5, 3)]);
+  assert.equal(r.derivedEnd, 2);
+});
+
+test("gap bridging: a 3 cm gap is not bridged", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 3, 0)],
+    endFace: UP,
+    triangles: [...slab({ size: 4.97 }), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points.slice(2), [P(2, 4.97, 0)]);
+});

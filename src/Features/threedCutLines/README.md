@@ -64,6 +64,12 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   (the plan is not in the soup) the start is the section node at the end
   point (`locateNodeNear`) and the first step may be perpendicular
   (`allowPerpendicularStart`). The trace then climbs the sheet's profile.
+- Gap bridging (`CUT_LINE_GAP_TOLERANCE_M` = 2 cm, user decision 2026-11-04):
+  the surfaces the line crosses are drawn independently (a slab whose arc
+  edge follows a sweep's guide stops a few mm / cm short of the sheet's
+  foot), so their sections never join at the 1 mm graph tolerance. At a free
+  edge the walk jumps to the nearest unvisited section node within 2 cm and
+  goes on (`gapTolerance`); the start fallback uses the same distance.
 - Axis tools (`CutLineToolbarThreed`: Libre | X | Y | Z, « Décalage »,
   `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
   face region under the cursor and publishes to `cutLineAxisStore` the chord

@@ -1,4 +1,4 @@
-import { cross, dot, normalize, scale, sub } from "./vec3.js";
+import { cross, dot, length, normalize, scale, sub } from "./vec3.js";
 
 // Rise under this (unit vectors) is "flat".
 const RISE_EPS = 1e-3;
@@ -23,6 +23,18 @@ function simplifyChain(chain) {
   return out;
 }
 
+// Key of the closest node not in `seen` within `maxDist` of `node`, or null.
+function nearestUnseen(nodes, node, seen, maxDist) {
+  let best = null;
+  for (const [key, other] of nodes) {
+    if (seen.has(key)) continue;
+    const d = length(sub(other.position, node.position));
+    if (d > maxDist) continue;
+    if (!best || d < best.d) best = { key, d };
+  }
+  return best?.key ?? null;
+}
+
 // Walk the section graph from `startKey` along `direction`, following the
 // faces met (concave AND convex turns), and return the points added AFTER the
 // start node (the start itself is not returned).
@@ -37,6 +49,11 @@ function simplifyChain(chain) {
 //                would stop a trace two thirds of the way up a sheet
 //   maxRawPoints = safety cap on the raw walk (loops are already prevented by
 //                the visited set)
+//   gapTolerance (optional, m) = at a free edge, jump to the nearest unvisited
+//                node of the section within this distance and go on: the
+//                surfaces the line crosses are drawn independently (a slab
+//                whose edge follows a sweep's guide a few cm off its foot),
+//                their sections do not join at the 1 mm graph tolerance
 //   allowPerpendicularStart (optional) = accept a first step perpendicular to
 //                `direction` (a walk started on a node found by locateNodeNear:
 //                the drawn line ends at the foot of a sheet, whose section
@@ -68,6 +85,7 @@ export default function walkCutLineTrace(
     planeNormal = null,
     maxPoints = 64,
     maxRawPoints = 4096,
+    gapTolerance = 0,
     allowPerpendicularStart = false,
     visited,
   }
@@ -121,7 +139,20 @@ export default function walkCutLineTrace(
         straight: dot(tOut, dir),
       });
     }
-    if (candidates.length === 0) break;
+    if (candidates.length === 0) {
+      // Free edge: bridge the gap to the nearest node of another surface's
+      // section, when one lies close enough.
+      const jump =
+        gapTolerance > 0
+          ? nearestUnseen(nodes, node, seen, gapTolerance)
+          : null;
+      if (!jump) break;
+      seen.add(jump);
+      chain.push(nodes.get(jump).position);
+      prev = cur;
+      cur = jump;
+      continue;
+    }
 
     candidates.sort((p, q) => {
       if (p.cls !== q.cls) return q.cls - p.cls;
