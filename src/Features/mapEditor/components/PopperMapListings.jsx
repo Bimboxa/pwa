@@ -2664,13 +2664,12 @@ export default function PopperMapListings() {
 
           {/* « Lignes de coupe » (Features/threedCutLines) — Maillage module
               only (useAnnotationsV2 drops the cut lines everywhere else),
-              pinned at the very top: a debug copy of their data and their
-              own eye. */}
+              pinned at the very top, SELECT-filtering or not: a debug copy
+              of their data and their own eye. */}
           {isMeshesModule &&
             !isBaseMapsLegend &&
             !isLocateBusinessObjectMode &&
-            !isLegendPopper &&
-            !visibleTemplateIds && (
+            !isLegendPopper && (
               <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
                 <RowCutLineAnnotations annotations={cutLineAnnotations} />
               </Box>
