@@ -61,6 +61,20 @@ export function getHostSolidMeshes(root) {
   return tagged.length ? tagged : untagged;
 }
 
+// Triangle count of a host's solid meshes (cheap: attribute counts only, no
+// geometry read) — the picker's density guard (BRUSH_MAX_HOST_TRIANGLES).
+export function countSolidTriangles(root) {
+  let count = 0;
+  for (const mesh of getHostSolidMeshes(root)) {
+    const geometry = mesh.geometry;
+    const index = geometry?.getIndex?.();
+    const position = geometry?.getAttribute?.("position");
+    const vertices = index ? index.count : (position?.count ?? 0);
+    count += Math.floor(vertices / 3);
+  }
+  return count;
+}
+
 const roundKey = (value) => Math.round(value * 1e6) / 1e6;
 
 function getLocalMatrix(object, groupInverse) {

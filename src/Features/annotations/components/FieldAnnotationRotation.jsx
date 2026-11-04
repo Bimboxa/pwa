@@ -3,12 +3,18 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import computeWrapperBbox from "Features/mapEditor/utils/computeWrapperBbox";
 import applyWrapperTransformToPoints from "Features/mapEditor/utils/applyWrapperTransformToPoints";
 import commitWrapperTransform from "Features/mapEditor/services/commitWrapperTransform";
+import moveMeshPaintsWithBboxHostService from "Features/meshPaint/services/moveMeshPaintsWithBboxHostService";
+import {
+  bboxCenterPx,
+  bboxHostRotationAffine,
+} from "Features/meshPaint/utils/buildBboxHostAffine";
 
 import FieldRotation from "Features/form/components/FieldRotation";
 
@@ -42,11 +48,37 @@ export default function FieldAnnotationRotation({ annotation, inline }) {
     const delta = target - currentRotation;
     if (Math.abs(delta) < 0.01) return;
 
-    // Bbox-based annotations (IMAGE, RECTANGLE): no points to rotate, just update the rotation field
+    // Bbox-based annotations (IMAGE, RECTANGLE, OBJECT_3D): no points to
+    // rotate, just update the rotation field. The painted parts of an
+    // OBJECT_3D (« Pinceau » 3D) turn with it about the bbox center — one
+    // undo step with the host (no-op for the other types: never painted).
     if (isBboxAnnotation) {
       let newRotation = target % 360;
       if (newRotation < 0) newRotation += 360;
-      await db.annotations.update(annotation.id, { rotation: newRotation });
+      const meterByPx = baseMap?.getMeterByPx?.();
+      await withUndoGroup(() =>
+        db.transaction("rw", db.annotations, db.meshPaints, async () => {
+          await db.annotations.update(annotation.id, { rotation: newRotation });
+          if (annotation.type !== "OBJECT_3D" || !annotation.bbox) return;
+          await moveMeshPaintsWithBboxHostService({
+            hostId: annotation.id,
+            host: annotation,
+            affine: bboxHostRotationAffine({
+              deltaDeg: delta,
+              center: bboxCenterPx(annotation.bbox),
+            }),
+            imageSize,
+            metrics:
+              meterByPx > 0
+                ? {
+                    imageWidth: imageSize.width,
+                    imageHeight: imageSize.height,
+                    meterByPx,
+                  }
+                : null,
+          });
+        })
+      );
       dispatch(triggerAnnotationsUpdate());
       return;
     }

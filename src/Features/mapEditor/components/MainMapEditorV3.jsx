@@ -155,7 +155,14 @@ import { SmartZoomProvider } from "App/contexts/SmartZoomContext";
 import { DrawingMetricsProvider } from "App/contexts/DrawingMetricsContext";
 
 import db from "App/db/db";
+import { withUndoGroup } from "App/db/undoManager";
 
+import moveMeshPaintsWithBboxHostService from "Features/meshPaint/services/moveMeshPaintsWithBboxHostService";
+import {
+  bboxCenterPx,
+  bboxHostMoveAffine,
+  bboxHostRotationAffine,
+} from "Features/meshPaint/utils/buildBboxHostAffine";
 import cleanSegments from "Features/annotations/utils/cleanSegments";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
@@ -2460,11 +2467,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const currentRotation = annotation.rotation ?? 0;
 
         const updates = {};
+        // Pixel affine of the transform: the painted parts (« Pinceau » 3D)
+        // of the object follow it (no db.points for commitWrapperTransform).
+        let paintAffine;
 
         if (partType === "ROTATE") {
           let newRotation = (currentRotation + deltaPos.x) % 360;
           if (newRotation < 0) newRotation += 360;
           updates.rotation = newRotation;
+          paintAffine = bboxHostRotationAffine({
+            deltaDeg: deltaPos.x,
+            center: bboxCenterPx(currentBBox),
+          });
         } else {
           const nx = currentBBox.x + deltaPos.x;
           const ny = currentBBox.y + deltaPos.y;
@@ -2474,10 +2488,31 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             width: currentBBox.width / bgW,
             height: currentBBox.height / bgH,
           };
+          paintAffine = bboxHostMoveAffine(deltaPos);
         }
 
         console.log("save_object3d (bbox)", annotation.id, updates);
-        await db.annotations.update(annotation.id, updates);
+        // Host + its paints: one transaction, one undo step.
+        const meterByPx = baseMap?.getMeterByPx?.();
+        await withUndoGroup(() =>
+          db.transaction("rw", db.annotations, db.meshPaints, async () => {
+            await db.annotations.update(annotation.id, updates);
+            await moveMeshPaintsWithBboxHostService({
+              hostId: annotation.id,
+              host: annotation,
+              affine: paintAffine,
+              imageSize,
+              metrics:
+                meterByPx > 0
+                  ? {
+                      imageWidth: imageSize.width,
+                      imageHeight: imageSize.height,
+                      meterByPx,
+                    }
+                  : null,
+            });
+          })
+        );
       }
 
       // RULER — dragged as a whole from any of its segments (a dimension
