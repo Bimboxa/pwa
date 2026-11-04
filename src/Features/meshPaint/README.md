@@ -258,7 +258,7 @@ Une ligne par partie peinte.
 - Suppression d'annotations, suppression de modèle, modèles inutilisés (une peinture compte comme usage).
 - Purge : tombstones et hôtes purgés uniquement, jamais une peinture vivante dont l'hôte n'est pas chargé.
 - Déplacement / rotation 2D et 3D (`commitWrapperTransform`, `commitAnnotationsTransformFrom3d`).
-- Déplacement / rotation 2D d'un objet 3D importé (`OBJECT_3D`, hôte bbox sans `db.points`) : `services/moveMeshPaintsWithBboxHostService.js` applique l'affine pixel du geste (`utils/buildBboxHostAffine.js` : translation, ou rotation autour du centre de la bbox avec la convention de `applyWrapperTransformToPoints`) aux peintures de l'hôte, dans la transaction de l'hôte (glisser / poignée de rotation dans `MainMapEditorV3`, champ Rotation du panneau). Un objet 3D n'est ni redimensionnable ni déplaçable en 3D.
+- Déplacement / rotation d'un objet 3D importé (`OBJECT_3D`, hôte bbox sans `db.points`) : `services/moveMeshPaintsWithBboxHostService.js` applique l'affine pixel du geste (`utils/buildBboxHostAffine.js` : translation, ou rotation autour d'un centre — centre de la bbox ou pivot — avec la convention de `applyWrapperTransformToPoints`) aux peintures de l'hôte, dans la transaction de l'hôte, plus `dz` pour l'altitude : glisser / poignée de rotation dans `MainMapEditorV3`, champ Rotation du panneau, commandes « Déplacer » / « Tourner » 2D (`commitAnnotationsTransform2d`) et 3D (`commitAnnotationsTransformFrom3d`). Un objet 3D n'est pas redimensionnable.
 - « Régénérer depuis le PDF » (`regenerateBaseMapFromPdfPageService`).
 - Coupes 2D (`useHandleSplitPolyline`, `useHandleSplitCommit`) et Coupe face (`cutFaceAlongPathService`).
 

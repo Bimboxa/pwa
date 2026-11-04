@@ -74,7 +74,12 @@ export function buildCopyGhosts(editor, grab, annotations) {
       if (!start || !annotation) continue;
       let object = null;
       try {
-        object = createAnnotationObject3D(annotation, metrics, { resolution });
+        object = createAnnotationObject3D(annotation, metrics, {
+          resolution,
+          // Async builders (OBJECT_3D: the GLB is parsed again for the
+          // ghost): draw the ghost as soon as its model lands.
+          onAsyncLoaded: () => editor?.renderScene?.(),
+        });
       } catch (err) {
         console.warn("[threedAnnotationMove] copy ghost build failed", err);
       }

@@ -65,8 +65,22 @@ Ce dossier porte la version **2D** et l'aide partagée ; la version 3D reste dan
 Réutilisées depuis `threedAnnotationMove/utils/` :
 
 - **Types acceptés** (`annotationTransformTypes.js`) : tracés à points —
-  POLYLINE, POLYGON, STRIP, LINEAR_LAYOUT. Les autres types sont refusés avec
-  un message.
+  POLYLINE, POLYGON, STRIP, LINEAR_LAYOUT — et, en 2D comme en 3D
+  (`isTransformable3dType`), les **objets 3D importés** (`OBJECT_3D`, GLB).
+  Les autres types sont refusés avec un message.
+  Un objet 3D n'a pas de `db.points` : sa pose est `bbox` (centre) +
+  `rotation` (autour du centre de la bbox, horaire à l'écran) + `offsetZ`.
+  « Déplacer » translate la bbox (et l'altitude sur un dépôt aimanté en 3D),
+  « Tourner » fait orbiter le centre de la bbox autour du pivot et ajoute
+  l'angle à `rotation` (`utils/getObject3DTransformUpdates.js`, pur) ; ses
+  parties peintes suivent (`meshPaint/services/moveMeshPaintsWithBboxHostService`)
+  dans le même groupe d'annulation. En 2D il s'aimante par son centre et ses
+  quatre coins (`_snapPoints`) ou se saisit par un clic n'importe où dans son
+  emprise (`handleWorldClick`, comme un texte) ; en 3D par n'importe quel
+  sommet de son maillage. L'aperçu 2D et les copies passent par la branche
+  OBJECT_3D de `applyDeltaPosToAnnotation` (pivot = centre de la
+  `wrapperBbox`). Jamais par `commitWrapperTransform` (son `clearRotation`
+  effacerait l'orientation).
   **En 2D** (`utils/transform2dTypes.js`, `isTransformable2dType`) s'y
   ajoutent COTE et RULER (leurs sommets sont aussi des `db.points`, le
   pipeline d'écriture est le même, les offsets de cotation suivent) pour
@@ -234,6 +248,12 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
   peintes ; `meshLines` abandonnées. Un seul `withUndoGroup`, une seule
   transaction : un `Ctrl+Z` retire toutes les copies (un par clic en mode
   « Recommencer à chaque clic »).
+- **Objets 3D** : une copie est une nouvelle annotation bbox (même fichier
+  GLB, `object3D.fileName` partagé) posée par le transform de la copie
+  (`getObject3DTransformUpdates` : centre translaté ou en orbite autour du
+  pivot, `rotation` cumulée, `offsetZ` décalé) ; le libellé auto-numéroté
+  suit. En 3D, le fantôme re-parse le GLB et se dessine à l'arrivée du
+  modèle (`onAsyncLoaded`).
 
 #### « Recommencer à chaque clic » (`R`) et « Copier » (`C`) — Déplacer
 
@@ -318,9 +338,9 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
 
 ## Limites (V1)
 
-- Tracés à points, cotes, règles et textes (2D) uniquement : pas de
-  marqueur, label, image, rectangle, ouverture seule. Un texte ne se tourne
-  pas.
+- Tracés à points, objets 3D importés, cotes, règles et textes (2D)
+  uniquement : pas de marqueur, label, image, rectangle, ouverture seule. Un
+  texte ne se tourne pas.
 
 ## Tests
 

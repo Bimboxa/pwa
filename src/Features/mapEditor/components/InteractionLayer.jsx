@@ -1816,6 +1816,8 @@ const InteractionLayer = forwardRef(({
     // centre of its box (labelPoint) and, with a connector, its target
     // (id-less `_snapPoints`, same channel as the revolution axes). The box
     // itself is also grabbable by a plain click (handleWorldClick).
+    // An OBJECT_3D (imported GLB, bbox + rotation) offers its centre and
+    // its four corners, turned about the centre like the node is drawn.
     annotationsForSnap = (annotations ?? [])
       .filter(
         (a) =>
@@ -1823,6 +1825,28 @@ const InteractionLayer = forwardRef(({
           !transformSnapExcludedIds.includes(a.id)
       )
       .map((a) => {
+        if (a.type === "OBJECT_3D" && a.bbox) {
+          const { x, y, width, height } = a.bbox;
+          const cx = x + width / 2;
+          const cy = y + height / 2;
+          const rad = ((a.rotation || 0) * Math.PI) / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const corner = (dx, dy) => ({
+            x: cx + dx * cos - dy * sin,
+            y: cy + dx * sin + dy * cos,
+          });
+          return {
+            ...a,
+            _snapPoints: [
+              { x: cx, y: cy },
+              corner(-width / 2, -height / 2),
+              corner(width / 2, -height / 2),
+              corner(width / 2, height / 2),
+              corner(-width / 2, height / 2),
+            ],
+          };
+        }
         if (a.type !== "FREE_TEXT" || !a.labelPoint) return a;
         const snapPoints = [{ x: a.labelPoint.x, y: a.labelPoint.y }];
         if (a.hasConnector && a.targetPoint) {
@@ -6224,22 +6248,23 @@ const InteractionLayer = forwardRef(({
     if (isTransformToolMode(enabledDrawingMode)) {
       const transformLocalPos = toLocalCoords(worldPos);
       let transformSnap = transformToolSnapRef.current;
-      // A FREE_TEXT box is grabbable anywhere (it has no vertices): a click
-      // that landed on its node, away from any snap, grabs it at the clicked
-      // point (same contract as a snap: x / y + annotationId).
+      // A FREE_TEXT box / an OBJECT_3D footprint is grabbable anywhere
+      // (no vertices of its own): a click that landed on its node, away
+      // from any snap, grabs it at the clicked point (same contract as a
+      // snap: x / y + annotationId).
       if (!transformSnap) {
         const target = event?.target ?? event?.evt?.target;
-        const freeTextNode = target?.closest?.(
-          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"]'
+        const bodyNode = target?.closest?.(
+          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"], [data-node-type="ANNOTATION"][data-annotation-type="OBJECT_3D"]'
         );
-        const freeTextId = freeTextNode?.dataset?.nodeId;
-        if (freeTextId) {
+        const bodyId = bodyNode?.dataset?.nodeId;
+        if (bodyId) {
           transformSnap = {
             x: transformLocalPos.x,
             y: transformLocalPos.y,
             type: "NODE",
-            annotationId: freeTextId,
-            annotationType: "FREE_TEXT",
+            annotationId: bodyId,
+            annotationType: bodyNode.dataset.annotationType,
           };
         }
       }
@@ -8887,6 +8912,13 @@ const InteractionLayer = forwardRef(({
     // of the selected annotation (the draggables are selected without moving,
     // see clickOnly below).
     if (enabledDrawingModeRef.current === "CHANGE_STYLE") {
+      resizeHandle = null;
+      rotateHandle = null;
+    }
+    // « Déplacer » / « Tourner »: the handles of a selected bbox annotation
+    // (OBJECT_3D rotation handle) must not start the legacy drag — the tool
+    // owns the click (handleWorldClick).
+    if (isTransformToolMode(enabledDrawingModeRef.current)) {
       resizeHandle = null;
       rotateHandle = null;
     }

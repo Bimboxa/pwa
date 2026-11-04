@@ -10,7 +10,11 @@ import commitWrapperTransform from "Features/mapEditor/services/commitWrapperTra
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import getObject3DTransformUpdates from "Features/annotationTransform/utils/getObject3DTransformUpdates";
 import { touchMeshPaintsSyncedAt } from "Features/meshPaint/services/applyMeshPaintsResyncService";
+import moveMeshPaintsWithBboxHostService from "Features/meshPaint/services/moveMeshPaintsWithBboxHostService";
+
+import { isObject3DAnnotationType } from "../utils/annotationTransformTypes";
 
 // Write-back of a 3D annotation move/rotate into the 2D storage: the new
 // point positions land in db.points (normalized) through the same machinery
@@ -30,6 +34,12 @@ import { touchMeshPaintsSyncedAt } from "Features/meshPaint/services/applyMeshPa
 //     vertical component of a snapped drop, persisted as an offsetZ delta —
 //     the 3D altitude above the plane is annotation.offsetZ / verticalLift)
 //   { kind: "ROTATE", pivotLocal: {x, y}, phi }       (rad, about local +Z)
+//
+// Imported 3D objects (OBJECT_3D, bbox + rotation, no db.points) take the
+// same pixel transform through getObject3DTransformUpdates: bbox / rotation
+// / offsetZ rewritten, their painted parts carried by
+// moveMeshPaintsWithBboxHostService — never through commitWrapperTransform
+// (its clearRotation step would reset their orientation).
 //
 // Known 2D-move parity: POLYGON meshLines (stored in absolute normalized
 // coords) are not translated — the 2D wrapper move leaves them behind too.
@@ -60,36 +70,52 @@ export default async function commitAnnotationsTransformFrom3d({
     annotationIds.includes(a.id)
   );
   if (!carried.length) return;
+  const pointHolders = carried.filter((a) => !isObject3DAnnotationType(a.type));
+  const pointHolderIds = pointHolders.map((a) => a.id);
+  const object3ds = carried.filter((a) => isObject3DAnnotationType(a.type));
 
-  let pointUpdates;
+  // Vertical component of a snapped MOVE: the whole carried group climbs or
+  // sinks as one block so the grabbed point lands exactly on the drop point,
+  // altitude included.
+  const deltaZ = transform.kind === "MOVE" ? transform.deltaLocal.z || 0 : 0;
+  const hasDeltaZ = Math.abs(deltaZ) > 1e-9;
+
+  let pointUpdates = new Map();
   let moveDelta = null;
   let clearRotation = false;
+  let transformPx = null;
 
   if (transform.kind === "MOVE") {
     moveDelta = {
       x: transform.deltaLocal.x / meterByPx,
       y: -transform.deltaLocal.y / meterByPx,
     };
-    pointUpdates = applyWrapperTransformToPoints({
-      annotations: carried,
-      wrapperBbox: computeWrapperBbox(carried),
-      deltaPos: moveDelta,
-      partType: "MOVE",
-    });
+    transformPx = { kind: "MOVE", deltaPx: moveDelta, deltaZ };
+    if (pointHolders.length) {
+      pointUpdates = applyWrapperTransformToPoints({
+        annotations: pointHolders,
+        wrapperBbox: computeWrapperBbox(pointHolders),
+        deltaPos: moveDelta,
+        partType: "MOVE",
+      });
+    }
   } else if (transform.kind === "ROTATE") {
     const theta2dDeg = (-transform.phi * 180) / Math.PI;
     const pivotPx = {
       x: imageWidth / 2 + transform.pivotLocal.x / meterByPx,
       y: imageHeight / 2 - transform.pivotLocal.y / meterByPx,
     };
-    // The ROTATE branch rotates around the wrapperBbox CENTER: a degenerate
-    // zero-size bbox centered on the pivot makes it rotate around the pivot.
-    pointUpdates = applyWrapperTransformToPoints({
-      annotations: carried,
-      wrapperBbox: { x: pivotPx.x, y: pivotPx.y, width: 0, height: 0 },
-      deltaPos: { x: theta2dDeg, y: 0 },
-      partType: "ROTATE",
-    });
+    transformPx = { kind: "ROTATE", pivotPx, angleDeg: theta2dDeg };
+    if (pointHolders.length) {
+      // The ROTATE branch rotates around the wrapperBbox CENTER: a degenerate
+      // zero-size bbox centered on the pivot makes it rotate around the pivot.
+      pointUpdates = applyWrapperTransformToPoints({
+        annotations: pointHolders,
+        wrapperBbox: { x: pivotPx.x, y: pivotPx.y, width: 0, height: 0 },
+        deltaPos: { x: theta2dDeg, y: 0 },
+        partType: "ROTATE",
+      });
+    }
     // An arbitrary user-picked pivot breaks the single-center model of
     // rotation/rotationCenter — bake the rotation into the points and reset
     // the metadata (same rule as vertex edits and RESIZE).
@@ -98,64 +124,89 @@ export default async function commitAnnotationsTransformFrom3d({
     return;
   }
 
-  if (!pointUpdates?.size) return;
+  const object3dUpdates = getObject3DTransformUpdates({
+    annotations: object3ds,
+    transform: transformPx,
+    imageSize,
+  });
 
-  // Vertical component of a snapped MOVE: the whole carried group climbs or
-  // sinks as one block so the grabbed point lands exactly on the drop point,
-  // altitude included.
-  const deltaZ = transform.kind === "MOVE" ? transform.deltaLocal.z || 0 : 0;
-  const hasDeltaZ = Math.abs(deltaZ) > 1e-9;
+  if (!pointUpdates?.size && !object3dUpdates.size) return;
 
   await withUndoGroup(async () => {
-    const { refreshedMeshPaintIds } = await commitWrapperTransform({
-      selectedAnnotationIds: annotationIds,
-      allAnnotations,
-      pointUpdates,
-      imageSize,
-      rotationDelta: null,
-      wrapperBbox: null,
-      moveDelta,
-      clearRotation,
-      paintDeltaZ: hasDeltaZ ? deltaZ : 0,
-    });
+    if (pointUpdates.size) {
+      const { refreshedMeshPaintIds } = await commitWrapperTransform({
+        selectedAnnotationIds: pointHolderIds,
+        allAnnotations,
+        pointUpdates,
+        imageSize,
+        rotationDelta: null,
+        wrapperBbox: null,
+        moveDelta,
+        clearRotation,
+        paintDeltaZ: hasDeltaZ ? deltaZ : 0,
+      });
 
-    if (hasDeltaZ) {
-      await Promise.all(
-        carried.map((ann) =>
-          db.annotations.update(ann.id, {
-            // 0.1 mm: a snapped drop carries float noise the toolbar would show.
-            offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
-            // isMesh3d: the snapshot of the original geometry climbs with the
-            // mesh (dotted key path: only that field of the snapshot).
-            ...(ann.mesh3dSource?.fields
-              ? {
-                  "mesh3dSource.fields.offsetZ": roundOffsetZ(
-                    (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
-                  ),
-                }
-              : {}),
-          })
-        )
-      );
-      // The offsetZ write re-stamped the hosts after their paints were
-      // synced: keep the moved paints out of « à vérifier » (derived write).
-      if (refreshedMeshPaintIds?.length) {
-        await touchMeshPaintsSyncedAt({ ids: refreshedMeshPaintIds });
+      if (hasDeltaZ) {
+        await Promise.all(
+          pointHolders.map((ann) =>
+            db.annotations.update(ann.id, {
+              // 0.1 mm: a snapped drop carries float noise the toolbar would
+              // show.
+              offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
+              // isMesh3d: the snapshot of the original geometry climbs with
+              // the mesh (dotted key path: only that field of the snapshot).
+              ...(ann.mesh3dSource?.fields
+                ? {
+                    "mesh3dSource.fields.offsetZ": roundOffsetZ(
+                      (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
+                    ),
+                  }
+                : {}),
+            })
+          )
+        );
+        // The offsetZ write re-stamped the hosts after their paints were
+        // synced: keep the moved paints out of « à vérifier » (derived
+        // write).
+        if (refreshedMeshPaintIds?.length) {
+          await touchMeshPaintsSyncedAt({ ids: refreshedMeshPaintIds });
+        }
       }
+    }
+
+    // Imported 3D objects: placement fields + their painted parts, one
+    // transaction (offsetZ is part of `fields` on a snapped drop).
+    if (object3dUpdates.size) {
+      await db.transaction("rw", db.annotations, db.meshPaints, async () => {
+        for (const [id, { fields, affine }] of object3dUpdates) {
+          const host = object3ds.find((a) => a.id === id);
+          await db.annotations.update(id, fields);
+          await moveMeshPaintsWithBboxHostService({
+            hostId: id,
+            host,
+            affine,
+            imageSize,
+            metrics: { imageWidth, imageHeight, meterByPx },
+            dz: hasDeltaZ ? deltaZ : 0,
+          });
+        }
+      });
     }
 
     // Openings glued on the moved walls follow their host — same as the 2D
     // wrapper commit.
-    try {
-      await reflowOpeningsForHost({
-        hostIds: annotationIds,
-        movedPointIds: [],
-        projectId,
-        imageSize,
-        meterByPx,
-      });
-    } catch (err) {
-      console.error("[threedAnnotationMove] openings reflow failed", err);
+    if (pointHolderIds.length) {
+      try {
+        await reflowOpeningsForHost({
+          hostIds: pointHolderIds,
+          movedPointIds: [],
+          projectId,
+          imageSize,
+          meterByPx,
+        });
+      } catch (err) {
+        console.error("[threedAnnotationMove] openings reflow failed", err);
+      }
     }
   });
 
