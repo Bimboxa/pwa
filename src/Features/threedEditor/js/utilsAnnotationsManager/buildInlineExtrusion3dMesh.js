@@ -58,6 +58,11 @@ export default function buildInlineExtrusion3dMesh({
   geom.computeVertexNormals();
 
   const group = new Group();
+  // Marks the object as the swept inline surface (not the plain wall
+  // createAnnotationObject3D falls back to when the setup is degenerate):
+  // the permanent subtraction bake refuses to freeze a fallback wall in
+  // the sheet's place.
+  group.userData = { ...(group.userData ?? {}), inlineExtrusion: true };
   const surfMat = material.clone();
   surfMat.side = DoubleSide;
   const mesh = new Mesh(geom, surfMat);
