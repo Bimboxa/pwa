@@ -235,6 +235,31 @@ ligne » row (`RowSweepSourcesRefresh`) whose « Actualiser la 3D » rebuilds
 the ring from the guide and re-applies the profile
 (`refreshSweepAlongLineService`, one undo step).
 
+### « Fusionner les annotations » (`MERGE`)
+
+`commands/merge/` (2D + 3D, SELECTION group, no hotkey): merges the selected
+annotations into one. Hybrid, resolved by the pure
+`resolveMergeSelection.js` (`resolveMergeTarget(ctx)` → `{ mode: "2D" |
+"MESH", annotations: [seed, …] }` or an `unavailable` reason):
+
+- **2D** (`useMergeAnnotations`, unchanged): lines only or surfaces only, no
+  mesh, and in the 3D editor the same `offsetZ` / `height`, no vertex
+  offsets, same stroke width for polylines — the result stays a parametric
+  annotation.
+- **MESH** (3D editor only, `threedMergeFaces/services/mergeAnnotationsToMeshService`):
+  the seed receives the union mesh (`writeMesh3dService`, becomes / updates
+  its `isMesh3d`), the others are deleted, one undo step. Any contact counts
+  (face, edge, vertex); two closed solids whose volumes overlap are unioned
+  by CSG, the rest by the planar merge of `mergeMesh3dSolids`; disjoint
+  objects are refused with a toast. In the 2D editor the button is disabled
+  with « Fusion en maille disponible dans l'éditeur 3D ».
+
+Template rule (both modes, `resolveMergeTemplate`): one template at most —
+all alike, all template-less, or one template plus template-less shapes,
+which take it (the seed is the first selected annotation carrying it). The
+former `templateIds.size !== 1` gate refused template-less selections.
+Details and limits: `src/Features/threedMergeFaces/README.md`.
+
 ## Command contract
 
 `commands/<name>/<name>Command.js` — pure metadata, no hook:

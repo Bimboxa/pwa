@@ -200,3 +200,48 @@ export function getDistanceToFacePlane(vertices, face, p, normal) {
   const n = normal ?? getFaceNormal(vertices, face);
   return dot(sub(p, vertices[face.loop[0]]), n);
 }
+
+// Number of connected components of a mesh: faces linked by a shared vertex
+// (union-find over every loop). Vertices are matched by position quantized
+// at `weldPrecision` (buildMesh3dFromPlanarFaces' weld grid), so a mesh whose
+// coincident vertices were not welded yet counts like its welded self.
+export function countMesh3dComponents(mesh, { weldPrecision = 1e-4 } = {}) {
+  if (!mesh?.faces?.length) return 0;
+  const q = (v) => Math.round(v / weldPrecision);
+  const idByKey = new Map();
+  const parent = [];
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+  const nodeOf = (vi) => {
+    const p = mesh.vertices[vi];
+    const key = `${q(p.x)},${q(p.y)},${q(p.z)}`;
+    let id = idByKey.get(key);
+    if (id === undefined) {
+      id = parent.length;
+      idByKey.set(key, id);
+      parent.push(id);
+    }
+    return id;
+  };
+  let faceCount = 0;
+  for (const face of mesh.faces) {
+    const nodes = getFaceLoops(face).flat().map(nodeOf);
+    if (!nodes.length) continue;
+    faceCount += 1;
+    for (let i = 1; i < nodes.length; i++) union(nodes[0], nodes[i]);
+  }
+  if (!faceCount) return 0;
+  const roots = new Set();
+  for (let i = 0; i < parent.length; i++) roots.add(find(i));
+  return roots.size;
+}

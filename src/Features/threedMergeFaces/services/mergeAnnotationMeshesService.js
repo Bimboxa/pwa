@@ -8,6 +8,11 @@ import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dSe
 
 import { MERGE_FACES_REASONS } from "../utils/mergeFacesMessages";
 import mergeMesh3dSolids from "../utils/mergeMesh3dSolids";
+import {
+  hasOpeningsOrSubtractions,
+  rehostMeshPaints,
+  withAbsoluteZ,
+} from "./mergeAnnotationGates";
 
 // « Fusionner des faces »: merges the mesh of `otherAnnotationId` into the
 // SEED annotation, which keeps its id, template, listing and relations; the
@@ -47,36 +52,6 @@ export function areMergeableTypes(a, b) {
   }
   return getAnnotationOriginType(a) === getAnnotationOriginType(b);
 }
-
-// Openings are glued on their host and a subtraction points at one
-// annotation: neither survives a merge (same rule as the 2D split of
-// « Coupe face »).
-async function hasOpeningsOrSubtractions(annotationId) {
-  const [openings, asSource, asTarget] = await Promise.all([
-    db.relAnnotationOpenings
-      .where("hostAnnotationId")
-      .equals(annotationId)
-      .toArray(),
-    db.relAnnotationSubtractions
-      .where("sourceAnnotationId")
-      .equals(annotationId)
-      .toArray(),
-    db.relAnnotationSubtractions
-      .where("targetAnnotationId")
-      .equals(annotationId)
-      .toArray(),
-  ]);
-  return [...openings, ...asSource, ...asTarget].some((rel) => !rel.deletedAt);
-}
-
-const withAbsoluteZ = (ctx) => ({
-  vertices: ctx.mesh.vertices.map((v) => ({
-    x: v.x,
-    y: v.y,
-    z: v.z + (Number(ctx.baseOffsetZ) || 0),
-  })),
-  faces: ctx.mesh.faces,
-});
 
 export default async function mergeAnnotationMeshesService({
   seedAnnotationId,
@@ -139,14 +114,8 @@ export default async function mergeAnnotationMeshesService({
 
   let written = null;
   await withUndoGroup(async () => {
-    // Painted parts of the absorbed annotation follow the merged solid: the
-    // re-sync re-locates them geometrically on the seed.
-    const paints = (
-      await db.meshPaints.where("hostAnnotationId").equals(other.id).toArray()
-    ).filter((row) => !row.deletedAt);
-    for (const row of paints) {
-      await db.meshPaints.update(row.id, { hostAnnotationId: seed.id });
-    }
+    // Painted parts of the absorbed annotation follow the merged solid.
+    await rehostMeshPaints([other.id], seed.id);
     written = await writeMesh3dService({
       annotation: seedCtx.annotation,
       mesh: merged.mesh,
