@@ -31,6 +31,14 @@ import {
   computeVertexFrames,
   buildSweepArraysForProfile,
 } from "Features/threedEditor/js/utilsAnnotationsManager/sweepGeometry";
+import {
+  buildSweepArrays3d,
+  computeSegmentFrames3d,
+  getGuideLength3d,
+  getSweep3dSetup,
+  getSweepArea3d,
+  hasVerticalGuideOffsets,
+} from "Features/threedEditor/js/utilsAnnotationsManager/sweepGeometry3d";
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -315,6 +323,28 @@ export function getRevolutionCirclePerimeter(annotation, meterByPx) {
 // fall back to the flat profileLength × guideLength rule.
 const INLINE_GUIDE_ARC_SAMPLES = 6; // matches createAnnotationObject3D
 
+// 3D length (vertical runs included) of a climbing guide, hidden segments
+// excluded — same sampling as computeInlineExtrusionSurface.
+function computeClimbingGuideLength(annotation, guidePoints, meterByPx) {
+  const closeLine = !!annotation.closeLine;
+  const { points: pts3d, hiddenSegmentsIdx: hidden3d } =
+    expandRingWithOffsetsAndHiddenMap(
+      guidePoints,
+      INLINE_GUIDE_ARC_SAMPLES,
+      annotation.hiddenSegmentsIdx || [],
+      closeLine
+    );
+  return getGuideLength3d(
+    pts3d.map((p) => ({
+      x: p.x * meterByPx,
+      y: p.y * meterByPx,
+      z: Number(p.offsetBottom) || 0,
+    })),
+    new Set(hidden3d ?? []),
+    closeLine
+  );
+}
+
 function computeInlineExtrusionSurface(
   annotation,
   guidePoints,
@@ -323,6 +353,58 @@ function computeInlineExtrusionSurface(
 ) {
   try {
     const closeLine = !!annotation.closeLine;
+    // Climbing guide (vertex offsets): mirror the 3D sweep of
+    // buildInlineExtrusion3dMesh (z = offsetBottom / inline height, both
+    // relative to the annotation's offsetZ).
+    if (hasVerticalGuideOffsets(guidePoints)) {
+      const { points: pts3d, hiddenSegmentsIdx: hidden3d } =
+        expandRingWithOffsetsAndHiddenMap(
+          guidePoints,
+          INLINE_GUIDE_ARC_SAMPLES,
+          annotation.hiddenSegmentsIdx || [],
+          closeLine
+        );
+      const guide3d = pts3d.map((p) => ({
+        x: p.x * meterByPx,
+        y: p.y * meterByPx,
+        z: Number(p.offsetBottom) || 0,
+      }));
+      const profile3d = expandRingWithOffsets(
+        profilePoints.map((p) => ({
+          ...p,
+          offsetBottom: Number(p?.height) || 0,
+        })),
+        INLINE_GUIDE_ARC_SAMPLES
+      ).map((p) => ({
+        x: p.x * meterByPx,
+        y: p.y * meterByPx,
+        z: Number(p.offsetBottom) || 0,
+      }));
+      const hidden = new Set(hidden3d ?? []);
+      const setup = getSweep3dSetup({
+        guidePoints: guide3d,
+        profilePoints: profile3d,
+        hidden,
+        closeLine,
+      });
+      if (!setup) return null;
+      const frames = computeSegmentFrames3d(
+        guide3d,
+        hidden,
+        closeLine,
+        setup.segIndex,
+        setup.frame
+      );
+      const arrays = buildSweepArrays3d(
+        guide3d,
+        frames,
+        hidden,
+        setup.section,
+        closeLine
+      );
+      const area = getSweepArea3d(arrays);
+      return area > 0 && Number.isFinite(area) ? area : null;
+    }
     const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
       expandArcsInPathWithHiddenMap(
         guidePoints,
@@ -751,7 +833,10 @@ function computeAnnotationQties({
           const pts = inlineProfile.points.filter(
             (p) => typeof p?.x === "number" && typeof p?.y === "number"
           );
-          const guideLengthM = totalLengthPx * meterByPx;
+          // Climbing guide: the vertical runs count in the length.
+          const guideLengthM = hasVerticalGuideOffsets(points)
+            ? computeClimbingGuideLength(annotation, points, meterByPx)
+            : totalLengthPx * meterByPx;
           const sweptM2 = computeInlineExtrusionSurface(
             annotation,
             points,

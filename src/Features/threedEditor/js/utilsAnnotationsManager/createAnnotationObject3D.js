@@ -32,6 +32,7 @@ import shrinkPolylineEnds from "Features/geometry/utils/shrinkPolylineEnds";
 import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
+  expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
@@ -65,6 +66,8 @@ import buildDiscObject3D from "./buildDiscObject3D";
 import attachFatLineRaycast from "./attachFatLineRaycast";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
+import buildInlineExtrusion3dMesh from "./buildInlineExtrusion3dMesh";
+import { hasVerticalGuideOffsets } from "./sweepGeometry3d";
 import buildMesh3dAnnotationObject from "./buildMesh3dAnnotationObject";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
@@ -1080,6 +1083,47 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         const line = annotation.profileLines.find(
           (l) => l?.points?.length >= 2
         );
+        // A guide that climbs (vertex offsets, e.g. a sweep along a line
+        // drawn in 3D) is swept as a true 3D chain: the vertical runs have
+        // no plan length and the plan-only sweep below would drop them and
+        // flatten the section. Falls through when degenerate.
+        if (hasVerticalGuideOffsets(annotation.points)) {
+          const { points: pts3d, hiddenSegmentsIdx: hidden3d } =
+            expandRingWithOffsetsAndHiddenMap(
+              annotation.points || [],
+              GUIDE_ARC_SAMPLES,
+              annotation.hiddenSegmentsIdx || [],
+              !!annotation.closeLine
+            );
+          const guide3d = pointsToLocal(pts3d, baseMap).map((q) => ({
+            x: q.x,
+            y: q.y,
+            z: verticalLift + (q.offsetBottom ?? 0),
+          }));
+          // Plan arcs of the profile sampled with their heights
+          // interpolated (expandRingWithOffsets carries offsetBottom).
+          const profileRefs = line.points.map((p) => ({
+            ...p,
+            offsetBottom: Number(p?.height) || 0,
+          }));
+          const profile3d = pointsToLocal(
+            expandRingWithOffsets(profileRefs, GUIDE_ARC_SAMPLES),
+            baseMap
+          ).map((q) => ({
+            x: q.x,
+            y: q.y,
+            z: verticalLift + (q.offsetBottom ?? 0),
+          }));
+          object = buildInlineExtrusion3dMesh({
+            guidePointsLocal3d: guide3d,
+            profilePointsLocal3d: profile3d,
+            material,
+            hiddenSegmentsIdx: hidden3d,
+            closeLine: !!annotation.closeLine,
+            gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
+          });
+          if (object) break;
+        }
         const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
           expandArcsInPathWithHiddenMap(
             annotation.points || [],
