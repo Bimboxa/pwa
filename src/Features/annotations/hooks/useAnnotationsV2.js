@@ -373,6 +373,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import stabilizeAnnotationsIdentity from "Features/annotations/utils/stabilizeAnnotationsIdentity";
 import {
   getAnnotationTemplateKey,
+  isCutLineAnnotation,
   isTemplatelessAnnotation,
 } from "Features/annotations/utils/templatelessAnnotations";
 import { ORPHAN_TEMPLATE_ID } from "Features/annotations/utils/orphanAnnotations";
@@ -733,6 +734,10 @@ export default function useAnnotationsV2(options) {
     // scene (template.showIn3d), unless the row was drawn from the 3D viewer
     // (isDrawnIn3d). 3D viewer only — 2D keeps showing them.
     const excludeDimensionsHiddenIn3d = options?.excludeDimensionsHiddenIn3d;
+    // Cut lines (Features/threedCutLines) exist for the Maillage module only:
+    // outside it they are dropped from every consumer (scene, popper, counts,
+    // listings) unless the caller opts in.
+    const includeCutLines = Boolean(options?.includeCutLines);
     // In the 3D viewer, keep non-soloed annotations in the result (instead of
     // removing them) so ThreedSelectionDimmer can render them translucent
     // rather than hiding them outright (zone solo — zonings module).
@@ -871,6 +876,10 @@ export default function useAnnotationsV2(options) {
     // getAnnotationTemplateKey) — memoized Set, stable while nothing changes
     const hiddenTemplateIdSet = useSelector(
       selectHiddenAnnotationTemplateIdSet
+    );
+    // Maillage module: the only one that renders / counts the cut lines.
+    const isMeshesModule = useSelector(
+      (s) => s.viewers.selectedViewerKey === "MESHES"
     );
     // eye of the orphan annotations (« Annot. sans modèle » row)
     const hideOrphans = useSelector((s) =>
@@ -3147,6 +3156,11 @@ export default function useAnnotationsV2(options) {
         });
       }
 
+      // Cut lines belong to the Maillage module only.
+      if (!includeCutLines && !isMeshesModule) {
+        result = result.filter((a) => !isCutLineAnnotation(a));
+      }
+
       // zone solo (zonings module): keep the zone's delimitation polygons
       // (its template) and the annotations linked to the zone via
       // relsZoneAnnotation. Base-map (background) annotations are always kept.
@@ -3437,6 +3451,8 @@ export default function useAnnotationsV2(options) {
       openingRowsByHostId,
       excludeProfileTemplates,
       excludeDimensionsHiddenIn3d,
+      includeCutLines,
+      isMeshesModule,
       // NOTE — `appConfig` is read inside this query (the scope filter's
       // entityModel lookup) but is NOT a dependency: adding the object itself
       // would make this heavy query re-resolve every annotation on any re-set

@@ -118,12 +118,16 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
 ## Popper « Annotations »
 
 `RowCutLineAnnotations` (PopperMapListings, pinned at the top of the body,
-2D and 3D): the CUT_LINE rows of the popper's set, a light grey 🐛 button
+Maillage module only): the CUT_LINE rows of the popper's set, a light grey 🐛 button
 copying `{ imageSize, meterByPx, annotations }` (resolved px points,
 `derived` / `stop` / offsets — the multi-selection toolbar's payload) to the
 clipboard, and the count pill toggling their visibility through the
 sentinel `CUT_LINES_TEMPLATE_ID` (`getAnnotationTemplateKey` returns it for a
 CUT_LINE, so the « Annotations sans modèle » eye no longer covers them).
+Cut lines exist for the Maillage module only: `useAnnotationsV2` drops them
+outside it (`viewers.selectedViewerKey !== "MESHES"`, opt-in
+`includeCutLines`), so the Dessin module neither renders nor counts them;
+the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
 
 ## Maillage
 
