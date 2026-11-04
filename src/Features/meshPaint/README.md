@@ -25,37 +25,38 @@ Conséquences de la clé commune : l'outil mémorisé par modèle (`selectedTool
 
 ## Vocabulaire (français → code)
 
-| Terme employé ici                                                   | Nom dans le code                                                                                                                                                 |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pinceau (l'outil)                                                   | clé d'outil `MESH_BRUSH` (`MESH_BRUSH_TOOL_KEY`). À ne pas confondre avec l'outil 2D `"BRUSH"` (masque raster)                                                   |
-| Partie peinte, peinture                                             | une ligne de la table Dexie `db.meshPaints` (« paint »)                                                                                                          |
-| Modèle                                                              | `annotationTemplate` ; le modèle qui peint est `annotationTemplateId`                                                                                            |
-| Liste                                                               | `listing` ; la liste du modèle qui peint est `listingId`                                                                                                         |
-| Hôte (l'annotation peinte)                                          | `hostAnnotationId`                                                                                                                                               |
-| Facette                                                             | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                                                                     |
-| Arête                                                               | `partType: "EDGE"` : une arête vive droite (`chain`)                                                                                                             |
-| Surface courbe                                                      | `partType: "FACE"`, géométrie `{ vertices, facets, angleDeg }` : des facettes voisines lisses (`getSurfaces`)                                                    |
-| Courbe                                                              | `partType: "EDGE"` à plus de 2 points : des arêtes enchaînées dans un même plan (`getCurves`)                                                                    |
-| Seuil de lissage                                                    | `angleDeg` ; au clic, c'est le réglage « Sélection de face » (`threedEditor.faceSelectionAngleDeg`)                                                              |
-| Côté peint                                                          | le signe de `geometry.normal`, qui pointe vers le côté peint                                                                                                     |
-| Fond de plan                                                        | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                                                                         |
-| Calque                                                              | `layer` (`host.layerId`)                                                                                                                                         |
-| Orpheline                                                           | `sync.state: "ORPHAN"`                                                                                                                                           |
-| En conflit                                                          | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                                                                             |
-| « À vérifier »                                                      | `isStale`                                                                                                                                                        |
+| Terme employé ici                                                   | Nom dans le code                                                                                                                                                |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pinceau (l'outil)                                                   | clé d'outil `MESH_BRUSH` (`MESH_BRUSH_TOOL_KEY`). À ne pas confondre avec l'outil 2D `"BRUSH"` (masque raster)                                                  |
+| Partie peinte, peinture                                             | une ligne de la table Dexie `db.meshPaints` (« paint »)                                                                                                         |
+| Modèle                                                              | `annotationTemplate` ; le modèle qui peint est `annotationTemplateId`                                                                                           |
+| Liste                                                               | `listing` ; la liste du modèle qui peint est `listingId`                                                                                                        |
+| Hôte (l'annotation peinte)                                          | `hostAnnotationId`                                                                                                                                              |
+| Facette                                                             | `partType: "FACE"` : un îlot plan connexe (`island`) de l'objet 3D de l'hôte                                                                                    |
+| Arête                                                               | `partType: "EDGE"` : une arête vive droite (`chain`)                                                                                                            |
+| Surface courbe                                                      | `partType: "FACE"`, géométrie `{ vertices, facets, angleDeg }` : des facettes voisines lisses (`getSurfaces`)                                                   |
+| Courbe                                                              | `partType: "EDGE"` à plus de 2 points : des arêtes enchaînées dans un même plan (`getCurves`)                                                                   |
+| Seuil de lissage                                                    | `angleDeg` ; au clic, c'est le réglage « Sélection de face » (`threedEditor.faceSelectionAngleDeg`)                                                             |
+| Côté peint                                                          | le signe de `geometry.normal`, qui pointe vers le côté peint                                                                                                    |
+| Fond de plan                                                        | `baseMap` ; repère de la géométrie : `imagesManager.getGroup(baseMapId)`                                                                                        |
+| Calque                                                              | `layer` (`host.layerId`)                                                                                                                                        |
+| Orpheline                                                           | `sync.state: "ORPHAN"`                                                                                                                                          |
+| En conflit                                                          | statut `CONFLICT` à la lecture (`resolveMeshPaints`)                                                                                                            |
+| « À vérifier »                                                      | `isStale`                                                                                                                                                       |
 | Rétrécissement anti-crénelage (« Séparer les surfaces en contact ») | réglage `threedEditor.antiAliasingShrink` (ON par défaut, couvre aussi le « Delta offset 3D » des POLYGON) ; exemption par annotation : `_noAntiAliasingShrink` |
-| Recalage                                                            | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                                                                           |
+| Recalage                                                            | « re-sync » (`planPaintResync`, `useMeshPaintsResync`)                                                                                                          |
 
 ## Règles fonctionnelles (V1)
 
 **Hôtes**
 
-- Tout objet 3D d'annotation peut être peint : dalles extrudées, murs épais ou minces, bandes, rampes, meshes `isMesh3d`…
+- Tout objet 3D d'annotation peut être peint : dalles extrudées, murs épais ou minces, bandes, rampes, meshes `isMesh3d`, **objets 3D importés** (`OBJECT_3D`, GLB : les facettes et arêtes sont lues sur les triangles affichés du modèle, comme pour tout hôte)…
 - Sont refusés (`utils/getPaintHostRefusal.js`) :
   - les mailles (`db.meshes3d`), les fonds de plan et les scans ;
-  - `OBJECT_3D` ;
+  - les images (`IMAGE`) ;
   - les cellules de maillage (`isMeshCell`) et les photo-plans ;
-  - les annotations du modèle armé lui-même, pour éviter de compter deux fois.
+  - les annotations du modèle armé lui-même, pour éviter de compter deux fois ;
+  - un hôte de plus de `BRUSH_MAX_HOST_TRIANGLES` triangles affichés (« Objet trop dense pour le pinceau », `TOO_DENSE`, décidé par `services/meshBrushPick.js` : l'index de parties de tout l'hôte est construit au premier survol).
 
 **Facettes et arêtes**
 
@@ -257,6 +258,7 @@ Une ligne par partie peinte.
 - Suppression d'annotations, suppression de modèle, modèles inutilisés (une peinture compte comme usage).
 - Purge : tombstones et hôtes purgés uniquement, jamais une peinture vivante dont l'hôte n'est pas chargé.
 - Déplacement / rotation 2D et 3D (`commitWrapperTransform`, `commitAnnotationsTransformFrom3d`).
+- Déplacement / rotation 2D d'un objet 3D importé (`OBJECT_3D`, hôte bbox sans `db.points`) : `services/moveMeshPaintsWithBboxHostService.js` applique l'affine pixel du geste (`utils/buildBboxHostAffine.js` : translation, ou rotation autour du centre de la bbox avec la convention de `applyWrapperTransformToPoints`) aux peintures de l'hôte, dans la transaction de l'hôte (glisser / poignée de rotation dans `MainMapEditorV3`, champ Rotation du panneau). Un objet 3D n'est ni redimensionnable ni déplaçable en 3D.
 - « Régénérer depuis le PDF » (`regenerateBaseMapFromPdfPageService`).
 - Coupes 2D (`useHandleSplitPolyline`, `useHandleSplitCommit`) et Coupe face (`cutFaceAlongPathService`).
 

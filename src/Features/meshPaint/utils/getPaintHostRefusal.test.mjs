@@ -27,17 +27,36 @@ test("a plain wall of another template is paintable", () => {
 
 test("host types that cannot be painted", () => {
   assert.equal(
-    getPaintHostRefusal({ source: { type: "OBJECT_3D" } }),
-    PAINT_REFUSAL.OBJECT_3D
-  );
-  assert.equal(
     getPaintHostRefusal({ source: { type: "IMAGE" } }),
     PAINT_REFUSAL.IMAGE
   );
   // Type from the root userData when the source is unknown.
   assert.equal(
+    getPaintHostRefusal({ rootUserData: { annotationType: "IMAGE" } }),
+    PAINT_REFUSAL.IMAGE
+  );
+});
+
+test("an imported model (OBJECT_3D) is a paintable host", () => {
+  assert.equal(getPaintHostRefusal({ source: { type: "OBJECT_3D" } }), null);
+  assert.equal(
     getPaintHostRefusal({ rootUserData: { annotationType: "OBJECT_3D" } }),
-    PAINT_REFUSAL.OBJECT_3D
+    null
+  );
+  // Its own template is still refused.
+  assert.equal(
+    getPaintHostRefusal({
+      source: { type: "OBJECT_3D", annotationTemplateId: "t" },
+      armedTemplateId: "t",
+    }),
+    PAINT_REFUSAL.OWN_TEMPLATE
+  );
+});
+
+test("TOO_DENSE has a label", () => {
+  assert.equal(
+    getPaintRefusalLabel(PAINT_REFUSAL.TOO_DENSE),
+    PAINT_REFUSAL_LABELS.TOO_DENSE
   );
 });
 

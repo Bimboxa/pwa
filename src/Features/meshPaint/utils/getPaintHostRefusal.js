@@ -7,10 +7,13 @@
 export const PAINT_REFUSAL = Object.freeze({
   // host rules (getPaintHostRefusal)
   PHOTO_PLAN: "PHOTO_PLAN", // photo base map reconstruction (no base map group)
-  OBJECT_3D: "OBJECT_3D", // imported model (GLB): no planar facets of its own
   IMAGE: "IMAGE", // picture plane
   MESH_CELL: "MESH_CELL", // maille annotation (cells of a meshed parent)
   OWN_TEMPLATE: "OWN_TEMPLATE", // annotation of the armed template itself
+  // Displayed host too dense for the part index (BRUSH_MAX_HOST_TRIANGLES):
+  // an imported model (GLB) of hundreds of thousands of triangles would
+  // freeze the first hover. Decided by the picker (it has the object).
+  TOO_DENSE: "TOO_DENSE",
   // part rules (picking)
   CURVED_SURFACE: "CURVED_SURFACE", // no planar facet under the cursor
   INNER_FACE: "INNER_FACE", // inner side of a closed solid
@@ -24,10 +27,10 @@ export const PAINT_REFUSAL = Object.freeze({
 
 export const PAINT_REFUSAL_LABELS = Object.freeze({
   PHOTO_PLAN: "Annotation de photo non peignable",
-  OBJECT_3D: "Objet 3D non peignable",
   IMAGE: "Image non peignable",
   MESH_CELL: "Maille non peignable",
   OWN_TEMPLATE: "Annotation du modèle actif",
+  TOO_DENSE: "Objet trop dense pour le pinceau",
   CURVED_SURFACE: "Surface courbe",
   INNER_FACE: "Face intérieure",
   NOT_SOLID: "Partie non peignable",
@@ -59,8 +62,9 @@ export default function getPaintHostRefusal({
   if (!isUnderBaseMapGroup || source?._photoPlan3D) {
     return PAINT_REFUSAL.PHOTO_PLAN;
   }
+  // An imported model (OBJECT_3D, GLB) is a host like any other: its
+  // displayed triangles feed the part index (buildHostPartIndexFromObject).
   const type = source?.type ?? rootUserData?.annotationType ?? null;
-  if (type === "OBJECT_3D") return PAINT_REFUSAL.OBJECT_3D;
   if (type === "IMAGE") return PAINT_REFUSAL.IMAGE;
   if (source?.isMeshCell) return PAINT_REFUSAL.MESH_CELL;
   const templateId =

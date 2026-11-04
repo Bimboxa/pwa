@@ -58,6 +58,10 @@ export const BRUSH_FACE_ANGLE_DEG = 0.1;
 export const BRUSH_DRAG_PX = 4;
 // Screen distance (px) of the edge pick.
 export const BRUSH_EDGE_PICK_PX = 10;
+// Displayed hosts above this many triangles are refused (TOO_DENSE): the part
+// index of the whole host is built at the first hover (an imported GLB can
+// carry far more than a drawn annotation).
+export const BRUSH_MAX_HOST_TRIANGLES = 200000;
 // Collinear merge of edge pieces into one straight edge.
 export const EDGE_COLLINEAR_DEG = 0.5;
 // Inside / outside parity probe offset along the painted side's normal.

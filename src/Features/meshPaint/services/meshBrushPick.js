@@ -13,10 +13,12 @@ import buildMeshDataFromRegion from "Features/threedMesh/utils/buildMeshDataFrom
 import {
   BRUSH_EDGE_PICK_PX,
   BRUSH_FACE_ANGLE_DEG,
+  BRUSH_MAX_HOST_TRIANGLES,
   INSIDE_PROBE_M,
   MESH_PAINT_PART_TYPES,
 } from "Features/meshPaint/constants/meshPaintConstants";
 import {
+  countSolidTriangles,
   getHostHalfView,
   getHostPartData,
   getHostSolidMeshes,
@@ -311,15 +313,26 @@ export function createMeshBrushPicker(sceneManager) {
     return faces;
   }
 
-  function pickHostFace(sceneHit, armedTemplateId, smoothAngleDeg) {
-    const host = getHostContext(sceneHit.root);
-    if (!host) return null;
+  // Host-level refusal: the pure rules (type, template…) then the density
+  // guard on the displayed object (an imported GLB may be huge).
+  function getHostRefusal(host, armedTemplateId) {
     const refusal = getPaintHostRefusal({
       source: host.source,
       rootUserData: host.root.userData,
       isUnderBaseMapGroup: host.isUnderBaseMapGroup,
       armedTemplateId,
     });
+    if (refusal) return refusal;
+    if (countSolidTriangles(host.root) > BRUSH_MAX_HOST_TRIANGLES) {
+      return PAINT_REFUSAL.TOO_DENSE;
+    }
+    return null;
+  }
+
+  function pickHostFace(sceneHit, armedTemplateId, smoothAngleDeg) {
+    const host = getHostContext(sceneHit.root);
+    if (!host) return null;
+    const refusal = getHostRefusal(host, armedTemplateId);
     if (refusal) return refused(refusal, host.hostId);
 
     const { intersect } = sceneHit;
@@ -461,11 +474,7 @@ export function createMeshBrushPicker(sceneManager) {
       if (!isBoxNearCursor(box, camera, rect, cursor, BRUSH_EDGE_PICK_PX)) {
         continue;
       }
-      const refusal = getPaintHostRefusal({
-        source: host.source,
-        rootUserData: root.userData,
-        armedTemplateId,
-      });
+      const refusal = getHostRefusal(host, armedTemplateId);
       if (refusal) {
         if (root === hostHitRoot) hostHitRefusal = refusal;
         continue;
