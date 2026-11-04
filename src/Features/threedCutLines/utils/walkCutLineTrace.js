@@ -1,4 +1,4 @@
-import { cross, dot, normalize, scale, sub } from "./vec3.js";
+import { cross, dot, length, normalize, scale, sub } from "./vec3.js";
 
 // Rise under this (unit vectors) is "flat".
 const RISE_EPS = 1e-3;
@@ -23,6 +23,18 @@ function simplifyChain(chain) {
   return out;
 }
 
+// Key of the closest node not in `seen` within `maxDist` of `node`, or null.
+function nearestUnseen(nodes, node, seen, maxDist) {
+  let best = null;
+  for (const [key, other] of nodes) {
+    if (seen.has(key)) continue;
+    const d = length(sub(other.position, node.position));
+    if (d > maxDist) continue;
+    if (!best || d < best.d) best = { key, d };
+  }
+  return best?.key ?? null;
+}
+
 // Walk the section graph from `startKey` along `direction`, following the
 // faces met (concave AND convex turns), and return the points added AFTER the
 // start node (the start itself is not returned).
@@ -32,7 +44,20 @@ function simplifyChain(chain) {
 //   faceNormal = n0, normal of the face the start sits on (towards the viewer)
 //   planeNormal (optional) = normal of the cutting plane; cross(d0, n0) when
 //                omitted. Its sign is irrelevant.
-//   maxPoints  = hard cap on returned points before simplification
+//   maxPoints  = cap on the returned (SIMPLIFIED) points — the section of a
+//                curved surface goes through ~2 raw nodes per quad, a raw cap
+//                would stop a trace two thirds of the way up a sheet
+//   maxRawPoints = safety cap on the raw walk (loops are already prevented by
+//                the visited set)
+//   gapTolerance (optional, m) = at a free edge, jump to the nearest unvisited
+//                node of the section within this distance and go on: the
+//                surfaces the line crosses are drawn independently (a slab
+//                whose edge follows a sweep's guide a few cm off its foot),
+//                their sections do not join at the 1 mm graph tolerance
+//   allowPerpendicularStart (optional) = accept a first step perpendicular to
+//                `direction` (a walk started on a node found by locateNodeNear:
+//                the drawn line ends at the foot of a sheet, whose section
+//                leaves the end point straight up)
 //   visited    (optional) = Set of node keys to treat as already visited; it
 //                is MUTATED with every node the walk goes through, so a second
 //                walk on the same graph can share it.
@@ -59,6 +84,9 @@ export default function walkCutLineTrace(
     faceNormal,
     planeNormal = null,
     maxPoints = 64,
+    maxRawPoints = 4096,
+    gapTolerance = 0,
+    allowPerpendicularStart = false,
     visited,
   }
 ) {
@@ -84,7 +112,10 @@ export default function walkCutLineTrace(
   let dir = d0;
   let n = n0;
 
-  while (chain.length - 1 < maxPoints) {
+  // A perpendicular first step has dot(tOut, d0) = 0 up to float noise.
+  const firstStepMin = allowPerpendicularStart ? -1e-6 : 0;
+
+  while (chain.length - 1 < maxRawPoints) {
     const node = nodes.get(cur);
     const candidates = [];
     const keysSeen = new Set();
@@ -95,7 +126,7 @@ export default function walkCutLineTrace(
       const tOut = normalize(sub(target.position, node.position));
       if (!tOut) continue;
       // The first step leaves the drawn polyline, never goes back along it.
-      if (prev === null && dot(tOut, d0) <= 0) continue;
+      if (prev === null && dot(tOut, d0) <= firstStepMin) continue;
       keysSeen.add(nb.key);
       const rise = dot(tOut, n);
       const cls = rise > RISE_EPS ? 2 : rise < -RISE_EPS ? 0 : 1;
@@ -108,7 +139,20 @@ export default function walkCutLineTrace(
         straight: dot(tOut, dir),
       });
     }
-    if (candidates.length === 0) break;
+    if (candidates.length === 0) {
+      // Free edge: bridge the gap to the nearest node of another surface's
+      // section, when one lies close enough.
+      const jump =
+        gapTolerance > 0
+          ? nearestUnseen(nodes, node, seen, gapTolerance)
+          : null;
+      if (!jump) break;
+      seen.add(jump);
+      chain.push(nodes.get(jump).position);
+      prev = cur;
+      cur = jump;
+      continue;
+    }
 
     candidates.sort((p, q) => {
       if (p.cls !== q.cls) return q.cls - p.cls;
@@ -136,5 +180,5 @@ export default function walkCutLineTrace(
     n = nNext;
   }
 
-  return simplifyChain(chain).slice(1);
+  return simplifyChain(chain).slice(1, 1 + Math.max(0, maxPoints));
 }

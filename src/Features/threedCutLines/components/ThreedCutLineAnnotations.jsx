@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Group, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -16,6 +16,7 @@ import { setDimensionGroups } from "Features/threedDimensions/services/dimension
 import { applyPendingDimensionPatch } from "Features/threedDimensions/services/dimensionPendingPatchStore";
 import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawingVertexMarkers";
 import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManager/attachFatLineRaycast";
+import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import {
@@ -74,7 +75,30 @@ function makeCutLineSegment({ a, b, color, linewidth, resolution, dashed }) {
   const line = new Line2(geom, mat);
   line.computeLineDistances();
   line.renderOrder = 1002;
+  // Drawing snaps (useVertexSnap buildIndex): a fat line's own geometry is
+  // the instanced segment template, never indexed — the snap index reads the
+  // source points instead (same convention as buildView3dEdgeLines): both
+  // ends become snap vertices, the segment a snap edge.
+  line.userData.isSnapLine = true;
+  line.userData.exportLine = { positions: [a.x, a.y, a.z, b.x, b.y, b.z] };
   return line;
+}
+
+// Geometry signature of the rendered cut lines: the drawing snap index is
+// rebuilt only when it changes (not on a mere selection change, which also
+// rebuilds the groups).
+function getCutLinesSnapSignature(cutLines) {
+  return cutLines
+    .map(
+      (c) =>
+        `${c.id}:${c.offsetZ ?? 0}:${(c.points || [])
+          .map(
+            (p) =>
+              `${p.id}|${p.x}|${p.y}|${p.offsetBottom ?? 0}|${p.stop ? 1 : 0}`
+          )
+          .join(";")}`
+    )
+    .join("\n");
 }
 
 // Renders every CUT_LINE annotation (Features/threedCutLines) of the 3D
@@ -135,6 +159,8 @@ export default function ThreedCutLineAnnotations({ annotations }) {
   );
 
   const groupsRef = useRef([]);
+  const snapSignatureRef = useRef(null);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     const editor = getActiveThreedEditor();
@@ -154,9 +180,11 @@ export default function ThreedCutLineAnnotations({ annotations }) {
 
     const resolution = getCanvasResolution(editor);
     const entries = [];
+    const patched = [];
 
     cutLines.forEach((row) => {
       const cutLine = applyPendingDimensionPatch(row);
+      patched.push(cutLine);
       const baseMap = imagesManager.baseMapsMap?.[cutLine.baseMapId];
       const parentGroup = imagesManager.getGroup?.(cutLine.baseMapId);
       if (!baseMap || !parentGroup) return;
@@ -291,8 +319,16 @@ export default function ThreedCutLineAnnotations({ annotations }) {
     setCutLineObjects(entries);
     editor.sceneManager.renderScene?.();
 
+    // New / moved / re-extended / stopped line: the drawing snaps must see
+    // the new segments (the commit's own bump may run before this render).
+    const signature = getCutLinesSnapSignature(patched);
+    if (signature !== snapSignatureRef.current) {
+      snapSignatureRef.current = signature;
+      dispatch(bumpSnapIndexEpoch());
+    }
+
     return clear;
-  }, [cutLines, selectedIds, selectedPointIds, annotationsLoadTick]);
+  }, [cutLines, selectedIds, selectedPointIds, annotationsLoadTick, dispatch]);
 
   return null;
 }

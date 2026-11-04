@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 
 import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
+import getBaseMapNormalWorldFromRow from "Features/baseMaps/js/getBaseMapNormalWorldFromRow";
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 
 import collectSceneTriangles from "../js/collectSceneTriangles";
@@ -52,6 +53,7 @@ export function computeCutLineRebuild({
     startFace: faceAt(drawnPoints[0]),
     endFace: faceAt(drawnPoints[drawnPoints.length - 1]),
     triangles,
+    upNormal: getBaseMapNormalWorldFromRow(baseMap),
   });
   const isDerived = (i) => i < derivedStart || i >= points.length - derivedEnd;
   const keptStops = oldDerived.filter((p) => p?.stop);

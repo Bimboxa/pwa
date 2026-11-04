@@ -108,6 +108,51 @@ export function wall() {
   return box({ min: v(0, 5, 0), max: v(10, 5.2, 3) });
 }
 
+// Open vertical sheet in the plane y = `y`, x ∈ [x0, x1], z ∈ [0, height]:
+// one quad, no thickness, no caps, normal -y (a sweep met edge-on).
+export function sheet({ y = 5, x0 = 0, x1 = 10, height = 3 } = {}) {
+  return quad(
+    v(x0, y, 0),
+    v(x1, y, 0),
+    v(x1, y, height),
+    v(x0, y, height),
+    v(0, -1, 0)
+  );
+}
+
+// Open curved sheet: a quarter-circle profile in the (y, z) plane, from the
+// foot (y, 0) up to (y + radius, radius), swept along x ∈ [x0, x1] in `steps`
+// quads (2 triangles each, winding normals facing -y / +z). Its section by a
+// plane x = const goes through ~2 raw nodes per quad.
+export function curvedSheet({
+  y = 5,
+  x0 = 0,
+  x1 = 10,
+  radius = 6,
+  steps = 40,
+} = {}) {
+  const out = [];
+  const at = (i) => {
+    const t = ((i / steps) * Math.PI) / 2;
+    return { y: y + radius * (1 - Math.cos(t)), z: radius * Math.sin(t) };
+  };
+  for (let i = 0; i < steps; i++) {
+    const a = at(i);
+    const b = at(i + 1);
+    const outward = v(0, -Math.cos((i / steps) * Math.PI), 0.5);
+    out.push(
+      ...quad(
+        v(x0, a.y, a.z),
+        v(x1, a.y, a.z),
+        v(x1, b.y, b.z),
+        v(x0, b.y, b.z),
+        outward
+      )
+    );
+  }
+  return out;
+}
+
 export const P = v;
 
 // Assertion helpers shared by the tests.

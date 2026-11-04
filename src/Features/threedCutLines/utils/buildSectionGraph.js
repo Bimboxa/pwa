@@ -86,6 +86,23 @@ export default function buildSectionGraph(segments, { tolerance = 1e-3 } = {}) {
   return { nodes };
 }
 
+// Key of the existing node closest to `point` within `maxDist`, or null.
+// Fallback start of a walk when no section edge runs along the drawn
+// direction: a line arriving at the FOOT of an open sheet (a sweep met
+// edge-on) only meets the sheet's own section there, a vertical segment
+// starting exactly at the drawn end point.
+export function locateNodeNear(graph, point, maxDist = 1e-2) {
+  const nodes = graph?.nodes;
+  if (!nodes || !point) return null;
+  let best = null;
+  for (const [key, node] of nodes) {
+    const d = distance(node.position, point);
+    if (d > maxDist) continue;
+    if (!best || d < best.d) best = { key, d };
+  }
+  return best?.key ?? null;
+}
+
 // Find the graph edge closest to `point` whose direction is parallel to
 // ±`direction` (under 5°), and insert `point` (projected onto that edge) as a
 // node splitting it. Doubled edges are split together, each half keeping its

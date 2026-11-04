@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import quantizeVertex from "../../threedDrawing/utils/quantizeVertex.js";
-import buildSectionGraph, { locateOnGraph } from "./buildSectionGraph.js";
+import buildSectionGraph, {
+  locateNodeNear,
+  locateOnGraph,
+} from "./buildSectionGraph.js";
 import sectionTrianglesByPlane from "./sectionTrianglesByPlane.js";
 import { P, nearPoint, slab, wall } from "./cutLineFixtures.mjs";
 
@@ -117,4 +120,12 @@ test("locateOnGraph splits doubled edges together, keeping each normal", () => {
   assert.equal(toBase.length, 2);
   const zs = toBase.map((n) => n.normal.z).sort((p, q) => p - q);
   nearPoint(P(zs[0], 0, zs[1]), P(-1, 0, 1));
+});
+
+test("locateNodeNear: the closest existing node within the distance, else null", () => {
+  const graph = sceneGraph();
+  assert.equal(locateNodeNear(graph, P(2, 5.004, 0), 1e-2), key(2, 5, 0));
+  assert.equal(locateNodeNear(graph, P(2, 5.17, 0), 1e-2), null);
+  assert.equal(locateNodeNear(graph, P(2, 5.17, 0), 0.05), key(2, 5.2, 0));
+  assert.equal(locateNodeNear(null, P(2, 5, 0)), null);
 });

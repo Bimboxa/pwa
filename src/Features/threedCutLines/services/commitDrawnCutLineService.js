@@ -2,6 +2,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
+import getBaseMapNormalWorldFromRow from "Features/baseMaps/js/getBaseMapNormalWorldFromRow";
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 import buildCoteAnnotationFields from "Features/threedDrawing/utils/buildCoteAnnotationFields";
 import dedupeAdjacentVertices from "Features/threedDrawing/utils/dedupeAdjacentVertices";
@@ -72,6 +73,9 @@ export default async function commitDrawnCutLineService({
     startFace: faceOf(verticesInOrder[0]),
     endFace: faceOf(verticesInOrder[verticesInOrder.length - 1]),
     triangles,
+    // Plan the line is drawn on: an end arriving at the foot of a sheet
+    // climbs it in the vertical plane of the segment.
+    upNormal: getBaseMapNormalWorldFromRow(host),
   });
   const { points: worldPoints, derivedStart, derivedEnd } = extended;
   console.log(

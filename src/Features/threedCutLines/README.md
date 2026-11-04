@@ -43,13 +43,33 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   solids, world soup with winding normals) → `extendCutLine` → projection →
   points → annotation. The face under each end vertex is the `faceNormal`
   the snap carried (face / vertex / edge snaps with a face under the cursor).
+- Existing cut lines are snap targets of every 3D drawing (vertices, derived
+  ones included, and segments): each segment `Line2` carries `isSnapLine` +
+  `exportLine.positions` (the `buildView3dEdgeLines` convention read by
+  `useVertexSnap.buildIndex`); `ThreedCutLineAnnotations` bumps
+  `snapIndexEpoch` when the lines' geometry signature changes (not on a
+  selection change).
 - Extension (`utils/`, pure, node-tested): plane of the polyline (Newell,
   ≥ 3 non-collinear points) or per end `d × n_face`; `sectionTrianglesByPlane`
   → `buildSectionGraph` (1 mm keys, T-junctions split) → `walkCutLineTrace`
   (re-entrant turns > flat > salient, then progress along the drawn
-  direction; stops at a free edge, a visited node, 64 points; collinear
-  nodes simplified). User decision 2026-11-03: the trace continues through
-  salient edges too (over a wall, down its back).
+  direction; stops at a free edge, a visited node, 64 SIMPLIFIED points —
+  4096 raw, the section of a curved sheet goes through ~2 raw nodes per
+  quad; collinear nodes simplified). User decision 2026-11-03: the trace
+  continues through salient edges too (over a wall, down its back).
+- End arriving INTO a face (a sweep / open sheet met edge-on at its foot,
+  |d · n_face| > cos 15°): the cutting plane is the vertical one through the
+  segment (`d × up`, `upNormal` = host base map normal, `getBaseMapNormalWorldFromRow`),
+  the walk starts on the plan (`endOn`); with no section edge along `d`
+  (the plan is not in the soup) the start is the section node at the end
+  point (`locateNodeNear`) and the first step may be perpendicular
+  (`allowPerpendicularStart`). The trace then climbs the sheet's profile.
+- Gap bridging (`CUT_LINE_GAP_TOLERANCE_M` = 2 cm, user decision 2026-11-04):
+  the surfaces the line crosses are drawn independently (a slab whose arc
+  edge follows a sweep's guide stops a few mm / cm short of the sheet's
+  foot), so their sections never join at the 1 mm graph tolerance. At a free
+  edge the walk jumps to the nearest unvisited section node within 2 cm and
+  goes on (`gapTolerance`); the start fallback uses the same distance.
 - Axis tools (`CutLineToolbarThreed`: Libre | X | Y | Z, « Décalage »,
   `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
   face region under the cursor and publishes to `cutLineAxisStore` the chord
@@ -118,7 +138,8 @@ relative `.js` imports) and
 
 ## Known limits (V1)
 
-- Curved regions (shells) are neither clipped nor meshed from the lines.
+- Curved regions (shells) are neither clipped nor meshed from the lines
+  (the trace climbs a sweep, but « Créer le maillage » skips it).
 - Paste / duplicate / layer copy of a cut line are not handled.
 - Right click stays inert in the Maillage module (no shortcuts menu there).
 - A closed solid walked around: the extension stops on the first visited
