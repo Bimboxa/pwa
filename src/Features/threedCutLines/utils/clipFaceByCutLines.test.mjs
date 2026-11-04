@@ -264,3 +264,17 @@ test("a line ending on another line (T junction) cuts the piece, whatever the or
     assert.ok(Math.abs(areas[2] - 30) < 1e-6);
   }
 });
+
+test("a run ending with a backward stub (gap bridging to a wall foot 1.3 cm inside the edge) is prolonged along its travel direction, not along the stub", () => {
+  const face = squareZ();
+  // Across the square from x = -1, reaches the edge x = 4, steps back 1.3 cm
+  // to the foot of a wall (z = 0, in the plane), then climbs it.
+  const cutLines = [
+    [v(-1, 2, 0), v(4, 2, 0), v(3.987, 2.0002, 0), v(3.987, 2.0002, 1.2)],
+  ];
+  const result = clipFaceByCutLines({ face, cutLines });
+  assert.ok(result, "the face is cut");
+  assert.equal(result.pieces.length, 2);
+  near(result.pieces[0].area, 8, 1e-3);
+  near(result.pieces[1].area, 8, 1e-3);
+});

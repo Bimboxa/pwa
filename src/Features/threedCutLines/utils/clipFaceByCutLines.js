@@ -15,6 +15,7 @@ import getPathChunksInRegion, {
   isInsideRegion,
 } from "../../surfaceCut/utils/getPathChunksInRegion.js";
 import splitFlatRegionAlongChunks from "../../surfaceCut/utils/splitFlatRegionAlongChunks.js";
+import { CUT_LINE_GAP_TOLERANCE_M } from "./extendCutLine.js";
 
 // Pieces of a planar face delimited by the CUT_LINE polylines lying on it.
 //
@@ -140,21 +141,42 @@ function splitLineByPlane(line, basis, planeTolerance) {
 }
 
 // The 2D path of a run with each end that continues off the plane
-// prolonged along its end segment to the first boundary ahead, when that
+// prolonged along its end direction to the first boundary ahead, when that
 // end lies strictly inside the region. Ends on the boundary (or outside)
 // are untouched.
+//
+// The end direction is read from the last point further than
+// CUT_LINE_GAP_TOLERANCE_M from the end, not from the last segment: the
+// extension's gap bridging adds a stub of up to that length at the foot of
+// the wall it climbs (the wall standing a hair inside the face edge the line
+// had reached), and that stub points BACKWARDS — prolonging along it would
+// send the ray to the opposite edge and fold the path on itself.
 function extendContinuingEnds(loops, path, run, tolerance) {
   const out = path.map((p) => ({ x: p.x, y: p.y }));
   const n = out.length;
   if (n < 2) return out;
   const strictlyInside = (p) =>
     isInsideRegion(loops, p) && distanceToBoundary(loops, p) > tolerance;
+  // Anchor of the end direction: the first point, walking inwards from the
+  // end, further than the stub length from it (else the neighbor).
+  const anchorFrom = (endIdx, step) => {
+    const end = out[endIdx];
+    for (let k = endIdx + step; k >= 0 && k < n; k += step) {
+      if (
+        Math.hypot(out[k].x - end.x, out[k].y - end.y) >
+        CUT_LINE_GAP_TOLERANCE_M
+      ) {
+        return out[k];
+      }
+    }
+    return out[endIdx + step];
+  };
   if (run.continuesBefore && strictlyInside(out[0])) {
-    const hit = castRayToBoundary(loops, out[1], out[0]);
+    const hit = castRayToBoundary(loops, anchorFrom(0, 1), out[0]);
     if (hit) out[0] = hit;
   }
   if (run.continuesAfter && strictlyInside(out[n - 1])) {
-    const hit = castRayToBoundary(loops, out[n - 2], out[n - 1]);
+    const hit = castRayToBoundary(loops, anchorFrom(n - 1, -1), out[n - 1]);
     if (hit) out[n - 1] = hit;
   }
   return out;

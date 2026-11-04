@@ -61,6 +61,10 @@ function nearestUnseen(nodes, node, seen, maxDist) {
 //                few cm off its foot), their sections do not join at the 1 mm
 //                graph tolerance. The step after a jump never goes backwards
 //                (dot with d0 < 0) — the other surface is walked onwards.
+//   upNormal (optional) = up direction of the plan (world): a convex turn
+//                onto a face whose air side looks down (the underside of a
+//                solid walked over) is never taken. Without it, a closed
+//                solid is walked all the way round (one loop at most).
 //   allowPerpendicularStart (optional) = accept a first step perpendicular to
 //                `direction` (a walk started on a node found by locateNodeNear:
 //                the drawn line ends at the foot of a sheet, whose section
@@ -73,8 +77,10 @@ function nearestUnseen(nodes, node, seen, maxDist) {
 // neighbors (never the node we came from); t_out = unit direction to the
 // candidate, rise = dot(t_out, n). Classes: concave (rise > 1e-3) beats flat
 // (|rise| <= 1e-3) beats convex (rise < -1e-3); ties go to the largest
-// dot(t_out, d0), then to the smallest angle with `dir`. No candidate → stop
-// (free edge, or every neighbor already visited: a loop).
+// dot(t_out, d0), then to the smallest angle with `dir`. With `upNormal`, a
+// convex candidate onto a downward-facing face (the underside of a solid
+// walked over) is never taken. No candidate → stop (free edge, or every
+// neighbor already visited: a loop).
 //
 // After a step, `n` becomes the normal carried by the edge taken, re-signed
 // so that it keeps pointing to the same side of the trace as n0 did (same
@@ -94,6 +100,7 @@ export default function walkCutLineTrace(
     maxRawPoints = 4096,
     gapTolerance = 0,
     allowPerpendicularStart = false,
+    upNormal = null,
     visited,
   }
 ) {
@@ -120,6 +127,17 @@ export default function walkCutLineTrace(
   let n = n0;
   let jumped = false;
 
+  // Air-side normal of a candidate edge (same handedness rule as nNext
+  // below) and whether it faces away from the plan's up direction.
+  const up = normalize(upNormal);
+  const facesDown = (edgeNormal, tOut) => {
+    const inPlane = normalize(cross(b, tOut));
+    let nAir = normalize(edgeNormal);
+    if (!nAir || !inPlane) return false;
+    if (dot(nAir, inPlane) < 0) nAir = scale(nAir, -1);
+    return dot(nAir, up) < -0.5;
+  };
+
   // A perpendicular first step has dot(tOut, d0) = 0 up to float noise.
   const firstStepMin = allowPerpendicularStart ? -1e-6 : 0;
 
@@ -140,6 +158,10 @@ export default function walkCutLineTrace(
       keysSeen.add(nb.key);
       const rise = dot(tOut, n);
       const cls = rise > RISE_EPS ? 2 : rise < -RISE_EPS ? 0 : 1;
+      // A convex turn onto a face whose air side looks DOWN is the underside
+      // of the solid just walked over (down its back, then under it): the
+      // trace stops at its foot instead.
+      if (cls === 0 && up && facesDown(nb.normal, tOut)) continue;
       candidates.push({
         key: nb.key,
         tOut,
