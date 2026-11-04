@@ -285,7 +285,7 @@ const threedEditorInitialState = {
   mesh3dHiddenOrientations: [],
   meshingMode: {
     active: false,
-    // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
+    // "SELECT" | "CREATE" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
     // | "CUT_POLYLINE" | "CUT_ANGULAR" | "NUMBER"
     tool: "SELECT",
     // "Décalage": distance (m) from the reference vertex to the guide vertex
@@ -306,6 +306,14 @@ const threedEditorInitialState = {
     // handlers capture the keystrokes. A parsable buffer wins over the mouse,
     // which then only picks the side the angle opens to.
     angleBuffer: "",
+    // CREATE tool (« Ajouter une maille »): target surface (m²) typed on the
+    // keyboard — S arms the input, the digits feed the buffer (same capture
+    // as angleBuffer). A parsable buffer > 0 pre-draws a maille of that
+    // surface under the cursor instead of the whole hovered piece. Kept
+    // after a click: the user tiles mailles of the same surface.
+    surfaceBuffer: "",
+    // S was pressed: the digits typed now feed surfaceBuffer.
+    surfaceInputArmed: false,
   },
   // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
   // mouse to set the value, click again to commit `annotation.height`.
@@ -810,6 +818,8 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.meshingMode.tool = "SELECT";
         state.meshingMode.cutSide = "LEFT";
+        state.meshingMode.surfaceBuffer = "";
+        state.meshingMode.surfaceInputArmed = false;
       } else {
         // Mutually exclusive with drawing and dimension modes.
         closeBaseMapsGrid(state);
@@ -841,6 +851,8 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.tool = action.payload;
       state.meshingMode.cutSide = "LEFT";
       state.meshingMode.angleBuffer = "";
+      state.meshingMode.surfaceBuffer = "";
+      state.meshingMode.surfaceInputArmed = false;
     },
     setMeshingOffset: (state, action) => {
       state.meshingMode.offset = action.payload;
@@ -867,6 +879,29 @@ export const threedEditorSlice = createSlice({
     },
     clearMeshingAngleBuffer: (state) => {
       state.meshingMode.angleBuffer = "";
+    },
+    // Typed target surface of the CREATE tool (« Ajouter une maille »).
+    // Arming (S) starts a new value: the buffer is cleared.
+    armMeshingSurfaceInput: (state, action) => {
+      state.meshingMode.surfaceInputArmed = !!action.payload;
+      if (action.payload) state.meshingMode.surfaceBuffer = "";
+    },
+    appendToMeshingSurfaceBuffer: (state, action) => {
+      state.meshingMode.surfaceBuffer += action.payload;
+    },
+    deleteLastMeshingSurfaceBuffer: (state) => {
+      state.meshingMode.surfaceBuffer = state.meshingMode.surfaceBuffer.slice(
+        0,
+        -1
+      );
+    },
+    clearMeshingSurfaceBuffer: (state) => {
+      state.meshingMode.surfaceBuffer = "";
+      state.meshingMode.surfaceInputArmed = false;
+    },
+    // The editable field of the drawing helper writes the same buffer.
+    setMeshingSurfaceBuffer: (state, action) => {
+      state.meshingMode.surfaceBuffer = action.payload ?? "";
     },
     setExtrudeModeActive: (state, action) => {
       state.extrudeMode.active = action.payload;
@@ -1488,6 +1523,11 @@ export const {
   appendToMeshingAngleBuffer,
   deleteLastMeshingAngleBuffer,
   clearMeshingAngleBuffer,
+  armMeshingSurfaceInput,
+  appendToMeshingSurfaceBuffer,
+  deleteLastMeshingSurfaceBuffer,
+  clearMeshingSurfaceBuffer,
+  setMeshingSurfaceBuffer,
   setExtrudeModeActive,
   setExtrudeValue,
   setExtrudeValueBuffer,

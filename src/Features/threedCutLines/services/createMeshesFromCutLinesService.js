@@ -4,6 +4,10 @@ import createMesh3dService from "Features/threedMesh/services/createMesh3dServic
 import { buildWorldSoup } from "Features/threedMesh/utils/buildMeshDataFromRegion";
 import computePlaneBasis from "Features/threedMesh/utils/computePlaneBasis";
 import {
+  COVER_NORMAL_DOT,
+  COVER_PLANE_TOL_M,
+} from "Features/threedMesh/utils/mesh3dConstants";
+import {
   collectAnnotationSolidMeshes,
   getAnnotationMergedHost,
 } from "Features/threedMesh/utils/getAnnotationFaceRegion";
@@ -14,10 +18,6 @@ import { cross, dot, sub } from "Features/threedMesh/utils/vec3Utils";
 import buildMeshDataFromPieces from "../utils/buildMeshDataFromPieces";
 import clipRegionByCutLines from "../utils/clipRegionByCutLines";
 import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
-
-// Plane tolerances of the "already covered by a maille" test.
-const COVER_NORMAL_DOT = 0.999;
-const COVER_PLANE_TOL_M = 2e-3;
 
 // « Créer le maillage » (Maillage module): one maille per GROUP of pieces of
 // every face region of the visible annotations that the cut lines cross

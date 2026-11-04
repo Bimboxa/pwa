@@ -21,3 +21,9 @@ export const MESH3D_SELECTION_TYPE = "MESH3D";
 
 // Screen-space snap radius (px) for guide-vertex / edge snapping in cut tools.
 export const MESH3D_SNAP_PX = 10;
+
+// "Already covered by a maille" plane tolerances: a maille face (or shell
+// triangle) lies on a piece's plane when their normals are this aligned
+// (|dot|) and its vertices are this close to the plane (meters).
+export const COVER_NORMAL_DOT = 0.999;
+export const COVER_PLANE_TOL_M = 2e-3;

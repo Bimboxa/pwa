@@ -85,6 +85,10 @@ export default function useCommandsContext({ enabled = true } = {}) {
     (s) => s.mapEditor.templatelessDrawingShape
   );
   const activeThreedTool = useSelector(selectActiveThreedTool);
+  // Tool of the meshing mode (Maillage module), null while the mode is off.
+  const meshingTool = useSelector((s) =>
+    s.threedEditor.meshingMode.active ? s.threedEditor.meshingMode.tool : null
+  );
   const pasteClipboard = useSelector((s) =>
     Boolean(s.mapEditor.pasteClipboard)
   );
@@ -254,6 +258,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedToolKeyByTemplateId: selectedToolKeyByTemplateId ?? {},
       templatelessDrawingShape,
       activeThreedTool,
+      meshingTool,
       moveAnnotationModeActive,
       moveBaseMapModeActive,
       rotateBaseMapModeActive,
@@ -314,6 +319,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedToolKeyByTemplateId,
       templatelessDrawingShape,
       activeThreedTool,
+      meshingTool,
       moveAnnotationModeActive,
       moveBaseMapModeActive,
       rotateBaseMapModeActive,

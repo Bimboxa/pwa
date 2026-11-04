@@ -72,6 +72,7 @@ import placeAxesCommand from "./placeAxes/placeAxesCommand";
 import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
 import resetAxesCommand from "./resetAxes/resetAxesCommand";
 import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
+import addMeshCommand from "./addMesh/addMeshCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -167,6 +168,8 @@ export const COMMANDS = [
   resetAxesCommand,
   // cut lines (3D, Maillage module)
   drawCutLineCommand,
+  // mailles (3D, Maillage module)
+  addMeshCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

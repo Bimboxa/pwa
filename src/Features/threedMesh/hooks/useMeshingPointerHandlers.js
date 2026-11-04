@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector, useStore } from "react-redux";
-import { Raycaster, Vector2 } from "three";
+import { Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import {
@@ -15,8 +15,12 @@ import {
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   appendToMeshingAngleBuffer,
+  appendToMeshingSurfaceBuffer,
+  armMeshingSurfaceInput,
   clearMeshingAngleBuffer,
+  clearMeshingSurfaceBuffer,
   deleteLastMeshingAngleBuffer,
+  deleteLastMeshingSurfaceBuffer,
   setMeshingModeActive,
   setMeshingNumberingNext,
   setMeshingTool,
@@ -37,6 +41,9 @@ import {
   filterIntersectionsByClipping,
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
+import { MESH3D_PART_HOVER_COLOR } from "Features/annotationMesh3d/constants/mesh3dPartColors";
+import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 
 import useMeshes3d from "./useMeshes3d";
 import createMesh3dService from "../services/createMesh3dService";
@@ -46,6 +53,9 @@ import {
 } from "../services/meshingOverlayStore";
 import { createMeshingCutController } from "../services/meshingCutController";
 import { isMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
+import buildFixedAreaMaille, {
+  prepareFixedAreaAtlas,
+} from "../utils/buildFixedAreaMaille";
 import {
   buildMeshDataFromWorldSoup,
   buildWorldSoup,
@@ -53,6 +63,7 @@ import {
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getAnnotationFaceRegion from "../utils/getAnnotationFaceRegion";
+import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
 import buildPiecesStippleOverlay from "Features/threedCutLines/js/buildPiecesStippleOverlay";
 import {
   getCutLinesVersion,
@@ -67,6 +78,22 @@ import parseMeshingAngleBuffer, {
 // Mirrors useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 
+// Pre-drawn maille of the CREATE tool with a target surface: fluo green wash
+// + dots (not tone mapped: the realistic modes' ACES would dull it), over the
+// hover stipple; orange when the free cell is smaller than the target.
+const FIXED_AREA_STIPPLE = {
+  color: MESH3D_PART_HOVER_COLOR,
+  baseAlpha: 0.45,
+  dotAlpha: 0.95,
+  gridOffsetPx: 3,
+  toneMapped: false,
+  renderOrder: 999,
+};
+const FIXED_AREA_INSUFFICIENT_STIPPLE = {
+  ...FIXED_AREA_STIPPLE,
+  color: "#ff5722",
+};
+
 // Pointer interactions of the 3D meshing mode. Owns the pointer while
 // meshingMode.active (MainThreedEditor's hover/click paths short-circuit):
 //
@@ -76,7 +103,13 @@ const DRAG_THRESHOLD_PX = 4;
 //   region grown over the WHOLE annotation up to the "Sélection de face"
 //   angle, see getAnnotationFaceRegion) + a "+ nouvelle maille" cursor
 //   helper; a click creates a maille from the hovered face. Escape returns
-//   to SELECT.
+//   to SELECT. With a target surface typed (S then digits →
+//   meshingMode.surfaceBuffer, « Ajouter une maille »), the hover pre-draws
+//   in fluo green a rectangle of that NET surface, aligned on the user axes,
+//   leaning on the nearest borders of the hovered piece (face edges, cut
+//   lines, existing mailles — openings are spanned and kept as holes, a
+//   curved sheet is unfolded: buildFixedAreaMaille), and the click creates
+//   that maille.
 // - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE / CUT_ANGULAR:
 //   delegated to meshingCutController (red cut line, reference/guide vertices,
 //   area chips, split on click). CUT_ANGULAR also captures typed digits into
@@ -109,6 +142,13 @@ export default function useMeshingPointerHandlers({
   const faceSelectionAngleDeg = useSelector(
     (s) => s.threedEditor.faceSelectionAngleDeg
   );
+  const surfaceBuffer = useSelector(
+    (s) => s.threedEditor.meshingMode.surfaceBuffer
+  );
+  const surfaceInputArmed = useSelector(
+    (s) => s.threedEditor.meshingMode.surfaceInputArmed
+  );
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings.yawDeg);
   const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -151,13 +191,33 @@ export default function useMeshingPointerHandlers({
     idsRef.current = { projectId, scopeId };
   }, [projectId, scopeId]);
   const mesh3dByIdRef = useRef({});
+  // Bumped with the mailles: invalidates the free region of the fixed
+  // surface preview.
+  const meshesVersionRef = useRef(0);
   useEffect(() => {
     const byId = {};
     (meshes3d || []).forEach((m) => {
       byId[m.id] = m;
     });
     mesh3dByIdRef.current = byId;
+    meshesVersionRef.current += 1;
+    // A maille was created / removed: redraw the preview against it.
+    refreshHoverRef.current?.();
   }, [meshes3d]);
+  // Target surface of the CREATE tool (m², null when none is typed).
+  const surfaceBufferRef = useRef(surfaceBuffer);
+  const surfaceInputArmedRef = useRef(surfaceInputArmed);
+  const fixedSurfaceRef = useRef(null);
+  useEffect(() => {
+    surfaceBufferRef.current = surfaceBuffer;
+    surfaceInputArmedRef.current = surfaceInputArmed;
+    const parsed = parseRectBuffer(surfaceBuffer);
+    fixedSurfaceRef.current = parsed > 0 ? parsed : null;
+  }, [surfaceBuffer, surfaceInputArmed]);
+  const yawDegRef = useRef(yawDeg);
+  useEffect(() => {
+    yawDegRef.current = yawDeg;
+  }, [yawDeg]);
 
   useEffect(() => {
     if (!active || !rendererIsReady) return;
@@ -177,13 +237,25 @@ export default function useMeshingPointerHandlers({
     const hover = {
       overlay: null,
       key: null,
-      // Cut lines clip of the hovered region (CREATE on an annotation).
+      // Cut lines clip of the hovered region (CREATE on an annotation):
+      // `regionClip` is the raw clip (kept even when no line cuts the
+      // region — the fixed surface preview needs its pieces and crease
+      // joins), `clip` the same one when a line does cut it, `located` the
+      // piece / group under the cursor.
       clipKey: null,
+      regionClip: null,
       clip: null,
+      located: null,
       faceData: null,
       groupKey: null,
       group: null,
       groupOverlay: null,
+      // Fixed surface preview (CREATE with a target surface).
+      fixedAtlasKey: null,
+      fixedAtlas: null,
+      fixedKey: null,
+      fixed: null,
+      fixedOverlay: null,
     };
 
     // Cut tools machinery (draft line, guide vertices, split commit).
@@ -207,19 +279,27 @@ export default function useMeshingPointerHandlers({
       tool === "NUMBER" || tool === "SELECT" ? "default" : "crosshair";
 
     function clearStipple() {
-      if (hover.overlay || hover.groupOverlay) {
+      if (hover.overlay || hover.groupOverlay || hover.fixedOverlay) {
         disposeFaceHoverOverlay(hover.overlay);
         disposeFaceHoverOverlay(hover.groupOverlay);
+        disposeFaceHoverOverlay(hover.fixedOverlay);
         hover.overlay = null;
         hover.groupOverlay = null;
+        hover.fixedOverlay = null;
         editor.renderScene?.();
       }
       hover.key = null;
       hover.clipKey = null;
+      hover.regionClip = null;
       hover.clip = null;
+      hover.located = null;
       hover.faceData = null;
       hover.groupKey = null;
       hover.group = null;
+      hover.fixedAtlasKey = null;
+      hover.fixedAtlas = null;
+      hover.fixedKey = null;
+      hover.fixed = null;
     }
 
     // Raycast the scene at the event position. Returns the first maille or
@@ -293,10 +373,14 @@ export default function useMeshingPointerHandlers({
       if (key !== hover.key) {
         disposeFaceHoverOverlay(hover.overlay);
         disposeFaceHoverOverlay(hover.groupOverlay);
+        disposeFaceHoverOverlay(hover.fixedOverlay);
         hover.overlay = null;
         hover.groupOverlay = null;
+        hover.fixedOverlay = null;
         hover.groupKey = null;
         hover.group = null;
+        hover.fixedKey = null;
+        hover.fixed = null;
         if (region) {
           const overlay = buildFaceHoverOverlay(
             { geometry: region.geometry },
@@ -325,9 +409,13 @@ export default function useMeshingPointerHandlers({
       const region = applyStipple(object, faceIndex);
       if (!region) return null;
       const cutLinesVersion = getCutLinesVersion();
-      const clipKey = `${hover.key}:${cutLinesVersion}`;
+      // The fixed surface preview needs the pieces of the region even when
+      // no cut line exists.
+      const wantsPieces = fixedSurfaceRef.current > 0;
+      const clipKey = `${hover.key}:${cutLinesVersion}:${wantsPieces ? 1 : 0}`;
       if (hover.clipKey !== clipKey) {
         hover.clipKey = clipKey;
+        hover.regionClip = null;
         hover.clip = null;
         hover.faceData = null;
         const cutLines = getCutLinesWorldPolylines().map((l) => l.points);
@@ -338,20 +426,26 @@ export default function useMeshingPointerHandlers({
           region.tris
         );
         hover.faceData = buildMeshDataFromWorldSoup(soup);
-        if (soup && cutLines.length) {
+        if (soup && (cutLines.length || wantsPieces)) {
           const clip = clipRegionByCutLines({
             positions: soup.positions,
             tris: soup.tris,
             cutLines,
           });
+          hover.regionClip = clip;
           // No line crosses the region: the whole region stands.
           hover.clip = clip?.groups?.some((g) => g.cut) ? clip : null;
         }
       }
-      const located = hover.clip
-        ? hover.clip.locate(region.tris.indexOf(region.triIndex), hitPoint)
+      const located = hover.regionClip
+        ? hover.regionClip.locate(
+            region.tris.indexOf(region.triIndex),
+            hitPoint
+          )
         : null;
-      const group = located ? hover.clip.groups[located.groupIndex] : null;
+      hover.located = located;
+      const group =
+        hover.clip && located ? hover.clip.groups[located.groupIndex] : null;
       const groupKey = group ? `${clipKey}:${located.groupIndex}` : null;
       if (groupKey !== hover.groupKey) {
         disposeFaceHoverOverlay(hover.groupOverlay);
@@ -374,9 +468,141 @@ export default function useMeshingPointerHandlers({
       return hover.group;
     }
 
-    // Surface of the hovered region (CREATE): the group's, else the whole
-    // planar / curved region's.
+    // Snap distance of the fixed surface preview: MESH3D_SNAP_PX along `u`,
+    // in metres at the hovered point.
+    function getSnapToleranceM(point, u, rect) {
+      const toScreen = (p) => {
+        const v = new Vector3(p.x, p.y, p.z).project(sceneManager.camera);
+        return {
+          x: ((v.x + 1) / 2) * rect.width,
+          y: ((1 - v.y) / 2) * rect.height,
+        };
+      };
+      const a = toScreen(point);
+      const b = toScreen({
+        x: point.x + u.x,
+        y: point.y + u.y,
+        z: point.z + u.z,
+      });
+      const pxPerMeter = Math.hypot(a.x - b.x, a.y - b.y);
+      return pxPerMeter > 1e-6 ? MESH3D_SNAP_PX / pxPerMeter : 0;
+    }
+
+    // CREATE with a target surface (meshingMode.surfaceBuffer): pre-draws the
+    // maille of that net surface on the hovered group of pieces —
+    // buildFixedAreaMaille: a rectangle aligned on the user axes, leaning on
+    // the nearest borders (face edges, cut lines, existing mailles), the
+    // group unfolded across its creases. The atlas (unfolded group + free
+    // region) is cached per region clip, group, mailles and frame; the
+    // rectangle is placed on every move. Runs after applyCutLinePieceStipple
+    // (hover.regionClip / hover.located). Returns hover.fixed ({ pieces,
+    // meshData, area, fits, target }) or null.
+    function applyFixedAreaPreview(pick) {
+      const target = fixedSurfaceRef.current;
+      const clip = hover.regionClip;
+      const located = hover.located;
+      let fixed = null;
+      let fixedKey = null;
+      if (target > 0 && clip && located && pick?.intersect?.point) {
+        const point = pick.intersect.point;
+        const cursorWorld = { x: point.x, y: point.y, z: point.z };
+        const yaw = yawDegRef.current;
+        const prepare = (atlasKey) => {
+          hover.fixedAtlasKey = atlasKey;
+          hover.fixedAtlas = prepareFixedAreaAtlas({
+            pieces: clip.pieces,
+            joins: clip.joins,
+            pieceIndices: clip.groups[located.groupIndex].pieceIndices,
+            rootPieceIndex: located.pieceIndex,
+            rootPoint: cursorWorld,
+            axesDirs: getUserAxesWorldDirections(yaw).map((axis) => ({
+              key: axis.key,
+              dir: { x: axis.dir.x, y: axis.dir.y, z: axis.dir.z },
+            })),
+            meshes3d: Object.values(mesh3dByIdRef.current),
+          });
+        };
+        const atlasKey = `${hover.clipKey}:${located.groupIndex}:${meshesVersionRef.current}:${yaw}`;
+        let result = null;
+        try {
+          if (hover.fixedAtlasKey !== atlasKey) prepare(atlasKey);
+          // A piece the unfolding did not reach (very large group): unfold
+          // again from it.
+          if (
+            hover.fixedAtlas &&
+            !hover.fixedAtlas.nodes.has(located.pieceIndex)
+          )
+            prepare(atlasKey);
+          const atlas = hover.fixedAtlas;
+          result = atlas
+            ? buildFixedAreaMaille({
+                atlas,
+                pieceIndex: located.pieceIndex,
+                cursorWorld,
+                targetArea: target,
+                snapToleranceM: getSnapToleranceM(
+                  cursorWorld,
+                  atlas.frame.u,
+                  pick.rect
+                ),
+              })
+            : null;
+        } catch (err) {
+          // Never break the hover loop on a degenerate region.
+          console.error("[threedMesh] fixed surface preview failed", err);
+          hover.fixedAtlas = null;
+        }
+        if (result) {
+          const { rect } = result.placement;
+          const r = (value) => Math.round(value * 1e6);
+          fixedKey = `${atlasKey}:${located.pieceIndex}:${target}:${r(rect.xMin)}:${r(rect.yMin)}:${r(rect.xMax)}:${r(rect.yMax)}`;
+          fixed =
+            fixedKey === hover.fixedKey
+              ? hover.fixed
+              : {
+                  pieces: result.pieces,
+                  meshData: result.meshData,
+                  area: result.area,
+                  fits: result.fits,
+                  target,
+                };
+        }
+      }
+      if (fixedKey !== hover.fixedKey) {
+        disposeFaceHoverOverlay(hover.fixedOverlay);
+        hover.fixedOverlay = null;
+        if (fixed) {
+          const overlay = buildPiecesStippleOverlay(
+            fixed.pieces,
+            fixed.fits ? FIXED_AREA_STIPPLE : FIXED_AREA_INSUFFICIENT_STIPPLE
+          );
+          if (overlay) {
+            sceneManager.scene.add(overlay);
+            hover.fixedOverlay = overlay;
+          }
+        }
+        hover.fixedKey = fixedKey;
+        hover.fixed = fixed;
+        editor.renderScene?.();
+      }
+      // The preview stands in for the region / group stipple.
+      const regionVisible = !hover.group && !hover.fixed;
+      const groupVisible = !hover.fixed;
+      if (
+        (hover.overlay && hover.overlay.visible !== regionVisible) ||
+        (hover.groupOverlay && hover.groupOverlay.visible !== groupVisible)
+      ) {
+        if (hover.overlay) hover.overlay.visible = regionVisible;
+        if (hover.groupOverlay) hover.groupOverlay.visible = groupVisible;
+        editor.renderScene?.();
+      }
+      return hover.fixed;
+    }
+
+    // Surface of the hovered region (CREATE): the pre-drawn maille's, the
+    // group's, else the whole planar / curved region's.
     function getHoveredSurface() {
+      if (hover.fixed) return hover.fixed.area;
       if (hover.group) return hover.group.area;
       const data = hover.faceData;
       if (!data) return null;
@@ -393,11 +619,30 @@ export default function useMeshingPointerHandlers({
         // cut lines, or the whole face) is in the hover tooltip; the chip
         // only stands in when no tooltip is wired.
         const surface = tooltipApiRef?.current ? null : getHoveredSurface();
+        const target = fixedSurfaceRef.current;
+        // Free cell smaller than the target surface: said next to the
+        // cursor, whatever the tooltip shows.
+        const insufficient = hover.fixed && !hover.fixed.fits;
         setMeshingOverlay({
-          cursor: { x, y, label: "+ nouvelle maille" },
-          areaChips: Number.isFinite(surface)
-            ? [{ x, y: y + 22, text: formatSurfaceM2(surface) }]
-            : [],
+          cursor: {
+            x,
+            y,
+            label:
+              target > 0
+                ? `+ maille ${formatSurfaceM2(target, 2)}`
+                : "+ nouvelle maille",
+          },
+          areaChips: insufficient
+            ? [
+                {
+                  x,
+                  y: y + 22,
+                  text: `${formatSurfaceM2(hover.fixed.area, 2)} — surface insuffisante`,
+                },
+              ]
+            : Number.isFinite(surface)
+              ? [{ x, y: y + 22, text: formatSurfaceM2(surface) }]
+              : [],
         });
         dom.style.cursor = "crosshair";
       } else {
@@ -425,6 +670,7 @@ export default function useMeshingPointerHandlers({
           pick.intersect.faceIndex,
           pick.intersect.point
         );
+        applyFixedAreaPreview(tool === "CREATE" ? pick : null);
         updateTooltip(e, pick);
       } else {
         clearStipple();
@@ -518,6 +764,35 @@ export default function useMeshingPointerHandlers({
           pick.intersect.faceIndex,
           pick.intersect.point
         );
+        // A target surface is typed: the maille is the pre-drawn one (even
+        // smaller than the target when the free cell is — user decision),
+        // never the whole piece.
+        if (fixedSurfaceRef.current > 0) {
+          const fixed = applyFixedAreaPreview(pick);
+          if (!fixed?.meshData) return;
+          const { projectId: pId, scopeId: sId } = idsRef.current;
+          try {
+            const annotation = await db.annotations.get(pick.nodeId);
+            const baseColor =
+              annotation?.fillColor || annotation?.strokeColor || null;
+            await createMesh3dService({
+              projectId: pId,
+              scopeId: sId,
+              faces: fixed.meshData.faces,
+              shell: fixed.meshData.shell,
+              baseColor,
+              sourceInfo: {
+                annotationId: pick.nodeId,
+                fixedSurface: fixed.target,
+                ...(group ? { fromCutLines: true } : {}),
+              },
+            });
+          } catch (err) {
+            console.error("[threedMesh] create fixed surface failed", err);
+          }
+          clearStipple();
+          return;
+        }
         if (group) {
           const meshData = buildMeshDataFromPieces(group.pieces);
           if (!meshData) return;
@@ -731,6 +1006,50 @@ export default function useMeshingPointerHandlers({
       }
     }
 
+    // Target surface of the CREATE tool (« Ajouter une maille »): S arms the
+    // input, the digits typed then feed meshingMode.surfaceBuffer, Enter
+    // validates (the surface stays fixed), Escape drops the surface first
+    // (the next Escape returns to SELECT). Capture phase, like the angle
+    // buffer.
+    function onKeyDownSurface(e) {
+      if (tool !== "CREATE") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      const consume = () => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      };
+
+      if (e.key === "s" || e.key === "S") {
+        consume();
+        if (!e.repeat) dispatch(armMeshingSurfaceInput(true));
+        return;
+      }
+      if (e.key === "Escape") {
+        if (!surfaceInputArmedRef.current && surfaceBufferRef.current === "")
+          return;
+        consume();
+        dispatch(clearMeshingSurfaceBuffer());
+        return;
+      }
+      if (!surfaceInputArmedRef.current) return;
+      if (e.key === "Enter") {
+        consume();
+        dispatch(armMeshingSurfaceInput(false));
+        return;
+      }
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (surfaceBufferRef.current === "") return;
+        consume();
+        dispatch(deleteLastMeshingSurfaceBuffer());
+        return;
+      }
+      if (MESHING_ANGLE_BUFFER_CHAR_RE.test(e.key)) {
+        consume();
+        dispatch(appendToMeshingSurfaceBuffer(e.key === "," ? "." : e.key));
+      }
+    }
+
     refreshHoverRef.current = () => {
       if (lastEvent && rafId == null) rafId = requestAnimationFrame(runHover);
     };
@@ -742,6 +1061,7 @@ export default function useMeshingPointerHandlers({
     dom.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keydown", onKeyDownAngle, true);
+    window.addEventListener("keydown", onKeyDownSurface, true);
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -751,6 +1071,7 @@ export default function useMeshingPointerHandlers({
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keydown", onKeyDownAngle, true);
+      window.removeEventListener("keydown", onKeyDownSurface, true);
       refreshHoverRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       clearStipple();
@@ -766,6 +1087,13 @@ export default function useMeshingPointerHandlers({
     if (!active || tool !== "CUT_ANGULAR") return;
     refreshHoverRef.current?.();
   }, [active, tool, angleBuffer]);
+
+  // Typed target surface / rotated frame → redraw the pre-drawn maille in
+  // place.
+  useEffect(() => {
+    if (!active || tool !== "CREATE") return;
+    refreshHoverRef.current?.();
+  }, [active, tool, surfaceBuffer, yawDeg]);
 
   // Multi-maille toggle → redraw the preview with (or without) the neighbours.
   useEffect(() => {

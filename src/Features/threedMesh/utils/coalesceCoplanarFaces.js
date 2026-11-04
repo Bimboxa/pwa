@@ -41,7 +41,7 @@ const COLLINEAR_SIN = 1e-4;
 // T-junction repair skips groups bigger than this (O(points × segments)).
 const REPAIR_MAX_POINTS = 4000;
 
-const closeRing = (ring) => {
+export const closeRing = (ring) => {
   const [fx, fy] = ring[0];
   const [lx, ly] = ring[ring.length - 1];
   if (fx !== lx || fy !== ly) ring.push([fx, fy]);
@@ -54,7 +54,7 @@ const closeRing = (ring) => {
 // after snapping the two seam copies coincide exactly and the union removes
 // them. Mutates the rings in place; inserted points are cleaned up by the
 // collinear filter on the union output.
-function repairTJunctions(rings, eps) {
+export function repairTJunctions(rings, eps) {
   const points = [];
   const seen = new Set();
   for (const ring of rings) {
@@ -98,10 +98,10 @@ function repairTJunctions(rings, eps) {
   }
 }
 
-const openLoop = (ring) =>
+export const openLoop = (ring) =>
   ring.slice(0, ring.length - 1).map(([x, y]) => ({ x, y }));
 
-function removeCollinearVertices2d(loop) {
+export function removeCollinearVertices2d(loop) {
   if (loop.length < 3) return loop;
   const out = [];
   for (let i = 0; i < loop.length; i++) {
@@ -123,7 +123,7 @@ function removeCollinearVertices2d(loop) {
 
 // Normalize an open loop to the requested winding (contour CCW / holes CW in
 // the plane basis, matching extractRegionBoundaryLoops).
-function withWinding(loop, ccw) {
+export function withWinding(loop, ccw) {
   const area = signedArea2d(loop);
   if (area === 0) return null;
   return area > 0 === ccw ? loop : [...loop].reverse();
