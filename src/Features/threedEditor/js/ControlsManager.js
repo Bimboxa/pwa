@@ -22,6 +22,21 @@ import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNa
 const DEFAULT_CAMERA_FAR = 1000;
 const DEFAULT_MAX_DISTANCE = 500;
 
+// Perspective near plane following the orbit distance (_syncPerspectiveNear).
+// A fixed 0.1 m near plane with minDistance = 0.1 m put the pivot ON the near
+// plane at full zoom-in: everything between the camera and the pivot was
+// sliced away. Capped at the historical 0.1 m so wide views keep their depth
+// precision (the far plane reaches 2 x maxDistance).
+const NEAR_DISTANCE_RATIO = 0.05;
+const NEAR_MIN_M = 0.005;
+const NEAR_MAX_M = 0.1;
+
+// Wheel re-anchoring of the orbit point (_onWheelCapture): a new wheel burst
+// starts after this silence, or when the cursor moved this far since the
+// last anchoring.
+const WHEEL_BURST_GAP_MS = 300;
+const WHEEL_REANCHOR_MOVE_PX = 8;
+
 // camera-controls must be installed once with a (subset of) three before use.
 // We pass only the classes it needs so three stays tree-shakeable elsewhere.
 CameraControls.install({
@@ -106,6 +121,10 @@ export default class ControlsManager {
     // in sync with the redux value (setNavigationPreset).
     this._navigationPreset = loadNavigationPreset();
     this._domElement = null;
+    // Last wheel event time and the cursor position of the last wheel
+    // re-anchoring (see _onWheelCapture).
+    this._lastWheelAt = 0;
+    this._lastWheelAnchor = { x: NaN, y: NaN };
     // Zoom-out range lent to a temporarily larger scene (3D base maps grid):
     // { baseMaxDistance, maxDistance, baseFar, far } — see setDistanceBoost.
     this._distanceBoost = null;
@@ -176,6 +195,12 @@ export default class ControlsManager {
       true
     );
     this._domElement.addEventListener("mousedown", this._onMouseDown);
+    // Capture phase as well: the orbit point is re-anchored before
+    // camera-controls integrates the dolly step.
+    this._domElement.addEventListener("wheel", this._onWheelCapture, {
+      capture: true,
+      passive: true,
+    });
 
     // Prime the internal matrices, render once, then start the update loop.
     this.cameraControls.update(0);
@@ -237,6 +262,37 @@ export default class ControlsManager {
   // the browser's middle-click auto-scroll from hijacking the drag.
   _onMouseDown = (event) => {
     if (event.button === 1) event.preventDefault();
+  };
+
+  // The wheel dolly converges on the cursor (dollyToCursor), but
+  // camera-controls slides the target in the screen-parallel plane through
+  // the CURRENT target — often the plan behind the object under the cursor —
+  // so the camera could dolly through a face long before reaching
+  // minDistance (and the near plane then sliced it). Re-anchor the orbit
+  // point on the surface under the cursor at the start of each wheel burst,
+  // or when the cursor moved, as an orbit pointerdown does: the dolly then
+  // stops minDistance short of that surface. The camera never moves here
+  // (keepCameraStill), and a burst in progress keeps its pivot: setOrbitPoint
+  // on every tick would restart the dolly damping.
+  _onWheelCapture = (event) => {
+    const now = performance.now();
+    const gap = now - this._lastWheelAt;
+    this._lastWheelAt = now;
+    const moved = Math.hypot(
+      event.clientX - this._lastWheelAnchor.x,
+      event.clientY - this._lastWheelAnchor.y
+    );
+    if (gap < WHEEL_BURST_GAP_MS && !(moved > WHEEL_REANCHOR_MOVE_PX)) return;
+    if (this._suspended) return;
+    this._lastWheelAnchor.x = event.clientX;
+    this._lastWheelAnchor.y = event.clientY;
+    this.updateRotationPivotFromEvent(event, { keepCameraStill: true });
+    // Settle the new pose before camera-controls integrates this tick:
+    // setOrbitPoint rewrote the orbit radius instantly, and its dolly-to-cursor
+    // step measures the dolly as radius - lastDistance (synced only by
+    // update()) — the re-anchoring delta would otherwise count as a dolly and
+    // throw the target sideways.
+    this.cameraControls?.update(0);
   };
 
   // True when the pressed button starts a gesture that should re-anchor the
@@ -344,8 +400,29 @@ export default class ControlsManager {
     this._applyMouseButtons({});
     this._applyWheelAndTouches();
     controls.update(0);
+    this._syncPerspectiveNear();
     sm.camera.updateMatrixWorld(true);
     sm.requestRender?.();
+  };
+
+  // Perspective near plane = NEAR_DISTANCE_RATIO x the orbit distance, within
+  // [NEAR_MIN_M, NEAR_MAX_M]: zooming in on a face no longer slices it (the
+  // pivot sat on the 0.1 m near plane at minDistance). Runs after every
+  // camera-controls update that changed the camera; the orthographic camera
+  // keeps its symmetric depth slab (SceneManager.setOrthoDepthRange).
+  _syncPerspectiveNear = () => {
+    const controls = this.cameraControls;
+    const persp = this._perspectiveCamera();
+    if (!controls || !persp || this.isOrthographic) return;
+    const distance = controls.distance;
+    if (!(distance > 0)) return;
+    const near = Math.min(
+      NEAR_MAX_M,
+      Math.max(NEAR_MIN_M, distance * NEAR_DISTANCE_RATIO)
+    );
+    if (Math.abs(persp.near - near) < 1e-5) return;
+    persp.near = near;
+    persp.updateProjectionMatrix();
   };
 
   // Wheel and two-finger gestures: DOLLY (orbit distance) in perspective,
@@ -419,6 +496,7 @@ export default class ControlsManager {
     const delta = this._clock.getDelta();
     const updated = this.cameraControls.update(delta);
     if (updated) {
+      this._syncPerspectiveNear();
       this.sceneManager.renderScene();
     }
     this._rafId = requestAnimationFrame(this._loop);
@@ -436,6 +514,9 @@ export default class ControlsManager {
         true
       );
       this._domElement.removeEventListener("mousedown", this._onMouseDown);
+      this._domElement.removeEventListener("wheel", this._onWheelCapture, {
+        capture: true,
+      });
       this._domElement = null;
     }
     if (this._rafId !== null) {
@@ -1024,7 +1105,8 @@ export default class ControlsManager {
   // Called on pointerdown (left button): set the orbit point to the point
   // under the cursor so the subsequent rotate gesture orbits around it.
   // camera-controls' setOrbitPoint preserves the current view (no jump).
-  updateRotationPivotFromEvent = (event) => {
+  // `options.keepCameraStill`: see _applyOrbitPoint.
+  updateRotationPivotFromEvent = (event, options) => {
     if (!this.cameraControls?.enabled) return; // don't fight a gizmo/lasso drag
 
     const camera = this.sceneManager.camera;
@@ -1048,16 +1130,17 @@ export default class ControlsManager {
     const pivot = this._computePivotPoint();
     if (pivot) {
       // setOrbitPoint is immediate and must not run during a transition.
-      this._applyOrbitPoint(pivot);
+      this._applyOrbitPoint(pivot, options);
     }
   };
 
   // Set the orbit point to a known world point (drawing mode: the snap shown
   // under the marker, i.e. the point a click would place). Same guard as
   // updateRotationPivotFromEvent: never fight a gizmo / lasso drag.
-  setRotationPivot = (point) => {
+  // `options.keepCameraStill`: see _applyOrbitPoint.
+  setRotationPivot = (point, options) => {
     if (!this.cameraControls?.enabled || !point) return;
-    this._applyOrbitPoint(point);
+    this._applyOrbitPoint(point, options);
   };
 
   // Hand a pivot to camera-controls. setOrbitPoint keeps the camera where it
@@ -1071,11 +1154,20 @@ export default class ControlsManager {
   // same pixel in a parallel projection, so the pivot depth is clamped along
   // the view axis instead: the pivot stays under the cursor and the camera
   // never moves. `point` is not mutated.
-  _applyOrbitPoint = (point) => {
+  // `keepCameraStill` (wheel re-anchoring, post-drawing pivot): in perspective
+  // a pivot outside the dolly range would move the camera — keep the current
+  // orbit point instead.
+  _applyOrbitPoint = (point, { keepCameraStill = false } = {}) => {
     const controls = this.cameraControls;
     const camera = this.sceneManager?.camera;
     if (!controls || !camera) return;
     const pivot = this._pivotApply.copy(point);
+    if (!camera.isOrthographicCamera && keepCameraStill) {
+      const distance = pivot.distanceTo(camera.position);
+      const maxD = this._effectiveMaxDistance();
+      const minD = Math.max(controls.minDistance, 0);
+      if (!(distance >= minD && distance <= maxD)) return;
+    }
     if (camera.isOrthographicCamera) {
       const dir = camera.getWorldDirection(this._pivotDir);
       const rel = this._pivotRel.subVectors(pivot, camera.position);
