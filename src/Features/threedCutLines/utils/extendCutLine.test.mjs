@@ -7,9 +7,11 @@ import extendCutLine, {
 } from "./extendCutLine.js";
 import {
   P,
+  curvedSheet,
   near,
   nearPoint,
   nearPoints,
+  sheet,
   slab,
   wall,
 } from "./cutLineFixtures.mjs";
@@ -211,4 +213,77 @@ test("describeCutLineEnd: per-end plane = segment direction × face normal, thro
     }),
     null
   );
+});
+
+// A sheet (open sweep) met edge-on: the line is drawn on the plan (not in
+// the soup) up to the sheet's foot, the face under the end vertex being the
+// sheet itself — its normal runs along the segment.
+const SHEET_FACE = { normal: P(0, -1, 0) };
+
+test("sheet met edge-on: the end climbs it in the vertical plane of the segment and stops at the free top edge", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 5, 0)],
+    endFace: SHEET_FACE,
+    triangles: sheet(),
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points, [P(2, 1, 0), P(2, 5, 0), P(2, 5, 3)]);
+  assert.equal(r.derivedStart, 0);
+  assert.equal(r.derivedEnd, 1);
+});
+
+test("sheet met edge-on without the plan normal: no extension (the cutting plane would be the plan itself)", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 5, 0)],
+    endFace: SHEET_FACE,
+    triangles: sheet(),
+  });
+  assert.equal(r.derivedEnd, 0);
+});
+
+test("describeCutLineEnd: the plan normal replaces a face normal along the segment, and only then", () => {
+  const drawn = [P(2, 1, 0), P(2, 5, 0)];
+  const endOn = describeCutLineEnd({
+    drawn,
+    atEnd: true,
+    face: SHEET_FACE,
+    upNormal: P(0, 0, 1),
+  });
+  assert.equal(endOn.endOn, true);
+  nearPoint(endOn.faceNormal, P(0, 0, 1));
+  nearPoint(endOn.plane.normal, P(1, 0, 0), 1e-9);
+  const onFace = describeCutLineEnd({
+    drawn,
+    atEnd: true,
+    face: UP,
+    upNormal: P(0, 0, 1),
+  });
+  assert.equal(onFace.endOn, false);
+  nearPoint(onFace.faceNormal, P(0, 0, 1));
+});
+
+test("sheet standing on a slab: the trace runs along the slab, climbs the sheet and stops at its top", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 3, 0)],
+    endFace: UP,
+    triangles: [...slab(), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points, [P(2, 1, 0), P(2, 3, 0), P(2, 5, 0), P(2, 5, 3)]);
+  assert.equal(r.derivedEnd, 2);
+});
+
+test("curved sheet (> 64 raw section nodes): the end reaches the top, at most 64 simplified points", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 5, 0)],
+    endFace: SHEET_FACE,
+    triangles: curvedSheet(),
+    upNormal: P(0, 0, 1),
+  });
+  assert.ok(
+    r.derivedEnd > 10 && r.derivedEnd <= 64,
+    `derived: ${r.derivedEnd}`
+  );
+  const top = r.points[r.points.length - 1];
+  nearPoint(top, P(2, 11, 6));
 });
