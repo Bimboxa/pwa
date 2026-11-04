@@ -29,7 +29,6 @@ import {
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
 import {
-  getFaceRegion,
   buildFaceHoverOverlay,
   disposeFaceHoverOverlay,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
@@ -47,16 +46,20 @@ import {
 } from "../services/meshingOverlayStore";
 import { createMeshingCutController } from "../services/meshingCutController";
 import { isMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
-import buildMeshDataFromRegion from "../utils/buildMeshDataFromRegion";
+import {
+  buildMeshDataFromWorldSoup,
+  buildWorldSoup,
+} from "../utils/buildMeshDataFromRegion";
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
-import buildPieceStippleOverlay from "Features/threedCutLines/js/buildPieceStippleOverlay";
+import getAnnotationFaceRegion from "../utils/getAnnotationFaceRegion";
+import buildPiecesStippleOverlay from "Features/threedCutLines/js/buildPiecesStippleOverlay";
 import {
   getCutLinesVersion,
   getCutLinesWorldPolylines,
 } from "Features/threedCutLines/services/cutLineObjectsStore";
-import clipFaceByCutLines from "Features/threedCutLines/utils/clipFaceByCutLines";
-import findCutPieceAt from "Features/threedCutLines/utils/findCutPieceAt";
+import buildMeshDataFromPieces from "Features/threedCutLines/utils/buildMeshDataFromPieces";
+import clipRegionByCutLines from "Features/threedCutLines/utils/clipRegionByCutLines";
 import parseMeshingAngleBuffer, {
   MESHING_ANGLE_BUFFER_CHAR_RE,
 } from "../utils/parseMeshingAngleBuffer";
@@ -69,8 +72,9 @@ const DRAG_THRESHOLD_PX = 4;
 //
 // - SELECT tool: clicking an existing maille selects it (shift+click
 //   toggles); empty click deselects. Never creates.
-// - CREATE tool: hovering an annotation face shows the coplanar stipple (same
-//   overlay as the selection-mode hover) + a "+ nouvelle maille" cursor
+// - CREATE tool: hovering an annotation face shows the face stipple (the
+//   region grown over the WHOLE annotation up to the "Sélection de face"
+//   angle, see getAnnotationFaceRegion) + a "+ nouvelle maille" cursor
 //   helper; a click creates a maille from the hovered face. Escape returns
 //   to SELECT.
 // - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE / CUT_ANGULAR:
@@ -169,7 +173,7 @@ export default function useMeshingPointerHandlers({
     let downPos = null;
     let dragging = false;
 
-    // Coplanar-face hover state (SELECT tool).
+    // Face hover state (SELECT / CREATE tools).
     const hover = {
       overlay: null,
       key: null,
@@ -177,9 +181,9 @@ export default function useMeshingPointerHandlers({
       clipKey: null,
       clip: null,
       faceData: null,
-      pieceKey: null,
-      piece: null,
-      pieceOverlay: null,
+      groupKey: null,
+      group: null,
+      groupOverlay: null,
     };
 
     // Cut tools machinery (draft line, guide vertices, split commit).
@@ -203,19 +207,19 @@ export default function useMeshingPointerHandlers({
       tool === "NUMBER" || tool === "SELECT" ? "default" : "crosshair";
 
     function clearStipple() {
-      if (hover.overlay || hover.pieceOverlay) {
+      if (hover.overlay || hover.groupOverlay) {
         disposeFaceHoverOverlay(hover.overlay);
-        disposeFaceHoverOverlay(hover.pieceOverlay);
+        disposeFaceHoverOverlay(hover.groupOverlay);
         hover.overlay = null;
-        hover.pieceOverlay = null;
+        hover.groupOverlay = null;
         editor.renderScene?.();
       }
       hover.key = null;
       hover.clipKey = null;
       hover.clip = null;
       hover.faceData = null;
-      hover.pieceKey = null;
-      hover.piece = null;
+      hover.groupKey = null;
+      hover.group = null;
     }
 
     // Raycast the scene at the event position. Returns the first maille or
@@ -279,27 +283,27 @@ export default function useMeshingPointerHandlers({
     // Stipple the face under the cursor (same overlay as the selection-mode
     // annotation hover). Works on annotation meshes AND maille face meshes —
     // a hovered maille gets the same highlight, including while a cut tool is
-    // active.
+    // active. On an annotation the region spans every mesh of the annotation
+    // (getAnnotationFaceRegion); the overlay then lives under the annotation
+    // root, in its local coordinates.
     function applyStipple(object, faceIndex) {
-      // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
-      // (T-junctions break the edge-adjacency walk). Must match the region
-      // used by handleSelectClick.
       const angleDeg = faceSelectionAngleDegRef.current;
-      const region = getFaceRegion(object.geometry, faceIndex, {
-        plane: !!object.userData?.hasSubtraction,
-        angleDeg,
-      });
-      const key = region
-        ? `${object.uuid}:${angleDeg}:${region.regionId}`
-        : null;
+      const region = getAnnotationFaceRegion(object, faceIndex, { angleDeg });
+      const key = region?.key ?? null;
       if (key !== hover.key) {
         disposeFaceHoverOverlay(hover.overlay);
+        disposeFaceHoverOverlay(hover.groupOverlay);
         hover.overlay = null;
-        hover.piece = null;
+        hover.groupOverlay = null;
+        hover.groupKey = null;
+        hover.group = null;
         if (region) {
-          const overlay = buildFaceHoverOverlay(object, region.tris);
+          const overlay = buildFaceHoverOverlay(
+            { geometry: region.geometry },
+            region.tris
+          );
           if (overlay) {
-            object.add(overlay);
+            region.host.add(overlay);
             hover.overlay = overlay;
           }
         }
@@ -309,13 +313,14 @@ export default function useMeshingPointerHandlers({
       return region;
     }
 
-    // CREATE on an annotation face: the planar region is clipped by the
-    // cut lines lying on it (Features/threedCutLines, clipFaceByCutLines)
-    // — only the piece under the cursor is stippled, and the click creates
-    // that piece. The region's clip is cached per region + cut lines
-    // version; the piece under the cursor is looked up on every move.
-    // Returns the hovered piece ({contour, holes, normal, area}) or null
-    // (whole region: no line crosses it, or a curved region).
+    // CREATE on an annotation face: the region (planar or faceted) is cut by
+    // the cut lines lying on it (Features/threedCutLines,
+    // clipRegionByCutLines: facet by facet, the pieces joined back across
+    // the creases) — only the GROUP of pieces under the cursor is stippled,
+    // and the click creates that group. The region's clip is cached per
+    // region + cut lines version; the group under the cursor is looked up on
+    // every move. Returns the hovered group ({ pieces, area }) or null (whole
+    // region: no line crosses it).
     function applyCutLinePieceStipple(object, faceIndex, hitPoint) {
       const region = applyStipple(object, faceIndex);
       if (!region) return null;
@@ -326,39 +331,53 @@ export default function useMeshingPointerHandlers({
         hover.clip = null;
         hover.faceData = null;
         const cutLines = getCutLinesWorldPolylines().map((l) => l.points);
-        const meshData = buildMeshDataFromRegion(object, region.tris);
-        hover.faceData = meshData;
-        const face = meshData?.faces?.length === 1 ? meshData.faces[0] : null;
-        if (face && cutLines.length) {
-          hover.clip = clipFaceByCutLines({ face, cutLines });
+        region.host.updateWorldMatrix(true, false);
+        const soup = buildWorldSoup(
+          region.geometry,
+          region.host.matrixWorld,
+          region.tris
+        );
+        hover.faceData = buildMeshDataFromWorldSoup(soup);
+        if (soup && cutLines.length) {
+          const clip = clipRegionByCutLines({
+            positions: soup.positions,
+            tris: soup.tris,
+            cutLines,
+          });
+          // No line crosses the region: the whole region stands.
+          hover.clip = clip?.groups?.some((g) => g.cut) ? clip : null;
         }
       }
-      const pieceIndex = hover.clip ? findCutPieceAt(hover.clip, hitPoint) : -1;
-      const piece = pieceIndex >= 0 ? hover.clip.pieces[pieceIndex] : null;
-      const pieceKey = piece ? `${clipKey}:${pieceIndex}` : null;
-      if (pieceKey !== hover.pieceKey) {
-        disposeFaceHoverOverlay(hover.pieceOverlay);
-        hover.pieceOverlay = null;
-        if (piece) {
-          const overlay = buildPieceStippleOverlay(piece, hover.clip.basis);
+      const located = hover.clip
+        ? hover.clip.locate(region.tris.indexOf(region.triIndex), hitPoint)
+        : null;
+      const group = located ? hover.clip.groups[located.groupIndex] : null;
+      const groupKey = group ? `${clipKey}:${located.groupIndex}` : null;
+      if (groupKey !== hover.groupKey) {
+        disposeFaceHoverOverlay(hover.groupOverlay);
+        hover.groupOverlay = null;
+        hover.group = null;
+        if (group) {
+          const pieces = group.pieceIndices.map((i) => hover.clip.pieces[i]);
+          hover.group = { pieces, area: group.area };
+          const overlay = buildPiecesStippleOverlay(pieces);
           if (overlay) {
             sceneManager.scene.add(overlay);
-            hover.pieceOverlay = overlay;
+            hover.groupOverlay = overlay;
           }
         }
-        // The whole-region stipple stands in while no piece is hovered.
-        if (hover.overlay) hover.overlay.visible = !piece;
-        hover.pieceKey = pieceKey;
+        // The whole-region stipple stands in while no group is hovered.
+        if (hover.overlay) hover.overlay.visible = !group;
+        hover.groupKey = groupKey;
         editor.renderScene?.();
       }
-      hover.piece = piece;
-      return piece;
+      return hover.group;
     }
 
-    // Surface of the hovered region (CREATE): the piece's, else the whole
+    // Surface of the hovered region (CREATE): the group's, else the whole
     // planar / curved region's.
     function getHoveredSurface() {
-      if (hover.piece) return hover.piece.area;
+      if (hover.group) return hover.group.area;
       const data = hover.faceData;
       if (!data) return null;
       if (data.shell) return data.shell.surface ?? null;
@@ -490,14 +509,18 @@ export default function useMeshingPointerHandlers({
 
     async function handleCreateClick(e, pick) {
       if (pick?.kind === "ANNOTATION") {
-        // A piece cut by the cut lines is hovered (applyCutLinePieceStipple
-        // ran on the move that led here): the maille is that piece.
-        const piece = applyCutLinePieceStipple(
+        // A group of pieces cut by the cut lines is hovered
+        // (applyCutLinePieceStipple ran on the move that led here): the
+        // maille is that group — one planar face when its pieces are
+        // coplanar, a shell otherwise (buildMeshDataFromPieces).
+        const group = applyCutLinePieceStipple(
           pick.hitObject,
           pick.intersect.faceIndex,
           pick.intersect.point
         );
-        if (piece) {
+        if (group) {
+          const meshData = buildMeshDataFromPieces(group.pieces);
+          if (!meshData) return;
           const { projectId: pId, scopeId: sId } = idsRef.current;
           try {
             const annotation = await db.annotations.get(pick.nodeId);
@@ -506,13 +529,8 @@ export default function useMeshingPointerHandlers({
             await createMesh3dService({
               projectId: pId,
               scopeId: sId,
-              faces: [
-                {
-                  contour: piece.contour,
-                  holes: piece.holes,
-                  normal: piece.normal,
-                },
-              ],
+              faces: meshData.faces,
+              shell: meshData.shell,
               baseColor,
               sourceInfo: { annotationId: pick.nodeId, fromCutLines: true },
             });
@@ -522,21 +540,25 @@ export default function useMeshingPointerHandlers({
           clearStipple();
           return;
         }
-        // Same mode as applyStipple: the created maille covers exactly the
-        // highlighted region.
-        const region = getFaceRegion(
-          pick.hitObject.geometry,
+        // Same region as applyStipple: the created maille covers exactly the
+        // highlighted region. Planar region → polygon faces; curved one
+        // (revolution, swept profile) → triangulated shell.
+        const region = getAnnotationFaceRegion(
+          pick.hitObject,
           pick.intersect.faceIndex,
-          {
-            plane: !!pick.hitObject.userData?.hasSubtraction,
-            angleDeg: faceSelectionAngleDegRef.current,
-          }
+          { angleDeg: faceSelectionAngleDegRef.current }
         );
-        // Planar region → polygon faces; curved one (revolution, swept
-        // profile) → triangulated shell.
-        const meshData = region
-          ? buildMeshDataFromRegion(pick.hitObject, region.tris)
-          : null;
+        let meshData = null;
+        if (region) {
+          region.host.updateWorldMatrix(true, false);
+          meshData = buildMeshDataFromWorldSoup(
+            buildWorldSoup(
+              region.geometry,
+              region.host.matrixWorld,
+              region.tris
+            )
+          );
+        }
         if (meshData) {
           const { projectId: pId, scopeId: sId } = idsRef.current;
           try {

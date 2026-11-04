@@ -24,8 +24,10 @@ import splitTrisIntoComponents from "./splitTrisIntoComponents.js";
 // Region triangles as a standalone world-space soup (9 numbers per triangle,
 // no index). Everything downstream welds by position, so dropping the shared
 // index costs nothing and keeps the work O(region) instead of O(geometry).
-function buildWorldSoup(mesh, tris) {
-  const geometry = mesh?.geometry;
+// `matrixWorld` maps the geometry's coordinates to world space (the mesh's
+// own, or the annotation root's for a merged host — see
+// getAnnotationFaceRegion).
+export function buildWorldSoup(geometry, matrixWorld, tris) {
   const position = geometry?.getAttribute("position");
   if (!position || !tris?.length) return null;
 
@@ -34,17 +36,13 @@ function buildWorldSoup(mesh, tris) {
     ? (t, c) => index.getX(3 * t + c)
     : (t, c) => 3 * t + c;
 
-  mesh.updateWorldMatrix(true, false);
-  const matrixWorld = mesh.matrixWorld;
-
   const positions = new Array(9 * tris.length);
   const v = new Vector3();
   let offset = 0;
   for (const t of tris) {
     for (let c = 0; c < 3; c++) {
-      v.fromBufferAttribute(position, vertIndex(t, c)).applyMatrix4(
-        matrixWorld
-      );
+      v.fromBufferAttribute(position, vertIndex(t, c));
+      if (matrixWorld) v.applyMatrix4(matrixWorld);
       positions[offset++] = v.x;
       positions[offset++] = v.y;
       positions[offset++] = v.z;
@@ -53,9 +51,10 @@ function buildWorldSoup(mesh, tris) {
   return { positions, tris: tris.map((_, i) => i) };
 }
 
-export default function buildMeshDataFromRegion(mesh, tris) {
-  const soup = buildWorldSoup(mesh, tris);
-  if (!soup) return null;
+// Maille data of a WORLD soup { positions, tris } (buildWorldSoup output):
+// { faces } when planar, { shell } when curved, null when degenerate.
+export function buildMeshDataFromWorldSoup(soup) {
+  if (!soup?.positions || !soup.tris?.length) return null;
   const { positions, tris: soupTris } = soup;
 
   if (!isRegionPlanar({ positions, index: null, tris: soupTris })) {
@@ -83,4 +82,12 @@ export default function buildMeshDataFromRegion(mesh, tris) {
   if (!faces.length) return null;
 
   return { faces: faces.length > 1 ? coalesceCoplanarFaces(faces) : faces };
+}
+
+export default function buildMeshDataFromRegion(mesh, tris) {
+  if (!mesh?.geometry) return null;
+  mesh.updateWorldMatrix(true, false);
+  return buildMeshDataFromWorldSoup(
+    buildWorldSoup(mesh.geometry, mesh.matrixWorld, tris)
+  );
 }

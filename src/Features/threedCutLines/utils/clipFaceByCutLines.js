@@ -261,7 +261,7 @@ function cutRegionByPaths(loops2d, paths, tolerance) {
 }
 
 // Area-weighted centroid of a 2D polygon with holes.
-function polygonCentroid2dWithHoles(contour, holes) {
+export function polygonCentroid2dWithHoles(contour, holes) {
   const contourArea = Math.abs(signedArea2d(contour));
   const c = polygonCentroid2d(contour);
   let weight = contourArea;
