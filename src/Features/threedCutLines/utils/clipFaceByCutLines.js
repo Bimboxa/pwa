@@ -218,10 +218,30 @@ function castRayToBoundary(loops, from, end) {
 // cuts of the other lines are boundaries too — a line ending ON another line
 // (a T) cuts the piece once that other line has split it, whatever the
 // order of the lines.
+//
+// Bridges: a line joining the contour to a HOLE (or two holes) cuts nothing
+// on its own — the splitter merges the loops and leaves a slit, which it
+// refuses. Two such lines together cut the ring in two: after the single
+// lines of a pass, the chunks of the lines that failed alone on a piece are
+// drawn TOGETHER on it.
 // Returns [{ contour, holes }] (2D) or null when nothing was cut.
 function cutRegionByPaths(loops2d, paths, tolerance) {
   let pieces = [{ contour: loops2d[0], holes: loops2d.slice(1) }];
   let cutOnce = false;
+  const toPieces = (split) =>
+    split.faces.map((face) => ({
+      contour: face.loop.map((i) => split.vertices[i]),
+      holes: (face.holes || []).map((hole) =>
+        hole.map((i) => split.vertices[i])
+      ),
+    }));
+  const chunksOf = (loops, path) => {
+    const result = getPathChunksInRegion(loops, path, {
+      tolerance,
+      extendEnds: false,
+    });
+    return result.error ? [] : result.chunks;
+  };
   // Each pass can at most consume one "blocked" line: paths + 1 passes
   // bound the fixed point.
   for (let pass = 0; pass <= paths.length; pass++) {
@@ -230,27 +250,41 @@ function cutRegionByPaths(loops2d, paths, tolerance) {
       const next = [];
       for (const piece of pieces) {
         const loops = [piece.contour, ...piece.holes];
-        const result = getPathChunksInRegion(loops, path, {
-          tolerance,
-          extendEnds: false,
-        });
-        const split =
-          result.error || !result.chunks.length
-            ? null
-            : splitFlatRegionAlongChunks(loops, result.chunks);
+        const chunks = chunksOf(loops, path);
+        const split = chunks.length
+          ? splitFlatRegionAlongChunks(loops, chunks)
+          : null;
         if (!split) {
           next.push(piece);
           continue;
         }
         cutInPass = true;
-        for (const face of split.faces) {
-          next.push({
-            contour: face.loop.map((i) => split.vertices[i]),
-            holes: (face.holes || []).map((hole) =>
-              hole.map((i) => split.vertices[i])
-            ),
-          });
+        next.push(...toPieces(split));
+      }
+      pieces = next;
+    }
+    // Bridges: the lines that failed alone on a piece, drawn together.
+    if (paths.length >= 2) {
+      const next = [];
+      for (const piece of pieces) {
+        const loops = [piece.contour, ...piece.holes];
+        const blocked = [];
+        for (const path of paths) {
+          const chunks = chunksOf(loops, path);
+          if (chunks.length && !splitFlatRegionAlongChunks(loops, chunks)) {
+            blocked.push(...chunks);
+          }
         }
+        const split =
+          blocked.length >= 2
+            ? splitFlatRegionAlongChunks(loops, blocked)
+            : null;
+        if (!split) {
+          next.push(piece);
+          continue;
+        }
+        cutInPass = true;
+        next.push(...toPieces(split));
       }
       pieces = next;
     }

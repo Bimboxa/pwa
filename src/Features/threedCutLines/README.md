@@ -115,6 +115,14 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   prolongement » (`reextendCutLineService`: the same rebuild from the drawn
   points, without a move).
 
+## Holes (polygon `cuts`)
+
+A line joining the contour to a hole (or two holes) cuts nothing on its own:
+`splitFlatRegionAlongChunks` merges the loops along it and refuses the slit
+left behind. `cutRegionByPaths` (clipFaceByCutLines) therefore draws, after
+the single lines of each pass, the chunks of the lines that failed alone on a
+piece TOGETHER: two bridges split the ring in two.
+
 ## Popper « Annotations »
 
 `RowCutLineAnnotations` (PopperMapListings, pinned at the top of the body,
