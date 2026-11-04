@@ -2,6 +2,7 @@ import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
+import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
 import {
   getShape3DKey,
   isRevolutionSolid,
@@ -66,10 +67,12 @@ const MIN_REMOVED_VOLUME_M3 = 1e-7;
 // volume (m²).
 const MIN_REMOVED_AREA_M2 = 1e-6;
 
-// A lathe is 64 quads per profile segment (a sampled arc = 24 segments), far
-// beyond the hand-editing cap of convertObject3DToMesh3d; a baked revolution
-// is a frozen shape, not a mesh to edit face by face.
-const BAKE_MAX_FACES_LATHE = 8000;
+// A lathe is 64 quads per profile segment (a sampled arc = 24 segments), and
+// an inline-extrusion sheet one quad per guide sample × profile segment (arcs
+// sampled on both) — far beyond the hand-editing cap of
+// convertObject3DToMesh3d; a baked generated shape is a frozen shape, not a
+// mesh to edit face by face.
+const BAKE_MAX_FACES_GENERATED = 8000;
 
 // A REVOLUTION host (profile revolved around a REVOLUTION_AXIS) with its
 // axis resolved (`revolutionAxisPoints`, useAnnotationsV2 /
@@ -87,13 +90,17 @@ export function isRevolutionBakeHost(annotation) {
 }
 
 // Whether the host's solid can be frozen into a mesh: a plain extrusion
-// (convertible), a mesh already, or a revolution (closed « Solide » volume,
-// or open lathe shell baked as an open mesh). The other generated shapes
-// (swept profiles, shells) stay out.
+// (convertible), a mesh already, a revolution (closed « Solide » volume, or
+// open lathe shell baked as an open mesh), or an inline-extrusion sheet
+// (POLYLINE + profileLines, baked as an open mesh too). The other generated
+// shapes (EXTRUSION_PROFILE templates, POLYGON shells) stay out.
+// isAnnotationConvertibleToMesh3d itself is NOT widened: push/pull and the
+// face cuts keep refusing these generated shapes.
 export function isAnnotationSubtractionBakeable(annotation) {
   if (!annotation?.id || isForeignFootprintId(annotation.id)) return false;
   if (annotation.isMesh3d) return true;
   if (isRevolutionBakeHost(annotation)) return true;
+  if (isInlineExtrusionPolyline(annotation)) return true;
   return isAnnotationConvertibleToMesh3d(annotation);
 }
 
@@ -163,13 +170,15 @@ export default async function bakeAnnotationSubtractionsService({
     revolutionSectionFill: false,
   };
   const isRevolutionHost = isRevolutionBakeHost(host);
-  // An open lathe shell, or an open mesh host (a flat sheet drawn in 3D), is
-  // clipped (HOLLOW_SUBTRACTION, no cap faces) and written as an OPEN mesh; a
-  // « Solide » revolution or a closed mesh is a closed volume like any
-  // extrusion — the rule of the live carve (AnnotationsManager).
+  const isInlineExtrusionHost = isInlineExtrusionPolyline(host);
+  // An open lathe shell, an inline-extrusion sheet, or an open mesh host (a
+  // flat sheet drawn in 3D), is clipped (HOLLOW_SUBTRACTION, no cap faces)
+  // and written as an OPEN mesh; a « Solide » revolution or a closed mesh is
+  // a closed volume like any extrusion — the rule of the live carve
+  // (AnnotationsManager).
   const hollow = host.isMesh3d
     ? !isMesh3dClosed(host.mesh3d)
-    : isRevolutionHost && !isRevolutionSolid(host);
+    : (isRevolutionHost && !isRevolutionSolid(host)) || isInlineExtrusionHost;
 
   let hostObject = null;
   let solid = null;
@@ -182,6 +191,15 @@ export default async function bakeAnnotationSubtractionsService({
       hostOptions
     );
     if (!hostObject) return refused(BAKE_SUBTRACTION_REASONS.NOT_BAKEABLE);
+    // A degenerate inline profile makes createAnnotationObject3D fall back to
+    // the plain polyline wall (a closed solid): never freeze that wall in the
+    // sheet's place.
+    if (isInlineExtrusionHost && !hostObject.userData?.inlineExtrusion) {
+      console.warn(
+        `[bakeAnnotationSubtractionsService] ${host.id}: the inline profile did not build a swept surface (degenerate setup)`
+      );
+      return refused(BAKE_SUBTRACTION_REASONS.NOT_BAKEABLE);
+    }
     const hostFrame = createBaseMapFrameGroup(getBaseMapTransform(hostBaseMap));
     hostFrame.add(hostObject);
     frames.push(hostFrame);
@@ -244,7 +262,10 @@ export default async function bakeAnnotationSubtractionsService({
     const mesh = convertObject3DToMesh3d(solid, hostFrame, {
       carved: true,
       allowOpen: hollow,
-      maxFaces: isRevolutionHost ? BAKE_MAX_FACES_LATHE : undefined,
+      maxFaces:
+        isRevolutionHost || isInlineExtrusionHost
+          ? BAKE_MAX_FACES_GENERATED
+          : undefined,
     });
     if (!mesh?.faces?.length) {
       console.warn(
