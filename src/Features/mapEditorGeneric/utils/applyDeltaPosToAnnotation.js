@@ -164,6 +164,24 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
 
         if (partType === "ROTATE") {
             _annotation.rotation = (currentRotation + deltaPos.x) % 360;
+            // « Tourner » (pivot = wrapperBbox centre, same formula as the
+            // point-based ROTATE of applyWrapperTransformToPoints): the bbox
+            // centre orbits the pivot. The legacy rotation handle passes no
+            // wrapperBbox and turns about the bbox centre only.
+            if (wrapperBbox) {
+                const px = wrapperBbox.x + wrapperBbox.width / 2;
+                const py = wrapperBbox.y + wrapperBbox.height / 2;
+                const rad = (deltaPos.x * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                const dx = currentBBox.x + currentBBox.width / 2 - px;
+                const dy = currentBBox.y + currentBBox.height / 2 - py;
+                _annotation.bbox = {
+                    ...currentBBox,
+                    x: px + dx * cos - dy * sin - currentBBox.width / 2,
+                    y: py + dx * sin + dy * cos - currentBBox.height / 2,
+                };
+            }
         } else {
             _annotation.bbox = {
                 ...currentBBox,

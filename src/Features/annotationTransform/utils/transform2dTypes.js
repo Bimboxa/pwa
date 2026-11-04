@@ -1,4 +1,7 @@
-import { isPointBasedAnnotationType } from "../../threedAnnotationMove/utils/annotationTransformTypes.js";
+import {
+  isObject3DAnnotationType,
+  isPointBasedAnnotationType,
+} from "../../threedAnnotationMove/utils/annotationTransformTypes.js";
 
 // Annotation types the 2D « Déplacer » / « Tourner » tools accept, on top of
 // the point-based list shared with the 3D tools (POLYLINE, POLYGON, STRIP,
@@ -8,9 +11,10 @@ import { isPointBasedAnnotationType } from "../../threedAnnotationMove/utils/ann
 //     applies unchanged — the dimension offsets are relative and follow;
 //   - FREE_TEXT: inline normalized targetPoint / labelPoint, translated by
 //     a dedicated write (getFreeTextMoveUpdates). Moved only, never turned.
-// The 3D list (POINT_BASED_ANNOTATION_TYPES) stays as it is.
-export const MOVE_2D_EXTRA_TYPES = ["COTE", "RULER", "FREE_TEXT"];
-export const ROTATE_2D_EXTRA_TYPES = ["COTE", "RULER"];
+//   - OBJECT_3D (imported GLB): bbox + rotation rewritten by a dedicated
+//     write (getObject3DTransformUpdates), moved AND turned — in 3D too.
+export const MOVE_2D_EXTRA_TYPES = ["COTE", "RULER", "FREE_TEXT", "OBJECT_3D"];
+export const ROTATE_2D_EXTRA_TYPES = ["COTE", "RULER", "OBJECT_3D"];
 
 // kind: "MOVE" | "ROTATE"
 export function isTransformable2dType(kind, type) {
@@ -30,4 +34,8 @@ export function isPointHolderType(type) {
 
 export function isFreeTextType(type) {
   return type === "FREE_TEXT";
+}
+
+export function isObject3DType(type) {
+  return isObject3DAnnotationType(type);
 }

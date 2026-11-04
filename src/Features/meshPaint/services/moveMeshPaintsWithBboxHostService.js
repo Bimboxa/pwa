@@ -26,6 +26,8 @@ const isLive = (row) => Boolean(row) && !row.deletedAt;
  * @param {{width: number, height: number}} params.imageSize - base map image
  * @param {{imageWidth: number, imageHeight: number, meterByPx: number}|null} params.metrics
  *   frame metrics of the host's base map (slanted-face normals)
+ * @param {number} [params.dz=0] - vertical shift (m) of the host (3D snapped
+ *   drop: its offsetZ delta), applied to the paints' absolute z
  * @returns {Promise<string[]>} ids of the moved paints
  */
 export default async function moveMeshPaintsWithBboxHostService({
@@ -34,6 +36,7 @@ export default async function moveMeshPaintsWithBboxHostService({
   affine,
   imageSize,
   metrics = null,
+  dz = 0,
 }) {
   if (!hostId || !affine || !(imageSize?.width > 0 && imageSize?.height > 0)) {
     return [];
@@ -51,7 +54,7 @@ export default async function moveMeshPaintsWithBboxHostService({
       geometry: row.geometry,
       affine,
       imageSize,
-      dz: 0,
+      dz: Number(dz) || 0,
       metrics: metrics ?? undefined,
     });
     if (!geometry || geometry === row.geometry) continue;

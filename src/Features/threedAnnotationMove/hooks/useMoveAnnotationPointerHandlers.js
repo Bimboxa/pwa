@@ -33,7 +33,7 @@ import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMoveFrom3d";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
 import pickGrabbedAnnotationId from "../utils/pickGrabbedAnnotationId";
-import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
+import { isTransformable3dType } from "../utils/annotationTransformTypes";
 import applyMoveAnnotationsPose, {
   computeMoveDeltaLocal,
 } from "../utils/applyMoveAnnotationsPose";
@@ -155,6 +155,9 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) isDragging = true;
     }
 
+    // Types the 3D move carries: point tracings and imported 3D objects.
+    const isCarriableType = (type) => isTransformable3dType("MOVE", type);
+
     function grabAtSnap(snap) {
       let resolved = resolveAnnotationFromSnap(editor, snap);
       // A selection made before arming the tool is what the tool carries:
@@ -165,6 +168,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         snapAnnotationId: resolved.annotationId,
         selectedItems: store.getState().selection.selectedItems,
         annotations: annotationsRef.current,
+        isCarriableType,
       });
       if (grabbedId && grabbedId !== resolved.annotationId) {
         const a = annotationsRef.current?.find((ann) => ann.id === grabbedId);
@@ -206,14 +210,10 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         );
         return;
       }
-      if (
-        !isRevolutionAxis &&
-        !isPointBasedAnnotationType(resolved.annotationType)
-      ) {
+      if (!isRevolutionAxis && !isCarriableType(resolved.annotationType)) {
         dispatch(
           setToaster({
-            message:
-              "Ce type d'annotation ne peut pas être déplacé ici (tracé à points requis)",
+            message: "Ce type d'annotation ne peut pas être déplacé ici",
             severity: "warning",
           })
         );
@@ -227,6 +227,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
             selectedItems: store.getState().selection.selectedItems,
             allAnnotations: annotationsRef.current,
             dispatch,
+            isCarriableType,
           });
       if (!annotationIds.length) return;
 

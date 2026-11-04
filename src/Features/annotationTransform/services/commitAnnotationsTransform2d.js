@@ -7,10 +7,16 @@ import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsFor
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 
 import db from "App/db/db";
+import moveMeshPaintsWithBboxHostService from "Features/meshPaint/services/moveMeshPaintsWithBboxHostService";
 
 import getTransformPointUpdates from "../utils/getTransformPointUpdates";
 import getFreeTextMoveUpdates from "../utils/getFreeTextMoveUpdates";
-import { isFreeTextType, isPointHolderType } from "../utils/transform2dTypes";
+import getObject3DTransformUpdates from "../utils/getObject3DTransformUpdates";
+import {
+  isFreeTextType,
+  isObject3DType,
+  isPointHolderType,
+} from "../utils/transform2dTypes";
 
 // Write of a 2D « Déplacer » / « Tourner »: the pixel-frame twin of
 // commitAnnotationsTransformFrom3d. The new point positions land in db.points
@@ -22,6 +28,11 @@ import { isFreeTextType, isPointHolderType } from "../utils/transform2dTypes";
 // FREE_TEXT annotations carry no db.points: a MOVE translates their inline
 // targetPoint / labelPoint (getFreeTextMoveUpdates) in the same undo group.
 // A ROTATE never carries them (refused at grab time).
+//
+// OBJECT_3D annotations (imported GLB, bbox + rotation) carry no db.points
+// either: MOVE and ROTATE rewrite their placement fields
+// (getObject3DTransformUpdates) and their painted parts follow
+// (moveMeshPaintsWithBboxHostService), same undo group.
 //
 // transform: see getTransformPointUpdates.
 export default async function commitAnnotationsTransform2d({
@@ -53,7 +64,15 @@ export default async function commitAnnotationsTransform2d({
           imageSize,
         })
       : new Map();
-  if (!pointUpdates.size && !freeTextUpdates.size) return;
+  const object3ds = carried.filter((a) => isObject3DType(a.type));
+  const object3dUpdates = getObject3DTransformUpdates({
+    annotations: object3ds,
+    transform,
+    imageSize,
+  });
+  if (!pointUpdates.size && !freeTextUpdates.size && !object3dUpdates.size) {
+    return;
+  }
 
   await withUndoGroup(async () => {
     if (pointUpdates.size) {
@@ -79,6 +98,29 @@ export default async function commitAnnotationsTransform2d({
             db.annotations.update(id, updates)
           )
         );
+      });
+    }
+
+    if (object3dUpdates.size) {
+      const metrics =
+        meterByPx > 0
+          ? {
+              imageWidth: imageSize.width,
+              imageHeight: imageSize.height,
+              meterByPx,
+            }
+          : null;
+      await db.transaction("rw", db.annotations, db.meshPaints, async () => {
+        for (const [id, { fields, affine }] of object3dUpdates) {
+          await db.annotations.update(id, fields);
+          await moveMeshPaintsWithBboxHostService({
+            hostId: id,
+            host: object3ds.find((a) => a.id === id),
+            affine,
+            imageSize,
+            metrics,
+          });
+        }
       });
     }
 

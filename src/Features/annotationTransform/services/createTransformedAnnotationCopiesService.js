@@ -14,8 +14,9 @@ import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDelt
 
 import { getPivotBbox } from "../utils/getTransformPointUpdates";
 import getFreeTextMoveUpdates from "../utils/getFreeTextMoveUpdates";
+import getObject3DTransformUpdates from "../utils/getObject3DTransformUpdates";
 import getPixelRotationAffine from "../utils/pixelRotationAffine";
-import { isFreeTextType } from "../utils/transform2dTypes";
+import { isFreeTextType, isObject3DType } from "../utils/transform2dTypes";
 
 // « Copie multiple » of the « Déplacer » / « Tourner » tools (2D and 3D): N
 // transformed copies of the carried annotations, copy i at i × the
@@ -39,6 +40,11 @@ import { isFreeTextType } from "../utils/transform2dTypes";
 // FREE_TEXT sources (no db.points) get their inline targetPoint / labelPoint
 // translated instead (getFreeTextMoveUpdates) — MOVE only, a ROTATE skips
 // them (the tool never carries them in a rotation).
+//
+// OBJECT_3D sources (imported GLB, no db.points) get their bbox / rotation /
+// offsetZ rewritten by the copy's transform (getObject3DTransformUpdates:
+// the bbox centre orbits the pivot, the turn adds to `rotation`); the GLB
+// file (db.files, object3D.fileName) is shared with the source.
 //
 // Also carried: the isMesh3d mesh and its source snapshot (same pixel
 // affine), the mapping-category rels, the active layer, the listing's
@@ -66,16 +72,20 @@ function getCopyStep(transform, i) {
       affine: getPixelRotationAffine({ pivotPx: transform.pivotPx, angleDeg }),
       deltaPx: null,
       dz: 0,
+      // The copy's own transform (bbox sources, getObject3DTransformUpdates).
+      transformPx: { kind: "ROTATE", pivotPx: transform.pivotPx, angleDeg },
     };
   }
   const delta = { x: transform.deltaPx.x * i, y: transform.deltaPx.y * i };
+  const dz = (transform.deltaZ || 0) * i;
   return {
     deltaPos: delta,
     partType: null,
     wrapperBbox: undefined,
     affine: { a: 1, b: 0, c: delta.x, d: 0, e: 1, f: delta.y },
     deltaPx: delta,
-    dz: (transform.deltaZ || 0) * i,
+    dz,
+    transformPx: { kind: "MOVE", deltaPx: delta, deltaZ: dz },
   };
 }
 
@@ -122,8 +132,15 @@ export default async function createTransformedAnnotationCopiesService({
   const sourceIdOfNew = []; // parallel to newAnnotations (mapping rels)
 
   for (let i = 1; i <= copies; i++) {
-    const { deltaPos, partType, wrapperBbox, affine, deltaPx, dz } =
-      getCopyStep(transform, i);
+    const {
+      deltaPos,
+      partType,
+      wrapperBbox,
+      affine,
+      deltaPx,
+      dz,
+      transformPx,
+    } = getCopyStep(transform, i);
     // One map per copy: points shared between carried annotations stay
     // welded in the copy, never with the sources or another copy.
     const idMap = new Map();
@@ -192,6 +209,25 @@ export default async function createTransformedAnnotationCopiesService({
         }).get(transformed.id);
         if (!freeTextUpdate) continue;
         Object.assign(copy, freeTextUpdate);
+      }
+
+      if (isObject3DType(stored.type)) {
+        // Placement fields from the RESOLVED source (pixel bbox): bbox
+        // centre carried by the copy's transform, rotation added, offsetZ
+        // shifted — the point / rotation-metadata rules below do not apply
+        // (the orientation lives in `rotation`, never baked).
+        const object3dUpdate = getObject3DTransformUpdates({
+          annotations: [resolved],
+          transform: transformPx,
+          imageSize,
+        }).get(resolved.id);
+        if (!object3dUpdate) continue;
+        Object.assign(copy, object3dUpdate.fields);
+        const autoLabel3d = await allocateAutoLabel(stored.listingId);
+        if (autoLabel3d) copy.label = autoLabel3d;
+        newAnnotations.push(copy);
+        sourceIdOfNew.push(stored.id);
+        continue;
       }
 
       if (deltaPx) {

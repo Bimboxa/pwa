@@ -22,7 +22,7 @@ import { ROTATE_FREE_PIVOT_NO_SELECTION_MESSAGE } from "Features/annotationTrans
 import resolveAnnotationFromSnap from "../utils/resolveAnnotationFromSnap";
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
 import pickGrabbedAnnotationId from "../utils/pickGrabbedAnnotationId";
-import { isPointBasedAnnotationType } from "../utils/annotationTransformTypes";
+import { isTransformable3dType } from "../utils/annotationTransformTypes";
 import commitAnnotationsTransformFrom3d from "../services/commitAnnotationsTransformFrom3d";
 import setRotateAngleBufferService from "../services/setRotateAngleBufferService";
 import {
@@ -143,6 +143,9 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
     // selection, the owner of the snapped vertex (the whole selection then
     // follows through the implicit-selection rule).
     // Returns { grabbed, group } or null (toasted).
+    // Types the 3D rotate carries: point tracings and imported 3D objects.
+    const isCarriableType = (type) => isTransformable3dType("ROTATE", type);
+
     function resolveGrabbedAtPivot(snap) {
       const resolved =
         snap.kind === "VERTEX" ? resolveAnnotationFromSnap(editor, snap) : null;
@@ -150,6 +153,7 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         snapAnnotationId: resolved?.annotationId ?? null,
         selectedItems: store.getState().selection.selectedItems,
         annotations: annotationsRef.current,
+        isCarriableType,
       });
 
       if (!grabbedId) {
@@ -174,11 +178,10 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
           );
           return null;
         }
-        if (!isPointBasedAnnotationType(resolved.annotationType)) {
+        if (!isCarriableType(resolved.annotationType)) {
           dispatch(
             setToaster({
-              message:
-                "Ce type d'annotation ne peut pas être tourné ici (tracé à points requis)",
+              message: "Ce type d'annotation ne peut pas être tourné ici",
               severity: "warning",
             })
           );
@@ -221,6 +224,7 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         selectedItems: store.getState().selection.selectedItems,
         allAnnotations: annotationsRef.current,
         dispatch,
+        isCarriableType,
       });
       if (!annotationIds.length) return;
 
