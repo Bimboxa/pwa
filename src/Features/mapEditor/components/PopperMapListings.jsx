@@ -2662,10 +2662,12 @@ export default function PopperMapListings() {
             <WarningBaseMapNotToScale />
           )}
 
-          {/* « Lignes de coupe » (Maillage, Features/threedCutLines) — pinned
-              at the very top, 2D and 3D (they are drawn in the 3D Maillage
-              module): a debug copy of their data and their own eye. */}
-          {!isBaseMapsLegend &&
+          {/* « Lignes de coupe » (Features/threedCutLines) — Maillage module
+              only (useAnnotationsV2 drops the cut lines everywhere else),
+              pinned at the very top: a debug copy of their data and their
+              own eye. */}
+          {isMeshesModule &&
+            !isBaseMapsLegend &&
             !isLocateBusinessObjectMode &&
             !isLegendPopper &&
             !visibleTemplateIds && (
