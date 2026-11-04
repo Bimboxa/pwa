@@ -117,17 +117,33 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
 
 ## Maillage
 
-- CREATE on an annotation face: `applyCutLinePieceStipple` clips the planar
-  region (`buildMeshDataFromRegion` → `clipFaceByCutLines`, cached per
-  region + cut lines version) and stipples the piece under the cursor
-  (`buildPieceStippleOverlay`, world, scene root); the area chip shows the
-  piece's (or the whole region's) surface; the click creates the piece
-  (`createMesh3dService`). Curved regions are not clipped.
+- Face region: `getAnnotationFaceRegion` (threedMesh/utils) grows the
+  region over the WHOLE annotation — its solid meshes merged into one
+  geometry in the root's frame (an isMesh3d annotation is one Mesh per
+  face, a POLYLINE wall one per segment) — with `getFaceRegion` and the
+  « Sélection de face » angle (dihedral between neighbors, 25° default): a
+  curved sheet is one region, like the Pinceau's host index. CSG-carved
+  meshes (`hasSubtraction`) stay on the per-mesh plane mode.
+- Region clip: `clipRegionByCutLines` (pure) splits the region into its
+  planar facets (`partitionTrisByDihedralAngle`, 0.1°), clips every facet
+  face with `clipFaceByCutLines`, then joins the pieces back across the
+  crease edges they share (boundary edges running along the same crease
+  over > 5 mm) into GROUPS — unless a cut line runs along that crease. One
+  facet's pieces never join. `locate(tri, point)` → the group under the
+  cursor.
+- CREATE on an annotation face: `applyCutLinePieceStipple` clips the region
+  (cached per region + cut lines version) and stipples the group under the
+  cursor (`buildPiecesStippleOverlay`, world, scene root); the tooltip shows
+  the group's (or the whole region's) surface; the click creates the group
+  (`buildMeshDataFromPieces` → one planar face when its pieces coalesce
+  into one, else a shell whose crease T-junctions are welded first;
+  `createMesh3dService`).
 - « Créer le maillage » (`ButtonCreateMeshesFromCutLines`, meshing toolbar):
-  `createMeshesFromCutLinesService` — every planar region of every visible
-  annotation solid, clipped by the lines; one maille per piece; pieces whose
-  centroid lies in an existing coplanar maille are skipped; faces no line
-  crosses produce nothing.
+  `createMeshesFromCutLinesService` — every region of every visible
+  annotation (merged host, or per mesh in plane mode), clipped by the
+  lines; one maille per cut group; groups whose cut pieces all have their
+  centroid in an existing maille (coplanar face or shell triangle) are
+  skipped; regions no line crosses produce nothing.
 
 ## Tests
 
@@ -138,8 +154,9 @@ relative `.js` imports) and
 
 ## Known limits (V1)
 
-- Curved regions (shells) are neither clipped nor meshed from the lines
-  (the trace climbs a sweep, but « Créer le maillage » skips it).
+- A region is clipped facet by facet: a cut line must cross a facet from
+  boundary to boundary (or end on another line) to cut it; a line ending
+  in the middle of a facet cuts nothing there.
 - Paste / duplicate / layer copy of a cut line are not handled.
 - Right click stays inert in the Maillage module (no shortcuts menu there).
 - A closed solid walked around: the extension stops on the first visited

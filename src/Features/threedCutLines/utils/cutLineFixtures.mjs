@@ -183,3 +183,34 @@ export const nearPoints = (actual, expected, eps = 1e-6) => {
   }
   expected.forEach((p, i) => nearPoint(actual[i], p, eps));
 };
+
+// Vertical strip of `count` quads (width 1, height `height`) folded by
+// `foldDeg` at every seam — a faceted arc around the Y axis, starting at the
+// origin along +X — as a world soup { positions, tris } (2 triangles per
+// quad: 2i = bottom-left / bottom-right / top-right, 2i+1 = bottom-left /
+// top-right / top-left). `corners[i]` is the {x, z} of seam i.
+export function foldedStrip({ count = 3, foldDeg = 10, height = 1 } = {}) {
+  const corners = [];
+  let x = 0;
+  let z = 0;
+  let heading = 0;
+  corners.push({ x, z });
+  for (let i = 0; i < count; i++) {
+    x += Math.cos(heading);
+    z += Math.sin(heading);
+    corners.push({ x, z });
+    heading += (foldDeg * Math.PI) / 180;
+  }
+  const positions = [];
+  for (let i = 0; i < count; i++) {
+    const a = corners[i];
+    const b = corners[i + 1];
+    positions.push(a.x, 0, a.z, b.x, 0, b.z, b.x, height, b.z);
+    positions.push(a.x, 0, a.z, b.x, height, b.z, a.x, height, a.z);
+  }
+  return {
+    positions,
+    tris: Array.from({ length: 2 * count }, (_, i) => i),
+    corners,
+  };
+}
