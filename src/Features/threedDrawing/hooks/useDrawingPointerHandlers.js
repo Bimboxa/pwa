@@ -47,6 +47,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import useDrawingPreferredBaseMapId from "./useDrawingPreferredBaseMapId";
+import pickOrbitPointForDrawnVertices from "Features/threedDrawing/utils/pickOrbitPointForDrawnVertices";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
@@ -751,7 +752,7 @@ export default function useDrawingPointerHandlers() {
         `[threedDrawing] template-less ${created.type} created: ${created.id} on baseMap ${created.baseMapId}${created.isMesh3d ? " (mesh sheet)" : ""}`
       );
       warnIfOffMainBaseMap(created);
-      finishCommit();
+      finishCommit(points);
       return true;
     }
 
@@ -1193,8 +1194,22 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
-    function finishCommit() {
+    // `vertices` (POLYGON / surface / POLYLINE commits): the orbit / zoom
+    // target moves onto the shape just drawn — its vertex closest to the
+    // viewport centre — without moving the view.
+    function finishCommit(vertices = null) {
       dispatch(cancelInProgressPolyline());
+      if (vertices?.length) {
+        const point = pickOrbitPointForDrawnVertices(
+          vertices,
+          editor?.sceneManager?.camera
+        );
+        if (point) {
+          editor?.sceneManager?.controlsManager?.setRotationPivot?.(point, {
+            keepCameraStill: true,
+          });
+        }
+      }
       // Schedule a snap-index rebuild so the freshly-created annotation's
       // vertices/edges become snappable. Delay lets the db → liveQuery →
       // AnnotationsManager pipeline add the new mesh to the scene before we
@@ -1238,7 +1253,7 @@ export default function useDrawingPointerHandlers() {
             `[threedDrawing] annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})${created.isMesh3d ? " (mesh sheet)" : ""}`
           );
           warnIfOffMainBaseMap(created);
-          finishCommit();
+          finishCommit(pts);
           return true;
         }
       } catch (err) {
@@ -1675,7 +1690,7 @@ export default function useDrawingPointerHandlers() {
               `[threedDrawing] rectangle annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
             );
             warnIfOffMainBaseMap(created);
-            finishCommit();
+            finishCommit(vertices);
           } else {
             console.warn(
               "[threedDrawing] rectangle commit returned null (see abort reason above)"
