@@ -2354,10 +2354,11 @@ export default function MainThreedEditor() {
       isDraggingRef.current = false;
       dragStartRef.current = { x: event.clientX, y: event.clientY };
 
-      // Orbit gesture (left button in the STANDARD navigation preset, middle
-      // button or Ctrl+left in the others — see ControlsManager.isPivotGesture):
-      // set the orbit point to the point under the cursor so the camera
-      // rotates around it (not the screen center). camera-controls'
+      // Orbit or pan gesture (any button the navigation preset maps to
+      // ROTATE / TRUCK — see ControlsManager.isPivotGesture): set the orbit
+      // point to the point under the cursor so the camera rotates around it
+      // (not the screen center) and a pan keeps the grabbed point under the
+      // cursor, then hands it back as the orbit point. camera-controls'
       // setOrbitPoint preserves the current view, so there is no jump —
       // harmless for a plain selection click too. Skipped for the shift+lasso
       // branch below.

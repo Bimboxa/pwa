@@ -1567,8 +1567,10 @@ export default function useDrawingPointerHandlers() {
       const controlsManager = editor.sceneManager?.controlsManager;
       if (controlsManager?.isPivotGesture?.(e)) {
         const snapPosition = getLastSnap()?.position;
-        if (snapPosition) controlsManager.setRotationPivot(snapPosition);
-        else controlsManager.updateRotationPivotFromEvent?.(e);
+        // `event`: a pan remembers the snap as its anchor (ControlsManager).
+        if (snapPosition) {
+          controlsManager.setRotationPivot(snapPosition, { event: e });
+        } else controlsManager.updateRotationPivotFromEvent?.(e);
       }
       if (e.button !== 0) return;
       downPosRef.current = { x: e.clientX, y: e.clientY };
