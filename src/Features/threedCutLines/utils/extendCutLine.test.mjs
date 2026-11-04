@@ -324,3 +324,22 @@ test("gap bridging: a thin plate's bottom corner under the end is no jump target
   nearPoints(r.points.slice(2), [P(2, 5, 0), P(2, 5, 3)]);
   assert.ok(r.points.every((p) => p.z >= 0));
 });
+
+test("over a solid standing past the slab edge: down its back, never back under it", () => {
+  // Slab [0,5]², a 1 m box 1 cm past its edge (y from 5.01 to 5.2): the gap
+  // is bridged, the trace goes over the box, down its back and stops at the
+  // foot — its underside (convex, going back) is never walked.
+  const solid = box({ min: P(0, 5.01, 0), max: P(10, 5.2, 1) });
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 3, 0)],
+    endFace: UP,
+    triangles: [...slab({ size: 5 }), ...solid],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points.slice(2), [
+    P(2, 5.01, 0),
+    P(2, 5.01, 1),
+    P(2, 5.2, 1),
+    P(2, 5.2, 0),
+  ]);
+});
