@@ -75,6 +75,13 @@ test("without any line the strip is one uncut group", () => {
   assert.equal(result.groups.length, 1);
   assert.equal(result.groups[0].cut, false);
   near(result.groups[0].area, 3);
+  // One join per crease, over its whole height.
+  assert.equal(result.joins.length, 2);
+  for (const join of result.joins) {
+    near(join.hi - join.lo, 1);
+    near(join.crease.len, 1);
+    assert.notEqual(join.pieceA, join.pieceB);
+  }
 });
 
 test("a line drawn along a crease separates the two sides", () => {
@@ -91,6 +98,8 @@ test("a line drawn along a crease separates the two sides", () => {
   near(areas[0], 1);
   near(areas[1], 2);
   for (const group of result.groups) assert.equal(group.cut, true);
+  // The cut crease is not a join: only the other crease unites two pieces.
+  assert.equal(result.joins.length, 1);
 });
 
 test("a planar region behaves like clipFaceByCutLines", () => {

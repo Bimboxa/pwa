@@ -208,14 +208,20 @@ const DEFAULT_SECTIONS = [
 // commands only, in the same order as the default sections.
 const BASE_MAPS_SECTIONS = [AXES_SECTION, BASE_MAP_SECTION];
 
-// « Maillage » module: the user frame group and the cut lines drawn to
-// prepare the mailles (Features/threedCutLines).
+// « Maillage » module: the user frame group, the meshing tools (the
+// commands taking over from the bottom meshing toolbar — Features/threedMesh)
+// and the cut lines drawn to prepare the mailles (Features/threedCutLines).
+const MESHES_TOOLS_SECTION = {
+  key: "MESHES_TOOLS",
+  label: "Mailles",
+  entries: ["ADD_MESH"],
+};
 const CUT_LINES_SECTION = {
   key: "CUT_LINES",
   label: "Lignes de coupe",
   entries: ["DRAW_CUT_LINE"],
 };
-const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION];
+const MESHES_SECTIONS = [AXES_SECTION, MESHES_TOOLS_SECTION, CUT_LINES_SECTION];
 
 // Flat form rendered by the toolbar: the entries of every section, a
 // { type: "divider" } between two sections.

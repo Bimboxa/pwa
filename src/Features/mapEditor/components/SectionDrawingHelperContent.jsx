@@ -57,6 +57,8 @@ import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/tem
 import { selectIsTemplateRulerDrawActive } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
+import SectionMeshCreateHelperContent from "Features/threedMesh/components/SectionMeshCreateHelperContent";
+import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 import SectionThreedAxisLockHelper from "Features/threedDrawing/components/SectionThreedAxisLockHelper";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
@@ -284,6 +286,8 @@ export default function SectionDrawingHelperContent() {
   // threedEditor tool armed from « Outils de dessin » (Extruder / Déplacer /
   // Tourner in the 3D editor): its own helper body, no drawing state.
   const activeThreedTool = useSelector(selectActiveThreedTool);
+  // « Ajouter une maille » (Maillage module, CREATE tool of the meshing mode).
+  const isMeshCreate = useSelector(selectIsMeshCreateToolActive);
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   // Configuration > Dessin > Loupe: false hides the loupe card (2D only).
   const loupeEnabled = useSelector(selectIsLoupeEnabled);
@@ -456,6 +460,10 @@ export default function SectionDrawingHelperContent() {
   void effectiveDetection;
 
   // render
+
+  if (isMeshCreate) {
+    return <SectionMeshCreateHelperContent />;
+  }
 
   if (activeThreedTool) {
     return <SectionThreedToolHelperContent tool={activeThreedTool} />;

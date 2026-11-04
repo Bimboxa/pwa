@@ -40,7 +40,7 @@ const TOOLS = [
   {
     value: "CREATE",
     label:
-      "Nouvelle maille — clic sur une face pour créer une maille (Échap : retour à la sélection)",
+      "Nouvelle maille — clic sur une face pour créer une maille (S : surface cible, Échap : retour à la sélection)",
     render: () => <AddIcon sx={{ fontSize: 18 }} />,
   },
   {

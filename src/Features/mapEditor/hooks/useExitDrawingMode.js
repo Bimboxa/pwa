@@ -13,11 +13,13 @@ import {
   setExtrudeModeActive,
   setIsolateFaceModeActive,
   setMergeFacesModeActive,
+  setMeshingTool,
   setMoveAnnotationModeActive,
   setRotateAnnotationModeActive,
   setVertexOffsetModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
+import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 
 // "Quitter le dessin" (X of the drawing helper): leaves the armed draw / tool
 // and DROPS the annotation in progress — unlike Escape, whose first press
@@ -44,6 +46,8 @@ export default function useExitDrawingMode() {
     const threedTool = selectActiveThreedTool(state);
     const deactivate = THREED_TOOL_DEACTIVATORS[threedTool];
     if (deactivate) dispatch(deactivate(false));
+    // « Ajouter une maille » (Maillage module): back to the selection tool.
+    if (selectIsMeshCreateToolActive(state)) dispatch(setMeshingTool("SELECT"));
     // 3D template-less polyline: not covered by the bridge's deactivation.
     dispatch(cancelInProgressPolyline());
     dispatch(clearConstraintBuffer());

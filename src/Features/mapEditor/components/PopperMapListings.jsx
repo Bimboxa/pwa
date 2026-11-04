@@ -28,6 +28,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 
 import {
   Box,
@@ -1670,6 +1671,9 @@ export default function PopperMapListings() {
   // Cut line armed in the Maillage module (Features/threedCutLines): the
   // drawing helper shows in this popper like a line of the Dessin module.
   const isCutLineDraw = useSelector(selectIsCutLineDrawActive);
+  // « Ajouter une maille » armed in the Maillage module (CREATE tool of the
+  // meshing mode): its drawing helper (target surface) shows here too.
+  const isMeshCreate = useSelector(selectIsMeshCreateToolActive);
   const activeThreedTool = useSelector(selectActiveThreedTool);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // « Détection des doublons » run displayed (floating helper in drawer mode)
@@ -2385,9 +2389,14 @@ export default function PopperMapListings() {
     return <PopperSweepAlongLineHelper />;
   }
 
-  // An armed draw, or a threedEditor tool armed from « Outils de dessin »
-  // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor).
-  if (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) {
+  // An armed draw, a threedEditor tool armed from « Outils de dessin »
+  // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor), or
+  // « Ajouter une maille » in the Maillage module (the other helpers of the
+  // chain stay off there).
+  if (
+    (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) ||
+    isMeshCreate
+  ) {
     return <PopperDrawingHelper />;
   }
 

@@ -32,12 +32,14 @@ import findCutPieceAt from "./findCutPieceAt.js";
 // cutLines: [[{x,y,z}]] world polylines.
 //
 // Returns null when the region is degenerate, else
-// { facets, pieces, groups, locate } — pieces: [{ contour, holes, normal,
-// area, centroid, facetIndex, cut }] (cut: the piece is bounded by a cut
-// line); groups: [{ pieceIndices, area, cut }] (cut: at least one of its
-// pieces is); locate(triIndex, point): { pieceIndex, groupIndex } of the
-// piece of the facet of `triIndex` (a soup triangle index) holding `point`,
-// null when none.
+// { facets, pieces, groups, joins, locate } — pieces: [{ contour, holes,
+// normal, area, centroid, facetIndex, cut }] (cut: the piece is bounded by a
+// cut line); groups: [{ pieceIndices, area, cut }] (cut: at least one of its
+// pieces is); joins: [{ pieceA, pieceB, crease: { origin, dir, len }, lo,
+// hi }] — the pairs of pieces joined across a crease edge, over the abscissa
+// interval [lo, hi] of that edge; locate(triIndex, point): { pieceIndex,
+// groupIndex } of the piece of the facet of `triIndex` (a soup triangle
+// index) holding `point`, null when none.
 //
 // Pure (no three.js), node-tested.
 export default function clipRegionByCutLines({
@@ -121,6 +123,10 @@ export default function clipRegionByCutLines({
     if (ri !== rj) parent[Math.max(ri, rj)] = Math.min(ri, rj);
   };
 
+  // Crease joins: the pieces united across a crease, with the crease frame
+  // and the shared abscissa interval — what unfolds a group flat
+  // (threedMesh/utils/unfoldPiecesAcrossCreases).
+  const joins = [];
   for (const edge of edges) {
     if (edge.tris.length !== 2) continue; // free or non-manifold edge
     const fa = facetOfTri.get(edge.tris[0]);
@@ -151,6 +157,13 @@ export default function clipRegionByCutLines({
         const free = hi - lo - coveredLength(lo, hi, covered);
         if (free > minOverlap) {
           union(a.pieceIndex, b.pieceIndex);
+          joins.push({
+            pieceA: a.pieceIndex,
+            pieceB: b.pieceIndex,
+            crease,
+            lo,
+            hi,
+          });
         } else {
           // A cut line runs along the crease: the line bounds both pieces.
           pieces[a.pieceIndex].cut = true;
@@ -195,7 +208,7 @@ export default function clipRegionByCutLines({
     return { pieceIndex, groupIndex: groupOfPiece[pieceIndex] };
   };
 
-  return { facets, pieces, groups, locate };
+  return { facets, pieces, groups, joins, locate };
 }
 
 // The uncut face as a piece, with the same area / centroid as a clipped one.

@@ -152,7 +152,9 @@ the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
   crease edges they share (boundary edges running along the same crease
   over > 5 mm) into GROUPS — unless a cut line runs along that crease. One
   facet's pieces never join. `locate(tri, point)` → the group under the
-  cursor.
+  cursor; `joins` lists the pairs of pieces joined across a crease (what
+  unfolds a group flat — « Ajouter une maille » with a target surface, see
+  `Features/threedMesh/README.md`).
 - CREATE on an annotation face: `applyCutLinePieceStipple` clips the region
   (cached per region + cut lines version) and stipples the group under the
   cursor (`buildPiecesStippleOverlay`, world, scene root); the tooltip shows
