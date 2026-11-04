@@ -24,10 +24,15 @@ function simplifyChain(chain) {
 }
 
 // Key of the closest node not in `seen` within `maxDist` of `node`, or null.
+// The node's own neighbors are no gap: they were candidates, rejected for a
+// reason (the 1 mm edge of a thin plate under the end of the drawn line
+// would otherwise win over the foot of the sheet 2 mm further, and the walk
+// come back under the plate).
 function nearestUnseen(nodes, node, seen, maxDist) {
+  const linked = new Set(node.neighbors.map((nb) => nb.key));
   let best = null;
   for (const [key, other] of nodes) {
-    if (seen.has(key)) continue;
+    if (seen.has(key) || linked.has(key)) continue;
     const d = length(sub(other.position, node.position));
     if (d > maxDist) continue;
     if (!best || d < best.d) best = { key, d };
@@ -50,10 +55,12 @@ function nearestUnseen(nodes, node, seen, maxDist) {
 //   maxRawPoints = safety cap on the raw walk (loops are already prevented by
 //                the visited set)
 //   gapTolerance (optional, m) = at a free edge, jump to the nearest unvisited
-//                node of the section within this distance and go on: the
-//                surfaces the line crosses are drawn independently (a slab
-//                whose edge follows a sweep's guide a few cm off its foot),
-//                their sections do not join at the 1 mm graph tolerance
+//                node of the section within this distance (never a neighbor)
+//                and go on: the surfaces the line crosses are drawn
+//                independently (a slab whose edge follows a sweep's guide a
+//                few cm off its foot), their sections do not join at the 1 mm
+//                graph tolerance. The step after a jump never goes backwards
+//                (dot with d0 < 0) — the other surface is walked onwards.
 //   allowPerpendicularStart (optional) = accept a first step perpendicular to
 //                `direction` (a walk started on a node found by locateNodeNear:
 //                the drawn line ends at the foot of a sheet, whose section
@@ -111,6 +118,7 @@ export default function walkCutLineTrace(
   let prev = null;
   let dir = d0;
   let n = n0;
+  let jumped = false;
 
   // A perpendicular first step has dot(tOut, d0) = 0 up to float noise.
   const firstStepMin = allowPerpendicularStart ? -1e-6 : 0;
@@ -125,8 +133,10 @@ export default function walkCutLineTrace(
       if (!target) continue;
       const tOut = normalize(sub(target.position, node.position));
       if (!tOut) continue;
-      // The first step leaves the drawn polyline, never goes back along it.
+      // The first step leaves the drawn polyline, never goes back along it;
+      // the step after a gap jump goes on, never back.
       if (prev === null && dot(tOut, d0) <= firstStepMin) continue;
+      if (jumped && dot(tOut, d0) < -1e-6) continue;
       keysSeen.add(nb.key);
       const rise = dot(tOut, n);
       const cls = rise > RISE_EPS ? 2 : rise < -RISE_EPS ? 0 : 1;
@@ -151,8 +161,10 @@ export default function walkCutLineTrace(
       chain.push(nodes.get(jump).position);
       prev = cur;
       cur = jump;
+      jumped = true;
       continue;
     }
+    jumped = false;
 
     candidates.sort((p, q) => {
       if (p.cls !== q.cls) return q.cls - p.cls;

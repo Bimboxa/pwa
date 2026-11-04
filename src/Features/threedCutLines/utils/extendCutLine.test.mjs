@@ -7,6 +7,7 @@ import extendCutLine, {
 } from "./extendCutLine.js";
 import {
   P,
+  box,
   curvedSheet,
   near,
   nearPoint,
@@ -309,4 +310,17 @@ test("gap bridging: a 3 cm gap is not bridged", () => {
     upNormal: P(0, 0, 1),
   });
   nearPoints(r.points.slice(2), [P(2, 4.97, 0)]);
+});
+
+test("gap bridging: a thin plate's bottom corner under the end is no jump target — the trace climbs the sheet 1.5 cm away instead of coming back under the plate", () => {
+  // 1 mm plate, top at z = 0, edge at y = 4.985; open sheet at y = 5.
+  const plate = box({ min: P(0, 0, -0.001), max: P(10, 4.985, 0) });
+  const r = extendCutLine({
+    drawn: [P(2, 1, 0), P(2, 4.985, 0)],
+    endFace: UP,
+    triangles: [...plate, ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points.slice(2), [P(2, 5, 0), P(2, 5, 3)]);
+  assert.ok(r.points.every((p) => p.z >= 0));
 });
