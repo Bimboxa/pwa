@@ -1,33 +1,34 @@
 import { CallMerge } from "@mui/icons-material";
 
-import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
-
 import ButtonMerge from "./ButtonMerge";
 import {
-  getSelectionGate,
-  getTargets,
-} from "../../utils/selectionCommandState";
+  getMergeTarget,
+  MERGE_UNAVAILABLE,
+  resolveMergeTarget,
+} from "./resolveMergeSelection";
+import { getSelectionGate } from "../../utils/selectionCommandState";
 
-// Merge target of the selection: two or more annotations of one template and
-// one drawing shape (POLYLINE or POLYGON), or null.
-export function getMergeTarget(ctx) {
-  const annotations = getTargets(ctx);
-  if (annotations.length < 2) return null;
-  const templateIds = new Set(
-    annotations.map((a) => a.annotationTemplateId).filter(Boolean)
-  );
-  if (templateIds.size !== 1) return null;
-  const shapes = new Set(
-    annotations.map((a) => resolveDrawingShapeFromType(a.type))
-  );
-  if (shapes.size !== 1) return null;
-  const shape = [...shapes][0];
-  if (shape !== "POLYLINE" && shape !== "POLYGON") return null;
-  return { shape, annotations };
-}
+export { getMergeTarget };
 
-// « Fusionner les annotations »: merges the selected annotations (same
-// template, same shape — lines or surfaces) into one (useMergeAnnotations).
+const UNAVAILABLE_REASONS = {
+  [MERGE_UNAVAILABLE.TOO_FEW]: "Sélectionnez au moins deux annotations",
+  [MERGE_UNAVAILABLE.MIXED_BASE_MAPS]:
+    "Les annotations doivent être sur le même fond de plan",
+  [MERGE_UNAVAILABLE.MIXED_TEMPLATES]:
+    "Les annotations sélectionnées doivent partager un même modèle (ou n'en avoir aucun)",
+  [MERGE_UNAVAILABLE.MESH_IN_2D]:
+    "Fusion en maille disponible dans l'éditeur 3D",
+  [MERGE_UNAVAILABLE.NOT_MERGEABLE]:
+    "Sélectionnez des lignes ou des surfaces (sans révolution, profil ni ouverture)",
+};
+
+// « Fusionner les annotations »: merges the selected annotations into one.
+// Hybrid (resolveMergeSelection): the parametric 2D merge when the selection
+// is lines only or surfaces only with the same 3D attributes
+// (useMergeAnnotations), else — in the 3D editor — the mesh merge: the seed
+// becomes / updates its isMesh3d mesh and absorbs the others
+// (mergeAnnotationsToMeshService). Same template or no template at all; a
+// template-less shape absorbed by a templated one takes its template.
 export default {
   key: "MERGE",
   label: "Fusionner les annotations",
@@ -36,11 +37,13 @@ export default {
   getState(ctx) {
     const gate = getSelectionGate(ctx, { min: 2 });
     if (gate) return gate;
-    if (!getMergeTarget(ctx)) {
+    const target = resolveMergeTarget(ctx);
+    if (!target.mode) {
       return {
         enabled: false,
         reason:
-          "Sélectionnez au moins deux lignes (ou deux surfaces) du même modèle",
+          UNAVAILABLE_REASONS[target.unavailable] ??
+          UNAVAILABLE_REASONS[MERGE_UNAVAILABLE.NOT_MERGEABLE],
       };
     }
     return { enabled: true };

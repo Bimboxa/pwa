@@ -2,12 +2,12 @@ import polygonClipping from "polygon-clipping";
 
 import { buildMesh3dFromPlanarFaces } from "../../annotationMesh3d/utils/buildMesh3dFromTriangles.js";
 import { WELD_PRECISION_M } from "../../annotationMesh3d/utils/mesh3dConstants.js";
-import { getMesh3dSignedVolume } from "../../annotationMesh3d/utils/getMesh3dQties.js";
-import isMesh3dClosed from "../../annotationMesh3d/utils/isMesh3dClosed.js";
 import {
+  countMesh3dComponents,
   getFaceNormal,
   reverseFace,
 } from "../../annotationMesh3d/utils/mesh3dTopology.js";
+import orientMesh3dFaces from "../../annotationMesh3d/utils/orientMesh3d.js";
 import coalesceCoplanarFaces, {
   COALESCE_NORMAL_TOL_RAD,
   COALESCE_PLANE_TOL_M,
@@ -20,10 +20,17 @@ import {
 } from "../../threedMesh/utils/planeProjection.js";
 import { dot } from "../../threedMesh/utils/vec3Utils.js";
 
-// Union of two annotation meshes that touch along coplanar faces — the
-// « Fusionner des faces » command. Both meshes are in the SAME base-map-local
-// frame with ABSOLUTE z (meters); the result is one mesh in that frame.
+import snapMeshesTogether from "./snapMeshesTogether.js";
+
+// Union of two annotation meshes that touch — the « Fusionner des faces »
+// command (coplanar faces, with a seed plane) and the mesh mode of
+// « Fusionner les annotations » (any contact: face, edge or vertex, no seed
+// plane). Both meshes are in the SAME base-map-local frame with ABSOLUTE z
+// (meters); the result is one mesh in that frame.
 //
+// 0. the vertices of B are pulled onto the nearby vertices / edges of A
+//    (snapMeshesTogether, 2 mm): the builders are not all lifted alike and
+//    two shapes drawn in 3D may miss each other by a rounding;
 // 1. the faces of the two meshes that look at each other on a same plane
 //    (the contact: the end cap of a wall against the end cap of the next
 //    one) are replaced by their 2D differences — identical caps vanish, a
@@ -34,12 +41,19 @@ import { dot } from "../../threedMesh/utils/vec3Utils.js";
 //    SAME mesh are never unioned — a line drawn on a face (« Coupe face »)
 //    splits it on purpose and must survive the merge;
 // 3. the planar faces are re-indexed into a mesh (buildMesh3dFromPlanarFaces:
-//    weld, T-junctions, cleanup).
+//    weld, T-junctions, cleanup) — an edge of B lying on an edge of A is
+//    connected there (the T-junction splice), which is how a wall sheet
+//    merges with the slab sheet it stands on;
+// 4. the result must have fewer connected components than A and B had
+//    together (countMesh3dComponents), else nothing touched: NOT_TOUCHING —
+//    a merge would leave one annotation in two pieces;
+// 5. the result is wound consistently (orientMesh3dFaces: outward when
+//    closed, neighbors agreeing when open).
 //
-// seedPlane: { point, normal } of the face the merge was launched from. The
-// merge is refused (NOT_TOUCHING) when no face of A was unioned with a face
-// of B on that plane: the two clicked faces are coplanar but do not touch,
-// and a merge would leave one annotation in two pieces. The seed plane was
+// seedPlane (optional): { point, normal } of the face the merge was launched
+// from. With it, the merge is also refused (NOT_TOUCHING) when no face of A
+// was unioned with a face of B on that plane: the two clicked faces are
+// coplanar but do not touch. The seed plane was
 // read on the DISPLAYED geometry, which may be shrunk (« Réduire le
 // crénelage », 10 mm lateral / 5 mm top) while the meshes here are not: it
 // is matched with a loose tolerance and whatever its orientation.
@@ -248,8 +262,12 @@ export default function mergeMesh3dSolids(
   meshB,
   { seedPlane, clickedNormal } = {}
 ) {
-  const facesA = toRawFaces(meshA, "A");
-  let facesB = toRawFaces(meshB, "B");
+  if (!meshA?.faces?.length || !meshB?.faces?.length) {
+    return { ok: false, reason: MERGE_MESH3D_REASONS.EMPTY };
+  }
+  const [snappedA, snappedB] = snapMeshesTogether([meshA, meshB]);
+  const facesA = toRawFaces(snappedA, "A");
+  let facesB = toRawFaces(snappedB, "B");
   if (!facesA.length || !facesB.length) {
     return { ok: false, reason: MERGE_MESH3D_REASONS.EMPTY };
   }
@@ -259,7 +277,7 @@ export default function mergeMesh3dSolids(
     dot(seedPlane.normal, clickedNormal) < 0
   ) {
     facesB = toRawFaces(
-      { vertices: meshB.vertices, faces: meshB.faces.map(reverseFace) },
+      { vertices: snappedB.vertices, faces: snappedB.faces.map(reverseFace) },
       "B"
     );
   }
@@ -270,14 +288,19 @@ export default function mergeMesh3dSolids(
     return { ok: false, reason: MERGE_MESH3D_REASONS.NOT_TOUCHING };
   }
 
-  let mesh = buildMesh3dFromPlanarFaces(
+  const mesh = buildMesh3dFromPlanarFaces(
     faces.map(({ contour, holes, normal }) => ({ contour, holes, normal }))
   );
   if (!mesh?.faces?.length) {
     return { ok: false, reason: MERGE_MESH3D_REASONS.EMPTY };
   }
-  if (isMesh3dClosed(mesh) && getMesh3dSignedVolume(mesh) < 0) {
-    mesh = { vertices: mesh.vertices, faces: mesh.faces.map(reverseFace) };
+  // Nothing connected (no shared face, edge or vertex after the weld): the
+  // two meshes are still apart in the result.
+  if (
+    countMesh3dComponents(mesh) >=
+    countMesh3dComponents(snappedA) + countMesh3dComponents(snappedB)
+  ) {
+    return { ok: false, reason: MERGE_MESH3D_REASONS.NOT_TOUCHING };
   }
-  return { ok: true, mesh };
+  return { ok: true, mesh: orientMesh3dFaces(mesh) };
 }

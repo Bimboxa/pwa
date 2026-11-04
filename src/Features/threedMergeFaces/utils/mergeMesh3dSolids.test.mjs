@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import isMesh3dClosed from "../../annotationMesh3d/utils/isMesh3dClosed.js";
-import { getFaceNormal } from "../../annotationMesh3d/utils/mesh3dTopology.js";
+import { getMesh3dSignedVolume } from "../../annotationMesh3d/utils/getMesh3dQties.js";
+import isMesh3dClosed, {
+  isMesh3dOriented,
+} from "../../annotationMesh3d/utils/isMesh3dClosed.js";
+import {
+  countMesh3dComponents,
+  getFaceNormal,
+} from "../../annotationMesh3d/utils/mesh3dTopology.js";
+import orientMesh3dFaces from "../../annotationMesh3d/utils/orientMesh3d.js";
 import mergeMesh3dSolids, {
   MERGE_MESH3D_REASONS,
 } from "./mergeMesh3dSolids.js";
@@ -153,4 +160,148 @@ test("a seed plane read on a shrunk display (10 mm off) still matches", () => {
   });
   assert.equal(result.ok, true);
   assert.equal(result.mesh.faces.length, 6);
+});
+
+// --- mesh mode of « Fusionner les annotations »: no seed plane -------------
+
+// Vertical sheet (a PX wall quad) with the given x span at y = y0.
+function wallSheet(x0, x1, y0, z0, z1) {
+  return {
+    vertices: [
+      { x: x0, y: y0, z: z0 },
+      { x: x1, y: y0, z: z0 },
+      { x: x1, y: y0, z: z1 },
+      { x: x0, y: y0, z: z1 },
+    ],
+    faces: [{ loop: [0, 1, 2, 3], holes: [] }],
+  };
+}
+
+// Horizontal sheet (a flat POLYGON) at z, CCW seen from above.
+function slabSheet(x0, x1, y0, y1, z) {
+  return {
+    vertices: [
+      { x: x0, y: y0, z },
+      { x: x1, y: y0, z },
+      { x: x1, y: y1, z },
+      { x: x0, y: y1, z },
+    ],
+    faces: [{ loop: [0, 1, 2, 3], holes: [] }],
+  };
+}
+
+test("L profile: a wall sheet 1 mm too low merges with the slab sheet it stands on", () => {
+  // The PX wall converts 1 mm lower than the polygon it was drawn against
+  // (no z-fight lift in extrudePolylineWall): the snap closes the gap.
+  const wall = wallSheet(1, 2, 0, 3.709, 3.799);
+  const slab = slabSheet(0, 4, 0, 3, 3.8);
+  const result = mergeMesh3dSolids(wall, slab);
+  assert.equal(result.ok, true);
+  const { mesh } = result;
+  assert.equal(mesh.faces.length, 2);
+  assert.equal(mesh.vertices.length, 8);
+  assert.ok(!isMesh3dClosed(mesh));
+  assert.ok(isMesh3dOriented(mesh), "neighbors run the shared edge both ways");
+  assert.equal(countMesh3dComponents(mesh), 1);
+  // The wall's top vertices were spliced into the slab's edge (T-junction).
+  const slabFace = mesh.faces.find((face) => face.loop.length === 6);
+  assert.ok(slabFace, "slab loop gained the two wall vertices");
+  const tops = mesh.vertices.filter((v) => Math.abs(v.z - 3.8) < 1e-9);
+  assert.equal(tops.length, 6);
+  // The slab keeps looking up (largest area keeps its side).
+  const up = getFaceNormal(mesh.vertices, slabFace);
+  assert.ok(up.z > 0.999);
+});
+
+test("two abutting boxes merge without a seed plane", () => {
+  const a = box(0, 1, 0, 0.2, 0, 2.5);
+  const b = box(1, 2, 0, 0.2, 0, 2.5);
+  const result = mergeMesh3dSolids(a, b);
+  assert.equal(result.ok, true);
+  assert.equal(result.mesh.faces.length, 6);
+  assert.ok(isMesh3dClosed(result.mesh));
+  assert.ok(getMesh3dSignedVolume(result.mesh) > 0);
+});
+
+test("disjoint meshes are refused without a seed plane", () => {
+  const boxes = mergeMesh3dSolids(
+    box(0, 1, 0, 0.2, 0, 2.5),
+    box(1.5, 2, 0, 0.2, 0, 2.5)
+  );
+  assert.equal(boxes.ok, false);
+  assert.equal(boxes.reason, MERGE_MESH3D_REASONS.NOT_TOUCHING);
+  const sheets = mergeMesh3dSolids(
+    wallSheet(1, 2, 0, 3.7, 3.79),
+    slabSheet(0, 4, 0, 3, 3.8)
+  );
+  assert.equal(sheets.ok, false, "a 1 cm gap is not a contact");
+  assert.equal(sheets.reason, MERGE_MESH3D_REASONS.NOT_TOUCHING);
+});
+
+test("a single shared vertex is a contact", () => {
+  const a = slabSheet(0, 1, 0, 1, 0);
+  const b = slabSheet(1, 2, 1, 2, 0);
+  const result = mergeMesh3dSolids(a, b);
+  assert.equal(result.ok, true);
+  assert.equal(result.mesh.faces.length, 2);
+  assert.equal(result.mesh.vertices.length, 7);
+});
+
+test("coplanar overlapping sheets become one face", () => {
+  const a = slabSheet(0, 2, 0, 1, 0);
+  const b = slabSheet(1, 3, 0, 1, 0);
+  const result = mergeMesh3dSolids(a, b);
+  assert.equal(result.ok, true);
+  assert.equal(result.mesh.faces.length, 1);
+  assert.equal(result.mesh.faces[0].loop.length, 4);
+});
+
+test("countMesh3dComponents welds coincident vertices", () => {
+  const a = slabSheet(0, 1, 0, 1, 0);
+  const b = slabSheet(1, 2, 0, 1, 0);
+  assert.equal(countMesh3dComponents(a), 1);
+  const soup = {
+    vertices: [...a.vertices, ...b.vertices],
+    faces: [a.faces[0], { loop: [4, 5, 6, 7], holes: [] }],
+  };
+  assert.equal(countMesh3dComponents(soup), 1, "shared edge, unwelded");
+  const apart = {
+    vertices: [...a.vertices, ...slabSheet(3, 4, 0, 1, 0).vertices],
+    faces: soup.faces,
+  };
+  assert.equal(countMesh3dComponents(apart), 2);
+});
+
+test("orientMesh3dFaces: an L whose faces disagree is fixed, a 3-face edge is left", () => {
+  const L = {
+    vertices: [
+      { x: 0, y: 0, z: 0 },
+      { x: 1, y: 0, z: 0 },
+      { x: 1, y: 1, z: 0 },
+      { x: 0, y: 1, z: 0 },
+      { x: 0, y: 0, z: 1 },
+      { x: 1, y: 0, z: 1 },
+    ],
+    faces: [
+      { loop: [0, 1, 2, 3], holes: [] }, // slab, up
+      { loop: [0, 1, 5, 4], holes: [] }, // wall, runs 0→1 like the slab: wrong
+    ],
+  };
+  assert.ok(!isMesh3dOriented(L));
+  const fixed = orientMesh3dFaces(L);
+  assert.ok(isMesh3dOriented(fixed));
+  assert.deepEqual(
+    fixed.faces[0].loop,
+    [0, 1, 2, 3],
+    "the big face keeps its side"
+  );
+  assert.deepEqual(fixed.faces[1].loop, [4, 5, 1, 0]);
+  const fan = {
+    vertices: L.vertices.concat([
+      { x: 0, y: -1, z: 0 },
+      { x: 1, y: -1, z: 0 },
+    ]),
+    faces: [...L.faces, { loop: [0, 1, 7, 6], holes: [] }],
+  };
+  assert.equal(orientMesh3dFaces(fan), fan);
 });
