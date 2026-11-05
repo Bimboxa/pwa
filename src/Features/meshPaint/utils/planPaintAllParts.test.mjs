@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import buildHostPartIndex from "./buildHostPartIndex.js";
+import listHostEdgeParts from "./listHostEdgeParts.js";
 import listHostFaceParts from "./listHostFaceParts.js";
 import { localGeometryToPaint } from "./meshPaintFrame.js";
 import { flipFace } from "./meshPaintGeometry.js";
@@ -12,7 +13,7 @@ import {
   storedEdge,
   v,
 } from "./meshPaintTestFixtures.mjs";
-import planPaintAllFaces from "./planPaintAllFaces.js";
+import planPaintAllParts from "./planPaintAllParts.js";
 
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 
@@ -46,10 +47,10 @@ const faceRow = (localFace, templateId, extra = {}) => ({
 });
 
 const plan = ({ parts, isClosed }, clickedIndex, rows = [], extra = {}) =>
-  planPaintAllFaces({
+  planPaintAllParts({
     parts,
     clickedIndex,
-    clickedFace: parts[clickedIndex],
+    clickedPart: parts[clickedIndex],
     isClosed,
     hostId: "h1",
     baseMapId: "bm1",
@@ -193,4 +194,81 @@ test("too many faces: nothing is planned", () => {
   assert.equal(result.tooMany, true);
   assert.deepEqual(result.add, []);
   assert.equal(result.action, null);
+});
+
+// --- edges (« Peindre toutes les arêtes de l'annotation ») ---
+
+// The twelve edges of the closed box host.
+const boxEdges = () =>
+  listHostEdgeParts(
+    buildHostPartIndex({ triangles: boxTriangles(v(0, 0, 0), v(2, 1, 3)) })
+  ).parts;
+
+const edgeRow = (localEdge, templateId, extra = {}) => ({
+  id: `row${nextId++}`,
+  partType: "EDGE",
+  baseMapId: "bm1",
+  hostAnnotationId: "h1",
+  annotationTemplateId: templateId,
+  geometry: localGeometryToPaint("EDGE", localEdge, METRICS),
+  ...extra,
+});
+
+const planEdges = (parts, clickedIndex, rows = [], extra = {}) =>
+  planPaintAllParts({
+    partType: "EDGE",
+    parts,
+    clickedIndex,
+    clickedPart: parts[clickedIndex],
+    hostId: "h1",
+    baseMapId: "bm1",
+    rows,
+    metrics: METRICS,
+    templateId: "t1",
+    ...extra,
+  });
+
+test("edges: one click paints the twelve edges of a bare box", () => {
+  const parts = boxEdges();
+  assert.equal(parts.length, 12);
+  const result = planEdges(parts, 0);
+  assert.equal(result.action, "ADDED");
+  assert.equal(result.add.length, 12);
+  assert.equal(result.add[0].localGeometry, parts[0]);
+  assert.ok(result.add.every((item) => item.geometry.points.length === 2));
+});
+
+test("edges: the picked edge is found among the host's, not doubled", () => {
+  const parts = boxEdges();
+  const result = planEdges(parts, -1, [], {
+    clickedPart: { points: parts[4].points.map((p) => ({ ...p })) },
+  });
+  assert.equal(result.action, "ADDED");
+  assert.equal(result.clickedIndex, 4);
+  assert.equal(result.add.length, 12);
+});
+
+test("edges: painted edges are left alone, another host's included", () => {
+  const parts = boxEdges();
+  const own = edgeRow(parts[3], "t1");
+  const other = edgeRow(parts[5], "t2");
+  // The corner edge shared with a neighbor, painted on that neighbor.
+  const shared = edgeRow(parts[7], "t1", { hostAnnotationId: "h2" });
+  const result = planEdges(parts, 0, [own, other, shared]);
+  assert.equal(result.action, "ADDED");
+  assert.equal(result.add.length, 9);
+  assert.deepEqual(result.deleteIds, []);
+});
+
+test("edges: a click on an edge of the armed template removes its edges only", () => {
+  const parts = boxEdges();
+  const first = edgeRow(parts[0], "t1");
+  const second = edgeRow(parts[6], "t1");
+  const otherTemplate = edgeRow(parts[2], "t2");
+  const host = box();
+  const face = faceRow(host.parts[host.indexOf("top")], "t1");
+  const result = planEdges(parts, 0, [first, second, otherTemplate, face]);
+  assert.equal(result.action, "REMOVED");
+  assert.deepEqual(result.add, []);
+  assert.deepEqual([...result.deleteIds].sort(), [first.id, second.id].sort());
 });

@@ -20,6 +20,7 @@ import {
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
   setMeshBrushCreate2dIfPossible,
+  setMeshBrushPaintAllEdges,
   setMeshBrushPaintAllFaces,
   setMeshBrushPartMode,
   setRepairMode,
@@ -46,6 +47,7 @@ import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import CardWallVectorization from "Features/smartDetect/components/CardWallVectorization";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionDrawingConstraints from "./SectionDrawingConstraints";
 import SectionBaseMapLinkDrawingHelper, {
   SwitchBaseMapLinkAdaptScale,
@@ -277,11 +279,13 @@ export default function SectionDrawingHelperContent() {
 
   const meshBrushHiddenS =
     "Le modèle actif est masqué : les parties peintes ne seront pas visibles.";
+  const meshBrushOptionsS = "Options de peinture";
   const meshBrushPartS = "Partie peinte";
   const meshBrushFaceS = "Facette";
   const meshBrushEdgeS = "Arête";
   const meshBrushCreate2dS = "Créer une annotation 2D si possible";
   const meshBrushPaintAllFacesS = "Peindre toutes les faces de l'annotation";
+  const meshBrushPaintAllEdgesS = "Peindre toutes les arêtes de l'annotation";
   const templateBrushConvertS =
     "Cliquez sur une annotation pour lui appliquer le modèle";
   const templateBrushDuplicateS =
@@ -324,10 +328,14 @@ export default function SectionDrawingHelperContent() {
   const meshBrushCreate2dIfPossible = useSelector(
     (s) => s.mapEditor.meshBrushCreate2dIfPossible
   );
-  // « Peindre toutes les faces de l'annotation » (facets only): one click
-  // paints every bare face of the host, or removes them all.
+  // « Peindre toutes les faces / arêtes de l'annotation »: one click paints
+  // every bare part of the host of the brush's part type, or removes them
+  // all — one switch per part type, the one of the current type is shown.
   const meshBrushPaintAllFaces = useSelector(
     (s) => s.mapEditor.meshBrushPaintAllFaces
+  );
+  const meshBrushPaintAllEdges = useSelector(
+    (s) => s.mapEditor.meshBrushPaintAllEdges
   );
   const isMeshBrushFace = meshBrushPartType === MESH_PAINT_PART_TYPES.FACE;
   // « Pinceau » armed in the 2D editor (template brush): the click converts
@@ -561,95 +569,96 @@ export default function SectionDrawingHelperContent() {
         </Alert>
       )}
       {isThreedToggledEditor && isMeshBrush && (
-        <Paper
-          elevation={0}
-          sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            {meshBrushPartS}
-          </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={meshBrushPartType}
-            onChange={(e, value) => {
-              if (value) dispatch(setMeshBrushPartMode(value));
-            }}
-          >
-            <ToggleButton
-              value={MESH_PAINT_PART_TYPES.FACE}
-              sx={{ py: 0.25, px: 1, textTransform: "none" }}
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {meshBrushOptionsS}
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
             >
-              {meshBrushFaceS}
-            </ToggleButton>
-            <ToggleButton
-              value={MESH_PAINT_PART_TYPES.EDGE}
-              sx={{ py: 0.25, px: 1, textTransform: "none" }}
+              <Typography variant="caption" color="text.secondary">
+                {meshBrushPartS}
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={meshBrushPartType}
+                onChange={(e, value) => {
+                  if (value) dispatch(setMeshBrushPartMode(value));
+                }}
+              >
+                <ToggleButton
+                  value={MESH_PAINT_PART_TYPES.FACE}
+                  sx={{ py: 0.25, px: 1, textTransform: "none" }}
+                >
+                  {meshBrushFaceS}
+                </ToggleButton>
+                <ToggleButton
+                  value={MESH_PAINT_PART_TYPES.EDGE}
+                  sx={{ py: 0.25, px: 1, textTransform: "none" }}
+                >
+                  {meshBrushEdgeS}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
             >
-              {meshBrushEdgeS}
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Paper>
+              <Typography variant="caption" color="text.secondary">
+                {isMeshBrushFace
+                  ? meshBrushPaintAllFacesS
+                  : meshBrushPaintAllEdgesS}
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(
+                  isMeshBrushFace
+                    ? meshBrushPaintAllFaces
+                    : meshBrushPaintAllEdges
+                )}
+                onChange={(e) =>
+                  dispatch(
+                    isMeshBrushFace
+                      ? setMeshBrushPaintAllFaces(e.target.checked)
+                      : setMeshBrushPaintAllEdges(e.target.checked)
+                  )
+                }
+              />
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {meshBrushCreate2dS}
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(meshBrushCreate2dIfPossible)}
+                onChange={(e) =>
+                  dispatch(setMeshBrushCreate2dIfPossible(e.target.checked))
+                }
+              />
+            </Box>
+            <SectionMeshBrushPaintedTotal />
+          </Box>
+        </WhiteSectionGeneric>
       )}
-      {isThreedToggledEditor && isMeshBrushFace && (
-        <Paper
-          elevation={0}
-          sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            {meshBrushPaintAllFacesS}
-          </Typography>
-          <Switch
-            size="small"
-            checked={Boolean(meshBrushPaintAllFaces)}
-            onChange={(e) =>
-              dispatch(setMeshBrushPaintAllFaces(e.target.checked))
-            }
-          />
-        </Paper>
-      )}
-      {isThreedToggledEditor && isMeshBrush && (
-        <Paper
-          elevation={0}
-          sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            {meshBrushCreate2dS}
-          </Typography>
-          <Switch
-            size="small"
-            checked={Boolean(meshBrushCreate2dIfPossible)}
-            onChange={(e) =>
-              dispatch(setMeshBrushCreate2dIfPossible(e.target.checked))
-            }
-          />
-        </Paper>
-      )}
-      {isThreedToggledEditor && isMeshBrush && <SectionMeshBrushPaintedTotal />}
       {isThreedToggledEditor && canDrawOnScan && !isMeshBrush && (
         <SectionScene3dPickingStatus />
       )}
