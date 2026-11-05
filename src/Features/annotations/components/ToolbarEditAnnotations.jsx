@@ -15,6 +15,7 @@ import useChangeAnnotationsTemplate, {
   getTemplateChangeTargets,
 } from "../hooks/useChangeAnnotationsTemplate";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
@@ -66,6 +67,7 @@ export default function ToolbarEditAnnotations({
   const selectedItems = useSelector(selectSelectedItems);
   const deleteAnnotations = useDeleteAnnotations();
   const baseMap = useMainBaseMap();
+  const { value: baseMaps } = useBaseMaps();
 
   // helpers - selected annotations
 
@@ -144,14 +146,25 @@ export default function ToolbarEditAnnotations({
 
   // helpers - group by annotationTemplateId with aggregated quantities
 
+  // Quantities use each annotation's own base map scale (a 3D selection can
+  // mix base maps with different meterByPx); fallback: the main base map.
+  const meterByPxByBaseMapId = useMemo(() => {
+    const map = {};
+    (baseMaps || []).forEach((bm) => {
+      map[bm.id] = bm.meterByPx;
+    });
+    return map;
+  }, [baseMaps]);
+
   const templateGroups = useMemo(() => {
     const groups = new Map();
-    const meterByPx = baseMap?.meterByPx;
 
     for (const annotation of annotations) {
       const key = annotation.annotationTemplateId || annotation.id;
       const existing = groups.get(key);
 
+      const meterByPx =
+        meterByPxByBaseMapId[annotation.baseMapId] ?? baseMap?.meterByPx;
       const qties = getAnnotationQties({ annotation, meterByPx });
 
       // Intrinsic unit count (LINEAR_LAYOUT: number of bars) — other types
@@ -198,7 +211,7 @@ export default function ToolbarEditAnnotations({
     }
 
     return Array.from(groups.values());
-  }, [annotations, baseMap?.meterByPx]);
+  }, [annotations, meterByPxByBaseMapId, baseMap?.meterByPx]);
 
   // handlers
 

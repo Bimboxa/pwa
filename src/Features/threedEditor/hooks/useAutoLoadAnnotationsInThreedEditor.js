@@ -15,7 +15,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
-import useDessinGridBaseMapIds from "Features/baseMapsGrid3d/hooks/useDessinGridBaseMapIds";
+import useSceneExtraBaseMapIdsIn3d from "./useSceneExtraBaseMapIdsIn3d";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
@@ -107,9 +107,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // in the scope panel (useScopeGridAnnotationsFilter).
   const gridPinned = useSelector(selectBaseMapsGridScopeOpen);
   const scopeFilter = useScopeGridAnnotationsFilter();
-  const scopeSheetIds = useSelector(
-    (s) => s.baseMapsGrid.scopeSheets.baseMapIds
-  );
   // Dessin module's base maps grid (direct display): every base map of the
   // scope is a sheet and shows EVERY annotation drawn on it — the Dessin
   // listing eyes, the template eyes and the solos do not apply; the badge
@@ -122,25 +119,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // ButtonSoloDimStyle): HIDDEN drops them from the scene, the other styles
   // keep them (`_soloDimmed`) for ThreedSelectionDimmer.
   const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
-  const dessinSheetIds = useDessinGridBaseMapIds();
-  const sheetIdsKey = useMemo(() => {
-    const sheetIds = gridPinned
-      ? scopeSheetIds
-      : gridDessin
-        ? dessinSheetIds
-        : null;
-    if (!sheetIds) return "";
-    return sheetIds
-      .filter((id) => id !== mainBaseMap?.id)
-      .sort()
-      .join(",");
-  }, [gridPinned, gridDessin, scopeSheetIds, dessinSheetIds, mainBaseMap?.id]);
-  const extraBaseMapIds = useMemo(() => {
-    if (!sheetIdsKey) return chipExtraBaseMapIds;
-    return [
-      ...new Set([...chipExtraBaseMapIds, ...sheetIdsKey.split(",")]),
-    ].filter(Boolean);
-  }, [chipExtraBaseMapIds, sheetIdsKey]);
+  // Chips + sheets of the displayed grid (shared with the multi-selection
+  // popper / panel, which must resolve whatever the scene lets one pick).
+  const extraBaseMapIds = useSceneExtraBaseMapIdsIn3d();
   const scopeAnnotationIdSet = gridPinned ? scopeFilter.annotationIdSet : null;
   // badge of the "Fonds de plan" rows: annotations of a sheet switched off
   const hiddenSheetIds = useSelector(
