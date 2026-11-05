@@ -535,7 +535,11 @@ export default function FormAnnotationTemplateVariantBlock({
 
           {/* Object 3D field (OBJECT_3D) */}
           {hasObject3D && (
-            <FieldObject3D value={object3D} onChange={handleObject3DChange} />
+            <FieldObject3D
+              value={object3D}
+              onChange={handleObject3DChange}
+              objectName={annotationTemplate?.label}
+            />
           )}
 
           {/* Extérieur.
