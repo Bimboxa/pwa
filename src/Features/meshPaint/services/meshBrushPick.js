@@ -22,7 +22,6 @@ import {
   getHostHalfView,
   getHostPartData,
   getHostSolidMeshes,
-  getTriangleFaceLabels,
 } from "Features/meshPaint/js/buildHostPartIndexFromObject";
 import { probeNormalSide } from "Features/meshPaint/utils/buildHostPartIndex";
 import {
@@ -354,21 +353,13 @@ export function createMeshBrushPicker(sceneManager) {
     const metrics = getMeshPaintMetrics(host.baseMap);
     if (!metrics) return refused(PAINT_REFUSAL.NO_SCALE, host.hostId);
 
-    let region = getFaceRegion(mesh.geometry, intersect.faceIndex, {
+    // getFaceRegion stops at the break points (geometry face labels), like
+    // the part index.
+    const region = getFaceRegion(mesh.geometry, intersect.faceIndex, {
       plane: true,
       angleDeg: BRUSH_FACE_ANGLE_DEG,
     });
     if (!region) return null;
-    // Side faces of a prism split by a drawn vertex (geometry face labels):
-    // the region stops at the face under the cursor, like the part index.
-    const faceLabels = getTriangleFaceLabels(mesh.geometry);
-    if (faceLabels) {
-      const label = faceLabels[intersect.faceIndex];
-      region = {
-        regionId: `${region.regionId}l${label}`,
-        tris: region.tris.filter((t) => faceLabels[t] === label),
-      };
-    }
     const frame = getFrame(host.group);
     let faces = getRegionLocalFaces(mesh, region, frame);
     if (!faces) return null;

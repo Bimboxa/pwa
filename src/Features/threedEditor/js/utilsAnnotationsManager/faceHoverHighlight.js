@@ -26,6 +26,8 @@ import {
   Vector3,
 } from "three";
 
+import getTriangleFaceLabels from "./getTriangleFaceLabels";
+
 // Fallback dihedral tolerance (degrees) when the caller passes none.
 export const DEFAULT_FACE_ANGLE_DEG = 25;
 
@@ -122,6 +124,10 @@ function buildAdjacency(geometry) {
     edgeToTris,
     triNormals,
     triCount,
+    // Face labels of the break points (geometry.userData.triParts, null when
+    // none): two triangles with different labels never share a region, even
+    // coplanar — the same split as the Pinceau's part index.
+    triLabels: getTriangleFaceLabels(geometry),
     // Dihedral partitions, keyed by angle threshold (degrees). Built lazily by
     // getAngleRegions, capped by MAX_CACHED_ANGLES.
     regionsByAngle: new Map(),
@@ -148,7 +154,7 @@ function getAngleRegions(cache, angleDeg) {
   const cached = cache.regionsByAngle.get(key);
   if (cached) return cached;
 
-  const { triCount, triNormals, edgeToTris } = cache;
+  const { triCount, triNormals, edgeToTris, triLabels } = cache;
   const cosTol = Math.cos((Math.max(0, key) * Math.PI) / 180);
 
   const parent = new Int32Array(triCount);
@@ -180,6 +186,8 @@ function getAngleRegions(cache, angleDeg) {
       const a = tris[i];
       for (let j = i + 1; j < tris.length; j++) {
         const b = tris[j];
+        // A break point stands between them: two faces.
+        if (triLabels && triLabels[a] !== triLabels[b]) continue;
         const dot =
           triNormals[3 * a] * triNormals[3 * b] +
           triNormals[3 * a + 1] * triNormals[3 * b + 1] +
@@ -231,6 +239,10 @@ function getAngleRegions(cache, angleDeg) {
 // break edges bordering the cut) — hence the union covers both. Callers must
 // use the same mode for hover and creation so what is highlighted is what
 // gets created.
+//
+// Break points (geometry.userData.triParts, see getTriangleFaceLabels): in
+// both modes a region never crosses a face label — the two faces a break
+// point separates stay two regions, whatever the angle.
 export function getFaceRegion(
   geometry,
   faceIndex,
@@ -293,7 +305,8 @@ function getPlaneRegion(geometry, faceIndex, cache) {
     ? (t, c) => index.getX(3 * t + c)
     : (t, c) => 3 * t + c;
 
-  const { triNormals, planeRegionOfTri } = cache;
+  const { triNormals, planeRegionOfTri, triLabels } = cache;
+  const seedLabel = triLabels ? triLabels[faceIndex] : 0;
 
   // Fast path: this face's plane region was already computed.
   const stamped = planeRegionOfTri[faceIndex];
@@ -323,6 +336,8 @@ function getPlaneRegion(geometry, faceIndex, cache) {
 
   const region = [];
   for (let t = 0; t < planeRegionOfTri.length; t++) {
+    // Other side of a break point: another face of the same plane.
+    if (triLabels && triLabels[t] !== seedLabel) continue;
     const dot =
       seedNx * triNormals[3 * t] +
       seedNy * triNormals[3 * t + 1] +
