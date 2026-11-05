@@ -17,13 +17,15 @@ const COPIED_MS = 1500;
 
 // Zip step of the « Prompt IA » screens: the download button, then what to
 // ask the AI chat. `built` is the last generated zip ({ fileName, sizeBytes });
-// `children` holds the screen's own alerts.
+// `children` holds the screen's own alerts. `followUp` replaces the closing
+// line for a screen with no result step.
 export default function SectionPromptIaZipDownload({
   onDownload,
   disabled = false,
   building = false,
   built,
   label,
+  followUp,
   children,
 }) {
   // strings
@@ -33,7 +35,8 @@ export default function SectionPromptIaZipDownload({
     "Déposez ce zip dans un chat IA (ChatGPT, Claude…) et écrivez :";
   const promptS = "Suis les instructions contenues dans le zip";
   const copyS = "Copier";
-  const thenS = "L’IA vous renverra un résultat à importer à l’étape suivante.";
+  const thenS =
+    followUp ?? "L’IA vous renverra un résultat à importer à l’étape suivante.";
 
   // state
 
@@ -136,5 +139,6 @@ SectionPromptIaZipDownload.propTypes = {
     sizeBytes: PropTypes.number,
   }),
   label: PropTypes.string,
+  followUp: PropTypes.string,
   children: PropTypes.node,
 };

@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
 
+import PropTypes from "prop-types";
+
 import { Box, Typography, IconButton, Chip } from "@mui/material";
-import { Delete, ViewInAr } from "@mui/icons-material";
+import { AutoAwesome, Delete, ViewInAr } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import DialogPromptIaObject3D from "./DialogPromptIaObject3D";
 
 import createObject3DEntityField from "Features/object3D/utils/createObject3DEntityField";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
@@ -22,9 +25,12 @@ function formatMeters(value) {
   return `${value.toFixed(2)} m`;
 }
 
-export default function FieldObject3D({ label, value, onChange }) {
+// `objectName` (the template label being edited) names the object in the
+// Prompt IA zip.
+export default function FieldObject3D({ label, value, onChange, objectName }) {
   const inputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [openPromptIa, setOpenPromptIa] = useState(false);
   const [fileSizeAsString, setFileSizeAsString] = useState(
     value?.fileSize ? stringifyFileSize(value.fileSize) : null
   );
@@ -194,9 +200,31 @@ export default function FieldObject3D({ label, value, onChange }) {
               >
                 Parcourir
               </Typography>
+
+              {/* No .glb at hand: have an external AI chat model the object */}
+              <Typography
+                variant="body2"
+                onClick={() => setOpenPromptIa(true)}
+                sx={{
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                <AutoAwesome sx={{ fontSize: 14 }} />
+                Prompt IA
+              </Typography>
             </Box>
           </>
         )}
+
+        <DialogPromptIaObject3D
+          open={openPromptIa}
+          onClose={() => setOpenPromptIa(false)}
+          objectName={objectName}
+        />
 
         <input
           ref={inputRef}
@@ -209,3 +237,15 @@ export default function FieldObject3D({ label, value, onChange }) {
     </WhiteSectionGeneric>
   );
 }
+
+FieldObject3D.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.shape({
+    fileName: PropTypes.string,
+    fileSize: PropTypes.number,
+    bbox: PropTypes.object,
+    topViewDataUrl: PropTypes.string,
+  }),
+  onChange: PropTypes.func.isRequired,
+  objectName: PropTypes.string,
+};
