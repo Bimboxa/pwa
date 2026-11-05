@@ -107,6 +107,7 @@ function toPointRefs(points) {
     ...(p.type ? { type: p.type } : {}),
     ...(p.offsetTop ? { offsetTop: p.offsetTop } : {}),
     ...(p.offsetBottom ? { offsetBottom: p.offsetBottom } : {}),
+    ...(p.isBreak ? { isBreak: true } : {}),
   }));
 }
 

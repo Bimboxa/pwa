@@ -18,9 +18,10 @@ import useUpdateSelectedPoints from "Features/points/hooks/useUpdateSelectedPoin
 import useSetBasePoint from "Features/points/hooks/useSetBasePoint";
 
 // Inline editor row for the sub-selected vertex (or vertices) of an
-// annotation: shape toggle (square / circle), 3D offsets (bottom / top, m)
-// and, on profile annotations with a single vertex, the reference point
-// switch (anchor of the profile extrusion). Same persistence as the
+// annotation: shape toggle (square / circle), 3D offsets (bottom / top, m),
+// the break point switch (POLYGON / POLYLINE) and, on profile annotations
+// with a single vertex, the reference point switch (anchor of the profile
+// extrusion). Same persistence as the
 // PanelPropertiesPoints right panel — this row surfaces those props in the
 // floating toolbar so the user does not have to open the panel.
 export default function ToolbarEditPoint() {
@@ -51,6 +52,15 @@ export default function ToolbarEditPoint() {
   const showBasePoint = isProfile && count === 1;
   const isBasePoint = !!first?.isBasePoint;
 
+  // Break point (« point de rupture »): on the extruded 3D solid of a
+  // POLYGON / POLYLINE, the edge standing on the point is drawn and the two
+  // faces it separates stay apart (see getBreakSegmentLabels). An arc
+  // control point (circle) is no corner of the solid.
+  const showBreak =
+    ["POLYGON", "POLYLINE"].includes(annotation?.type) &&
+    selectedPoints.some((p) => p.type !== "circle");
+  const isBreak = selectedPoints.every((p) => !!p.isBreak);
+
   // handlers
 
   function handleTypeChange(_e, newType) {
@@ -69,6 +79,10 @@ export default function ToolbarEditPoint() {
   function handleBasePointChange(e) {
     if (!first?.id) return;
     setBasePoint(first.id, e.target.checked);
+  }
+
+  function handleBreakChange(e) {
+    updateSelectedPoints({ isBreak: e.target.checked });
   }
 
   // render
@@ -131,6 +145,22 @@ export default function ToolbarEditPoint() {
       </Tooltip>
 
       <Box sx={{ flex: 1 }} />
+
+      {showBreak && (
+        <Tooltip title="Point de rupture : en 3D, l'arête est tracée et les deux faces sont séparées">
+          <Box sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              Rupture
+            </Typography>
+            <Switch
+              size="small"
+              checked={isBreak}
+              onChange={handleBreakChange}
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+          </Box>
+        </Tooltip>
+      )}
 
       {showBasePoint && (
         <Tooltip title="Point de référence du profil (ancrage de l'extrusion)">

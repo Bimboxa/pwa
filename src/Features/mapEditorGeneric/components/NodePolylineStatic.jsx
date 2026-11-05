@@ -1703,6 +1703,11 @@ function NodePolylineStatic({
     // visually flagged as "derived" — its position is recomputed at each
     // commit rather than user-controlled.
     const strokeDasharray = isSliding ? "3,2" : undefined;
+    // Break point (« point de rupture », explicit 3D edge + face split): a
+    // thick dark outline tells it from a plain vertex.
+    const isBreak = !!pt.isBreak && !isCircle;
+    const vertexStroke = isBreak ? "#212121" : "#2196f3";
+    const vertexStrokeWidth = isBreak ? 2.5 : 1.5;
 
     return (
       <g
@@ -1737,8 +1742,8 @@ function NodePolylineStatic({
               width={POINT_SIZE}
               height={POINT_SIZE}
               fill={isPointSelected ? "#FF0000" : "#FFFFFF"}
-              stroke="#2196f3"
-              strokeWidth={1.5}
+              stroke={vertexStroke}
+              strokeWidth={vertexStrokeWidth}
               strokeDasharray={strokeDasharray}
             />
           )}
