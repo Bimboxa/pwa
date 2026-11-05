@@ -16,4 +16,6 @@ export const COTE_FIELDS = [
   "showRulerLabel",
   // 3D: values in cards (true) or bare with a white halo (false).
   "showValueCard",
+  // COTE only (see showStyleOption): "STANDARD" | "LABEL" ("Étiquette").
+  "coteStyle",
 ];

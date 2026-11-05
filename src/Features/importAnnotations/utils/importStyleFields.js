@@ -37,6 +37,7 @@ export const STYLE_FIELDS = [
   "showTotalCote",
   "showRulerLabel",
   "showValueCard",
+  "coteStyle",
   // label leader stub
   "labelStubLength",
   "labelStubMode",

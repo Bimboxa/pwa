@@ -3,10 +3,16 @@ import { darken } from "@mui/material/styles";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import {
+  COTE_STYLE_LABEL,
   DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_STYLE,
   DEFAULT_COTE_UNIT,
 } from "Features/annotations/constants/coteDisplayDefaults";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
+import getCoteLabelText from "Features/annotations/utils/getCoteLabelText";
+import getCoteLabelStyleGeometry, {
+  getCoteLabelOffsetFromAnchor,
+} from "Features/annotations/utils/getCoteLabelStyleGeometry";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 // Default page-pt placement of a degenerate (vertical) cote's value label
@@ -17,6 +23,13 @@ const DEGENERATE_LABEL_DEFAULT_OFFSET = { x: 12, y: -12 };
 const TEXT_OFFSET_PT = 4;
 const TEXT_HALO_PT = 3;
 const DASH_PT = 3;
+
+// "Étiquette" style (coteStyle LABEL), page points: how far the bar and the
+// extension lines run past each other, the gap between the leader's end and
+// the label, and the opacity of the secondary lines (extensions + leader).
+const LABEL_STYLE_OVERSHOOT_PT = 4;
+const LABEL_STYLE_TEXT_GAP_PT = 3;
+const LABEL_STYLE_LINE_OPACITY = 0.45;
 
 // Screen px the pointer must travel before a press on the value label turns
 // into a drag — below it the gesture is a click, which selects the cote.
@@ -48,7 +61,12 @@ export default function NodeCoteStatic({
     decimals = DEFAULT_COTE_DECIMALS,
     fontSize = 18,
     showUnitLabel = true,
+    coteStyle = DEFAULT_COTE_STYLE,
   } = merged ?? {};
+
+  // "Étiquette" style: horizontal "<label> = <value>" tied to the bar by a
+  // leader; the bar (when selected) and the label are both draggable.
+  const isLabelStyle = coteStyle === COTE_STYLE_LABEL;
 
   const updateAnnotation = useUpdateAnnotation();
 
@@ -340,6 +358,108 @@ export default function NodeCoteStatic({
     [annotationId, dragLabelOffset, updateAnnotation]
   );
 
+  // ---- "Étiquette" style label drag ----
+  // The label sits at `annotation.coteLabelOffset2d` (page pt, relative to the
+  // bar's midpoint, outward-positive — see getCoteLabelStyleGeometry). The
+  // drag moves its screen-oriented anchor: along the horizontal only for a
+  // vertical-like cote, freely otherwise.
+
+  const storedLabelOffset2d = merged?.coteLabelOffset2d;
+  const labelStyleGRef = useRef(null);
+  const labelStyleDragRef = useRef(null);
+  const [dragLabelOffset2d, setDragLabelOffset2d] = useState(null);
+
+  const handleStyleLabelPointerDown = useCallback(
+    (e) => {
+      if (printMode || isTransient) return;
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.shiftKey) return;
+      const geom = getCoteLabelStyleGeometry({
+        p1: points[0],
+        p2: points[1],
+        offsetPx: baseExtensionOffsetPx,
+        labelOffset: storedLabelOffset2d,
+      });
+      if (!geom) return;
+      const ctm = labelStyleGRef.current?.getScreenCTM?.();
+      const clientPxPerPt = ctm ? Math.hypot(ctm.a, ctm.b) : 0;
+      labelStyleDragRef.current = {
+        startClient: { x: e.clientX, y: e.clientY },
+        initialAnchorPt: geom.anchorPt,
+        isVerticalLike: geom.isVerticalLike,
+        outSign: geom.outSign,
+        clientPxPerPt: clientPxPerPt > 0 ? clientPxPerPt : 1,
+        moved: false,
+      };
+      try {
+        e.target.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      // Same as handleLabelPointerDown: keep the mouse events alive.
+      e.stopPropagation();
+    },
+    [points, baseExtensionOffsetPx, storedLabelOffset2d, printMode, isTransient]
+  );
+
+  const handleStyleLabelPointerMove = useCallback((e) => {
+    const drag = labelStyleDragRef.current;
+    if (!drag) return;
+    if (!drag.moved) {
+      const dist = Math.hypot(
+        e.clientX - drag.startClient.x,
+        e.clientY - drag.startClient.y
+      );
+      if (dist <= LABEL_DRAG_THRESHOLD_PX) return;
+      drag.moved = true;
+    }
+    const ddx = (e.clientX - drag.startClient.x) / drag.clientPxPerPt;
+    const ddy = (e.clientY - drag.startClient.y) / drag.clientPxPerPt;
+    setDragLabelOffset2d(
+      getCoteLabelOffsetFromAnchor({
+        anchorPt: {
+          x: drag.initialAnchorPt.x + ddx,
+          y: drag.isVerticalLike ? 0 : drag.initialAnchorPt.y + ddy,
+        },
+        isVerticalLike: drag.isVerticalLike,
+        outSign: drag.outSign,
+      })
+    );
+    e.stopPropagation();
+  }, []);
+
+  const handleStyleLabelPointerUp = useCallback(
+    async (e) => {
+      const drag = labelStyleDragRef.current;
+      if (!drag) return;
+      labelStyleDragRef.current = null;
+      try {
+        e.target.releasePointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      if (dragLabelOffset2d === null) {
+        // Plain click: InteractionLayer selects the cote on the mouseup.
+        e.stopPropagation();
+        return;
+      }
+      const next = dragLabelOffset2d;
+      try {
+        await updateAnnotation({
+          id: annotationId,
+          coteLabelOffset2d: {
+            x: Math.round(next.x * 10) / 10,
+            y: Math.round(next.y * 10) / 10,
+          },
+        });
+      } finally {
+        setDragLabelOffset2d(null);
+      }
+      e.stopPropagation();
+    },
+    [annotationId, dragLabelOffset2d, updateAnnotation]
+  );
+
   // ---- geometry — points are already resolved to pixel coordinates ----
 
   if (!points || points.length < 2) return null;
@@ -370,6 +490,9 @@ export default function NodeCoteStatic({
     showUnitLabel,
     deltaZMeters,
   });
+
+  // "Étiquette" style: the value prefixed by the annotation's own label.
+  const labelText = getCoteLabelText({ annotation: merged, valueText });
 
   // Degenerate cote: both endpoints project to (nearly) the same plan
   // position — e.g. a vertical cote drawn in 3D. Render a small marker, a
@@ -444,7 +567,9 @@ export default function NodeCoteStatic({
                 touchAction: "none",
               }}
             >
-              {`ht: ${valueText}`}
+              {isLabelStyle && labelText !== valueText
+                ? labelText
+                : `ht: ${valueText}`}
             </text>
           </g>
         </g>
@@ -487,6 +612,177 @@ export default function NodeCoteStatic({
   const offsetSign = effectiveOffsetPx >= 0 ? 1 : -1;
   const flipSign = textFlip ? -1 : 1;
   const textNormalSign = flipSign * offsetSign;
+
+  // Selection indicators on the original click points — small ticks
+  // perpendicular to the cote line so start/end are unambiguous. The inner
+  // <g> counter-scales so the tick stays a fixed screen size.
+  const selectionTicks = selected && (
+    <>
+      <g
+        transform={`translate(${p1.x}, ${p1.y}) rotate(${(Math.atan2(dy, dx) * 180) / Math.PI})`}
+      >
+        <g
+          style={
+            counterScaleTransform
+              ? { transform: counterScaleTransform }
+              : undefined
+          }
+        >
+          <line x1={0} y1={-6} x2={0} y2={6} stroke="#2196f3" strokeWidth={2} />
+        </g>
+      </g>
+      <g
+        transform={`translate(${p2.x}, ${p2.y}) rotate(${(Math.atan2(dy, dx) * 180) / Math.PI})`}
+      >
+        <g
+          style={
+            counterScaleTransform
+              ? { transform: counterScaleTransform }
+              : undefined
+          }
+        >
+          <line x1={0} y1={-6} x2={0} y2={6} stroke="#2196f3" strokeWidth={2} />
+        </g>
+      </g>
+    </>
+  );
+
+  // ---- "Étiquette" style ----
+  // Solid, dimmed extension lines running past the bar, the bar running past
+  // them, and the horizontal label tied to the bar's midpoint by a leader
+  // (straight for a vertical-like cote, elbowed otherwise).
+  if (isLabelStyle) {
+    const geom = getCoteLabelStyleGeometry({
+      p1,
+      p2,
+      offsetPx: effectiveOffsetPx,
+      labelOffset: dragLabelOffset2d ?? storedLabelOffset2d,
+      pageScale,
+    });
+    const { out, anchorPt, leaderPointsPt, textAnchor } = geom;
+    const over = LABEL_STYLE_OVERSHOOT_PT * pageScale;
+    const B1 = { x: D1.x - ux * over, y: D1.y - uy * over };
+    const B2 = { x: D2.x + ux * over, y: D2.y + uy * over };
+    const E1 = { x: D1.x + out.x * over, y: D1.y + out.y * over };
+    const E2 = { x: D2.x + out.x * over, y: D2.y + out.y * over };
+    const secondaryOpacity = strokeOpacity * LABEL_STYLE_LINE_OPACITY;
+    // The bar is a drag handle (extensionOffset) while the cote is selected.
+    const barDraggable = Boolean(selected) && !printMode && !isTransient;
+    const textX =
+      anchorPt.x +
+      (textAnchor === "start"
+        ? LABEL_STYLE_TEXT_GAP_PT
+        : -LABEL_STYLE_TEXT_GAP_PT);
+
+    return (
+      <g {...dataProps} ref={rootGRef}>
+        {/* extension lines: click point → a bit past the bar */}
+        {showExtensions && (
+          <>
+            <line
+              x1={p1.x}
+              y1={p1.y}
+              x2={E1.x}
+              y2={E1.y}
+              stroke={displayStrokeColor}
+              strokeWidth={computedStrokeWidth}
+              strokeOpacity={secondaryOpacity}
+              pointerEvents="none"
+            />
+            <line
+              x1={p2.x}
+              y1={p2.y}
+              x2={E2.x}
+              y2={E2.y}
+              stroke={displayStrokeColor}
+              strokeWidth={computedStrokeWidth}
+              strokeOpacity={secondaryOpacity}
+              pointerEvents="none"
+            />
+          </>
+        )}
+
+        {/* dimension bar, running a bit past the extension lines */}
+        <line
+          x1={B1.x}
+          y1={B1.y}
+          x2={B2.x}
+          y2={B2.y}
+          stroke={displayStrokeColor}
+          strokeWidth={computedStrokeWidth}
+          strokeOpacity={strokeOpacity}
+          pointerEvents="stroke"
+          style={{ cursor: "pointer" }}
+        />
+
+        {/* leader + label — page points, anchored on the bar's midpoint */}
+        <g transform={`translate(${geom.mid.x}, ${geom.mid.y})`}>
+          <g ref={labelStyleGRef} transform={pageScaleTransform}>
+            <polyline
+              points={leaderPointsPt.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke={displayStrokeColor}
+              strokeWidth={computedStrokeWidth / pageScale}
+              strokeOpacity={secondaryOpacity}
+              pointerEvents="none"
+            />
+            <text
+              x={textX}
+              y={anchorPt.y}
+              textAnchor={textAnchor}
+              dominantBaseline="central"
+              fontSize={fontSize}
+              fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+              fill={displayStrokeColor}
+              data-cote-label="1"
+              {...labelHitProps}
+              onPointerDown={handleStyleLabelPointerDown}
+              onPointerMove={handleStyleLabelPointerMove}
+              onPointerUp={handleStyleLabelPointerUp}
+              onPointerCancel={handleStyleLabelPointerUp}
+              style={{
+                userSelect: "none",
+                cursor: labelCursor,
+                pointerEvents: "auto",
+                paintOrder: "stroke",
+                stroke: "white",
+                strokeWidth: TEXT_HALO_PT,
+                strokeLinejoin: "round",
+                touchAction: "none",
+              }}
+            >
+              {labelText}
+            </text>
+          </g>
+        </g>
+
+        {/* selection / hover hit area along the bar — once the cote is
+            selected it is the drag handle of the bar (extensionOffset,
+            signed: crossing the click points flips the label's side) */}
+        <line
+          x1={D1.x}
+          y1={D1.y}
+          x2={D2.x}
+          y2={D2.y}
+          stroke="transparent"
+          strokeWidth={16}
+          {...(barDraggable ? labelHitProps : {})}
+          onPointerDown={barDraggable ? handleLabelPointerDown : undefined}
+          onPointerMove={barDraggable ? handleLabelPointerMove : undefined}
+          onPointerUp={barDraggable ? handleLabelPointerUp : undefined}
+          onPointerCancel={barDraggable ? handleLabelPointerUp : undefined}
+          style={{
+            cursor: barDraggable ? "grab" : "pointer",
+            pointerEvents: "stroke",
+            vectorEffect: "non-scaling-stroke",
+            touchAction: "none",
+          }}
+        />
+
+        {selectionTicks}
+      </g>
+    );
+  }
 
   return (
     <g {...dataProps} ref={rootGRef}>
@@ -582,53 +878,7 @@ export default function NodeCoteStatic({
         }}
       />
 
-      {/* selection indicators on the original click points — small ticks
-          perpendicular to the cote line so start/end are unambiguous. The
-          inner <g> counter-scales so the tick stays a fixed screen size. */}
-      {selected && (
-        <>
-          <g
-            transform={`translate(${p1.x}, ${p1.y}) rotate(${(Math.atan2(dy, dx) * 180) / Math.PI})`}
-          >
-            <g
-              style={
-                counterScaleTransform
-                  ? { transform: counterScaleTransform }
-                  : undefined
-              }
-            >
-              <line
-                x1={0}
-                y1={-6}
-                x2={0}
-                y2={6}
-                stroke="#2196f3"
-                strokeWidth={2}
-              />
-            </g>
-          </g>
-          <g
-            transform={`translate(${p2.x}, ${p2.y}) rotate(${(Math.atan2(dy, dx) * 180) / Math.PI})`}
-          >
-            <g
-              style={
-                counterScaleTransform
-                  ? { transform: counterScaleTransform }
-                  : undefined
-              }
-            >
-              <line
-                x1={0}
-                y1={-6}
-                x2={0}
-                y2={6}
-                stroke="#2196f3"
-                strokeWidth={2}
-              />
-            </g>
-          </g>
-        </>
-      )}
+      {selectionTicks}
     </g>
   );
 }
