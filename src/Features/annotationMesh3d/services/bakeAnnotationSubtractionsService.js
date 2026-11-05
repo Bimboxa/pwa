@@ -3,6 +3,7 @@ import { withUndoGroup } from "App/db/undoManager";
 
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
+import isPolylineSheetWall from "Features/annotations/utils/isPolylineSheetWall";
 import {
   getShape3DKey,
   isRevolutionSolid,
@@ -92,8 +93,10 @@ export function isRevolutionBakeHost(annotation) {
 // Whether the host's solid can be frozen into a mesh: a plain extrusion
 // (convertible), a mesh already, a revolution (closed « Solide » volume, or
 // open lathe shell baked as an open mesh), or an inline-extrusion sheet
-// (POLYLINE + profileLines, baked as an open mesh too). The other generated
-// shapes (EXTRUSION_PROFILE templates, POLYGON shells) stay out.
+// (POLYLINE + profileLines, baked as an open mesh too). A plain PX polyline
+// wall is convertible, but it is a zero-thickness sheet as well: the bake
+// clips it as a surface (isPolylineSheetWall). The other generated shapes
+// (EXTRUSION_PROFILE templates, POLYGON shells) stay out.
 // isAnnotationConvertibleToMesh3d itself is NOT widened: push/pull and the
 // face cuts keep refusing these generated shapes.
 export function isAnnotationSubtractionBakeable(annotation) {
@@ -171,14 +174,19 @@ export default async function bakeAnnotationSubtractionsService({
   };
   const isRevolutionHost = isRevolutionBakeHost(host);
   const isInlineExtrusionHost = isInlineExtrusionPolyline(host);
-  // An open lathe shell, an inline-extrusion sheet, or an open mesh host (a
-  // flat sheet drawn in 3D), is clipped (HOLLOW_SUBTRACTION, no cap faces)
-  // and written as an OPEN mesh; a « Solide » revolution or a closed mesh is
-  // a closed volume like any extrusion — the rule of the live carve
-  // (AnnotationsManager).
+  const isSheetWallHost = isPolylineSheetWall(host);
+  // An open lathe shell, an inline-extrusion sheet, a PX polyline wall (one
+  // zero-thickness quad per segment), or an open mesh host (a flat sheet
+  // drawn in 3D), is clipped (HOLLOW_SUBTRACTION, no cap faces) and written
+  // as an OPEN mesh; a « Solide » revolution or a closed mesh is a closed
+  // volume like any extrusion — the rule of the live carve
+  // (AnnotationsManager). Carved as a solid, a sheet never reads as a closed
+  // mesh and the bake was refused (FAILED).
   const hollow = host.isMesh3d
     ? !isMesh3dClosed(host.mesh3d)
-    : (isRevolutionHost && !isRevolutionSolid(host)) || isInlineExtrusionHost;
+    : (isRevolutionHost && !isRevolutionSolid(host)) ||
+      isInlineExtrusionHost ||
+      isSheetWallHost;
 
   let hostObject = null;
   let solid = null;
