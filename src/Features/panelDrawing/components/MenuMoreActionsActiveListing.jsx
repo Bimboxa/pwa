@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
@@ -11,6 +12,7 @@ import {
   Divider,
   ListItemIcon,
   ListItemText,
+  Switch,
 } from "@mui/material";
 import Edit from "@mui/icons-material/Edit";
 import Star from "@mui/icons-material/Star";
@@ -19,11 +21,14 @@ import ContentCopy from "@mui/icons-material/ContentCopy";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 import DeleteSweep from "@mui/icons-material/DeleteSweep";
 import LinkOff from "@mui/icons-material/LinkOff";
+import AutoAwesome from "@mui/icons-material/AutoAwesome";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogRenameListing from "Features/listings/components/DialogRenameListing";
 import DialogDeleteUnusedAnnotationTemplates from "Features/annotations/components/DialogDeleteUnusedAnnotationTemplates";
 import useDeleteListing from "Features/listings/hooks/useDeleteListing";
+import useUpdateListing from "Features/listings/hooks/useUpdateListing";
+import useListingById from "Features/listings/hooks/useListingById";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useFavoriteListings from "Features/listings/hooks/useFavoriteListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -36,8 +41,10 @@ import { OwnershipError } from "App/db/ownership";
 // ---------------------------------------------------------------------------
 // MenuMoreActionsActiveListing — "..." menu of the active-listing field:
 // rename (dialog), favorites toggle, duplicate, delete unused templates (of
-// this listing only, the listing is kept), delete. Duplicate / delete
-// mirror IconButtonMoreActionsListing.
+// this listing only, the listing is kept), delete, and the "Prompt IA"
+// switch (listing.promptIaEnabled, same flag as the listing properties
+// panel — the menu stays open on toggle). Duplicate / delete mirror
+// IconButtonMoreActionsListing.
 // The dialogs outlive the menu: a host may reset `listing` to null when the
 // menu closes (SectionPopperListings keeps it in the same state as the
 // anchor), so the listing targeted by a dialog is frozen on the menu click
@@ -59,6 +66,7 @@ export default function MenuMoreActionsActiveListing({
   const duplicateS = "Dupliquer";
   const deleteUnusedTemplatesS = "Supprimer les modèles non utilisés";
   const deleteS = "Supprimer la liste";
+  const enablePromptIaS = "Activer le prompt IA";
 
   // data
 
@@ -74,6 +82,10 @@ export default function MenuMoreActionsActiveListing({
   const fromS = sourceScopeName ? `Depuis ${sourceScopeName}` : null;
 
   const deleteListing = useDeleteListing();
+  const updateListing = useUpdateListing();
+  // Live record: a host may hand a snapshot of the listing (see below), the
+  // switch must follow the stored flag.
+  const liveListing = useListingById(listing?.id);
   const createListings = useCreateListings();
   const { canEditRecord, guardEditRecord } = useCanEditRecord();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
@@ -95,6 +107,9 @@ export default function MenuMoreActionsActiveListing({
 
   const favorite = isFavorite(listing?.id);
   const dialogListing = targetListing ?? listing;
+  // Prompt IA: drawing lists only (same rule as PanelPropertiesListingV2).
+  const showPromptIa = liveListing?.entityModel?.type === "LOCATED_ENTITY";
+  const promptIaEnabled = Boolean(liveListing?.promptIaEnabled);
 
   const closeRename = () => {
     setOpenRename(false);
@@ -151,6 +166,13 @@ export default function MenuMoreActionsActiveListing({
     onClose();
     if (!guardEditRecord(listing)) return;
     setOpenDelete(true);
+  };
+
+  const handleTogglePromptIa = async () => {
+    await updateListing({
+      id: listing.id,
+      promptIaEnabled: !promptIaEnabled,
+    });
   };
 
   const handleUnlink = async () => {
@@ -285,6 +307,28 @@ export default function MenuMoreActionsActiveListing({
                 {deleteS}
               </ListItemText>
             </MenuItem>,
+            showPromptIa && <Divider key="dividerPromptIa" />,
+            showPromptIa && (
+              <MenuItem
+                key="promptIa"
+                onClick={handleTogglePromptIa}
+                disabled={!canEditRecord(listing)}
+                sx={{ gap: 1, py: 0.75 }}
+              >
+                <ListItemIcon sx={{ minWidth: 28 }}>
+                  <AutoAwesome sx={{ fontSize: 18 }} />
+                </ListItemIcon>
+                <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                  {enablePromptIaS}
+                </ListItemText>
+                <Switch
+                  size="small"
+                  edge="end"
+                  tabIndex={-1}
+                  checked={promptIaEnabled}
+                />
+              </MenuItem>
+            ),
           ]
         )}
       </Menu>
@@ -320,3 +364,15 @@ export default function MenuMoreActionsActiveListing({
     </>
   );
 }
+
+MenuMoreActionsActiveListing.propTypes = {
+  anchorEl: PropTypes.object,
+  onClose: PropTypes.func.isRequired,
+  listing: PropTypes.shape({
+    id: PropTypes.string,
+    name: PropTypes.string,
+    label: PropTypes.string,
+    scopeId: PropTypes.string,
+    projectId: PropTypes.string,
+  }),
+};
