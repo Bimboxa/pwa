@@ -46,15 +46,8 @@ export default function useSelectedMesh3dParts() {
 
   return useMemo(() => {
     const editor = getActiveThreedEditor();
-    const displayed =
-      !stored?.mesh && annotationId
-        ? getDisplayedMesh3d(editor, annotationId)
-        : null;
-    const mesh = stored?.mesh ?? displayed?.mesh ?? null;
-    const info = getMesh3dPartsInfo(mesh, parts);
-    // A host carved live by a subtraction is display-only (no write converts
-    // it until « Soustraire définitivement »): the deletion is disabled on it
-    // like on an open mesh, instead of failing silently.
+    // A mesh whose displayed faces were collapsed by a live carve: its parts
+    // address the conversion of the carved solid, not the stored mesh.
     const carvedMeshObject =
       Boolean(stored?.mesh) &&
       hasCarvedSolid(
@@ -62,6 +55,17 @@ export default function useSelectedMesh3dParts() {
           annotationId
         ]
       );
+    const displayed =
+      (!stored?.mesh || carvedMeshObject) && annotationId
+        ? getDisplayedMesh3d(editor, annotationId)
+        : null;
+    const mesh = carvedMeshObject
+      ? (displayed?.mesh ?? null)
+      : (stored?.mesh ?? displayed?.mesh ?? null);
+    const info = getMesh3dPartsInfo(mesh, parts);
+    // A host carved live by a subtraction is display-only (no write converts
+    // it until « Soustraire définitivement »): the deletion is disabled on it
+    // like on an open mesh, instead of failing silently.
     const isClosed =
       !mesh ||
       (isMesh3dClosed(mesh) && !displayed?.carved && !carvedMeshObject);

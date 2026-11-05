@@ -88,9 +88,10 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
 // The group carries `mesh3dClosed` (the stored faces bound a volume): the
 // CSG reads it to carve a sheet host hollow and to refuse an open cutter.
 // A live subtraction (subtractAnnotationGeometries) collapses the face
-// meshes into ONE carved `hasSubtraction` mesh — display only, no
-// `mesh3dFaceIndex` left: « Soustraire définitivement » is the way back to
-// an editable mesh.
+// meshes into ONE carved `hasSubtraction` mesh, no `mesh3dFaceIndex` left:
+// its faces are then those of the carved solid (getDisplayedMesh3d),
+// selectable but never written — « Soustraire définitivement » is the way
+// back to an editable mesh.
 //
 // `userData.isMesh3d` is NOT used here: it tags the mailles (ThreedMeshes).
 export default function buildMesh3dAnnotationObject(

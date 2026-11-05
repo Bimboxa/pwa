@@ -55,10 +55,11 @@ export function getSolidMeshesFromObject3D(object) {
 
 /**
  * Whether an annotation object was carved live by a subtraction (CSG on its
- * displayed solid, `userData.hasSubtraction`). Such an object is display-only
+ * displayed solid, `userData.hasSubtraction`). Such an object is read-only
  * for the mesh tools: its faces no longer match the stored geometry (a mesh3d
- * host loses its per-face meshes), and « Soustraire définitivement » is the
- * way to a mesh that can be edited again.
+ * host loses its per-face meshes) — they are selectable on the conversion of
+ * the carved solid (getDisplayedMesh3d), never written, and « Soustraire
+ * définitivement » is the way to a mesh that can be edited again.
  *
  * @param {import("three").Object3D} object
  * @returns {boolean}

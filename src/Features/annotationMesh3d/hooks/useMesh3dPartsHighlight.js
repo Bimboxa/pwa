@@ -64,7 +64,8 @@ function disposeObject(object) {
 // coordinates and added to the scene (like the vertex / edge sub-selection
 // helper).
 //
-// A REGULAR annotation (not a mesh yet) has no face mesh: its selected parts
+// A REGULAR annotation (not a mesh yet) has no face mesh — nor has a mesh
+// annotation carved live by a subtraction: its selected parts
 // address the conversion of its displayed object (getDisplayedMesh3d). The
 // dots are then built from that face and added to the base map group, the
 // edge lines from its vertices. Those indices only hold for that geometry:
@@ -80,6 +81,10 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
   // selected on (regular annotation).
   const signatureRef = useRef(null);
   const displayedMeshRef = useRef(null);
+  // "<annotationId>|stored" or "<annotationId>|carved": which mesh the
+  // current parts of a MESH annotation address (its stored mesh, or the
+  // conversion of its solid carved live by a subtraction).
+  const meshHostModeRef = useRef(null);
 
   const selectedItem = useSelector(selectSelectedItem);
   const selectedPartIds = useSelector(selectSelectedPartIds);
@@ -108,6 +113,7 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
     if (!enabled || !annotationId || !partsKey) {
       signatureRef.current = null;
       displayedMeshRef.current = null;
+      meshHostModeRef.current = null;
       return undefined;
     }
     const editor = getActiveThreedEditor();
@@ -131,18 +137,37 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
       else selectedEdges.add(token.slice(1));
     }
 
-    const isMeshObject = Boolean(annoObject.userData?.isAnnotationMesh3d);
     // A mesh host carved live by a subtraction has no face meshes left (the
-    // CSG collapsed them): a part selected before the relation was added
-    // would point at stored faces that are not on screen — drop it.
-    if (isMeshObject && hasCarvedSolid(annoObject)) {
-      dispatch(clearItemPartSelection(annotationId));
-      return undefined;
-    }
+    // CSG collapsed them): its parts address the conversion of the carved
+    // solid, like a regular annotation's.
+    const isMeshObject =
+      Boolean(annoObject.userData?.isAnnotationMesh3d) &&
+      !hasCarvedSolid(annoObject);
     const displayed = isMeshObject
       ? null
       : getDisplayedMesh3d(editor, annotationId);
-    if (!isMeshObject) {
+    // A subtraction added to (or removed from) a mesh annotation while some
+    // of its parts are selected: the stored mesh and the carved conversion
+    // number their faces differently — the parts are dropped.
+    const meshHostMode = annoObject.userData?.isAnnotationMesh3d
+      ? `${annotationId}|${isMeshObject ? "stored" : "carved"}`
+      : null;
+    const previousMeshHostMode = meshHostModeRef.current;
+    meshHostModeRef.current = meshHostMode;
+    if (
+      meshHostMode &&
+      previousMeshHostMode?.startsWith(`${annotationId}|`) &&
+      previousMeshHostMode !== meshHostMode
+    ) {
+      signatureRef.current = null;
+      displayedMeshRef.current = null;
+      dispatch(clearItemPartSelection(annotationId));
+      return undefined;
+    }
+    if (isMeshObject) {
+      signatureRef.current = null;
+      displayedMeshRef.current = null;
+    } else {
       const key = `${annotationId}|${getMesh3dSignature(displayed?.mesh)}`;
       const previous = signatureRef.current;
       const previousMesh = displayedMeshRef.current;
@@ -193,9 +218,6 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
         }
         // Same ids on the new geometry: draw them below.
       }
-    } else {
-      signatureRef.current = null;
-      displayedMeshRef.current = null;
     }
 
     const faceOverlays = [];

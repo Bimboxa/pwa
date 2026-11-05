@@ -116,3 +116,55 @@ test("the cache follows a geometry swapped in place by the carve", () => {
   assert.equal(displayed.carved, true);
   assert.equal(displayed.mesh.faces.length, 10);
 });
+
+// A MESH annotation's displayed object: a Group `isAnnotationMesh3d` holding
+// one Mesh per face (`mesh3dFaceIndex`) — or, once a live subtraction
+// collapsed them (collapseMesh3dHost), ONE carved solid without face index.
+function meshHostScene({ carved }) {
+  const baseMapGroup = new Group();
+  const object = new Group();
+  object.userData = { isAnnotationMesh3d: true };
+  if (carved) {
+    const solid = new Mesh(carvedSlabGeometry(), new MeshBasicMaterial());
+    solid.userData = { role: "SOLID", hasSubtraction: true };
+    object.add(solid);
+  } else {
+    const face = new Mesh(
+      new BoxGeometry(4, 4, 0.3).translate(0, 0, 0.15),
+      new MeshBasicMaterial()
+    );
+    face.userData = { role: "SOLID", mesh3dFaceIndex: 0 };
+    object.add(face);
+  }
+  baseMapGroup.add(object);
+  baseMapGroup.updateMatrixWorld(true);
+  return {
+    sceneManager: {
+      annotationsManager: {
+        annotationsObjectsMap: { a1: object },
+        getAnnotationSource: () => ({
+          id: "a1",
+          type: "POLYGON",
+          isMesh3d: true,
+          baseMapId: "bm",
+        }),
+      },
+      imagesManager: { getGroup: () => baseMapGroup },
+    },
+  };
+}
+
+test("a mesh host carved live by a subtraction has selectable faces", () => {
+  const displayed = getDisplayedMesh3d(meshHostScene({ carved: true }), "a1");
+  assert.ok(displayed);
+  assert.equal(displayed.carved, true);
+  assert.equal(displayed.isMeshHost, true);
+  assert.equal(displayed.mesh.faces.length, 10);
+});
+
+test("an uncarved mesh host is addressed on its stored mesh", () => {
+  assert.equal(
+    getDisplayedMesh3d(meshHostScene({ carved: false }), "a1"),
+    null
+  );
+});

@@ -19,7 +19,7 @@ const getGeometryKey = (solids) =>
 // from its DISPLAYED 3D object: what lets a face of a plain extrusion be
 // selected like a mesh face, without writing anything.
 //
-//   { mesh, baseMapGroup, baseOffsetZ: 0, object, carved }
+//   { mesh, baseMapGroup, baseOffsetZ: 0, object, carved, isMeshHost }
 //
 // Same shape as getEditableMesh3d (worldToMesh3dLocal / mesh3dLocalToWorld
 // take it), but synchronous and never rebuilding the object: the mesh is the
@@ -28,9 +28,9 @@ const getGeometryKey = (solids) =>
 // (useMesh3dPartsHighlight), and a write re-locates the parts on the
 // un-shrunk conversion (deleteMesh3dPartsService).
 //
-// Null when the annotation is a mesh already (its faces are addressed on
-// the stored mesh — or not at all once a live carve collapsed them, see
-// getEditableMesh3d) or is not convertible. A flat
+// Null when the annotation is a mesh already and not carved (its faces are
+// addressed on the stored mesh, through the face meshes) or is not
+// convertible. A flat
 // one-face sheet (a one-segment PX wall, a flat polygon: its only face IS
 // the annotation) is returned too — the second click selects that face, the
 // cut tools lock on it, the vertex offset tool addresses it — unless
@@ -48,6 +48,12 @@ const getGeometryKey = (solids) =>
 // selectable, « Déplacer » moves its point offsets, but no write converts it
 // (getEditableMesh3d keeps refusing: « Soustraire définitivement » is the
 // way to a mesh). `carved` is returned so the callers gate their writes.
+//
+// A MESH host carved live is read the same way: the CSG collapsed its face
+// meshes into one solid (collapseMesh3dHost), so no displayed face maps to a
+// stored one any more — its faces are those of the carved-soup conversion,
+// selectable and never written (getEditableMesh3d refuses it). `isMeshHost`
+// tells it apart from a regular carved host.
 export default function getDisplayedMesh3d(
   editor,
   annotationId,
@@ -56,15 +62,21 @@ export default function getDisplayedMesh3d(
   const sceneManager = editor?.sceneManager;
   const annotationsManager = sceneManager?.annotationsManager;
   const object = annotationsManager?.annotationsObjectsMap?.[annotationId];
-  if (!object || object.userData?.isAnnotationMesh3d) return null;
+  if (!object) return null;
+  const isMeshHost = Boolean(object.userData?.isAnnotationMesh3d);
+  const carved = hasCarvedSolid(object);
+  if (isMeshHost && !carved) return null;
 
   const source = annotationsManager.getAnnotationSource?.(annotationId);
-  if (!isAnnotationConvertibleToMesh3d(source)) return null;
+  if (
+    isMeshHost ? !source?.isMesh3d : !isAnnotationConvertibleToMesh3d(source)
+  ) {
+    return null;
+  }
   const baseMapGroup = sceneManager.imagesManager?.getGroup?.(source.baseMapId);
   if (!baseMapGroup) return null;
 
   const solids = getSolidMeshesFromObject3D(object);
-  const carved = hasCarvedSolid(object);
   const geometryKey = getGeometryKey(solids);
   let entry = cache.get(object);
   if (!entry || entry.geometryKey !== geometryKey) {
@@ -80,7 +92,7 @@ export default function getDisplayedMesh3d(
   const { mesh } = entry;
   if (!mesh) return null;
   if (mesh.faces.length < 2 && !allowSingleFace) return null;
-  return { mesh, baseMapGroup, baseOffsetZ: 0, object, carved };
+  return { mesh, baseMapGroup, baseOffsetZ: 0, object, carved, isMeshHost };
 }
 
 // Geometry fingerprint of a displayed mesh (vertices to the mm + face loops):
