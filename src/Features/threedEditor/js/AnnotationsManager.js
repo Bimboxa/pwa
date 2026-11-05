@@ -119,7 +119,10 @@ export default class AnnotationsManager {
   // over a pending write can tell the rebuild carrying that write from the
   // unrelated ones (render mode switch, async carve).
   getAnnotationSource(id) {
-    return this._buildStateById.get(id)?.sourceRef ?? null;
+    const state = this._buildStateById.get(id);
+    // A failed build left no object behind (see createAnnotationsObjects).
+    if (!state || state.failed) return null;
+    return state.sourceRef ?? null;
   }
 
   // The loader options of the last createAnnotationsObjects pass (shrink
@@ -244,7 +247,7 @@ export default class AnnotationsManager {
       applyWireframeSettings(root, this.wireframeSettings);
     };
 
-    annotations.forEach((annotation) => {
+    const buildOne = (annotation) => {
       // Photo-baseMap annotations attached to a calibrated photoPlan: built
       // in the plane's own world frame (posed wrapper Group) and added to
       // the scene root — photo baseMaps have no group in the scene, so the
@@ -592,6 +595,40 @@ export default class AnnotationsManager {
       );
       (group ?? this.scene).add(object);
       this._notifyAnnotationReady(annotation.id);
+    };
+
+    // One annotation whose build throws (corrupt geometry…) must not take the
+    // rest of the pass down with it: it is skipped and reported by name. Its
+    // provenance is recorded as `failed` so the diff does not retry (and
+    // report) it on every emission — only once its resolved content changes.
+    annotations.forEach((annotation) => {
+      try {
+        buildOne(annotation);
+      } catch (e) {
+        console.error(
+          "[AnnotationsManager] annotation build failed",
+          {
+            id: annotation?.id,
+            type: annotation?.type,
+            label: annotation?.label,
+          },
+          e
+        );
+        if (!annotation?.id) return;
+        // Nothing half-built stays behind (the changed ids were disposed
+        // before the pass, so an object registered here is this build's).
+        this._disposeAnnotationObject(
+          this.annotationsObjectsMap[annotation.id]
+        );
+        delete this.annotationsObjectsMap[annotation.id];
+        this._carveTokens.delete(annotation.id);
+        this._buildStateById.set(annotation.id, {
+          sourceRef: annotation,
+          epochKey,
+          baseMapKey: this._getAnnotationBaseMapKey(annotation),
+          failed: true,
+        });
+      }
     });
   }
 

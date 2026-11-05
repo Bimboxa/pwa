@@ -10,6 +10,7 @@ import delaunayTriangulate from "./delaunayTriangulate";
 import expandShellProfileArcs from "./expandShellProfileArcs";
 import drapeHoleRingsOnContour from "./drapeHoleRingsOnContour";
 import carveHolesInTopMesh from "./carveHolesInTopMesh";
+import isDegenerateRing from "./isDegenerateRing";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -110,8 +111,10 @@ export default function triangulateAnnotationGeometry({
     return emptyResult();
   }
 
+  // Holes without area are dropped: they carve nothing and earcut throws on
+  // them (see isDegenerateRing).
   let validHoles = (holes || []).filter(
-    (h) => Array.isArray(h) && h.length >= 3
+    (h) => Array.isArray(h) && h.length >= 3 && !isDegenerateRing(h)
   );
   // Cuts without their own offsets follow the contour's sheet (see header).
   // Runs before every branch below (shell cache signature, chord / iso
