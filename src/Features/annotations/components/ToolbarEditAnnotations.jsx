@@ -19,6 +19,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
+import getQtiesSurface from "../utils/getQtiesSurface";
 import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 
 import {
@@ -180,7 +181,7 @@ export default function ToolbarEditAnnotations({
         existing.count += 1;
         if (annotation.isMesh3d) existing.hasMesh3d = true;
         if (qties?.enabled) {
-          existing.totalSurface += qties.surface || 0;
+          existing.totalSurface += getQtiesSurface(qties) || 0;
           existing.totalLength += qties.length || 0;
           existing.totalLayoutLength += qties.layoutLength || 0;
           existing.totalUnits += unitCount;
@@ -197,7 +198,7 @@ export default function ToolbarEditAnnotations({
           count: 1,
           // A mesh 3D annotation voids the group's surface / length total.
           hasMesh3d: Boolean(annotation.isMesh3d),
-          totalSurface: qties?.enabled ? qties.surface || 0 : 0,
+          totalSurface: qties?.enabled ? getQtiesSurface(qties) || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
           totalLayoutLength: qties?.enabled ? qties.layoutLength || 0 : 0,
           totalUnits: unitCount,

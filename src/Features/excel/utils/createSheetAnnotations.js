@@ -1,5 +1,7 @@
 import theme from "Styles/theme"
 
+import getQtiesSurface from "Features/annotations/utils/getQtiesSurface";
+
 export default function createSheetAnnotations(workbook, annotations) {
 
     // 1. Data preparation — skip mesh cells (their parent is already listed, so
@@ -13,7 +15,7 @@ export default function createSheetAnnotations(workbook, annotations) {
             height: annotation.height,
             unit: 1,
             length: annotation.qties?.length ?? 0,
-            surface: annotation.qties?.surface ?? 0,
+            surface: getQtiesSurface(annotation.qties) ?? 0,
         }
     })
 
