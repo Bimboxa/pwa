@@ -4,6 +4,7 @@ import {
   getShape3DKey,
   isRevolutionSolid,
 } from "Features/annotations/constants/shape3DConfig";
+import isPolylineSheetHost from "Features/annotations/utils/isPolylineSheetHost";
 import getBaseMapTransform, {
   getBaseMapEuler,
   BASE_MAP_ROTATION_ORDER,
@@ -84,8 +85,9 @@ function disposeObject(object) {
  * REMOVED by the subtraction plus the carved / uncarved mesh triangle-sums it
  * derives from.
  *
- * Normally only meaningful for open-surface (EXTRUSION_PROFILE swept surface,
- * REVOLUTION lathe shell) sources, whose quantity is a developed/lateral
+ * Normally only meaningful for open-surface sources (EXTRUSION_PROFILE swept
+ * surface, REVOLUTION lathe shell, POLYLINE sheet — PX wall or inline
+ * extrusion, see isPolylineSheetHost), whose quantity is a developed/lateral
  * surface (not a planar footprint). Returns null otherwise. REVOLUTION
  * sources need `revolutionAxisPoints` already resolved on the annotation.
  *
@@ -107,7 +109,10 @@ function disposeObject(object) {
  */
 // Module-level memo: the same (host + targets) carve is requested by several
 // withQties useAnnotationsV2 instances and across re-renders. Key on the fields
-// that affect the geometry (updatedAt is a cheap proxy for any edit).
+// that affect the geometry. `updatedAt` only covers edits of the annotation
+// row itself: point coordinates live in db.points, and height / offsetZ /
+// stroke unit can come from the template (overrideFields), so those are keyed
+// explicitly.
 const _cache = new Map();
 const MAX_CACHE = 200;
 
@@ -126,9 +131,27 @@ function baseMapKeyPart(baseMap) {
   ];
 }
 
+function pointsKeyPart(points) {
+  return (points || []).map((p) => [
+    p?.x,
+    p?.y,
+    p?.type ?? null,
+    p?.offsetTop ?? null,
+    p?.offsetBottom ?? null,
+  ]);
+}
+
 function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
   return JSON.stringify({
     s: [source.id, source.updatedAt, source.extrusionOrientation],
+    g: [
+      source.height ?? null,
+      source.offsetZ ?? null,
+      source.strokeWidthUnit ?? null,
+      !!source.closeLine,
+      source.hiddenSegmentsIdx ?? null,
+    ],
+    p: pointsKeyPart(source.points),
     // REVOLUTION radius depends on the axis line, whose edits don't touch the
     // arc's own updatedAt — key on the resolved axis coordinates.
     a: (source.revolutionAxisPoints || []).map((p) => [p.x, p.y]),
@@ -150,6 +173,8 @@ function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
       t.baseMapId,
       (t.revolutionAxisPoints || []).map((p) => [p.x, p.y]),
       t.revolutionPhi ?? null,
+      t.offsetZ ?? null,
+      pointsKeyPart(t.points),
     ]),
     // null in the same-basemap case, so existing keys keep their shape.
     x: crossBaseMaps,
@@ -177,7 +202,8 @@ export default async function computeSubtractedSurfaceM2Async(
   const shapeKey = getShape3DKey(sourceAnnotation?.shape3D);
   if (
     !isCrossBaseMap &&
-    !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey)
+    !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey) &&
+    !isPolylineSheetHost(sourceAnnotation)
   ) {
     return null;
   }

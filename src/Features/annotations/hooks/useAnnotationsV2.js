@@ -384,6 +384,7 @@ import {
 import getRevolutionAxisIdOfAnnotation from "Features/revolutionAxes/utils/getRevolutionAxisIdOfAnnotation";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
+import isPolylineSheetHost from "Features/annotations/utils/isPolylineSheetHost";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -2468,17 +2469,61 @@ export default function useAnnotationsV2(options) {
         _annotations?.length
       ) {
         const profileLenCache = new Map();
+        const resolveSubtractionTarget = (id) =>
+          _annotations.find((x) => x?.id === id) ??
+          _foreignTargetsById?.get(id);
+
+        // This stage runs BEFORE the template overrides are merged (stage B),
+        // but the carve must see the geometry the 3D scene builds: `height`,
+        // `offsetZ`, `strokeWidthUnit`… can be forced by the template
+        // (overrideFields). Merge them on COPIES of the operands, never on the
+        // rows themselves. Reading db.annotationTemplates here also makes the
+        // liveQuery observe it, so a template edit re-runs the carve.
+        const subtractionTemplateIds = new Set();
+        for (const a of _annotations) {
+          const ids = subtractionTargetIdsBySource.get(a?.id);
+          if (!ids || ids.length === 0) continue;
+          if (a.annotationTemplateId) {
+            subtractionTemplateIds.add(a.annotationTemplateId);
+          }
+          for (const id of ids) {
+            const tplId = resolveSubtractionTarget(id)?.annotationTemplateId;
+            if (tplId) subtractionTemplateIds.add(tplId);
+          }
+        }
+        const subtractionTemplateById = new Map();
+        if (subtractionTemplateIds.size > 0) {
+          const rows = await db.annotationTemplates.bulkGet([
+            ...subtractionTemplateIds,
+          ]);
+          for (const row of rows) {
+            if (row && !row.deletedAt) subtractionTemplateById.set(row.id, row);
+          }
+        }
+        const withTemplateOverrides = (annotation) => {
+          const template = subtractionTemplateById.get(
+            annotation?.annotationTemplateId
+          );
+          if (!template) return annotation;
+          return getAnnotationPropsFromAnnotationTemplateProps(
+            annotation,
+            getAnnotationTemplateProps(template),
+            baseMapById[annotation.baseMapId]
+          );
+        };
+
         for (const a of _annotations) {
           const targetIds = subtractionTargetIdsBySource.get(a?.id);
           if (!targetIds || targetIds.length === 0) continue;
-          const shapeKey = getShape3DKey(a.shape3D);
+          const host = withTemplateOverrides(a);
+          const shapeKey = getShape3DKey(host.shape3D);
+          // POLYLINE sheet (PX wall, inline extrusion): an open surface too,
+          // its quantity loses the developed area removed by the carve.
+          const isSheetHost = isPolylineSheetHost(host);
           const targets = targetIds
-            .map(
-              (id) =>
-                _annotations.find((x) => x?.id === id) ??
-                _foreignTargetsById?.get(id)
-            )
-            .filter(Boolean);
+            .map(resolveSubtractionTarget)
+            .filter(Boolean)
+            .map(withTemplateOverrides);
           if (targets.length === 0) continue;
           // A target on another base map makes the planar (pixel) path
           // meaningless — the two pixel frames are unrelated — so the mesh
@@ -2492,6 +2537,7 @@ export default function useAnnotationsV2(options) {
           if (
             a.isMesh3d ||
             (!isCrossBaseMap &&
+              !isSheetHost &&
               !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey))
           )
             continue;
@@ -2510,7 +2556,7 @@ export default function useAnnotationsV2(options) {
           };
           const tplId =
             shapeKey === "EXTRUSION_PROFILE"
-              ? a.shape3D?.profileTemplateId
+              ? host.shape3D?.profileTemplateId
               : null;
           if (tplId) {
             let plm = profileLenCache.get(tplId);
@@ -2523,7 +2569,7 @@ export default function useAnnotationsV2(options) {
           }
           try {
             const res = await computeSubtractedSurfaceM2Async(
-              a,
+              host,
               baseMapForRender,
               targets,
               // Only needed cross-base-map: lets the util pose each operand
@@ -2533,7 +2579,9 @@ export default function useAnnotationsV2(options) {
                 : undefined
             );
             if (res) {
-              if (shapeKey === "EXTRUSION_PROFILE") {
+              // Profiles and POLYLINE sheets keep their analytic surface
+              // (exact arcs) and lose the REMOVED area in stage B.
+              if (shapeKey === "EXTRUSION_PROFILE" || isSheetHost) {
                 a._subtractedSurfaceM2 = res.removedM2;
               } else {
                 a._carvedSurfaceM2 = res.carvedM2;
@@ -3018,7 +3066,8 @@ export default function useAnnotationsV2(options) {
           // Planar-footprint subtraction is only meaningful for
           // slab-type sources (footprint = surface). For POLYLINE
           // surfaces the carved area is a developed/lateral surface,
-          // not a footprint, so it is left to a dedicated path. A mesh
+          // not a footprint: handled below from the headless 3D carve
+          // (`_subtractedSurfaceM2` / `_carvedSurfaceM2`). A mesh
           // host is a POLYGON too, but its qties come from the stored mesh
           // (getMesh3dQties, `reason: "MESH_3D"` here) and its plan polygon
           // is only a projection: left untouched until the bake.
@@ -3048,13 +3097,15 @@ export default function useAnnotationsV2(options) {
             if (subQ) withSub.qties = { ...(withSub.qties || {}), ...subQ };
           }
 
-          // Open-surface (EXTRUSION_PROFILE) hosts: subtract the 3D
-          // developed surface removed by the boolean (precomputed in
-          // the async query as `_subtractedSurfaceM2`).
+          // Open-surface hosts (EXTRUSION_PROFILE, POLYLINE sheet — PX wall
+          // or inline extrusion): subtract the 3D developed surface removed
+          // by the boolean (precomputed in the async query as
+          // `_subtractedSurfaceM2`).
           if (
             withQties &&
             subtractionTargets.length > 0 &&
-            getShape3DKey(a?.shape3D) === "EXTRUSION_PROFILE" &&
+            (getShape3DKey(a?.shape3D) === "EXTRUSION_PROFILE" ||
+              isPolylineSheetHost(a)) &&
             a?._subtractedSurfaceM2 > 0 &&
             withSub.qties
           ) {

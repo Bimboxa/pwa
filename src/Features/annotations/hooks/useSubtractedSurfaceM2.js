@@ -5,9 +5,12 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
+import isPolylineSheetHost from "../utils/isPolylineSheetHost";
+
 /**
- * Developed surface (m²) removed by a subtraction on an OPEN-surface
- * (EXTRUSION_PROFILE) source annotation. Runs the same 3D boolean carve
+ * Developed surface (m²) removed by a subtraction on an OPEN-surface source
+ * annotation (EXTRUSION_PROFILE, or a POLYLINE sheet — PX wall / inline
+ * extrusion, see isPolylineSheetHost). Runs the same 3D boolean carve
  * headlessly for the given annotation only (cheap — one annotation at a time)
  * and returns the area difference, so callers can subtract it from the host's
  * displayed surface. Returns 0 when not applicable.
@@ -29,28 +32,39 @@ export default function useSubtractedSurfaceM2(annotation) {
   );
   const baseMap = baseMapById[annotation?.baseMapId];
 
-  const isProfile = annotation?.shape3D?.key === "EXTRUSION_PROFILE";
+  const isOpenSurface =
+    annotation?.shape3D?.key === "EXTRUSION_PROFILE" ||
+    isPolylineSheetHost(annotation);
   const targets = annotation?.subtractionTargets;
 
   // Recompute only when something geometry-affecting changes.
   const signature = useMemo(() => {
-    if (!isProfile || !targets?.length) return null;
+    if (!isOpenSurface || !targets?.length) return null;
     return JSON.stringify({
       id: annotation.id,
       u: annotation.updatedAt,
       orient: annotation.extrusionOrientation,
-      pts: (annotation.points || []).map((p) => [p.x, p.y]),
+      // A sheet's lateral surface follows its height and vertical offsets.
+      h: [annotation.height, annotation.offsetZ, annotation.strokeWidthUnit],
+      pts: (annotation.points || []).map((p) => [
+        p.x,
+        p.y,
+        p.type,
+        p.offsetTop,
+        p.offsetBottom,
+      ]),
       targets: targets.map((t) => [
         t.id,
         t.updatedAt,
         t.height,
+        t.offsetZ,
         t.baseMapId,
         (t.points || []).map((p) => [p.x, p.y, p.offsetTop, p.offsetBottom]),
       ]),
       // A base map moved in 3D changes the cross-base-map result.
       bm: baseMapsUpdatedAt,
     });
-  }, [isProfile, targets, annotation, baseMapsUpdatedAt]);
+  }, [isOpenSurface, targets, annotation, baseMapsUpdatedAt]);
 
   useEffect(() => {
     let cancelled = false;

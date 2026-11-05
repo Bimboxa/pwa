@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
 import { Box, Tooltip, Typography } from "@mui/material";
 
@@ -9,6 +10,7 @@ import getAnnotationQties, {
 } from "../utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "../utils/getAnnotationSubtractionQties";
 import getAnnotationOpeningQties from "../utils/getAnnotationOpeningQties";
+import isPolylineSheetHost from "../utils/isPolylineSheetHost";
 import {
   MESH_3D_QTY_LABEL,
   MESH_3D_QTIES_TOOLTIP,
@@ -21,6 +23,9 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   const { type } = annotation ?? {};
 
   const baseMap = useMainBaseMap();
+
+  // 0 unless the annotation is an open-surface host with subtractions.
+  const subtractedSurfaceM2 = useSubtractedSurfaceM2(annotation);
 
   const qties = getAnnotationQties({
     annotation,
@@ -43,6 +48,22 @@ export default function SectionAnnotationQties({ annotation, layout }) {
     if (subQ) {
       qties.surface = subQ.surface;
       qties.surfaceDeveloped = subQ.surfaceDeveloped;
+    }
+  }
+
+  // POLYLINE sheet host (PX wall, inline extrusion): the subtraction removes
+  // a developed surface, measured on the carved 3D mesh. Not applied to an
+  // EXTRUSION_PROFILE host: its base surface needs the resolved profile
+  // length, which this section does not compute.
+  if (qties && subtractedSurfaceM2 > 0 && isPolylineSheetHost(annotation)) {
+    if (Number.isFinite(qties.surface)) {
+      qties.surface = Math.max(0, qties.surface - subtractedSurfaceM2);
+    }
+    if (Number.isFinite(qties.surfaceDeveloped)) {
+      qties.surfaceDeveloped = Math.max(
+        0,
+        qties.surfaceDeveloped - subtractedSurfaceM2
+      );
     }
   }
 
