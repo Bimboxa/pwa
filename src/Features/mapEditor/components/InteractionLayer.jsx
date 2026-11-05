@@ -229,7 +229,7 @@ import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLe
 import useUndo from "App/db/useUndo";
 import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
 import TransformToolBadge from "Features/annotationTransform/components/TransformToolBadge";
-import { TRANSFORM_TOOL_MODES, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
+import { TRANSFORM_TOOL_MODES, ROTATE_ANNOTATION_MODE, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import { getTransformSession, useTransformPhase } from "Features/annotationTransform/services/transformSessionStore";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
@@ -8073,7 +8073,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // D2. EDITOR GRID SNAP (« Grille » command) — the point being drawn, or
-    // the destination of the move tool, lands on the grid when nothing
+    // the point clicked by the move / rotate tools, lands on the grid when nothing
     // stronger holds: no vertex / midpoint snap, no projection within its
     // display range, no distant-point axis lock, no Shift constraint.
     {
@@ -8089,10 +8089,13 @@ const InteractionLayer = forwardRef(({
           Math.hypot(screenSnap.x - viewportPos.x, screenSnap.y - viewportPos.y) <=
             TRANSFORM_PROJECTION_SNAP_MAX_PX;
       }
-      // Move tool: the destination only (the grab click needs a point of an
-      // annotation); the rotate tool never snaps on the grid.
+      // Move / rotate tools: every click placing a free point — the move
+      // destination, and for the rotation its pivot, its reference axis (2/3)
+      // and its target (3/3). Only the grab click of the move tool is left
+      // out: it needs a point of an annotation.
       const gridAllowedForMode = isTransformToolMode(enabledDrawingMode)
-        ? transformPhase === "MOVE" || transformPhase === "MOVE_COPY"
+        ? transformPhase !== "IDLE" ||
+          enabledDrawingMode === ROTATE_ANNOTATION_MODE
         : POINT_PLACEMENT_DRAWING_MODES.includes(enabledDrawingMode);
       if (
         enabledDrawingMode &&

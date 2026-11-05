@@ -429,8 +429,7 @@ function StaticMapContent({
         <LayerEditorGrid
           imageSize={baseMapImageSize}
           meterByPx={baseMapMeterByPx}
-          basePoseK={basePose.k}
-          visibleViewBox={visibleViewBox}
+          basePose={basePose}
         />
 
         {/* --- OVERLAID BASE MAPS (greyed, read-only) ---

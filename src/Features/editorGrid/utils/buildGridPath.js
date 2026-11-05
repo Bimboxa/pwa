@@ -1,6 +1,7 @@
 // Above this number of lines the grid is not drawn (safety net: the callers
-// already cull to the visible box and hide too-dense grids).
-const MAX_LINES = 1500;
+// already cull to the visible area and hide too-dense grids — a fixed grid
+// at its densest, 6 px cells over two viewports, stays well under).
+const MAX_LINES = 3000;
 
 const EMPTY = { minor: "", major: "" };
 
