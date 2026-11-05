@@ -390,6 +390,9 @@ export default function ToolbarDrawingDraft() {
   // Cut line (Maillage module): its own bottom toolbar (CutLineToolbarThreed),
   // no draft properties.
   if (newAnnotation?.type === "CUT_LINE") return null;
+  // Section mark (Fonds de plan module): a fixed helper style, no template —
+  // its options live in the drawing helper.
+  if (newAnnotation?.type === "BASE_MAP_LINK") return null;
 
   return (
     <PaperEditorBottomToolbar>

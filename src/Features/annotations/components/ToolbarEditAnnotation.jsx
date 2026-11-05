@@ -53,6 +53,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
+import ToolbarEditBaseMapLink from "./ToolbarEditBaseMapLink";
 import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
@@ -342,6 +343,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
   if (selectedAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT") {
     return <ToolbarEditRevolutionAxisPlacement onDragStart={onDragStart} />;
+  }
+  // Section mark (Fonds de plan module): same rule — its own toolbar (label
+  // + direction), on the plan as on the vertical base map it is located on.
+  if (selectedAnnotation?.type === "BASE_MAP_LINK") {
+    return <ToolbarEditBaseMapLink onDragStart={onDragStart} />;
   }
   // Read-only projection of an annotation hosted by another base map: the only
   // meaningful action is to go and open the real one.

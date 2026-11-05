@@ -14,6 +14,7 @@ import useMainBaseMap from "../hooks/useMainBaseMap";
 
 import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
+import resyncBaseMapLinkPlacementsService from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 
 import { Paper, Button, Typography, Box, TextField } from "@mui/material";
 import IconOrthoSnap from "Features/icons/IconOrthoSnap";
@@ -89,6 +90,14 @@ export default function SectionEditScale() {
     await updateEntity(mainBaseMap?.id, updates, {
       listing: mainBaseMapListing,
     });
+    // Section marks located on this base map WITHOUT adapting its scale are
+    // drawn at their true length: redraw them at the new scale.
+    if (mainBaseMap?.orientation === "VERTICAL") {
+      await resyncBaseMapLinkPlacementsService({
+        elevationBaseMapId: mainBaseMap.id,
+        dispatch,
+      });
+    }
 
     dispatch(setScaleAnnotationId(null));
     dispatch(setAnchorPositionScale(null));

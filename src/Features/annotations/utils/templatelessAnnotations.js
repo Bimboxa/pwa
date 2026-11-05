@@ -81,10 +81,13 @@ export function isListingTemplatelessAnnotation(annotation, listingId) {
 // Revolution axes and their placements belong to a base map + a scope too
 // (no listing, no template — see isLegacyStyleRevolutionHelper; the types are
 // inlined to keep this file import-free).
+// Same model for the section marks drawn from the Fonds de plan module
+// (BASE_MAP_LINK without a template — see baseMapLinkPredicates).
 function isScopeBoundRevolutionHelper(annotation) {
   return (
     (annotation?.type === "REVOLUTION_AXIS" ||
-      annotation?.type === "REVOLUTION_AXIS_PLACEMENT") &&
+      annotation?.type === "REVOLUTION_AXIS_PLACEMENT" ||
+      annotation?.type === "BASE_MAP_LINK") &&
     !annotation.annotationTemplateId
   );
 }

@@ -117,6 +117,14 @@ export function remapAnnotationIds(annotation, annotationIdMap) {
   ) {
     annotation.revolutionAxisId = annotationIdMap[annotation.revolutionAxisId];
   }
+  // Section mark: clone -> its source mark on the plan.
+  if (
+    annotation.sourceLinkAnnotationId &&
+    annotationIdMap[annotation.sourceLinkAnnotationId]
+  ) {
+    annotation.sourceLinkAnnotationId =
+      annotationIdMap[annotation.sourceLinkAnnotationId];
+  }
   const axisAnnotationId = annotation.shape3D?.axisAnnotationId;
   if (axisAnnotationId && annotationIdMap[axisAnnotationId]) {
     annotation.shape3D = {

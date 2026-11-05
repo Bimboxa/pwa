@@ -340,9 +340,14 @@ const DRAWING_SHAPES = [
       </SvgIcon>
     ),
   },
+  // Legacy template shape: section marks are now template-less helpers of
+  // the Fonds de plan module (command « Dessiner un trait de coupe »,
+  // Features/baseMapLinks). The entry only keeps the existing templates of
+  // that shape readable — the shape picker hides it (legacyOnly).
   {
     key: "BASE_MAP_LINK",
     label: "Coupe - Elévation",
+    legacyOnly: true,
     icon: (
       <SvgIcon fontSize="small" viewBox="0 0 20 20">
         {/* section line with end ticks */}

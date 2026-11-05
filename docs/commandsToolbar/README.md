@@ -29,8 +29,9 @@ the 3D editor; never in the read-only Viewer module; hidden under capture
 framing, walk mode, PDF editor, base maps grid, create base map section.
 Buttons and hotkeys share this visibility. The layout is per module
 (`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
-module shows its two base map placement commands and the « Repère » group
-alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
+module shows the « Repère » group, its two base map placement commands and
+« Dessiner un trait de coupe » (`DRAW_SECTION_LINE`, 2D editor, horizontal
+plans — `Features/baseMapLinks`) alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
 coupe » command (`DRAW_CUT_LINE`, `Features/threedCutLines`) alone.
 `DEFAULT_LAYOUT` is ordered by tool family, from the scene context to
 the quality tools: « Repère » → base map placement → draw (the templateless
@@ -47,8 +48,23 @@ the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
 « Commandes » dialog lists the commands under the section labels (« Repère »,
 « Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
 « Soustraction / Évidement », « Faces / Extrusion », « Créer / modifier depuis la
-sélection », « Déplacer / Affichage », « Qualité »). The last button of the
+sélection », « Déplacer / Affichage », « Qualité »), followed by the sections
+that only exist in the current module's layout (« Coupes / élévations » in
+Fonds de plan, « Mailles » / « Lignes de coupe » in Maillage —
+`getCommandsDialogSections(moduleKey)`), so their commands can be searched and
+ticked for the right-click menu of that module. The last button of the
 toolbar (`ButtonOpenCommandsDialog`, not a command) opens that dialog.
+
+« Dessiner un trait de coupe » (`DRAW_SECTION_LINE`) arms the two-click draw
+of a section mark (`BASE_MAP_LINK`): a template-less helper of the scope,
+visible and editable in the Fonds de plan module only, labelled « A-A »,
+« B-B »… It is **not** gated by `getDrawToolsGate` (that module forces the
+SELECT interaction mode for its listings popper). The mark is then located
+on a vertical base map from the « Traits de coupe » section of the listings
+popper — the drawing helper is titled « Repérage du trait de coupe » and
+carries the « Adapter l'échelle » switch (off: the base map keeps its scale,
+1st click = anchor, 2nd click = direction) — which poses that base map in 3D
+(`resyncBaseMapLinkPlacementsService`).
 
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
 drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device

@@ -7,8 +7,10 @@ import applyInteractionModeChange from "../utils/applyInteractionModeChange";
 // other modules still set the mode for their own flows (ZONES arming forces
 // DRAW, exiting the POV framing forces SELECT). Landing back in the Dessin
 // module with that residual mode would silently change the panel behavior —
-// reset it to "no mode" (the default draw-like behavior). The ?mode=viewer
-// lock keeps its forced SELECT (read-only shared link).
+// reset it to "no mode" (the default draw-like behavior). Same reset in the
+// Fonds de plan module, whose section marks are edited in "no mode" (a
+// residual SELECT would block their vertex drags). The ?mode=viewer lock
+// keeps its forced SELECT (read-only shared link).
 export default function useResetInteractionMode() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -20,7 +22,8 @@ export default function useResetInteractionMode() {
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
 
   useEffect(() => {
-    if (selectedViewerKey !== "MAP") return;
+    if (selectedViewerKey !== "MAP" && selectedViewerKey !== "BASE_MAPS")
+      return;
     if (viewerMode) return;
     if (interactionMode == null) return;
     applyInteractionModeChange(dispatch, {

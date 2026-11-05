@@ -132,7 +132,8 @@ import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperImageScale from "./PopperImageScale";
 import DialogChangeAnnotationImage from "Features/imageAnnotations/components/DialogChangeAnnotationImage";
-import MenuLinkBaseMapOutlet from "Features/baseMapLinks/components/MenuLinkBaseMapOutlet";
+import { isBaseMapLinkDraft } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
+import PopperDrawingHelper from "./PopperDrawingHelper";
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
@@ -584,6 +585,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const showAnnotationsInBaseMaps = useSelector(
     (s) => s.baseMapEditor.showAnnotations
   );
+  // Fonds de plan editor with the switch off: section marks only.
+  const baseMapLinksOnly =
+    forViewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps;
 
   track("newAnnotation", newAnnotation?.id);
   // Look of the annotations left out of a solo (bottom bar ButtonSoloDimStyle):
@@ -594,11 +598,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const keepSoloDimmed = soloDimStyle !== SOLO_DIM_STYLE.HIDDEN;
   const rawAnnotations = useAnnotationsV2({
     caller: "MainMapEditorV3",
-    // BaseMaps module: the "Afficher les annotations" switch of the Fond de
-    // plan panel loads the scope annotations; OFF = bare base map.
-    enabled:
-      isActiveViewer &&
-      !(viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps),
+    enabled: isActiveViewer,
+    // BaseMaps module: the section marks (BASE_MAP_LINK) are always shown;
+    // the "Afficher les annotations" switch of the Fond de plan panel loads
+    // the scope annotations on top of them (OFF = base map + section marks).
+    includeBaseMapLinks: forViewerKey === "BASE_MAPS",
+    onlyBaseMapLinks: baseMapLinksOnly,
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations,
     filterByMainBaseMap: true,
@@ -606,10 +611,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     sortByOrderIndex: true,
     // Read-only outlines of subtraction targets hosted by another base map
     // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
-    withForeignFootprints: true,
+    withForeignFootprints: !baseMapLinksOnly,
     // Read-only plan footprints (disc / annulus / sector) of the
     // annotations revolved around a REVOLUTION_AXIS drawn on this plan.
-    withRevolutionFootprints: true,
+    withRevolutionFootprints: !baseMapLinksOnly,
     // Photo camera poses (point + view cone) — Photos module, and the
     // Viewer module's 2D editor while the popper's Photos tab is active
     // (read-only consultation, hover preview + click-select in the grid).
@@ -3112,7 +3117,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           <PopperEditScale viewerKey={forViewerKey} />
           <PopperImageScale viewerKey={forViewerKey} />
           <DialogChangeAnnotationImage />
-          <MenuLinkBaseMapOutlet />
 
           {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
@@ -3131,6 +3135,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 <PopperMapListings />
                 {/* Base maps list detached from the popper above. */}
                 <PopperBaseMapsList />
+              </PortalEditorFloatingPanels>
+            )}
+
+          {/* Fonds de plan module with the docked panel: the listings
+                popper (which hosts the drawing helper) is not mounted, so
+                the helper of an armed section mark shows on its own. */}
+          {forViewerKey === "BASE_MAPS" &&
+            isActiveViewer &&
+            leftPanelDocked &&
+            !versionCompareEnabled &&
+            !imageModeActive &&
+            Boolean(enabledDrawingMode) &&
+            isBaseMapLinkDraft(newAnnotation) && (
+              <PortalEditorFloatingPanels>
+                <PopperDrawingHelper />
               </PortalEditorFloatingPanels>
             )}
 

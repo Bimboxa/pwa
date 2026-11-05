@@ -54,7 +54,7 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDisplayedAnnotationsBaseMapIds from "Features/popperMapListings/hooks/useDisplayedAnnotationsBaseMapIds";
-import SectionBaseMapLinkClones from "Features/baseMapLinks/components/SectionBaseMapLinkClones";
+import SectionBaseMapSectionLines from "Features/baseMapLinks/components/SectionBaseMapSectionLines";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -1069,14 +1069,11 @@ function AnnotationTemplatesForListing({
                   );
                 }
                 if (item?.isDivider) return null;
-                // A BASE_MAP_LINK section mark is authored on plans only; on a
-                // vertical base map its clones come from the dedicated
-                // "Coupes / élévations liées" section (SectionBaseMapLinkClones).
-                if (
-                  isVerticalBaseMap &&
-                  resolveDrawingShape(item) === "BASE_MAP_LINK"
-                )
-                  return null;
+                // Section marks (BASE_MAP_LINK) belong to the Fonds de plan
+                // module: drawn from its « Dessiner un trait de coupe » command
+                // and located from SectionBaseMapSectionLines. A legacy
+                // template of that shape never shows as a drawable row.
+                if (resolveDrawingShape(item) === "BASE_MAP_LINK") return null;
                 const templateQties = qtiesById?.[item.id];
                 // Annotations + parts painted in 3D with the template: both
                 // are counted (colored main quantity).
@@ -2576,6 +2573,13 @@ export default function PopperMapListings() {
         </Box>
       )}
 
+      {/* BaseMaps module, VERTICAL base map (2D editor): the section marks
+          of the scope, each with its button to locate it on this base map
+          — pinned at the top, whatever the switch above. */}
+      {!collapsed && isBaseMapsViewer && !isBaseMapsLegendThreed && (
+        <SectionBaseMapSectionLines baseMap={baseMap} />
+      )}
+
       {/* SCOPE module filter band, under the header on every side: the
           listing picked on the "Contenu" side narrows the grid and the
           legend — the cross goes back to "Afficher toutes les listes". */}
@@ -2949,16 +2953,6 @@ export default function PopperMapListings() {
                       </Box>
                     )}
 
-              {/* Coupes / élévations liées — on a VERTICAL base map targeted
-                by BASE_MAP_LINK marks: one row per link to draw its clone
-                here (the clone poses this base map in 3D). */}
-              {!isLocateBusinessObjectMode && (
-                <SectionBaseMapLinkClones
-                  baseMap={baseMap}
-                  annotationTemplateById={annotationTemplateById}
-                  spriteImage={spriteImage}
-                />
-              )}
             </>
           </Box>
 

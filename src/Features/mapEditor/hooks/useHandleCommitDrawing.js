@@ -49,6 +49,17 @@ import { isRevolutionHelperType } from "Features/annotations/constants/drawingSh
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import resyncBaseMapLinkPlacementsService from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
+import getBaseMapLinkWorldLengthService from "Features/baseMapLinks/services/getBaseMapLinkWorldLengthService";
+import getNextBaseMapLinkLabel from "Features/baseMapLinks/utils/getNextBaseMapLinkLabel";
+import {
+    isBaseMapLinkInScope,
+    isBaseMapLinkSource,
+} from "Features/baseMapLinks/utils/baseMapLinkPredicates";
+import {
+    isBaseMapLinkDraft,
+    isBaseMapLinkLocateDraft,
+} from "Features/baseMapLinks/utils/startBaseMapLinkTools";
+import { computeKeepScaleClonePoints } from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
 // below): the query ran on EVERY drawing commit (~30ms of IDB on slow
@@ -101,6 +112,8 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
     const defaultOffsetOnCommit = useSelector(s => s.mapEditor.defaultOffsetOnCommit);
+    // Section mark located on a vertical base map: « Adapter l'échelle ».
+    const baseMapLinkAdaptScale = useSelector(s => s.mapEditor.baseMapLinkAdaptScale);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
 
     // Visible annotations come from useAnnotationsV2 in the caller — that's
@@ -126,7 +139,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
     // helpers
 
-    const isBaseMapAnnotation = openedPanel === "BASE_MAP_DETAIL";
+    const isBaseMapDetailPanelOpen = openedPanel === "BASE_MAP_DETAIL";
 
 
     // main
@@ -148,6 +161,15 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
+        // Section marks ("trait de coupe", Fonds de plan module): scope-bound
+        // helpers, never "base map annotations" — even though they are drawn
+        // with the base map detail panel open.
+        const isSectionMarkDraft = isBaseMapLinkDraft(newAnnotation);
+        const isSectionMarkLocate = isBaseMapLinkLocateDraft(newAnnotation);
+        const isScopeBoundSectionMark = isSectionMarkDraft
+            && !newAnnotation?.annotationTemplateId;
+        const isBaseMapAnnotation = isBaseMapDetailPanelOpen && !isSectionMarkDraft;
+
         // Templateless draw ("Dessin" tool, hotkey D): no annotation template.
         // No listing either — the annotation belongs to the base map + the
         // scope only (its points carry no listingId either) — unless the
@@ -166,9 +188,47 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             && !newAnnotation?.annotationTemplateId;
         const listingId = isTemplateless
             ? (templatelessListingId ?? undefined)
-            : isScopeBoundRevolutionHelper
+            : isScopeBoundRevolutionHelper || isScopeBoundSectionMark
                 ? undefined
                 : selectedListingId;
+
+        // Section mark: its two points are its own — no vertex shared with
+        // (or inserted into) another annotation, so moving the mark can
+        // never drag a wall along. Locating one on a vertical base map
+        // WITHOUT adapting the scale keeps only the anchor (1st click) and
+        // the side (2nd click): the far point is recomputed, horizontal, at
+        // the mark's true length at the base map scale.
+        let sectionMarkAdaptScale = null;
+        if (isSectionMarkDraft && rawPoints?.length === 2) {
+            rawPoints = rawPoints.map((p) => ({ x: p.x, y: p.y }));
+            if (isSectionMarkLocate) {
+                if (baseMap?.orientation !== "VERTICAL") {
+                    dispatch(setToaster({ message: "Un trait de coupe se repère sur un fond de plan vertical (coupe / élévation).", isError: true }));
+                    return;
+                }
+                const lengthM = await getBaseMapLinkWorldLengthService(
+                    newAnnotation.sourceLinkAnnotationId
+                );
+                if (!lengthM) {
+                    dispatch(setToaster({ message: "Trait de coupe introuvable, ou son plan d'origine n'a pas d'échelle.", isError: true }));
+                    return;
+                }
+                const elevationMeterByPx = baseMap?.getMeterByPx?.();
+                // Without a scale there is nothing to keep: adapt it.
+                sectionMarkAdaptScale =
+                    Boolean(baseMapLinkAdaptScale) || !(elevationMeterByPx > 0);
+                if (!sectionMarkAdaptScale) {
+                    const kept = computeKeepScaleClonePoints({
+                        anchorPx: rawPoints[0],
+                        directionPx: rawPoints[1],
+                        lengthM,
+                        meterByPx: elevationMeterByPx,
+                    });
+                    if (!kept) return;
+                    rawPoints = [kept.anchorPx, kept.farPx];
+                }
+            }
+        }
 
         // IMAGE one-click placement: the click is the image centre; the two
         // corners feed the bbox commit below. Done here (not in the editor)
@@ -703,7 +763,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             // Revolution helpers only resolve an EXISTING template (the row that
             // armed the tool): a template-less helper draft must not create a
             // garbage template out of its scalar fields.
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isTemplateless && !(isRevolutionHelper && !newAnnotation.annotationTemplateId)) {
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isTemplateless && !(isRevolutionHelper && !newAnnotation.annotationTemplateId) && !isScopeBoundSectionMark) {
                 const existingAnnotationTemplates = await getTemplatesForListing(listingId);
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -767,10 +827,10 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 // useAnnotationsV2 keeps them visible through `scopeId`.
                 ...(isTemplateless
                     ? { scopeId: selectedScopeId ?? null, listingId: templatelessListingId }
-                    : isRevolutionHelper && !newAnnotation.annotationTemplateId
+                    : (isRevolutionHelper && !newAnnotation.annotationTemplateId) || isScopeBoundSectionMark
                         ? { scopeId: selectedScopeId ?? null, listingId: null }
                         : { listingId }),
-                ...(activeLayerId && !isBaseMapAnnotation
+                ...(activeLayerId && !isBaseMapAnnotation && !isSectionMarkDraft
                     ? { layerId: activeLayerId }
                     : {}),
 
@@ -904,6 +964,38 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
             }
 
+            // Section mark: the draft's `sourceLinkLengthM` only feeds the
+            // drawing preview. A new mark gets the first free letter pair of
+            // its scope ("A-A", "B-B"…); a located mark stores NO label (it
+            // reads its source's one) and remembers whether it recalibrated
+            // the base map scale, so the later resyncs keep that choice.
+            if (isSectionMarkDraft) {
+                delete _newAnnotation.sourceLinkLengthM;
+                delete _newAnnotation.linkedBaseMapId;
+                if (isSectionMarkLocate) {
+                    delete _newAnnotation.label;
+                    _newAnnotation.adaptScale = sectionMarkAdaptScale ?? true;
+                } else {
+                    const linkRows = (
+                        await db.annotations
+                            .where("projectId")
+                            .equals(projectId)
+                            .toArray()
+                    ).filter((a) => !a.deletedAt && isBaseMapLinkSource(a));
+                    const scopeIdByListingId = await getScopeIdByListingId(linkRows);
+                    _newAnnotation.label = getNextBaseMapLinkLabel(
+                        linkRows
+                            .filter((a) =>
+                                isBaseMapLinkInScope(a, {
+                                    scopeId: selectedScopeId,
+                                    scopeIdByListingId,
+                                })
+                            )
+                            .map((a) => a.label)
+                    );
+                }
+            }
+
             // DETAIL: the bubble text defaults to "X". Overwrite is deliberate —
             // ALWAYS_COPY_KEYS copies template.label (the template NAME) onto
             // the draft, which must not leak into the bubble.
@@ -941,6 +1033,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 _newAnnotation.offsetZ = _stackOffsetZ;
             } else if (drawingOffset !== 0) {
                 _newAnnotation.offsetZ = drawingOffset;
+            }
+
+            // A section mark has no altitude of its own.
+            if (isSectionMarkDraft) {
+                delete _newAnnotation.offsetZ;
+                delete _newAnnotation.height;
             }
         }
 
@@ -1144,7 +1242,11 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // textarea shows up focused right after the click (edit mode =
         // selection, like LABEL). Item built from _newAnnotation — waiting for
         // the DB roundtrip would delay the field by one liveQuery cycle.
-        if (_newAnnotation?.type === "FREE_TEXT" && !_updatedAnnotation) {
+        if (
+            (_newAnnotation?.type === "FREE_TEXT" ||
+                (isSectionMarkDraft && !isSectionMarkLocate)) &&
+            !_updatedAnnotation
+        ) {
             dispatch(setEnabledDrawingMode(null));
             dispatch(
                 setSelectedItem({
@@ -1235,10 +1337,13 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             _newAnnotation?.id
         ) {
             try {
+                // A mark has ONE located clone: the earlier one goes, on this
+                // base map (re-locating) as on any other (the mark is moved
+                // to this elevation, which becomes its target).
                 const previous = (
                     await db.annotations
-                        .where("baseMapId")
-                        .equals(_newAnnotation.baseMapId)
+                        .where("projectId")
+                        .equals(projectId)
                         .toArray()
                 ).filter(
                     (a) =>
@@ -1249,6 +1354,21 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 );
                 // Soft delete (db.js middleware) — keeps undo working.
                 for (const p of previous) await db.annotations.delete(p.id);
+
+                // Locating IS linking: the resync below only poses the base
+                // map the mark targets.
+                const sourceLink = await db.annotations.get(
+                    _newAnnotation.sourceLinkAnnotationId
+                );
+                if (
+                    sourceLink &&
+                    !sourceLink.deletedAt &&
+                    sourceLink.linkedBaseMapId !== _newAnnotation.baseMapId
+                ) {
+                    await db.annotations.update(sourceLink.id, {
+                        linkedBaseMapId: _newAnnotation.baseMapId,
+                    });
+                }
 
                 await resyncBaseMapLinkPlacementsService({
                     cloneId: _newAnnotation.id,

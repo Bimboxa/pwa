@@ -397,12 +397,14 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
-  // BASE_MAP_LINK ("Coupe - Elévation"): a 2-point section mark drawn on a
-  // horizontal plan and linked to a VERTICAL base map (linkedBaseMapId). Its
-  // clone, drawn on that elevation (sourceLinkAnnotationId), poses the
-  // elevation in 3D (angle + position + scale) — see
+  // BASE_MAP_LINK ("trait de coupe"): a 2-point section mark drawn on a
+  // horizontal plan from the Fonds de plan module (template-less helper of
+  // the scope) and located on a VERTICAL base map (linkedBaseMapId). Its
+  // clone on that elevation (sourceLinkAnnotationId) poses the elevation in
+  // 3D (angle + position, and the scale when the clone adapts it) — see
   // resyncBaseMapLinkPlacementsService. The observer stands on the RIGHT of
-  // the p1 → p2 direction on screen (view-direction arrows).
+  // the p1 → p2 direction on screen (view-direction arrows). Visible and
+  // editable in the Fonds de plan module only (useAnnotationsV2).
   BASE_MAP_LINK: {
     label: "Coupe - Elévation",
     annotationType: "BASE_MAP_LINK",
