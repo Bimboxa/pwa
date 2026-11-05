@@ -568,12 +568,8 @@ export default function SectionDrawingHelperContent() {
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
               {meshBrushOptionsS}
             </Typography>
-            <Paper
-              elevation={0}
+            <Box
               sx={{
-                px: 1,
-                py: 0.5,
-                bgcolor: "background.default",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -604,14 +600,10 @@ export default function SectionDrawingHelperContent() {
                   {meshBrushEdgeS}
                 </ToggleButton>
               </ToggleButtonGroup>
-            </Paper>
+            </Box>
             {isMeshBrushFace && (
-              <Paper
-                elevation={0}
+              <Box
                 sx={{
-                  px: 1,
-                  py: 0.5,
-                  bgcolor: "background.default",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -628,14 +620,10 @@ export default function SectionDrawingHelperContent() {
                     dispatch(setMeshBrushPaintAllFaces(e.target.checked))
                   }
                 />
-              </Paper>
+              </Box>
             )}
-            <Paper
-              elevation={0}
+            <Box
               sx={{
-                px: 1,
-                py: 0.5,
-                bgcolor: "background.default",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -652,7 +640,7 @@ export default function SectionDrawingHelperContent() {
                   dispatch(setMeshBrushCreate2dIfPossible(e.target.checked))
                 }
               />
-            </Paper>
+            </Box>
             <SectionMeshBrushPaintedTotal />
           </Box>
         </WhiteSectionGeneric>
