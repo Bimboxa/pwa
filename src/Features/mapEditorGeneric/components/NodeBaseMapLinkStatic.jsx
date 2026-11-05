@@ -1,22 +1,13 @@
 import { memo, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
-import { IconButton, Tooltip } from "@mui/material";
-import {
-  Link as LinkIcon,
-  SwapHoriz as SwapHorizIcon,
-} from "@mui/icons-material";
 import theme from "Styles/theme";
 
-import {
-  setBaseMapLinkMenu,
-  setSelectedMainBaseMapId,
-} from "Features/mapEditor/mapEditorSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
-import reverseBaseMapLinkDirectionService from "Features/baseMapLinks/services/reverseBaseMapLinkDirectionService";
 
 import db from "App/db/db";
 
@@ -30,12 +21,13 @@ import db from "App/db/db";
 // drawn in screen px inside counter-scaled groups.
 //
 // Two flavours share this node:
-//   - the SOURCE mark on a plan (`linkedBaseMapId` → a vertical base map): the
-//     quick-action row gains a "Lier à un fond de plan" button (menu outlet in
-//     MainMapEditorV3) and, once linked, a "Voir le fond de plan" button
-//     opens the target in the editor;
-//   - its CLONE on that elevation (`sourceLinkAnnotationId`): "Voir le plan"
-//     goes back to the plan hosting the source.
+//   - the SOURCE mark on a plan (`linkedBaseMapId` → the vertical base map it
+//     is located on): a "Voir le fond de plan" button opens that base map;
+//   - its CLONE on that elevation (`sourceLinkAnnotationId`): it shows the
+//     SOURCE's label (`sourceLinkLabel`, stamped by useAnnotationsV2) and
+//     "Voir le plan" goes back to the plan hosting the source.
+// The label and the direction are edited from the mark's toolbar
+// (ToolbarEditBaseMapLink).
 
 const TICK_HALF_PX = 8;
 const ARROW_PX = 12;
@@ -67,8 +59,6 @@ function NodeBaseMapLinkStatic({
 
   // strings
 
-  const linkS = "Lier à un fond de plan";
-  const reverseS = "Inverser le sens (côté observateur)";
   const viewBaseMapS = "Voir le fond de plan";
   const viewPlanS = "Voir le plan";
 
@@ -162,7 +152,10 @@ function NodeBaseMapLinkStatic({
   if (labelAngleDeg > 90) labelAngleDeg -= 180;
   else if (labelAngleDeg < -90) labelAngleDeg += 180;
 
-  const label = getAnnotationOwnLabel(mergedAnnotation);
+  // A clone displays its source's label; the drawing ghost of a clone (no
+  // read-time stamp yet) falls back to the label carried by its draft.
+  const label =
+    mergedAnnotation.sourceLinkLabel ?? getAnnotationOwnLabel(mergedAnnotation);
 
   // Arrow polygon in screen px around a local origin ON the segment: base on
   // the observer side (offset along n), tip pointing back at the segment.
@@ -190,26 +183,6 @@ function NodeBaseMapLinkStatic({
   }, [hasSegment, p1, dx, dy]);
 
   // handlers
-
-  const handleOpenLinkMenu = (e) => {
-    e.stopPropagation();
-    const rect = e.currentTarget?.getBoundingClientRect?.();
-    if (!rect) return;
-    dispatch(
-      setBaseMapLinkMenu({
-        annotationId,
-        anchorPosition: {
-          top: rect.bottom + 4,
-          left: rect.left + rect.width / 2,
-        },
-      })
-    );
-  };
-
-  const handleReverse = (e) => {
-    e.stopPropagation();
-    reverseBaseMapLinkDirectionService({ linkId: annotationId, dispatch });
-  };
 
   const handleViewBaseMap = (e) => {
     e.stopPropagation();
@@ -340,50 +313,6 @@ function NodeBaseMapLinkStatic({
       : null;
   const navTooltip = linkedBaseMap?.name ?? "";
 
-  // Quick-action row extra buttons (source marks only, real records only):
-  // link target menu + direct "Inverser le sens".
-  const overlayButtonSx = {
-    bgcolor: "rgba(255,255,255,0.9)",
-    border: `1px solid ${ACCENT_COLOR}`,
-    "&:hover": { bgcolor: "white" },
-    p: 0.5,
-  };
-  const showExtraButtons =
-    !isClone && !isTransient && !String(annotationId).startsWith("temp");
-  const extraButtons = showExtraButtons ? (
-    <>
-      <Tooltip
-        placement="top"
-        arrow
-        title={
-          linkedBaseMapId && linkedBaseMap?.name
-            ? `${linkS} — ${linkedBaseMap.name}`
-            : linkS
-        }
-      >
-        <IconButton
-          size="small"
-          onClick={handleOpenLinkMenu}
-          sx={{
-            ...overlayButtonSx,
-            color: linkedBaseMapId ? ACCENT_COLOR : "text.disabled",
-          }}
-        >
-          <LinkIcon sx={{ fontSize: 18 }} />
-        </IconButton>
-      </Tooltip>
-      <Tooltip placement="top" arrow title={reverseS}>
-        <IconButton
-          size="small"
-          onClick={handleReverse}
-          sx={{ ...overlayButtonSx, color: ACCENT_COLOR }}
-        >
-          <SwapHorizIcon sx={{ fontSize: 18 }} />
-        </IconButton>
-      </Tooltip>
-    </>
-  ) : null;
-
   return (
     <g {...commonDataProps}>
       {/* cut line — hit surface + visible stroke */}
@@ -486,8 +415,7 @@ function NodeBaseMapLinkStatic({
         </g>
       )}
 
-      {/* quick-action row above the mark (move / cotes / segment drag /
-          angles) + the "Lier à un fond de plan" button */}
+      {/* segment length / cotes overlay of the selected mark */}
       {selected && !disableVertexEditing && (
         <NodeSegmentLengthsStatic
           annotation={mergedAnnotation}
@@ -500,8 +428,6 @@ function NodeBaseMapLinkStatic({
           printMode={printMode}
           isTransient={isTransient}
           disableVertexEditing={disableVertexEditing}
-          extraButtons={extraButtons}
-          extraButtonCount={extraButtons ? 2 : 0}
         />
       )}
     </g>

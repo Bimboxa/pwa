@@ -11,6 +11,11 @@
 import assert from "node:assert/strict";
 import computeVerticalBaseMapPlacementFromLink from "Features/baseMaps/js/computeVerticalBaseMapPlacementFromLink";
 import baseMapNormalizedToWorld from "Features/baseMaps/js/baseMapNormalizedToWorld";
+import {
+  computeKeepScaleClonePoints,
+  getBaseMapLinkWorldLength,
+} from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
+import getNextBaseMapLinkLabel from "Features/baseMapLinks/utils/getNextBaseMapLinkLabel";
 
 const near = (a, b, eps = 1e-9) =>
   assert.ok(Math.abs(a - b) < eps, `expected ${a} ≈ ${b}`);
@@ -152,6 +157,176 @@ for (const angle of [0, 37, -120, 200]) {
     null
   );
   console.log("guards ok");
+}
+
+// --- keep scale ("Adapter l'échelle" off): anchor + direction only ---
+
+{
+  const W = 800;
+  const H = 400;
+  const toNorm = (px) => ({ x: px.x / W, y: px.y / H });
+
+  const solveKeep = (plan, elevation, anchorPx, directionPx, marks = { p1, p2 }) => {
+    const lengthM = getBaseMapLinkWorldLength({
+      planBaseMap: plan,
+      planNorm: marks,
+    });
+    const pts = computeKeepScaleClonePoints({
+      anchorPx,
+      directionPx,
+      lengthM,
+      meterByPx: elevation.meterByPx,
+    });
+    assert.ok(pts, "keep-scale points expected");
+    const pose = computeVerticalBaseMapPlacementFromLink({
+      planBaseMap: plan,
+      elevationBaseMap: elevation,
+      planNorm: marks,
+      cloneNorm: { q1: toNorm(pts.anchorPx), q2: toNorm(pts.farPx) },
+      keepScale: true,
+    });
+    assert.ok(pose, "keep-scale pose expected");
+    return { pts, pose, lengthM };
+  };
+
+  for (const angle of [0, 37, -120, 200]) {
+    const plan = makePlan(angle);
+    const elevation = makeElevation();
+    const A = baseMapNormalizedToWorld(p1, plan);
+    const B = baseMapNormalizedToWorld(p2, plan);
+
+    // second click on the RIGHT: the anchor pins p1, the far point lands on p2
+    const anchor = { x: 300, y: 180 };
+    const toRight = solveKeep(plan, elevation, anchor, { x: 520, y: 90 });
+    assert.equal(toRight.pts.side, 1);
+    near(toRight.pose.meterByPx, elevation.meterByPx);
+    near(toRight.pts.farPx.y, anchor.y);
+    near(toRight.pts.farPx.x - anchor.x, toRight.lengthM / elevation.meterByPx);
+    const posedRight = { ...elevation, ...toRight.pose };
+    const wAnchor = baseMapNormalizedToWorld(toNorm(toRight.pts.anchorPx), posedRight);
+    const wFar = baseMapNormalizedToWorld(toNorm(toRight.pts.farPx), posedRight);
+    for (const k of ["x", "y", "z"]) {
+      near(wAnchor[k], A[k], 1e-9);
+      near(wFar[k], B[k], 1e-9);
+    }
+
+    // second click on the LEFT: the anchor pins p2, the far point lands on p1
+    const toLeft = solveKeep(plan, elevation, anchor, { x: 120, y: 260 });
+    assert.equal(toLeft.pts.side, -1);
+    near(toLeft.pose.meterByPx, elevation.meterByPx);
+    const posedLeft = { ...elevation, ...toLeft.pose };
+    const wAnchorL = baseMapNormalizedToWorld(toNorm(toLeft.pts.anchorPx), posedLeft);
+    const wFarL = baseMapNormalizedToWorld(toNorm(toLeft.pts.farPx), posedLeft);
+    for (const k of ["x", "y", "z"]) {
+      near(wAnchorL[k], B[k], 1e-9);
+      near(wFarL[k], A[k], 1e-9);
+    }
+
+    // same heading as the "adapt" solve: the observer side is untouched
+    const adapt = computeVerticalBaseMapPlacementFromLink({
+      planBaseMap: plan,
+      elevationBaseMap: elevation,
+      planNorm: { p1, p2 },
+      cloneNorm: { q1, q2 },
+    });
+    near(toRight.pose.angleDeg, adapt.angleDeg);
+    near(toLeft.pose.angleDeg, adapt.angleDeg);
+
+    // idempotence: re-canonicalising from the stored points changes nothing
+    const again = computeKeepScaleClonePoints({
+      anchorPx: toLeft.pts.anchorPx,
+      directionPx: toLeft.pts.farPx,
+      lengthM: toLeft.lengthM,
+      meterByPx: toLeft.pose.meterByPx,
+    });
+    near(again.farPx.x, toLeft.pts.farPx.x);
+    near(again.farPx.y, toLeft.pts.farPx.y);
+
+    // the solver ignores a stale far point: only the anchor and the side count
+    const stale = computeVerticalBaseMapPlacementFromLink({
+      planBaseMap: plan,
+      elevationBaseMap: elevation,
+      planNorm: { p1, p2 },
+      cloneNorm: {
+        q1: toNorm(anchor),
+        q2: toNorm({ x: anchor.x + 3, y: anchor.y + 50 }),
+      },
+      keepScale: true,
+    });
+    for (const k of ["x", "y", "z"]) {
+      near(stale.position[k], toRight.pose.position[k]);
+    }
+
+    // lengthened source mark: the anchor stays, the far point follows
+    const longer = { p1, p2: { x: 0.9, y: 0.5 } };
+    const stretched = solveKeep(plan, elevation, anchor, { x: 520, y: 90 }, longer);
+    near(stretched.pts.anchorPx.x, anchor.x);
+    near(stretched.lengthM, 2 * toRight.lengthM);
+    near(
+      stretched.pts.farPx.x - anchor.x,
+      2 * (toRight.pts.farPx.x - anchor.x)
+    );
+    for (const k of ["x", "y", "z"]) {
+      near(stretched.pose.position[k], toRight.pose.position[k]);
+    }
+    console.log(`keep-scale ok at plan angle ${angle}`);
+  }
+
+  // vertical tie (direction straight above the anchor) runs to the right
+  assert.equal(
+    computeKeepScaleClonePoints({
+      anchorPx: { x: 100, y: 100 },
+      directionPx: { x: 100, y: 10 },
+      lengthM: 2,
+      meterByPx: 0.02,
+    }).side,
+    1
+  );
+
+  // no scale on the elevation: keep-scale is impossible
+  const unscaled = { ...makeElevation(), meterByPx: null };
+  assert.equal(
+    computeVerticalBaseMapPlacementFromLink({
+      planBaseMap: makePlan(0),
+      elevationBaseMap: unscaled,
+      planNorm: { p1, p2 },
+      cloneNorm: { q1, q2 },
+      keepScale: true,
+    }),
+    null
+  );
+  assert.equal(
+    computeKeepScaleClonePoints({
+      anchorPx: { x: 1, y: 1 },
+      directionPx: { x: 2, y: 1 },
+      lengthM: 2,
+      meterByPx: null,
+    }),
+    null
+  );
+  // a plan without scale gives no length
+  assert.equal(
+    getBaseMapLinkWorldLength({
+      planBaseMap: { ...makePlan(0), meterByPx: null },
+      planNorm: { p1, p2 },
+    }),
+    null
+  );
+  console.log("keep-scale guards ok");
+}
+
+// --- default labels ---
+
+{
+  assert.equal(getNextBaseMapLinkLabel([]), "A-A");
+  assert.equal(getNextBaseMapLinkLabel(["A-A"]), "B-B");
+  assert.equal(getNextBaseMapLinkLabel([" a - a ", "C-C"]), "B-B");
+  assert.equal(getNextBaseMapLinkLabel(["Coupes", null, undefined]), "A-A");
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    .split("")
+    .map((l) => `${l}-${l}`);
+  assert.equal(getNextBaseMapLinkLabel(alphabet), "AA-AA");
+  console.log("labels ok");
 }
 
 console.log("baseMapLinkPlacementReplay: all checks passed");

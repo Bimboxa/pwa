@@ -204,9 +204,21 @@ const DEFAULT_SECTIONS = [
   },
 ];
 
-// « Fonds de plan » module: the user frame group and the base map placement
-// commands only, in the same order as the default sections.
-const BASE_MAPS_SECTIONS = [AXES_SECTION, BASE_MAP_SECTION];
+// Section marks ("traits de coupe", Features/baseMapLinks): drawn on a plan
+// of the « Fonds de plan » module, 2D editor.
+const SECTION_LINES_SECTION = {
+  key: "SECTION_LINES",
+  label: "Coupes / élévations",
+  entries: ["DRAW_SECTION_LINE"],
+};
+
+// « Fonds de plan » module: the user frame group, the base map placement
+// commands (same order as the default sections) and the section marks.
+const BASE_MAPS_SECTIONS = [
+  AXES_SECTION,
+  BASE_MAP_SECTION,
+  SECTION_LINES_SECTION,
+];
 
 // « Maillage » module: the user frame group, the meshing tools (the
 // commands taking over from the bottom meshing toolbar — Features/threedMesh)
@@ -262,6 +274,20 @@ function getLayoutKey(moduleKey) {
 
 export function getToolbarSections(moduleKey) {
   return TOOLBAR_SECTIONS[getLayoutKey(moduleKey)];
+}
+
+// Sections listed by the « Commandes » dialog: the default sections, plus the
+// sections that only exist in the current module's layout (Fonds de plan,
+// Maillage) — their commands can then be searched and added to the
+// right-click shortcuts of that module.
+export function getCommandsDialogSections(moduleKey) {
+  const defaultKeys = new Set(DEFAULT_SECTIONS.map((section) => section.key));
+  const moduleOnly = getToolbarSections(moduleKey).filter(
+    (section) => !defaultKeys.has(section.key)
+  );
+  return moduleOnly.length > 0
+    ? [...DEFAULT_SECTIONS, ...moduleOnly]
+    : DEFAULT_SECTIONS;
 }
 
 export default function getToolbarLayout(moduleKey) {

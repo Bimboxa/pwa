@@ -432,6 +432,11 @@ import {
   isLegacyRevolutionRecord,
   isLegacyStyleRevolutionHelper,
 } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  isBaseMapLinkAnnotation,
+  isBaseMapLinkClone,
+  isScopeBoundBaseMapLink,
+} from "Features/baseMapLinks/utils/baseMapLinkPredicates";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttachment";
@@ -738,6 +743,14 @@ export default function useAnnotationsV2(options) {
     // outside it they are dropped from every consumer (scene, popper, counts,
     // listings) unless the caller opts in.
     const includeCutLines = Boolean(options?.includeCutLines);
+    // Section marks (BASE_MAP_LINK, Features/baseMapLinks) exist for the
+    // Fonds de plan module only: dropped from every consumer unless the
+    // caller opts in AND that module is the active one. There they are
+    // always visible (no layer / listing / eye / solo filter applies).
+    // `onlyBaseMapLinks` keeps nothing else (Fonds de plan editor with its
+    // "Afficher les annotations" switch off).
+    const includeBaseMapLinks = Boolean(options?.includeBaseMapLinks);
+    const onlyBaseMapLinks = Boolean(options?.onlyBaseMapLinks);
     // In the 3D viewer, keep non-soloed annotations in the result (instead of
     // removing them) so ThreedSelectionDimmer can render them translucent
     // rather than hiding them outright (zone solo — zonings module).
@@ -881,6 +894,11 @@ export default function useAnnotationsV2(options) {
     const isMeshesModule = useSelector(
       (s) => s.viewers.selectedViewerKey === "MESHES"
     );
+    // Fonds de plan module: the only one that renders the section marks.
+    const isBaseMapsModule = useSelector(
+      (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+    );
+    const showBaseMapLinks = includeBaseMapLinks && isBaseMapsModule;
     // eye of the orphan annotations (« Annot. sans modèle » row)
     const hideOrphans = useSelector((s) =>
       selectHiddenAnnotationTemplateIdSet(s).has(ORPHAN_TEMPLATE_ID)
@@ -1165,11 +1183,23 @@ export default function useAnnotationsV2(options) {
           )
       );
 
+      // Section marks: Fonds de plan module only (see includeBaseMapLinks).
+      if (!showBaseMapLinks) {
+        _annotations = _annotations.filter((a) => !isBaseMapLinkAnnotation(a));
+      }
+      if (onlyBaseMapLinks) {
+        _annotations = _annotations.filter(isBaseMapLinkAnnotation);
+      }
+
       // Template-linked revolution helpers are normal listing annotations and
       // flow through the visibility filters below. Only rows written by the
       // pre-template model (no annotationTemplateId, scopeId instead of a
       // listingId) keep the historical global-visibility bypass.
       const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
+      // Rows that no layer / listing eye can hide: the pre-template
+      // revolution helpers and every section mark (templated or not).
+      const bypassesVisibilityFilters = (a) =>
+        isRevolutionHelper(a) || isBaseMapLinkAnnotation(a);
 
       // layer visibility filter
       _annotations = _annotations.filter((a) =>
@@ -1177,7 +1207,8 @@ export default function useAnnotationsV2(options) {
       );
       if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
         _annotations = _annotations.filter((a) => {
-          if (a.isBaseMapAnnotation || isRevolutionHelper(a)) return true;
+          if (a.isBaseMapAnnotation || bypassesVisibilityFilters(a))
+            return true;
           if (!a.layerId) return showAnnotationsWithoutLayer;
           return !hiddenLayerIds.includes(a.layerId);
         });
@@ -1244,7 +1275,7 @@ export default function useAnnotationsV2(options) {
           // the listing counters) — they are scoped by their own `scopeId`
           // instead. Rows written before that field existed have none: keep
           // them rather than making them vanish.
-          if (isRevolutionHelper(a))
+          if (isRevolutionHelper(a) || isScopeBoundBaseMapLink(a))
             return !a.scopeId || a.scopeId === scope.id;
           // Scope-level templateless annotations ("Dessin" tool): no listing
           // either, scoped by their own `scopeId`. The ones drawn on a
@@ -1260,7 +1291,8 @@ export default function useAnnotationsV2(options) {
       if (excludeListingsIds && !baseMapAnnotationsOnly) {
         _annotations = _annotations.filter(
           (a) =>
-            isRevolutionHelper(a) || !excludeListingsIds.includes(a.listingId)
+            bypassesVisibilityFilters(a) ||
+            !excludeListingsIds.includes(a.listingId)
         );
       }
 
@@ -2059,6 +2091,17 @@ export default function useAnnotationsV2(options) {
             // getRevolutionHandleSnapPoints.
             const snapPoints = getRevolutionHandleSnapPoints(a, frame);
             if (snapPoints) a._snapPoints = snapPoints;
+          } else if (isBaseMapLinkClone(a)) {
+            // A located section mark shows its SOURCE's label (never a stale
+            // copy): the label lives on the plan mark only.
+            const sourceId = a.sourceLinkAnnotationId;
+            if (!axisRefCache.has(sourceId)) {
+              axisRefCache.set(sourceId, await db.annotations.get(sourceId));
+            }
+            const source = axisRefCache.get(sourceId);
+            if (!source || source.deletedAt) continue;
+            a.sourceLinkLabel = source.label ?? null;
+            a.sourceLinkBaseMapId = source.baseMapId ?? null;
           } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {
             const axisId = a.revolutionAxisId;
             if (!axisId) continue;
@@ -2795,6 +2838,8 @@ export default function useAnnotationsV2(options) {
       withForeignFootprints,
       withRevolutionFootprints,
       withPhotos,
+      showBaseMapLinks,
+      onlyBaseMapLinks,
     ]);
 
     // memoize post-processing to avoid recomputing on unrelated re-renders
@@ -2803,8 +2848,21 @@ export default function useAnnotationsV2(options) {
       // skip post-processing when disabled
       if (!enabled || !annotations || annotations.length === 0) return [];
 
+      // Section marks (Fonds de plan module) skip the whole pipeline below:
+      // no eye, solo, orphan or play filter may hide them. They are appended
+      // back at the end, with their template's style for the legacy rows.
+      const baseMapLinkRows = [];
+      const pipelineRows = [];
+      annotations.forEach((annotation) => {
+        if (isBaseMapLinkAnnotation(annotation)) {
+          baseMapLinkRows.push(annotation);
+        } else {
+          pipelineRows.push(annotation);
+        }
+      });
+
       // override with annotation templates
-      let result = annotations.map((annotation) => {
+      let result = pipelineRows.map((annotation) => {
         if (annotation?.isBaseMapAnnotation) {
           return annotation;
         } else {
@@ -3263,6 +3321,24 @@ export default function useAnnotationsV2(options) {
         } else {
           result = result.filter(isInRevolutionAxisSolo);
         }
+      }
+
+      // section marks: always visible, drawn on top
+      if (baseMapLinkRows.length > 0) {
+        result = [
+          ...result,
+          ...baseMapLinkRows.map((annotation) => {
+            const template =
+              annotationTemplatesMap[annotation?.annotationTemplateId];
+            if (!template) return annotation;
+            const merged = getAnnotationPropsFromAnnotationTemplateProps(
+              annotation,
+              getAnnotationTemplateProps(template),
+              baseMapById[annotation?.baseMapId]
+            );
+            return merged.hidden ? { ...merged, hidden: false } : merged;
+          }),
+        ];
       }
 
       // override with temp annotations

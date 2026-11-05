@@ -22,7 +22,7 @@ import RowCommand from "./RowCommand";
 import DialogCommandHelper from "./DialogCommandHelper";
 import ListSortableShortcuts from "./ListSortableShortcuts";
 import { COMMANDS_BY_KEY } from "../commands";
-import { TOOLBAR_SECTIONS } from "../constants/toolbarLayout";
+import { getCommandsDialogSections } from "../constants/toolbarLayout";
 import { DEFAULT_SHORTCUT_COMMAND_KEYS } from "../constants/defaultShortcuts";
 import useCommandHelpers from "../hooks/useCommandHelpers";
 import matchesCommandSearch, {
@@ -62,6 +62,13 @@ export default function DialogCommands() {
   const open = useSelector(selectCommandsDialogOpen);
   const shortcutKeys = useSelector(selectShortcutCommandKeys);
   const { orgaCode, basePath, byKey: helpersByKey } = useCommandHelpers();
+  // The default sections + the ones of the current module's own layout
+  // (Fonds de plan, Maillage).
+  const moduleKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const sections = useMemo(
+    () => getCommandsDialogSections(moduleKey),
+    [moduleKey]
+  );
 
   // state
 
@@ -97,7 +104,7 @@ export default function DialogCommands() {
   const matchingKeys = useMemo(() => {
     if (!searching) return null;
     const keys = new Set();
-    TOOLBAR_SECTIONS.DEFAULT.forEach((section) => {
+    sections.forEach((section) => {
       section.entries.forEach((entry) => {
         const entryKeys =
           typeof entry === "string"
@@ -117,7 +124,7 @@ export default function DialogCommands() {
       });
     });
     return keys;
-  }, [searching, searchWords, helpersByKey]);
+  }, [searching, searchWords, helpersByKey, sections]);
 
   const helperCommand = helperCommandKey
     ? COMMANDS_BY_KEY[helperCommandKey]
@@ -250,7 +257,7 @@ export default function DialogCommands() {
               columnGap: 2,
             }}
           >
-            {TOOLBAR_SECTIONS.DEFAULT.map(renderSection)}
+            {sections.map(renderSection)}
           </Box>
         </Box>
 

@@ -214,6 +214,8 @@ import convexHull from 'Features/geometry/utils/convexHull';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
+import { isBaseMapLinkLocateDraft } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
+import { computeKeepScaleClonePoints } from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
 import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
 import { getPatternSegmentCount, parsePatternRepeatCount, repeatDrawingPattern } from "Features/mapEditor/utils/patternRepeat";
 import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRepeatDrawingModes";
@@ -3527,6 +3529,24 @@ const InteractionLayer = forwardRef(({
   const applyLengthConstraintToPreview = (lastPt, candidate) => {
     if (!lastPt || !candidate) return candidate;
     if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION") return candidate;
+    // Section mark located WITHOUT adapting the base map scale: the 2nd click
+    // only gives the side, so the rubber band shows the mark as it will be
+    // stored — horizontal, at its true length (the commit recomputes it from
+    // the db anyway, see useHandleCommitDrawing).
+    const sectionMarkDraft = newAnnotationRef.current;
+    if (
+      isBaseMapLinkLocateDraft(sectionMarkDraft) &&
+      sectionMarkDraft.sourceLinkLengthM > 0 &&
+      !store.getState().mapEditor.baseMapLinkAdaptScale
+    ) {
+      const kept = computeKeepScaleClonePoints({
+        anchorPx: lastPt,
+        directionPx: candidate,
+        lengthM: sectionMarkDraft.sourceLinkLengthM,
+        meterByPx: meterByPxRef.current,
+      });
+      if (kept) return kept.farPx;
+    }
     const previewLengthMeters = fixedLengthsRef.current
       ? fixedLengthsRef.current.reduce((sum, v) => sum + v, 0)
       : fixedLengthRef.current;

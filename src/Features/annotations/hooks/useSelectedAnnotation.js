@@ -27,6 +27,9 @@ export default function useSelectedAnnotation() {
     caller: "useSelectedAnnotation",
     withForeignFootprints: true,
     withRevolutionFootprints: true,
+    // Section marks are selectable in the Fonds de plan module (the hook
+    // drops them in every other module).
+    includeBaseMapLinks: true,
   })
 
   // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed

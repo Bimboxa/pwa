@@ -75,7 +75,10 @@ export default function SectionLayers({ baseMapId }) {
       .where("baseMapId")
       .equals(baseMapId)
       .toArray();
-    let filtered = annotations.filter((a) => !a.deletedAt);
+    // Section marks belong to the Fonds de plan module, never to a layer.
+    let filtered = annotations.filter(
+      (a) => !a.deletedAt && a.type !== "BASE_MAP_LINK"
+    );
 
     // Resolve the listings referenced by these annotations to know which
     // belong to the current scope.

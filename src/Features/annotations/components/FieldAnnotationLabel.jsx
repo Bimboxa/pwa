@@ -24,6 +24,8 @@ import useUpdateBusinessObject from "Features/businessObjects/hooks/useUpdateBus
 // annotation (same redirection as the inline bubble edit in NodeDetailStatic).
 // MAIN annotations of a located business object edit the OBJECT's name: the
 // displayed label is derived from it (useAnnotationsV2 override).
+// A section mark (BASE_MAP_LINK) located on a vertical base map edits its
+// SOURCE mark's label: the clone stores none and displays the source's one.
 export default function FieldAnnotationLabel({ annotation }) {
   const dispatch = useDispatch();
 
@@ -64,6 +66,18 @@ export default function FieldAnnotationLabel({ annotation }) {
       : null;
   const updateBusinessObject = useUpdateBusinessObject();
 
+  // helpers — section mark: the label lives on the source mark
+
+  const isSectionMark = annotation?.type === "BASE_MAP_LINK";
+  const sectionMarkSourceId = isSectionMark
+    ? (annotation.sourceLinkAnnotationId ?? annotation.id)
+    : null;
+  const sectionMarkLabel = isSectionMark
+    ? ((annotation.sourceLinkAnnotationId
+        ? annotation.sourceLinkLabel
+        : annotation.label) ?? "")
+    : "";
+
   // helpers — show / hide toggle only for annotations with a sub-label
   // (same predicate as the Etiquette panel).
 
@@ -94,6 +108,13 @@ export default function FieldAnnotationLabel({ annotation }) {
       await updateBusinessObject(mainBusinessObject.id, { label: next });
       return;
     }
+    if (sectionMarkSourceId) {
+      const next = label.trim();
+      if (next === sectionMarkLabel) return;
+      await db.annotations.update(sectionMarkSourceId, { label: next });
+      dispatch(triggerAnnotationsUpdate());
+      return;
+    }
     if ((annotation.label ?? "") === label) return;
     await db.annotations.update(annotation.id, { label });
     dispatch(triggerAnnotationsUpdate());
@@ -109,6 +130,9 @@ export default function FieldAnnotationLabel({ annotation }) {
   } else if (mainBusinessObject) {
     fieldLabel = "Nom de l'ouvrage";
     value = mainBusinessObject.label ?? "";
+  } else if (isSectionMark) {
+    fieldLabel = "Repère de coupe";
+    value = sectionMarkLabel;
   }
 
   const endAction = canToggleLabel ? (

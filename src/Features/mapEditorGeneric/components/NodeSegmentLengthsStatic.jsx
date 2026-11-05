@@ -16,9 +16,9 @@ const ACCENT_COLOR = "#2196f3";
 
 // Overlay row geometry, screen px: MUI small IconButton with p: 0.5 around an
 // 18px icon ≈ 34px, plus the flex gap. The row only hosts the buttons a host
-// node passes (`extraButtons`, e.g. the "Lier à un fond de plan" action of a
-// BASE_MAP_LINK): the annotation commands and the view toggles live in the
-// unified commands toolbar (Features/commandsToolbar).
+// node passes (`extraButtons` — none today): the annotation commands and the
+// view toggles live in the unified commands toolbar
+// (Features/commandsToolbar).
 const OVERLAY_BUTTON_PX = 34;
 const OVERLAY_GAP_PX = 4;
 const OVERLAY_H_PX = 40;
@@ -80,9 +80,9 @@ export default function NodeSegmentLengthsStatic({
   disableVertexEditing = false,
   simple = false,
   onCommitLength,
-  // Extra buttons appended to the overlay row by the host node (e.g. the
-  // "Lier à un fond de plan" action of a BASE_MAP_LINK). `extraButtonCount`
-  // keeps the row centred on the bbox (drives the foreignObject width).
+  // Extra buttons appended to the overlay row by the host node.
+  // `extraButtonCount` keeps the row centred on the bbox (drives the
+  // foreignObject width).
   extraButtons = null,
   extraButtonCount = 0,
 }) {

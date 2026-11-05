@@ -46,6 +46,13 @@ import CardWallVectorization from "Features/smartDetect/components/CardWallVecto
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import SectionDrawingConstraints from "./SectionDrawingConstraints";
+import SectionBaseMapLinkDrawingHelper, {
+  SwitchBaseMapLinkAdaptScale,
+} from "Features/baseMapLinks/components/SectionBaseMapLinkDrawingHelper";
+import {
+  isBaseMapLinkDraft,
+  isBaseMapLinkLocateDraft,
+} from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 import SectionDrawingPatternRepeat from "./SectionDrawingPatternRepeat";
 import getEffectiveDetectionMode, {
   SMART_DETECT_UI_MODES,
@@ -166,6 +173,10 @@ const THREED_MESH_BRUSH_SHORTCUTS = [
   { key: "Clic", label: "Peindre / retirer la peinture" },
   { key: "Esc", label: "Quitter le pinceau" },
 ];
+
+// Section mark (Fonds de plan module): a two-click segment, nothing to
+// finish.
+const SECTION_MARK_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
 
 // Shortcuts of the « Pinceau » armed in the 2D editor (template brush:
 // InteractionLayer MESH_BRUSH branch + useTemplateBrushClick).
@@ -414,8 +425,24 @@ export default function SectionDrawingHelperContent() {
   const isSurfaceCut = useSelector((s) =>
     isSurfaceCutDraft(s.annotations.newAnnotation)
   );
+  // Section mark (Fonds de plan module): its own instruction, no image
+  // detection nor offset; locating one on a vertical base map adds the
+  // « Adapter l'échelle » option and drops the length constraints (the
+  // length is the mark's).
+  const isSectionMarkDraw = useSelector(
+    (s) =>
+      Boolean(s.mapEditor.enabledDrawingMode) &&
+      isBaseMapLinkDraft(s.annotations.newAnnotation)
+  );
+  const isSectionMarkLocate = useSelector(
+    (s) =>
+      Boolean(s.mapEditor.enabledDrawingMode) &&
+      isBaseMapLinkLocateDraft(s.annotations.newAnnotation)
+  );
   const showSmartDetectCard =
-    !isSurfaceCut && SMART_DETECT_UI_MODES.includes(enabledDrawingMode);
+    !isSurfaceCut &&
+    !isSectionMarkDraw &&
+    SMART_DETECT_UI_MODES.includes(enabledDrawingMode);
   // « Détection auto » of the plain clic-clic polyline (wall vectorization,
   // V): not for the tools sharing POLYLINE_CLICK — the ruler (RULER draft)
   // and the openings (isOpening), nor the surface cut.
@@ -442,6 +469,7 @@ export default function SectionDrawingHelperContent() {
     !isThreedToggledEditor &&
     !isSegmentSelectMode &&
     !isSurfaceCut &&
+    !isSectionMarkDraw &&
     Boolean(enabledDrawingMode) &&
     ![
       "REASSIGN_TEMPLATE",
@@ -818,9 +846,12 @@ export default function SectionDrawingHelperContent() {
           {"Dessinez un rectangle autour de la zone à réparer (2 clics)"}
         </Box>
       )}
+      {isSectionMarkDraw && !isThreedToggledEditor && (
+        <SectionBaseMapLinkDrawingHelper />
+      )}
       {/* Typed length / dimension constraints of the armed mode (rectangle
           sides, segment length, radius, cut distance) — null otherwise. */}
-      <SectionDrawingConstraints />
+      {!isSectionMarkLocate && <SectionDrawingConstraints />}
       {/* `*N` repetition of the pattern just drawn (click-drawn paths,
           2D and 3D) — null otherwise. */}
       <SectionDrawingPatternRepeat />
@@ -958,6 +989,9 @@ export default function SectionDrawingHelperContent() {
           />
         </Paper>
       )}
+      {isSectionMarkLocate && !isThreedToggledEditor && (
+        <SwitchBaseMapLinkAdaptScale />
+      )}
       <SectionShortcutHelpers
         shortcuts={
           isThreedToggledEditor
@@ -966,7 +1000,9 @@ export default function SectionDrawingHelperContent() {
               ? TEMPLATE_BRUSH_2D_SHORTCUTS
               : isSurfaceCut
                 ? SURFACE_CUT_SHORTCUTS
-                : undefined
+                : isSectionMarkDraw
+                  ? SECTION_MARK_SHORTCUTS
+                  : undefined
         }
       />
     </Box>

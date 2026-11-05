@@ -23,6 +23,7 @@ import SectionAnnotationFolioContent from "Features/detailFolio/components/Secti
 import SectionAnnotationMesh3d from "Features/annotationMesh3d/components/SectionAnnotationMesh3d";
 import SectionAnnotationPaintedParts from "Features/meshPaint/components/SectionAnnotationPaintedParts";
 import SectionAnnotationSurfaceCuts from "Features/threedFaceCut/components/SectionAnnotationSurfaceCuts";
+import SectionBaseMapLinkProperties from "Features/baseMapLinks/components/SectionBaseMapLinkProperties";
 
 // The label options ("Etiquette") are no longer a tab here: clicking the
 // label chip selects it (ANNOTATION_LABEL) and opens its own panel
@@ -115,7 +116,16 @@ export default function SectionAnnotationPropertiesBody({
           />
         )}
 
-        {!hasPart && effectiveTab === "PROPERTIES" && (
+        {/* Section mark (Fonds de plan module): its own short content. */}
+        {!hasPart &&
+          effectiveTab === "PROPERTIES" &&
+          annotation.type === "BASE_MAP_LINK" && (
+            <SectionBaseMapLinkProperties annotation={annotation} />
+          )}
+
+        {!hasPart &&
+          effectiveTab === "PROPERTIES" &&
+          annotation.type !== "BASE_MAP_LINK" && (
           <>
             <SectionAnnotationPropertiesContent
               annotation={annotation}

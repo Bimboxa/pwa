@@ -23,6 +23,12 @@ import baseMapNormalizedToWorld from "./baseMapNormalizedToWorld";
 // screen-RIGHT side of the p1 → p2 direction, i.e. the observer side drawn by
 // the section mark's arrows.
 //
+// `keepScale` ("Adapter l'échelle" off): the elevation keeps its own scale.
+// The FIRST clone point (q1) is then the anchor and the second one only
+// gives the side: q1 lands on A when the clone runs to the right, on B when
+// it runs to the left (the observer side is never changed), and the clone's
+// own length is ignored. Returns null when the elevation has no scale.
+//
 // Normalized inputs are {x, y} in [0..1] (same space as `db.points`).
 //
 // Returns `{ angleDeg, position: {x, y, z}, meterByPx }`, or `null` when the
@@ -36,11 +42,17 @@ const getSize = (baseMap) =>
     ? baseMap.getImageSize()
     : baseMap?.image?.imageSize;
 
+const getScale = (baseMap) =>
+  typeof baseMap?.getMeterByPx === "function"
+    ? baseMap.getMeterByPx()
+    : baseMap?.meterByPx;
+
 export default function computeVerticalBaseMapPlacementFromLink({
   planBaseMap,
   elevationBaseMap,
   planNorm,
   cloneNorm,
+  keepScale = false,
 }) {
   if (!planBaseMap || !elevationBaseMap) return null;
   if (!planNorm?.p1 || !planNorm?.p2) return null;
@@ -68,14 +80,30 @@ export default function computeVerticalBaseMapPlacementFromLink({
 
   const qa = { x: cloneNorm.q1.x * W, y: cloneNorm.q1.y * H };
   const qb = { x: cloneNorm.q2.x * W, y: cloneNorm.q2.y * H };
-  const left = qa.x <= qb.x ? qa : qb;
-  const right = qa.x <= qb.x ? qb : qa;
-  const deltaPx = right.x - left.x;
-  if (deltaPx < EPS_PX) return null;
 
-  // --- scale: the clone spans exactly |AB| ---
+  let left;
+  let right;
+  let meterByPx;
 
-  const meterByPx = L / deltaPx;
+  if (keepScale) {
+    // --- scale kept: q1 is the anchor, q2 only gives the side ---
+
+    meterByPx = getScale(elevationBaseMap);
+    if (!(meterByPx > 0)) return null;
+    const spanPx = L / meterByPx;
+    const runsRight = qb.x >= qa.x;
+    left = runsRight ? qa : { x: qa.x - spanPx, y: qa.y };
+    right = runsRight ? { x: qa.x + spanPx, y: qa.y } : qa;
+  } else {
+    left = qa.x <= qb.x ? qa : qb;
+    right = qa.x <= qb.x ? qb : qa;
+    const deltaPx = right.x - left.x;
+    if (deltaPx < EPS_PX) return null;
+
+    // --- scale: the clone spans exactly |AB| ---
+
+    meterByPx = L / deltaPx;
+  }
 
   // --- heading: local +X follows A → B ---
 

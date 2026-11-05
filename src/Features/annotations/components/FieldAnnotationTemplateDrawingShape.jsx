@@ -21,8 +21,12 @@ export default function FieldAnnotationTemplateDrawingShape({
   const primaryShapes = PRIMARY_KEYS.map((key) =>
     DRAWING_SHAPES.find((shape) => shape.key === key)
   ).filter(Boolean);
+  // A legacy shape (no longer offered to new templates) only shows while it
+  // is the template's current shape.
   const otherShapes = DRAWING_SHAPES.filter(
-    (shape) => !PRIMARY_KEYS.includes(shape.key)
+    (shape) =>
+      !PRIMARY_KEYS.includes(shape.key) &&
+      (!shape.legacyOnly || shape.key === value)
   );
 
   const selectedShape = DRAWING_SHAPES.find((shape) => shape.key === value);

@@ -214,9 +214,11 @@ const mapEditorInitialState = {
   imageScaleDraft: null,
   // Annotation whose image is being replaced (DialogChangeAnnotationImage).
   imageChangeAnnotationId: null,
-  // BASE_MAP_LINK "Lier à un fond de plan" menu (MenuLinkBaseMapOutlet):
-  // { annotationId, anchorPosition: {top, left} } | null.
-  baseMapLinkMenu: null,
+  // Section mark located on a vertical base map (drawing helper switch
+  // « Adapter l'échelle »): true = the base map scale is recalibrated from
+  // the two clicks; false = the scale is kept (1st click = anchor, 2nd =
+  // direction). Reset to false at each arming (startLocateBaseMapLink).
+  baseMapLinkAdaptScale: false,
 
   // latlng
   anchorPositionLatLng: null,
@@ -488,8 +490,8 @@ export const mapEditorSlice = createSlice({
       state.imageChangeAnnotationId = action.payload;
     },
     // BASE_MAP_LINK tools
-    setBaseMapLinkMenu: (state, action) => {
-      state.baseMapLinkMenu = action.payload ?? null;
+    setBaseMapLinkAdaptScale: (state, action) => {
+      state.baseMapLinkAdaptScale = Boolean(action.payload);
     },
     // latlng
     setAnchorPositionLatLng: (state, action) => {
@@ -1088,7 +1090,7 @@ export const {
   setScaleAnnotationId,
   setImageScaleDraft,
   setImageChangeAnnotationId,
-  setBaseMapLinkMenu,
+  setBaseMapLinkAdaptScale,
   //
   setAnchorPositionLatLng,
   setLatLng,

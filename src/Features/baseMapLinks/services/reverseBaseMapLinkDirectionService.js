@@ -13,17 +13,23 @@ export default async function reverseBaseMapLinkDirectionService({
   if (!linkId) return;
   const link = await db.annotations.get(linkId);
   if (!link || link.deletedAt || !Array.isArray(link.points)) return;
+  // The direction (observer side) belongs to the SOURCE mark: asked from a
+  // located clone, reverse its source. Swapping a clone's own points would
+  // only swap its anchor and its derived far point.
+  if (link.sourceLinkAnnotationId) {
+    await reverseBaseMapLinkDirectionService({
+      linkId: link.sourceLinkAnnotationId,
+      dispatch,
+    });
+    return;
+  }
   if (link.points.length < 2) return;
   await db.annotations.update(linkId, {
     points: [...link.points].reverse(),
   });
   dispatch?.(triggerAnnotationsUpdate());
-  if (!link.sourceLinkAnnotationId) {
-    await resyncBaseMapLinkPlacementsService({
-      sourceLinkId: linkId,
-      dispatch,
-    });
-  } else {
-    await resyncBaseMapLinkPlacementsService({ cloneId: linkId, dispatch });
-  }
+  await resyncBaseMapLinkPlacementsService({
+    sourceLinkId: linkId,
+    dispatch,
+  });
 }

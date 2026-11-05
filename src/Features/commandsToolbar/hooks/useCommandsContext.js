@@ -149,6 +149,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
     caller: "CommandsToolbar",
     withForeignFootprints: true,
     withRevolutionFootprints: true,
+    // Section marks (Fonds de plan module only — dropped elsewhere).
+    includeBaseMapLinks: true,
     enabled,
   });
   const annotationTemplates = useAnnotationTemplates({ skip: !enabled });
