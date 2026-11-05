@@ -15,7 +15,8 @@ import { setSelectedNode } from "Features/mapEditor/mapEditorSlice";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Tooltip, Typography } from "@mui/material";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import RowTemplatePaintedPart from "Features/panelDrawing/components/RowTemplatePaintedPart";
@@ -37,8 +38,10 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // grouped by painting template (icon, label, "2 facettes · 12,40 m² · 1 arête
 // · 3,20 ml"). A paint row click highlights + frames the paint in 3D (and a
 // 3D click on a paint highlights its row here); the hover delete removes the
-// paint. An annotation row click selects that annotation. Self-hiding
-// without part.
+// paint, and the header's « Tout retirer » removes every paint of the host
+// at once (one undo step; the 2D annotations the brush created are regular
+// annotations and stay). An annotation row click selects that annotation.
+// Self-hiding without part.
 // ---------------------------------------------------------------------------
 
 const plural = (n, word, pluralWord = `${word}s`) =>
@@ -52,6 +55,9 @@ export default function SectionAnnotationPaintedParts({ annotation }) {
   const titleS = "Parties peintes";
   const paintS = "Peinture 3D";
   const deleteErrorS = "Suppression de la peinture impossible";
+  const removeAllS = "Tout retirer";
+  const removeAllTooltipS =
+    "Retirer toutes les faces et arêtes peintes de cette annotation";
 
   // data
 
@@ -94,6 +100,11 @@ export default function SectionAnnotationPaintedParts({ annotation }) {
     );
   const canDelete = (part) =>
     !isReadOnlyScope && !isLinkedListing(part.listingId);
+  // Paints « Tout retirer » removes: every paint of the host this scope may
+  // delete.
+  const removablePaintIds = groups.flatMap((group) =>
+    group.parts.filter(canDelete).map((part) => part.id)
+  );
 
   const getSummary = (group) =>
     [
@@ -142,6 +153,30 @@ export default function SectionAnnotationPaintedParts({ annotation }) {
         dispatch(setHighlightedMeshPaintId(null));
     } catch (error) {
       console.error("[SectionAnnotationPaintedParts] delete", error);
+      dispatch(
+        setToaster({ message: error?.message || deleteErrorS, isError: true })
+      );
+    }
+  };
+
+  const handleRemoveAllPaints = async () => {
+    const ids = removablePaintIds;
+    if (ids.length === 0) return;
+    try {
+      await deleteMeshPaintsService({ ids });
+      if (ids.includes(highlightedPaintId)) {
+        dispatch(setHighlightedMeshPaintId(null));
+      }
+      dispatch(
+        setToaster({
+          message: `${plural(ids.length, "partie peinte", "parties peintes")} ${
+            ids.length > 1 ? "retirées" : "retirée"
+          }`,
+          severity: "info",
+        })
+      );
+    } catch (error) {
+      console.error("[SectionAnnotationPaintedParts] delete all", error);
       dispatch(
         setToaster({ message: error?.message || deleteErrorS, isError: true })
       );
@@ -205,6 +240,27 @@ export default function SectionAnnotationPaintedParts({ annotation }) {
         >
           {titleS}
         </Typography>
+        {removablePaintIds.length > 0 && (
+          <Tooltip title={removeAllTooltipS}>
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<DeleteOutline fontSize="small" />}
+              onClick={handleRemoveAllPaints}
+              sx={{
+                py: 0,
+                minHeight: 0,
+                flexShrink: 0,
+                textTransform: "none",
+                fontSize: "0.75rem",
+                color: "text.secondary",
+                "&:hover": { color: "error.main" },
+              }}
+            >
+              {removeAllS}
+            </Button>
+          </Tooltip>
+        )}
         <Typography
           variant="caption"
           noWrap

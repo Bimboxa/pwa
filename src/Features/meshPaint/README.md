@@ -103,6 +103,7 @@ Les règles ci-dessous sont écrites pour les faces ; elles valent à l'identiqu
 **Section « Parties peintes » du panneau d'une annotation hôte** (`components/SectionAnnotationPaintedParts.jsx`, `hooks/useHostPaintedParts.js`)
 
 - Liste, **regroupées par modèle peintre** (icône, libellé, « 2 facettes · 12,40 m² · 1 arête · 3,20 ml »), les peintures de l'hôte (`RowTemplatePaintedPart`, clic = cadrage 3D, suppression au survol) et les annotations 2D que le Pinceau a créées sur lui (`autoCreatedFrom` = hôte, `autoGenKind: "MESH_BRUSH"`, `RowHostBrushAnnotation`, clic = sélection de l'annotation).
+- Le bouton « **Tout retirer** » de l'en-tête retire d'un coup toutes les peintures de l'hôte (faces et arêtes, tous modèles) que le scope peut supprimer, en une étape d'undo. Les annotations 2D créées par le Pinceau sont des annotations ordinaires : elles restent.
 - Auto-masquée sans partie. Le surlignage posé depuis la liste est retiré au démontage de la liste ; celui posé par un clic 3D survit au changement de panneau.
 
 **Surfaces courbes et courbes**
