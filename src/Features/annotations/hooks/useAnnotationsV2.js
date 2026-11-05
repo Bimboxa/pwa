@@ -737,8 +737,9 @@ export default function useAnnotationsV2(options) {
     // annotations stay visible in 2D but are dropped from the 3D scene.
     const excludeProfileTemplates = options?.excludeProfileTemplates;
     // Drop COTE / RULER annotations whose template does not opt into the 3D
-    // scene (template.showIn3d), unless the row was drawn from the 3D viewer
-    // (isDrawnIn3d). 3D viewer only — 2D keeps showing them.
+    // scene (template.showIn3d; the row's own showIn3d when it has no
+    // template), unless the row was drawn from the 3D viewer (isDrawnIn3d).
+    // 3D viewer only — 2D keeps showing them.
     const excludeDimensionsHiddenIn3d = options?.excludeDimensionsHiddenIn3d;
     // Cut lines (Features/threedCutLines) exist for the Maillage module only:
     // outside it they are dropped from every consumer (scene, popper, counts,
@@ -3254,14 +3255,15 @@ export default function useAnnotationsV2(options) {
 
       // COTE / RULER are 3D-visible only when their template opts in
       // (template.showIn3d, false by default) or when the row was drawn from
-      // the 3D viewer (isDrawnIn3d). Templateless / orphan cotes are hidden.
+      // the 3D viewer (isDrawnIn3d). Templateless / orphan rows have no
+      // template to opt in: their own `showIn3d` decides (false by default,
+      // switch « Afficher en 3D » of SectionAnnotationCote).
       if (excludeDimensionsHiddenIn3d) {
         result = result.filter((a) => {
           if (a.type !== "COTE" && a.type !== "RULER") return true;
           if (a.isDrawnIn3d) return true;
-          return Boolean(
-            annotationTemplatesMap[a.annotationTemplateId]?.showIn3d
-          );
+          const template = annotationTemplatesMap[a.annotationTemplateId];
+          return Boolean(template ? template.showIn3d : a.showIn3d);
         });
       }
 
