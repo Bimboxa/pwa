@@ -1,3 +1,6 @@
+import { testIsWhitePageUrl } from "Features/baseMaps/utils/createWhitePageImage";
+import rasterizeWhitePageUrl from "Features/baseMaps/utils/rasterizeWhitePageUrl";
+
 import db from "App/db/db";
 
 const DEFAULT_MAX_LONG_EDGE = 1600;
@@ -6,6 +9,12 @@ const DEFAULT_JPEG_QUALITY = 0.8;
 // Raw bytes of the active version's image (no reference-frame placement).
 export async function getBaseMapBlob(baseMap) {
   const url = baseMap?.getUrl?.();
+  // White page base map: no stored file, the SVG image is rasterized (an SVG
+  // blob cannot be decoded by createImageBitmap).
+  if (testIsWhitePageUrl(url)) {
+    const { blob } = await rasterizeWhitePageUrl(url);
+    return blob;
+  }
   if (url) {
     const res = await fetch(url);
     if (res.ok) return res.blob();

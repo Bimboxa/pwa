@@ -61,6 +61,7 @@ import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
 import CardBaseMapPrintZone from "./CardBaseMapPrintZone";
 import SectionBaseMapSource from "./SectionBaseMapSource";
+import SectionBaseMapWhitePage from "./SectionBaseMapWhitePage";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 import SectionBaseMapScene3d from "Features/scene3d/components/SectionBaseMapScene3d";
@@ -325,6 +326,9 @@ export default function PanelBaseMapProperties() {
             <FieldBaseMapOpacity baseMap={baseMap} />
           )}
         </WhiteSectionGeneric>
+
+        {/* White page options: metric grid (self-hiding) */}
+        <SectionBaseMapWhitePage baseMap={baseMap} />
 
         {baseMap?.scene3d && <SectionBaseMapScene3d baseMap={baseMap} />}
 

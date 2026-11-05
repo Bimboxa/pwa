@@ -9,6 +9,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapListing";
 
 import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntityPureDataAndFilesDataByKey";
+import { getWhitePageImageField } from "Features/baseMaps/utils/createWhitePageImage";
 
 import db from "App/db/db";
 
@@ -70,7 +71,14 @@ export default function useCreateBaseMaps() {
             const result = await getEntityPureDataAndFilesDataByKey(
                 {
                     name: baseMap.name,
-                    image: { file: baseMap.imageFile },
+                    // White page (baseMap.whitePage = { width, height, grid }):
+                    // no file, the image is synthesized at hydration.
+                    image: baseMap.whitePage
+                        ? getWhitePageImageField(baseMap.whitePage)
+                        : { file: baseMap.imageFile },
+                    ...(baseMap.whitePage && {
+                        whitePage: { grid: baseMap.whitePage.grid ?? null },
+                    }),
                     meterByPx: baseMap.meterByPx,
                     sortIndex,
                     // PDF provenance (page + crop + dpi), null for images.

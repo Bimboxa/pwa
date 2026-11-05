@@ -8,6 +8,7 @@ import {
   TextField,
   ToggleButtonGroup,
   ToggleButton,
+  Switch,
 } from "@mui/material";
 import {
   CropLandscape as LandscapeIcon,
@@ -19,7 +20,7 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
-import createBlankImageFile from "Features/images/utils/createBlankImageFile";
+import { DEFAULT_WHITE_PAGE_GRID } from "../utils/createWhitePageImage";
 import getBlankBaseMapGeometry, {
   getBlankBaseMapPrintZone,
   FORMATS,
@@ -50,6 +51,8 @@ export default function DialogCreateBlankBaseMap({
   const sizeLabel = "Taille";
   const scaleLabel = "Échelle";
   const orientationLabel = "Orientation du plan";
+  const gridLabel = "Quadrillage";
+  const gridHelper = "Carreaux de 1 m, trait fort tous les 5 m";
   const createS = "Créer le fond de plan";
 
   // data
@@ -64,6 +67,8 @@ export default function DialogCreateBlankBaseMap({
   const [scale, setScale] = useState(50);
   // 3D plane orientation (floor / wall)
   const [orientation, setOrientation] = useState(defaultOrientation);
+  // squared paper (1 m squares) drawn with the page
+  const [showGrid, setShowGrid] = useState(false);
 
   // handlers
 
@@ -89,14 +94,13 @@ export default function DialogCreateBlankBaseMap({
       scale,
     });
 
-    const file = await createBlankImageFile({
-      width: pixelWidth,
-      height: pixelHeight,
-      fileName: `${name}.png`,
-    });
-
     const entity = await createBaseMapFromImage({
-      file,
+      // no image file: the white page is synthesized at hydration
+      whitePage: {
+        width: pixelWidth,
+        height: pixelHeight,
+        grid: showGrid ? DEFAULT_WHITE_PAGE_GRID : null,
+      },
       name,
       listing,
       meterByPx,
@@ -120,6 +124,7 @@ export default function DialogCreateBlankBaseMap({
     setSize("A3");
     setScale(50);
     setOrientation(defaultOrientation);
+    setShowGrid(false);
     if (onClose) onClose();
   }
 
@@ -220,6 +225,29 @@ export default function DialogCreateBlankBaseMap({
               <Typography variant="body2">Vertical</Typography>
             </ToggleButton>
           </ToggleButtonGroup>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {gridLabel}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {gridHelper}
+            </Typography>
+          </Box>
+          <Switch
+            size="small"
+            checked={showGrid}
+            onChange={(e) => setShowGrid(e.target.checked)}
+          />
         </Box>
       </BoxFlexVStretch>
 

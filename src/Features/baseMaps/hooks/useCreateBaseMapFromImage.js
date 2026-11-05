@@ -8,13 +8,20 @@ import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapLis
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
+import { getWhitePageImageField } from "Features/baseMaps/utils/createWhitePageImage";
+
 import db from "App/db/db";
 
 /**
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, scene3d?, orientation?, printZone?, source?, selectOnCreate? }) => entity
+ * White page: pass `whitePage: { width, height, grid }` INSTEAD of `file` —
+ * no file is stored, the image is synthesized at hydration
+ * (baseMaps/utils/createWhitePageImage.js). `grid` is null or
+ * { stepM, majorEvery }.
+ *
+ * @returns async ({ file, whitePage, name, listing?, meterByPx?, latLng?, geo?, scene3d?, orientation?, printZone?, source?, selectOnCreate? }) => entity
  *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
  *   scene3d: scan base map descriptor (see docs/baseMaps/SCENE_3D_BASE_MAPS.md);
  *   stored verbatim on the record
@@ -36,6 +43,7 @@ export default function useCreateBaseMapFromImage() {
 
   return async function createBaseMapFromImage({
     file,
+    whitePage,
     name,
     listing: listingArg,
     meterByPx,
@@ -47,7 +55,7 @@ export default function useCreateBaseMapFromImage() {
     position,
     angleDeg,
     printZone,
-    source = "image",
+    source = whitePage ? "whitePage" : "image",
     createdFrom,
     triggerInitialSave = true,
     selectOnCreate = true,
@@ -58,7 +66,8 @@ export default function useCreateBaseMapFromImage() {
 
     const entity = {
       name,
-      image: { file },
+      image: whitePage ? getWhitePageImageField(whitePage) : { file },
+      ...(whitePage && { whitePage: { grid: whitePage.grid ?? null } }),
       meterByPx,
       ...(orientation && { orientation }),
       ...(position && { position }),

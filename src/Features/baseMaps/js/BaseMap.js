@@ -3,6 +3,10 @@ import { nanoid } from "@reduxjs/toolkit";
 import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
 import { getDetailImageCacheKey } from "Features/baseMaps/services/detailBaseMapUtils";
+import createWhitePageImage, {
+  getWhitePageCacheKey,
+  testIsWhitePageImage,
+} from "Features/baseMaps/utils/createWhitePageImage";
 import db from "App/db/db";
 import editor from "App/editor";
 
@@ -35,6 +39,18 @@ function createPreviewOnlyImage(image) {
   });
   previewImage.isPreviewOnly = true;
   return previewImage;
+}
+
+// White page base map (record.whitePage): its image has no file, it is
+// synthesized in memory (white sheet + optional metric grid). Returns the
+// createWhitePageImage args for a stored image, or null for a regular one.
+function getWhitePageArgs(record, image) {
+  if (!testIsWhitePageImage(image)) return null;
+  return {
+    imageSize: image.imageSize,
+    meterByPx: record.meterByPx,
+    grid: record.whitePage?.grid ?? null,
+  };
 }
 
 export default class BaseMap {
@@ -94,6 +110,10 @@ export default class BaseMap {
     // width, height } — sheet rect in REFERENCE image px, see
     // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
     printZone,
+    // White page (« Page blanche »): { grid: null | { stepM, majorEvery } }.
+    // No file in db.files — the image is synthesized at hydration, see
+    // baseMaps/utils/createWhitePageImage.js.
+    whitePage,
     // version system
     versions,
     refWidth,
@@ -125,6 +145,7 @@ export default class BaseMap {
     this.createdFrom = createdFrom;
     this.detailRef = detailRef ?? null;
     this.printZone = printZone ?? null;
+    this.whitePage = whitePage ?? null;
     this.scene3d = scene3d ?? null;
     this.localScan = localScan ?? null;
     this.fromDXF = Boolean(fromDXF);
@@ -215,11 +236,16 @@ export default class BaseMap {
 
         const hydratedVersions = await Promise.all(
           versions.map(async (v) => {
-            const key = getImageCacheKey(v.image);
+            const whitePageArgs = getWhitePageArgs(record, v.image);
+            const key = whitePageArgs
+              ? getWhitePageCacheKey(whitePageArgs)
+              : getImageCacheKey(v.image);
             let loadedImage =
               cachedImages[v.id]?.key === key ? cachedImages[v.id].image : null;
 
-            if (!loadedImage && v.image?.fileName) {
+            if (!loadedImage && whitePageArgs) {
+              loadedImage = createWhitePageImage(whitePageArgs);
+            } else if (!loadedImage && v.image?.fileName) {
               const fileRecord = await db.files.get(v.image.fileName);
               if (fileRecord) {
                 const { fileArrayBuffer, fileMime, fileName } = fileRecord;
@@ -261,7 +287,10 @@ export default class BaseMap {
       }
 
       // --- Legacy path: image + imageEnhanced ---
-      const imageKey = getImageCacheKey(record.image);
+      const whitePageArgs = getWhitePageArgs(record, record.image);
+      const imageKey = whitePageArgs
+        ? getWhitePageCacheKey(whitePageArgs)
+        : getImageCacheKey(record.image);
       const imageEnhancedKey = getImageCacheKey(record.imageEnhanced);
 
       let bmImage =
@@ -273,7 +302,9 @@ export default class BaseMap {
           ? cacheEntry.imageEnhanced
           : null;
 
-      if (!bmImage && record?.image?.fileName) {
+      if (!bmImage && whitePageArgs) {
+        bmImage = createWhitePageImage(whitePageArgs);
+      } else if (!bmImage && record?.image?.fileName) {
         const fileRecord = await db.files.get(record.image.fileName);
         if (fileRecord) {
           const { fileArrayBuffer, fileMime, fileName } = fileRecord;
@@ -408,6 +439,15 @@ export default class BaseMap {
     return Boolean(img.isPreviewOnly) || !this.getUrl();
   };
 
+  // Whether the active image is a synthesized white page (no pixels to
+  // process: the pixel tools are pointless on it). False once a real image
+  // version is active, even on a base map created as a white page.
+  isWhitePage = () => {
+    const activeVersion = this.getActiveVersion();
+    const img = activeVersion ? activeVersion.image : this.image;
+    return Boolean(img?.isWhitePage);
+  };
+
   // Whether the active image is the inline low-res preview (file missing).
   isPreviewOnly = () => {
     const activeVersion = this.getActiveVersion();
@@ -522,6 +562,7 @@ export default class BaseMap {
       mainAngleInDeg: this.mainAngleInDeg,
       rotation2D: this.rotation2D,
       printZone: this.printZone ?? null,
+      whitePage: this.whitePage ?? null,
       scene3d: this.scene3d ?? null,
       localScan: this.localScan ?? null,
       fromDXF: this.fromDXF,

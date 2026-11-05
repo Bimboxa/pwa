@@ -9,7 +9,6 @@ import useCreateBaseMaps from "Features/baseMapCreator/hooks/useCreateBaseMaps";
 import ensurePdfPageResources from "Features/resources/services/ensurePdfPageResourcesService";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 
-import createBlankImageFile from "Features/images/utils/createBlankImageFile";
 import getBlankBaseMapGeometry, {
   getBlankBaseMapPrintZone,
 } from "Features/baseMaps/utils/getBlankBaseMapGeometry";
@@ -296,14 +295,10 @@ export default function useCreateConfigurationBaseMaps() {
                 size: item.pageFormat ?? "A3",
                 scale: item.scale ?? 50,
               });
-            const imageFile = await createBlankImageFile({
-              width: pixelWidth,
-              height: pixelHeight,
-              fileName: `${item.name ?? "page-blanche"}.png`,
-            });
             baseMaps.push({
               name: item.name,
-              imageFile,
+              // no file: the white page image is synthesized at hydration
+              whitePage: { width: pixelWidth, height: pixelHeight },
               meterByPx,
               printZone: getBlankBaseMapPrintZone({
                 format,

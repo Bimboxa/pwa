@@ -150,6 +150,7 @@ import getConcernedAnnotationIds from 'Features/localizedRepair/utils/getConcern
 import buildRepairProposal from 'Features/localizedRepair/utils/buildRepairProposal';
 import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairShortcuts';
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
+import { testIsWhitePageUrl } from 'Features/baseMaps/utils/createWhitePageImage';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
 import prepareCopiedSegmentCreation, { getSegmentMergeReachPx, isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
@@ -6791,8 +6792,12 @@ const InteractionLayer = forwardRef(({
         maskHeight = baseMapImageSize.height;
       }
 
+      // White page base map: nothing to read in the (SVG) image — the fill
+      // is bounded by the annotations only, as with "Ignorer le fond de plan".
+      const isWhitePage = testIsWhitePageUrl(baseMapImageUrl);
+
       const { points, cuts } = await cv.detectContoursAsync({
-        imageUrl: baseMapImageUrl,
+        imageUrl: isWhitePage ? null : baseMapImageUrl,
         x: pixelX,
         y: pixelY,
         viewportBBox,
@@ -6800,7 +6805,7 @@ const InteractionLayer = forwardRef(({
         maskWidth,
         maskHeight,
         skipApproxPoly: rawDetection,
-        ignoreBaseMap,
+        ignoreBaseMap: ignoreBaseMap || isWhitePage,
       });
 
       // Convert returned points from source pixel coords back to local coords
@@ -6868,11 +6873,14 @@ const InteractionLayer = forwardRef(({
       const pixelX = (localPos.x - baseMapImageOffset.x) / baseMapImageScale;
       const pixelY = (localPos.y - baseMapImageOffset.y) / baseMapImageScale;
       await cv.load();
-      const { colorHex } = await cv.getPixelColorAsync({
-        imageUrl: baseMapImageUrl,
-        x: pixelX,
-        y: pixelY,
-      });
+      // White page base map: every pixel is white, nothing to decode.
+      const { colorHex } = testIsWhitePageUrl(baseMapImageUrl)
+        ? { colorHex: "#ffffff" }
+        : await cv.getPixelColorAsync({
+            imageUrl: baseMapImageUrl,
+            x: pixelX,
+            y: pixelY,
+          });
       if (colorHex) {
         dispatch(setColorToReplace(colorHex));
       }
