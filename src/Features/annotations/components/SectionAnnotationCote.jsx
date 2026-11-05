@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Switch, Typography } from "@mui/material";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -24,6 +24,11 @@ import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 // cote's `coteLabelOffset`, a ruler's per-segment `rulerLabelOffsets` —
 // every card goes back onto its cote. For a cote it also drops
 // `coteLabelOffset2d`, the 2D label placement of the "Étiquette" style.
+//
+// « Afficher en 3D »: 3D visibility is template-owned (template.showIn3d), so
+// a row WITHOUT a template carries its own `showIn3d` (false by default) —
+// the switch is shown for those rows only. Rows drawn from the 3D viewer
+// (isDrawnIn3d) are always visible there: no switch.
 export default function SectionAnnotationCote({ annotation, overrideFields }) {
   // strings
 
@@ -37,6 +42,7 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
     annotation?.type === "RULER"
       ? "Replace chaque étiquette déplacée en 3D sur sa cote."
       : "Replace l'étiquette déplacée (2D ou 3D) à sa position par défaut.";
+  const showIn3dS = "Afficher en 3D";
 
   // data
 
@@ -48,6 +54,8 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
   const lockedByTemplate =
     Array.isArray(overrideFields) &&
     COTE_FIELDS.every((f) => overrideFields.includes(f));
+  const showShowIn3dSwitch =
+    !annotation?.annotationTemplateId && !annotation?.isDrawnIn3d;
   const hasLabelOffsets = isRuler
     ? hasActiveRulerLabelOffsets(annotation)
     : !isZeroLabelOffset(annotation?.coteLabelOffset) ||
@@ -65,6 +73,11 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
     });
     if (!Object.keys(patch).length) return;
     await updateAnnotation({ id: annotation.id, ...patch });
+  }
+
+  async function handleShowIn3dChange(e, checked) {
+    if (!annotation?.id) return;
+    await updateAnnotation({ id: annotation.id, showIn3d: checked });
   }
 
   async function handleResetLabelOffsets() {
@@ -102,6 +115,24 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
         <Typography variant="caption" color="text.secondary">
           {lockedS}
         </Typography>
+      )}
+      {showShowIn3dSwitch && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            mt: 1,
+          }}
+        >
+          <Typography variant="body2">{showIn3dS}</Typography>
+          <Switch
+            size="small"
+            checked={Boolean(annotation?.showIn3d)}
+            onChange={handleShowIn3dChange}
+          />
+        </Box>
       )}
       <Box sx={{ mt: 1 }}>
         <Button
