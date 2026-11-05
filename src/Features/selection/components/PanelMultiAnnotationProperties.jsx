@@ -23,6 +23,9 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useSceneExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useSceneExtraBaseMapIdsIn3d";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/components/SectionLinkAnnotationsToBusinessObject";
@@ -42,10 +45,17 @@ export default function PanelMultiAnnotationProperties() {
   // ThreedPopperEditAnnotations): the legacy useAnnotations hook silently
   // drops annotations without an entityId (e.g. procedure-created ones),
   // which desynced this panel from the toolbar counts.
+  // 3D editor: a selection can span every base map displayed in the scene
+  // (same set as ThreedPopperEditAnnotations), not only the main one.
+  const isThreedEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+  const sceneExtraBaseMapIds = useSceneExtraBaseMapIdsIn3d();
   const annotations = useAnnotationsV2({
     caller: "PanelMultiAnnotationProperties",
     enabled: true,
     filterByMainBaseMap: true,
+    extraBaseMapIds: isThreedEditor ? sceneExtraBaseMapIds : undefined,
     filterBySelectedScope: true,
   });
   const baseMap = useMainBaseMap();
