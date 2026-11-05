@@ -4,6 +4,7 @@ import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import getTriangleFaceLabels from "Features/threedEditor/js/utilsAnnotationsManager/getTriangleFaceLabels";
 import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import buildHostPartIndex from "Features/meshPaint/utils/buildHostPartIndex";
 import hashTriangles from "Features/meshPaint/utils/hashTriangles";
@@ -109,15 +110,6 @@ function getHalfViewAxis(mesh) {
 // group of the triangle — two faces with different labels never share a
 // plane group, an island or a smooth surface, like two cut pieces.
 const FACE_LABEL_BASE = 100000;
-
-export function getTriangleFaceLabels(geometry) {
-  const labels = geometry?.userData?.triParts;
-  if (!labels?.length) return null;
-  const position = geometry.getAttribute?.("position");
-  const index = geometry.getIndex?.();
-  const count = index ? index.count : (position?.count ?? 0);
-  return labels.length === Math.floor(count / 3) ? labels : null;
-}
 
 function collectTriangles(meshes, groupInverse) {
   const out = [];

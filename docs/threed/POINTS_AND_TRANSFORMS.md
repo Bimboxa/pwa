@@ -112,8 +112,11 @@ middle of a straight side.
 
 `getBreakSegmentLabels` (`Features/geometry/utils`) labels the runs of
 segments between two breaks; the builders store the label of every triangle
-in `geometry.userData.triParts`, read by `buildHostPartIndexFromObject` and
-`meshBrushPick` (one brush target per label, see the meshPaint README). A
+in `geometry.userData.triParts` (`getTriangleFaceLabels`), read by
+`getFaceRegion` (`faceHoverHighlight`: hover, face selection on the second
+click, face tools, brush hover — a region never crosses a label) and by
+`buildHostPartIndexFromObject` (one brush target per label, see the
+meshPaint README). A
 closed ring with a single break is closed by its sharpest other corner (one
 break alone cannot cut a ring). The break edges are `LineSegments` tagged
 `isGridEdge` / `gridEdgeKind: "VERTEX"`: they follow the Wireframe
