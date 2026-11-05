@@ -4,15 +4,16 @@ A white page is a base map with **no image file**. Nothing is written to
 `db.files`: the page is described by its size and scale, and its image is
 synthesized in memory each time the base map is hydrated.
 
-It also carries an optional **metric grid** (squared paper: 1 m squares, one
-heavier line every 5).
+A metric grid can be shown over it (and over any other base map) with the
+« Grille » command — a view setting, not part of the base map: see
+`docs/editorGrid/README.md`.
 
 ## Storage model
 
 On the `baseMaps` record:
 
 ```js
-whitePage: { grid: null | { stepM: 1, majorEvery: 5 } }
+whitePage: {}                   // marker: created with no image file
 image: {
   isImage: true,
   isWhitePage: true,
@@ -36,25 +37,16 @@ points, fit-to-view, print zone, Krto zip, sync): none of these read pixels.
 path and the legacy path, and builds an `ImageObject` with
 `createWhitePageImage` (`src/Features/baseMaps/utils/createWhitePageImage.js`):
 
-- `imageUrlClient` is an **SVG data url**: a white rect plus two `<path>`
-  (minor / major grid lines), a few KB at most;
-- the grid step in px is `stepM / meterByPx`, lines are anchored on the
-  **bottom-left** corner of the page;
-- a family of lines closer than 4 px is dropped.
+`imageUrlClient` is an **SVG data url** holding one white rect (a few hundred
+bytes).
 
 Because the result is an ordinary image url, every consumer of
 `baseMap.getUrl()` works unchanged: the 2D `<image>`, the textured plane of the
-3D editor, print, portfolio, base maps grid, thumbnails. The grid is part of
-the page, so it shows (and prints) wherever the base map does.
-
-The cache key (`getWhitePageCacheKey`) covers the size, `meterByPx` and the
-grid options: toggling the grid or recalibrating the scale yields a new url,
-which is what makes the 2D view and the 3D plane (`getPlaneSignature` includes
-the url) refresh.
+3D editor, print, portfolio, base maps grid, thumbnails.
 
 ## Creating one
 
-Pass `whitePage: { width, height, grid }` instead of a file:
+Pass `whitePage: { width, height }` instead of a file:
 
 - `useCreateBaseMapFromImage` (dialog, quick A3 button, revolution section
   pages);
@@ -62,9 +54,6 @@ Pass `whitePage: { width, height, grid }` instead of a file:
 
 `getBlankBaseMapGeometry` still gives the pixel size and `meterByPx` from the
 paper format and the scale.
-
-The grid is toggled afterwards from the base map properties panel
-(`SectionBaseMapWhitePage`).
 
 ## Pixel consumers
 
@@ -74,8 +63,7 @@ An SVG url has no pixels worth reading and **cannot be decoded** by
 
 - **Surface drop (flood fill)**: `InteractionLayer` forces `ignoreBaseMap` and
   sends no `imageUrl`; the worker (`detectContoursAsync`) then takes the image
-  size from the exclusion mask. This is required for correctness, not only
-  speed: the grid lines would otherwise act as barriers.
+  size from the exclusion mask (nothing to fetch nor decode).
 - **Colour picker**: returns white without calling the worker.
 - **Any other OpenCV call** with an `imageUrl` payload: `opencvService`
   swaps the SVG url for a PNG raster (`rasterizeWhitePageUrl`, cached).
@@ -88,7 +76,7 @@ white page (false once a real image version is active).
 ## Traps
 
 - Pages created before this model are plain PNG base maps: no `whitePage`
-  field, no grid option. Nothing marks them, so they are not migrated.
+  field. Nothing marks them, so they are not migrated.
 - Code that reads `db.files` from `image.fileName` on a raw record gets
   nothing for a white page — go through `BaseMap.createFromRecord` /
   `getUrl()` instead.

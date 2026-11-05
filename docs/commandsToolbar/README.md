@@ -66,6 +66,12 @@ carries the « Adapter l'échelle » switch (off: the base map keeps its scale,
 1st click = anchor, 2nd click = direction) — which poses that base map in 3D
 (`resyncBaseMapLinkPlacementsService`).
 
+« Grille » (`TOGGLE_GRID`, 2D editor, section « Grille ») is always the
+**first** command of the default and Fonds de plan layouts: it toggles the
+editor grid (metric grid over the current base map, snap target while drawing
+/ moving), its small arrow opening the cell size and « Grille dynamique »
+options — see `docs/editorGrid/README.md`.
+
 The « Repère » group (3D only, `PLACE_AXES` / `TOGGLE_AXES` / `RESET_AXES`)
 drives the user frame of the 3D editor (`threedEditor.axesSettings`, a device
 preference): « Orienter le repère » is a 2-click tool

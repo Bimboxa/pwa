@@ -16,10 +16,9 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * White page: pass `whitePage: { width, height, grid }` INSTEAD of `file` —
- * no file is stored, the image is synthesized at hydration
- * (baseMaps/utils/createWhitePageImage.js). `grid` is null or
- * { stepM, majorEvery }.
+ * White page: pass `whitePage: { width, height }` INSTEAD of `file` — no file
+ * is stored, the image is synthesized at hydration
+ * (baseMaps/utils/createWhitePageImage.js).
  *
  * @returns async ({ file, whitePage, name, listing?, meterByPx?, latLng?, geo?, scene3d?, orientation?, printZone?, source?, selectOnCreate? }) => entity
  *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
@@ -67,7 +66,7 @@ export default function useCreateBaseMapFromImage() {
     const entity = {
       name,
       image: whitePage ? getWhitePageImageField(whitePage) : { file },
-      ...(whitePage && { whitePage: { grid: whitePage.grid ?? null } }),
+      ...(whitePage && { whitePage: {} }),
       meterByPx,
       ...(orientation && { orientation }),
       ...(position && { position }),

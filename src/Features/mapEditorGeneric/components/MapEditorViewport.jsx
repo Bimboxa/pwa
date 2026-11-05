@@ -2,6 +2,7 @@
 import { useRef, useImperativeHandle, forwardRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import screenToWorld from '../utils/screenToWorld';
 import { MapZoomContext, createMapZoomStore } from '../hooks/useMapZoom';
+import { MapCameraContext, createMapCameraStore } from '../hooks/useMapCamera';
 
 // Zoom sensitivity constant (same as MapEditorGeneric.jsx)
 const ZOOM_SENSITIVITY = 1.0015;
@@ -32,6 +33,19 @@ const MapEditorViewport = forwardRef(({
 
     // 1. ÉTAT DE LA CAMÉRA (Stocké dans une Ref pour la performance)
     const cameraMatrix = useRef({ x: 0, y: 0, k: 1 });
+
+    // LIVE camera store (see useMapCamera): notified on every applied
+    // transform, read through selectors only.
+    const cameraStoreRef = useRef(null);
+    if (!cameraStoreRef.current) {
+        cameraStoreRef.current = createMapCameraStore(() => ({
+            ...cameraMatrix.current,
+            getViewportSize: () => ({
+                width: svgRef.current?.clientWidth ?? 0,
+                height: svgRef.current?.clientHeight ?? 0,
+            }),
+        }));
+    }
 
     // 2. ÉTAT DU DRAG (Pour différencier un CLIC d'un GLISSÉ)
     const dragRef = useRef({
@@ -85,6 +99,8 @@ const MapEditorViewport = forwardRef(({
                     applyZoomVar();
                 }, MAP_ZOOM_FLUSH_DELAY_MS);
             }
+
+            cameraStoreRef.current.notify();
 
             if (onCameraChange) {
                 onCameraChange(cameraMatrix.current);
@@ -330,6 +346,7 @@ const MapEditorViewport = forwardRef(({
 
     return (
         <MapZoomContext.Provider value={zoomStoreRef.current}>
+        <MapCameraContext.Provider value={cameraStoreRef.current}>
         <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
             <svg
                 ref={svgRef}
@@ -356,6 +373,7 @@ const MapEditorViewport = forwardRef(({
                 {htmlOverlay}
             </div>
         </div >
+        </MapCameraContext.Provider>
         </MapZoomContext.Provider>
     );
 });

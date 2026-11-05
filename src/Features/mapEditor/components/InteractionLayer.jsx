@@ -151,6 +151,11 @@ import buildRepairProposal from 'Features/localizedRepair/utils/buildRepairPropo
 import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairShortcuts';
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import { testIsWhitePageUrl } from 'Features/baseMaps/utils/createWhitePageImage';
+import LabelEditorGridStep from 'Features/editorGrid/components/LabelEditorGridStep';
+import GridSnapMarker from 'Features/editorGrid/components/GridSnapMarker';
+import useEditorGrid from 'Features/editorGrid/hooks/useEditorGrid';
+import getGridSnap from 'Features/editorGrid/utils/getGridSnap';
+import getDisplayedGrid, { getPxPerMeter } from 'Features/editorGrid/utils/getDisplayedGrid';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
 import prepareCopiedSegmentCreation, { getSegmentMergeReachPx, isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
@@ -224,7 +229,7 @@ import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLe
 import useUndo from "App/db/useUndo";
 import TransformToolPreviewLayer from "Features/annotationTransform/components/TransformToolPreviewLayer";
 import TransformToolBadge from "Features/annotationTransform/components/TransformToolBadge";
-import { TRANSFORM_TOOL_MODES, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
+import { TRANSFORM_TOOL_MODES, ROTATE_ANNOTATION_MODE, isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import { getTransformSession, useTransformPhase } from "Features/annotationTransform/services/transformSessionStore";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
@@ -285,6 +290,12 @@ const AXIS_SNAP_APPROACH_PX = AXIS_SNAP_PX * 1.5; // approach band (grey ring)
 // « Déplacer » / « Tourner »: max screen distance of an honoured PROJECTION
 // snap — same value as SnappingLayer's display threshold for its marker.
 const TRANSFORM_PROJECTION_SNAP_MAX_PX = 10;
+
+// Drawing modes where the cursor PLACES a point (rubber-band preview from the
+// last point): the modes of the drawing preview, also the only ones — with
+// the move tool destination — where the editor grid snaps the cursor. Pick /
+// fill / paste modes are left out: their click targets what is under it.
+const POINT_PLACEMENT_DRAWING_MODES = ['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"];
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
@@ -553,6 +564,14 @@ const InteractionLayer = forwardRef(({
   // Distant-point axis snapping (issue #282)
   const axisSnapLayerRef = useRef(null);
   const axisSnapRef = useRef(null); // { x: localX|null, y: localY|null, shiftConstrained? } applied at commit
+  // Editor grid (« Grille » command): local point of the grid snap of the
+  // current mouse move, applied at commit like the axis lock (lowest
+  // priority: only when no point snap / axis lock / Shift constraint holds).
+  const gridSnapMarkerRef = useRef(null);
+  const gridSnapRef = useRef(null); // { x, y } local px
+  const editorGrid = useEditorGrid();
+  const editorGridRef = useRef(editorGrid);
+  editorGridRef.current = editorGrid;
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
   // baseMapRafRef — now managed by useBaseMapDrag
@@ -2077,6 +2096,48 @@ const InteractionLayer = forwardRef(({
       x: (worldPos.x - pose.x) / pose.k,
       y: (worldPos.y - pose.y) / pose.k
     };
+  };
+
+  // Editor grid snap of a local point: the nearest grid line on each axis
+  // within the usual snap threshold, on the grid currently DISPLAYED (same
+  // cell size as LayerEditorGrid). null when the grid is off / hidden / too
+  // far. See Features/editorGrid.
+  const computeGridSnap = (localPos) => {
+    const grid = editorGridRef.current;
+    if (!grid?.enabled || activeContext !== "BASE_MAP") return null;
+    const meterByPx = meterByPxRef.current;
+    if (!(meterByPx > 0)) return null;
+    const basePoseK = getTargetScale();
+    const zoom = viewportRef.current?.getZoom() || 1;
+    // Snap grid = every line drawn (secondary + main grid).
+    const displayed = getDisplayedGrid({
+      stepM: grid.stepM,
+      dynamic: grid.dynamic,
+      pxPerMeter: getPxPerMeter({ zoom, basePoseK, meterByPx }),
+    });
+    if (!displayed) return null;
+    return getGridSnap({
+      point: localPos,
+      cellPx: displayed.stepM / meterByPx,
+      // same rotation as the grid drawn: the ortho snap angle
+      angleDeg: orthoSnapAngleOffsetRef.current || 0,
+      imageSize: baseMapImageSize,
+      threshold: SNAP_THRESHOLD_ABSOLUTE / (basePoseK * zoom),
+    });
+  };
+  // Shows the grid snap cross on a local point (null hides it).
+  const showGridSnapMarker = (local) => {
+    if (!local) {
+      gridSnapMarkerRef.current?.update(null);
+      return;
+    }
+    const pose = getTargetPose();
+    gridSnapMarkerRef.current?.update(
+      viewportRef.current?.worldToViewport(
+        local.x * pose.k + pose.x,
+        local.y * pose.k + pose.y
+      ) ?? null
+    );
   };
 
   // Distant-point axis snapping (issue #282).
@@ -5751,6 +5812,20 @@ const InteractionLayer = forwardRef(({
           y: local.y * pose.k + pose.y,
         };
       }
+    } else if (
+      enabledDrawingMode &&
+      gridSnapRef.current &&
+      !(event.shiftKey || event.evt?.shiftKey)
+    ) {
+      // --- EDITOR GRID SNAP: same baseline, lowest priority (computed on the
+      // last mouse move, only when no point snap / axis lock applied).
+      const local = gridSnapRef.current;
+      const pose = getTargetPose();
+      worldPos = {
+        ...worldPos,
+        x: local.x * pose.k + pose.x,
+        y: local.y * pose.k + pose.y,
+      };
     }
 
     // --- Paste mode: a click places a copy at the cursor. Normal copy/paste
@@ -7504,6 +7579,11 @@ const InteractionLayer = forwardRef(({
       }
     }
 
+    // Editor grid snap: recomputed on every move by the gesture that owns it
+    // (vertex drag, marker-like drag, drawing) — cleared first.
+    gridSnapRef.current = null;
+    showGridSnapMarker(null);
+
     let axisSnap = null;
     const axisSnapActive =
       Boolean(enabledDrawingMode) &&
@@ -7735,6 +7815,15 @@ const InteractionLayer = forwardRef(({
           axisSnapLayerRef.current?.update(null);
           screenCursorRef.current?.setSnappedBranches(null);
         }
+
+        // Editor grid: last resort, when nothing else snapped the vertex.
+        if (!snapOverride) {
+          const gridSnap = computeGridSnap(localPos);
+          if (gridSnap) {
+            snapOverride = { x: gridSnap.x, y: gridSnap.y };
+            showGridSnapMarker(gridSnap);
+          }
+        }
       }
 
       const consumed = handlePointDragMove(worldPos, event, snapOverride);
@@ -7849,6 +7938,12 @@ const InteractionLayer = forwardRef(({
             snappingLayerRef.current?.update({ ...screenSnap, type: snap.type });
         } else {
           snappingLayerRef.current?.update(null);
+          // Editor grid: the anchor lands on the grid when no point is near.
+          const gridSnap = computeGridSnap(rawAnchor);
+          if (gridSnap) {
+            dragSnapTarget = { x: gridSnap.x, y: gridSnap.y };
+            showGridSnapMarker(gridSnap);
+          }
         }
       }
       // Glued OPENING whole-move: the free delta is mapped onto the host
@@ -7979,6 +8074,49 @@ const InteractionLayer = forwardRef(({
       if (isOpeningSelected || isCotesEditSelection || isFreeTextPlacement) currentSnapRef.current = null;
     }
 
+    // D2. EDITOR GRID SNAP (« Grille » command) — the point being drawn, or
+    // the point clicked by the move / rotate tools, lands on the grid when nothing
+    // stronger holds: no vertex / midpoint snap, no projection within its
+    // display range, no distant-point axis lock, no Shift constraint.
+    {
+      let pointSnapActive = Boolean(snapResult);
+      if (snapResult?.type === "PROJECTION") {
+        const pose = getTargetPose();
+        const screenSnap = viewportRef.current?.worldToViewport(
+          snapResult.x * pose.k + pose.x,
+          snapResult.y * pose.k + pose.y
+        );
+        pointSnapActive =
+          Boolean(screenSnap) &&
+          Math.hypot(screenSnap.x - viewportPos.x, screenSnap.y - viewportPos.y) <=
+            TRANSFORM_PROJECTION_SNAP_MAX_PX;
+      }
+      // Move / rotate tools: every click placing a free point — the move
+      // destination, and for the rotation its pivot, its reference axis (2/3)
+      // and its target (3/3). Only the grab click of the move tool is left
+      // out: it needs a point of an annotation.
+      const gridAllowedForMode = isTransformToolMode(enabledDrawingMode)
+        ? transformPhase !== "IDLE" ||
+          enabledDrawingMode === ROTATE_ANNOTATION_MODE
+        : POINT_PLACEMENT_DRAWING_MODES.includes(enabledDrawingMode);
+      if (
+        enabledDrawingMode &&
+        gridAllowedForMode &&
+        snappingEnabled &&
+        !preventSnapping &&
+        !pointSnapActive &&
+        !axisSnapRef.current &&
+        !segmentConstraint &&
+        !(event.shiftKey || event.evt?.shiftKey)
+      ) {
+        const gridSnap = computeGridSnap(toLocalCoords(worldPos));
+        if (gridSnap) {
+          gridSnapRef.current = { x: gridSnap.x, y: gridSnap.y };
+          showGridSnapMarker(gridSnap);
+        }
+      }
+    }
+
     // MOVE_ANNOTATION / ROTATE_ANNOTATION: the carried annotations follow the
     // (snapped) cursor.
     if (isTransformToolMode(enabledDrawingMode)) {
@@ -8015,13 +8153,15 @@ const InteractionLayer = forwardRef(({
         rawLocalPos: transformRawPos,
         orthoAngleDeg: orthoSnapAngleOffsetRef.current || 0,
         // Same precedence as the click: a point snap, else the distant-point
-        // axis lock, else the free cursor — the preview shows where a click
-        // would land.
+        // axis lock, else the editor grid, else the free cursor — the preview
+        // shows where a click would land.
         localPos:
           Number.isFinite(axisSnapRef.current?.x) &&
           Number.isFinite(axisSnapRef.current?.y)
             ? { x: axisSnapRef.current.x, y: axisSnapRef.current.y }
-            : toLocalCoords(worldPos),
+            : gridSnapRef.current
+              ? { ...gridSnapRef.current }
+              : toLocalCoords(worldPos),
         snap: transformSnap,
         shiftKey: transformShift,
       });
@@ -8039,7 +8179,7 @@ const InteractionLayer = forwardRef(({
     // REVOLUTION_AXIS_PLACEMENT / REPOSITION_REVOLUTION_PLACEMENT: single
     // click, but the inverted-T ghost of the axis follows the cursor
     // (DrawingLayer) from the first mouse move.
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (POINT_PLACEMENT_DRAWING_MODES.includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -8047,6 +8187,9 @@ const InteractionLayer = forwardRef(({
       // distant point when a (possibly rotated) crosshair branch is locked.
       if (axisSnap?.hasLock && axisSnap.local) {
         previewPos = { x: axisSnap.local.x, y: axisSnap.local.y };
+      } else if (gridSnapRef.current) {
+        // Editor grid snap (lowest priority, see D2)
+        previewPos = { ...gridSnapRef.current };
       }
 
       // Angle snap drawing (use ref to always get latest points, even before re-render)
@@ -9461,6 +9604,7 @@ const InteractionLayer = forwardRef(({
               onMouseDown={handleMarkerMouseDown}
             />
             <AxisSnapLayer ref={axisSnapLayerRef} />
+            <GridSnapMarker ref={gridSnapMarkerRef} />
             <ClosingMarker
               ref={closingMarkerRef}
               onClick={handleClosingClick}
@@ -9530,6 +9674,11 @@ const InteractionLayer = forwardRef(({
         htmlOverlay={
           <>
             <Box data-capture-hide sx={{ position: 'absolute', bottom: "16px", left: "76px", zIndex: 1 }}>
+              {/* Cell size of the dynamic editor grid (self-hiding) */}
+              <LabelEditorGridStep
+                meterByPx={baseMapMeterByPx}
+                basePoseK={basePose?.k || 1}
+              />
               <HelperScale
                 ref={helperScaleRef} // <--- Brancher la ref
                 meterByPx={baseMapMeterByPx} // Passer la prop statique venant de baseMap

@@ -20,6 +20,14 @@
 // The registry order (commands/index.js) drives the hotkey resolution and is
 // independent from this display order.
 
+// editor grid (2D editor): metric grid over the base map, snap target —
+// always the very first command of the toolbar
+const GRID_SECTION = {
+  key: "GRID",
+  label: "Grille",
+  entries: ["TOGGLE_GRID"],
+};
+
 // user frame (3D editor): orient / show / reset the axes
 const AXES_SECTION = {
   key: "AXES",
@@ -42,6 +50,7 @@ const BASE_MAP_SECTION = {
 };
 
 const DEFAULT_SECTIONS = [
+  GRID_SECTION,
   AXES_SECTION,
   BASE_MAP_SECTION,
   // « Dessin » — the templateless annotation types (the point-like types and
@@ -215,6 +224,7 @@ const SECTION_LINES_SECTION = {
 // « Fonds de plan » module: the user frame group, the base map placement
 // commands (same order as the default sections) and the section marks.
 const BASE_MAPS_SECTIONS = [
+  GRID_SECTION,
   AXES_SECTION,
   BASE_MAP_SECTION,
   SECTION_LINES_SECTION,

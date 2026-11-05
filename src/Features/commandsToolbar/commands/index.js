@@ -70,6 +70,7 @@ import moveBaseMapCommand from "./moveBaseMap/moveBaseMapCommand";
 import rotateBaseMapCommand from "./rotateBaseMap/rotateBaseMapCommand";
 import placeAxesCommand from "./placeAxes/placeAxesCommand";
 import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
+import toggleGridCommand from "./toggleGrid/toggleGridCommand";
 import resetAxesCommand from "./resetAxes/resetAxesCommand";
 import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
@@ -166,6 +167,7 @@ export const COMMANDS = [
   // user frame (3D)
   placeAxesCommand,
   toggleAxesCommand,
+  toggleGridCommand,
   resetAxesCommand,
   // cut lines (3D, Maillage module)
   drawCutLineCommand,
