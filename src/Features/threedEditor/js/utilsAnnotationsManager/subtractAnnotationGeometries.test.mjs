@@ -16,6 +16,9 @@ const bundle = await build({
   stdin: {
     contents: `
       export { default as subtractAnnotationGeometries } from "Features/threedEditor/js/utilsAnnotationsManager/subtractAnnotationGeometries";
+      export { default as buildMergedWorldSolid } from "Features/threedEditor/js/utilsAnnotationsManager/buildMergedWorldSolid";
+      export { default as extrudePolylineWall } from "Features/threedEditor/js/utilsAnnotationsManager/extrudePolylineWall";
+      export { getSoupArea, toNonIndexedArea } from "Features/threedEditor/js/utilsAnnotationsManager/getSoupMeasures";
       export { getSolidMeshesFromObject3D, hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
       export { default as buildMesh3dFromCarvedTriangles } from "Features/annotationMesh3d/utils/buildMesh3dFromCarvedTriangles";
       export { default as isMesh3dClosed } from "Features/annotationMesh3d/utils/isMesh3dClosed";
@@ -46,6 +49,10 @@ const bundle = await build({
 });
 const {
   subtractAnnotationGeometries,
+  buildMergedWorldSolid,
+  extrudePolylineWall,
+  getSoupArea,
+  toNonIndexedArea,
   getSolidMeshesFromObject3D,
   hasCarvedSolid,
   buildMesh3dFromCarvedTriangles,
@@ -213,4 +220,54 @@ test("an open mesh3d cutter is skipped", () => {
   assert.equal(hasCarvedSolid(host), false);
   assert.equal(host.geometry, geometry);
   assert.equal(warnings.length, 1);
+});
+
+// A PX polyline wall as createAnnotationObject3D builds it: one zero-thickness
+// quad per segment (an L of two 2 x 3 m quads), merged into one world brush
+// like the permanent bake does.
+function sheetWallBrush(baseMapGroup) {
+  const wall = extrudePolylineWall(
+    [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 2 },
+    ],
+    3,
+    new MeshBasicMaterial(),
+    false
+  );
+  baseMapGroup.add(wall);
+  // A 1 m cube through the first quad only: a 1 x 1 m window.
+  const cutter = solidBox(1, 1, 1);
+  cutter.position.set(1, 0, 1.5);
+  baseMapGroup.add(cutter);
+  baseMapGroup.updateMatrixWorld(true);
+  return { solid: buildMergedWorldSolid(wall), cutter };
+}
+
+test("a PX polyline wall is clipped as an open sheet (hollow)", () => {
+  const { solid, cutter } = sheetWallBrush(frame());
+  const areaBefore = getSoupArea(solid.geometry);
+  assert.ok(Math.abs(areaBefore - 12) < 1e-4, `area ${areaBefore}`);
+
+  subtractAnnotationGeometries(solid, [cutter], { hollow: true });
+
+  assert.equal(hasCarvedSolid(solid), true);
+  // The window is removed and no cap face of the cutter is added.
+  const areaAfter = toNonIndexedArea(solid.geometry);
+  assert.ok(Math.abs(areaAfter - 11) < 1e-3, `area ${areaAfter}`);
+  // The sheet reads as an OPEN face mesh (the bake writes it with allowOpen).
+  const mesh = carvedMesh(solid);
+  assert.equal(isMesh3dClosed(mesh), false);
+  assert.equal(mesh.faces.length, 2);
+});
+
+test("a PX polyline wall carved as a solid never closes", () => {
+  const { solid, cutter } = sheetWallBrush(frame());
+
+  subtractAnnotationGeometries(solid, [cutter]);
+
+  // Why the bake must run hollow on a sheet: a regular SUBTRACTION leaves an
+  // open soup, which the closed-mesh checks of the bake refuse.
+  assert.equal(isMesh3dClosed(carvedMesh(solid)), false);
 });

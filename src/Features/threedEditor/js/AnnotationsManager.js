@@ -12,6 +12,7 @@ import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResol
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
 import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
+import isPolylineSheetWall from "Features/annotations/utils/isPolylineSheetWall";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
@@ -502,8 +503,8 @@ export default class AnnotationsManager {
             this.scene.updateMatrixWorld(true);
 
             // Open-surface sources (swept EXTRUSION_PROFILE, inline-extrusion
-            // sheets, lathe REVOLUTION shells, an OPEN mesh3d sheet) must use
-            // a hollow subtraction so
+            // sheets, PX polyline walls, lathe REVOLUTION shells, an OPEN
+            // mesh3d sheet) must use a hollow subtraction so
             // the boolean only clips the surface and doesn't add the target's
             // cap faces (stray triangles in the source material). A SOLID
             // revolution or a closed mesh3d (a face pulled into a box) is a
@@ -515,6 +516,7 @@ export default class AnnotationsManager {
               ? !isMesh3dClosed(annotation.mesh3d)
               : sourceShapeKey === "EXTRUSION_PROFILE" ||
                 isInlineExtrusionPolyline(annotation) ||
+                isPolylineSheetWall(annotation) ||
                 (sourceShapeKey === "REVOLUTION" &&
                   !isRevolutionSolid(annotation));
             subtractAnnotationGeometries(carveTarget, carveOperands, {
