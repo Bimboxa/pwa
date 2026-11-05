@@ -5,7 +5,7 @@ import db from "App/db/db";
 import { getScopeIdByListingId } from "Features/annotations/utils/isRevolutionHelperInScope";
 import { getBaseMapLinkWorldLength } from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
 
-import { hydrateBaseMapRecord } from "../services/getHydratedBaseMap";
+import { createGeometryBaseMap } from "../services/getHydratedBaseMap";
 import {
   isBaseMapLinkClone,
   isBaseMapLinkInScope,
@@ -81,7 +81,8 @@ export default function useBaseMapLinksOfScope({ enabled = true } = {}) {
         .where("baseMapId")
         .equals(record.id)
         .toArray();
-      baseMapById.set(record.id, hydrateBaseMapRecord(record, versions));
+      // Geometry only (size, scale, pose): no image is loaded for the list.
+      baseMapById.set(record.id, createGeometryBaseMap(record, versions));
     }
     const pointIds = links.flatMap((l) => l.points.map((p) => p.id));
     const pointById = new Map(
