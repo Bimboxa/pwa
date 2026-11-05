@@ -10,7 +10,9 @@ import React, {
 
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import getCoteLabelStyleGeometry from "Features/annotations/utils/getCoteLabelStyleGeometry";
 import {
+  COTE_STYLE_LABEL,
   DEFAULT_COTE_DECIMALS,
   DEFAULT_COTE_UNIT,
 } from "Features/annotations/constants/coteDisplayDefaults";
@@ -631,6 +633,46 @@ const DrawingLayer = forwardRef(
             if (
               previewCoteTextRef.current &&
               previewCoteLabelOuterRef.current &&
+              previewCoteLabelInnerRef.current &&
+              na.coteStyle === COTE_STYLE_LABEL
+            ) {
+              // "Étiquette" style: horizontal value at the label's default
+              // placement (the label prefix is only known once the cote is
+              // created — auto-numbering). Mirrors NodeCoteStatic.
+              const pageScale = pagePxPerPt > 0 ? pagePxPerPt : 1;
+              const geom = getCoteLabelStyleGeometry({
+                p1,
+                p2,
+                offsetPx: offPx,
+                pageScale,
+              });
+              const fs = Number(na.fontSize) || 18;
+              previewCoteLabelOuterRef.current.setAttribute(
+                "transform",
+                `translate(${geom.anchorImagePt.x} ${geom.anchorImagePt.y})`
+              );
+              previewCoteLabelInnerRef.current.setAttribute(
+                "transform",
+                `scale(${pageScale})`
+              );
+              previewCoteTextRef.current.textContent = valueText;
+              previewCoteTextRef.current.setAttribute("font-size", fs);
+              previewCoteTextRef.current.setAttribute(
+                "text-anchor",
+                geom.textAnchor
+              );
+              previewCoteTextRef.current.setAttribute(
+                "x",
+                String(geom.textAnchor === "start" ? 3 : -3)
+              );
+              previewCoteTextRef.current.setAttribute("y", "0");
+              previewCoteTextRef.current.setAttribute(
+                "dominant-baseline",
+                "central"
+              );
+            } else if (
+              previewCoteTextRef.current &&
+              previewCoteLabelOuterRef.current &&
               previewCoteLabelInnerRef.current
             ) {
               const mid = { x: (D1.x + D2.x) / 2, y: (D1.y + D2.y) / 2 };
@@ -662,6 +704,8 @@ const DrawingLayer = forwardRef(
               );
               previewCoteTextRef.current.textContent = valueText;
               previewCoteTextRef.current.setAttribute("font-size", fs);
+              previewCoteTextRef.current.setAttribute("text-anchor", "middle");
+              previewCoteTextRef.current.setAttribute("x", "0");
               previewCoteTextRef.current.setAttribute(
                 "y",
                 String(textNormalSign * 4)

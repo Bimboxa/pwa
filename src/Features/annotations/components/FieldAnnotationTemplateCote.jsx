@@ -23,9 +23,13 @@ import { COTE_FIELDS } from "Features/annotations/constants/coteFields";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import {
+  COTE_STYLE_LABEL,
+  COTE_STYLE_STANDARD,
   DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_STYLE,
   DEFAULT_COTE_UNIT,
 } from "Features/annotations/constants/coteDisplayDefaults";
+import { COTE_LABEL_DEFAULT_OFFSET_HORIZONTAL } from "Features/annotations/utils/getCoteLabelStyleGeometry";
 import {
   getDefaultsForShape,
   resolveDrawingShape,
@@ -37,6 +41,18 @@ const UNIT_OPTIONS = [
 ];
 
 const DECIMALS_OPTIONS = [0, 1, 2];
+
+const STYLE_OPTIONS = [
+  { value: COTE_STYLE_STANDARD, label: "Standard" },
+  { value: COTE_STYLE_LABEL, label: "Étiquette" },
+];
+
+// "Étiquette" preview: overshoot of the bar / extension lines, gap between the
+// leader and the text, opacity of the secondary lines (px here, page pt in
+// NodeCoteStatic).
+const PREVIEW_LABEL_OVERSHOOT = 4;
+const PREVIEW_LABEL_TEXT_GAP = 3;
+const PREVIEW_LABEL_LINE_OPACITY = 0.45;
 
 // Preview sample: a 1.63 m long cote (163 px at 1 cm/px).
 const PREVIEW_SAMPLE = {
@@ -83,6 +99,10 @@ export default function FieldAnnotationTemplateCote({
   // RULER: the annotation label can be drawn (italic) along the chain's
   // end-to-end axis, on the side opposite the values.
   showLabelOption = false,
+  // COTE: display style of the cote — "Standard" (value along the line) or
+  // "Étiquette" (horizontal "<label> = <value>" tied to the line by a
+  // leader). Not offered on a RULER (it has its own label option).
+  showStyleOption = false,
 }) {
   const {
     unit = DEFAULT_COTE_UNIT,
@@ -93,6 +113,7 @@ export default function FieldAnnotationTemplateCote({
     showTotalCote = false,
     showRulerLabel = false,
     showValueCard = true,
+    coteStyle = DEFAULT_COTE_STYLE,
     strokeColor = "#000000",
   } = annotationTemplate ?? {};
 
@@ -109,13 +130,22 @@ export default function FieldAnnotationTemplateCote({
   const previewFontSize = Math.max(8, Math.min(24, Number(fontSize) || 18));
   // The (italic) label prefixes the value: "Libellé = 1.63 m".
   const previewShowLabel = showLabelOption && Boolean(showRulerLabel);
+  const previewLabelStyle = showStyleOption && coteStyle === COTE_STYLE_LABEL;
   const barY = 4;
   const barH = 10;
   const clickY = barY + barH; // extension lines start on the bar's bottom edge
   const dimY = clickY + previewExt;
-  const svgH = dimY + 6 + previewFontSize + 6;
-  const x1 = 14;
+  // "Étiquette": a shorter measured object on the right leaves room for the
+  // label, which sits at its default placement (elbow leader, text on the
+  // left of the leader).
+  const x1 = previewLabelStyle ? 120 : 14;
   const x2 = 206;
+  const midX = (x1 + x2) / 2;
+  const labelAnchorX = midX + COTE_LABEL_DEFAULT_OFFSET_HORIZONTAL.x;
+  const labelAnchorY = dimY + COTE_LABEL_DEFAULT_OFFSET_HORIZONTAL.y;
+  const svgH = previewLabelStyle
+    ? labelAnchorY + previewFontSize / 2 + 6
+    : dimY + 6 + previewFontSize + 6;
 
   const previewText = getCoteDisplayValue({
     ...PREVIEW_SAMPLE,
@@ -151,6 +181,11 @@ export default function FieldAnnotationTemplateCote({
   function handleDecimalsChange(e, newDecimals) {
     if (newDecimals !== null)
       onChange({ ...annotationTemplate, decimals: newDecimals });
+  }
+
+  function handleStyleChange(e, newStyle) {
+    if (newStyle !== null)
+      onChange({ ...annotationTemplate, coteStyle: newStyle });
   }
 
   function handleShowUnitLabelChange(e) {
@@ -298,69 +333,118 @@ export default function FieldAnnotationTemplateCote({
                 rx={2}
                 fill="#e2795b"
               />
-              {/* dashed extension lines */}
-              {previewExt > 0.5 && (
+              {previewLabelStyle ? (
                 <>
+                  {/* solid extension lines, running past the bar */}
+                  {[x1, x2].map((x) => (
+                    <line
+                      key={x}
+                      x1={x}
+                      y1={clickY}
+                      x2={x}
+                      y2={dimY + PREVIEW_LABEL_OVERSHOOT}
+                      stroke={strokeColor}
+                      strokeWidth={1}
+                      strokeOpacity={PREVIEW_LABEL_LINE_OPACITY}
+                    />
+                  ))}
+                  {/* dimension bar, running past the extension lines */}
                   <line
-                    x1={x1}
-                    y1={clickY}
-                    x2={x1}
+                    x1={x1 - PREVIEW_LABEL_OVERSHOOT}
+                    y1={dimY}
+                    x2={x2 + PREVIEW_LABEL_OVERSHOOT}
                     y2={dimY}
                     stroke={strokeColor}
                     strokeWidth={1}
-                    strokeDasharray="3 3"
                   />
+                  {/* elbow leader: bar midpoint → label */}
+                  <polyline
+                    points={`${midX},${dimY} ${midX},${labelAnchorY} ${labelAnchorX},${labelAnchorY}`}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={1}
+                    strokeOpacity={PREVIEW_LABEL_LINE_OPACITY}
+                  />
+                  {/* horizontal "<label> = <value>" */}
+                  <text
+                    x={labelAnchorX - PREVIEW_LABEL_TEXT_GAP}
+                    y={labelAnchorY}
+                    textAnchor="end"
+                    dominantBaseline="central"
+                    fontSize={previewFontSize}
+                    fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                    fill={strokeColor}
+                  >
+                    {`D1 = ${previewText}`}
+                  </text>
+                </>
+              ) : (
+                <>
+                  {/* dashed extension lines */}
+                  {previewExt > 0.5 && (
+                    <>
+                      <line
+                        x1={x1}
+                        y1={clickY}
+                        x2={x1}
+                        y2={dimY}
+                        stroke={strokeColor}
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                      />
+                      <line
+                        x1={x2}
+                        y1={clickY}
+                        x2={x2}
+                        y2={dimY}
+                        stroke={strokeColor}
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                      />
+                    </>
+                  )}
+                  {/* dimension line + end ticks */}
                   <line
-                    x1={x2}
-                    y1={clickY}
+                    x1={x1}
+                    y1={dimY}
                     x2={x2}
                     y2={dimY}
                     stroke={strokeColor}
                     strokeWidth={1}
-                    strokeDasharray="3 3"
                   />
+                  <line
+                    x1={x1}
+                    y1={dimY - 4}
+                    x2={x1}
+                    y2={dimY + 4}
+                    stroke={strokeColor}
+                    strokeWidth={1}
+                  />
+                  <line
+                    x1={x2}
+                    y1={dimY - 4}
+                    x2={x2}
+                    y2={dimY + 4}
+                    stroke={strokeColor}
+                    strokeWidth={1}
+                  />
+                  {/* value label */}
+                  <text
+                    x={(x1 + x2) / 2}
+                    y={dimY + 6}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                    fontSize={previewFontSize}
+                    fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                    fill={strokeColor}
+                  >
+                    {previewShowLabel && (
+                      <tspan fontStyle="italic">Libellé = </tspan>
+                    )}
+                    {previewText}
+                  </text>
                 </>
               )}
-              {/* dimension line + end ticks */}
-              <line
-                x1={x1}
-                y1={dimY}
-                x2={x2}
-                y2={dimY}
-                stroke={strokeColor}
-                strokeWidth={1}
-              />
-              <line
-                x1={x1}
-                y1={dimY - 4}
-                x2={x1}
-                y2={dimY + 4}
-                stroke={strokeColor}
-                strokeWidth={1}
-              />
-              <line
-                x1={x2}
-                y1={dimY - 4}
-                x2={x2}
-                y2={dimY + 4}
-                stroke={strokeColor}
-                strokeWidth={1}
-              />
-              {/* value label */}
-              <text
-                x={(x1 + x2) / 2}
-                y={dimY + 6}
-                textAnchor="middle"
-                dominantBaseline="hanging"
-                fontSize={previewFontSize}
-                fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
-                fill={strokeColor}
-              >
-                {previewShowLabel && (
-                  <tspan fontStyle="italic">Libellé = </tspan>
-                )}
-                {previewText}
-              </text>
             </svg>
           </Box>
 
@@ -372,6 +456,34 @@ export default function FieldAnnotationTemplateCote({
               "& > *:first-of-type": { borderTop: "none" },
             }}
           >
+            {showStyleOption && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  py: 1,
+                }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  Style
+                </Typography>
+                <ToggleButtonGroup
+                  value={coteStyle}
+                  exclusive
+                  onChange={handleStyleChange}
+                  size="small"
+                  sx={toggleGroupSx}
+                >
+                  {STYLE_OPTIONS.map((o) => (
+                    <ToggleButton key={o.value} value={o.value}>
+                      {o.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Box>
+            )}
+
             <Box
               sx={{
                 display: "flex",

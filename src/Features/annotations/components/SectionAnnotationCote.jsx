@@ -22,7 +22,8 @@ import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 // « Réinitialiser la position de l'étiquette / des étiquettes » drops the
 // 3D value-card offsets (dragged and rendered in the 3D editor only): a
 // cote's `coteLabelOffset`, a ruler's per-segment `rulerLabelOffsets` —
-// every card goes back onto its cote.
+// every card goes back onto its cote. For a cote it also drops
+// `coteLabelOffset2d`, the 2D label placement of the "Étiquette" style.
 export default function SectionAnnotationCote({ annotation, overrideFields }) {
   // strings
 
@@ -35,7 +36,7 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
   const resetHelperS =
     annotation?.type === "RULER"
       ? "Replace chaque étiquette déplacée en 3D sur sa cote."
-      : "Replace l'étiquette déplacée en 3D sur sa ligne de cote.";
+      : "Replace l'étiquette déplacée (2D ou 3D) à sa position par défaut.";
 
   // data
 
@@ -49,7 +50,8 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
     COTE_FIELDS.every((f) => overrideFields.includes(f));
   const hasLabelOffsets = isRuler
     ? hasActiveRulerLabelOffsets(annotation)
-    : !isZeroLabelOffset(annotation?.coteLabelOffset);
+    : !isZeroLabelOffset(annotation?.coteLabelOffset) ||
+      Boolean(annotation?.coteLabelOffset2d);
 
   // handlers
 
@@ -69,7 +71,9 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
     if (!annotation?.id) return;
     await updateAnnotation({
       id: annotation.id,
-      ...(isRuler ? { rulerLabelOffsets: null } : { coteLabelOffset: null }),
+      ...(isRuler
+        ? { rulerLabelOffsets: null }
+        : { coteLabelOffset: null, coteLabelOffset2d: null }),
     });
   }
 
@@ -91,6 +95,7 @@ export default function SectionAnnotationCote({ annotation, overrideFields }) {
           label={isRuler ? "Cotes" : "Cote"}
           showTotalOption={isRuler}
           showLabelOption={isRuler}
+          showStyleOption={!isRuler}
         />
       </Box>
       {lockedByTemplate && (

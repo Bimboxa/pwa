@@ -3,6 +3,7 @@ import theme from "Styles/theme";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
 import {
   DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_STYLE,
   DEFAULT_COTE_UNIT,
 } from "Features/annotations/constants/coteDisplayDefaults";
 
@@ -539,6 +540,7 @@ const DRAWING_SHAPE_CONFIG = {
       "fontSize",
       "showUnitLabel",
       "showValueCard",
+      "coteStyle",
     ],
     defaults: {
       strokeColor: "#000000",
@@ -554,6 +556,9 @@ const DRAWING_SHAPE_CONFIG = {
       showUnitLabel: true,
       // 3D: the value in a rounded card (false: bare value with a white halo).
       showValueCard: true,
+      // "STANDARD" (value along the line) | "LABEL" ("Étiquette": horizontal
+      // "<label> = <value>" tied to the line by a leader).
+      coteStyle: DEFAULT_COTE_STYLE,
       // Same as RULER: template-owned 3D visibility, false by default.
       showIn3d: false,
     },

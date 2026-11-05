@@ -1,3 +1,7 @@
+import { COTE_STYLE_LABEL } from "Features/annotations/constants/coteDisplayDefaults";
+
+import getCoteLabelStyleGeometry from "./getCoteLabelStyleGeometry";
+import getCotePageScale from "./getCotePageScale";
 import getRulerSegments from "./getRulerSegments";
 import { getRulerSegmentKeys, isZeroLabelOffset } from "./getRulerSegmentKey";
 
@@ -43,6 +47,18 @@ export default function getDimensionAnnotationLassoVertices(
     const oy = (dx / length) * offsetPx;
     const D1 = { x: p1.x + ox, y: p1.y + oy };
     const D2 = { x: p2.x + ox, y: p2.y + oy };
+    // "Étiquette" style: the label is displaced from the line (page-pt
+    // `coteLabelOffset2d`, default placement when unset).
+    if (annotation.coteStyle === COTE_STYLE_LABEL) {
+      const geom = getCoteLabelStyleGeometry({
+        p1,
+        p2,
+        offsetPx,
+        labelOffset: annotation.coteLabelOffset2d,
+        pageScale: getCotePageScale(annotation),
+      });
+      if (geom) return [D1, D2, geom.anchorImagePt];
+    }
     // The 2D value sits at the dimension-line midpoint (coteLabelOffset is
     // 3D-only).
     return [D1, D2, { x: (D1.x + D2.x) / 2, y: (D1.y + D2.y) / 2 }];

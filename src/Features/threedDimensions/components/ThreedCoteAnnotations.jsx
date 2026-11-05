@@ -7,6 +7,7 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import getCoteLabelText from "Features/annotations/utils/getCoteLabelText";
 import {
   DEFAULT_COTE_DECIMALS,
   DEFAULT_COTE_UNIT,
@@ -290,16 +291,20 @@ export default function ThreedCoteAnnotations({ annotations }) {
       }
 
       // Value card sprite at the dimension-line midpoint. Z-aware value
-      // shared with the 2D renderer (NodeCoteStatic).
+      // shared with the 2D renderer (NodeCoteStatic), prefixed by the
+      // annotation label in the "Étiquette" style ("D1 = 2.34 m").
       const sprite = createDimensionLabelSprite({
-        text: getCoteDisplayValue({
-          p1: cote.points[0],
-          p2: cote.points[1],
-          meterByPx,
-          unit: cote.unit ?? DEFAULT_COTE_UNIT,
-          decimals: cote.decimals ?? DEFAULT_COTE_DECIMALS,
-          showUnitLabel: cote.showUnitLabel ?? true,
-          deltaZMeters: geom.deltaZMeters,
+        text: getCoteLabelText({
+          annotation: cote,
+          valueText: getCoteDisplayValue({
+            p1: cote.points[0],
+            p2: cote.points[1],
+            meterByPx,
+            unit: cote.unit ?? DEFAULT_COTE_UNIT,
+            decimals: cote.decimals ?? DEFAULT_COTE_DECIMALS,
+            showUnitLabel: cote.showUnitLabel ?? true,
+            deltaZMeters: geom.deltaZMeters,
+          }),
         }),
         coteId: cote.id,
         color,
