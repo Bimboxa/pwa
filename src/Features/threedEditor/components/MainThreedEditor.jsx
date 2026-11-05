@@ -251,6 +251,7 @@ import {
   getMesh3dFaceMeshes,
 } from "Features/threedMesh/services/mesh3dObjectsStore";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import { filterIntersectionsByHatchGaps } from "Features/threedEditor/js/utilsAnnotationsManager/hatchPick";
 import preferLineHits, {
   getAnnotationNodeId,
@@ -1595,12 +1596,17 @@ export default function MainThreedEditor() {
             // again with the back arrow of the part panel.)
             // - mesh annotation: the face mesh carries its index;
             // - regular annotation: the face is located on the in-memory
-            //   conversion of the displayed object (getDisplayedMesh3d).
+            //   conversion of the displayed object (getDisplayedMesh3d);
+            // - mesh annotation carved live by a subtraction: its face meshes
+            //   were collapsed into one solid, read like a regular one.
             // A right click never picks a part: it opens the shortcuts menu
             // for the whole annotation (below).
             if (nodeId === soloId && !isRightClick) {
               let meshPartId = null;
-              if (object.userData.isAnnotationMesh3d) {
+              if (
+                object.userData.isAnnotationMesh3d &&
+                !hasCarvedSolid(object)
+              ) {
                 const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
                 if (faceIndex !== undefined) {
                   const edge = pickMesh3dEdge(
@@ -1821,7 +1827,8 @@ export default function MainThreedEditor() {
       // face from the hit mesh, a surface host (lathe, shell: applySurfaceCuts
       // tags its pieces) its piece from the hit mesh — a piece has no edges
       // to select with it —, a regular one from the conversion of its
-      // displayed object (flat sheets have none: they keep the plan gesture).
+      // displayed object (flat sheets have none: they keep the plan gesture)
+      // — a mesh annotation carved live by a subtraction included.
       const firstHit = intersects[0];
       let owner = firstHit?.object ?? null;
       while (owner && !owner.userData?.nodeId) owner = owner.parent;
@@ -1830,7 +1837,7 @@ export default function MainThreedEditor() {
         let faceIndex = -1;
         let edges = null;
         let pieceId = null;
-        if (owner.userData.isAnnotationMesh3d) {
+        if (owner.userData.isAnnotationMesh3d && !hasCarvedSolid(owner)) {
           faceIndex = firstHit.object.userData?.mesh3dFaceIndex ?? -1;
           edges = firstHit.object.userData?.mesh3dFaceEdges;
         } else if (
@@ -2832,14 +2839,15 @@ export default function MainThreedEditor() {
     const selectedItem = selectSelectedItem(selectionState);
     const selectedPartIds = selectSelectedPartIds(selectionState);
     // Face under the cursor: carried by the hit mesh on a mesh annotation,
-    // located on the displayed conversion for a regular one — only looked up
-    // when that annotation has selected faces.
+    // located on the displayed conversion for a regular one (or a mesh one
+    // carved live: no face mesh left) — only looked up when that annotation
+    // has selected faces.
     let hoveredFaceIndex = meshPart?.faceIndex;
     if (
       hoveredFaceIndex === undefined &&
       hit &&
       hitIntersect &&
-      !hit.userData?.isAnnotationMesh3d &&
+      (!hit.userData?.isAnnotationMesh3d || hasCarvedSolid(hit)) &&
       selectedItem?.nodeId === hitId &&
       getSelectedMesh3dParts(selectedItem, selectedPartIds).some(
         (part) => part.partType === MESH3D_FACE_PART

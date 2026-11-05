@@ -101,9 +101,12 @@ export function resolveAnnotationFace(editor, { annotationId, faceIndex }) {
     editor.sceneManager.annotationsManager?.getAnnotationSource?.(annotationId);
   if (!source) return null;
   const isMesh3d = Boolean(source.isMesh3d);
-  const displayed = isMesh3d
-    ? getStoredDisplayedMesh3d(editor, annotationId)
-    : getDisplayedMesh3d(editor, annotationId, { allowSingleFace: true });
+  // The displayed conversion wins when there is one: a regular annotation,
+  // or a mesh one carved live by a subtraction (its face indices address the
+  // carved solid, not the stored mesh).
+  const displayed =
+    getDisplayedMesh3d(editor, annotationId, { allowSingleFace: true }) ??
+    (isMesh3d ? getStoredDisplayedMesh3d(editor, annotationId) : null);
   const face = displayed?.mesh?.faces?.[faceIndex];
   if (!face || !(face.loop?.length >= 3)) return null;
 

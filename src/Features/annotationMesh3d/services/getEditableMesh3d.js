@@ -28,8 +28,8 @@ import convertObject3DToMesh3d from "./convertObject3DToMesh3d";
 // An isMesh3d annotation returns its stored mesh — unless its displayed
 // object was carved live by a subtraction (hasCarvedSolid: the CSG collapsed
 // its face meshes, so no displayed face maps to a stored one): null, the
-// host is display-only until « Soustraire définitivement » writes the
-// carved mesh. A regular annotation is converted IN MEMORY from its live 3D
+// host is read-only (its faces stay selectable, see getDisplayedMesh3d)
+// until « Soustraire définitivement » writes the carved mesh. A regular annotation is converted IN MEMORY from its live 3D
 // object — nothing is written until the tool commits through
 // writeMesh3dService. Null when not editable.
 //

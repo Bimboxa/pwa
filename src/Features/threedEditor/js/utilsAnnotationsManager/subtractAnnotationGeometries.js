@@ -70,8 +70,9 @@ function collectMeshes(object) {
 // (buildMergedWorldSolid), brought back into the group's local frame and
 // added as a single child with an identity transform; the face meshes are
 // removed (their shared material is kept on the merged mesh). The carved
-// result carries `hasSubtraction` and NO `mesh3dFaceIndex`: the host is
-// display-only until « Soustraire définitivement » writes the carved mesh.
+// result carries `hasSubtraction` and NO `mesh3dFaceIndex`: the faces of the
+// host are read on the carved solid (getDisplayedMesh3d: selectable, never
+// written) until « Soustraire définitivement » writes the carved mesh.
 // Returns the solid meshes to carve (the merged one, or the existing single
 // solid of an already-collapsed group).
 function collapseMesh3dHost(group) {

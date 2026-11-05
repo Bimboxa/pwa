@@ -10,7 +10,8 @@ import loadStoredMesh3d from "./loadStoredMesh3d";
 //   [{ ring: [{x, y, z, baseMapId}], isHole }]   (contour first, then holes)
 //
 // A mesh annotation reads its stored mesh (db only, z relative to offsetZ);
-// a regular one reads the conversion of its DISPLAYED object
+// a regular one — or a mesh one carved live by a subtraction — reads the
+// conversion of its DISPLAYED object
 // (getDisplayedMesh3d: absolute local z, z-fight lift stripped), which only
 // exists while the 3D editor is up. The local → world step uses the base
 // map's stored pose, not the scene group, so no 1 mm lift is added.
@@ -27,16 +28,20 @@ export default async function getMesh3dFaceRingsWorld({
 
   let mesh = null;
   let baseOffsetZ = 0;
-  if (annotation.isMesh3d) {
+  // Displayed conversion first: it is the mesh the face index addresses for
+  // a regular annotation AND for a mesh one carved live by a subtraction
+  // (null for an uncarved mesh annotation).
+  const displayed = getDisplayedMesh3d(editor, annotation.id);
+  if (displayed) {
+    mesh = displayed.mesh;
+    baseOffsetZ = displayed.baseOffsetZ ?? 0;
+  } else if (annotation.isMesh3d) {
     const stored = await loadStoredMesh3d(annotation.id);
     if (!stored) return null;
     mesh = stored.mesh;
     baseOffsetZ = stored.baseOffsetZ;
   } else {
-    const displayed = getDisplayedMesh3d(editor, annotation.id);
-    if (!displayed) return null;
-    mesh = displayed.mesh;
-    baseOffsetZ = displayed.baseOffsetZ ?? 0;
+    return null;
   }
   const face = mesh?.faces?.[faceIndex];
   if (!face?.loop?.length) return null;
