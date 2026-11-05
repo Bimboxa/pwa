@@ -20,6 +20,7 @@ import {
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
   setMeshBrushCreate2dIfPossible,
+  setMeshBrushPaintAllFaces,
   setMeshBrushPartMode,
   setRepairMode,
   setTemplateBrushDuplicateTarget,
@@ -280,6 +281,7 @@ export default function SectionDrawingHelperContent() {
   const meshBrushFaceS = "Facette";
   const meshBrushEdgeS = "Arête";
   const meshBrushCreate2dS = "Créer une annotation 2D si possible";
+  const meshBrushPaintAllFacesS = "Peindre toutes les faces de l'annotation";
   const templateBrushConvertS =
     "Cliquez sur une annotation pour lui appliquer le modèle";
   const templateBrushDuplicateS =
@@ -322,6 +324,12 @@ export default function SectionDrawingHelperContent() {
   const meshBrushCreate2dIfPossible = useSelector(
     (s) => s.mapEditor.meshBrushCreate2dIfPossible
   );
+  // « Peindre toutes les faces de l'annotation » (facets only): one click
+  // paints every bare face of the host, or removes them all.
+  const meshBrushPaintAllFaces = useSelector(
+    (s) => s.mapEditor.meshBrushPaintAllFaces
+  );
+  const isMeshBrushFace = meshBrushPartType === MESH_PAINT_PART_TYPES.FACE;
   // « Pinceau » armed in the 2D editor (template brush): the click converts
   // the annotation to the armed template, or duplicates it with that
   // template when the switch below is on (hotkey D, InteractionLayer).
@@ -589,6 +597,31 @@ export default function SectionDrawingHelperContent() {
               {meshBrushEdgeS}
             </ToggleButton>
           </ToggleButtonGroup>
+        </Paper>
+      )}
+      {isThreedToggledEditor && isMeshBrushFace && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {meshBrushPaintAllFacesS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={Boolean(meshBrushPaintAllFaces)}
+            onChange={(e) =>
+              dispatch(setMeshBrushPaintAllFaces(e.target.checked))
+            }
+          />
         </Paper>
       )}
       {isThreedToggledEditor && isMeshBrush && (

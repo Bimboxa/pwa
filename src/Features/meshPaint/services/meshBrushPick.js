@@ -54,6 +54,9 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
 //     previewKey }                       an existing paint (toggle / replace)
 //   { kind: "HOST", partType, hostId, baseMapId, metrics, localGeometry,
 //     candidate, previewKey }            a part of a host to paint
+//   FACE targets (PAINT and HOST) carry `viewDir`: the click ray direction
+//   in the base map frame (« Peindre toutes les faces de l'annotation »
+//   turns the open sheets the clicked face is not part of toward the viewer).
 //   PAINT and HOST targets carry `clip` when the host is shown as a
 //   display-only half revolution: the part covers the full turn, only its
 //   displayed side is drawn and picked (clipPaintGeometry).
@@ -234,6 +237,12 @@ export function createMeshBrushPicker(sceneManager) {
     return null;
   }
 
+  // Click ray direction in the frame of a base map (null without its group).
+  function getViewDir(baseMapId) {
+    const group = getManagers().imagesManager?.getGroup?.(baseMapId);
+    return group ? getFrame(group).dirToLocal(raycaster.ray.direction) : null;
+  }
+
   function paintTarget(object) {
     const userData = object.userData;
     return {
@@ -243,6 +252,7 @@ export function createMeshBrushPicker(sceneManager) {
       hostId: userData.hostAnnotationId,
       baseMapId: userData.baseMapId,
       localGeometry: userData.localGeometry,
+      viewDir: getViewDir(userData.baseMapId),
       clip: userData.clip ?? null,
       previewKey: `P:${userData.meshPaintId}:${getClipKey(userData.clip)}`,
     };
@@ -405,6 +415,7 @@ export function createMeshBrushPicker(sceneManager) {
     }
 
     const clip = getHostHalfView(host.root, host.group);
+    const viewDir = frame.dirToLocal(raycaster.ray.direction);
     const toTarget = (localGeometry, previewKey) => ({
       kind: "HOST",
       partType: FACE,
@@ -412,6 +423,7 @@ export function createMeshBrushPicker(sceneManager) {
       baseMapId: host.baseMapId,
       metrics,
       localGeometry,
+      viewDir,
       clip,
       candidate: {
         partType: FACE,
@@ -441,6 +453,8 @@ export function createMeshBrushPicker(sceneManager) {
           }
           surfaceCache.set(key, target);
         }
+        // The cached target outlives the camera move.
+        target.viewDir = viewDir;
         return target;
       }
     }
