@@ -106,10 +106,19 @@ export default function triangulateAnnotationGeometry({
   //   TENT: exact planar-strip chord partition (crossings pre-split);
   //     falls back to the plain per-vertex-z earcut on failure.
   shell = null,
+  // Side faces of an extruded prism (getPrismSideSegments), per SEGMENT of
+  // the rings as passed in (segment i: point i → point i + 1):
+  //   { contour: { hidden: Set<number>, labels: number[] },
+  //     holes: [{ hidden, labels } | null] }  — holes aligned with `holes`.
+  // A hidden segment gets no wall; `labels` come back per triangle in
+  // `triLabels`. The walls are matched to the source segments by position,
+  // so the rings rebuilt below (iso partitions, shell, banding) keep them.
+  sideSegments = null,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) {
     return emptyResult();
   }
+  const getSideMeta = buildSideMetaLookup(contour, holes, sideSegments);
 
   // Holes without area are dropped: they carve nothing and earcut throws on
   // them (see isDegenerateRing).
@@ -380,6 +389,8 @@ export default function triangulateAnnotationGeometry({
   let bottomRange = [0, 0];
   let sideRange = [0, 0];
   let bottomBase = -1;
+  // Face label of every wall triangle, in emission order.
+  const sideLabels = [];
 
   if (isExtruded) {
     // 2. BOTTOM FACE — same vertices at bottom z, reversed winding so the
@@ -398,11 +409,19 @@ export default function triangulateAnnotationGeometry({
     // 3. SIDE WALLS — outer contour and each hole. For holes, reverse winding
     // so the wall faces inward (toward the hole).
     const sideStart = indices.length;
-    emitRingWalls(positions, indices, contour, height, verticalLift, zFightOffset, false);
+    emitRingWalls(positions, indices, contour, height, verticalLift, zFightOffset, false, getSideMeta, sideLabels);
     for (const h of validHoles) {
-      emitRingWalls(positions, indices, h, height, verticalLift, zFightOffset, true);
+      emitRingWalls(positions, indices, h, height, verticalLift, zFightOffset, true, getSideMeta, sideLabels);
     }
     sideRange = [sideStart, indices.length - sideStart];
+  }
+
+  // Per-triangle face labels (0 on the top / bottom faces), only when a wall
+  // carries one: null keeps every reader on its plain path.
+  let triLabels = null;
+  if (sideLabels.some((label) => label !== 0)) {
+    triLabels = new Int32Array(indices.length / 3);
+    triLabels.set(sideLabels, sideRange[0] / 3);
   }
 
   // 4. QUANTITIES — areas computed from the actual 3D vertex positions.
@@ -449,6 +468,9 @@ export default function triangulateAnnotationGeometry({
     topRange,
     bottomRange,
     sideRange,
+    // Int32Array (one face label per triangle) when `sideSegments` labels
+    // tell coplanar walls apart, else null.
+    triLabels,
     areaPlanar: areaPlanar * k2,
     areaTop: areaTop * k2,
     areaBottom: areaBottom * k2,
@@ -832,6 +854,7 @@ function emptyResult() {
     topRange: [0, 0],
     bottomRange: [0, 0],
     sideRange: [0, 0],
+    triLabels: null,
     areaPlanar: 0,
     areaTop: 0,
     areaBottom: 0,
@@ -840,13 +863,66 @@ function emptyResult() {
   };
 }
 
+// Side-face lookup of `sideSegments` (see the main function): returns
+// (a, b) => { hidden, label } for a wall segment of the working rings, or
+// null when no source segment is hidden or labelled. Only those segments are
+// indexed; a wall whose middle lies on one of them takes its meta, every
+// other wall is plain. Matching by position survives the rings rebuilt by
+// the partitions (points inserted along the source segments).
+const PLAIN_SIDE = { hidden: false, label: 0 };
+
+function buildSideMetaLookup(contour, holes, sideSegments) {
+  if (!sideSegments) return null;
+  const marked = [];
+  let extent = 0;
+  const collect = (ring, meta) => {
+    if (!Array.isArray(ring) || ring.length < 3 || !meta) return;
+    const hidden = meta.hidden instanceof Set ? meta.hidden : new Set(meta.hidden ?? []);
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i];
+      const b = ring[(i + 1) % ring.length];
+      extent = Math.max(extent, Math.abs(a.x), Math.abs(a.y));
+      const label = meta.labels?.[i] ?? 0;
+      const isHidden = hidden.has(i);
+      if (!isHidden && label === 0) continue;
+      marked.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, hidden: isHidden, label });
+    }
+  };
+  collect(contour, sideSegments.contour);
+  (holes || []).forEach((hole, i) => collect(hole, sideSegments.holes?.[i]));
+  if (marked.length === 0) return null;
+
+  const tol = Math.max(extent, 1) * 1e-7;
+  return (a, b) => {
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    for (const seg of marked) {
+      const dx = seg.bx - seg.ax;
+      const dy = seg.by - seg.ay;
+      const lengthSq = dx * dx + dy * dy;
+      if (!(lengthSq > 0)) continue;
+      const t = ((mx - seg.ax) * dx + (my - seg.ay) * dy) / lengthSq;
+      if (t < 0 || t > 1) continue;
+      const ex = mx - (seg.ax + dx * t);
+      const ey = my - (seg.ay + dy * t);
+      if (ex * ex + ey * ey <= tol * tol) return seg;
+    }
+    return PLAIN_SIDE;
+  };
+}
+
 // Per consecutive pair (p_i, p_{i+1}) on a closed ring, push a quad with
-// per-point bottom/top z. Reverse winding for hole rings.
-function emitRingWalls(positions, indices, ring, height, verticalLift, zFightOffset, reverseWinding) {
+// per-point bottom/top z. Reverse winding for hole rings. With `getSideMeta`
+// (buildSideMetaLookup), hidden segments get no quad and the face label of
+// each emitted triangle is appended to `sideLabels`.
+function emitRingWalls(positions, indices, ring, height, verticalLift, zFightOffset, reverseWinding, getSideMeta = null, sideLabels = null) {
   for (let i = 0; i < ring.length; i++) {
     const j = (i + 1) % ring.length;
     const a = ring[i];
     const b = ring[j];
+    const meta = getSideMeta ? getSideMeta(a, b) : PLAIN_SIDE;
+    if (meta.hidden) continue;
+    sideLabels?.push(meta.label, meta.label);
     const aBot = verticalLift + (a.offsetBottom ?? 0) + zFightOffset;
     const bBot = verticalLift + (b.offsetBottom ?? 0) + zFightOffset;
     const aTop =

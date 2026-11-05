@@ -20,6 +20,7 @@ import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import getQtiesSurface from "Features/annotations/utils/getQtiesSurface";
 
 import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -74,7 +75,7 @@ export default function DatagridAnnotations({
                 templateLabel: annotation.annotationTemplateProps?.label || "Sans Label",
                 height: annotation.height,
                 length: annotation.qties?.enabled ? annotation.qties.length : 0,
-                surface: annotation.qties?.enabled ? annotation.qties.surface : 0,
+                surface: annotation.qties?.enabled ? getQtiesSurface(annotation.qties) : 0,
                 layoutLength: annotation.qties?.enabled ? annotation.qties.layoutLength ?? 0 : 0,
                 points: annotation.points,
                 x: annotation.x,

@@ -860,9 +860,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         break;
       }
       const pts = pointsToLocal(annotation.points || [], baseMap);
-      const cuts = (annotation.cuts || [])
-        .map((cut) => pointsToLocal(cut.points || [], baseMap))
-        .filter((c) => c.length >= 3);
+      // Cut rings with their hidden segments (kept aligned by the filter).
+      const cutRings = (annotation.cuts || [])
+        .map((cut) => ({
+          points: pointsToLocal(cut.points || [], baseMap),
+          hiddenSegmentsIdx: cut.hiddenSegmentsIdx || [],
+        }))
+        .filter((c) => c.points.length >= 3);
+      const cuts = cutRings.map((c) => c.points);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
       // profileLines and isoHeightLines COEXIST: when profiles exist the
       // shell build (triangulateAnnotationGeometry) merges the iso chords as
@@ -954,6 +959,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           resolution: options?.resolution,
           isoLines: hasGuideLineRamp,
           isoHeightChords,
+          // Prism sides of a POLYGON with a height: no side face on a hidden
+          // segment, one face per drawn segment, an edge at every vertex.
+          prismSides: true,
+          hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
+          cutsHiddenSegmentsIdx: cutRings.map((c) => c.hiddenSegmentsIdx),
           ...(shellProfiles.length
             ? {
                 shell: {

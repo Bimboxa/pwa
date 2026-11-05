@@ -1,3 +1,5 @@
+import getQtiesSurface from "Features/annotations/utils/getQtiesSurface";
+
 const unitMap = {
   UNIT: "u",
   METER: "ml",
@@ -46,7 +48,7 @@ export default function getAnnotationMainQtyLabel(annotation, qties) {
     qty = qties?.length;
     unit = unitMap.METER;
   } else if (variant === "SURFACE") {
-    qty = qties?.surface;
+    qty = getQtiesSurface(qties);
     unit = unitMap.SQUARE_METER;
   }
 

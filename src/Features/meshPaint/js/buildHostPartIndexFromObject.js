@@ -102,6 +102,22 @@ function getHalfViewAxis(mesh) {
 // (-1: the mesh is no piece); null when the host has no piece. Every SOLID
 // mesh of a surface host is a piece from its first build (cut or not): a
 // single-mesh host is one group, which partitions like no group at all.
+//
+// The side faces of a prism that a drawn vertex splits within one plane
+// (extrudeClosedShape, geometry.userData.triParts: one face label per
+// triangle, 0 = none) are kept apart the same way: the label joins the piece
+// in the group of the triangle.
+const FACE_LABEL_BASE = 100000;
+
+export function getTriangleFaceLabels(geometry) {
+  const labels = geometry?.userData?.triParts;
+  if (!labels?.length) return null;
+  const position = geometry.getAttribute?.("position");
+  const index = geometry.getIndex?.();
+  const count = index ? index.count : (position?.count ?? 0);
+  return labels.length === Math.floor(count / 3) ? labels : null;
+}
+
 function collectTriangles(meshes, groupInverse) {
   const out = [];
   const groups = [];
@@ -119,13 +135,18 @@ function collectTriangles(meshes, groupInverse) {
       ? mesh.userData.surfaceCutPiece
       : -1;
     if (piece >= 0) hasPieces = true;
+    const labels = getTriangleFaceLabels(geometry);
+    if (labels) hasPieces = true;
+    // Labelled groups start at FACE_LABEL_BASE: never a piece index.
+    const groupOf = (t) =>
+      labels?.[t] ? (piece + 2) * FACE_LABEL_BASE + labels[t] : piece;
     for (let i = 0; i < usable; i++) {
       v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
         toLocal
       );
       out.push(v.x, v.y, v.z);
     }
-    for (let t = 0; t < usable / 3; t++) groups.push(piece);
+    for (let t = 0; t < usable / 3; t++) groups.push(groupOf(t));
     // Hidden half: the displayed one turned 180° about the axis.
     const axis = getHalfViewAxis(mesh);
     if (!axis) continue;

@@ -23,6 +23,7 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import splitTJunctions from "Features/geometry/utils/splitTJunctions";
 import isDegenerateRing from "Features/geometry/utils/isDegenerateRing";
+import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
 import buildGridEdgeLines from "./buildGridEdgeLines";
@@ -239,6 +240,39 @@ function buildIsoLinesFromSegments(segments) {
   );
 }
 
+// Vertical black edges at the drawn vertices of a prism the crease threshold
+// leaves bare (getPrismSideSegments.vertexEdges): a vertex in the middle of a
+// straight side, a gentle fold. Tagged isGridEdge / "VERTEX": they follow the
+// Wireframe visibility, are never re-thresholded (applyWireframeSettings
+// rebuilds "EDGES" lines only) and are dropped by a CSG carve.
+function buildVertexEdgeLines(rings, height, verticalLift) {
+  const positions = [];
+  for (const ring of rings) {
+    for (const k of ring.vertexEdges) {
+      const p = ring.points[k];
+      const bottom = verticalLift + (p.offsetBottom ?? 0) + Z_FIGHT_OFFSET;
+      positions.push(
+        p.x,
+        p.y,
+        bottom,
+        p.x,
+        p.y,
+        bottom + height + (p.offsetTop ?? 0)
+      );
+    }
+  }
+  if (positions.length === 0) return null;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  const lines = new LineSegments(
+    geometry,
+    new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+  );
+  lines.userData = { isGridEdge: true, gridEdgeKind: "VERTEX" };
+  lines.raycast = () => {};
+  return lines;
+}
+
 export default function extrudeClosedShape(
   points,
   height,
@@ -253,10 +287,37 @@ export default function extrudeClosedShape(
   // A hole without area (every point at the same place, aligned points)
   // carves nothing and makes earcut throw: dropped here, once, for every
   // path below (flat Shape, per-vertex Z, view3d edges, T-junction split).
-  holes = (holes || []).filter((ring) => !isDegenerateRing(ring));
+  // The hidden segments of the holes follow the same filter.
+  const keptHoles = (holes || []).map((ring) => !isDegenerateRing(ring));
+  const holesHiddenSegmentsIdx = (options.cutsHiddenSegmentsIdx || []).filter(
+    (_, i) => keptHoles[i]
+  );
+  holes = (holes || []).filter((_, i) => keptHoles[i]);
 
   const isExtruded = height && height > 0;
   const group = new Group();
+
+  // Prism sides (options.prismSides, POLYGON with a height): the side faces
+  // of hidden segments are not built, the side faces a drawn vertex splits
+  // in one plane are told apart (face labels → geometry.userData.triParts,
+  // read by the Pinceau) and every drawn vertex gets its vertical edge.
+  const prismRings =
+    isExtruded && options.prismSides
+      ? [
+          getPrismSideSegments(points, options.hiddenSegmentsIdx),
+          ...holes.map((ring, i) =>
+            getPrismSideSegments(ring, holesHiddenSegmentsIdx[i])
+          ),
+        ]
+      : null;
+  const sideSegments = prismRings
+    ? { contour: prismRings[0], holes: prismRings.slice(1) }
+    : null;
+  // The side faces need their own quads: ExtrudeGeometry builds them all,
+  // in an order that cannot be mapped back to the drawn segments.
+  const isSegmentedPrism = Boolean(
+    prismRings?.some((ring) => ring.hidden.size > 0 || ring.hasLabels)
+  );
 
   // "Affichage 3D" of a SOLO business object link (options.view3d, see
   // businessObjects/utils/templateView3d): fat lines along the rings (outer
@@ -324,7 +385,7 @@ export default function extrudeClosedShape(
     hasShell;
 
   let geometry;
-  if (!isPerVertexZPath) {
+  if (!isPerVertexZPath && !isSegmentedPrism) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -361,6 +422,8 @@ export default function extrudeClosedShape(
       // Shell (profileLines): { mode: "DOME"|"TENT", profiles } — takes
       // precedence internally over isoPartition / banding.
       shell: hasShell ? options.shell : null,
+      // Prism sides: hidden side faces skipped, coplanar ones labelled.
+      sideSegments,
     });
     geometry = new BufferGeometry();
     geometry.setAttribute(
@@ -369,6 +432,7 @@ export default function extrudeClosedShape(
     );
     geometry.setIndex(Array.from(tri.indices));
     geometry.computeVertexNormals();
+    if (tri.triLabels) geometry.userData.triParts = tri.triLabels;
 
     if (tri.isoPartitionApplied) {
       // Fold edges on the iso lines + contour outlines (planar strips).
@@ -454,6 +518,12 @@ export default function extrudeClosedShape(
         sourceMesh: solidMesh,
       })
     );
+    // After the outline: the carve / cut passes read the kind of the FIRST
+    // grid-edge line they find.
+    const vertexEdges = prismRings
+      ? buildVertexEdgeLines(prismRings, height, verticalLift)
+      : null;
+    if (vertexEdges) group.add(vertexEdges);
   }
 
   return group;

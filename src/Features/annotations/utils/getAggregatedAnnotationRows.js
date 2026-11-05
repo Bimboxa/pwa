@@ -1,3 +1,5 @@
+import getQtiesSurface from "./getQtiesSurface.js";
+
 /**
  * Aggregates enriched annotations into datagrid/export rows.
  *
@@ -93,8 +95,8 @@ export default function getAggregatedAnnotationRows({
     if (annotation.qties?.enabled) {
       if (Number.isFinite(annotation.qties.length))
         row.length += annotation.qties.length;
-      if (Number.isFinite(annotation.qties.surface))
-        row.surface += annotation.qties.surface;
+      const surface = getQtiesSurface(annotation.qties);
+      if (Number.isFinite(surface)) row.surface += surface;
       if (Number.isFinite(annotation.qties.layoutLength))
         row.layoutLength += annotation.qties.layoutLength;
     }

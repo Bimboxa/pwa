@@ -12,6 +12,7 @@ import {
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
 import {
   getDiscSector,
   getDiscSurfaceM2,
@@ -952,15 +953,40 @@ function computeAnnotationQties({
     const hasIsoHeightLines = annotation?.isoHeightLines?.some(
       (l) => l?.points?.length >= 2
     );
+    // Prism (POLYGON with a height, the solid of extrudeClosedShape): its
+    // developed surface is the area of ALL its faces — top + bottom + the
+    // side faces, those of hidden segments left out (they are not built).
+    // The planar `surface` stays the footprint. A stairs polygon ignores its
+    // height (surface only, like the 3D build).
+    const prismHeight =
+      annotation.type === "POLYGON" && !stairsGuideLine
+        ? Math.max(0, Number(annotation.height) || 0)
+        : 0;
     if (
       closeLine &&
       (hasPerVertexZOffsets(annotation) || hasIsoHeightLines || hasProfileLines)
     ) {
-      const cutsRings = (annotation.cuts || [])
-        .map((c) =>
-          (c?.points || []).filter((p) => p && typeof p.x === "number")
-        )
-        .filter((r) => r.length >= 3);
+      const cutEntries = (annotation.cuts || [])
+        .map((c) => ({
+          ring: (c?.points || []).filter((p) => p && typeof p.x === "number"),
+          hiddenSegmentsIdx: c?.hiddenSegmentsIdx || [],
+        }))
+        .filter((entry) => entry.ring.length >= 3);
+      const cutsRings = cutEntries.map((entry) => entry.ring);
+      // Side faces of the prism, indexed on the expanded rings triangulated
+      // below (same expansion, x / y scaled only).
+      const sideSegments =
+        prismHeight > 0
+          ? {
+              contour: getPrismSideSegments(
+                points,
+                annotation.hiddenSegmentsIdx || []
+              ),
+              holes: cutEntries.map((entry) =>
+                getPrismSideSegments(entry.ring, entry.hiddenSegmentsIdx)
+              ),
+            }
+          : null;
       const innerPts = (annotation.innerPoints || []).filter(
         (p) => p && typeof p.x === "number"
       );
@@ -985,7 +1011,8 @@ function computeAnnotationQties({
           toMeters(expandRingWithOffsets(r, ARC_SAMPLES, true))
         ),
         innerPoints: toMeters(innerPts),
-        height: 0,
+        height: prismHeight,
+        sideSegments,
         verticalLift: 0,
         unitScale: 1,
         // Match the banded 3D ramp mesh so the developed surface is consistent.
@@ -1030,7 +1057,10 @@ function computeAnnotationQties({
             }
           : null,
       });
-      result.surfaceDeveloped = tri.areaTop;
+      result.surfaceDeveloped =
+        prismHeight > 0
+          ? tri.areaTop + tri.areaBottom + tri.areaSides
+          : tri.areaTop;
 
       // Developed perimeter: main contour (closed) + each cut ring (closed),
       // matching the planar `length` aggregation but in 3D.
@@ -1054,6 +1084,11 @@ function computeAnnotationQties({
         }
       });
       result.lengthDeveloped = lengthDeveloped;
+    } else if (prismHeight > 0) {
+      // Flat prism: two faces of the footprint (cuts subtracted) + the
+      // visible perimeter (contour + cuts, hidden segments left out) × height.
+      result.surfaceDeveloped =
+        2 * result.surface + result.length * prismHeight;
     }
 
     // Layout lines (lignes de calepinage): Σ of the bars' lengths, in

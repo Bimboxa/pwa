@@ -1,3 +1,5 @@
+import getQtiesSurface from "Features/annotations/utils/getQtiesSurface";
+
 const unitMap = {
     UNIT: "u",
     METER: "ml",
@@ -15,7 +17,8 @@ export default function stringifyAnnotationQties(qties) {
 
     // surface
 
-    const surfaceS = `Surface: ${qties?.surface?.toFixed(2)} ${unitMap.SQUARE_METER}`
+    const surface = getQtiesSurface(qties);
+    const surfaceS = `Surface: ${surface?.toFixed(2)} ${unitMap.SQUARE_METER}`
 
     // count
 
@@ -24,7 +27,7 @@ export default function stringifyAnnotationQties(qties) {
     // label
 
     let label = lengthS;
-    if (qties?.surface) {
+    if (surface) {
         label = `${lengthS} - ${surfaceS}`;
     }
     else if (qties?.length) {
