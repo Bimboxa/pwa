@@ -58,6 +58,11 @@ hairline (`non-scaling-stroke`), light grey, never hit-tested,
 
 - anchored on the **bottom-left** corner of the base map, clipped to its
   extent;
+- **turned by the ortho snap angle** of the editor
+  (`mapEditor.orthoSnapAngleOffset`, around that corner — `utils/gridAxes.js`,
+  the frame shared with the snap): the lines are parallel to the directions
+  the Shift ortho constraint snaps to. A rotated grid overflows the base map
+  rectangle, so the layer clips it (`clipPath`);
 - culled to the visible area plus half a viewport of margin, capped at 3000
   lines;
 - follows the **live camera**: the dynamic cell size switches during the zoom
@@ -86,9 +91,10 @@ strokes are non-scaling.
 
 ## Snap
 
-`utils/getGridSnap.js`, on every line drawn (secondary and main grid alike):
-each axis snaps on its own within the usual 12 px threshold — near a vertical line only `x` is corrected, near a horizontal
-line only `y`, near a node both.
+`utils/getGridSnap.js`, on every line drawn (secondary and main grid alike),
+in the grid frame (so with the same rotation as the drawing): each grid axis
+snaps on its own within the usual 12 px threshold — near a line of one family
+only that coordinate is corrected, near a node both.
 
 Wired in `mapEditor/components/InteractionLayer.jsx` (`computeGridSnap`),
 always as the **lowest priority**: only when no vertex / midpoint snap, no

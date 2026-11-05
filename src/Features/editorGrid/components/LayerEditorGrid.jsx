@@ -1,4 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useId, useMemo } from "react";
+
+import { useSelector } from "react-redux";
 
 import useMapCameraSelector from "Features/mapEditorGeneric/hooks/useMapCamera";
 import useEditorGrid from "../hooks/useEditorGrid";
@@ -20,6 +22,11 @@ const MINOR_WIDTH = 0.5;
 // Hairline whatever the zoom (non-scaling stroke), never hit-tested, left out
 // of the captures.
 //
+// The grid is turned by the ortho snap angle of the editor
+// (mapEditor.orthoSnapAngleOffset): its lines are parallel to the directions
+// the Shift ortho constraint snaps to. A rotated grid is clipped to the base
+// map extent.
+//
 // Follows the LIVE camera (useMapCameraSelector): the dynamic cell size
 // switches during the zoom gesture, not after it. It still re-renders only
 // when the displayed grid changes or the view leaves the region already
@@ -28,6 +35,9 @@ function LayerEditorGrid({ imageSize, meterByPx, basePose }) {
   // data
 
   const { enabled, stepM, dynamic } = useEditorGrid();
+  const angleDeg = useSelector((s) => s.mapEditor.orthoSnapAngleOffset) || 0;
+  // useId yields ":r1:" — keep the id url()-safe
+  const clipId = `editor-grid-clip-${useId().replace(/:/g, "")}`;
 
   const frame = useMapCameraSelector(
     (camera, previous) =>
@@ -49,15 +59,26 @@ function LayerEditorGrid({ imageSize, meterByPx, basePose }) {
       imageSize: { width, height },
       viewBox: frame.box,
       majorEvery: frame.majorEvery,
+      angleDeg,
     });
-  }, [frame, meterByPx, width, height]);
+  }, [frame, meterByPx, width, height, angleDeg]);
 
   // render
 
   if (!paths?.minor && !paths?.major) return null;
 
   return (
-    <g data-capture-hide fill="none" style={{ pointerEvents: "none" }}>
+    <g
+      data-capture-hide
+      fill="none"
+      clipPath={angleDeg ? `url(#${clipId})` : undefined}
+      style={{ pointerEvents: "none" }}
+    >
+      {angleDeg !== 0 && (
+        <clipPath id={clipId}>
+          <rect x={0} y={0} width={width} height={height} />
+        </clipPath>
+      )}
       {paths.minor && (
         <path
           d={paths.minor}

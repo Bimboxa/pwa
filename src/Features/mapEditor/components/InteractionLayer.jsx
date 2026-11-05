@@ -2119,6 +2119,8 @@ const InteractionLayer = forwardRef(({
     return getGridSnap({
       point: localPos,
       cellPx: displayed.stepM / meterByPx,
+      // same rotation as the grid drawn: the ortho snap angle
+      angleDeg: orthoSnapAngleOffsetRef.current || 0,
       imageSize: baseMapImageSize,
       threshold: SNAP_THRESHOLD_ABSOLUTE / (basePoseK * zoom),
     });
