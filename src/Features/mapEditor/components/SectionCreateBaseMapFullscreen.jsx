@@ -58,7 +58,6 @@ import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
 import testIsDwg from "Features/files/utils/testIsDwg";
-import createBlankImageFile from "Features/images/utils/createBlankImageFile";
 import getBlankBaseMapGeometry from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 
 const DialogCreateBaseMapFromDxf = lazy(
@@ -315,14 +314,8 @@ export default function SectionCreateBaseMapFullscreen({
       scale: 50,
     });
 
-    const file = await createBlankImageFile({
-      width: pixelWidth,
-      height: pixelHeight,
-      fileName: `${blankA3NameS}.png`,
-    });
-
     const entity = await createBaseMapFromImage({
-      file,
+      whitePage: { width: pixelWidth, height: pixelHeight },
       name: blankA3NameS,
       listing,
       meterByPx,

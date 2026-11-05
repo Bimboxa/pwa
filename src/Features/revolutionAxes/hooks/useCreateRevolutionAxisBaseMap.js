@@ -7,7 +7,6 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useVerticalBaseMapsByListing from "Features/baseMapLinks/hooks/useVerticalBaseMapsByListing";
-import createBlankImageFile from "Features/images/utils/createBlankImageFile";
 import getBlankBaseMapGeometry, {
   getBlankBaseMapPrintZone,
 } from "Features/baseMaps/utils/getBlankBaseMapGeometry";
@@ -50,11 +49,6 @@ export default function useCreateRevolutionAxisBaseMap() {
       const { pixelWidth, pixelHeight, meterByPx } =
         getBlankBaseMapGeometry(setup);
       const name = `Coupe ${axis.label ?? "Axe"}`;
-      const file = await createBlankImageFile({
-        width: pixelWidth,
-        height: pixelHeight,
-        fileName: `${name}.png`,
-      });
       // Plan's own listing = fallback when no listing holds vertical maps.
       const planBaseMap = axis.baseMapId
         ? await db.baseMaps.get(axis.baseMapId)
@@ -67,7 +61,7 @@ export default function useCreateRevolutionAxisBaseMap() {
       // selectOnCreate false: the placement is written first, the view
       // switches once the page is posed.
       const entity = await createBaseMapFromImage({
-        file,
+        whitePage: { width: pixelWidth, height: pixelHeight },
         name,
         listing,
         meterByPx,

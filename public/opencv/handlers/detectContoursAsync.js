@@ -20,15 +20,25 @@ async function detectContoursAsync({ msg, payload }) {
       ignoreBaseMap = false,
     } = payload ?? {};
 
-    if (!imageUrl || x === undefined || y === undefined) {
+    // White page base map: no pixels to read (and no decodable image) — the
+    // caller sends ignoreBaseMap without imageUrl, the image size is the
+    // exclusion mask size.
+    const hasNoImage =
+      !imageUrl && ignoreBaseMap && maskWidth > 0 && maskHeight > 0;
+
+    if ((!imageUrl && !hasNoImage) || x === undefined || y === undefined) {
       throw new Error("imageUrl, x, and y are required");
     }
 
-    const imageData = await loadImageDataFromUrl(imageUrl);
-    const src = track(cv.matFromImageData(imageData));
-
-    const imageWidth = src.cols;
-    const imageHeight = src.rows;
+    let src = null;
+    let imageWidth = maskWidth;
+    let imageHeight = maskHeight;
+    if (!hasNoImage) {
+      const imageData = await loadImageDataFromUrl(imageUrl);
+      src = track(cv.matFromImageData(imageData));
+      imageWidth = src.cols;
+      imageHeight = src.rows;
+    }
 
     let pixelX = x >= 0 && x <= 1 ? Math.floor(x * imageWidth) : Math.floor(x);
     let pixelY = y >= 0 && y <= 1 ? Math.floor(y * imageHeight) : Math.floor(y);
@@ -44,7 +54,7 @@ async function detectContoursAsync({ msg, payload }) {
       // pipeline and run on an all-white binary. The fill then propagates over
       // the whole image and is bounded only by the exclusion mask (existing
       // annotation footprints) and the ROI/viewport below.
-      src.delete(); // free RGBA mat early — image content is not used
+      if (src) src.delete(); // free RGBA mat early — image content is not used
       processedBinary = track(
         new cv.Mat(imageHeight, imageWidth, cv.CV_8UC1, new cv.Scalar(255))
       );

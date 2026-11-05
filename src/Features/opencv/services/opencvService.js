@@ -1,3 +1,6 @@
+import { testIsWhitePageUrl } from "Features/baseMaps/utils/createWhitePageImage";
+import rasterizeWhitePageUrl from "Features/baseMaps/utils/rasterizeWhitePageUrl";
+
 class CV {
   constructor() {
     this._requestId = 0;
@@ -13,6 +16,18 @@ class CV {
    * the worker asynchronously.
    */
   _dispatch(event) {
+    // White page base map: its image is an SVG data url the worker cannot
+    // decode (createImageBitmap rejects SVG blobs) — hand it a PNG raster.
+    const imageUrl = event?.payload?.imageUrl;
+    if (testIsWhitePageUrl(imageUrl)) {
+      return rasterizeWhitePageUrl(imageUrl).then(({ url }) =>
+        this._post({ ...event, payload: { ...event.payload, imageUrl: url } })
+      );
+    }
+    return this._post(event);
+  }
+
+  _post(event) {
     if (!this.worker) {
       throw new Error("OpenCV worker not loaded");
     }
