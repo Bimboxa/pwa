@@ -17,7 +17,13 @@ const normalizeDeg = (deg) => {
   return d;
 };
 
-export default function FieldsAnnotationDisc({ annotation, compact = false }) {
+export default function FieldsAnnotationDisc({
+  annotation,
+  compact = false,
+  // Edit toolbar: commit the typed values on blur / Enter (see
+  // FieldAnnotationHeight). The properties panel keeps committing as-you-type.
+  commitOnBlur = false,
+}) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
@@ -75,6 +81,7 @@ export default function FieldsAnnotationDisc({ annotation, compact = false }) {
         label="rayon"
         displayDecimals={3}
         onChange={handleRadiusChange}
+        commitOnBlur={commitOnBlur}
       />
       <Tooltip title="Révolution partielle : ne garder qu'un secteur du disque (deux angles)">
         <Box sx={{ display: "flex", alignItems: "center", p: 0.5 }}>
@@ -98,6 +105,7 @@ export default function FieldsAnnotationDisc({ annotation, compact = false }) {
             unit="°"
             displayDecimals={1}
             onChange={handleAngleChange("revolutionAngleStartDeg")}
+            commitOnBlur={commitOnBlur}
           />
           <FieldAnnotationHeight
             annotation={annotation}
@@ -106,6 +114,7 @@ export default function FieldsAnnotationDisc({ annotation, compact = false }) {
             unit="°"
             displayDecimals={1}
             onChange={handleAngleChange("revolutionAngleEndDeg")}
+            commitOnBlur={commitOnBlur}
           />
         </>
       )}
