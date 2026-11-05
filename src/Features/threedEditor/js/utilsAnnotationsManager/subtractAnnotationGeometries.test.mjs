@@ -66,6 +66,7 @@ const {
 const {
   BoxGeometry,
   BufferGeometry,
+  CylinderGeometry,
   Float32BufferAttribute,
   Group,
   LineBasicMaterial,
@@ -270,4 +271,82 @@ test("a PX polyline wall carved as a solid never closes", () => {
   // Why the bake must run hollow on a sheet: a regular SUBTRACTION leaves an
   // open soup, which the closed-mesh checks of the bake refuse.
   assert.equal(isMesh3dClosed(carvedMesh(solid)), false);
+});
+
+// A PX polyline wall drawn as an arc, as createAnnotationObject3D samples it:
+// 18 facets of 30 m radius meeting at 3.3 degrees, extruded over 41.85 m along
+// the local Z of a base map posed far from the world origin (float32 noise on
+// the world round trip of the carve).
+function arcSheetWall() {
+  const points = [];
+  for (let i = 0; i <= 18; i++) {
+    const angle = ((120 - (60 * i) / 18) * Math.PI) / 180;
+    points.push({ x: 30 * Math.cos(angle), y: -20 + 30 * Math.sin(angle) });
+  }
+  const baseMapGroup = new Group();
+  baseMapGroup.rotation.set(Math.PI / 2, 0.37, 0);
+  baseMapGroup.position.set(512.3, 87.1, 233.7);
+  const wall = extrudePolylineWall(
+    points,
+    41.85,
+    new MeshBasicMaterial(),
+    false
+  );
+  baseMapGroup.add(wall);
+  // A cylinder across one end of the sheet: every facet is cut along a curve,
+  // which leaves slivers and T-junctions on every seam.
+  const cutter = new Mesh(
+    new CylinderGeometry(25, 25, 80, 48),
+    new MeshBasicMaterial()
+  );
+  cutter.userData.role = "SOLID";
+  cutter.rotation.x = Math.PI / 2;
+  const scene = new Group();
+  scene.add(baseMapGroup, cutter);
+  scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(wall);
+  cutter.position.set(
+    (box.min.x + box.max.x) / 2 + 3,
+    box.max.y + 12,
+    (box.min.z + box.max.z) / 2
+  );
+  scene.updateMatrixWorld(true);
+  return { wall, cutter };
+}
+
+// Edge segments running along the extrusion (local Z) over more than 5 m:
+// the seams between the facets of the arc, and the two free rims.
+function countLongitudinalEdges(object) {
+  let count = 0;
+  object.traverse((child) => {
+    if (!child.userData?.isGridEdge) return;
+    const position = child.geometry.getAttribute("position");
+    for (let i = 0; i < position.count; i += 2) {
+      const dx = position.getX(i + 1) - position.getX(i);
+      const dy = position.getY(i + 1) - position.getY(i);
+      const dz = position.getZ(i + 1) - position.getZ(i);
+      const length = Math.hypot(dx, dy, dz);
+      if (length > 5 && Math.abs(dz) / length > 0.9) count++;
+    }
+  });
+  return count;
+}
+
+test("the seams of a carved arc sheet stay hidden", () => {
+  const { wall, cutter } = arcSheetWall();
+  // Un-carved: the 17 seams are below the wall threshold, the 2 rims remain.
+  assert.equal(countLongitudinalEdges(wall), 2);
+
+  subtractAnnotationGeometries(wall, [cutter], {
+    hollow: true,
+    rebuildEdges: true,
+  });
+
+  assert.equal(hasCarvedSolid(wall), true);
+  // Still the 2 rims only: each seam is matched with its twin on the next
+  // facet although the carve gave the two copies different end points.
+  assert.equal(countLongitudinalEdges(wall), 2);
+  // And each facet is read as ONE face, on its own plane.
+  const mesh = carvedMesh(getSolidMeshesFromObject3D(wall)[0]);
+  assert.equal(mesh.faces.length, 18);
 });
