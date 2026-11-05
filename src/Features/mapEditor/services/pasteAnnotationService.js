@@ -134,6 +134,7 @@ export default async function pasteAnnotationService({
         ...(ref?.type ? { type: ref.type } : {}),
         ...(ref?.offsetTop ? { offsetTop: ref.offsetTop } : {}),
         ...(ref?.offsetBottom ? { offsetBottom: ref.offsetBottom } : {}),
+        ...(ref?.isBreak ? { isBreak: true } : {}),
       };
     });
   }

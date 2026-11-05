@@ -397,6 +397,9 @@ function pointsToLocal(points, baseMap) {
     type: p.type,
     offsetBottom: p.offsetBottom ?? 0,
     offsetTop: p.offsetTop ?? 0,
+    // Break point (« point de rupture »): explicit edge + face split in 3D
+    // (getBreakSegmentLabels).
+    ...(p.isBreak ? { isBreak: true } : {}),
   }));
 }
 
@@ -691,6 +694,7 @@ function extrudeWallPolygon(
     type: p.type,
     offsetBottom: p.offsetBottom ?? 0,
     offsetTop: p.offsetTop ?? 0,
+    ...(p.isBreak ? { isBreak: true } : {}),
   }));
   if (pts.length < 2) return null;
 
@@ -771,11 +775,15 @@ function extrudeWallPolygon(
   const ringPoints = open.map(([x, y], i) => {
     const srcIdx = i < n ? i : 2 * n - 1 - i;
     const src = wallPts[srcIdx] || {};
+    // A break point of the centerline breaks BOTH facings: its two footprint
+    // corners carry the flag (the ends of the line separate nothing).
+    const isBreak = !!src.isBreak && srcIdx > 0 && srcIdx < n - 1;
     return {
       x,
       y,
       offsetBottom: src.offsetBottom ?? 0,
       offsetTop: src.offsetTop ?? 0,
+      ...(isBreak ? { isBreak: true } : {}),
     };
   });
   const local = pointsToLocal(ringPoints, baseMap);
@@ -788,6 +796,8 @@ function extrudeWallPolygon(
     [],
     {
       wallEdges: true,
+      // Break points: edge + face split on both facings.
+      prismSides: true,
       view3d: annotation._view3d,
       resolution: options?.resolution,
     }
@@ -960,7 +970,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           isoLines: hasGuideLineRamp,
           isoHeightChords,
           // Prism sides of a POLYGON with a height: no side face on a hidden
-          // segment, one face per drawn segment, an edge at every vertex.
+          // segment, an edge and a face split at every break point.
           prismSides: true,
           hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
           cutsHiddenSegmentsIdx: cutRings.map((c) => c.hiddenSegmentsIdx),

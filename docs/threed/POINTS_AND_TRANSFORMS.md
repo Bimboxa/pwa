@@ -82,18 +82,9 @@ them through `getPrismSideSegments` (`Features/geometry/utils`):
   face is not built — the prism is open there (a pool profile with its top
   side hidden). An S-C-S arc is hidden as a whole when either of its two
   segments is.
-- **Vertex in the middle of a straight side** (fold < 0.5°): the two side
-  faces lie in one plane, so they get distinct face labels. The labels are
-  stored per triangle in `geometry.userData.triParts` (0 = none) and read
-  by the Pinceau (`buildHostPartIndexFromObject`, `meshBrushPick`): each
-  face paints on its own. A ring without such a vertex has no label.
-- **Vertex edges**: a vertical black edge is drawn at every drawn vertex
-  between two visible straight segments whose fold is below the 15° crease
-  threshold (the ones `EdgesGeometry` leaves bare). Lines tagged
-  `isGridEdge` / `gridEdgeKind: "VERTEX"`: they follow the Wireframe
-  visibility, are never re-thresholded, and are dropped by a CSG carve.
+- **Break points** (« points de rupture », see below): edge + face split.
 
-A prism with a hidden segment or a face label is built by
+A prism with a hidden segment or a break point is built by
 `triangulateAnnotationGeometry` (one quad per segment, `sideSegments`
 option) instead of `ExtrudeGeometry`; every other flat prism keeps the
 `ExtrudeGeometry` path.
@@ -104,6 +95,42 @@ faces, hidden ones left out (`2 × footprint + visible perimeter × height`
 for a flat prism, the triangulated areas for a sloped one). `surface` stays
 the planar footprint. Readers display `getQtiesSurface(qties)`
 (`surfaceDeveloped ?? surface`).
+
+### Break points (`isBreak`)
+
+A point ref of `annotation.points` / `cuts[].points` flagged `isBreak: true`
+(switch « Rupture » of the point toolbar, `ToolbarEditPoint`; thick dark
+vertex handle in 2D) is an EXPLICIT break of the extruded solid:
+
+- the vertical edge standing on it is drawn, whatever the fold (a break in
+  the middle of a straight side, on a gentle fold);
+- the two side faces it separates stay apart for the Pinceau, even coplanar
+  or below the « Sélection de face » angle.
+
+Nothing is automatic: a vertex without the flag splits nothing, even in the
+middle of a straight side.
+
+`getBreakSegmentLabels` (`Features/geometry/utils`) labels the runs of
+segments between two breaks; the builders store the label of every triangle
+in `geometry.userData.triParts`, read by `buildHostPartIndexFromObject` and
+`meshBrushPick` (one brush target per label, see the meshPaint README). A
+closed ring with a single break is closed by its sharpest other corner (one
+break alone cannot cut a ring). The break edges are `LineSegments` tagged
+`isGridEdge` / `gridEdgeKind: "VERTEX"`: they follow the Wireframe
+visibility, are never re-thresholded and are dropped by a CSG carve; a break
+folding past the 15° crease threshold is left to the outline.
+
+Builders reading the flag (`pointsToLocal` carries it):
+
+| Annotation | Builder | Notes |
+|---|---|---|
+| POLYGON with a height | `extrudeClosedShape` (`prismSides`) | contour and cuts |
+| POLYLINE wall, PX width | `extrudePolylineWall` | breaks at the two ends of an open line are ignored |
+| POLYLINE wall, CM width, open | `extrudeWallPolygon` → `extrudeClosedShape` | the two footprint corners of the break carry the flag: both facings split |
+
+Not supported: closed CM walls (hollow ring: no vertex mapping), STRIP,
+revolutions and swept profiles. After a CSG carve (openings, subtractions)
+the geometry is replaced: labels and break edges are lost.
 
 ### POLYLINE wall (`extrudePolylineWall`)
 

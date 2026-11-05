@@ -15,6 +15,9 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
+import getBreakSegmentLabels, {
+  getFoldDeg,
+} from "../../../geometry/utils/getBreakSegmentLabels.js";
 import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
 import attachFatLineRaycast from "./attachFatLineRaycast.js";
 import {
@@ -245,6 +248,12 @@ export default function extrudePolylineWall(
   const positions = [];
   const indices = [];
   let v = 0;
+  // Break points (points flagged `isBreak`): the runs of segments between
+  // two breaks get distinct face labels, stored per triangle for the Pinceau
+  // (geometry.userData.triParts), and each break gets its vertical edge.
+  const breakSides = getBreakSegmentLabels(points, { closed: !!closeLine });
+  const triLabels = [];
+  const visibleSegments = new Set();
   // Edge runs: consecutive visible sub-segments chained while each one
   // starts where the previous ended (same corner object, or the same
   // x / y / offsets after a split); a hidden or dropped part starts a new
@@ -281,6 +290,10 @@ export default function extrudePolylineWall(
       positions.push(a.x, a.y, aTop);
       indices.push(v, v + 1, v + 2, v, v + 2, v + 3);
       v += 4;
+      triLabels.push(breakSides.labels[i], breakSides.labels[i]);
+      // Whole segment built (no negative-span split): a face reaches both
+      // of its corners.
+      if (a === points[i] && b === points[j]) visibleSegments.add(i);
 
       if (run && sameCorner(run.points[run.points.length - 1], a)) {
         run.points.push(b);
@@ -325,6 +338,9 @@ export default function extrudePolylineWall(
   geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
   geom.setIndex(indices);
   geom.computeVertexNormals();
+  if (triLabels.some((label) => label !== 0)) {
+    geom.userData.triParts = Int32Array.from(triLabels);
+  }
 
   const wallMat = material.clone();
   wallMat.side = DoubleSide;
@@ -335,6 +351,38 @@ export default function extrudePolylineWall(
   group.add(mesh);
 
   group.add(buildWallEdges(geom));
+
+  // Edges of the break points standing between two built faces. The wall
+  // outline already draws the corners folding past its seam threshold.
+  // Tagged "VERTEX" like extrudeClosedShape's: visibility only under the
+  // Wireframe settings, dropped by a CSG carve.
+  const breakPositions = [];
+  for (const i of breakSides.breaks) {
+    const previous = (i - 1 + points.length) % points.length;
+    if (!visibleSegments.has(i) || !visibleSegments.has(previous)) continue;
+    if (!(getFoldDeg(points, i, !!closeLine) < WALL_SEAM_DIHEDRAL_DEG)) {
+      continue;
+    }
+    const p = points[i];
+    breakPositions.push(
+      p.x,
+      p.y,
+      lift + (p.offsetBottom ?? 0),
+      p.x,
+      p.y,
+      lift + height + (p.offsetTop ?? 0)
+    );
+  }
+  if (breakPositions.length > 0) {
+    const breakGeom = new BufferGeometry();
+    breakGeom.setAttribute(
+      "position",
+      new Float32BufferAttribute(breakPositions, 3)
+    );
+    group.add(
+      tagWallEdges(new LineSegments(breakGeom, EDGE_MATERIAL.clone()), "VERTEX")
+    );
+  }
 
   return group;
 }

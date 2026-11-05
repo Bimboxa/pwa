@@ -108,6 +108,7 @@ function normalizePoint(point, width, height) {
   if (point.type === "circle") out.type = "circle";
   if (point.offsetTop) out.offsetTop = point.offsetTop;
   if (point.offsetBottom) out.offsetBottom = point.offsetBottom;
+  if (point.isBreak) out.isBreak = true;
   return out;
 }
 

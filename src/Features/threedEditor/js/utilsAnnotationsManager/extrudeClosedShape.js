@@ -240,16 +240,23 @@ function buildIsoLinesFromSegments(segments) {
   );
 }
 
-// Vertical black edges at the drawn vertices of a prism the crease threshold
-// leaves bare (getPrismSideSegments.vertexEdges): a vertex in the middle of a
-// straight side, a gentle fold. Tagged isGridEdge / "VERTEX": they follow the
-// Wireframe visibility, are never re-thresholded (applyWireframeSettings
-// rebuilds "EDGES" lines only) and are dropped by a CSG carve.
-function buildVertexEdgeLines(rings, height, verticalLift) {
+// Crease threshold of the black outline (DEFAULT_CREASE_THRESHOLD_DEG): a
+// break point folding more than this already has its edge in the outline.
+const OUTLINE_CREASE_DEG = 15;
+
+// Vertical black edges standing on the break points of a prism
+// (getPrismSideSegments.breakPoints, ring points flagged `isBreak`): a break
+// in the middle of a straight side, on a gentle fold. `maxFoldDeg` leaves out
+// the breaks the outline already draws (Infinity: all of them). Tagged
+// isGridEdge / "VERTEX": they follow the Wireframe visibility, are never
+// re-thresholded (applyWireframeSettings rebuilds "EDGES" lines only) and are
+// dropped by a CSG carve.
+function buildVertexEdgeLines(rings, height, verticalLift, maxFoldDeg) {
   const positions = [];
   for (const ring of rings) {
-    for (const k of ring.vertexEdges) {
-      const p = ring.points[k];
+    for (const { index, foldDeg } of ring.breakPoints) {
+      if (!(foldDeg < maxFoldDeg)) continue;
+      const p = ring.points[index];
       const bottom = verticalLift + (p.offsetBottom ?? 0) + Z_FIGHT_OFFSET;
       positions.push(
         p.x,
@@ -297,10 +304,11 @@ export default function extrudeClosedShape(
   const isExtruded = height && height > 0;
   const group = new Group();
 
-  // Prism sides (options.prismSides, POLYGON with a height): the side faces
-  // of hidden segments are not built, the side faces a drawn vertex splits
-  // in one plane are told apart (face labels → geometry.userData.triParts,
-  // read by the Pinceau) and every drawn vertex gets its vertical edge.
+  // Prism sides (options.prismSides: POLYGON with a height, footprint of a
+  // thick wall): the side faces of hidden segments are not built, and a
+  // break point (ring point flagged `isBreak`) gets its vertical edge and
+  // keeps the side faces it separates apart (face labels →
+  // geometry.userData.triParts, read by the Pinceau).
   const prismRings =
     isExtruded && options.prismSides
       ? [
@@ -518,13 +526,21 @@ export default function extrudeClosedShape(
         sourceMesh: solidMesh,
       })
     );
-    // After the outline: the carve / cut passes read the kind of the FIRST
-    // grid-edge line they find.
-    const vertexEdges = prismRings
-      ? buildVertexEdgeLines(prismRings, height, verticalLift)
-      : null;
-    if (vertexEdges) group.add(vertexEdges);
   }
+
+  // Edges of the break points — after the outline: the carve / cut passes
+  // read the kind of the FIRST grid-edge line they find. Where an outline is
+  // drawn it already holds the breaks folding past the crease threshold; a
+  // per-vertex-Z prism has no outline, every break gets its edge.
+  const vertexEdges = prismRings
+    ? buildVertexEdgeLines(
+        prismRings,
+        height,
+        verticalLift,
+        isPerVertexZPath ? Infinity : OUTLINE_CREASE_DEG
+      )
+    : null;
+  if (vertexEdges) group.add(vertexEdges);
 
   return group;
 }
