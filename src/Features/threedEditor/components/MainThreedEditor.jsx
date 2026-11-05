@@ -3093,6 +3093,11 @@ export default function MainThreedEditor() {
     if (!renderer || !renderer.domElement) return;
 
     const domElement = renderer.domElement;
+    // The app menu (MenuCommandShortcuts) replaces the native context menu.
+    // camera-controls only cancels it while its controls are enabled (not
+    // during a lasso, walk mode, a camera transition…).
+    const handleContextMenu = (event) => event.preventDefault();
+    domElement.addEventListener("contextmenu", handleContextMenu);
     domElement.addEventListener("pointerdown", handlePointerDown);
     domElement.addEventListener("pointermove", handlePointerMove);
     domElement.addEventListener("pointermove", handleHoverPointerMove);
@@ -3101,6 +3106,7 @@ export default function MainThreedEditor() {
     domElement.addEventListener("dblclick", handleDoubleClick);
 
     return () => {
+      domElement.removeEventListener("contextmenu", handleContextMenu);
       domElement.removeEventListener("pointerdown", handlePointerDown);
       domElement.removeEventListener("pointermove", handlePointerMove);
       domElement.removeEventListener("pointermove", handleHoverPointerMove);

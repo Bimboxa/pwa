@@ -187,6 +187,12 @@ export default function MenuCommandShortcuts({ ctx, deps }) {
         open={open}
         anchorEl={anchorEl}
         onClose={closeMenu}
+        // The 3D editor opens the menu on pointerup: on Windows the native
+        // contextmenu event fires afterwards and lands on the menu backdrop
+        // instead of the canvas. Cancel it here (backdrop + paper, the event
+        // bubbles through the portal) — never close the menu from it, that
+        // event would close the menu it just opened.
+        onContextMenu={(e) => e.preventDefault()}
         keepMounted
         anchorOrigin={{ vertical: "top", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
