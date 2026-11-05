@@ -71,14 +71,12 @@ export default function useCreateBaseMaps() {
             const result = await getEntityPureDataAndFilesDataByKey(
                 {
                     name: baseMap.name,
-                    // White page (baseMap.whitePage = { width, height, grid }):
+                    // White page (baseMap.whitePage = { width, height }):
                     // no file, the image is synthesized at hydration.
                     image: baseMap.whitePage
                         ? getWhitePageImageField(baseMap.whitePage)
                         : { file: baseMap.imageFile },
-                    ...(baseMap.whitePage && {
-                        whitePage: { grid: baseMap.whitePage.grid ?? null },
-                    }),
+                    ...(baseMap.whitePage && { whitePage: {} }),
                     meterByPx: baseMap.meterByPx,
                     sortIndex,
                     // PDF provenance (page + crop + dpi), null for images.

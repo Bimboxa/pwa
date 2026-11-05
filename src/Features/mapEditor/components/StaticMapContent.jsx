@@ -27,6 +27,7 @@ import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionH
 import OverlayBaseMapsLayer from "Features/baseMapOverlays/components/OverlayBaseMapsLayer";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
+import LayerEditorGrid from "Features/editorGrid/components/LayerEditorGrid";
 
 function StaticMapContent({
   bgImageUrl,
@@ -422,6 +423,15 @@ function StaticMapContent({
               />
             )
           ))}
+
+        {/* --- EDITOR GRID (« Grille » command) ---
+            Base-map local px: above the image, under the annotations. */}
+        <LayerEditorGrid
+          imageSize={baseMapImageSize}
+          meterByPx={baseMapMeterByPx}
+          basePoseK={basePose.k}
+          visibleViewBox={visibleViewBox}
+        />
 
         {/* --- OVERLAID BASE MAPS (greyed, read-only) ---
             Above the main image, under the main annotations. */}

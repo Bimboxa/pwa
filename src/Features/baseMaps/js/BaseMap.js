@@ -42,15 +42,11 @@ function createPreviewOnlyImage(image) {
 }
 
 // White page base map (record.whitePage): its image has no file, it is
-// synthesized in memory (white sheet + optional metric grid). Returns the
-// createWhitePageImage args for a stored image, or null for a regular one.
-function getWhitePageArgs(record, image) {
+// synthesized in memory (a white sheet). Returns the createWhitePageImage
+// args for a stored image, or null for a regular one.
+function getWhitePageArgs(image) {
   if (!testIsWhitePageImage(image)) return null;
-  return {
-    imageSize: image.imageSize,
-    meterByPx: record.meterByPx,
-    grid: record.whitePage?.grid ?? null,
-  };
+  return { imageSize: image.imageSize };
 }
 
 export default class BaseMap {
@@ -110,8 +106,8 @@ export default class BaseMap {
     // width, height } — sheet rect in REFERENCE image px, see
     // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
     printZone,
-    // White page (« Page blanche »): { grid: null | { stepM, majorEvery } }.
-    // No file in db.files — the image is synthesized at hydration, see
+    // White page (« Page blanche »): {} marker of a base map created with
+    // no image file — the image is synthesized at hydration, see
     // baseMaps/utils/createWhitePageImage.js.
     whitePage,
     // version system
@@ -236,7 +232,7 @@ export default class BaseMap {
 
         const hydratedVersions = await Promise.all(
           versions.map(async (v) => {
-            const whitePageArgs = getWhitePageArgs(record, v.image);
+            const whitePageArgs = getWhitePageArgs(v.image);
             const key = whitePageArgs
               ? getWhitePageCacheKey(whitePageArgs)
               : getImageCacheKey(v.image);
@@ -287,7 +283,7 @@ export default class BaseMap {
       }
 
       // --- Legacy path: image + imageEnhanced ---
-      const whitePageArgs = getWhitePageArgs(record, record.image);
+      const whitePageArgs = getWhitePageArgs(record.image);
       const imageKey = whitePageArgs
         ? getWhitePageCacheKey(whitePageArgs)
         : getImageCacheKey(record.image);

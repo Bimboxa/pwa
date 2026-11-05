@@ -2,6 +2,8 @@
 import { useState, useImperativeHandle, forwardRef } from "react";
 import { Box, Typography } from "@mui/material";
 
+import { SCALE_STEPS } from "../utils/scaleSteps";
+
 const HelperScale = forwardRef(({ meterByPx, basePoseK = 1, initialWorldK = 1 }, ref) => {
 
 
@@ -18,19 +20,7 @@ const HelperScale = forwardRef(({ meterByPx, basePoseK = 1, initialWorldK = 1 },
 
   // --- LOGIQUE DE CALCUL (inchangée) ---
   const noScaleS = "Echelle non définie";
-  const scaleSteps = [
-    { meters: 0.01, label: "1 cm" },
-    { meters: 0.05, label: "5 cm" },
-    { meters: 0.1, label: "10 cm" },
-    { meters: 0.5, label: "50 cm" },
-    { meters: 1, label: "1 m" },
-    { meters: 5, label: "5 m" },
-    { meters: 10, label: "10 m" },
-    { meters: 50, label: "50 m" },
-    { meters: 100, label: "100 m" },
-    { meters: 500, label: "500 m" },
-    { meters: 1000, label: "1 km" },
-  ];
+  const scaleSteps = SCALE_STEPS;
 
   // Calculate effective scale factor
   const totalScale = (worldK || 1) * (basePoseK || 1);
