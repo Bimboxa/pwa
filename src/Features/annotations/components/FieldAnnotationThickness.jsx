@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box, Menu, MenuItem } from "@mui/material";
 
+import usePendingFieldCommit from "../hooks/usePendingFieldCommit";
+
 import FieldShortcutBadge from "./FieldShortcutBadge";
 
 const FIELD = "strokeWidth";
@@ -13,11 +15,23 @@ export default function FieldAnnotationThickness({
   disabled = false,
   active = false,
   shortcut,
+  // Edit toolbars of a stored annotation: the typed value is committed once,
+  // when the field is left (blur / Enter), instead of while typing. Escape
+  // restores the stored value.
+  commitOnBlur = false,
 }) {
   const [localValue, setLocalValue] = useState(annotation?.[FIELD] ?? "");
   const [unitAnchorEl, setUnitAnchorEl] = useState(null);
 
   const debounceTimer = useRef(null);
+
+  // A stroke width is never null: an emptied field falls back to the stored
+  // value instead of committing.
+  const pendingCommit = usePendingFieldCommit({
+    field: FIELD,
+    targetId: annotation?.id,
+    allowNull: false,
+  });
 
   useEffect(() => {
     setLocalValue(annotation?.[FIELD] ?? "");
@@ -49,6 +63,15 @@ export default function FieldAnnotationThickness({
     const newValue = e.target.value;
     setLocalValue(newValue);
 
+    if (commitOnBlur) {
+      pendingCommit.setPending({
+        target: annotation,
+        value: newValue,
+        onChange,
+      });
+      return;
+    }
+
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
     debounceTimer.current = setTimeout(() => {
@@ -57,9 +80,23 @@ export default function FieldAnnotationThickness({
     }, 400);
   }
 
+  function handleBlur() {
+    if (!commitOnBlur) return;
+    // Nothing written (unchanged, invalid or discarded input): echo the
+    // stored value back.
+    if (!pendingCommit.flush()) setLocalValue(annotation?.[FIELD] ?? "");
+  }
+
   function handleKeyDown(e) {
     if (e.key === "Backspace" || e.key === "Delete") {
       e.stopPropagation();
+    }
+    if (!commitOnBlur) return;
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      pendingCommit.discard();
+      e.currentTarget.blur();
     }
   }
 
@@ -121,6 +158,7 @@ export default function FieldAnnotationThickness({
         <InputBase
           value={localValue}
           onChange={handleChange}
+          onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           readOnly={disabled}
           fullWidth

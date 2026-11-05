@@ -114,6 +114,7 @@ export default function ToolbarEditPoint() {
             field="offsetBottom"
             label="bas"
             onChange={handleOffsetBottomChange}
+            commitOnBlur
           />
         </Box>
       </Tooltip>
@@ -124,6 +125,7 @@ export default function ToolbarEditPoint() {
             field="offsetTop"
             label="haut"
             onChange={handleOffsetTopChange}
+            commitOnBlur
           />
         </Box>
       </Tooltip>

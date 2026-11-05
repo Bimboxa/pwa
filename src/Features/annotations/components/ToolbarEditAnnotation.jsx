@@ -653,6 +653,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 field="width"
                 label="L"
                 disabled={isLocked("width")}
+                commitOnBlur
               />
             ) : (
               // isMesh3d: the solid is the stored mesh (push/pull in 3D), the
@@ -664,6 +665,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   annotation={selectedAnnotation}
                   onChange={handleHeightChange}
                   disabled={isLocked("height")}
+                  commitOnBlur
                 />
               )
             )}
@@ -675,6 +677,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   field="edgeHeight"
                   label="ht. côté"
                   disabled={isLocked("edgeHeight")}
+                  commitOnBlur
                 />
               )}
             <FieldAnnotationHeight
@@ -683,12 +686,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               field="offsetZ"
               label="Offset"
               disabled={isLocked("offsetZ")}
+              commitOnBlur
             />
             {isPolylineOrStrip && (
               <FieldAnnotationThickness
                 annotation={selectedAnnotation}
                 onChange={handleStrokeWidthChange}
                 disabled={isLocked("strokeWidth")}
+                commitOnBlur
               />
             )}
             <Box sx={{ flex: 1 }} />
@@ -723,7 +728,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               borderColor: "divider",
             }}
           >
-            <FieldsAnnotationDisc annotation={selectedAnnotation} compact />
+            <FieldsAnnotationDisc
+              annotation={selectedAnnotation}
+              compact
+              commitOnBlur
+            />
           </Box>
         )}
 

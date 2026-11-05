@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box } from "@mui/material";
 
+import usePendingFieldCommit from "../hooks/usePendingFieldCommit";
+
 import FieldShortcutBadge from "./FieldShortcutBadge";
 
 export default function FieldAnnotationHeight({
@@ -17,6 +19,10 @@ export default function FieldAnnotationHeight({
   // Millimeter by default — a stored value carrying float noise
   // (-1.0000000128…) must not flood the toolbar.
   displayDecimals = 3,
+  // Edit toolbars of a stored annotation: the typed value is committed once,
+  // when the field is left (blur / Enter), instead of while typing. Escape
+  // restores the stored value.
+  commitOnBlur = false,
 }) {
   const field = fieldProp ?? "height";
   // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")
@@ -38,6 +44,11 @@ export default function FieldAnnotationHeight({
 
   // 2. We use a ref to store the timer ID so it persists across renders
   const debounceTimer = useRef(null);
+
+  const pendingCommit = usePendingFieldCommit({
+    field,
+    targetId: annotation?.id,
+  });
 
   // 3. Sync local state if the prop changes externally (e.g. selecting a different node)
   useEffect(() => {
@@ -82,6 +93,15 @@ export default function FieldAnnotationHeight({
     // 1. Update UI immediately
     setLocalValue(newValue);
 
+    if (commitOnBlur) {
+      pendingCommit.setPending({
+        target: annotation,
+        value: newValue,
+        onChange,
+      });
+      return;
+    }
+
     // 2. Clear previous timer
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -102,9 +122,23 @@ export default function FieldAnnotationHeight({
     }, 400);
   }
 
+  function handleBlur() {
+    if (!commitOnBlur) return;
+    // Nothing written (unchanged, invalid or discarded input): echo the
+    // stored value back.
+    if (!pendingCommit.flush()) setLocalValue(toDisplay(annotation?.[field]));
+  }
+
   function handleKeyDown(e) {
     if (e.key === "Backspace" || e.key === "Delete") {
       e.stopPropagation();
+    }
+    if (!commitOnBlur) return;
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      pendingCommit.discard();
+      e.currentTarget.blur();
     }
   }
 
@@ -157,6 +191,7 @@ export default function FieldAnnotationHeight({
         <InputBase
           value={localValue}
           onChange={handleChange}
+          onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           readOnly={disabled}
           fullWidth
