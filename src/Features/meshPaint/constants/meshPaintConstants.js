@@ -62,11 +62,12 @@ export const BRUSH_EDGE_PICK_PX = 10;
 // index of the whole host is built at the first hover (an imported GLB can
 // carry far more than a drawn annotation).
 export const BRUSH_MAX_HOST_TRIANGLES = 200000;
-// « Peindre toutes les faces de l'annotation »: a host with more faces
-// (facets, or smooth surfaces at the « Sélection de face » angle) than this
-// is refused (TOO_MANY_PARTS) — one db.meshPaints row and one 3D object per
-// face.
-export const BRUSH_MAX_ALL_FACES_PARTS = 500;
+// « Peindre toutes les faces / arêtes de l'annotation »: a host with more
+// parts of the brush's type (facets, or smooth surfaces at the « Sélection
+// de face » angle; edges, or the curves they chain into) than this is
+// refused (TOO_MANY_PARTS) — one db.meshPaints row and one 3D object per
+// part.
+export const BRUSH_MAX_ALL_PARTS = 500;
 // Collinear merge of edge pieces into one straight edge.
 export const EDGE_COLLINEAR_DEG = 0.5;
 // Inside / outside parity probe offset along the painted side's normal.

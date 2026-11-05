@@ -20,6 +20,7 @@ import {
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
   setMeshBrushCreate2dIfPossible,
+  setMeshBrushPaintAllEdges,
   setMeshBrushPaintAllFaces,
   setMeshBrushPartMode,
   setRepairMode,
@@ -284,6 +285,7 @@ export default function SectionDrawingHelperContent() {
   const meshBrushEdgeS = "Arête";
   const meshBrushCreate2dS = "Créer une annotation 2D si possible";
   const meshBrushPaintAllFacesS = "Peindre toutes les faces de l'annotation";
+  const meshBrushPaintAllEdgesS = "Peindre toutes les arêtes de l'annotation";
   const templateBrushConvertS =
     "Cliquez sur une annotation pour lui appliquer le modèle";
   const templateBrushDuplicateS =
@@ -326,10 +328,14 @@ export default function SectionDrawingHelperContent() {
   const meshBrushCreate2dIfPossible = useSelector(
     (s) => s.mapEditor.meshBrushCreate2dIfPossible
   );
-  // « Peindre toutes les faces de l'annotation » (facets only): one click
-  // paints every bare face of the host, or removes them all.
+  // « Peindre toutes les faces / arêtes de l'annotation »: one click paints
+  // every bare part of the host of the brush's part type, or removes them
+  // all — one switch per part type, the one of the current type is shown.
   const meshBrushPaintAllFaces = useSelector(
     (s) => s.mapEditor.meshBrushPaintAllFaces
+  );
+  const meshBrushPaintAllEdges = useSelector(
+    (s) => s.mapEditor.meshBrushPaintAllEdges
   );
   const isMeshBrushFace = meshBrushPartType === MESH_PAINT_PART_TYPES.FACE;
   // « Pinceau » armed in the 2D editor (template brush): the click converts
@@ -601,27 +607,35 @@ export default function SectionDrawingHelperContent() {
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
-            {isMeshBrushFace && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 1,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  {meshBrushPaintAllFacesS}
-                </Typography>
-                <Switch
-                  size="small"
-                  checked={Boolean(meshBrushPaintAllFaces)}
-                  onChange={(e) =>
-                    dispatch(setMeshBrushPaintAllFaces(e.target.checked))
-                  }
-                />
-              </Box>
-            )}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {isMeshBrushFace
+                  ? meshBrushPaintAllFacesS
+                  : meshBrushPaintAllEdgesS}
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(
+                  isMeshBrushFace
+                    ? meshBrushPaintAllFaces
+                    : meshBrushPaintAllEdges
+                )}
+                onChange={(e) =>
+                  dispatch(
+                    isMeshBrushFace
+                      ? setMeshBrushPaintAllFaces(e.target.checked)
+                      : setMeshBrushPaintAllEdges(e.target.checked)
+                  )
+                }
+              />
+            </Box>
             <Box
               sx={{
                 display: "flex",

@@ -67,8 +67,11 @@ const mapEditorInitialState = {
   // annotation at once (one side per face, faces already painted left
   // alone); a click on a face carrying the armed template removes all of
   // them (drawing helper switch « Peindre toutes les faces de
-  // l'annotation », planPaintAllFaces).
+  // l'annotation », planPaintAllParts).
   meshBrushPaintAllFaces: false,
+  // « Pinceau » (3D, edges): the same for the edges of the host (switch
+  // « Peindre toutes les arêtes de l'annotation », shown in edge mode).
+  meshBrushPaintAllEdges: false,
   // « Pinceau » in the 2D editor (template brush): when true, a clicked
   // annotation keeps its template and a DUPLICATE carrying the armed template
   // is created instead (drawing helper switch « Dupliquer l'annotation
@@ -458,6 +461,9 @@ export const mapEditorSlice = createSlice({
     },
     setMeshBrushPaintAllFaces: (state, action) => {
       state.meshBrushPaintAllFaces = Boolean(action.payload);
+    },
+    setMeshBrushPaintAllEdges: (state, action) => {
+      state.meshBrushPaintAllEdges = Boolean(action.payload);
     },
     setTemplateBrushDuplicateTarget: (state, action) => {
       state.templateBrushDuplicateTarget = Boolean(action.payload);
@@ -1085,6 +1091,7 @@ export const {
   setMeshBrushPartMode,
   setMeshBrushCreate2dIfPossible,
   setMeshBrushPaintAllFaces,
+  setMeshBrushPaintAllEdges,
   setTemplateBrushDuplicateTarget,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,

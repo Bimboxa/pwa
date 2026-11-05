@@ -19,8 +19,9 @@ export const PAINT_REFUSAL = Object.freeze({
   INNER_FACE: "INNER_FACE", // inner side of a closed solid
   NOT_SOLID: "NOT_SOLID", // a decoration of the host, not its solid
   OCCLUDED: "OCCLUDED", // a maille hides the host under the cursor
-  // « Peindre toutes les faces de l'annotation »: the host has more faces
-  // than BRUSH_MAX_ALL_FACES_PARTS (decided by the all-faces plan).
+  // « Peindre toutes les faces / arêtes de l'annotation »: the host has
+  // more faces / edges than BRUSH_MAX_ALL_PARTS (decided by the all-parts
+  // plan).
   TOO_MANY_PARTS: "TOO_MANY_PARTS",
   // context rules (commit impossible)
   NO_SCALE: "NO_SCALE", // base map without scale / image size
@@ -38,7 +39,7 @@ export const PAINT_REFUSAL_LABELS = Object.freeze({
   INNER_FACE: "Face intérieure",
   NOT_SOLID: "Partie non peignable",
   OCCLUDED: "Masqué par une maille",
-  TOO_MANY_PARTS: "Trop de faces à peindre d'un coup",
+  TOO_MANY_PARTS: "Trop de parties à peindre d'un coup",
   NO_SCALE: "Fond de plan sans échelle",
   READ_ONLY: "Plan de repérage en lecture seule",
   LINKED_LISTING: "Modèle d'une liste liée",

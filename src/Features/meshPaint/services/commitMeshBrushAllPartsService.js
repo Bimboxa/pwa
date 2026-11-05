@@ -7,7 +7,7 @@ import commitMeshBrush2dService, {
   BRUSH_2D_STATUS,
 } from "Features/meshPaint/services/commitMeshBrush2dService";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
-import getMeshBrushAllFacesPlan from "Features/meshPaint/services/getMeshBrushAllFacesPlan";
+import getMeshBrushAllPartsPlan from "Features/meshPaint/services/getMeshBrushAllPartsPlan";
 import {
   buildMeshPaintRow,
   getScopePaintRowsOfBaseMap,
@@ -16,24 +16,25 @@ import {
 import { canTemplatePaint } from "Features/meshPaint/utils/meshBrushTools";
 import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync";
 
-const FACE = MESH_PAINT_PART_TYPES.FACE;
+const PART_TYPES = Object.values(MESH_PAINT_PART_TYPES);
 
 const isLive = (row) => row && !row.deletedAt;
 
 /**
  * Commit of one « Pinceau » click with « Peindre toutes les faces de
- * l'annotation » on (FACE targets of meshBrushPick), ONE undo step:
+ * l'annotation » / « Peindre toutes les arêtes de l'annotation » on (FACE /
+ * EDGE targets of meshBrushPick), ONE undo step:
  *
- * - the clicked face carries the armed template → every FACE paint of that
- *   template on the host is removed (action "REMOVED");
- * - otherwise the clicked face is painted (the paint of another template on
- *   it is replaced) together with every other BARE face of the host
- *   (planPaintAllFaces: one side per face, no duplicate) — one db.meshPaints
- *   row per face, written in one transaction (action "ADDED" | "REPLACED").
- *   A HOST target is first rebuilt without its anti-aliasing shrink and its
- *   faces are read on the rebuilt object, like a plain click
+ * - the clicked part carries the armed template → every paint of that part
+ *   type and of that template on the host is removed (action "REMOVED");
+ * - otherwise the clicked part is painted (the paint of another template on
+ *   it is replaced) together with every other BARE part of that type of the
+ *   host (planPaintAllParts: one side per face, no duplicate) — one
+ *   db.meshPaints row per part, written in one transaction (action "ADDED" |
+ *   "REPLACED"). A HOST target is first rebuilt without its anti-aliasing
+ *   shrink and its parts are read on the rebuilt object, like a plain click
  *   (commitMeshBrushTargetService).
- * - `create2dIfPossible`: every bare face first goes through
+ * - `create2dIfPossible`: every bare part first goes through
  *   commitMeshBrush2dService, like a plain click — a 2D annotation when the
  *   plan can hold it (no paint row), skipped when it has no floor
  *   (NO_GROUND) or already exists (DUPLICATE), a paint row otherwise.
@@ -43,8 +44,8 @@ const isLive = (row) => row && !row.deletedAt;
  *
  * @param {object} params
  * @param {object} params.editor - the active ThreedEditor
- * @param {object} params.target - meshBrushPick FACE target, kind PAINT (with
- *   its db `row`) | HOST
+ * @param {object} params.target - meshBrushPick target, kind PAINT (with its
+ *   db `row`) | HOST; its partType is the part type painted
  * @param {object} params.template - the armed (painting) template
  * @param {string} [params.projectId]
  * @param {string} params.scopeId
@@ -55,10 +56,10 @@ const isLive = (row) => row && !row.deletedAt;
  * @param {Function} [params.createAnnotationFn] - useCreateAnnotation's fn
  * @returns {Promise<{action: "ADDED"|"REPLACED"|"REMOVED"|null,
  *   paintIds: string[], annotationIds: string[], deletedIds: string[],
- *   skippedCount: number, reason?: string}>} skippedCount: bare faces the
+ *   skippedCount: number, reason?: string}>} skippedCount: bare parts the
  *   2D commit refused (NO_GROUND / DUPLICATE).
  */
-export default async function commitMeshBrushAllFacesService({
+export default async function commitMeshBrushAllPartsService({
   editor,
   target,
   template,
@@ -86,7 +87,8 @@ export default async function commitMeshBrushAllFacesService({
   const isPaint = target?.kind === "PAINT";
   if (!sceneManager?.imagesManager || !target) return refuse("NO_TARGET");
   if (!isPaint && target.kind !== "HOST") return refuse("NO_TARGET");
-  if (target.partType !== FACE) return refuse("NOT_A_FACE");
+  const partType = target.partType;
+  if (!PART_TYPES.includes(partType)) return refuse("NO_PART_TYPE");
   const hostId = isPaint ? target.row?.hostAnnotationId : target.hostId;
   const baseMapId = isPaint ? target.row?.baseMapId : target.baseMapId;
   if (!hostId || !baseMapId) return refuse("NO_TARGET");
@@ -108,12 +110,13 @@ export default async function commitMeshBrushAllFacesService({
   const rows = await keepEffectiveRows(
     await getScopePaintRowsOfBaseMap({ baseMapId, scopeId })
   );
-  const getPlan = (clickedFace) =>
-    getMeshBrushAllFacesPlan({
+  const getPlan = (clickedPart) =>
+    getMeshBrushAllPartsPlan({
       sceneManager,
+      partType,
       hostId,
       baseMapId,
-      clickedFace,
+      clickedPart,
       viewDir: target.viewDir ?? null,
       rows,
       templateId: liveTemplate.id,
@@ -125,12 +128,12 @@ export default async function commitMeshBrushAllFacesService({
 
   if (plan.action !== "REMOVED" && !isPaint) {
     await ensureUnshrunkHostObject({ editor, annotationId: hostId });
-    plan = getPlan(redetectClickedFace({ sceneManager, target })) ?? plan;
+    plan = getPlan(redetectClickedPart({ sceneManager, target })) ?? plan;
   }
   if (plan.tooMany) return refuse("TOO_MANY_PARTS");
   if (!plan.action) return refuse("NO_GEOMETRY");
 
-  // REMOVED: every face of the armed template on the host
+  // REMOVED: every part of that type and of the armed template on the host
 
   if (plan.action === "REMOVED") {
     await withUndoGroup(() => db.meshPaints.bulkDelete(plan.deleteIds));
@@ -143,7 +146,7 @@ export default async function commitMeshBrushAllFacesService({
   const toRow = (item, isClicked) =>
     buildMeshPaintRow({
       candidate: {
-        partType: FACE,
+        partType,
         hostAnnotationId: hostId,
         baseMapId,
         geometry: item.geometry,
@@ -165,13 +168,13 @@ export default async function commitMeshBrushAllFacesService({
     for (let i = 0; i < plan.add.length; i++) {
       const item = plan.add[i];
       const isClicked = i === 0;
-      // Only a bare face becomes a 2D annotation: the clicked one keeps the
+      // Only a bare part becomes a 2D annotation: the clicked one keeps the
       // paint semantics when it replaces a paint.
       const isBare = !isClicked || plan.action === "ADDED";
       if (create2dIfPossible && !isPaint && isBare) {
         const result = await commitMeshBrush2dService({
           editor,
-          partType: FACE,
+          partType,
           hostId,
           baseMapId,
           localGeometry: item.localGeometry,
@@ -211,11 +214,12 @@ export default async function commitMeshBrushAllFacesService({
   });
 }
 
-// The clicked face found again on the host's rebuilt (un-shrunk) object —
-// Stage 1 of the re-sync matching, like a plain click; the picked geometry
-// stands when it is not found.
-function redetectClickedFace({ sceneManager, target }) {
-  const { hostId, baseMapId, localGeometry } = target;
+// The clicked part found again on the host's rebuilt (un-shrunk) object —
+// Stage 1 of the re-sync matching, like a plain click (an edge comes back
+// with the facets it borders); the picked geometry stands when it is not
+// found.
+function redetectClickedPart({ sceneManager, target }) {
+  const { partType, hostId, baseMapId, localGeometry } = target;
   try {
     const imagesManager = sceneManager.imagesManager;
     const annotationsManager = sceneManager.annotationsManager;
@@ -231,7 +235,7 @@ function redetectClickedFace({ sceneManager, target }) {
           })
         : null;
     const match = data
-      ? matchPaintPartToIndex(FACE, localGeometry, data.getIndex(), {
+      ? matchPaintPartToIndex(partType, localGeometry, data.getIndex(), {
           allowFar: false,
         })
       : null;
