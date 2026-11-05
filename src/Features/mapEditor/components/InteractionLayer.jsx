@@ -155,7 +155,7 @@ import LabelEditorGridStep from 'Features/editorGrid/components/LabelEditorGridS
 import GridSnapMarker from 'Features/editorGrid/components/GridSnapMarker';
 import useEditorGrid from 'Features/editorGrid/hooks/useEditorGrid';
 import getGridSnap from 'Features/editorGrid/utils/getGridSnap';
-import getDisplayedGridStepM, { getPxPerMeter } from 'Features/editorGrid/utils/getDisplayedGridStepM';
+import getDisplayedGrid, { getPxPerMeter } from 'Features/editorGrid/utils/getDisplayedGrid';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
 import prepareCopiedSegmentCreation, { getSegmentMergeReachPx, isCopiedSegment } from 'Features/smartDetect/utils/prepareCopiedSegmentCreation';
@@ -2109,15 +2109,16 @@ const InteractionLayer = forwardRef(({
     if (!(meterByPx > 0)) return null;
     const basePoseK = getTargetScale();
     const zoom = viewportRef.current?.getZoom() || 1;
-    const stepM = getDisplayedGridStepM({
+    // Snap grid = every line drawn (secondary + main grid).
+    const displayed = getDisplayedGrid({
       stepM: grid.stepM,
       dynamic: grid.dynamic,
       pxPerMeter: getPxPerMeter({ zoom, basePoseK, meterByPx }),
     });
-    if (!stepM) return null;
+    if (!displayed) return null;
     return getGridSnap({
       point: localPos,
-      cellPx: stepM / meterByPx,
+      cellPx: displayed.stepM / meterByPx,
       imageSize: baseMapImageSize,
       threshold: SNAP_THRESHOLD_ABSOLUTE / (basePoseK * zoom),
     });

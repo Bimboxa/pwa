@@ -13,8 +13,8 @@ import {
 // - stepM: cell size in metres (fixed mode).
 // - dynamic: the cell size follows the zoom level (same rounded lengths as
 //   the scale indicator) instead of stepM.
-// The cell size actually drawn derives from these and from the zoom:
-// utils/getDisplayedGridStepM.js.
+// The grid actually drawn (secondary cells + main grid) derives from these
+// and from the zoom: utils/getDisplayedGrid.js.
 const persisted = loadEditorGridSettings();
 
 const initialState = {

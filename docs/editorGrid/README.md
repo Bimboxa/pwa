@@ -27,26 +27,34 @@ the default and Fonds de plan layouts). `ButtonToggleGrid` is the toggle plus
 a small arrow opening the options: cell size (presets or a typed value in
 metres) and « Grille dynamique ». Picking an option turns the grid on.
 
-## Displayed cell size
+## Displayed grid: secondary cells + main grid
 
-One function, `utils/getDisplayedGridStepM.js`, shared by the layer, the snap
-and the label (`pxPerMeter = zoom × basePose.k / meterByPx`):
+One function, `utils/getDisplayedGrid.js`, shared by the layer, the snap and
+the label (`pxPerMeter = zoom × basePose.k / meterByPx`). It returns
+`{ stepM, majorEvery }`: `stepM` is the cell of the lines drawn (the
+**secondary** grid, thin lines — also the snap grid), and one line out of
+`majorEvery`, counted from the grid origin, belongs to the **main** grid
+(thicker line).
 
-- **dynamic**: the smallest length of the scale indicator sequence
+- **dynamic**: `stepM` is the smallest length of the scale indicator sequence
   (`mapEditorGeneric/utils/scaleSteps.js`, also used by `HelperScale`: 1 cm,
-  5 cm, 10 cm, 50 cm, 1 m, 5 m…) whose cell is at least 24 px on screen;
-- **fixed**: `stepM`, or nothing while its cells are under 6 px on screen
-  (neither drawn nor snappable).
+  5 cm, 10 cm, 50 cm, 1 m, 5 m…) whose cell is at least 24 px on screen; the
+  main grid is the **next** length of the sequence (10 cm → 50 cm,
+  50 cm → 1 m…);
+- **fixed**: `stepM` cells with a main line every 5. While the cells are under
+  6 px on screen only the main grid stays (drawn and snappable); under 6 px
+  for the main grid too, nothing.
 
-In dynamic mode `LabelEditorGridStep` shows « Maille : 50 cm » above the scale
-indicator, bottom left of the editor.
+In dynamic mode `LabelEditorGridStep` shows « Maille : 10 cm · trait fort :
+50 cm » above the scale indicator, bottom left of the editor.
 
 ## Drawing
 
 `components/LayerEditorGrid.jsx`, mounted by `StaticMapContent` inside the
-base pose group, above the base map image and under the annotations. One
-`<path>` in base-map **local px**, hairline (`non-scaling-stroke`), light
-grey, never hit-tested, `data-capture-hide`.
+base pose group, above the base map image and under the annotations. Two
+`<path>` in base-map **local px** (secondary grid 0.5 px, main grid 1 px),
+hairline (`non-scaling-stroke`), light grey, never hit-tested,
+`data-capture-hide`.
 
 - anchored on the **bottom-left** corner of the base map, clipped to its
   extent;
@@ -56,8 +64,8 @@ grey, never hit-tested, `data-capture-hide`.
 
 ## Snap
 
-`utils/getGridSnap.js`: each axis snaps on its own within the usual 12 px
-threshold — near a vertical line only `x` is corrected, near a horizontal
+`utils/getGridSnap.js`, on every line drawn (secondary and main grid alike):
+each axis snaps on its own within the usual 12 px threshold — near a vertical line only `x` is corrected, near a horizontal
 line only `y`, near a node both.
 
 Wired in `mapEditor/components/InteractionLayer.jsx` (`computeGridSnap`),

@@ -3,19 +3,18 @@ import { Typography } from "@mui/material";
 import useMapZoom from "Features/mapEditorGeneric/hooks/useMapZoom";
 import useEditorGrid from "../hooks/useEditorGrid";
 
-import getDisplayedGridStepM, {
-  getPxPerMeter,
-} from "../utils/getDisplayedGridStepM";
+import getDisplayedGrid, { getPxPerMeter } from "../utils/getDisplayedGrid";
 import formatGridStep from "../utils/formatGridStep";
 
-// Small caption of the dynamic editor grid: the size of one cell, which
-// changes with the zoom level. Shown next to the scale indicator (bottom
+// Small caption of the dynamic editor grid: the size of one cell (and of the
+// main grid, thicker lines), which change with the zoom level. Shown next to the scale indicator (bottom
 // left of the 2D editor); nothing in fixed mode, where the cell size is the
 // one picked in the « Grille » menu.
 export default function LabelEditorGridStep({ meterByPx, basePoseK = 1 }) {
   // strings
 
   const cellS = "Maille";
+  const mainS = "trait fort";
 
   // data
 
@@ -25,8 +24,8 @@ export default function LabelEditorGridStep({ meterByPx, basePoseK = 1 }) {
 
   // helpers
 
-  const displayedStepM = active
-    ? getDisplayedGridStepM({
+  const grid = active
+    ? getDisplayedGrid({
         stepM,
         dynamic,
         pxPerMeter: getPxPerMeter({ zoom, basePoseK, meterByPx }),
@@ -35,7 +34,12 @@ export default function LabelEditorGridStep({ meterByPx, basePoseK = 1 }) {
 
   // render
 
-  if (!displayedStepM) return null;
+  if (!grid) return null;
+
+  let label = `${cellS} : ${formatGridStep(grid.stepM)}`;
+  if (grid.majorEvery > 1) {
+    label += ` · ${mainS} : ${formatGridStep(grid.stepM * grid.majorEvery)}`;
+  }
 
   return (
     <Typography
@@ -47,7 +51,7 @@ export default function LabelEditorGridStep({ meterByPx, basePoseK = 1 }) {
         userSelect: "none",
       }}
     >
-      {`${cellS} : ${formatGridStep(displayedStepM)}`}
+      {label}
     </Typography>
   );
 }
