@@ -16,8 +16,9 @@ import { BufferAttribute, BufferGeometry } from "three";
 // Each triangle with such a vertex on one of its edges is split into a fan
 // along that edge. The new vertices COPY the position of the vertex they stand
 // for (position-welding readers then merge them) and interpolate the other
-// attributes. The result keeps the input's indexing (indexed / soup) and
-// groups. Returns the same geometry when it has no T-junction.
+// attributes. The result keeps the input's indexing (indexed / soup), groups
+// and per-triangle face labels (userData.triParts). Returns the same geometry
+// when it has no T-junction.
 
 const MAX_TRIANGLES = 50000;
 const MAX_DEPTH = 6;
@@ -214,6 +215,20 @@ export default function splitTJunctions(geometry, { tolerance = 1e-4 } = {}) {
           : out.length;
       result.addGroup(start, end - start, g.materialIndex);
     }
+  }
+
+  // Per-triangle face labels (userData.triParts, see extrudeClosedShape):
+  // every piece of a split triangle keeps the label of its source.
+  const triParts = geometry.userData?.triParts;
+  if (triParts?.length === triangleCount) {
+    const parts = new Int32Array(out.length / 3);
+    for (let t = 0; t < triangleCount; t++) {
+      const start = triangleOutStart[t] / 3;
+      const end =
+        (t + 1 < triangleCount ? triangleOutStart[t + 1] : out.length) / 3;
+      parts.fill(triParts[t], start, end);
+    }
+    result.userData = { ...geometry.userData, triParts: parts };
   }
   return result;
 }

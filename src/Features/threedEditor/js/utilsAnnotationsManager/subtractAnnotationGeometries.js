@@ -235,7 +235,9 @@ export default function subtractAnnotationGeometries(
     });
     for (const child of staleEdges) {
       child.geometry?.dispose?.();
-      if (removedEdgeInfo) {
+      // The vertex edges of a prism (extrudeClosedShape, "VERTEX") trace the
+      // drawn vertices, not the carved solid: dropped, never rebuilt.
+      if (removedEdgeInfo || child.userData.gridEdgeKind === "VERTEX") {
         child.material?.dispose?.();
       } else {
         removedEdgeInfo = {

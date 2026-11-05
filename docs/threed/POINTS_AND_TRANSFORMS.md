@@ -72,6 +72,39 @@ For a flat polygon (`height = 0`), only the top face is drawn. For an
 extruded polygon (`height > 0`), the geometry is a slanted prism with the
 top face per the formula above and a planar bottom face below.
 
+#### Side faces of the prism (`height > 0`)
+
+`createAnnotationObject3D` passes `prismSides: true` plus the hidden
+segments of the contour and of each cut to `extrudeClosedShape`, which reads
+them through `getPrismSideSegments` (`Features/geometry/utils`):
+
+- **Hidden segments** (`hiddenSegmentsIdx`, contour and cuts): their side
+  face is not built — the prism is open there (a pool profile with its top
+  side hidden). An S-C-S arc is hidden as a whole when either of its two
+  segments is.
+- **Vertex in the middle of a straight side** (fold < 0.5°): the two side
+  faces lie in one plane, so they get distinct face labels. The labels are
+  stored per triangle in `geometry.userData.triParts` (0 = none) and read
+  by the Pinceau (`buildHostPartIndexFromObject`, `meshBrushPick`): each
+  face paints on its own. A ring without such a vertex has no label.
+- **Vertex edges**: a vertical black edge is drawn at every drawn vertex
+  between two visible straight segments whose fold is below the 15° crease
+  threshold (the ones `EdgesGeometry` leaves bare). Lines tagged
+  `isGridEdge` / `gridEdgeKind: "VERTEX"`: they follow the Wireframe
+  visibility, are never re-thresholded, and are dropped by a CSG carve.
+
+A prism with a hidden segment or a face label is built by
+`triangulateAnnotationGeometry` (one quad per segment, `sideSegments`
+option) instead of `ExtrudeGeometry`; every other flat prism keeps the
+`ExtrudeGeometry` path.
+
+**Quantities** (`getAnnotationQties`): for a POLYGON with a height,
+`surfaceDeveloped` is the area of ALL the built faces — top + bottom + side
+faces, hidden ones left out (`2 × footprint + visible perimeter × height`
+for a flat prism, the triangulated areas for a sloped one). `surface` stays
+the planar footprint. Readers display `getQtiesSurface(qties)`
+(`surfaceDeveloped ?? surface`).
+
 ### POLYLINE wall (`extrudePolylineWall`)
 
 The wall is extruded straight up from a 2D line. Per segment endpoint:
