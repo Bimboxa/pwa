@@ -76,6 +76,20 @@ Conséquences de la clé commune : l'outil mémorisé par modèle (`selectedTool
 - **Garde anti-doublon** : avant toute écriture, le plan est fouillé en base (toutes les annotations vivantes du fond, chargées en 3D ou non) pour une annotation **du même modèle et du même type au même endroit** — le critère de « Détection des doublons » (`findOverlappingAnnotations`, tolérance par défaut : longueur partagée pour les lignes, surface d'intersection pour les polygones), `utils/findSamePlaceAnnotation.js` + `services/findSamePlace2dAnnotationService.js`, branché sur le hook `checkBeforeCommit` de `commitDrawnFace` / `commitDrawnPolyline` et, pour les bandes de mur, sur chaque bande avant le groupe d'undo. Trouvée → statut `DUPLICATE`, **rien n'est créé (ni annotation, ni points, ni peinture)**, toaster d'erreur « Annotation non créée pour éviter un doublon ». Replay : `scripts/replay/meshBrushSamePlaceReplay.js`.
 - Un clic = une étape d'undo (`withUndoGroup`). Après création, l'exemption de rétrécissement de session de l'hôte est retirée (`removeShrinkExemptAnnotationIds`) : la bande est collée au parement, l'hôte redevient rétréci.
 
+**Peindre toutes les faces de l'annotation** (`mapEditor.meshBrushPaintAllFaces`, switch du DrawingHelper, mode Facette uniquement, inactif par défaut)
+
+- Un clic sur une face **nue** peint d'un coup toutes les faces nues de l'hôte (« Peindre tout ») : une ligne `db.meshPaints` par facette plane, ou par surface lisse quand « Sélection de face » réunit des facettes — le découpage d'un clic simple. L'aperçu couvre toutes les faces concernées.
+- Les faces déjà peintes par un **autre modèle** sont conservées ; seule la face cliquée est remplacée si elle en porte un (« Remplacer « X » et peindre tout »).
+- Un clic sur une face portant **le modèle armé** retire toutes les peintures de facettes de ce modèle sur l'hôte (« Retirer tout ») ; les arêtes peintes ne sont pas touchées. Pour retirer une seule face, désactiver le switch.
+- **Jamais de doublon** (`utils/listHostFaceParts.js`, `utils/planPaintAllFaces.js`) :
+  - hôte fermé (solide) : chaque face une fois, côté extérieur ;
+  - hôte ouvert (feuille, voile mince, mesh ouvert) : **un seul côté par face** — celui de la face cliquée, propagé sur toute la feuille connexe (`index.getSurfaces(180)`) ; une feuille non reliée à la face cliquée est tournée vers la caméra (`viewDir` de la cible) ;
+  - une face déjà peinte de ce côté (n'importe quel modèle, n'importe quel hôte du fond de plan : `findMeshPaintMatches`) est ignorée, ainsi que, sur un hôte ouvert, une face dont l'autre côté porte déjà le modèle armé ;
+  - deux faces du lot au même endroit (stockées dos à dos) ne donnent qu'une ligne.
+- Garde de volume : au-delà de `BRUSH_MAX_ALL_FACES_PARTS` faces, le clic est refusé (« Trop de faces à peindre d'un coup », `TOO_MANY_PARTS`) — augmenter l'angle « Sélection de face ».
+- Avec « Créer une annotation 2D si possible » : chaque face nue suit la règle d'un clic simple (annotation 2D si le plan peut la porter, sinon peinture) ; les faces sans sol ou déjà couvertes par une annotation du modèle sont ignorées et résumées dans un toaster.
+- Un clic = une étape d'undo ; les lignes sont écrites en une transaction (`bulkAdd`). Code : `services/getMeshBrushAllFacesPlan.js` (plan partagé par le survol et le clic), `services/commitMeshBrushAllFacesService.js`.
+
 **Sélection et survol d'une partie peinte (éditeur 3D, Pinceau non armé)**
 
 - Le survol d'une peinture affiche son propre retour (ligne verte sur une arête, pointillé bleu sur une facette) et un tooltip « modèle peintre · Arête · 3,20 ml » / « Face · 12,40 m² · peint sur <hôte> » (`ThreedHoverTooltip.setPaint`). L'hôte n'est pas survolé.

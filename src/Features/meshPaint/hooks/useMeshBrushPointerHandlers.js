@@ -32,8 +32,10 @@ import {
   setMeshBrushOverlay,
 } from "Features/meshPaint/js/meshBrushOverlayStore";
 import { subscribeMeshPaintObjects } from "Features/meshPaint/js/meshPaintObjectsStore";
+import commitMeshBrushAllFacesService from "Features/meshPaint/services/commitMeshBrushAllFacesService";
 import commitMeshBrushTargetService from "Features/meshPaint/services/commitMeshBrushTargetService";
 import { isShrinkableAnnotation } from "Features/meshPaint/services/ensureUnshrunkHostObject";
+import getMeshBrushAllFacesPlan from "Features/meshPaint/services/getMeshBrushAllFacesPlan";
 import { createMeshBrushPicker } from "Features/meshPaint/services/meshBrushPick";
 import classifyMeshBrushLocalPart, {
   BRUSH_2D_KIND,
@@ -47,6 +49,7 @@ import {
   getPaintRefusalLabel,
 } from "Features/meshPaint/utils/getPaintHostRefusal";
 import { canTemplatePaint } from "Features/meshPaint/utils/meshBrushTools";
+import { paintGeometryToLocal } from "Features/meshPaint/utils/meshPaintFrame";
 import planPaintToggle from "Features/meshPaint/utils/planPaintToggle";
 import triangulatePaintFace from "Features/meshPaint/utils/triangulatePaintFace";
 import { buildStippleOverlayFromPositions } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
@@ -111,6 +114,13 @@ function disposeObject(object) {
 //   facet without a floor polygon at its foot gets a toaster, nothing else,
 //   and so does a part whose annotation already exists on the plan (same
 //   template and type at the same place: no duplicate, no paint either);
+// - « Peindre toutes les faces de l'annotation » (mapEditor
+//   .meshBrushPaintAllFaces, facets only): the click paints every bare face
+//   of the host at once (getMeshBrushAllFacesPlan: one side per face, faces
+//   already painted left alone) — « Peindre tout », the preview covers them
+//   all — and a click on a face of the armed template removes all its faces
+//   on that host (« Retirer tout »); committed by
+//   commitMeshBrushAllFacesService in one undo step;
 // - the orbit pivot follows the cursor on press (like the selection mode);
 // - Escape (outside fields) leaves the brush.
 export default function useMeshBrushPointerHandlers() {
@@ -139,6 +149,8 @@ export default function useMeshBrushPointerHandlers() {
   const create2dIfPossible = useSelector(
     (s) => s.mapEditor.meshBrushCreate2dIfPossible
   );
+  // « Peindre toutes les faces de l'annotation » (drawing helper switch).
+  const paintAllFaces = useSelector((s) => s.mapEditor.meshBrushPaintAllFaces);
   const templateProps = useSelector((s) => s.annotations.newAnnotation);
   const baseMaps = useBaseMaps()?.value;
   const createAnnotation = useCreateAnnotation();
@@ -201,6 +213,7 @@ export default function useMeshBrushPointerHandlers() {
       contextRefusal,
       smoothAngleDeg,
       create2dIfPossible,
+      paintAllFaces,
       templateProps,
       baseMaps,
       createAnnotation,
@@ -215,6 +228,7 @@ export default function useMeshBrushPointerHandlers() {
     contextRefusal,
     smoothAngleDeg,
     create2dIfPossible,
+    paintAllFaces,
     templateProps,
     baseMaps,
     createAnnotation,
@@ -230,6 +244,7 @@ export default function useMeshBrushPointerHandlers() {
     armedTemplate,
     smoothAngleDeg,
     create2dIfPossible,
+    paintAllFaces,
   ]);
 
   useEffect(() => {
@@ -247,6 +262,10 @@ export default function useMeshBrushPointerHandlers() {
     let disposed = false;
     let queue = Promise.resolve();
     const preview = { object: null, key: null };
+    // Last « toutes les faces » plan (one entry: the hovered face), valid
+    // for the same target, paints and settings; `generation` keys the
+    // preview.
+    const allFacesCache = { key: null, rows: null, plan: null, generation: 0 };
 
     dom.style.cursor = "crosshair";
 
@@ -265,6 +284,31 @@ export default function useMeshBrushPointerHandlers() {
         requestRender();
       }
       preview.key = null;
+    }
+
+    // « Peindre toutes les faces de l'annotation »: what a click on this
+    // FACE target does on its whole host (null: the plain click stands).
+    function getAllFacesPlan(target) {
+      const data = dataRef.current;
+      const key = `${target.previewKey}|${data.smoothAngleDeg}`;
+      const rows = data.matchRows ?? [];
+      if (allFacesCache.key !== key || allFacesCache.rows !== rows) {
+        allFacesCache.key = key;
+        allFacesCache.rows = rows;
+        allFacesCache.generation += 1;
+        allFacesCache.plan = getMeshBrushAllFacesPlan({
+          sceneManager,
+          hostId: target.row?.hostAnnotationId ?? target.hostId,
+          baseMapId: target.baseMapId,
+          clickedFace: target.localGeometry,
+          viewDir: target.viewDir ?? null,
+          rows,
+          templateId,
+          smoothAngleDeg: data.smoothAngleDeg,
+        });
+      }
+      const plan = allFacesCache.plan;
+      return plan ? { ...plan, generation: allFacesCache.generation } : null;
     }
 
     // Picked target + what a click does on it (action of the toggle).
@@ -318,6 +362,32 @@ export default function useMeshBrushPointerHandlers() {
       const replacedTemplateId = matches.find(
         (match) => match.annotationTemplateId !== templateId
       )?.annotationTemplateId;
+      const replacedLabel = replacedTemplateId
+        ? (data.templateById?.[replacedTemplateId]?.label ?? null)
+        : null;
+
+      // Every face of the host at once.
+      const allFaces =
+        data.paintAllFaces && target.partType === MESH_PAINT_PART_TYPES.FACE
+          ? getAllFacesPlan(target)
+          : null;
+      if (allFaces?.tooMany) {
+        return {
+          kind: "REFUSED",
+          reason: PAINT_REFUSAL.TOO_MANY_PARTS,
+          previewKey: `R:${PAINT_REFUSAL.TOO_MANY_PARTS}`,
+        };
+      }
+      if (allFaces?.action) {
+        return {
+          ...target,
+          action: allFaces.action,
+          allFaces,
+          twoD: false,
+          replacedLabel,
+        };
+      }
+
       // A bare host part the plan can hold → a 2D annotation (optimistic for
       // a thick wall facet: the floor search runs at the click).
       const twoD =
@@ -335,44 +405,70 @@ export default function useMeshBrushPointerHandlers() {
         ...target,
         action,
         twoD,
-        replacedLabel: replacedTemplateId
-          ? (data.templateById?.[replacedTemplateId]?.label ?? null)
-          : null,
+        replacedLabel,
       };
+    }
+
+    // Local faces the preview shows: the picked part, or — « toutes les
+    // faces » — every face a click paints / every paint it removes.
+    function getPreviewFaces(target) {
+      const allFaces = target.allFaces;
+      if (!allFaces) return [target.localGeometry];
+      if (allFaces.action !== "REMOVED") {
+        return allFaces.add.map((item) => item.localGeometry);
+      }
+      return allFaces.removeRows
+        .map((row) =>
+          paintGeometryToLocal(row.partType, row.geometry, allFaces.metrics)
+        )
+        .filter(Boolean);
     }
 
     function buildPreview(target, color) {
       const group = sceneManager.imagesManager?.getGroup?.(target.baseMapId);
+      if (!group) return null;
+      group.updateWorldMatrix(true, false);
+      const matrix = group.matrixWorld;
+
+      if (target.partType === MESH_PAINT_PART_TYPES.FACE) {
+        // One stipple over every previewed face.
+        const world = [];
+        const v = new Vector3();
+        for (const face of getPreviewFaces(target)) {
+          // Only the displayed side of a part of a half-view revolution.
+          const shown = clipPaintGeometry(
+            MESH_PAINT_PART_TYPES.FACE,
+            face,
+            target.clip
+          );
+          const positions = shown
+            ? triangulatePaintFace(shown, { lift: PREVIEW_FACE_LIFT_M })
+                .positions
+            : null;
+          if (!(positions?.length >= 9)) continue;
+          for (let i = 0; i < positions.length; i += 3) {
+            v.set(
+              positions[i],
+              positions[i + 1],
+              positions[i + 2]
+            ).applyMatrix4(matrix);
+            world.push(v.x, v.y, v.z);
+          }
+        }
+        if (world.length < 9) return null;
+        return buildStippleOverlayFromPositions(Float32Array.from(world), {
+          ...FACE_PREVIEW_STYLE,
+          color,
+        });
+      }
+
       // Only the displayed side of a part of a half-view revolution.
       const displayed = clipPaintGeometry(
         target.partType,
         target.localGeometry,
         target.clip
       );
-      if (!group || !displayed) return null;
-      group.updateWorldMatrix(true, false);
-      const matrix = group.matrixWorld;
-
-      if (target.partType === MESH_PAINT_PART_TYPES.FACE) {
-        const { positions } = triangulatePaintFace(displayed, {
-          lift: PREVIEW_FACE_LIFT_M,
-        });
-        if (!(positions?.length >= 9)) return null;
-        const world = new Float32Array(positions.length);
-        const v = new Vector3();
-        for (let i = 0; i < positions.length; i += 3) {
-          v.set(positions[i], positions[i + 1], positions[i + 2]).applyMatrix4(
-            matrix
-          );
-          world[i] = v.x;
-          world[i + 1] = v.y;
-          world[i + 2] = v.z;
-        }
-        return buildStippleOverlayFromPositions(world, {
-          ...FACE_PREVIEW_STYLE,
-          color,
-        });
-      }
+      if (!displayed) return null;
 
       // One line segment per segment of the edge (a curve has several).
       const positions = [];
@@ -404,7 +500,9 @@ export default function useMeshBrushPointerHandlers() {
           : getMeshPaintColor(dataRef.current.armedTemplate, partType)
         : null;
       const key = actionable
-        ? `${target.previewKey}|${target.action}|${target.twoD ? "2D" : ""}|${color}`
+        ? `${target.previewKey}|${target.action}|${target.twoD ? "2D" : ""}|${
+            target.allFaces ? `ALL${target.allFaces.generation}` : ""
+          }|${color}`
         : null;
       if (key === preview.key) return;
       disposePreview();
@@ -430,16 +528,18 @@ export default function useMeshBrushPointerHandlers() {
         label = getPaintRefusalLabel(target.reason);
         tone = "REFUSED";
       } else if (target.action === "REMOVED") {
-        label = "Retirer";
+        label = target.allFaces ? "Retirer tout" : "Retirer";
         tone = "REMOVE";
       } else if (target.action === "REPLACED") {
-        label = `Remplacer « ${target.replacedLabel || "autre modèle"} »`;
+        label = `Remplacer « ${target.replacedLabel || "autre modèle"} »${
+          target.allFaces ? " et peindre tout" : ""
+        }`;
         tone = "REPLACE";
       } else if (target.twoD) {
         label = "Annotation 2D";
         tone = "CREATE_2D";
       } else {
-        label = "Peindre";
+        label = target.allFaces ? "Peindre tout" : "Peindre";
         tone = "PAINT";
       }
       const rect = dom.getBoundingClientRect();
@@ -479,6 +579,43 @@ export default function useMeshBrushPointerHandlers() {
       if (!template) return;
       queue = queue.then(async () => {
         try {
+          if (target.allFaces) {
+            const result = await commitMeshBrushAllFacesService({
+              editor,
+              target,
+              template,
+              projectId: data.projectId,
+              scopeId: data.scopeId,
+              smoothAngleDeg: data.smoothAngleDeg,
+              create2dIfPossible: Boolean(data.create2dIfPossible),
+              templateProps: data.templateProps,
+              baseMaps: data.baseMaps || [],
+              createAnnotationFn: data.createAnnotation,
+            });
+            if (!result?.action && result?.reason === "TOO_MANY_PARTS") {
+              dispatch(
+                setToaster({
+                  message:
+                    "Trop de faces à peindre d'un coup : augmentez l'angle « Sélection de face » ou peignez face par face",
+                  severity: "warning",
+                })
+              );
+            } else if (!result?.action && result?.reason) {
+              console.warn("[meshBrush] paint all refused", result.reason);
+            } else if (result?.skippedCount > 0) {
+              const n = result.skippedCount;
+              dispatch(
+                setToaster({
+                  message: `${n} face${n > 1 ? "s" : ""} non peinte${
+                    n > 1 ? "s" : ""
+                  } : pas de sol au pied, ou annotation de ce modèle déjà en place`,
+                  severity: "warning",
+                })
+              );
+            }
+            scheduleHover();
+            return;
+          }
           const result = await commitMeshBrushTargetService({
             editor,
             target,
@@ -597,9 +734,11 @@ export default function useMeshBrushPointerHandlers() {
     // refresh the target under the still cursor.
     const unsubscribePaints = subscribeMeshPaintObjects(() => scheduleHover());
     const unsubscribeReady =
-      sceneManager.annotationsManager?.subscribeAnnotationReady?.(() =>
-        scheduleHover()
-      ) ?? null;
+      sceneManager.annotationsManager?.subscribeAnnotationReady?.(() => {
+        // The faces of the rebuilt host are read again.
+        allFacesCache.key = null;
+        scheduleHover();
+      }) ?? null;
 
     dom.addEventListener("pointerdown", onPointerDown);
     dom.addEventListener("pointermove", onPointerMove);

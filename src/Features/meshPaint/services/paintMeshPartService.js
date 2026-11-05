@@ -78,14 +78,10 @@ export default async function paintMeshPartService({
 
   // matches (same scope, effective rows only)
 
-  const baseMapRows = (
-    await db.meshPaints.where("baseMapId").equals(candidate.baseMapId).toArray()
-  ).filter(
-    (r) =>
-      isLive(r) &&
-      (r.scopeId ?? null) === (scopeId ?? null) &&
-      !r.sync?.provisional
-  );
+  const baseMapRows = await getScopePaintRowsOfBaseMap({
+    baseMapId: candidate.baseMapId,
+    scopeId,
+  });
 
   const rawMatches = baseMapRows.length
     ? findMeshPaintMatches({ candidate, rows: baseMapRows, metrics })
@@ -99,25 +95,15 @@ export default async function paintMeshPartService({
 
   // write
 
-  const now = new Date().toISOString();
   const row = add
-    ? {
-        id: nanoid(),
-        projectId: projectId ?? host.projectId ?? null,
-        scopeId: scopeId ?? null,
-        listingId: liveTemplate.listingId,
-        annotationTemplateId: liveTemplate.id,
-        hostAnnotationId: candidate.hostAnnotationId,
-        baseMapId: candidate.baseMapId,
-        partType: candidate.partType,
-        geometry: candidate.geometry,
-        paintedAt: now,
-        sync: {
-          state: MESH_PAINT_SYNC_STATES.OK,
-          geomHash: candidate.geomHash ?? null,
-          syncedAt: now,
-        },
-      }
+    ? buildMeshPaintRow({
+        candidate,
+        template: liveTemplate,
+        host,
+        projectId,
+        scopeId,
+        now: new Date().toISOString(),
+      })
     : null;
 
   await withUndoGroup(() =>
@@ -130,11 +116,53 @@ export default async function paintMeshPartService({
   return { action, id: row?.id ?? null, deletedIds: deleteIds };
 }
 
+// A new db.meshPaints row painting `candidate` with a (live) template.
+export function buildMeshPaintRow({
+  candidate,
+  template,
+  host,
+  projectId,
+  scopeId,
+  now,
+}) {
+  return {
+    id: nanoid(),
+    projectId: projectId ?? host?.projectId ?? null,
+    scopeId: scopeId ?? null,
+    listingId: template.listingId,
+    annotationTemplateId: template.id,
+    hostAnnotationId: candidate.hostAnnotationId,
+    baseMapId: candidate.baseMapId,
+    partType: candidate.partType,
+    geometry: candidate.geometry,
+    paintedAt: now,
+    sync: {
+      state: MESH_PAINT_SYNC_STATES.OK,
+      geomHash: candidate.geomHash ?? null,
+      syncedAt: now,
+    },
+  };
+}
+
+// Paints of a base map a click may match: live, same scope, not provisional.
+export async function getScopePaintRowsOfBaseMap({ baseMapId, scopeId }) {
+  const rows = await db.meshPaints
+    .where("baseMapId")
+    .equals(baseMapId)
+    .toArray();
+  return rows.filter(
+    (r) =>
+      isLive(r) &&
+      (r.scopeId ?? null) === (scopeId ?? null) &&
+      !r.sync?.provisional
+  );
+}
+
 // Matches the user can see (same rule as resolveMeshPaints): host and
 // template still live, template still able to paint. A paint left
 // on a deleted host (deletion path without cascade) must not swallow the
 // click.
-async function keepEffectiveRows(rows) {
+export async function keepEffectiveRows(rows) {
   if (!rows?.length) return [];
   const hostIds = [...new Set(rows.map((r) => r.hostAnnotationId))];
   const templateIds = [...new Set(rows.map((r) => r.annotationTemplateId))];
