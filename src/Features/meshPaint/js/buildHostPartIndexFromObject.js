@@ -105,8 +105,9 @@ function getHalfViewAxis(mesh) {
 //
 // The side faces of a prism that a drawn vertex splits within one plane
 // (extrudeClosedShape, geometry.userData.triParts: one face label per
-// triangle, 0 = none) are kept apart the same way: the label joins the piece
-// in the group of the triangle.
+// triangle) are kept apart the same way: the label joins the piece in the
+// group of the triangle — two faces with different labels never share a
+// plane group, an island or a smooth surface, like two cut pieces.
 const FACE_LABEL_BASE = 100000;
 
 export function getTriangleFaceLabels(geometry) {
@@ -137,9 +138,12 @@ function collectTriangles(meshes, groupInverse) {
     if (piece >= 0) hasPieces = true;
     const labels = getTriangleFaceLabels(geometry);
     if (labels) hasPieces = true;
+    // On a labelled mesh EVERY triangle gets a group, label 0 included: the
+    // smooth surfaces only keep apart two islands that both have one
+    // (buildHostPartIndex), and the first face of a split side is label 0.
     // Labelled groups start at FACE_LABEL_BASE: never a piece index.
     const groupOf = (t) =>
-      labels?.[t] ? (piece + 2) * FACE_LABEL_BASE + labels[t] : piece;
+      labels ? (piece + 2) * FACE_LABEL_BASE + labels[t] : piece;
     for (let i = 0; i < usable; i++) {
       v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
         toLocal
