@@ -22,6 +22,7 @@ import {
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import splitTJunctions from "Features/geometry/utils/splitTJunctions";
+import isDegenerateRing from "Features/geometry/utils/isDegenerateRing";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
 import buildGridEdgeLines from "./buildGridEdgeLines";
@@ -248,6 +249,11 @@ export default function extrudeClosedShape(
   options = {}
 ) {
   if (!points || points.length < 3) return null;
+
+  // A hole without area (every point at the same place, aligned points)
+  // carves nothing and makes earcut throw: dropped here, once, for every
+  // path below (flat Shape, per-vertex Z, view3d edges, T-junction split).
+  holes = (holes || []).filter((ring) => !isDegenerateRing(ring));
 
   const isExtruded = height && height > 0;
   const group = new Group();

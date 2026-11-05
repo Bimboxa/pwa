@@ -231,7 +231,7 @@ export default class ThreedEditor {
       this.sceneManager.renderModeManager?.onSceneStructureChanged();
       this.renderScene();
     } catch (e) {
-      console.log("Error", e);
+      console.error("[ThreedEditor] loadAnnotations failed", e);
     }
   };
 }
