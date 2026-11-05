@@ -18,6 +18,7 @@ import db, { withSystemWrite } from "App/db/db";
 
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import ListAnnotationSubtractions from "./ListAnnotationSubtractions";
 
 import bakeAnnotationSubtractionsService, {
@@ -114,81 +115,84 @@ export default function SectionAnnotationSubtractions({ annotation }) {
   if (rels.length === 0 && reverseRels.length === 0) return null;
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        display: "flex",
-        flexDirection: "column",
-        gap: 1.5,
-        borderTop: "1px solid",
-        borderColor: "divider",
-      }}
-    >
-      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-        {titleS}
-      </Typography>
-
-      {rels.length > 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontWeight: 600 }}
-            >
-              {targetsS}
-            </Typography>
-            <Tooltip title="Relancer la soustraction">
-              <IconButton size="small" onClick={handleRefresh}>
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-          <ListAnnotationSubtractions annotationId={annotation?.id} />
-
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-            {bakeHelpS}
+    <Box sx={{ p: 1, width: 1 }}>
+      <WhiteSectionGeneric>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            {titleS}
           </Typography>
-          <Tooltip title={bakeable ? "" : notBakeableS}>
-            <Box component="span" sx={{ alignSelf: "flex-start" }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleBake}
-                disabled={!bakeable || baking || !baseMap || !targets.length}
-                startIcon={
-                  baking ? <CircularProgress size={14} color="inherit" /> : null
-                }
-                sx={{ textTransform: "none" }}
+
+          {rels.length > 0 && (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
               >
-                {bakeS}
-              </Button>
-            </Box>
-          </Tooltip>
-        </Box>
-      )}
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {targetsS}
+                </Typography>
+                <Tooltip title="Relancer la soustraction">
+                  <IconButton size="small" onClick={handleRefresh}>
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <ListAnnotationSubtractions annotationId={annotation?.id} />
 
-      {reverseRels.length > 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontWeight: 600 }}
-          >
-            {sourcesS}
-          </Typography>
-          <ListAnnotationSubtractions
-            annotationId={annotation?.id}
-            direction="SOURCES"
-          />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 1 }}
+              >
+                {bakeHelpS}
+              </Typography>
+              <Tooltip title={bakeable ? "" : notBakeableS}>
+                <Box component="span" sx={{ alignSelf: "flex-start" }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleBake}
+                    disabled={
+                      !bakeable || baking || !baseMap || !targets.length
+                    }
+                    startIcon={
+                      baking ? (
+                        <CircularProgress size={14} color="inherit" />
+                      ) : null
+                    }
+                    sx={{ textTransform: "none" }}
+                  >
+                    {bakeS}
+                  </Button>
+                </Box>
+              </Tooltip>
+            </Box>
+          )}
+
+          {reverseRels.length > 0 && (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 600 }}
+              >
+                {sourcesS}
+              </Typography>
+              <ListAnnotationSubtractions
+                annotationId={annotation?.id}
+                direction="SOURCES"
+              />
+            </Box>
+          )}
         </Box>
-      )}
+      </WhiteSectionGeneric>
     </Box>
   );
 }
