@@ -34,6 +34,7 @@ import {
   expandArcsInPathWithHiddenMap,
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
+  translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 import { getRevolutionAxisContourArcs } from "Features/annotations/utils/revolutionAxisGlyph";
@@ -1098,6 +1099,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         const line = annotation.profileLines.find(
           (l) => l?.points?.length >= 2
         );
+        // "Extrusion plate" segments, on the arc-expanded chain both sweeps
+        // below run on (same sampling → same indices as the hidden map).
+        const flatSegmentsIdx = translateSegmentsIdxToExpandedPath(
+          annotation.points || [],
+          GUIDE_ARC_SAMPLES,
+          annotation.isFlatExtrusionSegmentsIdx || [],
+          !!annotation.closeLine
+        );
         // A guide that climbs (vertex offsets, e.g. a sweep along a line
         // drawn in 3D) is swept as a true 3D chain: the vertical runs have
         // no plan length and the plan-only sweep below would drop them and
@@ -1134,6 +1143,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             profilePointsLocal3d: profile3d,
             material,
             hiddenSegmentsIdx: hidden3d,
+            flatSegmentsIdx,
             closeLine: !!annotation.closeLine,
             gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           });
@@ -1167,6 +1177,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             material,
             verticalLift,
             hiddenSegmentsIdx: expandedHidden,
+            flatSegmentsIdx,
             closeLine: !!annotation.closeLine,
             gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           });

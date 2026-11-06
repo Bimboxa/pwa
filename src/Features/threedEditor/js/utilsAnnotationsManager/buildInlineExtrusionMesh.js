@@ -25,12 +25,16 @@ import buildGridEdgeLines from "./buildGridEdgeLines";
 //     meters), vertical arcs already expanded
 //   - material, verticalLift (= annotation.offsetZ), hiddenSegmentsIdx,
 //     closeLine
+//   - flatSegmentsIdx: "Extrusion plate" segments (indices on the expanded
+//     chain) — swept with the section's first → last chord, junction caps at
+//     the profiled ↔ flat joints (see sweepFlatJunction.js)
 export default function buildInlineExtrusionMesh({
   guidePointsLocal,
   crossSection,
   material,
   verticalLift = 0,
   hiddenSegmentsIdx = [],
+  flatSegmentsIdx = [],
   closeLine = false,
   // EdgesGeometry threshold of the black grid lines (Wireframe settings).
   gridEdgeThresholdDeg = 1,
@@ -54,7 +58,8 @@ export default function buildInlineExtrusionMesh({
     hidden,
     profileLocal,
     verticalLift,
-    closeLine
+    closeLine,
+    new Set(flatSegmentsIdx ?? [])
   );
   if (!geom) return null;
 

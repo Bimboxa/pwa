@@ -30,6 +30,13 @@ export const SEGMENT_FLAG_FIELDS = [
   { idxField: "isExtEdgeSegmentsIdx", idField: "isExtEdgeSegmentsPointIds" },
   { idxField: "isIntEdgeSegmentsIdx", idField: "isIntEdgeSegmentsPointIds" },
   { idxField: "isNotchSegmentsIdx", idField: "isNotchSegmentsPointIds" },
+  // "Extrusion plate": on a POLYLINE carrying an inline profile, the swept
+  // cross-section collapses to its first → last chord on these segments (see
+  // sweepFlatJunction.js). Born id-keyed: no legacy idx rows exist.
+  {
+    idxField: "isFlatExtrusionSegmentsIdx",
+    idField: "isFlatExtrusionSegmentsPointIds",
+  },
 ];
 
 export const SEGMENT_FLAG_ID_FIELD_BY_IDX_FIELD = Object.fromEntries(

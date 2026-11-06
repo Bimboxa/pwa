@@ -25,11 +25,13 @@ const CLEARED_ARRAY_FIELDS = [
   "isExtEdgeSegmentsIdx",
   "isIntEdgeSegmentsIdx",
   "isNotchSegmentsIdx",
+  "isFlatExtrusionSegmentsIdx",
   "hiddenSegmentsPointIds",
   "isoHeightSegmentsPointIds",
   "isExtEdgeSegmentsPointIds",
   "isIntEdgeSegmentsPointIds",
   "isNotchSegmentsPointIds",
+  "isFlatExtrusionSegmentsPointIds",
 ];
 
 // Storage fields of a mesh: the stored mesh (normalized), the offsetZ it

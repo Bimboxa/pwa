@@ -10,6 +10,7 @@ import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
   adaptiveArcSamples,
+  translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
 import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
@@ -354,6 +355,17 @@ function computeInlineExtrusionSurface(
 ) {
   try {
     const closeLine = !!annotation.closeLine;
+    // "Extrusion plate" segments on the expanded chain (same sampling as the
+    // hidden map below): chord sheets + junction caps count in the surface,
+    // exactly like the 3D mesh.
+    const flat = new Set(
+      translateSegmentsIdxToExpandedPath(
+        guidePoints,
+        INLINE_GUIDE_ARC_SAMPLES,
+        annotation.isFlatExtrusionSegmentsIdx || [],
+        closeLine
+      )
+    );
     // Climbing guide (vertex offsets): mirror the 3D sweep of
     // buildInlineExtrusion3dMesh (z = offsetBottom / inline height, both
     // relative to the annotation's offsetZ).
@@ -401,7 +413,8 @@ function computeInlineExtrusionSurface(
         frames,
         hidden,
         setup.section,
-        closeLine
+        closeLine,
+        flat
       );
       const area = getSweepArea3d(arrays);
       return area > 0 && Number.isFinite(area) ? area : null;
@@ -447,7 +460,8 @@ function computeInlineExtrusionSurface(
       hidden,
       section.map((c) => ({ x: c.u, y: c.h })),
       0,
-      closeLine
+      closeLine,
+      flat
     );
     if (!arrays) return null;
 

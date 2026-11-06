@@ -9,8 +9,11 @@ import {
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
+import useSegmentsFlatExtrusion from "Features/points/hooks/useSegmentsFlatExtrusion";
 
 import AnnotationMeasurements from "./AnnotationMeasurements";
+
+import isInlineExtrusionPolyline from "../utils/isInlineExtrusionPolyline";
 
 export default function SectionAnnotationPartPropertiesContent({
   annotation,
@@ -27,8 +30,16 @@ export default function SectionAnnotationPartPropertiesContent({
     indeterminate: notchIndeterminate,
     toggle: notchToggle,
   } = useSegmentsNotch();
+  const {
+    checked: flatChecked,
+    indeterminate: flatIndeterminate,
+    toggle: flatToggle,
+  } = useSegmentsFlatExtrusion();
 
   if (!part || part.kind === "NONE") return null;
+
+  // "Extrusion plate" only makes sense on the guide of a swept profile.
+  const showFlatExtrusion = isInlineExtrusionPolyline(annotation);
 
   const points = part.geometryPx || part.pointRefs || [];
   const isClosed = part.kind === "CUT";
@@ -129,6 +140,19 @@ export default function SectionAnnotationPartPropertiesContent({
                 </Typography>
               }
             />
+            {showFlatExtrusion && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={flatChecked}
+                    indeterminate={flatIndeterminate}
+                    onChange={flatToggle}
+                    size="small"
+                  />
+                }
+                label={<Typography variant="body2">Extrusion plate</Typography>}
+              />
+            )}
           </Stack>
         )}
       </Stack>

@@ -13,6 +13,11 @@ import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapIma
 import createAnnotationService from "./createAnnotationService";
 import getNewAnnotationPropsFromAnnotationTemplate from "../utils/getNewAnnotationPropsFromAnnotationTemplate";
 import {
+  getAnnotationRingClosed,
+  segmentIdxToPointIds,
+  segmentPointIdsToIdx,
+} from "../utils/segmentFlags";
+import {
   getAnnotationType,
   getConfigurableProps,
 } from "../constants/drawingShapeConfig";
@@ -539,6 +544,28 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
   );
   const ringPointIds = (ann.points ?? []).map((r) => r?.id).filter(Boolean);
 
+  // « Extrusion plate » segments are set on the RESULT (the guide carries no
+  // profile) and keyed by its own point ids, which the copy below replaces:
+  // carried over by ring position while the guide keeps its vertex count,
+  // dropped otherwise (positions no longer mean the same segments).
+  let flatSegmentsPointIds;
+  if (Array.isArray(ann.isFlatExtrusionSegmentsPointIds)) {
+    const sameRing =
+      (ann.points ?? []).length === geometry.fields.points.length &&
+      getAnnotationRingClosed(ann) === geometry.fields.closeLine;
+    flatSegmentsPointIds = sameRing
+      ? segmentIdxToPointIds(
+          segmentPointIdsToIdx(
+            ann.isFlatExtrusionSegmentsPointIds,
+            ann.points,
+            { closed: geometry.fields.closeLine }
+          ),
+          geometry.fields.points,
+          { closed: geometry.fields.closeLine }
+        )
+      : [];
+  }
+
   // « Inverser » (mirrorProfileLineService) survives the refresh: the line
   // re-applied from the source is mirrored again.
   const mirror = Boolean(prevLines[0]?.mirror);
@@ -591,6 +618,9 @@ export async function refreshSweepAlongLineService({ annotationId, dispatch }) {
       await db.annotations.update(annotationId, {
         ...geometry.fields,
         profileLines,
+        ...(flatSegmentsPointIds
+          ? { isFlatExtrusionSegmentsPointIds: flatSegmentsPointIds }
+          : {}),
         ...(resultOffsetZ !== ann.offsetZ ? { offsetZ: resultOffsetZ } : {}),
       });
     });
