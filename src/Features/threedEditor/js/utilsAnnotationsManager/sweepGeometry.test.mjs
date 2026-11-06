@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { EdgesGeometry } from "three";
+
 import {
   buildSweepArraysForProfile,
+  buildSweepGeometryForProfile,
   computeVertexFrames,
 } from "./sweepGeometry.js";
 
@@ -163,6 +166,66 @@ test("closed profile: a flat segment is a gap closed by end caps", () => {
   const arrays = sweep(straight, tube, { flat: [1] });
   // Two 10 m tubes (perimeter 4) + two 1 m² end caps.
   near(areaOf(arrays), 4 * 20 + 2);
+});
+
+// Lips + groove: the two lips (0→1 and 2→3) lie ON the chord, i.e. coplanar
+// with the flat band; the groove (1 wide, 0.5 deep) hangs under it.
+const GROOVE = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: -0.5 },
+  { x: 2, y: -0.5 },
+  { x: 2, y: 0 },
+  { x: 3, y: 0 },
+];
+
+// Black edge lines (EdgesGeometry, same 1° threshold as buildGridEdgeLines)
+// lying in the plane x = `x`, as sorted "u,h|u,h" keys (u = −y on this guide).
+const edgeLinesAtX = (guide, profile, flat, x) => {
+  const hidden = new Set();
+  const geom = buildSweepGeometryForProfile(
+    guide,
+    computeVertexFrames(guide, hidden, false),
+    hidden,
+    profile,
+    0,
+    false,
+    new Set(flat)
+  );
+  const pos = new EdgesGeometry(geom, 1).getAttribute("position");
+  const out = [];
+  const r = (v) => Math.round(v * 1e4) / 1e4 + 0;
+  for (let i = 0; i < pos.count; i += 2) {
+    if (Math.abs(pos.getX(i) - x) > 1e-6) continue;
+    if (Math.abs(pos.getX(i + 1) - x) > 1e-6) continue;
+    const ends = [i, i + 1].map((k) => `${r(-pos.getY(k))},${r(pos.getZ(k))}`);
+    out.push(ends.sort().join("|"));
+  }
+  return out.sort();
+};
+
+test("profile parts coplanar with the flat band: no edge line at the joint", () => {
+  const lines = edgeLinesAtX(straight, GROOVE, [1], 10);
+  // Only the groove outline is a real fold: its three walls (sheet ↔ cap)
+  // and its mouth (flat band ↔ cap). Nothing along the two lips.
+  assert.deepEqual(lines, [
+    "1,-0.5|1,0",
+    "1,-0.5|2,-0.5",
+    "1,0|2,0",
+    "2,-0.5|2,0",
+  ]);
+});
+
+test("flat section is subdivided where the profile meets its chord", () => {
+  const arrays = sweep(straight, GROOVE, { flat: [1] });
+  // Developed profile 4 m, chord 3 m, groove cap 0.5 m².
+  near(areaOf(arrays), 4 * 20 + 3 * 10 + 2 * 0.5);
+  // Every edge in the joint plane is shared by exactly two triangles: no
+  // T-junction between the lips and the flat band.
+  const uses = edgeUsesInPlane(arrays, (p) => Math.abs(p.x - 10) < 1e-9);
+  // 5 profile edges + the groove mouth + the cap's own diagonal.
+  assert.equal(uses.length, 7);
+  assert.ok(uses.every((n) => n === 2), `${uses}`);
 });
 
 test("all segments flat: a plain chord band", () => {
