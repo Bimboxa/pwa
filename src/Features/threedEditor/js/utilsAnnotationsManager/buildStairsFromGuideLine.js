@@ -17,10 +17,8 @@ import getGuideLineStairsLayout, {
 
 import pixelToWorld from "./pixelToWorld";
 
-// Lift surfaces slightly above the basemap plane / treads to avoid z-fighting
-// (same convention as extrudeClosedShape's Z_FIGHT_OFFSET and the strip fold
-// lines' STRIP_FOLD_LINE_LIFT).
-const Z_FIGHT_OFFSET = 0.001;
+// Lift of the nosing lines above their treads (a line coplanar with its own
+// surface z-fights with it). The surfaces themselves sit at their drawn z.
 const NOSING_LINE_LIFT = 0.004;
 
 // Build a stepped stairs surface (treads + risers, no volume) for a POLYGON
@@ -80,7 +78,7 @@ export default function buildStairsFromGuideLine({
 
   layout.bands.forEach((band, k) => {
     const polys = layout.bandPolysAt(k);
-    const z = verticalLift + band.z + Z_FIGHT_OFFSET;
+    const z = verticalLift + band.z;
     polys.forEach((poly) => {
       const [outer, ...holes] = poly;
       const outerPts = ringToLocal(outer || []);
@@ -113,8 +111,8 @@ export default function buildStairsFromGuideLine({
     const indices = [];
     const nosingLine = [];
     layout.nosings.forEach((nosing) => {
-      const zLow = verticalLift + nosing.zLow + Z_FIGHT_OFFSET;
-      const zHigh = verticalLift + nosing.zHigh + Z_FIGHT_OFFSET;
+      const zLow = verticalLift + nosing.zLow;
+      const zHigh = verticalLift + nosing.zHigh;
       nosing.segments.forEach((seg) => {
         const a = toLocal(seg.a);
         const b = toLocal(seg.b);

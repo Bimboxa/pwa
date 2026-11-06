@@ -11,10 +11,7 @@ import {
   setSubSelection,
 } from "Features/selection/selectionSlice";
 
-import {
-  MESH3D_Z_FIGHT_OFFSET,
-  buildMesh3dFaceGeometry,
-} from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
+import { buildMesh3dFaceGeometry } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import {
   buildFaceStippleOverlay,
   buildStippleOverlayFromPositions,
@@ -255,7 +252,11 @@ export default function useMesh3dPartsHighlight({ enabled = true } = {}) {
       for (const faceIndex of selectedFaces) {
         const face = mesh.faces[faceIndex];
         const geometry = face
-          ? buildMesh3dFaceGeometry(mesh.vertices, face, MESH3D_Z_FIGHT_OFFSET)
+          ? buildMesh3dFaceGeometry(
+              mesh.vertices,
+              face,
+              displayed.baseOffsetZ ?? 0
+            )
           : null;
         if (!geometry) continue;
         const overlay = buildStippleOverlayFromPositions(

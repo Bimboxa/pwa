@@ -30,11 +30,6 @@ import {
 // 1 px WebGL line is hardly visible on a textured background.
 const FLAT_POLYLINE_LINEWIDTH_PX = 3;
 
-// Vertical lift (m) of every builder against z-fighting with the base map
-// image — the same value as extrudeClosedShape's and MESH3D_Z_FIGHT_OFFSET
-// (buildMesh3dAnnotationObject), which convertObject3DToMesh3d subtracts.
-const Z_FIGHT_OFFSET = 0.001;
-
 const EDGE_MATERIAL = new LineBasicMaterial({
   color: 0x000000,
   transparent: true,
@@ -169,11 +164,9 @@ export default function extrudePolylineWall(
   options = null
 ) {
   if (!points || points.length < 2) return null;
-  // Same 1 mm z-fight lift as extrudeClosedShape: the wall sits where a
-  // polygon drawn against it sits, and convertObject3DToMesh3d subtracts the
-  // lift from every builder alike (a PX wall converted 1 mm low used to miss
-  // the slab sheet it was drawn on).
-  const lift = verticalLift + Z_FIGHT_OFFSET;
+  // The wall sits exactly at its drawn z (no z-fight lift: the base map
+  // image yields to coplanar geometry through its polygonOffset).
+  const lift = verticalLift;
   const group = new Group();
   const hiddenSet = hiddenSegmentsIdx ? new Set(hiddenSegmentsIdx) : null;
 

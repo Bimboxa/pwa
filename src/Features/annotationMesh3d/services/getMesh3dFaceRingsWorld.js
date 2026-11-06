@@ -12,9 +12,9 @@ import loadStoredMesh3d from "./loadStoredMesh3d";
 // A mesh annotation reads its stored mesh (db only, z relative to offsetZ);
 // a regular one — or a mesh one carved live by a subtraction — reads the
 // conversion of its DISPLAYED object
-// (getDisplayedMesh3d: absolute local z, z-fight lift stripped), which only
-// exists while the 3D editor is up. The local → world step uses the base
-// map's stored pose, not the scene group, so no 1 mm lift is added.
+// (getDisplayedMesh3d: absolute local z), which only exists while the 3D
+// editor is up. The local → world step uses the base map's stored pose, not
+// the scene group.
 //
 // Returns null when the face cannot be read (no editor for a regular
 // annotation, face index out of range, no base map frame).

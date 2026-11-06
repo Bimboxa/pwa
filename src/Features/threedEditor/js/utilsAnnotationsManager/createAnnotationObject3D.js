@@ -100,8 +100,7 @@ const REVOLUTION_AXIS_GAP_M = 0.2;
 // — or of the kept sector of a partial revolution — laid flat at the axis
 // base, as a thin solid fat line in the axis colour (no fill: a circle, not a
 // disc, like the 2D glyph and the 3D draw preview). Lifted 1 mm above the plan
-// so it never z-fights the base map image (same offset as extrudeClosedShape's
-// Z_FIGHT_OFFSET).
+// (a decoration, not annotation geometry: never snapped on).
 const REVOLUTION_AXIS_CIRCLE_LIFT_M = 0.001;
 const REVOLUTION_AXIS_CIRCLE_SEGMENTS = 64;
 // Half-view split of the base circle: the kept half reads as the visible
@@ -240,13 +239,15 @@ function getRevolutionPartialPhi(annotation, baseMap, options) {
 // into the exterior. 1 = no darkening.
 const INTERIOR_DARKEN_FACTOR = 0.5;
 
-// Fixed inward contraction (per side, in real-world mm) applied to every
-// POLYLINE / STRIP footprint (walls, flat bands, sloped ribbons) when the
-// "Réduire le crénelage des parements" setting is on, so a parement drawn
-// flush against a wall no longer shares a coplanar face (kills the aliasing
-// shimmer). Uniform on lateral faces AND end caps, symmetric about the
-// element axis; the geometry stays at true drawn dimensions when the setting
-// is off. 10 mm (not 5) because procedure-generated parement polylines can
+// Fixed inward contraction (per side, in real-world mm) applied to the
+// footprint of the EXTRUDED thick elements (CM POLYLINE walls, STRIP bands
+// with a height) when the "Réduire le crénelage des parements" setting is
+// on, so a parement drawn flush against a wall no longer shares a coplanar
+// face (kills the aliasing shimmer). Uniform on lateral faces AND end caps,
+// symmetric about the element axis. An element without a height (flat band,
+// sloped ribbon) has no lateral face to separate: it is never contracted,
+// and the geometry stays at true drawn dimensions when the setting is off.
+// 10 mm (not 5) because procedure-generated parement polylines can
 // deviate up to ~8 mm from the true arc inside curved walls — the shrink must
 // exceed that sampling error or the parement pokes through the wall face.
 const ANTI_ALIASING_SHRINK_MM = 10;
@@ -258,9 +259,10 @@ const SHRINK_MIN_HALF_WIDTH_RATIO = 0.15;
 // Setting gate (toggle + per-annotation exemption): isAntiAliasingShrinkEnabled.
 const isShrinkEnabled = isAntiAliasingShrinkEnabled;
 
-// Convert the mm setting to pixels for a given baseMap scale (0 when off).
-function getAntiAliasingShrinkPx(options, meterByPx, annotation) {
-  return isShrinkEnabled(options, annotation) && meterByPx > 0
+// Convert the mm setting to pixels for a given baseMap scale (0 when off, or
+// when the element is not extruded: `height` is its extrusion height).
+function getAntiAliasingShrinkPx(options, meterByPx, annotation, height) {
+  return isShrinkEnabled(options, annotation) && height > 0 && meterByPx > 0
     ? ANTI_ALIASING_SHRINK_MM / 1000 / meterByPx
     : 0;
 }
@@ -428,22 +430,11 @@ function stripHasElevation(annotation) {
 // clipping so the elevation survives and each station yields a real transverse
 // edge → clean horizontal↔slope junctions). Handles closed strips as a wrapping
 // loop ribbon. Returns null when no ribbon can be built (caller falls back).
-function buildSlopedStripGroup(
-  annotation,
-  baseMap,
-  material,
-  verticalLift,
-  options
-) {
+function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
   const ribbons = getSlopedStripRibbons(annotation);
   if (!ribbons.length) return null;
 
   const distance = getStripDistancePx(annotation, baseMap.meterByPx);
-  const shrinkPx = getAntiAliasingShrinkPx(
-    options,
-    baseMap.meterByPx,
-    annotation
-  );
 
   const group = new Group();
   const foldSegments = [];
@@ -464,7 +455,6 @@ function buildSlopedStripGroup(
       baseMap,
       verticalLift,
       closeLine,
-      shrinkPx,
     });
     if (!built) return;
     const geometry = new BufferGeometry();
@@ -604,8 +594,7 @@ function extrudeStripPolygons(
       annotation,
       baseMap,
       material,
-      verticalLift,
-      options
+      verticalLift
     );
     if (sloped) return sloped;
   }
@@ -641,7 +630,8 @@ function extrudeStripPolygons(
   const shrinkPx = getAntiAliasingShrinkPx(
     options,
     baseMap.meterByPx,
-    annotation
+    annotation,
+    height
   );
   const distancePx = Math.abs(
     getStripDistancePx(annotation, baseMap.meterByPx)
@@ -722,7 +712,12 @@ function extrudeWallPolygon(
   // `shrinkPx` (half-width reduction, symmetric about the centerline) and, for
   // open polylines, trim the two end caps inward by the same amount. Clamped
   // so a thin wall still shrinks partially but never collapses / inverts.
-  const shrinkPx = getAntiAliasingShrinkPx(options, meterByPx, annotation);
+  const shrinkPx = getAntiAliasingShrinkPx(
+    options,
+    meterByPx,
+    annotation,
+    height
+  );
   const effHalfWidth = Math.max(
     halfWidth - shrinkPx,
     halfWidth * SHRINK_MIN_HALF_WIDTH_RATIO

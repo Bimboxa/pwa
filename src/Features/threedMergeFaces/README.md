@@ -92,4 +92,4 @@ Tests : `node --test src/Features/threedMergeFaces/utils/*.test.mjs src/Features
 - Une arête partagée par trois faces ou plus garde l'orientation d'entrée (pas d'orientation cohérente possible).
 - `mesh3dSource` ne restaure que la graine ; les absorbées ne reviennent que par Ctrl+Z.
 - Un POLYGON **à modèle** rendu avec le « Delta offset 3D » sous l'option anti-crénelage est converti décalé : le snap de 2 mm ne rattrape pas un delta plus grand.
-- Le mur PX converti en maille était 1 mm trop bas (pas de lift anti-z-fight dans `extrudePolylineWall`) : corrigé avec cette fonctionnalité (le builder applique désormais le même lift que `extrudeClosedShape`), le snap reste le filet de sécurité.
+- Les builders ne soulèvent plus leur géométrie de 1 mm (ancien lift anti-z-fight) : un mur PX et le polygone contre lequel il est dessiné se convertissent à la même altitude, le snap reste le filet de sécurité.

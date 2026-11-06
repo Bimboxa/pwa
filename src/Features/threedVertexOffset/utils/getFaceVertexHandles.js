@@ -18,9 +18,9 @@ const XY_TOLERANCE_M = 0.002;
 //
 // The field is the nearer of the point's top (lift + height + offsetTop, plus
 // offsetBottom for a POLYGON — triangulateAnnotationGeometry's convention)
-// and bottom (lift + offsetBottom): the converted mesh sits 1 mm under those
-// formulas (the conversion strips the z-fight lift a PX wall never had), so
-// nearest wins rather than a fixed tolerance. Vertices standing on no point
+// and bottom (lift + offsetBottom): nearest wins rather than a fixed
+// tolerance (the displayed object may carry the render-only anti-aliasing
+// offsets). Vertices standing on no point
 // (arc samples) get no handle; sliding refs are not points of the mesh.
 // Returns [] when the face cannot be resolved.
 export default function getFaceVertexHandles({

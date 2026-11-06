@@ -13,8 +13,8 @@ import { getFaceNormal } from "./mesh3dTopology.js";
 // Index of the mesh face a 3D hit point belongs to, tolerating a hit taken
 // on a slightly different geometry than the mesh: the displayed host may
 // still carry the anti-aliasing shrink (faces 10 mm inward, tops 5 mm
-// lower) or the 1 mm z-fight lift, while the mesh is the un-shrunk
-// conversion. locatePathOnMesh3d (2 mm) misses those hits.
+// lower), while the mesh is the un-shrunk conversion. locatePathOnMesh3d
+// (2 mm) misses those hits.
 //
 // A face is a candidate when its plane is within maxDistM of the point, its
 // normal is parallel to `normal` within 2° (either sign — hit normals are

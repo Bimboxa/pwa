@@ -2,7 +2,6 @@ import { Matrix4, Vector3 } from "three";
 
 import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import getTriangleFaceLabels from "Features/threedEditor/js/utilsAnnotationsManager/getTriangleFaceLabels";
-import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 
 import buildMesh3dFromCarvedTriangles from "../utils/buildMesh3dFromCarvedTriangles";
 import buildMesh3dFromTriangles from "../utils/buildMesh3dFromTriangles";
@@ -79,8 +78,7 @@ export default function convertObject3DToMesh3d(
       v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
         toLocal
       );
-      // The builders lift their geometry by 1 mm (z-fight): not geometry.
-      positions.push(v.x, v.y, v.z - MESH3D_Z_FIGHT_OFFSET);
+      positions.push(v.x, v.y, v.z);
     }
   }
   if (positions.length < 9) return null;

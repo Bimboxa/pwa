@@ -82,7 +82,6 @@ export default function triangulateAnnotationGeometry({
   height = 0,
   verticalLift = 0,
   unitScale = 1,
-  zFightOffset = 0,
   // When > 0 (guideLine ramps), re-mesh the TOP as iso-height bands so the
   // transverse iso segments are real shared edges of the mesh faces. Falls
   // back to the earcut triangulation when banding cannot apply (holes,
@@ -167,10 +166,10 @@ export default function triangulateAnnotationGeometry({
           segs.push([
             pl[i].x,
             pl[i].y,
-            verticalLift + height + (pl[i].height || 0) + zFightOffset,
+            verticalLift + height + (pl[i].height || 0),
             pl[i + 1].x,
             pl[i + 1].y,
-            verticalLift + height + (pl[i + 1].height || 0) + zFightOffset,
+            verticalLift + height + (pl[i + 1].height || 0),
           ]);
         }
       }
@@ -377,7 +376,7 @@ export default function triangulateAnnotationGeometry({
   const topBase = 0;
   for (const p of flatPts) {
     const z =
-      verticalLift + height + (p.offsetBottom ?? 0) + (p.offsetTop ?? 0) + zFightOffset;
+      verticalLift + height + (p.offsetBottom ?? 0) + (p.offsetTop ?? 0);
     positions.push(p.x, p.y, z);
   }
   const topStart = indices.length;
@@ -397,7 +396,7 @@ export default function triangulateAnnotationGeometry({
     // normal points downward.
     bottomBase = positions.length / 3;
     for (const p of flatPts) {
-      const z = verticalLift + (p.offsetBottom ?? 0) + zFightOffset;
+      const z = verticalLift + (p.offsetBottom ?? 0);
       positions.push(p.x, p.y, z);
     }
     const bottomStart = indices.length;
@@ -409,9 +408,9 @@ export default function triangulateAnnotationGeometry({
     // 3. SIDE WALLS — outer contour and each hole. For holes, reverse winding
     // so the wall faces inward (toward the hole).
     const sideStart = indices.length;
-    emitRingWalls(positions, indices, contour, height, verticalLift, zFightOffset, false, getSideMeta, sideLabels);
+    emitRingWalls(positions, indices, contour, height, verticalLift, false, getSideMeta, sideLabels);
     for (const h of validHoles) {
-      emitRingWalls(positions, indices, h, height, verticalLift, zFightOffset, true, getSideMeta, sideLabels);
+      emitRingWalls(positions, indices, h, height, verticalLift, true, getSideMeta, sideLabels);
     }
     sideRange = [sideStart, indices.length - sideStart];
   }
@@ -915,7 +914,7 @@ function buildSideMetaLookup(contour, holes, sideSegments) {
 // per-point bottom/top z. Reverse winding for hole rings. With `getSideMeta`
 // (buildSideMetaLookup), hidden segments get no quad and the face label of
 // each emitted triangle is appended to `sideLabels`.
-function emitRingWalls(positions, indices, ring, height, verticalLift, zFightOffset, reverseWinding, getSideMeta = null, sideLabels = null) {
+function emitRingWalls(positions, indices, ring, height, verticalLift, reverseWinding, getSideMeta = null, sideLabels = null) {
   for (let i = 0; i < ring.length; i++) {
     const j = (i + 1) % ring.length;
     const a = ring[i];
@@ -923,12 +922,12 @@ function emitRingWalls(positions, indices, ring, height, verticalLift, zFightOff
     const meta = getSideMeta ? getSideMeta(a, b) : PLAIN_SIDE;
     if (meta.hidden) continue;
     sideLabels?.push(meta.label, meta.label);
-    const aBot = verticalLift + (a.offsetBottom ?? 0) + zFightOffset;
-    const bBot = verticalLift + (b.offsetBottom ?? 0) + zFightOffset;
+    const aBot = verticalLift + (a.offsetBottom ?? 0);
+    const bBot = verticalLift + (b.offsetBottom ?? 0);
     const aTop =
-      verticalLift + height + (a.offsetBottom ?? 0) + (a.offsetTop ?? 0) + zFightOffset;
+      verticalLift + height + (a.offsetBottom ?? 0) + (a.offsetTop ?? 0);
     const bTop =
-      verticalLift + height + (b.offsetBottom ?? 0) + (b.offsetTop ?? 0) + zFightOffset;
+      verticalLift + height + (b.offsetBottom ?? 0) + (b.offsetTop ?? 0);
     const v0 = positions.length / 3;
     positions.push(a.x, a.y, aBot, b.x, b.y, bBot, b.x, b.y, bTop, a.x, a.y, aTop);
     if (reverseWinding) {

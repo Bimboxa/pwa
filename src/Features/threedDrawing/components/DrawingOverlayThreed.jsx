@@ -811,7 +811,7 @@ export default function DrawingOverlayThreed() {
         ? camera.position.distanceTo(planHit.position)
         : Infinity;
       // An annotation face in front of the plan. A sheet lying on the plan
-      // is in front of it by its 1 mm lift only.
+      // is coplanar with it: the face wins within the tolerance.
       if (withFaces) {
         const faceHit = intersectAnnotationFace(editor, mNdc, camera, {
           axes: userAxes,

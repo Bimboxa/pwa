@@ -10,8 +10,8 @@ import lockEdgeSnapToAxes from "./lockEdgeSnapToAxes.js";
 const AXIS_THRESHOLD_PX = 20;
 
 // A vertex / edge further than this (m) behind the plane under the cursor is
-// hidden by it — absorbs the 1 mm z-fight lift of the annotation faces
-// (matches inPlaneOrthoSnap's COPLANAR_EPS_M).
+// hidden by it — absorbs picking noise and the render-only anti-aliasing
+// offsets (matches inPlaneOrthoSnap's COPLANAR_EPS_M).
 const OCCLUSION_EPS_M = 5e-3;
 
 // A snap candidate further than this (m) from the LOCKED plane (either side)

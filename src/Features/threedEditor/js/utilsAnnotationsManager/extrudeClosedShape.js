@@ -95,9 +95,6 @@ function tracePath(path, points) {
   path.closePath();
 }
 
-// Lift closed surfaces slightly above the basemap plane to avoid z-fighting.
-const Z_FIGHT_OFFSET = 0.001;
-
 function hasPerVertexZ(points, holes, innerPoints) {
   const ringHas = (ring) =>
     (ring || []).some(
@@ -257,7 +254,7 @@ function buildVertexEdgeLines(rings, height, verticalLift, maxFoldDeg) {
     for (const { index, foldDeg } of ring.breakPoints) {
       if (!(foldDeg < maxFoldDeg)) continue;
       const p = ring.points[index];
-      const bottom = verticalLift + (p.offsetBottom ?? 0) + Z_FIGHT_OFFSET;
+      const bottom = verticalLift + (p.offsetBottom ?? 0);
       positions.push(
         p.x,
         p.y,
@@ -353,13 +350,8 @@ export default function extrudeClosedShape(
           levels: edgeLevels,
           zOf: {
             top: (p) =>
-              verticalLift +
-              h +
-              (p.offsetBottom ?? 0) +
-              (p.offsetTop ?? 0) +
-              Z_FIGHT_OFFSET,
-            bottom: (p) =>
-              verticalLift + (p.offsetBottom ?? 0) + Z_FIGHT_OFFSET,
+              verticalLift + h + (p.offsetBottom ?? 0) + (p.offsetTop ?? 0),
+            bottom: (p) => verticalLift + (p.offsetBottom ?? 0),
           },
           color: material.color.getHex(),
           resolution: options.resolution,
@@ -407,7 +399,7 @@ export default function extrudeClosedShape(
     geometry = isExtruded
       ? new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
       : new ShapeGeometry(shape);
-    geometry.translate(0, 0, verticalLift + Z_FIGHT_OFFSET);
+    geometry.translate(0, 0, verticalLift);
   } else {
     const expContour = expandRingWithOffsets(points, ARC_SAMPLES, true);
     const expHoles = (holes || []).map((h) =>
@@ -419,7 +411,6 @@ export default function extrudeClosedShape(
       innerPoints,
       height: isExtruded ? height : 0,
       verticalLift,
-      zFightOffset: Z_FIGHT_OFFSET,
       isoBandLevels: options.isoLines ? ISO_LEVELS : 0,
       // isoHeightLines chords (local units): exact planar-strip partition of
       // the top face. Falls back internally to the interpolated-height earcut
@@ -465,12 +456,7 @@ export default function extrudeClosedShape(
         isoLines = buildIsoHeightLines(
           expContour,
           expHoles,
-          (p) =>
-            verticalLift +
-            h +
-            (p.offsetBottom ?? 0) +
-            (p.offsetTop ?? 0) +
-            Z_FIGHT_OFFSET
+          (p) => verticalLift + h + (p.offsetBottom ?? 0) + (p.offsetTop ?? 0)
         );
       }
       if (isoLines) group.add(isoLines);
