@@ -73,6 +73,7 @@ import SectionThreedAxisLockHelper from "Features/threedDrawing/components/Secti
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import SectionChangeStyleHelper from "Features/commandsToolbar/commands/changeStyle/SectionChangeStyleHelper";
+import SectionProcedureSourceDrawingHelper from "Features/annotationsAuto/components/SectionProcedureSourceDrawingHelper";
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 
 // Modes that select existing geometry — no smart detect needed
@@ -547,6 +548,9 @@ export default function SectionDrawingHelperContent() {
         enabledDrawingMode !== "CHAT_REPAIR" && (
           <LoupeSlot enabled={loupeEnabled} />
         )}
+      {/* Source annotation of a procedure being drawn (2D): the procedure's
+          own schematic — null otherwise. */}
+      {!isThreedToggledEditor && <SectionProcedureSourceDrawingHelper />}
       {isThreedToggledEditor && (
         <Box
           sx={{

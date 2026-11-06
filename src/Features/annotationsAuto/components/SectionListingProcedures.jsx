@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { setToaster } from "Features/layout/layoutSlice";
-import { setListingActiveProcedureKey } from "../annotationsAutoSlice";
+import {
+  setListingActiveProcedureKey,
+  setPendingProcedureLaunch,
+} from "../annotationsAutoSlice";
 
 import db from "App/db/db";
 
@@ -19,6 +22,11 @@ import {
   getAxisParamOfProcedure,
   getAxisSystemListingId,
 } from "Features/revolutionAxes/utils/getRevolutionAxisProcedures";
+import startDrawFromTemplate, {
+  resolveActiveToolForTemplate,
+} from "Features/mapEditor/utils/startDrawFromTemplate";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import { Box, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
@@ -40,7 +48,7 @@ const EMPTY = [];
  * "Dessin auto" section of a listing, for the procedures linked to it
  * (`listing.procedureKeys`, edited in the listing properties), on one line:
  * active procedure name — launch button — procedure selector (only when the
- * listing links several procedures). Three launch flavours:
+ * listing links several procedures). Four launch flavours:
  *
  * - revolution-axis system (registry `sourceAnnotationTypes` REVOLUTION_AXIS
  *   + `paramsDialog` — château d'eau GO, réservoir): the play button opens
@@ -51,6 +59,14 @@ const EMPTY = [];
  *   d'eau surfaces revolve around): the parameters are edited right under
  *   the line (listing.procedureParams[key]) and the play button runs the
  *   procedure straight away, replace-on-rerun, the axis as source;
+ * - drawn source (registry `drawSourceOnLaunch` + `launchOnSourceCreated` +
+ *   `paramsDialog` — e.g. the reference segment of a pool): with no source
+ *   on the base map yet, the play button ARMS THE DRAWING of the source
+ *   template (the listing template linking the procedure through its
+ *   `procedureKeys`); committing it auto-opens the params dialog
+ *   (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet). With exactly
+ *   one source, the play button reopens that dialog on it (update). Several
+ *   sources fall back to the default dialog below;
  * - otherwise the play button opens DialogProcedureLaunch (procedure
  *   properties, number of source annotations concerned, launch buttons),
  *   sources from useListingProcedureSourceIds.
@@ -77,6 +93,11 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   const updateS = "Mettre à jour (supprimer puis relancer)";
   const selectS = "Choisir la procédure";
   const missingParamsS = "Choisissez d'abord les paramètres de la procédure";
+  const drawSourceS = "Dessiner l'annotation de départ";
+  const noSourceTemplateS =
+    "Aucun modèle de la liste n'est lié à cette procédure.";
+  const drawIn2dS =
+    "Passez dans l'éditeur 2D pour dessiner l'annotation de départ.";
 
   // data
 
@@ -95,6 +116,10 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   const deleteAnnotations = useDeleteAnnotations();
   const runReplacing = useRunProcedureReplacing();
   const axes = useRevolutionAxes();
+  // the drawn-source launch arms a 2D draw (its commit opens the dialog)
+  const isThreedToggledEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   // shared with the annotation toolbar band (RowProcedureActionAuto)
   const activeKey = useSelector(
     (s) => s.annotationsAuto.activeProcedureKeyByListingId[listingId]
@@ -125,6 +150,13 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     !isPromptIa &&
     Boolean(procedure?.paramsDialog) &&
     (procedure?.sourceAnnotationTypes ?? []).includes("REVOLUTION_AXIS");
+  // source drawn at launch, its commit auto-opening the params dialog
+  const isDrawnSourceSystem =
+    !isPromptIa &&
+    !isAxisSystem &&
+    Boolean(procedure?.drawSourceOnLaunch) &&
+    Boolean(procedure?.launchOnSourceCreated) &&
+    Boolean(procedure?.paramsDialog);
   const axisParam = !isPromptIa ? getAxisParamOfProcedure(procedure) : null;
   const listingParams = procedure?.listingParams ?? EMPTY;
   const hasListingParams = !isPromptIa && listingParams.length > 0;
@@ -207,8 +239,49 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     }
   }
 
+  // Drawn-source launch with no source yet: arm the drawing of the listing
+  // template that links the procedure (same link the commit reads to
+  // auto-open the params dialog).
+  async function armSourceDrawing() {
+    if (isThreedToggledEditor) {
+      dispatch(setToaster({ message: drawIn2dS, severity: "warning" }));
+      return;
+    }
+    const templates = (
+      await db.annotationTemplates
+        .where("listingId")
+        .equals(listingId)
+        .toArray()
+    ).filter((t) => !t.deletedAt);
+    const template = templates.find((t) =>
+      (t.procedureKeys ?? []).includes(procedure.key)
+    );
+    const activeTool = template
+      ? resolveActiveToolForTemplate(template, null)
+      : null;
+    if (!template || !activeTool) {
+      dispatch(setToaster({ message: noSourceTemplateS, severity: "warning" }));
+      return;
+    }
+    startDrawFromTemplate(dispatch, { template, listingId, activeTool });
+  }
+
   async function handlePlay() {
     if (busy) return;
+    if (isDrawnSourceSystem && sourceAnnotationIds.length === 0) {
+      await armSourceDrawing();
+      return;
+    }
+    if (isDrawnSourceSystem && sourceAnnotationIds.length === 1) {
+      // params dialog on the existing source (replace-on-rerun)
+      dispatch(
+        setPendingProcedureLaunch({
+          procedureKey: procedure.key,
+          sourceAnnotationId: sourceAnnotationIds[0],
+        })
+      );
+      return;
+    }
     if (!hasListingParams) {
       setLaunchOpen(true);
       return;
@@ -239,7 +312,13 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
 
   if (!hasProcedures) return null;
 
-  const playTitle = isPromptIa ? openPromptIaS : hasOutputs ? updateS : launchS;
+  const playTitle = isPromptIa
+    ? openPromptIaS
+    : isDrawnSourceSystem && sourceAnnotationIds.length === 0
+      ? drawSourceS
+      : hasOutputs
+        ? updateS
+        : launchS;
 
   return (
     // white band around the tinted section

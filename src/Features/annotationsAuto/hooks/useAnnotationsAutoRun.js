@@ -565,6 +565,20 @@ export default function useAnnotationsAutoRun() {
       });
     }
 
+    // Post-commit step of the procedure (optional `afterCommit` on its
+    // result): work that needs the committed rows and goes through a shared
+    // service — e.g. applying a profile annotation on a created guide
+    // (applyProfileFromAnnotationService), posing a created base map. Runs
+    // before the single annotations refresh below; a failure never undoes
+    // the run.
+    if (typeof result.afterCommit === "function") {
+      try {
+        await result.afterCommit({ dispatch });
+      } catch (e) {
+        console.error("[useAnnotationsAutoRun] afterCommit failed", e);
+      }
+    }
+
     dispatch(triggerAnnotationsUpdate());
 
     return result;
