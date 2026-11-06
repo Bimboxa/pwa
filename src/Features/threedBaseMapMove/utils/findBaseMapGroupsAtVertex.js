@@ -25,6 +25,8 @@ export default function findBaseMapGroupsAtVertex(editor, position) {
     let parent = obj;
     while (parent) {
       if (parent.visible === false) return;
+      // Imported model out of the snap index (see buildIndex).
+      if (parent.userData?.noVertexSnap && !snapAnchors) return;
       if (
         parent.userData?.nodeType === "ANNOTATION" ||
         parent.userData?.isBasemap ||
