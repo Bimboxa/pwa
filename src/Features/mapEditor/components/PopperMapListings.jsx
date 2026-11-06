@@ -84,6 +84,7 @@ import {
 import { setShowAnnotations } from "Features/baseMapEditor/baseMapEditorSlice";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
+import ToggleButtonCompact from "Features/popperMapListings/components/ToggleButtonCompact";
 import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
 import SectionPopperBaseMaps from "Features/popperMapListings/components/SectionPopperBaseMaps";
 import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
@@ -220,6 +221,10 @@ function AnnotationTemplateRow({
   // module: the row stays a DRAW entry even though the module forces the
   // listings into SELECT.
   forceDrawMode,
+  // "Compact" Dessin popper (legend of the selected base map): the row is a
+  // read-only legend entry like in the Viewer module — a click opens the
+  // template properties instead of drawing; the eye and the solo stay.
+  forceSelectMode = false,
   // REVOLUTION_AXIS icon: inverted T on a vertical base map, circle + centre
   // point on the plan.
   isVerticalBaseMap,
@@ -265,7 +270,11 @@ function AnnotationTemplateRow({
   // The label wraps on several lines instead of being truncated behind a
   // tooltip (Dessin popper as well as the read-only Viewer legend).
   const wrapLabel = true;
-  const interactionMode = forceDrawMode ? "DRAW" : effectiveInteractionMode;
+  const interactionMode = forceDrawMode
+    ? "DRAW"
+    : forceSelectMode
+      ? "SELECT"
+      : effectiveInteractionMode;
   // With a wrapping label, the right column must keep the quantity's width on
   // hover (eye overlaid) — otherwise the label reflows and the row jumps.
   const keepQtySlot = wrapLabel && interactionMode === "SELECT";
@@ -928,6 +937,8 @@ function AnnotationTemplatesForListing({
   // drawing rows only — no orphan row, no "Nouveau modèle" / empty state,
   // no procedures; an empty library says so.
   libraryMode = false,
+  // "Compact" Dessin popper: read-only legend rows (see AnnotationTemplateRow).
+  forceSelectMode = false,
 }) {
   // strings
 
@@ -1094,6 +1105,7 @@ function AnnotationTemplatesForListing({
                       isMeshesModule &&
                       DIMENSION_SHAPES.includes(resolveDrawingShape(item))
                     }
+                    forceSelectMode={forceSelectMode}
                     readOnly={readOnly}
                     locateListing={locateListing}
                   />
@@ -1218,6 +1230,8 @@ function ListingRow({
   // The FieldActiveListing selector already names the active listing: skip
   // the redundant header band and render the templates only.
   hideHeader = false,
+  // "Compact" Dessin popper: read-only legend rows (see AnnotationTemplateRow).
+  forceSelectMode = false,
 }) {
   const dispatch = useDispatch();
 
@@ -1451,6 +1465,7 @@ function ListingRow({
           paintedQtiesByTemplateId={paintedQtiesByTemplateId}
           visibleTemplateIds={visibleTemplateIds}
           readOnly={isLinked}
+          forceSelectMode={forceSelectMode}
         />
       )}
     </Box>
@@ -1943,6 +1958,40 @@ export default function PopperMapListings() {
     [annotationTemplates]
   );
 
+  // "Compact" toggle of the header (Dessin popper, ToggleButtonCompact): the
+  // popper is a legend of the SELECTED base map — every listing at once,
+  // narrowed to the listings / groups / templates with a visible annotation
+  // on it (no listing selector, read-only rows like the Viewer module).
+  // Visible = template eye on (allAnnotations), listing not hidden (the 2D
+  // map excludes the hidden listings, this popper's set does not) and the
+  // main base map's annotations displayed. The other displayed base maps
+  // (2D overlays, 3D display modes) stay out: counters and quantities are
+  // the selected base map's.
+  const compact = useSelector((s) => s.popperMapListings.compact);
+  const isCompact = isDessinPopper && compact && !isLocateBusinessObjectMode;
+  const isMainBaseMapAnnotationsShown =
+    Boolean(baseMap?.id) && displayedAnnotationsBaseMapIds.includes(baseMap.id);
+  const compactAnnotations = useMemo(() => {
+    if (!isCompact) return null;
+    if (!isMainBaseMapAnnotationsShown) return [];
+    const hiddenListingIdSet = new Set(hiddenListingsIds);
+    return (allAnnotations ?? []).filter(
+      (a) =>
+        a.baseMapId === baseMap.id &&
+        Boolean(annotationTemplateById?.[a.annotationTemplateId]) &&
+        !hiddenListingIdSet.has(a.listingId)
+    );
+  }, [
+    isCompact,
+    isMainBaseMapAnnotationsShown,
+    hiddenListingsIds,
+    allAnnotations,
+    baseMap?.id,
+    annotationTemplateById,
+  ]);
+  // Annotations behind the listing counters and the rows' quantities.
+  const countedAnnotations = compactAnnotations ?? allAnnotations;
+
   // Chip eyes mirror the listing-row eye: a listing is hidden when every one
   // of its templates is hidden.
   const templatesByListingId = useMemo(() => {
@@ -1977,13 +2026,13 @@ export default function PopperMapListings() {
   // listing-less may still carry one, and those must never inflate a
   // listing's total.
   const annotationCountByListingId = useMemo(() => {
-    if (!allAnnotations) return {};
-    return allAnnotations.reduce((acc, a) => {
+    if (!countedAnnotations) return {};
+    return countedAnnotations.reduce((acc, a) => {
       if (a.listingId && !isLegacyStyleRevolutionHelper(a))
         acc[a.listingId] = (acc[a.listingId] || 0) + 1;
       return acc;
     }, {});
-  }, [allAnnotations]);
+  }, [countedAnnotations]);
 
   // SCOPE module "Fonds de plan" rows: counts narrowed like the legend.
   const scopeCountByBaseMapId = useMemo(() => {
@@ -1996,15 +2045,15 @@ export default function PopperMapListings() {
   }, [isScopeModule, allAnnotations]);
 
   const annotationsByListingId = useMemo(() => {
-    if (!allAnnotations) return {};
-    return allAnnotations.reduce((acc, a) => {
+    if (!countedAnnotations) return {};
+    return countedAnnotations.reduce((acc, a) => {
       if (a.listingId && !isLegacyStyleRevolutionHelper(a)) {
         if (!acc[a.listingId]) acc[a.listingId] = [];
         acc[a.listingId].push(a);
       }
       return acc;
     }, {});
-  }, [allAnnotations]);
+  }, [countedAnnotations]);
 
   const propertiesS = "Propriétés";
   const leaveActiveObjectS = "Quitter la sélection";
@@ -2161,6 +2210,9 @@ export default function PopperMapListings() {
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
   const legendAnnotations = useMemo(() => {
+    // "Compact" Dessin popper: the visible annotations of the selected base
+    // map only (eye-hidden templates leave the legend).
+    if (compactAnnotations) return compactAnnotations;
     let arr = allAnnotationsInclHidden ?? [];
     if (mirrors3dFilters && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
@@ -2168,6 +2220,7 @@ export default function PopperMapListings() {
       arr = arr.filter((a) => scopeAnnotationIdSet.has(a.id));
     return arr;
   }, [
+    compactAnnotations,
     allAnnotationsInclHidden,
     mirrors3dFilters,
     hideMainAnnotationsIn3d,
@@ -2234,30 +2287,68 @@ export default function PopperMapListings() {
         : [],
     [isMeshesModule, annotationTemplates]
   );
-  const visibleTemplateIds = useMemo(
-    () =>
-      isSelectFilter
-        ? new Set([
-            ...legendAnnotations
-              .filter((a) => a.annotationTemplateId)
-              .map((a) => a.annotationTemplateId),
-            ...coteTemplates.map((t) => t.id),
-            ...painted.templateIds,
-          ])
-        : null,
-    [isSelectFilter, legendAnnotations, coteTemplates, painted]
-  );
-  const visibleListingIds = useMemo(
-    () =>
-      isSelectFilter
-        ? new Set([
-            ...legendAnnotations.map((a) => a.listingId).filter(Boolean),
-            ...coteTemplates.map((t) => t.listingId).filter(Boolean),
-            ...painted.listingIds,
-          ])
-        : null,
-    [isSelectFilter, legendAnnotations, coteTemplates, painted]
-  );
+  // "Compact" Dessin popper: the painting templates count like the drawn
+  // ones — eye on (paintedQtiesByTemplateId), listing not hidden, main base
+  // map's annotations displayed.
+  const compactPaintedTemplates = useMemo(() => {
+    if (!isCompact || !isMainBaseMapAnnotationsShown) return [];
+    const hiddenListingIdSet = new Set(hiddenListingsIds);
+    return Object.keys(paintedQtiesByTemplateId ?? {})
+      .map((templateId) => annotationTemplateById?.[templateId])
+      .filter((t) => t && !hiddenListingIdSet.has(t.listingId));
+  }, [
+    isCompact,
+    isMainBaseMapAnnotationsShown,
+    hiddenListingsIds,
+    paintedQtiesByTemplateId,
+    annotationTemplateById,
+  ]);
+  const visibleTemplateIds = useMemo(() => {
+    if (isCompact)
+      return new Set([
+        ...legendAnnotations.map((a) => a.annotationTemplateId),
+        ...compactPaintedTemplates.map((t) => t.id),
+      ]);
+    return isSelectFilter
+      ? new Set([
+          ...legendAnnotations
+            .filter((a) => a.annotationTemplateId)
+            .map((a) => a.annotationTemplateId),
+          ...coteTemplates.map((t) => t.id),
+          ...painted.templateIds,
+        ])
+      : null;
+  }, [
+    isCompact,
+    compactPaintedTemplates,
+    isSelectFilter,
+    legendAnnotations,
+    coteTemplates,
+    painted,
+  ]);
+  const visibleListingIds = useMemo(() => {
+    if (isCompact)
+      return new Set(
+        [
+          ...legendAnnotations.map((a) => a.listingId),
+          ...compactPaintedTemplates.map((t) => t.listingId),
+        ].filter(Boolean)
+      );
+    return isSelectFilter
+      ? new Set([
+          ...legendAnnotations.map((a) => a.listingId).filter(Boolean),
+          ...coteTemplates.map((t) => t.listingId).filter(Boolean),
+          ...painted.listingIds,
+        ])
+      : null;
+  }, [
+    isCompact,
+    compactPaintedTemplates,
+    isSelectFilter,
+    legendAnnotations,
+    coteTemplates,
+    painted,
+  ]);
 
   const scopedListings = visibleListingIds
     ? visibleListings?.filter((l) => visibleListingIds.has(l.id))
@@ -2307,6 +2398,7 @@ export default function PopperMapListings() {
   // row / band above (activeListingCardSx), so the two read as linked.
   const showActiveListingBlock =
     !isLegendPopper &&
+    !isCompact &&
     !isLocateBusinessObjectMode &&
     (displayedListings?.length > 0 || canAddListing);
   const { isLinkedListing } = useLinkedListings();
@@ -2513,6 +2605,12 @@ export default function PopperMapListings() {
             </IconButton>
           </Tooltip>
         )}
+
+        {/* "Compact" toggle (Dessin popper): legend of the selected base
+            map, left of the properties button. */}
+        {isDessinPopper &&
+          !isLocateBusinessObjectMode &&
+          !hasActiveObjectHeader && <ToggleButtonCompact />}
 
         {showSideProperties && !hasActiveObjectHeader && (
           <Tooltip title={propertiesS} arrow placement="top">
@@ -2828,7 +2926,7 @@ export default function PopperMapListings() {
             {/* Viewer 2D: the legend is scoped to the current baseMap — make
                 the empty case explicit instead of a blank panel. */}
             {!showPhotosBody &&
-              (isViewer2d || isBaseMapsLegend) &&
+              (isViewer2d || isBaseMapsLegend || isCompact) &&
               hasNoListing && (
                 <Box sx={{ px: 1.5, py: 1.5 }}>
                   <Typography
@@ -2894,9 +2992,11 @@ export default function PopperMapListings() {
                   ))}
                 </Box>
               )}
+              {/* "Compact" Dessin popper: the same full legend, over the
+                  selected base map — read-only rows (forceSelectMode). */}
               {isLocateBusinessObjectMode
                 ? null
-                : isLegendPopper
+                : isLegendPopper || isCompact
                   ? !showPhotosBody &&
                     displayedListings?.map((listing) => (
                       <ListingRow
@@ -2910,6 +3010,7 @@ export default function PopperMapListings() {
                         annotationTemplateById={annotationTemplateById}
                         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
+                        forceSelectMode={isCompact}
                       />
                     ))
                   : activeListing && (
@@ -2952,7 +3053,6 @@ export default function PopperMapListings() {
                         />
                       </Box>
                     )}
-
             </>
           </Box>
 
@@ -2964,7 +3064,13 @@ export default function PopperMapListings() {
           {showBaseMapsSection && (
             <Box sx={{ flexShrink: 0 }}>
               <SectionPopperBaseMaps
-                listingIds={displayedListings?.map((l) => l.id)}
+                // Compact: displayedListings is narrowed to the selected
+                // base map's listings — the per-base-map counts keep every
+                // listing of the scope.
+                listingIds={(isCompact
+                  ? visibleListings
+                  : displayedListings
+                )?.map((l) => l.id)}
                 displayedBaseMapIds={displayedAnnotationsBaseMapIds}
               />
             </Box>
