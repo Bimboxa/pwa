@@ -229,6 +229,46 @@ test("flat run next to a hidden one: no cap against the gap", () => {
   near(getSweepArea3d(arrays), 2 * Math.SQRT2 * 10 + 2 * 10 + 1);
 });
 
+test("3D sweep: profile parts lying on the chord share their edges with the flat sheet", () => {
+  // Lips + groove drawn across a straight guide: lips 1 m wide on the chord,
+  // groove 1 m wide, 0.5 m deep.
+  const line = [0, 10, 20, 30].map((x) => ({ x, y: 0, z: 0 }));
+  const profilePoints = [
+    [0, 0],
+    [1, 0],
+    [1, -0.5],
+    [2, -0.5],
+    [2, 0],
+    [3, 0],
+  ].map(([y, z]) => ({ x: 5, y, z }));
+  const setup = getSweep3dSetup({ guidePoints: line, profilePoints });
+  const frames = computeSegmentFrames3d(
+    line,
+    new Set(),
+    false,
+    setup.segIndex,
+    setup.frame
+  );
+  const arrays = buildSweepArrays3d(
+    line,
+    frames,
+    new Set(),
+    setup.section,
+    false,
+    new Set([1])
+  );
+  // Developed profile 4 m, chord 3 m, groove cap 0.5 m².
+  near(getSweepArea3d(arrays), 4 * 20 + 3 * 10 + 2 * 0.5);
+  // Lips, groove walls, groove mouth and the cap's own diagonal: every
+  // joint edge has two faces.
+  const uses = edgeUsesInPlane(arrays, (p) => Math.abs(p.x - 10) < 1e-9);
+  assert.equal(uses.length, 7);
+  assert.ok(
+    uses.every((count) => count === 2),
+    `${uses}`
+  );
+});
+
 test("oblique vertical profile on a flat guide is swung perpendicular, chord kept", () => {
   const flat = [
     { x: 0, y: 0, z: 0 },
