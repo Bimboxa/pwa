@@ -91,9 +91,15 @@ export default function pickMesh3dEdge(
   if (!candidates.length) return null;
   candidates.sort((c1, c2) => c1.distance - c2.distance);
 
+  // Occluders: the displayed faces only — a face hidden with « Masquer
+  // l'annotation » (invisible mesh) hides nothing.
   const faces = [];
   annoObject.traverse((child) => {
-    if (child.isMesh && child.userData?.mesh3dFaceIndex !== undefined) {
+    if (
+      child.isMesh &&
+      child.visible &&
+      child.userData?.mesh3dFaceIndex !== undefined
+    ) {
       faces.push(child);
     }
   });

@@ -84,6 +84,8 @@ function isAfterPovFreeze(createdAt, freeze) {
  *   - excludeProfileTemplates: default true (3D drops profile templates)
  *   - scopeId: selected scope id; linkedListingIds: Set | Array
  *   - hiddenLayerIds: Set | Array; showAnnotationsWithoutLayer: default true
+ *   - userHiddenAnnotationIds: Set | Array | null — hosts hidden for the
+ *     session with « Masquer l'annotation » (selectUserHiddenAnnotationIdSet)
  *   - povFreezeCreatedBefore: ISO string | null
  *   - showMeshCells: boolean; meshCellParentIds: Set | Array (useMeshCellRelations)
  *   - soloAnnotationTemplateId, soloAnnotationId: ids | null
@@ -128,6 +130,9 @@ export default function getMeshPaintVisibility(item, ctx = {}) {
 
   // --- host: structural filters only (no template / listing) ---
   if (host.isBaseMapAnnotation) return HIDDEN;
+  // Host hidden by hand (« Masquer l'annotation »): the user wants to see
+  // behind it, its finishes go with it.
+  if (has(ctx.userHiddenAnnotationIds, host.id)) return HIDDEN;
   if (!isHostLayerVisible(host, ctx)) return HIDDEN;
   if (ctx.showMeshCells) {
     // The parent is replaced by its mesh cells.

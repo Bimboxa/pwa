@@ -15,6 +15,7 @@ import {
 import { setHighlightedMeshPaintId } from "Features/meshPaint/meshPaintSlice";
 
 import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import { selectUserHiddenAnnotationIdSet } from "Features/hiddenAnnotations/hiddenAnnotationsSlice";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import selectSoloWorkPackageId from "Features/businessObjects/utils/selectSoloWorkPackageId";
@@ -225,6 +226,8 @@ export default function ThreedMeshPaints() {
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
   const hiddenTemplateIds = useSelector(selectHiddenAnnotationTemplateIdSet);
+  // hosts hidden for the session with « Masquer l'annotation » (null: none)
+  const userHiddenAnnotationIds = useSelector(selectUserHiddenAnnotationIdSet);
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
@@ -298,6 +301,7 @@ export default function ThreedMeshPaints() {
       hideAnnotationsIn3d,
       hideMainBaseMapAnnotationsIn3d,
       hiddenTemplateIds,
+      userHiddenAnnotationIds,
       hiddenListingIds: new Set(hiddenListingsIds || []),
       listingById,
       isBaseMapsModule,
@@ -328,6 +332,7 @@ export default function ThreedMeshPaints() {
       hideAnnotationsIn3d,
       hideMainBaseMapAnnotationsIn3d,
       hiddenTemplateIds,
+      userHiddenAnnotationIds,
       hiddenListingsIds,
       listingById,
       isBaseMapsModule,

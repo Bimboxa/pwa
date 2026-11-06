@@ -119,6 +119,7 @@ import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHe
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import PopperSweepAlongLineHelper from "Features/mapEditor/components/PopperSweepAlongLineHelper";
 import useSweepPickHotkeysInThreedEditor from "../hooks/useSweepPickHotkeysInThreedEditor";
+import useHideAnnotationHotkeysInThreedEditor from "../hooks/useHideAnnotationHotkeysInThreedEditor";
 import useDrawingPreferredBaseMapId from "Features/threedDrawing/hooks/useDrawingPreferredBaseMapId";
 import { setSweepProfileAnnotationId } from "Features/mapEditor/mapEditorSlice";
 import {
@@ -187,6 +188,8 @@ import MeshBrushThreed from "Features/meshPaint/components/MeshBrushThreed";
 import MeshPaintsResyncThreed from "Features/meshPaint/components/MeshPaintsResyncThreed";
 import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
 import { setHighlightedMeshPaintId } from "Features/meshPaint/meshPaintSlice";
+import { hideAnnotations } from "Features/hiddenAnnotations/hiddenAnnotationsSlice";
+import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 import pickDisplayedMeshPaint from "Features/meshPaint/services/pickDisplayedMeshPaint";
 import buildMeshPaintHoverHelper from "Features/meshPaint/services/buildMeshPaintHoverHelper";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
@@ -688,6 +691,9 @@ export default function MainThreedEditor() {
   // here.
   useSubtractPickHotkeysInThreedEditor();
   useSweepPickHotkeysInThreedEditor();
+  // « Masquer l'annotation » pick mode (commands toolbar): its clicks are
+  // handled in handleClick below, reading the mode through the store.
+  useHideAnnotationHotkeysInThreedEditor();
   // Same for the business-object picking mode (LINK / EXCLUDE), armed from
   // the Quantités modules' object rows; its clicks are handled in handleClick
   // below, reading the slice through the store (no re-render).
@@ -1210,8 +1216,19 @@ export default function MainThreedEditor() {
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      // « Masquer l'annotation » armed (commands toolbar): the click hides
+      // the annotation under the cursor for the session instead of selecting
+      // it — read through the store (no re-render of this callback).
+      // A right click keeps its usual meaning (select + shortcuts menu).
+      const hideMode =
+        !isRightClick &&
+        store.getState().mapEditor.enabledDrawingMode === HIDE_ANNOTATION_MODE;
       const cardSprite = pickDimensionCard(raycasterRef.current, clippingPlane);
       if (cardSprite) {
+        if (hideMode) {
+          dispatch(hideAnnotations([cardSprite.userData.annotationId]));
+          return;
+        }
         handleDimensionCardClick({
           dispatch,
           selectedItems: selectSelectedItems(store.getState()),
@@ -1225,6 +1242,10 @@ export default function MainThreedEditor() {
       // reason as the cards above.
       const cutLineHit = pickCutLine(raycasterRef.current, clippingPlane);
       if (cutLineHit) {
+        if (hideMode) {
+          dispatch(hideAnnotations([cutLineHit.annotationId]));
+          return;
+        }
         handleCutLineClick({
           dispatch,
           selectedItems: selectSelectedItems(store.getState()),
@@ -1235,7 +1256,7 @@ export default function MainThreedEditor() {
       }
 
       // Maille label sprite hit-test — same reason as the cote sprites above.
-      const mesh3dSprites = getMesh3dSprites();
+      const mesh3dSprites = hideMode ? [] : getMesh3dSprites();
       if (mesh3dSprites.length > 0) {
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouseRef.current.y =
@@ -1275,10 +1296,33 @@ export default function MainThreedEditor() {
       const isPickMode =
         isSubtractionPick ||
         Boolean(sweepProfileAnnotationIdRef.current) ||
-        Boolean(linkingId);
+        Boolean(linkingId) ||
+        hideMode;
       const intersects = raycastScene(event, rect, {
         hatchGaps: !isPickMode,
       });
+
+      // « Masquer l'annotation »: the nearest annotation along the ray is
+      // hidden (base map images and GLB decor are skipped, like the selection
+      // below); a click on nothing does nothing. The mode stays armed —
+      // Escape exits it (useHideAnnotationHotkeysInThreedEditor).
+      if (hideMode) {
+        for (const intersect of intersects) {
+          let object = intersect.object;
+          if (object.userData?.isBasemap || object.userData?.isScene3dGlb) {
+            continue;
+          }
+          while (object && !object.userData?.nodeId) object = object.parent;
+          const { nodeId, nodeType } = object?.userData ?? {};
+          if (nodeType !== "ANNOTATION" || isForeignFootprintId(nodeId)) {
+            continue;
+          }
+          clearFaceStipple();
+          dispatch(hideAnnotations([nodeId]));
+          break;
+        }
+        return;
+      }
 
       // Painted part (« Pinceau », db.meshPaints) clicked: a paint has no
       // panel of its own — its HOST is selected and the paint highlighted

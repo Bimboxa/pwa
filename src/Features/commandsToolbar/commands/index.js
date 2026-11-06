@@ -28,6 +28,7 @@ import moveAnnotationCommand from "./moveAnnotation/moveAnnotationCommand";
 import rotateAnnotationCommand from "./rotateAnnotation/rotateAnnotationCommand";
 import wrapperModeCommand from "./wrapperMode/wrapperModeCommand";
 import changeStyleCommand from "./changeStyle/changeStyleCommand";
+import hideAnnotationCommand from "./hideAnnotation/hideAnnotationCommand";
 import cloneCommand from "./clone/cloneCommand";
 import mergeCommand from "./merge/mergeCommand";
 import addIntersectionPointsCommand from "./addIntersectionPoints/addIntersectionPointsCommand";
@@ -157,6 +158,8 @@ export const COMMANDS = [
   autoWallsCommand,
   slopeWallsCommand,
   assignBusinessObjectCommand,
+  // view: session hide of annotations / mesh faces (2D + 3D)
+  hideAnnotationCommand,
   // 2D view toggles
   toggleSegmentCotesCommand,
   toggleSegmentDragCommand,

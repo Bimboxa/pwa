@@ -75,6 +75,8 @@ import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
+import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
+import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
@@ -596,7 +598,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // (interaction, snapping, legend and quantities never see them).
   const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
   const keepSoloDimmed = soloDimStyle !== SOLO_DIM_STYLE.HIDDEN;
-  const rawAnnotations = useAnnotationsV2({
+  const loadedAnnotations = useAnnotationsV2({
     caller: "MainMapEditorV3",
     enabled: isActiveViewer,
     // BaseMaps module: the section marks (BASE_MAP_LINK) are always shown;
@@ -621,6 +623,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     withPhotos: isPhotosModule || (isViewerModule && viewerPhotosTabActive),
     keepSoloDimmed,
   });
+  // « Masquer l'annotation » (commands toolbar, Features/hiddenAnnotations):
+  // the annotations hidden for the session leave everything below — display,
+  // ghosts, print, hover / click, lasso and snapping. Display only: the
+  // quantities and the listings read their own useAnnotationsV2.
+  const { hiddenIdSet: userHiddenIdSet } = useUserHiddenAnnotations();
+  const rawAnnotations = useMemo(
+    () => filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+    [loadedAnnotations, userHiddenIdSet]
+  );
 
   // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
   // cells + non-meshed annotations); OFF → hide mesh cells, show parents.

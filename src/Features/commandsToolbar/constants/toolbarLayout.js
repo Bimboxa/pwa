@@ -187,6 +187,8 @@ const DEFAULT_SECTIONS = [
     entries: [
       "MOVE_ANNOTATION",
       "ROTATE_ANNOTATION",
+      // session hide of annotations / mesh faces + its registry dropdown
+      "HIDE_ANNOTATION",
       "WRAPPER_MODE",
       "TOGGLE_SEGMENT_COTES",
       "TOGGLE_SEGMENT_DRAG",
