@@ -107,13 +107,17 @@ function disposeObject(object) {
 // - click (pointer up within BRUSH_DRAG_PX of the press, no Ctrl / Cmd): the
 //   target is committed (commitMeshBrushTargetService), commits queued in
 //   click order; a drag is an orbit and never paints;
-// - « Créer une annotation 2D si possible » (mapEditor
-//   .meshBrushCreate2dIfPossible): a bare part (nothing to remove / replace)
+// - « Créer une annotation » (mapEditor
+//   .meshBrushCreateAnnotation): a bare part (nothing to remove / replace)
 //   the plan can hold becomes a 2D annotation of the armed template instead
-//   of a paint row — the helper then reads « Annotation 2D »; a thick wall
-//   facet without a floor polygon at its foot gets a toaster, nothing else,
-//   and so does a part whose annotation already exists on the plan (same
-//   template and type at the same place: no duplicate, no paint either);
+//   of a paint row — the helper then reads « Annotation 2D » — and a facet
+//   the plan cannot hold becomes an annotation mesh (« Annotation mesh
+//   3D »); a thick wall facet without a floor polygon at its foot gets a
+//   toaster, nothing else, and so does a part whose annotation already
+//   exists (same template at the same place: no duplicate, no paint either);
+// - host too dense for the part index (an imported heavy model,
+//   target.dense): its facets ALWAYS become an annotation, whatever the
+//   switch; « Peindre toutes les faces » is refused on it (TOO_DENSE);
 // - « Peindre toutes les faces de l'annotation » / « Peindre toutes les
 //   arêtes de l'annotation » (mapEditor.meshBrushPaintAllFaces /
 //   .meshBrushPaintAllEdges, the switch of the brush's part type): the click
@@ -148,8 +152,8 @@ export default function useMeshBrushPointerHandlers() {
   // 2D annotation preference (drawing helper switch) + what the 2D commit
   // needs: the armed draft (template style), the resolved base maps (host of
   // the commit) and the regular creation path (rels, auto-number, triggers).
-  const create2dIfPossible = useSelector(
-    (s) => s.mapEditor.meshBrushCreate2dIfPossible
+  const createAsAnnotation = useSelector(
+    (s) => s.mapEditor.meshBrushCreateAnnotation
   );
   // « Peindre toutes les faces / arêtes de l'annotation » (drawing helper
   // switch of the brush's part type).
@@ -219,7 +223,7 @@ export default function useMeshBrushPointerHandlers() {
       rowsById,
       contextRefusal,
       smoothAngleDeg,
-      create2dIfPossible,
+      createAsAnnotation,
       paintAllParts,
       templateProps,
       baseMaps,
@@ -234,7 +238,7 @@ export default function useMeshBrushPointerHandlers() {
     rowsById,
     contextRefusal,
     smoothAngleDeg,
-    create2dIfPossible,
+    createAsAnnotation,
     paintAllParts,
     templateProps,
     baseMaps,
@@ -250,7 +254,7 @@ export default function useMeshBrushPointerHandlers() {
     contextRefusal,
     armedTemplate,
     smoothAngleDeg,
-    create2dIfPossible,
+    createAsAnnotation,
     paintAllParts,
   ]);
 
@@ -375,6 +379,15 @@ export default function useMeshBrushPointerHandlers() {
         ? (data.templateById?.[replacedTemplateId]?.label ?? null)
         : null;
 
+      // A dense host has no part index: nothing lists all its parts.
+      if (target.dense && data.paintAllParts) {
+        return {
+          kind: "REFUSED",
+          reason: PAINT_REFUSAL.TOO_DENSE,
+          previewKey: `R:${PAINT_REFUSAL.TOO_DENSE}`,
+        };
+      }
+
       // Every face / edge of the host at once.
       const allParts = data.paintAllParts ? getAllPartsPlan(target) : null;
       if (allParts?.tooMany) {
@@ -389,28 +402,37 @@ export default function useMeshBrushPointerHandlers() {
           ...target,
           action: allParts.action,
           allParts,
-          twoD: false,
+          creates: null,
           replacedLabel,
         };
       }
 
-      // A bare host part the plan can hold → a 2D annotation (optimistic for
-      // a thick wall facet: the floor search runs at the click).
-      const twoD =
-        Boolean(data.create2dIfPossible) &&
+      // A bare host part becomes an annotation (always on a dense host):
+      // "2D" when the plan can hold it (optimistic — a thick wall facet looks
+      // for its floor at the click, a face may still have no plan encoding),
+      // else "MESH" for a facet; an edge without plan encoding is painted.
+      let creates = null;
+      if (
+        (Boolean(data.createAsAnnotation) || Boolean(target.dense)) &&
         target.kind === "HOST" &&
-        action === "ADDED" &&
-        classifyMeshBrushLocalPart(target.partType, target.localGeometry, {
-          isThickWallHost: isShrinkableAnnotation(
-            sceneManager.annotationsManager?.getAnnotationSource?.(
-              target.hostId
-            )
-          ),
-        }).kind !== BRUSH_2D_KIND.PAINT;
+        action === "ADDED"
+      ) {
+        const is2d =
+          classifyMeshBrushLocalPart(target.partType, target.localGeometry, {
+            isThickWallHost: isShrinkableAnnotation(
+              sceneManager.annotationsManager?.getAnnotationSource?.(
+                target.hostId
+              )
+            ),
+          }).kind !== BRUSH_2D_KIND.PAINT;
+        if (is2d) creates = "2D";
+        else if (target.partType === MESH_PAINT_PART_TYPES.FACE)
+          creates = "MESH";
+      }
       return {
         ...target,
         action,
-        twoD,
+        creates,
         replacedLabel,
       };
     }
@@ -508,7 +530,7 @@ export default function useMeshBrushPointerHandlers() {
           : getMeshPaintColor(dataRef.current.armedTemplate, partType)
         : null;
       const key = actionable
-        ? `${target.previewKey}|${target.action}|${target.twoD ? "2D" : ""}|${
+        ? `${target.previewKey}|${target.action}|${target.creates ?? ""}|${
             target.allParts ? `ALL${target.allParts.generation}` : ""
           }|${color}`
         : null;
@@ -543,8 +565,9 @@ export default function useMeshBrushPointerHandlers() {
           target.allParts ? " et peindre tout" : ""
         }`;
         tone = "REPLACE";
-      } else if (target.twoD) {
-        label = "Annotation 2D";
+      } else if (target.creates) {
+        label =
+          target.creates === "MESH" ? "Annotation mesh 3D" : "Annotation 2D";
         tone = "CREATE_2D";
       } else {
         label = target.allParts ? "Peindre tout" : "Peindre";
@@ -597,7 +620,7 @@ export default function useMeshBrushPointerHandlers() {
               projectId: data.projectId,
               scopeId: data.scopeId,
               smoothAngleDeg: data.smoothAngleDeg,
-              create2dIfPossible: Boolean(data.create2dIfPossible),
+              createAsAnnotation: Boolean(data.createAsAnnotation),
               templateProps: data.templateProps,
               baseMaps: data.baseMaps || [],
               createAnnotationFn: data.createAnnotation,
@@ -631,10 +654,10 @@ export default function useMeshBrushPointerHandlers() {
             template,
             projectId: data.projectId,
             scopeId: data.scopeId,
-            // Only a bare part becomes a 2D annotation: a click that removes
+            // Only a bare part becomes an annotation: a click that removes
             // or replaces a paint keeps the paint semantics.
-            create2dIfPossible:
-              Boolean(data.create2dIfPossible) && target.action === "ADDED",
+            createAsAnnotation:
+              Boolean(data.createAsAnnotation) && target.action === "ADDED",
             templateProps: data.templateProps,
             baseMaps: data.baseMaps || [],
             createAnnotationFn: data.createAnnotation,

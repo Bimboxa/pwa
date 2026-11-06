@@ -19,7 +19,7 @@ import {
   setCoplanarPoints3d,
   setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
-  setMeshBrushCreate2dIfPossible,
+  setMeshBrushCreateAnnotation,
   setMeshBrushPaintAllEdges,
   setMeshBrushPaintAllFaces,
   setMeshBrushPartMode,
@@ -283,7 +283,7 @@ export default function SectionDrawingHelperContent() {
   const meshBrushPartS = "Partie peinte";
   const meshBrushFaceS = "Facette";
   const meshBrushEdgeS = "Arête";
-  const meshBrushCreate2dS = "Créer une annotation 2D si possible";
+  const meshBrushCreateAnnotationS = "Créer une annotation";
   const meshBrushPaintAllFacesS = "Peindre toutes les faces de l'annotation";
   const meshBrushPaintAllEdgesS = "Peindre toutes les arêtes de l'annotation";
   const templateBrushConvertS =
@@ -323,10 +323,10 @@ export default function SectionDrawingHelperContent() {
   // when the brush is not armed.
   const meshBrushPartType = useSelector(selectMeshBrushPartType);
   const isMeshBrush = Boolean(meshBrushPartType);
-  // « Créer une annotation 2D si possible »: a painted part the plan can
+  // « Créer une annotation »: a painted part the plan can
   // hold becomes a 2D annotation instead of a paint row.
-  const meshBrushCreate2dIfPossible = useSelector(
-    (s) => s.mapEditor.meshBrushCreate2dIfPossible
+  const meshBrushCreateAnnotation = useSelector(
+    (s) => s.mapEditor.meshBrushCreateAnnotation
   );
   // « Peindre toutes les faces / arêtes de l'annotation »: one click paints
   // every bare part of the host of the brush's part type, or removes them
@@ -645,13 +645,13 @@ export default function SectionDrawingHelperContent() {
               }}
             >
               <Typography variant="caption" color="text.secondary">
-                {meshBrushCreate2dS}
+                {meshBrushCreateAnnotationS}
               </Typography>
               <Switch
                 size="small"
-                checked={Boolean(meshBrushCreate2dIfPossible)}
+                checked={Boolean(meshBrushCreateAnnotation)}
                 onChange={(e) =>
-                  dispatch(setMeshBrushCreate2dIfPossible(e.target.checked))
+                  dispatch(setMeshBrushCreateAnnotation(e.target.checked))
                 }
               />
             </Box>

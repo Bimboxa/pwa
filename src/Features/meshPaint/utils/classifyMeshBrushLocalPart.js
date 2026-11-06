@@ -3,7 +3,7 @@ import { MESH_PAINT_PART_TYPES } from "../constants/meshPaintConstants.js";
 // « Pinceau » → 2D annotation: what a picked part (base-map-LOCAL geometry,
 // meshBrushPick / commitMeshBrushTargetService) can become when the brush
 // prefers a 2D annotation over a db.meshPaints row (mapEditor
-// .meshBrushCreate2dIfPossible). Cheap and synchronous: the hover label and
+// .meshBrushCreateAnnotation). Cheap and synchronous: the hover label and
 // the commit share it.
 //
 // kinds:

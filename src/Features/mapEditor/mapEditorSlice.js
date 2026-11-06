@@ -62,7 +62,7 @@ const mapEditorInitialState = {
   // the floor polygons at the foot of a thick wall, a flat face, a horizontal
   // edge…) is created as a 2D annotation of the armed template instead of a
   // db.meshPaints row (commitMeshBrush2dService).
-  meshBrushCreate2dIfPossible: false,
+  meshBrushCreateAnnotation: false,
   // « Pinceau » (3D, facets): a click paints EVERY bare face of the host
   // annotation at once (one side per face, faces already painted left
   // alone); a click on a face carrying the armed template removes all of
@@ -456,8 +456,8 @@ export const mapEditorSlice = createSlice({
     setMeshBrushPartMode: (state, action) => {
       state.meshBrushPartMode = action.payload || "AUTO";
     },
-    setMeshBrushCreate2dIfPossible: (state, action) => {
-      state.meshBrushCreate2dIfPossible = Boolean(action.payload);
+    setMeshBrushCreateAnnotation: (state, action) => {
+      state.meshBrushCreateAnnotation = Boolean(action.payload);
     },
     setMeshBrushPaintAllFaces: (state, action) => {
       state.meshBrushPaintAllFaces = Boolean(action.payload);
@@ -1089,7 +1089,7 @@ export const {
   setJoinMergeIfPossible,
   setCoplanarPoints3d,
   setMeshBrushPartMode,
-  setMeshBrushCreate2dIfPossible,
+  setMeshBrushCreateAnnotation,
   setMeshBrushPaintAllFaces,
   setMeshBrushPaintAllEdges,
   setTemplateBrushDuplicateTarget,

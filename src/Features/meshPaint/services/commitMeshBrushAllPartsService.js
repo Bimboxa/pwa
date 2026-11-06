@@ -6,6 +6,9 @@ import { getHostPartData } from "Features/meshPaint/js/buildHostPartIndexFromObj
 import commitMeshBrush2dService, {
   BRUSH_2D_STATUS,
 } from "Features/meshPaint/services/commitMeshBrush2dService";
+import commitMeshBrushMeshService, {
+  BRUSH_MESH_STATUS,
+} from "Features/meshPaint/services/commitMeshBrushMeshService";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 import getMeshBrushAllPartsPlan from "Features/meshPaint/services/getMeshBrushAllPartsPlan";
 import {
@@ -34,10 +37,12 @@ const isLive = (row) => row && !row.deletedAt;
  *   "REPLACED"). A HOST target is first rebuilt without its anti-aliasing
  *   shrink and its parts are read on the rebuilt object, like a plain click
  *   (commitMeshBrushTargetService).
- * - `create2dIfPossible`: every bare part first goes through
+ * - `createAsAnnotation`: every bare part first goes through
  *   commitMeshBrush2dService, like a plain click — a 2D annotation when the
  *   plan can hold it (no paint row), skipped when it has no floor
- *   (NO_GROUND) or already exists (DUPLICATE), a paint row otherwise.
+ *   (NO_GROUND) or already exists (DUPLICATE); a facet without plan encoding
+ *   becomes an annotation mesh (commitMeshBrushMeshService, skipped when it
+ *   already exists); a paint row otherwise.
  *
  * Guard failures are returned ({action: null, reason}); db guard errors
  * (ReadOnlyScopeError, LinkedListingReadOnlyError) are thrown.
@@ -50,14 +55,14 @@ const isLive = (row) => row && !row.deletedAt;
  * @param {string} [params.projectId]
  * @param {string} params.scopeId
  * @param {number} [params.smoothAngleDeg] - « Sélection de face » angle
- * @param {boolean} [params.create2dIfPossible]
+ * @param {boolean} [params.createAsAnnotation]
  * @param {object} [params.templateProps] - the armed newAnnotation draft
  * @param {object[]} [params.baseMaps] - resolved base maps (2D commit host)
  * @param {Function} [params.createAnnotationFn] - useCreateAnnotation's fn
  * @returns {Promise<{action: "ADDED"|"REPLACED"|"REMOVED"|null,
  *   paintIds: string[], annotationIds: string[], deletedIds: string[],
  *   skippedCount: number, reason?: string}>} skippedCount: bare parts the
- *   2D commit refused (NO_GROUND / DUPLICATE).
+ *   annotation commit refused (NO_GROUND / DUPLICATE).
  */
 export default async function commitMeshBrushAllPartsService({
   editor,
@@ -66,7 +71,7 @@ export default async function commitMeshBrushAllPartsService({
   projectId,
   scopeId,
   smoothAngleDeg = 0,
-  create2dIfPossible = false,
+  createAsAnnotation = false,
   templateProps = null,
   baseMaps = [],
   createAnnotationFn = null,
@@ -171,7 +176,7 @@ export default async function commitMeshBrushAllPartsService({
       // Only a bare part becomes a 2D annotation: the clicked one keeps the
       // paint semantics when it replaces a paint.
       const isBare = !isClicked || plan.action === "ADDED";
-      if (create2dIfPossible && !isPaint && isBare) {
+      if (createAsAnnotation && !isPaint && isBare) {
         const result = await commitMeshBrush2dService({
           editor,
           partType,
@@ -192,6 +197,29 @@ export default async function commitMeshBrushAllPartsService({
         if (result.status !== BRUSH_2D_STATUS.FALLBACK) {
           skippedCount += 1;
           continue;
+        }
+        // No plan encoding: a facet becomes an annotation mesh.
+        if (partType === MESH_PAINT_PART_TYPES.FACE) {
+          const meshResult = await commitMeshBrushMeshService({
+            editor,
+            hostId,
+            baseMapId,
+            localGeometry: item.localGeometry,
+            host,
+            template: liveTemplate,
+            templateProps,
+            projectId: projectId ?? host.projectId ?? null,
+            scopeId,
+            createAnnotationFn,
+          });
+          if (meshResult.status === BRUSH_MESH_STATUS.CREATED) {
+            annotationIds.push(...meshResult.annotationIds);
+            continue;
+          }
+          if (meshResult.status === BRUSH_MESH_STATUS.DUPLICATE) {
+            skippedCount += 1;
+            continue;
+          }
         }
       }
       paintItems.push({ item, isClicked });

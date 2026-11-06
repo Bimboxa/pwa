@@ -20,7 +20,7 @@ import { commitDrawnPolyline } from "Features/threedDrawing/services/commitDrawn
 import insertOrReusePoints from "Features/threedDrawing/services/insertOrReusePoints";
 import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnnotationFields";
 
-// « Pinceau » → 2D annotation (mapEditor.meshBrushCreate2dIfPossible): the
+// « Pinceau » → 2D annotation (mapEditor.meshBrushCreateAnnotation): the
 // picked part of a host, re-detected on the un-shrunk object
 // (commitMeshBrushTargetService), becomes a regular annotation of the armed
 // template when the plan can hold it, instead of a db.meshPaints row.

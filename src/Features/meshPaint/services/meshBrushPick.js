@@ -323,20 +323,23 @@ export function createMeshBrushPicker(sceneManager) {
     return faces;
   }
 
-  // Host-level refusal: the pure rules (type, template…) then the density
-  // guard on the displayed object (an imported GLB may be huge).
+  // Host-level refusal: the pure rules (type, template…).
   function getHostRefusal(host, armedTemplateId) {
-    const refusal = getPaintHostRefusal({
+    return getPaintHostRefusal({
       source: host.source,
       rootUserData: host.root.userData,
       isUnderBaseMapGroup: host.isUnderBaseMapGroup,
       armedTemplateId,
     });
-    if (refusal) return refusal;
-    if (countSolidTriangles(host.root) > BRUSH_MAX_HOST_TRIANGLES) {
-      return PAINT_REFUSAL.TOO_DENSE;
-    }
-    return null;
+  }
+
+  // Density guard on the displayed object (an imported GLB may be huge): the
+  // host part index — every facet, edge and the closed-solid test — is never
+  // built on a dense host. Its EDGES are refused (TOO_DENSE); its FACETS are
+  // read from the hover region alone and can only become an annotation
+  // (target.dense, see commitMeshBrushTargetService).
+  function isDenseHost(host) {
+    return countSolidTriangles(host.root) > BRUSH_MAX_HOST_TRIANGLES;
   }
 
   function pickHostFace(sceneHit, armedTemplateId, smoothAngleDeg) {
@@ -363,12 +366,18 @@ export function createMeshBrushPicker(sceneManager) {
     const frame = getFrame(host.group);
     let faces = getRegionLocalFaces(mesh, region, frame);
     if (!faces) return null;
-    const data = getHostPartData({
-      root: host.root,
-      group: host.group,
-      source: host.source,
-      baseMap: host.baseMap,
-    });
+    // Dense host: no part index — the planar region under the cursor is the
+    // facet (a curved one is refused below, both sides are paintable and
+    // there is no smooth surface growth).
+    const dense = isDenseHost(host);
+    const data = dense
+      ? null
+      : getHostPartData({
+          root: host.root,
+          group: host.group,
+          source: host.source,
+          baseMap: host.baseMap,
+        });
     const index = data?.getIndex() ?? null;
 
     const hitLocal = frame.toLocal(intersect.point);
@@ -427,6 +436,7 @@ export function createMeshBrushPicker(sceneManager) {
       localGeometry,
       viewDir,
       clip,
+      ...(dense ? { dense: true } : {}),
       candidate: {
         partType: FACE,
         hostAnnotationId: host.hostId,
@@ -490,7 +500,9 @@ export function createMeshBrushPicker(sceneManager) {
       if (!isBoxNearCursor(box, camera, rect, cursor, BRUSH_EDGE_PICK_PX)) {
         continue;
       }
-      const refusal = getHostRefusal(host, armedTemplateId);
+      const refusal =
+        getHostRefusal(host, armedTemplateId) ??
+        (isDenseHost(host) ? PAINT_REFUSAL.TOO_DENSE : null);
       if (refusal) {
         if (root === hostHitRoot) hostHitRefusal = refusal;
         continue;
