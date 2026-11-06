@@ -16,8 +16,8 @@ import { reverseFace } from "../utils/mesh3dTopology";
 //
 // The brushes are built from the MESHES, not from the scene objects: the
 // meshes are the very data the planar path merges (getEditableMesh3d +
-// withAbsoluteZ), already free of the 1 mm z-fight lift, of the display
-// shrink and of the base map pose, and the two annotations share a base map
+// withAbsoluteZ), already free of the display shrink and of the base map
+// pose, and the two annotations share a base map
 // (DIFFERENT_BASE_MAP gate) so their local frame is a common frame. The
 // result soup is read back as planar faces by buildMesh3dFromCarvedTriangles
 // (three-bvh-csg leaves T-junctions between coplanar triangles), like the

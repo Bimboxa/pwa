@@ -48,9 +48,9 @@ const SNAP_THRESHOLD_PX = 12;
 const HANDLE_SIZE_PX = 14;
 // Length (m) of the vertical helper on each side of the anchor.
 const AXIS_HELPER_MIN_M = 2;
-// A handle sits on the displayed conversion, 1 mm above a PX wall's real
-// quad (the conversion strips a z-fight lift the wall never had): the anchor
-// is the real scene vertex under the handle, so a snapped level is exact.
+// A handle sits on the displayed conversion: the anchor is the real scene
+// vertex under the handle (within this tolerance), so a snapped level is
+// exact.
 const ANCHOR_SNAP_M = 0.003;
 
 // Handle colors: idle = the yellow of the selected vertex helper

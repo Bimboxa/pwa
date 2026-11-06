@@ -1,4 +1,4 @@
-import roundForDisplay from "./roundForDisplay";
+import roundForDisplay from "./roundForDisplay.js";
 
 // Plan-position bucket (normalized [0..1] space) for grouping the cycle's
 // corners into band posts — same tolerance as the point-reuse epsilon of

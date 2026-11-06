@@ -38,9 +38,9 @@ export const MATCH_PLANE_GAP_M = 0.003;
 export const MATCH_MIN_OVERLAP_RATIO = 0.5;
 
 // --- re-sync ---
-// Stage 1: parallel planes / lines within this distance (absorbs the 1 mm
-// z-fight lifts and the 10 mm anti-aliasing shrink of a host that just lost
-// it).
+// Stage 1: parallel planes / lines within this distance (absorbs the 10 mm
+// anti-aliasing shrink of a host that just lost it, and the 1 mm z-fight
+// lift baked in paints stored before the builders stopped lifting).
 export const RESYNC_NEAR_M = 0.02;
 // Stage 2: two far candidates closer than this ratio of their distances are
 // ambiguous → no match (orphan).

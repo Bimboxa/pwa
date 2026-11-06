@@ -2,7 +2,6 @@ import { Matrix4, Vector3 } from "three";
 
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
-import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getTriangleFaceLabels from "Features/threedEditor/js/utilsAnnotationsManager/getTriangleFaceLabels";
 import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
@@ -15,8 +14,8 @@ import { createInsideSoupTester } from "Features/meshPaint/utils/isPointInsideSo
 // thick-wall outlines, CSG carves, arc sampling are already applied).
 //
 // Frame: base-map-LOCAL meters (the frame of imagesManager.getGroup(baseMapId),
-// z absolute: the host's offsetZ and the builders' 1 mm z-fight lift are
-// part of the displayed geometry) — the frame of the stored paints.
+// z absolute: the host's offsetZ is part of the displayed geometry) — the
+// frame of the stored paints.
 //
 // - triangles: every SOLID mesh of the host (role "SOLID"; all plain meshes
 //   for untagged builders), hover / paint overlays, fat lines, sprites and
@@ -29,7 +28,7 @@ import { createInsideSoupTester } from "Features/meshPaint/utils/isPointInsideSo
 //   see clipPaintGeometry). Openings carved in the displayed half are
 //   mirrored in the other one (the hidden half is not built).
 // - exactFaces (isMesh3d hosts): the stored faces, re-based like the built
-//   object (offsetZ + MESH3D_Z_FIGHT_OFFSET): islands are exactly the faces.
+//   object (offsetZ): islands are exactly the faces.
 // - hash: hashTriangles(triangles) + the frame metrics (a recalibration
 //   changes the stored ↔ local mapping even when the local soup does not).
 //
@@ -204,15 +203,13 @@ export function getHostHalfView(root, group) {
 }
 
 // Stored faces of an isMesh3d host in the base map frame, z re-based like
-// buildMesh3dAnnotationObject (offsetZ + z-fight lift).
+// buildMesh3dAnnotationObject (offsetZ).
 function getExactFaces({ root, source, renderMetrics, groupInverse }) {
   if (!source?.isMesh3d || !source.mesh3d?.faces?.length || !renderMetrics) {
     return null;
   }
   const mesh = mesh3dToLocal(source.mesh3d, renderMetrics);
-  const lift =
-    root.userData?.mesh3dLift ??
-    (Number(source.offsetZ) || 0) + MESH3D_Z_FIGHT_OFFSET;
+  const lift = root.userData?.mesh3dLift ?? (Number(source.offsetZ) || 0);
   const toLocal = getLocalMatrix(root, groupInverse);
   const v = new Vector3();
   const toV = (vertexIndex) => {

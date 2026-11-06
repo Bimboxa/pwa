@@ -21,10 +21,6 @@ import {
   getFaceNormal,
 } from "Features/annotationMesh3d/utils/mesh3dTopology";
 
-// Same 1 mm lift as extrudeClosedShape: keeps the mesh off the base map image
-// plane, and keeps its vertices in the same snap buckets as its neighbors.
-export const MESH3D_Z_FIGHT_OFFSET = 0.001;
-
 function signedTriangleArea(a, b, c) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 }
@@ -103,8 +99,7 @@ export default function buildMesh3dAnnotationObject(
   const mesh = mesh3dToLocal(annotation?.mesh3d, baseMap);
   if (!mesh.vertices.length || !mesh.faces.length) return null;
 
-  const lift =
-    getAnnotationVerticalLift(annotation, options) + MESH3D_Z_FIGHT_OFFSET;
+  const lift = getAnnotationVerticalLift(annotation, options);
   const group = new Group();
 
   // A sheet has no thickness: it must read from both sides, like the flat

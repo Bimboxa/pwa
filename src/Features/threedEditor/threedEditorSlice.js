@@ -76,7 +76,8 @@ const threedEditorInitialState = {
   baseMapsLoadTick: 0,
   // « Séparer les surfaces en contact » (bottom bar toggle of the 3D view +
   // switch of the 3D settings panel), ON by default. OFF = geometry at its
-  // drawn dimensions. ON: CM-width POLYLINE and STRIP footprints are contracted by
+  // drawn dimensions. ON: the footprints of the extruded (height > 0)
+  // CM-width POLYLINE and STRIP elements are contracted by
   // 10 mm per side and their top face lowered by 5 mm before extrusion
   // (createAnnotationObject3D), and POLYGON rows get their template « Delta
   // offset 3D » lift (getAnnotationVerticalLift) — both kill the

@@ -5,7 +5,6 @@ import db from "App/db/db";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
-import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 import ensureUnshrunkHostObject from "Features/meshPaint/services/ensureUnshrunkHostObject";
 
 import isAnnotationConvertibleToMesh3d from "../utils/isAnnotationConvertibleToMesh3d";
@@ -114,8 +113,7 @@ export default async function getEditableMesh3d({
 }
 
 // World point -> LOCAL mesh coordinates of an editable mesh (and back). The
-// rendered geometry sits baseOffsetZ + the 1 mm z-fight lift above the mesh's
-// own z.
+// rendered geometry sits baseOffsetZ above the mesh's own z.
 export function worldToMesh3dLocal(point, { baseMapGroup, baseOffsetZ }) {
   const local = baseMapGroup.worldToLocal(
     new Vector3(point.x, point.y, point.z)
@@ -123,12 +121,12 @@ export function worldToMesh3dLocal(point, { baseMapGroup, baseOffsetZ }) {
   return {
     x: local.x,
     y: local.y,
-    z: local.z - baseOffsetZ - MESH3D_Z_FIGHT_OFFSET,
+    z: local.z - baseOffsetZ,
   };
 }
 
 export function mesh3dLocalToWorld(point, { baseMapGroup, baseOffsetZ }) {
   return baseMapGroup.localToWorld(
-    new Vector3(point.x, point.y, point.z + baseOffsetZ + MESH3D_Z_FIGHT_OFFSET)
+    new Vector3(point.x, point.y, point.z + baseOffsetZ)
   );
 }

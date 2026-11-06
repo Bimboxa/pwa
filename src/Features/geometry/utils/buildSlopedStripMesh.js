@@ -115,7 +115,7 @@ export function buildStripRails({
 // Model (confirmed): per-station elevation comes from offsetTop; both band edges
 // on a line orthogonal to the centerline share that altitude, so the surface is
 // horizontal across its width and tilts only along the path where offsetTop
-// changes. z = verticalLift + offsetTop (+ zFightOffset).
+// changes. z = verticalLift + offsetTop.
 //
 // Inputs are PIXEL space; output positions are in basemap-LOCAL world units (Z
 // already includes the lift). Returns { positions, indices, transverseSegments }
@@ -125,7 +125,6 @@ export default function buildSlopedStripMesh({
   distance,
   baseMap,
   verticalLift = 0,
-  zFightOffset = 0.001,
   closeLine = false,
   shrinkPx = 0,
 }) {
@@ -137,7 +136,7 @@ export default function buildSlopedStripMesh({
   // Vertices: 2i = rail A, 2i+1 = rail B; both at the station's offsetTop z.
   const positions = [];
   for (let i = 0; i < N; i++) {
-    const z = verticalLift + (railA[i].offsetTop ?? 0) + zFightOffset;
+    const z = verticalLift + (railA[i].offsetTop ?? 0);
     const a = pixelToWorld(railA[i], baseMap);
     const b = pixelToWorld(railB[i], baseMap);
     positions.push(a.x, a.y, z);
@@ -173,7 +172,7 @@ export default function buildSlopedStripMesh({
     const nextFlat = Math.abs(dNext) < SLOPE_EPS;
     const isFold = prevFlat !== nextFlat || dPrev * dNext < 0;
     if (!isFold) continue;
-    const z = verticalLift + otOf(i) + zFightOffset;
+    const z = verticalLift + otOf(i);
     const a = pixelToWorld(railA[i], baseMap);
     const b = pixelToWorld(railB[i], baseMap);
     transverseSegments.push(a.x, a.y, z, b.x, b.y, z);
