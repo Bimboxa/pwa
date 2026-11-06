@@ -59,8 +59,17 @@ const popperMapListingsSlice = createSlice({
     // "Fonds de plan" side of the annotations popper, which then has no such
     // side.
     baseMapsListDetached: false,
+    // "Compact" toggle of the Dessin popper header (ToggleButtonCompact): the
+    // popper becomes a legend of the selected base map — every listing at
+    // once, narrowed to the listings / groups / templates that have a visible
+    // annotation on it, no listing selector. In redux so it survives the
+    // popper remount between the 2D and 3D editors.
+    compact: false,
   },
   reducers: {
+    setCompact(state, action) {
+      state.compact = Boolean(action.payload);
+    },
     setShowLayers(state, action) {
       state.showLayers = action.payload;
     },
@@ -135,6 +144,7 @@ export const {
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
+  setCompact,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

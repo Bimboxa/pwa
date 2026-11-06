@@ -56,6 +56,7 @@ import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
 import ToolbarEditBaseMapLink from "./ToolbarEditBaseMapLink";
 import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import ButtonAnnotationBaseMap from "./ButtonAnnotationBaseMap";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
@@ -820,6 +821,13 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             hideResize
             onDelete={handleDeleteClick}
             hideDelete={hasPart}
+            // Left of the strip: the annotation's base map (info when it is
+            // the main one, "go to" button otherwise).
+            extraActions={
+              selectedAnnotation && !selectedAnnotation.isBaseMapAnnotation ? (
+                <ButtonAnnotationBaseMap annotation={selectedAnnotation} />
+              ) : null
+            }
             layerChip={
               !hasPart &&
               selectedAnnotation &&
