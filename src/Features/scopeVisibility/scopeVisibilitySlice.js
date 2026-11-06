@@ -17,9 +17,10 @@ const initialSaved = getInitScopeVisibility(getInitScopeId());
 
 const scopeVisibilityInitialState = {
   hiddenAnnotationTemplateIds: initialSaved?.hiddenAnnotationTemplateIds ?? [],
-  // Eye of the revolution axis rows (SectionRevolutionAxes): hides the axis
-  // and everything linked to it (placements, revolved profiles / circles,
-  // paints on those surfaces). Same local, per-scope contract.
+  // Eye of the revolution axis rows (SectionRevolutionAxes): hides the axis,
+  // its placements on the vertical base maps and the plan footprints of what
+  // is revolved around it — not the revolved profiles / circles themselves,
+  // their 3D volumes or the paints on them. Same local, per-scope contract.
   hiddenRevolutionAxisIds: initialSaved?.hiddenRevolutionAxisIds ?? [],
   // True when the selected scope had saved 3D base map toggles on this
   // device: the Viewer module then skips its scope-open seeding (images off,

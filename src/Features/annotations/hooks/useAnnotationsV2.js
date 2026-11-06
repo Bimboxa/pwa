@@ -920,8 +920,10 @@ export default function useAnnotationsV2(options) {
     const soloAnnotationId = useSelector(
       (s) => s.annotations?.soloAnnotationId ?? null
     );
-    // Revolution-axis eye / focus (SectionRevolutionAxes rows): the axis and
-    // everything linked to it (getRevolutionAxisIdOfAnnotation). Same
+    // Revolution-axis eye / focus (SectionRevolutionAxes rows). The focus
+    // keeps the axis and everything linked to it
+    // (getRevolutionAxisIdOfAnnotation); the eye hides the axis, its
+    // placements and the plan footprints of what is revolved around it. Same
     // keepHiddenTemplates / ignoreSolo / keepSoloDimmed semantics as the
     // template eye and solo.
     const hiddenRevolutionAxisIdSet = useSelector(
@@ -3201,14 +3203,18 @@ export default function useAnnotationsV2(options) {
       // filter out annotations whose template is hidden
       if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
-      // filter out the hidden revolution axes: the axis line itself and its
-      // clones on the vertical base maps only — what is revolved around them
-      // (profiles, circles, plan footprints) stays visible.
+      // filter out the hidden revolution axes: the axis line itself, its
+      // clones on the vertical base maps and the plan footprints (projection
+      // on the axis's base map) of what is revolved around them. The revolved
+      // annotations themselves (profiles, circles) and their 3D volumes stay
+      // visible.
       if (!keepHiddenTemplates && hiddenRevolutionAxisIdSet.size > 0) {
         result = result.filter((a) => {
           if (a.type === "REVOLUTION_AXIS")
             return !hiddenRevolutionAxisIdSet.has(a.id);
           if (a.type === "REVOLUTION_AXIS_PLACEMENT")
+            return !hiddenRevolutionAxisIdSet.has(a.revolutionAxisId);
+          if (a.isRevolutionFootprint)
             return !hiddenRevolutionAxisIdSet.has(a.revolutionAxisId);
           return true;
         });
