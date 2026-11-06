@@ -221,10 +221,6 @@ function AnnotationTemplateRow({
   // module: the row stays a DRAW entry even though the module forces the
   // listings into SELECT.
   forceDrawMode,
-  // "Compact" Dessin popper (legend of the selected base map): the row is a
-  // read-only legend entry like in the Viewer module — a click opens the
-  // template properties instead of drawing; the eye and the solo stay.
-  forceSelectMode = false,
   // REVOLUTION_AXIS icon: inverted T on a vertical base map, circle + centre
   // point on the plan.
   isVerticalBaseMap,
@@ -270,11 +266,7 @@ function AnnotationTemplateRow({
   // The label wraps on several lines instead of being truncated behind a
   // tooltip (Dessin popper as well as the read-only Viewer legend).
   const wrapLabel = true;
-  const interactionMode = forceDrawMode
-    ? "DRAW"
-    : forceSelectMode
-      ? "SELECT"
-      : effectiveInteractionMode;
+  const interactionMode = forceDrawMode ? "DRAW" : effectiveInteractionMode;
   // With a wrapping label, the right column must keep the quantity's width on
   // hover (eye overlaid) — otherwise the label reflows and the row jumps.
   const keepQtySlot = wrapLabel && interactionMode === "SELECT";
@@ -937,8 +929,6 @@ function AnnotationTemplatesForListing({
   // drawing rows only — no orphan row, no "Nouveau modèle" / empty state,
   // no procedures; an empty library says so.
   libraryMode = false,
-  // "Compact" Dessin popper: read-only legend rows (see AnnotationTemplateRow).
-  forceSelectMode = false,
 }) {
   // strings
 
@@ -1105,7 +1095,6 @@ function AnnotationTemplatesForListing({
                       isMeshesModule &&
                       DIMENSION_SHAPES.includes(resolveDrawingShape(item))
                     }
-                    forceSelectMode={forceSelectMode}
                     readOnly={readOnly}
                     locateListing={locateListing}
                   />
@@ -1230,8 +1219,6 @@ function ListingRow({
   // The FieldActiveListing selector already names the active listing: skip
   // the redundant header band and render the templates only.
   hideHeader = false,
-  // "Compact" Dessin popper: read-only legend rows (see AnnotationTemplateRow).
-  forceSelectMode = false,
 }) {
   const dispatch = useDispatch();
 
@@ -1465,7 +1452,6 @@ function ListingRow({
           paintedQtiesByTemplateId={paintedQtiesByTemplateId}
           visibleTemplateIds={visibleTemplateIds}
           readOnly={isLinked}
-          forceSelectMode={forceSelectMode}
         />
       )}
     </Box>
@@ -1961,7 +1947,8 @@ export default function PopperMapListings() {
   // "Compact" toggle of the header (Dessin popper, ToggleButtonCompact): the
   // popper is a legend of the SELECTED base map — every listing at once,
   // narrowed to the listings / groups / templates with a visible annotation
-  // on it (no listing selector, read-only rows like the Viewer module).
+  // on it (no listing selector; the rows keep the Dessin behaviour: a click
+  // draws with the template).
   // Visible = template eye on (allAnnotations), listing not hidden (the 2D
   // map excludes the hidden listings, this popper's set does not) and the
   // main base map's annotations displayed. The other displayed base maps
@@ -2993,7 +2980,8 @@ export default function PopperMapListings() {
                 </Box>
               )}
               {/* "Compact" Dessin popper: the same full legend, over the
-                  selected base map — read-only rows (forceSelectMode). */}
+                  selected base map — its rows keep the Dessin behaviour
+                  (a click draws with the template). */}
               {isLocateBusinessObjectMode
                 ? null
                 : isLegendPopper || isCompact
@@ -3010,7 +2998,6 @@ export default function PopperMapListings() {
                         annotationTemplateById={annotationTemplateById}
                         paintedQtiesByTemplateId={paintedQtiesByTemplateId}
                         visibleTemplateIds={visibleTemplateIds}
-                        forceSelectMode={isCompact}
                       />
                     ))
                   : activeListing && (
