@@ -1,6 +1,7 @@
 import { Matrix4, Vector3 } from "three";
 
 import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
+import getTriangleFaceLabels from "Features/threedEditor/js/utilsAnnotationsManager/getTriangleFaceLabels";
 import { MESH3D_Z_FIGHT_OFFSET } from "Features/threedEditor/js/utilsAnnotationsManager/buildMesh3dAnnotationObject";
 
 import buildMesh3dFromCarvedTriangles from "../utils/buildMesh3dFromCarvedTriangles";
@@ -16,7 +17,9 @@ const MAX_FACES = 2000;
 // Freezes the LIVE 3D object of a regular annotation into a face mesh, in
 // base-map-local meters. Reading the scene object — not the db row — makes
 // the conversion WYSIWYG: template overrides, thick-wall outlines and arc
-// sampling are already applied to it.
+// sampling are already applied to it. The faces a break point separates
+// (geometry.userData.triParts) stay apart even when coplanar, so the face
+// selection matches the face hover (getFaceRegion).
 //
 // Returns the LOCAL mesh with ABSOLUTE local z (the annotation's offsetZ is
 // baked in the geometry; the caller re-bases it), or null when the solid is
@@ -55,6 +58,9 @@ export default function convertObject3DToMesh3d(
   const worldToLocal = new Matrix4().copy(baseMapGroup.matrixWorld).invert();
 
   const positions = [];
+  // One face label per triangle (break points), 0 for a solid without any.
+  const labels = [];
+  let hasLabels = false;
   const v = new Vector3();
   const toLocal = new Matrix4();
   for (const mesh of solids) {
@@ -64,6 +70,10 @@ export default function convertObject3DToMesh3d(
     mesh.updateWorldMatrix(true, false);
     toLocal.multiplyMatrices(worldToLocal, mesh.matrixWorld);
     const count = index ? index.count : position.count;
+    const triLabels = carved ? null : getTriangleFaceLabels(mesh.geometry);
+    if (triLabels) hasLabels = true;
+    const triCount = Math.floor(count / 3);
+    for (let t = 0; t < triCount; t++) labels.push(triLabels?.[t] ?? 0);
     for (let i = 0; i < count; i++) {
       v.fromBufferAttribute(position, index ? index.getX(i) : i).applyMatrix4(
         toLocal
@@ -76,7 +86,10 @@ export default function convertObject3DToMesh3d(
 
   const mesh = carved
     ? buildMesh3dFromCarvedTriangles({ positions })
-    : buildMesh3dFromTriangles({ positions });
+    : buildMesh3dFromTriangles({
+        positions,
+        labels: hasLabels ? labels : null,
+      });
   if (!mesh || mesh.faces.length > (maxFaces ?? MAX_FACES)) return null;
 
   if (isMesh3dClosed(mesh)) {

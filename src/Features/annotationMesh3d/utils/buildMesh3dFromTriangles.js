@@ -16,8 +16,9 @@ import { cleanupMesh3d, getFaceLoops } from "./mesh3dTopology.js";
 // wall...) becomes an isMesh3d annotation the first time one of its faces is
 // edited.
 //
-// 1. triangles are grouped per plane (signed normal + offset), then per
-//    edge-connected component: each component is one face (contour + holes);
+// 1. triangles are grouped per plane (signed normal + offset) and per face
+//    label, then per edge-connected component: each component is one face
+//    (contour + holes);
 // 2. coincident faces looking at each other (internal partitions of solids
 //    built from several abutting pieces) cancel out;
 // 3. vertices are welded into a shared index, and a vertex lying in the
@@ -25,15 +26,22 @@ import { cleanupMesh3d, getFaceLoops } from "./mesh3dTopology.js";
 //    so every shared edge matches on both sides.
 //
 // Pure (no three.js). positions: flat xyz array; index: triangle index or
-// null (soup). Returns { vertices: [{x, y, z}], faces: [{loop, holes}] } or
-// null.
+// null (soup). labels: optional face label per triangle (the break points of
+// the source annotation, geometry.userData.triParts): two coplanar triangles
+// with different labels stay in two faces, like the face hover
+// (getFaceRegion). Returns { vertices: [{x, y, z}], faces: [{loop, holes}] }
+// or null.
 
 // Angular / offset slack of the plane grouping: float32 noise only.
 const PLANE_NORMAL_COS = Math.cos(2e-3);
 const PLANE_OFFSET_TOL_M = 5e-4;
 const MIN_TRIANGLE_AREA2 = 1e-12;
 
-export default function buildMesh3dFromTriangles({ positions, index = null }) {
+export default function buildMesh3dFromTriangles({
+  positions,
+  index = null,
+  labels = null,
+}) {
   if (!positions?.length) return null;
   const triCount = (index ? index.length : positions.length / 3) / 3;
   const vertIndex = index ? (t, c) => index[3 * t + c] : (t, c) => 3 * t + c;
@@ -53,13 +61,15 @@ export default function buildMesh3dFromTriangles({ positions, index = null }) {
     if (length(raw) < MIN_TRIANGLE_AREA2) continue;
     const n = normalize(raw);
     const d = dot(n, a);
+    const label = labels ? (labels[t] ?? 0) : 0;
     const group = groups.find(
       (g) =>
+        g.label === label &&
         dot(g.n, n) >= PLANE_NORMAL_COS &&
         Math.abs(dot(g.n, a) - g.d) <= PLANE_OFFSET_TOL_M
     );
     if (group) group.tris.push(t);
-    else groups.push({ n, d, tris: [t] });
+    else groups.push({ n, d, label, tris: [t] });
   }
 
   const rawFaces = [];
