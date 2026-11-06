@@ -132,6 +132,103 @@ test("hidden vertical run leaves only the horizontal sweep", () => {
   assert.equal(arrays.positions.length / 3, 2 * profile.length);
 });
 
+// --- "Extrusion plate" (flat segments + junction caps) ----------------------
+
+// Triangle count per edge lying in the plane `inPlane` (vertices welded by
+// position): 2 everywhere = the joint is closed.
+const edgeUsesInPlane = ({ positions, indices }, inPlane) => {
+  const key = (p) =>
+    `${Math.round(p.x * 1e6)},${Math.round(p.y * 1e6)},${Math.round(p.z * 1e6)}`;
+  const uses = new Map();
+  for (let i = 0; i < indices.length; i += 3) {
+    const tri = [0, 1, 2].map((k) => vertexAt(positions, indices[i + k]));
+    for (let k = 0; k < 3; k += 1) {
+      const p = tri[k];
+      const q = tri[(k + 1) % 3];
+      if (!inPlane(p) || !inPlane(q)) continue;
+      const e = [key(p), key(q)].sort().join("|");
+      uses.set(e, (uses.get(e) ?? 0) + 1);
+    }
+  }
+  return [...uses.values()];
+};
+
+// V gutter (2 wide, 1 deep) drawn across the guide: section length 2√2,
+// chord 2, cap area 1.
+const sweepV = (guidePoints, flat, hidden = new Set()) => {
+  const setup = getSweep3dSetup({
+    guidePoints,
+    profilePoints: [
+      { x: 5, y: 0, z: 0 },
+      { x: 5, y: 1, z: -1 },
+      { x: 5, y: 2, z: 0 },
+    ],
+    hidden,
+  });
+  const frames = computeSegmentFrames3d(
+    guidePoints,
+    hidden,
+    false,
+    setup.segIndex,
+    setup.frame
+  );
+  return buildSweepArrays3d(
+    guidePoints,
+    frames,
+    hidden,
+    setup.section,
+    false,
+    flat
+  );
+};
+
+test("no flat segment: 3D sweep output unchanged", () => {
+  const line = [0, 10, 20, 30].map((x) => ({ x, y: 0, z: 0 }));
+  const base = sweepV(line);
+  assert.deepEqual(sweepV(line, new Set()), base);
+  near(getSweepArea3d(base), 2 * Math.SQRT2 * 30);
+});
+
+test("flat middle segment of a straight 3D guide: chord sheet + two caps", () => {
+  const line = [0, 10, 20, 30].map((x) => ({ x, y: 0, z: 0 }));
+  const arrays = sweepV(line, new Set([1]));
+  near(getSweepArea3d(arrays), 2 * Math.SQRT2 * 20 + 2 * 10 + 2 * 1);
+  for (const x of [10, 20]) {
+    const uses = edgeUsesInPlane(arrays, (p) => Math.abs(p.x - x) < 1e-9);
+    assert.equal(uses.length, 3);
+    assert.ok(
+      uses.every((count) => count === 2),
+      `x=${x}: ${uses}`
+    );
+  }
+});
+
+test("flat climbing run: the cap sits in the bisector plane of the joint", () => {
+  // Horizontal run then a vertical climb, flagged flat.
+  const climb = [
+    { x: 0, y: 0, z: 0 },
+    { x: 10, y: 0, z: 0 },
+    { x: 10, y: 0, z: 10 },
+  ];
+  const arrays = sweepV(climb, new Set([1]));
+  // Bisector plane at (10, 0, 0): (x − 10) + z = 0.
+  const inBisector = (p) => Math.abs(p.x - 10 + p.z) < 1e-9;
+  const uses = edgeUsesInPlane(arrays, inBisector);
+  assert.equal(uses.length, 3);
+  assert.ok(
+    uses.every((count) => count === 2),
+    `${uses}`
+  );
+  // Profiled run: 2 quads; flat run: 1 quad; one cap triangle.
+  assert.equal(arrays.indices.length / 3, 4 + 2 + 1);
+});
+
+test("flat run next to a hidden one: no cap against the gap", () => {
+  const line = [0, 10, 20, 30].map((x) => ({ x, y: 0, z: 0 }));
+  const arrays = sweepV(line, new Set([1]), new Set([2]));
+  near(getSweepArea3d(arrays), 2 * Math.SQRT2 * 10 + 2 * 10 + 1);
+});
+
 test("oblique vertical profile on a flat guide is swung perpendicular, chord kept", () => {
   const flat = [
     { x: 0, y: 0, z: 0 },

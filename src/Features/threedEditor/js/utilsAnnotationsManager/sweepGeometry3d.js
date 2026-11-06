@@ -15,7 +15,9 @@
 //     along the chain (rotation taking one tangent to the next), both ways;
 //   - joints: mitered rings in the bisector plane (projection of the incoming
 //     ring along the incoming tangent), shared by both segments.
-// No three / app imports — node-testable (sweepGeometry3d.test.mjs).
+// No app imports — node-testable (sweepGeometry3d.test.mjs).
+
+import { buildJunctionCap, getFlatSection } from "./sweepFlatJunction.js";
 
 const EPS = 1e-9;
 
@@ -242,19 +244,33 @@ export function computeSegmentFrames3d(
 // at its endpoints; interior joints get one mitered ring shared by both
 // segments (continuous surface). Fold-backs (tangents nearly opposite) fall
 // back to two unshared rings.
+//
+// `flat` (optional Set of segment indices, "Extrusion plate"): those segments
+// sweep the section's first → last chord. A profiled ↔ flat joint shares no
+// ring: each side gets its own ring in the common bisector plane, and a cap
+// (the profile closed by its chord, see sweepFlatJunction.js) closes the hole
+// between them. Empty / absent → output strictly unchanged.
 // Returns { positions: number[], indices: number[] } or null.
 export function buildSweepArrays3d(
   points,
   segFrames,
   hidden,
   section,
-  closeLine = false
+  closeLine = false,
+  flat = null
 ) {
   const n = points.length;
   const segCount = closeLine ? n : n - 1;
   const positions = [];
   const indices = [];
   let v = 0;
+
+  const hasFlat = (flat?.size ?? 0) > 0;
+  const flatSection = hasFlat ? getFlatSection(section, ["u", "w"]) : null;
+  const isFlat = (i) => hasFlat && flat.has(i);
+  const isSwept = (i) => i >= 0 && !hidden.has(i) && Boolean(segFrames[i]);
+  const prevIndexOf = (i) => (i > 0 ? i - 1 : closeLine ? segCount - 1 : -1);
+  const nextIndexOf = (i) => (i + 1 < segCount ? i + 1 : closeLine ? 0 : -1);
 
   const offsetIn = (frame, c) => add(scale(frame.n, c.u), scale(frame.b, c.w));
   const pushRing = (P, offsets) => {
@@ -266,14 +282,14 @@ export function buildSweepArrays3d(
     v += offsets.length;
     return base;
   };
-  // Mitered offsets at the joint between frames fIn → fOut; null when the
-  // joint folds back.
-  const miterOffsets = (fIn, fOut) => {
+  // Mitered offsets of `sec` at the joint between frames fIn → fOut; null
+  // when the joint folds back.
+  const miterOffsets = (sec, fIn, fOut) => {
     const M = normalize(add(fIn.t, fOut.t));
     if (!M) return null;
     const tm = dot(fIn.t, M);
     if (Math.abs(tm) < 0.05) return null;
-    return section.map((c) => {
+    return sec.map((c) => {
       const d = offsetIn(fIn, c);
       return sub(d, scale(fIn.t, dot(d, M) / tm));
     });
@@ -289,6 +305,14 @@ export function buildSweepArrays3d(
       prevEndVertex = -1;
       continue;
     }
+    const segFlat = isFlat(i);
+    const sec = segFlat ? flatSection : section;
+    if (!sec) {
+      // Flat segment of a closed profile (degenerate chord): no sheet.
+      prevEndBase = -1;
+      prevEndVertex = -1;
+      continue;
+    }
     const a = points[i];
     const endVertex = (i + 1) % n;
     const b = points[endVertex];
@@ -297,23 +321,24 @@ export function buildSweepArrays3d(
     if (prevEndBase >= 0 && prevEndVertex === i) {
       startBase = prevEndBase;
     } else {
-      startBase = pushRing(
-        a,
-        section.map((c) => offsetIn(frame, c))
-      );
+      // Leaving a profiled ↔ flat joint: the ring sits in the joint's
+      // bisector plane, like the (unshared) end ring of the segment before.
+      const prevIndex = prevIndexOf(i);
+      const kindChange = isSwept(prevIndex) && isFlat(prevIndex) !== segFlat;
+      const mitered = kindChange
+        ? miterOffsets(sec, segFrames[prevIndex], frame)
+        : null;
+      startBase = pushRing(a, mitered ?? sec.map((c) => offsetIn(frame, c)));
     }
 
     // End ring: mitered with the next visible segment when it starts here.
-    const nextIndex = i + 1 < segCount ? i + 1 : closeLine ? 0 : -1;
+    const nextIndex = nextIndexOf(i);
     const nextFrame =
       nextIndex >= 0 && !hidden.has(nextIndex) ? segFrames[nextIndex] : null;
-    const mitered = nextFrame ? miterOffsets(frame, nextFrame) : null;
-    const endBase = pushRing(
-      b,
-      mitered ?? section.map((c) => offsetIn(frame, c))
-    );
+    const mitered = nextFrame ? miterOffsets(sec, frame, nextFrame) : null;
+    const endBase = pushRing(b, mitered ?? sec.map((c) => offsetIn(frame, c)));
 
-    for (let j = 0; j < section.length - 1; j += 1) {
+    for (let j = 0; j < sec.length - 1; j += 1) {
       const a0 = startBase + j;
       const a1 = startBase + j + 1;
       const b0 = endBase + j;
@@ -321,8 +346,33 @@ export function buildSweepArrays3d(
       indices.push(a0, b0, b1, a0, b1, a1);
     }
 
-    prevEndBase = mitered ? endBase : -1;
+    // Shared with the next segment only when it sweeps the same section.
+    prevEndBase = mitered && isFlat(nextIndex) === segFlat ? endBase : -1;
     prevEndVertex = endVertex;
+  }
+
+  // Junction caps: at every profiled ↔ flat joint, the profile closed by its
+  // chord, in the bisector plane both rings sit in (fold-back: the profiled
+  // segment's own plane, where its unmitered ring is). Own vertices, emitted
+  // after the sheets so the sheet triangles keep their order.
+  if (hasFlat) {
+    const cap = buildJunctionCap(section.map((c) => ({ x: c.u, y: c.w })));
+    const capSection = cap?.points.map((p) => ({ u: p.x, w: p.y }));
+    for (let i = 0; cap && i < segCount; i += 1) {
+      const nextIndex = nextIndexOf(i);
+      if (nextIndex < 0 || nextIndex === i) continue;
+      if (!isSwept(i) || !isSwept(nextIndex)) continue;
+      if (isFlat(i) === isFlat(nextIndex)) continue;
+      const fIn = segFrames[i];
+      const fOut = segFrames[nextIndex];
+      const profiledFrame = isFlat(i) ? fOut : fIn;
+      const base = pushRing(
+        points[(i + 1) % n],
+        miterOffsets(capSection, fIn, fOut) ??
+          capSection.map((c) => offsetIn(profiledFrame, c))
+      );
+      for (const t of cap.triangles) indices.push(base + t);
+    }
   }
 
   // Closed chain: the last segment ends at vertex 0 where the first segment

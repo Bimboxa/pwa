@@ -36,6 +36,7 @@ const POINT_ID_FLAG_KEYS = [
   "isoHeightSegmentsPointIds",
   "isExtEdgeSegmentsPointIds",
   "isIntEdgeSegmentsPointIds",
+  "isFlatExtrusionSegmentsPointIds",
 ];
 
 const inlineRefs = (refs, pointsById) =>

@@ -203,6 +203,20 @@ function translateHiddenSegments(path, samples, hiddenSegmentsIdx, closeLine) {
   return newHidden;
 }
 
+/**
+ * Translate any per-segment index list (not only the hidden flag) from `path`
+ * onto its arc-expanded chain — same sampling as `expandArcsInPath` /
+ * `expandRingWithOffsets`: an arc segment maps to all its sub-segments.
+ */
+export function translateSegmentsIdxToExpandedPath(
+  path,
+  samples = 6,
+  segmentsIdx = [],
+  closeLine = false
+) {
+  return translateHiddenSegments(path, samples, segmentsIdx, closeLine);
+}
+
 export function expandArcsInPathWithHiddenMap(
   path,
   samples = 6,

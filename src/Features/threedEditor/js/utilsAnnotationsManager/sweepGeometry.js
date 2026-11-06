@@ -1,5 +1,7 @@
 import { BufferGeometry, Float32BufferAttribute } from "three";
 
+import { buildJunctionCap, getFlatSection } from "./sweepFlatJunction.js";
+
 // Pure sweep-geometry helpers shared by the EXTRUSION_PROFILE builder
 // (buildExtrudedProfileMesh) and the inline "Extrusion" builder
 // (buildInlineExtrusionMesh). No Dexie / app dependencies — node-testable.
@@ -73,23 +75,39 @@ export function computeVertexFrames(points, hidden, closeLine = false) {
 // computed at its two endpoint vertices. Adjacent visible segments share
 // their mid-vertex ring → continuous surface. Pure (no three import) so
 // quantity code can reuse the exact mesh triangles.
+//
+// `flat` (optional Set of guide segment indices, "Extrusion plate"): those
+// segments sweep the profile's first → last chord instead of the full
+// cross-section; a ring is then only shared between two segments of the same
+// kind, and each profiled ↔ flat joint gets a cap closing the hole between
+// the profile and its chord (see sweepFlatJunction.js). Empty / absent →
+// output strictly unchanged.
 export function buildSweepArraysForProfile(
   guidePoints,
   vertexFrames,
   hidden,
   profileLocal,
   verticalLift,
-  closeLine = false
+  closeLine = false,
+  flat = null
 ) {
   const positions = [];
   const indices = [];
   let v = 0;
+
+  const hasFlat = (flat?.size ?? 0) > 0;
+  const flatSection = hasFlat ? getFlatSection(profileLocal) : null;
+  const isFlat = (i) => hasFlat && flat.has(i);
+  // Segments that take part in the sweep (visible, both frames known) —
+  // read by the junction-cap pass below.
+  const swept = new Set();
 
   // Cache the start ring across iterations so adjacent visible segments
   // genuinely SHARE their mid-vertex ring (single set of vertices in the
   // buffer, not duplicated rings at the same coords).
   let prevSegmentEndIdx = -1;
   let prevEndVertexIndex = -1;
+  let prevFlat = false;
 
   // Closed guide: also sweep the closing segment (last → first), so the
   // surface wraps all the way around (e.g. a full dome) instead of leaving a
@@ -113,34 +131,49 @@ export function buildSweepArraysForProfile(
     }
     const a = guidePoints[i];
     const b = guidePoints[endVertex];
+    swept.add(i);
+
+    const segFlat = isFlat(i);
+    const section = segFlat ? flatSection : profileLocal;
+    if (!section) {
+      // Flat segment of a closed profile (degenerate chord): no sheet.
+      prevSegmentEndIdx = -1;
+      prevEndVertexIndex = -1;
+      continue;
+    }
 
     // Reuse previous segment's end ring as this segment's start ring iff the
-    // previous visible segment ended at this same vertex.
+    // previous visible segment ended at this same vertex with the same
+    // cross-section (profiled / flat).
     let startBaseIdx;
-    if (prevSegmentEndIdx >= 0 && prevEndVertexIndex === i) {
+    if (
+      prevSegmentEndIdx >= 0 &&
+      prevEndVertexIndex === i &&
+      prevFlat === segFlat
+    ) {
       startBaseIdx = prevSegmentEndIdx;
     } else {
       startBaseIdx = v;
-      for (let j = 0; j < profileLocal.length; j++) {
-        const p = profileLocal[j];
+      for (let j = 0; j < section.length; j++) {
+        const p = section[j];
         positions.push(
           a.x + p.x * fA.nx,
           a.y + p.x * fA.ny,
           p.y + verticalLift
         );
       }
-      v += profileLocal.length;
+      v += section.length;
     }
 
     const endBaseIdx = v;
-    for (let j = 0; j < profileLocal.length; j++) {
-      const p = profileLocal[j];
+    for (let j = 0; j < section.length; j++) {
+      const p = section[j];
       positions.push(b.x + p.x * fB.nx, b.y + p.x * fB.ny, p.y + verticalLift);
     }
-    v += profileLocal.length;
+    v += section.length;
 
     // Two triangles per quad between profile vertices j and j+1.
-    for (let j = 0; j < profileLocal.length - 1; j++) {
+    for (let j = 0; j < section.length - 1; j++) {
       const a0 = startBaseIdx + j;
       const a1 = startBaseIdx + (j + 1);
       const b0 = endBaseIdx + j;
@@ -150,6 +183,30 @@ export function buildSweepArraysForProfile(
 
     prevSegmentEndIdx = endBaseIdx;
     prevEndVertexIndex = endVertex;
+    prevFlat = segFlat;
+  }
+
+  // Junction caps: at every vertex joining a profiled and a flat segment, the
+  // profile closed by its chord, laid in the vertex's mitered plane (the one
+  // both rings sit in). Own vertices (crisp shading), emitted after the
+  // sheets so the sheet triangles keep their order.
+  if (hasFlat) {
+    const cap = buildJunctionCap(profileLocal);
+    for (let vtx = 0; cap && vtx < n; vtx++) {
+      const inSeg = vtx > 0 ? vtx - 1 : closeLine ? segCount - 1 : -1;
+      const outSeg = vtx < segCount ? vtx : -1;
+      if (inSeg < 0 || outSeg < 0 || inSeg === outSeg) continue;
+      if (!swept.has(inSeg) || !swept.has(outSeg)) continue;
+      if (isFlat(inSeg) === isFlat(outSeg)) continue;
+      const f = vertexFrames[vtx];
+      const P = guidePoints[vtx];
+      const base = v;
+      for (const p of cap.points) {
+        positions.push(P.x + p.x * f.nx, P.y + p.x * f.ny, p.y + verticalLift);
+      }
+      v += cap.points.length;
+      for (const t of cap.triangles) indices.push(base + t);
+    }
   }
 
   if (positions.length === 0) return null;
@@ -165,7 +222,8 @@ export function buildSweepGeometryForProfile(
   hidden,
   profileLocal,
   verticalLift,
-  closeLine = false
+  closeLine = false,
+  flat = null
 ) {
   const arrays = buildSweepArraysForProfile(
     guidePoints,
@@ -173,7 +231,8 @@ export function buildSweepGeometryForProfile(
     hidden,
     profileLocal,
     verticalLift,
-    closeLine
+    closeLine,
+    flat
   );
   if (!arrays) return null;
 

@@ -22,6 +22,9 @@ import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
 import useSegmentsHidden from "Features/points/hooks/useSegmentsHidden";
+import useSegmentsFlatExtrusion from "Features/points/hooks/useSegmentsFlatExtrusion";
+
+import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
 
 function ReadOnlyOffset({ label, value }) {
   return (
@@ -81,6 +84,14 @@ export default function PanelPropertiesSegment() {
   const { checked: isIntEdge, toggle: toggleIntEdge } = useSegmentsIntEdge();
   const { checked: isNotch, toggle: toggleNotch } = useSegmentsNotch();
   const { checked: isHidden, toggle: toggleHidden } = useSegmentsHidden();
+  const { checked: isFlatExtrusion, toggle: toggleFlatExtrusion } =
+    useSegmentsFlatExtrusion();
+
+  // helpers
+
+  // "Extrusion plate" only makes sense on the guide of a swept profile.
+  const showFlatExtrusion =
+    cutIdx == null && isInlineExtrusionPolyline(annotation);
 
   // handlers
 
@@ -200,6 +211,18 @@ export default function PanelPropertiesSegment() {
                   {"Bord d'ouverture (suit la pente)"}
                 </Typography>
               }
+            />
+          )}
+          {showFlatExtrusion && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!isFlatExtrusion}
+                  onChange={() => toggleFlatExtrusion()}
+                  size="small"
+                />
+              }
+              label={<Typography variant="body2">Extrusion plate</Typography>}
             />
           )}
         </Box>

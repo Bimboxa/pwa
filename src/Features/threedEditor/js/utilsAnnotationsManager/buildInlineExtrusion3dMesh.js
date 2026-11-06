@@ -17,11 +17,14 @@ import buildGridEdgeLines from "./buildGridEdgeLines";
 // offsetBottom): the chain is swept as a true 3D polyline and the inline
 // profile as a planar 3D section (see sweepGeometry3d.js). Inputs are in
 // basemap-local units with z already lifted (offsetZ + offsets / heights).
+// `flatSegmentsIdx`: "Extrusion plate" segments (indices on the expanded
+// chain), same contract as buildInlineExtrusionMesh.
 export default function buildInlineExtrusion3dMesh({
   guidePointsLocal3d,
   profilePointsLocal3d,
   material,
   hiddenSegmentsIdx = [],
+  flatSegmentsIdx = [],
   closeLine = false,
   gridEdgeThresholdDeg = 1,
 }) {
@@ -45,7 +48,8 @@ export default function buildInlineExtrusion3dMesh({
     frames,
     hidden,
     setup.section,
-    closeLine
+    closeLine,
+    new Set(flatSegmentsIdx ?? [])
   );
   if (!arrays) return null;
 

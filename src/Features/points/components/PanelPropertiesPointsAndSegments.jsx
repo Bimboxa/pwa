@@ -35,6 +35,10 @@ import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 import useSegmentsNotch from "Features/points/hooks/useSegmentsNotch";
 import useToggleSegmentsIsoHeight from "Features/points/hooks/useToggleSegmentsIsoHeight";
+import useSegmentsFlatExtrusion from "Features/points/hooks/useSegmentsFlatExtrusion";
+import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+
+import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
 
 // Combined panel shown when a lasso (or successive shift+clicks) selects BOTH
 // vertices and segments of a single annotation. It exposes the point controls
@@ -69,8 +73,17 @@ export default function PanelPropertiesPointsAndSegments() {
     indeterminate: isoMixed,
     toggle: toggleIso,
   } = useToggleSegmentsIsoHeight();
+  const {
+    checked: isFlatExtrusion,
+    indeterminate: flatExtrusionMixed,
+    toggle: toggleFlatExtrusion,
+  } = useSegmentsFlatExtrusion();
+  const annotation = useSelectedAnnotation();
 
   // helpers
+
+  // "Extrusion plate" only makes sense on the guide of a swept profile.
+  const showFlatExtrusion = isInlineExtrusionPolyline(annotation);
 
   const pointsCount = selectedPoints.length;
   const segmentsCount = selectedPartIds.length;
@@ -295,6 +308,21 @@ export default function PanelPropertiesPointsAndSegments() {
                   </Typography>
                 }
               />
+              {showFlatExtrusion && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!isFlatExtrusion}
+                      indeterminate={!!flatExtrusionMixed}
+                      onChange={toggleFlatExtrusion}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">Extrusion plate</Typography>
+                  }
+                />
+              )}
             </Box>
           </>
         )}
