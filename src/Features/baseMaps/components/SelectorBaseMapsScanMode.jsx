@@ -2,11 +2,14 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setBaseMapsScanMode,
+  setBaseMapsSceneWireframe,
   setBaseMapsZMapVisible,
 } from "Features/viewers/viewersSlice";
 
 import { Box, IconButton, Paper, Tooltip } from "@mui/material";
-import { Terrain } from "@mui/icons-material";
+import { Grid4x4, Terrain } from "@mui/icons-material";
+
+import useHasGlbSceneBaseMaps from "Features/baseMaps/hooks/useHasGlbSceneBaseMaps";
 
 import { FLOATING_BUTTON_PADDING } from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
 
@@ -15,19 +18,24 @@ import { BASE_MAPS_SCAN_MODE_OPTIONS } from "Features/baseMaps/constants/baseMap
 // How the scans carried by base maps show in 3D: hidden, points or
 // realistic (Gaussian splats), plus the independent « Zmap » toggle (the
 // height map meshes of the base maps projected from a point cloud — what
-// the raycaster hits). Same look as SelectorBaseMapsImageMode, next to it
-// in the bottom bar (SectionBaseMapsBottomBarControls).
+// the raycaster hits) and, in a project with a GLB scene, the « Filaire »
+// toggle (those models drawn as wireframes — the faces still answer the
+// hover and the « Pinceau »). Same look as SelectorBaseMapsImageMode, next
+// to it in the bottom bar (SectionBaseMapsBottomBarControls).
 export default function SelectorBaseMapsScanMode() {
   const dispatch = useDispatch();
 
   // strings
 
   const zMapS = "Zmap : relief des scans 3D (maillage des hauteurs)";
+  const wireframeS = "Filaire : maquettes GLB en fil de fer";
 
   // data
 
   const scanMode = useSelector((s) => s.viewers.baseMapsScanMode);
   const zMapVisible = useSelector((s) => s.viewers.baseMapsZMapVisible);
+  const wireframe = useSelector((s) => s.viewers.baseMapsSceneWireframe);
+  const hasGlbScenes = useHasGlbSceneBaseMaps();
 
   // render
 
@@ -83,6 +91,29 @@ export default function SelectorBaseMapsScanMode() {
           </Box>
         </Tooltip>
       </Paper>
+      {hasGlbScenes && (
+        <Paper elevation={3} sx={paperSx}>
+          <Tooltip title={wireframeS}>
+            <Box
+              sx={{
+                display: "flex",
+                ...(wireframe && {
+                  bgcolor: "action.active",
+                  color: "common.white",
+                }),
+              }}
+            >
+              <IconButton
+                color={wireframe ? "inherit" : "default"}
+                onClick={() => dispatch(setBaseMapsSceneWireframe(!wireframe))}
+                sx={{ p: FLOATING_BUTTON_PADDING }}
+              >
+                <Grid4x4 />
+              </IconButton>
+            </Box>
+          </Tooltip>
+        </Paper>
+      )}
     </>
   );
 }

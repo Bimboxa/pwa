@@ -88,6 +88,14 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
   ) {
     patch.baseMapsZMapVisible = Boolean(state.viewers?.baseMapsZMapVisible);
   }
+  if (
+    prev.viewers?.baseMapsSceneWireframe !==
+    state.viewers?.baseMapsSceneWireframe
+  ) {
+    patch.baseMapsSceneWireframe = Boolean(
+      state.viewers?.baseMapsSceneWireframe
+    );
+  }
   if (changed2d(prev, state)) patch.viewer2d = pick2d(state);
   if (changed3d(prev, state)) patch.threed = pick3d(state);
 
