@@ -265,6 +265,13 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // Three.js frame, Y up, centre of the
   //                                 // image), angleDeg, orientation
   //                                 // ("HORIZONTAL" default | "VERTICAL")
+  //                                 // and `annotations`: seeds drawn on the
+  //                                 // created base map with a template of
+  //                                 // a library the configuration loads
+  //                                 // ({ libraryKey, templateCategory |
+  //                                 // templateLabel, type, props, … } —
+  //                                 // full shape in scopeCreator/services/
+  //                                 // seedConfigurationBaseMapAnnotationsService)
   //     },
   //     resources: [{ assetPath, name }],
   //                                 // PDFs (relative to Data/<orgaCode>/)
