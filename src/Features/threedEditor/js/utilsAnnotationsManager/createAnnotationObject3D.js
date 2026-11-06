@@ -1540,6 +1540,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // attach the parsed scene when ready. The basemap transform is applied
       // to the placeholder, so the GLB inherits it once added.
       const placeholder = new Group();
+      // An imported model is out of the 3D snap index unless the row opts in
+      // (`vertexSnap3d`, panel switch « Accroche sur les sommets (3D) »):
+      // buildIndex walks every vertex and edge, a heavy GLB freezes the
+      // drawing tools. Read by buildIndex / findBaseMapGroupsAtVertex.
+      placeholder.userData.noVertexSnap = !annotation.vertexSnap3d;
       createObject3DAnnotation(annotation, baseMap, options)
         .then((sub) => {
           if (sub) {

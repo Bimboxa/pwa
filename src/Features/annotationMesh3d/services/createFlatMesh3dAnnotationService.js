@@ -1,18 +1,12 @@
-import { nanoid } from "@reduxjs/toolkit";
 import { Vector3 } from "three";
 
-import db from "App/db/db";
-import { withoutUndo } from "App/db/undoManager";
-
-import createAnnotationService from "Features/annotations/services/createAnnotationService";
 import baseMapWorldToLocal from "Features/baseMaps/js/baseMapWorldToLocal";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
-import buildFaceAnnotationFields from "Features/threedDrawing/utils/buildFaceAnnotationFields";
 import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
 import buildFlatMesh3d from "../utils/buildFlatMesh3d";
-import { buildMesh3dStorage } from "./writeMesh3dService";
+import createMesh3dAnnotationFromLocalMeshService from "./createMesh3dAnnotationFromLocalMeshService";
 
 // A closed contour drawn in 3D that has no plan encoding (commitDrawnFace
 // returned NO_2D_ENCODING, e.g. an L-shaped contour on a wall, or a vertical
@@ -76,48 +70,15 @@ export default async function createFlatMesh3dAnnotationService({
   const mesh = buildFlatMesh3d(local, hint);
   if (!mesh) return null;
 
-  const storage = buildMesh3dStorage({
+  return await createMesh3dAnnotationFromLocalMeshService({
     mesh,
-    baseOffsetZ: 0,
+    baseMapId: host.id,
     metrics,
-    baseMapId: host.id,
     projectId,
-    listingId: isTemplateless ? null : listingId,
+    scopeId,
+    listingId,
+    draftProps,
+    layerId,
+    createAnnotationFn,
   });
-  if (!storage) return null;
-  const { pointRows, mesh3d, offsetZ, points, cuts, mesh3dPlanIsSegment } =
-    storage;
-
-  const fields = buildFaceAnnotationFields({
-    classifiedShape: "POLYGON",
-    classificationFields: { type: "POLYGON", offsetZ, height: 0 },
-    templateProps: draftProps,
-  });
-  const now = new Date().toISOString();
-  const annotation = {
-    id: nanoid(),
-    projectId,
-    ...(isTemplateless
-      ? { scopeId: scopeId ?? null, listingId: null, isTemplateless: true }
-      : {
-          listingId,
-          annotationTemplateId: draftProps.annotationTemplateId,
-        }),
-    baseMapId: host.id,
-    ...(layerId ? { layerId } : {}),
-    createdAt: now,
-    updatedAt: now,
-    ...fields,
-    isMesh3d: true,
-    mesh3d,
-    points,
-    cuts,
-    // Kept like the other buildMesh3dStorage callers: the 2D renderer draws
-    // a segment projection as a 3 px line with a polyline hit area.
-    mesh3dPlanIsSegment,
-  };
-
-  await withoutUndo(() => db.points.bulkAdd(pointRows));
-  const create = createAnnotationFn ?? createAnnotationService;
-  return await create(annotation);
 }

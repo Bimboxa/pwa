@@ -95,6 +95,10 @@ export function buildIndex(scene, options = {}) {
       if (parent.visible === false) return; // hidden by an ancestor
       if (excludeSet.has(parent)) return;
       if (parent.userData?.isCopyGhost) return; // « copie multiple » preview
+      // Imported model without « Accroche sur les sommets (3D) »: its meshes
+      // are never walked (a heavy GLB = millions of entries). Snap-only
+      // anchors stay.
+      if (parent.userData?.noVertexSnap && !snapAnchors) return;
       if (parent.userData?.nodeType === "ANNOTATION") {
         nodeId = parent.userData.nodeId ?? nodeId;
       }

@@ -58,9 +58,10 @@ export const BRUSH_FACE_ANGLE_DEG = 0.1;
 export const BRUSH_DRAG_PX = 4;
 // Screen distance (px) of the edge pick.
 export const BRUSH_EDGE_PICK_PX = 10;
-// Displayed hosts above this many triangles are refused (TOO_DENSE): the part
-// index of the whole host is built at the first hover (an imported GLB can
-// carry far more than a drawn annotation).
+// Displayed hosts above this many triangles never get a part index (it is
+// built on the whole host at the first hover, and an imported GLB can carry
+// far more than a drawn annotation): their edges are refused (TOO_DENSE),
+// their facets are read from the hover region and only become annotations.
 export const BRUSH_MAX_HOST_TRIANGLES = 200000;
 // « Peindre toutes les faces / arêtes de l'annotation »: a host with more
 // parts of the brush's type (facets, or smooth surfaces at the « Sélection
