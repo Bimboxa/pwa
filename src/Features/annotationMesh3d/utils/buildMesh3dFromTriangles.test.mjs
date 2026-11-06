@@ -6,6 +6,7 @@ import { ExtrudeGeometry, Shape, ShapeGeometry } from "three";
 import buildMesh3dFromTriangles from "./buildMesh3dFromTriangles.js";
 import getMesh3dQties, { getMesh3dSignedVolume } from "./getMesh3dQties.js";
 import isMesh3dClosed from "./isMesh3dClosed.js";
+import { getFaceArea, getFaceNormal } from "./mesh3dTopology.js";
 
 // Same construction as extrudeClosedShape's fast path (what a thick wall or
 // an extruded polygon annotation is built from).
@@ -71,4 +72,72 @@ test("a flat ShapeGeometry converts to a one-face sheet", () => {
   assert.equal(mesh.faces.length, 1);
   assert.equal(mesh.vertices.length, 6);
   assert.ok(!isMesh3dClosed(mesh));
+});
+
+// 3 x 1 x 2 box whose front wall (y = 0) carries two break points, at x = 1
+// and x = 2: three coplanar quads, like the walls extrudeClosedShape emits
+// for a polygon with break points (caps triangulated on the break vertices).
+function buildBoxWithBreaks() {
+  const positions = [];
+  const tri = (a, b, c) => positions.push(...a, ...b, ...c);
+  const quad = (a, b, c, d) => {
+    tri(a, b, c);
+    tri(a, c, d);
+  };
+  // Front wall, one quad per segment.
+  for (let x = 0; x < 3; x++) {
+    quad([x, 0, 0], [x + 1, 0, 0], [x + 1, 0, 2], [x, 0, 2]);
+  }
+  quad([3, 1, 0], [0, 1, 0], [0, 1, 2], [3, 1, 2]);
+  quad([3, 0, 0], [3, 1, 0], [3, 1, 2], [3, 0, 2]);
+  quad([0, 1, 0], [0, 0, 0], [0, 0, 2], [0, 1, 2]);
+  const ring = [
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [3, 0],
+    [3, 1],
+    [0, 1],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const [a, b, c] = [ring[5], ring[i], ring[i + 1]];
+    tri([...a, 2], [...b, 2], [...c, 2]);
+    tri([...a, 0], [...c, 0], [...b, 0]);
+  }
+  const labels = new Array(positions.length / 9).fill(0);
+  labels[2] = 1;
+  labels[3] = 1;
+  return { positions, labels };
+}
+
+test("coplanar wall quads merge into one face without labels", () => {
+  const { positions } = buildBoxWithBreaks();
+  const mesh = buildMesh3dFromTriangles({ positions });
+  assert.equal(mesh.faces.length, 6);
+  assert.equal(mesh.vertices.length, 8);
+  assert.ok(isMesh3dClosed(mesh));
+});
+
+test("break labels keep the coplanar wall quads as separate faces", () => {
+  const { positions, labels } = buildBoxWithBreaks();
+  const mesh = buildMesh3dFromTriangles({ positions, labels });
+  // The two label-0 quads are not edge-connected: three wall faces.
+  assert.equal(mesh.faces.length, 8);
+  assert.equal(mesh.vertices.length, 12);
+  assert.ok(isMesh3dClosed(mesh));
+  assert.ok(Math.abs(getMesh3dQties(mesh).volume - 6) < 1e-6);
+
+  const front = mesh.faces.filter(
+    (face) => getFaceNormal(mesh.vertices, face).y < -0.99
+  );
+  assert.equal(front.length, 3);
+  for (const face of front) {
+    assert.equal(face.loop.length, 4);
+    assert.ok(Math.abs(getFaceArea(mesh.vertices, face) - 2) < 1e-6);
+  }
+  // The caps keep the break vertices on their front edge.
+  const top = mesh.faces.find(
+    (face) => getFaceNormal(mesh.vertices, face).z > 0.99
+  );
+  assert.equal(top.loop.length, 6);
 });
