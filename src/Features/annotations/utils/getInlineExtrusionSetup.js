@@ -63,28 +63,28 @@ export default function getInlineExtrusionSetup({
   );
   if (guide.length < 2 || profile.length < 2) return null;
 
-  // Cut axis: first → last chord (falls back to the dominant bbox direction
-  // for folded profiles whose endpoints meet, then to +X). Every abscissa
-  // below is the SIGNED projection onto this axis, origin = first vertex.
+  // Cut axis: first → last chord. When the endpoints meet (folded profile, or
+  // a profile laid upright whose two ends sit at the same level — its plan
+  // chain is collinear on the seed normal), falls back to the direction of
+  // the vertex FARTHEST from the first one — exact for a collinear chain
+  // whatever the guide's angle — then to +X. Every abscissa below is the
+  // SIGNED projection onto this axis, origin = first vertex.
   const P0 = profile[0];
   const PL = profile[profile.length - 1];
   let axDx = PL.x - P0.x;
   let axDy = PL.y - P0.y;
   if (Math.hypot(axDx, axDy) < 1e-9) {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
+    let far2 = 0;
     for (const p of profile) {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
+      const dx = p.x - P0.x;
+      const dy = p.y - P0.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > far2) {
+        far2 = d2;
+        axDx = dx;
+        axDy = dy;
+      }
     }
-    axDx = maxX - minX;
-    axDy = maxY - minY;
-    if (Math.abs(axDx) >= Math.abs(axDy)) axDy = 0;
-    else axDx = 0;
     if (Math.hypot(axDx, axDy) < 1e-9) {
       axDx = 1;
       axDy = 0;

@@ -9,11 +9,23 @@ import {
   getAnnotationRingClosed,
 } from "Features/annotations/utils/segmentFlags";
 
+import getProfileSectionUp, {
+  isUprightSectionUp,
+  toSectionSample,
+} from "../utils/getProfileSectionUp";
+
 // Draws a profileLine on the target POLYLINE from a SOURCE annotation flagged
 // `isProfile` (a COMPLETELY FREE polyline drawn on an elevation drawing — Z /
 // U shapes welcome): the source X axis becomes the SIGNED section abscissa
 // and the source Y axis the heights, both scaled to meters via the source
 // baseMap's meterByPx.
+//
+// Orientation: by default the drawing is read RELATIVE to the target's base
+// map (heights along its normal). A profile drawn on a VERTICAL base map and
+// applied on a guide of a VERTICAL base map keeps its vertical instead — its
+// Y axis follows the world vertical (the in-plane perpendicular of the guide)
+// and its X axis the base map normal; the line then carries `sectionUp`
+// (see getProfileSectionUp).
 //
 // Registration:
 //   - the source vertex flagged `isBasePoint` ("Point de référence") is the
@@ -169,15 +181,6 @@ export default async function applyProfileFromAnnotationService({
   }
   if (visiblePts.length < 2) return null;
 
-  // Section samples (SIGNED abscissa — the shape is free, Z / U fold-backs
-  // included): s relative to the reference x, height up from the reference y
-  // (the base point sits at s = 0, height = 0).
-  const samples = visiblePts.map((p) => ({
-    s: ((p.x - xRef) * srcMeterByPx) / meterByPx, // target plan px
-    height: (yRef - p.y) * srcMeterByPx, // meters
-    type: p.type,
-  }));
-
   // --- plan placement: along the seed segment's normal through its midpoint.
   // The registration origin (s = 0, i.e. the base point) is placed ON an
   // EXTREMITY of the polyline's projection onto that axis (the two small
@@ -200,6 +203,31 @@ export default async function applyProfileFromAnnotationService({
   const ny = -(B.x - A.x) / segLen;
   const M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
 
+  // Section samples (SIGNED abscissa — the shape is free, Z / U fold-backs
+  // included), relative to the registration origin (the base point sits at
+  // s = 0, height = 0): `a` along the drawing's X axis (the side, flipped by
+  // `mirror`), `b` up its Y axis, in meters. `sectionUp` turns them into the
+  // plan abscissa (along the seed normal) and the height (along the base map
+  // normal) — a profile drawn on a VERTICAL base map keeps its vertical on a
+  // VERTICAL target (getProfileSectionUp).
+  const sideSign = mirror ? -1 : 1;
+  const sectionUp = getProfileSectionUp({
+    sourceBaseMap: srcBaseMap,
+    targetBaseMap: baseMap,
+    segA: A,
+    segB: B,
+  });
+  const samples = visiblePts.map((p) => {
+    const a = sideSign * (p.x - xRef) * srcMeterByPx;
+    const b = (yRef - p.y) * srcMeterByPx;
+    const { s, height } = toSectionSample(a, b, sectionUp);
+    return {
+      s: s / meterByPx, // target plan px
+      height, // meters
+      type: p.type,
+    };
+  });
+
   // Polyline projection extremities on the axis (abscissa relative to M).
   let tMin = Infinity;
   let tMax = -Infinity;
@@ -212,11 +240,10 @@ export default async function applyProfileFromAnnotationService({
   const farT = nearT === tMin ? tMax : tMin;
   const tStar = invert ? farT : nearT;
 
-  const sideSign = mirror ? -1 : 1;
   const newPoints = samples.map((smp) => ({
     id: nanoid(),
-    x: (M.x + nx * (sideSign * smp.s + tStar)) / imageSize.width,
-    y: (M.y + ny * (sideSign * smp.s + tStar)) / imageSize.height,
+    x: (M.x + nx * (smp.s + tStar)) / imageSize.width,
+    y: (M.y + ny * (smp.s + tStar)) / imageSize.height,
     projectId: ann.projectId,
     baseMapId: ann.baseMapId,
     listingId: ann.listingId,
@@ -235,6 +262,9 @@ export default async function applyProfileFromAnnotationService({
     sourceAnnotationId,
     sourceInvert: Boolean(invert),
     mirror: Boolean(mirror),
+    // Kept only when the profile was laid upright: « Inverser » must then
+    // flip the heights, not the plan chain (mirrorProfileLineService).
+    ...(isUprightSectionUp(sectionUp) ? { sectionUp } : {}),
   };
 
   const prevLines = Array.isArray(ann.profileLines) ? ann.profileLines : [];
