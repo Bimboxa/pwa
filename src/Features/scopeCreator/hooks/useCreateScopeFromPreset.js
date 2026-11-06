@@ -32,6 +32,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useCreateConfigurationBaseMaps from "./useCreateConfigurationBaseMaps";
+import seedConfigurationBaseMapAnnotationsService from "../services/seedConfigurationBaseMapAnnotationsService";
 import useCreateConfigurationResources from "./useCreateConfigurationResources";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
@@ -386,6 +387,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
         firstBaseMapId,
         createdItemsCount,
         reusedListingIds,
+        seededBaseMaps,
       } = await createConfigurationBaseMaps({
         configuration: {
           baseMaps: baseMapsSection,
@@ -397,6 +399,23 @@ export default function useCreateScopeFromPreset({ projectId }) {
       });
       configurationItemsCount = createdItemsCount;
       configReusedListingIds = reusedListingIds ?? [];
+      // annotations the configuration draws on its base maps (item
+      // `annotations`), on the templates of the listings just created
+      if (seededBaseMaps?.length > 0) {
+        try {
+          const seededCount = await seedConfigurationBaseMapAnnotationsService({
+            seededBaseMaps,
+            listings: newListings,
+            projectId,
+          });
+          if (seededCount > 0) dispatch(triggerAnnotationsUpdate());
+        } catch (error) {
+          console.error(
+            "[createScopeFromPreset] base map annotations not seeded",
+            error
+          );
+        }
+      }
       if (firstListingId) {
         dispatch(setSelectedBaseMapsListingId(firstListingId));
       }

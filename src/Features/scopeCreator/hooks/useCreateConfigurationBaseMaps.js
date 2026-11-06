@@ -61,6 +61,11 @@ function getItemPlacement(item) {
  * Items may carry a 3D placement (`position` in meters, Three.js frame,
  * Y up, centre of the image; `angleDeg`, `orientation`) written as is on
  * the baseMap row (useCreateBaseMaps) — e.g. sheets laid side by side.
+ * Items may also carry `annotations` (seeds drawn on the created base map —
+ * a caption, a construction outline): they are NOT written here (their
+ * templates belong to the scope's annotation listings) but returned in
+ * `seededBaseMaps` with the created base map, for
+ * seedConfigurationBaseMapAnnotationsService.
  */
 export default function useCreateConfigurationBaseMaps() {
   const createListings = useCreateListings();
@@ -89,6 +94,7 @@ export default function useCreateConfigurationBaseMaps() {
         firstBaseMapId: null,
         createdItemsCount: 0,
         reusedListingIds: [],
+        seededBaseMaps: [],
       };
     }
 
@@ -219,6 +225,8 @@ export default function useCreateConfigurationBaseMaps() {
 
     let createdItemsCount = 0;
     let firstBaseMapId = null;
+    // created base maps whose item declares annotation seeds
+    const seededBaseMaps = [];
 
     try {
       for (let i = 0; i < listingConfigs.length; i++) {
@@ -277,6 +285,7 @@ export default function useCreateConfigurationBaseMaps() {
                   blueprintScale: blueprintScale || null,
                 },
                 ...getItemPlacement(item),
+                seedAnnotations: item.annotations,
               });
             } catch (error) {
               console.error(
@@ -308,6 +317,7 @@ export default function useCreateConfigurationBaseMaps() {
                 pixelHeight,
               }),
               ...getItemPlacement(item),
+              seedAnnotations: item.annotations,
             });
           } else if (item.type === "ASSET" && item.assetUrl) {
             try {
@@ -320,6 +330,7 @@ export default function useCreateConfigurationBaseMaps() {
                 imageFile,
                 meterByPx: item.meterByPx,
                 ...getItemPlacement(item),
+                seedAnnotations: item.annotations,
               });
             } catch (error) {
               console.error(
@@ -335,6 +346,20 @@ export default function useCreateConfigurationBaseMaps() {
           const records = await createBaseMaps(baseMaps, { listing });
           createdItemsCount += records?.length ?? 0;
           if (!firstBaseMapId) firstBaseMapId = records?.[0]?.id ?? null;
+          // records follow the input order; a base map that failed to
+          // prepare is skipped there, so pair by index only when none did
+          if ((records?.length ?? 0) === baseMaps.length) {
+            baseMaps.forEach((baseMap, index) => {
+              const record = records[index];
+              if (!baseMap.seedAnnotations?.length || !record?.id) return;
+              seededBaseMaps.push({
+                baseMapId: record.id,
+                imageSize: { width: record.refWidth, height: record.refHeight },
+                meterByPx: record.meterByPx,
+                annotations: baseMap.seedAnnotations,
+              });
+            });
+          }
         }
       }
     } finally {
@@ -348,6 +373,7 @@ export default function useCreateConfigurationBaseMaps() {
       firstListingId: listingsByConfig[0]?.id ?? null,
       firstBaseMapId,
       createdItemsCount,
+      seededBaseMaps,
       reusedListingIds: resolved
         .filter((r) => r.existing)
         .map((r) => r.existing.id),
