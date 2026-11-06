@@ -7,6 +7,7 @@ import buildMesh3dFromTriangles from "./buildMesh3dFromTriangles.js";
 import getMesh3dQties, { getMesh3dSignedVolume } from "./getMesh3dQties.js";
 import isMesh3dClosed from "./isMesh3dClosed.js";
 import { getFaceArea, getFaceNormal } from "./mesh3dTopology.js";
+import orientMesh3dFaces from "./orientMesh3d.js";
 
 // Same construction as extrudeClosedShape's fast path (what a thick wall or
 // an extruded polygon annotation is built from).
@@ -140,4 +141,23 @@ test("break labels keep the coplanar wall quads as separate faces", () => {
     (face) => getFaceNormal(mesh.vertices, face).z > 0.99
   );
   assert.equal(top.loop.length, 6);
+});
+
+test("walls wound against the caps are re-wound into a closed solid", () => {
+  // What triangulateAnnotationGeometry builds from an outline drawn
+  // clockwise: caps up / down, every wall triangle flipped.
+  const { positions, labels } = buildBoxWithBreaks();
+  const WALL_TRIANGLES = 12;
+  for (let t = 0; t < WALL_TRIANGLES; t++) {
+    const b = positions.slice(9 * t + 3, 9 * t + 6);
+    const c = positions.slice(9 * t + 6, 9 * t + 9);
+    positions.splice(9 * t + 3, 6, ...c, ...b);
+  }
+  const mesh = buildMesh3dFromTriangles({ positions, labels });
+  assert.equal(mesh.faces.length, 8);
+  assert.ok(!isMesh3dClosed(mesh));
+
+  const oriented = orientMesh3dFaces(mesh);
+  assert.ok(isMesh3dClosed(oriented));
+  assert.ok(Math.abs(getMesh3dQties(oriented).volume - 6) < 1e-6);
 });
