@@ -118,6 +118,9 @@ function disposeObject(object) {
 // - host too dense for the part index (an imported heavy model,
 //   target.dense): its facets ALWAYS become an annotation, whatever the
 //   switch; « Peindre toutes les faces » is refused on it (TOO_DENSE);
+// - GLB scene of a scan base map (target.sceneHost, no host annotation):
+//   same as a dense host — its facets always become an annotation of the
+//   base map, one by one (SCENE_ONE_BY_ONE), no edges (SCENE_FACES_ONLY);
 // - « Peindre toutes les faces de l'annotation » / « Peindre toutes les
 //   arêtes de l'annotation » (mapEditor.meshBrushPaintAllFaces /
 //   .meshBrushPaintAllEdges, the switch of the brush's part type): the click
@@ -371,7 +374,10 @@ export default function useMeshBrushPointerHandlers() {
         rows: data.matchRows ?? [],
         metrics,
       });
-      const { action } = planPaintToggle({ matches, templateId });
+      // A GLB scene facet has no paint to toggle: always a new annotation.
+      const { action } = target.sceneHost
+        ? { action: "ADDED" }
+        : planPaintToggle({ matches, templateId });
       const replacedTemplateId = matches.find(
         (match) => match.annotationTemplateId !== templateId
       )?.annotationTemplateId;
@@ -381,11 +387,10 @@ export default function useMeshBrushPointerHandlers() {
 
       // A dense host has no part index: nothing lists all its parts.
       if (target.dense && data.paintAllParts) {
-        return {
-          kind: "REFUSED",
-          reason: PAINT_REFUSAL.TOO_DENSE,
-          previewKey: `R:${PAINT_REFUSAL.TOO_DENSE}`,
-        };
+        const reason = target.sceneHost
+          ? PAINT_REFUSAL.SCENE_ONE_BY_ONE
+          : PAINT_REFUSAL.TOO_DENSE;
+        return { kind: "REFUSED", reason, previewKey: `R:${reason}` };
       }
 
       // Every face / edge of the host at once.

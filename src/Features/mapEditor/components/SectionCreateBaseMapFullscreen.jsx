@@ -96,7 +96,7 @@ export default function SectionCreateBaseMapFullscreen({
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
   const scene3dTitleS = "Scène 3D";
-  const scene3dSubtitleS = "Maillage ou nuage de points (PLY)";
+  const scene3dSubtitleS = "Maillage, nuage de points (PLY) ou maquette (GLB)";
   const scanResourcesTitleS = "Choisir un scan 3D des ressources";
   const noScanResourceS = "Aucun scan 3D dans les ressources du projet.";
 

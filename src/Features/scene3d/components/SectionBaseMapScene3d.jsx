@@ -17,7 +17,10 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import db from "App/db/db";
 
-import { getScene3dDisplay3d } from "../constants/scene3dConstants";
+import {
+  getScene3dDisplay3d,
+  isScene3dGlb,
+} from "../constants/scene3dConstants";
 import formatScene3dBytes from "../utils/formatScene3dBytes";
 
 const DISPLAY_3D_OPTIONS = [
@@ -55,12 +58,20 @@ export default function SectionBaseMapScene3d({ baseMap }) {
   const sceneId = scene3d?.sceneId;
   const display3d = getScene3dDisplay3d(baseMap);
 
-  // index-only count: never reads the binary rows
-  const assetsCount = useLiveQuery(
-    () =>
-      sceneId ? db.scene3dAssets.where("sceneId").equals(sceneId).count() : 0,
-    [sceneId]
-  );
+  // index-only count: never reads the binary rows (a GLB scene is one
+  // db.files row, a PLY scan its db.scene3dAssets rows)
+  const isGlb = isScene3dGlb(baseMap);
+  const glbFileName = scene3d?.glbFileName;
+  const assetsCount = useLiveQuery(() => {
+    if (isGlb) {
+      return glbFileName
+        ? db.files.where("fileName").equals(glbFileName).count()
+        : 0;
+    }
+    return sceneId
+      ? db.scene3dAssets.where("sceneId").equals(sceneId).count()
+      : 0;
+  }, [sceneId, isGlb, glbFileName]);
   const isMissing = assetsCount === 0;
 
   // helpers

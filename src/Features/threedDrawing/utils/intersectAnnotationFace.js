@@ -86,6 +86,9 @@ export default function intersectAnnotationFace(
     if (obj.userData?.isBasemap || obj.userData?.isHoverOverlay) return;
     // Painted parts (Pinceau): skins over their host's faces, never a target.
     if (obj.userData?.isPaintOverlay) return;
+    // GLB scene of a scan base map: no owner annotation — skipped here
+    // rather than raycast for nothing at every pointer move.
+    if (obj.userData?.isScene3dGlb) return;
     // Base circle of a plan revolution axis: a decoration, never a face.
     if (obj.userData?.isRevolutionAxisCircle) return;
     targets.push(obj);

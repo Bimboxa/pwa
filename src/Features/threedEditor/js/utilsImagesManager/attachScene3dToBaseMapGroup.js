@@ -10,7 +10,12 @@ import {
 
 import { acquireScene3dAssets } from "Features/scene3d/services/scene3dAssetsCache";
 import { applyScene3dChunkTransform } from "Features/scene3d/js/buildScene3dChunkGeometry";
-import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
+import {
+  getScene3dDisplay3d,
+  isScene3dGlb,
+} from "Features/scene3d/constants/scene3dConstants";
+
+import attachScene3dGlbToBaseMapGroup from "./attachScene3dGlbToBaseMapGroup";
 
 // The scan is a "decor": never raycast (click, hover, snap, camera pivot).
 const noRaycast = () => {};
@@ -21,11 +26,16 @@ function markDecor(object) {
 }
 
 // Identity of the scan content attached to a base map group: rebuilt when
-// it changes (reload of the scan data, display toggle).
-export function getScene3dGroupKey(baseMap) {
+// it changes (reload of the scan data, display toggle — and, for a GLB
+// scene, a switch between the unlit and the realistic render modes:
+// options.realisticShading).
+export function getScene3dGroupKey(baseMap, options) {
   const scene3d = baseMap?.scene3d;
   if (!scene3d?.sceneId) return null;
-  return `${scene3d.sceneId}|${getScene3dDisplay3d(baseMap)}`;
+  const key = `${scene3d.sceneId}|${getScene3dDisplay3d(baseMap)}`;
+  return isScene3dGlb(baseMap)
+    ? `${key}|${options?.realisticShading ? "PBR" : "UNLIT"}`
+    : key;
 }
 
 // Scan of a scan base map (« Scène 3D ») in the 3D editor: the textured
@@ -55,7 +65,8 @@ export function getScene3dGroupKey(baseMap) {
 // data, in the chunk space — `group.userData.scene3dPick = {sceneId, frame}`
 // carries that space's world transform (the same one as every chunk mesh).
 //
-// options: {renderer, supportsS3tc, opacity, onLoaded}. Returns the dispose function
+// options: {renderer, supportsS3tc, opacity, realisticShading (GLB scenes
+// only), onLoaded}. Returns the dispose function
 // (empties the wrap, releases the cache reference — the shared geometries
 // and textures are never disposed here).
 export default function attachScene3dToBaseMapGroup(group, baseMap, options) {
@@ -64,6 +75,10 @@ export default function attachScene3dToBaseMapGroup(group, baseMap, options) {
   const sceneBbox = scene3d?.bbox;
   if (!group || !zone || !sceneBbox?.min || !sceneBbox?.max) return null;
   if (getScene3dDisplay3d(baseMap) !== "MESH") return null;
+  // GLB scene: the model as is, raycastable (hover, brush).
+  if (isScene3dGlb(baseMap)) {
+    return attachScene3dGlbToBaseMapGroup(group, baseMap, options);
+  }
 
   const scanWrap = new Group();
   scanWrap.userData.kind = "baseMapScanWrap";

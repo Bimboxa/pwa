@@ -68,18 +68,18 @@ with an identity transform.
 
 ## Storage
 
-| What | Where | Ships in the Krto zip |
-|---|---|---|
-| Scan data (geometry chunks + textures) | `db.scene3dAssets` (v41) | never |
-| Height map (2D altimetry, `HEIGHT` row) | `db.scene3dAssets` | never |
-| Base map image (zone bake) | `db.files` (regular base map image) | yes |
+| What                                    | Where                               | Ships in the Krto zip |
+| --------------------------------------- | ----------------------------------- | --------------------- |
+| Scan data (geometry chunks + textures)  | `db.scene3dAssets` (v41)            | never                 |
+| Height map (2D altimetry, `HEIGHT` row) | `db.scene3dAssets`                  | never                 |
+| Base map image (zone bake)              | `db.files` (regular base map image) | yes                   |
 
 `db.scene3dAssets` is **local only**: every `db.export` passes
 `skipTables: ["scene3dAssets"]`. Not audited, not soft-deleted, not undoable.
 Rows (key = scene + kind + atlas, `utils/scene3dAssetIds.js`):
 
 - `GEOMETRY`: `{ positions (Uint16 xyz), uvs (Uint16 | Float32 | null), index
-  (Uint16), boundsMin, boundsMax, vertexCount, triangleCount }`.
+(Uint16), boundsMin, boundsMax, vertexCount, triangleCount }`.
 - `TEXTURE`: `{ format: "BC1", width, height, mipmaps: [{ data, width, height }] }`.
 - `HEIGHT` (`<sceneId>/h`): `{ cols, rows, cellSize, bbox, data (Uint16) }` —
   grid on the scan bbox (column 0 = min X, row 0 = max Y), cell = max Z seen
@@ -208,6 +208,67 @@ hovered annotation (`getAnnotationHeightAtPoint`) or, on a scan base map, of
 the relief under the pointer (`getScene3dHeightAtPx` on the HEIGHT row
 served by `scene3dHeightMapStore`; `usePrepareScene3dHeightMaps` warms it
 up). The lookup is O(1) and drives the badge imperatively.
+
+## GLB scenes (`scene3d.format: "GLB"`)
+
+A `.glb` model (a BIM / CAD mock-up) picked in the same « Scène 3D » card
+becomes a scan base map too, but the file is **kept as is**: nothing is
+converted into `db.scene3dAssets`.
+
+```js
+scene3d: {
+  format: "GLB",
+  sceneId,            // identity of the scan content (3D group key)
+  glbFileName,        // db.files key of the model (`fileBlob`, fileType "GLB")
+  srcFileName,
+  bbox,               // metres, scan frame — glTF (x, y, z) → (x, −z, y)
+  zone: { rotationDeg, center, width, height, polygon,
+          zMin, zMax },   // zMin / zMax = the model's own z range
+  display3d, vertexCount, faceCount, storedBytes,
+}
+```
+
+- **Creation** (same dialog, kind `GLB`): `importScene3dGlbService` parses
+  the file in memory (`js/parseScene3dGlb.js`, GLTFLoader — no Draco /
+  Meshopt / KTX2 decoder: a compressed file is refused with a message) and
+  renders the whole top view (`bakeScene3dGlbImageService` →
+  `createScene3dTopViewBaker.renderObject`: unlit colours, darkened with the
+  depth). ZONE is the same editor. FINALIZE bakes the zone image, stores the
+  file (`scene3dGlbFileService`) and creates the base map
+  (`getScene3dGlbBaseMapDescriptor`). **The zone only frames and turns the
+  image: the model is never clipped.** The parsed model seeds
+  `scene3dGlbCache`, so the 3D editor does not parse the file again.
+- **3D** (`attachScene3dGlbToBaseMapGroup`): same wraps as a PLY scan
+  (`scanWrap → pivot → inner`), a clone of the cached model (shared
+  geometries). `display3d`, the « 3D » chip, the base map opacity and the
+  clipping planes apply as for a PLY scan. Materials are unlit copies, or the
+  model's PBR materials in the realistic render modes (the group key carries
+  the flag; `useAutoLoadMapsInThreedEditor` re-syncs on a mode switch).
+- **Wireframe**: bottom bar « Filaire » toggle (`SelectorBaseMapsScanMode`,
+  shown when the project has a GLB scene — `useHasGlbSceneBaseMaps`),
+  per-scope `viewers.baseMapsSceneWireframe`, mirrored by
+  `useApplyBaseMapsScanModeIn3d` → `ImagesManager.setScene3dWireframe`
+  (`material.wireframe`, re-applied at each attach). The geometry is
+  untouched: hover and brush still hit the faces.
+- **Raycastable decor**: the meshes are tagged `isDecor` (skipped by the
+  vertex snap index, lasso, shadows, section contours, scene export, walk
+  collisions) but keep their CPU geometry and default `raycast`, plus
+  `userData.isScene3dGlb` and `userData.baseMapId`:
+  - hover (`MainThreedEditor.runHoverRaycast`): the planar face under the
+    cursor gets the stipple highlight (`getFaceRegion`, plane mode);
+  - click: a scene face counts as its base map (like the image plane);
+  - « Pinceau » (`meshBrushPick.pickSceneFace`): a facet is a brush target
+    without host annotation (`target.sceneHost`) — it always becomes an
+    annotation of the base map (2D if the plan can hold it, else an
+    annotation mesh), see `src/Features/meshPaint/README.md`.
+- **Not available** on a GLB scene: geometry clip by the zone, height map
+  (2D altimetry, walk ground, Prompt IA relief — the stores answer
+  `MISSING`), drawing lines on the surface (`intersectScene3d` has no pick
+  data for it).
+- **Lifecycle**: `deleteScene3dBaseMapsDataService` deletes the file with its
+  last live base map. « Recharger les fichiers » takes a `.glb`
+  (`reloadScene3dGlbBaseMapService`: new file under a new scene id, zone
+  kept).
 
 ## Tests
 

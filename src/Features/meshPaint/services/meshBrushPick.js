@@ -199,12 +199,17 @@ export function createMeshBrushPicker(sceneManager) {
     };
   }
 
-  // First annotation root or maille along the cursor ray.
+  // First annotation root, maille or GLB scene face along the cursor ray.
   function getSceneHit(clippingPlane) {
     const targets = [];
     sceneManager.scene.traverse((object) => {
       if (!object.isMesh || object.isLine2 || object.isLineSegments2) return;
       const userData = object.userData;
+      // GLB scene of a scan base map: a decor, but its faces are paintable.
+      if (userData?.isScene3dGlb) {
+        targets.push(object);
+        return;
+      }
       if (
         userData?.isHoverOverlay ||
         userData?.isPaintOverlay ||
@@ -224,6 +229,7 @@ export function createMeshBrushPicker(sceneManager) {
     );
     for (const intersect of intersects) {
       let object = intersect.object;
+      if (object.userData?.isScene3dGlb) return { kind: "SCENE", intersect };
       while (object) {
         if (object.userData?.isMesh3d && object.userData?.mesh3dId) {
           return { kind: "MAILLE", intersect };
@@ -477,6 +483,74 @@ export function createMeshBrushPicker(sceneManager) {
     );
   }
 
+  // Facet of a GLB scene (scan base map kept as a model,
+  // attachScene3dGlbToBaseMapGroup): the "host" is the base map itself — no
+  // host annotation, no part index. The facet is the planar region under
+  // the cursor, like on a dense host, and can only become an annotation
+  // (target.sceneHost + target.dense, see commitMeshBrushTargetService):
+  // both sides are paintable, a curved region is refused.
+  function pickSceneFace(sceneHit) {
+    const { intersect } = sceneHit;
+    const mesh = intersect.object;
+    const baseMapId = mesh.userData.baseMapId ?? null;
+    const { imagesManager } = getManagers();
+    const group = baseMapId ? imagesManager?.getGroup?.(baseMapId) : null;
+    const baseMap = baseMapId ? imagesManager?.baseMapsMap?.[baseMapId] : null;
+    if (!group || !baseMap) return null;
+    const metrics = getMeshPaintMetrics(baseMap);
+    if (!metrics) return refused(PAINT_REFUSAL.NO_SCALE);
+
+    const region = getFaceRegion(mesh.geometry, intersect.faceIndex, {
+      plane: true,
+      angleDeg: BRUSH_FACE_ANGLE_DEG,
+    });
+    if (!region) return null;
+    const frame = getFrame(group);
+    const faces = getRegionLocalFaces(mesh, region, frame);
+    if (!faces) return null;
+    if (faces.shell) return refused(PAINT_REFUSAL.CURVED_SURFACE);
+    const islandIndex = pickFaceContainingPoint(
+      faces,
+      frame.toLocal(intersect.point)
+    );
+    const island = faces[islandIndex];
+    if (!island) return null;
+
+    const viewDir = frame.dirToLocal(raycaster.ray.direction);
+    const localGeometry = orientFaceTowardRay(
+      {
+        polygons: [{ contour: island.contour, holes: island.holes }],
+        normal: island.normal,
+      },
+      viewDir
+    );
+    const n = localGeometry.normal;
+    const side =
+      n.x * island.normal.x + n.y * island.normal.y + n.z * island.normal.z >= 0
+        ? "+"
+        : "-";
+    return {
+      kind: "HOST",
+      partType: FACE,
+      hostId: null,
+      sceneHost: true,
+      dense: true,
+      baseMapId,
+      metrics,
+      localGeometry,
+      viewDir,
+      clip: null,
+      candidate: {
+        partType: FACE,
+        hostAnnotationId: null,
+        baseMapId,
+        geometry: localGeometryToPaint(FACE, localGeometry, metrics),
+        geomHash: null,
+      },
+      previewKey: `G:${baseMapId}:${mesh.uuid}:${region.regionId}:${islandIndex}:${side}`,
+    };
+  }
+
   function pickHostEdge({
     sceneHit,
     armedTemplateId,
@@ -620,6 +694,7 @@ export function createMeshBrushPicker(sceneManager) {
       }
       if (!sceneHit) return null;
       if (sceneHit.kind === "MAILLE") return refused(PAINT_REFUSAL.OCCLUDED);
+      if (sceneHit.kind === "SCENE") return pickSceneFace(sceneHit);
       return pickHostFace(sceneHit, armedTemplateId, smoothAngle);
     }
 
@@ -648,6 +723,10 @@ export function createMeshBrushPicker(sceneManager) {
     }
     if (best) return edgeTarget(best);
     if (hostHitRefusal) return refused(hostHitRefusal);
+    // A GLB scene has no edge index: its facets only.
+    if (sceneHit?.kind === "SCENE") {
+      return refused(PAINT_REFUSAL.SCENE_FACES_ONLY);
+    }
     return null;
   }
 

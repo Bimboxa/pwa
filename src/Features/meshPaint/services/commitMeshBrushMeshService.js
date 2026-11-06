@@ -18,8 +18,12 @@ import localFaceToMesh3d from "Features/meshPaint/utils/localFaceToMesh3d";
 // It is also the only thing the brush can make on a host too dense for the
 // part index (an imported heavy model).
 //
+// Without a host annotation (`hostId` null: a facet of the GLB scene of a
+// scan base map) the annotation is a plain one of the base map — no
+// provenance marker.
+//
 // Duplicate guard: a live annotation mesh of the same template, made from
-// the same host, with the same vertices → nothing written.
+// the same host (or from no host), with the same vertices → nothing written.
 
 export const BRUSH_MESH_STATUS = Object.freeze({
   CREATED: "CREATED",
@@ -75,17 +79,17 @@ export default async function commitMeshBrushMeshService({
       listingId: template.listingId ?? templateProps.listingId ?? null,
       draftProps: templateProps,
       layerId: host?.layerId ?? null,
-      extraFields: {
-        autoCreatedFrom: hostId,
-        autoGenKind: MESH_BRUSH_AUTO_GEN_KIND,
-      },
+      // none without a host annotation (a GLB scene facet)
+      extraFields: hostId
+        ? { autoCreatedFrom: hostId, autoGenKind: MESH_BRUSH_AUTO_GEN_KIND }
+        : null,
       createAnnotationFn,
     })
   );
   if (!annotation) return fallback("NO_STORAGE");
 
   // No paint was written: the host keeps its anti-aliasing shrink.
-  store.dispatch(removeShrinkExemptAnnotationIds([hostId]));
+  if (hostId) store.dispatch(removeShrinkExemptAnnotationIds([hostId]));
   return { status: BRUSH_MESH_STATUS.CREATED, annotationIds: [annotation.id] };
 }
 
@@ -108,7 +112,7 @@ async function findSamePlaceMesh3dAnnotation({
       row.deletedAt ||
       !row.isMesh3d ||
       row.annotationTemplateId !== annotationTemplateId ||
-      row.autoCreatedFrom !== hostId ||
+      (row.autoCreatedFrom ?? null) !== (hostId ?? null) ||
       row.mesh3d?.vertices?.length !== vertices.length
     ) {
       continue;

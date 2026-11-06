@@ -1,5 +1,6 @@
 import {
   DoubleSide,
+  Fog,
   LinearFilter,
   LinearMipmapLinearFilter,
   Mesh,
@@ -149,6 +150,19 @@ export default function createScene3dTopViewBaker({
       geometries.forEach((geometry) => geometry.dispose());
       material.dispose();
       texture?.dispose();
+    },
+
+    // object: a ready Object3D in the scan frame (a GLB scene — see
+    // bakeScene3dGlbImageService), left untouched and unparented. A plain
+    // model has no texture to tell its levels apart: the lower a surface,
+    // the darker (linear fog along the view axis, at most ~55 % at the
+    // bottom of the scan).
+    renderObject(object) {
+      const scene = new Scene();
+      scene.fog = new Fog(0x1f2933, 1, 1 + Math.max(extentZ, 0.01) / 0.55);
+      scene.add(object);
+      renderer.render(scene, camera);
+      scene.remove(object);
     },
 
     // → {blob, fileMime} (WebP; PNG where the browser cannot encode WebP)

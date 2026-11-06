@@ -54,3 +54,36 @@ export default function getScene3dBaseMapDescriptor({
     storedBytes: getScene3dBaseMapStoredBytes(descriptor, clipped),
   };
 }
+
+// The `scene3d` field of a new scan base map made from a GLB kept as is
+// (format "GLB"): no clip — the zone frames the image, the plane sits at the
+// lowest point of the model.
+// descriptor: importScene3dGlbService result; glbFileName: db.files key.
+export function getScene3dGlbBaseMapDescriptor({
+  descriptor,
+  glbFileName,
+  polygon,
+  rotationDeg,
+}) {
+  const zone = getZoneFromPolygon(polygon, rotationDeg);
+  return {
+    format: "GLB",
+    sceneId: descriptor.sceneId,
+    glbFileName,
+    srcFileName: descriptor.srcFileName,
+    bbox: descriptor.bbox,
+    zone: {
+      rotationDeg: rotationDeg || 0,
+      center: zone.center,
+      width: zone.width,
+      height: zone.height,
+      polygon,
+      zMin: descriptor.bbox.min[2],
+      zMax: descriptor.bbox.max[2],
+    },
+    display3d: "MESH",
+    vertexCount: descriptor.vertexCount,
+    faceCount: descriptor.faceCount,
+    storedBytes: descriptor.fileBytes,
+  };
+}
