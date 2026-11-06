@@ -31,3 +31,18 @@ export const SCENE_3D_DISPLAY_3D = {
 export function getScene3dDisplay3d(baseMap) {
   return baseMap?.scene3d?.display3d ?? SCENE_3D_DISPLAY_3D.MESH;
 }
+
+// Source format of the scan of a scan base map (`scene3d.format`).
+//   PLY (default, absent on older records): photogrammetry mesh converted
+//       into db.scene3dAssets chunks (quantized, GPU only — a decor);
+//   GLB: the model file kept as is in db.files (`scene3d.glbFileName`) and
+//       displayed with its own geometry — its faces answer the hover and the
+//       « Pinceau » (see docs/baseMaps/SCENE_3D_BASE_MAPS.md, "GLB scenes").
+export const SCENE_3D_FORMAT = {
+  PLY: "PLY",
+  GLB: "GLB",
+};
+
+export function isScene3dGlb(baseMap) {
+  return baseMap?.scene3d?.format === SCENE_3D_FORMAT.GLB;
+}

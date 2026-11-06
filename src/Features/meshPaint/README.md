@@ -52,12 +52,14 @@ Conséquences de la clé commune : l'outil mémorisé par modèle (`selectedTool
 
 - Tout objet 3D d'annotation peut être peint : dalles extrudées, murs épais ou minces, bandes, rampes, meshes `isMesh3d`, **objets 3D importés** (`OBJECT_3D`, GLB : les facettes et arêtes sont lues sur les triangles affichés du modèle, comme pour tout hôte)…
 - Sont refusés (`utils/getPaintHostRefusal.js`) :
-  - les mailles (`db.meshes3d`), les fonds de plan et les scans ;
+  - les mailles (`db.meshes3d`), les fonds de plan et les scans PLY (une **scène GLB** est peignable, voir ci-dessous) ;
   - les images (`IMAGE`) ;
   - les cellules de maillage (`isMeshCell`) et les photo-plans ;
   - les annotations du modèle armé lui-même, pour éviter de compter deux fois ;
   - les **arêtes** d'un hôte de plus de `BRUSH_MAX_HOST_TRIANGLES` triangles affichés (« Objet trop dense pour le pinceau », `TOO_DENSE`, décidé par `services/meshBrushPick.js`), ainsi que « Peindre toutes les faces » sur un tel hôte.
 - **Hôte dense** (plus de `BRUSH_MAX_HOST_TRIANGLES` triangles, typiquement une maquette GLB lourde) : l'index de parties de tout l'hôte n'est **jamais construit** (il gèlerait le premier survol). Ses facettes restent peignables : la facette est la région plane sous le curseur (`getFaceRegion`, le même calcul que le survol des faces), la cible porte `dense: true`, et le clic **crée toujours une annotation** (2D si le plan peut la porter, sinon mesh), quel que soit le switch « Créer une annotation » — une peinture aurait besoin de l'index pour être recalée. Pas de test « face intérieure », pas de surface lissée ; une région non plane répond « Surface courbe ». Au-delà de 100 000 triangles par géométrie (`MAX_TRIS_FOR_ADJACENCY`), la région se réduit au triangle survolé.
+
+- **Scène GLB d'un fond de plan** (`baseMap.scene3d.format === "GLB"`, maquette conservée telle quelle — `docs/baseMaps/SCENE_3D_BASE_MAPS.md`) : ses facettes sont peignables **sans annotation hôte** (`meshBrushPick.pickSceneFace`, cible `sceneHost: true`, `hostId: null`, `dense: true`). Mêmes règles qu'un hôte dense : la facette est la région plane sous le curseur, le clic crée toujours une annotation du fond de plan (2D si le plan peut la porter, sinon mesh), jamais de peinture. L'annotation créée est une annotation ordinaire : ni `autoCreatedFrom` ni `autoGenKind`. Pas d'arêtes (« Scène 3D : facettes uniquement »), pas de « Peindre toutes les faces » (« Scène 3D : peindre face par face »).
 
 **Facettes et arêtes**
 

@@ -19,6 +19,12 @@ import getRendererSupportsS3tc from "./utils/getRendererSupportsS3tc";
 
 import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 
+import store from "App/store";
+
+// Render modes whose scene has real lights: a GLB scene keeps its PBR
+// materials there (see attachScene3dGlbToBaseMapGroup).
+const REALISTIC_RENDER_MODES = ["REALISTIC", "PHOTOREAL"];
+
 // Identity of a basemap mesh: texture url + version image size + version
 // transform + reference frame. When any of these change (active version
 // switch, version transform edit, new file), the mesh must be rebuilt.
@@ -54,6 +60,8 @@ export default class ImagesManager {
     // Scan mesh of a scan base map (scanWrap): image eye AND the "3D" button
     // of the base maps list (hiddenScene3dBaseMapIdsIn3d). Same contract.
     this.scanVisibleByBaseMapId = {};
+    // Bottom bar « Filaire »: GLB scenes as wireframes (setScene3dWireframe).
+    this.scene3dWireframe = false;
     // Desired 3D opacity, mirrored from redux by useApplyBaseMapOpacityIn3d.
     // Same "record the desired state" contract as the visibility maps above,
     // and for the same reason: the basemap mesh is attached ASYNCHRONOUSLY
@@ -102,11 +110,19 @@ export default class ImagesManager {
     const opacity = faded ? Math.min(desired, FADED_IMAGE_OPACITY) : desired;
     group.traverse?.((child) => {
       // The scan of a scan base map follows the base map opacity too.
+      // (a GLB scene keeps its model's own transparency underneath:
+      // material.userData.sourceOpacity)
       if (child.userData?.isScene3dScan && child.material) {
-        child.material.opacity = opacity;
-        child.material.transparent = opacity < 1;
-        child.material.depthWrite = opacity >= 1;
-        child.material.needsUpdate = true;
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+        materials.forEach((material) => {
+          const next = opacity * (material.userData?.sourceOpacity ?? 1);
+          material.opacity = next;
+          material.transparent = next < 1;
+          material.depthWrite = next >= 1;
+          material.needsUpdate = true;
+        });
         return;
       }
       if (child.userData?.isBasemap && child.material) {
@@ -296,6 +312,33 @@ export default class ImagesManager {
     return group;
   }
 
+  // Bottom bar « Filaire » (viewers.baseMapsSceneWireframe): the GLB scenes
+  // of the scan base maps drawn as wireframes. Recorded, then applied to
+  // the loaded scenes and to every later (re)attach (syncScene3d onLoaded).
+  // The geometry is untouched: the faces still answer the raycasts.
+  setScene3dWireframe(wireframe) {
+    this.scene3dWireframe = Boolean(wireframe);
+    Object.keys(this.imagesMap).forEach((baseMapId) =>
+      this.applyScene3dWireframe(baseMapId)
+    );
+    this.sceneManager.renderScene();
+  }
+
+  applyScene3dWireframe(baseMapId) {
+    const wireframe = Boolean(this.scene3dWireframe);
+    this.imagesMap[baseMapId]?.userData.scanWrap?.traverse((child) => {
+      if (!child.userData?.isScene3dGlb || !child.material) return;
+      const materials = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+      materials.forEach((material) => {
+        if (material.wireframe === wireframe) return;
+        material.wireframe = wireframe;
+        material.needsUpdate = true;
+      });
+    });
+  }
+
   // Scan base map (« Scène 3D »): (re)attach the scan mesh to the group when
   // the base map's scan content changed (first load, reload of the scan
   // data, display toggle) — no-op otherwise. The registry (baseMapsMap)
@@ -304,7 +347,11 @@ export default class ImagesManager {
     const group = this.imagesMap[baseMapId];
     const baseMap = this.baseMapsMap[baseMapId];
     if (!group) return;
-    const key = getScene3dGroupKey(baseMap);
+    // GLB scenes use the model's PBR materials in the realistic modes.
+    const realisticShading = REALISTIC_RENDER_MODES.includes(
+      store.getState().threedEditor.renderMode
+    );
+    const key = getScene3dGroupKey(baseMap, { realisticShading });
     if (group.userData.scene3dKey === key) return;
     group.userData.disposeScene3d?.();
     delete group.userData.disposeScene3d;
@@ -314,7 +361,9 @@ export default class ImagesManager {
       renderer: this.sceneManager.renderer,
       supportsS3tc: getRendererSupportsS3tc(this.sceneManager.renderer),
       opacity: getBaseMapOpacityIn3d(this.opacityState, baseMapId),
+      realisticShading,
       onLoaded: () => {
+        this.applyScene3dWireframe(baseMapId);
         this.sceneManager.clippingManager?.reapply?.();
         this.sceneManager.renderScene();
       },

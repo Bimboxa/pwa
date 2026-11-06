@@ -1,6 +1,7 @@
 import db from "App/db/db";
 
 import deleteScene3dAssetsService from "./deleteScene3dAssetsService";
+import { deleteScene3dGlbFileService } from "./scene3dGlbFileService";
 import { getLocalScanHeightSceneId } from "Features/localScans/utils/localScanHeightSceneId";
 
 // Deletes the scan data of base maps that were just deleted. Base maps are
@@ -20,6 +21,7 @@ export default async function deleteScene3dBaseMapsDataService(records) {
       console.error("[localScans] failed to delete the height map", error);
     }
   }
+  await deleteGlbFiles(records ?? []);
   const sceneIds = [
     ...new Set((records ?? []).map((r) => r?.scene3d?.sceneId).filter(Boolean)),
   ];
@@ -40,6 +42,33 @@ export default async function deleteScene3dBaseMapsDataService(records) {
       await deleteScene3dAssetsService(sceneId);
     } catch (error) {
       console.error("[scene3d] failed to delete the scan data", error);
+    }
+  }
+}
+
+// GLB scenes (scene3d.format "GLB"): the model file in db.files goes with
+// its last live base map.
+async function deleteGlbFiles(records) {
+  const fileNames = [
+    ...new Set(records.map((r) => r?.scene3d?.glbFileName).filter(Boolean)),
+  ];
+  if (fileNames.length === 0) return;
+  const deletedIds = new Set(records.map((r) => r.id));
+  const stillUsed = await db.baseMaps
+    .filter(
+      (b) =>
+        !b.deletedAt &&
+        !deletedIds.has(b.id) &&
+        fileNames.includes(b.scene3d?.glbFileName)
+    )
+    .toArray();
+  const usedFileNames = new Set(stillUsed.map((b) => b.scene3d.glbFileName));
+  for (const fileName of fileNames) {
+    if (usedFileNames.has(fileName)) continue;
+    try {
+      await deleteScene3dGlbFileService(fileName);
+    } catch (error) {
+      console.error("[scene3d] failed to delete the GLB file", error);
     }
   }
 }

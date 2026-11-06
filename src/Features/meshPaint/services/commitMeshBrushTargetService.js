@@ -44,6 +44,9 @@ import { matchPaintPartToIndex } from "Features/meshPaint/utils/planPaintResync"
  *   un-shrink, no re-detection: both read the whole host) and ALWAYS becomes
  *   an annotation, whatever the switch; nothing is painted (a paint row
  *   needs the index to be re-synced).
+ * - HOST without host annotation (`target.sceneHost`, `hostId` null: a
+ *   facet of the GLB scene of a scan base map): dense by construction — the
+ *   annotation belongs to the base map alone (no `autoCreatedFrom`).
  *
  * @param {object} params
  * @param {object} params.editor - the active ThreedEditor
@@ -141,8 +144,9 @@ export default async function commitMeshBrushTargetService({
   }
 
   if (createAsAnnotation || isDense) {
-    const host = await db.annotations.get(hostId);
-    if (!host || host.deletedAt) return refuse("HOST_DELETED");
+    // No host annotation on a GLB scene facet (target.sceneHost).
+    const host = hostId ? await db.annotations.get(hostId) : null;
+    if (hostId && (!host || host.deletedAt)) return refuse("HOST_DELETED");
     const created = (action, annotationIds) => ({
       action,
       id: annotationIds[0] ?? null,
@@ -159,7 +163,7 @@ export default async function commitMeshBrushTargetService({
       template,
       templateProps,
       baseMaps,
-      projectId: projectId ?? host.projectId ?? null,
+      projectId: projectId ?? host?.projectId ?? null,
       createAnnotationFn,
     });
     if (result.status === BRUSH_2D_STATUS.CREATED) {
@@ -181,7 +185,7 @@ export default async function commitMeshBrushTargetService({
         host,
         template,
         templateProps,
-        projectId: projectId ?? host.projectId ?? null,
+        projectId: projectId ?? host?.projectId ?? null,
         scopeId,
         createAnnotationFn,
       });

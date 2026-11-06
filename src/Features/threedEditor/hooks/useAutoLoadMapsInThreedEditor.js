@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useDispatch, useStore } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { bumpBaseMapsLoadTick } from "../threedEditorSlice";
 
@@ -21,6 +21,12 @@ export default function useAutoLoadMapsInThreedEditor({
   const { disabledIds } = useDisabledBaseMapIds();
   const disabledIdsRef = useRef(disabledIds);
   disabledIdsRef.current = disabledIds;
+
+  // A GLB scene swaps its materials between the unlit and the realistic
+  // render modes (ImagesManager.syncScene3d): the repair key carries it.
+  const isRealisticRenderMode = useSelector((s) =>
+    ["REALISTIC", "PHOTOREAL"].includes(s.threedEditor.renderMode)
+  );
 
   const baseMapsKey = baseMaps.map((b) => b.id).join(",");
 
@@ -72,6 +78,7 @@ export default function useAutoLoadMapsInThreedEditor({
       b?.meterByPx ?? "",
       b?.scene3d?.sceneId ?? "",
       b?.scene3d?.display3d ?? "",
+      b?.scene3d?.format === "GLB" && isRealisticRenderMode ? "pbr" : "",
       b?.localScan?.resourceId ?? "",
       // « Zmap pour le raycaster » switch of the Scan 3D panel
       b?.localScan?.zMapRaycast === false ? "noray" : "",

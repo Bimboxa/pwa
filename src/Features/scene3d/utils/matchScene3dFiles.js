@@ -17,18 +17,21 @@ function getExtension(name) {
   return dot === -1 ? "" : base.slice(dot + 1);
 }
 
-// → {plyFile, imageFiles, ignoredFiles}
+// → {plyFile, glbFile, imageFiles, ignoredFiles} — glbFile: a model kept as
+// is (GLB scene); the PLY wins when the selection holds both.
 export function sortScene3dFiles(files) {
   const list = Array.from(files ?? []);
   const plyFiles = list.filter((file) => getExtension(file.name) === "ply");
+  const glbFiles = list.filter((file) => getExtension(file.name) === "glb");
   const imageFiles = list.filter((file) =>
     IMAGE_EXTENSIONS.includes(getExtension(file.name))
   );
   const plyFile = plyFiles[0] ?? null;
+  const glbFile = plyFile ? null : (glbFiles[0] ?? null);
   const ignoredFiles = list.filter(
-    (file) => file !== plyFile && !imageFiles.includes(file)
+    (file) => file !== plyFile && file !== glbFile && !imageFiles.includes(file)
   );
-  return { plyFile, imageFiles, ignoredFiles };
+  return { plyFile, glbFile, imageFiles, ignoredFiles };
 }
 
 // → {textureFiles: (File | null)[] (same order as textureNames), missingNames}

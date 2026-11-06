@@ -75,6 +75,7 @@ export default function getInitScopeVisibility(scopeId) {
         ? parsed.soloDimStyle
         : null,
       baseMapsZMapVisible: Boolean(parsed.baseMapsZMapVisible),
+      baseMapsSceneWireframe: Boolean(parsed.baseMapsSceneWireframe),
     };
   } catch {
     return null;

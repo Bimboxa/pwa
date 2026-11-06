@@ -68,6 +68,9 @@ const viewersInitialState = {
   soloDimStyle: DEFAULT_SOLO_DIM_STYLE,
   // bottom bar « Zmap »: height map meshes of the scan base maps (3D)
   baseMapsZMapVisible: false,
+  // bottom bar « Filaire »: GLB scenes of the scan base maps drawn as
+  // wireframes (3D)
+  baseMapsSceneWireframe: false,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
   // unmount the component — don't re-arm the fit; reset when the scope
@@ -152,6 +155,9 @@ export const viewersSlice = createSlice({
     setBaseMapsZMapVisible: (state, action) => {
       state.baseMapsZMapVisible = Boolean(action.payload);
     },
+    setBaseMapsSceneWireframe: (state, action) => {
+      state.baseMapsSceneWireframe = Boolean(action.payload);
+    },
     setInitialFitDoneForScopeId: (state, action) => {
       state.initialFitDoneForScopeId = action.payload ?? null;
     },
@@ -174,6 +180,9 @@ export const viewersSlice = createSlice({
       state.baseMapsScanMode = visibility?.baseMapsScanMode ?? null;
       state.soloDimStyle = visibility?.soloDimStyle ?? DEFAULT_SOLO_DIM_STYLE;
       state.baseMapsZMapVisible = Boolean(visibility?.baseMapsZMapVisible);
+      state.baseMapsSceneWireframe = Boolean(
+        visibility?.baseMapsSceneWireframe
+      );
       // The restored module may be SCOPE (page reload): same light grey
       // default, the restored mode is what comes back on exit.
       if (state.selectedViewerKey === "SCOPE") {
@@ -200,6 +209,7 @@ export const {
   setBaseMapsScanMode,
   setSoloDimStyle,
   setBaseMapsZMapVisible,
+  setBaseMapsSceneWireframe,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,
   //

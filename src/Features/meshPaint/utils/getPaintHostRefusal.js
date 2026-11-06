@@ -23,6 +23,10 @@ export const PAINT_REFUSAL = Object.freeze({
   // more faces / edges than BRUSH_MAX_ALL_PARTS (decided by the all-parts
   // plan).
   TOO_MANY_PARTS: "TOO_MANY_PARTS",
+  // GLB scene of a scan base map (no host annotation, no part index): its
+  // facets only, one by one (decided by the picker / the pointer handlers).
+  SCENE_FACES_ONLY: "SCENE_FACES_ONLY",
+  SCENE_ONE_BY_ONE: "SCENE_ONE_BY_ONE",
   // context rules (commit impossible)
   NO_SCALE: "NO_SCALE", // base map without scale / image size
   READ_ONLY: "READ_ONLY", // private scope of another user
@@ -40,6 +44,8 @@ export const PAINT_REFUSAL_LABELS = Object.freeze({
   NOT_SOLID: "Partie non peignable",
   OCCLUDED: "Masqué par une maille",
   TOO_MANY_PARTS: "Trop de parties à peindre d'un coup",
+  SCENE_FACES_ONLY: "Scène 3D : facettes uniquement",
+  SCENE_ONE_BY_ONE: "Scène 3D : peindre face par face",
   NO_SCALE: "Fond de plan sans échelle",
   READ_ONLY: "Plan de repérage en lecture seule",
   LINKED_LISTING: "Modèle d'une liste liée",

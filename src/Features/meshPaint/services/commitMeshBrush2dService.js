@@ -98,10 +98,11 @@ export default async function commitMeshBrush2dService({
 
   const listingId = template.listingId ?? templateProps.listingId ?? null;
   const layerId = host?.layerId ?? null;
-  const extraFields = {
-    autoCreatedFrom: hostId,
-    autoGenKind: MESH_BRUSH_AUTO_GEN_KIND,
-  };
+  // Provenance markers — none without a host annotation (a GLB scene
+  // facet): the annotation is a plain one of the base map.
+  const extraFields = hostId
+    ? { autoCreatedFrom: hostId, autoGenKind: MESH_BRUSH_AUTO_GEN_KIND }
+    : null;
   const common = {
     baseMaps: baseMaps || [],
     projectId,
@@ -197,7 +198,7 @@ export default async function commitMeshBrush2dService({
     });
   }
 
-  if (result.status === BRUSH_2D_STATUS.CREATED) {
+  if (result.status === BRUSH_2D_STATUS.CREATED && hostId) {
     store.dispatch(removeShrinkExemptAnnotationIds([hostId]));
   }
   return result;

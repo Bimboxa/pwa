@@ -1436,6 +1436,12 @@ export default function MainThreedEditor() {
           }
           continue; // no nodeId in a basemap mesh's ancestor chain
         }
+        // Face of a GLB scene: its base map, like the image plane (an
+        // annotation painted on that face is coplanar — keep looking).
+        if (object.userData?.isScene3dGlb) {
+          if (!baseMapHitId) baseMapHitId = object.userData.baseMapId ?? null;
+          continue;
+        }
 
         // Traverse up the object hierarchy to find the parent Group with userData
         // This handles cases where child meshes (walls, caps, edges) are clicked
@@ -2686,8 +2692,21 @@ export default function MainThreedEditor() {
     let hit = null;
     let hitIntersect = null;
     let mesh3dIntersect = null;
+    // Face of a GLB scene (scan base map kept as a model, see
+    // attachScene3dGlbToBaseMapGroup): like a maille, no recolor / tooltip
+    // but the face-level stipple highlight. An annotation lying ON that face
+    // (painted with the « Pinceau ») is coplanar with it — the distance sort
+    // is unstable between the two, so the annotation still wins within 1 cm
+    // behind the scene hit.
+    let sceneIntersect = null;
     for (const intersect of intersects) {
+      if (sceneIntersect && intersect.distance > sceneIntersect.distance + 0.01)
+        break;
       let object = intersect.object;
+      if (object?.userData?.isScene3dGlb) {
+        if (!sceneIntersect) sceneIntersect = intersect;
+        continue;
+      }
       while (object) {
         // Maille (3D mesh cell) face: no annotation recolor/tooltip, but it
         // gets the same face-level stipple highlight (see overlay block).
@@ -2703,6 +2722,9 @@ export default function MainThreedEditor() {
         object = object.parent;
       }
       if (hit || mesh3dIntersect) break;
+    }
+    if (!hit && !mesh3dIntersect && sceneIntersect) {
+      mesh3dIntersect = sceneIntersect;
     }
 
     const hitId = hit?.userData?.nodeId ?? null;
@@ -2917,10 +2939,17 @@ export default function MainThreedEditor() {
       // re-render on a settings change, and the next hover tick picks the new
       // angle up on its own — the overlay key carries it.
       const angleDeg = faceAngleDeg;
+      // A GLB scene highlights the planar face — the one the « Pinceau »
+      // paints (meshBrushPick).
       const region = getFaceRegion(
         hitObject.geometry,
         overlayIntersect.faceIndex,
-        { plane: !!hitObject.userData?.hasSubtraction, angleDeg }
+        {
+          plane:
+            !!hitObject.userData?.hasSubtraction ||
+            !!hitObject.userData?.isScene3dGlb,
+          angleDeg,
+        }
       );
       const key = region
         ? `${hitObject.uuid}:${angleDeg}:${region.regionId}`

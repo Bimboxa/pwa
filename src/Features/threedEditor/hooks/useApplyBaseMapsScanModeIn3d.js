@@ -30,6 +30,14 @@ export default function useApplyBaseMapsScanModeIn3d({ rendererIsReady } = {}) {
     getLocalScanHeightMapVersion
   );
 
+  // Bottom bar « Filaire »: GLB scenes as wireframes.
+  const sceneWireframe = useSelector((s) => s.viewers.baseMapsSceneWireframe);
+
+  useEffect(() => {
+    const imagesManager = getActiveThreedEditor()?.sceneManager?.imagesManager;
+    imagesManager?.setScene3dWireframe(Boolean(sceneWireframe));
+  }, [rendererIsReady, sceneWireframe]);
+
   useEffect(() => {
     const imagesManager = getActiveThreedEditor()?.sceneManager?.imagesManager;
     imagesManager?.setLocalScanState({
