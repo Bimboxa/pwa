@@ -149,6 +149,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     excludeProfileTemplates: true,
     // COTE / RULER only when template.showIn3d or row.isDrawnIn3d.
     excludeDimensionsHiddenIn3d: true,
+    // « Ne pas montrer en 3D » (annotation.hiddenIn3d).
+    excludeHiddenIn3d: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent or as light grey
     // edges — unless the solo style is "hidden".

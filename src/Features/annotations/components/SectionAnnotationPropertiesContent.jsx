@@ -25,6 +25,7 @@ import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
+import FieldAnnotationHiddenIn3d from "./FieldAnnotationHiddenIn3d";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLabelSize from "./FieldAnnotationLabelSize";
@@ -250,6 +251,7 @@ export default function SectionAnnotationPropertiesContent({
           <FieldAnnotationIsExt annotation={annotation} />
         )}
         {type === "STRIP" && <FieldAnnotationIsLayer annotation={annotation} />}
+        {!isFreeText && <FieldAnnotationHiddenIn3d annotation={annotation} />}
       </Box>
 
       <SectionAnnotationOpenings annotation={annotation} />

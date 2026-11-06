@@ -741,6 +741,10 @@ export default function useAnnotationsV2(options) {
     // template), unless the row was drawn from the 3D viewer (isDrawnIn3d).
     // 3D viewer only — 2D keeps showing them.
     const excludeDimensionsHiddenIn3d = options?.excludeDimensionsHiddenIn3d;
+    // Drop the annotations flagged « Ne pas montrer en 3D »
+    // (annotation.hiddenIn3d, FieldAnnotationHiddenIn3d). 3D scene only —
+    // the 2D editors, the listings and the counts keep them.
+    const excludeHiddenIn3d = options?.excludeHiddenIn3d;
     // Cut lines (Features/threedCutLines) exist for the Maillage module only:
     // outside it they are dropped from every consumer (scene, popper, counts,
     // listings) unless the caller opts in.
@@ -3267,6 +3271,11 @@ export default function useAnnotationsV2(options) {
         });
       }
 
+      // « Ne pas montrer en 3D » (3D scene only).
+      if (excludeHiddenIn3d) {
+        result = result.filter((a) => !a.hiddenIn3d);
+      }
+
       // Cut lines belong to the Maillage module only.
       if (!includeCutLines && !isMeshesModule) {
         result = result.filter((a) => !isCutLineAnnotation(a));
@@ -3580,6 +3589,7 @@ export default function useAnnotationsV2(options) {
       openingRowsByHostId,
       excludeProfileTemplates,
       excludeDimensionsHiddenIn3d,
+      excludeHiddenIn3d,
       includeCutLines,
       isMeshesModule,
       // NOTE — `appConfig` is read inside this query (the scope filter's
