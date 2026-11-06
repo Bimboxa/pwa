@@ -202,6 +202,8 @@ import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnot
 import pasteAnnotationService from 'Features/mapEditor/services/pasteAnnotationService';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
 import { isAnnotationLabelNodeId, getAnnotationIdFromLabelNodeId, buildAnnotationLabelSelectionItem } from 'Features/annotations/utils/annotationLabelSelection';
+import { hideAnnotations } from 'Features/hiddenAnnotations/hiddenAnnotationsSlice';
+import { HIDE_ANNOTATION_MODE } from 'Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
 
 import { setToaster } from "Features/layout/layoutSlice";
@@ -2252,8 +2254,10 @@ const InteractionLayer = forwardRef(({
   // CHANGE_STYLE: « Changer de style » armed from the commands toolbar — a
   // click selects the annotation (shift toggles it), the helper panel applies
   // the template.
-  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH", "CHANGE_STYLE"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", "CHANGE_STYLE", ...TRANSFORM_TOOL_MODES];
+  // HIDE_ANNOTATION: « Masquer l'annotation » armed from the commands toolbar
+  // — a click hides the annotation for the session (Features/hiddenAnnotations).
+  const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH", "CHANGE_STYLE", HIDE_ANNOTATION_MODE];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", "CHANGE_STYLE", HIDE_ANNOTATION_MODE, ...TRANSFORM_TOOL_MODES];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -4965,6 +4969,14 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // HIDE_ANNOTATION: Escape only leaves the mode — the registry of
+          // hidden items is kept (it is emptied from the command's dropdown).
+          if (enabledDrawingMode === HIDE_ANNOTATION_MODE) {
+            dispatch(setEnabledDrawingMode(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Reset split polyline state if active
           onSplitPolylineResetRef.current?.();
 
@@ -6186,6 +6198,20 @@ const InteractionLayer = forwardRef(({
         dispatch(setSelectedItem(newItem));
         dispatch(setShowAnnotationsProperties(true));
       }
+      return;
+    }
+
+    // --- HIDE_ANNOTATION (« Masquer l'annotation » armed from the commands
+    // toolbar): a click hides the annotation under the cursor for the session
+    // (its label chip hides it too), a click on empty does nothing; the mode
+    // stays armed. Draggable nodes never reach here: handleMouseUp's
+    // pending-click path hides them (clickOnly in this mode).
+    if (enabledDrawingMode === HIDE_ANNOTATION_MODE) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      const nodeId = getAnnotationIdFromLabelNodeId(hit?.dataset?.nodeId);
+      if (!nodeId || isForeignFootprintId(nodeId)) return;
+      dispatch(hideAnnotations([nodeId]));
       return;
     }
 
@@ -8833,6 +8859,18 @@ const InteractionLayer = forwardRef(({
         }
       }
 
+      // « Masquer l'annotation » armed: the click hides the annotation (a
+      // label chip hides its annotation) instead of selecting it.
+      if (enabledDrawingMode === HIDE_ANNOTATION_MODE) {
+        const hiddenId = getAnnotationIdFromLabelNodeId(annotationId);
+        if (hiddenId && !isForeignFootprintId(hiddenId)) {
+          dispatch(hideAnnotations([hiddenId]));
+        }
+        if (tooltipData) setTooltipData(null);
+        handleAnnotationDragEnd();
+        return;
+      }
+
       // Click on an annotation LABEL chip ("label::<id>"): select the label
       // itself (ANNOTATION_LABEL item → Etiquette panel). Always a single
       // replace (shift included): a label never joins a multi-selection.
@@ -9082,7 +9120,10 @@ const InteractionLayer = forwardRef(({
     // CHANGE_STYLE: clicks only (re)build the selection — no resize / rotate
     // of the selected annotation (the draggables are selected without moving,
     // see clickOnly below).
-    if (enabledDrawingModeRef.current === "CHANGE_STYLE") {
+    if (
+      enabledDrawingModeRef.current === "CHANGE_STYLE" ||
+      enabledDrawingModeRef.current === HIDE_ANNOTATION_MODE
+    ) {
       resizeHandle = null;
       rotateHandle = null;
     }
@@ -9310,7 +9351,9 @@ const InteractionLayer = forwardRef(({
         (isLabelPart && !labelNodeSelected) ||
         isUnselectedPlacement ||
         isNodeOwnedDrag ||
-        enabledDrawingModeRef.current === "CHANGE_STYLE";
+        enabledDrawingModeRef.current === "CHANGE_STYLE" ||
+        // « Masquer l'annotation »: the click hides, never moves
+        enabledDrawingModeRef.current === HIDE_ANNOTATION_MODE;
 
       // Marker-like whole-moves can snap; the snap lands the annotation's own
       // reference point (not the cursor) on the target, so capture it now.

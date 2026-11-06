@@ -73,8 +73,10 @@ import SectionThreedAxisLockHelper from "Features/threedDrawing/components/Secti
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
 import { isTransformToolMode } from "Features/annotationTransform/utils/transformToolModes";
 import SectionChangeStyleHelper from "Features/commandsToolbar/commands/changeStyle/SectionChangeStyleHelper";
+import SectionHideAnnotationHelper from "Features/commandsToolbar/commands/hideAnnotation/SectionHideAnnotationHelper";
 import SectionProcedureSourceDrawingHelper from "Features/annotationsAuto/components/SectionProcedureSourceDrawingHelper";
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
+import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 
 // Modes that select existing geometry — no smart detect needed
 const SEGMENT_SELECT_MODES = [
@@ -535,6 +537,12 @@ export default function SectionDrawingHelperContent() {
   // selection + the template picker, no loupe / smart detect.
   if (enabledDrawingMode === CHANGE_STYLE_MODE) {
     return <SectionChangeStyleHelper />;
+  }
+
+  // « Masquer l'annotation » armed from the commands toolbar (2D and 3D):
+  // the hint + the count of hidden items, no loupe / smart detect.
+  if (enabledDrawingMode === HIDE_ANNOTATION_MODE) {
+    return <SectionHideAnnotationHelper />;
   }
 
   return (

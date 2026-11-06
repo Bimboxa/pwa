@@ -364,3 +364,27 @@ test("revolution axis solo follows the HOST's axis", () => {
     DIMMED
   );
 });
+
+test("host hidden by hand (« Masquer l'annotation ») → its paints are hidden", () => {
+  assert.equal(
+    getMeshPaintVisibility(
+      makeItem(),
+      makeCtx({ userHiddenAnnotationIds: new Set(["h1"]) })
+    ),
+    HIDDEN
+  );
+  assert.equal(
+    getMeshPaintVisibility(
+      makeItem(),
+      makeCtx({ userHiddenAnnotationIds: new Set(["other"]) })
+    ),
+    VISIBLE
+  );
+  assert.equal(
+    getMeshPaintVisibility(
+      makeItem(),
+      makeCtx({ userHiddenAnnotationIds: null })
+    ),
+    VISIBLE
+  );
+});

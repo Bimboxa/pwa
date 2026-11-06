@@ -15,6 +15,7 @@ import {
 import CameraControls from "camera-controls";
 
 import { loadNavigationPreset } from "Features/threedEditor/services/navigationPresetLocalStorage";
+import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 
 import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNavigationMouseActions";
 
@@ -1318,6 +1319,10 @@ export default class ControlsManager {
       for (const i of intersects) {
         if (
           isPivotCandidate(i.object) &&
+          // three's raycaster ignores `visible`: a hidden object (a face
+          // hidden with « Masquer l'annotation », annotations switched off)
+          // must not catch the orbit point.
+          isObjectChainVisible(i.object) &&
           !isMaterialSeeThrough(i.object.material)
         ) {
           this._pivotSource = "mesh";

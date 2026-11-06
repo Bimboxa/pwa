@@ -14,6 +14,7 @@ import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import splitTJunctions from "Features/geometry/utils/splitTJunctions";
+import { getHiddenMesh3dFaceIndices } from "Features/hiddenAnnotations/utils/mesh3dFaceSignature";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 import {
   getFaceArea,
@@ -89,6 +90,15 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
 // selectable but never written — « Soustraire définitivement » is the way
 // back to an editable mesh.
 //
+// Faces hidden with « Masquer l'annotation » (`annotation._hiddenMesh3dFaces`,
+// face signatures — useAutoLoadAnnotationsInThreedEditor tags the copy): the
+// face mesh is still built, so the face indices and the closed volume read by
+// the CSG are unchanged, but it is INVISIBLE (`mesh3dFaceHidden`) — the picks
+// (filterIntersectionsByVisibility), the snap index and the lasso skip
+// invisible objects. An edge is drawn only when a visible face carries it.
+// A live subtraction collapses every face, the hidden ones included: a carved
+// host shows them again.
+//
 // `userData.isMesh3d` is NOT used here: it tags the mailles (ThreedMeshes).
 export default function buildMesh3dAnnotationObject(
   annotation,
@@ -105,6 +115,13 @@ export default function buildMesh3dAnnotationObject(
   // A sheet has no thickness: it must read from both sides, like the flat
   // polygons of extrudeClosedShape.
   material.side = DoubleSide;
+
+  // Stored face indices hidden for the session (same numbering as the local
+  // mesh: mesh3dToLocal keeps the faces in order).
+  const hiddenFaceIndices = getHiddenMesh3dFaceIndices(
+    annotation,
+    annotation._hiddenMesh3dFaces
+  );
 
   mesh.faces.forEach((face, faceIndex) => {
     if (face.loop.length < 3) return;
@@ -126,6 +143,10 @@ export default function buildMesh3dAnnotationObject(
         length: getFacePerimeter(mesh.vertices, face),
       },
     };
+    if (hiddenFaceIndices.has(faceIndex)) {
+      faceMesh.visible = false;
+      faceMesh.userData.mesh3dFaceHidden = true;
+    }
     group.add(faceMesh);
   });
   if (!group.children.length) return null;
@@ -133,7 +154,10 @@ export default function buildMesh3dAnnotationObject(
   const segments = [];
   const edgeVertices = []; // [a, b] vertex indices, one per drawn segment
   const seen = new Set();
-  for (const face of mesh.faces) {
+  mesh.faces.forEach((face, faceIndex) => {
+    // Edges of the visible faces only: an edge shared with a visible face is
+    // still drawn by that face.
+    if (hiddenFaceIndices.has(faceIndex)) return;
     for (const loop of getFaceLoops(face)) {
       for (let i = 0; i < loop.length; i++) {
         const a = loop[i];
@@ -147,7 +171,7 @@ export default function buildMesh3dAnnotationObject(
         edgeVertices.push([a, b]);
       }
     }
-  }
+  });
   const edgesGeometry = new BufferGeometry();
   edgesGeometry.setAttribute(
     "position",

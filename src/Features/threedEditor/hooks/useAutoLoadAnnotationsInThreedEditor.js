@@ -14,6 +14,8 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
+import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
+import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import useSceneExtraBaseMapIdsIn3d from "./useSceneExtraBaseMapIdsIn3d";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
@@ -37,6 +39,23 @@ function getShrinkExemptCopy(annotation) {
     shrinkExemptCopies.set(annotation, copy);
   }
   return copy;
+}
+
+// Mesh annotations with faces hidden by « Masquer l'annotation »: copies
+// tagged `_hiddenMesh3dFaces` (the face signatures — buildMesh3dAnnotationObject
+// reads them), memoized per source row AND per signature list, so the diff
+// rebuilds exactly the hosts whose hidden faces changed.
+const hiddenFacesCopies = new WeakMap();
+function getHiddenFacesCopy(annotation, signatures) {
+  let entry = hiddenFacesCopies.get(annotation);
+  if (!entry || entry.signatures !== signatures) {
+    entry = {
+      signatures,
+      copy: { ...annotation, _hiddenMesh3dFaces: signatures },
+    };
+    hiddenFacesCopies.set(annotation, entry);
+  }
+  return entry.copy;
 }
 
 export default function useAutoLoadAnnotationsInThreedEditor({
@@ -132,6 +151,10 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       gridPinned && hiddenSheetIds.length ? new Set(hiddenSheetIds) : null,
     [gridPinned, hiddenSheetIds]
   );
+  // « Masquer l'annotation » (commands toolbar): annotations and mesh faces
+  // hidden for the session (null = nothing to filter).
+  const { hiddenIdSet: userHiddenIdSet, hiddenFacesByAnnotationId } =
+    useUserHiddenAnnotations();
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
@@ -218,7 +241,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // rebuilds nothing for the kept ones).
   const annotationsForThreed = useMemo(() => {
     if (!annotations) return annotations;
-    let result = annotations;
+    // Hidden for the session with « Masquer l'annotation »: not built at all
+    // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
+    let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
     if (scopeAnnotationIdSet) {
       result = result.filter((a) => scopeAnnotationIdSet.has(a.id));
     }
@@ -235,18 +260,25 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     parentIdSet,
     scopeAnnotationIdSet,
     hiddenSheetIdSet,
+    userHiddenIdSet,
   ]);
 
-  // What the scene is built from: the shrink-exempt hosts swapped for their
-  // tagged copies (the hook still returns the plain resolved annotations).
+  // What the scene is built from: the shrink-exempt hosts and the mesh
+  // annotations with hidden faces swapped for their tagged copies (the hook
+  // still returns the plain resolved annotations).
   const annotationsForBuild = useMemo(() => {
-    if (!annotationsForThreed || shrinkExemptIds.size === 0) {
+    if (
+      !annotationsForThreed ||
+      (shrinkExemptIds.size === 0 && !hiddenFacesByAnnotationId)
+    ) {
       return annotationsForThreed;
     }
-    return annotationsForThreed.map((a) =>
-      shrinkExemptIds.has(a.id) ? getShrinkExemptCopy(a) : a
-    );
-  }, [annotationsForThreed, shrinkExemptIds]);
+    return annotationsForThreed.map((a) => {
+      const source = shrinkExemptIds.has(a.id) ? getShrinkExemptCopy(a) : a;
+      const signatures = a.isMesh3d ? hiddenFacesByAnnotationId?.[a.id] : null;
+      return signatures ? getHiddenFacesCopy(source, signatures) : source;
+    });
+  }, [annotationsForThreed, shrinkExemptIds, hiddenFacesByAnnotationId]);
 
   // { baseMapId: 1 | -1 }, restricted to the vertical base maps that host a
   // REVOLUTION element in half-view (its AXIS's "Demi-vue 3D" toggle,
