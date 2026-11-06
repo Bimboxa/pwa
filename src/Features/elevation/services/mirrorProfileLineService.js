@@ -3,6 +3,7 @@ import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
+import { isUprightSectionUp } from "../utils/getProfileSectionUp";
 import mirrorProfilePointsAcrossGuide from "../utils/mirrorProfilePointsAcrossGuide";
 
 export const MIRROR_ERROR_MESSAGES = {
@@ -30,6 +31,30 @@ export default async function mirrorProfileLineService({
   if (!line || (line.points?.length ?? 0) < 2) {
     return { error: "PROFILE_MISSING" };
   }
+  // A profile laid upright (`sectionUp`, see getProfileSectionUp) carries its
+  // SIDE axis in the inline heights and its vertical in the plan chain: the
+  // plan reflection below would turn it upside down. Its mirror negates the
+  // heights instead — the same result as re-applying the source with the
+  // `mirror` flag toggled (the registration origin stays at height 0).
+  if (isUprightSectionUp(line.sectionUp)) {
+    const profileLines = ann.profileLines.map((l, i) =>
+      i === index
+        ? {
+            ...l,
+            mirror: !l.mirror,
+            points: l.points.map((r) =>
+              r ? { ...r, height: -(Number(r.height) || 0) } : r
+            ),
+          }
+        : l
+    );
+    await withUndoGroup(async () => {
+      await db.annotations.update(annotationId, { profileLines });
+    });
+    if (dispatch) dispatch(triggerAnnotationsUpdate());
+    return { ok: true };
+  }
+
   const baseMap = await db.baseMaps.get(ann.baseMapId);
   const imageSize = baseMap?.image?.imageSize;
   if (!imageSize?.width || !imageSize?.height) {

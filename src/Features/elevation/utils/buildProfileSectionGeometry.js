@@ -88,8 +88,11 @@ export default function buildProfileSectionGeometry({
 
 // Cut axis of a FREE profile: unit direction of the first → last chord, with
 // the first vertex as origin. A folded profile (U) may bring its endpoints
-// close together — fall back to the dominant bbox direction, then to +X, so
-// the axis never degenerates.
+// close together, and so does a profile laid upright whose two ends sit at
+// the same level (collinear plan chain) — fall back to the direction of the
+// vertex farthest from the first one (exact for a collinear chain), then to
+// +X, so the axis never degenerates. Keep in sync with the copy in
+// getInlineExtrusionSetup.
 export function getProfileAxis(pts) {
   if (!Array.isArray(pts) || pts.length < 2) return null;
   const p0 = pts[0];
@@ -97,20 +100,17 @@ export function getProfileAxis(pts) {
   let dx = pL.x - p0.x;
   let dy = pL.y - p0.y;
   if (Math.hypot(dx, dy) < 1e-6) {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
+    let far2 = 0;
     for (const p of pts) {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
+      const ex = p.x - p0.x;
+      const ey = p.y - p0.y;
+      const d2 = ex * ex + ey * ey;
+      if (d2 > far2) {
+        far2 = d2;
+        dx = ex;
+        dy = ey;
+      }
     }
-    dx = maxX - minX;
-    dy = maxY - minY;
-    if (Math.abs(dx) >= Math.abs(dy)) dy = 0;
-    else dx = 0;
     if (Math.hypot(dx, dy) < 1e-6) {
       dx = 1;
       dy = 0;
