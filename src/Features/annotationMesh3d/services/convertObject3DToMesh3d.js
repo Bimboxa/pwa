@@ -9,6 +9,7 @@ import buildMesh3dFromTriangles from "../utils/buildMesh3dFromTriangles";
 import { getMesh3dSignedVolume } from "../utils/getMesh3dQties";
 import isMesh3dClosed, { isMesh3dOriented } from "../utils/isMesh3dClosed";
 import { getLoopAreaVector, reverseFace } from "../utils/mesh3dTopology";
+import orientMesh3dFaces from "../utils/orientMesh3d";
 
 // Beyond this the source is a generated shape (sampled arcs...), not something
 // to hand-edit face by face.
@@ -84,13 +85,22 @@ export default function convertObject3DToMesh3d(
   }
   if (positions.length < 9) return null;
 
-  const mesh = carved
+  let mesh = carved
     ? buildMesh3dFromCarvedTriangles({ positions })
     : buildMesh3dFromTriangles({
         positions,
         labels: hasLabels ? labels : null,
       });
   if (!mesh || mesh.faces.length > (maxFaces ?? MAX_FACES)) return null;
+
+  // triangulateAnnotationGeometry (sloped tops, break points...) winds its
+  // side walls along the drawn outline while its caps always look up / down:
+  // an outline drawn clockwise gives a watertight solid whose walls disagree
+  // with its caps. Re-wound face by face, it is the closed mesh it looks like.
+  if (!isMesh3dClosed(mesh)) {
+    const oriented = orientMesh3dFaces(mesh);
+    if (isMesh3dClosed(oriented)) mesh = oriented;
+  }
 
   if (isMesh3dClosed(mesh)) {
     // Builders do not guarantee outward winding (the pixel → local Y flip).
