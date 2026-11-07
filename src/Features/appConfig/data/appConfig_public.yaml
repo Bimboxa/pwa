@@ -166,6 +166,9 @@ orgaData: {}
 # FEATURES
 
 features:
+  scopes:
+    enabled: true
+
   portfolios:
     logoDefault:
       path: assets/logo.png
