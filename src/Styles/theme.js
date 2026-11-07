@@ -30,7 +30,7 @@ let theme = createTheme(
           },
           fontSizeLarge: {
             fontSize: "1.25rem", // On passe le large à 24px (l'ancienne taille medium)
-          }
+          },
         },
       },
       MuiButton: {
@@ -105,9 +105,7 @@ let theme = createTheme(
         //main: "#e85426",
       },
       secondary: {
-        //main: blueGrey[600],
-        main: "#e85426",
-        // main: purple[600],
+        main: "#423188",
         // Saturated "fluo" variant: the unselected cut lines of the 3D editor
         // (Features/threedCutLines) — reads on top of any face colour.
         fluo: "#ff4d00",
