@@ -166,6 +166,16 @@ orgaData: {}
 # FEATURES
 
 features:
+  portfolios:
+    logoDefault:
+      path: assets/logo.png
+
+  titleBlocks:
+    defaultKey: DEFAULT
+    items:
+      - key: DEFAULT
+        path: titleBlocks/public_default/titleBlock.js
+
   # « Démarrer avec <scope> » dialog of the dashboard (Features/starting):
   # share link (YouTube, Drive or Vimeo) of the getting-started video shown
   # in its « Vidéo de prise en main » section; empty = no video.
