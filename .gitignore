@@ -45,7 +45,12 @@ tmp/
 
 # Data
 Data
-src/Data/
+!src/Data/
+src/Data/*
+!src/Data/public/
+!src/Features/appConfig/data/
+src/Features/appConfig/data/*
+!src/Features/appConfig/data/appConfig_public.yaml
 
 # Gemini
 gemini.jsx

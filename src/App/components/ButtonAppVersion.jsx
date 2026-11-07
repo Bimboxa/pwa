@@ -19,11 +19,11 @@ export default function ButtonAppVersion() {
 
   // Avoid rendering "undefined v.undefined" during the brief window before
   // the org yaml is loaded into state.appConfig.value.
-  const label = appConfig
-    ? `${appConfig.appName} v.${appConfig.appVersion}`
+  const label = appConfig?.appName
+    ? `${appConfig.appName}${appConfig.appVersion ? ` v${appConfig.appVersion}` : ""}`
     : "...";
   const title = newVersionAvailable?.version
-    ? `Nouvelle version disponible (v.${newVersionAvailable.version}) — cliquer pour mettre à jour`
+    ? `Nouvelle version disponible (v${newVersionAvailable.version}) — cliquer pour mettre à jour`
     : "Mettre à jour";
 
   // handlers

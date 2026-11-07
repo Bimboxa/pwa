@@ -1,10 +1,11 @@
 name: "Public"
-version: "16/10/2025 18:38"
+version: "07/11/2026"
 isDefault: true
 orgaCode: public
 
 # APP
-appName: "Bimboxa"
+appName: "reperage.pro"
+appVersion: "1.0.0"
 
 # COLORS
 
@@ -82,6 +83,7 @@ strings:
     # Also names the SCOPE module of the left band (the scope overview),
     # unless a scope overrides it (scopeConfig.moduleLabelsByKey.SCOPE).
     nameSingular: "Dossier"
+    newEmpty: "Dossier vide"
     # Title of the SCOPE module left panel (the scope content selector).
     contentTitle: "Contenu du dossier"
     # Resource scope ("périmètre") option: files visible in this scope only.
@@ -136,7 +138,7 @@ strings:
   # « Démarrer avec <scope> » dialog of the dashboard (Features/starting):
   # label of its button and title (default: « Démarrer avec <appName> »).
   starting:
-    start: "Démarrer avec Krto"
+    start: "Démarrer avec reperage.pro"
 
   presetConfig:
     title: "Type de dossier"
@@ -159,17 +161,7 @@ remoteContainer:
   name: "Serveur de sauvegarde"
   showSignInWarning: false
 
-orgaData:
-  pathRelative: "/_data/_orga"
-  files:
-    - key: nomenclature1
-      fileName: _nomenclature_nfx-46-020_v1.json
-      dataStructure: "NOMENCLATURE"
-      description: "Nomenclature NFX 46-020. Objet {name,ranks,items:[{num,label,children}]}"
-    - key: reportTemplate1
-      fileName: SGS - Bon de commande Générique AMIANTE rev 1123.xlsx
-      dataStructure: "FILE"
-      description: "Bordereau d'envoi SGS pour les prélèvement"
+orgaData: {}
 
 # FEATURES
 
@@ -231,10 +223,10 @@ features:
   scopeCreator:
     simpleMode:
       showEmpty: true
-      showGeneric: true
+      showGeneric: false
 
   presetScopes:
-    templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
+    fromAnnotationTemplatesLibraries: true
 
   # Krto creation configurations — card selector shown in the scope creator.
   # Data lives in src/Data/<orgaCode>/configurations/ (one js file per
@@ -244,7 +236,9 @@ features:
   # creation dialog (device preference "Gestion des configurations" off);
   # absent => every configuration.
   krtoConfigurations:
-    enabled: false
+    enabled: true
+    simpleModeKeys:
+      - PAGE_PLANCHE
 
   # Per-scope module activation (db.scopeConfigs). Modules enabled by
   # default for a scope without a row, besides the core Fonds de plan +
@@ -518,32 +512,6 @@ presetListingsObject:
     canCreateItem: true
     #annotationTemplatesListingKey: templates-1
 
-  issues:
-    key: issues
-    name: Observations (réception de support)
-    description: "Ex: Gaine annelée NC, fissure, eau stagnante,..."
-    entityModelKey: issue
-    table: entities
-    color: *red500
-    iconKey: info
-    sortBy:
-      key: num
-      order: desc
-    spriteImageKey: DEFAULT
-    annotationTemplatesListingKey: templates-1
-    canCreateItem: true
-
-  picObjects:
-    key: picObjects
-    name: Objets pour PIC
-    description: Barrière de chantier, roulotte, zone d'accès, etc.
-    entityModelKey: issue
-    table: entities
-    color: *green500
-    iconKey: shapes
-    annotationTemplatesListingKey: templates-2
-    canCreateItem: true
-
   photos:
     key: photos
     name: Photos
@@ -554,72 +522,6 @@ presetListingsObject:
     iconKey: photo
     comingSoon: true
 
-  templates-1:
-    key: templates-1
-    name: Bibliothèque d'annotations
-    entityModelKey: annotationTemplate
-    table: annotationTemplates
-    color: *blue700
-    iconKey: legend
-    spriteImageKey: DEFAULT
-    initialEntities:
-      sortedItems:
-        - type: MARKER
-          iconKey: ring
-          fillColor: *red500
-          label: Gaine annelée NC
-        - type: MARKER
-          iconKey: square
-          fillColor: *green500
-          label: Réservation NC
-        - type: MARKER
-          iconKey: drop
-          fillColor: *blue500
-          label: Présence d'eau stagnante
-        - type: MARKER
-          iconKey: triangle
-          fillColor: *deepPurple500
-          label: Support à poncer
-        - type: MARKER
-          iconKey: triangle
-          fillColor: *purple500
-          label: Fissure
-
-  templates-2:
-    key: templates-2
-    name: Bibliothèque PIC
-    entityModelKey: annotationTemplate
-    table: annotationTemplates
-    color: *blue700
-    iconKey: legend
-    spriteImageKey: DEFAULT
-    initialEntities:
-      sortedItems:
-        - type: RECTANGLE
-          fillColor: "#E6763F"
-          strokeColor: "#E6763F"
-          label: Roulotte de chantier
-          closeLine: true
-        - type: RECTANGLE
-          fillColor: "#4BA6F0"
-          strokeColor: "#4BA6F0"
-          label: WC de chantier
-          closeLine: true
-        - type: RECTANGLE
-          fillColor: "#489F64"
-          strokeColor: "#489F64"
-          label: Benne de déchets
-          closeLine: true
-        - type: POLYLINE
-          fillColor: "#E93E29"
-          strokeColor: "#E93E29"
-          label: Zone maintenue libre
-          closeLine: true
-        - type: POLYLINE
-          fillColor: "#3477BF"
-          strokeColor: "#3477BF"
-          label: Barrière de chantier
-
   blueprints:
     key: blueprints
     name: Exports
@@ -629,126 +531,6 @@ presetListingsObject:
     iconKey: blueprint
     canCreateItem: true
 
-# PRESET SCOPES
-
-presetScopesSortedKeys:
-  - reception
-  - pic
-  - other
-
-presetScopesObject:
-  all:
-    key: all
-    name: Toutes les listes
-    listings:
-      - picObjects
-      - issues
-      - freeAnnotations
-      - photos
-
-  pic:
-    key: pic
-    name: "PIC"
-    description: "Plan d'installations de chantier"
-    listings:
-      - picObjects
-      - photos
-
-  reception:
-    key: reception
-    name: Réception de support
-    description: Localisez des écarts avec des pastilles.
-    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reception_support.png
-    listings:
-      - issues
-      - photos
-
-  visit:
-    key: visit
-    name: Visite
-    description: Enregistrez vos observations au cours d'une visite
-    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_reperage_libre.png
-    listings:
-      - issues
-
-  other:
-    key: other
-    name: Autre
-    description: Autre type de plan de repérage
-    descriptionImageUrl: https://public.media.bimboxa.com/scope_template_etandex_vide.png
-
-# REPORT TABLES
-
-tables:
-  materialCategories:
-    name: "Nomenclature de matériaux"
-    description: "Tableau de la nomenclature des matériaux"
-    type: "NOMENCLATURE_BASED"
-    categoryKeyLabel:
-      # - key: "num"
-      #   label: "N°"
-      # - key: "label"
-      #   label: "Nom"
-      - key: "code"
-        label: "Code"
-
-  sampleMaterialZone:
-    name: "Prélèvement - Matériau - Pièce"
-    description: "Tableau des prélèvements (Prélevement | Matériau | Pièce)"
-    type: "ENTITIES_BASED"
-    columns:
-      - key: num
-        label: N°
-        description: "Numéro du prélèvement"
-        value:
-          type: "ENTITY_PROP"
-          entityFieldKey: num
-      - key: material
-        label: Matériau
-        description: "Matériau prélevé"
-        value:
-          type: "ENTITY_PROP"
-          entityFieldKey: material
-          entityFieldValue: fullLabelWithCategory
-      - key: zone
-        label: Pièce
-        description: "Pièce où le prélèvement a été effectué"
-        value:
-          type: "ENTITY_PROP"
-          entityFieldKey: zone
-          entityFieldValue: fullName
-
-  orderSamples:
-    name: "Echantillons (commandes)"
-    description: "Tableau d'échantillons pour les commandes"
-    type: "ENTITIES_PROPS_BASED"
-    columns:
-      - key: num
-        label: N°
-        description: N° du prélèvement
-        value:
-          type: "ENTITY_PROP"
-          entityFieldKey: num
-      - key: description
-        label: Description
-        description: "Catégorie + Ouvrages ou Composants de la construction + Partie d'ouvrages ou de composants à inspecter + descriptif technicien"
-        value:
-          type: "ENTITY_PROP"
-          entityFieldKey: material
-          entityFieldValue: fullNameWithCategory
-
-# REPORTS
-
-reports:
-  laboOrderReport:
-    strings:
-      createTitle: "Nouveau bordereau d'envoi"
-    name: "Bordereau d'envoi"
-    type: "EXCEL"
-    options:
-      - key: "SGS"
-        label: "Labo SGS"
-        templateKey: "reportTemplate1"
-      - key: "MY_EASY_LAB"
-        label: "My Easy Lab"
-        templateKey: "reportTemplate2"
+# Preset scopes are resolved from the public annotation library.
+presetScopesSortedKeys: []
+presetScopesObject: {}

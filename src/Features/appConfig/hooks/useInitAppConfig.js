@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import {
   setAppConfig,
@@ -26,8 +26,7 @@ export default function useInitAppConfig() {
 
   // data
 
-  //const configCode = useSelector((s) => s.appConfig.configCode);
-  const configCode = import.meta.env.VITE_CONFIG_CODE;
+  const configCode = import.meta.env.VITE_CONFIG_CODE?.trim() || "public";
 
   // helpers
 
@@ -37,7 +36,7 @@ export default function useInitAppConfig() {
 
     console.log("debug_1802 setAppConfig", appConfig, configCode);
     dispatch(setAppConfig(appConfig));
-    dispatch(setConfigCode(configCode));
+    dispatch(setConfigCode(appConfig.orgaCode ?? configCode));
   };
 
   useEffect(() => {
