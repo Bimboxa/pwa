@@ -728,7 +728,6 @@ export default function MainThreedEditor() {
   // sub-selection, drag = move (Shift locks).
   useCutLineVertexHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
-  useAnnotationLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
@@ -1063,6 +1062,8 @@ export default function MainThreedEditor() {
     threedEditor: threedEditorRef.current,
     rendererIsReady,
   });
+
+  useAnnotationLabelDragHandlers({ rendererIsReady, annotations });
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 

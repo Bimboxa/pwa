@@ -470,6 +470,15 @@ export default async function pasteAnnotationService({
         clonedAnnotation,
         imagePlacement(corners, { width, height })
       );
+      if (item.baseTargetPoint) {
+        const [anchor] = applyPasteTransformToPoints(
+          [item.baseTargetPoint], sourceCenter, targetCenter, transform
+        );
+        clonedAnnotation.targetPoint = { x: anchor.x / width, y: anchor.y / height };
+      } else {
+        const b = clonedAnnotation.bbox;
+        clonedAnnotation.targetPoint = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      }
       const record = imageFileRecord(item.imageAsset, clonedAnnotation);
       clonedAnnotation.image = record.image;
       imageFiles.push(record.file);

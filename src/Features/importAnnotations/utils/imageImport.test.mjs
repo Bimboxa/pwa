@@ -35,6 +35,12 @@ const payload = () => ({
       imageAssetId: "r",
       sourceOrder: 1,
       opacity: 0.5,
+      hasConnector: true,
+      targetPoint: { x: 0.05, y: 0.1 },
+      label: "Sink",
+      labelDescription: "Drain behind the left door",
+      imageLift3d: 1.2,
+      imageOrientation3d: "HORIZONTAL",
       points: [
         { x: 0.1, y: 0.2 },
         { x: 0.3, y: 0.2 },
@@ -194,4 +200,13 @@ test("paste transform rotates and mirrors the raster with the vector group", asy
   assert.equal(a.imageFlipY, true);
   assert.equal(a.bbox.width, 0.4);
   assert.equal(a.bbox.height, 0.4);
+  assert.equal(a.hasConnector, true);
+  assert.equal(a.label, "Sink");
+  assert.equal(a.labelDescription, "Drain behind the left door");
+  assert.equal(a.imageLift3d, 1.2);
+  assert.equal(a.imageOrientation3d, "HORIZONTAL");
+  // Mirroring and rotating preserves the physical distance to the attachment.
+  const dx = (a.targetPoint.x - (a.bbox.x + a.bbox.width / 2)) * 2000;
+  const dy = (a.targetPoint.y - (a.bbox.y + a.bbox.height / 2)) * 1000;
+  assert.ok(Math.abs(Math.hypot(dx, dy) - Math.hypot(600, 400)) < 1e-8);
 });

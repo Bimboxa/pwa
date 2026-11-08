@@ -225,6 +225,12 @@ export default function buildImportData({
 
     if (ann.type === "IMAGE") {
       item.baseImageCorners = toBasePoints(ann.points, pxPerNormX, pxPerNormY);
+      if (ann.targetPoint) {
+        [item.baseTargetPoint] = toBasePoints([ann.targetPoint], pxPerNormX, pxPerNormY);
+      }
+      for (const key of ["label", "labelDescription", "imageLift3d", "hasConnector", "imageOrientation3d"]) {
+        if (ann[key] !== undefined) annotation[key] = ann[key];
+      }
       item.imageAsset = data.imageAssets.find(
         (asset) => asset.id === ann.imageAssetId
       );

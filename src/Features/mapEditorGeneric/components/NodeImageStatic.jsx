@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import theme from "Styles/theme";
 
 import NodeImageToolbarOverlay from "./NodeImageToolbarOverlay";
+import { getImageConnectorGeometry } from "Features/imageAnnotations/utils/imageConnector";
 
 // Taille des poignées de redimensionnement (en pixels écran fixes)
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
@@ -81,6 +82,9 @@ export default memo(function NodeImageStatic({
   const cx = displayWidth / 2;
   const cy = displayHeight / 2;
   const rotation = imageAnnotation.rotation || 0;
+  const connector = imageAnnotation.hasConnector
+    ? getImageConnectorGeometry(imageAnnotation)
+    : null;
 
   // --- 2. RENDU DES POIGNÉES AVEC SCALE FIXE ---
   const renderHandle = (type, hx, hy) => (
@@ -180,6 +184,37 @@ export default memo(function NodeImageStatic({
   // --- RENDU ---
   return (
     <g style={{ opacity: dragged ? 0.7 : opacity }}>
+      {connector && (
+        <g>
+          {!connector.inside && (
+            <line
+              x1={connector.target.x}
+              y1={connector.target.y}
+              x2={connector.end.x}
+              y2={connector.end.y}
+              stroke="#333"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
+            />
+          )}
+          <g
+            transform={`translate(${connector.target.x}, ${connector.target.y})`}
+          >
+            <g style={{ transform: handleScaleTransform }}>
+              <circle
+                r={selected ? 6 : 4}
+                fill="#333"
+                stroke="white"
+                strokeWidth={1.5}
+                {...interactionProps}
+                data-part-type="TARGET"
+                style={{ cursor: "crosshair" }}
+              />
+            </g>
+          </g>
+        </g>
+      )}
       <g
         transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
       >
@@ -241,6 +276,23 @@ export default memo(function NodeImageStatic({
       </g>
 
       {/* Overlay toolbar (scale / change image) — outside the rotate group */}
+      {connector?.inside && selected && !dragged && (
+        <g
+          transform={`translate(${connector.target.x}, ${connector.target.y})`}
+        >
+          <g style={{ transform: handleScaleTransform }}>
+            <circle
+              r={6}
+              fill="#333"
+              stroke="white"
+              strokeWidth={1.5}
+              {...interactionProps}
+              data-part-type="TARGET"
+              style={{ cursor: "crosshair" }}
+            />
+          </g>
+        </g>
+      )}
       {selected && !dragged && !printMode && (
         <NodeImageToolbarOverlay
           annotation={imageAnnotation}

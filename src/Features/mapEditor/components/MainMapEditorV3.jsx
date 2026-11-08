@@ -2301,9 +2301,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         let nw = cw;
         let nh = ch;
 
-        const updates = {};
+        // IMAGE's attachment stays at its creation point when the photo moves.
+        const anchor = annotation.targetPoint ?? {
+          x: cx + cw / 2, y: cy + ch / 2,
+        };
+        const updates = { targetPoint: { x: anchor.x / bgW, y: anchor.y / bgH } };
 
-        if (partType === "ROTATE") {
+        if (partType === "TARGET") {
+          updates.targetPoint = {
+            x: (anchor.x + deltaPos.x) / bgW,
+            y: (anchor.y + deltaPos.y) / bgH,
+          };
+        } else if (partType === "ROTATE") {
           const sensitivity = 1;
           let newRotation = (currentRotation + deltaPos.x * sensitivity) % 360;
           if (newRotation < 0) newRotation += 360;

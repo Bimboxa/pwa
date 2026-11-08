@@ -37,6 +37,7 @@ import FieldAnnotationArrows from "./FieldAnnotationArrows";
 import FieldAnnotationFreeText from "./FieldAnnotationFreeText";
 import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 import FieldAnnotationImage from "./FieldAnnotationImage";
+import FieldImageAnnotationDetails from "Features/imageAnnotations/components/FieldImageAnnotationDetails";
 import FieldAnnotationOpacity from "./FieldAnnotationOpacity";
 
 // hideOverview: the hosting panel renders the preview / height / quantities
@@ -205,7 +206,12 @@ export default function SectionAnnotationPropertiesContent({
             overrideFields={overrideFields}
           />
         )}
-        {type === "IMAGE" && <FieldAnnotationImage annotation={annotation} />}
+        {type === "IMAGE" && (
+          <>
+            <FieldAnnotationImage annotation={annotation} />
+            <FieldImageAnnotationDetails annotation={annotation} />
+          </>
+        )}
         {type === "IMAGE" && <FieldAnnotationOpacity annotation={annotation} />}
         {/* COTE / RULER: the cote settings of this annotation (and the reset
             of a ruler's dragged value cards). */}

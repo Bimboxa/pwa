@@ -1,5 +1,6 @@
 import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
 import { CUT_AXIS_OVERSHOOT } from "Features/annotations/utils/revolutionAxisGlyph";
+import { getImageAnchorPoint } from "Features/imageAnnotations/utils/imageConnector";
 
 // Fold an angle into (-180, 180].
 const normalizeDeg = (deg) => {
@@ -33,8 +34,15 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
     if (_annotation.type === "IMAGE") {
         const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
         const currentRotation = _annotation.rotation || 0;
+        _annotation.targetPoint = getImageAnchorPoint(annotation);
 
-        if (partType === "ROTATE") {
+        if (partType === "TARGET") {
+            _annotation.targetPoint = {
+                x: _annotation.targetPoint.x + deltaPos.x,
+                y: _annotation.targetPoint.y + deltaPos.y,
+            };
+        }
+        else if (partType === "ROTATE") {
             _annotation.rotation = (currentRotation + deltaPos.x) % 360;
         }
 

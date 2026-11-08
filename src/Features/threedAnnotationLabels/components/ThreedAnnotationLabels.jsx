@@ -16,6 +16,11 @@ import createAnnotationLabelAnchorSprite from "../services/createAnnotationLabel
 import { setAnnotationLabelObjects } from "../services/annotationLabelObjectsStore";
 import getAnnotationLabelLiftM from "../utils/getAnnotationLabelLiftM";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
+import createImageAnnotationCard from "Features/imageAnnotations/services/createImageAnnotationCard";
+import {
+  getImageAnchorPoint,
+  getImageCardLift,
+} from "Features/imageAnnotations/utils/imageConnector";
 
 // Lift of the label objects off the annotation surface (meters) — keeps the
 // leader visible above the basemap texture / a flat annotation.
@@ -85,7 +90,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
     () =>
       (annotations || []).filter(
         (a) =>
-          a?.showLabel &&
+          (a?.showLabel || a?.type === "IMAGE") &&
           !a.hidden &&
           !a.isMeshCell &&
           !a.isBaseMapAnnotation &&
@@ -147,8 +152,16 @@ export default function ThreedAnnotationLabels({ annotations }) {
       // the next run of this effect.
       if (!baseMap || !parentGroup) return;
 
-      const labelProps = getAnnotationLabelPropsFromAnnotation(annotation);
-      if (!labelProps?.lines?.length) return;
+      const isImage = annotation.type === "IMAGE";
+      const b = annotation.bbox;
+      if (isImage && (!b || !annotation.image)) return;
+      const labelProps = isImage
+        ? {
+            labelPoint: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
+            targetPoint: getImageAnchorPoint(annotation),
+          }
+        : getAnnotationLabelPropsFromAnnotation(annotation);
+      if (!isImage && !labelProps?.lines?.length) return;
 
       // Annotation pixel coords are resolved in the REFERENCE frame (mirrors
       // AnnotationsManager's baseMapForRender).
@@ -161,9 +174,13 @@ export default function ThreedAnnotationLabels({ annotations }) {
 
       const label2 = pixelToWorld(labelProps.labelPoint, baseMapForRender);
       const target2 = pixelToWorld(labelProps.targetPoint, baseMapForRender);
-      const labelZ = getAnnotationLabelZ(annotation, { antiAliasingShrink });
+      const labelZ = isImage
+        ? (Number(annotation.offsetZ) || 0) + 0.01
+        : getAnnotationLabelZ(annotation, { antiAliasingShrink });
       // Card lift above the anchor (default 1 m, see getAnnotationLabelLiftM).
-      const liftM = getAnnotationLabelLiftM(annotation);
+      const liftM = isImage
+        ? getImageCardLift(annotation)
+        : getAnnotationLabelLiftM(annotation);
       const labelLocal = { x: label2.x, y: label2.y, z: labelZ + liftM };
       const targetLocal = { x: target2.x, y: target2.y, z: labelZ };
 
@@ -171,14 +188,20 @@ export default function ThreedAnnotationLabels({ annotations }) {
       // Visible-color rule shared with the 2D chip (labelProps.fillColor).
       const color = labelProps.fillColor || "#2196f3";
 
-      const sprite = createAnnotationLabelSprite({
-        lines: labelProps.lines,
-        annotationId: annotation.id,
-        color,
-        fontSizePreset: annotation.labelFontSize ?? "M",
-        labelWidth: labelProps.width ?? null,
-        selected: isSelected,
-      });
+      const sprite = isImage
+        ? createImageAnnotationCard(annotation, {
+            selected: isSelected,
+            meterByPx: baseMapForRender.meterByPx,
+            onLoaded: () => editor.sceneManager.renderScene?.(),
+          })
+        : createAnnotationLabelSprite({
+            lines: labelProps.lines,
+            annotationId: annotation.id,
+            color,
+            fontSizePreset: annotation.labelFontSize ?? "M",
+            labelWidth: labelProps.width ?? null,
+            selected: isSelected,
+          });
       if (!sprite) return;
 
       const group = new Group();
@@ -198,6 +221,8 @@ export default function ThreedAnnotationLabels({ annotations }) {
         targetLocal,
         liftM,
         leader: null,
+        imageSize: refSize,
+        hasConnector: !isImage || Boolean(annotation.hasConnector),
       });
 
       // Leader anchor → card, only when the two ends are apart (the default
@@ -209,7 +234,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
           labelLocal.y - targetLocal.y,
           labelLocal.z - targetLocal.z
         ) > 1e-6;
-      if (apart) {
+      if (apart && sprite.userData.hasConnector) {
         const leader = createMesh3dLabelLeader({
           from: targetLocal,
           to: labelLocal,
@@ -221,32 +246,45 @@ export default function ThreedAnnotationLabels({ annotations }) {
 
       // Fixed-size anchor marker at the leader's pointed end (always shown,
       // never raycast — the drag grip is the selected-only target handle).
-      const anchorDot = createAnnotationLabelAnchorSprite({
-        annotationId: annotation.id,
-      });
-      anchorDot.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
-      sprite.userData.anchorDot = anchorDot;
-      group.add(anchorDot);
-
-      // Target handle on the selected annotation only. Not for MARKER: in 2D
-      // a TARGET drag moves the marker's point itself — out of scope in 3D.
-      if (isSelected && annotation.type !== "MARKER") {
-        const handle = createMesh3dLabelTargetHandle({
-          mesh3dId: annotation.id,
-          color,
-        });
-        handle.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
-        Object.assign(handle.userData, {
+      if (sprite.userData.hasConnector) {
+        const anchorDot = createAnnotationLabelAnchorSprite({
           annotationId: annotation.id,
-          isAnnotationLabelTargetHandle: true,
-          labelSprite: sprite,
         });
-        group.add(handle);
-        targetHandles.push(handle);
+        anchorDot.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
+        sprite.userData.anchorDot = anchorDot;
+        group.add(anchorDot);
+
+        // Target handle on the selected annotation only. Not for MARKER: in 2D
+        // a TARGET drag moves the marker's point itself — out of scope in 3D.
+        if (isSelected && annotation.type !== "MARKER") {
+          const handle = createMesh3dLabelTargetHandle({
+            mesh3dId: annotation.id,
+            color,
+          });
+          handle.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
+          Object.assign(handle.userData, {
+            annotationId: annotation.id,
+            isAnnotationLabelTargetHandle: true,
+            labelSprite: sprite,
+          });
+          group.add(handle);
+          targetHandles.push(handle);
+        }
       }
 
       group.add(sprite);
-      parentGroup.add(group);
+      // IMAGE's empty managed root carries all visibility / solo filters.
+      // Keep its card underneath it rather than bypassing those filters.
+      const imageRoot = isImage
+        ? editor.sceneManager.annotationsManager?.annotationsObjectsMap?.[
+            annotation.id
+          ]
+        : null;
+      if (isImage && !imageRoot) {
+        disposeObject(group);
+        return;
+      }
+      (imageRoot ?? parentGroup).add(group);
       groupsRef.current.push(group);
       sprites.push(sprite);
     });

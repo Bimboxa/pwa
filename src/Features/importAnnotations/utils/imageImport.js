@@ -121,12 +121,23 @@ export function validateImageImport(doc) {
       )
         throw new Error("Invalid IMAGE opacity");
       if (
+        a.targetPoint &&
+        (!Number.isFinite(a.targetPoint.x) || !Number.isFinite(a.targetPoint.y))
+      )
+        throw new Error("Invalid IMAGE connector target");
+      if (a.imageLift3d !== undefined && !Number.isFinite(a.imageLift3d))
+        throw new Error("Invalid IMAGE lift");
+      if (
+        a.imageOrientation3d !== undefined &&
+        !["VERTICAL", "HORIZONTAL"].includes(a.imageOrientation3d)
+      )
+        throw new Error("Invalid IMAGE orientation");
+      if (
         a.closeLine ||
         a.cuts?.length ||
         a.openings?.length ||
         a.guideLines?.length ||
         a.labelPoint ||
-        a.targetPoint ||
         a.textContent
       )
         throw new Error("Invalid IMAGE geometry fields");

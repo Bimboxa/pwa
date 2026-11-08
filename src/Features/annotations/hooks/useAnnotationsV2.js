@@ -1673,6 +1673,14 @@ export default function useAnnotationsV2(options) {
               width: (annotation.bbox?.width ?? 0.5) * width,
               height: (annotation.bbox?.height ?? 0.5) * height,
             };
+            if (annotation.type === "IMAGE") {
+              const anchor = annotation.targetPoint ?? {
+                x: (annotation.bbox?.x ?? 0.25) + (annotation.bbox?.width ?? 0.5) / 2,
+                y: (annotation.bbox?.y ?? 0.25) + (annotation.bbox?.height ?? 0.5) / 2,
+              };
+              _annotation.targetPoint = { x: anchor.x * width, y: anchor.y * height };
+              _annotation.imageSize = { width, height };
+            }
           }
 
           // --- OTHER CASES

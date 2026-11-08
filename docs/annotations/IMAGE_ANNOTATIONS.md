@@ -55,15 +55,33 @@ bbox centre. No `db.points` row is involved (geometry kind `BBOX`, like
 
 ## 3D viewer
 
-`createAnnotationObject3D` has an `IMAGE` case (`createImageAnnotation3D`):
-a `PlaneGeometry` sized to the bbox footprint in metres, centred with
-`pixelToWorld`, rotated by `-rotation` about basemap-local Z (same pose as
-OBJECT_3D), lifted by `offsetZ` + 1 cm above the base map plane. The
-`MeshBasicMaterial` is transparent with `alphaTest` so PNG alpha cuts out the
-picture. The texture is loaded from `db.files` by `fileName` (fallback:
-`imageUrlClient`), cached per `fileName + fileUpdatedAt` and shared across
-rebuilds; the plane is returned hidden and shown through `onAsyncLoaded`.
+`createImageAnnotation3D` creates a managed root. `ThreedAnnotationLabels`
+attaches a camera-facing black photo card below it, preserving visibility
+filters and disposal. The card contains the image, label and `labelDescription`.
+`imageOrientation3d` selects `VERTICAL` (default, camera-facing sprite with a
+fixed world size) or `HORIZONTAL` (double-sided plane parallel to the base
+map, following its rotation). In both modes the photo's width and height match
+the 2D bbox converted to metres; perspective distance and zoom change its screen
+size. The photo touches the card edges, with padding only inside the caption
+containing the label and description. Position comes from the bbox centre and `imageLift3d` (metres
+above `offsetZ` + 1 cm, default 1 m for vertical cards, 0 for horizontal cards).
+Image bytes come from `db.files`, with `imageUrlClient` as fallback.
+
+The properties panel exposes `hasConnector` and `labelDescription`. The
+connector's `targetPoint` is an inline normalized coordinate, independent of
+the bbox and unrelated to `db.points`. Creation seeds it at the image centre;
+legacy rows fall back to their current centre until the first move. Moving,
+resizing or rotating the photo leaves this anchor fixed. In 2D, the leader
+ends at the rotated image border and the selected target can be dragged.
+
+Click the 3D card to select the IMAGE annotation, then drag to move it in the
+camera-facing plane (base map plane for horizontal cards). Hold Shift to constrain movement to the closest displayed
+X/Y/Z axis. Moving the target stays in the base map plane. Card movement writes
+the normalized bbox XY and `imageLift3d`; the anchor remains fixed. Escape or
+pointer cancellation restores the original position without saving. The same
+permission checks as 2D apply. Inline IMAGE imports preserve connector, label,
+description, orientation and lift and transform the target with the image during placement.
 
 `getEntityWithImagesAsync` keeps one object URL per file row so a hydrated
 IMAGE annotation keeps its identity between liveQuery runs (otherwise the 3D
-diff would rebuild the plane on every emission).
+diff would rebuild the card on every emission).

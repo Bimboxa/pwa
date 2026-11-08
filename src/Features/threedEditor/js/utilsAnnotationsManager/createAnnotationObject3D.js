@@ -1565,8 +1565,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "IMAGE": {
-      // Flat textured plane on the base map at the bbox footprint (texture
-      // loaded async, plane shown once ready — see createImageAnnotation3D).
+      // Managed root for the photo card in ThreedAnnotationLabels.
       object = createImageAnnotation3D(annotation, baseMap, options);
       break;
     }

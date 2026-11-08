@@ -918,6 +918,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     width: (rawPoints[1].x - rawPoints[0].x) / width,
                     height: (rawPoints[1].y - rawPoints[0].y) / height,
                 }
+                if (_newAnnotation.type === "IMAGE") {
+                    _newAnnotation.targetPoint = {
+                        x: _newAnnotation.bbox.x + _newAnnotation.bbox.width / 2,
+                        y: _newAnnotation.bbox.y + _newAnnotation.bbox.height / 2,
+                    };
+                }
             }
 
             if (

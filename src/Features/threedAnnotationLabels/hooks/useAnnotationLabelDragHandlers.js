@@ -4,6 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
+import { getImageCardMoveUpdates } from "Features/imageAnnotations/utils/imageConnector";
+import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
+import { setToaster } from "Features/layout/layoutSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import {
@@ -71,9 +74,16 @@ const round2 = (v) => Math.round(v * 100) / 100;
  *   persists it through getAnnotationLabelDeltaFromDeltaPos — the exact 2D
  *   commit path (MainMapEditorV3), so both views share the same labelDelta;
  *   the out-of-plane displacement goes to `labelLift3d` (meters).
+ * IMAGE cards select the annotation itself, save bbox/imageLift3d and leave
+ * their target fixed. Vertical photos move in the camera-facing plane;
+ * horizontal photos move in the basemap plane. Their axis lock requires Shift.
  */
-export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
+export default function useAnnotationLabelDragHandlers({
+  rendererIsReady,
+  annotations,
+}) {
   const dispatch = useDispatch();
+  const { canEditAnnotation } = useAnnotationPermissions({ annotations });
 
   // Modes that own the pointer (same list as useMesh3dLabelDragHandlers).
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
@@ -145,7 +155,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       const canvasSize = { width: rect.width, height: rect.height };
       const { origin, direction } = raycaster.ray;
       let best = null;
-      let bestDist = AXIS_THRESHOLD_PX;
+      let bestDist = drag.isImage ? Infinity : AXIS_THRESHOLD_PX;
       for (const ax of drag.axes) {
         const pt = closestPointOnAxis(origin, direction, drag.startHit, ax.dir);
         if (!pt) continue;
@@ -188,10 +198,23 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       drag.axis = axis;
     }
 
-    function endDrag() {
+    function restoreDrag(drag) {
+      if (!drag || drag.clickOnly) return;
+      drag.dragged.position.copy(drag.startLocal);
+      if (drag.kind === "TARGET")
+        drag.sprite.userData.anchorDot?.position.copy(drag.startLocal);
+      setMesh3dLabelLeaderEnds(
+        drag.leader,
+        drag.kind === "TARGET" ? drag.startLocal : drag.fixedEnd,
+        drag.kind === "LABEL" ? drag.startLocal : drag.fixedEnd
+      );
+    }
+
+    function endDrag(cancel = false) {
       const drag = dragRef.current;
       dragRef.current = null;
       if (drag) {
+        if (cancel) restoreDrag(drag);
         const controls = sceneManager.controlsManager?.orbitControls;
         if (controls && drag.prevControlsEnabled) controls.enabled = true;
         if (drag.tempLeader) {
@@ -205,7 +228,17 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       window.removeEventListener("pointermove", onWindowPointerMove);
       window.removeEventListener("pointerup", onWindowPointerUp);
       window.removeEventListener("pointercancel", onWindowPointerCancel);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("blur", onWindowPointerCancel);
       return drag;
+    }
+
+    function isVisible(object) {
+      for (let parent = object; parent; parent = parent.parent) {
+        if (!parent.visible) return false;
+        if (parent === sceneManager.scene) return true;
+      }
+      return false;
     }
 
     function onPointerDown(e) {
@@ -215,13 +248,13 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
       // Target handles first: they are smaller than the card and may overlap
       // it (both ends sit on the barycenter until one is moved).
-      const handles = getAnnotationLabelTargetHandles();
+      const handles = getAnnotationLabelTargetHandles().filter(isVisible);
       let kind = "TARGET";
       let dragged = handles.length
         ? raycaster.intersectObjects(handles, false)[0]?.object
         : null;
       if (!dragged) {
-        const sprites = getAnnotationLabelSprites();
+        const sprites = getAnnotationLabelSprites().filter(isVisible);
         if (!sprites.length) return;
         kind = "LABEL";
         dragged = raycaster.intersectObjects(sprites, false)[0]?.object;
@@ -235,7 +268,10 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
       // Unselected label: the gesture is click-only (selection on pointerup,
       // no drag, camera controls stay free) — same rule as the 2D editor.
-      const clickOnly = selectedAnnotationIdRef.current !== annotationId;
+      const clickOnly =
+        selectedAnnotationIdRef.current !== annotationId ||
+        !canEditAnnotation(annotationId, { silent: true });
+      const isImage = Boolean(sprite.userData.isImageAnnotationCard);
 
       // The card owns the gesture from here on (the pointerup pick paths are
       // told to stand down, see mesh3dLabelGestureStore). Selection is
@@ -248,9 +284,15 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       const planeNormal = new Vector3(0, 0, 1).transformDirection(
         group.matrixWorld
       );
+      const moveNormal =
+        isImage &&
+        sprite.userData.imageOrientation3d !== "HORIZONTAL" &&
+        kind === "LABEL"
+          ? camera.getWorldDirection(new Vector3())
+          : planeNormal;
       const startWorld = dragged.getWorldPosition(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
-        planeNormal,
+        moveNormal,
         startWorld
       );
       const startHit = pickOnPlane(e, plane);
@@ -279,6 +321,8 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
       dragRef.current = {
         kind,
+        isImage,
+        pointerId: e.pointerId,
         partType: kind === "LABEL" ? "LABEL_BOX" : "TARGET",
         clickOnly,
         annotationId,
@@ -306,13 +350,15 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       window.addEventListener("pointermove", onWindowPointerMove);
       window.addEventListener("pointerup", onWindowPointerUp);
       window.addEventListener("pointercancel", onWindowPointerCancel);
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("blur", onWindowPointerCancel);
 
       if (!clickOnly) e.preventDefault();
     }
 
     function onWindowPointerMove(e) {
       const drag = dragRef.current;
-      if (!drag || !drag.startHit) return;
+      if (!drag || e.pointerId !== drag.pointerId || !drag.startHit) return;
       if (!drag.moved) {
         const dx = Math.abs(e.clientX - drag.startClient.x);
         const dy = Math.abs(e.clientY - drag.startClient.y);
@@ -326,7 +372,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
       // Axis lock first (through the cursor's grab point, so the card keeps
       // its grab offset), else free move in the basemap plane.
-      const axisHit = pickOnAxes(e, drag);
+      const axisHit = !drag.isImage || e.shiftKey ? pickOnAxes(e, drag) : null;
       const hit = axisHit?.position ?? pickOnPlane(e, drag.plane);
       if (!hit) return;
       updateAxisLine(drag, axisHit?.axis ?? null);
@@ -355,7 +401,12 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
 
       // Leader line: reuse the one built by ThreedAnnotationLabels, or add a
       // temporary one when both ends still sat on the same point.
-      if (!drag.leader && !drag.tempLeader && drag.dragged.parent) {
+      if (
+        drag.sprite.userData.hasConnector &&
+        !drag.leader &&
+        !drag.tempLeader &&
+        drag.dragged.parent
+      ) {
         drag.tempLeader = createMesh3dLabelLeader({
           from: drag.fixedEnd,
           to: position,
@@ -375,6 +426,7 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
     }
 
     async function onWindowPointerUp(e) {
+      if (dragRef.current?.pointerId !== e.pointerId) return;
       const drag = endDrag();
       dom.style.cursor = "";
       // Released after the canvas-level pointerup listeners have run.
@@ -390,14 +442,24 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       // Always a single replace: a label never joins a multi-selection.
       const { annotationType, listingId, annotationTemplateId } =
         drag.sprite.userData;
-      const item = buildAnnotationLabelSelectionItem({
-        annotation: {
-          id: drag.annotationId,
-          type: annotationType,
-          listingId,
-          annotationTemplateId,
-        },
-      });
+      const item = drag.isImage
+        ? {
+            id: drag.annotationId,
+            nodeId: drag.annotationId,
+            nodeType: "ANNOTATION",
+            type: "NODE",
+            annotationType,
+            listingId,
+            annotationTemplateId,
+          }
+        : buildAnnotationLabelSelectionItem({
+            annotation: {
+              id: drag.annotationId,
+              type: annotationType,
+              listingId,
+              annotationTemplateId,
+            },
+          });
       const position = { x: e.clientX, y: e.clientY };
       dispatch(
         setSelectedNode({
@@ -422,6 +484,22 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
         };
         const annotation = await db.annotations.get(drag.annotationId);
         if (!annotation) return;
+        if (!canEditAnnotation(drag.annotationId)) {
+          restoreDrag(drag);
+          return;
+        }
+        if (drag.isImage) {
+          const changes = getImageCardMoveUpdates(
+            annotation,
+            drag.deltaLocal,
+            drag.sprite.userData.imageSize,
+            drag.meterByPx,
+            drag.kind === "TARGET"
+          );
+          if (changes) await db.annotations.update(drag.annotationId, changes);
+          dispatch(triggerAnnotationsUpdate());
+          return;
+        }
         const labelDelta = getAnnotationLabelDeltaFromDeltaPos(
           annotation,
           deltaPos,
@@ -436,6 +514,14 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
         await db.annotations.update(drag.annotationId, changes);
         dispatch(triggerAnnotationsUpdate());
       } catch (err) {
+        restoreDrag(drag);
+        sceneManager.renderScene?.();
+        dispatch(
+          setToaster({
+            message: "Le déplacement n’a pas pu être enregistré.",
+            isError: true,
+          })
+        );
         console.error(
           "[threedAnnotationLabels] label delta persist failed",
           err
@@ -444,9 +530,13 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
     }
 
     function onWindowPointerCancel() {
-      endDrag();
+      endDrag(true);
       dom.style.cursor = "";
       setMesh3dLabelGestureActive(false);
+    }
+
+    function onKeyDown(e) {
+      if (e.key === "Escape") onWindowPointerCancel();
     }
 
     // Capture phase so the hit-test runs before the camera controls' own
@@ -455,8 +545,9 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
     dom.addEventListener("pointerdown", onPointerDown, true);
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown, true);
-      endDrag();
+      endDrag(true);
+      dom.style.cursor = "";
       setMesh3dLabelGestureActive(false);
     };
-  }, [rendererIsReady, dispatch]);
+  }, [rendererIsReady, dispatch, canEditAnnotation]);
 }
