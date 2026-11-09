@@ -45,8 +45,6 @@ export default function SectionPromptIaRequest({
   const downloadS = "Télécharger le zip";
   const followUpS =
     "Déposez ensuite le zip renvoyé dans la colonne de gauche (étape 3).";
-  const missingDescriptionS =
-    "Décrivez le Krto ci-dessus pour préparer le zip.";
 
   // data
 
@@ -68,8 +66,6 @@ export default function SectionPromptIaRequest({
     label: entry.path,
     sizeBytes: entry.file.size,
   }));
-  const missingDescription = !input.description.trim();
-
   // render
 
   return (
@@ -122,9 +118,6 @@ export default function SectionPromptIaRequest({
             label={downloadS}
             followUp={followUpS}
           >
-            {missingDescription && (
-              <Alert severity="info">{missingDescriptionS}</Alert>
-            )}
             {input.downloaded?.unreadablePdfs?.length > 0 && (
               <Alert severity="warning">
                 {`PDF illisible(s), joint(s) tel(s) quel(s) : ${input.downloaded.unreadablePdfs.join(", ")}`}
