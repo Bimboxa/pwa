@@ -3,17 +3,13 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
-import {
-  getRingSegmentFlagPointIds,
-  segmentPointIdsToIdx,
-  getAnnotationRingClosed,
-} from "Features/annotations/utils/segmentFlags";
 
 import getProfileSectionUp, {
   isUprightSectionUp,
   toSectionSample,
 } from "../utils/getProfileSectionUp";
 import getProfileSourceSignature from "../utils/getProfileSourceSignature";
+import readProfileSourceDrawing from "../utils/readProfileSourceDrawing";
 
 // Draws a profileLine on the target POLYLINE from a SOURCE annotation flagged
 // `isProfile` (a COMPLETELY FREE polyline drawn on an elevation drawing — Z /
@@ -109,14 +105,8 @@ export default async function applyProfileFromAnnotationService({
   const src = await db.annotations.get(sourceAnnotationId);
   if (!src) return null;
   const srcBaseMap = await db.baseMaps.get(src.baseMapId);
-  const srcImageSize = srcBaseMap?.image?.imageSize;
-  // Unscaled source drawings fall back to the target scale (1 px = 1 px).
-  const srcMeterByPx = srcBaseMap?.meterByPx || meterByPx;
-  if (!srcImageSize?.width || !srcImageSize?.height) return null;
-
-  const srcRefs = src.points ?? [];
   const srcRows = await db.points.bulkGet(
-    srcRefs.map((p) => p?.id).filter(Boolean)
+    (src.points ?? []).map((p) => p?.id).filter(Boolean)
   );
   // Fingerprint of the source as read here (stored on the line for the sync).
   const sourceSignature = getProfileSourceSignature({
@@ -124,78 +114,13 @@ export default async function applyProfileFromAnnotationService({
     srcRows,
     srcBaseMap,
   });
-  const srcPts = srcRefs
-    .map((ref, i) => {
-      const p = srcRows[i];
-      if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) return null;
-      return {
-        x: p.x * srcImageSize.width,
-        y: p.y * srcImageSize.height,
-        // preserve arc control points (S-C-S) — the section curve supports
-        // them natively
-        type: ref?.type === "circle" ? "circle" : "square",
-        isBasePoint: Boolean(ref?.isBasePoint),
-      };
-    })
-    .filter(Boolean);
-  if (srcPts.length < 2) return null;
-
-  // Registration origin: the "Point de référence" vertex (may live on a
-  // hidden spacer segment). Fallback: first vertex x / lowest vertex y.
-  const refPt = srcPts.find((p) => p.isBasePoint) ?? null;
-  const xRef = refPt ? refPt.x : srcPts[0].x;
-  const yRef = refPt ? refPt.y : Math.max(...srcPts.map((p) => p.y));
-
-  // Drop hidden segments: keep the LONGEST visible run of consecutive
-  // segments (the drawn shape must stay one polyline). Read id-aware (the raw
-  // row may be migrated — segmentFlags.js) and re-key against the FILTERED
-  // refs so srcPts indices line up even when orphaned refs were dropped.
-  const srcRingClosed = getAnnotationRingClosed(src);
-  const keptSrcRefs = srcRefs.filter((ref, i) => {
-    const p = srcRows[i];
-    return Number.isFinite(p?.x) && Number.isFinite(p?.y);
-  });
-  const srcHiddenIds = getRingSegmentFlagPointIds(
-    src,
-    "hiddenSegmentsIdx",
-    "hiddenSegmentsPointIds",
-    srcRefs,
-    { closed: srcRingClosed }
-  );
-  const hiddenSet = new Set(
-    srcHiddenIds == null
-      ? []
-      : segmentPointIdsToIdx(srcHiddenIds, keptSrcRefs, {
-          closed: srcRingClosed,
-        })
-  );
-  // A closed source (circle / closed polyline) stays closed only when nothing
-  // was hidden — hiding a segment cuts the loop into an open run.
-  const srcClosed = !!src.closeLine;
-  let visiblePts = srcPts;
-  if (hiddenSet.size) {
-    const runs = [];
-    let run = null;
-    for (let i = 0; i < srcPts.length - 1; i += 1) {
-      if (hiddenSet.has(i)) {
-        run = null;
-        continue;
-      }
-      if (!run) {
-        run = { start: i, end: i + 1, length: 0 };
-        runs.push(run);
-      }
-      run.end = i + 1;
-      run.length += Math.hypot(
-        srcPts[i + 1].x - srcPts[i].x,
-        srcPts[i + 1].y - srcPts[i].y
-      );
-    }
-    if (!runs.length) return null;
-    const best = runs.reduce((a, b) => (b.length > a.length ? b : a));
-    visiblePts = srcPts.slice(best.start, best.end + 1);
-  }
-  if (visiblePts.length < 2) return null;
+  // Vertices, registration origin and the longest visible run — shared with
+  // the menu thumbnails (readProfileSourceDrawing).
+  const drawing = readProfileSourceDrawing({ src, srcRows, srcBaseMap });
+  if (!drawing) return null;
+  const { visiblePts, xRef, yRef } = drawing;
+  // Unscaled source drawings fall back to the target scale (1 px = 1 px).
+  const srcMeterByPx = drawing.meterByPx || meterByPx;
 
   // --- plan placement: along the seed segment's normal through its midpoint.
   // The registration origin (s = 0, i.e. the base point) is placed ON an
@@ -284,7 +209,7 @@ export default async function applyProfileFromAnnotationService({
     // Closed cross-section (circle…): the section renderer draws the closing
     // segment / arc back to the first vertex. Only when the whole loop survives
     // (no hidden slicing).
-    ...(srcClosed && visiblePts === srcPts ? { closeLine: true } : {}),
+    ...(drawing.closed ? { closeLine: true } : {}),
     sourceAnnotationId,
     sourceInvert: Boolean(invert),
     mirror: Boolean(mirror),

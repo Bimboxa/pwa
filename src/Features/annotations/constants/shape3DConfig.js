@@ -9,8 +9,13 @@
 //
 // Keyed by annotation TYPE (not drawingShape) so types that share a drawing
 // tool can diverge later (e.g. STRIP vs POLYLINE). The static entries below
-// list the per-type built-in shapes; dynamic shapes (profiles) are sourced
-// at runtime by `Shape3DSelector` and added to the menu directly.
+// list the per-type built-in shapes; the axis-driven REVOLUTION section is
+// sourced at runtime by `Shape3DSelector`.
+//
+// EXTRUSION_PROFILE (a profile TEMPLATE swept along the line) is no longer
+// assignable from the menu — the selectors offer the scope's profile
+// DRAWINGS as inline profile lines instead (« Ajouter un profil »). The key
+// stays for the rows that still carry it (3D build, quantities).
 
 // REVOLUTION is no longer a static self-axis option: it is now driven by a
 // referenced REVOLUTION_AXIS annotation (shape3D = { key: "REVOLUTION",
@@ -55,10 +60,6 @@ export const SHAPE_3D_KEYS = {
   SHELL_TENT: "SHELL_TENT",
   DISC_DOME: "DISC_DOME",
 };
-
-// Annotation types that support EXTRUSION_PROFILE (dynamic profile shapes).
-// The selector adds the dynamic "Profils" section only for these types.
-export const TYPES_SUPPORTING_PROFILES = ["POLYLINE", "STRIP"];
 
 export function getShape3DOptionsForType(annotationType) {
   return SHAPE_3D_CONFIG[annotationType] ?? [];
