@@ -35,6 +35,8 @@ export default function SectionKrtoPreview({
   readOnly = false,
   helper,
   emptyLabel,
+  // replaces the illustration slot (Prompt IA: the request card)
+  sideNode = null,
 }) {
   // strings
 
@@ -246,51 +248,67 @@ export default function SectionKrtoPreview({
           ))}
         </Box>
 
-        {/* illustration — right, one image per configuration */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            m: 2,
-            ml: 0,
-            minWidth: 0,
-            minHeight: 0,
-            borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            ...(!imageUrl && hatchedIllustrationSx),
-          }}
-        >
-          {imageUrl ? (
-            <Box
-              component="img"
-              src={imageUrl}
-              alt={imageAlt ?? ""}
-              loading="lazy"
-              decoding="async"
-              sx={{ width: 1, height: 1, objectFit: "contain" }}
-            />
-          ) : imageLoading ? (
-            <CircularProgress size={20} color="secondary" />
-          ) : (
-            code && (
-              <Typography
-                sx={{
-                  fontFamily: "monospace",
-                  fontSize: 13,
-                  letterSpacing: "0.2em",
-                  color: "text.secondary",
-                }}
-              >
-                {code}
-              </Typography>
-            )
-          )}
-        </Box>
+        {/* right slot — the side node when given, else the illustration
+            (one image per configuration) */}
+        {sideNode ? (
+          <Box
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              minHeight: 0,
+              overflow: "auto",
+              p: 2,
+              pl: 0,
+            }}
+          >
+            {sideNode}
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              flexGrow: 1,
+              m: 2,
+              ml: 0,
+              minWidth: 0,
+              minHeight: 0,
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              ...(!imageUrl && hatchedIllustrationSx),
+            }}
+          >
+            {imageUrl ? (
+              <Box
+                component="img"
+                src={imageUrl}
+                alt={imageAlt ?? ""}
+                loading="lazy"
+                decoding="async"
+                sx={{ width: 1, height: 1, objectFit: "contain" }}
+              />
+            ) : imageLoading ? (
+              <CircularProgress size={20} color="secondary" />
+            ) : (
+              code && (
+                <Typography
+                  sx={{
+                    fontFamily: "monospace",
+                    fontSize: 13,
+                    letterSpacing: "0.2em",
+                    color: "text.secondary",
+                  }}
+                >
+                  {code}
+                </Typography>
+              )
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   );

@@ -33,7 +33,8 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useScopes from "Features/scopes/hooks/useScopes";
 
 import SectionKrtoPreview from "./SectionKrtoPreview";
-import SectionPromptIaScope from "./SectionPromptIaScope";
+import SectionPromptIaRequest from "./SectionPromptIaRequest";
+import SectionPromptIaResult from "./SectionPromptIaResult";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import InputBaseBand from "Features/layout/components/InputBaseBand";
@@ -206,7 +207,9 @@ export default function DialogKrtoRecap({
     : ["DPGF", "CARNET_DETAIL"];
 
   // Prompt IA configuration: the base maps / source sections give way to the
-  // Prompt IA card, the templates panel previews the AI's answer.
+  // dropped-zip card (left), the illustration to the request card (right:
+  // description, attachments, zip for the chat), the templates panel
+  // previews the AI's answer.
   const isPromptIa = configuration?.kind === "PROMPT_IA";
 
   // helpers — annotation libraries (+ the Carnet de détail option's library,
@@ -923,8 +926,7 @@ export default function DialogKrtoRecap({
             </WhiteSectionGeneric>
 
             {isPromptIa ? (
-              <SectionPromptIaScope
-                projectId={projectId}
+              <SectionPromptIaResult
                 scopeName={scopeName}
                 disabled={isCreating}
                 onOutputChange={onPromptIaOutputChange}
@@ -1005,6 +1007,15 @@ export default function DialogKrtoRecap({
           readOnly={isPromptIa}
           helper={isPromptIa ? promptIaHelperS : undefined}
           emptyLabel={isPromptIa ? promptIaEmptyS : undefined}
+          sideNode={
+            isPromptIa ? (
+              <SectionPromptIaRequest
+                projectId={projectId}
+                scopeName={scopeName}
+                disabled={isCreating}
+              />
+            ) : null
+          }
           onRemoveLibrary={(key) =>
             onExcludedLibraryKeysChange([...(excludedLibraryKeys ?? []), key])
           }
