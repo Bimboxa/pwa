@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 import { Box, Dialog, IconButton, Tooltip, Typography } from "@mui/material";
 import CenterFocusStrong from "@mui/icons-material/CenterFocusStrong";
 import Close from "@mui/icons-material/Close";
@@ -20,9 +18,8 @@ export default function DialogImageViewer({ open, onClose, src, title }) {
 
   // state
 
-  const stageRef = useRef(null);
-  const { cssTransform, isIdentity, panning, reset, handlers } =
-    useZoomPanTransform({ stageRef, minK: 1, maxK: 20 });
+  const { stageRef, cssTransform, isIdentity, panning, reset, handlers } =
+    useZoomPanTransform({ minK: 1, maxK: 20 });
 
   // render
 

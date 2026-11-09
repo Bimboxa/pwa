@@ -2,21 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // useZoomPanTransform — wheel zoom (anchored on the cursor) + drag pan of an
-// element filling `stageRef`, as a CSS transform `translate(tx,ty) scale(k)`
+// element filling the stage, as a CSS transform `translate(tx,ty) scale(k)`
 // with transform-origin 0 0. Same wheel formula as LocalScanSlicePreview.
-// `reset()` returns to the identity.
+// `reset()` returns to the identity. The stage is given through the returned
+// `stageRef` CALLBACK ref (not a ref object): a dialog mounts its content
+// only once open, so the wheel listener must follow the element's mount
+// rather than the hook's.
 // ---------------------------------------------------------------------------
 
 const WHEEL_SENSITIVITY = 0.002;
 const WHEEL_CLAMP = 200;
 
-export default function useZoomPanTransform({
-  stageRef,
-  minK = 1,
-  maxK = 20,
-} = {}) {
+export default function useZoomPanTransform({ minK = 1, maxK = 20 } = {}) {
   const [transform, setTransform] = useState({ k: 1, tx: 0, ty: 0 });
   const [panning, setPanning] = useState(false);
+  const [stageEl, setStageEl] = useState(null);
   const panRef = useRef(null);
 
   const clampK = useCallback(
@@ -42,8 +42,8 @@ export default function useZoomPanTransform({
 
   // Non-passive wheel listener: the dialog must not scroll behind.
   useEffect(() => {
-    const el = stageRef?.current;
-    if (!el) return;
+    const el = stageEl;
+    if (!el) return undefined;
     const onWheel = (e) => {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
@@ -56,7 +56,7 @@ export default function useZoomPanTransform({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [stageRef, zoomAt]);
+  }, [stageEl, zoomAt]);
 
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0) return;
@@ -87,6 +87,7 @@ export default function useZoomPanTransform({
     transform.k === 1 && transform.tx === 0 && transform.ty === 0;
 
   return {
+    stageRef: setStageEl,
     transform,
     cssTransform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.k})`,
     isIdentity,
