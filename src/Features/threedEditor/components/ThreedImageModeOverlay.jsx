@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import useMeasure from "react-use-measure";
@@ -8,6 +9,8 @@ import ImageModeOverlay from "Features/mapEditor/components/ImageModeOverlay";
 import ButtonCloseImageMode from "Features/mapEditor/components/ButtonCloseImageMode";
 import useThreedLegendItems from "../hooks/useThreedLegendItems";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
+import useThreedImageAnchorProjector from "../hooks/useThreedImageAnchorProjector";
 import { selectPovFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
 // 3D counterpart of the 2D image-mode mount in MainMapEditorV3: capture mask +
@@ -33,6 +36,12 @@ export default function ThreedImageModeOverlay({ annotations }) {
     includeHiddenInLegend: true,
   });
   const spriteImage = useAnnotationSpriteImage();
+  // Photos (ex situ capture tiles) + their anchor projector.
+  const imageAnnotations = useMemo(
+    () => getImageAnnotationsDisplayIndex(annotations).images,
+    [annotations]
+  );
+  const anchorProjector = useThreedImageAnchorProjector();
 
   // Measures the wrapper Box, which fills MainThreedEditor's relative
   // container — same dimensions as the WebGL canvas viewport.
@@ -58,6 +67,8 @@ export default function ThreedImageModeOverlay({ annotations }) {
         legendItems={legendItems}
         spriteImage={spriteImage}
         qtiesById={qtiesById}
+        imageAnnotations={imageAnnotations}
+        anchorProjector={anchorProjector}
       />
       {/* Export rapide only — the POV and capture-tool save bars carry
           their own X */}

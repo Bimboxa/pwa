@@ -20,6 +20,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import PanelPovFilters from "Features/pov/components/PanelPovFilters";
 import SectionPovCadrage from "Features/pov/components/SectionPovCadrage";
 import SectionCaptureLabels from "./SectionCaptureLabels";
+import SectionCaptureImages from "./SectionCaptureImages";
 import SectionCaptureTitleBlock from "./SectionCaptureTitleBlock";
 import SectionCaptureExport from "./SectionCaptureExport";
 import ToolbarCaptureCondensed from "./ToolbarCaptureCondensed";
@@ -158,6 +159,10 @@ export default function PanelCaptureTool() {
               <SectionCaptureLabels />
             </WhiteSectionGeneric>
           )}
+          {/* photos: in situ / ex situ tiles zone (2D and 3D) */}
+          <WhiteSectionGeneric>
+            <SectionCaptureImages />
+          </WhiteSectionGeneric>
         </SectionPovCadrage>
       )}
 

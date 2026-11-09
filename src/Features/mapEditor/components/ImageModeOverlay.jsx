@@ -29,6 +29,11 @@ import { Edit } from "@mui/icons-material";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import CaptureTitleBlockOverlay from "./CaptureTitleBlockOverlay";
+import CaptureImagesOverlay from "./CaptureImagesOverlay";
+import {
+  selectImagesDisplayMode,
+  selectImagesLinkStyle,
+} from "Features/popperImages/popperImagesSlice";
 import DialogEditCaptureLegend from "./DialogEditCaptureLegend";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
@@ -60,10 +65,26 @@ export default function ImageModeOverlay({
   legendItems,
   spriteImage,
   qtiesById,
+  // Photos (IMAGE annotations) displayed by the host, in display order, and
+  // the host's anchor projector (client px) — CaptureImagesOverlay draws
+  // them as floating tiles when PopperImages is in "Ex situ".
+  imageAnnotations,
+  anchorProjector,
 }) {
   const dispatch = useDispatch();
 
   // data
+
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imagesOverlayVisible = useSelector((s) =>
+    Boolean(s.mapEditor.imageModeImagesOverlay?.visible)
+  );
+  const svgRef = useRef(null);
+  const getSvgRect = useCallback(
+    () => svgRef.current?.getBoundingClientRect() ?? null,
+    []
+  );
 
   // Resolved ratio (preset key or the base map's numeric ratio for the
   // "BASE_MAP" option) — the watermark below keys on the raw preset string.
@@ -268,6 +289,7 @@ export default function ImageModeOverlay({
 
   return (
     <svg
+      ref={svgRef}
       width={viewportWidth}
       height={viewportHeight}
       style={{
@@ -402,6 +424,28 @@ export default function ImageModeOverlay({
       {captureToolActive && showTitleBlock && (
         <CaptureTitleBlockOverlay rect={rect} />
       )}
+
+      {/* PHOTOS ZONE (ex situ tiles inside the capture rect), under the
+          legend so the legend stays readable over it. */}
+      {imagesDisplayMode === "EX_SITU" &&
+        imagesOverlayVisible &&
+        imageAnnotations?.length > 0 && (
+          <CaptureImagesOverlay
+            rect={rect}
+            images={imageAnnotations}
+            linkStyle={imagesLinkStyle}
+            anchorProjector={anchorProjector}
+            getSvgRect={getSvgRect}
+            captureToolActive={captureToolActive}
+            legendDefaultBottom={
+              overlay.visible !== false &&
+              overlay.x == null &&
+              overlay.y == null
+                ? legendHeight + 12
+                : 0
+            }
+          />
+        )}
 
       {/* LEGEND OVERLAY (inside the capture rect) */}
       {overlay.visible !== false && (

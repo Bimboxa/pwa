@@ -181,6 +181,19 @@ const mapEditorInitialState = {
     visible: true,
     hardCodedQtiesById: {}, // { [templateId]: number } manual qty overrides (session-only)
   },
+  // Photos zone (PopperImages "Ex situ" honoured by the capture): the tiles
+  // of the IMAGE annotations float over the plan inside the capture rect,
+  // px relative to the rect. x/y/width null → resolved at render (right
+  // column, under the legend's default spot, 30% of the rect wide); the
+  // user dragging pins them. Session only, like the legend overlay.
+  imageModeImagesOverlay: {
+    x: null,
+    y: null,
+    width: null,
+    columns: 2,
+    gap: 8,
+    visible: true,
+  },
   // Legend rows mirrored by ImageModeOverlay ({ id, label, computedValue,
   // unit, computedLabel }) so the "Quantités manuelles" panel section can
   // edit overrides without recomputing the 2D/3D legend data.
@@ -592,6 +605,9 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeLegendQtyRows: (state, action) => {
       state.imageModeLegendQtyRows = action.payload;
+    },
+    setImageModeImagesOverlay: (state, action) => {
+      state.imageModeImagesOverlay = action.payload;
     },
     setImageModeHighRes: (state, action) => {
       state.imageModeHighRes = action.payload;
@@ -1151,6 +1167,7 @@ export const {
   setImageModePageFormat,
   setImageModeLegendOverlay,
   setImageModeLegendQtyRows,
+  setImageModeImagesOverlay,
   setImageModeHighRes,
   setImageModeShowWatermark,
   setImageModeShowLogo,
