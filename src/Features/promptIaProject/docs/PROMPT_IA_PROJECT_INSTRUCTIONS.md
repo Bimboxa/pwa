@@ -229,6 +229,11 @@ Clé racine `scopes`, un élément par scope.
   modèle sont propres à leur liste.
 - Une liste peut n'avoir que des modèles, sans annotation : l'utilisateur
   dessinera lui-même.
+- **Pas de calques.** L'application en possède, mais tu ne les utilises
+  jamais : aucun champ `layer`, `layerId` ou `layers` sur les scopes, les
+  listes, les modèles ou les annotations (ils seraient ignorés). Pour
+  séparer des familles d'éléments (par niveau, par lot, par nature), crée
+  **plusieurs listes** de modèles d'annotations.
 
 ## Annotations
 
