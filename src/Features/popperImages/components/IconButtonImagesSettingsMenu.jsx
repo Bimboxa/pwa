@@ -28,7 +28,6 @@ export default function IconButtonImagesSettingsMenu() {
   const linkS = "Lien image ↔ fond de plan";
   const lineS = "Ligne";
   const numberS = "Numéro";
-  const exSituOnlyS = "(mode Ex situ)";
 
   // data
 
@@ -87,7 +86,7 @@ export default function IconButtonImagesSettingsMenu() {
         slotProps={{ list: { dense: true } }}
       >
         <ListSubheader sx={{ lineHeight: "28px", fontSize: "0.7rem" }}>
-          {linkS} {exSituOnlyS}
+          {linkS}
         </ListSubheader>
         {options.map(({ key, label, checked, onToggle }) => (
           <MenuItem
