@@ -28,6 +28,13 @@
 // rectangle stays a rectangle. Rigid runs already preserve angles; a missing
 // or parallel neighbour falls back to a rigid translation.
 //
+// Frozen point on ONE side of an OPEN chain: nothing absorbs. The frozen side
+// is the anchor side (a frozen endpoint, or the endpoint whose side holds the
+// frozen points) and the WHOLE other side translates as one block, so every
+// other segment keeps its length. Segment locks and `anglesLocked` are moot
+// there. Frozen points on both sides, or a closed chain (no free tail), keep
+// the absorb model above.
+//
 // Returns { ok: true, moves: [{ index, x, y }] }
 //       | { ok: false, reason: "BOTH_ENDPOINTS_LOCKED" | "LOCKED_CHAIN"
 //                             | "DEGENERATE_SEGMENT" | "INVALID_INPUT" }
@@ -66,9 +73,26 @@ export default function computeSegmentLengthEdit({
   if (startLocked && endLocked)
     return { ok: false, reason: "BOTH_ENDPOINTS_LOCKED" };
 
-  // Default (no endpoint lock): the END point moves, downstream in drawing
-  // order — one fixed, learnable rule, matching how the chain was drawn.
-  const movedIndex = startLocked ? endIndex : endLocked ? startIndex : endIndex;
+  // Open chain: which side(s) of the edited segment hold frozen points
+  // (endpoints included). Exactly one frozen side → that side is the anchor
+  // side and the other one translates rigidly to the chain end.
+  let lockedBefore = false;
+  let lockedAfter = false;
+  if (!closed) {
+    for (const i of lockedPointIndexes) {
+      if (i <= startIndex) lockedBefore = true;
+      else if (i >= endIndex) lockedAfter = true;
+    }
+  }
+  const rigid = !closed && lockedBefore !== lockedAfter;
+
+  // Default (no frozen point on either side): the END point moves, downstream
+  // in drawing order — one fixed, learnable rule, matching how the chain was
+  // drawn. A frozen endpoint, or a frozen side, picks the anchor instead.
+  let movedIndex = endIndex;
+  if (startLocked) movedIndex = endIndex;
+  else if (endLocked) movedIndex = startIndex;
+  else if (rigid) movedIndex = lockedBefore ? endIndex : startIndex;
   const anchorIndex = movedIndex === endIndex ? startIndex : endIndex;
   const anchor = points[anchorIndex];
   const moved = points[movedIndex];
@@ -104,7 +128,7 @@ export default function computeSegmentLengthEdit({
     const cur = ((rawCur % n) + n) % n;
     const seg = dir === 1 ? prev : cur;
 
-    if (!lockedSegmentIndexes.has(seg)) {
+    if (!rigid && !lockedSegmentIndexes.has(seg)) {
       // First unlocked segment absorbs the delta.
       if (!anglesLocked) break; // plain absorb: near end dragged, far end fixed
 
@@ -155,9 +179,11 @@ export default function computeSegmentLengthEdit({
       continue;
     }
 
-    // Rigid run: seg keeps its length AND prev just moved → cur must translate
+    // Rigid run (locked segment, or the whole free side of a frozen open
+    // chain): seg keeps its length AND prev just moved → cur must translate
     // too. Hitting a locked point (or wrapping back onto the anchor) means
-    // nothing can absorb the delta.
+    // nothing can absorb the delta — unreachable in `rigid` mode by
+    // construction (the moved side holds no frozen point).
     if (cur === anchorIndex || lockedPointIndexes.has(cur))
       return { ok: false, reason: "LOCKED_CHAIN" };
     const translated = {

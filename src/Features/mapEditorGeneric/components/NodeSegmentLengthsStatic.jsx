@@ -644,8 +644,8 @@ export default function NodeSegmentLengthsStatic({
               >
                 <title>
                   {isLocked
-                    ? "Point verrouillé : il ne bougera pas"
-                    : "Point libre : cliquer pour le verrouiller"}
+                    ? "Point gelé : il ne bougera pas, l'autre côté de la polyligne translate d'un bloc"
+                    : "Point libre : cliquer pour le geler"}
                 </title>
                 <circle r={7} fill="transparent" />
                 <LockGlyph x={0} y={0} locked={isLocked} color={ACCENT_COLOR} />
