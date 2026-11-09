@@ -26,6 +26,9 @@ export default function PanelFooter({
   collapsed = false,
   onToggleCollapsed,
   startContent = null,
+  // "bottom-right" (default) | "bottom-left": corner of the resize handle
+  // (PanelResizeHandle) — the reserved margin follows it.
+  resizeCorner = "bottom-right",
   children,
 }) {
   // strings
@@ -46,9 +49,10 @@ export default function PanelFooter({
         alignItems: "center",
         justifyContent: "flex-end",
         gap: 0.5,
-        pl: 1,
-        // Reserved margin for the resize handle (16px + 2px + gap).
-        pr: collapsed ? 1 : 3,
+        // Reserved margin for the resize handle (16px + 2px + gap), on the
+        // handle's side.
+        pl: !collapsed && resizeCorner === "bottom-left" ? 3 : 1,
+        pr: collapsed || resizeCorner === "bottom-left" ? 1 : 3,
         minHeight: 22,
         borderTop: "1px solid",
         borderColor: "panel.border",
@@ -147,6 +151,7 @@ export default function PanelFooter({
         <PanelResizeHandle
           onMouseDown={onResizeMouseDown}
           onDoubleClick={onResetSize}
+          corner={resizeCorner}
         />
       )}
     </Box>

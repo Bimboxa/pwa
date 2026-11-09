@@ -85,3 +85,58 @@ description, orientation and lift and transform the target with the image during
 `getEntityWithImagesAsync` keeps one object URL per file row so a hydrated
 IMAGE annotation keeps its identity between liveQuery runs (otherwise the 3D
 diff would rebuild the card on every emission).
+
+## Display modes: PopperImages, in situ / ex situ, capture
+
+`src/Features/popperImages/` owns how the photos of an editor are displayed.
+
+- `popperImagesSlice` — `displayMode` (`IN_SITU` | `EX_SITU`) and `linkStyle`
+  (`LINE` | `NUMBER`), both persisted per device in localStorage
+  (`popperImagesSettings`); `collapsed` (panel folded).
+- `getImageAnnotationsDisplayIndex(annotations)` — display numbering 1..N of
+  the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
+  order `orderIndex` → `createdAt` → `id`: moving a photo never renumbers.
+  Every host (2D, 3D, capture) calls it on its own displayed list.
+- `imageAnnotationSelection` — the veil rule: when the selected item is an
+  IMAGE, every other image (photo, leader, anchor dot, badge, tile) gets a
+  translucent white veil (`IMAGE_VEIL_*` constants).
+- `PopperImages` — floating panel anchored at the RIGHT of the editor box
+  (`usePanelResize({ anchor: "right" })`, bottom-left handle), mounted by
+  `MainMapEditorV3` / `MainThreedEditor` next to `PopperMapListings` (same
+  gates, so never in capture mode). Header: "In situ | Ex situ" toggle +
+  "…" menu (link style). Body: 2-column grid of numbered tiles; a tile click
+  selects the annotation, the selected tile offers "Fullscreen"
+  (`images/components/DialogImageViewer`, wheel zoom + pan + reset).
+- `ImagesLinksOverlay` — ex situ + `LINE`: leaders from the tiles (DOM
+  rects) to the anchors, via an **anchor projector**
+  `{ project(a) → client px | null, getViewportRect(), subscribe(cb) }`:
+  `useMapEditor2dAnchorProjector` (camera matrix + base pose,
+  `subscribeMapEditorCamera`) and `threedEditor/hooks/useThreedImageAnchorProjector`
+  (anchor-dot sprite published in `annotationLabelObjectsStore.imageAnchorsById`,
+  `SceneManager.addRenderListener`).
+
+Rendering:
+
+- 2D `NodeImageStatic` receives `imagesDisplayMode / imagesLinkStyle /
+  imageDisplayIndex / imageVeiled` through `NodeAnnotationStatic` from
+  `StaticMapContent` / `EditedObjectLayer` only (portfolio, grids, elevation
+  keep the plain in-situ rendering). In situ: numbered badge at the bbox
+  corner + veil. Ex situ: the anchor dot only (TARGET interaction kept:
+  click selects, drag moves `targetPoint`) + badge in `NUMBER` style.
+- 3D `ThreedAnnotationLabels`: in situ the card canvas carries the badge and
+  the veil (`createImageAnnotationCard({ badgeNumber, veiled })`,
+  `applyAnnotationMaterialState` never swaps a card's material); ex situ no
+  card / leader, the anchor dot always, a `createAnnotationNumberBadgeSprite`
+  in `NUMBER` style, and an invisible proxy as the target handle's
+  `labelSprite` so the TARGET drag still writes `targetPoint`.
+
+Capture (`ImageModeOverlay`): with `EX_SITU`, `CaptureImagesOverlay` draws
+the tiles as floating Paper cards (`foreignObject`, `data-capture-keep`) in
+a transparent zone of the frame (`mapEditor.imageModeImagesOverlay`, legend-
+like drag / resize with `data-capture-hide` handles,
+`resolveImagesOverlayGeometry`, `layoutCaptureImageTiles`), tied to the
+anchors by `<line>`s (`LINE`) or by the badges (`NUMBER`). The labels margin
+band excludes the zone (`useImageModeLabelsLayout({ imagesCount })`). The
+condensed toolbar has a "Photos" select and the Cadrage tab a "Photos"
+section (`SectionCaptureImages`). `ButtonSaveCapture` clears an annotation
+selection before capturing so no veil / handle reaches the image.

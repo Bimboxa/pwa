@@ -7,6 +7,10 @@ import {
   setPovSharePreviewEnabled,
 } from "Features/pov/povSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import {
+  clearSelection,
+  selectSelectedItems,
+} from "Features/selection/selectionSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -62,6 +66,8 @@ import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 // coincide with SectionViewer's box (MESHES nests the editor).
 export default function ButtonSaveCapture() {
   const dispatch = useDispatch();
+  // Read for clearAnnotationSelectionForCapture (below).
+  const selectedItems = useSelector(selectSelectedItems);
 
   // strings
 
@@ -382,10 +388,26 @@ export default function ButtonSaveCapture() {
     handleCloseAiOverlay();
   }
 
+  // A selected annotation is captured with its selection look (handles,
+  // orange border, grey context, PopperImages white veil on the other
+  // photos): drop the selection first and let React + the 3D rebuild
+  // (ThreedAnnotationLabels effect → renderScene) settle for two frames.
+  async function clearAnnotationSelectionForCapture() {
+    const hasAnnotationSelection = selectedItems.some(
+      (it) => it?.nodeType === "ANNOTATION" || it?.type === "ANNOTATION_LABEL"
+    );
+    if (!hasAnnotationSelection) return;
+    dispatch(clearSelection());
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    );
+  }
+
   async function handleClick() {
     if (busy) return;
     setBusy(true);
     try {
+      await clearAnnotationSelectionForCapture();
       if (aiEnhanceEnabled && aiAvailable) {
         const aiBlob = await captureAiInput();
         startAiEnhance(aiBlob);

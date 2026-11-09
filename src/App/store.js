@@ -73,6 +73,7 @@ import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
+import popperImagesReducer from "Features/popperImages/popperImagesSlice";
 import commandsToolbarReducer from "Features/commandsToolbar/commandsToolbarSlice";
 import editorGridReducer from "Features/editorGrid/editorGridSlice";
 import duplicatesDetectionReducer from "Features/duplicatesDetection/duplicatesDetectionSlice";
@@ -171,6 +172,7 @@ const store = configureStore({
     //
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
+    popperImages: popperImagesReducer,
     panelDrawing: panelDrawingReducer,
     photos: photosReducer,
     elevation: elevationReducer,

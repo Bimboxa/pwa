@@ -6,6 +6,8 @@ import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/ge
 import getImageModeLabelsLayout from "Features/annotations/utils/getImageModeLabelsLayout";
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
 import { selectCaptureRightInset } from "Features/mapEditor/utils/captureRightInset";
+import resolveImagesOverlayGeometry from "Features/mapEditor/utils/resolveImagesOverlayGeometry";
+import { selectImagesExSitu } from "Features/popperImages/popperImagesSlice";
 import useCaptureAspectRatio from "./useCaptureAspectRatio";
 
 // Screen-px layout constants (converted to image px at compute time).
@@ -33,10 +35,18 @@ export default function useImageModeLabelsLayout({
   getCameraMatrix,
   viewportBounds,
   hostKey = "MAP",
+  // Number of photos displayed by the host: with PopperImages in "Ex situ",
+  // their capture zone (imageModeImagesOverlay) is excluded from the layout
+  // rect so the margin band never puts a label under a tile.
+  imagesCount = 0,
 }) {
   const autoLayout = useSelector((s) => s.mapEditor.imageModeLabelsAutoLayout);
   const inMargin = useSelector((s) => s.mapEditor.imageModeLabelsInMargin);
   const aspectRatio = useCaptureAspectRatio();
+  const imagesExSitu = useSelector(selectImagesExSitu);
+  const imagesOverlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
+  const excludeImagesZone =
+    imagesCount > 0 && imagesExSitu && Boolean(imagesOverlay?.visible);
 
   // Same inset as ImageModeOverlay (selectCaptureRightInset owns the rule):
   // the capture rect is centered within the zone left visible by the open
@@ -173,8 +183,18 @@ export default function useImageModeLabelsLayout({
         x: ((vx - cam.x) / (cam.k || 1) - poseX) / poseK,
         y: ((vy - cam.y) / (cam.k || 1) - poseY) / poseK,
       });
+      // Photos zone (ex situ tiles) at the right of the frame: excluded.
+      const rightExcludePx = excludeImagesZone
+        ? Math.max(
+            0,
+            rect.width - resolveImagesOverlayGeometry(imagesOverlay, rect).x
+          )
+        : 0;
       const p0 = toImage(rect.left, rect.top);
-      const p1 = toImage(rect.left + rect.width, rect.top + rect.height);
+      const p1 = toImage(
+        rect.left + Math.max(0, rect.width - rightExcludePx),
+        rect.top + rect.height
+      );
       const captureRect = { x0: p0.x, y0: p0.y, x1: p1.x, y1: p1.y };
 
       // --- 4. layout ---
@@ -240,6 +260,8 @@ export default function useImageModeLabelsLayout({
     // getCameraMatrix is a ref accessor: intentionally not a dep (its
     // identity changes every parent render, but never its semantics).
     hostKey,
+    excludeImagesZone,
+    imagesOverlay,
   ]);
 
   return {

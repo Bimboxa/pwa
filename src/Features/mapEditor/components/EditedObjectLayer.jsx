@@ -14,6 +14,10 @@ import {
   selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 import useSelectedNodes from "../hooks/useSelectedNodes";
+import {
+  selectImagesDisplayMode,
+  selectImagesLinkStyle,
+} from "Features/popperImages/popperImagesSlice";
 import isOpeningAnnotation, { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
@@ -34,9 +38,13 @@ export default function EditedObjectLayer({
   // selectedNodes, // Ignored
   baseMapMeterByPx,
   baseMapImageScale = 1,
+  // Photos: display number of each IMAGE annotation (PopperImages badges).
+  imageDisplayIndexById,
 }) {
   // Redux State
   const selectedItems = useSelector(selectSelectedItems);
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPointIds = useSelector(selectSelectedPointIds);
   const selectedPartId = useSelector(selectSelectedPartId);
@@ -257,6 +265,9 @@ export default function EditedObjectLayer({
               // label:: node): hide this copy's chip, the transient layer
               // renders the moving one.
               forceHideLabel={!!getPendingMove("label::" + annotation.id)}
+              imagesDisplayMode={imagesDisplayMode}
+              imagesLinkStyle={imagesLinkStyle}
+              imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
             />
           </g>
         );

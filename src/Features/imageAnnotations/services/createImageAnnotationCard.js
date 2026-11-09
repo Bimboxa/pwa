@@ -14,9 +14,19 @@ import { getImageAnnotationTextureAsync } from "Features/threedEditor/js/utilsAn
 
 // One card contains the photo and its text, so picking and
 // dragging the container never separates its title from its image.
+// `badgeNumber`: display number of the photo (PopperImages tile), drawn in
+// the top-right corner. `veiled`: another photo is selected → translucent
+// white veil over the whole card (the 3D counterpart of the 2D veil; drawn
+// in the canvas so VERTICAL sprites and HORIZONTAL planes look the same).
 export default function createImageAnnotationCard(
   annotation,
-  { selected, onLoaded, meterByPx = 0.01 } = {}
+  {
+    selected,
+    onLoaded,
+    meterByPx = 0.01,
+    badgeNumber = null,
+    veiled = false,
+  } = {}
 ) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -118,6 +128,30 @@ export default function createImageAnnotationCard(
     ctx.strokeStyle = selected ? "#ff9800" : "#555555";
     ctx.lineWidth = selected ? 3 : 1;
     ctx.stroke();
+    if (veiled) {
+      // Same rounded path is still the current one.
+      ctx.fillStyle = "rgba(255,255,255,0.72)";
+      ctx.fill();
+    }
+    if (badgeNumber != null) {
+      const r = 11;
+      const bx = width - r - 6;
+      const by = r + 6;
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = veiled ? "rgba(51,51,51,0.35)" : "#333333";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(badgeNumber), bx, by);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+    }
     texture.needsUpdate = true;
   }
   draw(null);

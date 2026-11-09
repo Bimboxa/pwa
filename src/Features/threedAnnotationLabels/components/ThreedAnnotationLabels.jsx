@@ -3,6 +3,12 @@ import { useEffect, useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
 import { Group } from "three";
 
+import {
+  selectImagesDisplayMode,
+  selectImagesLinkStyle,
+} from "Features/popperImages/popperImagesSlice";
+import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
+
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
@@ -13,6 +19,7 @@ import createMesh3dLabelTargetHandle from "Features/threedMesh/services/createMe
 
 import createAnnotationLabelSprite from "../services/createAnnotationLabelSprite";
 import createAnnotationLabelAnchorSprite from "../services/createAnnotationLabelAnchorSprite";
+import createAnnotationNumberBadgeSprite from "../services/createAnnotationNumberBadgeSprite";
 import { setAnnotationLabelObjects } from "../services/annotationLabelObjectsStore";
 import getAnnotationLabelLiftM from "../utils/getAnnotationLabelLiftM";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
@@ -125,6 +132,24 @@ export default function ThreedAnnotationLabels({ annotations }) {
     (s) => s.threedEditor.antiAliasingShrink
   );
 
+  // Photos (IMAGE): PopperImages display mode / link style, display numbers
+  // (badge on the card, or on the anchor in ex situ + "Numéro"), and the
+  // veil rule — the selected annotation is an image → the others fade.
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imageIndexById = useMemo(
+    () => getImageAnnotationsDisplayIndex(labelAnnotations).indexById,
+    [labelAnnotations]
+  );
+  const selectedIsImage = useMemo(
+    () =>
+      Boolean(selectedAnnotationId) &&
+      labelAnnotations.some(
+        (a) => a.id === selectedAnnotationId && a.type === "IMAGE"
+      ),
+    [labelAnnotations, selectedAnnotationId]
+  );
+
   const groupsRef = useRef([]);
 
   useEffect(() => {
@@ -144,6 +169,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
 
     const sprites = [];
     const targetHandles = [];
+    const imageAnchorsById = {};
 
     labelAnnotations.forEach((annotation) => {
       const baseMap = imagesManager.baseMapsMap?.[annotation.baseMapId];
@@ -187,21 +213,48 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const isSelected = annotation.id === selectedAnnotationId;
       // Visible-color rule shared with the 2D chip (labelProps.fillColor).
       const color = labelProps.fillColor || "#2196f3";
+      // Photo display (PopperImages): ex situ → no card, no leader, the
+      // anchor only (+ number badge in "Numéro" style); veiled → faded.
+      const exSitu = isImage && imagesDisplayMode === "EX_SITU";
+      const veiled = isImage && selectedIsImage && !isSelected;
+      const badgeNumber = isImage
+        ? (imageIndexById[annotation.id] ?? null)
+        : null;
 
-      const sprite = isImage
-        ? createImageAnnotationCard(annotation, {
-            selected: isSelected,
-            meterByPx: baseMapForRender.meterByPx,
-            onLoaded: () => editor.sceneManager.renderScene?.(),
-          })
-        : createAnnotationLabelSprite({
-            lines: labelProps.lines,
-            annotationId: annotation.id,
-            color,
-            fontSizePreset: annotation.labelFontSize ?? "M",
-            labelWidth: labelProps.width ?? null,
-            selected: isSelected,
-          });
+      let sprite;
+      if (isImage && exSitu) {
+        // Invisible stand-in for the card: carries the userData the drag
+        // hook reads through the target handle (TARGET drag → targetPoint).
+        sprite = new Group();
+        sprite.raycast = () => {};
+        sprite.userData = {
+          annotationId: annotation.id,
+          isImageAnnotationCard: true,
+          isImageCardProxy: true,
+          imageOrientation3d:
+            annotation.imageOrientation3d === "HORIZONTAL"
+              ? "HORIZONTAL"
+              : "VERTICAL",
+          noVertexSnap: true,
+        };
+      } else if (isImage) {
+        sprite = createImageAnnotationCard(annotation, {
+          selected: isSelected,
+          meterByPx: baseMapForRender.meterByPx,
+          onLoaded: () => editor.sceneManager.renderScene?.(),
+          badgeNumber,
+          veiled,
+        });
+      } else {
+        sprite = createAnnotationLabelSprite({
+          lines: labelProps.lines,
+          annotationId: annotation.id,
+          color,
+          fontSizePreset: annotation.labelFontSize ?? "M",
+          labelWidth: labelProps.width ?? null,
+          selected: isSelected,
+        });
+      }
       if (!sprite) return;
 
       const group = new Group();
@@ -222,7 +275,10 @@ export default function ThreedAnnotationLabels({ annotations }) {
         liftM,
         leader: null,
         imageSize: refSize,
-        hasConnector: !isImage || Boolean(annotation.hasConnector),
+        // Ex situ: no leader ever (the proxy has no card to point at).
+        hasConnector: exSitu
+          ? false
+          : !isImage || Boolean(annotation.hasConnector),
       });
 
       // Leader anchor → card, only when the two ends are apart (the default
@@ -239,6 +295,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
           from: targetLocal,
           to: labelLocal,
           depthTest: true,
+          dimmed: veiled,
         });
         sprite.userData.leader = leader;
         group.add(leader);
@@ -246,13 +303,27 @@ export default function ThreedAnnotationLabels({ annotations }) {
 
       // Fixed-size anchor marker at the leader's pointed end (always shown,
       // never raycast — the drag grip is the selected-only target handle).
-      if (sprite.userData.hasConnector) {
+      // Ex situ photos always get it: the anchor is their only in-scene
+      // trace, and the tile → anchor leaders of PopperImages aim at it.
+      if (sprite.userData.hasConnector || exSitu) {
         const anchorDot = createAnnotationLabelAnchorSprite({
           annotationId: annotation.id,
+          dimmed: veiled,
         });
         anchorDot.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
         sprite.userData.anchorDot = anchorDot;
         group.add(anchorDot);
+        if (isImage) imageAnchorsById[annotation.id] = anchorDot;
+
+        if (exSitu && imagesLinkStyle === "NUMBER" && badgeNumber != null) {
+          const badge = createAnnotationNumberBadgeSprite({
+            annotationId: annotation.id,
+            number: badgeNumber,
+            dimmed: veiled,
+          });
+          badge.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
+          group.add(badge);
+        }
 
         // Target handle on the selected annotation only. Not for MARKER: in 2D
         // a TARGET drag moves the marker's point itself — out of scope in 3D.
@@ -286,10 +357,11 @@ export default function ThreedAnnotationLabels({ annotations }) {
       }
       (imageRoot ?? parentGroup).add(group);
       groupsRef.current.push(group);
-      sprites.push(sprite);
+      // The ex-situ proxy is never picked as a card.
+      if (!sprite.userData.isImageCardProxy) sprites.push(sprite);
     });
 
-    setAnnotationLabelObjects({ sprites, targetHandles });
+    setAnnotationLabelObjects({ sprites, targetHandles, imageAnchorsById });
     editor.sceneManager.renderScene?.();
 
     return clear;
@@ -298,6 +370,10 @@ export default function ThreedAnnotationLabels({ annotations }) {
     selectedAnnotationId,
     annotationsLoadTick,
     antiAliasingShrink,
+    imagesDisplayMode,
+    imagesLinkStyle,
+    imageIndexById,
+    selectedIsImage,
   ]);
 
   return null;

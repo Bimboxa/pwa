@@ -2,7 +2,15 @@ import { memo, useMemo } from "react";
 import theme from "Styles/theme";
 
 import NodeImageToolbarOverlay from "./NodeImageToolbarOverlay";
-import { getImageConnectorGeometry } from "Features/imageAnnotations/utils/imageConnector";
+import ImageIndexBadgeSvg from "Features/popperImages/components/ImageIndexBadgeSvg";
+import {
+  getImageAnchorPoint,
+  getImageConnectorGeometry,
+} from "Features/imageAnnotations/utils/imageConnector";
+import {
+  IMAGE_VEIL_ELEMENT_OPACITY,
+  IMAGE_VEIL_FILL_OPACITY,
+} from "Features/popperImages/constants/imageDisplay";
 
 // Taille des poignées de redimensionnement (en pixels écran fixes)
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
@@ -19,6 +27,14 @@ export default memo(function NodeImageStatic({
   draggedPartType,
   baseMapMeterByPx,
   printMode,
+  // PopperImages display: "IN_SITU" (photo in the map, numbered) or
+  // "EX_SITU" (photo listed in the panel: only the anchor stays here, with
+  // its number in "NUMBER" link style). `imageVeiled`: another image is
+  // selected → white veil on the photo, faded connector / badge.
+  imagesDisplayMode = "IN_SITU",
+  imagesLinkStyle = "LINE",
+  imageDisplayIndex,
+  imageVeiled = false,
 }) {
   const { bbox, image, id, opacity } = imageAnnotation;
   const { x, y, width, height } = bbox ?? {};
@@ -181,11 +197,46 @@ export default memo(function NodeImageStatic({
     );
   };
 
+  const exSitu = imagesDisplayMode === "EX_SITU";
+  const showBadge = imageDisplayIndex != null && !printMode;
+  const veilOpacity = imageVeiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
+
+  // --- EX SITU: anchor only (dot + optional number) ---
+  // The photo lives in PopperImages; the dot keeps the TARGET interaction
+  // (click = select, drag = move the anchor) exactly as the in-situ dot.
+  if (exSitu) {
+    const anchor = getImageAnchorPoint(imageAnnotation);
+    return (
+      <g style={{ opacity: (dragged ? 0.7 : (opacity ?? 1)) * veilOpacity }}>
+        <g transform={`translate(${anchor.x}, ${anchor.y})`}>
+          <g style={{ transform: handleScaleTransform }}>
+            <circle
+              r={selected ? 7 : 5}
+              fill="#333"
+              stroke={
+                selected ? theme.palette.editor?.selected || "#ff9800" : "white"
+              }
+              strokeWidth={1.5}
+              {...interactionProps}
+              data-part-type="TARGET"
+              style={{ cursor: "crosshair" }}
+            />
+            {imagesLinkStyle === "NUMBER" && showBadge && (
+              <g transform="translate(12, -12)">
+                <ImageIndexBadgeSvg number={imageDisplayIndex} />
+              </g>
+            )}
+          </g>
+        </g>
+      </g>
+    );
+  }
+
   // --- RENDU ---
   return (
     <g style={{ opacity: dragged ? 0.7 : opacity }}>
       {connector && (
-        <g>
+        <g style={{ opacity: veilOpacity }}>
           {!connector.inside && (
             <line
               x1={connector.target.x}
@@ -239,6 +290,17 @@ export default memo(function NodeImageStatic({
             }}
           />
 
+          {/* White veil: another photo is selected */}
+          {imageVeiled && (
+            <rect
+              width={displayWidth}
+              height={displayHeight}
+              fill="#fff"
+              fillOpacity={IMAGE_VEIL_FILL_OPACITY}
+              pointerEvents="none"
+            />
+          )}
+
           {/* Bordure Hover */}
           {hovered && !selected && !dragged && (
             <rect
@@ -273,6 +335,22 @@ export default memo(function NodeImageStatic({
         )}
 
         {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
+
+        {/* Display number (PopperImages tile) — top-left corner, constant
+            screen size, counter-rotated to stay readable. */}
+        {showBadge && (
+          <g
+            transform={`rotate(${-rotation})`}
+            style={{ pointerEvents: "none" }}
+          >
+            <g style={{ transform: handleScaleTransform }}>
+              <ImageIndexBadgeSvg
+                number={imageDisplayIndex}
+                dimmed={imageVeiled}
+              />
+            </g>
+          </g>
+        )}
       </g>
 
       {/* Overlay toolbar (scale / change image) — outside the rotate group */}

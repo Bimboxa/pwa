@@ -18,7 +18,11 @@ import sizeSpriteInCssPx from "./sizeSpriteInCssPx";
 const ANCHOR_CSS_PX = 5;
 const CANVAS_PX = 64;
 
-export default function createAnnotationLabelAnchorSprite({ annotationId }) {
+export default function createAnnotationLabelAnchorSprite({
+  annotationId,
+  // Photo whose sibling is selected (PopperImages veil): faded dot.
+  dimmed = false,
+}) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_PX;
   canvas.height = CANVAS_PX;
@@ -46,6 +50,7 @@ export default function createAnnotationLabelAnchorSprite({ annotationId }) {
     depthWrite: false,
     sizeAttenuation: false,
     toneMapped: false,
+    opacity: dimmed ? 0.3 : 1,
   });
 
   const sprite = new Sprite(material);

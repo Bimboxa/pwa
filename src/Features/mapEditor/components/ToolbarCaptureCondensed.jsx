@@ -14,6 +14,12 @@ import {
 } from "../mapEditorSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectImagesDisplayMode,
+  selectImagesLinkStyle,
+  setImagesDisplayMode,
+  setImagesLinkStyle,
+} from "Features/popperImages/popperImagesSlice";
 
 import {
   Box,
@@ -39,7 +45,10 @@ import {
   ListAlt,
   Numbers,
   PhotoCamera,
+  PhotoLibrary,
   PictureAsPdf,
+  Pin,
+  Timeline,
   Title,
   Tune,
   Wallpaper,
@@ -51,6 +60,14 @@ import useCapturePageFormat from "../hooks/useCapturePageFormat";
 // Width of the condensed band — read by RightPanelContainer to size the
 // drawer when the capture tool is in its condensed format.
 export const CAPTURE_TOOLBAR_WIDTH = 70;
+
+// Photos (IMAGE annotations) display — one control for the PopperImages
+// preference pair (displayMode, linkStyle).
+const PHOTOS_OPTIONS = [
+  { value: "IN_SITU", label: "In situ", icon: <PhotoLibrary /> },
+  { value: "EX_SITU_LINE", label: "Ex situ — lignes", icon: <Timeline /> },
+  { value: "EX_SITU_NUMBER", label: "Ex situ — numéros", icon: <Pin /> },
+];
 
 const ASPECT_RATIO_OPTIONS = [
   { value: "LANDSCAPE", label: "Paysage", icon: <CropLandscape /> },
@@ -227,6 +244,7 @@ export default function ToolbarCaptureCondensed() {
   const titleBlockS = "Cartouche";
   const legendS = "Légende";
   const qtiesS = "Qtés";
+  const photosS = "Photos";
   const exportS = "Export";
   const optionsS = "Options";
 
@@ -241,6 +259,8 @@ export default function ToolbarCaptureCondensed() {
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
   const titleBlock = useSelector((s) => s.mapEditor.imageModeTitleBlock);
   const legendOverlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
   const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
 
@@ -285,6 +305,24 @@ export default function ToolbarCaptureCondensed() {
   function handleToggleShowQty() {
     dispatch(
       setImageModeLegendOverlay({ ...legendOverlay, showQty: !showQty })
+    );
+  }
+
+  const photosValue =
+    imagesDisplayMode === "EX_SITU"
+      ? imagesLinkStyle === "NUMBER"
+        ? "EX_SITU_NUMBER"
+        : "EX_SITU_LINE"
+      : "IN_SITU";
+
+  function handlePhotosChange(value) {
+    if (value === "IN_SITU") {
+      dispatch(setImagesDisplayMode("IN_SITU"));
+      return;
+    }
+    dispatch(setImagesDisplayMode("EX_SITU"));
+    dispatch(
+      setImagesLinkStyle(value === "EX_SITU_NUMBER" ? "NUMBER" : "LINE")
     );
   }
 
@@ -376,6 +414,13 @@ export default function ToolbarCaptureCondensed() {
         tooltip={showQty ? "Masquer les quantités" : "Afficher les quantités"}
         active={showQty}
         onClick={handleToggleShowQty}
+      />
+      <ToolbarSelect
+        label={photosS}
+        tooltip="Affichage des photos"
+        options={PHOTOS_OPTIONS}
+        value={photosValue}
+        onChange={handlePhotosChange}
       />
 
       <BandDivider />

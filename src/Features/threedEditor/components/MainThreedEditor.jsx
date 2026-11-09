@@ -115,6 +115,9 @@ import DialogHollowOutAnnotationOutlet from "Features/annotations/components/Dia
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
+import PopperImages from "Features/popperImages/components/PopperImages";
+import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
+import useThreedImageAnchorProjector from "Features/threedEditor/hooks/useThreedImageAnchorProjector";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import PopperSweepAlongLineHelper from "Features/mapEditor/components/PopperSweepAlongLineHelper";
@@ -1064,6 +1067,12 @@ export default function MainThreedEditor() {
   });
 
   useAnnotationLabelDragHandlers({ rendererIsReady, annotations });
+
+  // Photos (IMAGE annotations): display numbering shared with the 3D cards /
+  // anchor badges, and the anchor projector of the PopperImages leaders.
+  const { images: imageAnnotations, indexById: imageDisplayIndexById } =
+    useMemo(() => getImageAnnotationsDisplayIndex(annotations), [annotations]);
+  const anchorProjector3d = useThreedImageAnchorProjector();
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 
@@ -3318,6 +3327,12 @@ export default function MainThreedEditor() {
             <PopperMapListings />
             {/* Base maps list detached from the popper above. */}
             <PopperBaseMapsList />
+            {/* Photos of the scene (right side). */}
+            <PopperImages
+              images={imageAnnotations}
+              indexById={imageDisplayIndexById}
+              anchorProjector={anchorProjector3d}
+            />
           </PortalEditorFloatingPanels>
         )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}

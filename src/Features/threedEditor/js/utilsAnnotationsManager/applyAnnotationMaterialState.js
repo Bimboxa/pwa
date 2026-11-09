@@ -230,6 +230,10 @@ export default function applyAnnotationMaterialState(object3D, state) {
     // annotation tree — skip them so dim/lasso passes never cache the stipple
     // material as originalMaterial.
     if (child.userData?.isHoverOverlay) return;
+    // Photo cards (createImageAnnotationCard): their attenuation is the white
+    // veil drawn in the card canvas by ThreedAnnotationLabels — never swap
+    // their textured material for the flat grey one.
+    if (child.userData?.isImageAnnotationCard) return;
     // Invisible full surface of a hatched fill (applyHatchFill): its band and
     // lines carry the state, the surface must stay invisible.
     if (child.userData?.isHatchPickSurface) return;
