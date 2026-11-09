@@ -1,14 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
-import {
-  selectImagesDisplayMode,
-  selectImagesLinkLine,
-  selectImagesLinkNumber,
-  setImagesDisplayMode,
-  setImagesLinkLine,
-  setImagesLinkNumber,
-} from "Features/popperImages/popperImagesSlice";
+import { selectImagesExSitu } from "Features/popperImages/popperImagesSlice";
 
 import {
   Box,
@@ -61,31 +54,25 @@ function RowToggle({ label, value, options, onChange }) {
   );
 }
 
-// "Photos" capture-mode block: the PopperImages display mode (shared
-// preference — the editor panel toggles the same value), the tile ↔ anchor
-// link style, and the capture zone of the ex-situ tiles (visibility,
-// columns). Capture tool's Cadrage tab, 2D and 3D.
+// "Photos" capture-mode block: the capture zone of the ex-situ tiles
+// (visibility, columns). In situ / ex situ, the links and the show / hide
+// toggle are the PopperImages settings (also the "Photos" button of the
+// condensed capture band). Capture tool's Cadrage tab, 2D and 3D.
 export default function SectionCaptureImages() {
   const dispatch = useDispatch();
 
   // strings
 
   const titleS = "Photos";
-  const modeS = "Affichage";
-  const inSituS = "In situ";
-  const exSituS = "Ex situ";
-  const lineS = "Lien par ligne";
-  const numberS = "Lien par numéro";
+  const inSituHintS =
+    "Photos in situ : réglez l'affichage ex situ dans le panneau Photos de l'éditeur.";
   const zoneS = "Zone photos dans le cadre";
   const columnsS = "Colonnes";
 
   // data
 
-  const displayMode = useSelector(selectImagesDisplayMode);
-  const linkLine = useSelector(selectImagesLinkLine);
-  const linkNumber = useSelector(selectImagesLinkNumber);
+  const exSitu = useSelector(selectImagesExSitu);
   const overlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
-  const exSitu = displayMode === "EX_SITU";
 
   // render
 
@@ -94,29 +81,13 @@ export default function SectionCaptureImages() {
       <Typography variant="overline" sx={LABEL_SX}>
         {titleS}
       </Typography>
-      <RowToggle
-        label={modeS}
-        value={displayMode}
-        options={[
-          { value: "IN_SITU", label: inSituS },
-          { value: "EX_SITU", label: exSituS },
-        ]}
-        onChange={(v) => dispatch(setImagesDisplayMode(v))}
-      />
+      {!exSitu && (
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          {inSituHintS}
+        </Typography>
+      )}
       {exSitu && (
         <>
-          <FieldCheck
-            value={linkLine}
-            onChange={(checked) => dispatch(setImagesLinkLine(checked))}
-            label={lineS}
-            options={{ type: "switch", showAsInline: true }}
-          />
-          <FieldCheck
-            value={linkNumber}
-            onChange={(checked) => dispatch(setImagesLinkNumber(checked))}
-            label={numberS}
-            options={{ type: "switch", showAsInline: true }}
-          />
           <FieldCheck
             value={Boolean(overlay?.visible)}
             onChange={(checked) =>

@@ -15,8 +15,8 @@ import {
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
-  selectImagesDisplayMode,
-  setImagesDisplayMode,
+  selectImagesPhotosHidden,
+  setImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
 
 import {
@@ -44,7 +44,6 @@ import {
   Numbers,
   PhotoCamera,
   PhotoLibrary,
-  PhotoSizeSelectActual,
   PictureAsPdf,
   Title,
   Tune,
@@ -57,13 +56,6 @@ import useCapturePageFormat from "../hooks/useCapturePageFormat";
 // Width of the condensed band — read by RightPanelContainer to size the
 // drawer when the capture tool is in its condensed format.
 export const CAPTURE_TOOLBAR_WIDTH = 70;
-
-// Photos (IMAGE annotations) display mode — the PopperImages preference
-// (line / number links are in the Cadrage tab's Photos section).
-const PHOTOS_OPTIONS = [
-  { value: "IN_SITU", label: "In situ", icon: <PhotoSizeSelectActual /> },
-  { value: "EX_SITU", label: "Ex situ", icon: <PhotoLibrary /> },
-];
 
 const ASPECT_RATIO_OPTIONS = [
   { value: "LANDSCAPE", label: "Paysage", icon: <CropLandscape /> },
@@ -255,7 +247,9 @@ export default function ToolbarCaptureCondensed() {
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
   const titleBlock = useSelector((s) => s.mapEditor.imageModeTitleBlock);
   const legendOverlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
-  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  // Photos (IMAGE annotations) shown / hidden — same state as the count
+  // pill of PopperImages (in situ / ex situ and the links are set there).
+  const photosHidden = useSelector(selectImagesPhotosHidden);
   const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
 
@@ -392,12 +386,12 @@ export default function ToolbarCaptureCondensed() {
         active={showQty}
         onClick={handleToggleShowQty}
       />
-      <ToolbarSelect
+      <ToolbarButton
+        icon={<PhotoLibrary />}
         label={photosS}
-        tooltip="Affichage des photos"
-        options={PHOTOS_OPTIONS}
-        value={imagesDisplayMode}
-        onChange={(value) => dispatch(setImagesDisplayMode(value))}
+        tooltip={photosHidden ? "Afficher les photos" : "Masquer les photos"}
+        active={!photosHidden}
+        onClick={() => dispatch(setImagesPhotosHidden(!photosHidden))}
       />
 
       <BandDivider />
