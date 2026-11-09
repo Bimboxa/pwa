@@ -13,6 +13,7 @@ import getProfileSectionUp, {
   isUprightSectionUp,
   toSectionSample,
 } from "../utils/getProfileSectionUp";
+import getProfileSourceSignature from "../utils/getProfileSourceSignature";
 
 // Draws a profileLine on the target POLYLINE from a SOURCE annotation flagged
 // `isProfile` (a COMPLETELY FREE polyline drawn on an elevation drawing — Z /
@@ -45,6 +46,10 @@ import getProfileSectionUp, {
 // line stores `sourceAnnotationId` so it can be re-generated ("Actualiser")
 // after the source annotation is edited.
 //
+// The line also stores `seedSegmentIndex` and `sourceSignature` (the source
+// drawing as read — getProfileSourceSignature) so useProfileLinesSourceSync
+// can re-apply it automatically, at the same place, when the source changes.
+//
 // Replaces the profileLine at `profileIndex` when given (its old point rows
 // are deleted), else appends a new line. Returns the written line's index, or
 // null when the inputs are degenerate.
@@ -52,7 +57,9 @@ export default async function applyProfileFromAnnotationService({
   annotationId,
   sourceAnnotationId,
   profileIndex = null,
-  seedSegmentIndex = 0,
+  // Guide segment the profile is laid on. Not an integer → the replaced
+  // line's own segment (stored, else inferred from its plan chain), else 0.
+  seedSegmentIndex = null,
   // Which extremity of the polyline projection the base point touches:
   // false = nearest one (default), true = the opposite one ("Inverser").
   invert = false,
@@ -61,6 +68,9 @@ export default async function applyProfileFromAnnotationService({
   // profile swaps sides, the base point stays on the guide — see
   // mirrorProfileLineService). Re-applied as stored on the line.
   mirror = false,
+  // Automatic re-application (source sync): a real, audited edit of the
+  // target that must not land on the undo stack (tx.skipUndo).
+  skipUndo = false,
   dispatch,
 }) {
   if (!annotationId || !sourceAnnotationId) return null;
@@ -108,6 +118,12 @@ export default async function applyProfileFromAnnotationService({
   const srcRows = await db.points.bulkGet(
     srcRefs.map((p) => p?.id).filter(Boolean)
   );
+  // Fingerprint of the source as read here (stored on the line for the sync).
+  const sourceSignature = getProfileSourceSignature({
+    src,
+    srcRows,
+    srcBaseMap,
+  });
   const srcPts = srcRefs
     .map((ref, i) => {
       const p = srcRows[i];
@@ -189,12 +205,22 @@ export default async function applyProfileFromAnnotationService({
   // Seed segment on the RAW vertices (seedSegmentIndex is a raw-chain index).
   const n = guideRaw.length;
   const segCount = isClosed ? n : n - 1;
-  const i0 =
-    Number.isInteger(seedSegmentIndex) &&
-    seedSegmentIndex >= 0 &&
-    seedSegmentIndex < segCount
-      ? seedSegmentIndex
-      : 0;
+  const prevLines = Array.isArray(ann.profileLines) ? ann.profileLines : [];
+  const replaces =
+    Number.isInteger(profileIndex) && prevLines[profileIndex] != null;
+  const replacedLine = replaces ? prevLines[profileIndex] : null;
+  let seed = seedSegmentIndex;
+  if (!Number.isInteger(seed) && replacedLine) {
+    seed = Number.isInteger(replacedLine.seedSegmentIndex)
+      ? replacedLine.seedSegmentIndex
+      : await inferSeedSegmentIndex(
+          replacedLine,
+          guideRaw,
+          segCount,
+          imageSize
+        );
+  }
+  const i0 = Number.isInteger(seed) && seed >= 0 && seed < segCount ? seed : 0;
   const A = guideRaw[i0];
   const B = guideRaw[(i0 + 1) % n];
   const segLen = Math.hypot(B.x - A.x, B.y - A.y) || 1;
@@ -262,14 +288,13 @@ export default async function applyProfileFromAnnotationService({
     sourceAnnotationId,
     sourceInvert: Boolean(invert),
     mirror: Boolean(mirror),
+    seedSegmentIndex: i0,
+    ...(sourceSignature ? { sourceSignature } : {}),
     // Kept only when the profile was laid upright: « Inverser » must then
     // flip the heights, not the plan chain (mirrorProfileLineService).
     ...(isUprightSectionUp(sectionUp) ? { sectionUp } : {}),
   };
 
-  const prevLines = Array.isArray(ann.profileLines) ? ann.profileLines : [];
-  const replaces =
-    Number.isInteger(profileIndex) && prevLines[profileIndex] != null;
   const oldPointIds = replaces
     ? (prevLines[profileIndex].points ?? [])
         .map((r) => r?.pointId)
@@ -280,7 +305,8 @@ export default async function applyProfileFromAnnotationService({
     : [...prevLines, newLine];
   const writtenIndex = replaces ? profileIndex : prevLines.length;
 
-  await db.transaction("rw", db.points, db.annotations, async () => {
+  await db.transaction("rw", db.points, db.annotations, async (tx) => {
+    if (skipUndo) tx.skipUndo = true;
     for (const id of oldPointIds) await db.points.delete(id);
     for (const np of newPoints) await db.points.add(np);
     await db.annotations.update(annotationId, { profileLines });
@@ -288,4 +314,38 @@ export default async function applyProfileFromAnnotationService({
 
   if (dispatch) dispatch(triggerAnnotationsUpdate());
   return writtenIndex;
+}
+
+// Legacy lines (written before `seedSegmentIndex` was stored): the raw guide
+// segment nearest to the line's plan chain — the chain is laid on the seed
+// segment's normal through its midpoint, so that segment is the closest one.
+async function inferSeedSegmentIndex(line, guideRaw, segCount, imageSize) {
+  const ids = (line?.points ?? []).map((r) => r?.pointId).filter(Boolean);
+  if (!ids.length || segCount < 1) return null;
+  const rows = await db.points.bulkGet(ids);
+  const pts = rows
+    .filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y))
+    .map((p) => ({ x: p.x * imageSize.width, y: p.y * imageSize.height }));
+  if (!pts.length) return null;
+  const n = guideRaw.length;
+  let best = null;
+  let bestD = Infinity;
+  for (let i = 0; i < segCount; i += 1) {
+    const a = guideRaw[i];
+    const b = guideRaw[(i + 1) % n];
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const len2 = abx * abx + aby * aby;
+    let d = 0;
+    for (const p of pts) {
+      let t = len2 > 1e-18 ? ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      d += Math.hypot(p.x - (a.x + abx * t), p.y - (a.y + aby * t));
+    }
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
 }

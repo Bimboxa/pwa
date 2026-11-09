@@ -846,6 +846,15 @@ export function withHardDelete(fn) {
   });
 }
 
+// Soft deletes made inside a derived (`tx.derivedWrite`) or no-undo
+// (`tx.skipUndo`, see undoManager) transaction push no undo entry — same rule
+// as the create / update hooks. The middleware runs inside the Dexie
+// transaction zone, so the flagged Transaction is the current one.
+function isUndoSkippedTransaction() {
+  const tx = Dexie.currentTransaction;
+  return Boolean(tx?.derivedWrite || tx?.skipUndo);
+}
+
 async function softDeleteByKeys(downlevelTable, req, tableName) {
   const existingRecords = await downlevelTable.getMany({
     trans: req.trans,
@@ -880,7 +889,7 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
       };
       valuesToPut.push(softDeleted);
 
-      if (UNDO_TABLES.has(tableName)) {
+      if (UNDO_TABLES.has(tableName) && !isUndoSkippedTransaction()) {
         undoEntries.push({
           table: tableName,
           type: "delete",
@@ -955,7 +964,7 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
     values: valuesToPut,
   });
 
-  if (UNDO_TABLES.has(tableName)) {
+  if (UNDO_TABLES.has(tableName) && !isUndoSkippedTransaction()) {
     recordsToDelete.forEach((record, i) => {
       pushUndo({
         table: tableName,

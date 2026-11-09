@@ -91,11 +91,22 @@ function applyModifications(target, modifications) {
 
 // Records an undo entry for every create / update of the UNDO_TABLES (deletes
 // are recorded by db.js' soft-delete middleware). Writes of an assistant batch
-// (own receipt) and derived writes (meshPaint re-sync) are not recorded.
+// (own receipt), derived writes (meshPaint re-sync) and `tx.skipUndo` writes
+// (a cascade recomputed from another row — e.g. a profile line re-applied
+// after its source drawing changed — that stays a REAL, audited edit, but
+// must not land on the undo stack: undoing the source change re-derives it)
+// are not recorded.
 export function registerUndoHooks(db, tableNames = UNDO_TABLES) {
   tableNames.forEach((tableName) => {
     db[tableName].hook("creating", function (primKey, obj, tx) {
-      if (_skipUndo || tx?.annotationBatch || tx?.derivedWrite) return;
+      if (
+        _skipUndo ||
+        tx?.annotationBatch ||
+        tx?.derivedWrite ||
+        tx?.skipUndo
+      ) {
+        return;
+      }
       const snapshot = { ...obj };
       this.onsuccess = (key) => {
         pushUndo({
@@ -109,7 +120,14 @@ export function registerUndoHooks(db, tableNames = UNDO_TABLES) {
     });
 
     db[tableName].hook("updating", function (modifications, primKey, obj, tx) {
-      if (_skipUndo || tx?.annotationBatch || tx?.derivedWrite) return;
+      if (
+        _skipUndo ||
+        tx?.annotationBatch ||
+        tx?.derivedWrite ||
+        tx?.skipUndo
+      ) {
+        return;
+      }
       const before = { ...obj };
       // `modifications` is a getObjectDiff of the stored row: nested changes
       // arrive as dotted key paths ("geometry.polygons", "sync.syncedAt"),

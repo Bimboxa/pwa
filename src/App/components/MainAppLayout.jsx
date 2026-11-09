@@ -37,6 +37,7 @@ import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoS
 import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseMapCreator";
 import DialogReloadScene3dBaseMap from "Features/scene3d/components/DialogReloadScene3dBaseMap";
 import SyncDialogsContainer from "Features/remoteScopeConfigurations/components/SyncDialogsContainer";
+import ProfileLinesSourceSync from "Features/elevation/components/ProfileLinesSourceSync";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -132,6 +133,7 @@ export default function MainAppLayout() {
       <DialogReloadScene3dBaseMap />
       <DialogBaseMapCreator />
       <SyncDialogsContainer />
+      <ProfileLinesSourceSync />
     </DndContext>
   );
 }
