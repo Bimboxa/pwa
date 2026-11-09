@@ -12,7 +12,7 @@ import {
   adaptiveArcSamples,
   translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
-import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import expandProfileSectionArcs from "Features/geometry/utils/expandProfileSectionArcs";
 import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
 import {
   getDiscSector,
@@ -382,17 +382,16 @@ function computeInlineExtrusionSurface(
         y: p.y * meterByPx,
         z: Number(p.offsetBottom) || 0,
       }));
-      const profile3d = expandRingWithOffsets(
+      // Profile in meters, vertical S-C-S arcs expanded in the section
+      // plane (same sampling as createAnnotationObject3D).
+      const profile3d = expandProfileSectionArcs(
         profilePoints.map((p) => ({
-          ...p,
-          offsetBottom: Number(p?.height) || 0,
-        })),
-        INLINE_GUIDE_ARC_SAMPLES
-      ).map((p) => ({
-        x: p.x * meterByPx,
-        y: p.y * meterByPx,
-        z: Number(p.offsetBottom) || 0,
-      }));
+          x: p.x * meterByPx,
+          y: p.y * meterByPx,
+          height: Number(p.height) || 0,
+          ...(p.type === "circle" ? { type: "circle" } : {}),
+        }))
+      ).map((p) => ({ x: p.x, y: p.y, z: p.height }));
       const hidden = new Set(hidden3d ?? []);
       const setup = getSweep3dSetup({
         guidePoints: guide3d,
@@ -431,9 +430,10 @@ function computeInlineExtrusionSurface(
       y: p.y * meterByPx,
     }));
     if (guideM.length < 2) return null;
-    // Profile in meters (heights are already meters — expandShellProfileArcs
-    // needs consistent units), vertical S-C-S arcs expanded.
-    const profileM = expandShellProfileArcs(
+    // Profile in meters (heights are already meters — expandProfileSectionArcs
+    // needs consistent units), vertical S-C-S arcs expanded in the section
+    // plane (signed abscissa × height, like the 3D sweep).
+    const profileM = expandProfileSectionArcs(
       profilePoints.map((p) => ({
         x: p.x * meterByPx,
         y: p.y * meterByPx,

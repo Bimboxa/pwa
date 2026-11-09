@@ -32,7 +32,6 @@ import shrinkPolylineEnds from "Features/geometry/utils/shrinkPolylineEnds";
 import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
-  expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
   translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
@@ -70,7 +69,7 @@ import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
 import buildInlineExtrusion3dMesh from "./buildInlineExtrusion3dMesh";
 import { hasVerticalGuideOffsets } from "./sweepGeometry3d";
 import buildMesh3dAnnotationObject from "./buildMesh3dAnnotationObject";
-import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import expandProfileSectionArcs from "Features/geometry/utils/expandProfileSectionArcs";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
@@ -1124,19 +1123,18 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             y: q.y,
             z: verticalLift + (q.offsetBottom ?? 0),
           }));
-          // Plan arcs of the profile sampled with their heights
-          // interpolated (expandRingWithOffsets carries offsetBottom).
-          const profileRefs = line.points.map((p) => ({
-            ...p,
-            offsetBottom: Number(p?.height) || 0,
-          }));
-          const profile3d = pointsToLocal(
-            expandRingWithOffsets(profileRefs, GUIDE_ARC_SAMPLES),
-            baseMap
+          // Profile in basemap-local units, heights (m) re-attached by
+          // index, vertical S-C-S arcs expanded in the SECTION plane
+          // (signed abscissa × height — same curve as the Élévation editor).
+          const profile3d = expandProfileSectionArcs(
+            pointsToLocal(line.points, baseMap).map((q, i) => ({
+              ...q,
+              height: Number(line.points[i]?.height) || 0,
+            }))
           ).map((q) => ({
             x: q.x,
             y: q.y,
-            z: verticalLift + (q.offsetBottom ?? 0),
+            z: verticalLift + q.height,
           }));
           object = buildInlineExtrusion3dMesh({
             guidePointsLocal3d: guide3d,
@@ -1158,8 +1156,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           );
         const guideLocal = pointsToLocal(expandedPts, baseMap);
         // Profile in basemap-local units, heights (m) re-attached by index,
-        // vertical S-C-S arcs expanded.
-        const profileLocal = expandShellProfileArcs(
+        // vertical S-C-S arcs expanded in the section plane (signed abscissa
+        // × height — NOT the curvilinear chain, which unfolds a profile
+        // folded on its base point into a V).
+        const profileLocal = expandProfileSectionArcs(
           pointsToLocal(line.points, baseMap).map((q, i) => ({
             ...q,
             height: Number(line.points[i]?.height) || 0,
