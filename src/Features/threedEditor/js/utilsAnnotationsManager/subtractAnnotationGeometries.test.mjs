@@ -438,3 +438,26 @@ test("a « Fosse » is displayed open and cuts as its closed prism", () => {
   const area = carvedArea(host);
   assert.ok(Math.abs(area - (5 - 0.16)) < 1e-4, `area ${area}`);
 });
+
+test("a mesh3d host carved while dimmed keeps its original material", () => {
+  const baseMapGroup = frame();
+  const host = openBasin();
+  const original = getSolidMeshesFromObject3D(host)[0].material;
+  // State override in place when the async carve lands
+  // (applyAnnotationMaterialState: displayed ≠ cached original).
+  const dim = new MeshBasicMaterial({ color: 0x888888 });
+  for (const face of getSolidMeshesFromObject3D(host)) {
+    face.userData.originalMaterial = original;
+    face.material = dim;
+  }
+  const cutter = solidBox(0.4, 1, 0.4);
+  cutter.position.y = -0.5;
+  baseMapGroup.add(host);
+  baseMapGroup.add(cutter);
+  baseMapGroup.updateMatrixWorld(true);
+
+  subtractAnnotationGeometries(host, [cutter], { hollow: true });
+  const [carved] = getSolidMeshesFromObject3D(host);
+  assert.equal(carved.material, dim);
+  assert.equal(carved.userData.originalMaterial, original);
+});
