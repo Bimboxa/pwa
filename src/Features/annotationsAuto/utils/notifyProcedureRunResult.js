@@ -11,7 +11,17 @@ import fireFlash from "./fireFlash";
 export default function notifyProcedureRunResult(dispatch, result) {
   const created = result?.annotations?.length ?? 0;
   const updated = result?.updatedAnnotations?.length ?? 0;
-  if (created > 0 || updated > 0) {
+  if (result?.message && !result?.error) {
+    // procedure-specific report (e.g. metering totals of a run whose
+    // outputs are not annotations)
+    fireFlash();
+    dispatch(
+      setToaster({
+        message: result.message,
+        severity: result.severity ?? "success",
+      })
+    );
+  } else if (created > 0 || updated > 0) {
     fireFlash();
     const message =
       created > 0

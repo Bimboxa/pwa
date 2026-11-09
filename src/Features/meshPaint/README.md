@@ -284,6 +284,42 @@ Une ligne par partie peinte.
 - « Régénérer depuis le PDF » (`regenerateBaseMapFromPdfPageService`).
 - Coupes 2D (`useHandleSplitPolyline`, `useHandleSplitCommit`) et Coupe face (`cutFaceAlongPathService`).
 
+## Peintures créées par une procédure (« Quantités clé »)
+
+Une procédure auto peut écrire des peintures à la place d'annotations : la
+procédure `PISCINE_QTES_V1` (`Data/edx/automatedAnnotationsProcedures/piscine/
+piscineQtesV1Entry.js`) métré la piscine depuis les meshs 3D de ses ouvrages
+comme si l'utilisateur les avait peints.
+
+- **Construction hors scène** : `services/buildHeadlessHostParts.js` construit
+  l'objet d'une annotation RÉSOLUE (`annotations/utils/resolveAnnotationRowForBuild.js`
+  depuis la ligne db + ses points) avec `createAnnotationObject3D` (sans
+  anti-crénelage), le pose sous un `createBaseMapFrameGroup` et le lit par
+  `getHostPartData` — même index de parties et même `hash` que le pinceau.
+- **Repère commun** : `utils/transformHostParts.js` (matrices 4×4 colonne‑major,
+  sans three) amène les îlots / chaînes de chaque hôte dans le repère du plan
+  (z haut) et renvoie les géométries locales dans le repère de l'hôte.
+- **Pipeline pur** `utils/meterHostParts.js` :
+  `classifyHostPartsByRules` (table de rôles déclarative : orientation des
+  normales d'un solide ouvert — INTERIOR / EXTERIOR / UP —, catégorie par
+  face), `weldSupportFootprints` (empreinte d'un hôte posé retirée de la face
+  horizontale qui le porte : sol − fosse, tête de muret − podium, plage −
+  muret), `findReentrantChains` (arêtes concaves d'un hôte : dièdre < 180° vu
+  du côté peint, îlots coplanaires regroupés) et `findBaseEdgesOnSupports`
+  (arêtes de base d'un muret / podium posé sur une face support).
+- **Écriture** : lignes `buildMeshPaintRow` + `autoCreatedByProcedureKey` /
+  `autoCreatedFrom` (champs non indexés) ; `services/writeProcedureMeshPaintsService.js`
+  balaie les peintures précédentes des mêmes sources puis écrit les nouvelles,
+  en un seul pas d'undo. `getProcedureOutputs` ne connaît pas les peintures :
+  le balayage est à la charge de la procédure.
+- Le toaster du lanceur affiche `result.message` (totaux) quand le résultat
+  ne crée aucune annotation (`annotationsAuto/utils/notifyProcedureRunResult`).
+
+Tests : `node --test src/Features/meshPaint/utils/*.test.mjs` (classification,
+soudure, angles sur des soupes synthétiques, transformations) et le replay
+headless complet `node src/Data/edx/automatedAnnotationsProcedures/piscine/__test__piscineQtesV1.mjs`
+(vrais builders, totaux de la piscine par défaut).
+
 ## Pièges
 
 - **Nouveau service qui réécrit des coordonnées** dans le repère d'un fond de plan : il doit aussi traiter `db.meshPaints`, comme il traite `mesh3d`.
