@@ -12,7 +12,7 @@ import { IMAGE_VEIL_RGBA } from "../constants/imageDisplay";
 
 // ---------------------------------------------------------------------------
 // TileImageAnnotation — one photo of the PopperImages grid: square
-// thumbnail, numbered badge (top-left), optional caption (label). Selected →
+// photo, numbered badge (top-left), optional caption (label). Selected →
 // primary border + "Fullscreen" button (DialogImageViewer). Veiled (another
 // image is selected) → translucent white veil.
 // ---------------------------------------------------------------------------
@@ -33,7 +33,9 @@ export default function TileImageAnnotation({
   // data
 
   const { image, label } = annotation;
-  const src = image?.thumbnail ?? image?.imageUrlClient;
+  // Full image (blob URL): the stored thumbnail is far too small for a
+  // 2-column tile and renders blurry.
+  const src = image?.imageUrlClient ?? image?.thumbnail;
 
   // render
 
