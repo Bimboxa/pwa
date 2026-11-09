@@ -38,6 +38,7 @@ export default function buildPromptIaProjectContext({
       zipEntries: [
         "projet.json",
         "pdfs/<nom>.pdf",
+        "modeles/<nom>.glb",
         "satellite/site.png",
         "documents/<nom>.pdf",
       ],

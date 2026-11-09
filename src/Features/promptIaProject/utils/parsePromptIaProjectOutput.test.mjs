@@ -90,6 +90,64 @@ const parse = (json) =>
     newId: makeIds(),
   });
 
+test("a plan can carry a GLB and native image annotations in one archive", () => {
+  const json = sample();
+  const modelPath = "modeles/roof.glb";
+  json.baseMaps[0].scene3d = {
+    file: "roof.glb",
+    bounds: [-10, -5, 10, 5],
+    baseZ: 0,
+  };
+  const image = {
+    id: "photo",
+    mime: "image/png",
+    width: 1,
+    height: 1,
+    base64:
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWr4AAAAASUVORK5CYII=",
+  };
+  const listing = json.scopes[0].listings[0];
+  listing.imageAssets = [image];
+  listing.annotationTemplates.push({ id: "photo_template", type: "IMAGE" });
+  listing.annotations.push({
+    id: "a2",
+    type: "IMAGE",
+    annotationTemplateId: "photo_template",
+    baseMapId: "bm_rdc",
+    imageAssetId: "photo",
+    label: "Roof outlet",
+    points: [
+      { x: 0.1, y: 0.1 },
+      { x: 0.2, y: 0.1 },
+      { x: 0.1, y: 0.3 },
+    ],
+  });
+
+  const read = () =>
+    parsePromptIaProjectOutput(json, {
+      pdfPaths: PDF_PATHS,
+      filePaths: [...PDF_PATHS, modelPath],
+      newId: makeIds(),
+    });
+  const result = read();
+  assert.equal(result.ok, true, result.error);
+  const [plan] = result.data.baseMaps;
+  const [parsedListing] = result.data.scopes[0].listings;
+  assert.equal(plan.scene3d.file, modelPath);
+  assert.equal(plan.scene3d.baseZ, 0);
+  assert.equal(parsedListing.annotations[1].baseMapId, plan.id);
+  assert.equal(parsedListing.annotations[1].label, "Roof outlet");
+  assert.deepEqual(parsedListing.imageAssets, [image]);
+  assert.equal(result.summary.models3d, 1);
+  assert.match(parse(json).error, /GLB attendu/);
+
+  listing.annotations[1].imageAssetId = "missing";
+  assert.match(read().error, /missing image asset/);
+  listing.annotations[1].imageAssetId = "photo";
+  json.coordinateSpace = "pdf_user_space";
+  assert.match(read().error, /IMAGE/);
+});
+
 const PAIRS = [
   { plan: { x: 0.1, y: 0.8 }, reference: { x: 0.4, y: 0.55 } },
   { plan: { x: 0.9, y: 0.2 }, reference: { x: 0.47, y: 0.49 } },

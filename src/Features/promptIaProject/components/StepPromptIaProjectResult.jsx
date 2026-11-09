@@ -20,7 +20,7 @@ export default function StepPromptIaProjectResult({
 
   const dropS = "Glisser & déposer le zip renvoyé par le chat IA";
   const dropSubS =
-    "projet.json + PDFs des fonds de plan (+ image satellite, documents) — ou coller le fichier (Ctrl/Cmd+V)";
+    "projet.json + PDFs des fonds de plan (+ maillages GLB, image satellite, documents) — ou coller le fichier (Ctrl/Cmd+V)";
   const previewS = "Aperçu";
   const missingProjectS = "Renseignez le nom et le numéro du projet.";
   const doneS = "Projet créé";

@@ -26,6 +26,7 @@ Un **fichier zip** à télécharger, contenant :
 ```
 projet.json
 pdfs/<nom>.pdf
+modeles/<nom>.glb
 satellite/site.png
 documents/<nom>.pdf
 ```
@@ -39,6 +40,8 @@ documents/<nom>.pdf
 - `satellite/site.png` — l'image satellite du site, quand tu as pu la
   récupérer (section « Localisation des fonds de plan »). Sinon, n'ajoute pas
   ce dossier.
+- `modeles/` — les maillages GLB autonomes qui accompagnent un fond de plan.
+  Si aucun maillage n'est demandé, omets ce dossier.
 - `documents/` — les pièces écrites auxquelles les ouvrages ou les points
   d'attention renvoient (CCTP, notice…), recopiées **sans modification**
   (section « Documents »). Sinon, n'ajoute pas ce dossier.
@@ -99,6 +102,14 @@ Clé racine `baseMaps`, un élément par fond de plan.
   pour les autres.
 - `placement` : les points homologues qui situent le fond dans l'espace
   (section « Localisation des fonds de plan »).
+- `scene3d` (facultatif, pour un fond `PLAN`) : `file` désigne le GLB
+  dans le zip. `bounds: [minX, minY, maxX, maxY]` donne le cadre complet
+  du fond affiché et rogné, marges comprises, dans les unités du modèle.
+  Dans le GLB, la droite du plan correspond à +X, le haut du plan à -Z
+  et l'altitude à +Y. Le cadre doit avoir les proportions du fond.
+  `baseZ` désigne l'altitude du plan dans les unités du modèle (par
+  défaut, le point le plus bas du maillage). Un modèle relatif peut
+  accompagner un fond dont l'échelle métrique est inconnue.
 
 Pour mesurer une zone : rends la page affichée en image (par exemple PyMuPDF
 `page.set_rotation(r)` puis `page.get_pixmap()`), relève le cadre en pixels,
@@ -224,6 +235,10 @@ Clé racine `scopes`, un élément par scope.
   Une à quatre listes par scope suffisent en général.
 - Chaque liste porte ses `annotationTemplates` (les modèles : une entrée de
   légende avec son type et son style) et ses `annotations`.
+- Pour les annotations `IMAGE`, ajoute à la liste `imageAssets`, un tableau
+  d'objets `{id, mime: "image/png", width, height, base64}`. Encode les octets
+  du PNG en base64 sans préfixe. Limite le total des PNG à 6 Mo par liste,
+  chaque PNG à 5 Mo et chaque liste à 200 images.
 - Un modèle : `id` court (`tpl_…`), `label` court en français, `type`, et un
   style (couleurs hexadécimales distinctes d'un modèle à l'autre). Les `id` de
   modèle sont propres à leur liste.
@@ -245,6 +260,13 @@ Chaque annotation porte :
 - `annotationTemplateId` : un modèle **de la même liste** ;
 - `baseMapId` : l'`id` d'un élément de `baseMaps` ;
 - sa géométrie, dans le repère du fond de plan désigné.
+
+Une annotation `IMAGE` utilise `coordinateSpace: "image"` et un modèle
+`IMAGE` de la même liste. `imageAssetId` référence un PNG de `imageAssets`.
+Donne trois points dans cet ordre : haut gauche, haut droit, bas gauche.
+Ils forment un rectangle entièrement dans le fond. Ajoute `label` et, si
+utile, `labelDescription`. Pour relier la photo à un repère du plan,
+ajoute `hasConnector: true` et `targetPoint` en coordonnées normalisées.
 
 ### Espace de coordonnées
 
@@ -435,7 +457,7 @@ relier les bonnes annotations aux bons ouvrages.
 
 ## Schéma de sortie
 
-Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`.
+Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`, `IMAGE`.
 Clés racine autorisées : `version`, `coordinateSpace`, `project`, `site`,
 `baseMaps`, `documents`, `scopes`, `note`. Clés d'un scope : `id`, `name`,
 `listings`, `businessObjectListings`, `issues`.

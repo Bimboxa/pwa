@@ -34,8 +34,7 @@ function pickJsonPath(paths) {
 
 /**
  * Reads the zip returned by the AI chat: `projet.json` + the PDFs + the
- * satellite image of the site when there is one + the documents (CCTP…)
- * the business objects point to.
+ * satellite image, linked documents and the GLBs attached to plan views.
  *
  * @param {File|Blob} file
  * @returns {Promise<{ok: true, data: Object, summary: Object, pdfFilesByPath: Map<string, File>, referenceImageFile: File|null, documentFilesByPath: Map<string, File>}
@@ -83,7 +82,21 @@ export default async function readPromptIaProjectOutputZip(file) {
 
   // Only the PDFs a base map uses are extracted.
   const pdfFilesByPath = new Map();
+  const modelFilesByPath = new Map();
   for (const baseMap of parsed.data.baseMaps) {
+    const scene = baseMap.scene3d;
+    if (scene) {
+      if (!modelFilesByPath.has(scene.file)) {
+        const blob = await byPath.get(scene.file).async("blob");
+        modelFilesByPath.set(
+          scene.file,
+          new File([blob], scene.file.split("/").pop(), {
+            type: "model/gltf-binary",
+          })
+        );
+      }
+      scene.modelFile = modelFilesByPath.get(scene.file);
+    }
     const path = baseMap.source.file;
     if (pdfFilesByPath.has(path)) continue;
     const blob = await byPath.get(path).async("blob");

@@ -74,7 +74,7 @@ export function imagePlacement(points, frame) {
   };
 }
 
-export function validateImageImport(doc) {
+export function validateImageImport(doc, { checkRectangle = true } = {}) {
   try {
     const assets = doc.imageAssets ?? [];
     if (!Array.isArray(assets) || assets.length > 200)
@@ -100,14 +100,28 @@ export function validateImageImport(doc) {
       }
       if (!ids.has(a.imageAssetId))
         throw new Error("IMAGE references a missing image asset");
-      imagePlacement(
-        (a.points ?? []).map((p) => ({
-          ...p,
-          x: p.x * doc.image.width,
-          y: p.y * doc.image.height,
-        })),
-        doc.image
-      );
+      if (
+        !Array.isArray(a.points) ||
+        a.points.length !== 3 ||
+        a.points.some(
+          (p) =>
+            !Number.isFinite(p?.x) ||
+            !Number.isFinite(p?.y) ||
+            p.type === "circle"
+        )
+      )
+        throw new Error(
+          "IMAGE requires top-left, top-right and bottom-left corners"
+        );
+      if (checkRectangle) {
+        imagePlacement(
+          a.points.map((p) => ({
+            x: p.x * doc.image.width,
+            y: p.y * doc.image.height,
+          })),
+          doc.image
+        );
+      }
       const [o, x, y] = a.points;
       if (
         [o, x, y, { x: x.x + y.x - o.x, y: x.y + y.y - o.y }].some(

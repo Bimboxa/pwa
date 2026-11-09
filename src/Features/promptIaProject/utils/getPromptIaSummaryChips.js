@@ -12,6 +12,9 @@ export default function getPromptIaSummaryChips(
   return [
     ...(withScopes ? [plural(summary.scopes, "scope", "scopes")] : []),
     plural(summary.baseMaps, "fond de plan", "fonds de plan"),
+    ...(summary.models3d > 0
+      ? [plural(summary.models3d, "maillage 3D", "maillages 3D")]
+      : []),
     plural(summary.listings, "liste", "listes"),
     plural(summary.templates, "modèle", "modèles"),
     plural(summary.annotations, "annotation", "annotations"),

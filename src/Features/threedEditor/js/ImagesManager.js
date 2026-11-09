@@ -672,6 +672,10 @@ export default class ImagesManager {
     const group = this.imagesMap[baseMapId];
     if (!group || !Number.isFinite(meterByPx) || meterByPx <= 0) return;
     group.userData.meterByPx = meterByPx;
+    const scanWrap = group.userData.scanWrap;
+    const modelUnitsPerPx = scanWrap?.userData.modelUnitsPerPx;
+    if (modelUnitsPerPx > 0)
+      scanWrap.scale.setScalar(meterByPx / modelUnitsPerPx);
     const planePx = group.userData.planePx;
     if (!planePx) return;
     group.traverse?.((child) => {

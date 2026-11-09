@@ -90,10 +90,20 @@ export async function importPromptIaListingAnnotationsService({
 }) {
   const annotationIdMapOut = new Map();
   const imageSize = getRecordImageSize(record);
+  const imageAssetIds = new Set(
+    annotations
+      .filter((annotation) => annotation.type === "IMAGE")
+      .map((annotation) => annotation.imageAssetId)
+  );
   let payload = {
     version: "1.0",
     image: { width: imageSize.width, height: imageSize.height },
     annotationTemplates: listing.annotationTemplates,
+    ...(imageAssetIds.size && {
+      imageAssets: listing.imageAssets?.filter((asset) =>
+        imageAssetIds.has(asset.id)
+      ),
+    }),
     annotations: annotations.map(({ baseMapId, ...annotation }) => {
       void baseMapId;
       return annotation;

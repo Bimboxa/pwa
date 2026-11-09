@@ -4,6 +4,7 @@
 
 import { COORDINATE_SPACES } from "../../promptIa/utils/parsePromptIaOutput.js";
 import parsePromptIaBusinessObjects from "../../businessObjects/utils/parsePromptIaBusinessObjects.js";
+import { validateImageImport } from "../../importAnnotations/utils/imageImport.js";
 
 export const BASE_MAP_LISTING_KINDS = ["PLAN", "ELEVATION"];
 export const PROJECT_ANNOTATION_TYPES = [
@@ -12,7 +13,11 @@ export const PROJECT_ANNOTATION_TYPES = [
   "STRIP",
   "COTE",
   "FREE_TEXT",
+  "IMAGE",
 ];
+const VECTOR_ANNOTATION_TYPES = PROJECT_ANNOTATION_TYPES.filter(
+  (type) => type !== "IMAGE"
+);
 export const MAX_BASE_MAPS = 200;
 export const MAX_SCOPES = 50;
 export const MAX_ANNOTATIONS = 20000;
@@ -205,7 +210,7 @@ function parseBbox(bbox) {
   return ok ? { value: { x1, y1, x2, y2 } } : { error: true };
 }
 
-function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
+function parseBaseMaps(rawBaseMaps, { pdfPaths, filePaths, newId, warnings }) {
   if (rawBaseMaps != null && !Array.isArray(rawBaseMaps))
     return fail("`baseMaps` doit être un tableau.");
   const list = rawBaseMaps ?? [];
@@ -214,6 +219,7 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
 
   const idMap = new Map();
   const baseMaps = [];
+  const glbPaths = [...(filePaths ?? [])].filter((path) => /\.glb$/i.test(path));
   for (const [index, bm] of list.entries()) {
     const where = `baseMaps[${index}]`;
     if (!isObject(bm)) return fail(`${where} doit être un objet.`);
@@ -253,6 +259,32 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
         `${where}.blueprintScale doit être un nombre > 0 (100 pour 1/100).`
       );
 
+    let scene3d;
+    if (bm.scene3d != null) {
+      const { file: requestedFile, bounds, baseZ } = bm.scene3d;
+      const modelPath = resolveZipPath(requestedFile, glbPaths);
+      if (!modelPath)
+        return fail(
+          `${where}.scene3d.file introuvable dans le zip (GLB attendu).`
+        );
+      if (
+        listing !== "PLAN" ||
+        !Array.isArray(bounds) ||
+        bounds.length !== 4 ||
+        !bounds.every(Number.isFinite) ||
+        !(bounds[2] > bounds[0] && bounds[3] > bounds[1]) ||
+        ![
+          bounds[2] - bounds[0],
+          bounds[3] - bounds[1],
+          bounds[0] + bounds[2],
+          bounds[1] + bounds[3],
+        ].every(Number.isFinite) ||
+        (baseZ != null && !Number.isFinite(baseZ))
+      )
+        return fail(`${where}.scene3d : vue en plan et cadre GLB valides requis.`);
+      scene3d = { file: modelPath, bounds, baseZ: baseZ ?? null };
+    }
+
     const id = newId();
     idMap.set(authorId, id);
     const name = cleanString(bm.name) || `Fond de plan ${index + 1}`;
@@ -265,6 +297,7 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
       // import-time flag only: the record stays a regular base map
       isDetail: bm.isDetail === true,
       placement: parsePlacement(bm.placement, name, warnings),
+      ...(scene3d && { scene3d }),
     });
   }
   return { ok: true, baseMaps, idMap };
@@ -275,11 +308,12 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, newId, warnings }) {
 export function parseListing(
   listing,
   where,
-  { baseMapIdMap, newId, annotationIdMap, warnings }
+  { baseMapIdMap, newId, annotationIdMap, warnings, allowImages = false }
 ) {
   if (!isObject(listing)) return fail(`${where} doit être un objet.`);
   const name = cleanString(listing.name);
   if (!name) return fail(`${where} n'a pas de \`name\`.`);
+  const types = allowImages ? PROJECT_ANNOTATION_TYPES : VECTOR_ANNOTATION_TYPES;
 
   const rawTemplates = listing.annotationTemplates ?? [];
   if (!Array.isArray(rawTemplates))
@@ -297,9 +331,9 @@ export function parseListing(
       return fail(
         `Identifiant de modèle en double dans ${where} : ${authorId}.`
       );
-    if (!PROJECT_ANNOTATION_TYPES.includes(tpl.type))
+    if (!types.includes(tpl.type))
       return fail(
-        `${tplWhere}.type non pris en charge : ${tpl.type} (attendu ${PROJECT_ANNOTATION_TYPES.join("/")}).`
+        `${tplWhere}.type non pris en charge : ${tpl.type} (attendu ${types.join("/")}).`
       );
     const id = newId();
     templateIdMap.set(authorId, id);
@@ -313,9 +347,9 @@ export function parseListing(
   for (const [index, ann] of rawAnnotations.entries()) {
     const annWhere = `${where}.annotations[${index}]`;
     if (!isObject(ann)) return fail(`${annWhere} doit être un objet.`);
-    if (!PROJECT_ANNOTATION_TYPES.includes(ann.type))
+    if (!types.includes(ann.type))
       return fail(
-        `${annWhere}.type non pris en charge : ${ann.type} (attendu ${PROJECT_ANNOTATION_TYPES.join("/")}).`
+        `${annWhere}.type non pris en charge : ${ann.type} (attendu ${types.join("/")}).`
       );
     if (!baseMapIdMap.has(ann.baseMapId))
       return fail(
@@ -343,9 +377,40 @@ export function parseListing(
     });
   }
 
+  const imageAssets = listing.imageAssets;
+  if (
+    allowImages &&
+    (imageAssets != null ||
+      annotationTemplates.some((tpl) => tpl.type === "IMAGE") ||
+      annotations.some((ann) => ann.type === "IMAGE"))
+  ) {
+    // Check the rectangle in rendered pixels once the target map size is known.
+    const error = validateImageImport(
+      { imageAssets, annotations },
+      { checkRectangle: false }
+    );
+    if (error) return fail(`${where} : ${error}.`);
+    const imageTemplateIds = new Set(
+      annotationTemplates.filter((tpl) => tpl.type === "IMAGE").map((tpl) => tpl.id)
+    );
+    if (
+      annotations.some(
+        (ann) => (ann.type === "IMAGE") !== imageTemplateIds.has(ann.annotationTemplateId)
+      )
+    )
+      return fail(
+        `${where} : les annotations IMAGE doivent utiliser un modèle IMAGE.`
+      );
+  }
   return {
     ok: true,
-    listing: { id: newId(), name, annotationTemplates, annotations },
+    listing: {
+      id: newId(),
+      name,
+      annotationTemplates,
+      annotations,
+      ...(allowImages && imageAssets && { imageAssets }),
+    },
   };
 }
 
@@ -607,6 +672,7 @@ export default function parsePromptIaProjectOutput(
 
   const parsedBaseMaps = parseBaseMaps(json.baseMaps, {
     pdfPaths,
+    filePaths,
     newId,
     warnings,
   });
@@ -622,6 +688,7 @@ export default function parsePromptIaProjectOutput(
   const parsedScopes = parseScopes(json.scopes, {
     baseMapIdMap: parsedBaseMaps.idMap,
     documentIdMap: parsedDocuments.idMap,
+    allowImages: coordinateSpace === "image",
     newId,
     warnings,
   });
@@ -644,9 +711,11 @@ export default function parsePromptIaProjectOutput(
   const businessObjectListings = scopes.flatMap(
     (s) => s.businessObjectListings
   );
+  const models3d = baseMaps.filter((baseMap) => baseMap.scene3d).length;
   const summary = {
     scopes: scopes.length,
     baseMaps: baseMaps.length,
+    ...(models3d > 0 && { models3d }),
     listings: listings.length,
     templates: listings.reduce((n, l) => n + l.annotationTemplates.length, 0),
     annotations: listings.reduce((n, l) => n + l.annotations.length, 0),

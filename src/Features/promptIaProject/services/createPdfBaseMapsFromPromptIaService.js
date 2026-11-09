@@ -159,7 +159,7 @@ export default async function createPdfBaseMapsFromPromptIaService({
       errors.push("Aucune liste de fonds de plan dans le projet.");
       break;
     }
-    const [record] = await createBaseMaps(
+    let [record] = await createBaseMaps(
       [
         {
           name: item.baseMap.name,
@@ -173,6 +173,22 @@ export default async function createPdfBaseMapsFromPromptIaService({
     if (!record) {
       errors.push(`Fond de plan « ${item.baseMap.name} » non créé.`);
       continue;
+    }
+    if (item.baseMap.scene3d) {
+      try {
+        const { default: attachPromptIaGlb } = await import(
+          "./attachPromptIaGlbService"
+        );
+        record = await attachPromptIaGlb({
+          record,
+          scene: item.baseMap.scene3d,
+          projectId,
+        });
+      } catch (e) {
+        errors.push(
+          `Maillage de « ${item.baseMap.name} » non importé : ${errorMessage(e)}`
+        );
+      }
     }
     created.set(item.baseMap.id, {
       record,
