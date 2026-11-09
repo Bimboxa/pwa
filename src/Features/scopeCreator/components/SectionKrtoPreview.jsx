@@ -30,13 +30,19 @@ export default function SectionKrtoPreview({
   imageLoading,
   imageAlt,
   code,
+  // read-only preview (Prompt IA: the listings come from the AI's answer):
+  // no "+ Ajouter", no remove buttons, dedicated helper / empty texts
+  readOnly = false,
+  helper,
+  emptyLabel,
 }) {
   // strings
 
   const titleS = "Modèles d'annotations";
   const helperS =
+    helper ??
     "Ces listes seront ajoutées au Krto, prêtes à annoter. Vous pourrez en retirer ensuite.";
-  const noLibrariesS = "Aucun modèle";
+  const noLibrariesS = emptyLabel ?? "Aucun modèle";
   const addListingS = "+ Ajouter";
   const newListingPlaceholderS = "Nom de la liste";
 
@@ -93,14 +99,16 @@ export default function SectionKrtoPreview({
             <Typography variant="body1" sx={{ fontWeight: 700 }}>
               {titleS}
             </Typography>
-            <Button
-              size="small"
-              color="secondary"
-              onClick={onAddListingClick}
-              sx={{ minWidth: 0 }}
-            >
-              {addListingS}
-            </Button>
+            {!readOnly && (
+              <Button
+                size="small"
+                color="secondary"
+                onClick={onAddListingClick}
+                sx={{ minWidth: 0 }}
+              >
+                {addListingS}
+              </Button>
+            )}
           </Box>
 
           {(libraries ?? []).length === 0 && _extraListings.length === 0 ? (
@@ -146,13 +154,15 @@ export default function SectionKrtoPreview({
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   {library.name}
                 </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => onRemoveLibrary(library.key)}
-                  sx={{ color: "text.secondary", p: 0.25 }}
-                >
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
+                {!readOnly && (
+                  <IconButton
+                    size="small"
+                    onClick={() => onRemoveLibrary(library.key)}
+                    sx={{ color: "text.secondary", p: 0.25 }}
+                  >
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                )}
               </Box>
               {groupAnnotationTemplatesByGroupLabel(library.templates).map(
                 (item, index) => {

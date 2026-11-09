@@ -5,7 +5,9 @@ import { Alert, Box, Chip, LinearProgress, Typography } from "@mui/material";
 import FormProject from "Features/projects/components/FormProject";
 import DropZonePromptIaProject from "./DropZonePromptIaProject";
 
-const plural = (count, one, many) => `${count} ${count > 1 ? many : one}`;
+import getPromptIaSummaryChips, {
+  plural,
+} from "../utils/getPromptIaSummaryChips";
 
 export default function StepPromptIaProjectResult({
   project,
@@ -37,39 +39,7 @@ export default function StepPromptIaProjectResult({
   const progressPct =
     progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
-  const summaryChips = output
-    ? [
-        plural(output.summary.scopes, "scope", "scopes"),
-        plural(output.summary.baseMaps, "fond de plan", "fonds de plan"),
-        plural(output.summary.listings, "liste", "listes"),
-        plural(output.summary.templates, "modèle", "modèles"),
-        plural(output.summary.annotations, "annotation", "annotations"),
-        ...(output.summary.placements > 0
-          ? [
-              plural(
-                output.summary.placements,
-                "fond à positionner",
-                "fonds à positionner"
-              ),
-            ]
-          : []),
-        ...(output.summary.documents > 0
-          ? [plural(output.summary.documents, "document", "documents")]
-          : []),
-        ...(output.summary.businessObjects > 0
-          ? [plural(output.summary.businessObjects, "ouvrage", "ouvrages")]
-          : []),
-        ...(output.summary.issues > 0
-          ? [
-              plural(
-                output.summary.issues,
-                "point d'attention",
-                "points d'attention"
-              ),
-            ]
-          : []),
-      ]
-    : [];
+  const summaryChips = getPromptIaSummaryChips(output?.summary);
 
   const site = output?.data?.site;
   const siteS = [site?.address, referenceLabelByType[site?.reference?.type]]

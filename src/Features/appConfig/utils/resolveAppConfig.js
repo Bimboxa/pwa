@@ -226,6 +226,16 @@ export default async function resolveAppConfig(appConfig) {
   // an array of configuration objects (the Data files are gitignored, so the
   // schema is documented here):
   //   { key, name, description,
+  //     kind,                       // optional creation flow of the card.
+  //                                 // "PROMPT_IA": the recap replaces the
+  //                                 // source / base maps sections by the
+  //                                 // Prompt IA flow (description +
+  //                                 // attachments → zip for an AI chat →
+  //                                 // returned zip → base maps, listings,
+  //                                 // templates, annotations, ouvrages);
+  //                                 // recap-only, left out of the compact
+  //                                 // dialog (getSimpleModeConfigurations).
+  //                                 // absent => config-driven creation
   //     code,                       // short monospace card label (e.g. "MET.TOIT")
   //     chipLabel,                  // card category chip (e.g. "Métré")
   //     optionalModules,            // creation options the user may toggle in

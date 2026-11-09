@@ -79,9 +79,10 @@ export default function DialogCreateScopeFromPreset({
     [projectId]
   );
 
-  const { createScopeFromPreset, isCreating } = useCreateScopeFromPreset({
-    projectId,
-  });
+  const { createScopeFromPreset, isCreating, progress } =
+    useCreateScopeFromPreset({
+      projectId,
+    });
 
   // strings
 
@@ -167,6 +168,18 @@ export default function DialogCreateScopeFromPreset({
   // sourceConfigurationKeys): { scopeId, mode: "LINK" | "COPY" } — null until
   // the recap preselects the most recent suggested scope.
   const [sourceScope, setSourceScope] = useState(null);
+  // « Prompt IA » configuration (kind PROMPT_IA): the parsed output of the
+  // zip dropped in the recap — null until loaded, reset on configuration
+  // switch and when the recap closes (its section holds the files).
+  const [promptIaOutput, setPromptIaOutput] = useState(null);
+
+  // helpers
+
+  const selectedConfiguration =
+    selectedKey === GENERIC_KEY
+      ? null
+      : krtoConfigurations?.items?.find((c) => c.key === selectedKey);
+  const isPromptIa = selectedConfiguration?.kind === "PROMPT_IA";
 
   // handlers
 
@@ -212,7 +225,21 @@ export default function DialogCreateScopeFromPreset({
     setExtraLibraryKeys([]);
     setHiddenExistingListingIds(null);
     setSourceScope(null);
+    setPromptIaOutput(null);
     setRecapOpen(true);
+  }
+
+  function handleRecapClose() {
+    setRecapOpen(false);
+    setPromptIaOutput(null);
+  }
+
+  // the AI's scope name fills the field only while the user has not typed
+  // a name (same rule as the configuration prefill)
+  function handlePromptIaOutputChange(output) {
+    setPromptIaOutput(output);
+    const suggested = output?.data?.scopes?.[0]?.name?.trim();
+    if (suggested && !nameEdited) setName(suggested);
   }
 
   function handleNameChange(e) {
@@ -224,6 +251,7 @@ export default function DialogCreateScopeFromPreset({
 
   async function handleCreate() {
     if (isCreating || !name.trim() || !projectId) return;
+    if (isPromptIa && !promptIaOutput) return;
     const key = selectedKey === GENERIC_KEY ? null : selectedKey;
     try {
       await createScopeFromPreset({
@@ -241,6 +269,7 @@ export default function DialogCreateScopeFromPreset({
         baseMapPageTargets,
         hiddenExistingListingIds,
         sourceScope,
+        promptIa: isPromptIa ? { output: promptIaOutput } : null,
       });
     } catch (error) {
       console.error("[DialogCreateScopeFromPreset] creation failed", error);
@@ -298,11 +327,6 @@ export default function DialogCreateScopeFromPreset({
   // grid); clicking a card opens the recap modal (DialogKrtoRecap) where the
   // Krto is finalized and created.
   if (krtoConfigurations) {
-    const selectedConfiguration =
-      selectedKey === GENERIC_KEY
-        ? null
-        : krtoConfigurations.items?.find((c) => c.key === selectedKey);
-
     const subtitleS = project?.name
       ? `${pageSubtitleS} · ${project.name}`
       : pageSubtitleS;
@@ -471,7 +495,7 @@ export default function DialogCreateScopeFromPreset({
             <Suspense fallback={null}>
               <DialogKrtoRecap
                 open={recapOpen}
-                onClose={() => setRecapOpen(false)}
+                onClose={handleRecapClose}
                 configuration={selectedConfiguration}
                 projectId={projectId}
                 nameField={nameField}
@@ -497,9 +521,17 @@ export default function DialogCreateScopeFromPreset({
                 onHiddenExistingListingIdsChange={setHiddenExistingListingIds}
                 sourceScope={sourceScope}
                 onSourceScopeChange={setSourceScope}
+                promptIaOutput={promptIaOutput}
+                onPromptIaOutputChange={handlePromptIaOutputChange}
+                scopeName={name}
+                creationProgress={progress}
                 onCreate={handleCreate}
                 isCreating={isCreating}
-                canCreate={Boolean(name.trim()) && Boolean(projectId)}
+                canCreate={
+                  Boolean(name.trim()) &&
+                  Boolean(projectId) &&
+                  (!isPromptIa || Boolean(promptIaOutput))
+                }
               />
             </Suspense>
           )}

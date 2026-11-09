@@ -5,13 +5,9 @@ import { slugify } from "Features/promptIa/services/buildPromptIaZip";
 import { readPdfPageFrames } from "Features/promptIa/services/readPdfPageFrame";
 
 import instructionsBody from "../docs/PROMPT_IA_PROJECT_INSTRUCTIONS.md?raw";
-import {
-  BASE_MAP_LISTING_KINDS,
-  BUSINESS_OBJECT_LISTING_TYPES,
-  PROJECT_ANNOTATION_TYPES,
-} from "../utils/parsePromptIaProjectOutput";
+import buildPromptIaProjectContext from "../utils/buildPromptIaProjectContext";
 
-const DATA_DIR = "donnees";
+export const DATA_DIR = "donnees";
 
 // Already compressed formats are stored as is.
 const STORED_EXTENSIONS = /\.(pdf|png|jpe?g|webp|zip|xlsx|docx|pptx)$/i;
@@ -19,42 +15,8 @@ const STORED_EXTENSIONS = /\.(pdf|png|jpe?g|webp|zip|xlsx|docx|pptx)$/i;
 const isPdf = (entry) =>
   entry.file?.type === "application/pdf" || /\.pdf$/i.test(entry.path);
 
-export function buildProjectContext({ project, description, files }) {
-  return {
-    app: "Krto",
-    generatedAt: new Date().toISOString(),
-    project: {
-      name: project?.name?.trim() || null,
-      clientRef: project?.clientRef?.trim() || null,
-    },
-    scopesDescription: description?.trim() ?? "",
-    files,
-    output: {
-      zipEntries: [
-        "projet.json",
-        "pdfs/<nom>.pdf",
-        "satellite/site.png",
-        "documents/<nom>.pdf",
-      ],
-      rootKeys: [
-        "version",
-        "coordinateSpace",
-        "project",
-        "site",
-        "baseMaps",
-        "documents",
-        "scopes",
-        "note",
-      ],
-      scopeKeys: ["id", "name", "listings", "businessObjectListings", "issues"],
-      businessObjectListingTypes: BUSINESS_OBJECT_LISTING_TYPES,
-      qtyGapThreshold: 0.05,
-      coordinateSpaces: ["image", "pdf_user_space"],
-      baseMapListings: BASE_MAP_LISTING_KINDS,
-      annotationTypes: PROJECT_ANNOTATION_TYPES,
-    },
-  };
-}
+// `contexte.json` builder — pure util, kept exported here for the callers.
+export const buildProjectContext = buildPromptIaProjectContext;
 
 export function buildProjectInstructionsMarkdown(context) {
   const title = context.project.name ?? "nouveau projet";
@@ -91,21 +53,13 @@ export function buildProjectInstructionsMarkdown(context) {
 }
 
 /**
- * Builds and downloads `prompt-ia-projet-<name>.zip`: INSTRUCTIONS.md,
- * contexte.json and the input files under `donnees/`.
+ * Describes the input entries for `contexte.json` (`donnees/<path>`, mime,
+ * size, and for each PDF the size / rotation of its pages).
  *
- * @param {Object} params
- * @param {{name?: string, clientRef?: string}} params.project
- * @param {string} params.description - scopes to create, in the user's words
- * @param {Array<{path: string, file: File}>} params.entries
- * @returns {Promise<{fileName: string, sizeBytes: number, unreadablePdfs: string[], blob: Blob}>}
+ * @param {Array<{path: string, file: File}>} entries
+ * @returns {Promise<{files: Array, unreadablePdfs: string[]}>}
  */
-export default async function buildPromptIaProjectZip({
-  project,
-  description,
-  entries = [],
-  download = true,
-}) {
+export async function describePromptIaEntries(entries = []) {
   const unreadablePdfs = [];
   const files = [];
   for (const entry of entries) {
@@ -128,11 +82,18 @@ export default async function buildPromptIaProjectZip({
     }
     files.push(described);
   }
+  return { files, unreadablePdfs };
+}
 
-  const context = buildProjectContext({ project, description, files });
-
+/**
+ * Zips INSTRUCTIONS.md, contexte.json and the input files under `donnees/`
+ * (already compressed formats stored as is).
+ *
+ * @returns {Promise<Blob>}
+ */
+export async function generatePromptIaZip({ instructions, context, entries }) {
   const zip = new JSZip();
-  zip.file("INSTRUCTIONS.md", buildProjectInstructionsMarkdown(context));
+  zip.file("INSTRUCTIONS.md", instructions);
   zip.file("contexte.json", JSON.stringify(context, null, 2));
   for (const entry of entries) {
     zip.file(
@@ -141,12 +102,36 @@ export default async function buildPromptIaProjectZip({
       STORED_EXTENSIONS.test(entry.path) ? { compression: "STORE" } : undefined
     );
   }
-
-  const blob = await zip.generateAsync({
+  return zip.generateAsync({
     type: "blob",
     compression: "DEFLATE",
     compressionOptions: { level: 6 },
     streamFiles: true,
+  });
+}
+
+/**
+ * Builds and downloads `prompt-ia-projet-<name>.zip`: INSTRUCTIONS.md,
+ * contexte.json and the input files under `donnees/`.
+ *
+ * @param {Object} params
+ * @param {{name?: string, clientRef?: string}} params.project
+ * @param {string} params.description - scopes to create, in the user's words
+ * @param {Array<{path: string, file: File}>} params.entries
+ * @returns {Promise<{fileName: string, sizeBytes: number, unreadablePdfs: string[], blob: Blob}>}
+ */
+export default async function buildPromptIaProjectZip({
+  project,
+  description,
+  entries = [],
+  download = true,
+}) {
+  const { files, unreadablePdfs } = await describePromptIaEntries(entries);
+  const context = buildProjectContext({ project, description, files });
+  const blob = await generatePromptIaZip({
+    instructions: buildProjectInstructionsMarkdown(context),
+    context,
+    entries,
   });
   const fileName = `prompt-ia-projet-${slugify(
     project?.name || project?.clientRef || "projet"

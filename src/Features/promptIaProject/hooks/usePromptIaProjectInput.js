@@ -9,7 +9,12 @@ const MAX_DESCRIPTION_LENGTH = 4000;
 // Input side of the project « Prompt IA »: the description, the dropped
 // files (folders and zips expanded) and the zip handed to the AI chat.
 // `downloaded` is reset by any change: it describes the current input.
-export default function usePromptIaProjectInput({ project }) {
+// `buildZip({ project, description, entries })` builds the zip — the Krto
+// configuration "Prompt IA" passes buildPromptIaScopeZip bound to its name.
+export default function usePromptIaProjectInput({
+  project,
+  buildZip = buildPromptIaProjectZip,
+}) {
   // state
 
   const [entries, setEntries] = useState([]);
@@ -64,9 +69,7 @@ export default function usePromptIaProjectInput({ project }) {
     setBuilding(true);
     setError(null);
     try {
-      setDownloaded(
-        await buildPromptIaProjectZip({ project, description, entries })
-      );
+      setDownloaded(await buildZip({ project, description, entries }));
     } catch (e) {
       console.error("[promptIaProject] zip failed", e);
       setError(`Zip impossible : ${e?.message ?? String(e)}`);

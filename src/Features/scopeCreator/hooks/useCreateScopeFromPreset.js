@@ -24,6 +24,9 @@ import {
   setPendingInitialSaveScopeId,
   restoreScopeSyncStateFromStorage,
 } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
+import { setToaster } from "Features/layout/layoutSlice";
+
+import { withoutUndo } from "App/db/undoManager";
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -34,6 +37,7 @@ import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useCreateConfigurationBaseMaps from "./useCreateConfigurationBaseMaps";
 import seedConfigurationBaseMapAnnotationsService from "../services/seedConfigurationBaseMapAnnotationsService";
 import useCreateConfigurationResources from "./useCreateConfigurationResources";
+import useImportPromptIaContent from "Features/promptIaProject/hooks/useImportPromptIaContent";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
@@ -53,6 +57,13 @@ import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDis
 
 import getConfigurationCategories from "../utils/getConfigurationCategories";
 import resolveBaseMapPages from "../utils/resolveBaseMapPages";
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
+import normalizePromptIaScopeOutput from "Features/promptIaProject/utils/normalizePromptIaScopeOutput";
+import {
+  countPromptIaImportTasks,
+  createImportCounts,
+  hasBusinessData,
+} from "Features/promptIaProject/utils/promptIaImportTasks";
 
 import EMPTY_SCOPE_CONFIGURATION from "../data/emptyScopeConfiguration";
 
@@ -74,10 +85,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
   const createListings = useCreateListings();
   const createConfigurationBaseMaps = useCreateConfigurationBaseMaps();
   const createConfigurationResources = useCreateConfigurationResources();
+  const { importProjectContent, importScopeContent } =
+    useImportPromptIaContent();
 
   // state
 
   const [isCreating, setIsCreating] = useState(false);
+  // Prompt IA import progress ({ done, total, step }), shown on the recap's
+  // create button; idle = total 0.
+  const [progress, setProgress] = useState({ done: 0, total: 0, step: "" });
 
   // main
 
@@ -89,6 +105,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     } catch (error) {
       // reset so the creator UI unfreezes; the caller toasts the error.
       setIsCreating(false);
+      setProgress({ done: 0, total: 0, step: "" });
       throw error;
     }
   }
@@ -123,6 +140,12 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // library), a fallback "Fonds de plan" baseMap listing when the project
     // has none, core modules only.
     empty,
+    // Prompt IA configuration (configuration.kind === "PROMPT_IA"):
+    // { output } = the zip returned by the AI chat, read by
+    // readPromptIaProjectOutputZip ({ data, pdfFilesByPath,
+    // referenceImageFile, documentFilesByPath }). The listings, base maps,
+    // templates, annotations, ouvrages and issues come from it.
+    promptIa,
   }) {
     // Krto creation configuration (card selector) — when absent, the legacy
     // preset path below runs unchanged.
@@ -131,6 +154,23 @@ export default function useCreateScopeFromPreset({ projectId }) {
       : appConfig?.features?.krtoConfigurations?.items?.find(
           (c) => c.key === configurationKey
         );
+
+    const isPromptIa = configuration?.kind === "PROMPT_IA";
+    if (isPromptIa && !promptIa?.output?.data) {
+      throw new Error("Déposez le zip renvoyé par l'IA.");
+    }
+
+    // scope id generated upfront so the scopeConfig row can precede the scope
+    const scopeId = nanoid();
+
+    // Prompt IA: the AI's output restricted to the scope under creation (its
+    // id / name win; several returned scopes are merged with a warning).
+    const { scope: promptIaScope, warnings: promptIaWarnings } = isPromptIa
+      ? normalizePromptIaScopeOutput(promptIa.output.data, {
+          scopeId,
+          scopeName: name,
+        })
+      : { scope: null, warnings: [] };
 
     const dpgf = Boolean(options?.dpgf);
     const carnetDetail = Boolean(options?.carnetDetail);
@@ -153,23 +193,25 @@ export default function useCreateScopeFromPreset({ projectId }) {
       }),
     ];
 
-    const newListings = usesConfigurationFlow
-      ? await resolveConfigurationScopeListings({
-          configuration,
-          appConfig,
-          projectId,
-          extraLibraryKeys: allExtraLibraryKeys,
-          excludedLibraryKeys,
-        })
-      : await resolvePresetScopeListings({
-          presetScopeKey,
-          appConfig,
-          projectId,
-        });
+    const newListings = isPromptIa
+      ? resolvePromptIaListings(promptIaScope)
+      : usesConfigurationFlow
+        ? await resolveConfigurationScopeListings({
+            configuration,
+            appConfig,
+            projectId,
+            extraLibraryKeys: allExtraLibraryKeys,
+            excludedLibraryKeys,
+          })
+        : await resolvePresetScopeListings({
+            presetScopeKey,
+            appConfig,
+            projectId,
+          });
 
     // "+ Nouvelle liste": empty annotation listings added in the recap modal,
     // appended after the resolved ones (rank chain continues).
-    const extraListings = (extraAnnotationListings ?? [])
+    const extraListings = (isPromptIa ? [] : (extraAnnotationListings ?? []))
       .map((l) => ({ ...l, name: l?.name?.trim() }))
       .filter((l) => l.name);
     if (extraListings.length > 0) {
@@ -201,9 +243,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
       newEntities
     );
 
-    // scope id generated upfront so the scopeConfig row can precede the scope
-    const scopeId = nanoid();
-
     // scopeConfig (per-scope module/tool activation) — absent from the
     // configuration => no row, the app defaults apply. Written BEFORE the
     // scope row: createScope selects the new scope right away, so the row is
@@ -217,8 +256,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // details workflow lives in the Ressources panel (folio source PDFs,
     // "voir la source" on DETAIL annotations).
 
+    // Prompt IA: the Ouvrages module is on when the AI returned business
+    // objects (DPGF…) or points d'attention.
+    const promptIaBusinessData = isPromptIa && hasBusinessData(promptIaScope);
     const optionEnabledModuleKeys = [
-      ...(dpgf ? [getBusinessObjectsModuleKey()] : []),
+      ...(dpgf || promptIaBusinessData ? [getBusinessObjectsModuleKey()] : []),
       ...(carnetDetail || portfolio ? ["PORTFOLIO"] : []),
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
@@ -443,6 +485,111 @@ export default function useCreateScopeFromPreset({ projectId }) {
       dispatch(setSelectedBaseMapsListingId(listing?.id));
     }
 
+    // Prompt IA configuration: base maps rendered from the returned PDFs,
+    // then templates, annotations, ouvrages and issues of the scope (shared
+    // import, see useImportPromptIaContent). The import needs a PLAN base
+    // maps listing in the project (and a vertical one for ELEVATION views).
+    let promptIaReport = null;
+    if (isPromptIa) {
+      const { data, pdfFilesByPath, referenceImageFile, documentFilesByPath } =
+        promptIa.output;
+      const existingListings = baseMapsListings ?? [];
+      const missingListings = [];
+      let planListing = existingListings.find((l) => !l.verticalBaseMaps);
+      if (!planListing) {
+        missingListings.push({
+          ...defaultBaseMapsListingProps,
+          name: GENERIC_BASE_MAP_LISTING_NAME,
+          projectId,
+          canCreateItem: true,
+        });
+      }
+      const needsVertical =
+        data.baseMaps.some((b) => b.listing === "ELEVATION") &&
+        !existingListings.some((l) => l.verticalBaseMaps);
+      if (needsVertical) {
+        // same name as the project's default vertical listing
+        missingListings.push({
+          ...defaultBaseMapsListingProps,
+          name: "Coupes & élévations",
+          verticalBaseMaps: true,
+          projectId,
+          canCreateItem: true,
+        });
+      }
+      if (missingListings.length > 0) {
+        let rank =
+          existingListings
+            .map((l) => l.rank)
+            .filter(Boolean)
+            .sort()
+            .pop() ?? null;
+        const created = await createListings({
+          listings: missingListings.map((l) => {
+            rank = generateKeyBetween(rank, null);
+            return { ...l, rank };
+          }),
+          scope,
+        });
+        planListing =
+          planListing ?? (created ?? []).find((l) => !l.verticalBaseMaps);
+      }
+
+      const errors = [...promptIaWarnings];
+      const counts = createImportCounts();
+      const total = countPromptIaImportTasks(data);
+      let done = 0;
+      const tick = (step) => {
+        done = Math.min(done + 1, total);
+        setProgress({ done, total, step });
+      };
+      setProgress({ done: 0, total, step: "Fonds de plan" });
+
+      let firstBaseMapId = null;
+      // annotations and points are undoable tables: a Ctrl+Z right after the
+      // landing must not peel the import off.
+      await withoutUndo(async () => {
+        const { baseMaps, documents, destroy } = await importProjectContent({
+          projectId,
+          data,
+          pdfFilesByPath,
+          referenceImageFile,
+          documentFilesByPath,
+          tick,
+          errors,
+          counts,
+        });
+        try {
+          await importScopeContent({
+            scope: promptIaScope,
+            projectId,
+            data,
+            baseMaps,
+            documents,
+            tick,
+            errors,
+            counts,
+          });
+        } finally {
+          destroy();
+        }
+        // land on the first plan view of the json (fallback: first created)
+        const firstPlan =
+          data.baseMaps.find(
+            (b) => b.listing !== "ELEVATION" && baseMaps.has(b.id)
+          ) ?? data.baseMaps.find((b) => baseMaps.has(b.id));
+        firstBaseMapId = firstPlan
+          ? (baseMaps.get(firstPlan.id)?.record?.id ?? null)
+          : null;
+      });
+      counts.scopes = 1;
+      counts.listings = newListings.length;
+      configurationItemsCount = counts.baseMaps;
+      if (planListing) dispatch(setSelectedBaseMapsListingId(planListing.id));
+      if (firstBaseMapId) dispatch(setSelectedMainBaseMapId(firstBaseMapId));
+      promptIaReport = { counts, errors };
+    }
+
     // per-scope visibility of the pre-existing baseMap listings
     // (scope.baseMapsSettings.disabledListingIds). The recap modal's eyes
     // (hiddenExistingListingIds) win when provided; otherwise fall back to
@@ -467,7 +614,8 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // DPGF option: seed the scope's first business-objects listing (the
     // Ouvrages panel auto-selects the first listing on open).
 
-    if (dpgf) {
+    // (the Prompt IA DPGF, when the AI returned one, is the scope's first)
+    if (dpgf && !(promptIaScope?.businessObjectListings?.length > 0)) {
       await createBusinessObjectListingService({
         projectId,
         scopeId: scope.id,
@@ -526,11 +674,52 @@ export default function useCreateScopeFromPreset({ projectId }) {
       dispatch(setPendingInitialSaveScopeId(scope.id));
     }
 
+    // Prompt IA report: the recap closes on the landing, so a toaster sums
+    // up the import; the full warning list goes to the console.
+    if (promptIaReport) {
+      const { counts, errors } = promptIaReport;
+      const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Krto";
+      if (errors.length > 0) {
+        console.warn("[createScopeFromPreset] prompt IA warnings", errors);
+      }
+      dispatch(
+        setToaster({
+          message:
+            errors.length > 0
+              ? `${scopeS} créé avec ${errors.length} avertissement(s) — ${errors[0]}${
+                  errors.length > 1 ? " (…)" : ""
+                }`
+              : `${scopeS} créé : ${counts.baseMaps} fond(s) de plan, ${counts.annotations} annotation(s)`,
+          severity: errors.length > 0 ? "warning" : "success",
+        })
+      );
+    }
+
     dispatch(setOpenScopeCreator(false));
     navigate("/");
 
     return scope;
   }
 
-  return { createScopeFromPreset, isCreating };
+  // Prompt IA: one drawing listing per listing of the AI's output (ids
+  // already reminted by the parser and referenced by its annotations).
+  function resolvePromptIaListings(promptIaScope) {
+    const entityModelKey =
+      getDefaultLocatedEntityModel(appConfig)?.key ?? "annotation";
+    let rank = null;
+    return promptIaScope.listings.map((listing) => {
+      rank = generateKeyBetween(rank, null);
+      return {
+        id: listing.id,
+        name: listing.name,
+        entityModelKey,
+        table: "entities",
+        canCreateItem: true,
+        projectId,
+        rank,
+      };
+    });
+  }
+
+  return { createScopeFromPreset, isCreating, progress };
 }

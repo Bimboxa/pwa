@@ -33,6 +33,7 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 import useScopes from "Features/scopes/hooks/useScopes";
 
 import SectionKrtoPreview from "./SectionKrtoPreview";
+import SectionPromptIaScope from "./SectionPromptIaScope";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import InputBaseBand from "Features/layout/components/InputBaseBand";
@@ -82,6 +83,13 @@ export default function DialogKrtoRecap({
   onHiddenExistingListingIdsChange,
   sourceScope,
   onSourceScopeChange,
+  // Prompt IA configuration (configuration.kind === "PROMPT_IA"): the parsed
+  // output of the zip dropped in the recap (null until loaded), the Krto
+  // name (zip title) and the import progress while creating.
+  promptIaOutput,
+  onPromptIaOutputChange,
+  scopeName,
+  creationProgress,
   onCreate,
   isCreating,
   canCreate,
@@ -119,6 +127,10 @@ export default function DialogKrtoRecap({
   const sourceLinkS = "Annotations en lecture seule (recommandé)";
   const sourceCopyS = "Copier les annotations";
   const noProjectS = "Sélectionnez d'abord un projet dans le tableau de bord.";
+  const promptIaHelperS =
+    "Listes et modèles renvoyés par l'IA — ajustables après création.";
+  const promptIaEmptyS =
+    "Déposez le zip renvoyé par l'IA pour prévisualiser les modèles.";
 
   // data
 
@@ -193,6 +205,10 @@ export default function DialogKrtoRecap({
     ? (configuration.optionalModules ?? [])
     : ["DPGF", "CARNET_DETAIL"];
 
+  // Prompt IA configuration: the base maps / source sections give way to the
+  // Prompt IA card, the templates panel previews the AI's answer.
+  const isPromptIa = configuration?.kind === "PROMPT_IA";
+
   // helpers — annotation libraries (+ the Carnet de détail option's library,
   // DIVERS, unless the configuration already provides a DETAIL template)
 
@@ -215,6 +231,16 @@ export default function DialogKrtoRecap({
         templates: presetListing?.annotationTemplatesLibrary ?? [],
       };
     });
+  // Prompt IA: the listings / templates returned by the AI (raw parsed
+  // templates: AnnotationTemplateIcon falls back on their `type`)
+  const promptIaLibraries = (promptIaOutput?.data?.scopes ?? [])
+    .flatMap((s) => s.listings ?? [])
+    .map((l) => ({
+      key: l.id,
+      name: l.name,
+      templates: l.annotationTemplates ?? [],
+    }));
+  const previewLibraries = isPromptIa ? promptIaLibraries : libraries;
 
   // helpers — baseMap listings: existing project listings (visibility eyes,
   // per-scope baseMapsSettings.disabledListingIds) vs new listings declared
@@ -245,7 +271,7 @@ export default function DialogKrtoRecap({
   // Reads the unfiltered configListingRows on purpose (removed dossiers are
   // unmatched by construction, so they never count as reused).
   useEffect(() => {
-    if (!open) return;
+    if (!open || isPromptIa) return;
     if (hiddenExistingListingIds != null) return;
     const reusedIds = existingListings
       .filter((l) =>
@@ -896,9 +922,20 @@ export default function DialogKrtoRecap({
               </Box>
             </WhiteSectionGeneric>
 
-            {sourceSectionNode}
+            {isPromptIa ? (
+              <SectionPromptIaScope
+                projectId={projectId}
+                scopeName={scopeName}
+                disabled={isCreating}
+                onOutputChange={onPromptIaOutputChange}
+              />
+            ) : (
+              <>
+                {sourceSectionNode}
 
-            {baseMapsSectionNode}
+                {baseMapsSectionNode}
+              </>
+            )}
 
             {modulesSectionNode}
           </Box>
@@ -934,7 +971,9 @@ export default function DialogKrtoRecap({
                     ) : null
                   }
                 >
-                  {createS}
+                  {isCreating && creationProgress?.total > 0
+                    ? `Création… (${creationProgress.done}/${creationProgress.total})`
+                    : createS}
                   {/* in-button hotkey chip, same style as ButtonSaveScope's Ctrl+S */}
                   {!isCreating && (
                     <Typography
@@ -962,7 +1001,10 @@ export default function DialogKrtoRecap({
 
         {/* right — templates panel + configuration illustration */}
         <SectionKrtoPreview
-          libraries={libraries}
+          libraries={previewLibraries}
+          readOnly={isPromptIa}
+          helper={isPromptIa ? promptIaHelperS : undefined}
+          emptyLabel={isPromptIa ? promptIaEmptyS : undefined}
           onRemoveLibrary={(key) =>
             onExcludedLibraryKeysChange([...(excludedLibraryKeys ?? []), key])
           }
