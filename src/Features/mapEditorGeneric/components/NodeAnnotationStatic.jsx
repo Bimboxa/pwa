@@ -60,6 +60,7 @@ function NodeAnnotationStatic({
   imagesLinkNumber,
   imageDisplayIndex,
   imageVeiled,
+  imagesHidden,
 }) {
   // Apply the override + shape-based defaults ONCE per (annotation,
   // annotationOverride) pair. The memo keeps the resolved object
@@ -99,6 +100,7 @@ function NodeAnnotationStatic({
     imagesLinkNumber,
     imageDisplayIndex,
     imageVeiled,
+    imagesHidden,
     // isMesh3d: the points are the plan projection of a stored 3D mesh —
     // movable as a whole, never vertex-edited (that would break the link).
     disableVertexEditing:

@@ -22,6 +22,9 @@ export { IMAGES_DISPLAY_MODES };
 // - linkLine / linkNumber: how an ex-situ tile is tied to its anchor — a
 //   leader from the tile to the anchor, and / or the same number badge on
 //   both. Independent switches, both persisted.
+// - photosHidden: the header count pill toggles the photos off — nothing of
+//   them in the scene (no card, no anchor, no leader) and greyed tiles.
+//   Session only.
 // - collapsed: panel folded to its header (survives the 2D ↔ 3D remount).
 // ---------------------------------------------------------------------------
 
@@ -29,6 +32,7 @@ const initialState = {
   displayMode: loadImagesDisplayMode(),
   linkLine: loadImagesLinkLine(),
   linkNumber: loadImagesLinkNumber(),
+  photosHidden: false,
   collapsed: false,
 };
 
@@ -50,6 +54,9 @@ export const popperImagesSlice = createSlice({
       state.linkNumber = Boolean(action.payload);
       saveImagesLinkNumber(state.linkNumber);
     },
+    setImagesPhotosHidden: (state, action) => {
+      state.photosHidden = Boolean(action.payload);
+    },
     setPopperImagesCollapsed: (state, action) => {
       state.collapsed = Boolean(action.payload);
     },
@@ -60,6 +67,7 @@ export const {
   setImagesDisplayMode,
   setImagesLinkLine,
   setImagesLinkNumber,
+  setImagesPhotosHidden,
   setPopperImagesCollapsed,
 } = popperImagesSlice.actions;
 
@@ -68,6 +76,7 @@ export const selectImagesLinkLine = (s) => s.popperImages.linkLine;
 export const selectImagesLinkNumber = (s) => s.popperImages.linkNumber;
 export const selectImagesExSitu = (s) =>
   s.popperImages.displayMode === "EX_SITU";
+export const selectImagesPhotosHidden = (s) => s.popperImages.photosHidden;
 export const selectPopperImagesCollapsed = (s) => s.popperImages.collapsed;
 
 export default popperImagesSlice.reducer;

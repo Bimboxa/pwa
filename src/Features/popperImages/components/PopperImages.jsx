@@ -4,16 +4,19 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   selectImagesDisplayMode,
   selectImagesLinkLine,
+  selectImagesPhotosHidden,
   selectPopperImagesCollapsed,
+  setImagesPhotosHidden,
   setPopperImagesCollapsed,
 } from "../popperImagesSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, Paper } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
-import ToggleImagesDisplayMode from "./ToggleImagesDisplayMode";
+import ToggleButtonImagesInSitu from "./ToggleButtonImagesInSitu";
 import IconButtonImagesSettingsMenu from "./IconButtonImagesSettingsMenu";
+import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPill";
 import GridImageAnnotations from "./GridImageAnnotations";
 import ImagesLinksOverlay from "./ImagesLinksOverlay";
 import DialogImageViewer from "Features/images/components/DialogImageViewer";
@@ -32,8 +35,10 @@ import {
 // by the editor, anchored at the RIGHT of the editor box (left of the tools
 // band, shifted when a right drawer is open). Same shell as the other
 // poppers (draggable header, PanelFooter with the "auto" button, collapse and
-// a bottom-LEFT resize handle). Header: "In situ | Ex situ" toggle + "…"
-// settings menu. Body: 2-column grid of numbered tiles; a tile click selects
+// a bottom-LEFT resize handle). Header: "Photos" title, count pill (toggles
+// the photos off everywhere), "in situ" toggle button (in situ = the photos
+// live in the editor only, the panel is its header) and the "…" settings
+// menu. Body (ex situ): 2-column grid of numbered tiles; a tile click selects
 // the annotation (editor selection), the selected tile offers "Fullscreen"
 // (DialogImageViewer). Ex situ + "Ligne": ImagesLinksOverlay draws the tile
 // → anchor leaders over the panel. Mounted by the editors next to PopperMapListings (same
@@ -52,11 +57,18 @@ export default function PopperImages({
 }) {
   const dispatch = useDispatch();
 
+  // strings
+
+  const titleS = "Photos";
+  const hidePhotosS = "Masquer les photos";
+  const showPhotosS = "Afficher les photos";
+
   // data
 
   const displayMode = useSelector(selectImagesDisplayMode);
   const linkLine = useSelector(selectImagesLinkLine);
   const collapsed = useSelector(selectPopperImagesCollapsed);
+  const photosHidden = useSelector(selectImagesPhotosHidden);
   const selectedImageId = useSelector(selectSelectedImageAnnotationId);
   // The open right tool drawer slides over the editor: step aside.
   const rightDrawerWidth = useSelector((s) =>
@@ -93,7 +105,10 @@ export default function PopperImages({
     []
   );
 
-  const linksActive = displayMode === "EX_SITU" && linkLine && !collapsed;
+  // Ex situ: tiles body + footer. In situ: header only.
+  const exSitu = displayMode === "EX_SITU";
+  const bodyOpen = exSitu && !collapsed;
+  const linksActive = exSitu && linkLine && !collapsed && !photosHidden;
   const invalidateKey = useMemo(
     () =>
       [
@@ -140,7 +155,7 @@ export default function PopperImages({
           right: RIGHT_GAP + rightDrawerWidth,
           zIndex: 10,
           width: size?.width ?? POPPER_WIDTH,
-          ...(size && !collapsed
+          ...(size && bodyOpen
             ? {
                 height: size.height,
                 maxHeight: isAutoHeight
@@ -171,7 +186,7 @@ export default function PopperImages({
             pr: 1,
             py: 0.75,
             bgcolor: "panel.headerBg",
-            borderBottom: collapsed ? "none" : "1px solid",
+            borderBottom: bodyOpen ? "1px solid" : "none",
             borderColor: "panel.border",
             cursor: "grab",
             "&:active": { cursor: "grabbing" },
@@ -184,12 +199,35 @@ export default function PopperImages({
               sx={{ color: "panel.textLight" }}
             />
           </Box>
-          <ToggleImagesDisplayMode />
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
+          >
+            {titleS}
+          </Typography>
+          <ButtonCountPill
+            count={images.length}
+            hidden={photosHidden}
+            title={photosHidden ? showPhotosS : hidePhotosS}
+            onClick={(e) => {
+              e.stopPropagation();
+              dispatch(setImagesPhotosHidden(!photosHidden));
+            }}
+          />
+          <ToggleButtonImagesInSitu />
           <IconButtonImagesSettingsMenu />
         </Box>
 
-        {!collapsed && (
-          <Box ref={gridRef} sx={{ overflow: "auto", flex: 1 }}>
+        {bodyOpen && (
+          <Box
+            ref={gridRef}
+            sx={{
+              overflow: "auto",
+              flex: 1,
+              // Photos off: the tiles stay listed, greyed.
+              opacity: photosHidden ? 0.4 : 1,
+            }}
+          >
             <GridImageAnnotations
               images={images}
               indexById={indexById}
@@ -201,17 +239,19 @@ export default function PopperImages({
           </Box>
         )}
 
-        <PanelFooter
-          resizeCorner="bottom-left"
-          onResizeMouseDown={handleResizeMouseDown}
-          onResetSize={resetSize}
-          onFitContent={fitContent}
-          isAutoHeight={isAutoHeight}
-          collapsed={collapsed}
-          onToggleCollapsed={() =>
-            dispatch(setPopperImagesCollapsed(!collapsed))
-          }
-        />
+        {exSitu && (
+          <PanelFooter
+            resizeCorner="bottom-left"
+            onResizeMouseDown={handleResizeMouseDown}
+            onResetSize={resetSize}
+            onFitContent={fitContent}
+            isAutoHeight={isAutoHeight}
+            collapsed={collapsed}
+            onToggleCollapsed={() =>
+              dispatch(setPopperImagesCollapsed(!collapsed))
+            }
+          />
+        )}
       </Paper>
 
       {/* Leaders drawn ABOVE the panel (ex situ + Ligne): each one ends on

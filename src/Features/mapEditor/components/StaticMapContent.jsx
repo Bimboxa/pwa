@@ -17,6 +17,7 @@ import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 import {
   selectImagesDisplayMode,
   selectImagesLinkNumber,
+  selectImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
 import {
   isImageAnnotationVeiled,
@@ -103,6 +104,7 @@ function StaticMapContent({
   // selected image (the others get a white veil).
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const imagesLinkNumber = useSelector(selectImagesLinkNumber);
+  const imagesHidden = useSelector(selectImagesPhotosHidden);
   const selectedImageId = useSelector(selectSelectedImageAnnotationId);
 
   // clipping plane (2D-defined cut plane)
@@ -479,6 +481,7 @@ function StaticMapContent({
                 disableVertexEditing
                 imagesDisplayMode={imagesDisplayMode}
                 imagesLinkNumber={imagesLinkNumber}
+                imagesHidden={imagesHidden}
                 imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
                 imageVeiled={
                   annotation.type === "IMAGE" &&
@@ -543,6 +546,7 @@ function StaticMapContent({
                 forceHideLabel={true}
                 imagesDisplayMode={imagesDisplayMode}
                 imagesLinkNumber={imagesLinkNumber}
+                imagesHidden={imagesHidden}
                 imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
                 // The selected image is drawn by EditedObjectLayer: never
                 // veiled here.

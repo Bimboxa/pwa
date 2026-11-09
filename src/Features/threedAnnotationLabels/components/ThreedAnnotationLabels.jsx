@@ -6,6 +6,7 @@ import { Group } from "three";
 import {
   selectImagesDisplayMode,
   selectImagesLinkNumber,
+  selectImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
 import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
 
@@ -137,6 +138,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
   // veil rule — the selected annotation is an image → the others fade.
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const imagesLinkNumber = useSelector(selectImagesLinkNumber);
+  const imagesHidden = useSelector(selectImagesPhotosHidden);
   const imageIndexById = useMemo(
     () => getImageAnnotationsDisplayIndex(labelAnnotations).indexById,
     [labelAnnotations]
@@ -181,6 +183,8 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const isImage = annotation.type === "IMAGE";
       const b = annotation.bbox;
       if (isImage && (!b || !annotation.image)) return;
+      // PopperImages count pill off: no card, no anchor, no leader.
+      if (isImage && imagesHidden) return;
       const labelProps = isImage
         ? {
             labelPoint: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
@@ -372,6 +376,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
     antiAliasingShrink,
     imagesDisplayMode,
     imagesLinkNumber,
+    imagesHidden,
     imageIndexById,
     selectedIsImage,
   ]);

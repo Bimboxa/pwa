@@ -17,6 +17,7 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 import {
   selectImagesDisplayMode,
   selectImagesLinkNumber,
+  selectImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
 import isOpeningAnnotation, { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
@@ -45,6 +46,7 @@ export default function EditedObjectLayer({
   const selectedItems = useSelector(selectSelectedItems);
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const imagesLinkNumber = useSelector(selectImagesLinkNumber);
+  const imagesHidden = useSelector(selectImagesPhotosHidden);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPointIds = useSelector(selectSelectedPointIds);
   const selectedPartId = useSelector(selectSelectedPartId);
@@ -267,6 +269,7 @@ export default function EditedObjectLayer({
               forceHideLabel={!!getPendingMove("label::" + annotation.id)}
               imagesDisplayMode={imagesDisplayMode}
               imagesLinkNumber={imagesLinkNumber}
+              imagesHidden={imagesHidden}
               imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
             />
           </g>

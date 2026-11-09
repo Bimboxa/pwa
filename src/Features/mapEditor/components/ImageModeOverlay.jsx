@@ -34,6 +34,7 @@ import {
   selectImagesDisplayMode,
   selectImagesLinkLine,
   selectImagesLinkNumber,
+  selectImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
 import DialogEditCaptureLegend from "./DialogEditCaptureLegend";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
@@ -79,6 +80,7 @@ export default function ImageModeOverlay({
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const imagesLinkLine = useSelector(selectImagesLinkLine);
   const imagesLinkNumber = useSelector(selectImagesLinkNumber);
+  const imagesHidden = useSelector(selectImagesPhotosHidden);
   const imagesOverlayVisible = useSelector((s) =>
     Boolean(s.mapEditor.imageModeImagesOverlay?.visible)
   );
@@ -430,6 +432,7 @@ export default function ImageModeOverlay({
       {/* PHOTOS ZONE (ex situ tiles inside the capture rect), under the
           legend so the legend stays readable over it. */}
       {imagesDisplayMode === "EX_SITU" &&
+        !imagesHidden &&
         imagesOverlayVisible &&
         imageAnnotations?.length > 0 && (
           <CaptureImagesOverlay
