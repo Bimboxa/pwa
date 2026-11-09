@@ -1,10 +1,11 @@
-import computeSegmentLengthEdit from "../utils/computeSegmentLengthEdit";
+import computeContourLengthEdit from "../utils/computeContourLengthEdit";
 import applyPointsMovesService from "./applyPointsMovesService";
 
 // Apply a typed segment length on a POLYLINE / POLYGON / STRIP contour.
 //
 // `annotation` is the RESOLVED annotation (pixel points, each carrying its
-// db.points id). The geometry is decided by computeSegmentLengthEdit; the
+// db.points id). The geometry is decided by computeContourLengthEdit (arcs
+// collapsed to one span, then computeSegmentLengthEdit); the
 // write-back (normalized db.points rows, rotation clearing, glued-openings
 // reflow) is shared with the EDIT-mode drags via applyPointsMovesService.
 export default async function applySegmentLengthEditService({
@@ -25,7 +26,7 @@ export default async function applySegmentLengthEditService({
   if (!Number.isFinite(targetMeters) || targetMeters <= 0)
     return { ok: false, reason: "INVALID_INPUT" };
 
-  const result = computeSegmentLengthEdit({
+  const result = computeContourLengthEdit({
     points,
     closed,
     segmentIndex,

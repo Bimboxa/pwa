@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { IconButton, Tooltip } from "@mui/material";
-import { Lock as LockIcon, LockOpen as LockOpenIcon } from "@mui/icons-material";
+import {
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+} from "@mui/icons-material";
 
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
+import getArcDimensionItems from "Features/annotations/utils/getArcDimensionItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
+import applyArcSagittaEditService from "Features/annotations/services/applyArcSagittaEditService";
 import { typeOf } from "Features/geometry/utils/arcSampling";
 
 // Inline length editor footprint, screen px. A <foreignObject> hit-tests only
@@ -34,9 +39,43 @@ const OVERLAY_OFFSET_WRAPPER_PX = 94;
 const FADE_FULL_PX = 70;
 const FADE_RANGE_PX = 30;
 
-// Above this many straight segments, labels collapse to the ones adjacent to
-// the selected vertex (ruler-style) — protects pathological imported contours.
+// Above this many labelled items (straight segments + arcs), labels collapse
+// to the ones adjacent to the selected vertex (ruler-style) — protects
+// pathological imported contours.
 const MAX_LABELED_SEGMENTS = 60;
+
+// Arc cotes: dotted construction lines (chord P0 → P2 and sagitta chord
+// midpoint → arc apex) + screen-px offsets pushing each label off the dotted
+// line it measures.
+const ARC_GUIDE_COLOR = "#424242";
+const CHORD_LABEL_OFFSET_PX = 16;
+const SAGITTA_LABEL_GAP_PX = 8;
+// Estimated label footprint (13px font ≈ 7.2px/char) — good enough to size
+// the readability background and place the inline padlock; SVG has no cheap
+// text measurement.
+const CHAR_W_PX = 7.2;
+
+// Editing keys: a straight segment is keyed by its start point id, an arc's
+// two cotes by kind + the id of its first square (P0).
+const arcEditKey = (arc, kind) => `${kind}:${arc.startPointId}`;
+
+// Padlock tooltips (closed / open) of a straight cote and of an arc chord.
+const SEGMENT_LOCK_TITLES = {
+  locked:
+    "Cote verrouillée : sa longueur est conservée lors des autres éditions",
+  open: "Cote libre : cliquer pour verrouiller sa longueur",
+  editorLocked:
+    "Segment verrouillé : sa longueur est conservée lors des autres éditions",
+  editorOpen: "Segment libre : il absorbera les autres éditions",
+};
+const ARC_LOCK_TITLES = {
+  locked:
+    "Arc verrouillé : corde et flèche sont conservées lors des autres éditions",
+  open: "Arc libre : cliquer pour verrouiller sa corde et sa flèche",
+  editorLocked:
+    "Arc verrouillé : corde et flèche sont conservées lors des autres éditions",
+  editorOpen: "Arc libre : il absorbera les autres éditions (flèche conservée)",
+};
 
 const CONFLICT_MESSAGES = {
   BOTH_ENDPOINTS_LOCKED: "Les deux extrémités du segment sont verrouillées",
@@ -60,6 +99,14 @@ const CONFLICT_MESSAGES = {
 //
 // `points` must be the SAME resolved array as `annotation.points` (the id →
 // index mapping done at commit time indexes into what the service reads).
+//
+// Arcs (square → circle → square triplets) get no label on their two stored
+// halves; instead each arc shows two cotes on dotted construction lines: the
+// CHORD (P0 → P2) and the SAGITTA (« flèche », chord midpoint → arc apex).
+// Editing the chord goes through the contour solver with the arc collapsed to
+// one span (computeContourLengthEdit) and keeps the sagitta; editing the
+// sagitta only moves the circle control point (applyArcSagittaEditService).
+// The chord padlock locks the whole arc; the sagitta has none.
 //
 // `simple` + `onCommitLength` (OPENING annotations, NodeOpeningStatic): a
 // single editable cote with no padlocks and no drag / angle toggles — the
@@ -119,9 +166,10 @@ export default function NodeSegmentLengthsStatic({
 
   const [lockedSegmentsByStartId, setLockedSegmentsByStartId] = useState({});
   const [lockedPointIds, setLockedPointIds] = useState({});
-  const [editingSegmentId, setEditingSegmentId] = useState(null);
+  // Straight: start point id; arcs: "chord:<P0 id>" / "sagitta:<P0 id>".
+  const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const [conflict, setConflict] = useState(null); // { segmentId, reason }
+  const [conflict, setConflict] = useState(null); // { key, reason }
   const conflictTimerRef = useRef(null);
 
   // Locks survive editing several segments in one session; they only reset
@@ -129,7 +177,7 @@ export default function NodeSegmentLengthsStatic({
   useEffect(() => {
     setLockedSegmentsByStartId({});
     setLockedPointIds({});
-    setEditingSegmentId(null);
+    setEditingKey(null);
     setEditValue("");
     setConflict(null);
   }, [annotationId]);
@@ -144,7 +192,7 @@ export default function NodeSegmentLengthsStatic({
   // click) from InteractionLayer. The default action is never prevented: the
   // focus change IS what triggers the commit.
   useEffect(() => {
-    if (!editingSegmentId) return undefined;
+    if (!editingKey) return undefined;
 
     const stop = (e) => e.stopPropagation();
     let sequenceActive = false;
@@ -190,7 +238,7 @@ export default function NodeSegmentLengthsStatic({
       // dismissing mousedown and its mouseup/click — removing them here
       // would let the tail of the gesture reach the map and deselect anyway.
     };
-  }, [editingSegmentId]);
+  }, [editingKey]);
 
   // helpers
 
@@ -238,15 +286,44 @@ export default function NodeSegmentLengthsStatic({
     }).filter((it) => !it.startPointId || it.startPointId !== it.endPointId);
   }, [labelsActive, points, closed, baseMapMeterByPx, unit, decimals]);
 
+  // Chord / sagitta items of the exact S-C-S arcs (empty without arcs).
+  const arcItems = useMemo(() => {
+    if (!labelsActive) return [];
+    return getArcDimensionItems({
+      points,
+      closed,
+      meterByPx: baseMapMeterByPx,
+      unit,
+      decimals,
+    });
+  }, [labelsActive, points, closed, baseMapMeterByPx, unit, decimals]);
+
+  const straightCandidates = useMemo(
+    () => items.filter((it) => it.isStraight),
+    [items]
+  );
+  const tooManyLabels =
+    straightCandidates.length + arcItems.length > MAX_LABELED_SEGMENTS;
+
   const straightItems = useMemo(() => {
-    const straight = items.filter((it) => it.isStraight);
-    if (straight.length <= MAX_LABELED_SEGMENTS) return straight;
+    if (!tooManyLabels) return straightCandidates;
     if (!selectedPointId) return [];
-    return straight.filter(
+    return straightCandidates.filter(
       (it) =>
         it.startPointId === selectedPointId || it.endPointId === selectedPointId
     );
-  }, [items, selectedPointId]);
+  }, [straightCandidates, tooManyLabels, selectedPointId]);
+
+  const visibleArcItems = useMemo(() => {
+    if (!tooManyLabels) return arcItems;
+    if (!selectedPointId) return [];
+    return arcItems.filter(
+      (it) =>
+        it.startPointId === selectedPointId ||
+        it.controlPointId === selectedPointId ||
+        it.endPointId === selectedPointId
+    );
+  }, [arcItems, tooManyLabels, selectedPointId]);
 
   // Anchor of the overlay row: top-center of the contour bbox, pushed up by
   // a screen-px offset so it never covers a vertex.
@@ -266,44 +343,76 @@ export default function NodeSegmentLengthsStatic({
     return { x: (minX + maxX) / 2, y: minY };
   }, [points]);
 
-  const flashConflict = useCallback((segmentId, reason) => {
+  const flashConflict = useCallback((key, reason) => {
     clearTimeout(conflictTimerRef.current);
-    setConflict({ segmentId, reason });
+    setConflict({ key, reason });
     conflictTimerRef.current = setTimeout(() => setConflict(null), 1800);
   }, []);
 
   // handlers
 
-  const openEditor = useCallback((seg) => {
-    setEditingSegmentId(seg.startPointId);
-    setEditValue(stripUnit(seg.text));
+  const openEditor = useCallback((key, text) => {
+    setEditingKey(key);
+    setEditValue(stripUnit(text));
     setConflict(null);
   }, []);
 
   const closeEditor = useCallback(() => {
-    setEditingSegmentId(null);
+    setEditingKey(null);
     setEditValue("");
   }, []);
 
+  // The field reads in the display unit; the services work in meters. Null
+  // when the typed value is empty / not a positive number.
+  const parseTypedMeters = useCallback(() => {
+    const raw = editValue;
+    const typed = Number(String(raw).replace(",", "."));
+    if (raw === "" || !Number.isFinite(typed) || typed <= 0) return null;
+    const factor = unit === "M" ? 1 : unit === "MM" ? 0.001 : 0.01;
+    return typed * factor;
+  }, [editValue, unit]);
+
+  // Locks are stored by point id; the solver works on indexes into the very
+  // array the service reads (annotation.points === points). A point id can
+  // sit at two consecutive indexes (vertical segment drawn in 3D): a locked
+  // point locks both. A locked arc chord locks both stored halves.
+  const buildLockIndexes = useCallback(() => {
+    const n = points.length;
+    const indexesByPointId = new Map();
+    points.forEach((p, i) => {
+      if (!p?.id) return;
+      if (!indexesByPointId.has(p.id)) indexesByPointId.set(p.id, []);
+      indexesByPointId.get(p.id).push(i);
+    });
+    const lockedSegmentIndexes = new Set();
+    for (const it of items) {
+      if (it.isStraight && lockedSegmentsByStartId[it.startPointId])
+        lockedSegmentIndexes.add(it.index);
+    }
+    for (const arc of arcItems) {
+      if (!lockedSegmentsByStartId[arc.startPointId]) continue;
+      lockedSegmentIndexes.add(arc.index);
+      lockedSegmentIndexes.add((arc.index + 1) % n);
+    }
+    const lockedPointIndexes = new Set();
+    for (const id of Object.keys(lockedPointIds)) {
+      if (!lockedPointIds[id]) continue;
+      for (const i of indexesByPointId.get(id) ?? []) lockedPointIndexes.add(i);
+    }
+    return { lockedSegmentIndexes, lockedPointIndexes };
+  }, [points, items, arcItems, lockedSegmentsByStartId, lockedPointIds]);
+
   const commitEdit = useCallback(
     async (seg) => {
-      const raw = editValue;
-      const typed = Number(String(raw).replace(",", "."));
-      if (raw === "" || !Number.isFinite(typed) || typed <= 0) {
+      const targetMeters = parseTypedMeters();
+      if (targetMeters == null) {
         closeEditor();
         return;
       }
 
-      // The field reads in the display unit; the service works in meters.
-      const factor = unit === "M" ? 1 : unit === "MM" ? 0.001 : 0.01;
-
       // Custom commit (opening width): no locks, no contour solver.
       if (onCommitLength) {
-        const custom = await onCommitLength({
-          seg,
-          targetMeters: typed * factor,
-          dispatch,
-        });
+        const custom = await onCommitLength({ seg, targetMeters, dispatch });
         if (custom?.ok === false) {
           flashConflict(seg.startPointId, custom.reason);
           return;
@@ -312,33 +421,12 @@ export default function NodeSegmentLengthsStatic({
         return;
       }
 
-      // Locks are stored by point id; the solver works on indexes into the
-      // very array the service reads (annotation.points === points).
-      // A point id can sit at two consecutive indexes (vertical segment
-      // drawn in 3D): a locked point locks both.
-      const indexesByPointId = new Map();
-      points.forEach((p, i) => {
-        if (!p?.id) return;
-        if (!indexesByPointId.has(p.id)) indexesByPointId.set(p.id, []);
-        indexesByPointId.get(p.id).push(i);
-      });
-      const lockedSegmentIndexes = new Set();
-      for (const it of items) {
-        if (lockedSegmentsByStartId[it.startPointId])
-          lockedSegmentIndexes.add(it.index);
-      }
-      const lockedPointIndexes = new Set();
-      for (const id of Object.keys(lockedPointIds)) {
-        if (!lockedPointIds[id]) continue;
-        for (const i of indexesByPointId.get(id) ?? [])
-          lockedPointIndexes.add(i);
-      }
-
+      const { lockedSegmentIndexes, lockedPointIndexes } = buildLockIndexes();
       const result = await applySegmentLengthEditService({
         annotation,
         closed,
         segmentIndex: seg.index,
-        targetMeters: typed * factor,
+        targetMeters,
         meterByPx: baseMapMeterByPx,
         lockedSegmentIndexes,
         lockedPointIndexes,
@@ -353,12 +441,8 @@ export default function NodeSegmentLengthsStatic({
       closeEditor();
     },
     [
-      editValue,
-      unit,
-      points,
-      items,
-      lockedSegmentsByStartId,
-      lockedPointIds,
+      parseTypedMeters,
+      buildLockIndexes,
       anglesLocked,
       annotation,
       closed,
@@ -367,6 +451,61 @@ export default function NodeSegmentLengthsStatic({
       flashConflict,
       closeEditor,
       onCommitLength,
+    ]
+  );
+
+  // Arc cotes: the chord goes through the contour solver (arc = one span, its
+  // first stored half as segmentIndex); the sagitta only moves the control.
+  const commitArcEdit = useCallback(
+    async (arc, kind) => {
+      const key = arcEditKey(arc, kind);
+      const targetMeters = parseTypedMeters();
+      if (targetMeters == null) {
+        closeEditor();
+        return;
+      }
+
+      let result;
+      if (kind === "sagitta") {
+        result = await applyArcSagittaEditService({
+          annotation,
+          closed,
+          arcStartIndex: arc.index,
+          targetMeters,
+          meterByPx: baseMapMeterByPx,
+          dispatch,
+        });
+      } else {
+        const { lockedSegmentIndexes, lockedPointIndexes } = buildLockIndexes();
+        result = await applySegmentLengthEditService({
+          annotation,
+          closed,
+          segmentIndex: arc.index,
+          targetMeters,
+          meterByPx: baseMapMeterByPx,
+          lockedSegmentIndexes,
+          lockedPointIndexes,
+          anglesLocked,
+          dispatch,
+        });
+      }
+
+      if (result?.ok === false) {
+        flashConflict(key, result.reason);
+        return;
+      }
+      closeEditor();
+    },
+    [
+      parseTypedMeters,
+      buildLockIndexes,
+      anglesLocked,
+      annotation,
+      closed,
+      baseMapMeterByPx,
+      dispatch,
+      flashConflict,
+      closeEditor,
     ]
   );
 
@@ -400,6 +539,204 @@ export default function NodeSegmentLengthsStatic({
     onClick: (e) => e.stopPropagation(),
   };
 
+  const toggleSegmentLock = (startPointId) =>
+    setLockedSegmentsByStartId((prev) => ({
+      ...prev,
+      [startPointId]: !prev[startPointId],
+    }));
+
+  // One cote: label (with optional inline padlock) or its inline editor,
+  // centred on `at` (map px) then shifted by `offsetPx` in SCREEN px (inside
+  // the counter-scaled group). Shared by the straight segments, the arc chords
+  // and the arc sagittas. `fadeLengthPx` drives the zoom fade (the measured
+  // length for a segment, the chord for both arc cotes so a flat arc's
+  // sagitta stays editable).
+  const renderCote = ({
+    key,
+    at,
+    offsetPx = { x: 0, y: 0 },
+    text,
+    fadeLengthPx,
+    lockable = false,
+    isLocked = false,
+    onToggleLock,
+    onCommit,
+    lockTitles = SEGMENT_LOCK_TITLES,
+  }) => {
+    const isEditing = editingKey === key;
+    const hasConflict = conflict?.key === key;
+
+    // Zoom-reactive fade without JS: the live zoom only exists as the
+    // --map-zoom CSS var, so the opacity is computed in CSS from unitless
+    // numbers (on-screen length = zoom * containerK * pixelDistance).
+    const fadeOpacity = `clamp(0, calc((var(--map-zoom, 1) * ${
+      (containerK || 1) * fadeLengthPx
+    } - ${FADE_FULL_PX}) / ${FADE_RANGE_PX}), 1)`;
+
+    const textW = text.length * CHAR_W_PX;
+    const lockW = lockable ? 14 : 0;
+    const totalW = lockable ? lockW + 2 + textW : textW;
+    const left = -totalW / 2;
+
+    return (
+      <g
+        key={`cote-${key}`}
+        transform={`translate(${at.x}, ${at.y})`}
+        style={isEditing ? undefined : { opacity: fadeOpacity }}
+      >
+        <g style={{ transform: counterScaleTransform }}>
+          <g transform={`translate(${offsetPx.x}, ${offsetPx.y})`}>
+            {isEditing ? (
+              <foreignObject
+                x={-FIELD_W_PX / 2}
+                y={-FIELD_H_PX / 2}
+                width={FIELD_W_PX}
+                height={FIELD_H_PX}
+                style={{ overflow: "visible" }}
+              >
+                <div
+                  data-interaction="ui-overlay"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 2,
+                  }}
+                  {...overlayGuards}
+                >
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    autoFocus
+                    value={editValue}
+                    title={
+                      hasConflict
+                        ? (CONFLICT_MESSAGES[conflict.reason] ??
+                          "Édition impossible")
+                        : undefined
+                    }
+                    onChange={(e) => {
+                      setEditValue(e.target.value);
+                      setConflict(null);
+                    }}
+                    onKeyDown={handleFieldKeyDown}
+                    onBlur={onCommit}
+                    style={{
+                      width: 68,
+                      height: 24,
+                      padding: "0 4px",
+                      textAlign: "center",
+                      fontSize: 13,
+                      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+                      border: `1px solid ${
+                        hasConflict ? "#f44336" : ACCENT_COLOR
+                      }`,
+                      borderRadius: 4,
+                      background: "#fff",
+                      color: "#000",
+                    }}
+                  />
+                  {/* Same lock affordance as the RULER cote fields: closed =
+                      this segment keeps its length when ANOTHER segment is
+                      edited (rigid translation through it). */}
+                  {lockable && (
+                    <IconButton
+                      size="small"
+                      title={
+                        isLocked
+                          ? lockTitles.editorLocked
+                          : lockTitles.editorOpen
+                      }
+                      // Keep the focus in the field: letting the button take
+                      // it would blur the input and commit the length with
+                      // the PREVIOUS lock state.
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={onToggleLock}
+                      sx={{
+                        p: 0.25,
+                        color: isLocked ? "action.active" : "text.disabled",
+                      }}
+                    >
+                      {isLocked ? (
+                        <LockIcon sx={{ fontSize: 16 }} />
+                      ) : (
+                        <LockOpenIcon sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
+                  )}
+                </div>
+              </foreignObject>
+            ) : (
+              <g data-interaction="ui-overlay" {...overlayGuards}>
+                {/* Semi-transparent white backing so the value stays
+                    readable on top of the segment stroke. */}
+                <rect
+                  x={left - 4}
+                  y={-10}
+                  width={totalW + 8}
+                  height={20}
+                  rx={4}
+                  fill="white"
+                  fillOpacity={0.75}
+                  pointerEvents="none"
+                />
+                {/* Inline padlock: locks the cote directly, without opening
+                    the editor first. */}
+                {lockable && (
+                  <g
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleLock?.();
+                    }}
+                    style={{ cursor: "pointer" }}
+                    opacity={isLocked ? 1 : 0.4}
+                  >
+                    <title>
+                      {isLocked ? lockTitles.locked : lockTitles.open}
+                    </title>
+                    <rect
+                      x={left - 2}
+                      y={-9}
+                      width={lockW + 4}
+                      height={18}
+                      fill="transparent"
+                    />
+                    <LockGlyph
+                      x={left + lockW / 2}
+                      y={0}
+                      locked={isLocked}
+                      color={ACCENT_COLOR}
+                    />
+                  </g>
+                )}
+                <text
+                  x={lockable ? left + lockW + 2 : left}
+                  y={0}
+                  textAnchor="start"
+                  dominantBaseline="central"
+                  fontSize={13}
+                  fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                  fill={ACCENT_COLOR}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditor(key, text);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  {text}
+                </text>
+              </g>
+            )}
+          </g>
+        </g>
+      </g>
+    );
+  };
+
   // render
 
   if (!overlayActive) return null;
@@ -420,240 +757,136 @@ export default function NodeSegmentLengthsStatic({
     <g data-segment-lengths="1">
       {/* per-segment length labels / inline editor */}
       {labelsActive &&
-        straightItems.map((seg) => {
-        const isEditing = editingSegmentId === seg.startPointId;
-        const isLocked = Boolean(lockedSegmentsByStartId[seg.startPointId]);
-        const hasConflict = conflict?.segmentId === seg.startPointId;
+        straightItems.map((seg) =>
+          renderCote({
+            key: seg.startPointId ?? `seg:${seg.index}`,
+            at: seg.mid,
+            text: seg.text,
+            fadeLengthPx: seg.pixelDistance,
+            lockable: !simple,
+            isLocked: Boolean(lockedSegmentsByStartId[seg.startPointId]),
+            onToggleLock: () => toggleSegmentLock(seg.startPointId),
+            onCommit: () => commitEdit(seg),
+          })
+        )}
 
-        // Zoom-reactive fade without JS: the live zoom only exists as the
-        // --map-zoom CSS var, so the opacity is computed in CSS from unitless
-        // numbers (on-screen length = zoom * containerK * pixelDistance).
-        const fadeOpacity = `clamp(0, calc((var(--map-zoom, 1) * ${
-          (containerK || 1) * seg.pixelDistance
-        } - ${FADE_FULL_PX}) / ${FADE_RANGE_PX}), 1)`;
-
-        return (
-          <g
-            key={`seg-length-${seg.startPointId ?? seg.index}`}
-            transform={`translate(${seg.mid.x}, ${seg.mid.y})`}
-            style={isEditing ? undefined : { opacity: fadeOpacity }}
-          >
-            <g style={{ transform: counterScaleTransform }}>
-              {isEditing ? (
-                <foreignObject
-                  x={-FIELD_W_PX / 2}
-                  y={-FIELD_H_PX / 2}
-                  width={FIELD_W_PX}
-                  height={FIELD_H_PX}
-                  style={{ overflow: "visible" }}
-                >
-                  <div
-                    data-interaction="ui-overlay"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 2,
-                    }}
-                    {...overlayGuards}
-                  >
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      autoFocus
-                      value={editValue}
-                      title={
-                        hasConflict
-                          ? CONFLICT_MESSAGES[conflict.reason] ??
-                            "Édition impossible"
-                          : undefined
-                      }
-                      onChange={(e) => {
-                        setEditValue(e.target.value);
-                        setConflict(null);
-                      }}
-                      onKeyDown={handleFieldKeyDown}
-                      onBlur={() => commitEdit(seg)}
-                      style={{
-                        width: 68,
-                        height: 24,
-                        padding: "0 4px",
-                        textAlign: "center",
-                        fontSize: 13,
-                        fontFamily:
-                          '"Roboto", "Helvetica", "Arial", sans-serif',
-                        border: `1px solid ${
-                          hasConflict ? "#f44336" : ACCENT_COLOR
-                        }`,
-                        borderRadius: 4,
-                        background: "#fff",
-                        color: "#000",
-                      }}
-                    />
-                    {/* Same lock affordance as the RULER cote fields: closed =
-                        this segment keeps its length when ANOTHER segment is
-                        edited (rigid translation through it). */}
-                    {!simple && (
-                    <IconButton
-                      size="small"
-                      title={
-                        isLocked
-                          ? "Segment verrouillé : sa longueur est conservée lors des autres éditions"
-                          : "Segment libre : il absorbera les autres éditions"
-                      }
-                      // Keep the focus in the field: letting the button take it
-                      // would blur the input and commit the length with the
-                      // PREVIOUS lock state.
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onClick={() =>
-                        setLockedSegmentsByStartId((prev) => ({
-                          ...prev,
-                          [seg.startPointId]: !prev[seg.startPointId],
-                        }))
-                      }
-                      sx={{
-                        p: 0.25,
-                        color: isLocked ? "action.active" : "text.disabled",
-                      }}
-                    >
-                      {isLocked ? (
-                        <LockIcon sx={{ fontSize: 16 }} />
-                      ) : (
-                        <LockOpenIcon sx={{ fontSize: 16 }} />
-                      )}
-                    </IconButton>
-                    )}
-                  </div>
-                </foreignObject>
-              ) : (
-                (() => {
-                  // Estimated label footprint (13px font ≈ 7.2px/char) — good
-                  // enough to size the readability background and place the
-                  // inline padlock; SVG has no cheap text measurement.
-                  const textW = seg.text.length * 7.2;
-                  const lockW = simple ? 0 : 14;
-                  const totalW = simple ? textW : lockW + 2 + textW;
-                  const left = -totalW / 2;
-                  return (
-                    <g data-interaction="ui-overlay" {...overlayGuards}>
-                      {/* Semi-transparent white backing so the value stays
-                          readable on top of the segment stroke. */}
-                      <rect
-                        x={left - 4}
-                        y={-10}
-                        width={totalW + 8}
-                        height={20}
-                        rx={4}
-                        fill="white"
-                        fillOpacity={0.75}
-                        pointerEvents="none"
-                      />
-                      {/* Inline padlock: locks the cote directly, without
-                          opening the editor first. */}
-                      {!simple && (
-                      <g
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLockedSegmentsByStartId((prev) => ({
-                            ...prev,
-                            [seg.startPointId]: !prev[seg.startPointId],
-                          }));
-                        }}
-                        style={{ cursor: "pointer" }}
-                        opacity={isLocked ? 1 : 0.4}
-                      >
-                        <title>
-                          {isLocked
-                            ? "Cote verrouillée : sa longueur est conservée lors des autres éditions"
-                            : "Cote libre : cliquer pour verrouiller sa longueur"}
-                        </title>
-                        <rect
-                          x={left - 2}
-                          y={-9}
-                          width={lockW + 4}
-                          height={18}
-                          fill="transparent"
-                        />
-                        <LockGlyph
-                          x={left + lockW / 2}
-                          y={0}
-                          locked={isLocked}
-                          color={ACCENT_COLOR}
-                        />
-                      </g>
-                      )}
-                      <text
-                        x={simple ? left : left + lockW + 2}
-                        y={0}
-                        textAnchor="start"
-                        dominantBaseline="central"
-                        fontSize={13}
-                        fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
-                        fill={ACCENT_COLOR}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditor(seg);
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {seg.text}
-                      </text>
-                    </g>
-                  );
-                })()
-              )}
+      {/* arc cotes: dotted chord + dotted sagitta, one editable label each.
+          The chord label sits on the side opposite to the arc, the sagitta
+          label beside its dotted line (along the chord direction). */}
+      {labelsActive &&
+        visibleArcItems.map((arc) => {
+          const isLocked = Boolean(lockedSegmentsByStartId[arc.startPointId]);
+          const sagittaMid = {
+            x: (arc.chordMid.x + arc.arcMid.x) / 2,
+            y: (arc.chordMid.y + arc.arcMid.y) / 2,
+          };
+          const sagittaShift =
+            (arc.sagittaText.length * CHAR_W_PX) / 2 + SAGITTA_LABEL_GAP_PX;
+          return (
+            <g key={`arc-cotes-${arc.startPointId ?? arc.index}`}>
+              <g pointerEvents="none">
+                <line
+                  x1={arc.P0.x}
+                  y1={arc.P0.y}
+                  x2={arc.P2.x}
+                  y2={arc.P2.y}
+                  stroke={ARC_GUIDE_COLOR}
+                  strokeWidth={1}
+                  strokeDasharray="2 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line
+                  x1={arc.chordMid.x}
+                  y1={arc.chordMid.y}
+                  x2={arc.arcMid.x}
+                  y2={arc.arcMid.y}
+                  stroke={ARC_GUIDE_COLOR}
+                  strokeWidth={1}
+                  strokeDasharray="2 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+              {renderCote({
+                key: arcEditKey(arc, "chord"),
+                at: arc.chordMid,
+                offsetPx: {
+                  x: -arc.normal.x * CHORD_LABEL_OFFSET_PX,
+                  y: -arc.normal.y * CHORD_LABEL_OFFSET_PX,
+                },
+                text: arc.chordText,
+                fadeLengthPx: arc.chordPx,
+                lockable: !simple,
+                isLocked,
+                onToggleLock: () => toggleSegmentLock(arc.startPointId),
+                onCommit: () => commitArcEdit(arc, "chord"),
+                lockTitles: ARC_LOCK_TITLES,
+              })}
+              {renderCote({
+                key: arcEditKey(arc, "sagitta"),
+                at: sagittaMid,
+                offsetPx: {
+                  x: arc.chordDir.x * sagittaShift,
+                  y: arc.chordDir.y * sagittaShift,
+                },
+                text: arc.sagittaText,
+                fadeLengthPx: arc.chordPx,
+                lockable: false,
+                onCommit: () => commitArcEdit(arc, "sagitta"),
+              })}
             </g>
-          </g>
-        );
-      })}
+          );
+        })}
 
       {/* per-point padlocks (arc control points excluded: locking a control
           point is meaningless in v1). EDIT keeps its historical gating: no
           straight segment → no padlocks either. */}
       {labelsActive &&
         !simple &&
-        (interactionMode !== "EDIT" || straightItems.length > 0) &&
+        (interactionMode !== "EDIT" ||
+          straightItems.length > 0 ||
+          visibleArcItems.length > 0) &&
         points.map((pt, i) => {
-        if (!pt?.id || typeOf(pt) === "circle") return null;
-        // One padlock per plan position (vertical segment drawn in 3D).
-        if (i > 0 && points[i - 1]?.id === pt.id) return null;
-        const isLocked = Boolean(lockedPointIds[pt.id]);
-        return (
-          <g
-            key={`pt-lock-${pt.id ?? i}`}
-            transform={`translate(${pt.x}, ${pt.y})`}
-          >
-            <g style={{ transform: counterScaleTransform }}>
-              <g
-                data-interaction="ui-overlay"
-                {...overlayGuards}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLockedPointIds((prev) => ({
-                    ...prev,
-                    [pt.id]: !prev[pt.id],
-                  }));
-                }}
-                transform="translate(11, -11)"
-                style={{ cursor: "pointer" }}
-                opacity={isLocked ? 1 : 0.35}
-              >
-                <title>
-                  {isLocked
-                    ? "Point gelé : il ne bougera pas, l'autre côté de la polyligne translate d'un bloc"
-                    : "Point libre : cliquer pour le geler"}
-                </title>
-                <circle r={7} fill="transparent" />
-                <LockGlyph x={0} y={0} locked={isLocked} color={ACCENT_COLOR} />
+          if (!pt?.id || typeOf(pt) === "circle") return null;
+          // One padlock per plan position (vertical segment drawn in 3D).
+          if (i > 0 && points[i - 1]?.id === pt.id) return null;
+          const isLocked = Boolean(lockedPointIds[pt.id]);
+          return (
+            <g
+              key={`pt-lock-${pt.id ?? i}`}
+              transform={`translate(${pt.x}, ${pt.y})`}
+            >
+              <g style={{ transform: counterScaleTransform }}>
+                <g
+                  data-interaction="ui-overlay"
+                  {...overlayGuards}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLockedPointIds((prev) => ({
+                      ...prev,
+                      [pt.id]: !prev[pt.id],
+                    }));
+                  }}
+                  transform="translate(11, -11)"
+                  style={{ cursor: "pointer" }}
+                  opacity={isLocked ? 1 : 0.35}
+                >
+                  <title>
+                    {isLocked
+                      ? "Point gelé : il ne bougera pas, l'autre côté de la polyligne translate d'un bloc"
+                      : "Point libre : cliquer pour le geler"}
+                  </title>
+                  <circle r={7} fill="transparent" />
+                  <LockGlyph
+                    x={0}
+                    y={0}
+                    locked={isLocked}
+                    color={ACCENT_COLOR}
+                  />
+                </g>
               </g>
             </g>
-          </g>
-        );
-      })}
+          );
+        })}
 
       {/* Overlay row above the annotation: the host node's extra buttons
           only (BASE_MAP_LINK link / flip) — the commands and the view toggles
@@ -663,9 +896,7 @@ export default function NodeSegmentLengthsStatic({
           reachable. Rendered LAST in this node (after the padlocks) so it
           paints above the cotes / padlocks. */}
       {showToolbar && (
-        <g
-          transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
-        >
+        <g transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}>
           <g style={{ transform: counterScaleTransform }}>
             <foreignObject
               x={-overlayWidth / 2}
@@ -690,7 +921,6 @@ export default function NodeSegmentLengthsStatic({
           </g>
         </g>
       )}
-
     </g>
   );
 }
