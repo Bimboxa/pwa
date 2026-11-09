@@ -2,23 +2,23 @@ import { useState } from "react";
 
 import {
   Box,
-  ListItemIcon,
   ListItemText,
   ListSubheader,
   Menu,
   MenuItem,
+  Switch,
   Tooltip,
 } from "@mui/material";
-import Check from "@mui/icons-material/Check";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
 
 import useImagesDisplaySettings from "../hooks/useImagesDisplaySettings";
 
 // ---------------------------------------------------------------------------
 // IconButtonImagesSettingsMenu — "…" button of the PopperImages header: a
-// menu with the display settings of the photos. Today: the link between an
-// ex-situ tile and its anchor on the base map — "Ligne" (leader) or
-// "Numéro" (same badge on the tile and on the anchor).
+// menu with the display settings of the photos. Today: the links between an
+// ex-situ tile and its anchor on the base map — "Ligne" (leader) and
+// "Numéro" (same badge on the tile and on the anchor), two independent
+// switches (both on, one, or none).
 // ---------------------------------------------------------------------------
 
 export default function IconButtonImagesSettingsMenu() {
@@ -32,7 +32,8 @@ export default function IconButtonImagesSettingsMenu() {
 
   // data
 
-  const { linkStyle, setLinkStyle } = useImagesDisplaySettings();
+  const { linkLine, linkNumber, setLinkLine, setLinkNumber } =
+    useImagesDisplaySettings();
 
   // state
 
@@ -41,16 +42,14 @@ export default function IconButtonImagesSettingsMenu() {
   // helpers
 
   const options = [
-    { value: "LINE", label: lineS },
-    { value: "NUMBER", label: numberS },
+    { key: "LINE", label: lineS, checked: linkLine, onToggle: setLinkLine },
+    {
+      key: "NUMBER",
+      label: numberS,
+      checked: linkNumber,
+      onToggle: setLinkNumber,
+    },
   ];
-
-  // handlers
-
-  function handleSelect(value) {
-    setLinkStyle(value);
-    setAnchorEl(null);
-  }
 
   // render
 
@@ -90,21 +89,22 @@ export default function IconButtonImagesSettingsMenu() {
         <ListSubheader sx={{ lineHeight: "28px", fontSize: "0.7rem" }}>
           {linkS} {exSituOnlyS}
         </ListSubheader>
-        {options.map(({ value, label }) => {
-          const checked = value === linkStyle;
-          return (
-            <MenuItem
-              key={value}
-              selected={checked}
-              onClick={() => handleSelect(value)}
-            >
-              <ListItemIcon sx={{ minWidth: 28 }}>
-                {checked && <Check fontSize="small" />}
-              </ListItemIcon>
-              <ListItemText primary={label} />
-            </MenuItem>
-          );
-        })}
+        {options.map(({ key, label, checked, onToggle }) => (
+          <MenuItem
+            key={key}
+            onClick={() => onToggle(!checked)}
+            sx={{ gap: 1.5, pr: 1 }}
+          >
+            <ListItemText primary={label} />
+            <Switch
+              size="small"
+              edge="end"
+              checked={checked}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onToggle(e.target.checked)}
+            />
+          </MenuItem>
+        ))}
       </Menu>
     </>
   );

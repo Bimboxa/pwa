@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkLine,
   selectPopperImagesCollapsed,
   setPopperImagesCollapsed,
 } from "../popperImagesSlice";
@@ -55,7 +55,7 @@ export default function PopperImages({
   // data
 
   const displayMode = useSelector(selectImagesDisplayMode);
-  const linkStyle = useSelector(selectImagesLinkStyle);
+  const linkLine = useSelector(selectImagesLinkLine);
   const collapsed = useSelector(selectPopperImagesCollapsed);
   const selectedImageId = useSelector(selectSelectedImageAnnotationId);
   // The open right tool drawer slides over the editor: step aside.
@@ -93,8 +93,7 @@ export default function PopperImages({
     []
   );
 
-  const linksActive =
-    displayMode === "EX_SITU" && linkStyle === "LINE" && !collapsed;
+  const linksActive = displayMode === "EX_SITU" && linkLine && !collapsed;
   const invalidateKey = useMemo(
     () =>
       [

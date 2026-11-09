@@ -29,10 +29,10 @@ export default memo(function NodeImageStatic({
   printMode,
   // PopperImages display: "IN_SITU" (photo in the map, numbered) or
   // "EX_SITU" (photo listed in the panel: only the anchor stays here, with
-  // its number in "NUMBER" link style). `imageVeiled`: another image is
+  // its number when the "Numéro" link is on). `imageVeiled`: another image is
   // selected → white veil on the photo, faded connector / badge.
   imagesDisplayMode = "IN_SITU",
-  imagesLinkStyle = "LINE",
+  imagesLinkNumber = false,
   imageDisplayIndex,
   imageVeiled = false,
 }) {
@@ -221,7 +221,7 @@ export default memo(function NodeImageStatic({
               data-part-type="TARGET"
               style={{ cursor: "crosshair" }}
             />
-            {imagesLinkStyle === "NUMBER" && showBadge && (
+            {imagesLinkNumber && showBadge && (
               <g transform="translate(12, -12)">
                 <ImageIndexBadgeSvg number={imageDisplayIndex} />
               </g>

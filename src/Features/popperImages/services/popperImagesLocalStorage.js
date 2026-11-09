@@ -5,9 +5,11 @@
 const STORAGE_KEY = "popperImagesSettings";
 
 export const IMAGES_DISPLAY_MODES = ["IN_SITU", "EX_SITU"];
-export const IMAGES_LINK_STYLES = ["LINE", "NUMBER"];
 const DEFAULT_DISPLAY_MODE = "IN_SITU";
-const DEFAULT_LINK_STYLE = "LINE";
+// Ex situ tile ↔ anchor links: a leader line and / or a number badge, each
+// on or off independently.
+const DEFAULT_LINK_LINE = true;
+const DEFAULT_LINK_NUMBER = false;
 
 function readStore() {
   try {
@@ -44,15 +46,29 @@ export function saveImagesDisplayMode(mode) {
   writeStore(store);
 }
 
-export function loadImagesLinkStyle() {
-  const value = readStore().linkStyle;
-  return IMAGES_LINK_STYLES.includes(value) ? value : DEFAULT_LINK_STYLE;
+export function loadImagesLinkLine() {
+  const store = readStore();
+  if (typeof store.linkLine === "boolean") return store.linkLine;
+  // Legacy single-choice setting.
+  if (store.linkStyle === "NUMBER") return false;
+  return DEFAULT_LINK_LINE;
 }
 
-export function saveImagesLinkStyle(style) {
+export function saveImagesLinkLine(enabled) {
   const store = readStore();
-  store.linkStyle = IMAGES_LINK_STYLES.includes(style)
-    ? style
-    : DEFAULT_LINK_STYLE;
+  store.linkLine = Boolean(enabled);
+  writeStore(store);
+}
+
+export function loadImagesLinkNumber() {
+  const store = readStore();
+  if (typeof store.linkNumber === "boolean") return store.linkNumber;
+  if (store.linkStyle === "NUMBER") return true;
+  return DEFAULT_LINK_NUMBER;
+}
+
+export function saveImagesLinkNumber(enabled) {
+  const store = readStore();
+  store.linkNumber = Boolean(enabled);
   writeStore(store);
 }

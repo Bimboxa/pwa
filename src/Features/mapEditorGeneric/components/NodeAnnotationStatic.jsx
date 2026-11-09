@@ -57,7 +57,7 @@ function NodeAnnotationStatic({
   // number (badge) and white veil (another image is selected). Undefined
   // for the other consumers (portfolio, grids…) → in-situ rendering as before.
   imagesDisplayMode,
-  imagesLinkStyle,
+  imagesLinkNumber,
   imageDisplayIndex,
   imageVeiled,
 }) {
@@ -96,7 +96,7 @@ function NodeAnnotationStatic({
     highlightConnectedSegments,
     selectMode,
     imagesDisplayMode,
-    imagesLinkStyle,
+    imagesLinkNumber,
     imageDisplayIndex,
     imageVeiled,
     // isMesh3d: the points are the plan projection of a stored 3D mesh —

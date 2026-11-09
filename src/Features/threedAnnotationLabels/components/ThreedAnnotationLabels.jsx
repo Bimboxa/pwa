@@ -5,7 +5,7 @@ import { Group } from "three";
 
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkNumber,
 } from "Features/popperImages/popperImagesSlice";
 import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
 
@@ -136,7 +136,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
   // (badge on the card, or on the anchor in ex situ + "Numéro"), and the
   // veil rule — the selected annotation is an image → the others fade.
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
-  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imagesLinkNumber = useSelector(selectImagesLinkNumber);
   const imageIndexById = useMemo(
     () => getImageAnnotationsDisplayIndex(labelAnnotations).indexById,
     [labelAnnotations]
@@ -315,7 +315,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
         group.add(anchorDot);
         if (isImage) imageAnchorsById[annotation.id] = anchorDot;
 
-        if (exSitu && imagesLinkStyle === "NUMBER" && badgeNumber != null) {
+        if (exSitu && imagesLinkNumber && badgeNumber != null) {
           const badge = createAnnotationNumberBadgeSprite({
             annotationId: annotation.id,
             number: badgeNumber,
@@ -371,7 +371,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
     annotationsLoadTick,
     antiAliasingShrink,
     imagesDisplayMode,
-    imagesLinkStyle,
+    imagesLinkNumber,
     imageIndexById,
     selectedIsImage,
   ]);

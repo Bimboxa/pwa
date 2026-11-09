@@ -16,7 +16,7 @@ import {
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkNumber,
 } from "Features/popperImages/popperImagesSlice";
 import isOpeningAnnotation, { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
@@ -44,7 +44,7 @@ export default function EditedObjectLayer({
   // Redux State
   const selectedItems = useSelector(selectSelectedItems);
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
-  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imagesLinkNumber = useSelector(selectImagesLinkNumber);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPointIds = useSelector(selectSelectedPointIds);
   const selectedPartId = useSelector(selectSelectedPartId);
@@ -266,7 +266,7 @@ export default function EditedObjectLayer({
               // renders the moving one.
               forceHideLabel={!!getPendingMove("label::" + annotation.id)}
               imagesDisplayMode={imagesDisplayMode}
-              imagesLinkStyle={imagesLinkStyle}
+              imagesLinkNumber={imagesLinkNumber}
               imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
             />
           </g>
