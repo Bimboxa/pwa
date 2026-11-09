@@ -35,6 +35,8 @@ export default memo(function NodeImageStatic({
   imagesLinkNumber = false,
   imageDisplayIndex,
   imageVeiled = false,
+  // PopperImages count pill off: the photo leaves the map entirely.
+  imagesHidden = false,
 }) {
   const { bbox, image, id, opacity } = imageAnnotation;
   const { x, y, width, height } = bbox ?? {};
@@ -75,7 +77,7 @@ export default memo(function NodeImageStatic({
     return { x: ax, y: minY };
   }, [x, y, displayWidth, displayHeight, imageAnnotation.rotation]);
 
-  if (!src) return null;
+  if (!src || imagesHidden) return null;
 
   // Props pour le drag global (déplacement)
   const interactionProps = {
