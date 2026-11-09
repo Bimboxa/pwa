@@ -10,8 +10,8 @@ import db from "App/db/db";
 // cut ring, inner points and guide lines (mirrors useUpdateSelectedPoints), so
 // the previous base point is always unset wherever it lived.
 //
-// The base point is used as the anchor of the profile extrusion
-// (see useProfileResolution).
+// The base point is the registration origin of a profile drawing
+// (see applyProfileFromAnnotationService / readProfileSourceDrawing).
 export default function useSetBasePoint() {
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];

@@ -15,10 +15,16 @@ import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/merge
 // Assurez-vous que le chemin est correct vers votre nouveau fichier utilitaire
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 
-export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {}) {
+export default function useAnnotationTemplateQtiesById({
+  filterByBaseMapId,
+} = {}) {
   // --- DATA ---
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId, withQties: true });
+  const annotations = useAnnotationsV2({
+    caller: "useAnnotationTemplateQtiesById",
+    filterByProjectId: projectId,
+    withQties: true,
+  });
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps } =
     useBaseMaps({
@@ -50,7 +56,8 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
     if (!annotations) return {};
 
     const qtiesById = annotations.reduce((acc, annotation) => {
-      if (filterByBaseMapId && annotation.baseMapId !== filterByBaseMapId) return acc;
+      if (filterByBaseMapId && annotation.baseMapId !== filterByBaseMapId)
+        return acc;
       const templateId = annotation?.annotationTemplateId;
       if (!templateId) return acc;
       // Mesh cells are children already represented by their parent — skip.
@@ -77,17 +84,22 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
       // 3. Récupération du ratio Métrique/Pixel
-      const baseMap = annotation.baseMapId ? baseMapById?.[annotation.baseMapId] : null;
+      const baseMap = annotation.baseMapId
+        ? baseMapById?.[annotation.baseMapId]
+        : null;
       const meterByPx = baseMap?.getMeterByPx();
 
       // 4. Calcul des Quantités. Prefer the precomputed `annotation.qties`
-      // (subtraction-aware, EXTRUSION_PROFILE-resolved) from useAnnotationsV2;
+      // (subtraction-aware) from useAnnotationsV2;
       // fall back to a direct computation otherwise.
-      const qty = annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
+      const qty =
+        annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
 
       if (qty && qty.enabled) {
-        const length = qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
-        const surface = qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
+        const length =
+          qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
+        const surface =
+          qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
         if (Number.isFinite(length)) {
           stats.length += length;
         }
@@ -126,5 +138,11 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
       painted.qtiesByTemplateId,
       annotationTemplateById
     );
-  }, [annotations, baseMapById, annotationTemplateById, filterByBaseMapId, painted]);
+  }, [
+    annotations,
+    baseMapById,
+    annotationTemplateById,
+    filterByBaseMapId,
+    painted,
+  ]);
 }

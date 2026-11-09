@@ -157,7 +157,6 @@ const DEFAULT_SECTIONS = [
         commandKeys: [
           "TOGGLE_STRIP_TYPE",
           "TOGGLE_CLOSE_LINE",
-          "FLIP_EXTRUSION",
           "ANCHOR",
           "DETECT_SIMILAR_STRIPS",
         ],

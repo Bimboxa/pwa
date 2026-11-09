@@ -5,7 +5,7 @@ import isInlineExtrusionPolyline from "./isInlineExtrusionPolyline";
 // an OPEN double-sided surface (a sheet), not a closed volume. Keep in sync
 // with the POLYLINE branch of createAnnotationObject3D:
 //   - a CM stroke is a real wall thickness (extrudeWallPolygon, closed solid);
-//   - a `shape3D` (REVOLUTION, EXTRUSION_PROFILE) or an inline profile
+//   - a `shape3D` (REVOLUTION) or an inline profile
 //     (`profileLines`, see isInlineExtrusionPolyline) is another builder.
 //
 // Shared by the subtraction pipeline (live carve + « Soustraire

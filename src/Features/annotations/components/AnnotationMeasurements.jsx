@@ -11,7 +11,6 @@ import {
   MESH_3D_QTIES_TOOLTIP,
 } from "../utils/getAnnotationTemplateMainQtyLabel";
 import getAnnotationPartQties from "../utils/getAnnotationPartQties";
-import useProfileResolution from "../hooks/useProfileResolution";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
 // mesh3d: a group total (multi-selection) that holds a mesh 3D annotation —
@@ -31,17 +30,7 @@ export default function AnnotationMeasurements({
 
   const baseMap = useMainBaseMap();
 
-  // For EXTRUSION_PROFILE: pre-resolve the profile so getAnnotationQties has
-  // a profileLengthMeters to multiply by the guide length. The hook returns
-  // null when not applicable / loading, which triggers the default formula.
-  const profileTemplateId =
-    annotation?.shape3D?.key === "EXTRUSION_PROFILE"
-      ? annotation.shape3D.profileTemplateId ?? null
-      : null;
-  const profileResolution = useProfileResolution(profileTemplateId);
-  const profileLengthMeters = profileResolution?.profileLengthMeters ?? null;
-
-  // Developed surface removed by a 3D subtraction (EXTRUSION_PROFILE host).
+  // Developed surface removed by a 3D subtraction (POLYLINE sheet host).
   const subtractedSurfaceM2 = useSubtractedSurfaceM2(annotation);
 
   // helpers - use pre-computed values if provided, otherwise compute from annotation
@@ -66,19 +55,17 @@ export default function AnnotationMeasurements({
           part,
           meterByPx: baseMap?.meterByPx,
         })
-      : getAnnotationQties({
-          annotation,
-          meterByPx: baseMap?.meterByPx,
-          profileLengthMeters,
-        });
+      : getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx });
     if (!qties?.enabled) enabled = false;
     if (!hasPart && qties?.reason === QTIES_REASON_MESH_3D) {
       isMesh3d = true;
       enabled = true;
     }
     // Prefer the developed (sloped) values when a guideLine ramp is present.
-    computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
-    computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
+    computedSurface =
+      qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
+    computedLength =
+      qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
     if (!hasPart && Number.isFinite(qties?.count)) computedUnits = qties.count;
     if (!hasPart && Number.isFinite(qties?.layoutLength))
       computedLayoutLength = qties.layoutLength;
@@ -94,18 +81,17 @@ export default function AnnotationMeasurements({
   const showSurface = isMesh3d
     ? false
     : hasPart
-    ? computedSurface != null && computedSurface > 0
-    : computedSurface != null &&
-      computedSurface > 0 &&
-      (surface != null ||
-        ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
-        (annotation?.type === "POLYLINE" &&
-          (annotation?.height ||
-            annotation?.shape3D?.key === "REVOLUTION" ||
-            annotation?.shape3D?.key === "EXTRUSION_PROFILE" ||
-            // Slope walls (parois): per-vertex offsets define a vertical band,
-            // so the wall has a real lateral surface to display.
-            hasPerVertexZOffsets(annotation))));
+      ? computedSurface != null && computedSurface > 0
+      : computedSurface != null &&
+        computedSurface > 0 &&
+        (surface != null ||
+          ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
+          (annotation?.type === "POLYLINE" &&
+            (annotation?.height ||
+              annotation?.shape3D?.key === "REVOLUTION" ||
+              // Slope walls (parois): per-vertex offsets define a vertical band,
+              // so the wall has a real lateral surface to display.
+              hasPerVertexZOffsets(annotation))));
 
   const showLength = !isMesh3d && computedLength != null && computedLength > 0;
   const showUnits = computedUnits != null && computedUnits > 0;
@@ -131,7 +117,11 @@ export default function AnnotationMeasurements({
         <Tooltip title={MESH_3D_QTIES_TOOLTIP}>
           <Typography
             variant="caption"
-            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+            sx={{
+              fontFamily: "monospace",
+              color: "warning.main",
+              fontWeight: 500,
+            }}
           >
             {MESH_3D_QTY_LABEL}
           </Typography>
@@ -140,7 +130,11 @@ export default function AnnotationMeasurements({
       {showUnits && (
         <Typography
           variant="caption"
-          sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          sx={{
+            fontFamily: "monospace",
+            color: "warning.main",
+            fontWeight: 500,
+          }}
         >
           {computedUnits} u
         </Typography>
@@ -148,7 +142,11 @@ export default function AnnotationMeasurements({
       {showSurface && (
         <Typography
           variant="caption"
-          sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          sx={{
+            fontFamily: "monospace",
+            color: "warning.main",
+            fontWeight: 500,
+          }}
         >
           {computedSurface.toFixed(2)} m²
         </Typography>
@@ -156,7 +154,11 @@ export default function AnnotationMeasurements({
       {showLength && (
         <Typography
           variant="caption"
-          sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+          sx={{
+            fontFamily: "monospace",
+            color: "warning.main",
+            fontWeight: 500,
+          }}
         >
           {computedLength.toFixed(2)} ml
         </Typography>
@@ -165,7 +167,11 @@ export default function AnnotationMeasurements({
         <Tooltip title="Nombre d'angles">
           <Typography
             variant="caption"
-            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+            sx={{
+              fontFamily: "monospace",
+              color: "warning.main",
+              fontWeight: 500,
+            }}
           >
             {angles} {angles > 1 ? "angles" : "angle"}
           </Typography>
@@ -175,7 +181,11 @@ export default function AnnotationMeasurements({
         <Tooltip title="Longueur de calepinage">
           <Typography
             variant="caption"
-            sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+            sx={{
+              fontFamily: "monospace",
+              color: "warning.main",
+              fontWeight: 500,
+            }}
           >
             {computedLayoutLength.toFixed(2)} ml calep.
           </Typography>

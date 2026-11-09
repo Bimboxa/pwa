@@ -35,7 +35,6 @@ import getAppliedProfileSourceIds, {
 
 const DEFAULT_LABEL = "Forme par défaut";
 const MIXED_LABEL = "Formes variables";
-const LEGACY_TEMPLATE_PROFILE_LABEL = "Profil (modèle)";
 const APPLY_FAILED_LABEL = "Profil non appliqué (géométrie insuffisante)";
 const REMOVED_LABEL = "Profil retiré (Ctrl+Z pour annuler)";
 
@@ -110,9 +109,7 @@ export default function Shape3DBatchSelector({ annotations }) {
 
   let chipLabel = MIXED_LABEL;
   if (isUniform) {
-    if (currentKey === "EXTRUSION_PROFILE") {
-      chipLabel = LEGACY_TEMPLATE_PROFILE_LABEL;
-    } else if (currentKey === "REVOLUTION") {
+    if (currentKey === "REVOLUTION") {
       const axe = revolutionAxes.find((a) => a.id === currentAxisAnnotationId);
       chipLabel = axe?.label ? `Révolution · ${axe.label}` : "Révolution";
     } else if (currentKey === null && uniformAppliedIds.size > 0) {

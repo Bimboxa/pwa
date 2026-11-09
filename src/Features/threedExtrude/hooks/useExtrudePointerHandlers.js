@@ -191,7 +191,7 @@ function disposeObject(obj) {
 //   kinds of push/pull share the flow:
 //   · HEIGHT — a face pointing along the extrusion axis (the baseMap normal)
 //     of a regular annotation: the value drives `annotation.height`.
-//     Template-locked heights and REVOLUTION / EXTRUSION_PROFILE shapes are
+//     Template-locked heights and REVOLUTION shapes are
 //     silently ignored. Pushed BELOW its base, a plain prism digs an open
 //     basin instead of stopping flat: the annotation is then stored as a
 //     face mesh, like MESH3D.

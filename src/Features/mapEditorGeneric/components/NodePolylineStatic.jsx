@@ -67,7 +67,6 @@ import computeLayoutLineBars, {
   LAYOUT_LINE_DEFAULTS,
 } from "Features/annotations/utils/computeLayoutLineBars";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
-import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeometry";
 import NodeLabelStatic from "./NodeLabelStatic";
@@ -267,26 +266,6 @@ function NodePolylineStatic({
       // keep strokeColor as is
     }
   }
-
-  // --- EXTRUSION PROFILE (offset preview) ---
-  // A POLYLINE whose 3D shape is a profile swept along the contour
-  // (shape3D.key === "EXTRUSION_PROFILE") gets a thin offset polyline drawn
-  // on the extrusion side, in the profile's color, as a 2D hint of the swept
-  // footprint. `extrusionOrientation` (±1) chooses the side and mirrors the
-  // 3D sweep (see buildExtrudedProfileMesh).
-  const isExtrusionProfile =
-    type === "POLYLINE" &&
-    mergedAnnotation.shape3D?.key === "EXTRUSION_PROFILE";
-  const profileTemplateId = isExtrusionProfile
-    ? mergedAnnotation.shape3D?.profileTemplateId
-    : undefined;
-  const profileResolution = useProfileResolution(profileTemplateId);
-  const profileColor =
-    profileResolution?.primary?.annotation?.strokeColor ??
-    profileResolution?.primary?.annotation?.fillColor ??
-    strokeColor;
-  const extrusionOrientation =
-    mergedAnnotation.extrusionOrientation < 0 ? -1 : 1;
 
   // --- DATA ATTRIBUTES ---
   const dataProps = {
@@ -1214,43 +1193,6 @@ function NodePolylineStatic({
     return segmentsToDraw;
   };
 
-  // --- RENDU OFFSET EXTRUSION (preview de l'emprise du profil) ---
-  //
-  // Thin offset polyline drawn on the extrusion side, in the profile color,
-  // as a 2D hint of the swept footprint. The contour points are offset along
-  // their right-of-tangent normal (flipped by `extrusionOrientation`) while
-  // preserving their `type`, then fed to the SAME arc-aware path builder as
-  // the main contour — so curved (S-C-S) points stay curved instead of being
-  // approximated by straight segments. The offset is in image space (scales
-  // with zoom); `non-scaling-stroke` keeps the line width constant on screen.
-  // Rendered UNDER the main strokes so it never blocks selection / editing.
-  const EXTRUSION_OFFSET_PX = 12;
-  const EXTRUSION_STROKE_PX = 4;
-
-  const renderExtrusionOffset = () => {
-    if (!isExtrusionProfile || printMode) return null;
-    if (!points || points.length < 2) return null;
-
-    const distance = EXTRUSION_OFFSET_PX * extrusionOrientation;
-    const offsetPts = offsetPointsAlongNormals(points, distance, closeLine);
-    const { d } = buildPathAndMap(offsetPts, closeLine);
-    if (!d) return null;
-
-    return (
-      <path
-        d={d}
-        fill="none"
-        stroke={profileColor}
-        strokeWidth={EXTRUSION_STROKE_PX}
-        strokeOpacity={0.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-        style={{ pointerEvents: "none" }}
-      />
-    );
-  };
-
   // --- RENDU POINTS (VERTEX) ---
 
   // User-tunable vertex handle size (2D editor settings popover).
@@ -2035,7 +1977,6 @@ function NodePolylineStatic({
 
       {/* EXTRUSION PROFILE OFFSET — drawn UNDER the main strokes so it
                 never blocks selection / editing of the contour. */}
-      {renderExtrusionOffset()}
 
       {/* Inline "Extrusion" band: plan footprint of the profile swept along
           the whole chain — ONE thick stroke (real-world width, centered on
@@ -2345,24 +2286,26 @@ function NodePolylineStatic({
           );
         })}
 
-      {/* profileLines when the annotation is NOT selected: always visible
-                as a discreet 1px long-dashed stroke in the annotation color
-                (they are part of the plan drawing). */}
-      {(!selected || disableVertexEditing) &&
-        profileLinesData.map((line) => (
-          <polyline
-            key={`profile-idle-${line.partId}`}
-            points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth={1}
-            strokeDasharray="8 4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }}
-          />
-        ))}
+      {/* profileLines: always visible (selected or not) as a discreet 1px
+                long-dashed stroke in the annotation color — they are part of
+                the plan drawing. They are NOT editable from the selected
+                annotation: the profile itself is edited in the Élévation
+                panel, and the line is sub-selected from there / from the
+                « Ajouter un profil » command. */}
+      {profileLinesData.map((line) => (
+        <polyline
+          key={`profile-idle-${line.partId}`}
+          points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={1}
+          strokeDasharray="8 4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
+      ))}
 
       {/* layoutLines (lignes de calepinage): ALWAYS visible — they are part
                 of the plan drawing. Blue axis, screen-sized ticks at each bar
@@ -2495,104 +2438,6 @@ function NodePolylineStatic({
           </g>
         );
       })}
-
-      {/* profileLines: shell cross-sections, drawn while the annotation is
-                selected. Long-dashed teal (vs iso lines dashed purple), with
-                square markers on interior vertices. The vertical profile is
-                edited in the Élévation panel. */}
-      {selected &&
-        !disableVertexEditing &&
-        profileLinesData.map((line) => {
-          const profilePartId = line.partId;
-          const isSelectedProfile = selectedPartId === profilePartId;
-          const isHoveredProfile = effectiveHoveredPartId === profilePartId;
-          const pointsStr = line.polyline.map((p) => `${p.x},${p.y}`).join(" ");
-          const profileStroke = isSelectedProfile
-            ? STYLE_CONSTANTS.COLORS.SELECTED_PART
-            : "#00897b";
-          const profileStrokeWidth =
-            isSelectedProfile || isHoveredProfile ? 3 : 2;
-          const profileStrokeOpacity =
-            isSelectedProfile || isHoveredProfile ? 1 : 0.7;
-          return (
-            <g
-              key={profilePartId}
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                if (!isTransient) setHoveredPartId(profilePartId);
-              }}
-              onMouseLeave={() => setHoveredPartId(null)}
-              data-part-id={profilePartId}
-              data-part-type="PROFILE_LINE"
-              data-node-id={annotationId}
-              style={{ cursor: getPartCursor(profilePartId) }}
-            >
-              {/* POLYLINE extrusion: the whole projection segment is
-                  draggable along its own axis (normal to the guide) — the
-                  inner data-part-type routes the drag (PROFILE_LINE_MOVE)
-                  while the outer data-part-id keeps the click selection. */}
-              <g
-                {...(line.isExtrusion
-                  ? {
-                      "data-interaction": "draggable",
-                      "data-part-type": `PROFILE_LINE_MOVE::${line.index}`,
-                      "data-node-id": annotationId,
-                      style: { cursor: "move" },
-                    }
-                  : {})}
-              >
-                {/* Hit area (transparent wide stroke) */}
-                <polyline
-                  points={pointsStr}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
-                  vectorEffect="non-scaling-stroke"
-                />
-                {/* Visible stroke */}
-                <polyline
-                  points={pointsStr}
-                  fill="none"
-                  stroke={profileStroke}
-                  strokeWidth={profileStrokeWidth}
-                  strokeOpacity={profileStrokeOpacity}
-                  strokeDasharray="8 4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                  style={{ pointerEvents: "none" }}
-                />
-                {/* Vertex markers. Extrusions: the 2 extremities of the
-                    projection segment only (the free section is edited in
-                    the Élévation panel). Shells: interior vertices
-                    (endpoints are contour-anchored). */}
-                {(line.isExtrusion ? line.polyline : line.vertices).map(
-                  (p, vi) =>
-                    !line.isExtrusion &&
-                    (vi === 0 || vi === line.vertices.length - 1) ? null : (
-                      <g
-                        key={`profile-v-${line.partId}-${vi}`}
-                        transform={`translate(${p.x}, ${p.y})`}
-                        style={{ pointerEvents: "none" }}
-                      >
-                        <g style={{ transform: vertexScaleTransform }}>
-                          <rect
-                            x={-3}
-                            y={-3}
-                            width={6}
-                            height={6}
-                            fill="white"
-                            stroke={profileStroke}
-                            strokeWidth={1.5}
-                          />
-                        </g>
-                      </g>
-                    )
-                )}
-              </g>
-            </g>
-          );
-        })}
 
       {/* layoutLines hit areas while the annotation is selected: a wide
                 transparent stroke along the axis carrying the partId so the

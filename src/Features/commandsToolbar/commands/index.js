@@ -41,7 +41,6 @@ import detectDuplicatesCommand from "./detectDuplicates/detectDuplicatesCommand"
 import toggleStripTypeCommand from "./toggleStripType/toggleStripTypeCommand";
 import toggleCloseLineCommand from "./toggleCloseLine/toggleCloseLineCommand";
 import flipStripCommand from "./flipStrip/flipStripCommand";
-import flipExtrusionCommand from "./flipExtrusion/flipExtrusionCommand";
 import anchorCommand from "./anchor/anchorCommand";
 import detectSimilarStripsCommand from "./detectSimilarStrips/detectSimilarStripsCommand";
 import cleanCommand from "./clean/cleanCommand";
@@ -135,7 +134,6 @@ export const COMMANDS = [
   toggleStripTypeCommand,
   toggleCloseLineCommand,
   flipStripCommand,
-  flipExtrusionCommand,
   anchorCommand,
   detectSimilarStripsCommand,
   cleanCommand,

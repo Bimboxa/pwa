@@ -32,10 +32,6 @@ import getAppliedProfileSourceIds, {
 } from "../utils/getAppliedProfileSourceIds";
 
 const DEFAULT_LABEL = "Forme par défaut";
-// Legacy template-driven profile (shape3D EXTRUSION_PROFILE): no longer
-// assignable from the menu, still read by the 3D build — named on the chip
-// so « Forme par défaut » can clear it.
-const LEGACY_TEMPLATE_PROFILE_LABEL = "Profil (modèle)";
 const APPLY_FAILED_LABEL = "Profil non appliqué (géométrie insuffisante)";
 const REMOVED_LABEL = "Profil retiré (Ctrl+Z pour annuler)";
 
@@ -92,9 +88,7 @@ export default function Shape3DSelector({ annotation }) {
   const appliedSourceIds = getAppliedProfileSourceIds(annotation);
 
   let chipLabel = DEFAULT_LABEL;
-  if (currentKey === "EXTRUSION_PROFILE") {
-    chipLabel = LEGACY_TEMPLATE_PROFILE_LABEL;
-  } else if (currentKey === "REVOLUTION") {
+  if (currentKey === "REVOLUTION") {
     const axe = revolutionAxes.find((a) => a.id === currentAxisAnnotationId);
     chipLabel = axe?.label ? `Révolution · ${axe.label}` : "Révolution";
   } else if (currentKey != null) {

@@ -8,7 +8,6 @@ import diffAnnotationsForBuild, {
 import createMeshCellLabelSprite from "./utilsAnnotationsManager/createMeshCellLabelSprite";
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
-import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
 import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
@@ -327,7 +326,7 @@ export default class AnnotationsManager {
       // subtractAnnotationGeometries reads every operand through matrixWorld, so
       // the operands share a frame whatever their parents. They are removed
       // after the carve (they keep rendering as their own annotations only when
-      // visible). EXTRUSION_PROFILE solids resolve asynchronously.
+      // visible).
       // Glued openings (relAnnotationOpenings, resolved by useAnnotationsV2 as
       // `annotation.openings` BEFORE the hidden filter) pierce the host mesh
       // too: each opening becomes a band solid — width along the wall ×
@@ -426,45 +425,10 @@ export default class AnnotationsManager {
             // Skip if the source object was meanwhile replaced/removed.
             if (this.annotationsObjectsMap[annotation.id] !== object) return;
 
-            // The source mesh may resolve asynchronously (EXTRUSION_PROFILE
-            // renders an async swept surface). When the synchronously-added
-            // object has no solid mesh yet, build a fully-resolved display
-            // object and swap it in before carving — so the boolean cuts
-            // openings into the resolved surface.
-            let carveTarget = object;
-            if (!getSolidMeshFromObject3D(object)) {
-              const resolved = await buildResolvedSourceObjectAsync(
-                annotation,
-                baseMapForRender,
-                options
-              );
-              if (!resolved || !getSolidMeshFromObject3D(resolved)) return;
-              if (this.annotationsObjectsMap[annotation.id] !== object) return;
-              resolved.userData = {
-                ...(resolved.userData ?? {}),
-                nodeId: annotation.id,
-                nodeType: "ANNOTATION",
-                annotationType: annotation.type,
-                listingId: annotation.listingId,
-                annotationTemplateId: annotation.annotationTemplateId,
-              };
-              const parent = object.parent;
-              object.traverse?.((child) => {
-                try {
-                  child.userData?.dispose?.();
-                } catch (e) {
-                  /* ignore */
-                }
-              });
-              object.parent?.remove(object);
-              object.traverse?.((child) => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) child.material.dispose();
-              });
-              (parent ?? this.scene).add(resolved);
-              this.annotationsObjectsMap[annotation.id] = resolved;
-              carveTarget = resolved;
-            }
+            // A source without a solid mesh (decoration only) has nothing to
+            // carve.
+            const carveTarget = object;
+            if (!getSolidMeshFromObject3D(object)) return;
 
             // Attach each target solid to ITS OWN basemap frame, so a target
             // from another base map carries that map's pose. The CSG reads
@@ -505,8 +469,8 @@ export default class AnnotationsManager {
             const carveOperands = targetObjects3D.filter(Boolean);
             this.scene.updateMatrixWorld(true);
 
-            // Open-surface sources (swept EXTRUSION_PROFILE, inline-extrusion
-            // sheets, PX polyline walls, lathe REVOLUTION shells, an OPEN
+            // Open-surface sources (inline-extrusion sheets, PX polyline
+            // walls, lathe REVOLUTION shells, an OPEN
             // mesh3d sheet) must use a hollow subtraction so
             // the boolean only clips the surface and doesn't add the target's
             // cap faces (stray triangles in the source material). A SOLID
@@ -517,8 +481,7 @@ export default class AnnotationsManager {
             const sourceShapeKey = getShape3DKey(annotation.shape3D);
             const hollow = annotation.isMesh3d
               ? !isMesh3dClosed(annotation.mesh3d)
-              : sourceShapeKey === "EXTRUSION_PROFILE" ||
-                isInlineExtrusionPolyline(annotation) ||
+              : isInlineExtrusionPolyline(annotation) ||
                 isPolylineSheetWall(annotation) ||
                 (sourceShapeKey === "REVOLUTION" &&
                   !isRevolutionSolid(annotation));
@@ -634,9 +597,8 @@ export default class AnnotationsManager {
 
   _disposeAnnotationObject(object) {
     if (!object) return;
-    // Custom cleanup hook (e.g. EXTRUSION_PROFILE Dexie liveQuery
-    // subscriptions). Run BEFORE GPU-resource disposal so the callback can
-    // still touch the object if needed.
+    // Custom cleanup hook (`userData.dispose`). Run BEFORE GPU-resource
+    // disposal so the callback can still touch the object if needed.
     object.traverse?.((child) => {
       try {
         child.userData?.dispose?.();

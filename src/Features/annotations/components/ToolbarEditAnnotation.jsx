@@ -660,8 +660,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               // isMesh3d: the solid is the stored mesh (push/pull in 3D), the
               // extrusion heights do not drive it.
               !selectedAnnotation?.isMesh3d &&
-              selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
-              selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
+              selectedAnnotation?.shape3D?.key !== "REVOLUTION" && (
                 <FieldAnnotationHeight
                   annotation={selectedAnnotation}
                   onChange={handleHeightChange}

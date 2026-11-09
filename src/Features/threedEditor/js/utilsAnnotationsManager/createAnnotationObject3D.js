@@ -64,7 +64,6 @@ import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
 import buildDiscObject3D from "./buildDiscObject3D";
 import attachFatLineRaycast from "./attachFatLineRaycast";
-import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
 import buildInlineExtrusion3dMesh from "./buildInlineExtrusion3dMesh";
 import { hasVerticalGuideOffsets } from "./sweepGeometry3d";
@@ -822,14 +821,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   };
 
   const shape3DKey = getShape3DKey(annotation.shape3D);
-  // EXTRUSION_PROFILE and REVOLUTION are dynamic shapes (they reference a
-  // profile template / a REVOLUTION_AXIS annotation), so they never appear in
-  // the static SHAPE_3D_CONFIG registry — exempt them from the check.
-  if (
-    shape3DKey !== null &&
-    shape3DKey !== "EXTRUSION_PROFILE" &&
-    shape3DKey !== "REVOLUTION"
-  ) {
+  // REVOLUTION is a dynamic shape (it references a REVOLUTION_AXIS
+  // annotation), so it never appears in the static SHAPE_3D_CONFIG registry —
+  // exempt it from the check.
+  if (shape3DKey !== null && shape3DKey !== "REVOLUTION") {
     const known = getShape3DOptionsForType(annotation.type).some(
       (o) => o.key === shape3DKey
     );
@@ -1058,37 +1053,6 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           if (object) break;
         }
       }
-      if (
-        shape3DKey === "EXTRUSION_PROFILE" &&
-        annotation.shape3D?.profileTemplateId
-      ) {
-        // Sample S-C-S arcs in the guide so the swept surface follows the
-        // curve (otherwise the 3 anchor points produce a 2-segment polyline).
-        const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
-          expandArcsInPathWithHiddenMap(
-            annotation.points || [],
-            GUIDE_ARC_SAMPLES,
-            annotation.hiddenSegmentsIdx || [],
-            !!annotation.closeLine
-          );
-        const pts = pointsToLocal(expandedPts, baseMap);
-        object = buildExtrudedProfileMesh(
-          pts,
-          annotation.shape3D.profileTemplateId,
-          material,
-          verticalLift,
-          expandedHidden,
-          annotation.extrusionOrientation,
-          !!annotation.closeLine,
-          // Fired once the async (Dexie liveQuery) profile sweep is built and
-          // added to the placeholder — lets AnnotationsManager re-render and
-          // re-notify "annotation ready" so post-creation passes (clipping
-          // planes, selection dim) reach the freshly-added meshes.
-          options?.onAsyncLoaded,
-          options?.gridEdgeThresholdDeg
-        );
-        break;
-      }
       // "Extrusion" (inline profile): a POLYLINE carrying profileLines sweeps
       // its own cross-section along the whole chain — the simple default
       // mechanism (no separate profile baseMap). Registration against the
@@ -1221,37 +1185,6 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "STRIP": {
-      if (
-        shape3DKey === "EXTRUSION_PROFILE" &&
-        annotation.shape3D?.profileTemplateId
-      ) {
-        // Use the strip's neutral/director line (annotation.points) as the
-        // sweep guide. Sample S-C-S arcs the same way as the POLYLINE branch.
-        const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
-          expandArcsInPathWithHiddenMap(
-            annotation.points || [],
-            GUIDE_ARC_SAMPLES,
-            annotation.hiddenSegmentsIdx || [],
-            !!annotation.closeLine
-          );
-        const pts = pointsToLocal(expandedPts, baseMap);
-        object = buildExtrudedProfileMesh(
-          pts,
-          annotation.shape3D.profileTemplateId,
-          material,
-          verticalLift,
-          expandedHidden,
-          annotation.extrusionOrientation,
-          !!annotation.closeLine,
-          // Fired once the async (Dexie liveQuery) profile sweep is built and
-          // added to the placeholder — lets AnnotationsManager re-render and
-          // re-notify "annotation ready" so post-creation passes (clipping
-          // planes, selection dim) reach the freshly-added meshes.
-          options?.onAsyncLoaded,
-          options?.gridEdgeThresholdDeg
-        );
-        break;
-      }
       object = extrudeStripPolygons(
         annotation,
         baseMap,
@@ -1606,8 +1539,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
 
   // No applyBaseMapTransform here: the annotation is attached as a child of
   // the basemap group, which already owns the basemap's position + rotation.
-  // Merge into existing userData so that loader-set hooks (e.g. the
-  // EXTRUSION_PROFILE liveQuery `dispose` callback) survive.
+  // Merge into existing userData so that loader-set hooks (`dispose`
+  // callbacks) survive.
   object.userData = {
     ...(object.userData ?? {}),
     nodeId: annotation.id,

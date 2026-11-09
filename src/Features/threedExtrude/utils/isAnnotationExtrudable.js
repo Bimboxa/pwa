@@ -1,6 +1,6 @@
 // 3D shapes whose volume is NOT driven by `annotation.height` — the edit
 // toolbar hides the height field for them, so extruding would be a no-op.
-const UNSUPPORTED_SHAPE_3D_KEYS = ["REVOLUTION", "EXTRUSION_PROFILE"];
+const UNSUPPORTED_SHAPE_3D_KEYS = ["REVOLUTION"];
 
 // Whether the extrude tool may write `height` on this annotation.
 //

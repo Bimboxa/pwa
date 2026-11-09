@@ -96,7 +96,7 @@ export function isRevolutionBakeHost(annotation) {
 // (POLYLINE + profileLines, baked as an open mesh too). A plain PX polyline
 // wall is convertible, but it is a zero-thickness sheet as well: the bake
 // clips it as a surface (isPolylineSheetWall). The other generated shapes
-// (EXTRUSION_PROFILE templates, POLYGON shells) stay out.
+// (POLYGON shells) stay out.
 // isAnnotationConvertibleToMesh3d itself is NOT widened: push/pull and the
 // face cuts keep refusing these generated shapes.
 export function isAnnotationSubtractionBakeable(annotation) {

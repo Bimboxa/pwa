@@ -34,11 +34,7 @@ const multiPolygonAreaPx = (multiPolygon) => {
 };
 
 const annotationToGeom = (annotation, meterByPx) => {
-  // EXTRUSION_PROFILE targets carry an exact precomputed planar footprint
-  // (matching the 3D swept prisms); other types polygonize on the fly.
-  const shapes =
-    annotation._profileFootprintShapes ||
-    getAnnotationAsPolygons(annotation, { meterByPx });
+  const shapes = getAnnotationAsPolygons(annotation, { meterByPx });
   return shapes
     .filter((s) => s?.points && s.points.length >= 3)
     .map((shape) => [

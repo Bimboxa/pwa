@@ -31,7 +31,7 @@ function worldGeometry(mesh) {
 }
 
 // Collect every renderable mesh inside an object (a target may be a Group of
-// several prism meshes — e.g. an EXTRUSION_PROFILE solid). Fat lines
+// several prism meshes). Fat lines
 // (LineSegments2 / Line2 are `isMesh`) and the partial-revolution section
 // markers are decoration, never a cutting brush.
 //
@@ -133,7 +133,7 @@ export default function subtractAnnotationGeometries(
     return sourceObject;
   }
 
-  // For an OPEN surface source (e.g. an EXTRUSION_PROFILE swept surface or a
+  // For an OPEN surface source (e.g. an inline-extrusion sheet or a
   // REVOLUTION lathe shell), use HOLLOW_SUBTRACTION: it only clips the source
   // triangles and does NOT add the target's cap faces (which a regular
   // SUBTRACTION inserts to close a volume — showing up as stray triangles

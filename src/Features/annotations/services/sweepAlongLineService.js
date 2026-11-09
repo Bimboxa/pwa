@@ -57,9 +57,7 @@ import {
 //
 // Template: the profile's annotationTemplate props (getNewAnnotationProps…),
 // forced to POLYLINE; a templateless profile gives a templateless result that
-// copies the profile's style props. The result is never `isProfile` itself,
-// and a template shape3D EXTRUSION_PROFILE is dropped (it would win over the
-// inline profileLines in createAnnotationObject3D).
+// copies the profile's style props. The result is never `isProfile` itself.
 
 export const SWEEP_MODE_ELEVATION = "ELEVATION";
 export const SWEEP_MODE_IN_PLACE = "IN_PLACE";
@@ -322,7 +320,6 @@ async function buildResultProps(profile, guide, target) {
   let props;
   if (template) {
     props = getNewAnnotationPropsFromAnnotationTemplate(template);
-    if (props.shape3D?.key === "EXTRUSION_PROFILE") delete props.shape3D;
     props.listingId = profile.listingId ?? template.listingId ?? null;
   } else {
     props = {
