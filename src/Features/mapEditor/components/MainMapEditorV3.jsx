@@ -147,6 +147,9 @@ import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCr
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
+import PopperImages from "Features/popperImages/components/PopperImages";
+import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
+import useMapEditor2dAnchorProjector from "Features/popperImages/hooks/useMapEditor2dAnchorProjector";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
 import PopperLinkWorkPackageHelper from "Features/businessObjects/components/PopperLinkWorkPackageHelper";
 import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
@@ -676,6 +679,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     [rawAnnotations, keepSoloDimmed, applyMeshCellsDisplay]
   );
 
+  // Photos (IMAGE annotations): display numbering shared by the badges in
+  // the map and the tiles of PopperImages, and the anchor projector of the
+  // tile → anchor leaders (ex situ + "Ligne").
+  const { images: imageAnnotations, indexById: imageDisplayIndexById } =
+    useMemo(() => getImageAnnotationsDisplayIndex(annotations), [annotations]);
+  const anchorProjector2d = useMapEditor2dAnchorProjector({
+    interactionLayerRef,
+    basePose,
+  });
+
   // Altimetry under the cursor: have the height map of a scan base map
   // ready before the first pointer move (see InteractionLayer).
   const cursorAltitudeEnabled = useSelector(
@@ -869,6 +882,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
     viewportBounds: bounds,
     hostKey: forViewerKey,
+    // Ex situ photos zone at the right of the frame: the margin band keeps
+    // the labels out of it.
+    imagesCount: imageAnnotations.length,
   });
 
   function handleLegendFormatChange(newFormat) {
@@ -2878,7 +2894,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               <g ref={printZoneWorldRef}>
                 <g
                   style={
-                    selectedNode || selectedNodes?.length > 0
+                    // Capture framing: never grey the content being captured.
+                    (selectedNode || selectedNodes?.length > 0) &&
+                    !imageModeActive
                       ? contextDimmedStyle
                       : contextNormalStyle
                   }
@@ -2886,6 +2904,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                   <StaticMapContent
                     selectedNode={selectedNode}
                     selectedNodes={selectedNodes}
+                    imageDisplayIndexById={imageDisplayIndexById}
                     bgImageUrl={bgImage?.url}
                     bgImageSize={bgImage?.imageSize}
                     showBgImage={showBgImage}
@@ -2978,6 +2997,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     basePose={basePose}
                     annotations={annotations}
                     spriteImage={spriteImage}
+                    imageDisplayIndexById={imageDisplayIndexById}
                     selectedNode={selectedNode}
                     selectedNodes={selectedNodes}
                     baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
@@ -3155,6 +3175,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 <PopperMapListings />
                 {/* Base maps list detached from the popper above. */}
                 <PopperBaseMapsList />
+                {/* Photos of the base map (right side). */}
+                <PopperImages
+                  images={imageAnnotations}
+                  indexById={imageDisplayIndexById}
+                  anchorProjector={anchorProjector2d}
+                  hostInvalidateKey={`${basePose?.x}|${basePose?.y}|${basePose?.k}`}
+                />
               </PortalEditorFloatingPanels>
             )}
 
@@ -3202,6 +3229,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               legendItems={imageModeLegendItems}
               spriteImage={spriteImage}
               qtiesById={legendQtiesById}
+              imageAnnotations={imageAnnotations}
+              anchorProjector={anchorProjector2d}
             />
           )}
 

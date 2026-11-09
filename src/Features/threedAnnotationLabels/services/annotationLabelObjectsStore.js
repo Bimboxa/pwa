@@ -7,13 +7,26 @@
 // - `targetHandles`: grab handle at the pointed end of the label leader of
 //   the selected annotation — raycast before the sprites (they overlap while
 //   both label ends sit on the barycenter).
+// - `imageAnchorsById`: anchor-dot sprite of every IMAGE annotation (in situ
+//   and ex situ) — projected to the screen by useThreedImageAnchorProjector
+//   for the tile → anchor leaders of PopperImages / the capture overlay.
 
 let _sprites = [];
 let _targetHandles = [];
+let _imageAnchorsById = {};
 
-export function setAnnotationLabelObjects({ sprites, targetHandles } = {}) {
+export function setAnnotationLabelObjects({
+  sprites,
+  targetHandles,
+  imageAnchorsById,
+} = {}) {
   _sprites = sprites || [];
   _targetHandles = targetHandles || [];
+  _imageAnchorsById = imageAnchorsById || {};
+}
+
+export function getImageAnchorObjectsById() {
+  return _imageAnchorsById;
 }
 
 export function getAnnotationLabelSprites() {
@@ -27,4 +40,5 @@ export function getAnnotationLabelTargetHandles() {
 export function clearAnnotationLabelObjects() {
   _sprites = [];
   _targetHandles = [];
+  _imageAnchorsById = {};
 }

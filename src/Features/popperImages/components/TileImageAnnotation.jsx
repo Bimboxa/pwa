@@ -1,0 +1,135 @@
+import {
+  Box,
+  ButtonBase,
+  IconButton,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import Fullscreen from "@mui/icons-material/Fullscreen";
+
+import ImageIndexBadge from "./ImageIndexBadge";
+import { IMAGE_VEIL_RGBA } from "../constants/imageDisplay";
+
+// ---------------------------------------------------------------------------
+// TileImageAnnotation — one photo of the PopperImages grid: square
+// thumbnail, numbered badge (top-left), optional caption (label). Selected →
+// primary border + "Fullscreen" button (DialogImageViewer). Veiled (another
+// image is selected) → translucent white veil.
+// ---------------------------------------------------------------------------
+
+export default function TileImageAnnotation({
+  annotation,
+  number,
+  selected = false,
+  veiled = false,
+  onSelect,
+  onFullscreen,
+  registerEl,
+}) {
+  // strings
+
+  const fullscreenS = "Afficher en grand";
+
+  // data
+
+  const { image, label } = annotation;
+  const src = image?.thumbnail ?? image?.imageUrlClient;
+
+  // render
+
+  return (
+    <Box
+      ref={(el) => registerEl?.(annotation.id, el)}
+      sx={{ position: "relative", minWidth: 0 }}
+    >
+      <ButtonBase
+        onClick={() => onSelect?.(annotation)}
+        sx={{
+          display: "block",
+          width: 1,
+          aspectRatio: "1 / 1",
+          borderRadius: 1,
+          overflow: "hidden",
+          border: "2px solid",
+          borderColor: selected ? "primary.main" : "divider",
+          bgcolor: "action.hover",
+        }}
+      >
+        {src && (
+          <Box
+            component="img"
+            src={src}
+            alt={label || ""}
+            draggable={false}
+            sx={{
+              width: 1,
+              height: 1,
+              objectFit: "cover",
+              display: "block",
+              transform: annotation.imageFlipY ? "scaleY(-1)" : undefined,
+            }}
+          />
+        )}
+        {label && (
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              px: 0.75,
+              py: 0.25,
+              textAlign: "left",
+              color: "#fff",
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0))",
+            }}
+          >
+            {label}
+          </Typography>
+        )}
+        {veiled && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              bgcolor: IMAGE_VEIL_RGBA,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </ButtonBase>
+
+      <ImageIndexBadge
+        number={number}
+        dimmed={veiled}
+        sx={{ position: "absolute", top: 6, left: 6 }}
+      />
+
+      {selected && (
+        <Tooltip title={fullscreenS} arrow placement="bottom">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFullscreen?.(annotation);
+            }}
+            sx={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              p: 0.25,
+              bgcolor: "rgba(0,0,0,0.5)",
+              color: "#fff",
+              "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+            }}
+          >
+            <Fullscreen sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
+    </Box>
+  );
+}
