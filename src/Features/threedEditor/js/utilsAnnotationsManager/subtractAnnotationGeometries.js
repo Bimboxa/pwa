@@ -158,6 +158,12 @@ function collapseMesh3dHost(group) {
     face.parent?.remove(face);
     face.geometry?.dispose?.();
   }
+  // The faces may be displayed under a state override (hover / dim, see
+  // applyAnnotationMaterialState) when the async carve lands: the merged
+  // mesh keeps the displayed material AND the cached original one, else the
+  // override would be cached as its original and the host would stay grey.
+  const originalMaterial = faces[0].userData?.originalMaterial;
+  if (originalMaterial) merged.userData.originalMaterial = originalMaterial;
   group.add(merged);
   group.updateMatrixWorld(true);
   return [merged];
@@ -327,8 +333,11 @@ export default function subtractAnnotationGeometries(
       if (removedEdgeInfo || child.userData.gridEdgeKind === "VERTEX") {
         child.material?.dispose?.();
       } else {
+        // Displayed material + the original one cached by a state
+        // override (applyAnnotationMaterialState), as for the merged solid.
         removedEdgeInfo = {
           material: child.material,
+          originalMaterial: child.userData.originalMaterial,
           kind: child.userData.gridEdgeKind,
         };
       }
@@ -365,6 +374,9 @@ export default function subtractAnnotationGeometries(
         });
         edges.userData.sourceMesh = sourceMesh;
         edges.userData.appliedThresholdDeg = seamDihedralDeg ?? 1;
+        if (removedEdgeInfo.originalMaterial) {
+          edges.userData.originalMaterial = removedEdgeInfo.originalMaterial;
+        }
         sourceMesh.add(edges);
       }
     }

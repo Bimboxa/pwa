@@ -113,6 +113,11 @@ export default function triangulateAnnotationGeometry({
   // `triLabels`. The walls are matched to the source segments by position,
   // so the rings rebuilt below (iso partitions, shell, banding) keep them.
   sideSegments = null,
+  // « Fosse » (shape3DConfig.isOpenTopPrism): an extruded prism WITHOUT its
+  // top face — no top triangle is emitted (`topRange` empty, `areaTop` 0);
+  // the bottom, the walls and the volume are unchanged. No effect without a
+  // height.
+  openTop = false,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) {
     return emptyResult();
@@ -380,8 +385,10 @@ export default function triangulateAnnotationGeometry({
     positions.push(p.x, p.y, z);
   }
   const topStart = indices.length;
-  for (const [a, b, c] of tris) {
-    indices.push(topBase + a, topBase + b, topBase + c);
+  if (!(openTop && isExtruded)) {
+    for (const [a, b, c] of tris) {
+      indices.push(topBase + a, topBase + b, topBase + c);
+    }
   }
   const topRange = [topStart, indices.length - topStart];
 

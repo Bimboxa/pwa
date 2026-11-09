@@ -18,6 +18,7 @@ const bundle = await build({
       export { default as subtractAnnotationGeometries } from "Features/threedEditor/js/utilsAnnotationsManager/subtractAnnotationGeometries";
       export { default as buildMergedWorldSolid } from "Features/threedEditor/js/utilsAnnotationsManager/buildMergedWorldSolid";
       export { default as extrudePolylineWall } from "Features/threedEditor/js/utilsAnnotationsManager/extrudePolylineWall";
+      export { default as extrudeClosedShape } from "Features/threedEditor/js/utilsAnnotationsManager/extrudeClosedShape";
       export { getSoupArea, toNonIndexedArea } from "Features/threedEditor/js/utilsAnnotationsManager/getSoupMeasures";
       export { getSolidMeshesFromObject3D, hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
       export { default as buildMesh3dFromCarvedTriangles } from "Features/annotationMesh3d/utils/buildMesh3dFromCarvedTriangles";
@@ -51,6 +52,7 @@ const {
   subtractAnnotationGeometries,
   buildMergedWorldSolid,
   extrudePolylineWall,
+  extrudeClosedShape,
   getSoupArea,
   toNonIndexedArea,
   getSolidMeshesFromObject3D,
@@ -390,4 +392,72 @@ test("a cutter touching an open sheet cuts the coplanar face", () => {
   // Nothing else moved: the carved soup still reads as 5 planar faces.
   const mesh = carvedMesh(getSolidMeshesFromObject3D(host)[0]);
   assert.equal(mesh.faces.length, 5);
+});
+
+// « Fosse » (shape3D FOSSE): displayed without its top face, but subtracted
+// as the closed prism it is drawn from (asClosedSolidOperand).
+function pitPrism(openTop) {
+  const square = [
+    { x: -0.2, y: -0.2 },
+    { x: 0.2, y: -0.2 },
+    { x: 0.2, y: 0.2 },
+    { x: -0.2, y: 0.2 },
+  ];
+  // z ∈ [−1, 0] in the builder frame, turned so its top lies at y = 0.
+  const prism = extrudeClosedShape(
+    square,
+    1,
+    new MeshBasicMaterial(),
+    [],
+    -1,
+    [],
+    {
+      prismSides: true,
+      openTop,
+    }
+  );
+  prism.rotation.x = -Math.PI / 2;
+  return prism;
+}
+
+test("a « Fosse » is displayed open and cuts as its closed prism", () => {
+  const open = pitPrism(true);
+  open.updateMatrixWorld(true);
+  // Bottom + 4 sides, no top face.
+  assert.ok(Math.abs(carvedArea(open) - (0.16 + 4 * 0.4)) < 1e-6);
+
+  const baseMapGroup = frame();
+  const host = openBasin();
+  const cutter = pitPrism(false);
+  baseMapGroup.add(host);
+  baseMapGroup.add(cutter);
+  baseMapGroup.updateMatrixWorld(true);
+  assert.ok(Math.abs(carvedArea(cutter) - (2 * 0.16 + 4 * 0.4)) < 1e-6);
+
+  subtractAnnotationGeometries(host, [cutter], { hollow: true });
+  const area = carvedArea(host);
+  assert.ok(Math.abs(area - (5 - 0.16)) < 1e-4, `area ${area}`);
+});
+
+test("a mesh3d host carved while dimmed keeps its original material", () => {
+  const baseMapGroup = frame();
+  const host = openBasin();
+  const original = getSolidMeshesFromObject3D(host)[0].material;
+  // State override in place when the async carve lands
+  // (applyAnnotationMaterialState: displayed ≠ cached original).
+  const dim = new MeshBasicMaterial({ color: 0x888888 });
+  for (const face of getSolidMeshesFromObject3D(host)) {
+    face.userData.originalMaterial = original;
+    face.material = dim;
+  }
+  const cutter = solidBox(0.4, 1, 0.4);
+  cutter.position.y = -0.5;
+  baseMapGroup.add(host);
+  baseMapGroup.add(cutter);
+  baseMapGroup.updateMatrixWorld(true);
+
+  subtractAnnotationGeometries(host, [cutter], { hollow: true });
+  const [carved] = getSolidMeshesFromObject3D(host);
+  assert.equal(carved.material, dim);
+  assert.equal(carved.userData.originalMaterial, original);
 });
