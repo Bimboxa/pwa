@@ -1,5 +1,6 @@
 import { Box3, Euler, Matrix4, Quaternion, Vector2, Vector3 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import theme from "Styles/theme";
 
 import { BASE_MAP_ROTATION_ORDER } from "Features/baseMaps/js/getBaseMapTransform";
 import { ADD_SHEET_ID } from "Features/baseMapsGrid/constants/baseMapsGridConstants";
@@ -13,7 +14,7 @@ import createSheetDecorations from "./createSheetDecorations";
 
 const FLIGHT_DURATION_MS = 600;
 const OUTLINE_IDLE_COLOR = 0xbdbdbd;
-const OUTLINE_HOVER_COLOR = 0xe85426; // theme secondary.main
+const OUTLINE_HOVER_COLOR = theme.palette.secondary.main;
 const OUTLINE_SELECTED_COLOR = 0x424242; // theme primary.main (2D sheet)
 const OUTLINE_IDLE_WIDTH = 1; // px (screen-space)
 const OUTLINE_HOVER_WIDTH = 2;

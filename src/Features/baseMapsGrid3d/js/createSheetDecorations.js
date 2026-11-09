@@ -1,6 +1,7 @@
 import { DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import theme from "Styles/theme";
 
 import createIconSprite, { ICON_PATHS } from "../services/createIconSprite";
 import createLabelSprite from "../services/createLabelSprite";
@@ -9,7 +10,7 @@ import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 
 // Decorations of one sheet of the 3D base maps grid. They are CHILDREN of the
 // base map group (local metres), so they follow its flight for free:
-//   - outline: print zone frame (screen-space fat line; grey, orange hovered
+//   - outline: print zone frame (screen-space fat line; grey, secondary hovered
 //     / selected — hover wins)
 //   - hitPlane: invisible plane over the print zone — hover / click target,
 //     also for the sheets that have no image mesh
@@ -39,7 +40,7 @@ const BADGE_CSS_HEIGHT = 22;
 // badge colours = the annotations badge of RowBaseMapInList
 const BADGE_STYLE_ON = {
   color: "#ffffff",
-  background: "#e85426", // theme secondary.main
+  background: theme.palette.secondary.main,
   border: "rgba(0,0,0,0)",
 };
 const BADGE_STYLE_OFF = {
