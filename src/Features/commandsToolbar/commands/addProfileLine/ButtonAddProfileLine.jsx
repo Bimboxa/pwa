@@ -32,7 +32,9 @@ const EMPTY_LABEL =
 // contract). The menu anchors on the `anchor` argument (the group button
 // inside a group menu, which is keepMounted, so the menu survives its
 // closing; the slot's own button otherwise). While the drawing mode is
-// armed, the click disarms it directly (no menu).
+// armed, the click disarms it directly (no menu). The same profiles are
+// also offered as tiles by the « Forme par défaut » chip of
+// ToolbarEditAnnotation(s) (Shape3DSelector / Shape3DBatchSelector).
 //
 // In the 3D editor only the existing profiles are offered: the applied line
 // is read by the 3D build right away, and the host annotation stays selected

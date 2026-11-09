@@ -1,4 +1,8 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
+
+import { setToaster } from "Features/layout/layoutSlice";
 
 import {
   Chip,
@@ -12,29 +16,44 @@ import Check from "@mui/icons-material/Check";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
 
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
-import useProfileAnnotationTemplates from "../hooks/useProfileAnnotationTemplates";
+import useProfileAnnotations from "../hooks/useProfileAnnotations";
 import useRevolutionAxes from "../hooks/useRevolutionAxes";
-import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import {
   getShape3DKey,
   getShape3DOptionsForType,
   getEffectiveShellMode,
   mergeShape3DOptions,
-  TYPES_SUPPORTING_PROFILES,
   TYPES_SUPPORTING_REVOLUTION,
 } from "../constants/shape3DConfig";
-import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
+import MenuSectionProfileTiles from "./MenuSectionProfileTiles";
+import toggleProfileSourceOnAnnotationsService from "Features/elevation/services/toggleProfileSourceOnAnnotationsService";
+import getAppliedProfileSourceIds, {
+  getAppliedProfileChipLabel,
+} from "../utils/getAppliedProfileSourceIds";
 
 const DEFAULT_LABEL = "Forme par défaut";
-const PROFILE_FALLBACK_LABEL = "Profil";
+// Legacy template-driven profile (shape3D EXTRUSION_PROFILE): no longer
+// assignable from the menu, still read by the 3D build — named on the chip
+// so « Forme par défaut » can clear it.
+const LEGACY_TEMPLATE_PROFILE_LABEL = "Profil (modèle)";
+const APPLY_FAILED_LABEL = "Profil non appliqué (géométrie insuffisante)";
+const REMOVED_LABEL = "Profil retiré (Ctrl+Z pour annuler)";
 
+// « Forme par défaut » chip of ToolbarEditAnnotation: the annotation's
+// shape3D (static per-type shapes, « Révolution » around a scope axis) plus,
+// for a POLYLINE, the scope's profile DRAWINGS as tiles — a click applies the
+// profile as an inline profile line (same as « Ajouter un profil »), a click
+// on an applied one removes it (toggleProfileSourceOnAnnotationsService).
 export default function Shape3DSelector({ annotation }) {
+  const dispatch = useDispatch();
+
   // data
 
   const updateAnnotation = useUpdateAnnotation();
-  const profileTemplates = useProfileAnnotationTemplates();
   const revolutionAxes = useRevolutionAxes();
-  const spriteImage = useAnnotationSpriteImage();
+  const profiles = useProfileAnnotations({
+    excludeIds: annotation?.id ? [annotation.id] : [],
+  });
   // Entries may be gated on the annotation's own data (e.g. shell shapes only
   // when profileLines exist).
   const staticOptions = getShape3DOptionsForType(annotation?.type).filter(
@@ -44,14 +63,14 @@ export default function Shape3DSelector({ annotation }) {
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   // helpers
 
   if (!annotation) return null;
 
-  const typeSupportsProfiles = TYPES_SUPPORTING_PROFILES.includes(annotation.type);
-  const showProfileSection =
-    typeSupportsProfiles && profileTemplates.length > 0;
+  const showProfilesSection =
+    annotation.type === "POLYLINE" && profiles.length > 0;
 
   const typeSupportsRevolution = TYPES_SUPPORTING_REVOLUTION.includes(
     annotation.type
@@ -60,25 +79,29 @@ export default function Shape3DSelector({ annotation }) {
     typeSupportsRevolution && revolutionAxes.length > 0;
 
   // Hide the chip entirely when there is nothing to pick.
-  if (staticOptions.length === 0 && !showProfileSection && !showRevolutionSection)
+  if (
+    staticOptions.length === 0 &&
+    !showProfilesSection &&
+    !showRevolutionSection
+  )
     return null;
 
   const currentKey = getShape3DKey(annotation.shape3D);
-  const currentProfileTemplateId =
-    annotation.shape3D?.profileTemplateId ?? null;
-  const currentAxisAnnotationId =
-    annotation.shape3D?.axisAnnotationId ?? null;
+  const currentAxisAnnotationId = annotation.shape3D?.axisAnnotationId ?? null;
+  // Profile drawings applied on this line (profileLines[i].sourceAnnotationId).
+  const appliedSourceIds = getAppliedProfileSourceIds(annotation);
 
   let chipLabel = DEFAULT_LABEL;
   if (currentKey === "EXTRUSION_PROFILE") {
-    const t = profileTemplates.find((x) => x.id === currentProfileTemplateId);
-    chipLabel = t?.label ?? PROFILE_FALLBACK_LABEL;
+    chipLabel = LEGACY_TEMPLATE_PROFILE_LABEL;
   } else if (currentKey === "REVOLUTION") {
     const axe = revolutionAxes.find((a) => a.id === currentAxisAnnotationId);
     chipLabel = axe?.label ? `Révolution · ${axe.label}` : "Révolution";
   } else if (currentKey != null) {
     const entry = staticOptions.find((o) => o.key === currentKey);
     chipLabel = entry?.label ?? DEFAULT_LABEL;
+  } else if (appliedSourceIds.size > 0) {
+    chipLabel = getAppliedProfileChipLabel(appliedSourceIds, profiles);
   } else if (getEffectiveShellMode(annotation) === "DOME") {
     // Profiles present with no explicit shape3D → the DOME shell is the
     // effective default; surface it on the chip.
@@ -105,15 +128,40 @@ export default function Shape3DSelector({ annotation }) {
     handleClose();
   }
 
+  async function handleToggleProfile(sourceAnnotationId) {
+    if (busy) return;
+    setBusy(true);
+    handleClose();
+    try {
+      const { removed, failed } = await toggleProfileSourceOnAnnotationsService(
+        {
+          annotationIds: [annotation.id],
+          sourceAnnotationId,
+          dispatch,
+        }
+      );
+      if (failed > 0) {
+        dispatch(
+          setToaster({ message: APPLY_FAILED_LABEL, severity: "warning" })
+        );
+      } else if (removed > 0) {
+        dispatch(setToaster({ message: REMOVED_LABEL, severity: "success" }));
+      }
+    } catch (e) {
+      console.error("[shape3D] toggle profile", e);
+      dispatch(setToaster({ message: APPLY_FAILED_LABEL, severity: "error" }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // render
 
-  const isStaticSelected = (key) =>
-    currentKey === key && currentKey !== "EXTRUSION_PROFILE";
-  const isProfileSelected = (templateId) =>
-    currentKey === "EXTRUSION_PROFILE" &&
-    currentProfileTemplateId === templateId;
+  const isDefaultSelected = currentKey === null && appliedSourceIds.size === 0;
+  const isStaticSelected = (key) => currentKey === key;
   const isRevolutionSelected = (axisId) =>
     currentKey === "REVOLUTION" && currentAxisAnnotationId === axisId;
+  const profileStateOf = (id) => (appliedSourceIds.has(id) ? "all" : "none");
 
   return (
     <>
@@ -145,12 +193,12 @@ export default function Shape3DSelector({ annotation }) {
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <MenuItem onClick={() => handleSelect(null)} dense>
-          {currentKey === null && (
+          {isDefaultSelected && (
             <ListItemIcon>
               <Check fontSize="small" />
             </ListItemIcon>
           )}
-          <ListItemText inset={currentKey !== null}>
+          <ListItemText inset={!isDefaultSelected}>
             {DEFAULT_LABEL}
           </ListItemText>
         </MenuItem>
@@ -172,41 +220,13 @@ export default function Shape3DSelector({ annotation }) {
           </MenuItem>
         ))}
 
-        {showProfileSection && [
-          <ListSubheader
-            key="profils-header"
-            sx={{ lineHeight: "32px", fontWeight: "bold" }}
-          >
-            Profils
-          </ListSubheader>,
-          ...profileTemplates.map((t) => (
-            <MenuItem
-              key={t.id}
-              onClick={() =>
-                handleSelect({
-                  key: "EXTRUSION_PROFILE",
-                  profileTemplateId: t.id,
-                })
-              }
-              dense
-            >
-              {isProfileSelected(t.id) ? (
-                <ListItemIcon>
-                  <Check fontSize="small" />
-                </ListItemIcon>
-              ) : (
-                <ListItemIcon>
-                  <AnnotationTemplateIcon
-                    template={t}
-                    spriteImage={spriteImage}
-                    size={18}
-                  />
-                </ListItemIcon>
-              )}
-              <ListItemText>{t.label}</ListItemText>
-            </MenuItem>
-          )),
-        ]}
+        {showProfilesSection &&
+          MenuSectionProfileTiles({
+            profiles,
+            stateOf: profileStateOf,
+            onToggle: handleToggleProfile,
+            disabled: busy,
+          })}
 
         {showRevolutionSection && [
           <ListSubheader
@@ -238,3 +258,15 @@ export default function Shape3DSelector({ annotation }) {
     </>
   );
 }
+
+Shape3DSelector.propTypes = {
+  annotation: PropTypes.shape({
+    id: PropTypes.string,
+    type: PropTypes.string,
+    shape3D: PropTypes.shape({
+      key: PropTypes.string,
+      axisAnnotationId: PropTypes.string,
+    }),
+    profileLines: PropTypes.array,
+  }),
+};
