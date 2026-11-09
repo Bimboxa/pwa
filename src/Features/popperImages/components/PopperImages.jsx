@@ -36,7 +36,7 @@ import {
 // settings menu. Body: 2-column grid of numbered tiles; a tile click selects
 // the annotation (editor selection), the selected tile offers "Fullscreen"
 // (DialogImageViewer). Ex situ + "Ligne": ImagesLinksOverlay draws the tile
-// → anchor leaders. Mounted by the editors next to PopperMapListings (same
+// → anchor leaders over the panel. Mounted by the editors next to PopperMapListings (same
 // gates — not mounted in capture mode, which renders its own tiles); renders
 // nothing when the editor shows no photo.
 // ---------------------------------------------------------------------------
@@ -131,18 +131,6 @@ export default function PopperImages({
 
   return (
     <>
-      <ImagesLinksOverlay
-        active={linksActive}
-        images={images}
-        selectedImageId={selectedImageId}
-        getTileRect={getTileRect}
-        getGridRect={getGridRect}
-        scrollEl={gridRef}
-        observeEl={paperRef}
-        anchorProjector={anchorProjector}
-        invalidateKey={invalidateKey}
-      />
-
       <Paper
         ref={paperRef}
         elevation={4}
@@ -226,6 +214,21 @@ export default function PopperImages({
           }
         />
       </Paper>
+
+      {/* Leaders drawn ABOVE the panel (ex situ + Ligne): each one ends on
+          its tile, over the other tiles if need be; the svg never takes the
+          mouse. */}
+      <ImagesLinksOverlay
+        active={linksActive}
+        images={images}
+        selectedImageId={selectedImageId}
+        getTileRect={getTileRect}
+        getGridRect={getGridRect}
+        scrollEl={gridRef}
+        observeEl={paperRef}
+        anchorProjector={anchorProjector}
+        invalidateKey={invalidateKey}
+      />
 
       <DialogImageViewer
         open={Boolean(fullscreenImage)}

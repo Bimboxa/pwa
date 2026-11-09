@@ -12,7 +12,8 @@ import { isImageAnnotationVeiled } from "../utils/imageAnnotationSelection";
 // ImagesLinksOverlay — ex situ + "Ligne": one leader per photo from its tile
 // in PopperImages (DOM rect) to its anchor in the scene (anchorProjector,
 // client px: 2D camera matrix or 3D projection). Absolute SVG over the editor
-// box, never takes the mouse, excluded from captures. Recomputed in one rAF
+// box, ABOVE the panel (the leader must visibly reach its tile), never takes
+// the mouse, excluded from captures. Recomputed in one rAF
 // per camera frame / panel move / grid scroll; no line when the anchor is
 // off-viewport or the tile is scrolled out of the grid.
 // ---------------------------------------------------------------------------
@@ -142,7 +143,8 @@ export default function ImagesLinksOverlay({
         width: "100%",
         height: "100%",
         pointerEvents: "none",
-        zIndex: 5,
+        // Above the PopperImages Paper (zIndex 10).
+        zIndex: 11,
         overflow: "hidden",
       }}
     >
