@@ -63,6 +63,7 @@ for (const orientation of ["VERTICAL", "HORIZONTAL"]) {
       translate() {},
       scale() {},
       fillRect() {},
+      arc() {},
     };
     globalThis.document = { createElement: () => ({ getContext: () => ctx }) };
     t.after(() => {

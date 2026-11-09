@@ -14,6 +14,14 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 import getSoloDimmedAnnotation2d from "Features/annotations/utils/getSoloDimmedAnnotation2d";
 import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
+import {
+  selectImagesDisplayMode,
+  selectImagesLinkStyle,
+} from "Features/popperImages/popperImagesSlice";
+import {
+  isImageAnnotationVeiled,
+  selectSelectedImageAnnotationId,
+} from "Features/popperImages/utils/imageAnnotationSelection";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
@@ -46,6 +54,8 @@ function StaticMapContent({
   soloDimmedAnnotations,
   soloDimStyle,
   labelOverridesById,
+  // Photos: display number of each IMAGE annotation (PopperImages badges).
+  imageDisplayIndexById,
   legendItems,
   legendFormat,
   sizeVariant,
@@ -89,6 +99,11 @@ function StaticMapContent({
   // Photo selection lives in photosSlice (never in the selection slice): the
   // selected photo's node stays in this static pass and is highlighted here.
   const selectedPhotoId = useSelector((s) => s.photos.selectedPhotoId);
+  // Photos (IMAGE annotations): in situ / ex situ, tile link style, and the
+  // selected image (the others get a white veil).
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const selectedImageId = useSelector(selectSelectedImageAnnotationId);
 
   // clipping plane (2D-defined cut plane)
   const dispatch = useDispatch();
@@ -462,6 +477,13 @@ function StaticMapContent({
                 baseMapImageScale={baseMapImageScale}
                 showBgImage={showBgImage}
                 disableVertexEditing
+                imagesDisplayMode={imagesDisplayMode}
+                imagesLinkStyle={imagesLinkStyle}
+                imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
+                imageVeiled={
+                  annotation.type === "IMAGE" &&
+                  isImageAnnotationVeiled(annotation.id, selectedImageId)
+                }
               />
             </g>
           );
@@ -519,6 +541,15 @@ function StaticMapContent({
                 // inline here — the hoisted labels pass below draws them
                 // ABOVE every annotation (draw order preserved among labels).
                 forceHideLabel={true}
+                imagesDisplayMode={imagesDisplayMode}
+                imagesLinkStyle={imagesLinkStyle}
+                imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
+                // The selected image is drawn by EditedObjectLayer: never
+                // veiled here.
+                imageVeiled={
+                  annotation.type === "IMAGE" &&
+                  isImageAnnotationVeiled(annotation.id, selectedImageId)
+                }
                 // Stacked layer strips display DERIVED points (inserted ramp
                 // vertices): per-segment indices no longer match the stored
                 // ones, so per-segment select tools are disabled on them

@@ -53,6 +53,13 @@ function NodeAnnotationStatic({
   highlightConnectedSegments,
   selectMode,
   disableVertexEditing,
+  // Photos (IMAGE): display mode / link style of PopperImages, display
+  // number (badge) and white veil (another image is selected). Undefined
+  // for the other consumers (portfolio, grids…) → in-situ rendering as before.
+  imagesDisplayMode,
+  imagesLinkStyle,
+  imageDisplayIndex,
+  imageVeiled,
 }) {
   // Apply the override + shape-based defaults ONCE per (annotation,
   // annotationOverride) pair. The memo keeps the resolved object
@@ -88,6 +95,10 @@ function NodeAnnotationStatic({
     forceHideLabel,
     highlightConnectedSegments,
     selectMode,
+    imagesDisplayMode,
+    imagesLinkStyle,
+    imageDisplayIndex,
+    imageVeiled,
     // isMesh3d: the points are the plan projection of a stored 3D mesh —
     // movable as a whole, never vertex-edited (that would break the link).
     disableVertexEditing:
