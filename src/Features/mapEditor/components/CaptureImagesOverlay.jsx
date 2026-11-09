@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
@@ -10,6 +17,7 @@ import {
 } from "Features/popperImages/constants/imageDisplay";
 import resolveImagesOverlayGeometry, {
   IMAGES_ZONE_MIN_WIDTH,
+  IMAGES_ZONE_PADDING,
 } from "../utils/resolveImagesOverlayGeometry";
 import layoutCaptureImageTiles from "../utils/layoutCaptureImageTiles";
 
@@ -45,6 +53,7 @@ export default function CaptureImagesOverlay({
   legendDefaultBottom = 0,
 }) {
   const dispatch = useDispatch();
+  const clipId = useId();
 
   // data
 
@@ -199,6 +208,15 @@ export default function CaptureImagesOverlay({
 
   const originX = rect.left + zone.x;
   const originY = rect.top + zone.y;
+  // The zone never runs past the frame: the tiles beyond the available
+  // height are clipped, so the outline and the resize handle stay reachable
+  // (narrow the zone or add columns to fit more photos).
+  const maxHeight = Math.max(
+    HANDLE_SIZE * 2,
+    rect.height - zone.y - IMAGES_ZONE_PADDING
+  );
+  const visibleHeight = Math.min(zoneHeight, maxHeight);
+  const visibleTiles = tiles.filter((t) => t.y < visibleHeight);
 
   return (
     <>
@@ -206,7 +224,7 @@ export default function CaptureImagesOverlay({
           the legend (no data-capture-decor). */}
       {showLines && (
         <g data-capture-keep style={{ pointerEvents: "none" }}>
-          {tiles.map((t) => {
+          {visibleTiles.map((t) => {
             const a = anchors[t.id];
             if (!a) return null;
             const left = originX + t.x;
@@ -235,7 +253,7 @@ export default function CaptureImagesOverlay({
               x={-4}
               y={-4}
               width={zone.width + 8}
-              height={zoneHeight + 8}
+              height={visibleHeight + 8}
               fill="rgba(255,255,255,0.01)"
               stroke="#2196f3"
               strokeWidth={1}
@@ -247,9 +265,21 @@ export default function CaptureImagesOverlay({
           </g>
         )}
 
-        {/* Tiles */}
-        <g data-capture-keep style={{ pointerEvents: "none" }}>
-          {tiles.map((t) => {
+        {/* Tiles, clipped to the available height of the frame. */}
+        <clipPath id={clipId}>
+          <rect
+            x={-8}
+            y={-8}
+            width={zone.width + 16}
+            height={visibleHeight + 8}
+          />
+        </clipPath>
+        <g
+          data-capture-keep
+          clipPath={`url(#${clipId})`}
+          style={{ pointerEvents: "none" }}
+        >
+          {visibleTiles.map((t) => {
             const a = imagesById[t.id];
             const src = a?.image?.imageUrlClient ?? a?.image?.thumbnail;
             return (
@@ -321,7 +351,7 @@ export default function CaptureImagesOverlay({
           <g data-capture-hide>
             <rect
               x={zone.width - HANDLE_SIZE / 2}
-              y={zoneHeight - HANDLE_SIZE / 2}
+              y={visibleHeight - HANDLE_SIZE / 2}
               width={HANDLE_SIZE}
               height={HANDLE_SIZE}
               fill="#2196f3"
