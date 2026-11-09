@@ -1,4 +1,4 @@
-import { Matrix4 } from "three";
+import { Matrix4, Vector3 } from "three";
 import {
   Brush,
   Evaluator,
@@ -7,6 +7,9 @@ import {
 } from "three-bvh-csg";
 
 import buildMergedWorldSolid from "./buildMergedWorldSolid";
+import clipCoplanarSheetTriangles, {
+  coplanarTolerance,
+} from "./clipCoplanarSheetTriangles";
 import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
 import { buildWallEdges } from "./extrudePolylineWall";
 
@@ -65,6 +68,72 @@ function collectMeshes(object) {
   return meshes;
 }
 
+// "On the cutter surface" tolerance of the safety sweep below, from the
+// magnitude of the cutter's WORLD coordinates (float32 CSG output).
+function surfaceTolerance(brush) {
+  const geometry = brush.geometry;
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  if (!box || box.isEmpty()) return coplanarTolerance(0);
+  return coplanarTolerance(
+    Math.max(
+      Math.abs(box.min.x),
+      Math.abs(box.min.y),
+      Math.abs(box.min.z),
+      Math.abs(box.max.x),
+      Math.abs(box.max.y),
+      Math.abs(box.max.z)
+    )
+  );
+}
+
+// Safety sweep after a hollow carve: the coplanar overlap was removed
+// exactly beforehand (clipCoplanarSheetTriangles), so a result triangle whose
+// centroid still sits ON a cutter surface is a leftover of the splitter
+// (three-bvh-csg keeps a sheet triangle lying on a cutter face when the
+// normals are opposite, and classifies a split fragment at random) or a
+// sliver thinner than the tolerance: dropped. Mutates `geometry` (the
+// evaluator's indexed output, in the brushes' WORLD frame) in place.
+const _centroid = new Vector3();
+const _hit = {};
+function dropTrianglesOnCutters(geometry, targetBrushes) {
+  const position = geometry?.getAttribute?.("position");
+  if (!position) return;
+  const cutters = targetBrushes.map((brush) => {
+    brush.prepareGeometry();
+    return { bvh: brush.geometry.boundsTree, eps: surfaceTolerance(brush) };
+  });
+  const index = geometry.index;
+  const triCount = index ? index.count / 3 : position.count / 3;
+  const kept = [];
+  let dropped = 0;
+  for (let t = 0; t < triCount; t++) {
+    const ia = index ? index.getX(3 * t) : 3 * t;
+    const ib = index ? index.getX(3 * t + 1) : 3 * t + 1;
+    const ic = index ? index.getX(3 * t + 2) : 3 * t + 2;
+    _centroid.set(
+      (position.getX(ia) + position.getX(ib) + position.getX(ic)) / 3,
+      (position.getY(ia) + position.getY(ib) + position.getY(ic)) / 3,
+      (position.getZ(ia) + position.getZ(ib) + position.getZ(ic)) / 3
+    );
+    // closestPointToPoint prunes BOXES farther than `eps` but accepts any
+    // triangle of a near box: check the distance it reports.
+    const onCutter = cutters.some(
+      ({ bvh, eps }) =>
+        bvh &&
+        bvh.closestPointToPoint(_centroid, _hit, 0, eps) !== null &&
+        _hit.distance <= eps
+    );
+    if (onCutter) {
+      dropped++;
+      continue;
+    }
+    kept.push(ia, ib, ic);
+  }
+  if (dropped === 0) return;
+  geometry.setIndex(kept);
+}
+
 // A mesh3d HOST (group `isAnnotationMesh3d`, one face Mesh each) is collapsed
 // into ONE solid mesh before the carve: the faces are merged in world space
 // (buildMergedWorldSolid), brought back into the group's local frame and
@@ -113,7 +182,9 @@ function collapseMesh3dHost(group) {
  * @param {import("three").Object3D} sourceObject
  * @param {Array<import("three").Object3D>} targetObjects
  * @param {Object} [options]
- * @param {boolean} [options.hollow] clip-only subtraction for open surfaces.
+ * @param {boolean} [options.hollow] clip-only subtraction for open surfaces;
+ *   the sheet triangles lying ON a cutter face (coplanar contact) are
+ *   cut away too, see clipCoplanarSheetTriangles.
  * @param {boolean} [options.rebuildEdges] rebuild the black grid/outline
  *   lines from the carved geometry (scene callers); headless quantity
  *   callers leave it off and pay nothing.
@@ -172,13 +243,28 @@ export default function subtractAnnotationGeometries(
       const worldToLocal = new Matrix4().copy(sourceMesh.matrixWorld).invert();
 
       // Source brush in WORLD space (identity brush matrix → operates in world).
-      let resultBrush = new Brush(worldGeometry(sourceMesh));
+      // A sheet host first loses, exactly, what lies ON a cutter face.
+      let sourceGeometry = worldGeometry(sourceMesh);
+      if (options.hollow) {
+        const clipped = clipCoplanarSheetTriangles(
+          sourceGeometry,
+          targetBrushes.map((brush) => brush.geometry)
+        );
+        if (clipped) {
+          sourceGeometry.dispose();
+          sourceGeometry = clipped;
+        }
+      }
+      let resultBrush = new Brush(sourceGeometry);
       resultBrush.updateMatrixWorld();
 
       for (const targetBrush of targetBrushes) {
         resultBrush = evaluator.evaluate(resultBrush, targetBrush, operation);
       }
       if (!resultBrush.geometry) continue;
+      if (options.hollow) {
+        dropTrianglesOnCutters(resultBrush.geometry, targetBrushes);
+      }
 
       // World-space result → source mesh LOCAL frame, so the (untouched)
       // source mesh transform places it back exactly where the original

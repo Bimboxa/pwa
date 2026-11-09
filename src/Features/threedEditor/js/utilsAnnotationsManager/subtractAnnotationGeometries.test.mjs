@@ -350,3 +350,44 @@ test("the seams of a carved arc sheet stay hidden", () => {
   const mesh = carvedMesh(getSolidMeshesFromObject3D(wall)[0]);
   assert.equal(mesh.faces.length, 18);
 });
+
+// An OPEN mesh3d basin: the unit cube without its +Y face, raised so its
+// bottom face lies on y = 0 (bottom + 4 walls, open at the top).
+function openBasin() {
+  const host = mesh3dCube({ closed: false, nodeId: "basin" });
+  // BoxGeometry face order: +x, -x, +y, -y, +z, -z.
+  const top = getSolidMeshesFromObject3D(host).find(
+    (mesh) => mesh.userData.mesh3dFaceIndex === 2
+  );
+  host.remove(top);
+  host.position.y = 0.5;
+  return host;
+}
+
+const carvedArea = (object) =>
+  getSolidMeshesFromObject3D(object).reduce(
+    (sum, mesh) => sum + toNonIndexedArea(mesh.geometry),
+    0
+  );
+
+test("a cutter touching an open sheet cuts the coplanar face", () => {
+  const baseMapGroup = frame();
+  const host = openBasin();
+  // A pit under the basin: its top face (y = 0) is coplanar with the basin
+  // floor, 0.4 × 0.4 inside the 1 × 1 floor.
+  const cutter = solidBox(0.4, 1, 0.4);
+  cutter.position.y = -0.5;
+  baseMapGroup.add(host);
+  baseMapGroup.add(cutter);
+  baseMapGroup.updateMatrixWorld(true);
+
+  assert.ok(Math.abs(carvedArea(host) - 5) < 1e-6);
+  subtractAnnotationGeometries(host, [cutter], { hollow: true });
+  // The floor keeps 1 − 0.16 m²: the pit footprint is cut out of the
+  // coplanar face (HOLLOW_SUBTRACTION alone keeps a random half of it).
+  const area = carvedArea(host);
+  assert.ok(Math.abs(area - (5 - 0.16)) < 1e-4, `area ${area}`);
+  // Nothing else moved: the carved soup still reads as 5 planar faces.
+  const mesh = carvedMesh(getSolidMeshesFromObject3D(host)[0]);
+  assert.equal(mesh.faces.length, 5);
+});
