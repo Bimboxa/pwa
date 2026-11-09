@@ -52,9 +52,7 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   }
 
   // POLYLINE sheet host (PX wall, inline extrusion): the subtraction removes
-  // a developed surface, measured on the carved 3D mesh. Not applied to an
-  // EXTRUSION_PROFILE host: its base surface needs the resolved profile
-  // length, which this section does not compute.
+  // a developed surface, measured on the carved 3D mesh.
   if (qties && subtractedSurfaceM2 > 0 && isPolylineSheetHost(annotation)) {
     if (Number.isFinite(qties.surface)) {
       qties.surface = Math.max(0, qties.surface - subtractedSurfaceM2);

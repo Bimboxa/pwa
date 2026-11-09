@@ -2,20 +2,20 @@
 //
 // `null` (or absent) means "default 3D construction" (existing behavior in
 // createAnnotationObject3D). Otherwise, `annotation.shape3D` is an OBJECT of
-// the form `{ key, ...payload }` — e.g. `{ key: "REVOLUTION" }` or
-// `{ key: "EXTRUSION_PROFILE", profileTemplateId }`. The object form lets
-// shape variants carry extra parameters (template references, options, etc.)
-// without inflating the annotation schema.
+// the form `{ key, ...payload }` — e.g. `{ key: "REVOLUTION",
+// axisAnnotationId }`. The object form lets shape variants carry extra
+// parameters (references, options, etc.) without inflating the annotation
+// schema.
 //
 // Keyed by annotation TYPE (not drawingShape) so types that share a drawing
 // tool can diverge later (e.g. STRIP vs POLYLINE). The static entries below
 // list the per-type built-in shapes; the axis-driven REVOLUTION section is
 // sourced at runtime by `Shape3DSelector`.
 //
-// EXTRUSION_PROFILE (a profile TEMPLATE swept along the line) is no longer
-// assignable from the menu — the selectors offer the scope's profile
-// DRAWINGS as inline profile lines instead (« Ajouter un profil »). The key
-// stays for the rows that still carry it (3D build, quantities).
+// Profiles are not a shape3D: the selectors offer the scope's profile
+// DRAWINGS as inline profile lines (`annotation.profileLines`, « Ajouter un
+// profil »). The former template-driven EXTRUSION_PROFILE key was removed
+// (db version 43 drops it from existing rows).
 
 // REVOLUTION is no longer a static self-axis option: it is now driven by a
 // referenced REVOLUTION_AXIS annotation (shape3D = { key: "REVOLUTION",
@@ -55,7 +55,6 @@ export const TYPES_SUPPORTING_REVOLUTION = ["POLYLINE", "POINT"];
 
 export const SHAPE_3D_KEYS = {
   REVOLUTION: "REVOLUTION",
-  EXTRUSION_PROFILE: "EXTRUSION_PROFILE",
   SHELL_DOME: "SHELL_DOME",
   SHELL_TENT: "SHELL_TENT",
   DISC_DOME: "DISC_DOME",

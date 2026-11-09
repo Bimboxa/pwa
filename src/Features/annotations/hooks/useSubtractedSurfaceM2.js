@@ -9,8 +9,8 @@ import isPolylineSheetHost from "../utils/isPolylineSheetHost";
 
 /**
  * Developed surface (m²) removed by a subtraction on an OPEN-surface source
- * annotation (EXTRUSION_PROFILE, or a POLYLINE sheet — PX wall / inline
- * extrusion, see isPolylineSheetHost). Runs the same 3D boolean carve
+ * annotation (a POLYLINE sheet — PX wall / inline extrusion, see
+ * isPolylineSheetHost). Runs the same 3D boolean carve
  * headlessly for the given annotation only (cheap — one annotation at a time)
  * and returns the area difference, so callers can subtract it from the host's
  * displayed surface. Returns 0 when not applicable.
@@ -32,9 +32,7 @@ export default function useSubtractedSurfaceM2(annotation) {
   );
   const baseMap = baseMapById[annotation?.baseMapId];
 
-  const isOpenSurface =
-    annotation?.shape3D?.key === "EXTRUSION_PROFILE" ||
-    isPolylineSheetHost(annotation);
+  const isOpenSurface = isPolylineSheetHost(annotation);
   const targets = annotation?.subtractionTargets;
 
   // Recompute only when something geometry-affecting changes.
@@ -43,7 +41,6 @@ export default function useSubtractedSurfaceM2(annotation) {
     return JSON.stringify({
       id: annotation.id,
       u: annotation.updatedAt,
-      orient: annotation.extrusionOrientation,
       // A sheet's lateral surface follows its height and vertical offsets.
       h: [annotation.height, annotation.offsetZ, annotation.strokeWidthUnit],
       pts: (annotation.points || []).map((p) => [

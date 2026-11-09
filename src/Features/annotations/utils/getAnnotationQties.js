@@ -510,11 +510,7 @@ export default function getAnnotationQties(args) {
   return { ...qties, surface: Math.max(0, qties.surface - removedM2) };
 }
 
-function computeAnnotationQties({
-  annotation,
-  meterByPx,
-  profileLengthMeters,
-}) {
+function computeAnnotationQties({ annotation, meterByPx }) {
   try {
     if (!annotation) return null;
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0)
@@ -612,20 +608,6 @@ function computeAnnotationQties({
         meterByPx,
       });
       const length = neutralLineQty?.length || 0;
-
-      // EXTRUSION_PROFILE override: surface = profile_length × guide_length.
-      // Hidden guide segments are already excluded by the neutral-line POLYLINE
-      // path above.
-      if (
-        annotation.shape3D?.key === "EXTRUSION_PROFILE" &&
-        profileLengthMeters != null
-      ) {
-        return {
-          enabled: true,
-          length,
-          surface: profileLengthMeters * length,
-        };
-      }
 
       // Strip with a height (extruded band, e.g. plinth / acrotère): the
       // surface is the VERTICAL face developed along the neutral line, not the
@@ -821,18 +803,6 @@ function computeAnnotationQties({
           };
         }
         // Axis not resolved yet — fall through to default behavior.
-      }
-      if (
-        annotation.shape3D?.key === "EXTRUSION_PROFILE" &&
-        profileLengthMeters != null
-      ) {
-        // Hidden guide segments are already excluded from totalLengthPx.
-        const guideLengthM = totalLengthPx * meterByPx;
-        return {
-          enabled: true,
-          length: guideLengthM,
-          surface: profileLengthMeters * guideLengthM,
-        };
       }
       // Inline "Extrusion" (profileLines drawn on the polyline): surface =
       // ONE-SIDED area of the actual swept mesh (computeInlineExtrusionSurface

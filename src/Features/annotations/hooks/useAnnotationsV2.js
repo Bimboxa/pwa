@@ -391,7 +391,6 @@ import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "Features/annotations/utils/getAnnotationSubtractionQties";
 import getAnnotationOpeningQties from "Features/annotations/utils/getAnnotationOpeningQties";
 import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpenings";
-import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import { useBusinessObjectSoloAnnotations } from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
@@ -438,7 +437,6 @@ import {
   isBaseMapLinkClone,
   isScopeBoundBaseMapLink,
 } from "Features/baseMapLinks/utils/baseMapLinkPredicates";
-import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttachment";
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
@@ -1675,10 +1673,17 @@ export default function useAnnotationsV2(options) {
             };
             if (annotation.type === "IMAGE") {
               const anchor = annotation.targetPoint ?? {
-                x: (annotation.bbox?.x ?? 0.25) + (annotation.bbox?.width ?? 0.5) / 2,
-                y: (annotation.bbox?.y ?? 0.25) + (annotation.bbox?.height ?? 0.5) / 2,
+                x:
+                  (annotation.bbox?.x ?? 0.25) +
+                  (annotation.bbox?.width ?? 0.5) / 2,
+                y:
+                  (annotation.bbox?.y ?? 0.25) +
+                  (annotation.bbox?.height ?? 0.5) / 2,
               };
-              _annotation.targetPoint = { x: anchor.x * width, y: anchor.y * height };
+              _annotation.targetPoint = {
+                x: anchor.x * width,
+                y: anchor.y * height,
+              };
               _annotation.imageSize = { width, height };
             }
           }
@@ -2016,39 +2021,6 @@ export default function useAnnotationsV2(options) {
         );
       }
 
-      // -- EXTRUSION_PROFILE SUBTRACTION FOOTPRINTS --
-      // For profile annotations used as subtraction targets, precompute
-      // their exact planar footprint (the swept prisms' XY projection) so
-      // the synchronous surface-quantity path can subtract it precisely.
-      // Gated to actual targets to avoid resolving profiles otherwise.
-      if (subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
-        const targetIdSet = new Set();
-        for (const ids of subtractionTargetIdsBySource.values()) {
-          for (const id of ids) targetIdSet.add(id);
-        }
-        if (targetIdSet.size > 0) {
-          const profileResCache = new Map();
-          for (const a of _annotations) {
-            if (!a || !targetIdSet.has(a.id)) continue;
-            if (getShape3DKey(a.shape3D) !== "EXTRUSION_PROFILE") continue;
-            const tplId = a.shape3D?.profileTemplateId;
-            if (!tplId) continue;
-            let res = profileResCache.get(tplId);
-            if (res === undefined) {
-              res = await resolveProfileFromDb(tplId);
-              profileResCache.set(tplId, res);
-            }
-            const bm = baseMapById[a.baseMapId];
-            const shapes = getExtrusionProfileFootprintShapes(
-              a,
-              bm?.getMeterByPx?.(),
-              res
-            );
-            if (shapes) a._profileFootprintShapes = shapes;
-          }
-        }
-      }
-
       // -- REVOLUTION (axis-based) resolution --
       // The axis lives on the PLAN; each VERTICAL base map that uses it carries
       // a REVOLUTION_AXIS_PLACEMENT whose point is where the axis centre sits in
@@ -2161,12 +2133,11 @@ export default function useAnnotationsV2(options) {
       }
 
       // -- OPEN-SURFACE SUBTRACTION SOURCES (developed surface) --
-      // For EXTRUSION_PROFILE / REVOLUTION hosts that subtract other
+      // For REVOLUTION / POLYLINE-sheet hosts that subtract other
       // annotations, the carved quantity is a developed surface (not a
       // footprint), so run the same headless 3D carve as the display.
-      // Profiles additionally resolve the profile length (base surface) and
-      // store the REMOVED m² (deducted from the analytic surface in the
-      // post-processing pass); revolutions store the CARVED mesh
+      // Sheets store the REMOVED m² (deducted from the analytic surface in
+      // the post-processing pass); revolutions store the CARVED mesh
       // triangle-sum, used directly as the surface. Gated to withQties.
       // Must run AFTER the revolution axis resolution above — the lathe
       // builder needs `revolutionAxisPoints`.
@@ -2483,7 +2454,6 @@ export default function useAnnotationsV2(options) {
         subtractionTargetIdsBySource?.size > 0 &&
         _annotations?.length
       ) {
-        const profileLenCache = new Map();
         const resolveSubtractionTarget = (id) =>
           _annotations.find((x) => x?.id === id) ??
           _foreignTargetsById?.get(id);
@@ -2551,9 +2521,7 @@ export default function useAnnotationsV2(options) {
           // consumed for REVOLUTION, no headless carve for it.
           if (
             a.isMesh3d ||
-            (!isCrossBaseMap &&
-              !isSheetHost &&
-              !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey))
+            (!isCrossBaseMap && !isSheetHost && shapeKey !== "REVOLUTION")
           )
             continue;
           const bm = baseMapById[a.baseMapId];
@@ -2569,19 +2537,6 @@ export default function useAnnotationsV2(options) {
             // scene build so the headless carve cuts the same hole.
             orientation: bm?.orientation,
           };
-          const tplId =
-            shapeKey === "EXTRUSION_PROFILE"
-              ? host.shape3D?.profileTemplateId
-              : null;
-          if (tplId) {
-            let plm = profileLenCache.get(tplId);
-            if (plm === undefined) {
-              const res = await resolveProfileFromDb(tplId);
-              plm = res?.profileLengthMeters ?? null;
-              profileLenCache.set(tplId, plm);
-            }
-            if (plm != null) a._profileLengthMeters = plm;
-          }
           try {
             const res = await computeSubtractedSurfaceM2Async(
               host,
@@ -2594,9 +2549,9 @@ export default function useAnnotationsV2(options) {
                 : undefined
             );
             if (res) {
-              // Profiles and POLYLINE sheets keep their analytic surface
-              // (exact arcs) and lose the REMOVED area in stage B.
-              if (shapeKey === "EXTRUSION_PROFILE" || isSheetHost) {
+              // POLYLINE sheets keep their analytic surface (exact arcs)
+              // and lose the REMOVED area in stage B.
+              if (isSheetHost) {
                 a._subtractedSurfaceM2 = res.removedM2;
               } else {
                 a._carvedSurfaceM2 = res.carvedM2;
@@ -3026,13 +2981,7 @@ export default function useAnnotationsV2(options) {
           if (meterByPx) {
             return {
               ...annotation,
-              qties: getAnnotationQties({
-                annotation,
-                meterByPx,
-                // resolved in the async query for EXTRUSION_PROFILE
-                // subtraction hosts so the base surface is non-zero.
-                profileLengthMeters: annotation._profileLengthMeters,
-              }),
+              qties: getAnnotationQties({ annotation, meterByPx }),
             };
           }
           return annotation;
@@ -3112,15 +3061,14 @@ export default function useAnnotationsV2(options) {
             if (subQ) withSub.qties = { ...(withSub.qties || {}), ...subQ };
           }
 
-          // Open-surface hosts (EXTRUSION_PROFILE, POLYLINE sheet — PX wall
-          // or inline extrusion): subtract the 3D developed surface removed
+          // Open-surface hosts (POLYLINE sheet — PX wall or inline
+          // extrusion): subtract the 3D developed surface removed
           // by the boolean (precomputed in the async query as
           // `_subtractedSurfaceM2`).
           if (
             withQties &&
             subtractionTargets.length > 0 &&
-            (getShape3DKey(a?.shape3D) === "EXTRUSION_PROFILE" ||
-              isPolylineSheetHost(a)) &&
+            isPolylineSheetHost(a) &&
             a?._subtractedSurfaceM2 > 0 &&
             withSub.qties
           ) {

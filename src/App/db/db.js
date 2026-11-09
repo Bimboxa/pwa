@@ -479,6 +479,27 @@ db.version(42).stores({
     "id,projectId,scopeId,listingId,annotationTemplateId,hostAnnotationId,baseMapId",
 });
 
+// v43 — schema unchanged. Data migration: the template-driven profile shape
+// (`shape3D = { key: "EXTRUSION_PROFILE", profileTemplateId }`, with its
+// `extrusionOrientation` side flag) was removed from the app — profiles are
+// now inline profile lines (`annotation.profileLines`, « Ajouter un profil »).
+// Rows still carrying it would hit the unknown-shape fallback on every 3D
+// build; drop the fields so they build as plain lines. Derived write: no
+// audit stamp, no local-change notification, no undo entry.
+db.version(43)
+  .stores({})
+  .upgrade((tx) => {
+    tx.derivedWrite = true;
+    return tx
+      .table("annotations")
+      .toCollection()
+      .modify((row) => {
+        if (row?.shape3D?.key === "EXTRUSION_PROFILE") delete row.shape3D;
+        if (row && "extrusionOrientation" in row)
+          delete row.extrusionOrientation;
+      });
+  });
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [

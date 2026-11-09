@@ -203,8 +203,8 @@ export default class ClippingManager {
       axis === "Z"
         ? new Vector3(0, 1, 0) // user Z (vertical) → three.js Y
         : axis === "Y"
-        ? new Vector3(0, 0, 1) // user Y → three.js Z
-        : new Vector3(1, 0, 0); // user X → three.js X
+          ? new Vector3(0, 0, 1) // user Y → three.js Z
+          : new Vector3(1, 0, 0); // user X → three.js X
     this.gizmoProxy.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), target);
     this._updatePlaneFromProxy();
     this._notify();
@@ -236,9 +236,7 @@ export default class ClippingManager {
   // Signed distance of the plane from the scene center along the current normal.
   setDistance(d) {
     this._currentNormal(this._normal);
-    this.gizmoProxy.position
-      .copy(this.center)
-      .addScaledVector(this._normal, d);
+    this.gizmoProxy.position.copy(this.center).addScaledVector(this._normal, d);
     this._updatePlaneFromProxy();
     this._notify();
     this.sceneManager.renderScene();
@@ -267,7 +265,7 @@ export default class ClippingManager {
   reapply() {
     if (this.enabled) {
       this._applyMaterials(true);
-      // Annotations may have been recreated (incl. async EXTRUSION_PROFILE) —
+      // Annotations may have been recreated —
       // recompute the contour against the new meshes.
       this.sceneManager.sectionContourManager?.update();
     }
@@ -306,7 +304,10 @@ export default class ClippingManager {
 
   _currentNormal(out) {
     // Proxy local +X in world space.
-    return out.set(1, 0, 0).applyQuaternion(this.gizmoProxy.quaternion).normalize();
+    return out
+      .set(1, 0, 0)
+      .applyQuaternion(this.gizmoProxy.quaternion)
+      .normalize();
   }
 
   _updatePlaneFromProxy() {

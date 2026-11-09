@@ -1,9 +1,8 @@
 // "Extrusion" (inline profile): a POLYLINE carrying its own cross-section in
 // `profileLines`, swept along the guide chain by createAnnotationObject3D
 // (buildInlineExtrusionMesh / buildInlineExtrusion3dMesh) — an OPEN
-// double-sided surface (a sheet), not a closed volume. No `shape3D`: the
-// parametric EXTRUSION_PROFILE (profile template on another base map) is a
-// different mechanism, as is the shell of a POLYGON carrying profileLines.
+// double-sided surface (a sheet), not a closed volume. No `shape3D`; the
+// shell of a POLYGON carrying profileLines is a different mechanism.
 //
 // Shared by the subtraction pipeline (live carve + « Soustraire
 // définitivement »), which must clip such a host as a surface (hollow

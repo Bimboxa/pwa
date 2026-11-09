@@ -13,7 +13,6 @@
 
 const SURFACE_SHAPE_KEYS = new Set([
   "REVOLUTION",
-  "EXTRUSION_PROFILE",
   "SHELL_DOME",
   "SHELL_TENT",
   // DISC « Coupole »: a lathe of the dome profile (buildDiscObject3D), its

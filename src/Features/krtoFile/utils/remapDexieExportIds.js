@@ -257,6 +257,17 @@ export default function remapDexieExportIds(jsonData, opts) {
         );
       }
 
+      // Removed template-driven profile shape (EXTRUSION_PROFILE, see db
+      // version 43): an old export may still carry it — drop it so the row
+      // builds as a plain line.
+      if (
+        tableName === "annotations" &&
+        row.shape3D?.key === "EXTRUSION_PROFILE"
+      ) {
+        delete row.shape3D;
+        delete row.extrusionOrientation;
+      }
+
       // REVOLUTION shape3D: nested ref to the plan axis annotation.
       if (tableName === "annotations" && row.shape3D?.axisAnnotationId) {
         row.shape3D = {

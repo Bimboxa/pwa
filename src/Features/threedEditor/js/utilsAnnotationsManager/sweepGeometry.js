@@ -2,8 +2,7 @@ import { BufferGeometry, Float32BufferAttribute } from "three";
 
 import { buildJunctionCap, getFlatSection } from "./sweepFlatJunction.js";
 
-// Pure sweep-geometry helpers shared by the EXTRUSION_PROFILE builder
-// (buildExtrudedProfileMesh) and the inline "Extrusion" builder
+// Pure sweep-geometry helpers of the inline "Extrusion" builder
 // (buildInlineExtrusionMesh). No Dexie / app dependencies — node-testable.
 
 // For each guide vertex, compute the in/out segment normals (right-hand rule

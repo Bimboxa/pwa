@@ -11,7 +11,7 @@ import getBaseMapTransform, {
 } from "Features/baseMaps/js/getBaseMapTransform";
 
 import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
-import buildResolvedSourceObjectAsync from "./buildResolvedSourceObjectAsync";
+import createAnnotationObject3D from "./createAnnotationObject3D";
 import buildAnnotationSolidObjectsAsync from "./buildAnnotationSolidObjectsAsync";
 import subtractAnnotationGeometries from "./subtractAnnotationGeometries";
 import getBaseMapForRender from "./getBaseMapForRender";
@@ -85,8 +85,8 @@ function disposeObject(object) {
  * REMOVED by the subtraction plus the carved / uncarved mesh triangle-sums it
  * derives from.
  *
- * Normally only meaningful for open-surface sources (EXTRUSION_PROFILE swept
- * surface, REVOLUTION lathe shell, POLYLINE sheet — PX wall or inline
+ * Normally only meaningful for open-surface sources (REVOLUTION lathe
+ * shell, POLYLINE sheet — PX wall or inline
  * extrusion, see isPolylineSheetHost), whose quantity is a developed/lateral
  * surface (not a planar footprint). Returns null otherwise. REVOLUTION
  * sources need `revolutionAxisPoints` already resolved on the annotation.
@@ -143,7 +143,7 @@ function pointsKeyPart(points) {
 
 function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
   return JSON.stringify({
-    s: [source.id, source.updatedAt, source.extrusionOrientation],
+    s: [source.id, source.updatedAt],
     g: [
       source.height ?? null,
       source.offsetZ ?? null,
@@ -202,7 +202,7 @@ export default async function computeSubtractedSurfaceM2Async(
   const shapeKey = getShape3DKey(sourceAnnotation?.shape3D);
   if (
     !isCrossBaseMap &&
-    !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey) &&
+    shapeKey !== "REVOLUTION" &&
     !isPolylineSheetHost(sourceAnnotation)
   ) {
     return null;
@@ -239,11 +239,9 @@ export default async function computeSubtractedSurfaceM2Async(
           shape3D: { ...sourceAnnotation.shape3D, solid: false },
         }
       : sourceAnnotation;
-    sourceObj = await buildResolvedSourceObjectAsync(
-      shellSource,
-      baseMapForRender,
-      { disableOpacity: true }
-    );
+    sourceObj = createAnnotationObject3D(shellSource, baseMapForRender, {
+      disableOpacity: true,
+    });
     const meshes = sourceObj ? getSolidMeshesFromObject3D(sourceObj) : [];
     if (meshes.length === 0) return null;
     const sumArea = (list) =>
