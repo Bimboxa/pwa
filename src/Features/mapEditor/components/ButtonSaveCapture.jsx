@@ -175,10 +175,12 @@ export default function ButtonSaveCapture() {
 
   // helpers - bar position (viewport space, centered just below the frame)
 
-  const { screenRect, hostBounds } = frameBounds;
-  // ~48px tall bar + 8px of breathing room: kept inside the host when the
-  // frame margin is too thin to host it entirely below the frame.
-  const maxBarTop = hostBounds.top + hostBounds.height - 56;
+  const { screenRect } = frameBounds;
+  // Always BELOW the frame (never over the captured page): with the 40 px
+  // frame margin the ~48 px bar runs past the editor's bottom edge, over
+  // the app's bottom bar — hence the z-index above it. Only the viewport
+  // bottom caps it, so it stays on screen.
+  const maxBarTop = window.innerHeight - 56;
   const barPositionSx = {
     left: screenRect.left + screenRect.width / 2,
     top: Math.min(screenRect.top + screenRect.height + 12, maxBarTop),
@@ -479,7 +481,8 @@ export default function ButtonSaveCapture() {
         <Box
           sx={{
             position: "fixed",
-            zIndex: 30,
+            // Above the bottom bar (400): the bar may overlap its top edge.
+            zIndex: 450,
             display: "flex",
             alignItems: "stretch",
             width: "max-content",
