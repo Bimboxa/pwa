@@ -47,6 +47,7 @@ import getGuideLineStairsLayout, {
 import {
   getEffectiveShellMode,
   getShape3DKey,
+  isOpenTopPrism,
 } from "Features/annotations/constants/shape3DConfig";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
@@ -946,6 +947,8 @@ function computeAnnotationQties({ annotation, meterByPx }) {
       annotation.type === "POLYGON" && !stairsGuideLine
         ? Math.max(0, Number(annotation.height) || 0)
         : 0;
+    // « Fosse »: the prism without its top face — the top is not counted.
+    const openTop = prismHeight > 0 && isOpenTopPrism(annotation);
     if (
       closeLine &&
       (hasPerVertexZOffsets(annotation) || hasIsoHeightLines || hasProfileLines)
@@ -997,6 +1000,7 @@ function computeAnnotationQties({ annotation, meterByPx }) {
         innerPoints: toMeters(innerPts),
         height: prismHeight,
         sideSegments,
+        openTop,
         verticalLift: 0,
         unitScale: 1,
         // Match the banded 3D ramp mesh so the developed surface is consistent.
@@ -1069,10 +1073,11 @@ function computeAnnotationQties({ annotation, meterByPx }) {
       });
       result.lengthDeveloped = lengthDeveloped;
     } else if (prismHeight > 0) {
-      // Flat prism: two faces of the footprint (cuts subtracted) + the
-      // visible perimeter (contour + cuts, hidden segments left out) × height.
+      // Flat prism: two faces of the footprint (cuts subtracted) — the
+      // bottom one only for a « Fosse » — + the visible perimeter (contour +
+      // cuts, hidden segments left out) × height.
       result.surfaceDeveloped =
-        2 * result.surface + result.length * prismHeight;
+        (openTop ? 1 : 2) * result.surface + result.length * prismHeight;
     }
 
     // Layout lines (lignes de calepinage): Σ of the bars' lengths, in

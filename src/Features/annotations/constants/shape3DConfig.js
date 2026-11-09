@@ -45,6 +45,14 @@ const SHAPE_3D_CONFIG = {
       label: "Coque — Tente",
       isAvailable: hasShellProfiles,
     },
+    // « Fosse »: the extruded prism WITHOUT its top face (bottom + side
+    // faces) — a pit. Needs a height; exclusive with the shells.
+    {
+      key: "FOSSE",
+      label: "Fosse",
+      isAvailable: (annotation) =>
+        Number(annotation?.height) > 0 && !hasShellProfiles(annotation),
+    },
   ],
 };
 
@@ -58,6 +66,7 @@ export const SHAPE_3D_KEYS = {
   SHELL_DOME: "SHELL_DOME",
   SHELL_TENT: "SHELL_TENT",
   DISC_DOME: "DISC_DOME",
+  FOSSE: "FOSSE",
 };
 
 export function getShape3DOptionsForType(annotationType) {
@@ -112,6 +121,29 @@ export function getEffectiveShellMode(annotation) {
   return getShape3DKey(annotation?.shape3D) === SHAPE_3D_KEYS.SHELL_TENT
     ? "TENT"
     : "DOME";
+}
+
+// « Fosse »: a POLYGON prism displayed and metered WITHOUT its top face.
+// Without a height (or with shell profiles) the key has no effect: the
+// default build applies.
+export function isOpenTopPrism(annotation) {
+  return (
+    annotation?.type === "POLYGON" &&
+    !annotation.isMesh3d &&
+    getShape3DKey(annotation.shape3D) === SHAPE_3D_KEYS.FOSSE &&
+    Number(annotation.height) > 0 &&
+    !hasShellProfiles(annotation)
+  );
+}
+
+// The annotation as a subtraction OPERAND: a « Fosse » cuts as the CLOSED
+// prism it is drawn from — its removed top face must exist for the boolean
+// (an open brush bounds no volume) and to cut the coplanar face of a host
+// glued to it (clipCoplanarSheetTriangles reads real cutter triangles).
+export function asClosedSolidOperand(annotation) {
+  return isOpenTopPrism(annotation)
+    ? { ...annotation, shape3D: null }
+    : annotation;
 }
 
 export default SHAPE_3D_CONFIG;

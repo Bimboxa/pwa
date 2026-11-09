@@ -21,6 +21,7 @@ import applySurfaceCuts from "./utilsAnnotationsManager/applySurfaceCuts";
 
 import {
   getShape3DKey,
+  isOpenTopPrism,
   isRevolutionSolid,
 } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
@@ -483,6 +484,8 @@ export default class AnnotationsManager {
               ? !isMesh3dClosed(annotation.mesh3d)
               : isInlineExtrusionPolyline(annotation) ||
                 isPolylineSheetWall(annotation) ||
+                // « Fosse »: a prism without its top face, an open surface.
+                isOpenTopPrism(annotation) ||
                 (sourceShapeKey === "REVOLUTION" &&
                   !isRevolutionSolid(annotation));
             subtractAnnotationGeometries(carveTarget, carveOperands, {

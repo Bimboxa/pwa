@@ -52,6 +52,7 @@ import {
   getShape3DKey,
   getShape3DOptionsForType,
   getEffectiveShellMode,
+  isOpenTopPrism,
 } from "Features/annotations/constants/shape3DConfig";
 
 import { isStairsGuideLine } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -964,6 +965,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           prismSides: true,
           hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
           cutsHiddenSegmentsIdx: cutRings.map((c) => c.hiddenSegmentsIdx),
+          // « Fosse »: no top face.
+          openTop: isOpenTopPrism(annotation),
           ...(shellProfiles.length
             ? {
                 shell: {

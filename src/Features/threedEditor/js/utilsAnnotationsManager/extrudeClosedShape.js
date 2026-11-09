@@ -384,8 +384,12 @@ export default function extrudeClosedShape(
     hasIsoChords ||
     hasShell;
 
+  // « Fosse » (options.openTop): the prism without its top face. Built by
+  // the shared triangulation too — ExtrudeGeometry cannot leave a cap out.
+  const isOpenTop = Boolean(isExtruded && options.openTop);
+
   let geometry;
-  if (!isPerVertexZPath && !isSegmentedPrism) {
+  if (!isPerVertexZPath && !isSegmentedPrism && !isOpenTop) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -423,6 +427,7 @@ export default function extrudeClosedShape(
       shell: hasShell ? options.shell : null,
       // Prism sides: hidden side faces skipped, coplanar ones labelled.
       sideSegments,
+      openTop: isOpenTop,
     });
     geometry = new BufferGeometry();
     geometry.setAttribute(

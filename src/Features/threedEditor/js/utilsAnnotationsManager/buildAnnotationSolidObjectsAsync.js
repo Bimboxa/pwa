@@ -1,4 +1,7 @@
-import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import {
+  asClosedSolidOperand,
+  getShape3DKey,
+} from "Features/annotations/constants/shape3DConfig";
 
 import createAnnotationObject3D from "./createAnnotationObject3D";
 
@@ -32,8 +35,10 @@ export default async function buildAnnotationSolidObjectsAsync(
     };
   }
 
+  // A « Fosse » operand is its CLOSED prism: the removed top face cuts the
+  // coplanar face of a host glued to it.
   const object = createAnnotationObject3D(
-    annotation,
+    asClosedSolidOperand(annotation),
     baseMapForRender,
     operandOptions
   );
