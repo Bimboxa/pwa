@@ -16,7 +16,7 @@ import getSoloDimmedAnnotation2d from "Features/annotations/utils/getSoloDimmedA
 import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkNumber,
 } from "Features/popperImages/popperImagesSlice";
 import {
   isImageAnnotationVeiled,
@@ -102,7 +102,7 @@ function StaticMapContent({
   // Photos (IMAGE annotations): in situ / ex situ, tile link style, and the
   // selected image (the others get a white veil).
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
-  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imagesLinkNumber = useSelector(selectImagesLinkNumber);
   const selectedImageId = useSelector(selectSelectedImageAnnotationId);
 
   // clipping plane (2D-defined cut plane)
@@ -478,7 +478,7 @@ function StaticMapContent({
                 showBgImage={showBgImage}
                 disableVertexEditing
                 imagesDisplayMode={imagesDisplayMode}
-                imagesLinkStyle={imagesLinkStyle}
+                imagesLinkNumber={imagesLinkNumber}
                 imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
                 imageVeiled={
                   annotation.type === "IMAGE" &&
@@ -542,7 +542,7 @@ function StaticMapContent({
                 // ABOVE every annotation (draw order preserved among labels).
                 forceHideLabel={true}
                 imagesDisplayMode={imagesDisplayMode}
-                imagesLinkStyle={imagesLinkStyle}
+                imagesLinkNumber={imagesLinkNumber}
                 imageDisplayIndex={imageDisplayIndexById?.[annotation.id]}
                 // The selected image is drawn by EditedObjectLayer: never
                 // veiled here.

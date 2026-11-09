@@ -2,14 +2,15 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import {
   IMAGES_DISPLAY_MODES,
-  IMAGES_LINK_STYLES,
   loadImagesDisplayMode,
-  loadImagesLinkStyle,
+  loadImagesLinkLine,
+  loadImagesLinkNumber,
   saveImagesDisplayMode,
-  saveImagesLinkStyle,
+  saveImagesLinkLine,
+  saveImagesLinkNumber,
 } from "./services/popperImagesLocalStorage";
 
-export { IMAGES_DISPLAY_MODES, IMAGES_LINK_STYLES };
+export { IMAGES_DISPLAY_MODES };
 
 // ---------------------------------------------------------------------------
 // popperImages — UI state of the PopperImages floating panel (the photos of
@@ -18,14 +19,16 @@ export { IMAGES_DISPLAY_MODES, IMAGES_LINK_STYLES };
 // - displayMode: "IN_SITU" (photos drawn in the scene, numbered) or "EX_SITU"
 //   (photos listed as tiles in the panel, only their anchor stays in the
 //   scene). Persisted per device.
-// - linkStyle: how an ex-situ tile is tied to its anchor — "LINE" (leader
-//   from the tile to the anchor) or "NUMBER" (same badge on both). Persisted.
+// - linkLine / linkNumber: how an ex-situ tile is tied to its anchor — a
+//   leader from the tile to the anchor, and / or the same number badge on
+//   both. Independent switches, both persisted.
 // - collapsed: panel folded to its header (survives the 2D ↔ 3D remount).
 // ---------------------------------------------------------------------------
 
 const initialState = {
   displayMode: loadImagesDisplayMode(),
-  linkStyle: loadImagesLinkStyle(),
+  linkLine: loadImagesLinkLine(),
+  linkNumber: loadImagesLinkNumber(),
   collapsed: false,
 };
 
@@ -39,11 +42,13 @@ export const popperImagesSlice = createSlice({
       state.displayMode = mode;
       saveImagesDisplayMode(mode);
     },
-    setImagesLinkStyle: (state, action) => {
-      const style = action.payload;
-      if (!IMAGES_LINK_STYLES.includes(style)) return;
-      state.linkStyle = style;
-      saveImagesLinkStyle(style);
+    setImagesLinkLine: (state, action) => {
+      state.linkLine = Boolean(action.payload);
+      saveImagesLinkLine(state.linkLine);
+    },
+    setImagesLinkNumber: (state, action) => {
+      state.linkNumber = Boolean(action.payload);
+      saveImagesLinkNumber(state.linkNumber);
     },
     setPopperImagesCollapsed: (state, action) => {
       state.collapsed = Boolean(action.payload);
@@ -53,12 +58,14 @@ export const popperImagesSlice = createSlice({
 
 export const {
   setImagesDisplayMode,
-  setImagesLinkStyle,
+  setImagesLinkLine,
+  setImagesLinkNumber,
   setPopperImagesCollapsed,
 } = popperImagesSlice.actions;
 
 export const selectImagesDisplayMode = (s) => s.popperImages.displayMode;
-export const selectImagesLinkStyle = (s) => s.popperImages.linkStyle;
+export const selectImagesLinkLine = (s) => s.popperImages.linkLine;
+export const selectImagesLinkNumber = (s) => s.popperImages.linkNumber;
 export const selectImagesExSitu = (s) =>
   s.popperImages.displayMode === "EX_SITU";
 export const selectPopperImagesCollapsed = (s) => s.popperImages.collapsed;

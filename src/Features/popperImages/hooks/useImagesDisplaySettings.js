@@ -3,25 +3,39 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkLine,
+  selectImagesLinkNumber,
   setImagesDisplayMode,
-  setImagesLinkStyle,
+  setImagesLinkLine,
+  setImagesLinkNumber,
 } from "../popperImagesSlice";
 
 // Display preferences of IMAGE annotations (the reducers also persist them).
 export default function useImagesDisplaySettings() {
   const dispatch = useDispatch();
   const displayMode = useSelector(selectImagesDisplayMode);
-  const linkStyle = useSelector(selectImagesLinkStyle);
+  const linkLine = useSelector(selectImagesLinkLine);
+  const linkNumber = useSelector(selectImagesLinkNumber);
 
   const setDisplayMode = useCallback(
     (mode) => dispatch(setImagesDisplayMode(mode)),
     [dispatch]
   );
-  const setLinkStyle = useCallback(
-    (style) => dispatch(setImagesLinkStyle(style)),
+  const setLinkLine = useCallback(
+    (enabled) => dispatch(setImagesLinkLine(enabled)),
+    [dispatch]
+  );
+  const setLinkNumber = useCallback(
+    (enabled) => dispatch(setImagesLinkNumber(enabled)),
     [dispatch]
   );
 
-  return { displayMode, linkStyle, setDisplayMode, setLinkStyle };
+  return {
+    displayMode,
+    linkLine,
+    linkNumber,
+    setDisplayMode,
+    setLinkLine,
+    setLinkNumber,
+  };
 }

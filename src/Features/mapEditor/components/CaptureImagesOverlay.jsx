@@ -17,8 +17,8 @@ import layoutCaptureImageTiles from "../utils/layoutCaptureImageTiles";
 // CaptureImagesOverlay — the "Ex situ" photos inside the captured page:
 // Paper-style floating tiles (white card, shadow, rounded) laid out in
 // columns in a transparent zone of the capture rect, each tied to its anchor
-// in the scene by a leader ("Ligne") or by its display number ("Numéro",
-// the anchor badge being drawn by the live renderers). Rendered INSIDE the
+// in the scene by a leader ("Ligne") and / or by its display number
+// ("Numéro", the anchor badge being drawn by the live renderers). Rendered INSIDE the
 // ImageModeOverlay svg, in viewport px: the `data-capture-keep` groups are
 // captured with the plan, the move / resize handles are `data-capture-hide`.
 // The zone geometry lives in mapEditor.imageModeImagesOverlay (legend-like
@@ -37,7 +37,8 @@ function clamp(v, min, max) {
 export default function CaptureImagesOverlay({
   rect,
   images,
-  linkStyle,
+  showLines,
+  showNumbers,
   anchorProjector,
   getSvgRect,
   captureToolActive,
@@ -108,7 +109,7 @@ export default function CaptureImagesOverlay({
     });
   }, [computeAnchors]);
   useEffect(() => {
-    if (linkStyle !== "LINE") return undefined;
+    if (!showLines) return undefined;
     scheduleAnchors();
     const unsubscribe = anchorProjector?.subscribe?.(scheduleAnchors);
     window.addEventListener("resize", scheduleAnchors);
@@ -120,7 +121,7 @@ export default function CaptureImagesOverlay({
         rafRef.current = null;
       }
     };
-  }, [linkStyle, anchorProjector, scheduleAnchors, rect.left, rect.top]);
+  }, [showLines, anchorProjector, scheduleAnchors, rect.left, rect.top]);
 
   // drag / resize (legend pattern)
   const dragRef = useRef(null);
@@ -203,7 +204,7 @@ export default function CaptureImagesOverlay({
     <>
       {/* Leaders: tile edge → anchor (svg px). Part of the AI content, like
           the legend (no data-capture-decor). */}
-      {linkStyle === "LINE" && (
+      {showLines && (
         <g data-capture-keep style={{ pointerEvents: "none" }}>
           {tiles.map((t) => {
             const a = anchors[t.id];
@@ -305,7 +306,7 @@ export default function CaptureImagesOverlay({
                     )}
                   </div>
                 </foreignObject>
-                {linkStyle === "NUMBER" && (
+                {showNumbers && (
                   <g transform="translate(2, 2)">
                     <ImageIndexBadgeSvg number={t.number} />
                   </g>

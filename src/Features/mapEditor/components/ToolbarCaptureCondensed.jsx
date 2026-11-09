@@ -16,9 +16,7 @@ import {
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
   setImagesDisplayMode,
-  setImagesLinkStyle,
 } from "Features/popperImages/popperImagesSlice";
 
 import {
@@ -46,9 +44,8 @@ import {
   Numbers,
   PhotoCamera,
   PhotoLibrary,
+  PhotoSizeSelectActual,
   PictureAsPdf,
-  Pin,
-  Timeline,
   Title,
   Tune,
   Wallpaper,
@@ -61,12 +58,11 @@ import useCapturePageFormat from "../hooks/useCapturePageFormat";
 // drawer when the capture tool is in its condensed format.
 export const CAPTURE_TOOLBAR_WIDTH = 70;
 
-// Photos (IMAGE annotations) display — one control for the PopperImages
-// preference pair (displayMode, linkStyle).
+// Photos (IMAGE annotations) display mode — the PopperImages preference
+// (line / number links are in the Cadrage tab's Photos section).
 const PHOTOS_OPTIONS = [
-  { value: "IN_SITU", label: "In situ", icon: <PhotoLibrary /> },
-  { value: "EX_SITU_LINE", label: "Ex situ — lignes", icon: <Timeline /> },
-  { value: "EX_SITU_NUMBER", label: "Ex situ — numéros", icon: <Pin /> },
+  { value: "IN_SITU", label: "In situ", icon: <PhotoSizeSelectActual /> },
+  { value: "EX_SITU", label: "Ex situ", icon: <PhotoLibrary /> },
 ];
 
 const ASPECT_RATIO_OPTIONS = [
@@ -260,7 +256,6 @@ export default function ToolbarCaptureCondensed() {
   const titleBlock = useSelector((s) => s.mapEditor.imageModeTitleBlock);
   const legendOverlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
-  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
   const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
 
@@ -305,24 +300,6 @@ export default function ToolbarCaptureCondensed() {
   function handleToggleShowQty() {
     dispatch(
       setImageModeLegendOverlay({ ...legendOverlay, showQty: !showQty })
-    );
-  }
-
-  const photosValue =
-    imagesDisplayMode === "EX_SITU"
-      ? imagesLinkStyle === "NUMBER"
-        ? "EX_SITU_NUMBER"
-        : "EX_SITU_LINE"
-      : "IN_SITU";
-
-  function handlePhotosChange(value) {
-    if (value === "IN_SITU") {
-      dispatch(setImagesDisplayMode("IN_SITU"));
-      return;
-    }
-    dispatch(setImagesDisplayMode("EX_SITU"));
-    dispatch(
-      setImagesLinkStyle(value === "EX_SITU_NUMBER" ? "NUMBER" : "LINE")
     );
   }
 
@@ -419,8 +396,8 @@ export default function ToolbarCaptureCondensed() {
         label={photosS}
         tooltip="Affichage des photos"
         options={PHOTOS_OPTIONS}
-        value={photosValue}
-        onChange={handlePhotosChange}
+        value={imagesDisplayMode}
+        onChange={(value) => dispatch(setImagesDisplayMode(value))}
       />
 
       <BandDivider />

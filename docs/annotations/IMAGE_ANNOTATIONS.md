@@ -90,8 +90,8 @@ diff would rebuild the card on every emission).
 
 `src/Features/popperImages/` owns how the photos of an editor are displayed.
 
-- `popperImagesSlice` — `displayMode` (`IN_SITU` | `EX_SITU`) and `linkStyle`
-  (`LINE` | `NUMBER`), both persisted per device in localStorage
+- `popperImagesSlice` — `displayMode` (`IN_SITU` | `EX_SITU`) and the two
+  independent ex-situ links `linkLine` / `linkNumber`, all persisted per device in localStorage
   (`popperImagesSettings`); `collapsed` (panel folded).
 - `getImageAnnotationsDisplayIndex(annotations)` — display numbering 1..N of
   the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
@@ -117,7 +117,7 @@ diff would rebuild the card on every emission).
 
 Rendering:
 
-- 2D `NodeImageStatic` receives `imagesDisplayMode / imagesLinkStyle /
+- 2D `NodeImageStatic` receives `imagesDisplayMode / imagesLinkNumber /
   imageDisplayIndex / imageVeiled` through `NodeAnnotationStatic` from
   `StaticMapContent` / `EditedObjectLayer` only (portfolio, grids, elevation
   keep the plain in-situ rendering). In situ: numbered badge at the bbox

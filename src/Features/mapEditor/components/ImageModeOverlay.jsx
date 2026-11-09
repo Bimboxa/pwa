@@ -32,7 +32,8 @@ import CaptureTitleBlockOverlay from "./CaptureTitleBlockOverlay";
 import CaptureImagesOverlay from "./CaptureImagesOverlay";
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkLine,
+  selectImagesLinkNumber,
 } from "Features/popperImages/popperImagesSlice";
 import DialogEditCaptureLegend from "./DialogEditCaptureLegend";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
@@ -76,7 +77,8 @@ export default function ImageModeOverlay({
   // data
 
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
-  const imagesLinkStyle = useSelector(selectImagesLinkStyle);
+  const imagesLinkLine = useSelector(selectImagesLinkLine);
+  const imagesLinkNumber = useSelector(selectImagesLinkNumber);
   const imagesOverlayVisible = useSelector((s) =>
     Boolean(s.mapEditor.imageModeImagesOverlay?.visible)
   );
@@ -433,7 +435,8 @@ export default function ImageModeOverlay({
           <CaptureImagesOverlay
             rect={rect}
             images={imageAnnotations}
-            linkStyle={imagesLinkStyle}
+            showLines={imagesLinkLine}
+            showNumbers={imagesLinkNumber}
             anchorProjector={anchorProjector}
             getSvgRect={getSvgRect}
             captureToolActive={captureToolActive}

@@ -3,9 +3,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
 import {
   selectImagesDisplayMode,
-  selectImagesLinkStyle,
+  selectImagesLinkLine,
+  selectImagesLinkNumber,
   setImagesDisplayMode,
-  setImagesLinkStyle,
+  setImagesLinkLine,
+  setImagesLinkNumber,
 } from "Features/popperImages/popperImagesSlice";
 
 import {
@@ -72,16 +74,16 @@ export default function SectionCaptureImages() {
   const modeS = "Affichage";
   const inSituS = "In situ";
   const exSituS = "Ex situ";
-  const linkS = "Lien";
-  const lineS = "Ligne";
-  const numberS = "Numéro";
+  const lineS = "Lien par ligne";
+  const numberS = "Lien par numéro";
   const zoneS = "Zone photos dans le cadre";
   const columnsS = "Colonnes";
 
   // data
 
   const displayMode = useSelector(selectImagesDisplayMode);
-  const linkStyle = useSelector(selectImagesLinkStyle);
+  const linkLine = useSelector(selectImagesLinkLine);
+  const linkNumber = useSelector(selectImagesLinkNumber);
   const overlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
   const exSitu = displayMode === "EX_SITU";
 
@@ -103,14 +105,17 @@ export default function SectionCaptureImages() {
       />
       {exSitu && (
         <>
-          <RowToggle
-            label={linkS}
-            value={linkStyle}
-            options={[
-              { value: "LINE", label: lineS },
-              { value: "NUMBER", label: numberS },
-            ]}
-            onChange={(v) => dispatch(setImagesLinkStyle(v))}
+          <FieldCheck
+            value={linkLine}
+            onChange={(checked) => dispatch(setImagesLinkLine(checked))}
+            label={lineS}
+            options={{ type: "switch", showAsInline: true }}
+          />
+          <FieldCheck
+            value={linkNumber}
+            onChange={(checked) => dispatch(setImagesLinkNumber(checked))}
+            label={numberS}
+            options={{ type: "switch", showAsInline: true }}
           />
           <FieldCheck
             value={Boolean(overlay?.visible)}
