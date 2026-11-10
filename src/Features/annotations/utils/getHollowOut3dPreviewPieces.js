@@ -42,6 +42,20 @@ export function multiPolygonToPieces(multiPolygon) {
     .map(({ points, cuts }) => ({ points, cuts }));
 }
 
+// The part of a cutter footprint lying over the host footprint, as pieces:
+// what the overview tints in the cutter's colour (the removed zone).
+export function getFootprintOverlapPieces(hostFootprint, cutterFootprint) {
+  if (!hostFootprint?.length || !cutterFootprint?.length) return [];
+  try {
+    return multiPolygonToPieces(
+      polygonClipping.intersection(hostFootprint, cutterFootprint)
+    );
+  } catch (e) {
+    console.warn("[getFootprintOverlapPieces] intersection failed", e);
+    return [];
+  }
+}
+
 /**
  * Preview of « Évider » in 3D: the projection of the host on its own base map
  * minus the footprints of its subtractions on that same base map. Pure 2D

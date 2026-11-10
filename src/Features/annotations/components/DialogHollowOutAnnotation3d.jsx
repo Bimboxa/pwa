@@ -25,7 +25,9 @@ import TemplateSwitchRowHollowOut from "./TemplateSwitchRowHollowOut";
 
 import addAnnotationSubtractions from "../services/addAnnotationSubtractions";
 import getAnnotationColor from "../utils/getAnnotationColor";
-import getHollowOut3dPreviewPieces from "../utils/getHollowOut3dPreviewPieces";
+import getHollowOut3dPreviewPieces, {
+  getFootprintOverlapPieces,
+} from "../utils/getHollowOut3dPreviewPieces";
 import getHollowOutTemplateGroups, {
   getHollowOutGroupKey,
 } from "../utils/getHollowOutTemplateGroups";
@@ -35,7 +37,8 @@ import getHollowOutTemplateGroups, {
 // live 3D carve, the geometry of the host is not rewritten — unlike the 2D
 // dialog, DialogHollowOutAnnotation). One switch per annotation template; the
 // overview is the projection of the host on its own base map minus the
-// footprints of the subtractions on that base map. Nothing is written until
+// footprints of the subtractions on that base map, each removed zone tinted in
+// the colour of its subtraction. Nothing is written until
 // « Évider » is confirmed. The switched-off templates are remembered for the
 // session (shared with the 2D dialog).
 export default function DialogHollowOutAnnotation3d({
@@ -85,12 +88,32 @@ export default function DialogHollowOutAnnotation3d({
       getHollowOut3dPreviewPieces({
         hostFootprint,
         cutterFootprints: [
-          ...existingFootprints,
+          ...existingFootprints.map((entry) => entry.footprint),
           ...enabledCandidates.map((a) => footprintById.get(a.id)),
         ],
       }),
     [hostFootprint, existingFootprints, enabledCandidates, footprintById]
   );
+
+  // The removed zones, tinted in the colour of each subtraction: the overview
+  // never reads as an empty frame, even when the footprints cover the whole
+  // projection of the host.
+  const overlays = useMemo(() => {
+    const entries = [
+      ...existingFootprints,
+      ...enabledCandidates.map((annotation) => ({
+        annotation,
+        footprint: footprintById.get(annotation.id),
+      })),
+    ];
+    return entries
+      .map(({ annotation, footprint }) => ({
+        id: annotation.id,
+        color: getAnnotationColor(annotation),
+        pieces: getFootprintOverlapPieces(hostFootprint, footprint),
+      }))
+      .filter((overlay) => overlay.pieces.length > 0);
+  }, [hostFootprint, existingFootprints, enabledCandidates, footprintById]);
 
   // The host as a flat POLYGON on its own base map: what the overview draws
   // (frame + dashed outline of the un-carved projection).
@@ -128,7 +151,7 @@ export default function DialogHollowOutAnnotation3d({
     helperText = "Tous les modèles sont désactivés : rien à évider.";
   } else if (preview?.consumed) {
     helperText =
-      "La projection de l'annotation serait entièrement évidée sur son fond de plan.";
+      "Les soustractions recouvrent toute la projection de l'annotation sur son fond de plan (elles peuvent ne l'entamer que sur une partie de son épaisseur).";
   } else if (!preview) {
     helperText =
       "Aperçu indisponible : l'annotation est perpendiculaire à son fond de plan.";
@@ -193,6 +216,7 @@ export default function DialogHollowOutAnnotation3d({
             <PreviewHollowOutAnnotation
               annotation={previewAnnotation}
               pieces={preview.pieces}
+              overlays={overlays}
             />
           )}
 

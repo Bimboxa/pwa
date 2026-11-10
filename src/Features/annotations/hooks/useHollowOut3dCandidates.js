@@ -38,7 +38,8 @@ const isVolumeCutter = (annotation) =>
  *    into the host's (any base map), not subtracted from it yet;
  *  - `hostFootprint` / `footprintById` / `existingFootprints`: the projection
  *    of the host, of each candidate and of the host's existing subtractions on
- *    the HOST base map (polygon-clipping MultiPolygons, reference pixels).
+ *    the HOST base map (polygon-clipping MultiPolygons, reference pixels);
+ *    `existingFootprints` = [{ annotation, footprint }].
  *
  * @param {Object} args
  * @param {string} args.annotationId the host
@@ -138,7 +139,8 @@ export default function useHollowOut3dCandidates({
         for (const target of host.subtractionTargets ?? []) {
           if (cancelled) return;
           const footprint = target ? await getFootprint(target) : null;
-          if (footprint) existingFootprints.push(footprint);
+          if (footprint)
+            existingFootprints.push({ annotation: target, footprint });
         }
       }
       if (cancelled) return;
