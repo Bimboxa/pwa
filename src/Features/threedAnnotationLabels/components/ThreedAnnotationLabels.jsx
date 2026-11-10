@@ -15,6 +15,7 @@ import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationL
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import createMesh3dLabelLeader from "Features/threedMesh/services/createMesh3dLabelLeader";
 import createMesh3dLabelTargetHandle from "Features/threedMesh/services/createMesh3dLabelTargetHandle";
 
@@ -193,14 +194,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
         : getAnnotationLabelPropsFromAnnotation(annotation);
       if (!isImage && !labelProps?.lines?.length) return;
 
-      // Annotation pixel coords are resolved in the REFERENCE frame (mirrors
-      // AnnotationsManager's baseMapForRender).
-      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-      const baseMapForRender = {
-        imageWidth: refSize?.width || 1,
-        imageHeight: refSize?.height || 1,
-        meterByPx: baseMap.meterByPx || 0.01,
-      };
+      const baseMapForRender = getBaseMapForRender(baseMap);
 
       const label2 = pixelToWorld(labelProps.labelPoint, baseMapForRender);
       const target2 = pixelToWorld(labelProps.targetPoint, baseMapForRender);
@@ -278,7 +272,10 @@ export default function ThreedAnnotationLabels({ annotations }) {
         targetLocal,
         liftM,
         leader: null,
-        imageSize: refSize,
+        imageSize: {
+          width: baseMapForRender.imageWidth,
+          height: baseMapForRender.imageHeight,
+        },
         // Ex situ: no leader ever (the proxy has no card to point at).
         hasConnector: exSitu
           ? false

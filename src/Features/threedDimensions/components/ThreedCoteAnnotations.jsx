@@ -15,6 +15,7 @@ import {
 import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import {
@@ -191,10 +192,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
       // the next run of this effect.
       if (!baseMap || !parentGroup) return;
 
-      // Annotation pixel coords are resolved in the REFERENCE frame
-      // (mirrors AnnotationsManager's baseMapForRender).
-      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-      const meterByPx = baseMap.meterByPx || 0.01;
+      const { imageWidth, imageHeight, meterByPx } =
+        getBaseMapForRender(baseMap);
 
       const geom = computeCoteGeometry3d({
         points: cote.points,
@@ -202,8 +201,8 @@ export default function ThreedCoteAnnotations({ annotations }) {
         extensionOffset: cote.extensionOffset ?? 8,
         extensionOffsetUnit: cote.extensionOffsetUnit ?? "PX",
         offset3d: cote.offset3d,
-        imageWidth: refSize?.width || 1,
-        imageHeight: refSize?.height || 1,
+        imageWidth,
+        imageHeight,
         meterByPx,
       });
       if (!geom) return;
@@ -299,7 +298,9 @@ export default function ThreedCoteAnnotations({ annotations }) {
           valueText: getCoteDisplayValue({
             p1: cote.points[0],
             p2: cote.points[1],
-            meterByPx,
+            meterByPx: baseMap.scene3d?.relativeToBaseMap
+              ? baseMap.meterByPx
+              : meterByPx,
             unit: cote.unit ?? DEFAULT_COTE_UNIT,
             decimals: cote.decimals ?? DEFAULT_COTE_DECIMALS,
             showUnitLabel: cote.showUnitLabel ?? true,

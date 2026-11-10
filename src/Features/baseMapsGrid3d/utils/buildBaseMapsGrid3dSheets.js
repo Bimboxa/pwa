@@ -1,4 +1,7 @@
 import composeBaseMapsGridSheets from "Features/baseMapsGrid/utils/composeBaseMapsGridSheets";
+import getBaseMapRenderScale, {
+  getBaseMapReferenceSize,
+} from "Features/baseMaps/js/getBaseMapRenderScale";
 
 // Sheets of the 3D base maps grid: the base maps of a listing, arranged like
 // in the 2D grid (same paper sheets, same positions in paper points), with
@@ -33,7 +36,7 @@ export default function buildBaseMapsGrid3dSheets({
   const sheets = items
     .filter(({ baseMap }) => !baseMap.isPhoto)
     .map(({ baseMap, sheet }) => {
-      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
+      const refSize = getBaseMapReferenceSize(baseMap);
       if (!refSize?.width || !refSize?.height) return null;
       return {
         id: baseMap.id,
@@ -43,7 +46,7 @@ export default function buildBaseMapsGrid3dSheets({
         pagePt: { width: sheet.width, height: sheet.height },
         positionPt: { x: sheet.x, y: sheet.y },
         refSize: { width: refSize.width, height: refSize.height },
-        meterByPx: baseMap.meterByPx,
+        meterByPx: getBaseMapRenderScale(baseMap),
       };
     })
     .filter(Boolean);
