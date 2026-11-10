@@ -60,6 +60,10 @@ import {
     isBaseMapLinkLocateDraft,
 } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 import { computeKeepScaleClonePoints } from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
+import {
+    HEIGHT_CUT_SIDE_BOTTOM,
+    HEIGHT_CUT_SIDE_TOP,
+} from "Features/heightCuts/constants/heightCutConstants";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
 // below): the query ran on EVERY drawing commit (~30ms of IDB on slow
@@ -109,6 +113,9 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
+    const heightCutOnCommit = useSelector(s => s.mapEditor.heightCutOnCommit);
+    const heightCutDelta = useSelector(s => s.mapEditor.heightCutDelta);
+    const heightCutSide = useSelector(s => s.mapEditor.heightCutSide);
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
     const defaultOffsetOnCommit = useSelector(s => s.mapEditor.defaultOffsetOnCommit);
@@ -339,11 +346,15 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             // openings are always appended as holes (a disc has no editable
             // contour to notch).
             if (!["POLYGON", "DISC"].includes(_updatedAnnotation?.type)) return;
+            // « Ne pas découper »: the shape is a height cut of a POLYGON (a
+            // face with an altitude delta) — never a notch nor a hole.
+            if (heightCutOnCommit && _updatedAnnotation?.type !== "POLYGON") return;
 
             // When the drawn opening touches or exits the host polygon's outer
             // boundary, we modify the outer contour (carving a notch) instead
             // of appending a hole. See [annotations] issue #224.
             if (
+                !heightCutOnCommit &&
                 _updatedAnnotation?.type === "POLYGON" &&
                 _updatedAnnotation?.id &&
                 rawPoints?.length >= 3
@@ -801,11 +812,31 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     }),
                 };
                 if (newAnnotation.label) cut.label = newAnnotation.label;
-                const newCuts = _updatedAnnotation?.cuts ? [..._updatedAnnotation?.cuts, cut] : [cut];
-                _updatedAnnotation = {
-                    ..._updatedAnnotation,
-                    cuts: newCuts,
-                };
+                if (heightCutOnCommit) {
+                    const delta = Number(heightCutDelta);
+                    // Height cuts share the guide-line ref shape ({pointId, type}).
+                    const heightCut = {
+                        ...cut,
+                        points: cut.points.map(({ id, type }) =>
+                            type ? { pointId: id, type } : { pointId: id }
+                        ),
+                        id: nanoid(),
+                        delta: Number.isFinite(delta) ? delta : 0,
+                        side: heightCutSide === HEIGHT_CUT_SIDE_BOTTOM
+                            ? HEIGHT_CUT_SIDE_BOTTOM
+                            : HEIGHT_CUT_SIDE_TOP,
+                    };
+                    _updatedAnnotation = {
+                        ..._updatedAnnotation,
+                        heightCuts: [...(_updatedAnnotation?.heightCuts ?? []), heightCut],
+                    };
+                } else {
+                    const newCuts = _updatedAnnotation?.cuts ? [..._updatedAnnotation?.cuts, cut] : [cut];
+                    _updatedAnnotation = {
+                        ..._updatedAnnotation,
+                        cuts: newCuts,
+                    };
+                }
             }
 
             // ÉTAPE 3 : Création de l'Annotation (Topologie)

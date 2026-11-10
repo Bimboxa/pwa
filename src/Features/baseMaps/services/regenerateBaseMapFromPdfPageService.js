@@ -269,6 +269,8 @@ export default async function regenerateBaseMapFromPdfPageService({
         "isoHeightLines",
         "profileLines",
         "layoutLines",
+        "heightCuts",
+        "heightCutFaces",
       ]) {
         if (Array.isArray(next[key])) {
           next[key] = next[key].map((l) => ({

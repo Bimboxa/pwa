@@ -100,6 +100,8 @@ async function commitWrapperTransformWrites({
       ...(ann.isoHeightLines ?? []),
       ...(ann.profileLines ?? []),
       ...(ann.layoutLines ?? []),
+      ...(ann.heightCuts ?? []),
+      ...(ann.heightCutFaces ?? []),
     ]) {
       for (const pt of line?.points ?? []) {
         const pointId = pt.pointId ?? pt.id;
@@ -306,6 +308,22 @@ async function commitWrapperTransformWrites({
           }
         }
 
+        if (ann.heightCuts) {
+          const newHeightCuts = replaceLinesRefs(ann.heightCuts);
+          if (linesChanged(newHeightCuts, ann.heightCuts)) {
+            updates.heightCuts = newHeightCuts;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.heightCutFaces) {
+          const newHeightCutFaces = replaceLinesRefs(ann.heightCutFaces);
+          if (linesChanged(newHeightCutFaces, ann.heightCutFaces)) {
+            updates.heightCutFaces = newHeightCutFaces;
+            hasChanges = true;
+          }
+        }
+
         if (hasChanges) {
           ops.push(db.annotations.update(annId, updates));
         }
@@ -446,6 +464,8 @@ function getTransformedPointRefs(ann) {
     ...(ann.isoHeightLines ?? []),
     ...(ann.profileLines ?? []),
     ...(ann.layoutLines ?? []),
+    ...(ann.heightCuts ?? []),
+    ...(ann.heightCutFaces ?? []),
   ]) {
     for (const pt of line?.points ?? []) add(pt?.pointId ?? pt?.id, pt);
   }

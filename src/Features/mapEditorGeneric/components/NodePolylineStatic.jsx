@@ -75,6 +75,8 @@ import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerO
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 import getArrowsAlongPolyline from "Features/annotations/utils/getArrowsAlongPolyline";
 import getMesh3dSegmentFromQuad from "Features/annotationMesh3d/utils/getMesh3dSegmentFromQuad";
+import NodeHeightCutsStatic from "Features/heightCuts/components/NodeHeightCutsStatic";
+import computeHeightFaces from "Features/heightCuts/utils/computeHeightFaces";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
@@ -663,6 +665,31 @@ function NodePolylineStatic({
       hiddenSegmentsIdx: cut.hiddenSegmentsIdx ?? [],
     }));
   }, [cuts, annotationId]);
+
+  // Height cuts: the faces delimited by the traces, recomputed here (not read
+  // from annotation.heightFaces) so the drag previews — moved vertices, moved
+  // annotation — show the faces of the geometry being dragged.
+  const heightCutTraces = mergedAnnotation.heightCuts;
+  const heightCutFaceEntries = mergedAnnotation.heightCutFaces;
+  const heightFaces = useMemo(() => {
+    if (type !== "POLYGON" || !heightCutTraces?.length) return [];
+    if (mergedAnnotation.isMesh3d) return [];
+    return computeHeightFaces({
+      contour: points,
+      holes: (cuts || []).map((cut) => cut.points),
+      traces: heightCutTraces,
+      faceEntries: heightCutFaceEntries,
+      scale: baseMapMeterByPx > 0 ? baseMapMeterByPx : 1,
+    });
+  }, [
+    type,
+    points,
+    cuts,
+    heightCutTraces,
+    heightCutFaceEntries,
+    baseMapMeterByPx,
+    mergedAnnotation.isMesh3d,
+  ]);
 
   const getCutSegPartId = (cutIdx, segIdx) =>
     `${annotationId}::CUT_SEG::${cutIdx}::${segIdx}`;
@@ -1731,6 +1758,10 @@ function NodePolylineStatic({
     ...(mergedAnnotation.layoutLines || [])
       .flatMap((l) => l?.points || [])
       .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
+    // Height cut traces: their vertices are edited like a guide line's.
+    ...(mergedAnnotation.heightCuts || [])
+      .flatMap((l) => l?.points || [])
+      .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
   ];
 
   let pointEntriesToRender = [];
@@ -1775,6 +1806,9 @@ function NodePolylineStatic({
         .flatMap((l) => l?.points || [])
         .map((p) => ({ point: p, cutIndex: undefined, source: "ISO" })),
       ...(mergedAnnotation.layoutLines || [])
+        .flatMap((l) => l?.points || [])
+        .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
+      ...(mergedAnnotation.heightCuts || [])
         .flatMap((l) => l?.points || [])
         .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
     ];
@@ -1975,6 +2009,21 @@ function NodePolylineStatic({
           );
         })}
 
+      {/* HEIGHT CUTS (Hit Areas + Selection Feedback): faces and open
+          traces of the selected annotation. */}
+      {selected && !isTransient && !printMode && heightFaces.length > 0 && (
+        <NodeHeightCutsStatic
+          layer="HIT"
+          annotation={mergedAnnotation}
+          faces={heightFaces}
+          traces={heightCutTraces}
+          selectedPartId={selectedPartId}
+          hoveredPartId={effectiveHoveredPartId}
+          onHoverPart={setHoveredPartId}
+          getPartCursor={getPartCursor}
+        />
+      )}
+
       {/* EXTRUSION PROFILE OFFSET — drawn UNDER the main strokes so it
                 never blocks selection / editing of the contour. */}
 
@@ -2014,6 +2063,17 @@ function NodePolylineStatic({
             {renderSegments(hole.segmentMap, "CUT", i)}
           </g>
         ))}
+
+      {/* HEIGHT CUTS (Ink): tint of the raised / lowered faces, lines
+          between faces, delta labels — part of the plan drawing. */}
+      {heightFaces.length > 0 && (
+        <NodeHeightCutsStatic
+          layer="INK"
+          annotation={mergedAnnotation}
+          faces={heightFaces}
+          traces={heightCutTraces}
+        />
+      )}
 
       {/* CIRCULATION ARROWS — on top of the strokes, non-interactive */}
       {renderCirculationArrows()}

@@ -51,6 +51,8 @@ import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnota
 import getDraftFieldVisibility from 'Features/mapEditor/utils/getDraftFieldVisibility';
 import isOpeningAnnotation, { getOpeningType } from 'Features/annotations/utils/isOpeningAnnotation';
 import { isSurfaceCutDraft } from 'Features/surfaceCut/utils/surfaceCutTools';
+import { HEIGHT_CUT_PART_TYPE, HEIGHT_FACE_PART_TYPE } from 'Features/heightCuts/constants/heightCutConstants';
+import removeHeightFacePartService from 'Features/heightCuts/services/removeHeightFacePartService';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -462,6 +464,30 @@ function buildClipboardItem(ann, meterByPx) {
           };
         })
         .filter((l) => l.points.length >= 2);
+    }
+    // Height cuts (traces) and the seeds of their faces: same snapshot
+    // logic, meta (delta / side / closeLine) carried as-is.
+    for (const [field, baseField] of [
+      ["heightCuts", "baseHeightCuts"],
+      ["heightCutFaces", "baseHeightCutFaces"],
+    ]) {
+      if (!Array.isArray(ann[field]) || !ann[field].length) continue;
+      item[baseField] = ann[field]
+        .map((l) => {
+          // `rawIndex` / `seed` are resolve-time only
+          const { points, rawIndex: _rawIndex, seed: _seed, ...meta } = l || {};
+          return {
+            ...meta,
+            points: (points || [])
+              .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+              .map((p) => ({
+                x: p.x,
+                y: p.y,
+                ...(p.type ? { type: p.type } : {}),
+              })),
+          };
+        })
+        .filter((l) => l.points.length >= 1);
     }
   } else if (type === "POINT" || type === "MARKER" || type === "DETAIL") {
     const p = ann.point || ann.targetPoint;
@@ -5657,6 +5683,18 @@ const InteractionLayer = forwardRef(({
                 cutIndex: index
               });
               dispatch(setSubSelection({ partId: null }));
+              e.stopPropagation();
+              return;
+            }
+
+            // C'. Height cuts: a trace, or a face (the closed shape around
+            // it / its own delta — see removeHeightFacePartService).
+            if (type === HEIGHT_CUT_PART_TYPE || type === HEIGHT_FACE_PART_TYPE) {
+              removeHeightFacePartService({
+                annotation: annotationsRef.current?.find((a) => a.id === selectedNode.nodeId),
+                partId: selectedPartId,
+              });
+              dispatch(setSubSelection({ partId: null, partType: null }));
               e.stopPropagation();
               return;
             }

@@ -10,6 +10,9 @@ import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPerm
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import addHeightCutLineService from "Features/heightCuts/services/addHeightCutLineService";
+
 import cutSurfaceAlongPathService from "../services/cutSurfaceAlongPathService";
 
 // Commit of a « Couper une surface » trace (2D editor). The surfaces cut are
@@ -46,6 +49,8 @@ export default function useHandleSurfaceCutCommit({
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const baseMap = useMainBaseMap();
+  // « Ne pas découper »: the trace becomes a height cut of the surfaces.
+  const heightCutOnCommit = useSelector((s) => s.mapEditor.heightCutOnCommit);
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
   const { isReadOnly: isReadOnlyScope } = useReadOnlyScope();
@@ -102,6 +107,25 @@ export default function useHandleSurfaceCutCommit({
 
     busyRef.current = true;
     try {
+      if (heightCutOnCommit) {
+        const result = await addHeightCutLineService({
+          hosts: (annotations ?? []).filter((a) => editableIds.includes(a.id)),
+          pathPx: points,
+          imageSize: { width, height },
+          meterByPx: baseMap?.getMeterByPx?.(),
+          projectId,
+        });
+        if (result.cutCount) dispatch(triggerAnnotationsUpdate());
+        else {
+          dispatch(
+            setToaster({
+              message: noCutByReasonS[result.reason] ?? noCutByReasonS.FAILED,
+              severity: "warning",
+            })
+          );
+        }
+        return;
+      }
       const result = await cutSurfaceAlongPathService({
         annotationIds: editableIds,
         path: points.map((p) => ({ x: p.x / width, y: p.y / height })),

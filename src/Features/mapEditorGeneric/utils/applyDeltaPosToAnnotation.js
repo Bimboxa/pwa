@@ -504,6 +504,20 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
                 points: transformPoints(line.points),
             }));
         }
+
+        if (_annotation.heightCuts) {
+            _annotation.heightCuts = _annotation.heightCuts.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
+
+        if (_annotation.heightCutFaces) {
+            _annotation.heightCutFaces = _annotation.heightCutFaces.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
     }
 
     return _annotation;

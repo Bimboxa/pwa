@@ -329,6 +329,12 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
   (annotation?.layoutLines ?? []).forEach((l) =>
     (l?.points ?? []).forEach(push)
   );
+  (annotation?.heightCuts ?? []).forEach((c) =>
+    (c?.points ?? []).forEach(push)
+  );
+  (annotation?.heightCutFaces ?? []).forEach((f) =>
+    (f?.points ?? []).forEach(push)
+  );
   return refs;
 };
 
@@ -342,6 +348,8 @@ import { selectDisabledAnnotationListingIdsKey } from "Features/listings/selecto
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
+import resolveHeightCuts from "Features/heightCuts/utils/resolveHeightCuts";
+import computeHeightFaces from "Features/heightCuts/utils/computeHeightFaces";
 import getEffectiveAnnotationType from "Features/annotations/utils/getEffectiveAnnotationType";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
@@ -1919,6 +1927,27 @@ export default function useAnnotationsV2(options) {
                 cuts: _annotation.cuts,
               });
             }
+          }
+
+          // --- HEIGHT CUTS (traces + the faces they delimit) ---
+          if (annotation.heightCuts?.length && annotation.type === "POLYGON") {
+            const heightCuts = resolveHeightCuts({
+              heightCuts: annotation.heightCuts,
+              heightCutFaces: annotation.heightCutFaces,
+              pointsIndex,
+              imageSize,
+            });
+            _annotation.heightCuts = heightCuts.traces;
+            _annotation.heightCutFaces = heightCuts.faceEntries;
+            _annotation.heightFaces = annotation.isMesh3d
+              ? []
+              : computeHeightFaces({
+                  contour: _annotation.points,
+                  holes: (_annotation.cuts ?? []).map((cut) => cut.points),
+                  traces: heightCuts.traces,
+                  faceEntries: heightCuts.faceEntries,
+                  scale: meterByPx > 0 ? meterByPx : 1,
+                });
           }
 
           // --- MISSING POINTS (orphaned refs, dropped above) ---

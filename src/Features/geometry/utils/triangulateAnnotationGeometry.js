@@ -11,6 +11,7 @@ import expandShellProfileArcs from "./expandShellProfileArcs";
 import drapeHoleRingsOnContour from "./drapeHoleRingsOnContour";
 import carveHolesInTopMesh from "./carveHolesInTopMesh";
 import isDegenerateRing from "./isDegenerateRing";
+import triangulateHeightFaces from "./triangulateHeightFaces";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -118,11 +119,38 @@ export default function triangulateAnnotationGeometry({
   // the bottom, the walls and the volume are unchanged. No effect without a
   // height.
   openTop = false,
+  // Height cuts (heightCuts/utils/computeHeightFaces): the partition of the
+  // polygon in faces [{ points, holes, delta, side }] sitting at their own
+  // level (delta in the units of `height`). FLAT polygons only (with or
+  // without a height): ignored with ring offsets, inner points, iso chords
+  // or a shell. See triangulateHeightFaces.
+  heightFaces = null,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) {
     return emptyResult();
   }
   const getSideMeta = buildSideMetaLookup(contour, holes, sideSegments);
+
+  if (
+    heightFaces?.length &&
+    !shell?.profiles?.length &&
+    !isoPartition?.isoChords?.length &&
+    !(innerPoints || []).length &&
+    ![contour, ...(holes || [])].some((ring) =>
+      (ring || []).some((p) => p?.offsetBottom || p?.offsetTop)
+    )
+  ) {
+    const stepped = triangulateHeightFaces({
+      faces: heightFaces,
+      contourSign: ringSignedArea(contour) < 0 ? -1 : 1,
+      height,
+      verticalLift,
+      unitScale,
+      openTop,
+      getSideMeta,
+    });
+    if (stepped) return stepped;
+  }
 
   // Holes without area are dropped: they carve nothing and earcut throws on
   // them (see isDegenerateRing).
@@ -943,6 +971,16 @@ function emitRingWalls(positions, indices, ring, height, verticalLift, reverseWi
       indices.push(v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3);
     }
   }
+}
+
+function ringSignedArea(ring) {
+  let s = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    s += a.x * b.y - b.x * a.y;
+  }
+  return s / 2;
 }
 
 // 2D shoelace (signed area absolute value) for a closed ring.

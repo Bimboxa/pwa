@@ -947,6 +947,16 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             }))
             .filter((c) => c.polyline.length >= 2)
         : [];
+      // Height cuts: the faces of the polygon in basemap-local units, each
+      // at its own level (delta in meters). Only when a face actually steps.
+      const heightFaces = annotation.heightFaces?.some((f) => f.delta !== 0)
+        ? annotation.heightFaces.map((f) => ({
+            points: pointsToLocal(f.points, baseMap),
+            holes: (f.holes || []).map((hole) => pointsToLocal(hole, baseMap)),
+            delta: f.delta,
+            side: f.side,
+          }))
+        : null;
       object = extrudeClosedShape(
         pts,
         height,
@@ -955,6 +965,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         verticalLift,
         innerPts,
         {
+          heightFaces,
           gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
           view3d: annotation._view3d,
           resolution: options?.resolution,

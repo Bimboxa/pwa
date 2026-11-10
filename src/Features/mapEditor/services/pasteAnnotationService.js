@@ -189,6 +189,8 @@ export default async function pasteAnnotationService({
       isoHeightLines: _srcIsoHeightLines,
       profileLines: _srcProfileLines,
       layoutLines: _srcLayoutLines,
+      heightCuts: _srcHeightCuts,
+      heightCutFaces: _srcHeightCutFaces,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
 
@@ -453,6 +455,33 @@ export default async function pasteAnnotationService({
             points: lTransformed.map((pt) => ({
               pointId: normalize(pt, sourceAnnotation),
               type: "square",
+            })),
+          };
+        });
+      }
+
+      // Height cuts (traces) and the seeds of their faces: same rigid
+      // transform + fresh db.points, meta (delta / side / closeLine) carried
+      // from the snapshot.
+      for (const [field, baseField] of [
+        ["heightCuts", "baseHeightCuts"],
+        ["heightCutFaces", "baseHeightCutFaces"],
+      ]) {
+        if (!item[baseField]?.length) continue;
+        clonedAnnotation[field] = item[baseField].map((l) => {
+          const { points: lPoints, ...meta } = l;
+          const lTransformed = applyPasteTransformToPoints(
+            lPoints,
+            sourceCenter,
+            targetCenter,
+            transform
+          );
+          return {
+            ...meta,
+            id: nanoid(),
+            points: lTransformed.map((pt, i) => ({
+              pointId: normalize(pt, sourceAnnotation),
+              ...(lPoints[i]?.type ? { type: lPoints[i].type } : {}),
             })),
           };
         });

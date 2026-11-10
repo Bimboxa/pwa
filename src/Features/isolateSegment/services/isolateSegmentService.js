@@ -32,6 +32,8 @@ const KEPT_ONLY_FIELDS = [
   "isoHeightLines",
   "profileLines",
   "layoutLines",
+  "heightCuts",
+  "heightCutFaces",
   "innerPoints",
   "meshLines",
   "meshLinesBySegment",

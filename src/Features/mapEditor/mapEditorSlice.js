@@ -46,6 +46,13 @@ const mapEditorInitialState = {
   repairMode: "AUTO", // localized-repair type override: "AUTO" | "L" | "T" | "SMOOTH"
   autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
+  // « Ne pas découper » of the opening / surface cut tools: the drawn shape
+  // becomes a height cut (annotation.heightCuts) — a face with an altitude
+  // delta — instead of a hole / a split. Delta (m) and side ("TOP" |
+  // "BOTTOM") given to a closed shape at commit.
+  heightCutOnCommit: false,
+  heightCutDelta: 0.2,
+  heightCutSide: "TOP",
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
   defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
   joinMergeIfPossible: true, // JOIN_ANNOTATIONS (Joindre): when true, two ends of walls sharing the same template and width are merged into one polyline (junction vertex at the intersection) instead of being joined as a corner
@@ -453,6 +460,15 @@ export const mapEditorSlice = createSlice({
     },
     setAutoOffsetsOnCommit: (state, action) => {
       state.autoOffsetsOnCommit = action.payload;
+    },
+    setHeightCutOnCommit: (state, action) => {
+      state.heightCutOnCommit = Boolean(action.payload);
+    },
+    setHeightCutDelta: (state, action) => {
+      state.heightCutDelta = action.payload;
+    },
+    setHeightCutSide: (state, action) => {
+      state.heightCutSide = action.payload;
     },
     setAvoidVisibleAnnotationsOnCommit: (state, action) => {
       state.avoidVisibleAnnotationsOnCommit = action.payload;
@@ -1102,6 +1118,9 @@ export const {
   setDrawingHasFirstPoint,
   setRepairMode,
   setAutoMergeOnCommit,
+  setHeightCutOnCommit,
+  setHeightCutDelta,
+  setHeightCutSide,
   setJoinMergeIfPossible,
   setCoplanarPoints3d,
   setMeshBrushPartMode,
