@@ -46,7 +46,8 @@ function getItemPlacement(item) {
  * baseMap items) declared by a Krto creation configuration
  * (configuration.baseMaps.listings).
  * A pre-existing project listing with the same name (and verticalBaseMaps
- * flag) is reused instead of duplicated — pass it via existingListings.
+ * flag) is reused instead of duplicated — pass it via existingListings —
+ * unless the listing config is tagged `forceNew` (disableExistingListings).
  * A listing config flagged `fallback: true` only exists for projects without
  * any BASE_MAP listing yet: when the project already has some, it is neither
  * created nor matched (the scope works with the existing listings).
@@ -98,17 +99,20 @@ export default function useCreateConfigurationBaseMaps() {
       };
     }
 
-    // reuse project listings matched by name + orientation flag
+    // reuse project listings matched by name + orientation flag — never for
+    // a listing tagged `forceNew` (resolveBaseMapPages: the configuration
+    // hides the existing dossiers and brings its own)
 
     const resolved = listingConfigs.map((listingConfig) => ({
       listingConfig,
-      existing:
-        _existingListings.find(
-          (l) =>
-            l.name === listingConfig.name &&
-            Boolean(l.verticalBaseMaps) ===
-              Boolean(listingConfig.verticalBaseMaps)
-        ) ?? null,
+      existing: listingConfig.forceNew
+        ? null
+        : (_existingListings.find(
+            (l) =>
+              l.name === listingConfig.name &&
+              Boolean(l.verticalBaseMaps) ===
+                Boolean(listingConfig.verticalBaseMaps)
+          ) ?? null),
     }));
 
     // new listings — ranked in configuration order, appended after the last
