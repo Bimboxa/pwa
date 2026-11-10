@@ -245,6 +245,33 @@ calculés par `useBlockDefinitions` (`sumBlockQties`).
 - **Pose en 3D** : même contrôleur que les objets 3D importés
   (`object3DPlacementController`, option `preview`) ; l'aperçu est un clone des
   prototypes. Déplacer / Tourner passent par `isBboxPlacedAnnotationType`.
+- **Repère du bloc partagé** : le calcul du repère (matrice inverse du bloc,
+  clones posés et marqués `sharedBlockResources`) vit dans
+  `threedEditor/js/utilsBlocksManager/blockFrame.js`. `BlocksManager` et la
+  construction hors scène d'une instance
+  (`meshPaint/services/createHeadlessBlockPrototypes.js`) l'utilisent tous
+  les deux : une instance construite hors scène a le même hash de géométrie
+  que l'instance affichée.
+
+### 6.6 Blocs créés par une procédure
+
+Une procédure auto peut créer un bloc et ses instances (première utilisation :
+les podiums de `PISCINE_INIT_V1`, un bloc « Podium » instancié par ligne de
+nage) :
+
+- le fond de plan de blocs est créé par `createBlocksBaseMapService`, qui
+  accepte une taille et une échelle (`sideM`, `scale`) — une page de 3 m au
+  1:10 pour un podium de 50 cm ;
+- le bloc est créé vide (`createBlockService`) ; la procédure dessine son
+  membre (`blockId` posé à la création), puis écrit `block.origin` : le point
+  d'insertion est choisi par la procédure, pas le centre des membres ;
+- les instances sont des lignes `BLOCK_INSTANCE` écrites telles quelles
+  (ancre normalisée, rotation, `offsetZ`), marquées comme sorties de la
+  procédure : un relancement les remplace, le bloc et ses membres restent ;
+- une instance peut porter des peintures (`db.meshPaints`, voir
+  `meshPaint/README.md` « Peintures créées par une procédure ») : les
+  quantités peintes sont comptées par instance, sans passer par
+  `expandBlockInstances`.
 
 Ce que la V1 apporte : une seule construction de géométrie par bloc et des
 tampons GPU partagés. Ce qu'elle n'apporte pas : la réduction du nombre de draw
@@ -350,6 +377,8 @@ propriétés du modèle).
   d'`InteractionLayer.jsx`), `mapEditor/services/pasteAnnotationService.js`
   (option `keepSourceIds`).
 - **Éditeur 3D** : `threedEditor/js/BlocksManager.js` (nouveau),
+  `threedEditor/js/utilsBlocksManager/blockFrame.js` (repère du bloc, partagé
+  avec `meshPaint/services/createHeadlessBlockPrototypes.js`),
   `ThreedEditor.js` (`loadBlockDefinitions`), `AnnotationsManager.js` (garde
   de libération), `utilsAnnotationsManager/createAnnotationObject3D.js`,
   `hooks/useAutoLoadAnnotationsInThreedEditor.js`,

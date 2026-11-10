@@ -15,14 +15,21 @@ import getNextBlocksBaseMapName from "../utils/getNextBlocksBaseMapName";
 // docs/baseMaps/WHITE_PAGE_BASE_MAPS.md) tagged `isBlocksBaseMap`, belonging
 // to no base map listing (listingId null, like a detail base map) so that no
 // folder-driven UI lists it. Project-shared, like every base map.
+// `sideM` / `scale` size the page (defaults: 20 m at 1:50) — a page meant for
+// one small block (a 50 cm podium…) reads better as a few meters at 1:10.
 // Returns the db.baseMaps record.
-export default async function createBlocksBaseMapService({ projectId, name }) {
+export default async function createBlocksBaseMapService({
+  projectId,
+  name,
+  sideM,
+  scale,
+}) {
   if (!projectId) throw new Error("projectId is required");
 
-  const side = Math.round(
-    ((BLOCKS_BASE_MAP_SIDE_M * 1000) / BLOCKS_BASE_MAP_SCALE) * PX_PER_MM
-  );
-  const meterByPx = BLOCKS_BASE_MAP_SCALE / (PX_PER_MM * 1000);
+  const pageSideM = sideM > 0 ? sideM : BLOCKS_BASE_MAP_SIDE_M;
+  const pageScale = scale > 0 ? scale : BLOCKS_BASE_MAP_SCALE;
+  const side = Math.round(((pageSideM * 1000) / pageScale) * PX_PER_MM);
+  const meterByPx = pageScale / (PX_PER_MM * 1000);
   const image = getWhitePageImageField({ width: side, height: side });
 
   const existing = (
