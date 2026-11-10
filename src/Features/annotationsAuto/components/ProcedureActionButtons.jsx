@@ -167,9 +167,15 @@ export default function ProcedureActionButtons({
   // read fresh from Dexie (not from the liveQuery state above): "Relancer"
   // chains reset → run in one handler and must delete the previous drawing
   // BEFORE the new one is committed, whatever the render timing.
-  async function resetProcedure() {
+  // includeKept: the explicit « Supprimer » also deletes what the procedure
+  // keeps across its relaunches (registry `keptOutputs`).
+  async function resetProcedure({ includeKept = false } = {}) {
     const message = formatDeletedOutputsMessage(
-      await deleteOutputs({ procedureKey, sourceAnnotationIds: sourceIds })
+      await deleteOutputs({
+        procedureKey,
+        sourceAnnotationIds: sourceIds,
+        includeKept,
+      })
     );
     if (message) dispatch(setToaster({ message }));
   }
@@ -210,7 +216,7 @@ export default function ProcedureActionButtons({
     if (running) return;
     setRunning(true);
     try {
-      await resetProcedure();
+      await resetProcedure({ includeKept: true });
     } finally {
       setRunning(false);
     }
