@@ -64,14 +64,15 @@ const EMPTY = [];
  *   d'eau surfaces revolve around): the parameters are edited right under
  *   the line (listing.procedureParams[key]) and the play button runs the
  *   procedure straight away, replace-on-rerun, the axis as source;
- * - drawn source (registry `drawSourceOnLaunch` + `launchOnSourceCreated` +
- *   `paramsDialog` — e.g. the reference segment of a pool): with no source
- *   on the base map yet, the play button ARMS THE DRAWING of the source
- *   template (the listing template linking the procedure through its
- *   `procedureKeys`); committing it auto-opens the params dialog
- *   (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet). With exactly
- *   one source, the play button reopens that dialog on it (update). Several
- *   sources fall back to the default dialog below;
+ * - drawn source (registry `drawSourceOnLaunch` + `paramsDialog` — e.g. the
+ *   water surface of a pool): with no source on the base map yet, the play
+ *   button ARMS THE DRAWING of the source template (the listing template
+ *   linking the procedure through its `procedureKeys`); with
+ *   `launchOnSourceCreated`, committing it auto-opens the params dialog
+ *   (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet) — without it
+ *   the user comes back to the play button. With exactly one source, the
+ *   play button opens that dialog on it (launch / update). Several sources
+ *   fall back to the default dialog below;
  * - direct launch (registry `directLaunch` — a procedure without any option
  *   to pick, e.g. the pool « Quantités clé »): the play / refresh button
  *   runs it straight away on the listing's sources, replace-on-rerun;
@@ -163,12 +164,11 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     !isPromptIa &&
     Boolean(procedure?.paramsDialog) &&
     (procedure?.sourceAnnotationTypes ?? []).includes("REVOLUTION_AXIS");
-  // source drawn at launch, its commit auto-opening the params dialog
+  // source drawn at launch, the params dialog opened on it
   const isDrawnSourceSystem =
     !isPromptIa &&
     !isAxisSystem &&
     Boolean(procedure?.drawSourceOnLaunch) &&
-    Boolean(procedure?.launchOnSourceCreated) &&
     Boolean(procedure?.paramsDialog);
   // no option to pick: play / refresh run straight away
   const isDirectLaunch =
@@ -251,6 +251,9 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
           await deleteOutputs({
             procedureKey: procedure.key,
             sourceAnnotationIds,
+            // explicit delete: what the procedure keeps across relaunches
+            // goes too
+            includeKept: true,
           })
         );
         if (message) dispatch(setToaster({ message }));

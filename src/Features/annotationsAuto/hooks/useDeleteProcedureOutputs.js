@@ -16,7 +16,14 @@ import getProcedurePaintOutputs, {
  * painted parts. Both are read fresh from Dexie at call time, so a relaunch
  * chained right after never stacks a second result on the first.
  *
- * Returns async ({ procedureKey, sourceAnnotationIds }) =>
+ * `includeKept` (the explicit « Supprimer » of a launcher, never a
+ * relaunch): also deletes what the procedure deliberately KEEPS across its
+ * relaunches — annotations it untagged because the user edits them (e.g. the
+ * gutter profiles of a pool). The registry entry lists them with
+ * `keptOutputs: () => import(...)`, a module whose default export is
+ * async ({ projectId, sourceAnnotationIds }) => annotation ids.
+ *
+ * Returns async ({ procedureKey, sourceAnnotationIds, includeKept }) =>
  *   { annotations: number, paints: number } — what was deleted.
  */
 export default function useDeleteProcedureOutputs() {
@@ -24,7 +31,7 @@ export default function useDeleteProcedureOutputs() {
   const appConfig = useAppConfig();
   const deleteAnnotations = useDeleteAnnotations();
 
-  return async ({ procedureKey, sourceAnnotationIds }) => {
+  return async ({ procedureKey, sourceAnnotationIds, includeKept = false }) => {
     const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
     const procedure = procedures.find((p) => p.key === procedureKey);
     const sourceIds = (sourceAnnotationIds ?? []).filter(Boolean);
@@ -52,10 +59,21 @@ export default function useDeleteProcedureOutputs() {
       chainedProcedureKeys: procedure.chainedProcedureKeys,
       procedures,
     });
-    if (annotations.length > 0) {
-      await deleteAnnotations(annotations.map((a) => a.id));
+    const ids = new Set(annotations.map((a) => a.id));
+    if (includeKept && typeof procedure.keptOutputs === "function") {
+      try {
+        const getKeptOutputs = (await procedure.keptOutputs()).default;
+        const keptIds = await getKeptOutputs({
+          projectId,
+          sourceAnnotationIds: sourceIds,
+        });
+        (keptIds ?? []).filter(Boolean).forEach((id) => ids.add(id));
+      } catch (e) {
+        console.error("[useDeleteProcedureOutputs] keptOutputs failed", e);
+      }
     }
+    if (ids.size > 0) await deleteAnnotations([...ids]);
 
-    return { annotations: annotations.length, paints: paints.length };
+    return { annotations: ids.size, paints: paints.length };
   };
 }
