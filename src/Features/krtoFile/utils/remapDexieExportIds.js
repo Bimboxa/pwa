@@ -283,6 +283,24 @@ export default function remapDexieExportIds(jsonData, opts) {
         };
       }
 
+      // Path array (« Calepinage » of a POLYLINE): the source's template ref
+      // and the generated elements' source ref.
+      if (tableName === "annotations" && row.pathArray?.annotationTemplateId) {
+        row.pathArray = {
+          ...row.pathArray,
+          annotationTemplateId: remapId(
+            "annotationTemplates",
+            row.pathArray.annotationTemplateId
+          ),
+        };
+      }
+      if (tableName === "annotations" && row.pathArraySourceAnnotationId) {
+        row.pathArraySourceAnnotationId = remapId(
+          "annotations",
+          row.pathArraySourceAnnotationId
+        );
+      }
+
       // Mesh cell provenance (nested refs, informational only).
       if (tableName === "meshes3d" && row.sourceInfo) {
         if (row.sourceInfo.annotationId)

@@ -8,6 +8,7 @@ import collectReferencedPointIds from "Features/annotations/utils/collectReferen
 import softDeleteOrphanPoints from "Features/annotations/services/softDeleteOrphanPoints";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
 import { getLiveMeshPaintIdsByHostIds } from "Features/meshPaint/services/deleteMeshPaintsService";
+import collectPathArrayChildren from "Features/pathArray/services/collectPathArrayChildren";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -65,6 +66,22 @@ export default function useDeleteAnnotations() {
         idsToDelete.push(c.id);
         idsToDeleteSet.add(c.id);
       }
+    }
+
+    // 1a-quater. Cascade to path array elements (« Calepinage » of a POLYLINE,
+    // `pathArraySourceAnnotationId`): generated from their source, they go
+    // with it — in the same undo group, so Ctrl+Z restores both.
+    const pathArrayChildren = (
+      await collectPathArrayChildren({
+        sourceIds: validAnnotations
+          .filter((a) => a.pathArray)
+          .map((a) => a.id),
+      })
+    ).filter((a) => !idsToDeleteSet.has(a.id));
+    for (const c of pathArrayChildren) {
+      validAnnotations.push(c);
+      idsToDelete.push(c.id);
+      idsToDeleteSet.add(c.id);
     }
 
     // 1a-bis. Collect mesh relations touching any deleted annotation (as parent

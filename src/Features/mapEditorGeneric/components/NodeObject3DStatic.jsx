@@ -28,6 +28,25 @@ export default memo(function NodeObject3DStatic({
   // generated from db.files for annotations created before it existed).
   const topViewUrl = useObject3DTopView(annotation.object3D);
 
+  // Cut object (path array, « Calepinage » — annotation.object3DCut): the
+  // bbox is the footprint of the KEPT part while the top view shows the whole
+  // object, so the image is drawn at its full size and cropped to the bbox
+  // (stretching it would squash the object).
+  const cut = annotation.object3DCut;
+  const modelBox = annotation.object3D?.bbox;
+  let imageWidth = displayWidth;
+  let imageHeight = displayHeight;
+  if (cut && modelBox?.min && Number.isFinite(cut.max)) {
+    const full = cut.axis === "z" ? modelBox.depth : modelBox.width;
+    const kept = cut.max - modelBox.min[cut.axis === "z" ? "z" : "x"];
+    if (kept > 0 && full > kept) {
+      if (cut.axis === "z") imageHeight = (displayHeight * full) / kept;
+      else imageWidth = (displayWidth * full) / kept;
+    }
+  }
+  const isCropped =
+    imageWidth !== displayWidth || imageHeight !== displayHeight;
+
   const handleScaleTransform = useMemo(() => {
     const k = containerK || 1;
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
@@ -152,7 +171,27 @@ export default memo(function NodeObject3DStatic({
       style={{ opacity: dragged ? 0.7 : opacity ?? 1 }}
     >
       <g {...interactionProps}>
-        {topViewUrl ? (
+        {topViewUrl && isCropped ? (
+          <svg
+            x={0}
+            y={0}
+            width={displayWidth}
+            height={displayHeight}
+            viewBox={`0 0 ${displayWidth} ${displayHeight}`}
+            preserveAspectRatio="none"
+            overflow="hidden"
+          >
+            <image
+              href={topViewUrl}
+              x={0}
+              y={0}
+              width={imageWidth}
+              height={imageHeight}
+              preserveAspectRatio="none"
+              style={{ cursor: cursorStyle }}
+            />
+          </svg>
+        ) : topViewUrl ? (
           <image
             href={topViewUrl}
             x={0}

@@ -39,6 +39,7 @@ import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 import FieldAnnotationImage from "./FieldAnnotationImage";
 import FieldImageAnnotationDetails from "Features/imageAnnotations/components/FieldImageAnnotationDetails";
 import FieldAnnotationOpacity from "./FieldAnnotationOpacity";
+import SectionAnnotationPathArray from "Features/pathArray/components/SectionAnnotationPathArray";
 
 // hideOverview: the hosting panel renders the preview / height / quantities
 // card and the label field itself, above the tabs (panel annotation subview)
@@ -250,6 +251,11 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {type === "LINEAR_LAYOUT" && (
           <FieldAnnotationLinearLayout annotation={annotation} />
+        )}
+        {/* Calepinage (path array): repeats a template along a POLYLINE,
+            chord by chord. Self-hiding on the generated elements. */}
+        {type === "POLYLINE" && (
+          <SectionAnnotationPathArray annotation={annotation} />
         )}
         {!isFreeText && <FieldAnnotationIsProfile annotation={annotation} />}
         {!isFreeText && <FieldAnnotationIsEraser annotation={annotation} />}

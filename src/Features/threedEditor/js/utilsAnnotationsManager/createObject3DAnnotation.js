@@ -3,6 +3,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import db from "App/db/db";
 
+import sliceObject3DAlongAxis from "Features/object3D/utils/sliceObject3DAlongAxis";
+
 import pixelToWorld from "./pixelToWorld";
 
 // Compose two rotations:
@@ -33,7 +35,8 @@ function bboxCenterPx(bbox) {
 // db.files and returns a basemap-local-Z-up `modelWrap` Group: footprint
 // center at the origin, base at local Z = 0. Shared by the committed
 // annotation renderer below and the placement-mode mouse preview so both
-// render the exact same model.
+// render the exact same model. `options.cut` ({ axis, max }, glTF frame) cuts
+// the model first (sliceObject3DAlongAxis).
 export async function buildObject3DModelWrap(object3D, options) {
   const fileName = object3D?.fileName;
   if (!fileName) {
@@ -80,6 +83,14 @@ export async function buildObject3DModelWrap(object3D, options) {
       oldMat.dispose();
     });
 
+  // Cut object (path array, « Calepinage »): keep the part up to `cut.max`
+  // along the glTF axis `cut.axis`. Done BEFORE the recentering below so the
+  // kept part is what gets centered — like its 2D footprint (annotation.bbox
+  // is the footprint of the kept part).
+  if (options?.cut) {
+    sliceObject3DAlongAxis(gltf.scene, options.cut.axis, options.cut.max);
+  }
+
   // Recenter the model: its glTF origin can be anywhere (wheel base, corner…),
   // but the 2D footprint and top view are centered on the bounding-box center.
   // Put the footprint center at the group origin (also the rotation pivot,
@@ -113,7 +124,12 @@ export default async function createObject3DAnnotation(
     return null;
   }
 
-  const modelWrap = await buildObject3DModelWrap(annotation.object3D, options);
+  const modelWrap = await buildObject3DModelWrap(
+    annotation.object3D,
+    annotation.object3DCut
+      ? { ...options, cut: annotation.object3DCut }
+      : options
+  );
   if (!modelWrap) return null;
 
   // Outer group holds the 2D rotation (around basemap-local Z, which maps to
