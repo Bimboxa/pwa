@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -62,6 +62,22 @@ export default function SectionAnnotationPathArray({ annotation }) {
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
+  // The template list loads AFTER the menu opened (ListPickAnnotationTemplate
+  // owns its queries): the popover, positioned on the still empty list, must
+  // be re-positioned once the rows are in, or it runs past the window bottom
+  // and its last rows cannot be reached.
+  const menuActionRef = useRef(null);
+  const menuObserverRef = useRef(null);
+  const menuContentRef = useCallback((node) => {
+    menuObserverRef.current?.disconnect();
+    menuObserverRef.current = null;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() =>
+      menuActionRef.current?.updatePosition()
+    );
+    observer.observe(node);
+    menuObserverRef.current = observer;
+  }, []);
 
   // helpers
 
@@ -133,14 +149,24 @@ export default function SectionAnnotationPathArray({ annotation }) {
             open
             anchorEl={anchorEl}
             onClose={() => setAnchorEl(null)}
-            slotProps={{ paper: { sx: { maxHeight: 360, width: 320 } } }}
+            action={menuActionRef}
+            slotProps={{
+              paper: {
+                sx: {
+                  maxHeight: "min(360px, calc(100vh - 32px))",
+                  width: 320,
+                },
+              },
+            }}
           >
-            <ListPickAnnotationTemplate
-              filterTemplate={filterTemplate}
-              selectedAnnotationTemplateId={templateId}
-              onChange={handleTemplateChange}
-              emptyText={emptyS}
-            />
+            <Box ref={menuContentRef}>
+              <ListPickAnnotationTemplate
+                filterTemplate={filterTemplate}
+                selectedAnnotationTemplateId={templateId}
+                onChange={handleTemplateChange}
+                emptyText={emptyS}
+              />
+            </Box>
           </Menu>
         )}
         {hasTemplate && (
