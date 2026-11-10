@@ -362,6 +362,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
       hiddenExistingListingIds,
       pageTargets: baseMapPageTargets,
       renamedListingNames: renamedBaseMapListingNames,
+      disableExistingListings: Boolean(
+        configuration?.baseMaps?.disableExistingListings
+      ),
     });
 
     // pages grouped by target dossier, as bare configuration items

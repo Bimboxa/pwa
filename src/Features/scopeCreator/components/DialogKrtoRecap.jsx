@@ -259,7 +259,13 @@ export default function DialogKrtoRecap({
       ? [{ name: GENERIC_BASE_MAP_LISTING_NAME, items: [] }]
       : [];
 
+  // disableExistingListings: the configuration brings its own dossiers,
+  // never matched with a project listing of the same name
+  const neverReuseExisting = Boolean(
+    configuration?.baseMaps?.disableExistingListings
+  );
   function findExistingListing(listingConfig) {
+    if (neverReuseExisting) return null;
     return matchExistingListing(listingConfig, existingListings);
   }
 
@@ -308,6 +314,7 @@ export default function DialogKrtoRecap({
     hiddenExistingListingIds,
     pageTargets: baseMapPageTargets,
     renamedListingNames: _renamedListingNames,
+    disableExistingListings: neverReuseExisting,
   });
   // declared dossiers that will be created (not matched, not removed, not a
   // dropped fallback) — renamed inline, keyed by their declared name

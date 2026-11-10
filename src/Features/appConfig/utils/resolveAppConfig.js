@@ -251,7 +251,10 @@ export default async function resolveAppConfig(appConfig) {
   //     keywords: { ouvrage: [], type: [], options: [] },
   //     baseMaps: {
   //       disableExistingListings,  // hide the project's pre-existing
-  //                                 // BASE_MAP listings for this scope
+  //                                 // BASE_MAP listings for this scope;
+  //                                 // the listings below are then always
+  //                                 // CREATED, even when the project has
+  //                                 // one with the same name
   //       listings: [{ name, verticalBaseMaps,
   //         fallback,               // true => created only when the project
   //                                 // has no BASE_MAP listing at all

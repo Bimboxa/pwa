@@ -13,6 +13,13 @@
  * pageTargets) and the one matched against the project listings — so a row
  * never turns into a reused listing while being typed; the typed name
  * (trimmed, else the declared one) is the created listing's name.
+ *
+ * disableExistingListings (the configuration's flag: the project's
+ * pre-existing dossiers are hidden for this Krto) also means the
+ * configuration brings its OWN dossiers: a declared listing is then always
+ * created, even when a project listing carries the same name — never
+ * matched. Its config is tagged `forceNew` so createConfigurationBaseMaps
+ * does not re-match it by name either.
  */
 
 export const getNewFolderKey = (name) => `new:${name}`;
@@ -43,6 +50,7 @@ export default function resolveBaseMapPages({
   hiddenExistingListingIds,
   pageTargets,
   renamedListingNames,
+  disableExistingListings = false,
 }) {
   const _listingConfigs = listingConfigs ?? [];
   const _renamedListingNames = renamedListingNames ?? {};
@@ -71,7 +79,9 @@ export default function resolveBaseMapPages({
     const originalName = declaredConfig.name;
     if (_removedListingNames.includes(originalName)) continue;
     if (declaredConfig.fallback && _existingListings.length > 0) continue;
-    const existing = matchExistingListing(declaredConfig, _existingListings);
+    const existing = disableExistingListings
+      ? null
+      : matchExistingListing(declaredConfig, _existingListings);
     if (existing) {
       const targetKey = getExistingFolderKey(existing.id);
       folderKeyByListingName[originalName] = targetKey;
@@ -87,7 +97,11 @@ export default function resolveBaseMapPages({
     } else {
       const name = _renamedListingNames[originalName]?.trim() || originalName;
       // the config the hook creates from — carries the typed name
-      const listingConfig = { ...declaredConfig, name };
+      const listingConfig = {
+        ...declaredConfig,
+        name,
+        ...(disableExistingListings && { forceNew: true }),
+      };
       const targetKey = getNewFolderKey(name);
       folderKeyByListingName[originalName] = targetKey;
       pushFolder({
