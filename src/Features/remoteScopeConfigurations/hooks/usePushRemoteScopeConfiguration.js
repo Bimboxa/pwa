@@ -15,6 +15,7 @@ import resolveBodyTemplate from "Features/appConfig/utils/resolveBodyTemplate";
 import createKrtoZip from "Features/krtoFile/services/createKrtoZip";
 import computeScopeStats from "../services/computeScopeStats";
 import resolveRoute from "../utils/resolveRoute";
+import formatHttpErrorBody from "../utils/formatHttpErrorBody";
 
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 
@@ -110,8 +111,18 @@ export default function usePushRemoteScopeConfiguration() {
       });
 
       if (!response.ok) {
+        // Surface the backend's reason (ASP.NET problem details: field
+        // validation errors, title/detail) so the save toaster says which
+        // parameter was rejected instead of a bare status code.
+        const bodyText = await response.text().catch(() => "");
+        const detail = formatHttpErrorBody(bodyText);
+        console.error(
+          "[usePushRemoteScopeConfiguration] response body",
+          bodyText
+        );
         throw new Error(
-          `Erreur HTTP: ${response.status} pour l'url ${resolvedUrl}`
+          `Erreur HTTP: ${response.status} pour l'url ${resolvedUrl}` +
+            (detail ? ` — ${detail}` : "")
         );
       }
 
