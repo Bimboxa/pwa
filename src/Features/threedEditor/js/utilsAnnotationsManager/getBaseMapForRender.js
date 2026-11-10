@@ -1,3 +1,7 @@
+import getBaseMapRenderScale, {
+  getBaseMapReferenceSize,
+} from "../../../baseMaps/js/getBaseMapRenderScale.js";
+
 /**
  * The metrics createAnnotationObject3D needs to project an annotation's pixel
  * coordinates into its basemap-LOCAL meter frame. Position/rotation are not
@@ -16,11 +20,11 @@
  */
 export default function getBaseMapForRender(baseMap) {
   if (!baseMap) return null;
-  const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
+  const refSize = getBaseMapReferenceSize(baseMap);
   return {
     imageWidth: refSize?.width || 1,
     imageHeight: refSize?.height || 1,
-    meterByPx: baseMap.meterByPx || 0.01,
+    meterByPx: getBaseMapRenderScale(baseMap) || 0.01,
     // Needed by REVOLUTION: the revolution axis is the base map normal,
     // which is local +Z for HORIZONTAL and +Y for VERTICAL base maps.
     orientation: baseMap.orientation,

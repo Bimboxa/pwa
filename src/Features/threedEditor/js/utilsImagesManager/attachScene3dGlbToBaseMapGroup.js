@@ -6,7 +6,9 @@ import {
   createScene3dGlbBasicMaterial,
 } from "Features/scene3d/js/parseScene3dGlb";
 
-import { getEditorMeterByPx } from "./getEditorImageFromBaseMap";
+import getBaseMapRenderScale, {
+  getGlbModelUnitsPerPx,
+} from "Features/baseMaps/js/getBaseMapRenderScale";
 
 // GLB scene of a scan base map (scene3d.format "GLB") in the 3D editor: the
 // model kept as is, attached to the base map group so it follows the base
@@ -46,15 +48,10 @@ export default function attachScene3dGlbToBaseMapGroup(
   scanWrap.userData.kind = "baseMapScanWrap";
   scanWrap.userData.isDecor = true;
   if (scene3d.relativeToBaseMap) {
-    const refWidth =
-      baseMap.getImageSize?.()?.width ??
-      baseMap.refWidth ??
-      baseMap.image?.imageSize?.width;
-    const meterByPx = getEditorMeterByPx(baseMap);
-    if (!(refWidth > 0 && meterByPx > 0)) return null;
-    const modelUnitsPerPx = zone.width / refWidth;
+    const modelUnitsPerPx = getGlbModelUnitsPerPx(baseMap);
+    if (!modelUnitsPerPx) return null;
     scanWrap.userData.modelUnitsPerPx = modelUnitsPerPx;
-    scanWrap.scale.setScalar(meterByPx / modelUnitsPerPx);
+    scanWrap.scale.setScalar(getBaseMapRenderScale(baseMap) / modelUnitsPerPx);
   }
   group.add(scanWrap);
   group.userData.scanWrap = scanWrap;

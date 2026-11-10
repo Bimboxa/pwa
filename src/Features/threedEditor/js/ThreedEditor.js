@@ -5,9 +5,8 @@ import getBaseMapTransform, {
   BASE_MAP_ROTATION_ORDER,
 } from "Features/baseMaps/js/getBaseMapTransform";
 
-import getEditorImageFromBaseMap, {
-  getEditorMeterByPx,
-} from "./utilsImagesManager/getEditorImageFromBaseMap";
+import getBaseMapRenderScale from "Features/baseMaps/js/getBaseMapRenderScale";
+import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
 import getBaseMapPlaneFrame from "./utilsImagesManager/getBaseMapPlaneFrame";
 import BlocksManager from "./BlocksManager";
 import getBaseMapZoomOutView from "./utilsImagesManager/getBaseMapZoomOutView";
@@ -147,7 +146,7 @@ export default class ThreedEditor {
     // in the creation dialog, 0-sized invisible plane): the geometry comes
     // back at the right size as soon as a valid scale shows up.
     const prevMeterByPx = group.userData?.meterByPx;
-    const nextMeterByPx = getEditorMeterByPx(baseMap);
+    const nextMeterByPx = getBaseMapRenderScale(baseMap);
     if (
       Number.isFinite(nextMeterByPx) &&
       nextMeterByPx > 0 &&

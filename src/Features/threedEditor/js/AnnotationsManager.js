@@ -94,13 +94,9 @@ export default class AnnotationsManager {
     const baseMap =
       this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
     if (!baseMap) return null;
-    const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-    return [
-      refSize?.width || 1,
-      refSize?.height || 1,
-      baseMap.meterByPx || 0.01,
-      baseMap.orientation || "",
-    ].join(":");
+    const { imageWidth, imageHeight, meterByPx, orientation } =
+      getBaseMapForRender(baseMap);
+    return [imageWidth, imageHeight, meterByPx, orientation || ""].join(":");
   }
 
   // Split an incoming emission into { toCreate, toRemove } against the built

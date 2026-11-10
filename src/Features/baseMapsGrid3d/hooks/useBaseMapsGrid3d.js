@@ -16,6 +16,8 @@ import useDessinGridBaseMapIds from "./useDessinGridBaseMapIds";
 import { readBaseMapsGridPositions } from "Features/baseMapsGrid/hooks/useBaseMapsGridLayout";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getBaseMapRenderScale from "Features/baseMaps/js/getBaseMapRenderScale";
+
 import buildBaseMapsGrid3dSheets from "../utils/buildBaseMapsGrid3dSheets";
 import {
   isBaseMapAnnotationsOnIn3d,
@@ -142,7 +144,7 @@ export default function useBaseMapsGrid3d({
       return [
         baseMap.id,
         baseMap.name,
-        baseMap.meterByPx,
+        getBaseMapRenderScale(baseMap),
         zone?.format,
         zone?.orientation,
         zone?.x,

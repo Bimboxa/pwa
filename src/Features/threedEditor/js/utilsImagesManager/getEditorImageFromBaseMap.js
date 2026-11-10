@@ -3,13 +3,9 @@ import getBaseMapTransform, {
   BASE_MAP_ROTATION_ORDER,
 } from "Features/baseMaps/js/getBaseMapTransform";
 
-import getBaseMapForRender from "../utilsAnnotationsManager/getBaseMapForRender";
-
-export function getEditorMeterByPx(map) {
-  return map.scene3d?.relativeToBaseMap
-    ? getBaseMapForRender(map).meterByPx
-    : map.meterByPx;
-}
+import getBaseMapRenderScale, {
+  getBaseMapReferenceSize,
+} from "Features/baseMaps/js/getBaseMapRenderScale";
 
 // Annotation coordinates live in the REFERENCE frame (refWidth/refHeight —
 // see BaseMap.getImageSize): the active version's image may have a different
@@ -21,8 +17,8 @@ export function getEditorMeterByPx(map) {
 export default function getEditorImageFromBaseMap(map) {
   const t = getBaseMapTransform(map);
   const rotation = getBaseMapEuler(t);
-  const refSizePx = map.getImageSize?.() || map.image?.imageSize;
-  const meterByPx = getEditorMeterByPx(map);
+  const refSizePx = getBaseMapReferenceSize(map);
+  const meterByPx = getBaseMapRenderScale(map);
   const versionSizePx = map.image?.imageSize;
   const versionTransform = map.getActiveVersionTransform?.() || {
     x: 0,

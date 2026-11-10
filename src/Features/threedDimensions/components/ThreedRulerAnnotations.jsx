@@ -15,6 +15,7 @@ import { isZeroLabelOffset } from "Features/annotations/utils/getRulerSegmentKey
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManager/attachFatLineRaycast";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
 import createDimensionLabelSprite from "../services/createDimensionLabelSprite";
 import {
@@ -195,18 +196,16 @@ export default function ThreedRulerAnnotations({ annotations }) {
       // the next run of this effect.
       if (!baseMap || !parentGroup) return;
 
-      // Annotation pixel coords are resolved in the REFERENCE frame
-      // (mirrors AnnotationsManager's baseMapForRender).
-      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-      const meterByPx = baseMap.meterByPx || 0.01;
+      const { imageWidth, imageHeight, meterByPx } =
+        getBaseMapForRender(baseMap);
 
       const geom = computeRulerGeometry3d({
         points: ruler.points,
         offsetZ: ruler.offsetZ,
         extensionOffset: ruler.extensionOffset ?? 8,
         extensionOffsetUnit: ruler.extensionOffsetUnit ?? "PX",
-        imageWidth: refSize?.width || 1,
-        imageHeight: refSize?.height || 1,
+        imageWidth,
+        imageHeight,
         meterByPx,
       });
       if (!geom || !geom.segments.length) return;
@@ -338,7 +337,9 @@ export default function ThreedRulerAnnotations({ annotations }) {
           text: getCoteDisplayValue({
             p1: geom.pixelPoints[seg.index],
             p2: geom.pixelPoints[seg.index + 1],
-            meterByPx,
+            meterByPx: baseMap.scene3d?.relativeToBaseMap
+              ? baseMap.meterByPx
+              : meterByPx,
             unit: ruler.unit ?? DEFAULT_COTE_UNIT,
             decimals: ruler.decimals ?? DEFAULT_COTE_DECIMALS,
             showUnitLabel: ruler.showUnitLabel ?? true,
