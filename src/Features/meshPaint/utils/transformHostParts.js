@@ -260,7 +260,7 @@ export function islandsBox(islands) {
  * A host's parts (buildHostPartIndex result) brought into another frame.
  * @param {{islands, chains}} index
  * @param {number[]} m column-major 4×4
- * @returns {{islands, chains, box}}
+ * @returns {{islands, chains, box, isClosed}}
  */
 export function transformHostParts(index, m) {
   const islands = transformIslands(index?.islands, m);
@@ -268,5 +268,7 @@ export function transformHostParts(index, m) {
     islands,
     chains: transformChains(index?.chains, m),
     box: islandsBox(islands),
+    // a rigid map keeps the solid closed and its normals outward
+    isClosed: Boolean(index?.isClosed),
   };
 }

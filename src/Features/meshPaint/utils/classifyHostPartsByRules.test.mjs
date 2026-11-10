@@ -8,6 +8,7 @@ import classifyHostPartsByRules, {
 import weldSupportFootprints from "./weldSupportFootprints.js";
 import findReentrantChains from "./findReentrantChains.js";
 import findBaseEdgesOnSupports from "./findBaseEdgesOnSupports.js";
+import meterHostParts from "./meterHostParts.js";
 import { boxTriangles, quadTriangles, v } from "./meshPaintTestFixtures.mjs";
 
 // Role rules of the pool metering (mirror of piscineQtesParams.POOL_ROLE_RULES)
@@ -80,7 +81,13 @@ function shellTriangles() {
   // walls / floors between the section at y = 0 and y = l (top edge
   // segment F → A left out: the shell is open at the water plane)
   for (let i = 0; i + 1 < SECTION.length; i++) {
-    quadTriangles(SECTION[i], SECTION[i + 1], far(SECTION[i + 1]), far(SECTION[i]), out);
+    quadTriangles(
+      SECTION[i],
+      SECTION[i + 1],
+      far(SECTION[i + 1]),
+      far(SECTION[i]),
+      out
+    );
   }
   // caps: fan from the deep-end top corner (star-shaped from there)
   const apex = SECTION[5];
@@ -98,23 +105,43 @@ function shellTriangles() {
 
 const hostOf = (hostId, role, triangles) => {
   const index = buildHostPartIndex({ triangles: Float64Array.from(triangles) });
-  return { hostId, role, islands: index.islands, chains: index.chains, box: index.box };
+  return {
+    hostId,
+    role,
+    islands: index.islands,
+    chains: index.chains,
+    box: index.box,
+  };
 };
 
-const byCategory = (faces, category) => faces.filter((f) => f.category === category);
+const byCategory = (faces, category) =>
+  faces.filter((f) => f.category === category);
 const slopeLength = Math.hypot(L - La - Lb, P2 - P1);
 
 // --- (a) shell alone -------------------------------------------------------
 
 test("water prism: floors (flats + slope) and walls, normals toward the water", () => {
   const shell = hostOf("shell", "SHELL", shellTriangles());
-  const { faces, hosts } = classifyHostPartsByRules({ hosts: [shell], rules: RULES });
+  const { faces, hosts } = classifyHostPartsByRules({
+    hosts: [shell],
+    rules: RULES,
+  });
   const sol = byCategory(faces, "sol");
   const parois = byCategory(faces, "parois");
   assert.equal(sol.length, 3);
   assert.equal(parois.length, 4); // 2 end walls + 2 caps
-  assert.ok(near(sum(sol.map((f) => f.area)), La * l + Lb * l + slopeLength * l, 1e-6));
-  assert.ok(near(sum(parois.map((f) => f.area)), P1 * l + P2 * l + 2 * (La * P1 + Lb * P2 + ((L - La - Lb) * (P1 + P2)) / 2), 1e-6));
+  assert.ok(
+    near(sum(sol.map((f) => f.area)), La * l + Lb * l + slopeLength * l, 1e-6)
+  );
+  assert.ok(
+    near(
+      sum(parois.map((f) => f.area)),
+      P1 * l +
+        P2 * l +
+        2 * (La * P1 + Lb * P2 + ((L - La - Lb) * (P1 + P2)) / 2),
+      1e-6
+    )
+  );
   // floors point up (into the water), walls point inward
   assert.ok(sol.every((f) => f.normal.z > 0.5));
   const [oriented] = hosts;
@@ -131,7 +158,9 @@ test("water prism: re-entrant edges = floor–wall junctions, slope → deep flo
   const shell = hostOf("shell", "SHELL", shellTriangles());
   const { hosts } = classifyHostPartsByRules({ hosts: [shell], rules: RULES });
   const edges = findReentrantChains({ host: hosts[0] });
-  const lengths = edges.map((e) => Math.round(e.length * 1e6) / 1e6).sort((a, b) => a - b);
+  const lengths = edges
+    .map((e) => Math.round(e.length * 1e6) / 1e6)
+    .sort((a, b) => a - b);
   // along the width (l): shallow wall–floor, slope–deep floor, deep wall–floor
   assert.equal(lengths.filter((x) => near(x, l)).length, 3);
   // each cap borders 2 walls and 3 floors: 10 edges in all
@@ -141,13 +170,17 @@ test("water prism: re-entrant edges = floor–wall junctions, slope → deep flo
   // the flat → slope change at x = La is NOT re-entrant: no edge across at La
   assert.ok(
     !edges.some(
-      (e) => near(e.length, l) && near(e.points[0].x, La) && near(e.points[1].x, La)
+      (e) =>
+        near(e.length, l) && near(e.points[0].x, La) && near(e.points[1].x, La)
     )
   );
   // the slope → deep floor change at x = L − Lb is
   assert.ok(
     edges.some(
-      (e) => near(e.length, l) && near(e.points[0].x, L - Lb) && near(e.points[1].x, L - Lb)
+      (e) =>
+        near(e.length, l) &&
+        near(e.points[0].x, L - Lb) &&
+        near(e.points[1].x, L - Lb)
     )
   );
   assert.ok(edges.every((e) => e.sides.length === 2 && e.hostId === "shell"));
@@ -162,10 +195,16 @@ test("pit cube: top ignored, bottom = floor, sides = walls; the shell floor lose
   const pit = hostOf(
     "pit",
     "PIT",
-    boxTriangles(v(cx - f / 2, cy - f / 2, -P2 - f), v(cx + f / 2, cy + f / 2, -P2))
+    boxTriangles(
+      v(cx - f / 2, cy - f / 2, -P2 - f),
+      v(cx + f / 2, cy + f / 2, -P2)
+    )
   );
   const shell = hostOf("shell", "SHELL", shellTriangles());
-  const classified = classifyHostPartsByRules({ hosts: [shell, pit], rules: RULES });
+  const classified = classifyHostPartsByRules({
+    hosts: [shell, pit],
+    rules: RULES,
+  });
   const pitFaces = classified.faces.filter((face) => face.hostId === "pit");
   assert.equal(byCategory(pitFaces, "sol").length, 1);
   assert.equal(byCategory(pitFaces, "parois").length, 4);
@@ -187,7 +226,13 @@ test("pit cube: top ignored, bottom = floor, sides = walls; the shell floor lose
   assert.ok(near(deepFloor.area, Lb * l - f * f, 1e-6));
   // the other floors are untouched, the pit's own faces too
   assert.equal(welded.filter((face) => face.welded).length, 1);
-  assert.ok(near(sum(byCategory(welded, "sol").map((x) => x.area)), La * l + Lb * l + slopeLength * l, 1e-6));
+  assert.ok(
+    near(
+      sum(byCategory(welded, "sol").map((x) => x.area)),
+      La * l + Lb * l + slopeLength * l,
+      1e-6
+    )
+  );
   // pit edges never count
   assert.equal(RULES.PIT.angles, null);
 });
@@ -209,13 +254,20 @@ function openBoxTriangles(min, max) {
 test("low wall without its base on a deck sheet: top = non-slip, walls, sheet minus footprint, base edges", () => {
   const Em = 0.35;
   const Hm = 0.45;
-  const wall = hostOf("wall", "WALL", openBoxTriangles(v(-Em, 0, 0), v(0, 4, Hm)));
+  const wall = hostOf(
+    "wall",
+    "WALL",
+    openBoxTriangles(v(-Em, 0, 0), v(0, 4, Hm))
+  );
   const sheet = hostOf(
     "deck",
     "DECK",
     quadTriangles(v(-1, -1, 0), v(1, -1, 0), v(1, 0.5, 0), v(-1, 0.5, 0))
   );
-  const classified = classifyHostPartsByRules({ hosts: [wall, sheet], rules: RULES });
+  const classified = classifyHostPartsByRules({
+    hosts: [wall, sheet],
+    rules: RULES,
+  });
   const wallFaces = classified.faces.filter((face) => face.hostId === "wall");
   assert.equal(byCategory(wallFaces, "antiderapant").length, 1);
   assert.ok(near(byCategory(wallFaces, "antiderapant")[0].area, Em * 4));
@@ -256,7 +308,13 @@ test("gutter sheet with a 2 cm rebate: only the faces at z ≈ 0 are non-slip", 
   const out = [];
   quadTriangles(v(0, 0, 0), v(1, 0, 0), v(1, 2, 0), v(0, 2, 0), out); // deck
   quadTriangles(v(1, 0, 0), v(1, 0, -0.02), v(1, 2, -0.02), v(1, 2, 0), out); // riser
-  quadTriangles(v(1, 0, -0.02), v(1.5, 0, -0.02), v(1.5, 2, -0.02), v(1, 2, -0.02), out); // seat
+  quadTriangles(
+    v(1, 0, -0.02),
+    v(1.5, 0, -0.02),
+    v(1.5, 2, -0.02),
+    v(1, 2, -0.02),
+    out
+  ); // seat
   const gutter = hostOf("gutter", "DECK", out);
   const { faces } = classifyHostPartsByRules({ hosts: [gutter], rules: RULES });
   assert.equal(faces.length, 1);
@@ -270,15 +328,112 @@ test("podium sheet: sloped top is non-slip, back and front are walls", () => {
   const Hm = 0.45;
   // side view swept along y ∈ [1, 1.5]: back at x = −0.5 (0.5 high), top
   // sloping to 0.45 at the pool side x = 0, front at x = 0
-  quadTriangles(v(-0.5, 1, Hm), v(-0.5, 1.5, Hm), v(-0.5, 1.5, Hm + 0.5), v(-0.5, 1, Hm + 0.5), out);
-  quadTriangles(v(-0.5, 1, Hm + 0.5), v(-0.5, 1.5, Hm + 0.5), v(0, 1.5, Hm + 0.45), v(0, 1, Hm + 0.45), out);
-  quadTriangles(v(0, 1, Hm + 0.45), v(0, 1.5, Hm + 0.45), v(0, 1.5, Hm), v(0, 1, Hm), out);
+  quadTriangles(
+    v(-0.5, 1, Hm),
+    v(-0.5, 1.5, Hm),
+    v(-0.5, 1.5, Hm + 0.5),
+    v(-0.5, 1, Hm + 0.5),
+    out
+  );
+  quadTriangles(
+    v(-0.5, 1, Hm + 0.5),
+    v(-0.5, 1.5, Hm + 0.5),
+    v(0, 1.5, Hm + 0.45),
+    v(0, 1, Hm + 0.45),
+    out
+  );
+  quadTriangles(
+    v(0, 1, Hm + 0.45),
+    v(0, 1.5, Hm + 0.45),
+    v(0, 1.5, Hm),
+    v(0, 1, Hm),
+    out
+  );
   const podium = hostOf("podium", "PODIUM", out);
   const { faces } = classifyHostPartsByRules({ hosts: [podium], rules: RULES });
   assert.equal(byCategory(faces, "antiderapant").length, 1);
   assert.equal(byCategory(faces, "parois").length, 2);
   const top = byCategory(faces, "antiderapant")[0];
   assert.ok(top.normal.z > DEFAULT_QTES_THRESHOLDS.SLOPED_TOP_NZ_MIN);
-  const front = byCategory(faces, "parois").find((f) => f.polygons[0].contour.every((p) => near(p.x, 0)));
+  const front = byCategory(faces, "parois").find((f) =>
+    f.polygons[0].contour.every((p) => near(p.x, 0))
+  );
   assert.ok(front.normal.x > 0.9, "front face points toward the pool");
+});
+
+// --- (e) closed stepped prism: a low wall carrying a podium ----------------
+
+// Low wall x ∈ [0, e], y ∈ [0, 4], z ∈ [0, h] with a podium y ∈ [1, 1.5]
+// raised to h + ph — a watertight soup (side faces split at the podium).
+function steppedWallTriangles({ e = 0.35, h = 0.45, ph = 0.5 } = {}) {
+  const out = [];
+  const ys = [0, 1, 1.5, 4];
+  const top = (i) => (i === 1 ? h + ph : h);
+  for (let i = 0; i < 3; i++) {
+    const [y0, y1] = [ys[i], ys[i + 1]];
+    const z = top(i);
+    quadTriangles(v(0, y0, z), v(e, y0, z), v(e, y1, z), v(0, y1, z), out); // top
+    quadTriangles(v(0, y0, 0), v(0, y1, 0), v(e, y1, 0), v(e, y0, 0), out); // bottom
+    quadTriangles(v(0, y1, 0), v(0, y0, 0), v(0, y0, z), v(0, y1, z), out); // x = 0
+    quadTriangles(v(e, y0, 0), v(e, y1, 0), v(e, y1, z), v(e, y0, z), out); // x = e
+  }
+  quadTriangles(v(0, 0, 0), v(e, 0, 0), v(e, 0, h), v(0, 0, h), out); // y = 0
+  quadTriangles(v(e, 4, 0), v(0, 4, 0), v(0, 4, h), v(e, 4, h), out); // y = 4
+  // podium risers (between the head and the podium top)
+  quadTriangles(v(e, 1, h), v(0, 1, h), v(0, 1, h + ph), v(e, 1, h + ph), out);
+  quadTriangles(
+    v(0, 1.5, h),
+    v(e, 1.5, h),
+    v(e, 1.5, h + ph),
+    v(0, 1.5, h + ph),
+    out
+  );
+  return out;
+}
+
+test("closed low wall with a podium: outward normals kept, feet of the podium are re-entrant", () => {
+  const e = 0.35;
+  const h = 0.45;
+  const ph = 0.5;
+  const index = buildHostPartIndex({
+    triangles: Float64Array.from(steppedWallTriangles({ e, h, ph })),
+  });
+  assert.equal(index.isClosed, true);
+  const wall = {
+    hostId: "wall",
+    role: "WALL",
+    islands: index.islands,
+    chains: index.chains,
+    box: index.box,
+    isClosed: index.isClosed,
+  };
+  const rules = {
+    ...RULES,
+    WALL: { ...RULES.WALL, angles: ["INTRA", "BASE"] },
+  };
+  const { faces, edges, totals } = meterHostParts({ hosts: [wall], rules });
+  // head (2 parts) + podium top = the whole footprint, all facing up
+  const tops = byCategory(faces, "antiderapant");
+  assert.equal(tops.length, 3);
+  assert.ok(tops.every((f) => f.normal.z > 0.9));
+  assert.ok(near(totals.antiderapant, e * 4, 1e-6));
+  // 4 sides of the wall (podium fronts merged in the long sides) + 2 risers
+  assert.ok(
+    near(totals.parois, 2 * (4 + e) * h + 2 * 0.5 * ph + 2 * e * ph, 1e-6)
+  );
+  // risers face away from the podium, toward their neighbouring head
+  const risers = byCategory(faces, "parois").filter((f) =>
+    f.polygons[0].contour.every((p) => near(p.y, 1) || near(p.y, 1.5))
+  );
+  assert.equal(risers.length, 2);
+  for (const riser of risers) {
+    const y = riser.polygons[0].contour[0].y;
+    assert.ok(near(y, 1) ? riser.normal.y < -0.9 : riser.normal.y > 0.9);
+  }
+  // re-entrant: the two podium feet on the head (no support: no base edge)
+  assert.equal(edges.length, 2);
+  assert.ok(
+    edges.every((x) => near(x.length, e) && x.points.every((p) => near(p.z, h)))
+  );
+  assert.ok(near(totals.angles, 2 * e, 1e-6));
 });
