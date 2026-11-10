@@ -6,13 +6,18 @@ import { setHollowOutDialogAnnotationId } from "Features/mapEditor/mapEditorSlic
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import DialogHollowOutAnnotation from "./DialogHollowOutAnnotation";
+import DialogHollowOutAnnotation3d from "./DialogHollowOutAnnotation3d";
 
 // Redux-driven host of the "Evider" dialog: the overlay button above the
 // selected POLYGON and the "E" shortcut (InteractionLayer) only set
 // mapEditor.hollowOutDialogAnnotationId. The dialog — and its annotations
 // hooks — is mounted only while a carve is requested. Mount it once per
 // ACTIVE editor (MainMapEditorV3 is instantiated for MAP and BASE_MAPS).
-export default function DialogHollowOutAnnotationOutlet() {
+//
+// `threedAnnotations` (the annotations loaded in the 3D editor) switches to the
+// 3D variant: the annotations intersecting the selected one in 3D are offered
+// as subtractions (DialogHollowOutAnnotation3d).
+export default function DialogHollowOutAnnotationOutlet({ threedAnnotations }) {
   const dispatch = useDispatch();
 
   // data
@@ -40,6 +45,17 @@ export default function DialogHollowOutAnnotationOutlet() {
   // render
 
   if (!annotationId) return null;
+
+  if (threedAnnotations) {
+    return (
+      <DialogHollowOutAnnotation3d
+        key={annotationId}
+        annotationId={annotationId}
+        annotations={threedAnnotations}
+        onClose={handleClose}
+      />
+    );
+  }
 
   return (
     <DialogHollowOutAnnotation

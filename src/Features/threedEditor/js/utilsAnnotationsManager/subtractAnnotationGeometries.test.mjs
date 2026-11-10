@@ -24,6 +24,7 @@ const bundle = await build({
       export { default as buildMesh3dFromCarvedTriangles } from "Features/annotationMesh3d/utils/buildMesh3dFromCarvedTriangles";
       export { default as isMesh3dClosed } from "Features/annotationMesh3d/utils/isMesh3dClosed";
       export { getMesh3dSignedVolume } from "Features/annotationMesh3d/utils/getMesh3dQties";
+      export { default as getSubtractionRemovedMeasure, getHostMeasure } from "Features/threedEditor/js/utilsAnnotationsManager/getSubtractionRemovedMeasure";
       export * as THREE from "three";
     `,
     resolveDir: root,
@@ -60,6 +61,8 @@ const {
   buildMesh3dFromCarvedTriangles,
   isMesh3dClosed,
   getMesh3dSignedVolume,
+  getSubtractionRemovedMeasure,
+  getHostMeasure,
   THREE,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
@@ -460,4 +463,49 @@ test("a mesh3d host carved while dimmed keeps its original material", () => {
   const [carved] = getSolidMeshesFromObject3D(host);
   assert.equal(carved.material, dim);
   assert.equal(carved.userData.originalMaterial, original);
+});
+
+// « Évider » in 3D: the exact intersection test (what a cutter would remove).
+test("the removed measure tells a cutting solid from a near miss", () => {
+  const box = (w, h, d, x, y, z) => {
+    const mesh = new Mesh(new BoxGeometry(w, h, d), new MeshBasicMaterial());
+    mesh.position.set(x, y, z);
+    mesh.userData = { role: "SOLID" };
+    mesh.updateMatrixWorld(true);
+    return mesh;
+  };
+  // Host: 4 x 1 x 4 slab centred on the origin (16 m3).
+  const hostSolid = buildMergedWorldSolid(box(4, 1, 4, 0, 0, 0));
+  const before = hostSolid.geometry.getAttribute("position").count;
+  const hostMeasure = getHostMeasure(hostSolid);
+  assert.equal(hostMeasure.hollow, false);
+  assert.ok(Math.abs(hostMeasure.measure - 16) < 1e-6);
+
+  // A 1 x 3 x 1 column through the slab removes 1 m3.
+  const through = getSubtractionRemovedMeasure({
+    hostSolid,
+    cutterObjects: [box(1, 3, 1, 0, 0, 0)],
+    hostMeasure,
+  });
+  assert.ok(Math.abs(through - 1) < 1e-3, `removed ${through}`);
+
+  // A column standing ON the slab (touching, not cutting) removes nothing.
+  const onTop = getSubtractionRemovedMeasure({
+    hostSolid,
+    cutterObjects: [box(1, 1, 1, 0, 1.5, 0)],
+    hostMeasure,
+  });
+  assert.ok(onTop < hostMeasure.minRemoved, `removed ${onTop}`);
+
+  // A far column removes nothing either.
+  const far = getSubtractionRemovedMeasure({
+    hostSolid,
+    cutterObjects: [box(1, 3, 1, 10, 0, 0)],
+    hostMeasure,
+  });
+  assert.ok(far < hostMeasure.minRemoved, `removed ${far}`);
+
+  // The host solid itself is left untouched.
+  assert.equal(hostSolid.geometry.getAttribute("position").count, before);
+  assert.ok(!hostSolid.userData.hasSubtraction);
 });

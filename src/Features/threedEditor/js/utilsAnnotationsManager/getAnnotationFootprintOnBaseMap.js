@@ -44,10 +44,12 @@ function triangleAreaPx(a, b, c) {
  * @param {Object} args.transform   its own base map pose (getBaseMapTransform)
  * @param {Object} args.hostForRender  host base map metrics
  * @param {Object} args.hostTransform  host base map pose
- * @returns {Promise<Array<Array<Array<number>>>|null>} rings [[ [x,y], ... ], ...]
- *   in the HOST base map's reference pixels, or null.
+ * @returns {Promise<Array|null>} polygon-clipping MultiPolygon
+ *   [ [ outerRing, ...holeRings ], ... ] in the HOST base map's reference
+ *   pixels, or null. The polygon structure is kept: what a 2D boolean needs
+ *   (« Évider » 3D preview).
  */
-export default async function getAnnotationFootprintOnBaseMap({
+export async function getAnnotationFootprintMultiPolygonOnBaseMap({
   annotation,
   forRender,
   transform,
@@ -109,14 +111,7 @@ export default async function getAnnotationFootprintOnBaseMap({
     if (triangles.length === 0) return null;
 
     const merged = polygonClipping.union(triangles[0], ...triangles.slice(1));
-    if (!merged?.length) return null;
-
-    // MultiPolygon -> flat list of rings (outer + holes), all drawable as-is.
-    const rings = [];
-    for (const polygon of merged) {
-      for (const ring of polygon) if (ring?.length >= 3) rings.push(ring);
-    }
-    return rings.length > 0 ? rings : null;
+    return merged?.length ? merged : null;
   } catch (e) {
     console.error("[getAnnotationFootprintOnBaseMap] failed", e);
     return null;
@@ -126,4 +121,20 @@ export default async function getAnnotationFootprintOnBaseMap({
       if (child.material) child.material.dispose();
     });
   }
+}
+
+/**
+ * Same footprint as a flat list of rings (outer + holes), all drawable as-is.
+ *
+ * @returns {Promise<Array<Array<Array<number>>>|null>} rings [[ [x,y], ... ], ...]
+ *   in the HOST base map's reference pixels, or null.
+ */
+export default async function getAnnotationFootprintOnBaseMap(args) {
+  const merged = await getAnnotationFootprintMultiPolygonOnBaseMap(args);
+  if (!merged) return null;
+  const rings = [];
+  for (const polygon of merged) {
+    for (const ring of polygon) if (ring?.length >= 3) rings.push(ring);
+  }
+  return rings.length > 0 ? rings : null;
 }

@@ -22,6 +22,10 @@ import {
   toNonIndexedArea,
   toNonIndexedVolume,
 } from "Features/threedEditor/js/utilsAnnotationsManager/getSoupMeasures";
+import {
+  MIN_REMOVED_AREA_M2,
+  MIN_REMOVED_VOLUME_M3,
+} from "Features/threedEditor/js/utilsAnnotationsManager/getSubtractionRemovedMeasure";
 import subtractAnnotationGeometries from "Features/threedEditor/js/utilsAnnotationsManager/subtractAnnotationGeometries";
 
 import { getMesh3dSignedVolume } from "../utils/getMesh3dQties";
@@ -61,12 +65,6 @@ export const BAKE_SUBTRACTION_REASONS = {
 };
 
 const refused = (reason) => ({ status: "refused", reason });
-
-// Below this volume change (m³) the targets did not touch the host.
-const MIN_REMOVED_VOLUME_M3 = 1e-7;
-// Same for an OPEN host (a lathe shell): the carve removes surface, not
-// volume (m²).
-const MIN_REMOVED_AREA_M2 = 1e-6;
 
 // A lathe is 64 quads per profile segment (a sampled arc = 24 segments), and
 // an inline-extrusion sheet one quad per guide sample × profile segment (arcs
