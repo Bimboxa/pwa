@@ -24,9 +24,12 @@ function ringToPath(points) {
 // the original polygon so the removed areas read at a glance. The viewBox is
 // fitted on the ORIGINAL polygon: the frame stays put while the user toggles
 // templates. `annotation` and `pieces` ({points, cuts}) are pixel-resolved.
+// `overlays` ([{id, color, pieces}], optional) tints removed zones in the
+// colour of what removes them (3D variant: the footprints of the subtractions).
 export default function PreviewHollowOutAnnotation({
   annotation,
   pieces,
+  overlays,
   padding = 0.06,
   height = 220,
 }) {
@@ -74,6 +77,23 @@ export default function PreviewHollowOutAnnotation({
       }));
   }, [annotation, pieces]);
 
+  const overlayPaths = useMemo(
+    () =>
+      (overlays ?? [])
+        .map((overlay) => ({
+          id: overlay.id,
+          color: overlay.color || "#9e9e9e",
+          d: (overlay.pieces ?? [])
+            .flatMap((piece) => [
+              ringToPath(piece.points),
+              ...(piece.cuts ?? []).map((c) => ringToPath(c.points)),
+            ])
+            .join(" "),
+        }))
+        .filter((overlay) => overlay.d),
+    [overlays]
+  );
+
   // render
 
   return (
@@ -106,6 +126,18 @@ export default function PreviewHollowOutAnnotation({
             hovered={false}
             printMode
             forceHideLabel
+          />
+        ))}
+        {overlayPaths.map((overlay) => (
+          <path
+            key={overlay.id}
+            d={overlay.d}
+            fill={overlay.color}
+            fillOpacity={0.35}
+            fillRule="evenodd"
+            stroke={overlay.color}
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
           />
         ))}
         {originalD && (

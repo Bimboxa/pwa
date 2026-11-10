@@ -3345,7 +3345,11 @@ export default function MainThreedEditor() {
       {/* Right click on an annotation: "change template" menu */}
       {/* "Evider" dialog requested from the toolbar above (the 2D editors
           host their own outlet while they are the active viewer) */}
-      {isThreedViewer && <DialogHollowOutAnnotationOutlet />}
+      {isThreedViewer && (
+        <DialogHollowOutAnnotationOutlet
+          threedAnnotations={annotations ?? []}
+        />
+      )}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}

@@ -11,7 +11,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Switch,
   Typography,
 } from "@mui/material";
 
@@ -21,85 +20,15 @@ import useCommitHollowOut from "../hooks/useCommitHollowOut";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useVisibleAnnotations from "Features/mapEditor/hooks/useVisibleAnnotations";
 
-import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import PreviewHollowOutAnnotation from "./PreviewHollowOutAnnotation";
+import TemplateSwitchRowHollowOut from "./TemplateSwitchRowHollowOut";
 
 import avoidVisibleAnnotationsService from "../services/avoidVisibleAnnotationsService";
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getHollowOutCandidates from "../utils/getHollowOutCandidates";
-import {
-  TEMPLATELESS_LABEL,
-  TEMPLATELESS_TEMPLATE_ID,
-  isTemplatelessAnnotation,
-} from "../utils/templatelessAnnotations";
-
-// Group key of a cutting annotation: its template, or the template-less
-// sentinel (same key as the solo / eye filters).
-const getGroupKey = (annotation) =>
-  annotation?.annotationTemplateId ?? TEMPLATELESS_TEMPLATE_ID;
-
-// One row per annotation template taking part in the carve: icon + label +
-// count + switch (off = the annotations of that template do not cut).
-function TemplateSwitchRow({ group, spriteImage, checked, onChange }) {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        pl: 0.5,
-        py: 0.25,
-        borderRadius: 1,
-        "&:hover": { bgcolor: "action.hover" },
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 24,
-          height: 24,
-          mr: 1,
-          flexShrink: 0,
-          opacity: checked ? 1 : 0.4,
-          filter: checked ? "none" : "grayscale(100%)",
-        }}
-      >
-        <AnnotationTemplateIcon
-          template={group.iconSource}
-          size={18}
-          spriteImage={spriteImage}
-        />
-      </Box>
-      <Typography
-        variant="body2"
-        color={checked ? "text.primary" : "text.disabled"}
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          userSelect: "none",
-        }}
-      >
-        {group.label}
-      </Typography>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ mx: 1, flexShrink: 0 }}
-      >
-        {group.count}
-      </Typography>
-      <Switch
-        size="small"
-        checked={checked}
-        onChange={(e) => onChange(group.key, e.target.checked)}
-      />
-    </Box>
-  );
-}
+import getHollowOutTemplateGroups, {
+  getHollowOutGroupKey,
+} from "../utils/getHollowOutTemplateGroups";
 
 // "Evider" confirmation: overview of the carved POLYGON + the annotation
 // templates whose annotations would cut it, each with a switch. Opened by the
@@ -142,38 +71,14 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
     [annotation, visibleAnnotations, baseMap]
   );
 
-  const groups = useMemo(() => {
-    const templateById = new Map(
-      (annotationTemplates ?? []).map((t) => [t.id, t])
-    );
-    const groupByKey = new Map();
-    for (const candidate of candidates) {
-      const key = getGroupKey(candidate);
-      let group = groupByKey.get(key);
-      if (!group) {
-        const template = templateById.get(key);
-        group = {
-          key,
-          label:
-            template?.label ??
-            (isTemplatelessAnnotation(candidate)
-              ? TEMPLATELESS_LABEL
-              : candidate.label || "-?"),
-          iconSource: template ?? candidate,
-          count: 0,
-        };
-        groupByKey.set(key, group);
-      }
-      group.count += 1;
-    }
-    return [...groupByKey.values()].sort((a, b) =>
-      String(a.label).localeCompare(String(b.label))
-    );
-  }, [candidates, annotationTemplates]);
+  const groups = useMemo(
+    () => getHollowOutTemplateGroups(candidates, annotationTemplates),
+    [candidates, annotationTemplates]
+  );
 
   const enabledCandidates = useMemo(() => {
     const excluded = new Set(excludedTemplateIds);
-    return candidates.filter((a) => !excluded.has(getGroupKey(a)));
+    return candidates.filter((a) => !excluded.has(getHollowOutGroupKey(a)));
   }, [candidates, excludedTemplateIds]);
 
   const carved = useMemo(() => {
@@ -262,7 +167,7 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
               </Typography>
               <Box sx={{ maxHeight: 240, overflowY: "auto" }}>
                 {groups.map((group) => (
-                  <TemplateSwitchRow
+                  <TemplateSwitchRowHollowOut
                     key={group.key}
                     group={group}
                     spriteImage={spriteImage}
