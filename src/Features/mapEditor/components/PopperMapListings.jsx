@@ -2229,6 +2229,10 @@ export default function PopperMapListings() {
       isPovViewer ||
       isThreedViewer,
     filterByMainBaseMap: true,
+    // Dessin module: like the annotations, the painted parts of the other
+    // base maps whose annotations the editor displays are counted too (a
+    // paint lives on its HOST's base map — e.g. a section page).
+    ...(widenToDisplayed ? { extraBaseMapIds: otherDisplayedBaseMapIds } : {}),
     filterBySelectedScope: true,
     keepHiddenTemplates: true,
     annotationTemplates,
