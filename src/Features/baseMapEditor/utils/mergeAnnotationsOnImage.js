@@ -2,6 +2,10 @@
 // and the version transform needed to align the result in the reference frame.
 
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import {
+  HEIGHT_CUT_SIDE_BOTTOM,
+  formatHeightCutDelta,
+} from "Features/heightCuts/constants/heightCutConstants";
 import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
@@ -467,6 +471,55 @@ function drawOpening(ctx, annotation, meterByPx) {
 }
 
 // Draw a single annotation onto the canvas context (exported for the replay)
+// Height cuts of a POLYGON (faces at their own level, see
+// heightCuts/utils/computeHeightFaces) — same look as NodeHeightCutsStatic:
+// darker / lighter tint, outline dashed when the step is on the bottom side,
+// delta label sized in page points.
+function drawHeightFaces(ctx, annotation) {
+  const faces = (annotation.heightFaces || []).filter((f) => f.delta !== 0);
+  if (!faces.length) return;
+  const k = getTextPageScale({
+    pagePxPerPt: annotation.pagePxPerPt,
+    pageFormat: "A4",
+    imageLongSidePx: annotation.imageLongSidePx,
+  });
+  const scale = k > 0 ? k : 1;
+  ctx.save();
+  for (const face of faces) {
+    ctx.beginPath();
+    for (const ring of [face.points, ...(face.holes || [])]) {
+      ring.forEach((p, i) =>
+        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)
+      );
+      ctx.closePath();
+    }
+    ctx.fillStyle =
+      face.delta > 0 ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.3)";
+    ctx.fill("evenodd");
+    ctx.setLineDash(
+      face.side === HEIGHT_CUT_SIDE_BOTTOM ? [4 * scale, 3 * scale] : []
+    );
+    ctx.lineWidth = scale;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.font = `${14 * scale}px Roboto, Helvetica, Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  for (const face of faces) {
+    if (!face.labelPoint) continue;
+    const text = formatHeightCutDelta(face.delta);
+    ctx.lineWidth = 3 * scale;
+    ctx.strokeStyle = "#fff";
+    ctx.strokeText(text, face.labelPoint.x, face.labelPoint.y);
+    ctx.fillStyle = "#000";
+    ctx.fillText(text, face.labelPoint.x, face.labelPoint.y);
+  }
+  ctx.restore();
+}
+
 export function drawAnnotation(ctx, annotation, meterByPx) {
   const {
     type,
@@ -517,6 +570,7 @@ export function drawAnnotation(ctx, annotation, meterByPx) {
           }
         }
       }
+      drawHeightFaces(ctx, annotation);
       break;
     }
 

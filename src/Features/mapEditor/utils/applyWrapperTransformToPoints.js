@@ -50,6 +50,8 @@ export default function applyWrapperTransformToPoints({
       ...(ann.isoHeightLines ?? []),
       ...(ann.profileLines ?? []),
       ...(ann.layoutLines ?? []),
+      ...(ann.heightCuts ?? []),
+      ...(ann.heightCutFaces ?? []),
     ]) {
       for (const pt of line?.points ?? []) {
         const pointId = pt.pointId ?? pt.id;

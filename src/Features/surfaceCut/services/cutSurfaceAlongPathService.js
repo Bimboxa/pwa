@@ -44,6 +44,8 @@ const LINE_FIELDS = [
   "isoHeightLines",
   "profileLines",
   "layoutLines",
+  "heightCuts",
+  "heightCutFaces",
 ];
 
 // Why a surface was not cut, least telling first (the toaster shows the

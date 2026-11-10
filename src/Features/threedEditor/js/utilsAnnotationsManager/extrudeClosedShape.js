@@ -388,8 +388,15 @@ export default function extrudeClosedShape(
   // the shared triangulation too — ExtrudeGeometry cannot leave a cap out.
   const isOpenTop = Boolean(isExtruded && options.openTop);
 
+  // Height cuts (options.heightFaces): faces of a FLAT polygon at their own
+  // level — stepped build of the shared triangulation (ignored on the
+  // per-vertex-Z path: slopes, shells, iso lines).
+  const hasHeightFaces =
+    !isPerVertexZPath && (options.heightFaces?.length ?? 0) > 0;
+
   let geometry;
-  if (!isPerVertexZPath && !isSegmentedPrism && !isOpenTop) {
+  let heightFacesApplied = false;
+  if (!isPerVertexZPath && !isSegmentedPrism && !isOpenTop && !hasHeightFaces) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -428,7 +435,9 @@ export default function extrudeClosedShape(
       // Prism sides: hidden side faces skipped, coplanar ones labelled.
       sideSegments,
       openTop: isOpenTop,
+      heightFaces: hasHeightFaces ? options.heightFaces : null,
     });
+    heightFacesApplied = Boolean(tri.heightFacesApplied);
     geometry = new BufferGeometry();
     geometry.setAttribute(
       "position",
@@ -471,7 +480,7 @@ export default function extrudeClosedShape(
   // earcut bridges the holes to the contour and merges the bridges with the
   // aligned hole edges on one side only, leaving T-junctions on the caps:
   // EdgesGeometry and the hatch band would then draw a line joining the holes.
-  if (holes?.length) geometry = splitTJunctions(geometry);
+  if (holes?.length || heightFacesApplied) geometry = splitTJunctions(geometry);
 
   // DoubleSide for both flat and extruded paths: pixelToWorld inverts Y which
   // flips winding, and polygons-with-holes can produce inconsistent normals

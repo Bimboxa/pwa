@@ -196,6 +196,12 @@ export default async function createTransformedAnnotationCopiesService({
         ...(Array.isArray(remapped.layoutLines)
           ? { layoutLines: remapped.layoutLines }
           : {}),
+        ...(Array.isArray(remapped.heightCuts)
+          ? { heightCuts: remapped.heightCuts }
+          : {}),
+        ...(Array.isArray(remapped.heightCutFaces)
+          ? { heightCutFaces: remapped.heightCutFaces }
+          : {}),
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };
 

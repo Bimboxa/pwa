@@ -15,6 +15,8 @@
 //   - annotation.isoHeightLines[].points[].pointId (contour lines — note key)
 //   - annotation.profileLines[].points[].pointId (shell profiles — note key)
 //   - annotation.layoutLines[].points[].pointId (layout lines — note key)
+//   - annotation.heightCuts[].points[].pointId (height cut traces — note key)
+//   - annotation.heightCutFaces[].points[].pointId (seed of a height face)
 export default function collectReferencedPointIds(annotations, target) {
   const ids = target instanceof Set ? target : new Set();
   if (!Array.isArray(annotations)) return ids;
@@ -43,6 +45,14 @@ export default function collectReferencedPointIds(annotations, target) {
           for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
     if (Array.isArray(a.layoutLines))
       for (const l of a.layoutLines)
+        if (Array.isArray(l?.points))
+          for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
+    if (Array.isArray(a.heightCuts))
+      for (const l of a.heightCuts)
+        if (Array.isArray(l?.points))
+          for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
+    if (Array.isArray(a.heightCutFaces))
+      for (const l of a.heightCutFaces)
         if (Array.isArray(l?.points))
           for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
   }

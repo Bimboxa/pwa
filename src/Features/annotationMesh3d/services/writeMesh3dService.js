@@ -20,6 +20,8 @@ const CLEARED_ARRAY_FIELDS = [
   "isoHeightLines",
   "profileLines",
   "layoutLines",
+  "heightCuts",
+  "heightCutFaces",
   "hiddenSegmentsIdx",
   "isoHeightSegmentsIdx",
   "isExtEdgeSegmentsIdx",

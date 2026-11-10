@@ -175,6 +175,20 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
         : l
     );
   }
+  if (Array.isArray(annotation.heightCuts)) {
+    nextAnnotation.heightCuts = annotation.heightCuts.map((l) =>
+      l && Array.isArray(l.points)
+        ? { ...l, points: remapGuideLineRefs(l.points) }
+        : l
+    );
+  }
+  if (Array.isArray(annotation.heightCutFaces)) {
+    nextAnnotation.heightCutFaces = annotation.heightCutFaces.map((l) =>
+      l && Array.isArray(l.points)
+        ? { ...l, points: remapGuideLineRefs(l.points) }
+        : l
+    );
+  }
 
   return { annotation: nextAnnotation, pointRecords };
 }

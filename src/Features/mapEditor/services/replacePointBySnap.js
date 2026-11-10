@@ -42,6 +42,8 @@ export default async function replacePointBySnap({
       "isoHeightLines",
       "profileLines",
       "layoutLines",
+      "heightCuts",
+      "heightCutFaces",
       "point",
       ...SEGMENT_FLAG_FIELDS.map(({ idField }) => idField),
     ];

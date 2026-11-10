@@ -82,6 +82,19 @@ export default function getAnnotationPartQties({ annotation, part, meterByPx }) 
     });
   }
 
+  if (kind === "HEIGHT_FACE") {
+    const points = part.geometryPx || [];
+    if (points.length < 3) return null;
+    return getAnnotationQties({
+      annotation: {
+        type: "POLYGON",
+        points,
+        cuts: (part.holesPx || []).map((hole) => ({ points: hole })),
+      },
+      meterByPx,
+    });
+  }
+
   if (kind === "CUT") {
     const points = part.geometryPx || [];
     if (points.length < 3) return null;

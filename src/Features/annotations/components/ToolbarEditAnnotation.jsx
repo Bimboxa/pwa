@@ -75,6 +75,7 @@ import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
 import ToolbarEditLayoutLine from "./ToolbarEditLayoutLine";
 import ToolbarEditSegment from "./ToolbarEditSegment";
+import ToolbarEditHeightCut from "Features/heightCuts/components/ToolbarEditHeightCut";
 import ToolbarEditPoint from "./ToolbarEditPoint";
 import ToolbarEditCutLine from "Features/threedCutLines/components/ToolbarEditCutLine";
 import ToolbarEditCutLinePoint from "Features/threedCutLines/components/ToolbarEditCutLinePoint";
@@ -601,6 +602,17 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
         {hasPart && part.kind === "LAYOUT_LINE" && (
           <ToolbarEditLayoutLine accentColor={accentColor} />
         )}
+
+        {/* Opening / height face / height trace row — « Découper » switch,
+            altitude delta, top / bottom side (null for other parts) */}
+        {hasPart &&
+          ["CUT", "HEIGHT_FACE", "HEIGHT_CUT"].includes(part.kind) && (
+            <ToolbarEditHeightCut
+              annotation={selectedAnnotation}
+              part={part}
+              accentColor={accentColor}
+            />
+          )}
 
         {/* Segment edit row — length / visible switch */}
         {isSegmentPart && (

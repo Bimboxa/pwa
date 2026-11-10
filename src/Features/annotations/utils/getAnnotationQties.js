@@ -1080,6 +1080,64 @@ function computeAnnotationQties({ annotation, meterByPx }) {
         (openTop ? 1 : 2) * result.surface + result.length * prismHeight;
     }
 
+    // Height cuts (faces of a FLAT polygon at their own level — a podium, a
+    // pit): the developed surface gains the risers of the steps, on the same
+    // stepped build as the 3D mesh. The planar `surface` is unchanged (the
+    // faces partition the footprint). Ignored where the 3D build ignores
+    // them (slopes, iso lines, shells, stairs).
+    if (
+      closeLine &&
+      annotation.type === "POLYGON" &&
+      !stairsGuideLine &&
+      !hasIsoHeightLines &&
+      !hasProfileLines &&
+      !hasPerVertexZOffsets(annotation) &&
+      annotation.heightFaces?.some((f) => f.delta !== 0)
+    ) {
+      const scale = (ring) =>
+        (ring || []).map((p) => ({ x: p.x * meterByPx, y: p.y * meterByPx }));
+      const cutEntries = (annotation.cuts || [])
+        .map((c) => ({
+          ring: (c?.points || []).filter((p) => p && typeof p.x === "number"),
+          hiddenSegmentsIdx: c?.hiddenSegmentsIdx || [],
+        }))
+        .filter((entry) => entry.ring.length >= 3);
+      const tri = triangulateAnnotationGeometry({
+        contour: scale(expandRingWithOffsets(points, ARC_SAMPLES, true)),
+        holes: cutEntries.map((entry) =>
+          scale(expandRingWithOffsets(entry.ring, ARC_SAMPLES, true))
+        ),
+        height: prismHeight,
+        sideSegments:
+          prismHeight > 0
+            ? {
+                contour: getPrismSideSegments(
+                  points,
+                  annotation.hiddenSegmentsIdx || []
+                ),
+                holes: cutEntries.map((entry) =>
+                  getPrismSideSegments(entry.ring, entry.hiddenSegmentsIdx)
+                ),
+              }
+            : null,
+        openTop,
+        verticalLift: 0,
+        unitScale: 1,
+        heightFaces: annotation.heightFaces.map((f) => ({
+          points: scale(f.points),
+          holes: (f.holes || []).map(scale),
+          delta: f.delta,
+          side: f.side,
+        })),
+      });
+      if (tri.heightFacesApplied) {
+        result.surfaceDeveloped =
+          prismHeight > 0
+            ? tri.areaTop + tri.areaBottom + tri.areaSides + tri.areaRisers
+            : tri.areaTop + tri.areaRisers;
+      }
+    }
+
     // Layout lines (lignes de calepinage): Σ of the bars' lengths, in
     // meters — a POLYGON-only quantity ("C" main quantity key), kept apart
     // from the perimeter `length`.

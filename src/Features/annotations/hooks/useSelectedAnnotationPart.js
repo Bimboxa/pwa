@@ -14,6 +14,11 @@ import getContiguousSegmentChain, {
   getContiguousSegmentChains,
 } from "../utils/getContiguousSegmentChain";
 import getAnnotationQties from "../utils/getAnnotationQties";
+import {
+  HEIGHT_CUT_PART_TYPE,
+  HEIGHT_FACE_PART_TYPE,
+  formatHeightCutDelta,
+} from "Features/heightCuts/constants/heightCutConstants";
 
 // A segment is hidden when its index is in its ring's effective
 // hiddenSegmentsIdx (recomputed by useAnnotationsV2 on the resolved ring —
@@ -232,6 +237,42 @@ export function resolveSelectedAnnotationPart({
       pointRefs: linePx,
       geometryPx: linePx,
       targetAnnotationType: "POLYLINE",
+    };
+  }
+
+  // --- HEIGHT_FACE (face delimited by the height cuts) ---------------------
+  if (effectivePartType === HEIGHT_FACE_PART_TYPE) {
+    // partId form: "{annotationId}::HEIGHT_FACE::{faceKey}"
+    const key = partId?.split("::").slice(2).join("::");
+    const face = annotation.heightFaces?.find((f) => f.key === key);
+    if (!face) return { kind: "NONE" };
+    return {
+      kind: "HEIGHT_FACE",
+      captionFr: "Face",
+      label: `Face ${formatHeightCutDelta(face.delta)}`,
+      // Derived geometry: no db point refs (nothing to clone).
+      pointRefs: [],
+      geometryPx: face.points,
+      holesPx: face.holes,
+      targetAnnotationType: null,
+      face,
+    };
+  }
+
+  // --- HEIGHT_CUT (open trace of a height cut) -----------------------------
+  if (effectivePartType === HEIGHT_CUT_PART_TYPE) {
+    // partId form: "{annotationId}::HEIGHT_CUT::{heightCutId}"
+    const heightCutId = partId?.split("::")[2];
+    const trace = annotation.heightCuts?.find((t) => t.id === heightCutId);
+    if (!trace) return { kind: "NONE" };
+    return {
+      kind: "HEIGHT_CUT",
+      captionFr: "Trait de hauteur",
+      label: `Trait de hauteur (${trace.points.length} points)`,
+      pointRefs: [],
+      geometryPx: trace.points,
+      targetAnnotationType: null,
+      heightCutId,
     };
   }
 

@@ -16,6 +16,8 @@ export default function isAnnotationConvertibleToMesh3d(annotation) {
   if (
     hasLines(annotation.profileLines) ||
     hasLines(annotation.isoHeightLines) ||
+    // height cuts: the stepped faces are parametric (computeHeightFaces)
+    hasLines(annotation.heightCuts) ||
     hasLines(annotation.guideLines)
   ) {
     return false;

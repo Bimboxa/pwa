@@ -49,6 +49,8 @@ const SCRUBBED_FIELDS = new Set([
   "isoHeightLines",
   "profileLines",
   "layoutLines",
+  "heightCuts",
+  "heightCutFaces",
   // render-time only — useAnnotationsV2 recomputes them, they must not be persisted
   "annotationTemplateProps",
   "annotationTemplate",

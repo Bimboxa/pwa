@@ -18,6 +18,7 @@ import {
 } from "Features/assistantRelay/services/buildBaseMapSnapshotImage";
 
 import JSZip from "jszip";
+import { formatHeightCutDelta } from "Features/heightCuts/constants/heightCutConstants";
 
 // Exports the active base map's annotations as a DXF file (model space).
 // Coordinates: resolved pixel space (useAnnotationsV2 output — never raw db
@@ -316,6 +317,15 @@ export default async function exportAnnotationsAsDxf({
         // Holes exported as extra closed rings on the same layer (no HATCH
         // subtraction in v1).
         if (done) addCutRings(a.cuts);
+        // Height cuts: outline + delta of every face out of the main level.
+        if (done) {
+          (a.heightFaces ?? [])
+            .filter((face) => face.delta !== 0)
+            .forEach((face) => {
+              addRing(face.points, true);
+              addText(face.labelPoint, formatHeightCutDelta(face.delta));
+            });
+        }
         break;
       }
       case "RECTANGLE": {
