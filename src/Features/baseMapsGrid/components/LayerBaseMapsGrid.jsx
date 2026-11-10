@@ -119,6 +119,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   // strings
 
   const closeS = "Fermer la grille";
+  const blocksS = "Blocs";
   const fitAllS = "Tout afficher";
   const reorganizeS = "Réorganiser";
   const reorganizeDoneS = "Terminer la réorganisation";
@@ -165,7 +166,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   );
 
   const listings = useProjectBaseMapListings();
-  const { value: baseMaps } = useBaseMaps();
+  // Dessin: the blocks base maps (Features/blocks, no folder) lie on the
+  // table too, after the folders — the way to reach them from the grid.
+  const { value: baseMaps } = useBaseMaps({ includeBlocksBaseMaps: dessin });
   const spriteImage = useAnnotationSpriteImage();
   // same counts as the base map chips (whole scope, solo ignored)
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
@@ -755,7 +758,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
                 // folder under the name
                 subtitle={
                   (pinned && !listingId) || dessin
-                    ? folderNameById[baseMap.listingId]
+                    ? baseMap.isBlocksBaseMap
+                      ? blocksS
+                      : folderNameById[baseMap.listingId]
                     : undefined
                 }
                 annotationsCount={

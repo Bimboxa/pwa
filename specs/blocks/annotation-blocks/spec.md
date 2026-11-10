@@ -76,6 +76,7 @@ Vocabulaire : dans le code, toujours `block` (jamais `object`, déjà pris par
 | FR-10 | « Lier à un bloc » depuis un fond de plan normal : déplacement + instance en place, sans saut visuel, un seul Ctrl+Z. | 3 |
 | FR-11 | Instances visibles et manipulables en 3D ; géométrie et matériaux partagés. | 4 |
 | FR-12 | Quantités = N instances × quantités du bloc, par modèle d'annotation. | 5 |
+| FR-13 | Les fonds de plan de blocs restent accessibles : section « Blocs » en bas du sélecteur de fond de plan, et feuilles « Blocs » à la fin de la grille 2D du module Dessin (touche G). | 5+ |
 
 ## 5. Modèle de données (Dexie v44)
 
@@ -320,6 +321,9 @@ pixels au 1:200), rotation positive dans le sens horaire à l'écran.
 - **Hors éditeurs 2D et 3D** (grille de fonds de plan, portfolio, impression
   hors éditeur) : les définitions ne sont pas montées, les instances n'y sont
   pas dessinées.
+- **Grille 3D** (touche G en 3D) et grille à onglets hors module Dessin : les
+  fonds de plan de blocs n'y figurent pas (ils ne sont pas chargés dans la
+  scène 3D, leurs membres vivent dans la scène prototype).
 - **Accrochage** : une instance n'offre que son point d'insertion.
 - **Pas de commande pour redéfinir le point d'insertion** d'un bloc existant.
 - **Export DXF** : instances ignorées.

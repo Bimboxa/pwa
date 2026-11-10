@@ -39,6 +39,7 @@ import useDetailBaseMaps from "../hooks/useDetailBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
+import useBlocksBaseMaps from "Features/blocks/hooks/useBlocksBaseMaps";
 
 // Mirrors the main row of the base maps list (SectionBaseMapsList) for the
 // main baseMap: a layers "eye" toggling the image visibility in the DISPLAYED
@@ -64,6 +65,7 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
     const activeBaseMap = useMainBaseMap();
     const { value: baseMaps = [] } = useBaseMaps({});
     const detailBaseMaps = useDetailBaseMaps() ?? [];
+    const blocksBaseMaps = useBlocksBaseMaps();
     const listings = useProjectBaseMapListings() ?? [];
     const updateEntity = useUpdateEntity();
 
@@ -117,8 +119,13 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
         if (detailBaseMaps.length > 0) {
             ordered.push({ listing: { id: "__DETAILS__", name: "Détails" }, baseMaps: detailBaseMaps });
         }
+        // Blocks base maps (Features/blocks) belong to no listing either:
+        // last group, from their raw records too (no rename).
+        if (blocksBaseMaps?.length > 0) {
+            ordered.push({ listing: { id: "__BLOCKS__", name: "Blocs" }, baseMaps: blocksBaseMaps });
+        }
         return ordered;
-    }, [baseMaps, listings, detailBaseMaps]);
+    }, [baseMaps, listings, detailBaseMaps, blocksBaseMaps]);
 
     // --- Handlers ---
     const handleOpen = (event) => setAnchorEl(event.currentTarget);
