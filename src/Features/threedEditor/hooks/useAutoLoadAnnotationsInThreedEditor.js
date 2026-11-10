@@ -285,6 +285,31 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     });
   }, [annotationsForThreed, shrinkExemptIds, hiddenFacesByAnnotationId]);
 
+  // A painted block INSTANCE is built from the members of its block: they
+  // take the instance's shrink exemption (the paint is measured on the real
+  // geometry, like on any painted host — and like its headless build,
+  // meshPaint/services/createHeadlessBlockPrototypes).
+  const blockDefinitionsForBuild = useMemo(() => {
+    if (!blockDefinitions?.length || shrinkExemptIds.size === 0) {
+      return blockDefinitions;
+    }
+    const exemptBlockIds = new Set();
+    (annotationsForThreed ?? []).forEach((a) => {
+      if (a.instanceOfBlockId && shrinkExemptIds.has(a.id)) {
+        exemptBlockIds.add(a.instanceOfBlockId);
+      }
+    });
+    if (exemptBlockIds.size === 0) return blockDefinitions;
+    return blockDefinitions.map((definition) =>
+      exemptBlockIds.has(definition.block?.id)
+        ? {
+            ...definition,
+            allMembers: (definition.allMembers ?? []).map(getShrinkExemptCopy),
+          }
+        : definition
+    );
+  }, [blockDefinitions, annotationsForThreed, shrinkExemptIds]);
+
   // { baseMapId: 1 | -1 }, restricted to the vertical base maps that host a
   // REVOLUTION element in half-view (its AXIS's "Demi-vue 3D" toggle,
   // resolved per arc into `revolutionHalfView`) without an explicit partial
@@ -492,7 +517,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // Blocks (Features/blocks): prototypes built off-scene with the SAME
     // options, then cloned into the block instances loaded just above.
     threedEditor.loadBlockDefinitions?.(
-      { definitions: blockDefinitions, baseMaps: blocksBaseMaps ?? [] },
+      { definitions: blockDefinitionsForBuild, baseMaps: blocksBaseMaps ?? [] },
       buildOptions
     );
     // The scene's annotation objects just changed: resync the drawing snap /
@@ -526,7 +551,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     mainBaseMap,
     gridPinned,
     gridDessin,
-    blockDefinitions,
+    blockDefinitionsForBuild,
     blocksBaseMaps,
   ]);
 

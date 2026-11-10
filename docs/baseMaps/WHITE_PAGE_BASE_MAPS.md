@@ -55,6 +55,20 @@ Pass `whitePage: { width, height }` instead of a file:
 `getBlankBaseMapGeometry` still gives the pixel size and `meterByPx` from the
 paper format and the scale.
 
+## Changing the scale
+
+The sheet keeps its pixel size: changing the 1:N scale of a white page only
+changes `meterByPx` (and the `scale` of a print zone that still covers the
+whole sheet). `setWhitePageScaleService({ baseMapId, scale })`
+(`src/Features/baseMaps/services/`) does it; `utils/whitePageScale.js` holds
+the scale ↔ resolution conversions.
+
+Points are stored normalized: every annotation keeps its place on the sheet
+and takes the new real size. A caller that needs fixed real dimensions
+re-places its annotations itself — e.g. the pool initialisation centres the
+pool on its blank plan and picks the finest scale that holds it
+(`Data/edx/.../piscine/recenterPiscinePlan.js`).
+
 ## Pixel consumers
 
 An SVG url has no pixels worth reading and **cannot be decoded** by

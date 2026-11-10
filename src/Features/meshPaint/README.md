@@ -296,16 +296,27 @@ comme si l'utilisateur les avait peints.
   depuis la ligne db + ses points) avec `createAnnotationObject3D` (sans
   anti-crénelage), le pose sous un `createBaseMapFrameGroup` et le lit par
   `getHostPartData` — même index de parties et même `hash` que le pinceau.
+- **Instance de bloc comme hôte** (`BLOCK_INSTANCE`, `Features/blocks`) :
+  `services/createHeadlessBlockPrototypes.js` est le jumeau hors scène de
+  `BlocksManager` — les membres du bloc construits une fois, chaque instance =
+  le placeholder de la scène rempli de clones posés par les mêmes helpers
+  (`threedEditor/js/utilsBlocksManager/blockFrame.js`). La peinture est
+  portée par l'instance (`hostAnnotationId` = l'instance, géométrie dans le
+  repère de son fond de plan) : une ligne par instance, recalée comme tout
+  hôte quand l'instance est construite en 3D. Modifier le bloc ne recale pas
+  les peintures de ses instances tant qu'elles ne sont pas reconstruites :
+  relancer la procédure.
 - **Repère commun** : `utils/transformHostParts.js` (matrices 4×4 colonne‑major,
   sans three) amène les îlots / chaînes de chaque hôte dans le repère du plan
   (z haut) et renvoie les géométries locales dans le repère de l'hôte.
 - **Pipeline pur** `utils/meterHostParts.js` :
   `classifyHostPartsByRules` (table de rôles déclarative : orientation des
   normales d'un solide ouvert — INTERIOR / EXTERIOR / UP ; un hôte FERMÉ
-  (`isClosed`, p. ex. un muret portant ses podiums en découpes de hauteur)
-  garde les normales sortantes de l'index —, catégorie par face), `weldSupportFootprints` (empreinte d'un hôte posé retirée de la face
+  (`isClosed`, p. ex. un muret, un podium, un prisme étagé par des découpes
+  de hauteur) garde les normales sortantes de l'index —, catégorie par face), `weldSupportFootprints` (empreinte d'un hôte posé retirée de la face
   horizontale qui le porte : sol − fosse, tête de muret − podium, plage −
-  muret), `findReentrantChains` (arêtes concaves d'un hôte : dièdre < 180° vu
+  muret — ce sont les « soustractions » du métré : les ouvrages restent
+  simplement posés les uns sur les autres), `findReentrantChains` (arêtes concaves d'un hôte : dièdre < 180° vu
   du côté peint, îlots coplanaires regroupés) et `findBaseEdgesOnSupports`
   (arêtes de base d'un muret posé sur une face support). Une règle peut
   cumuler les deux (`angles: ["INTRA", "BASE"]`).
@@ -321,7 +332,10 @@ comme si l'utilisateur les avait peints.
   ne crée aucune annotation (`annotationsAuto/utils/notifyProcedureRunResult`).
 
 Tests : `node --test src/Features/meshPaint/utils/*.test.mjs` (classification,
-soudure, angles sur des soupes synthétiques, transformations) et le replay
+soudure, angles sur des soupes synthétiques, transformations),
+`node src/Features/meshPaint/services/createHeadlessBlockPrototypes.test.mjs`
+(instances de bloc avec les vrais constructeurs : taille réelle, rotation
+horaire à l'écran, même hash que le solide dessiné en place) et le replay
 headless complet `node src/Data/edx/automatedAnnotationsProcedures/piscine/__test__piscineQtesV1.mjs`
 (vrais builders, totaux de la piscine par défaut).
 

@@ -1,11 +1,15 @@
-import { Box3, Group, Matrix4, Scene } from "three";
+import { Box3, Scene } from "three";
 
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 
 import AnnotationsManager from "./AnnotationsManager";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
-import pixelToWorld from "./utilsAnnotationsManager/pixelToWorld";
+import {
+  BLOCK_CONTENT_FLAG,
+  createBlockContentGroup,
+  getBlockInverseMatrix,
+} from "./utilsBlocksManager/blockFrame";
 
 // ---------------------------------------------------------------------------
 // BlocksManager — 3D rendering of the blocks (Features/blocks).
@@ -28,13 +32,15 @@ import pixelToWorld from "./utilsAnnotationsManager/pixelToWorld";
 //
 // Block frame: the frame of the ORIGIN blocks base map, translated to the
 // block's insertion point. A member drawn on another blocks base map (an
-// elevation) keeps its pose relative to the origin base map.
+// elevation) keeps its pose relative to the origin base map. The frame math
+// lives in utilsBlocksManager/blockFrame.js, shared with the headless build
+// of an instance (procedure-driven metering).
 //
 // The clones carry `userData.sharedBlockResources`: AnnotationsManager never
 // disposes their geometry / material (this manager owns the prototypes).
 // ---------------------------------------------------------------------------
 
-const CONTENT_FLAG = "isBlockContent";
+const CONTENT_FLAG = BLOCK_CONTENT_FLAG;
 
 export default class BlocksManager {
   constructor({ sceneManager }) {
@@ -223,18 +229,14 @@ export default class BlocksManager {
 
   // World (prototype scene) → block frame.
   _getBlockInverseMatrix(definition) {
-    const frame = this.frames[definition.originBaseMapId];
-    const baseMap = getBaseMapForRender(
-      this.baseMapsMap[definition.originBaseMapId]
-    );
-    if (!frame || !baseMap || !definition.originPx) return null;
-    const origin = pixelToWorld(definition.originPx, baseMap);
-    return frame.matrixWorld
-      .clone()
-      .multiply(
-        new Matrix4().makeTranslation(origin.x, origin.y, definition.originZ)
-      )
-      .invert();
+    return getBlockInverseMatrix({
+      frame: this.frames[definition.originBaseMapId],
+      baseMap: getBaseMapForRender(
+        this.baseMapsMap[definition.originBaseMapId]
+      ),
+      originPx: definition.originPx,
+      originZ: definition.originZ,
+    });
   }
 
   _fillInstance(root) {
@@ -257,36 +259,17 @@ export default class BlocksManager {
     const inverse = this._getBlockInverseMatrix(definition);
     if (!inverse) return null;
 
-    const content = new Group();
-    content.userData[CONTENT_FLAG] = true;
     const prototypes = this.prototypeManager.annotationsObjectsMap;
-    definition.memberIds.forEach((memberId) => {
-      const prototype = prototypes[memberId];
-      if (!prototype) return;
-      let clone;
-      try {
-        // geometries and materials are shared with the prototype
-        clone = prototype.clone(true);
-      } catch (e) {
-        console.error("[BlocksManager] member clone failed", memberId, e);
-        return;
-      }
-      inverse
-        .clone()
-        .multiply(prototype.matrixWorld)
-        .decompose(clone.position, clone.quaternion, clone.scale);
-      clone.traverse((child) => {
-        const userData = { ...(child.userData ?? {}) };
-        // picking / hover walk up to the INSTANCE root, never to a member
-        delete userData.nodeId;
-        delete userData.nodeType;
-        delete userData.vertexRefs;
-        userData.sharedBlockResources = true;
-        child.userData = userData;
-      });
-      content.add(clone);
+    return createBlockContentGroup({
+      prototypes: definition.memberIds.map((memberId) => prototypes[memberId]),
+      inverse,
+      onCloneError: (prototype, e) =>
+        console.error(
+          "[BlocksManager] member clone failed",
+          prototype?.userData?.nodeId,
+          e
+        ),
     });
-    return content;
   }
 
   // Radius (meters) of the block around its insertion point, in the plane of
