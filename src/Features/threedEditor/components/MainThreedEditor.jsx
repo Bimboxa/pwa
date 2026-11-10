@@ -251,6 +251,7 @@ import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/compone
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
+import useBlockInstancePlacementHandlers from "Features/blocks/hooks/useBlockInstancePlacementHandlers";
 import getGridEdgeThresholdDeg from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 import {
   getMesh3dSprites,
@@ -724,6 +725,8 @@ export default function MainThreedEditor() {
   useAxesPlacementPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
+  // Same one-click placement for the instances of a block (Features/blocks).
+  useBlockInstancePlacementHandlers();
   useTemplateFaceDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
   useRulerLabelDragHandlers({ rendererIsReady });

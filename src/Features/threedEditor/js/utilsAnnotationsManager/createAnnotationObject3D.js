@@ -1511,6 +1511,33 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       object = placeholder;
       break;
     }
+    case "BLOCK_INSTANCE": {
+      // Instance of a block (Features/blocks): an empty placeholder posed at
+      // the insertion point (center of the zero-size anchor bbox), turned by
+      // `rotation` (negated: pixelToWorld mirrors y, like OBJECT_3D) and
+      // lifted by offsetZ. BlocksManager fills it with clones of the block's
+      // prototypes (shared geometries / materials) — nothing is built here.
+      const placeholder = new Group();
+      const bbox = annotation.bbox ?? {};
+      const anchor = pixelToWorld(
+        {
+          x: (bbox.x ?? 0) + (Number(bbox.width) || 0) / 2,
+          y: (bbox.y ?? 0) + (Number(bbox.height) || 0) / 2,
+        },
+        baseMap
+      );
+      placeholder.position.set(
+        anchor.x,
+        anchor.y,
+        Number(annotation.offsetZ) || 0
+      );
+      placeholder.rotation.z = -((Number(annotation.rotation) || 0) * Math.PI) / 180;
+      placeholder.userData.instanceOfBlockId = annotation.instanceOfBlockId;
+      // An instance has no vertex of its own to edit: out of the snap index.
+      placeholder.userData.noVertexSnap = true;
+      object = placeholder;
+      break;
+    }
     case "IMAGE": {
       // Managed root for the photo card in ThreedAnnotationLabels.
       object = createImageAnnotation3D(annotation, baseMap, options);

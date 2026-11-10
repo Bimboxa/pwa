@@ -52,6 +52,12 @@ export default function createObject3DPlacementController({
   dom,
   getObject3D,
   realisticShading,
+  // Optional custom preview instead of the GLB of `getObject3D()` (block
+  // instances, Features/blocks): { footprintRadius (meters), build() →
+  // Object3D | null | Promise, expressed in the base-map-local frame (Z =
+  // plane normal) }. Objects flagged `userData.sharedBlockResources` are
+  // never disposed here.
+  preview,
   onCommit,
   onCancel,
 }) {
@@ -80,12 +86,14 @@ export default function createObject3DPlacementController({
 
   // ── preview scene objects ────────────────────────────────────────────────
 
-  const object3D = getObject3D();
+  const object3D = preview ? null : getObject3D();
   const footprintRadius =
-    Math.max(
-      object3D?.bbox?.width ?? FALLBACK_FOOTPRINT_M,
-      object3D?.bbox?.depth ?? FALLBACK_FOOTPRINT_M
-    ) / 2;
+    preview?.footprintRadius > 0
+      ? preview.footprintRadius
+      : Math.max(
+          object3D?.bbox?.width ?? FALLBACK_FOOTPRINT_M,
+          object3D?.bbox?.depth ?? FALLBACK_FOOTPRINT_M
+        ) / 2;
 
   const ringMaterial = new MeshBasicMaterial({
     color: FOOTPRINT_COLOR,
@@ -125,13 +133,17 @@ export default function createObject3DPlacementController({
   stubRaycast(previewGroup);
 
   // GLB model loaded asynchronously; the footprint circle works meanwhile.
-  buildObject3DModelWrap(object3D, { realisticShading }).then((modelWrap) => {
+  (preview
+    ? Promise.resolve(preview.build())
+    : buildObject3DModelWrap(object3D, { realisticShading })
+  ).then((modelWrap) => {
     if (disposed) {
       disposeObject(modelWrap);
       return;
     }
     if (!modelWrap) {
-      onCancel?.({ reason: "GLB_MISSING" });
+      // a custom preview may have nothing to show: the footprint is enough
+      if (!preview) onCancel?.({ reason: "GLB_MISSING" });
       return;
     }
     stubRaycast(modelWrap);
@@ -357,6 +369,8 @@ export default function createObject3DPlacementController({
 
   function disposeObject(root) {
     root?.traverse?.((obj) => {
+      // shared with a block prototype (BlocksManager): not ours to free
+      if (obj.userData?.sharedBlockResources) return;
       obj.geometry?.dispose?.();
       const materials = Array.isArray(obj.material)
         ? obj.material

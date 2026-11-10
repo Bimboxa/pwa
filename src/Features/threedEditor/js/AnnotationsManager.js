@@ -612,6 +612,9 @@ export default class AnnotationsManager {
     // The parent is the basemap group when it exists, the scene otherwise.
     object.parent?.remove(object);
     object.traverse?.((child) => {
+      // Clones of a block prototype (BlocksManager) share their geometry and
+      // material with it and with every other instance: never disposed here.
+      if (child.userData?.sharedBlockResources) return;
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     });

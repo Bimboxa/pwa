@@ -10,6 +10,8 @@ import {
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 
+import getSelectableAnnotation from "Features/blocks/utils/getSelectableAnnotation";
+
 // ---------------------------------------------------------------------------
 // useSelectAnnotationFromPanel — "Sélectionner" action of the panel's
 // annotation subview: selects the annotation on the map and zooms to it
@@ -21,7 +23,9 @@ import {
 export default function useSelectAnnotationFromPanel() {
   const dispatch = useDispatch();
 
-  return (annotation) => {
+  return (row) => {
+    // a virtual quantity row of a block instance selects its instance
+    const annotation = getSelectableAnnotation(row);
     if (!annotation) return;
     if (annotation.baseMapId)
       dispatch(setSelectedMainBaseMapId(annotation.baseMapId));

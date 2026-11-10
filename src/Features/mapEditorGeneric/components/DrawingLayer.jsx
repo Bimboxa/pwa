@@ -37,6 +37,8 @@ import {
 import theme from "Styles/theme";
 import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
+import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
+import { getBlockInstanceTransform } from "Features/blocks/utils/blockInstanceGeometry";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -146,6 +148,7 @@ const DrawingLayer = forwardRef(
     // Linear layout (calepinage) preview — band polygon + axis/ticks path.
     const previewLinearLayoutFillRef = useRef(null);
     const previewLinearLayoutTicksRef = useRef(null);
+    const previewBlockInstanceRef = useRef(null); // block instance ghost
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
     const previewImageRef = useRef(null); // IMAGE ghost under the cursor
     // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
@@ -348,6 +351,13 @@ const DrawingLayer = forwardRef(
     const drawObject3D =
       enabledDrawingMode === "ONE_CLICK" && type === "OBJECT_3D";
     const object3DTopViewUrl = newAnnotation?.object3D?.topViewDataUrl;
+    // Block instance placement (Features/blocks): the block's definition
+    // follows the cursor at real size, dropped in a single click.
+    const drawBlockInstance =
+      enabledDrawingMode === "ONE_CLICK" && type === "BLOCK_INSTANCE";
+    const blockInstanceDefId = newAnnotation?.instanceOfBlockId
+      ? getBlockDefId(newAnnotation.instanceOfBlockId)
+      : null;
     // IMAGE placement: the image follows the cursor at its placement footprint
     // (getImageAnnotationSizeInBaseMapPx). Fresh picks carry a blob: URL, drafts
     // armed from a template only the persisted thumbnail (dataURL).
@@ -366,6 +376,25 @@ const DrawingLayer = forwardRef(
         // Rectangle side badges: off unless the rectangle branch below sets
         // them (same synchronous pass, no flicker).
         onRectanglePreviewRef.current?.(null);
+
+        // Block instance: the definition under the cursor, at real size.
+        if (drawBlockInstance && previewBlockInstanceRef.current) {
+          const mbp = meterByPxRef.current;
+          if (Number.isFinite(mbp) && mbp > 0) {
+            previewBlockInstanceRef.current.setAttribute(
+              "transform",
+              getBlockInstanceTransform({
+                anchorPx: cursorPos,
+                rotationDeg: 0,
+                hostMeterByPx: mbp,
+              })
+            );
+            previewBlockInstanceRef.current.style.display = "block";
+          } else {
+            previewBlockInstanceRef.current.style.display = "none";
+          }
+          return;
+        }
 
         // OBJECT_3D: render the top-view projection at the cursor, sized to the
         // model footprint (bbox X×Z meters / meterByPx). Runs before the
@@ -1196,6 +1225,17 @@ const DrawingLayer = forwardRef(
             ref={previewObject3DRef}
             href={object3DTopViewUrl}
             preserveAspectRatio="none"
+            opacity={0.6}
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
+        {/* A000''. Block instance ghost — a <use> of the block's definition
+            (BlockDefinitionsDefs) under the cursor. */}
+        {drawBlockInstance && blockInstanceDefId && (
+          <use
+            ref={previewBlockInstanceRef}
+            href={`#${blockInstanceDefId}`}
             opacity={0.6}
             style={{ display: "none", pointerEvents: "none" }}
           />

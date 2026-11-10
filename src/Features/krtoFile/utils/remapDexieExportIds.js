@@ -78,6 +78,10 @@ export default function remapDexieExportIds(jsonData, opts) {
     globalLayerId: "globalLayers",
     planningId: "plannings",
     planningResourceId: "planningResources",
+    // Blocks (Features/blocks): member annotation -> its block, instance
+    // annotation -> the block it renders.
+    blockId: "blocks",
+    instanceOfBlockId: "blocks",
   };
 
   // Per-table FK target overrides: a field name shared across tables but
@@ -291,6 +295,14 @@ export default function remapDexieExportIds(jsonData, opts) {
             "baseMaps",
             row.sourceInfo.baseMapId
           );
+      }
+
+      // Block origin (nested ref to its origin blocks base map).
+      if (tableName === "blocks" && row.origin?.baseMapId) {
+        row.origin = {
+          ...row.origin,
+          baseMapId: remapId("baseMaps", row.origin.baseMapId),
+        };
       }
 
       // PhotoPlan calibration inputs (nested plan-baseMap ref; baseMapId /

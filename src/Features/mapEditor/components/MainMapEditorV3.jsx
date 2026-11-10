@@ -204,6 +204,8 @@ import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
+import useCommitBlockInstance from "Features/blocks/hooks/useCommitBlockInstance";
+import BlockDefinitionsDefs from "Features/blocks/components/BlockDefinitionsDefs";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import usePrepareScene3dHeightMaps from "Features/scene3d/hooks/usePrepareScene3dHeightMaps";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
@@ -1029,6 +1031,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // « Pinceau » armed in 2D: convert / duplicate the clicked annotation.
   const handleTemplateBrushClick = useTemplateBrushClick();
   const createAnnotationFromSurfaceDrop = useCreateAnnotationFromSurfaceDrop();
+  const commitBlockInstance = useCommitBlockInstance();
 
   const handleCommitDetectedFeatures = async ({
     features,
@@ -1045,6 +1048,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   };
 
   const handleCommitDrawing = (rawPoints, options) => {
+    // Block instance (Features/blocks, armed from the library): a dedicated
+    // write — no template, no db.points; the mode stays armed for the next
+    // drop.
+    if (rawPoints.length === 1 && type === "BLOCK_INSTANCE") {
+      commitBlockInstance({ newAnnotation, baseMap, pointPx: rawPoints[0] });
+      return;
+    }
     if (rawPoints.length === 1 && type === "RECTANGLE") {
       const imageSize = getAnnotationTemplateSizeInPx({
         size: newAnnotation.size,
@@ -2500,7 +2510,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       }
 
       // --- OBJECT_3D : move + rotate only (no resize) ---
-      else if (annotation.type === "OBJECT_3D") {
+      // BLOCK_INSTANCE (Features/blocks): same bbox + rotation model, on a
+      // zero-size anchor bbox (no painted part: the paint move is a no-op).
+      else if (
+        annotation.type === "OBJECT_3D" ||
+        annotation.type === "BLOCK_INSTANCE"
+      ) {
         const bgW = imageSize.width;
         const bgH = imageSize.height;
 
@@ -3161,6 +3176,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
           <LayerTools />
+
+          {/* Blocks (Features/blocks): the geometry of each block, rendered
+              once — every instance is a <use> of it. */}
+          {registersCamera && (
+            <BlockDefinitionsDefs
+              hostMeterByPx={baseMap?.getMeterByPx?.()}
+              hostContainerK={basePose?.k ?? 1}
+            />
+          )}
 
           {!versionCompareEnabled &&
             !imageModeActive &&

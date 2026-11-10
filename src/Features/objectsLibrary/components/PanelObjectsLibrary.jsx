@@ -28,10 +28,12 @@ import {
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SectionBlocksInLibrary from "Features/blocks/components/SectionBlocksInLibrary";
 
 import {
   OBJECTS_LIBRARY_TABS,
   DRAWING_SUBTABS,
+  BLOCKS_SUBTAB_KEY,
 } from "../constants/objectsLibraryTabs";
 import useObjectsLibrary from "../hooks/useObjectsLibrary";
 import usePlaceObjectFromLibrary from "../hooks/usePlaceObjectFromLibrary";
@@ -82,6 +84,10 @@ export default function PanelObjectsLibrary() {
   // category. Each maps to an object's `tab` value in the manifest.
   const effectiveCategory =
     activeTab === "DRAWING" ? activeSubTab : "OBJECT_3D";
+
+  // « Blocs »: the blocks of the scope (db.blocks), not manifest objects — no
+  // target listing either (a block instance belongs to no listing).
+  const isBlocksCategory = effectiveCategory === BLOCKS_SUBTAB_KEY;
 
   // A category is populated when the manifest holds at least one object for it;
   // empty categories show an "En cours de construction" placeholder.
@@ -274,7 +280,11 @@ export default function PanelObjectsLibrary() {
           <TextField
             size="small"
             fullWidth
-            placeholder="Rechercher une figure…"
+            placeholder={
+              isBlocksCategory
+                ? "Rechercher un bloc…"
+                : "Rechercher une figure…"
+            }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -323,7 +333,9 @@ export default function PanelObjectsLibrary() {
         <Box
           sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", px: 1.5, pb: 1 }}
         >
-          {loading ? (
+          {isBlocksCategory ? (
+            <SectionBlocksInLibrary search={search} />
+          ) : loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
               <CircularProgress size={28} />
             </Box>
@@ -368,6 +380,7 @@ export default function PanelObjectsLibrary() {
             is selected, a warning band draws attention to the selector. */}
         <Box
           sx={{
+            display: isBlocksCategory ? "none" : "block",
             p: 1.5,
             borderTop: (theme) =>
               `1px solid ${

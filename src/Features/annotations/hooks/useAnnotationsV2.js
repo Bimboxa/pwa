@@ -341,6 +341,7 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import expandBlockInstancesForQties from "Features/blocks/utils/expandBlockInstancesForQties";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
@@ -703,6 +704,24 @@ export default function useAnnotationsV2(options) {
     // (Photos module map rendering — see PHOTO_ID_PREFIX). Every quantity /
     // listing / export caller must keep ignoring them.
     const withPhotos = options?.withPhotos;
+
+    // Blocks base maps (Features/blocks): the annotations drawn on them are
+    // block DEFINITIONS — they only count through the block instances. A
+    // project / listing wide query drops them, except those of the main base
+    // map (on a blocks base map the user sees the block's own quantities).
+    // Opt-in to keep them all. Queries targeting base maps are untouched.
+    const includeBlocksBaseMapAnnotations =
+      options?.includeBlocksBaseMapAnnotations;
+
+    // Opt-in, with `withQties`: count the block INSTANCES of the query —
+    // each one as a copy of every member of its block (N instances × the
+    // block's quantities). Appends read-only VIRTUAL rows (id
+    // `<instanceId>::<memberId>`, isBlockInstanceMember) that carry the
+    // member's template + qties on the instance's base map — see
+    // expandBlockInstancesForQties. For AGGREGATING callers only: a virtual
+    // row is never to be drawn nor written.
+    const expandBlockInstances =
+      Boolean(options?.expandBlockInstances) && Boolean(options?.withQties);
 
     const filterBySelectedScope = options?.filterBySelectedScope;
     const filterByMainBaseMap = options?.filterByMainBaseMap;
@@ -1158,6 +1177,87 @@ export default function useAnnotationsV2(options) {
         disabledListingIdSet.has(baseMapById[id]?.listingId);
       if (disabledListingIdSet) {
         _annotations = _annotations.filter((a) => !isHostDisabled(a.baseMapId));
+      }
+
+      // -- BLOCKS BASE MAPS --
+      if (!baseMapId && !includeBlocksBaseMapAnnotations) {
+        const mainBaseMapId = baseMap?.id;
+        _annotations = _annotations.filter((a) => {
+          const host = baseMapById[a.baseMapId];
+          return !host?.isBlocksBaseMap || host.id === mainBaseMapId;
+        });
+      }
+
+      // -- BLOCK INSTANCES → QUANTITIES (opt-in) --
+      // The members of the blocks instantiated in this query's perimeter are
+      // read here (real IDB reads: observed) and tagged with the instances to
+      // count; stage B computes their quantities like any annotation, then
+      // expands them into virtual rows. Fresh row objects (never the shared
+      // cache's): tagging them is safe.
+      if (expandBlockInstances && projectId) {
+        const blockRows = (
+          scope?.id
+            ? await db.blocks.where("scopeId").equals(scope.id).toArray()
+            : await db.blocks.where("projectId").equals(projectId).toArray()
+        ).filter((b) => !b.deletedAt);
+        if (blockRows.length > 0) {
+          const queryBaseMapIdSet = baseMapId
+            ? new Set([baseMapId, ...extraBaseMapIds])
+            : null;
+          const isLayerVisible = (layerId) =>
+            layerId
+              ? !hiddenLayerIds.includes(layerId)
+              : showAnnotationsWithoutLayer;
+          const instancesByBlockId = {};
+          (
+            await db.annotations
+              .where("instanceOfBlockId")
+              .anyOf(blockRows.map((b) => b.id))
+              .toArray()
+          ).forEach((i) => {
+            const host = baseMapById[i.baseMapId];
+            if (
+              i.deletedAt ||
+              i.type !== "BLOCK_INSTANCE" ||
+              !host ||
+              host.isBlocksBaseMap ||
+              isHostDisabled(i.baseMapId) ||
+              (queryBaseMapIdSet && !queryBaseMapIdSet.has(i.baseMapId)) ||
+              !isLayerVisible(i.layerId)
+            )
+              return;
+            if (!instancesByBlockId[i.instanceOfBlockId])
+              instancesByBlockId[i.instanceOfBlockId] = [];
+            instancesByBlockId[i.instanceOfBlockId].push({
+              id: i.id,
+              baseMapId: i.baseMapId,
+              layerId: i.layerId ?? null,
+              bbox: i.bbox,
+            });
+          });
+          const usedBlockIds = Object.keys(instancesByBlockId);
+          if (usedBlockIds.length > 0) {
+            const presentIds = new Set(_annotations.map((a) => a.id));
+            const taggedById = new Map();
+            (
+              await db.annotations.where("blockId").anyOf(usedBlockIds).toArray()
+            ).forEach((m) => {
+              if (m.deletedAt || m.type === "BLOCK_INSTANCE") return;
+              if (listingId && m.listingId !== listingId) return;
+              taggedById.set(m.id, {
+                ...m,
+                _blockQtyInstances: instancesByBlockId[m.blockId],
+                ...(presentIds.has(m.id) ? {} : { _blockQtyOnly: true }),
+              });
+            });
+            if (taggedById.size > 0) {
+              _annotations = [
+                ..._annotations.map((a) => taggedById.get(a.id) ?? a),
+                ...[...taggedById.values()].filter((m) => m._blockQtyOnly),
+              ];
+            }
+          }
+        }
       }
 
       const _t1 = performance.now();
@@ -1671,8 +1771,13 @@ export default function useAnnotationsV2(options) {
           else if (
             annotation.type === "IMAGE" ||
             annotation.type === "RECTANGLE" ||
-            annotation.type === "OBJECT_3D"
+            annotation.type === "OBJECT_3D" ||
+            annotation.type === "BLOCK_INSTANCE"
           ) {
+            // Block instance: zero-size anchor bbox (its center = the
+            // insertion point); the plan scale sizes the block at real size.
+            if (annotation.type === "BLOCK_INSTANCE")
+              _annotation._planMeterByPx = meterByPx;
             _annotation.bbox = {
               x: (annotation.bbox?.x ?? 0.25) * width,
               y: (annotation.bbox?.y ?? 0.25) * height,
@@ -2887,6 +2992,8 @@ export default function useAnnotationsV2(options) {
       withPhotos,
       showBaseMapLinks,
       onlyBaseMapLinks,
+      includeBlocksBaseMapAnnotations,
+      expandBlockInstances,
     ]);
 
     // memoize post-processing to avoid recomputing on unrelated re-renders
@@ -3509,6 +3616,25 @@ export default function useAnnotationsV2(options) {
           .sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
       }
 
+      // Block instances → quantities: one virtual row per (instance, member),
+      // feed-only members dropped. No-op (same array) without tagged rows.
+      if (expandBlockInstances) {
+        const hostsById = {};
+        result.forEach((a) =>
+          (a?._blockQtyInstances ?? []).forEach((i) => {
+            if (hostsById[i.baseMapId]) return;
+            const host = baseMapById[i.baseMapId];
+            const size = host?.getImageSize?.();
+            hostsById[i.baseMapId] = {
+              name: host?.name,
+              width: size?.width,
+              height: size?.height,
+            };
+          })
+        );
+        result = expandBlockInstancesForQties(result, hostsById);
+      }
+
       // Identity stabilization: reuse the previous run's object (and array)
       // references for annotations whose resolved content did not change, so
       // memo(NodeAnnotationStatic) & co only re-render what actually changed.
@@ -3583,6 +3709,7 @@ export default function useAnnotationsV2(options) {
       excludeHiddenIn3d,
       includeCutLines,
       isMeshesModule,
+      expandBlockInstances,
       // NOTE — `appConfig` is read inside this query (the scope filter's
       // entityModel lookup) but is NOT a dependency: adding the object itself
       // would make this heavy query re-resolve every annotation on any re-set

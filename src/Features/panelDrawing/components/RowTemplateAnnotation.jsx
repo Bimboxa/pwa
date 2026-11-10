@@ -9,6 +9,7 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import IconPointer from "Features/icons/IconPointer";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
+import { isBlockVirtualRow } from "Features/blocks/utils/getSelectableAnnotation";
 import {
   MESH_3D_QTY_LABEL,
   MESH_3D_QTIES_TOOLTIP,
@@ -53,6 +54,12 @@ export default function RowTemplateAnnotation({ annotation, label, color }) {
   // handlers
 
   const handleClick = () => {
+    // A virtual quantity row of a block instance has no detail of its own:
+    // the click selects its instance on the plan.
+    if (isBlockVirtualRow(annotation)) {
+      selectAnnotation(annotation);
+      return;
+    }
     dispatch(setDetailAnnotationId(annotation.id));
   };
 

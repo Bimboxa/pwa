@@ -1876,6 +1876,8 @@ export default function PopperMapListings() {
     ...(widenToDisplayed ? { extraBaseMapIds: otherDisplayedBaseMapIds } : {}),
     hideBaseMapAnnotations: true,
     withQties: true,
+    // block instances count as copies of their block's members
+    expandBlockInstances: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
     ...(mirrors3dFilters

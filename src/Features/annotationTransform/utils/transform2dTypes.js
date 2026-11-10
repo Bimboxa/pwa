@@ -1,5 +1,5 @@
 import {
-  isObject3DAnnotationType,
+  isBboxPlacedAnnotationType,
   isPointBasedAnnotationType,
 } from "../../threedAnnotationMove/utils/annotationTransformTypes.js";
 
@@ -13,8 +13,20 @@ import {
 //     a dedicated write (getFreeTextMoveUpdates). Moved only, never turned.
 //   - OBJECT_3D (imported GLB): bbox + rotation rewritten by a dedicated
 //     write (getObject3DTransformUpdates), moved AND turned — in 3D too.
-export const MOVE_2D_EXTRA_TYPES = ["COTE", "RULER", "FREE_TEXT", "OBJECT_3D"];
-export const ROTATE_2D_EXTRA_TYPES = ["COTE", "RULER", "OBJECT_3D"];
+//   - BLOCK_INSTANCE (Features/blocks): same bbox-placed model as OBJECT_3D.
+export const MOVE_2D_EXTRA_TYPES = [
+  "COTE",
+  "RULER",
+  "FREE_TEXT",
+  "OBJECT_3D",
+  "BLOCK_INSTANCE",
+];
+export const ROTATE_2D_EXTRA_TYPES = [
+  "COTE",
+  "RULER",
+  "OBJECT_3D",
+  "BLOCK_INSTANCE",
+];
 
 // kind: "MOVE" | "ROTATE"
 export function isTransformable2dType(kind, type) {
@@ -37,5 +49,5 @@ export function isFreeTextType(type) {
 }
 
 export function isObject3DType(type) {
-  return isObject3DAnnotationType(type);
+  return isBboxPlacedAnnotationType(type);
 }

@@ -19,6 +19,11 @@ export default function useBaseMaps(options) {
   // in bulk would trigger one full PDF render each. Opt in only for
   // by-id joins (an annotation drawn ON a detail resolving its baseMap).
   const includeDetails = options?.includeDetails ?? false;
+  // Blocks base maps (isBlocksBaseMap, Features/blocks) are excluded by
+  // default too: they host block definitions, not plans. They follow
+  // `includeDetails` (the by-id join opt-in) unless set explicitly.
+  const includeBlocksBaseMaps =
+    options?.includeBlocksBaseMaps ?? includeDetails;
   // Base maps of the folders hidden in the selected scope
   // (scope.baseMapsSettings.disabledListingIds, eye of the SCOPE module) are
   // excluded by default: a hidden folder does not exist for the scope. Opt in
@@ -63,6 +68,9 @@ export default function useBaseMaps(options) {
 
     if (!includeDetails) {
       records = records.filter((r) => !r.isDetail);
+    }
+    if (!includeBlocksBaseMaps) {
+      records = records.filter((r) => !r.isBlocksBaseMap);
     }
 
     // hidden folders of the selected scope
@@ -119,6 +127,7 @@ export default function useBaseMaps(options) {
     filterByListingId,
     filterByProjectId,
     includeDetails,
+    includeBlocksBaseMaps,
     disabledKey,
   ]);
 

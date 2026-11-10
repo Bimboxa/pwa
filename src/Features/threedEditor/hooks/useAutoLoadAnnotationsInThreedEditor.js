@@ -13,6 +13,8 @@ import {
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBlockDefinitions from "Features/blocks/hooks/useBlockDefinitions";
+import useBlocksBaseMaps from "Features/blocks/hooks/useBlocksBaseMaps";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
@@ -111,6 +113,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
   const { value: baseMaps = [] } = useBaseMaps();
+  // Blocks (Features/blocks): what the block instances of the scene draw.
+  const blockDefinitions = useBlockDefinitions();
+  const blocksBaseMaps = useBlocksBaseMaps();
   const mainBaseMap = useMainBaseMap();
 
   // Photo baseMaps follow the standard chips mechanism: their annotations
@@ -472,7 +477,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
         }
       });
     }
-    threedEditor.loadAnnotations(annotationsForBuild || [], {
+    const buildOptions = {
       disableOpacity,
       antiAliasingShrink,
       realisticShading,
@@ -482,7 +487,14 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       revolutionSectionByAxisId,
       revolutionSectionKey,
       revolutionSectionFill,
-    });
+    };
+    threedEditor.loadAnnotations(annotationsForBuild || [], buildOptions);
+    // Blocks (Features/blocks): prototypes built off-scene with the SAME
+    // options, then cloned into the block instances loaded just above.
+    threedEditor.loadBlockDefinitions?.(
+      { definitions: blockDefinitions, baseMaps: blocksBaseMaps ?? [] },
+      buildOptions
+    );
     // The scene's annotation objects just changed: resync the drawing snap /
     // face-detection index. Deterministic counterpart of the 350 ms
     // post-commit bump in useDrawingPointerHandlers, which loses the race
@@ -514,6 +526,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     mainBaseMap,
     gridPinned,
     gridDessin,
+    blockDefinitions,
+    blocksBaseMaps,
   ]);
 
   return annotationsForThreed;

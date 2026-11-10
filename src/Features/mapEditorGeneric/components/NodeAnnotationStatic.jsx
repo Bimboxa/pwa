@@ -21,6 +21,8 @@ import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
 import NodeDiscStatic from "./NodeDiscStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
+import NodeBlockInstanceStatic from "Features/blocks/components/NodeBlockInstanceStatic";
+
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 
@@ -188,6 +190,21 @@ function NodeAnnotationStatic({
 
     case "OBJECT_3D":
       return <NodeObject3DStatic {...props} annotation={resolvedAnnotation} />;
+
+    // Instance of a block (Features/blocks): one <use> of the block's
+    // definition.
+    case "BLOCK_INSTANCE":
+      return (
+        <NodeBlockInstanceStatic
+          annotation={resolvedAnnotation}
+          hovered={hovered}
+          selected={selected}
+          dragged={dragged}
+          draggedPartType={draggedPartType}
+          containerK={containerK}
+          baseMapMeterByPx={baseMapMeterByPx}
+        />
+      );
 
     case "COTE":
       return <NodeCoteStatic {...props} annotation={resolvedAnnotation} />;

@@ -9,6 +9,9 @@ const UNDO_TABLES = new Set([
   // ones in the same undo step as the host's mesh write, so one Ctrl+Z
   // restores the host AND its live subtraction.
   "relAnnotationSubtractions",
+  // Blocks (Features/blocks): « Lier à un bloc » creates the block in the same
+  // undo step as the moved members and the instance.
+  "blocks",
 ]);
 const MAX_UNDO = 50;
 
