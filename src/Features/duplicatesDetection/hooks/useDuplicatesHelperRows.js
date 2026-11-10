@@ -4,16 +4,19 @@ import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationL
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 
 const EMPTY = { rows: [], missingCount: 0 };
+const NO_LAYER_S = "sans calque";
 
 // Joins the duplicates of the last run with the helper's live annotations /
 // templates into display rows: label (own label, else « Modèle 03 » numbered
 // in the template's draw order like the Dessin panel), the template (icon),
 // overlap text in m / m² (calibrated run) or px / px². Annotations deleted since the run are
-// counted in `missingCount` instead of rendered.
+// counted in `missingCount` instead of rendered. `layerText` is only set when
+// one of the row's partners sits on another layer (« sans calque » if none).
 export default function useDuplicatesHelperRows({
   result,
   annotations,
   templateById,
+  layerById,
   meterByPx,
   hasScale,
 }) {
@@ -38,6 +41,11 @@ export default function useDuplicatesHelperRows({
         .forEach((a, idx) => rankById.set(a.id, idx + 1));
     }
 
+    const layerIdByAnnotationId = new Map();
+    for (const dup of duplicates) {
+      layerIdByAnnotationId.set(dup.annotationId, dup.layerId ?? null);
+    }
+
     const rows = [];
     let missingCount = 0;
     for (const dup of duplicates) {
@@ -60,8 +68,26 @@ export default function useDuplicatesHelperRows({
             ? `${(dup.overlapPx * meterByPx * meterByPx).toFixed(2)} m²`
             : `${(dup.overlapPx * meterByPx).toFixed(2)} m`
           : `${Math.round(dup.overlapPx)} px${isArea ? "²" : ""}`;
-      rows.push({ ...dup, annotation, template, label, overlapText });
+      const layerId = annotation.layerId ?? null;
+      const hasOtherLayerPartner = (dup.partnerIds ?? []).some(
+        (id) =>
+          layerIdByAnnotationId.has(id) &&
+          layerIdByAnnotationId.get(id) !== layerId
+      );
+      const layerText = hasOtherLayerPartner
+        ? layerId && layerById?.[layerId]?.name
+          ? `calque ${layerById[layerId].name}`
+          : NO_LAYER_S
+        : null;
+      rows.push({
+        ...dup,
+        annotation,
+        template,
+        label,
+        overlapText,
+        layerText,
+      });
     }
     return { rows, missingCount };
-  }, [result, annotations, templateById, meterByPx, hasScale]);
+  }, [result, annotations, templateById, layerById, meterByPx, hasScale]);
 }

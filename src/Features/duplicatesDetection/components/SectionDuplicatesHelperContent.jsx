@@ -1,9 +1,12 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { clearDetection, setToleranceCm } from "../duplicatesDetectionSlice";
 
-import { selectSelectedItem } from "Features/selection/selectionSlice";
+import {
+  clearSelection,
+  selectSelectedItem,
+} from "Features/selection/selectionSlice";
 
 import {
   Box,
@@ -15,15 +18,20 @@ import {
   Typography,
 } from "@mui/material";
 import Refresh from "@mui/icons-material/Refresh";
+import DeleteSweep from "@mui/icons-material/DeleteSweep";
 
 import RowDuplicateAnnotation from "./RowDuplicateAnnotation";
+import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useLayers from "Features/layers/hooks/useLayers";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
 import useRunDuplicatesDetection from "../hooks/useRunDuplicatesDetection";
 import useDuplicatesHelperRows from "../hooks/useDuplicatesHelperRows";
+import findDuplicateAnnotations from "Features/annotations/utils/findDuplicateAnnotations";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
 
@@ -32,7 +40,9 @@ import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
 // the docked Dessin panel (SectionPanelDuplicatesHelper) and the floating
 // popper (PopperDuplicatesHelper): tolerance field + « Relancer », progress
 // while running, then the summary and one row per duplicate (click = select
-// on the map). Only mounted while a run exists (status !== "idle"), so its
+// on the map). « Supprimer les doublons exacts » deletes, in one batch, the
+// copies with the very same geometry on the same layer (the oldest of each
+// group is kept), then relaunches the run. Only mounted while a run exists (status !== "idle"), so its
 // own annotations query (same scope as the « Doublons » card) runs only then.
 // Escape closes the helper (clearDetection).
 // ---------------------------------------------------------------------------
@@ -48,6 +58,7 @@ export default function SectionDuplicatesHelperContent() {
   const noneS = "Aucun doublon détecté";
   const errorS = "Échec de la détection";
   const hintS = "Cliquez une ligne pour la sélectionner sur le plan";
+  const deleteExactS = "Supprimer les doublons exacts";
 
   // data
 
@@ -58,6 +69,7 @@ export default function SectionDuplicatesHelperContent() {
   const runMeterByPx = useSelector((s) => s.duplicatesDetection.meterByPx);
   const runHasScale = useSelector((s) => s.duplicatesDetection.hasScale);
   const selectedItem = useSelector(selectSelectedItem);
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   const baseMap = useMainBaseMap();
   const annotations = useAnnotationsV2({
@@ -72,16 +84,40 @@ export default function SectionDuplicatesHelperContent() {
     [templates]
   );
 
+  const layers = useLayers({
+    filterByBaseMapId: baseMap?.id,
+    filterByScopeId: selectedScopeId,
+  });
+  const layerById = useMemo(() => getItemsByKey(layers ?? [], "id"), [layers]);
+
   const run = useRunDuplicatesDetection();
+  const deleteAnnotations = useDeleteAnnotations();
   const selectAnnotation = useSelectAnnotationFromPanel();
 
   const { rows, missingCount } = useDuplicatesHelperRows({
     result,
     annotations,
     templateById,
+    layerById,
     meterByPx: runMeterByPx,
     hasScale: runHasScale,
   });
+
+  // exact duplicates among the listed ones: same template, type, layer and
+  // geometry — the oldest annotation of each group is kept
+  const exactDuplicateIds = useMemo(
+    () =>
+      findDuplicateAnnotations(
+        rows.map((row) => row.annotation),
+        { crossLayers: false }
+      ).duplicateIds,
+    [rows]
+  );
+
+  // state
+
+  const [openDelete, setOpenDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // helpers
 
@@ -97,24 +133,47 @@ export default function SectionDuplicatesHelperContent() {
       ? `${missingCount} annotation${missingCount > 1 ? "s" : ""} supprimée${missingCount > 1 ? "s" : ""} depuis l'analyse`
       : null;
   const selectedAnnotationId = selectedItem?.nodeId ?? selectedItem?.id ?? null;
+  const exactCount = exactDuplicateIds.length;
+  const deleteMessageS = `Supprimer ${exactCount} doublon${exactCount > 1 ? "s" : ""} exact${exactCount > 1 ? "s" : ""} (même calque, géométrie identique) ? L'annotation la plus ancienne de chaque groupe est conservée.`;
 
   // effect - Escape closes the helper (not while typing in the field)
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key !== "Escape" || isEditableTarget(e.target)) return;
+      if (openDelete) return; // Escape only closes the confirmation dialog
       dispatch(clearDetection());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [dispatch]);
+  }, [dispatch, openDelete]);
 
   // handlers
 
+  function relaunch(annotationsToCheck) {
+    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+    run(annotationsToCheck ?? [], { meterByPx, baseMapId: baseMap?.id });
+  }
+
   function handleRelaunch() {
     if (running) return;
-    const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
-    run(annotations ?? [], { meterByPx, baseMapId: baseMap?.id });
+    relaunch(annotations);
+  }
+
+  async function handleDeleteExactDuplicates() {
+    if (deleting || exactCount === 0) return;
+    const deletedIds = new Set(exactDuplicateIds);
+    setDeleting(true);
+    try {
+      // one batch: single transaction, single undo step
+      await deleteAnnotations(exactDuplicateIds);
+      if (deletedIds.has(selectedAnnotationId)) dispatch(clearSelection());
+      // the live query has not caught up yet: filter the deleted ones out
+      relaunch((annotations ?? []).filter((a) => !deletedIds.has(a.id)));
+    } finally {
+      setDeleting(false);
+      setOpenDelete(false);
+    }
   }
 
   function handleToleranceChange(e) {
@@ -207,6 +266,19 @@ export default function SectionDuplicatesHelperContent() {
               {missingS}
             </Typography>
           )}
+          {exactCount > 0 && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteSweep fontSize="small" />}
+              onClick={() => setOpenDelete(true)}
+              disabled={running || deleting}
+              sx={{ textTransform: "none", alignSelf: "flex-start" }}
+            >
+              {`${deleteExactS} (${exactCount})`}
+            </Button>
+          )}
           {rows.length > 0 && (
             <>
               <Typography
@@ -237,6 +309,13 @@ export default function SectionDuplicatesHelperContent() {
           )}
         </Box>
       )}
+
+      <DialogDeleteRessource
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        onConfirmAsync={handleDeleteExactDuplicates}
+        message={deleteMessageS}
+      />
     </Box>
   );
 }

@@ -6,7 +6,8 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 // ---------------------------------------------------------------------------
 // RowDuplicateAnnotation — one duplicate of the helper list: the template
 // icon (same per-type glyph as the edit toolbar header: line, strip…),
-// label, overlap line. Clicking the row selects the
+// label, overlap line (plus the layer when the duplicates sit on different
+// layers). Clicking the row selects the
 // annotation on the map (the parent passes useSelectAnnotationFromPanel).
 // ---------------------------------------------------------------------------
 
@@ -20,7 +21,8 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
 
   const partners = row.partnerIds?.length ?? 0;
   const linkedS = partners > 1 ? ` · ${partners} doublons liés` : "";
-  const detailS = `${row.overlapText} · ${row.isTotal ? totalS : partialS}${linkedS}`;
+  const layerS = row.layerText ? ` · ${row.layerText}` : "";
+  const detailS = `${row.overlapText} · ${row.isTotal ? totalS : partialS}${linkedS}${layerS}`;
 
   // render
 
