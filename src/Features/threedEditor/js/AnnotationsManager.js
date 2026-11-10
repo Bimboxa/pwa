@@ -11,6 +11,7 @@ import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnn
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
 import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
+import isOpenSidePrism from "Features/annotations/utils/isOpenSidePrism";
 import isPolylineSheetWall from "Features/annotations/utils/isPolylineSheetWall";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
@@ -486,6 +487,8 @@ export default class AnnotationsManager {
                 isPolylineSheetWall(annotation) ||
                 // « Fosse »: a prism without its top face, an open surface.
                 isOpenTopPrism(annotation) ||
+                // A prism without one of its side faces (hidden segment).
+                isOpenSidePrism(annotation) ||
                 (sourceShapeKey === "REVOLUTION" &&
                   !isRevolutionSolid(annotation));
             subtractAnnotationGeometries(carveTarget, carveOperands, {
