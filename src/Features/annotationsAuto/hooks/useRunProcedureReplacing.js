@@ -1,18 +1,18 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import useAnnotationsAutoRun from "./useAnnotationsAutoRun";
-import getProcedureOutputs from "../services/getProcedureOutputs";
+import useDeleteProcedureOutputs from "./useDeleteProcedureOutputs";
 import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
 
 /**
  * Runs an ANNOTATIONS_CREATOR procedure from explicit sources, REPLACING its
  * previous outputs: the rows tagged with those sources (chained procedures
- * included — getProcedureOutputs) are deleted BEFORE the new run commits, so
- * a launch never stacks a second drawing on the first. Shared by the listing
+ * included — getProcedureOutputs — and the painted parts of a procedure that
+ * paints: useDeleteProcedureOutputs) are deleted BEFORE the new run commits,
+ * so a launch never stacks a second result on the first. Shared by the listing
  * « Dessin auto » band, the revolution-axis launch dialog, the axis toolbar
  * and the auto-launch outlet.
  *
@@ -24,10 +24,9 @@ import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
 export default function useRunProcedureReplacing() {
   const dispatch = useDispatch();
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const appConfig = useAppConfig();
   const run = useAnnotationsAutoRun();
-  const deleteAnnotations = useDeleteAnnotations();
+  const deleteOutputs = useDeleteProcedureOutputs();
 
   return async ({ procedureKey, sourceAnnotationIds, procedureParams }) => {
     const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
@@ -35,16 +34,7 @@ export default function useRunProcedureReplacing() {
     const sourceIds = (sourceAnnotationIds ?? []).filter(Boolean);
     if (!entry || sourceIds.length === 0) return null;
 
-    const previousOutputs = await getProcedureOutputs({
-      projectId,
-      procedureKey,
-      sourceAnnotationIds: sourceIds,
-      chainedProcedureKeys: entry.chainedProcedureKeys,
-      procedures,
-    });
-    if (previousOutputs.length > 0) {
-      await deleteAnnotations(previousOutputs.map((a) => a.id));
-    }
+    await deleteOutputs({ procedureKey, sourceAnnotationIds: sourceIds });
 
     const result = await run({
       procedureKey,

@@ -8,9 +8,14 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
-import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import useDeleteProcedureOutputs from "../hooks/useDeleteProcedureOutputs";
+import useProcedurePaintOutputs from "../hooks/useProcedurePaintOutputs";
 import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
 import getProcedureOutputs from "../services/getProcedureOutputs";
+import {
+  formatDeleteOutputsTitle,
+  formatDeletedOutputsMessage,
+} from "../utils/formatProcedureOutputsCount";
 
 import {
   Box,
@@ -33,7 +38,9 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds` AND
  * whose procedure key is this one — so procedure A never deletes what
  * procedure B created from the same source. Legacy rows (no procedure key)
- * match any procedure.
+ * match any procedure. The painted parts of a procedure that paints
+ * (registry `outputKind: "MESH_PAINTS"`) are counted and swept the same way
+ * (useDeleteProcedureOutputs).
  *
  * - Toolbar: a single source annotation → set = [annotation.id].
  * - Listing popper: all annotations of the source template → set = their ids,
@@ -65,7 +72,7 @@ export default function ProcedureActionButtons({
   // data
 
   const run = useAnnotationsAutoRun();
-  const deleteAnnotations = useDeleteAnnotations();
+  const deleteOutputs = useDeleteProcedureOutputs();
 
   const appConfig = useAppConfig();
   const procedure = (appConfig?.automatedAnnotationsProcedures ?? []).find(
@@ -105,7 +112,15 @@ export default function ProcedureActionButtons({
 
   // helpers
 
-  const createdCount = createdAnnotations?.length ?? 0;
+  const paintOutputs = useProcedurePaintOutputs({
+    procedureKey,
+    sourceAnnotationIds: sourceIds,
+  });
+  const outputsCounts = {
+    annotations: createdAnnotations?.length ?? 0,
+    paints: paintOutputs.length,
+  };
+  const createdCount = outputsCounts.annotations + outputsCounts.paints;
 
   // helpers - procedure-specific params dialog (registry entry paramsDialog),
   // lazy-loaded like the procedure module itself. Only the single-source
@@ -153,19 +168,10 @@ export default function ProcedureActionButtons({
   // chains reset → run in one handler and must delete the previous drawing
   // BEFORE the new one is committed, whatever the render timing.
   async function resetProcedure() {
-    const outputs = await getProcedureOutputs({
-      projectId,
-      procedureKey,
-      sourceAnnotationIds: sourceIds,
-      chainedProcedureKeys: procedure?.chainedProcedureKeys,
-      procedures: appConfig?.automatedAnnotationsProcedures,
-    });
-    const ids = outputs.map((a) => a.id);
-    if (ids.length === 0) return;
-    await deleteAnnotations(ids);
-    dispatch(
-      setToaster({ message: `${ids.length} annotation(s) supprimée(s)` })
+    const message = formatDeletedOutputsMessage(
+      await deleteOutputs({ procedureKey, sourceAnnotationIds: sourceIds })
     );
+    if (message) dispatch(setToaster({ message }));
   }
 
   async function handlePlay() {
@@ -265,13 +271,7 @@ export default function ProcedureActionButtons({
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
       {running && <CircularProgress size={14} sx={{ mr: 0.5 }} />}
       {!playLabel && playButton}
-      <Tooltip
-        title={
-          createdCount > 0
-            ? `Supprimer les ${createdCount} annotation(s) créée(s)`
-            : "Aucune annotation à supprimer"
-        }
-      >
+      <Tooltip title={formatDeleteOutputsTitle(outputsCounts)}>
         <span>
           <IconButton
             size="small"

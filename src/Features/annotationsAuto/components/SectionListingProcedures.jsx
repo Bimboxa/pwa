@@ -13,11 +13,16 @@ import db from "App/db/db";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
+import useDeleteProcedureOutputs from "../hooks/useDeleteProcedureOutputs";
 import useListingProcedureSourceIds from "../hooks/useListingProcedureSourceIds";
 import useProcedureOutputs from "../hooks/useProcedureOutputs";
+import useProcedurePaintOutputs from "../hooks/useProcedurePaintOutputs";
 import useRunProcedureReplacing from "../hooks/useRunProcedureReplacing";
-import getProcedureOutputs from "../services/getProcedureOutputs";
 import setListingProcedureParams from "../services/setListingProcedureParams";
+import {
+  formatDeleteOutputsTitle,
+  formatDeletedOutputsMessage,
+} from "../utils/formatProcedureOutputsCount";
 import {
   getAxisParamOfProcedure,
   getAxisSystemListingId,
@@ -67,13 +72,19 @@ const EMPTY = [];
  *   (useHandleCommitDrawing → ProcedureAutoLaunchDialogOutlet). With exactly
  *   one source, the play button reopens that dialog on it (update). Several
  *   sources fall back to the default dialog below;
+ * - direct launch (registry `directLaunch` — a procedure without any option
+ *   to pick, e.g. the pool « Quantités clé »): the play / refresh button
+ *   runs it straight away on the listing's sources, replace-on-rerun;
  * - otherwise the play button opens DialogProcedureLaunch (procedure
  *   properties, number of source annotations concerned, launch buttons),
  *   sources from useListingProcedureSourceIds.
  *
- * While the procedure has live outputs from its sources, the line reads
- * "update" instead of "play" and a delete button sweeps those outputs (same
- * scope as the reset of ProcedureActionButtons: getProcedureOutputs).
+ * While the procedure has live outputs from its sources — annotations
+ * (getProcedureOutputs) or, for a procedure that paints (registry
+ * `outputKind: "MESH_PAINTS"`), painted parts (getProcedurePaintOutputs) —
+ * the line reads "update" (refresh icon) instead of "play" and a delete
+ * button sweeps those outputs (useDeleteProcedureOutputs, same scope as the
+ * reset of ProcedureActionButtons).
  *
  * A listing whose Prompt IA is enabled (listing.promptIaEnabled) also lists
  * the virtual "Prompt IA" procedure: no sources, its play button opens
@@ -98,6 +109,8 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     "Aucun modèle de la liste n'est lié à cette procédure.";
   const drawIn2dS =
     "Passez dans l'éditeur 2D pour dessiner l'annotation de départ.";
+  const noSourceS =
+    "Aucune annotation de départ sur ce fond de plan pour cette procédure.";
 
   // data
 
@@ -109,11 +122,11 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     [listingId]
   );
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
   const deleteAnnotations = useDeleteAnnotations();
+  const deleteOutputs = useDeleteProcedureOutputs();
   const runReplacing = useRunProcedureReplacing();
   const axes = useRevolutionAxes();
   // the drawn-source launch arms a 2D draw (its commit opens the dialog)
@@ -157,6 +170,12 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     Boolean(procedure?.drawSourceOnLaunch) &&
     Boolean(procedure?.launchOnSourceCreated) &&
     Boolean(procedure?.paramsDialog);
+  // no option to pick: play / refresh run straight away
+  const isDirectLaunch =
+    !isPromptIa &&
+    !isAxisSystem &&
+    !isDrawnSourceSystem &&
+    Boolean(procedure?.directLaunch);
   const axisParam = !isPromptIa ? getAxisParamOfProcedure(procedure) : null;
   const listingParams = procedure?.listingParams ?? EMPTY;
   const hasListingParams = !isPromptIa && listingParams.length > 0;
@@ -199,14 +218,22 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     () => (isPromptIa ? getPromptIaOutputs({ listingId, baseMapId }) : EMPTY),
     [isPromptIa, listingId, baseMapId, annotationsUpdatedAt]
   );
+  const paintOutputs = useProcedurePaintOutputs({
+    procedureKey: isPromptIa ? null : procedure?.key,
+    sourceAnnotationIds,
+  });
   const createdAnnotations = isPromptIa
     ? (promptIaOutputs ?? EMPTY)
     : procedureOutputs;
   const createdCount = createdAnnotations.length;
-  const hasOutputs = createdCount > 0;
+  const paintedCount = isPromptIa ? 0 : paintOutputs.length;
+  const hasOutputs = createdCount + paintedCount > 0;
   const deleteS = isPromptIa
     ? `Supprimer les ${createdCount} annotation(s) créée(s) par le Prompt IA (non modifiées depuis)`
-    : `Supprimer les ${createdCount} annotation(s) créée(s)`;
+    : formatDeleteOutputsTitle({
+        annotations: createdCount,
+        paints: paintedCount,
+      });
 
   // handlers
 
@@ -219,15 +246,17 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     if (busy) return;
     setBusy(true);
     try {
-      const outputs = isPromptIa
-        ? await getPromptIaOutputs({ listingId, baseMapId })
-        : await getProcedureOutputs({
-            projectId,
+      if (!isPromptIa) {
+        const message = formatDeletedOutputsMessage(
+          await deleteOutputs({
             procedureKey: procedure.key,
             sourceAnnotationIds,
-            chainedProcedureKeys: procedure.chainedProcedureKeys,
-            procedures,
-          });
+          })
+        );
+        if (message) dispatch(setToaster({ message }));
+        return;
+      }
+      const outputs = await getPromptIaOutputs({ listingId, baseMapId });
       const ids = outputs.map((a) => a.id);
       if (ids.length === 0) return;
       await deleteAnnotations(ids);
@@ -280,6 +309,22 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
           sourceAnnotationId: sourceAnnotationIds[0],
         })
       );
+      return;
+    }
+    if (isDirectLaunch) {
+      if (sourceAnnotationIds.length === 0) {
+        dispatch(setToaster({ message: noSourceS, severity: "warning" }));
+        return;
+      }
+      setBusy(true);
+      try {
+        await runReplacing({
+          procedureKey: procedure.key,
+          sourceAnnotationIds,
+        });
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (!hasListingParams) {
