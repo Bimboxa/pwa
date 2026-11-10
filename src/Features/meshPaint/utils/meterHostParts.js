@@ -16,6 +16,10 @@ import weldSupportFootprints from "./weldSupportFootprints.js";
 
 const hasWeld = (rule, kind) =>
   Array.isArray(rule?.weld) ? rule.weld.includes(kind) : rule?.weld === kind;
+const hasAngles = (rule, kind) =>
+  Array.isArray(rule?.angles)
+    ? rule.angles.includes(kind)
+    : rule?.angles === kind;
 
 /**
  * @param {object} args
@@ -48,12 +52,14 @@ export default function meterHostParts({
   const edges = [];
   for (const host of classified.hosts) {
     const rule = rules?.[host.role];
-    const found =
-      rule?.angles === "INTRA"
+    const found = [
+      ...(hasAngles(rule, "INTRA")
         ? findReentrantChains({ host, thresholds })
-        : rule?.angles === "BASE"
-          ? findBaseEdgesOnSupports({ host, supports, thresholds })
-          : [];
+        : []),
+      ...(hasAngles(rule, "BASE")
+        ? findBaseEdgesOnSupports({ host, supports, thresholds })
+        : []),
+    ];
     for (const edge of found) {
       edges.push({ ...edge, role: host.role, category: edgesCategory });
     }

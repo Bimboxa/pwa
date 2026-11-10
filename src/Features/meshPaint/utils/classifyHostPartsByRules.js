@@ -14,6 +14,10 @@
 //   "UP":       non-vertical faces point up (a deck sheet).
 // A vertical face whose plane passes through the centre keeps its canonical
 // normal.
+// A CLOSED host (`isClosed`: a prism, a stepped prism with its podiums)
+// already carries OUTWARD normals from buildHostPartIndex — the only reliable
+// ones on a non-convex solid (a podium riser faces its neighbour, not the
+// host centre): they are kept for EXTERIOR and all flipped for INTERIOR.
 //
 // Rule fields (all optional):
 //   vertical: category key of the vertical faces (|nz| < VERTICAL_NZ_MAX);
@@ -25,8 +29,8 @@
 //   ignore: { levelZero, top, bottom } — drop the non-vertical faces at
 //           z ≈ 0, at the host's box top plane, at its bottom plane;
 //   weld: "FOOTPRINT" | "SUPPORT" | [..] (see weldSupportFootprints);
-//   angles: "INTRA" | "BASE" | null (see findReentrantChains /
-//           findBaseEdgesOnSupports).
+//   angles: "INTRA" | "BASE" | ["INTRA", "BASE"] | null (see
+//           findReentrantChains / findBaseEdgesOnSupports).
 //
 // Pure (no three.js), node-testable.
 
@@ -110,11 +114,29 @@ export function orientHostByRole(
   rule,
   thresholds = DEFAULT_QTES_THRESHOLDS
 ) {
+  const orient = rule?.orient;
+  if (host.isClosed && (orient === "EXTERIOR" || orient === "INTERIOR")) {
+    if (orient === "EXTERIOR") return { ...host };
+    return {
+      ...host,
+      islands: (host.islands || []).map((island) => {
+        const flipped = flipFace({
+          polygons: island.polygons,
+          normal: island.normal,
+        });
+        return {
+          ...island,
+          polygons: flipped.polygons,
+          normal: flipped.normal,
+        };
+      }),
+    };
+  }
   const centre = boxCentre(host.box);
   return {
     ...host,
     islands: (host.islands || []).map((island) =>
-      orientIsland(island, rule?.orient, centre, thresholds)
+      orientIsland(island, orient, centre, thresholds)
     ),
   };
 }
@@ -154,8 +176,8 @@ function categoryOfIsland(island, host, rule, thresholds) {
 
 /**
  * @param {object} args
- * @param {Array<{hostId, role, islands, chains, box}>} args.hosts parts in
- *   the common frame (transformHostParts)
+ * @param {Array<{hostId, role, islands, chains, box, isClosed?}>} args.hosts
+ *   parts in the common frame (transformHostParts)
  * @param {object} args.rules { [role]: rule }
  * @param {object} [args.thresholds]
  * @returns {{ faces: Array<{hostId, role, category, polygons, normal, area}>,

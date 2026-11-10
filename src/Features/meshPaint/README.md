@@ -301,12 +301,17 @@ comme si l'utilisateur les avait peints.
   (z haut) et renvoie les géométries locales dans le repère de l'hôte.
 - **Pipeline pur** `utils/meterHostParts.js` :
   `classifyHostPartsByRules` (table de rôles déclarative : orientation des
-  normales d'un solide ouvert — INTERIOR / EXTERIOR / UP —, catégorie par
-  face), `weldSupportFootprints` (empreinte d'un hôte posé retirée de la face
+  normales d'un solide ouvert — INTERIOR / EXTERIOR / UP ; un hôte FERMÉ
+  (`isClosed`, p. ex. un muret portant ses podiums en découpes de hauteur)
+  garde les normales sortantes de l'index —, catégorie par face), `weldSupportFootprints` (empreinte d'un hôte posé retirée de la face
   horizontale qui le porte : sol − fosse, tête de muret − podium, plage −
   muret), `findReentrantChains` (arêtes concaves d'un hôte : dièdre < 180° vu
   du côté peint, îlots coplanaires regroupés) et `findBaseEdgesOnSupports`
-  (arêtes de base d'un muret / podium posé sur une face support).
+  (arêtes de base d'un muret posé sur une face support). Une règle peut
+  cumuler les deux (`angles: ["INTRA", "BASE"]`).
+- Découpes de hauteur : `resolveAnnotationRowForBuild` dérive `heightFaces`
+  (`resolveHeightCuts` + `computeHeightFaces`, comme `useAnnotationsV2`) pour
+  que le prisme étagé soit construit hors scène.
 - **Écriture** : lignes `buildMeshPaintRow` + `autoCreatedByProcedureKey` /
   `autoCreatedFrom` (champs non indexés) ; `services/writeProcedureMeshPaintsService.js`
   balaie les peintures précédentes des mêmes sources puis écrit les nouvelles,

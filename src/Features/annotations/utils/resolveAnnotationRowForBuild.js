@@ -2,8 +2,10 @@
 // builds from — the geometric part of what useAnnotationsV2 does, outside
 // React: points (and cuts, inner points) in pixels of the base map, the
 // id-keyed per-segment flags turned into index arrays, the profile lines
-// resolved with their inline heights. Template-driven display fields are NOT
-// merged (the 3D build reads the row's own height / offsetZ / colors).
+// resolved with their inline heights, the height cuts resolved and their
+// faces derived (`heightFaces`, never stored). Template-driven display
+// fields are NOT merged (the 3D build reads the row's own height / offsetZ /
+// colors).
 //
 // Used by services that build a host's 3D object headlessly from the
 // database (procedure-driven metering).
@@ -13,6 +15,8 @@
 import resolvePoints from "./resolvePoints";
 import resolveCuts from "./resolveCuts";
 import resolveProfileLine from "./resolveProfileLine";
+import resolveHeightCuts from "../../heightCuts/utils/resolveHeightCuts";
+import computeHeightFaces from "../../heightCuts/utils/computeHeightFaces";
 import {
   SEGMENT_FLAG_FIELDS,
   getAnnotationRingClosed,
@@ -41,6 +45,8 @@ function resolveRingFlags(target, raw, refs, resolvedPoints, closed) {
  * @param {Object<string, {x:number, y:number}>} args.pointsIndex db.points
  *   rows of the row's base map, by id (normalized coordinates)
  * @param {{width:number, height:number}} args.imageSize base map image size
+ * @param {number} [args.meterByPx] base map scale (metric tolerances of the
+ *   height faces)
  * @returns {object} the row with pixel geometry (null when it has no
  *   resolvable points)
  */
@@ -48,6 +54,7 @@ export default function resolveAnnotationRowForBuild({
   row,
   pointsIndex,
   imageSize,
+  meterByPx,
 }) {
   if (!row || !pointsIndex || !imageSize?.width || !imageSize?.height) {
     return null;
@@ -96,6 +103,28 @@ export default function resolveAnnotationRowForBuild({
         }) ?? []
       ).filter(hasXY),
     }));
+  }
+
+  // height cuts (traces + face seeds) and the faces they delimit — same
+  // derivation as useAnnotationsV2
+  if (row.heightCuts?.length && row.type === "POLYGON") {
+    const heightCuts = resolveHeightCuts({
+      heightCuts: row.heightCuts,
+      heightCutFaces: row.heightCutFaces,
+      pointsIndex,
+      imageSize,
+    });
+    resolved.heightCuts = heightCuts.traces;
+    resolved.heightCutFaces = heightCuts.faceEntries;
+    resolved.heightFaces = row.isMesh3d
+      ? []
+      : computeHeightFaces({
+          contour: resolved.points,
+          holes: (resolved.cuts ?? []).map((cut) => cut.points),
+          traces: heightCuts.traces,
+          faceEntries: heightCuts.faceEntries,
+          scale: meterByPx > 0 ? meterByPx : 1,
+        });
   }
 
   return resolved;
