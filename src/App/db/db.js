@@ -486,10 +486,18 @@ db.version(42).stores({
 // Rows still carrying it would hit the unknown-shape fallback on every 3D
 // build; drop the fields so they build as plain lines. Derived write: no
 // audit stamp, no local-change notification, no undo entry.
+// System write: the upgrade runs while the database opens, before any scope
+// is selected and on rows of every user / scope. Without the bypass the
+// annotation guards (no-scope, read-only scope, ownership) throw from the
+// updating hook, the upgrade aborts and the database never opens. The flag is
+// toggled synchronously (not through withSystemWrite) to stay inside the
+// upgrade transaction.
 db.version(43)
   .stores({})
   .upgrade((tx) => {
     tx.derivedWrite = true;
+    const previous = _skipOwnershipGuard;
+    _skipOwnershipGuard = true;
     return tx
       .table("annotations")
       .toCollection()
@@ -497,6 +505,9 @@ db.version(43)
         if (row?.shape3D?.key === "EXTRUSION_PROFILE") delete row.shape3D;
         if (row && "extrusionOrientation" in row)
           delete row.extrusionOrientation;
+      })
+      .finally(() => {
+        _skipOwnershipGuard = previous;
       });
   });
 
