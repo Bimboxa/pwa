@@ -186,6 +186,27 @@ test("water prism: re-entrant edges = floor–wall junctions, slope → deep flo
   assert.ok(edges.every((e) => e.sides.length === 2 && e.hostId === "shell"));
 });
 
+test("anglesNeedVertical: the break of slope between two floor faces is dropped", () => {
+  const shell = hostOf("shell", "SHELL", shellTriangles());
+  const count = (rules) =>
+    meterHostParts({ hosts: [shell], rules }).edges.filter((e) =>
+      near(e.length, l)
+    );
+  // by default the slope → deep floor edge is a re-entrant edge
+  assert.equal(count(RULES).length, 3);
+  const strict = count({
+    ...RULES,
+    SHELL: { ...RULES.SHELL, anglesNeedVertical: true },
+  });
+  // only the two floor–wall junctions are left across the width
+  assert.equal(strict.length, 2);
+  assert.ok(
+    !strict.some(
+      (e) => near(e.points[0].x, L - Lb) && near(e.points[1].x, L - Lb)
+    )
+  );
+});
+
 // --- (b) pit under the deep floor ------------------------------------------
 
 test("pit cube: top ignored, bottom = floor, sides = walls; the shell floor loses its footprint", () => {

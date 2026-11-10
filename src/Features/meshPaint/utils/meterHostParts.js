@@ -8,6 +8,7 @@
 
 import classifyHostPartsByRules, {
   DEFAULT_QTES_THRESHOLDS,
+  isVerticalNormal,
 } from "./classifyHostPartsByRules.js";
 import findBaseEdgesOnSupports from "./findBaseEdgesOnSupports.js";
 import findReentrantChains from "./findReentrantChains.js";
@@ -61,6 +62,15 @@ export default function meterHostParts({
         : []),
     ];
     for (const edge of found) {
+      // rule `anglesNeedVertical`: a re-entrant edge counts only when a
+      // VERTICAL face borders it — a break of slope between two floor faces
+      // is no angle to treat
+      if (
+        rule?.anglesNeedVertical &&
+        !(edge.sides ?? []).some((n) => isVerticalNormal(n, thresholds))
+      ) {
+        continue;
+      }
       edges.push({ ...edge, role: host.role, category: edgesCategory });
     }
   }

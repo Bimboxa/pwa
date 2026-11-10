@@ -30,7 +30,10 @@
 //           z ≈ 0, at the host's box top plane, at its bottom plane;
 //   weld: "FOOTPRINT" | "SUPPORT" | [..] (see weldSupportFootprints);
 //   angles: "INTRA" | "BASE" | ["INTRA", "BASE"] | null (see
-//           findReentrantChains / findBaseEdgesOnSupports).
+//           findReentrantChains / findBaseEdgesOnSupports);
+//   anglesNeedVertical: keep only the re-entrant edges bordered by a
+//           vertical face (meterHostParts) — drops the breaks of slope
+//           between two floor faces.
 //
 // Pure (no three.js), node-testable.
 
