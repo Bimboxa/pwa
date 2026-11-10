@@ -296,6 +296,13 @@ comme si l'utilisateur les avait peints.
   depuis la ligne db + ses points) avec `createAnnotationObject3D` (sans
   anti-crénelage), le pose sous un `createBaseMapFrameGroup` et le lit par
   `getHostPartData` — même index de parties et même `hash` que le pinceau.
+- **Hôte évidé par des soustractions** (`relAnnotationSubtractions`) :
+  `buildHeadlessCarvedHostParts` (même fichier) construit les annotations
+  soustraites avec le constructeur d'opérandes du carve de la scène
+  (`buildAnnotationSolidObjectsAsync`, chacune dans le repère de son propre
+  fond de plan) et applique le même booléen (`subtractAnnotationGeometries`,
+  règle `isHollowSubtractionHost`) avant la lecture des parties : l'hôte est
+  lu évidé, comme son objet affiché, avec le même hash.
 - **Instance de bloc comme hôte** (`BLOCK_INSTANCE`, `Features/blocks`) :
   `services/createHeadlessBlockPrototypes.js` est le jumeau hors scène de
   `BlocksManager` — les membres du bloc construits une fois, chaque instance =
@@ -326,8 +333,16 @@ comme si l'utilisateur les avait peints.
 - **Écriture** : lignes `buildMeshPaintRow` + `autoCreatedByProcedureKey` /
   `autoCreatedFrom` (champs non indexés) ; `services/writeProcedureMeshPaintsService.js`
   balaie les peintures précédentes des mêmes sources puis écrit les nouvelles,
-  en un seul pas d'undo. `getProcedureOutputs` ne connaît pas les peintures :
-  le balayage est à la charge de la procédure.
+  en un seul pas d'undo.
+- **Bande « Dessin auto »** : une procédure qui peint le déclare dans le
+  registre (`outputKind: "MESH_PAINTS"`). Ses peintures sont alors des sorties
+  comme les annotations (`annotationsAuto/services/getProcedurePaintOutputs.js`,
+  `hooks/useProcedurePaintOutputs.js`) : la bande affiche l'icône « rafraîchir »
+  et le bouton « supprimer » dès qu'il en existe, et
+  `hooks/useDeleteProcedureOutputs.js` les balaie (suppression, relance avec
+  remplacement de `useRunProcedureReplacing`, boutons de
+  `ProcedureActionButtons`). `directLaunch: true` (procédure sans option à
+  choisir) lance directement depuis la bande, sans dialog.
 - Le toaster du lanceur affiche `result.message` (totaux) quand le résultat
   ne crée aucune annotation (`annotationsAuto/utils/notifyProcedureRunResult`).
 
@@ -335,7 +350,10 @@ Tests : `node --test src/Features/meshPaint/utils/*.test.mjs` (classification,
 soudure, angles sur des soupes synthétiques, transformations),
 `node src/Features/meshPaint/services/createHeadlessBlockPrototypes.test.mjs`
 (instances de bloc avec les vrais constructeurs : taille réelle, rotation
-horaire à l'écran, même hash que le solide dessiné en place) et le replay
+horaire à l'écran, même hash que le solide dessiné en place),
+`node src/Features/meshPaint/services/buildHeadlessHostParts.test.mjs` (hôte
+évidé : prisme ouvert découpé par une annotation collée, prisme fermé
+intact) et le replay
 headless complet `node src/Data/edx/automatedAnnotationsProcedures/piscine/__test__piscineQtesV1.mjs`
 (vrais builders, totaux de la piscine par défaut).
 
@@ -348,7 +366,7 @@ headless complet `node src/Data/edx/automatedAnnotationsProcedures/piscine/__tes
 - **Type de partie ≠ forme du modèle** : ne jamais filtrer les lignes `meshPaints` sur `partType` vs `drawingShape` du modèle (une facette peinte par un modèle Ligne disparaîtrait) ; la seule garde est « le modèle peut peindre » (`canTemplatePaint`).
 - **Pièces d'une surface découpée** : une révolution, une coque ou un profil balayé coupés par « Découpe horizontale / verticale » (Coupe face, 3D — `annotation.surfaceCuts`, rejoués par `applySurfaceCuts`) sont affichés en plusieurs meshes `SOLID` tagués `userData.surfaceCutPiece`. Chaque mesh `SOLID` d'un hôte surface porte ce tag dès la première construction, découpé ou non (hôte non découpé = une pièce par mesh, numérotée par `planSurfacePieces`), pour la sélection au 2ᵉ clic — la face sélectionnée est la région de survol de la pièce (`getFaceRegion`, angle de sélection des faces), pas tout le mesh. `buildHostPartIndexFromObject` les transmet à `buildHostPartIndex` (`triGroups`) : deux pièces ne partagent jamais un groupe de plan, un îlot ni une surface lisse, chacune est donc une cible du Pinceau à part entière ; un hôte mono-mesh (pièce 0 seule) se partitionne comme avant. Une peinture courbe posée avant une découpe suit la tessellation de l'hôte : couper **avant** de peindre.
 - **Faces séparées par un point de rupture** : un point d'un POLYGON avec hauteur ou d'un mur (POLYLINE avec hauteur) marqué `isBreak` (switch « Rupture » de la barre du point) sépare les deux faces qu'il borde, même coplanaires ou sous l'angle « Sélection de face ». Les constructeurs étiquettent chaque triangle (`geometry.userData.triParts`, `getBreakSegmentLabels` : une étiquette par suite de segments entre deux ruptures) ; `buildHostPartIndexFromObject` ajoute l'étiquette au groupe de **chaque** triangle du mesh, étiquette 0 comprise (`triGroups`, `getTriangleFaceLabels` — les surfaces lisses ne séparent deux îlots que s'ils ont tous deux un groupe) et `getFaceRegion` (`faceHoverHighlight`, partagé par le survol normal, la sélection de face au 2ᵉ clic, les outils de face et `pickHostFace`) ne traverse jamais une étiquette : le survol normal et le Pinceau montrent les mêmes faces. La conversion en faces de l'objet 3D (`convertObject3DToMesh3d` → `buildMesh3dFromTriangles({ labels })`, derrière `getDisplayedMesh3d` / `getEditableMesh3d`) regroupe elle aussi les triangles par plan **et** par étiquette : la face sélectionnée au clic (overlay, sommets, surface) et les outils de face (Fusionner, Déplacer, coupe, suppression, push/pull) portent sur la même sous-face que le survol, et le maillage enregistré à la première édition garde ces faces coplanaires distinctes. Chaque face est donc une cible à part ; l'arête de rupture n'est pas une arête peignable quand les faces sont coplanaires, et les arêtes haut / bas restent une seule chaîne. Après un carve CSG la géométrie est remplacée : les étiquettes sont perdues. Une peinture posée avant la rupture sur le côté entier se recale en une ligne couvrant les deux faces.
-- **Prisme ouvert** : un POLYGON avec hauteur dont un segment est masqué n'a pas la face latérale correspondante ; l'hôte n'est plus fermé (`index.isClosed` faux), ses deux côtés sont peignables.
+- **Prisme ouvert** : un POLYGON avec hauteur dont un segment est masqué n'a pas la face latérale correspondante ; l'hôte n'est plus fermé (`index.isClosed` faux), ses deux côtés sont peignables. Comme hôte d'une soustraction c'est une surface ouverte (`annotations/utils/isOpenSidePrism.js`, dans `isHollowSubtractionHost`) : il est découpé sans ajout de faces, et une annotation collée à l'une de ses faces (une « Fosse » sous un fond) y découpe son empreinte.
 
 ## Tests
 
