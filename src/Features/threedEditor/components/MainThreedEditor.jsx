@@ -444,6 +444,8 @@ export default function MainThreedEditor() {
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
+  // PHOTOREAL cast shadows on / off.
+  const showShadows3d = useSelector((s) => s.threedEditor.showShadows3d);
   // Mouse navigation preset (Standard / Iso 2D + orbite / Iso SketchUp).
   const navigationPreset = useSelector((s) => s.threedEditor.navigationPreset);
   const cameraOrtho = useSelector((s) => s.threedEditor.cameraOrtho);
@@ -958,6 +960,15 @@ export default function MainThreedEditor() {
       environment3d
     );
   }, [environment3d, rendererIsReady]);
+
+  // Sync showShadows3d → RenderModeManager (same contract as setEnvironment:
+  // stored when not in PHOTOREAL, applied when the mode is entered).
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.renderModeManager?.setShadows(
+      showShadows3d
+    );
+  }, [showShadows3d, rendererIsReady]);
 
   // Sync navigationPreset (device preference, Configuration > Éditeur 3D) →
   // ControlsManager mouse button mapping.

@@ -105,6 +105,7 @@ export default class RenderModeManager {
     this.sceneManager = sceneManager;
     this.mode = RENDER_MODE_STANDARD;
     this.envKey = ENVIRONMENT3D_EXTERIOR;
+    this.shadows = true;
 
     this._env = null;
     this._hdrTextures = {}; // url → resolved texture (avoids a fallback frame)
@@ -148,6 +149,17 @@ export default class RenderModeManager {
     this.sceneManager.renderScene();
   };
 
+  // PHOTOREAL cast shadows on / off (threedEditorSlice.showShadows3d). Stored
+  // even outside PHOTOREAL so entering the mode later picks it up.
+  setShadows = (enabled) => {
+    const shadows = Boolean(enabled);
+    if (shadows === this.shadows) return;
+    this.shadows = shadows;
+    if (this.mode !== RENDER_MODE_PHOTOREAL) return;
+    this._applyPhotorealRenderer();
+    this.sceneManager.renderScene();
+  };
+
   // Called by ThreedEditor after basemaps / annotations are (re)loaded, next
   // to clippingManager.reapply(): refit the shadow frustum + shadow catchers
   // to the new scene extent.
@@ -172,7 +184,7 @@ export default class RenderModeManager {
   ///////////   RENDERER STATES   ///////////
 
   _shadowsEnabled() {
-    return this.mode === RENDER_MODE_PHOTOREAL;
+    return this.mode === RENDER_MODE_PHOTOREAL && this.shadows;
   }
 
   _envConfig() {
@@ -233,14 +245,21 @@ export default class RenderModeManager {
     directionalLight.position.copy(cfg.sunDirection).multiplyScalar(20);
     if (this._lightTarget) this._lightTarget.position.set(0, 0, 0);
 
-    renderer.shadowMap.enabled = true;
+    // Cast shadows are optional (setShadows): off keeps the exact same
+    // lighting without the shadow map nor the basemap shadow catchers.
+    const shadows = this.shadows;
+    renderer.shadowMap.enabled = shadows;
     renderer.shadowMap.type = PCFSoftShadowMap;
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-    directionalLight.shadow.bias = -0.0001;
-    directionalLight.shadow.normalBias = 0.02;
-    this._fitDirectionalShadow();
-    this._addShadowCatchers();
+    directionalLight.castShadow = shadows;
+    if (shadows) {
+      directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+      directionalLight.shadow.bias = -0.0001;
+      directionalLight.shadow.normalBias = 0.02;
+      this._fitDirectionalShadow();
+      this._addShadowCatchers();
+    } else {
+      this._removeShadowCatchers();
+    }
 
     this._forceMaterialsRecompile();
   }

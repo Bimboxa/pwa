@@ -117,6 +117,9 @@ const threedEditorInitialState = {
   // sky), "EXTERIOR" = HDR sky + warm sun, "INTERIOR" = indoor HDR (e.g. a
   // parking level — a sky background would be wrong there).
   environment3d: "EXTERIOR",
+  // PHOTOREAL cast shadows (session-only). Off = same lighting, no shadow
+  // map / shadow catchers (the only render mode with cast shadows).
+  showShadows3d: true,
   // Mouse navigation preset ("STANDARD" | "ISO_2D" | "SKETCHUP", see
   // constants/navigationPresets). App-level device preference: persisted in
   // localStorage, edited in Configuration > Éditeur 3D. Synced live by
@@ -514,6 +517,9 @@ export const threedEditorSlice = createSlice({
     },
     setEnvironment3d: (state, action) => {
       state.environment3d = action.payload;
+    },
+    setShowShadows3d: (state, action) => {
+      state.showShadows3d = action.payload;
     },
     setNavigationPreset: (state, action) => {
       if (!isNavigationPreset(action.payload)) return;
@@ -1465,6 +1471,7 @@ export const {
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
+  setShowShadows3d,
   setNavigationPreset,
   setMaxViewDistance,
   setShowAxesGizmo,

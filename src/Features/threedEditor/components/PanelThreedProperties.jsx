@@ -24,6 +24,7 @@ import {
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
+  setShowShadows3d,
   setRevolutionSectionFillIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import useCursorAltitudeToggle from "Features/mapEditor/hooks/useCursorAltitudeToggle";
@@ -58,6 +59,7 @@ export default function PanelThreedProperties() {
   );
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
+  const showShadows3d = useSelector((s) => s.threedEditor.showShadows3d);
   // Altimetry under the cursor: the device preference shared with the 2D
   // editor (same switch in SectionEditorSettings2d, bottom-left button in
   // both editors).
@@ -299,6 +301,21 @@ export default function PanelThreedProperties() {
                   Intérieur
                 </ToggleButton>
               </ToggleButtonGroup>
+              <FormControlLabel
+                sx={{ mt: 1 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={showShadows3d}
+                    onChange={(e) =>
+                      dispatch(setShowShadows3d(e.target.checked))
+                    }
+                  />
+                }
+                label={
+                  <Typography variant="body2">Afficher les ombres</Typography>
+                }
+              />
             </>
           )}
         </Card>
