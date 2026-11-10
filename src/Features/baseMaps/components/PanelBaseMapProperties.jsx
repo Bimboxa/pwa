@@ -191,9 +191,10 @@ export default function PanelBaseMapProperties() {
     if (!baseMap?.id) return;
     const name = value ?? "";
     if (name === (baseMap.name || "")) return;
-    if (baseMap.isDetail) {
-      // Detail baseMaps have no listing (listingId null): useUpdateEntity
-      // would fall back to the SELECTED listing and write the wrong table.
+    if (baseMap.isDetail || baseMap.isBlocksBaseMap) {
+      // Detail / blocks baseMaps have no listing (listingId null):
+      // useUpdateEntity would fall back to the SELECTED listing and write the
+      // wrong table.
       await db.baseMaps.update(baseMap.id, { name });
       dispatch(triggerEntitiesTableUpdate("baseMaps"));
     } else {

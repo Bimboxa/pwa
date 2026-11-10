@@ -53,6 +53,14 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * @param {Map<string, string>} params.idMapOut - optional, filled with
  *   source annotation id → id of its clone (callers linking the clones to
  *   other rows)
+ * @param {boolean} params.keepSourceIds - MOVE mode (« Lier à un bloc »,
+ *   Features/blocks): each source row is rewritten IN PLACE on the target map
+ *   instead of being cloned — same annotation id (so every relation keyed on
+ *   it survives: entity, business objects, zones…), fresh normalized points
+ *   on the target map. The row is rebuilt from the STORED record (never from
+ *   the hydrated one), its layer is cleared (layers are per base map), and
+ *   no mapping-category row is cloned. The source points become orphans
+ *   (harmless — see docs/annotations/POINTS_STORAGE.md).
  * @param {Function} params.dispatch      - Redux dispatch
  * @param {Function} params.triggerAnnotationsUpdate - the slice action
  * @returns {Promise<Object[]>}
@@ -66,10 +74,23 @@ export default async function pasteAnnotationService({
   activeLayerId,
   scopeId,
   idMapOut,
+  keepSourceIds = false,
   dispatch,
   triggerAnnotationsUpdate,
 }) {
   if (!pasteClipboard?.items?.length || !targetCenter || !baseMap) return [];
+
+  // MOVE mode: the stored rows, read once (the clipboard carries hydrated
+  // annotations — template style, quantities… must not be written back).
+  const storedById = new Map();
+  if (keepSourceIds) {
+    const ids = pasteClipboard.items
+      .map((item) => item.annotation?.id)
+      .filter(Boolean);
+    (await db.annotations.bulkGet(ids)).forEach((row) => {
+      if (row && !row.deletedAt) storedById.set(row.id, row);
+    });
+  }
 
   const imageSize =
     baseMap?.getImageSize?.() || baseMap?.image?.imageSize || null;
@@ -164,6 +185,11 @@ export default async function pasteAnnotationService({
     const sourceAnnotation = item.annotation;
     const type = sourceAnnotation?.type;
     if (!type) continue;
+    // MOVE mode: a row that no longer exists is skipped (nothing to move).
+    const storedAnnotation = keepSourceIds
+      ? storedById.get(sourceAnnotation.id)
+      : null;
+    if (keepSourceIds && !storedAnnotation) continue;
 
     // Start from the source but strip hydrated/runtime-only fields so we don't
     // bloat the DB record with computed data from useAnnotationsV2.
@@ -192,16 +218,21 @@ export default async function pasteAnnotationService({
       heightCuts: _srcHeightCuts,
       heightCutFaces: _srcHeightCutFaces,
       ...sourceAnnotationCleaned
-    } = sourceAnnotation;
+    } = storedAnnotation ?? sourceAnnotation;
 
-    const newAnnotationId = nanoid();
+    const newAnnotationId = keepSourceIds ? sourceAnnotation.id : nanoid();
     const clonedAnnotation = {
       ...sourceAnnotationCleaned,
       id: newAnnotationId,
       // Paste lands on the ACTIVE map — the spread above carries the SOURCE
       // baseMapId, which put cross-map pastes back on the original map.
       baseMapId: baseMap.id,
-      entityId: undefined, // logical entity link not carried over — would require its own row
+      // logical entity link not carried over by a clone — would require its
+      // own row. A moved row keeps it.
+      entityId: keepSourceIds ? storedAnnotation.entityId : undefined,
+      // MOVE mode: layers are per base map, and the single-center rotation
+      // metadata is expressed in the source frame.
+      ...(keepSourceIds ? { layerId: null, rotationCenter: undefined } : {}),
       ...(activeLayerId ? { layerId: activeLayerId } : {}),
       ...(isTemplatelessAnnotation(sourceAnnotation) && scopeId
         ? { scopeId, listingId: null }
@@ -571,9 +602,14 @@ export default async function pasteAnnotationService({
         await db.points.bulkAdd(allPoints);
       }
       if (imageFiles.length) await db.files.bulkAdd(imageFiles);
-      await db.annotations.bulkAdd(allAnnotations);
+      if (keepSourceIds) await db.annotations.bulkPut(allAnnotations);
+      else await db.annotations.bulkAdd(allAnnotations);
       if (allOpeningRelations.length)
         await db.relAnnotationOpenings.bulkAdd(allOpeningRelations);
+
+      // MOVE mode: the rows keep their id, so their mapping-category rows
+      // are already theirs.
+      if (keepSourceIds) return;
 
       // Clone mapping-category rows from the sources so qty sums work
       // immediately. One query for all sources, then re-key per pasted clone.

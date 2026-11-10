@@ -83,6 +83,8 @@ export default function PanelViewerAnnotations({ header }) {
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
+    // block instances count as copies of their block's members
+    expandBlockInstances: true,
     ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,

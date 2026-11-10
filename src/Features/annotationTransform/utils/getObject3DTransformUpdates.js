@@ -1,3 +1,4 @@
+import { isBboxPlacedAnnotationType } from "../../threedAnnotationMove/utils/annotationTransformTypes.js";
 import { roundOffsetZ } from "../../annotationMesh3d/utils/mesh3dFrame.js";
 import {
   bboxCenterPx,
@@ -56,7 +57,7 @@ export default function getObject3DTransformUpdates({
   });
 
   for (const ann of annotations ?? []) {
-    if (ann?.type !== "OBJECT_3D") continue;
+    if (!isBboxPlacedAnnotationType(ann?.type)) continue;
     const bbox = ann.bbox;
     if (
       !bbox ||

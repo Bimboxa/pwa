@@ -9,6 +9,7 @@ import getEditorImageFromBaseMap, {
   getEditorMeterByPx,
 } from "./utilsImagesManager/getEditorImageFromBaseMap";
 import getBaseMapPlaneFrame from "./utilsImagesManager/getBaseMapPlaneFrame";
+import BlocksManager from "./BlocksManager";
 import getBaseMapZoomOutView from "./utilsImagesManager/getBaseMapZoomOutView";
 
 export default class ThreedEditor {
@@ -210,6 +211,26 @@ export default class ThreedEditor {
       ...view,
     });
     return true;
+  };
+
+  // blocks (Features/blocks): the prototypes of the blocks, built off-scene;
+  // the block instances of the scene are filled with clones of them.
+  // payload: { definitions, baseMaps } — see BlocksManager.load.
+
+  loadBlockDefinitions = (payload, options) => {
+    try {
+      if (!this.sceneManager?.annotationsManager) return;
+      if (!this.sceneManager.blocksManager) {
+        // nothing to manage until a block shows up
+        if (!payload?.definitions?.length) return;
+        this.sceneManager.blocksManager = new BlocksManager({
+          sceneManager: this.sceneManager,
+        });
+      }
+      this.sceneManager.blocksManager.load(payload, options);
+    } catch (e) {
+      console.error("[ThreedEditor] loadBlockDefinitions failed", e);
+    }
   };
 
   // annotations

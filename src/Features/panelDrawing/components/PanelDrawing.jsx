@@ -110,6 +110,8 @@ export default function PanelDrawing() {
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
+    // block instances count as copies of their block's members
+    expandBlockInstances: true,
     ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,

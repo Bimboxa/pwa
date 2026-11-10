@@ -14,7 +14,7 @@ import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation"
 
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
 import createObject3DPlacementController from "../services/object3DPlacementController";
-import { selectIsObject3DPlacementActive } from "../utils/object3DPlacementSelectors";
+import { selectIsObject3DModelPlacementActive } from "../utils/object3DPlacementSelectors";
 
 // Same fallback as getObject3DAnnotationRectanglePointsFromOnePoint (meters).
 const FALLBACK_FOOTPRINT_M = 0.5;
@@ -29,7 +29,7 @@ const MIN_OFFSET_Z_M = 0.005;
 export default function useObject3DPlacementHandlers() {
   const dispatch = useDispatch();
 
-  const active = useSelector(selectIsObject3DPlacementActive);
+  const active = useSelector(selectIsObject3DModelPlacementActive);
   const object3DFileName = useSelector(
     (s) => s.annotations.newAnnotation?.object3D?.fileName
   );

@@ -14,7 +14,7 @@ import getObject3DTransformUpdates from "Features/annotationTransform/utils/getO
 import { touchMeshPaintsSyncedAt } from "Features/meshPaint/services/applyMeshPaintsResyncService";
 import moveMeshPaintsWithBboxHostService from "Features/meshPaint/services/moveMeshPaintsWithBboxHostService";
 
-import { isObject3DAnnotationType } from "../utils/annotationTransformTypes";
+import { isBboxPlacedAnnotationType } from "../utils/annotationTransformTypes";
 
 // Write-back of a 3D annotation move/rotate into the 2D storage: the new
 // point positions land in db.points (normalized) through the same machinery
@@ -70,9 +70,9 @@ export default async function commitAnnotationsTransformFrom3d({
     annotationIds.includes(a.id)
   );
   if (!carried.length) return;
-  const pointHolders = carried.filter((a) => !isObject3DAnnotationType(a.type));
+  const pointHolders = carried.filter((a) => !isBboxPlacedAnnotationType(a.type));
   const pointHolderIds = pointHolders.map((a) => a.id);
-  const object3ds = carried.filter((a) => isObject3DAnnotationType(a.type));
+  const object3ds = carried.filter((a) => isBboxPlacedAnnotationType(a.type));
 
   // Vertical component of a snapped MOVE: the whole carried group climbs or
   // sinks as one block so the grabbed point lands exactly on the drop point,

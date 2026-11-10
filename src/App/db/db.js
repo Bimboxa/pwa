@@ -500,6 +500,23 @@ db.version(43)
       });
   });
 
+// v44 — blocks (Features/blocks): a named group of annotations defined once
+// and instantiated many times (AutoCAD-like block).
+//   BLOCK row: {id, projectId, scopeId, label,
+//     origin: {baseMapId, x, y, z}} — insertion point of the block: x, y
+//     normalized like db.points on the origin BLOCKS base map
+//     (baseMap.isBlocksBaseMap, listingId null), z in meters.
+//   MEMBER annotations live on blocks base maps and carry `blockId`.
+//   INSTANCE annotations (type "BLOCK_INSTANCE") live on regular base maps
+//     and carry `instanceOfBlockId` + a zero-size anchor `bbox` (its center =
+//     the insertion point), `rotation`, `offsetZ`. They never copy geometry:
+//     they render the members of the block.
+db.version(44).stores({
+  blocks: "id,projectId,scopeId",
+  annotations:
+    "id,projectId,baseMapId,listingId,entityId,annotationTemplateId,relayJobId,blockId,instanceOfBlockId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -552,6 +569,7 @@ const AUDIT_TABLES = [
   "planningSlots",
   "relsScopeListing",
   "meshPaints",
+  "blocks",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -597,6 +615,8 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // Painted mesh parts: the one-template-per-part replace rule must be able to
   // soft-delete a paint made by another user.
   "meshPaints",
+  // Blocks are shared structure: anyone renames a block or moves its origin.
+  "blocks",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -856,6 +876,7 @@ const SOFT_DELETE_TABLES = new Set([
   "planningSlots",
   "relsScopeListing",
   "meshPaints",
+  "blocks",
 ]);
 
 let _skipSoftDelete = false;

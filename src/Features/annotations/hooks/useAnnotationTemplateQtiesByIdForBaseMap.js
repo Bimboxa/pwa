@@ -16,7 +16,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds } = {}) {
   // data
 
-  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, withQties: true });
+  const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, withQties: true, expandBlockInstances: true });
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
 
   if (disabledAnnotationTemplates?.length) {

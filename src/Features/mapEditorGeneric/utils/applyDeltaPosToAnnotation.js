@@ -166,7 +166,9 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
     }
 
     // OBJECT_3D — move + rotate only (no resize per spec)
-    if (_annotation.type === "OBJECT_3D") {
+    // BLOCK_INSTANCE (Features/blocks): same bbox + rotation model (zero-size
+    // anchor bbox).
+    if (_annotation.type === "OBJECT_3D" || _annotation.type === "BLOCK_INSTANCE") {
         const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
         const currentRotation = _annotation.rotation || 0;
 

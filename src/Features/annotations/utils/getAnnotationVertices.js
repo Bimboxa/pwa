@@ -1,4 +1,9 @@
 import getDimensionAnnotationLassoVertices from "./getDimensionAnnotationLassoVertices";
+import { getBlockDefinitionFromStore } from "Features/blocks/js/blockDefinitionsStore";
+import {
+  getBlockInstanceAnchorPx,
+  getBlockInstanceCornersPx,
+} from "Features/blocks/utils/blockInstanceGeometry";
 
 // Return the list of vertices of an annotation, in the same local pixel
 // coordinate space as the resolved annotation.points (the space consumed by
@@ -13,6 +18,23 @@ import getDimensionAnnotationLassoVertices from "./getDimensionAnnotationLassoVe
 // Returns: [{ x, y }]
 export default function getAnnotationVertices(annotation, context = {}) {
   if (!annotation) return [];
+
+  // 0. BLOCK_INSTANCE: its insertion point + the 4 corners of its block
+  // bounds (turned with the instance).
+  if (annotation.type === "BLOCK_INSTANCE") {
+    const anchorPx = getBlockInstanceAnchorPx(annotation);
+    if (!anchorPx) return [];
+    return [
+      anchorPx,
+      ...getBlockInstanceCornersPx({
+        boundsM: getBlockDefinitionFromStore(annotation.instanceOfBlockId)
+          ?.boundsM,
+        anchorPx,
+        rotationDeg: annotation.rotation,
+        hostMeterByPx: annotation._planMeterByPx,
+      }),
+    ];
+  }
 
   // 1. IMAGE / RECTANGLE: the 4 corners of the explicit bbox.
   if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {

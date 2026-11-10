@@ -61,6 +61,7 @@ import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProce
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
+import ChipBlockLink from "Features/blocks/components/ChipBlockLink";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
@@ -68,6 +69,7 @@ import FieldAnnotationRevolutionSolidSwitch from "./FieldAnnotationRevolutionSol
 import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import Shape3DSelector from "./Shape3DSelector";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
+import ToolbarEditBlockInstance from "Features/blocks/components/ToolbarEditBlockInstance";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
@@ -350,6 +352,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   // + direction), on the plan as on the vertical base map it is located on.
   if (selectedAnnotation?.type === "BASE_MAP_LINK") {
     return <ToolbarEditBaseMapLink onDragStart={onDragStart} />;
+  }
+  // Instance of a block (Features/blocks): it draws its block and carries no
+  // geometry / template of its own — dedicated toolbar.
+  if (selectedAnnotation?.type === "BLOCK_INSTANCE") {
+    return <ToolbarEditBlockInstance onDragStart={onDragStart} />;
   }
   // Read-only projection of an annotation hosted by another base map: the only
   // meaningful action is to go and open the real one.
@@ -843,11 +850,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               !hasPart &&
               selectedAnnotation &&
               !selectedAnnotation.isBaseMapAnnotation ? (
-                <ChipLayerSelector
-                  annotationIds={[selectedAnnotation.id]}
-                  annotations={[selectedAnnotation]}
-                  baseMapId={selectedAnnotation.baseMapId}
-                />
+                <>
+                  <ChipBlockLink annotations={[selectedAnnotation]} />
+                  <ChipLayerSelector
+                    annotationIds={[selectedAnnotation.id]}
+                    annotations={[selectedAnnotation]}
+                    baseMapId={selectedAnnotation.baseMapId}
+                  />
+                </>
               ) : null
             }
           />

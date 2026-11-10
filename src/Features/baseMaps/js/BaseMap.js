@@ -89,6 +89,11 @@ export default class BaseMap {
     // by the baseMapCreator PDF flow, without isDetail.
     isDetail,
     createdFrom,
+    // Blocks base map (Features/blocks): a white page hosting the member
+    // annotations of the blocks. Belongs to no base map listing (listingId
+    // null, like a detail) and its annotations only count through the block
+    // instances.
+    isBlocksBaseMap,
     // Short reference displayed in the DETAIL annotation bubbles linked to
     // this baseMap (e.g. "1", "A"). Editable on any baseMap.
     detailRef,
@@ -138,6 +143,7 @@ export default class BaseMap {
     this.flattenedBaseMapId = flattenedBaseMapId;
     this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
     this.isDetail = isDetail;
+    this.isBlocksBaseMap = Boolean(isBlocksBaseMap);
     this.createdFrom = createdFrom;
     this.detailRef = detailRef ?? null;
     this.printZone = printZone ?? null;

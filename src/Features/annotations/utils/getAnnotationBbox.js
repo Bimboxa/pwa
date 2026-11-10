@@ -1,7 +1,42 @@
+import { getBlockDefinitionFromStore } from "../../blocks/js/blockDefinitionsStore.js";
+import {
+    getBlockInstanceAnchorPx,
+    getBlockInstanceBoundsPx,
+} from "../../blocks/utils/blockInstanceGeometry.js";
+
 // Features/geometry/utils/getAnnotationBBox.js
 
 export default function getAnnotationBBox(annotation) {
     if (!annotation) return null;
+
+    // Virtual quantity row of a block instance (expandBlockInstancesForQties):
+    // its points are in the frame of the BLOCKS base map — on its host it is
+    // located by the insertion point of its instance.
+    if (annotation.isBlockInstanceMember) {
+        if (
+            !Number.isFinite(annotation._blockInstanceAnchorX) ||
+            !Number.isFinite(annotation._blockInstanceAnchorY)
+        )
+            return null;
+        return {
+            x: annotation._blockInstanceAnchorX,
+            y: annotation._blockInstanceAnchorY,
+            width: 0,
+            height: 0,
+        };
+    }
+
+    // 0. BLOCK_INSTANCE (Features/blocks): the bounds of its block, turned
+    // with the instance. Unknown block bounds → null ("unknown shape": kept
+    // by the viewport culling).
+    if (annotation.type === 'BLOCK_INSTANCE') {
+        return getBlockInstanceBoundsPx({
+            boundsM: getBlockDefinitionFromStore(annotation.instanceOfBlockId)?.boundsM,
+            anchorPx: getBlockInstanceAnchorPx(annotation),
+            rotationDeg: annotation.rotation,
+            hostMeterByPx: annotation._planMeterByPx,
+        });
+    }
 
     // 1. Cas IMAGE / RECTANGLE (Bbox explicite)
     if (annotation.type === 'IMAGE' || annotation.type === 'RECTANGLE') {

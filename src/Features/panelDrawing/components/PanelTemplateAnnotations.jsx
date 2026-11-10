@@ -35,6 +35,7 @@ import {
   formatTemplateQtiesLine,
   formatTemplateQtiesTooltip,
 } from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
+import getSelectableAnnotation from "Features/blocks/utils/getSelectableAnnotation";
 
 // ---------------------------------------------------------------------------
 // PanelTemplateAnnotations — annotations list subview of the Dessin panel
@@ -143,18 +144,27 @@ export default function PanelTemplateAnnotations({
 
   // Same item shape as the 2D lasso selection (InteractionLayer buildItem).
   const handleSelectAll = () => {
-    const items = sortedAnnotations.map((a) => ({
-      id: a.id,
-      nodeId: a.id,
-      type: "NODE",
-      nodeType: "ANNOTATION",
-      annotationType: a.type,
-      listingId: a.listingId,
-      annotationTemplateId: a.annotationTemplateId,
-      pointId: null,
-      partId: null,
-      partType: null,
-    }));
+    // Virtual quantity rows of block instances select their instance (once).
+    const seenIds = new Set();
+    const items = sortedAnnotations
+      .map(getSelectableAnnotation)
+      .filter((a) => {
+        if (!a?.id || seenIds.has(a.id)) return false;
+        seenIds.add(a.id);
+        return true;
+      })
+      .map((a) => ({
+        id: a.id,
+        nodeId: a.id,
+        type: "NODE",
+        nodeType: "ANNOTATION",
+        annotationType: a.type,
+        listingId: a.listingId,
+        annotationTemplateId: a.annotationTemplateId,
+        pointId: null,
+        partId: null,
+        partType: null,
+      }));
     dispatch(setSelectedItems(items));
     if (items.length === 1) dispatch(setShowAnnotationsProperties(true));
     if (items.length > 0)

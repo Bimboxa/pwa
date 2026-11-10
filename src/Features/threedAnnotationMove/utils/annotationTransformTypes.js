@@ -21,8 +21,16 @@ export function isObject3DAnnotationType(type) {
   return type === "OBJECT_3D";
 }
 
+// Annotations PLACED by a bbox (no db.points): an imported 3D model, or an
+// instance of a block (Features/blocks — zero-size anchor bbox). Both are
+// moved / turned by rewriting bbox / rotation / offsetZ
+// (getObject3DTransformUpdates).
+export function isBboxPlacedAnnotationType(type) {
+  return isObject3DAnnotationType(type) || type === "BLOCK_INSTANCE";
+}
+
 // Types the 3D « Déplacer » / « Tourner » tools carry (kind: "MOVE" |
 // "ROTATE" — both accept the same types in 3D).
 export function isTransformable3dType(kind, type) {
-  return isPointBasedAnnotationType(type) || isObject3DAnnotationType(type);
+  return isPointBasedAnnotationType(type) || isBboxPlacedAnnotationType(type);
 }

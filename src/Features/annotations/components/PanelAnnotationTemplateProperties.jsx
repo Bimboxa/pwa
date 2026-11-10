@@ -85,6 +85,8 @@ export default function PanelAnnotationTemplateProperties() {
     caller: "PanelAnnotationTemplateProperties",
     hideBaseMapAnnotations,
     withQties: true,
+    // block instances count as copies of their block's members
+    expandBlockInstances: true,
     ...scopeOptions,
   });
 

@@ -72,6 +72,9 @@ export default async function createKrtoZip(scopeId, options) {
         // the source scope's own zip (getScopeRelevantListings ignores
         // linked listings on purpose).
         "relsScopeListing",
+        // Blocks (Features/blocks): the block rows; their members ship with
+        // their listing, their instances as scope-bound annotations.
+        "blocks",
     ]);
 
     // Tables avec listingId (sans projectId)
@@ -293,6 +296,16 @@ export default async function createKrtoZip(scopeId, options) {
             // only the inline thumbnail; the image is regenerated from the
             // source PDF once the resource file is re-attached.
             if (table === "baseMaps" && value.isDetail) {
+                return value.projectId === projectId;
+            }
+
+            // Blocks base maps (Features/blocks) belong to no listing either:
+            // project-shared like any base map, they and their versions carry
+            // isBlocksBaseMap. White pages: no file to ship.
+            if (
+                (table === "baseMaps" || table === "baseMapVersions") &&
+                value.isBlocksBaseMap
+            ) {
                 return value.projectId === projectId;
             }
 

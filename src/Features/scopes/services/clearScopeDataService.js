@@ -38,6 +38,9 @@ export default async function clearScopeDataService(scopeId) {
         // Painted mesh parts made in this scope (the painting template's
         // listing is cascaded below too: a host may live in another listing).
         await db.meshPaints.where("scopeId").equals(scopeId).delete();
+        // Blocks of this scope (Features/blocks). Their blocks base maps are
+        // project-shared, like every base map: kept.
+        await db.blocks.where("scopeId").equals(scopeId).delete();
 
         // SCOPE-scoped resources (dropped in the panel with "Cette scope"):
         // their main file goes too unless another live resource shares it

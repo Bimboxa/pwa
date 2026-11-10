@@ -122,6 +122,10 @@ export default async function duplicateScopeService({
     await db.annotations.where("projectId").equals(scope.projectId).toArray()
   ).filter((a) => notDeleted(a) && isScopeBoundAnnotationInScope(a, scope.id));
 
+  const sourceBlocks = (
+    await db.blocks.where("scopeId").equals(scope.id).toArray()
+  ).filter(notDeleted);
+
   const [
     sourceTemplates,
     sourceAnnotationsAll,
@@ -385,6 +389,15 @@ export default async function duplicateScopeService({
     })),
   }));
 
+  // Blocks (Features/blocks): the block rows follow the copy; their blocks
+  // base maps are project-shared like every base map (origin.baseMapId kept).
+  const blockIdMap = buildIdMap(sourceBlocks);
+  const newBlocks = sourceBlocks.map((b) => ({
+    ...prepareCopy(b, createdBy),
+    id: blockIdMap[b.id],
+    scopeId: newScopeId,
+  }));
+
   const newAnnotations = keptAnnotations.map((a) => {
     const newAnn = {
       ...prepareCopy(a, createdBy),
@@ -401,6 +414,10 @@ export default async function duplicateScopeService({
       // dangling / unchecked layer falls back to "Calque 0"
       layerId: a.layerId ? (layerIdMap[a.layerId] ?? null) : null,
     };
+    if (a.blockId) newAnn.blockId = blockIdMap[a.blockId] ?? null;
+    if (a.instanceOfBlockId)
+      newAnn.instanceOfBlockId =
+        blockIdMap[a.instanceOfBlockId] ?? a.instanceOfBlockId;
     remapPointIds(newAnn, pointIdMap);
     remapAnnotationIds(newAnn, annotationIdMap);
     return newAnn;
@@ -533,6 +550,7 @@ export default async function duplicateScopeService({
           db.relAnnotationOpenings,
           db.relAnnotationMappingCategory,
           db.meshPaints,
+          db.blocks,
           db.baseMapViews,
           db.dimensions3d,
           db.scopeConfigs,
@@ -571,6 +589,7 @@ export default async function duplicateScopeService({
           });
           if (newMeshPaints.length > 0)
             await db.meshPaints.bulkAdd(newMeshPaints);
+          if (newBlocks.length > 0) await db.blocks.bulkAdd(newBlocks);
           if (newBaseMapViews.length > 0)
             await db.baseMapViews.bulkAdd(newBaseMapViews);
           if (newDimensions3d.length > 0)

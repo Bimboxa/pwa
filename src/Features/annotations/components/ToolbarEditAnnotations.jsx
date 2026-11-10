@@ -47,6 +47,7 @@ import Shape3DBatchSelector from "./Shape3DBatchSelector";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
+import ChipBlockLink from "Features/blocks/components/ChipBlockLink";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -526,11 +527,14 @@ export default function ToolbarEditAnnotations({
             onDelete={handleDeleteClick}
             layerChip={
               annotations.length > 0 ? (
-                <ChipLayerSelector
-                  annotationIds={annotations.map((a) => a.id)}
-                  annotations={annotations}
-                  baseMapId={baseMap?.id}
-                />
+                <>
+                  <ChipBlockLink annotations={annotations} />
+                  <ChipLayerSelector
+                    annotationIds={annotations.map((a) => a.id)}
+                    annotations={annotations}
+                    baseMapId={baseMap?.id}
+                  />
+                </>
               ) : null
             }
           />

@@ -7,10 +7,15 @@ export const OBJECTS_LIBRARY_TABS = [
 // Sub-category chips shown under the "Dessin" tab. Each key matches an object's
 // `tab` value in the manifest. Only DRAWING_2D is populated in v1; the others
 // render an "En cours de construction" placeholder.
+// BLOCKS is not a manifest category: it lists the blocks of the scope, read
+// from db.blocks (Features/blocks).
+export const BLOCKS_SUBTAB_KEY = "BLOCKS";
+
 export const DRAWING_SUBTABS = [
   { key: "DRAWING_2D", label: "2D" },
   { key: "DRAWING_3D", label: "3D" },
   { key: "SYSTEMS", label: "Systèmes" },
+  { key: BLOCKS_SUBTAB_KEY, label: "Blocs" },
 ];
 
 // Human label for an object's `tab` value (used in the dialog/card "Type").

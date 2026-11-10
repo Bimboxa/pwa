@@ -26,6 +26,16 @@ export function isCutLineAnnotation(annotation) {
   return annotation?.type === "CUT_LINE";
 }
 
+// Block instances (Features/blocks, type BLOCK_INSTANCE) are template-less
+// scope-level rows as well (isTemplateless + scopeId, no listing: they pass
+// the same scope / export rules), but they are not « Dessin » draws: they
+// get their own eye sentinel and stay out of the « Sans modèle » rows.
+export const BLOCK_INSTANCES_TEMPLATE_ID = "__BLOCK_INSTANCES__";
+
+export function isBlockInstanceAnnotation(annotation) {
+  return annotation?.type === "BLOCK_INSTANCE";
+}
+
 export const TEMPLATELESS_LABEL = "Sans modèle";
 
 export const DEFAULT_TEMPLATELESS_DRAWING_SHAPE = "POLYLINE";
@@ -52,6 +62,7 @@ export function isTemplatelessTemplateKey(key) {
 export function getAnnotationTemplateKey(annotation) {
   if (annotation?.annotationTemplateId) return annotation.annotationTemplateId;
   if (isCutLineAnnotation(annotation)) return CUT_LINES_TEMPLATE_ID;
+  if (isBlockInstanceAnnotation(annotation)) return BLOCK_INSTANCES_TEMPLATE_ID;
   return isTemplatelessAnnotation(annotation)
     ? getTemplatelessTemplateKey(annotation.listingId)
     : undefined;
@@ -62,6 +73,7 @@ export function getAnnotationTemplateKey(annotation) {
 export function isTemplatelessAnnotationInScope(annotation, scopeId) {
   return (
     isTemplatelessAnnotation(annotation) &&
+    !isBlockInstanceAnnotation(annotation) &&
     !annotation.listingId &&
     Boolean(scopeId) &&
     annotation.scopeId === scopeId
