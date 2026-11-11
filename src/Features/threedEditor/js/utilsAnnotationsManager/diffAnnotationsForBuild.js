@@ -18,6 +18,8 @@ export function getBuildEpochKey(options) {
     options?.revolutionSectionKey,
     // "Pochage des coupes" toggle rebuilds the lathe section markers.
     options?.revolutionSectionFill,
+    // Chords per circle (3D view settings): every curved mesh rebuilds.
+    options?.circleSegmentationKey,
   ]
     .map((v) => String(v ?? ""))
     .join("|");

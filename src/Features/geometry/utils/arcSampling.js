@@ -3,6 +3,8 @@
 // A square → circle → square (S-C-S) pattern represents a circular arc
 // passing through the three points.
 
+import { getArcSegmentsPerCircle } from "./circleSegmentation.js";
+
 export function typeOf(p) {
   return p?.type === "circle" ? "circle" : "square";
 }
@@ -442,16 +444,19 @@ function arcSweepAngle(center, from, to, isCW) {
 // Angle-adaptive per-half-arc sample count for the per-vertex-Z mesh paths
 // (extrudeClosedShape + getAnnotationQties developed surface — MUST stay
 // shared so the rendered mesh and the computed quantities agree): a full
-// circle reads as ~SEGMENTS_PER_FULL_CIRCLE segments, while short fillet
-// arcs keep a handful of samples instead of a fixed dense count (fixed 24
-// per half-arc made every arc annotation ~4× heavier on each rebuild).
-export const SEGMENTS_PER_FULL_CIRCLE = 24;
+// circle reads as ~getArcSegmentsPerCircle() segments (24 by default, a 3D
+// view setting — circleSegmentation.js), while short fillet arcs keep a
+// handful of samples instead of a fixed dense count (fixed 24 per half-arc
+// made every arc annotation ~4× heavier on each rebuild). Capped at half a
+// circle's worth per half-arc.
 export function adaptiveArcSamples(spanRad) {
+  const perCircle = getArcSegmentsPerCircle();
   return Math.max(
     2,
     Math.min(
-      12,
-      Math.ceil((spanRad * SEGMENTS_PER_FULL_CIRCLE) / (2 * Math.PI))
+      Math.ceil(perCircle / 2),
+      // (epsilon: a quarter turn of 48 must read 12, not 13 by rounding)
+      Math.ceil((spanRad * perCircle) / (2 * Math.PI) - 1e-9)
     )
   );
 }

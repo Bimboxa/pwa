@@ -1,6 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
+import { applyCircleSegmentation } from "Features/geometry/utils/circleSegmentation";
+import { loadCircleSegmentation } from "Features/threedEditor/services/circleSegmentationLocalStorage";
 import {
   loadNavigationPreset,
   storeNavigationPreset,
@@ -106,6 +108,13 @@ const threedEditorInitialState = {
   showWireframe: true,
   showTessellation: false,
   wireframeAngleDeg: DEFAULT_CREASE_THRESHOLD_DEG,
+  // Chords per full circle of the 3D meshes: { arc } for the surfaces /
+  // lines drawn with arc points (24 by default), { revolution } for the
+  // discs and revolution solids (64). Device preference persisted in
+  // localStorage; the values in effect are the module-level settings of
+  // geometry/utils/circleSegmentation (applied at load below, then by the
+  // updateCircleSegmentation thunk) — the quantities follow them too.
+  circleSegmentation: applyCircleSegmentation(loadCircleSegmentation()),
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
@@ -511,6 +520,11 @@ export const threedEditorSlice = createSlice({
     },
     setWireframeAngleDeg: (state, action) => {
       state.wireframeAngleDeg = action.payload;
+    },
+    // Dispatched by the updateCircleSegmentation thunk only (it applies the
+    // module-level settings and persists them first).
+    setCircleSegmentation: (state, action) => {
+      state.circleSegmentation = action.payload;
     },
     setRenderMode: (state, action) => {
       state.renderMode = action.payload;
@@ -1469,6 +1483,7 @@ export const {
   setShowWireframe,
   setShowTessellation,
   setWireframeAngleDeg,
+  setCircleSegmentation,
   setRenderMode,
   setEnvironment3d,
   setShowShadows3d,

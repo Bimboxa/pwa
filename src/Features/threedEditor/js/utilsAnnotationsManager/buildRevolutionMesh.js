@@ -17,6 +17,7 @@ import {
   expandArcsInPathWithHiddenMap,
   expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
+import { getRevolutionSegmentsPerCircle } from "Features/geometry/utils/circleSegmentation";
 
 import buildRevolutionSolidGeometry from "./buildRevolutionSolidGeometry";
 import buildGridEdgeLines from "./buildGridEdgeLines";
@@ -55,7 +56,8 @@ import buildGridEdgeLines from "./buildGridEdgeLines";
 //
 // Caller must pass arc/axis points already in basemap-local metres.
 
-const SEGMENTS = 64;
+// Lathe segments per full turn: getRevolutionSegmentsPerCircle() (64 by
+// default, a 3D view setting — circleSegmentation.js).
 
 // Section markers shown at the two sweep boundaries of a PARTIAL revolution so
 // the profile reads like an architectural section drawing: ink-colored fat
@@ -202,7 +204,10 @@ export default function buildRevolutionMesh({
   // Keep tessellation density roughly constant when only a fraction of the
   // turn is swept (min a few segments so a thin wedge still reads as curved).
   const turnFraction = Math.min(1, Math.max(0, phiLength / (Math.PI * 2)));
-  const segments = Math.max(4, Math.round(SEGMENTS * turnFraction));
+  const segments = Math.max(
+    4,
+    Math.round(getRevolutionSegmentsPerCircle() * turnFraction)
+  );
 
   // Solid revolution: one closed volume from the whole profile.
   if (solid) {

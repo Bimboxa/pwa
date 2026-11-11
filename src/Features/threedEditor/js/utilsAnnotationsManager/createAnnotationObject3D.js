@@ -35,6 +35,7 @@ import {
   expandRingWithOffsetsAndHiddenMap,
   translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
+import { scaleArcSamples } from "Features/geometry/utils/circleSegmentation";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 import { getRevolutionAxisContourArcs } from "Features/annotations/utils/revolutionAxisGlyph";
 import getRevolutionAxisRimAnchors from "Features/revolutionAxes/utils/getRevolutionAxisRimAnchors";
@@ -45,8 +46,10 @@ import {
 } from "Features/photorealRender/utils/pbrMaterials";
 import { createAquarelleMaterial } from "../postfx/aquarelleMaterials";
 
-// Match the codebase convention used by other arc-aware paths.
-const GUIDE_ARC_SAMPLES = 6;
+// Samples per half-arc of the wall / guide paths: 6 at the default arc
+// segmentation (24 chords per circle), scaled with the 3D view setting —
+// getAnnotationQties (WALL_ARC_SAMPLES) samples the same way.
+const getGuideArcSamples = () => scaleArcSamples(6);
 
 import {
   getShape3DKey,
@@ -688,7 +691,11 @@ function extrudeWallPolygon(
   }));
   if (pts.length < 2) return null;
 
-  const expanded = expandArcsInPath(pts, 6, !!annotation.closeLine);
+  const expanded = expandArcsInPath(
+    pts,
+    getGuideArcSamples(),
+    !!annotation.closeLine
+  );
   const filtered = [expanded[0]];
   for (let i = 1; i < expanded.length; i++) {
     const prev = filtered[filtered.length - 1];
@@ -1080,7 +1087,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         // below run on (same sampling → same indices as the hidden map).
         const flatSegmentsIdx = translateSegmentsIdxToExpandedPath(
           annotation.points || [],
-          GUIDE_ARC_SAMPLES,
+          getGuideArcSamples(),
           annotation.isFlatExtrusionSegmentsIdx || [],
           !!annotation.closeLine
         );
@@ -1092,7 +1099,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           const { points: pts3d, hiddenSegmentsIdx: hidden3d } =
             expandRingWithOffsetsAndHiddenMap(
               annotation.points || [],
-              GUIDE_ARC_SAMPLES,
+              getGuideArcSamples(),
               annotation.hiddenSegmentsIdx || [],
               !!annotation.closeLine
             );
@@ -1128,7 +1135,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
           expandArcsInPathWithHiddenMap(
             annotation.points || [],
-            GUIDE_ARC_SAMPLES,
+            getGuideArcSamples(),
             annotation.hiddenSegmentsIdx || [],
             !!annotation.closeLine
           );
@@ -1182,7 +1189,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       const { points: expanded, hiddenSegmentsIdx: expandedHidden } =
         expandRingWithOffsetsAndHiddenMap(
           annotation.points || [],
-          GUIDE_ARC_SAMPLES,
+          getGuideArcSamples(),
           annotation.hiddenSegmentsIdx || [],
           !!annotation.closeLine
         );
@@ -1531,7 +1538,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         anchor.y,
         Number(annotation.offsetZ) || 0
       );
-      placeholder.rotation.z = -((Number(annotation.rotation) || 0) * Math.PI) / 180;
+      placeholder.rotation.z =
+        -((Number(annotation.rotation) || 0) * Math.PI) / 180;
       placeholder.userData.instanceOfBlockId = annotation.instanceOfBlockId;
       // An instance has no vertex of its own to edit: out of the snap index.
       placeholder.userData.noVertexSnap = true;
