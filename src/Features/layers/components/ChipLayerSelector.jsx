@@ -25,6 +25,9 @@ export default function ChipLayerSelector({
   // data
 
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScopeId });
+  // "Travailler avec des calques" (Dessin module config, auto-enabled when the
+  // base map has layers).
+  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
 
   // state
 
@@ -69,6 +72,9 @@ export default function ChipLayerSelector({
   };
 
   // render
+
+  // No chip when layers are turned off or when there is no layer to pick.
+  if (!showLayers || !layers?.length) return null;
 
   return (
     <>
