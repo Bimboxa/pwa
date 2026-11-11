@@ -4,17 +4,10 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import getAnnotationQties, {
   hasPerVertexZOffsets,
-  QTIES_REASON_MESH_3D,
 } from "../utils/getAnnotationQties";
-import {
-  MESH_3D_QTY_LABEL,
-  MESH_3D_QTIES_TOOLTIP,
-} from "../utils/getAnnotationTemplateMainQtyLabel";
 import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
-// mesh3d: a group total (multi-selection) that holds a mesh 3D annotation —
-// no surface / length total, the "⚠ 3D" marker is shown instead.
 // angles: corner count (POLYLINE / STRIP), opt-in — only shown when passed.
 export default function AnnotationMeasurements({
   annotation,
@@ -23,7 +16,6 @@ export default function AnnotationMeasurements({
   units,
   layoutLength,
   part,
-  mesh3d,
   angles,
 }) {
   // data
@@ -43,9 +35,6 @@ export default function AnnotationMeasurements({
   // Layout lines total (lignes de calepinage, POLYGON only).
   let computedLayoutLength = layoutLength;
   let enabled = true;
-  // Mesh 3D annotation (or group holding one): "⚠ 3D" instead of the
-  // surface / length. A selected face / edge (hasPart) keeps its own measure.
-  let isMesh3d = Boolean(mesh3d);
   const hasPart = part && part.kind && part.kind !== "NONE";
 
   if (annotation && surface == null && length == null) {
@@ -55,12 +44,12 @@ export default function AnnotationMeasurements({
           part,
           meterByPx: baseMap?.meterByPx,
         })
-      : getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx });
+      : getAnnotationQties({
+          annotation,
+          meterByPx: baseMap?.meterByPx,
+          imageSize: baseMap?.getImageSize?.(),
+        });
     if (!qties?.enabled) enabled = false;
-    if (!hasPart && qties?.reason === QTIES_REASON_MESH_3D) {
-      isMesh3d = true;
-      enabled = true;
-    }
     // Prefer the developed (sloped) values when a guideLine ramp is present.
     computedSurface =
       qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
@@ -78,32 +67,30 @@ export default function AnnotationMeasurements({
 
   // When a part is selected we want surface to show whenever the calc returns
   // one (e.g. CUT → area), not gated on the host annotation type.
-  const showSurface = isMesh3d
-    ? false
-    : hasPart
-      ? computedSurface != null && computedSurface > 0
-      : computedSurface != null &&
-        computedSurface > 0 &&
-        (surface != null ||
-          ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
-          (annotation?.type === "POLYLINE" &&
-            (annotation?.height ||
-              annotation?.shape3D?.key === "REVOLUTION" ||
-              // Slope walls (parois): per-vertex offsets define a vertical band,
-              // so the wall has a real lateral surface to display.
-              hasPerVertexZOffsets(annotation))));
+  const showSurface = hasPart
+    ? computedSurface != null && computedSurface > 0
+    : computedSurface != null &&
+      computedSurface > 0 &&
+      (surface != null ||
+        // Mesh 3D: the surface of its faces, whatever the row type.
+        annotation?.isMesh3d ||
+        ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation?.type) ||
+        (annotation?.type === "POLYLINE" &&
+          (annotation?.height ||
+            annotation?.shape3D?.key === "REVOLUTION" ||
+            // Slope walls (parois): per-vertex offsets define a vertical band,
+            // so the wall has a real lateral surface to display.
+            hasPerVertexZOffsets(annotation))));
 
-  const showLength = !isMesh3d && computedLength != null && computedLength > 0;
+  const showLength = computedLength != null && computedLength > 0;
   const showUnits = computedUnits != null && computedUnits > 0;
   const showLayoutLength =
-    !isMesh3d && computedLayoutLength != null && computedLayoutLength > 0;
-  // 2D geometry property — shown even for a mesh 3D annotation.
+    computedLayoutLength != null && computedLayoutLength > 0;
   const showAngles = Number.isFinite(angles);
 
   if (
     !enabled ||
-    (!isMesh3d &&
-      !showSurface &&
+    (!showSurface &&
       !showLength &&
       !showUnits &&
       !showLayoutLength &&
@@ -113,20 +100,6 @@ export default function AnnotationMeasurements({
 
   return (
     <Box sx={{ display: "flex", gap: 1 }}>
-      {isMesh3d && (
-        <Tooltip title={MESH_3D_QTIES_TOOLTIP}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontFamily: "monospace",
-              color: "warning.main",
-              fontWeight: 500,
-            }}
-          >
-            {MESH_3D_QTY_LABEL}
-          </Typography>
-        </Tooltip>
-      )}
       {showUnits && (
         <Typography
           variant="caption"

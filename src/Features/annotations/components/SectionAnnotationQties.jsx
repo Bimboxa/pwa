@@ -3,18 +3,12 @@ import { useState, useEffect } from "react";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
-import { Box, Tooltip, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
-import getAnnotationQties, {
-  QTIES_REASON_MESH_3D,
-} from "../utils/getAnnotationQties";
+import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "../utils/getAnnotationSubtractionQties";
 import getAnnotationOpeningQties from "../utils/getAnnotationOpeningQties";
 import isPolylineSheetHost from "../utils/isPolylineSheetHost";
-import {
-  MESH_3D_QTY_LABEL,
-  MESH_3D_QTIES_TOOLTIP,
-} from "../utils/getAnnotationTemplateMainQtyLabel";
 
 // layout "rows": one flex row per quantity — label left, value right-aligned
 // (monospace), even vertical gap. Used by the overview card of the panel's
@@ -30,6 +24,7 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   const qties = getAnnotationQties({
     annotation,
     meterByPx: baseMap?.meterByPx,
+    imageSize: baseMap?.getImageSize?.(),
   });
 
   // When the annotation subtracts other annotations, the displayed surface is
@@ -37,6 +32,8 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   // sources (footprint = surface); POLYLINE surfaces are left untouched here.
   if (
     qties &&
+    // A mesh 3D annotation is measured on its stored faces, not its footprint.
+    !annotation?.isMesh3d &&
     annotation?.subtractionTargets?.length > 0 &&
     ["POLYGON", "RECTANGLE", "STRIP"].includes(type)
   ) {
@@ -87,6 +84,7 @@ export default function SectionAnnotationQties({ annotation, layout }) {
   }
 
   const showSurface =
+    Boolean(annotation?.isMesh3d) ||
     ["RECTANGLE", "POLYGON", "STRIP"].includes(type) ||
     (type === "POLYLINE" && annotation?.height);
 
@@ -118,42 +116,6 @@ export default function SectionAnnotationQties({ annotation, layout }) {
     showSurface && qties?.surfaceDeveloped != null && projectedSurface != null;
 
   if (!qties) return null;
-
-  // Mesh 3D: no surface / length — a single "⚠ 3D" line with the reason.
-  if (qties.reason === QTIES_REASON_MESH_3D) {
-    if (layout === "rows") {
-      return (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary" noWrap>
-            Quantités
-          </Typography>
-          <Tooltip title={MESH_3D_QTIES_TOOLTIP}>
-            <Typography
-              variant="body2"
-              noWrap
-              sx={{ fontFamily: "monospace", textAlign: "right" }}
-            >
-              {MESH_3D_QTY_LABEL}
-            </Typography>
-          </Tooltip>
-        </Box>
-      );
-    }
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, p: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          Quantités : {MESH_3D_QTY_LABEL} — mesh 3D, voir les faces / arêtes
-        </Typography>
-      </Box>
-    );
-  }
 
   if (layout === "rows") {
     const rows = [

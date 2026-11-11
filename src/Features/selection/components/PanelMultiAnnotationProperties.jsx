@@ -101,7 +101,8 @@ export default function PanelMultiAnnotationProperties() {
       if (existing) {
         existing.annotationIds.push(annotation.id);
         existing.count += 1;
-        if (annotation.isMesh3d) existing.hasMesh3d = true;
+        // A mesh 3D annotation always carries a surface (its faces).
+        if (annotation.isMesh3d) existing.hasSurface = true;
         if (qties?.enabled) {
           existing.totalSurface += qties.surface || 0;
           existing.totalLength += qties.length || 0;
@@ -112,13 +113,11 @@ export default function PanelMultiAnnotationProperties() {
           annotation,
           annotationIds: [annotation.id],
           count: 1,
-          // A mesh 3D annotation voids the group's surface / length total.
-          hasMesh3d: Boolean(annotation.isMesh3d),
           totalSurface: qties?.enabled ? qties.surface || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
-          hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
-            annotation.type
-          ),
+          hasSurface:
+            Boolean(annotation.isMesh3d) ||
+            ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation.type),
         });
       }
     }
@@ -244,14 +243,7 @@ export default function PanelMultiAnnotationProperties() {
 function TemplateGroupRow({ group, onRemove }) {
   // helpers
 
-  const {
-    annotation,
-    count,
-    totalSurface,
-    totalLength,
-    hasSurface,
-    hasMesh3d,
-  } = group;
+  const { annotation, count, totalSurface, totalLength, hasSurface } = group;
   const label =
     annotation?.annotationTemplateProps?.label || annotation?.label || "-";
   const countSuffix = count > 1 ? ` (×${count})` : "";
@@ -297,11 +289,8 @@ function TemplateGroupRow({ group, onRemove }) {
           )}
         </Typography>
         <AnnotationMeasurements
-          surface={
-            !hasMesh3d && hasSurface && totalSurface > 0 ? totalSurface : null
-          }
-          length={!hasMesh3d && totalLength > 0 ? totalLength : null}
-          mesh3d={hasMesh3d}
+          surface={hasSurface && totalSurface > 0 ? totalSurface : null}
+          length={totalLength > 0 ? totalLength : null}
         />
       </Box>
 

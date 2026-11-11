@@ -61,7 +61,11 @@ export default async function getAnnotationsWithQtiesService({
     };
     return {
       ...resolved,
-      qties: getAnnotationQties({ annotation: resolved, meterByPx }),
+      qties: getAnnotationQties({
+        annotation: resolved,
+        meterByPx,
+        imageSize,
+      }),
     };
   });
 }

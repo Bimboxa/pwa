@@ -5,6 +5,7 @@ import applyAffineToMesh3d from "./applyAffineToMesh3d.js";
 import buildFlatMesh3d from "./buildFlatMesh3d.js";
 import buildMesh3dFromTriangles from "./buildMesh3dFromTriangles.js";
 import fitAffine2d from "./fitAffine2d.js";
+import getMesh3dEdgesLength from "./getMesh3dEdgesLength.js";
 import getMesh3dQties from "./getMesh3dQties.js";
 import getPushPullRange from "./getPushPullRange.js";
 import isMesh3dClosed from "./isMesh3dClosed.js";
@@ -161,6 +162,44 @@ test("box fixture is a closed solid with the expected quantities", () => {
   near(qties.volume, 24);
   near(qties.surface, 2 * (8 + 12 + 6));
   assert.ok(signedVolume(box) > 0);
+});
+
+test("edges length counts every edge once, holes included", () => {
+  // box 4 × 2 × 3: 12 edges, each shared by two faces
+  near(getMesh3dEdgesLength(makeBox()), 4 * (4 + 2 + 3));
+  // vertical quad 3 × 1.45 stored normalized (the "extruded line" mesh)
+  const metrics = { imageWidth: 1000, imageHeight: 500, meterByPx: 0.01 };
+  const quad = mesh3dToLocal(
+    {
+      vertices: [
+        [0.1, 0.3, 0],
+        [0.4, 0.3, 0],
+        [0.4, 0.3, 1.45],
+        [0.1, 0.3, 1.45],
+      ],
+      faces: [{ loop: [0, 1, 2, 3], holes: [] }],
+    },
+    metrics
+  );
+  near(getMesh3dQties(quad).surface, 3 * 1.45);
+  near(getMesh3dEdgesLength(quad), 2 * (3 + 1.45));
+  // a hole adds its own contour
+  const holed = {
+    vertices: [
+      v(0, 0, 0),
+      v(4, 0, 0),
+      v(4, 4, 0),
+      v(0, 4, 0),
+      v(1, 1, 0),
+      v(1, 2, 0),
+      v(2, 2, 0),
+      v(2, 1, 0),
+    ],
+    faces: [{ loop: [0, 1, 2, 3], holes: [[4, 5, 6, 7]] }],
+  };
+  near(getMesh3dEdgesLength(holed), 16 + 4);
+  near(getMesh3dQties(holed).surface, 16 - 1);
+  assert.equal(getMesh3dEdgesLength(null), 0);
 });
 
 test("pulling a whole face stretches its neighbors (same counts)", () => {

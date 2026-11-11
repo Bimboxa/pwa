@@ -73,7 +73,6 @@ export default function useAnnotationTemplateQtiesById({
           surface: 0,
           unit: 0,
           layoutLength: 0,
-          mesh3dCount: 0,
           mainQtyLabel: "-",
         };
       }
@@ -83,7 +82,6 @@ export default function useAnnotationTemplateQtiesById({
       // 2. Incrément du nombre d'unités
       stats.count += 1;
       stats.unit = stats.count;
-      if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
       // 3. Récupération du ratio Métrique/Pixel
       const baseMap = annotation.baseMapId
@@ -95,7 +93,12 @@ export default function useAnnotationTemplateQtiesById({
       // (subtraction-aware) from useAnnotationsV2;
       // fall back to a direct computation otherwise.
       const qty =
-        annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
+        annotation.qties ??
+        getAnnotationQties({
+          annotation,
+          meterByPx,
+          imageSize: baseMap?.getImageSize?.(),
+        });
 
       if (qty && qty.enabled) {
         const length =
@@ -118,13 +121,6 @@ export default function useAnnotationTemplateQtiesById({
 
     // --- FORMATTING LABELS ---
     Object.entries(qtiesById).forEach(([templateId, stats]) => {
-      // A mesh 3D annotation voids the template's surface / length total
-      // (only the unit count stays) — same rule as computeAnnotationTemplateQties.
-      if (stats.mesh3dCount > 0) {
-        stats.length = null;
-        stats.surface = null;
-        stats.layoutLength = null;
-      }
       const template = annotationTemplateById?.[templateId];
       if (!template) {
         stats.mainQtyLabel = `${stats.unit ?? "-"} u`;

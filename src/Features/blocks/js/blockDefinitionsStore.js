@@ -7,7 +7,7 @@
 // each resolve the members of their block.
 //
 // Entry: { blockId, defId, label, boundsM, membersCount, totals }
-//   totals: {surface, length, membersCount, hasMesh3d} — the quantities of
+//   totals: {surface, length, membersCount} — the quantities of
 //   ONE instance of the block (sumBlockQties).
 //   boundsM: {minX, minY, maxX, maxY} — bounding box of the members drawn in
 //   the <defs> definition, in METERS in the block frame (origin = insertion

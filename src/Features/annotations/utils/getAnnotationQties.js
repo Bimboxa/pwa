@@ -14,6 +14,9 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import expandProfileSectionArcs from "Features/geometry/utils/expandProfileSectionArcs";
 import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
+import getMesh3dEdgesLength from "Features/annotationMesh3d/utils/getMesh3dEdgesLength";
+import getMesh3dQties from "Features/annotationMesh3d/utils/getMesh3dQties";
+import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import {
   getDiscSector,
   getDiscSurfaceM2,
@@ -493,17 +496,39 @@ function computeInlineExtrusionSurface(
  * --- FONCTION PRINCIPALE ---
  */
 
-// `reason` of a disabled result for a mesh 3D annotation (isMesh3d): its
-// plan projection and its developed mesh area do not describe the work any
-// more (faces of different natures), so the annotation carries no surface /
-// length. Faces / edges are measured individually (selection, « Pinceau »).
-export const QTIES_REASON_MESH_3D = "MESH_3D";
+// Quantities of a mesh 3D annotation (isMesh3d), read from its stored mesh:
+// surface = sum of the face areas (holes deducted), length = sum of the edge
+// lengths (each edge once). The stored vertices are normalized against the
+// base map image, so the image size is required (the resolved annotation's
+// own `imageSize`, set by useAnnotationsV2, else the `imageSize` argument) —
+// without it (or without a mesh) the annotation carries no quantity.
+function computeMesh3dAnnotationQties({ annotation, meterByPx, imageSize }) {
+  const size = annotation.imageSize ?? imageSize;
+  if (!size?.width || !size?.height || !annotation.mesh3d?.faces?.length)
+    return { enabled: false };
+  const mesh = mesh3dToLocal(annotation.mesh3d, {
+    imageWidth: size.width,
+    imageHeight: size.height,
+    meterByPx,
+  });
+  const { surface } = getMesh3dQties(mesh);
+  const length = getMesh3dEdgesLength(mesh);
+  return {
+    enabled: true,
+    length,
+    surface,
+    lengthDeveloped: length,
+    surfaceDeveloped: surface,
+  };
+}
 
 // Pieces of a cut surface host deleted by the user (surfaceCuts REMOVE
 // entries, see removeSurfacePiecesService) leave the quantities: their area,
 // as recorded when removed, comes off the surface.
 export default function getAnnotationQties(args) {
   const qties = computeAnnotationQties(args);
+  // A mesh no longer holds the faces removed from it: nothing to deduct.
+  if (args?.annotation?.isMesh3d) return qties;
   const removedM2 = getSurfaceCutsRemovedM2(args?.annotation?.surfaceCuts);
   if (!(removedM2 > 0) || !qties?.enabled || !Number.isFinite(qties.surface)) {
     return qties;
@@ -511,16 +536,16 @@ export default function getAnnotationQties(args) {
   return { ...qties, surface: Math.max(0, qties.surface - removedM2) };
 }
 
-function computeAnnotationQties({ annotation, meterByPx }) {
+function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
   try {
     if (!annotation) return null;
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0)
       return { enabled: false };
 
-    // Mesh 3D: no meaningful surface / length (see QTIES_REASON_MESH_3D).
-    // Checked first: the unit count is handled by the aggregators.
+    // Mesh 3D: the stored mesh is the geometry. Checked first — the plan
+    // points / height of the row no longer describe it.
     if (annotation.isMesh3d)
-      return { enabled: false, reason: QTIES_REASON_MESH_3D };
+      return computeMesh3dAnnotationQties({ annotation, meterByPx, imageSize });
 
     // RULER is a measurement object (a dimension chain), like COTE: it
     // describes the drawing, it is not part of the work. No quantities.

@@ -2072,6 +2072,13 @@ export default function useAnnotationsV2(options) {
 
           // --- QTIES ---
 
+          // Mesh 3D: the stored mesh is normalized against the image, so its
+          // quantities (getAnnotationQties, here and in every later caller)
+          // need the image size next to the row.
+          if (_annotation.isMesh3d) {
+            _annotation.imageSize = { width, height };
+          }
+
           if (withQties) {
             _annotation.qties = getAnnotationQties({
               annotation: _annotation,
@@ -3169,7 +3176,7 @@ export default function useAnnotationsV2(options) {
           // not a footprint: handled below from the headless 3D carve
           // (`_subtractedSurfaceM2` / `_carvedSurfaceM2`). A mesh
           // host is a POLYGON too, but its qties come from the stored mesh
-          // (getMesh3dQties, `reason: "MESH_3D"` here) and its plan polygon
+          // (getAnnotationQties → getMesh3dQties) and its plan polygon
           // is only a projection: left untouched until the bake.
           const isFootprintSurfaceType =
             !a?.isMesh3d && ["POLYGON", "RECTANGLE", "STRIP"].includes(a?.type);

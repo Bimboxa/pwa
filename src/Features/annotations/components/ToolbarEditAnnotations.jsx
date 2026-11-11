@@ -180,7 +180,8 @@ export default function ToolbarEditAnnotations({
       if (existing) {
         existing.annotationIds.push(annotation.id);
         existing.count += 1;
-        if (annotation.isMesh3d) existing.hasMesh3d = true;
+        // A mesh 3D annotation always carries a surface (its faces).
+        if (annotation.isMesh3d) existing.hasSurface = true;
         if (qties?.enabled) {
           existing.totalSurface += getQtiesSurface(qties) || 0;
           existing.totalLength += qties.length || 0;
@@ -197,17 +198,15 @@ export default function ToolbarEditAnnotations({
           annotation,
           annotationIds: [annotation.id],
           count: 1,
-          // A mesh 3D annotation voids the group's surface / length total.
-          hasMesh3d: Boolean(annotation.isMesh3d),
           totalSurface: qties?.enabled ? getQtiesSurface(qties) || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
           totalLayoutLength: qties?.enabled ? qties.layoutLength || 0 : 0,
           totalUnits: unitCount,
           hasAngles: anglesCount != null,
           totalAngles: anglesCount ?? 0,
-          hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
-            annotation.type
-          ),
+          hasSurface:
+            Boolean(annotation.isMesh3d) ||
+            ["RECTANGLE", "POLYGON", "STRIP"].includes(annotation.type),
         });
       }
     }
@@ -603,7 +602,6 @@ function TemplateGroupRow({ group, onRemove }) {
     hasAngles,
     totalAngles,
     hasSurface,
-    hasMesh3d,
   } = group;
   const label =
     annotation?.annotationTemplateProps?.label || annotation?.label || "-";
@@ -650,15 +648,10 @@ function TemplateGroupRow({ group, onRemove }) {
           )}
         </Typography>
         <AnnotationMeasurements
-          surface={
-            !hasMesh3d && hasSurface && totalSurface > 0 ? totalSurface : null
-          }
-          length={!hasMesh3d && totalLength > 0 ? totalLength : null}
-          layoutLength={
-            !hasMesh3d && totalLayoutLength > 0 ? totalLayoutLength : null
-          }
+          surface={hasSurface && totalSurface > 0 ? totalSurface : null}
+          length={totalLength > 0 ? totalLength : null}
+          layoutLength={totalLayoutLength > 0 ? totalLayoutLength : null}
           units={totalUnits > 0 ? totalUnits : null}
-          mesh3d={hasMesh3d}
           angles={hasAngles ? totalAngles : null}
         />
       </Box>

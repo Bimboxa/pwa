@@ -72,7 +72,6 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
           surface: 0,
           unit: 0,
           layoutLength: 0,
-          mesh3dCount: 0,
           mainQtyLabel: "-",
         };
       }
@@ -80,9 +79,14 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
       const stats = acc[templateId];
       stats.count += 1;
       stats.unit = stats.count;
-      if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
-      const qty = annotation.qties ?? getAnnotationQties({ annotation, meterByPx });
+      const qty =
+        annotation.qties ??
+        getAnnotationQties({
+          annotation,
+          meterByPx,
+          imageSize: baseMap?.getImageSize?.(),
+        });
 
       if (qty && qty.enabled) {
         const length = qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
@@ -102,13 +106,6 @@ export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { vi
     }, {});
 
     Object.entries(qtiesById).forEach(([templateId, stats]) => {
-      // A mesh 3D annotation voids the template's surface / length total
-      // (only the unit count stays) — same rule as computeAnnotationTemplateQties.
-      if (stats.mesh3dCount > 0) {
-        stats.length = null;
-        stats.surface = null;
-        stats.layoutLength = null;
-      }
       const template = annotationTemplateById?.[templateId];
       if (!template) {
         stats.mainQtyLabel = `${stats.unit ?? "-"} u`;

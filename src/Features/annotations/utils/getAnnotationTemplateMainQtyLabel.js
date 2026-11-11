@@ -1,16 +1,6 @@
 // Main quantity of a template row ("172 m²", "14.5 ml", "3 u"). Relative
 // imports only: node-testable through mergePaintedQtiesIntoTemplateQties.
 
-// Label shown instead of the surface / length total when the template holds
-// at least one mesh 3D annotation (stats.mesh3dCount > 0): the total is not
-// computed at all — neither the other annotations' nor the painted parts' —
-// only the unit count keeps its meaning.
-export const MESH_3D_QTY_LABEL = "⚠ 3D";
-
-// Tooltip of the per-annotation "⚠ 3D" marker (rows, toolbar, properties).
-export const MESH_3D_QTIES_TOOLTIP =
-  "Mesh 3D : surface et linéaire non calculés. Les faces / arêtes se mesurent individuellement (sélection, Pinceau).";
-
 const unitMap = {
   UNIT: "u",
   METER: "ml",
@@ -33,8 +23,8 @@ export function getAnnotationTemplateMainQtyKey(annotationTemplate) {
   return mainQtyKey ?? defaultMainQtyKey;
 }
 
-// "u" | "ml" | "m²" — kept on the stats (mainQtyUnit) so the legend manual
-// override still knows the unit when the label is MESH_3D_QTY_LABEL.
+// "u" | "ml" | "m²" — kept on the stats (mainQtyUnit) for the legend manual
+// override.
 export function getAnnotationTemplateMainQtyUnit(annotationTemplate) {
   const qtyKey = getAnnotationTemplateMainQtyKey(annotationTemplate);
   if (qtyKey === "L" || qtyKey === "C") return unitMap.METER;
@@ -53,8 +43,6 @@ export default function getAnnotationTemplateMainQtyLabel(
   if (qtyKey === "L") qty = qties?.length;
   else if (qtyKey === "S") qty = qties?.surface;
   else if (qtyKey === "C") qty = qties?.layoutLength;
-
-  if (qtyKey !== "U" && (qties?.mesh3dCount ?? 0) > 0) return MESH_3D_QTY_LABEL;
 
   if (!Number.isFinite(qty)) return `- ${unit}`;
 

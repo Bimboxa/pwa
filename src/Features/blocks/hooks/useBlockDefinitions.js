@@ -4,9 +4,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import useBlocks from "./useBlocks";
 import useBlocksBaseMaps from "./useBlocksBaseMaps";
-import getAnnotationQties, {
-  QTIES_REASON_MESH_3D,
-} from "Features/annotations/utils/getAnnotationQties";
+import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 
 import getBlockBoundsM from "../utils/getBlockBoundsM";
 import sumBlockQties from "../utils/sumBlockQties";
@@ -26,7 +24,7 @@ import { isBlockInstanceAnnotation } from "../utils/blockTypes";
 //   originPx: the insertion point in the same pixel frame;
 //   meterByPx: scale of the origin base map;
 //   boundsM: see getBlockBoundsM;
-//   totals: {surface, length, membersCount, hasMesh3d} of ONE instance (see
+//   totals: {surface, length, membersCount} of ONE instance (see
 //     sumBlockQties; 3D subtractions are not deducted here).
 // Blocks with no origin or no scale are skipped (nothing to draw yet).
 export default function useBlockDefinitions() {
@@ -91,9 +89,12 @@ export default function useBlockDefinitions() {
         // what ONE instance of the block counts for
         totals: sumBlockQties(
           members.map((annotation) =>
-            getAnnotationQties({ annotation, meterByPx })
-          ),
-          { mesh3dReason: QTIES_REASON_MESH_3D }
+            getAnnotationQties({
+              annotation,
+              meterByPx,
+              imageSize: { width, height },
+            })
+          )
         ),
       });
     });

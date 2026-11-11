@@ -3,10 +3,7 @@ import { SelectAll } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
-import {
-  getAnnotationTemplateMainQtyKey,
-  MESH_3D_QTY_LABEL,
-} from "../utils/getAnnotationTemplateMainQtyLabel";
+import { getAnnotationTemplateMainQtyKey } from "../utils/getAnnotationTemplateMainQtyLabel";
 import {
   getAnnotationType,
   resolveDrawingShape,
@@ -14,7 +11,6 @@ import {
 import {
   formatQtyValue,
   formatTemplateQtiesTooltip,
-  getMesh3dQtiesNotice,
   getPaintedPartsCountLabel,
 } from "../utils/mergePaintedQtiesIntoTemplateQties";
 
@@ -71,7 +67,6 @@ export default function SectionAnnotationTemplateKeyQties({
   // helpers
 
   const mainQtyKey = getAnnotationTemplateMainQtyKey(annotationTemplate);
-  const hasMesh3d = (qties?.mesh3dCount ?? 0) > 0;
   const unit = qties?.unit ?? 0;
   const length = qties?.length ?? 0;
   const surface = qties?.surface ?? 0;
@@ -109,37 +104,27 @@ export default function SectionAnnotationTemplateKeyQties({
         isMain={mainQtyKey === "U"}
       />
 
-      {hasMesh3d ? (
+      {showLength && (
         <QtyCell
-          value={MESH_3D_QTY_LABEL}
-          isMain={mainQtyKey !== "U"}
-          tooltip={getMesh3dQtiesNotice(qties)}
+          value={formatQtyValue(length)}
+          unit="ml"
+          isMain={mainQtyKey === "L"}
         />
-      ) : (
-        <>
-          {showLength && (
-            <QtyCell
-              value={formatQtyValue(length)}
-              unit="ml"
-              isMain={mainQtyKey === "L"}
-            />
-          )}
-          {showSurface && (
-            <QtyCell
-              value={formatQtyValue(surface)}
-              unit="m²"
-              isMain={mainQtyKey === "S"}
-            />
-          )}
-          {showLayoutLength && (
-            <QtyCell
-              value={formatQtyValue(layoutLength)}
-              unit="ml calep."
-              isMain={mainQtyKey === "C"}
-              tooltip="Longueur de calepinage"
-            />
-          )}
-        </>
+      )}
+      {showSurface && (
+        <QtyCell
+          value={formatQtyValue(surface)}
+          unit="m²"
+          isMain={mainQtyKey === "S"}
+        />
+      )}
+      {showLayoutLength && (
+        <QtyCell
+          value={formatQtyValue(layoutLength)}
+          unit="ml calep."
+          isMain={mainQtyKey === "C"}
+          tooltip="Longueur de calepinage"
+        />
       )}
 
       {paintedCountLabel && (

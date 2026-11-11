@@ -150,7 +150,6 @@ export default function ToolbarEditBlockInstance({ onDragStart }) {
             <AnnotationMeasurements
               surface={totals.surface}
               length={totals.length}
-              mesh3d={totals.hasMesh3d}
             />
           </Box>
         )}

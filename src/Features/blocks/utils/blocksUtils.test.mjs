@@ -494,29 +494,26 @@ test("each instance counts as one copy of each member of its block", async () =>
   assert.equal(expandBlockInstancesForQties(plain, {}), plain);
 });
 
-test("block totals prefer developed values and flag mesh 3D members", async () => {
+test("block totals prefer developed values and skip disabled members", async () => {
   const { default: sumBlockQties } = await import("./sumBlockQties.js");
   const totals = sumBlockQties(
     [
       { enabled: true, surface: 2, length: 6 },
       { enabled: true, surface: 3, surfaceDeveloped: 4, length: 1 },
       { enabled: false, surface: 100, length: 100 },
-      { enabled: false, reason: "MESH_3D" },
+      { enabled: false },
       null,
-    ],
-    { mesh3dReason: "MESH_3D" }
+    ]
   );
   assert.deepEqual(totals, {
     surface: 6,
     length: 7,
     membersCount: 5,
-    hasMesh3d: true,
   });
   assert.deepEqual(sumBlockQties([]), {
     surface: 0,
     length: 0,
     membersCount: 0,
-    hasMesh3d: false,
   });
 });
 

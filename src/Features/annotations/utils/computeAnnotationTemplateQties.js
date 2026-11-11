@@ -12,10 +12,8 @@ import getAnnotationTemplateMainQtyLabel, {
  * @param {Object} annotationTemplateById - Map of template id → template.
  * @param {Object} [baseMapById] - Map of baseMap id → baseMap (needed only
  *   when annotations don't carry pre-computed `.qties`).
- * @returns {{ [templateId]: { count, length, surface, unit, mesh3dCount,
- *   mainQtyLabel, mainQtyUnit } }} — `length` / `surface` are null (no total
- *   at all) as soon as the template holds a mesh 3D annotation
- *   (mesh3dCount > 0); only the unit count keeps its meaning.
+ * @returns {{ [templateId]: { count, length, surface, unit, mainQtyLabel,
+ *   mainQtyUnit } }}
  */
 export default function computeAnnotationTemplateQties(
   annotations,
@@ -41,14 +39,12 @@ export default function computeAnnotationTemplateQties(
         surface: 0,
         unit: 0,
         layoutLength: 0,
-        mesh3dCount: 0,
         mainQtyLabel: "-",
       };
     }
 
     const stats = acc[templateId];
     stats.count += 1;
-    if (annotation.isMesh3d) stats.mesh3dCount += 1;
 
     // Use pre-computed qties when available (withQties was used),
     // otherwise compute on the fly.
@@ -56,7 +52,11 @@ export default function computeAnnotationTemplateQties(
     if (!qty && baseMapById) {
       const baseMap = annotation.baseMapId ? baseMapById[annotation.baseMapId] : null;
       const meterByPx = baseMap?.getMeterByPx();
-      qty = getAnnotationQties({ annotation, meterByPx });
+      qty = getAnnotationQties({
+        annotation,
+        meterByPx,
+        imageSize: baseMap?.getImageSize?.(),
+      });
     }
 
     // Unit count: 1 per annotation, except when the annotation carries its own
@@ -79,12 +79,6 @@ export default function computeAnnotationTemplateQties(
 
   // Format labels
   Object.entries(qtiesById).forEach(([templateId, stats]) => {
-    // A mesh 3D annotation voids the template's surface / length total.
-    if (stats.mesh3dCount > 0) {
-      stats.length = null;
-      stats.surface = null;
-      stats.layoutLength = null;
-    }
     const template = annotationTemplateById?.[templateId];
     if (!template) {
       stats.mainQtyLabel = `${stats.unit ?? "-"} u`;
