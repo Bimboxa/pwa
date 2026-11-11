@@ -49,6 +49,10 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDrawingPreferredBaseMapId from "./useDrawingPreferredBaseMapId";
 import pickOrbitPointForDrawnVertices from "Features/threedDrawing/utils/pickOrbitPointForDrawnVertices";
 
+import {
+  adaptiveArcSamples,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
@@ -98,9 +102,13 @@ import {
   getRectangleFrame,
 } from "../services/rectangleFrameStore";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
+import { getBaseMapWorldNormal } from "../utils/classifyFaceVsBaseMap";
+import expandArcsInPath3d from "../utils/expandArcsInPath3d";
 import filterBaseMapsShownIn3d from "../utils/filterBaseMapsShownIn3d";
+import getCirclePointsFromCenterRadius3d from "../utils/getCirclePointsFromCenterRadius3d";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
 import {
+  isCircleRadiusDraftFor3d,
   isRevolutionAxisDraftFor3d,
   isTemplatelessDraft,
   isPolylineClickDraftFor3d,
@@ -257,13 +265,17 @@ export default function useDrawingPointerHandlers() {
   // switch helpers clear nothing in 3D): the path in progress, the rectangle
   // anchor and the typed dimensions / distance belong to the previous tool.
   // Same for the axis tool (A) armed over a path in progress, or left for a
-  // template: its centre is not a polygon vertex, nor the reverse.
+  // template: its centre is not a polygon vertex, nor the reverse. Same
+  // again for the centre / radius circle tools of a line / surface.
   const prevModeRef = useRef(enabledDrawingMode);
   useEffect(() => {
     const prev = prevModeRef.current;
     prevModeRef.current = enabledDrawingMode;
     if (prev === enabledDrawingMode) return;
-    const isAxisMode = (mode) => mode === "REVOLUTION_AXIS_PLAN";
+    const isAxisMode = (mode) =>
+      mode === "REVOLUTION_AXIS_PLAN" ||
+      mode === "POLYLINE_CIRCLE_RADIUS" ||
+      mode === "POLYGON_CIRCLE_RADIUS";
     if (
       !isFaceCutDrawingMode(prev) &&
       !isFaceCutDrawingMode(enabledDrawingMode) &&
@@ -415,6 +427,39 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
+    // Line / surface (template or "Dessin") on its centre / radius circle
+    // tool: the disc's two clicks, committed as a 4-point S-C-S-C circle.
+    function isCircleRadiusDraw() {
+      return (
+        behavior === "CIRCLE_RADIUS" &&
+        isCircleRadiusDraftFor3d(newAnnotationRef.current, enabledDrawingMode)
+      );
+    }
+
+    // The 4 control points of the circle (world) from its centre and the
+    // rim point under the cursor, in the centre's plane: the face it sits
+    // on, else its plan, else parallel to the preferred plan (a centre in
+    // the air) — the plane DrawingOverlayThreed previews. Null when
+    // degenerate.
+    function getCircleVertices(center, rim) {
+      const supportBaseMap =
+        (baseMaps || []).find((bm) => bm.id === center.baseMapId) ??
+        (baseMaps || []).find((bm) => bm.id === preferredBaseMapId) ??
+        baseMaps?.[0] ??
+        null;
+      const normal =
+        center.faceNormal ??
+        (supportBaseMap ? getBaseMapWorldNormal(supportBaseMap) : null);
+      const points = getCirclePointsFromCenterRadius3d(center, rim, normal);
+      if (!points) return null;
+      return points.map((p) => ({
+        ...p,
+        snapKind: center.snapKind,
+        ...(center.nodeId ? { nodeId: center.nodeId } : {}),
+        ...(center.baseMapId ? { baseMapId: center.baseMapId } : {}),
+      }));
+    }
+
     // Line drawn click by click (template or "Dessin"): T toggles its last
     // point to an arc point (onArcToggleKey).
     function isPolylineClickDraw() {
@@ -520,6 +565,15 @@ export default function useDrawingPointerHandlers() {
       return annotation;
     }
 
+    // Closed contour with arc points (a centre / radius circle) as straight
+    // segments, for the commits that have no arc encoding (mesh sheets).
+    function bakeArcVertices(vertices) {
+      if (!vertices.some((v) => typeOf(v) === "circle")) return vertices;
+      return expandArcsInPath3d(vertices, adaptiveArcSamples, true).map(
+        (v) => ({ ...v, type: "square" })
+      );
+    }
+
     // Templated face: encoded on its plan when it can be — else (a vertical
     // face the band cannot reproduce) a flat mesh sheet keeping the template
     // and its listing, whose plan projection is a segment.
@@ -545,7 +599,7 @@ export default function useDrawingPointerHandlers() {
       return await createFlatMesh3dAnnotationService({
         ...common,
         editor,
-        vertices: cornersInOrder,
+        vertices: bakeArcVertices(cornersInOrder),
         scopeId,
         draftProps: newAnnotationRef.current,
       });
@@ -715,7 +769,7 @@ export default function useDrawingPointerHandlers() {
           if (!created && reason === FACE_COMMIT_NO_2D_ENCODING) {
             created = await createFlatMesh3dAnnotationService({
               editor,
-              vertices: points,
+              vertices: bakeArcVertices(points),
               baseMaps: common.baseMaps,
               projectId,
               scopeId,
@@ -897,6 +951,24 @@ export default function useDrawingPointerHandlers() {
           console.warn(
             "[threedDrawing] rectangle committed nothing: cancelled"
           );
+          dispatch(cancelInProgressPolyline());
+        }
+        return;
+      }
+
+      // Centre / radius circle: 1st click = the centre, 2nd = a rim point
+      // on the centre's plane (previewed by the overlay) → commit.
+      if (isCircleRadiusDraw()) {
+        if (inProgress.length === 0) {
+          dispatch(pushDrawingVertex(toRectangleAnchor(snap)));
+          return;
+        }
+        const vertices = getCircleVertices(inProgress[0], snap.position);
+        if (!vertices) return; // degenerate: stay armed
+        // The typed radius was applied to this point (preview snap): consumed.
+        releaseLengthConstraint();
+        if (!(await commitTemplateless(vertices, { closed: true }))) {
+          console.warn("[threedDrawing] circle committed nothing: cancelled");
           dispatch(cancelInProgressPolyline());
         }
         return;
@@ -1313,7 +1385,8 @@ export default function useDrawingPointerHandlers() {
         behavior !== "SEGMENT" &&
         !isCoteDraw() &&
         !isDiscDraw() &&
-        !isAxisDraw()
+        !isAxisDraw() &&
+        !isCircleRadiusDraw()
       );
     }
 
@@ -1811,6 +1884,42 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      // Line / surface circle (centre / radius tool): the disc's two clicks,
+      // committed as the 2D circle encoding (4 points S-C-S-C, closed).
+      if (isCircleRadiusDraw() && hasTemplate()) {
+        if (inProgressPolyline.length === 0) {
+          dispatch(pushDrawingVertex(toRectangleAnchor(snap)));
+          return;
+        }
+        const vertices = getCircleVertices(
+          inProgressPolyline[0],
+          snap.position
+        );
+        if (!vertices) return; // stay armed
+        // The typed radius was applied to this point (preview snap): consumed.
+        releaseLengthConstraint();
+        try {
+          const created =
+            newAnnotationRef.current?.type === "POLYGON"
+              ? await commitFace(vertices)
+              : await commitPolyline(vertices, { closeLine: true });
+          if (created) {
+            console.log(
+              `[threedDrawing] circle annotation created: ${created.id} on baseMap ${created.baseMapId} (listing ${created.listingId})`
+            );
+            warnIfOffMainBaseMap(created);
+            finishCommit(vertices);
+          } else {
+            console.warn(
+              "[threedDrawing] circle commit returned null (see abort reason above)"
+            );
+          }
+        } catch (err) {
+          console.error("[threedDrawing] circle commit failed", err);
+        }
+        return;
+      }
+
       const newVertex = {
         x: snap.position.x,
         y: snap.position.y,
@@ -1974,7 +2083,7 @@ export default function useDrawingPointerHandlers() {
       }
       if (isTemplatelessDraw()) {
         if (e.key === "Enter") {
-          if (behavior === "RECTANGLE") return;
+          if (behavior === "RECTANGLE" || isCircleRadiusDraw()) return;
           await enqueue(async () => {
             // A pending `*N` is appended first, then the path ends.
             applyPendingPatternRepeat();
@@ -1994,14 +2103,15 @@ export default function useDrawingPointerHandlers() {
             return;
           }
           // 2D parity: Escape mid-drawing ends a click-drawn path like Enter;
-          // a segment / rectangle in progress, or a path that commits
-          // nothing, is discarded.
+          // a segment / rectangle / circle centre in progress, or a path
+          // that commits nothing, is discarded.
           await enqueue(async () => {
             const { inProgress } = getLiveDrawing();
             if (!inProgress.length) return;
             const committed =
               behavior !== "SEGMENT" &&
               behavior !== "RECTANGLE" &&
+              !isCircleRadiusDraw() &&
               inProgress.length >= 2 &&
               (await endPath(inProgress));
             if (!committed) dispatch(cancelInProgressPolyline());
@@ -2011,13 +2121,14 @@ export default function useDrawingPointerHandlers() {
         return;
       }
       if (e.key === "Enter") {
-        // Rectangle / segment / disc / axis: keys never commit (2D parity —
-        // the 2nd click does).
+        // Rectangle / segment / disc / axis / circle: keys never commit (2D
+        // parity — the 2nd click does).
         if (
           behavior === "RECTANGLE" ||
           behavior === "SEGMENT" ||
           isDiscDraw() ||
-          isAxisDraw()
+          isAxisDraw() ||
+          isCircleRadiusDraw()
         )
           return;
         // A pending `*N` is appended first, then the path ends.
@@ -2033,8 +2144,9 @@ export default function useDrawingPointerHandlers() {
             releaseRectDims();
             return;
           }
-          // Disc / axis: Escape drops the centre (nothing committable yet).
-          if (isDiscDraw() || isAxisDraw()) {
+          // Disc / axis / circle: Escape drops the centre (nothing
+          // committable yet).
+          if (isDiscDraw() || isAxisDraw() || isCircleRadiusDraw()) {
             dispatch(cancelInProgressPolyline());
             return;
           }
