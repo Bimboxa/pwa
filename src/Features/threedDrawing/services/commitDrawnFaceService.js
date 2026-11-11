@@ -2,10 +2,15 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
+import {
+  adaptiveArcSamples,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
 
 import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
 import buildVerticalBandPoints from "../utils/buildVerticalBandPoints";
 import classifyFaceVsBaseMap from "../utils/classifyFaceVsBaseMap";
+import expandArcsInPath3d from "../utils/expandArcsInPath3d";
 import isVerticalBandExact from "../utils/isVerticalBandExact";
 import resolveHostBaseMap from "../utils/resolveHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
@@ -124,7 +129,22 @@ export async function commitDrawnFace({
   if (!host)
     return abort("no host base map (projection failed on every base map)");
 
-  const classification = classifyFaceVsBaseMap(cornersInOrder, host);
+  // Arc points (`type: "circle"` — a circle drawn with the centre / radius
+  // tool): kept on the point refs when the face is parallel to its plan (the
+  // 2D encoding), baked into straight segments otherwise — a plan S-C-S with
+  // offsets is not the drawn arc (same rule as commitDrawnPolylineService).
+  let corners = cornersInOrder;
+  let classification = classifyFaceVsBaseMap(corners, host);
+  if (
+    classification &&
+    classification.kind !== "PARALLEL" &&
+    corners.some((v) => typeOf(v) === "circle")
+  ) {
+    corners = expandArcsInPath3d(corners, adaptiveArcSamples, true).map(
+      (v) => ({ ...v, type: "square" })
+    );
+    classification = classifyFaceVsBaseMap(corners, host);
+  }
   if (!classification)
     return abort(`face vs base map ${host.id} classification failed`);
 
@@ -136,9 +156,10 @@ export async function commitDrawnFace({
   switch (classification.kind) {
     case "PARALLEL": {
       projectedPoints = dedupeAdjacent(
-        classification.projected.map((p) => ({
+        classification.projected.map((p, i) => ({
           x: p.x,
           y: p.y,
+          type: typeOf(corners[i]),
           offsetBottom: 0,
           offsetTop: 0,
         }))

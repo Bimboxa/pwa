@@ -66,15 +66,25 @@ export function getFaceCutHotkeyForTool(tool) {
   return getHotkeyForToolKey(FACE_CUT_TOOL_HOTKEYS, tool);
 }
 
+// Tool of a group targeted by a hotkey `behavior`: the first tool of that
+// behavior. "C" (CIRCLE, the 3-point circle) falls back to the centre /
+// radius circle in a group without a 3-point tool — the 3D editor, where
+// only the centre / radius flow exists.
+export function findToolForHotkeyBehavior(tools, behavior) {
+  const list = tools ?? [];
+  const tool = list.find((t) => t.behavior === behavior);
+  if (tool || behavior !== "CIRCLE") return tool ?? null;
+  return list.find((t) => t.behavior === "CIRCLE_RADIUS") ?? null;
+}
+
 // Uppercase letter to display for a tool WITHIN its group, or null. Only the
-// tool actually targeted by the shortcut (the first of that `behavior` in the
-// group) is badged, to stay consistent with the effective selection.
+// tool actually targeted by the shortcut (findToolForHotkeyBehavior) is
+// badged, to stay consistent with the effective selection.
 export function getHotkeyForToolInGroup(tool, tools) {
   if (!tool) return null;
   for (const [letter, behavior] of Object.entries(DRAWING_TOOL_HOTKEYS)) {
-    if (tool.behavior !== behavior) continue;
-    const first = tools.find((t) => t.behavior === behavior);
-    if (first?.key === tool.key) return letter.toUpperCase();
+    if (findToolForHotkeyBehavior(tools, behavior)?.key === tool.key)
+      return letter.toUpperCase();
   }
   return null;
 }

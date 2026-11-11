@@ -82,8 +82,21 @@ export function isRevolutionAxisDraftFor3d(na, enabledDrawingMode) {
   );
 }
 
+// POLYLINE / POLYGON draft (template or "Dessin") on its centre / radius
+// circle tool: the disc's two clicks — centre, then a rim point on the
+// centre's plane — committed as the 2D circle encoding (4 points S-C-S-C).
+export function isCircleRadiusDraftFor3d(na, enabledDrawingMode) {
+  if ((na?.type !== "POLYLINE" && na?.type !== "POLYGON") || na?.isOpening)
+    return false;
+  return (
+    enabledDrawingMode === "POLYLINE_CIRCLE_RADIUS" ||
+    enabledDrawingMode === "POLYGON_CIRCLE_RADIUS"
+  );
+}
+
 // A line (POLYLINE template, or the "Dessin" tool on its line type) drawn
-// click by click in the 3D editor — not a segment / rectangle / opening:
+// click by click in the 3D editor — not a segment / rectangle / circle /
+// opening:
 // the drafts the arc toggle (T) and the « Points coplanaires » switch apply
 // to (useDrawingPointerHandlers, DrawingOverlayThreed, drawing helper).
 export function isPolylineClickDraftFor3d(na, enabledDrawingMode) {
@@ -91,7 +104,11 @@ export function isPolylineClickDraftFor3d(na, enabledDrawingMode) {
     return false;
   if (!FACE_DRAW_TOOL_KEYS.has(enabledDrawingMode)) return false;
   const behavior = getDrawingToolByKey(enabledDrawingMode)?.behavior;
-  return behavior !== "SEGMENT" && behavior !== "RECTANGLE";
+  return (
+    behavior !== "SEGMENT" &&
+    behavior !== "RECTANGLE" &&
+    behavior !== "CIRCLE_RADIUS"
+  );
 }
 
 export function selectIsThreedPolylineClickDraw(s) {

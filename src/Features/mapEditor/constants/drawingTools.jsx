@@ -124,6 +124,8 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineCircle,
     annotationType: "POLYLINE",
     behavior: "CIRCLE",
+    // No 3-point flow in the 3D editor (centre / radius only there).
+    editor: "2D",
   },
   {
     key: "POLYLINE_CIRCLE_RADIUS",
@@ -138,6 +140,8 @@ const DRAWING_TOOLS = [
     Icon: IconPolylineArc,
     annotationType: "POLYLINE",
     behavior: "ARC",
+    // No 3-point flow in the 3D editor (T turns the last point into an arc).
+    editor: "2D",
   },
   {
     key: "POLYGON_CIRCLE",
@@ -145,6 +149,8 @@ const DRAWING_TOOLS = [
     Icon: IconPolygonCircle,
     annotationType: "POLYGON",
     behavior: "CIRCLE",
+    // No 3-point flow in the 3D editor (centre / radius only there).
+    editor: "2D",
   },
   {
     key: "POLYGON_CIRCLE_RADIUS",

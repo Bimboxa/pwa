@@ -21,6 +21,7 @@ import {
 } from "../constants/drawingTools.jsx";
 import {
   DRAWING_TOOL_HOTKEYS,
+  findToolForHotkeyBehavior,
   FACE_CUT_TOOL_HOTKEYS,
   OPENING_TOOL_HOTKEYS,
 } from "../constants/drawingToolHotkeys";
@@ -282,7 +283,7 @@ export default function useDrawingToolHotkeys() {
 
       if (hasFirstPoint) return;
 
-      const tool = tools.find((t) => t.behavior === behavior);
+      const tool = findToolForHotkeyBehavior(tools, behavior);
       if (!tool) return;
       if (tool.key !== mode) switchTool(tool);
       e.preventDefault();

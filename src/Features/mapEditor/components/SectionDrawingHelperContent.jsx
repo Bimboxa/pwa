@@ -36,6 +36,7 @@ import {
   selectIsCutLineDrawActive,
   selectIsFaceCutDrawActive,
   selectIsThreedAxisLockAvailable,
+  isCircleRadiusDraftFor3d,
   selectIsThreedPolylineClickDraw,
 } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
@@ -115,6 +116,14 @@ const THREED_CUT_LINE_SHORTCUTS = [
   { key: "Entrée", label: "Terminer la ligne de coupe" },
   { key: "Esc", label: "Terminer / Quitter la ligne de coupe" },
   { key: "X / Y / Z", label: "Trait selon un axe (barre du bas)" },
+];
+
+// Line / surface circle drawn from its centre and radius in 3D: the 2nd
+// click commits (useDrawingPointerHandlers), Enter does nothing.
+const THREED_CIRCLE_RADIUS_MESSAGE =
+  "Cliquez le centre du cercle, puis un point du cercle (ou tapez le rayon)";
+const THREED_CIRCLE_RADIUS_SHORTCUTS = [
+  { key: "Esc", label: "Annuler le centre / Quitter le dessin" },
 ];
 
 const THREED_POLYLINE_SHORTCUTS = [
@@ -378,6 +387,13 @@ export default function SectionDrawingHelperContent() {
   const isThreedPolylineClickDraw = useSelector(
     selectIsThreedPolylineClickDraw
   );
+  // A line / surface circle on its centre / radius tool in the 3D editor.
+  const isThreedCircleRadiusDraw = useSelector((s) =>
+    isCircleRadiusDraftFor3d(
+      s.annotations.newAnnotation,
+      s.mapEditor.enabledDrawingMode
+    )
+  );
   const coplanarPoints3d = useSelector((s) => s.mapEditor.coplanarPoints3d);
   // Arrow-key axis lock (↑ → ↓ / ←) of the point-by-point 3D flows: its
   // own card, with the axis each arrow locks from the camera orientation.
@@ -410,7 +426,10 @@ export default function SectionDrawingHelperContent() {
             ? meshBrushPartType === MESH_PAINT_PART_TYPES.EDGE
               ? "Cliquez une arête pour la peindre (re-cliquez pour retirer)"
               : "Cliquez une face pour la peindre (re-cliquez pour retirer)"
-            : (faceCutMessage ?? "Cliquez pour poser les points du tracé");
+            : (faceCutMessage ??
+              (isThreedCircleRadiusDraw
+                ? THREED_CIRCLE_RADIUS_MESSAGE
+                : "Cliquez pour poser les points du tracé"));
   const threedShortcuts = isObject3DPlacement
     ? THREED_PLACEMENT_SHORTCUTS
     : isCutLineDraw
@@ -425,7 +444,9 @@ export default function SectionDrawingHelperContent() {
               ? FACE_CUT_SHORTCUTS
               : isThreedPolylineClickDraw
                 ? THREED_POLYLINE_SHORTCUTS
-                : THREED_DRAWING_SHORTCUTS;
+                : isThreedCircleRadiusDraw
+                  ? THREED_CIRCLE_RADIUS_SHORTCUTS
+                  : THREED_DRAWING_SHORTCUTS;
   const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit

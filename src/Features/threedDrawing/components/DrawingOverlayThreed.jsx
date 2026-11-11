@@ -69,7 +69,10 @@ import intersectAnnotationFace, {
 } from "../utils/intersectAnnotationFace";
 import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
 import { selectIsTemplateRulerDrawActive } from "../utils/templateRulerDrawSelectors";
-import { isTemplatelessDraft } from "../utils/templateFaceDrawSelectors";
+import {
+  isCircleRadiusDraftFor3d,
+  isTemplatelessDraft,
+} from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
 import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
@@ -240,8 +243,23 @@ export default function DrawingOverlayThreed() {
   // and the cursor previews the circle.
   const isCenterRadiusDraft = useSelector((s) => {
     const type = s.annotations.newAnnotation?.type;
-    return type === "DISC" || type === "REVOLUTION_AXIS";
+    return (
+      type === "DISC" ||
+      type === "REVOLUTION_AXIS" ||
+      isCircleRadiusDraftFor3d(
+        s.annotations.newAnnotation,
+        s.mapEditor.enabledDrawingMode
+      )
+    );
   });
+  // A line / surface circle (centre / radius tool): a centre placed on no
+  // plan nor face still gets a plane, parallel to the preferred base map.
+  const isCircleRadiusDraft = useSelector((s) =>
+    isCircleRadiusDraftFor3d(
+      s.annotations.newAnnotation,
+      s.mapEditor.enabledDrawingMode
+    )
+  );
   // The axis centre lands on a base map plane only (never on a face).
   const isAxisDraft = useSelector(
     (s) => s.annotations.newAnnotation?.type === "REVOLUTION_AXIS"
@@ -661,7 +679,14 @@ export default function DrawingOverlayThreed() {
     // A polygon with 3+ points (or a line with « Points coplanaires » on):
     // its plane, the next points are locked on it (a face is planar). Not
     // for "Coupe face" (bound to its face already) nor for rectangles.
-    const discSupportNormal = discCenter ? getSupportNormal(discCenter) : null;
+    const discSupportNormal = discCenter
+      ? (getSupportNormal(discCenter) ??
+        (isCircleRadiusDraft
+          ? getSupportNormal({
+              baseMapId: preferredBaseMapId ?? baseMaps?.[0]?.id ?? null,
+            })
+          : null))
+      : null;
     const draftPlane = discCenter
       ? discSupportNormal
         ? {
@@ -1633,6 +1658,7 @@ export default function DrawingOverlayThreed() {
     axisLock,
     isPlaneLockedDraft,
     isCenterRadiusDraft,
+    isCircleRadiusDraft,
     isAxisDraft,
   ]);
 

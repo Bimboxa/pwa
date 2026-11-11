@@ -19,6 +19,7 @@ import getDraftFieldVisibility from "Features/mapEditor/utils/getDraftFieldVisib
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import {
   DRAWING_TOOL_HOTKEYS,
+  findToolForHotkeyBehavior,
   getHotkeyForToolInGroup,
 } from "Features/mapEditor/constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
@@ -201,7 +202,7 @@ function ToolbarContent({ template }) {
       // behavior within the group).
       const behavior = DRAWING_TOOL_HOTKEYS[letter];
       if (behavior) {
-        const tool = tools.find((t) => t.behavior === behavior);
+        const tool = findToolForHotkeyBehavior(tools, behavior);
         if (tool) {
           e.preventDefault();
           e.stopPropagation();
