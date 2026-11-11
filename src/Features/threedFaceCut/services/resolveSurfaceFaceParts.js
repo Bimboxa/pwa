@@ -36,7 +36,7 @@ export function getSurfacePieceDisplayFactor(mesh) {
 
 // Matrix of `object` relative to `root` (local matrices walked: the root is
 // an identity child of the base map group, whose frame is in meters).
-function getMatrixRelativeTo(object, root) {
+export function getMatrixRelativeTo(object, root) {
   const matrix = new Matrix4();
   let current = object;
   while (current && current !== root) {

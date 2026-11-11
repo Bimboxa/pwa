@@ -2,6 +2,11 @@ import { forwardRef, useImperativeHandle, useState } from "react";
 
 import { useSelector } from "react-redux";
 
+import {
+  selectSelectedItems,
+  selectSelectedPartIds,
+} from "Features/selection/selectionSlice";
+
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -68,6 +73,19 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
   const templates = useAnnotationTemplates({ skip: !state.paint });
   const spriteImage = useAnnotationSpriteImage();
 
+  // The annotation selected alone shows its edit toolbar, which carries the
+  // same information: no tooltip on top of it. A part selection (face / edge)
+  // keeps the tooltip — it gives the measures of the other parts.
+  const isHoveringSelection = useSelector((s) => {
+    const selectedItems = selectSelectedItems(s);
+    return (
+      !!state.node &&
+      selectedItems?.length === 1 &&
+      selectedItems[0]?.nodeId === state.node.nodeId &&
+      !selectSelectedPartIds(s)?.length
+    );
+  });
+
   if (state.text) {
     return (
       <Paper
@@ -102,10 +120,12 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
     );
   }
 
-  if (!state.node) return null;
+  if (!state.node || isHoveringSelection) return null;
 
   // node.partQties: the hover addresses ONE face / edge of a mesh annotation
   // — its own measures replace the annotation totals.
+  // node.faceQties: the hovered face of a regular annotation with several
+  // faces — its measures are added below the totals.
   return (
     <MapTooltip
       hoveredNode={state.node}
@@ -114,6 +134,7 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
       y={state.y}
       qtiesOverride={state.node.partQties}
       qtiesOverrideType={state.node.partType}
+      faceQties={state.node.faceQties}
     />
   );
 });

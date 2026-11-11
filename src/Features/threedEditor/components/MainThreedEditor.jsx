@@ -88,6 +88,9 @@ import {
   disposeFaceHoverOverlay,
   setFaceHoverClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
+import getFaceRegionQties, {
+  countDisplayedTriangles,
+} from "Features/threedEditor/js/utilsAnnotationsManager/getFaceRegionQties";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import CursorAltitudeThreed from "./CursorAltitudeThreed";
 import ButtonToggleCursorAltitude from "Features/mapEditor/components/ButtonToggleCursorAltitude";
@@ -333,6 +336,9 @@ export default function MainThreedEditor() {
   const lastHoveredIdRef = useRef(null);
   // Mesh annotations: the hover addresses one face / edge ("F3", "E2_7").
   const lastHoveredPartKeyRef = useRef(null);
+  // Quantities of the hovered face of a regular annotation, computed once per
+  // face (key = the face stipple's key).
+  const hoveredFaceQtiesRef = useRef({ key: null, qties: null });
   const meshEdgeHoverRef = useRef({ helper: null, key: null });
   // Hovered painted part (« Pinceau », db.meshPaints): its own helper (green
   // line / blue stipple) — the paint objects are never hit by the generic
@@ -2892,6 +2898,40 @@ export default function MainThreedEditor() {
     );
     const containerRect = containerRef.current?.getBoundingClientRect();
 
+    // Read from the store (not useSelector): MainThreedEditor must not
+    // re-render on a settings change.
+    const faceAngleDeg =
+      store.getState().threedEditor.faceSelectionAngleDeg ??
+      DEFAULT_FACE_ANGLE_DEG;
+
+    // Regular annotation with several faces: the tooltip adds the measures of
+    // the face under the cursor — the very region the hover stipples — below
+    // the annotation totals. A single-face annotation gets none (they would
+    // repeat the totals).
+    let facePart = null; // { key, qties: { surface, perimeter } }
+    if (hit && hitIntersect?.object?.isMesh && !meshPart && !isLineHit) {
+      const faceMesh = hitIntersect.object;
+      const region = getFaceRegion(faceMesh.geometry, hitIntersect.faceIndex, {
+        plane: !!faceMesh.userData?.hasSubtraction,
+        angleDeg: faceAngleDeg,
+      });
+      if (region) {
+        const key = `${faceMesh.uuid}:${faceAngleDeg}:${region.regionId}`;
+        if (hoveredFaceQtiesRef.current.key !== key) {
+          hoveredFaceQtiesRef.current = {
+            key,
+            qties:
+              region.tris.length < countDisplayedTriangles(hit)
+                ? getFaceRegionQties(faceMesh, region.tris, hit)
+                : null,
+          };
+        }
+        const { qties } = hoveredFaceQtiesRef.current;
+        if (qties) facePart = { key, qties };
+      }
+    }
+    const partKey = meshPart?.key ?? facePart?.key ?? null;
+
     if (hitId !== lastHoveredIdRef.current) {
       // Restore previous (no longer hovered). Selected → original; otherwise
       // dim if a selection exists, else original.
@@ -2928,6 +2968,7 @@ export default function MainThreedEditor() {
             listingId,
             partQties: meshPart?.qties ?? null,
             partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
+            faceQties: facePart?.qties ?? null,
           },
           event.clientX - containerRect.left + 15,
           event.clientY - containerRect.top + 15
@@ -2938,9 +2979,9 @@ export default function MainThreedEditor() {
     } else if (
       hit &&
       containerRect &&
-      (meshPart?.key ?? null) !== lastHoveredPartKeyRef.current
+      partKey !== lastHoveredPartKeyRef.current
     ) {
-      // Same mesh annotation, another face / edge: refresh the tooltip.
+      // Same annotation, another face / edge: refresh the tooltip.
       const { nodeId, nodeType, annotationType, listingId } = hit.userData;
       tooltipApiRef.current?.set(
         {
@@ -2950,12 +2991,13 @@ export default function MainThreedEditor() {
           listingId,
           partQties: meshPart?.qties ?? null,
           partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
+          faceQties: facePart?.qties ?? null,
         },
         event.clientX - containerRect.left + 15,
         event.clientY - containerRect.top + 15
       );
     }
-    lastHoveredPartKeyRef.current = meshPart?.key ?? null;
+    lastHoveredPartKeyRef.current = partKey;
 
     // Face hover overlay maintenance — runs every tick, NOT only on hitId
     // change: moving to another face of the SAME annotation must rebuild the
@@ -2995,9 +3037,6 @@ export default function MainThreedEditor() {
     // angle as the selection), compared with the selected faces by region
     // id — a selected face is not stippled blue on top of its green.
     const hoveredPiece = hitIntersect?.object?.userData?.surfaceCutPiece;
-    const faceAngleDeg =
-      store.getState().threedEditor.faceSelectionAngleDeg ??
-      DEFAULT_FACE_ANGLE_DEG;
     const isSelectedSurfaceFace =
       Number.isInteger(hoveredPiece) &&
       selectedItem?.nodeId === hitId &&

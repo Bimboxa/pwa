@@ -18,10 +18,30 @@ import { formatHours } from "Features/businessObjects/utils/hoursRatioConversion
 // face / edge of a mesh annotation in the 3D editor) shown instead of the
 // annotation's own totals. qtiesOverrideType ("FACE" | "EDGE") names that part
 // in a caption above the quantities.
+// faceQties ({ surface?, perimeter? }): quantities of the hovered FACE of a
+// regular annotation with several faces (3D editor), shown BELOW the
+// annotation's totals, under a divider.
 const QTIES_OVERRIDE_LABELS = {
   FACE: "Quantités de la face",
   EDGE: "Quantités de l'arête",
 };
+
+// One quantity line: grey label on the left, value + unit on the right.
+function QtyRow({ label, value, unit }) {
+  return (
+    <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+      <Typography variant="caption" sx={{ color: "grey.500" }}>
+        {label}
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+      >
+        {value.toFixed(2)} {unit}
+      </Typography>
+    </Box>
+  );
+}
 
 const MapTooltip = forwardRef(
   (
@@ -33,6 +53,7 @@ const MapTooltip = forwardRef(
       isSelected,
       qtiesOverride,
       qtiesOverrideType,
+      faceQties,
     },
     ref
   ) => {
@@ -92,6 +113,10 @@ const MapTooltip = forwardRef(
       qtiesOverride && (showLength || showSurface)
         ? QTIES_OVERRIDE_LABELS[qtiesOverrideType]
         : null;
+
+    // helper - hovered face (3D)
+    const showFaceSurface = faceQties?.surface > 0;
+    const showFacePerimeter = faceQties?.perimeter > 0;
 
     // helper - height (effective annotation height in meters: the template
     // value when locked, else the annotation's own; hidden when absent or 0)
@@ -246,25 +271,7 @@ const MapTooltip = forwardRef(
           </Typography>
         )}
         {/* Height (annotation property, so above the part quantities) */}
-        {showHeight && (
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}
-          >
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
-              Hauteur
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                fontFamily: "monospace",
-                color: "warning.main",
-                fontWeight: 500,
-              }}
-            >
-              {height.toFixed(2)} m
-            </Typography>
-          </Box>
-        )}
+        {showHeight && <QtyRow label="Hauteur" value={height} unit="m" />}
         {/* Hovered part caption (3D face / edge of a mesh annotation) */}
         {qtiesOverrideLabel && (
           <Typography
@@ -280,61 +287,33 @@ const MapTooltip = forwardRef(
           </Typography>
         )}
         {/* Qties (length & surface, zero values hidden) */}
-        {showLength && (
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}
-          >
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
-              Longueur
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                fontFamily: "monospace",
-                color: "warning.main",
-                fontWeight: 500,
-              }}
-            >
-              {length.toFixed(2)} ml
-            </Typography>
-          </Box>
-        )}
-        {showSurface && (
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}
-          >
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
-              Surface
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                fontFamily: "monospace",
-                color: "warning.main",
-                fontWeight: 500,
-              }}
-            >
-              {surface.toFixed(2)} m²
-            </Typography>
-          </Box>
-        )}
+        {showLength && <QtyRow label="Longueur" value={length} unit="ml" />}
+        {showSurface && <QtyRow label="Surface" value={surface} unit="m²" />}
         {showLayoutLength && (
+          <QtyRow label="Calepinage" value={layoutLength} unit="ml" />
+        )}
+        {/* Hovered face (3D, annotation with several faces) */}
+        {(showFaceSurface || showFacePerimeter) && (
           <Box
-            sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}
+            sx={{
+              mt: 0.75,
+              pt: 0.5,
+              borderTop: "1px solid",
+              borderColor: "rgba(255,255,255,0.2)",
+            }}
           >
-            <Typography variant="caption" sx={{ color: "grey.500" }}>
-              Calepinage
-            </Typography>
             <Typography
               variant="caption"
-              sx={{
-                fontFamily: "monospace",
-                color: "warning.main",
-                fontWeight: 500,
-              }}
+              sx={{ display: "block", color: "grey.400", fontStyle: "italic" }}
             >
-              {layoutLength.toFixed(2)} ml
+              {QTIES_OVERRIDE_LABELS.FACE}
             </Typography>
+            {showFaceSurface && (
+              <QtyRow label="Surface" value={faceQties.surface} unit="m²" />
+            )}
+            {showFacePerimeter && (
+              <QtyRow label="Périmètre" value={faceQties.perimeter} unit="ml" />
+            )}
           </Box>
         )}
         {/* PLANNING module: the tasks ("postes") this annotation feeds,
