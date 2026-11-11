@@ -4,6 +4,7 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import { isWorldPointVisible } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
+import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
 
 // Slack (m) of the "is this edge point hidden behind a face" test: the faces
 // the edge belongs to are hit at the very same distance.
@@ -52,7 +53,85 @@ export default function pickMesh3dEdge(
   thresholdPx = 8,
   clippingPlane = null
 ) {
-  const edges = getMesh3dEdgesWorld(annoObject);
+  // Occluders: the displayed faces only — a face hidden with « Masquer
+  // l'annotation » (invisible mesh) hides nothing.
+  const faces = [];
+  annoObject?.traverse?.((child) => {
+    if (
+      child.isMesh &&
+      child.visible &&
+      child.userData?.mesh3dFaceIndex !== undefined
+    ) {
+      faces.push(child);
+    }
+  });
+  return pickEdgeAmong({
+    edges: getMesh3dEdgesWorld(annoObject),
+    occluders: faces,
+    cursor,
+    camera,
+    rect,
+    thresholdPx,
+    clippingPlane,
+  });
+}
+
+// Same pick on the DISPLAYED conversion of a regular annotation (or of a mesh
+// one carved live): getDisplayedMesh3d's result, whose edges are not drawn as
+// pickable lines. The annotation's solid meshes are the occluders.
+export function pickDisplayedMesh3dEdge(
+  displayed,
+  cursor,
+  camera,
+  rect,
+  thresholdPx = 8,
+  clippingPlane = null
+) {
+  const { mesh, baseMapGroup, object } = displayed ?? {};
+  if (!mesh || !baseMapGroup) return null;
+  baseMapGroup.updateWorldMatrix(true, false);
+  const lift = displayed.baseOffsetZ ?? 0;
+  const toWorld = (v) =>
+    baseMapGroup.localToWorld(new Vector3(v.x, v.y, v.z + lift));
+  const edges = [];
+  const seen = new Set();
+  for (const face of mesh.faces) {
+    for (const loop of [face.loop, ...(face.holes || [])]) {
+      for (let i = 0; i < loop.length; i++) {
+        const a = loop[i];
+        const b = loop[(i + 1) % loop.length];
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({
+          a,
+          b,
+          pa: toWorld(mesh.vertices[a]),
+          pb: toWorld(mesh.vertices[b]),
+        });
+      }
+    }
+  }
+  return pickEdgeAmong({
+    edges,
+    occluders: object ? getSolidMeshesFromObject3D(object) : [],
+    cursor,
+    camera,
+    rect,
+    thresholdPx,
+    clippingPlane,
+  });
+}
+
+function pickEdgeAmong({
+  edges,
+  occluders,
+  cursor,
+  camera,
+  rect,
+  thresholdPx,
+  clippingPlane,
+}) {
   if (!edges.length || !camera || !rect?.width) return null;
 
   const toScreen = (p) => {
@@ -91,18 +170,6 @@ export default function pickMesh3dEdge(
   if (!candidates.length) return null;
   candidates.sort((c1, c2) => c1.distance - c2.distance);
 
-  // Occluders: the displayed faces only — a face hidden with « Masquer
-  // l'annotation » (invisible mesh) hides nothing.
-  const faces = [];
-  annoObject.traverse((child) => {
-    if (
-      child.isMesh &&
-      child.visible &&
-      child.userData?.mesh3dFaceIndex !== undefined
-    ) {
-      faces.push(child);
-    }
-  });
   const raycaster = new Raycaster();
   const origin = camera.getWorldPosition(new Vector3());
 
@@ -112,7 +179,7 @@ export default function pickMesh3dEdge(
     const pointDistance = toPoint.length();
     if (pointDistance < 1e-6) continue;
     raycaster.set(origin, toPoint.normalize());
-    const hit = raycaster.intersectObjects(faces, false)[0];
+    const hit = raycaster.intersectObjects(occluders, false)[0];
     if (hit && hit.distance < pointDistance - OCCLUSION_TOL_M) continue;
     return {
       a: edge.a,

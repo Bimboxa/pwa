@@ -9,6 +9,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 import { Box, Button, IconButton, Typography } from "@mui/material";
 import {
   ArrowBack as Back,
+  Close as CloseIcon,
   DeleteOutline as DeleteIcon,
 } from "@mui/icons-material";
 
@@ -17,11 +18,28 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 
 import useSelectedMesh3dParts from "../hooks/useSelectedMesh3dParts";
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
+import { removeMesh3dPartsOfType } from "../services/selectMesh3dPart";
 import getMesh3dPartsDeleteMessage from "../utils/getMesh3dPartsDeleteMessage";
 import getMesh3dPartsDisplay, {
   formatMesh3dQty as format,
   getMesh3dFaceOrientationLabel as orientationLabel,
 } from "../utils/getMesh3dPartsDisplay";
+import { MESH3D_EDGE_PART, MESH3D_FACE_PART } from "../utils/mesh3dPartIds";
+
+// Header of one section of the selection (« Faces » / « Arêtes ») with the
+// cross dropping that whole kind from the selection.
+function SectionHeader({ label, removeLabel, onRemove }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+        {label}
+      </Typography>
+      <IconButton size="small" title={removeLabel} onClick={onRemove}>
+        <CloseIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Box>
+  );
+}
 
 function Row({ label, value }) {
   return (
@@ -65,6 +83,10 @@ export default function PanelPropertiesMesh3dParts() {
   const edgeLockedHintS =
     "Cette arête sépare deux plans : elle ne peut pas être supprimée.";
   const emptyS = "Aucune face ni arête sélectionnée";
+  const facesS = "Faces";
+  const edgesS = "Arêtes";
+  const removeFacesS = "Retirer les faces de la sélection";
+  const removeEdgesS = "Retirer les arêtes de la sélection";
 
   // data
 
@@ -87,6 +109,10 @@ export default function PanelPropertiesMesh3dParts() {
   function handleBack() {
     dispatch(setSelectedPartIds([]));
     dispatch(setSubSelection({ partId: null, partType: null }));
+  }
+
+  function handleRemove(partType) {
+    removeMesh3dPartsOfType({ dispatch, parts, partType });
   }
 
   async function handleDelete() {
@@ -135,6 +161,13 @@ export default function PanelPropertiesMesh3dParts() {
       </Box>
 
       <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+        {faces.length > 0 && (
+          <SectionHeader
+            label={`${facesS} (${faces.length})`}
+            removeLabel={removeFacesS}
+            onRemove={() => handleRemove(MESH3D_FACE_PART)}
+          />
+        )}
         {faces.length === 1 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
             <Row label={surfaceS} value={`${format(faces[0].area)} m²`} />
@@ -152,6 +185,13 @@ export default function PanelPropertiesMesh3dParts() {
           <Row label={totalSurfaceS} value={`${format(totalSurface)} m²`} />
         )}
 
+        {edges.length > 0 && (
+          <SectionHeader
+            label={`${edgesS} (${edges.length})`}
+            removeLabel={removeEdgesS}
+            onRemove={() => handleRemove(MESH3D_EDGE_PART)}
+          />
+        )}
         {edges.length === 1 && (
           <Row label={lengthS} value={`${format(edges[0].length, 3)} m`} />
         )}

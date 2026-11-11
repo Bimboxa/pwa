@@ -40,14 +40,14 @@ import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync
 function isAutoNumberExempt(annotation) {
   return Boolean(
     annotation?.isBaseMapAnnotation ||
-      annotation?.isZoneAnnotation ||
-      annotation?.isBusinessObjectAnnotation ||
-      annotation?.isScaleSegment ||
-      annotation?.isMeshCell ||
-      annotation?.isTemplateless ||
-      annotation?.type === "REVOLUTION_AXIS" ||
-      annotation?.type === "DETAIL" ||
-      annotation?.type === "BASE_MAP_LINK"
+    annotation?.isZoneAnnotation ||
+    annotation?.isBusinessObjectAnnotation ||
+    annotation?.isScaleSegment ||
+    annotation?.isMeshCell ||
+    annotation?.isTemplateless ||
+    annotation?.type === "REVOLUTION_AXIS" ||
+    annotation?.type === "DETAIL" ||
+    annotation?.type === "BASE_MAP_LINK"
   );
 }
 
@@ -165,8 +165,12 @@ export default function useCreateAnnotation() {
         },
       });
 
-      dispatch(triggerAnnotationsUpdate());
-      dispatch(triggerAnnotationTemplatesUpdate());
+      // skipTriggers: a batch creating several annotations dispatches the
+      // two triggers itself, once, after its last write.
+      if (!options?.skipTriggers) {
+        dispatch(triggerAnnotationsUpdate());
+        dispatch(triggerAnnotationTemplatesUpdate());
+      }
 
       return _annotation;
     } catch (e) {

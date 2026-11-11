@@ -93,6 +93,8 @@ export async function commitDrawnFace({
   extraFields = null,
   checkBeforeCommit = null,
   reuseExistingPoints = true,
+  // Points shared by the commits of one batch (insertOrReusePoints).
+  batchPointIds = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -260,6 +262,7 @@ export async function commitDrawnFace({
     projectId,
     listingId: isTemplateless ? undefined : listingId,
     reuseExistingPoints,
+    batchPointIds,
   });
   const cuts = [];
   for (const ring of projectedHoles) {
@@ -269,6 +272,7 @@ export async function commitDrawnFace({
       projectId,
       listingId: isTemplateless ? undefined : listingId,
       reuseExistingPoints,
+      batchPointIds,
     });
     cuts.push({ id: nanoid(), points: refs });
   }

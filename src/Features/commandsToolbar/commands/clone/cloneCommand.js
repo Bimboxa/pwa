@@ -10,9 +10,10 @@ import {
 
 // « Dupliquer »: one selected annotation → CloneAnnotationFlow (part-aware:
 // segments / opening / guide sub-selection clone the part; a sloped POLYGON
-// with contour segments offers the wall-piece chooser; a face selected in 3D
-// — `ctx.facePart`, mesh annotations included — clones that face as a
-// closed polyline or a surface, see useCloneAnnotation3d); several →
+// with contour segments offers the wall-piece chooser; faces / edges selected
+// in 3D — `ctx.mesh3dParts`, mesh annotations included — are cloned as
+// surfaces (one per face) or lines (one per edge, or the closed contour of
+// each face), see useCloneAnnotation3d); several →
 // MenuCloneAnnotations (target type + template, whole selection).
 export default {
   key: "CLONE",
@@ -22,7 +23,7 @@ export default {
   getState(ctx) {
     const gate = getSelectionGate(ctx);
     if (gate) return gate;
-    if (getTargets(ctx).length === 0 && !ctx.facePart) {
+    if (getTargets(ctx).length === 0 && !ctx.mesh3dParts) {
       return { enabled: false, reason: "Indisponible sur une maille 3D" };
     }
     if (ctx.selectedAnnotations.length === 1) {

@@ -48,6 +48,13 @@ export function parseMesh3dPartId(partId) {
   return null;
 }
 
+// The id of a parsed part (parseMesh3dPartId output).
+export function getMesh3dPartId(part) {
+  return part.partType === MESH3D_FACE_PART
+    ? getMesh3dFacePartId(part.annotationId, part.faceIndex)
+    : getMesh3dEdgePartId(part.annotationId, part.a, part.b);
+}
+
 export const isMesh3dPartId = (partId) => parseMesh3dPartId(partId) !== null;
 
 // Mesh parts of the current selection: the multi array when it holds some,

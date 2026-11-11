@@ -324,11 +324,34 @@ excluded unless the command only writes a relation and opts in with
 `utils/createToolGroupCommand.js` (a `DRAWING_TOOLS_BY_TYPE` group with its
 variants), `utils/createPolygonLineCommand.js`, `utils/createViewToggleCommand.js`.
 
+## « Dupliquer » on faces / edges selected in 3D
+
+`ctx.mesh3dParts` (`{ annotationId, faceIndices, edges }`, null without any)
+holds the faces / edges selected in 3D on the single selected annotation: one
+face by a second click, the whole connected block of a face by a double-click
+(`getMesh3dComponentParts`), then shift+clicks to remove / add parts. The
+selection toolbar (`ToolbarEditMesh3dParts`) shows them as two sections,
+« Faces » and « Arêtes », each with a cross dropping that kind.
+
+« Dupliquer » (`CloneAnnotationFlow` → `useCloneAnnotation3d`) then asks for a
+template and creates, in one undo step and with one annotations trigger:
+
+| Selection       | Target « Surface » (POLYGON templates) | Target « Ligne » (POLYLINE templates) |
+|-----------------|----------------------------------------|---------------------------------------|
+| faces only      | one surface per face                   | one closed polyline per face ring     |
+| edges only      | —                                      | one two-point polyline per edge       |
+| faces and edges | one surface per face                   | one two-point polyline per edge       |
+
+The copies of one batch share their corner points (`batchPointIds` of
+`insertOrReusePoints`), whatever « Conserver les points d'origine » says about
+the source's points. The part selection is kept after the clone, so a mixed
+selection can be duplicated twice (faces, then edges).
+
 ## Context (`hooks/useCommandsContext.js`)
 
 One `ctx` object per toolbar render: editor / module, interaction modes, the
 resolved selection (`selectedAnnotations`, `selectedAnnotation` with its
-template, `selectedPart`, `facePart`, `annotationsLoading`), `baseMap` /
+template, `selectedPart`, `facePart`, `mesh3dParts`, `annotationsLoading`), `baseMap` /
 `meterByPx` / `hasScale`, `selectionEditable` / `readOnlyReason`, the armed
 draw (`enabledDrawingMode`, `activeToolType`) / 3D tool, the view toggles.
 It holds the single `useAnnotationsV2` / `useMainBaseMap` /
