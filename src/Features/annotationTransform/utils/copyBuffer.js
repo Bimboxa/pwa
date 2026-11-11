@@ -1,16 +1,18 @@
 // Typed buffer of the « Déplacer » / « Tourner » tools (2D and 3D) while an
-// annotation is carried: `<value>[*<copies>]`.
+// annotation is carried: `<value>[*<total>]`. The count typed after the `*`
+// is the TOTAL number of annotations at the end, the original included:
+// `*N` writes N - 1 copies (`*1` is a plain move / turn).
 //   Déplacer — value = distance (metres):
 //   "1.3"    → the move is constrained to 1.30 m along the current direction
 //              (cursor / Shift axis), the mouse only picks the direction
-//   "*3"     → « copie multiple »: the original stays in place, 3 copies
-//              land along the move vector, copy i at i × the vector (same
-//              model as SketchUp's "3x")
-//   "1.3*3"  → 3 copies with a 1.30 m pitch
+//   "*3"     → « copie multiple »: the original stays in place, 2 copies
+//              land along the move vector, copy i at i × the vector — 3
+//              annotations in all
+//   "1.3*3"  → 3 annotations in all with a 1.30 m pitch
 //   Tourner — value = angle (user degrees, signed):
 //   "45"     → the rotation is locked at 45°
-//   "*3"     → 3 copies turned by i × the current angle around the pivot
-//   "45*3"   → 3 copies at 45°, 90°, 135°
+//   "*3"     → 2 copies turned by i × the current angle around the pivot
+//   "45*3"   → the original + copies at 45° and 90°
 // Backspace erases one character; an empty buffer is a plain move / turn.
 //
 // Plain ESM (no path aliases) so the node tests can load it.
@@ -68,13 +70,14 @@ export function appendToRotateBuffer(buffer, key) {
   return appendToTypedBuffer(buffer, key, { signed: true });
 }
 
-// Number of copies the buffer asks for (≥ 1), 0 when none / "*" / "*0".
+// Number of copies the buffer asks for: the typed total minus the original
+// (`*3` → 2), 0 when none / "*" / "*0" / "*1".
 export function parseCopyCount(buffer) {
   const { countPart } = splitBuffer(buffer);
   if (countPart === null) return 0;
   const n = Number(countPart);
-  if (!Number.isInteger(n) || n < 1) return 0;
-  return Math.min(n, MAX_COPIES);
+  if (!Number.isInteger(n) || n < 2) return 0;
+  return Math.min(n, MAX_COPIES) - 1;
 }
 
 // Typed distance (metres, > 0), or null when none is typed yet.
@@ -142,14 +145,14 @@ export function withCopyCountPart(valueText, buffer) {
   return countPart === null ? value : `${value}*${countPart}`;
 }
 
-// « Copier » (C): the buffer with a copy count of 1 when it asks for none
-// ("", "*", "*0", "1.3" → "*1", "1.3*1"); a buffer that already asks for
+// « Copier » (C): the buffer with a total of 2 (one copy) when it asks for
+// none ("", "*", "*1", "1.3" → "*2", "1.3*2"); a buffer that already asks for
 // copies is kept as is (the typed distance always is).
 export function withDefaultCopyCount(buffer) {
   const current = buffer ?? "";
   return parseCopyCount(current) > 0
     ? current
-    : withCopyCountText("1", current);
+    : withCopyCountText("2", current);
 }
 
 // Rescales a move delta ({x, y} or {x, y, z}) to the typed length (same
@@ -168,24 +171,26 @@ export function scaleDeltaToLength(delta, length) {
 // « Recommencer à chaque clic » marker of the badges.
 export const REPEAT_BADGE_MARK = "↻";
 
-// Badge text that follows the cursor: "1.300 m", "1.300 m ×3" — `axis`
-// (3D Shift lock) prefixes it, `repeat` (« Recommencer à chaque clic »)
-// appends the ↻ mark.
+// Badge text that follows the cursor: "1.300 m", "1.300 m ×3" — `count` is
+// the number of copies, the badge shows the typed total (copies + the
+// original). `axis` (3D Shift lock) prefixes it, `repeat` (« Recommencer à
+// chaque clic ») appends the ↻ mark.
 export function formatMoveBadge({ lengthM, count, axis, repeat = false }) {
   const parts = [];
   if (axis) parts.push(axis);
   if (Number.isFinite(lengthM)) parts.push(`${lengthM.toFixed(3)} m`);
-  if (count > 0) parts.push(`×${count}`);
+  if (count > 0) parts.push(`×${count + 1}`);
   if (repeat) parts.push(REPEAT_BADGE_MARK);
   return parts.join(" ");
 }
 
-// Angle label of the « Tourner » tools: "45°", "45° ×3" (the 2D MOVE badge
+// Angle label of the « Tourner » tools: "45°", "45° ×3" (×total, like
+// formatMoveBadge; the 2D MOVE badge
 // reuses it for a typed distance, with the same `repeat` mark).
 export function formatRotateBadge({ angleLabel, count, repeat = false }) {
   const parts = [];
   if (angleLabel) parts.push(angleLabel);
-  if (count > 0) parts.push(`×${count}`);
+  if (count > 0) parts.push(`×${count + 1}`);
   if (repeat) parts.push(REPEAT_BADGE_MARK);
   return parts.join(" ");
 }

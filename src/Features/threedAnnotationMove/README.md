@@ -55,7 +55,7 @@ Les modes sont mutuellement exclusifs avec les autres outils 3D (slice
    qui fait suivre l'axe du plan et les coupes sœurs par le même
    mécanisme).
 
-Saisie clavier `<distance>[*<copies>]` (`setMoveCopyBufferService`, partagé
+Saisie clavier `<distance>[*<total>]` (total = copies + originale, `setMoveCopyBufferService`, partagé
 par le clavier et la carte du helper) : la distance rescale le delta
 (`scaleDeltaToLength`), le `*N` bascule les roots en fantômes
 (`buildCopyGhosts`) ; le drop écrit les copies par

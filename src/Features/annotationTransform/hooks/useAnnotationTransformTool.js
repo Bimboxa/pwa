@@ -76,8 +76,9 @@ const isEditableTarget = (el) => {
 //   Déplacer: click a point of an annotation, click the destination. While
 //   carrying, digits ("1.3") constrain the distance along the cursor
 //   direction and `*` + digits ("*3") turn the move into a « copie
-//   multiple »: the originals stay, N copies land along the vector (copy i
-//   at i × it) — "1.3*3": 3 copies with a 1.30 m pitch. The buffer may be
+//   multiple »: the originals stay, N - 1 copies land along the vector (copy
+//   i at i × it; N is the total, original included) — "1.3*3": 3 annotations
+//   in all with a 1.30 m pitch. The buffer may be
 //   typed before the grab (the next grab picks it up). « Recommencer à
 //   chaque clic » (R): after the click the grab survives — same anchor and
 //   copies, or the moved annotations grabbed again at the destination;
@@ -85,7 +86,7 @@ const isEditableTarget = (el) => {
 //   Tourner: click the pivot on an annotation, click a point fixing the
 //   reference axis, turn with the mouse (Shift: 15° steps) or type the angle,
 //   click / Enter to validate. `*` + digits ("45*3") turn the rotation into
-//   a « copie multiple »: the originals stay, N copies turned by i × the
+//   a « copie multiple »: the originals stay, N - 1 copies turned by i × the
 //   angle around the pivot.
 // The grabbed annotation carries the whole selection when it belongs to it
 // (getCarriedAnnotationIdsFromSelection — shared with the 3D tools).
