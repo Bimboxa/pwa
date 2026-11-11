@@ -27,6 +27,7 @@ import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 import { buildWallEdges } from "./extrudePolylineWall";
 import buildGridEdgeLines from "./buildGridEdgeLines";
+import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 import { buildView3dRunEdges, getWallEdgeLevels } from "./buildView3dEdgeLines";
 
 // Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
@@ -537,7 +538,7 @@ export default function extrudeClosedShape(
         prismRings,
         height,
         verticalLift,
-        isPerVertexZPath ? Infinity : OUTLINE_CREASE_DEG
+        isPerVertexZPath ? Infinity : OUTLINE_CREASE_DEG + CREASE_TIE_EPS_DEG
       )
     : null;
   if (vertexEdges) group.add(vertexEdges);
