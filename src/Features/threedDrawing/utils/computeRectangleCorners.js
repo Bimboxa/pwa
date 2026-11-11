@@ -4,6 +4,8 @@ import baseMapNormalizedToWorld from "Features/baseMaps/js/baseMapNormalizedToWo
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 
+import applyCursorSide from "./applyCursorSide.js";
+
 // Minimum rectangle side, in image pixels — under this the two clicks are
 // degenerate and no rectangle is produced.
 const MIN_SIDE_PX = 1;
@@ -18,9 +20,11 @@ const MIN_SIDE_PX = 1;
 // Returns [Vector3 x4] in A, B, C, D order, or null when degenerate or when
 // the baseMap lacks a usable size / meterByPx.
 //
-// `forcedDx` / `forcedDy` (metres, signed): typed X / Y dimensions replacing
-// the cursor's along the image axes (2D RECTANGLE parity); ignored without
-// a usable meterByPx.
+// `forcedDx` / `forcedDy` (metres): typed X / Y lengths replacing the
+// cursor's along the image axes; ignored without a usable meterByPx. The
+// cursor still picks the side of the anchor the rectangle grows on
+// (applyCursorSide); the typed sign only matters when the cursor sits on
+// the axis.
 export default function computeRectangleCorners(
   anchorWorld,
   cursorWorld,
@@ -44,8 +48,10 @@ export default function computeRectangleCorners(
   const c = { x: relC.x * W, y: relC.y * H };
   const mbp = baseMap.meterByPx;
   if (Number.isFinite(mbp) && mbp > 0) {
-    if (Number.isFinite(forcedDx)) c.x = a.x + forcedDx / mbp;
-    if (Number.isFinite(forcedDy)) c.y = a.y + forcedDy / mbp;
+    if (Number.isFinite(forcedDx))
+      c.x = a.x + applyCursorSide(forcedDx / mbp, c.x - a.x, MIN_SIDE_PX);
+    if (Number.isFinite(forcedDy))
+      c.y = a.y + applyCursorSide(forcedDy / mbp, c.y - a.y, MIN_SIDE_PX);
   }
   if (Math.abs(a.x - c.x) < MIN_SIDE_PX || Math.abs(a.y - c.y) < MIN_SIDE_PX)
     return null;

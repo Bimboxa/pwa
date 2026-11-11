@@ -35,9 +35,9 @@ test("typed dimensions replace the cursor's, each axis on its own", () => {
     ANCHOR,
     { x: 3, y: 2, z: 0 },
     NORMAL,
-    { forcedDu: 1.5, forcedDv: -0.5 }
+    { forcedDu: 1.5, forcedDv: 0.5 }
   );
-  nearVec(both[2], [2.5, -0.5, 0]);
+  nearVec(both[2], [2.5, 0.5, 0]);
 
   const widthOnly = computeRectangleCornersOnPlane(
     ANCHOR,
@@ -46,6 +46,36 @@ test("typed dimensions replace the cursor's, each axis on its own", () => {
     { forcedDu: 0.25 }
   );
   nearVec(widthOnly[2], [1.25, 2, 0]);
+});
+
+test("a typed dimension grows on the cursor's side of the anchor", () => {
+  // Cursor left of / below the anchor: the typed lengths flip side.
+  const flipped = computeRectangleCornersOnPlane(
+    ANCHOR,
+    { x: -2, y: -3, z: 0 },
+    NORMAL,
+    { forcedDu: 1.5, forcedDv: 0.5 }
+  );
+  nearVec(flipped[2], [-0.5, -0.5, 0]);
+
+  // The typed sign does not win over the cursor.
+  const typedNegative = computeRectangleCornersOnPlane(
+    ANCHOR,
+    { x: 3, y: 2, z: 0 },
+    NORMAL,
+    { forcedDu: -1.5 }
+  );
+  nearVec(typedNegative[2], [2.5, 2, 0]);
+});
+
+test("a cursor on the axis falls back to the typed sign", () => {
+  const corners = computeRectangleCornersOnPlane(
+    ANCHOR,
+    { x: 1, y: 2, z: 0 },
+    NORMAL,
+    { forcedDu: -1.5 }
+  );
+  nearVec(corners[2], [-0.5, 2, 0]);
 });
 
 test("a degenerate side (cursor or typed) gives null", () => {
