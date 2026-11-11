@@ -18,14 +18,16 @@ Le geste est le même en 2D et en 3D :
   l'axe utilisateur X / Y / Z du gizmo le plus proche du curseur
   (`computeAxisLockSnap`, ligne et longueur dans la couleur de l'axe ; un
   verrou Z change l'altitude, persistée en `offsetZ`).
-  **Saisie clavier** `<distance>[*<copies>]` pendant le déplacement :
+  **Saisie clavier** `<distance>[*<total>]` pendant le déplacement (le
+  nombre tapé après `*` est le **total** d'annotations à la fin, originale
+  comprise : `*N` écrit N − 1 copies, `*1` = déplacement simple) :
   - des chiffres (`1.3`) **contraignent la distance** à 1,30 m dans la
     direction courante (souris ou axe `Maj`), la souris ne donne plus que la
     direction ;
   - `*` puis des chiffres (`*3`) = **copie multiple** : l'originale reste en
-    place, N copies le long du vecteur point saisi → point cliqué, la copie i
-    à `i ×` le vecteur (le clic pose la 1re copie) ; `1.3*3` = 3 copies au pas
-    de 1,30 m. Refusée sur un axe de révolution.
+    place, N − 1 copies le long du vecteur point saisi → point cliqué, la
+    copie i à `i ×` le vecteur (le clic pose la 1re copie) ; `1.3*3` = 3
+    annotations en tout (2 copies) au pas de 1,30 m. Refusée sur un axe de révolution.
     `⌫` efface un caractère. Le badge qui suit la souris affiche la distance
     (verrouillée dès le 1er caractère tapé) et le `×N` ; la carte
     « Distance - Copies multiples » du helper affiche et édite le buffer.
@@ -35,21 +37,21 @@ Le geste est le même en 2D et en 3D :
   3/3 rotation à la souris
   (`Maj` : pas de 15° en 2D) ou angle tapé au clavier, clic ou `Entrée` pour
   valider.
-  **Saisie clavier** `<angle>[*<copies>]` en 3/3 : des chiffres (`45`, `-30`,
+  **Saisie clavier** `<angle>[*<total>]` en 3/3 : des chiffres (`45`, `-30`,
   `12.5`) **verrouillent l'angle** ; `*` puis des chiffres (`*3`) = **copie
   multiple** : l'originale reste en place, la copie i est tournée de `i ×`
   l'angle courant autour du pivot (le clic / `Entrée` pose la 1re copie) ;
-  `45*3` = 3 copies à 45°, 90° et 135°. L'angle se tape avant le `*` (ou
+  `45*3` = 3 annotations en tout (copies à 45° et 90°). L'angle se tape avant le `*` (ou
   dans le champ Angle de la carte, qui conserve la queue `*N`). Le badge
   d'angle affiche le `×N` (verrouillé dès le 1er caractère tapé) ; la carte
   « Angle - Copies multiples » du helper affiche et édite le buffer.
 - **Déplacer — « Recommencer à chaque clic »** (`R`, interrupteur de la
   carte du helper) : après le clic de destination, la saisie continue —
   avec des copies (`*N`), l'originale et son point saisi restent en main et
-  chaque clic pose N copies de plus ; sans copies, l'annotation déplacée est
+  chaque clic pose N − 1 copies de plus ; sans copies, l'annotation déplacée est
   re-saisie à sa destination (le clic suivant la déplace encore ; une
   distance tapée s'applique à chaque clic). L'option tombe en quittant
-  l'outil. **« Copier »** (`C`, bouton de la carte) : écrit `*1` si aucune
+  l'outil. **« Copier »** (`C`, bouton de la carte) : écrit `*2` si aucune
   copie n'est tapée (la distance tapée est conservée) et coche
   « Recommencer » — armé ou en transport. Le buffer peut être tapé **avant**
   la saisie (chiffres, `*`, `⌫`) : la saisie suivante le reprend.
@@ -266,7 +268,7 @@ Deux fonctionnalités jumelles, portées par la même saisie clavier
   puis l'index cible est rafraîchi quand elles sont construites) ; sans
   copies → re-saisie à la destination (2D : `anchor = cursor` ; 3D : différée
   jusqu'à la reconstruction des objets, `rearmMoveAnnotationAfterCommit`).
-- « Copier » : `withDefaultCopyCount` (`*1` sauf copies déjà tapées) +
+- « Copier » : `withDefaultCopyCount` (`*2` sauf copies déjà tapées) +
   `repeat = true` — 2D `armMoveCopy()`, 3D `armMoveCopyThreedService`.
   Refusé (toast) sur un axe de révolution.
 - Buffer tapé à l'avance (outil armé, rien de saisi) : 2D

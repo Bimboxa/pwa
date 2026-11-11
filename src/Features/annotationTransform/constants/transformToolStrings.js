@@ -10,7 +10,8 @@ export const TRANSFORM_TOOL_LABELS = {
   MERGE_FACES: "Fusionner des faces",
 };
 
-// copyCount: the `*N` of the buffer — armed (nothing grabbed yet): the
+// copyCount: the number of copies (the `*N` total of the buffer minus the
+// original; the texts show the total) — armed (nothing grabbed yet): the
 // buffer the next grab will pick up; carrying: the pending copies.
 // repeat: « Recommencer à chaque clic » — copies: the grab survives each
 // click; no copies: the moved annotations are grabbed again at the
@@ -22,11 +23,11 @@ export function getMoveToolHint({
 }) {
   if (carriedCount === 0) {
     if (copyCount > 0)
-      return `Cliquez un point de l'annotation à copier (×${copyCount})`;
+      return `Cliquez un point de l'annotation à copier (×${copyCount + 1} au total)`;
     return "Cliquez un point de l'annotation à déplacer";
   }
   if (copyCount > 0) {
-    const base = `Cliquez la destination de la 1re copie (×${copyCount}, l'originale reste en place)`;
+    const base = `Cliquez la destination de la 1re copie (×${copyCount + 1} au total, l'originale reste en place)`;
     return repeat ? `${base} — recommence à chaque clic` : base;
   }
   if (repeat)
@@ -41,7 +42,7 @@ export const MOVE_REPEAT_HINT =
   "Après le clic, la saisie continue : une copie de plus par clic, ou l'annotation reste saisie à sa nouvelle place";
 export const MOVE_COPY_BUTTON_LABEL = "Copier";
 export const MOVE_COPY_BUTTON_HINT =
-  "Une copie par clic (×1, l'originale reste en place) — coche « Recommencer à chaque clic »";
+  "Une copie par clic (×2 au total, l'originale reste en place) — coche « Recommencer à chaque clic »";
 
 export function getRotateToolHint({
   carriedCount,
@@ -53,7 +54,7 @@ export function getRotateToolHint({
   if (!referenceSet)
     return "2/3 — Cliquez un point pour fixer l'axe de référence";
   if (copyCount > 0)
-    return `3/3 — Tournez ou tapez l'angle de la 1re copie (×${copyCount}, l'originale reste en place)`;
+    return `3/3 — Tournez ou tapez l'angle de la 1re copie (×${copyCount + 1} au total, l'originale reste en place)`;
   return "3/3 — Tournez ou tapez l'angle, clic ou Entrée pour valider";
 }
 

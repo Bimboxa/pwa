@@ -56,7 +56,7 @@ test("rotate buffer: a leading minus only, then the same grammar", () => {
 
 test("the count is capped", () => {
   assert.equal(appendToMoveBuffer("*99", "9"), "*99");
-  assert.equal(parseCopyCount(`*${MAX_COPIES + 50}`), MAX_COPIES);
+  assert.equal(parseCopyCount(`*${MAX_COPIES + 50}`), MAX_COPIES - 1);
 });
 
 test("parseCopyCount / parseMoveLength", () => {
@@ -64,10 +64,13 @@ test("parseCopyCount / parseMoveLength", () => {
   assert.equal(parseCopyCount(undefined), 0);
   assert.equal(parseCopyCount("*"), 0);
   assert.equal(parseCopyCount("*0"), 0);
-  assert.equal(parseCopyCount("*12"), 12);
+  // The typed count is the total, the original included.
+  assert.equal(parseCopyCount("*1"), 0);
+  assert.equal(parseCopyCount("*2"), 1);
+  assert.equal(parseCopyCount("*12"), 11);
   assert.equal(parseCopyCount("1.3"), 0);
-  assert.equal(parseCopyCount("1.3*2"), 2);
-  assert.equal(parseCopyCount("-30*2"), 2);
+  assert.equal(parseCopyCount("1.3*3"), 2);
+  assert.equal(parseCopyCount("-30*3"), 2);
   assert.equal(parseMoveLength(""), null);
   assert.equal(parseMoveLength("*3"), null);
   assert.equal(parseMoveLength("1."), 1);
@@ -98,30 +101,31 @@ test("chip labels and badges", () => {
   assert.equal(formatMoveBadge({ lengthM: 1.3, count: 0 }), "1.300 m");
   assert.equal(
     formatMoveBadge({ lengthM: 1.3, count: 2, axis: "Y" }),
-    "Y 1.300 m ×2"
+    "Y 1.300 m ×3"
   );
   assert.equal(formatRotateBadge({ angleLabel: "45°", count: 0 }), "45°");
-  assert.equal(formatRotateBadge({ angleLabel: "45°", count: 3 }), "45° ×3");
+  assert.equal(formatRotateBadge({ angleLabel: "45°", count: 3 }), "45° ×4");
   // « Recommencer à chaque clic »
   assert.equal(
     formatMoveBadge({ lengthM: 1.3, count: 1, repeat: true }),
-    "1.300 m ×1 ↻"
+    "1.300 m ×2 ↻"
   );
   assert.equal(formatMoveBadge({ count: 0, repeat: true }), "↻");
   assert.equal(
     formatRotateBadge({ angleLabel: "1.3 m", count: 1, repeat: true }),
-    "1.3 m ×1 ↻"
+    "1.3 m ×2 ↻"
   );
 });
 
 test("withDefaultCopyCount (« Copier ») asks for one copy unless some are typed", () => {
-  assert.equal(withDefaultCopyCount(""), "*1");
-  assert.equal(withDefaultCopyCount("*"), "*1");
-  assert.equal(withDefaultCopyCount("*0"), "*1");
-  assert.equal(withDefaultCopyCount("1.3"), "1.3*1");
+  assert.equal(withDefaultCopyCount(""), "*2");
+  assert.equal(withDefaultCopyCount("*"), "*2");
+  assert.equal(withDefaultCopyCount("*0"), "*2");
+  assert.equal(withDefaultCopyCount("*1"), "*2");
+  assert.equal(withDefaultCopyCount("1.3"), "1.3*2");
   assert.equal(withDefaultCopyCount("1.3*3"), "1.3*3");
   assert.equal(withDefaultCopyCount("*4"), "*4");
-  assert.equal(withDefaultCopyCount(undefined), "*1");
+  assert.equal(withDefaultCopyCount(undefined), "*2");
 });
 
 test("raw parts and the copy-count field", () => {

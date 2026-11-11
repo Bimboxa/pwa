@@ -50,8 +50,8 @@ export default function SectionTypedConstraint({
     ? "Angle - Copies multiples"
     : "Distance - Copies multiples";
   const hintS = isRotate
-    ? "Tapez une contrainte d'angle et / ou le nombre de copies"
-    : "Tapez une contrainte de distance et / ou le nombre de copies";
+    ? "Tapez une contrainte d'angle et / ou le nombre total (originale comprise)"
+    : "Tapez une contrainte de distance et / ou le nombre total (originale comprise)";
   const unitS = isRotate ? "°" : "m";
   const timesS = "x";
 
