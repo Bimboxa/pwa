@@ -10,11 +10,13 @@ import {
   Vector2,
 } from "three";
 
+import getMesh3dEdgeFolds from "Features/annotationMesh3d/utils/getMesh3dEdgeFolds";
 import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import splitTJunctions from "Features/geometry/utils/splitTJunctions";
 import { getHiddenMesh3dFaceIndices } from "Features/hiddenAnnotations/utils/mesh3dFaceSignature";
+import applyMesh3dEdgeThreshold from "./applyMesh3dEdgeThreshold";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 import {
   getFaceArea,
@@ -80,7 +82,9 @@ export function buildMesh3dFaceGeometry(vertices, face, lift) {
 // - the hover stipple and the push/pull pick address a face directly through
 //   `userData.mesh3dFaceIndex`.
 // Edge lines come from the face loops, not from EdgesGeometry, for the same
-// reason (a dihedral threshold would hide the coplanar splits).
+// reason (a dihedral threshold would hide the coplanar splits). The facet
+// seams of a curved sheet (a fold above coplanar, up to the "Wireframe"
+// crease threshold) are not drawn — they stay pickable edges.
 //
 // The group carries `mesh3dClosed` (the stored faces bound a volume): the
 // CSG reads it to carve a sheet host hollow and to refuse an open cutter.
@@ -151,43 +155,38 @@ export default function buildMesh3dAnnotationObject(
   });
   if (!group.children.length) return null;
 
+  // Edges of the visible faces only: an edge shared with a visible face is
+  // still carried by that face (and reads as its border).
   const segments = [];
-  const edgeVertices = []; // [a, b] vertex indices, one per drawn segment
-  const seen = new Set();
-  mesh.faces.forEach((face, faceIndex) => {
-    // Edges of the visible faces only: an edge shared with a visible face is
-    // still drawn by that face.
-    if (hiddenFaceIndices.has(faceIndex)) return;
-    for (const loop of getFaceLoops(face)) {
-      for (let i = 0; i < loop.length; i++) {
-        const a = loop[i];
-        const b = loop[(i + 1) % loop.length];
-        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const p = mesh.vertices[a];
-        const q = mesh.vertices[b];
-        segments.push(p.x, p.y, p.z + lift, q.x, q.y, q.z + lift);
-        edgeVertices.push([a, b]);
-      }
-    }
-  });
-  const edgesGeometry = new BufferGeometry();
-  edgesGeometry.setAttribute(
-    "position",
-    new Float32BufferAttribute(segments, 3)
-  );
+  const edgeVertices = []; // [a, b] vertex indices, one per edge
+  const edgeFolds = []; // fold (deg) between its two faces, null = border
+  for (const { a, b, foldDeg } of getMesh3dEdgeFolds(mesh, {
+    skipFaceIndices: hiddenFaceIndices,
+  })) {
+    const p = mesh.vertices[a];
+    const q = mesh.vertices[b];
+    segments.push(p.x, p.y, p.z + lift, q.x, q.y, q.z + lift);
+    edgeVertices.push([a, b]);
+    edgeFolds.push(foldDeg);
+  }
   const edges = new LineSegments(
-    edgesGeometry,
+    new BufferGeometry(),
     new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
   );
-  // mesh3dEdges: lets the edge pick / highlight map a drawn segment back to
-  // the mesh edge (see pickMesh3dPart).
+  // mesh3dEdges / mesh3dEdgePositions: EVERY edge of the mesh (vertex pair +
+  // its 6 local coordinates), for the edge pick / highlight (pickMesh3dEdge)
+  // — plain arrays, they survive a userData clone (block instances).
+  // mesh3dEdgeFolds: what the "Wireframe" crease threshold hides among them
+  // (the facet seams of a curved sheet — applyMesh3dEdgeThreshold, re-applied
+  // by applyWireframeSettings); the drawn geometry is that subset.
   edges.userData = {
     isGridEdge: true,
     gridEdgeKind: "MESH3D",
     mesh3dEdges: edgeVertices,
+    mesh3dEdgePositions: segments,
+    mesh3dEdgeFolds: edgeFolds,
   };
+  applyMesh3dEdgeThreshold(edges, options?.gridEdgeThresholdDeg ?? 1);
   edges.raycast = () => {};
   group.add(edges);
 

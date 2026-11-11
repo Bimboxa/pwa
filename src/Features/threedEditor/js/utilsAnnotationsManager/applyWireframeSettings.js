@@ -2,6 +2,7 @@ import { EdgesGeometry } from "three";
 
 import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 
+import applyMesh3dEdgeThreshold from "./applyMesh3dEdgeThreshold";
 import { buildWallEdges } from "./extrudePolylineWall";
 
 // Applies the "Wireframe" 3D view settings to every grid-edge line
@@ -9,7 +10,8 @@ import { buildWallEdges } from "./extrudePolylineWall";
 // in subtractAnnotationGeometries) found under `root`.
 //
 // - `visible` toggles the lines.
-// - `thresholdDeg` rebuilds the geometry of "EDGES" kind lines from their
+// - `thresholdDeg` re-draws the "MESH3D" lines (mesh annotations: facet
+//   seams hidden up to the threshold — applyMesh3dEdgeThreshold) and rebuilds the geometry of "EDGES" kind lines from their
 //   source mesh geometry (userData.sourceMesh set by the builders and the
 //   carve rebuild, or the parent mesh) when it differs from the applied one.
 //   CSG-carved meshes (userData.hasSubtraction) are triangle soups with
@@ -32,6 +34,14 @@ export default function applyWireframeSettings(
     if (!child.userData?.isGridEdge) return;
     child.visible = visible;
     if (!visible) return;
+    // Face-loop lines of a mesh annotation: their facet seams follow the
+    // threshold (the other edges are always drawn).
+    if (child.userData.gridEdgeKind === "MESH3D") {
+      if ((child.userData.appliedThresholdDeg ?? 1) !== thresholdDeg) {
+        applyMesh3dEdgeThreshold(child, thresholdDeg);
+      }
+      return;
+    }
     if (child.userData.gridEdgeKind !== "EDGES") return;
     const sourceMesh =
       child.userData.sourceMesh ?? (child.parent?.isMesh ? child.parent : null);

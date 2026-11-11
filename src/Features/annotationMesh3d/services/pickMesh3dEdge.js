@@ -11,7 +11,10 @@ import { getSolidMeshesFromObject3D } from "Features/threedEditor/js/utilsAnnota
 const OCCLUSION_TOL_M = 0.02;
 
 // The edge lines of a mesh annotation object (buildMesh3dAnnotationObject):
-// LineSegments whose i-th segment is the mesh edge userData.mesh3dEdges[i].
+// LineSegments carrying EVERY mesh edge — userData.mesh3dEdges[i] (vertex
+// pair) with its 6 local coordinates at userData.mesh3dEdgePositions[6 * i].
+// The drawn geometry is only a subset (facet seams are hidden by the
+// "Wireframe" crease threshold): never index it by edge.
 export function getMesh3dEdgeLines(annoObject) {
   let lines = null;
   annoObject?.traverse?.((child) => {
@@ -24,17 +27,17 @@ export function getMesh3dEdgeLines(annoObject) {
 // [{ a, b, pa: Vector3, pb: Vector3 }].
 export function getMesh3dEdgesWorld(annoObject) {
   const lines = getMesh3dEdgeLines(annoObject);
-  const position = lines?.geometry?.getAttribute("position");
-  if (!position) return [];
+  const positions = lines?.userData?.mesh3dEdgePositions;
+  if (!positions) return [];
   lines.updateWorldMatrix(true, false);
   return lines.userData.mesh3dEdges.map(([a, b], i) => ({
     a,
     b,
     pa: new Vector3()
-      .fromBufferAttribute(position, 2 * i)
+      .fromArray(positions, 6 * i)
       .applyMatrix4(lines.matrixWorld),
     pb: new Vector3()
-      .fromBufferAttribute(position, 2 * i + 1)
+      .fromArray(positions, 6 * i + 3)
       .applyMatrix4(lines.matrixWorld),
   }));
 }
