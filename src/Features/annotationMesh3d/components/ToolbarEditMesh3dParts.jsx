@@ -17,10 +17,12 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 
 import useSelectedMesh3dParts from "../hooks/useSelectedMesh3dParts";
 import deleteMesh3dPartsService from "../services/deleteMesh3dPartsService";
+import { removeMesh3dPartsOfType } from "../services/selectMesh3dPart";
 import getMesh3dPartsDeleteMessage from "../utils/getMesh3dPartsDeleteMessage";
 import getMesh3dPartsDisplay, {
   getMesh3dFaceOrientationLabel,
 } from "../utils/getMesh3dPartsDisplay";
+import { MESH3D_EDGE_PART, MESH3D_FACE_PART } from "../utils/mesh3dPartIds";
 
 const rowSx = {
   display: "flex",
@@ -38,10 +40,47 @@ const qtySx = {
   fontWeight: 500,
 };
 
+// One section of the selection (« Faces » / « Arêtes »): its count, its
+// measure, and a cross dropping that whole kind from the selection.
+function SectionParts({ label, count, qty, removeLabel, onRemove }) {
+  return (
+    <Box sx={rowSx}>
+      <Typography
+        variant="caption"
+        sx={{ fontWeight: 600, fontSize: "0.75rem", minWidth: 44 }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {count}
+      </Typography>
+      <Box sx={{ flex: 1 }} />
+      <Typography variant="caption" sx={qtySx}>
+        {qty}
+      </Typography>
+      <Tooltip title={removeLabel}>
+        <IconButton
+          size="small"
+          onClick={onRemove}
+          sx={{
+            p: 0.25,
+            color: "text.disabled",
+            "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+}
+
 // Edit toolbar shown instead of the annotation one while faces / edges of the
 // annotation's mesh are selected (selection slice parts MESH3D_FACE /
-// MESH3D_EDGE): the measures of THAT selection + its deletion. The close
-// button returns to the whole-annotation toolbar.
+// MESH3D_EDGE): two sections — the selected faces, the selected edges —
+// each with its measure and a cross removing that kind from the selection
+// (what is left is what « Dupliquer » turns into surfaces / lines), + the
+// deletion. The close button returns to the whole-annotation toolbar.
 export default function ToolbarEditMesh3dParts({ onDragStart }) {
   const dispatch = useDispatch();
 
@@ -52,6 +91,10 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
   const verticesS = "sommets";
   const moveVertexHintS = "Déplacer (M) : décaler un sommet";
   const mergeFacesHintS = "Fusionner : réunir avec une face coplanaire voisine";
+  const facesS = "Faces";
+  const edgesS = "Arêtes";
+  const removeFacesS = "Retirer les faces de la sélection";
+  const removeEdgesS = "Retirer les arêtes de la sélection";
 
   // data
 
@@ -77,6 +120,10 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
   function handleBack() {
     dispatch(setSelectedPartIds([]));
     dispatch(setSubSelection({ partId: null, partType: null }));
+  }
+
+  function handleRemove(partType) {
+    removeMesh3dPartsOfType({ dispatch, parts, partType });
   }
 
   async function handleDelete() {
@@ -180,19 +227,24 @@ export default function ToolbarEditMesh3dParts({ onDragStart }) {
           </Box>
         )}
 
-        {(faces.length > 0 || edges.length > 0) && (
-          <Box sx={{ ...rowSx, justifyContent: "flex-end" }}>
-            {faces.length > 0 && (
-              <Typography variant="caption" sx={qtySx}>
-                {totalSurface.toFixed(2)} m²
-              </Typography>
-            )}
-            {edges.length > 0 && (
-              <Typography variant="caption" sx={qtySx}>
-                {totalLength.toFixed(2)} ml
-              </Typography>
-            )}
-          </Box>
+        {faces.length > 0 && (
+          <SectionParts
+            label={facesS}
+            count={faces.length}
+            qty={`${totalSurface.toFixed(2)} m²`}
+            removeLabel={removeFacesS}
+            onRemove={() => handleRemove(MESH3D_FACE_PART)}
+          />
+        )}
+
+        {edges.length > 0 && (
+          <SectionParts
+            label={edgesS}
+            count={edges.length}
+            qty={`${totalLength.toFixed(2)} ml`}
+            removeLabel={removeEdgesS}
+            onRemove={() => handleRemove(MESH3D_EDGE_PART)}
+          />
         )}
 
         <Box sx={{ display: "flex", alignItems: "center", px: 0.75, py: 0.25 }}>

@@ -219,9 +219,10 @@ import {
 } from "Features/annotationMesh3d/constants/mesh3dPartColors";
 import pickMesh3dEdge, {
   buildMesh3dEdgeLines,
+  pickDisplayedMesh3dEdge,
 } from "Features/annotationMesh3d/services/pickMesh3dEdge";
 import selectMesh3dPart, {
-  selectMesh3dFaceWithEdges,
+  selectMesh3dComponent,
 } from "Features/annotationMesh3d/services/selectMesh3dPart";
 import getDisplayedMesh3d from "Features/annotationMesh3d/services/getDisplayedMesh3d";
 import locateHitFaceOnMesh3d from "Features/annotationMesh3d/services/locateHitFaceOnMesh3d";
@@ -232,7 +233,9 @@ import {
   getSelectedMesh3dParts,
   isMesh3dFaceSelected,
 } from "Features/annotationMesh3d/utils/mesh3dPartIds";
-import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
+import getMesh3dComponentParts, {
+  getMesh3dFacesEdges,
+} from "Features/annotationMesh3d/utils/getMesh3dComponentParts";
 import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
 import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
 import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
@@ -1434,7 +1437,39 @@ export default function MainThreedEditor() {
             return;
           }
         }
-        if (annoObject?.userData?.vertexRefs?.length) {
+        // Shift+click while faces / edges of a REGULAR annotation are
+        // selected (the block of a double-click…): an edge under the cursor
+        // is toggled as a selection part, read on the displayed conversion —
+        // the vertex / segment sub-selection below would drop the parts.
+        const { selectedItems: currentItems, selectedPartIds: currentPartIds } =
+          store.getState().selection;
+        const togglesParts =
+          event.shiftKey &&
+          getSelectedMesh3dParts(currentItems[0], currentPartIds).length > 0;
+        if (togglesParts) {
+          const displayed = getDisplayedMesh3d(threedEditor, soloId);
+          const edge = displayed
+            ? pickDisplayedMesh3dEdge(
+                displayed,
+                { x: event.clientX, y: event.clientY },
+                camera,
+                rect,
+                8,
+                clippingPlane
+              )
+            : null;
+          if (edge) {
+            selectMesh3dPart({
+              dispatch,
+              getState: store.getState,
+              partId: getMesh3dEdgePartId(soloId, edge.a, edge.b),
+              additive: true,
+            });
+            dispatch(clearSubSelection());
+            return;
+          }
+        }
+        if (!togglesParts && annoObject?.userData?.vertexRefs?.length) {
           const cursor = { x: event.clientX, y: event.clientY };
           const vertexHit = findClosestVertexToCursor(
             annoObject,
@@ -1895,8 +1930,9 @@ export default function MainThreedEditor() {
 
       const intersects = raycastScene(event, rect);
 
-      // Double-click on a face of an annotation: selects the face WITH all
-      // its edges (no camera move). The two clicks of the gesture already
+      // Double-click on a face of an annotation: selects the whole connected
+      // block of that face — its faces AND their edges (no camera move;
+      // shift+click then removes / adds parts). The two clicks already
       // selected the annotation, then that face. A mesh annotation reads the
       // face from the hit mesh, a surface host (lathe, shell: applySurfaceCuts
       // tags its pieces) its piece from the hit mesh — a piece has no edges
@@ -1909,11 +1945,22 @@ export default function MainThreedEditor() {
       if (owner) {
         const { nodeId, nodeType, annotationType, listingId } = owner.userData;
         let faceIndex = -1;
-        let edges = null;
+        let facesEdges = null;
         let pieceId = null;
         if (owner.userData.isAnnotationMesh3d && !hasCarvedSolid(owner)) {
           faceIndex = firstHit.object.userData?.mesh3dFaceIndex ?? -1;
-          edges = firstHit.object.userData?.mesh3dFaceEdges;
+          // The displayed faces only: one hidden with « Masquer » neither
+          // joins the block nor links its neighbors.
+          facesEdges = [];
+          owner.traverse((child) => {
+            const index = child.userData?.mesh3dFaceIndex;
+            if (!child.isMesh || !Number.isInteger(index)) return;
+            if (child.userData.mesh3dFaceHidden) return;
+            facesEdges.push({
+              faceIndex: index,
+              edges: child.userData.mesh3dFaceEdges ?? [],
+            });
+          });
         } else if (
           Number.isInteger(firstHit.object.userData?.surfaceCutPiece)
         ) {
@@ -1935,12 +1982,7 @@ export default function MainThreedEditor() {
           });
           if (displayed) {
             faceIndex = locateHitFaceOnMesh3d(displayed, firstHit, camera);
-            const face = displayed.mesh.faces[faceIndex];
-            edges = face
-              ? getFaceLoops(face).flatMap((loop) =>
-                  loop.map((vi, i) => [vi, loop[(i + 1) % loop.length]])
-                )
-              : null;
+            facesEdges = getMesh3dFacesEdges(displayed.mesh);
           }
         }
         if (faceIndex >= 0 || pieceId) {
@@ -1967,11 +2009,11 @@ export default function MainThreedEditor() {
               partId: pieceId,
             });
           } else {
-            selectMesh3dFaceWithEdges({
+            selectMesh3dComponent({
               dispatch,
               annotationId: nodeId,
               faceIndex,
-              edges,
+              ...getMesh3dComponentParts(facesEdges, faceIndex),
             });
           }
           dispatch(clearSubSelection());

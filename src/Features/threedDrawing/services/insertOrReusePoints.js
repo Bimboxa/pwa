@@ -24,12 +24,19 @@ export const POINT_REUSE_EPS = 5e-4;
 // reusing the plan's (a duplicate meant to be independent of its source);
 // vertices of the same call still share one point (a riser keeps its two
 // refs on the same id).
+//
+// batchPointIds (a Set, mutated): the points minted by the previous calls of
+// one batch (« Dupliquer » on several faces / edges). They stay reusable when
+// reuseExistingPoints is false, and the points minted here join them — two
+// neighbor parts of the batch share their corner without sharing the
+// source's points.
 export default async function insertOrReusePoints({
   projectedPoints,
   baseMap,
   projectId,
   listingId,
   reuseExistingPoints = true,
+  batchPointIds = null,
 }) {
   const [existing, hostAnnotations] = await Promise.all([
     db.points.where("baseMapId").equals(baseMap.id).toArray(),
@@ -48,7 +55,9 @@ export default async function insertOrReusePoints({
   }
   const liveExisting = reuseExistingPoints
     ? existing.filter((p) => !p.deletedAt && !meshPointIds.has(p.id))
-    : [];
+    : batchPointIds
+      ? existing.filter((p) => !p.deletedAt && batchPointIds.has(p.id))
+      : [];
 
   const pointRefs = [];
   await db.transaction("rw", db.points, async () => {
@@ -74,6 +83,7 @@ export default async function insertOrReusePoints({
           listingId,
         });
         liveExisting.push({ id: matchId, x: p.x, y: p.y });
+        batchPointIds?.add(matchId);
       }
       pointRefs.push({
         id: matchId,

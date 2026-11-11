@@ -74,6 +74,8 @@ export async function commitDrawnPolyline({
   // false mints new db.points instead of reusing the plan's (a duplicate
   // independent of its source) — see insertOrReusePoints.
   reuseExistingPoints = true,
+  // Points shared by the commits of one batch (insertOrReusePoints).
+  batchPointIds = null,
 }) {
   // Aborted commits are silent for the caller (null annotation) — say why in
   // the console so a "nothing happened" report is diagnosable.
@@ -190,6 +192,7 @@ export async function commitDrawnPolyline({
     projectId,
     listingId: isTemplateless ? undefined : listingId,
     reuseExistingPoints,
+    batchPointIds,
   });
 
   const annotation = {

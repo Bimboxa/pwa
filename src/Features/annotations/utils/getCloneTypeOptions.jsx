@@ -4,8 +4,13 @@ import IconStrip from "Features/icons/IconStrip";
 const polylineIcon = (
   <SvgIcon fontSize="small" viewBox="0 0 20 20">
     <line
-      x1="2" y1="10" x2="18" y2="10"
-      stroke="currentColor" strokeWidth="4" strokeLinecap="round"
+      x1="2"
+      y1="10"
+      x2="18"
+      y2="10"
+      stroke="currentColor"
+      strokeWidth="4"
+      strokeLinecap="round"
     />
   </SvgIcon>
 );
@@ -34,16 +39,30 @@ const TYPE_OPTIONS_MAP = {
 // be built from that part's geometry:
 //   - segment(s) / cut_seg / guide → open polyline (or STRIP built from it)
 //   - cut (closed ring) → polygon (or STRIP / polyline)
-//   - a face selected in 3D (`facePart`) → closed polyline on its edges, or
-//     the face as a surface (useCloneAnnotation3d)
-export default function getCloneTypeOptions(sourceType, part, { facePart } = {}) {
-  if (facePart) return [OPTIONS.POLYLINE, OPTIONS.POLYGON];
+//   - faces / edges selected in 3D (`mesh3dParts`: { faceIndices, edges }) →
+//     with faces, lines or surfaces (Surface takes the faces; Ligne the edges
+//     when some are selected, else the closed contour of each face); edges
+//     alone only give lines (useCloneAnnotation3d)
+export default function getCloneTypeOptions(
+  sourceType,
+  part,
+  { mesh3dParts } = {}
+) {
+  if (mesh3dParts?.faceIndices?.length) {
+    return [OPTIONS.POLYLINE, OPTIONS.POLYGON];
+  }
+  if (mesh3dParts?.edges?.length) return [OPTIONS.POLYLINE];
   if (part && part.kind && part.kind !== "NONE") {
     if (part.kind === "POINT") return null;
     if (part.kind === "CUT") {
       return [OPTIONS.POLYGON, OPTIONS.POLYLINE, OPTIONS.STRIP];
     }
-    if (part.kind === "SEGMENT" || part.kind === "SEGMENTS" || part.kind === "CUT_SEG" || part.kind === "GUIDE") {
+    if (
+      part.kind === "SEGMENT" ||
+      part.kind === "SEGMENTS" ||
+      part.kind === "CUT_SEG" ||
+      part.kind === "GUIDE"
+    ) {
       return [OPTIONS.POLYLINE, OPTIONS.STRIP];
     }
   }

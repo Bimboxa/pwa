@@ -9,6 +9,7 @@ import {
   MESH3D_FACE_PART,
   getMesh3dEdgePartId,
   getMesh3dFacePartId,
+  getMesh3dPartId,
   isMesh3dPartId,
 } from "../utils/mesh3dPartIds";
 
@@ -52,24 +53,48 @@ export default function selectMesh3dPart({
   );
 }
 
-// Selects a face TOGETHER with all its edges (double-click on a face): the
-// face is the representative part, the edges join it in the multi selection.
-// Shift+click then removes any of them (selectMesh3dPart, additive).
+// Selects the whole connected block of a face (double-click on a face): all
+// its faces and all their edges (getMesh3dComponentParts). The clicked face
+// is the representative part, the others join it in the multi selection.
+// Shift+click then removes / adds any of them (selectMesh3dPart, additive).
 //
-// edges: the face's edges as vertex pairs (faceMesh.userData.mesh3dFaceEdges).
-export function selectMesh3dFaceWithEdges({
+// faceIndices / edges: the block's faces and its edges as vertex pairs.
+export function selectMesh3dComponent({
   dispatch,
   annotationId,
   faceIndex,
+  faceIndices,
   edges,
 }) {
   const faceId = getMesh3dFacePartId(annotationId, faceIndex);
   const partIds = [
-    faceId,
-    ...new Set(
-      (edges || []).map(([a, b]) => getMesh3dEdgePartId(annotationId, a, b))
-    ),
+    ...new Set([
+      faceId,
+      ...(faceIndices || []).map((index) =>
+        getMesh3dFacePartId(annotationId, index)
+      ),
+      ...(edges || []).map(([a, b]) => getMesh3dEdgePartId(annotationId, a, b)),
+    ]),
   ];
   dispatch(setSelectedPartIds(partIds));
   dispatch(setSubSelection({ partId: faceId, partType: MESH3D_FACE_PART }));
+}
+
+// Drops every selected part of one type (the cross of the « Faces » /
+// « Arêtes » section of the selection toolbar): the parts of the other type
+// stay selected; nothing left returns to the whole annotation.
+//
+// parts: the parsed selected parts (getSelectedMesh3dParts).
+export function removeMesh3dPartsOfType({ dispatch, parts, partType }) {
+  const kept = (parts || [])
+    .filter((part) => part.partType !== partType)
+    .map(getMesh3dPartId);
+  const representative = kept[0] ?? null;
+  dispatch(setSelectedPartIds(kept.length > 1 ? kept : []));
+  dispatch(
+    setSubSelection({
+      partId: representative,
+      partType: getPartType(representative),
+    })
+  );
 }

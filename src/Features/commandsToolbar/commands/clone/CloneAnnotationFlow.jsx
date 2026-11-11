@@ -37,11 +37,12 @@ import {
 // a guide sub-selected, the part is cloned instead of the whole annotation. A
 // single selected vertex is not a clonable part — the whole annotation is
 // duplicated. `selectedAnnotation` / `selectedPart` come from the toolbar
-// context (already resolved). `facePart` ({annotationId, faceIndex}): the
-// face selected in 3D (second click) — the clone then builds that face's
-// closed polyline or surface; a 3D line / surface off its plan is likewise
-// re-encoded through the 3D drawing commits (useCloneAnnotation3d) before
-// the plain point copy.
+// context (already resolved). `mesh3dParts` ({ faceIndices, edges }): the
+// faces / edges selected in 3D (second click, double-click on a block,
+// shift+clicks) — the clone then builds one surface per face or one line per
+// edge (the closed contour of each face when no edge is selected); a 3D line
+// / surface off its plan is likewise re-encoded through the 3D drawing
+// commits (useCloneAnnotation3d) before the plain point copy.
 export default function CloneAnnotationFlow({
   open,
   onClose,
@@ -50,22 +51,22 @@ export default function CloneAnnotationFlow({
   menuAlign = "left",
   selectedAnnotation,
   selectedPart,
-  facePart = null,
+  mesh3dParts = null,
 }) {
   // data
 
   const part = selectedPart?.kind === "POINT" ? null : selectedPart;
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const cloneAnnotation3d = useCloneAnnotation3d();
-  // A selected face is cloned as a line or a surface whatever its host is
-  // (a mesh only accepts POLYGON models otherwise): candidates of a plain
-  // POLYGON.
+  // Selected faces / edges are cloned as lines or surfaces whatever their
+  // host is (a mesh only accepts POLYGON models otherwise): candidates of a
+  // plain POLYGON.
   const candidatesReference = useMemo(
     () =>
-      facePart && selectedAnnotation
+      mesh3dParts && selectedAnnotation
         ? { ...selectedAnnotation, isMesh3d: false, type: "POLYGON" }
         : selectedAnnotation,
-    [facePart, selectedAnnotation]
+    [mesh3dParts, selectedAnnotation]
   );
   const { candidates: cloneCandidates, listings: cloneListings } =
     useAnnotationTemplateCandidates(candidatesReference) ?? {};
@@ -85,15 +86,34 @@ export default function CloneAnnotationFlow({
 
   const { hasPart, disabled, tooltip } = getCloneAnnotationPartState(part);
 
+  // A 2D part (segments, opening…) wins over the 3D parts.
+  const parts3d = hasPart ? null : mesh3dParts;
+  const faceCount = parts3d?.faceIndices?.length ?? 0;
+  const edgeCount = parts3d?.edges?.length ?? 0;
   const cloneTypeOptions = getCloneTypeOptions(selectedAnnotation?.type, part, {
-    facePart,
+    mesh3dParts: parts3d,
   });
-  const defaultCloneType = facePart
-    ? "POLYLINE"
+  // One face alone keeps its historical default (its closed contour);
+  // several faces — the block of a double-click — default to surfaces.
+  const defaultCloneType = parts3d
+    ? faceCount > 1 || (faceCount === 1 && edgeCount > 0)
+      ? "POLYGON"
+      : "POLYLINE"
     : hasPart
       ? part.targetAnnotationType || cloneTypeOptions?.[0]?.key
       : selectedAnnotation?.type;
   const cloneType = selectedCloneType ?? defaultCloneType;
+
+  // What the 3D parts become with the current target type.
+  const plural = (count, one, many) =>
+    count > 1 ? `${count} ${many}` : `1 ${one}`;
+  const parts3dHint = !parts3d
+    ? null
+    : cloneType === "POLYGON"
+      ? `${plural(faceCount, "surface", "surfaces")} : une par face sélectionnée`
+      : edgeCount > 0
+        ? `${plural(edgeCount, "ligne", "lignes")} : une par arête sélectionnée`
+        : `${plural(faceCount, "contour fermé", "contours fermés")} : un par face sélectionnée`;
 
   const showStripElevation =
     cloneType === "STRIP" && selectedAnnotation?.type === "POLYLINE";
@@ -142,11 +162,12 @@ export default function CloneAnnotationFlow({
     // Override type if user selected a different one
     if (cloneType) newAnnotation.type = cloneType;
 
-    // 3D line ↔ surface (and the selected face): the 3D drawing commits.
+    // 3D line ↔ surface (and the selected faces / edges): the 3D drawing
+    // commits.
     const handledIn3d = await cloneAnnotation3d(selectedAnnotation, {
       template,
       cloneType,
-      facePart: hasPart ? null : facePart,
+      mesh3dParts: parts3d,
       keepOriginalPoints,
     });
     if (handledIn3d) {
@@ -208,9 +229,20 @@ export default function CloneAnnotationFlow({
                 selectedKey={cloneType}
                 options={cloneTypeOptions}
                 onChange={(v) =>
-                  setSelectedCloneType(v ?? selectedAnnotation?.type)
+                  setSelectedCloneType(
+                    v ?? (parts3d ? defaultCloneType : selectedAnnotation?.type)
+                  )
                 }
               />
+              {parts3dHint && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: 0.75 }}
+                >
+                  {parts3dHint}
+                </Typography>
+              )}
             </Box>
           ),
           showStripElevation && (

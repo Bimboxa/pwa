@@ -14,6 +14,11 @@ import { selectSweepPickAnnotationId } from "Features/mapEditor/utils/sweepPickM
 import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCutLockedFace";
+import {
+  MESH3D_EDGE_PART,
+  MESH3D_FACE_PART,
+  getSelectedMesh3dParts,
+} from "Features/annotationMesh3d/utils/mesh3dPartIds";
 import { isAxesFrameDefault } from "Features/threedEditor/constants/axesDisplay";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -216,6 +221,24 @@ export default function useCommandsContext({ enabled = true } = {}) {
     [selectedItems, selectedPartIds]
   );
 
+  // Faces / edges selected in 3D on the single selected annotation (the
+  // block of a double-click, shift+clicks…): what « Dupliquer » turns into
+  // surfaces / lines. Null without any.
+  const mesh3dParts = useMemo(() => {
+    if (selectedAnnotationIds.length !== 1) return null;
+    const parts = getSelectedMesh3dParts(selectedItems[0], selectedPartIds);
+    if (!parts.length) return null;
+    return {
+      annotationId: selectedAnnotationIds[0],
+      faceIndices: parts
+        .filter((part) => part.partType === MESH3D_FACE_PART)
+        .map((part) => part.faceIndex),
+      edges: parts
+        .filter((part) => part.partType === MESH3D_EDGE_PART)
+        .map((part) => [part.a, part.b]),
+    };
+  }, [selectedAnnotationIds, selectedItems, selectedPartIds]);
+
   // Selected items name annotations the query has not delivered (yet): the
   // selection commands stay disabled with a neutral reason instead of
   // concluding the annotations are gone (useAnnotationsV2 returns [] while
@@ -290,6 +313,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedAnnotation,
       selectedPart,
       facePart,
+      mesh3dParts,
       annotationsLoading,
       // base map
       baseMap,
@@ -349,6 +373,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectedAnnotation,
       selectedPart,
       facePart,
+      mesh3dParts,
       annotationsLoading,
       baseMap,
       meterByPx,
