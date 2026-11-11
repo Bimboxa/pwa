@@ -7,6 +7,7 @@ import { Paper, Typography, Box } from "@mui/material";
 import db from "App/db/db";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -14,13 +15,13 @@ import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotation
 import useAnnotationLinkedBusinessObjectRows from "Features/businessObjects/hooks/useAnnotationLinkedBusinessObjectRows";
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 
-// qtiesOverride ({ length?, surface? }): quantities of the hovered PART (a
-// face / edge of a mesh annotation in the 3D editor) shown instead of the
-// annotation's own totals. qtiesOverrideType ("FACE" | "EDGE") names that part
-// in a caption above the quantities.
+// The tooltip always shows the annotation's own totals. The hovered PART (3D
+// editor) is added BELOW them, under a divider:
+// qtiesOverride ({ length?, surface? }): quantities of the hovered face / edge
+// of a mesh annotation; qtiesOverrideType ("FACE" | "EDGE") names that part
+// (the length of a face is its perimeter).
 // faceQties ({ surface?, perimeter? }): quantities of the hovered FACE of a
-// regular annotation with several faces (3D editor), shown BELOW the
-// annotation's totals, under a divider.
+// regular annotation with several faces.
 const QTIES_OVERRIDE_LABELS = {
   FACE: "Quantités de la face",
   EDGE: "Quantités de l'arête",
@@ -93,13 +94,21 @@ const MapTooltip = forwardRef(
         ? annotation.label
         : null;
 
+    // data - the annotation's own base map, when it is not the main one (3D
+    // scene showing several base maps, Maillage module without a main base
+    // map): the quantities need ITS scale.
+    const ownBaseMapId =
+      annotation?.baseMapId && annotation.baseMapId !== baseMap?.id
+        ? annotation.baseMapId
+        : null;
+    const ownBaseMap = useBaseMap({ id: ownBaseMapId });
+    const meterByPx = ownBaseMapId ? ownBaseMap?.meterByPx : baseMap?.meterByPx;
+
     // helper - qties (the annotations prop carries no .qties — parents resolve
     // without withQties — so compute for the single hovered annotation)
-    const qties = qtiesOverride
-      ? { enabled: true, ...qtiesOverride }
-      : annotation
-        ? getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx })
-        : null;
+    const qties = annotation
+      ? getAnnotationQties({ annotation, meterByPx })
+      : null;
     const length =
       qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
     const surface =
@@ -107,16 +116,24 @@ const MapTooltip = forwardRef(
     const showLength = Boolean(qties?.enabled) && length > 0;
     const showSurface = Boolean(qties?.enabled) && surface > 0;
     const layoutLength = qties?.layoutLength;
-    const showLayoutLength =
-      !qtiesOverride && Boolean(qties?.enabled) && layoutLength > 0;
-    const qtiesOverrideLabel =
-      qtiesOverride && (showLength || showSurface)
-        ? QTIES_OVERRIDE_LABELS[qtiesOverrideType]
-        : null;
+    const showLayoutLength = Boolean(qties?.enabled) && layoutLength > 0;
 
-    // helper - hovered face (3D)
-    const showFaceSurface = faceQties?.surface > 0;
-    const showFacePerimeter = faceQties?.perimeter > 0;
+    // helper - hovered part (3D): a face / edge of a mesh annotation
+    // (qtiesOverride) or a face of a regular annotation (faceQties)
+    const isEdgePart = Boolean(qtiesOverride) && qtiesOverrideType === "EDGE";
+    const partLabel = isEdgePart
+      ? QTIES_OVERRIDE_LABELS.EDGE
+      : QTIES_OVERRIDE_LABELS.FACE;
+    const partSurface = isEdgePart
+      ? null
+      : (qtiesOverride?.surface ?? faceQties?.surface);
+    const partPerimeter = isEdgePart
+      ? null
+      : (qtiesOverride?.length ?? faceQties?.perimeter);
+    const partLength = isEdgePart ? qtiesOverride.length : null;
+    const showPartSurface = partSurface > 0;
+    const showPartPerimeter = partPerimeter > 0;
+    const showPartLength = partLength > 0;
 
     // helper - height (effective annotation height in meters: the template
     // value when locked, else the annotation's own; hidden when absent or 0)
@@ -125,9 +142,9 @@ const MapTooltip = forwardRef(
 
     // helper - business objects (quantities) this annotation feeds, every
     // module: one line each, number + label + its quantity in the object's
-    // unit (a part is not linked: nothing for it)
+    // unit
     const linkedObjectRows = useAnnotationLinkedBusinessObjectRows({
-      annotation: qtiesOverride ? null : annotation,
+      annotation,
       qties,
     });
 
@@ -138,8 +155,7 @@ const MapTooltip = forwardRef(
       workPackage,
       total: taskHoursTotal,
     } = useAnnotationTaskHours({
-      // a part is not a planning quantity: no task hours for it
-      annotation: qtiesOverride ? null : annotation,
+      annotation,
       qties,
     });
 
@@ -270,30 +286,15 @@ const MapTooltip = forwardRef(
             {annotationLabel}
           </Typography>
         )}
-        {/* Height (annotation property, so above the part quantities) */}
         {showHeight && <QtyRow label="Hauteur" value={height} unit="m" />}
-        {/* Hovered part caption (3D face / edge of a mesh annotation) */}
-        {qtiesOverrideLabel && (
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              mt: 0.25,
-              color: "grey.400",
-              fontStyle: "italic",
-            }}
-          >
-            {qtiesOverrideLabel}
-          </Typography>
-        )}
         {/* Qties (length & surface, zero values hidden) */}
         {showLength && <QtyRow label="Longueur" value={length} unit="ml" />}
         {showSurface && <QtyRow label="Surface" value={surface} unit="m²" />}
         {showLayoutLength && (
           <QtyRow label="Calepinage" value={layoutLength} unit="ml" />
         )}
-        {/* Hovered face (3D, annotation with several faces) */}
-        {(showFaceSurface || showFacePerimeter) && (
+        {/* Hovered part (3D): face / edge, below the annotation totals */}
+        {(showPartSurface || showPartPerimeter || showPartLength) && (
           <Box
             sx={{
               mt: 0.75,
@@ -306,13 +307,16 @@ const MapTooltip = forwardRef(
               variant="caption"
               sx={{ display: "block", color: "grey.400", fontStyle: "italic" }}
             >
-              {QTIES_OVERRIDE_LABELS.FACE}
+              {partLabel}
             </Typography>
-            {showFaceSurface && (
-              <QtyRow label="Surface" value={faceQties.surface} unit="m²" />
+            {showPartLength && (
+              <QtyRow label="Longueur" value={partLength} unit="ml" />
             )}
-            {showFacePerimeter && (
-              <QtyRow label="Périmètre" value={faceQties.perimeter} unit="ml" />
+            {showPartSurface && (
+              <QtyRow label="Surface" value={partSurface} unit="m²" />
+            )}
+            {showPartPerimeter && (
+              <QtyRow label="Périmètre" value={partPerimeter} unit="ml" />
             )}
           </Box>
         )}
