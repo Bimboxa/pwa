@@ -2,6 +2,8 @@ import { Vector3 } from "three";
 
 import computePlaneBasis from "../../threedMesh/utils/computePlaneBasis.js";
 
+import applyCursorSide from "./applyCursorSide.js";
+
 // Minimum rectangle side (m) — under this the two clicks are degenerate.
 const MIN_SIDE_M = 1e-3;
 
@@ -12,8 +14,10 @@ const MIN_SIDE_M = 1e-3;
 // Twin of computeRectangleCorners, which works in a base map image frame.
 //
 // normal: plane normal (world). options:
-//   - forcedDu / forcedDv: typed side lengths (m, signed along u / v) that
-//     replace the cursor's — the X / Y dims of the "Coupe face" rectangle;
+//   - forcedDu / forcedDv: typed side lengths (m) along u / v that replace
+//     the cursor's — the X / Y dims of the rectangle. The cursor still picks
+//     the side of the anchor the rectangle grows on (applyCursorSide); the
+//     typed sign only matters when the cursor sits on the axis;
 //   - basis: a precomputed plane basis ({origin, u, v}) to use instead of
 //     computePlaneBasis(normal, anchor).
 // Returns [Vector3 x4] in order, or null.
@@ -32,8 +36,14 @@ export default function computeRectangleCornersOnPlane(
   const delta = new Vector3(cursorWorld.x, cursorWorld.y, cursorWorld.z).sub(
     anchor
   );
-  const du = Number.isFinite(forcedDu) ? forcedDu : delta.dot(u);
-  const dv = Number.isFinite(forcedDv) ? forcedDv : delta.dot(v);
+  const cursorDu = delta.dot(u);
+  const cursorDv = delta.dot(v);
+  const du = Number.isFinite(forcedDu)
+    ? applyCursorSide(forcedDu, cursorDu, MIN_SIDE_M)
+    : cursorDu;
+  const dv = Number.isFinite(forcedDv)
+    ? applyCursorSide(forcedDv, cursorDv, MIN_SIDE_M)
+    : cursorDv;
   if (Math.abs(du) < MIN_SIDE_M || Math.abs(dv) < MIN_SIDE_M) return null;
 
   return [
