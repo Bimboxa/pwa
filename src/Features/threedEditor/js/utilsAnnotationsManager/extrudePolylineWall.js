@@ -19,6 +19,7 @@ import getBreakSegmentLabels, {
   getFoldDeg,
 } from "../../../geometry/utils/getBreakSegmentLabels.js";
 import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
+import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
 import attachFatLineRaycast from "./attachFatLineRaycast.js";
 import {
   buildView3dRunEdges,
@@ -68,7 +69,10 @@ export function buildWallEdges(
   const positions = extractPlanarSketchEdges(geom, { seamDihedralDeg });
   if (!positions?.length) {
     return tagWallEdges(
-      new LineSegments(new EdgesGeometry(geom, seamDihedralDeg), lineMaterial),
+      new LineSegments(
+        new EdgesGeometry(geom, seamDihedralDeg + CREASE_TIE_EPS_DEG),
+        lineMaterial
+      ),
       kind
     );
   }
@@ -353,7 +357,12 @@ export default function extrudePolylineWall(
   for (const i of breakSides.breaks) {
     const previous = (i - 1 + points.length) % points.length;
     if (!visibleSegments.has(i) || !visibleSegments.has(previous)) continue;
-    if (!(getFoldDeg(points, i, !!closeLine) < WALL_SEAM_DIHEDRAL_DEG)) {
+    if (
+      !(
+        getFoldDeg(points, i, !!closeLine) <
+        WALL_SEAM_DIHEDRAL_DEG + CREASE_TIE_EPS_DEG
+      )
+    ) {
       continue;
     }
     const p = points[i];

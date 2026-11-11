@@ -1,5 +1,7 @@
 import { EdgesGeometry } from "three";
 
+import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
+
 import { buildWallEdges } from "./extrudePolylineWall";
 
 // Applies the "Wireframe" 3D view settings to every grid-edge line
@@ -45,7 +47,10 @@ export default function applyWireframeSettings(
       });
       child.geometry = rebuilt.geometry;
     } else {
-      child.geometry = new EdgesGeometry(sourceGeom, thresholdDeg);
+      child.geometry = new EdgesGeometry(
+        sourceGeom,
+        thresholdDeg + CREASE_TIE_EPS_DEG
+      );
     }
     child.userData.appliedThresholdDeg = thresholdDeg;
   });

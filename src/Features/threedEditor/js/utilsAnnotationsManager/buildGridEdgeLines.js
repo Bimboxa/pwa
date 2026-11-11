@@ -1,5 +1,7 @@
 import { EdgesGeometry, LineBasicMaterial, LineSegments } from "three";
 
+import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg";
+
 // Black grid-edge lines of a built annotation mesh: the EdgesGeometry overlay
 // shared by every curved / extruded builder (revolution, dome, inline
 // extrusion, swept profile, flat extrusion) and by the surface-cut pieces.
@@ -28,7 +30,8 @@ export default function buildGridEdgeLines(
   { thresholdDeg = 1, material, sourceMesh } = {}
 ) {
   const lines = new LineSegments(
-    new EdgesGeometry(geometry, thresholdDeg),
+    // A seam folding exactly the threshold is not drawn.
+    new EdgesGeometry(geometry, thresholdDeg + CREASE_TIE_EPS_DEG),
     material ?? EDGE_MATERIAL.clone()
   );
   lines.userData = {

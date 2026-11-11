@@ -3,6 +3,7 @@ import groupTrianglesByPlane, {
   toSoupTriangle,
 } from "Features/threedMesh/utils/groupTrianglesByPlane.js";
 import { dot, sub } from "Features/threedMesh/utils/vec3Utils.js";
+import { CREASE_TIE_EPS_DEG } from "Features/threedEditor/utils/getGridEdgeThresholdDeg.js";
 
 // Feature-edge extraction for CSG-carved geometries (three-bvh-csg triangle
 // soup). EdgesGeometry pairs triangles by exact edge endpoints, but boolean
@@ -61,7 +62,8 @@ const AXES = ["x", "y", "z"];
 // the shared upper portion of the seam dissolves, the step notch stays drawn.
 // The dot is signed so a wall folding back on itself (~180°) keeps its edge.
 function suppressLowDihedralSeams(segments, normals, thresholdDeg) {
-  const cosT = Math.cos((thresholdDeg * Math.PI) / 180);
+  // A seam folding exactly the threshold is suppressed (CREASE_TIE_EPS_DEG).
+  const cosT = Math.cos(((thresholdDeg + CREASE_TIE_EPS_DEG) * Math.PI) / 180);
 
   const entries = [];
   const lo = { x: Infinity, y: Infinity, z: Infinity };

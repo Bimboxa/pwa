@@ -11,6 +11,13 @@ export const TESSELLATION_THRESHOLD_DEG = 1;
 
 export const DEFAULT_CREASE_THRESHOLD_DEG = 15;
 
+// Added to a crease threshold before comparing dihedral angles: a facet seam
+// folding EXACTLY the threshold counts as below it. Without it the tie is
+// decided by float noise, seam by seam — a circle of 24 chords folds 15° at
+// every seam, the default threshold, and came out with a random subset of
+// its seams drawn.
+export const CREASE_TIE_EPS_DEG = 0.01;
+
 export default function getGridEdgeThresholdDeg({
   showTessellation,
   wireframeAngleDeg,
