@@ -77,6 +77,12 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     (s) => s.baseMapEditor.showAnnotations
   );
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
+  // Chords per circle (3D view settings): part of the build epoch — the
+  // builders read the values in effect (geometry/utils/circleSegmentation).
+  const circleSegmentationKey = useSelector(
+    (s) =>
+      `${s.threedEditor.circleSegmentation?.arc}:${s.threedEditor.circleSegmentation?.revolution}`
+  );
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
@@ -512,6 +518,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       revolutionSectionByAxisId,
       revolutionSectionKey,
       revolutionSectionFill,
+      circleSegmentationKey,
     };
     threedEditor.loadAnnotations(annotationsForBuild || [], buildOptions);
     // Blocks (Features/blocks): prototypes built off-scene with the SAME
@@ -545,6 +552,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     aquarelleShading,
     revolutionSectionKey,
     revolutionSectionFill,
+    circleSegmentationKey,
     extraBaseMapIds,
     chipExtraBaseMapIds,
     baseMaps,

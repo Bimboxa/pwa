@@ -3,7 +3,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
-import { SEGMENTS_PER_FULL_CIRCLE } from "Features/geometry/utils/arcSampling";
+import { getArcSegmentsPerCircle } from "Features/geometry/utils/circleSegmentation";
 
 import { boundaryVertex } from "./buildRevolutionMesh";
 import attachFatLineRaycast from "./attachFatLineRaycast";
@@ -87,12 +87,12 @@ export default function buildRevolutionCircleLine({
     center = { x: axisX, y: baseY, z: 0 };
   }
 
-  // 24 segments per full turn, scaled down on a partial sweep. The constant is
-  // the shared mesh↔quantities discretization contract (arcSampling.js).
+  // Arc segments per full turn (24 by default — the shared mesh↔quantities
+  // discretization, circleSegmentation.js), scaled down on a partial sweep.
   const turnFraction = Math.min(1, Math.max(0, phiLength / (Math.PI * 2)));
   const segments = Math.max(
     2,
-    Math.round(SEGMENTS_PER_FULL_CIRCLE * turnFraction)
+    Math.round(getArcSegmentsPerCircle() * turnFraction)
   );
 
   // segments + 1 samples: on a full turn the last one lands back on the first,

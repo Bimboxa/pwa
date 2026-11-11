@@ -13,6 +13,7 @@ import {
   getDomeProfile,
 } from "Features/annotations/utils/discGeometry";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import { getRevolutionSegmentsPerCircle } from "Features/geometry/utils/circleSegmentation";
 
 import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
@@ -39,7 +40,8 @@ const HOLE_ARC_SAMPLES = 12;
 //   rotateX(π/2) (lathe +Y → local +Z) and a lathe point at φ lands at the
 //   plan angle ψ = φ − π/2 — hence getRevolutionPhi(start, end, 0) for a
 //   partial sweep (same mapping as the axis-based revolutions).
-const LATHE_SEGMENTS = 64;
+// Lathe segments per full turn: getRevolutionSegmentsPerCircle() (64 by
+// default, a 3D view setting — circleSegmentation.js).
 
 // S-C-S ring of the disc / sector in local metres: the circle through 3
 // points (square, circle, square) is what extrudeClosedShape's tracePath
@@ -83,7 +85,10 @@ function buildDome({
     ? getRevolutionPhi(sector.start, sector.end, 0)
     : { phiStart: 0, phiLength: Math.PI * 2 };
   const turnFraction = Math.min(1, Math.max(0, phiLength / (Math.PI * 2)));
-  const segments = Math.max(4, Math.round(LATHE_SEGMENTS * turnFraction));
+  const segments = Math.max(
+    4,
+    Math.round(getRevolutionSegmentsPerCircle() * turnFraction)
+  );
   // Partial: open shell (the dome surface alone). Full: closed solid.
   let geom = sector.isSector
     ? new LatheGeometry(profile, segments, phiStart, phiLength)

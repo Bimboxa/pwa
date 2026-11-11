@@ -839,6 +839,13 @@ export default function useAnnotationsV2(options) {
 
     // Restored POV: the view is frozen at its generation date (null otherwise).
     const povFreezeCreatedBefore = useSelector(selectPovFreezeCreatedBefore);
+    // Chords per circle (3D view settings): the quantities of the curved
+    // shapes are computed on that segmentation (getAnnotationQties reads
+    // geometry/utils/circleSegmentation) — a change recomputes them.
+    const circleSegmentationKey = useSelector(
+      (s) =>
+        `${s.threedEditor.circleSegmentation?.arc}:${s.threedEditor.circleSegmentation?.revolution}`
+    );
 
     const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
     const showAnnotationsWithoutLayer = useSelector(
@@ -1240,7 +1247,10 @@ export default function useAnnotationsV2(options) {
             const presentIds = new Set(_annotations.map((a) => a.id));
             const taggedById = new Map();
             (
-              await db.annotations.where("blockId").anyOf(usedBlockIds).toArray()
+              await db.annotations
+                .where("blockId")
+                .anyOf(usedBlockIds)
+                .toArray()
             ).forEach((m) => {
               if (m.deletedAt || m.type === "BLOCK_INSTANCE") return;
               if (listingId && m.listingId !== listingId) return;
@@ -2993,6 +3003,7 @@ export default function useAnnotationsV2(options) {
       layersMode,
       subtractionTargetIdsBySource,
       povFreezeCreatedBefore,
+      circleSegmentationKey,
       dbWriteTick,
       withForeignFootprints,
       withRevolutionFootprints,

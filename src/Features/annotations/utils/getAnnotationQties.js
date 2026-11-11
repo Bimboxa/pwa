@@ -12,6 +12,7 @@ import {
   adaptiveArcSamples,
   translateSegmentsIdxToExpandedPath,
 } from "Features/geometry/utils/arcSampling";
+import { scaleArcSamples } from "Features/geometry/utils/circleSegmentation";
 import expandProfileSectionArcs from "Features/geometry/utils/expandProfileSectionArcs";
 import getPrismSideSegments from "Features/geometry/utils/getPrismSideSegments";
 import getMesh3dEdgesLength from "Features/annotationMesh3d/utils/getMesh3dEdgesLength";
@@ -57,9 +58,12 @@ import {
 // on the SAME arc-expanded rings as the rendered geometry:
 //   - developed surface path → extrudeClosedShape (angle-adaptive, ~24
 //     segments per full circle),
-//   - wall path → extrudePolylineWall (GUIDE_ARC_SAMPLES = 6 per half-arc).
+//   - wall path → extrudePolylineWall (6 per half-arc at the default
+//     segmentation, scaled with it — createAnnotationObject3D).
+// Both follow the arc segmentation of the 3D view settings
+// (geometry/utils/circleSegmentation).
 const ARC_SAMPLES = adaptiveArcSamples;
-const WALL_ARC_SAMPLES = 6;
+const getWallArcSamples = () => scaleArcSamples(6);
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
@@ -889,7 +893,7 @@ function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
         const { points: wallPts, hiddenSegmentsIdx: wallHidden } =
           expandRingWithOffsetsAndHiddenMap(
             points,
-            WALL_ARC_SAMPLES,
+            getWallArcSamples(),
             annotation.hiddenSegmentsIdx || [],
             !!closeLine
           );
