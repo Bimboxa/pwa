@@ -14,6 +14,7 @@ import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotationTaskHours";
 import useAnnotationLinkedBusinessObjectRows from "Features/businessObjects/hooks/useAnnotationLinkedBusinessObjectRows";
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
+import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
 
 // The tooltip always shows the annotation's own totals. The hovered PART (3D
 // editor) is added BELOW them, under a divider:
@@ -84,9 +85,11 @@ const MapTooltip = forwardRef(
         : null
     );
 
-    // helper - template label
+    // helper - template label (a cut line has no template: its type name)
     const templateLabel =
-      annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
+      annotation?.annotationTemplateProps?.label ||
+      annotation?.templateLabel ||
+      (annotation?.type === "CUT_LINE" ? CUT_LINE_LABEL : undefined);
 
     // helper - annotation label (entity label when entity-linked, else own label)
     const annotationLabel =

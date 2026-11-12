@@ -104,6 +104,9 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
           py: 0.5,
           pointerEvents: "none",
           zIndex: 9999,
+          // Same dark card as the annotation tooltip (MapTooltip).
+          bgcolor: "rgba(0, 0, 0, 0.8)",
+          color: "white",
         }}
       >
         <Typography variant="caption" noWrap>
