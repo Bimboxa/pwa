@@ -9,6 +9,7 @@ import NodeBaseMapOverlay from "./NodeBaseMapOverlay";
 
 import {
   OVERLAY_CONTENT_STYLE,
+  OVERLAY_CONTENT_STYLE_ORIGINAL_COLORS,
   OVERLAY_WRAPPER_ATTRIBUTE,
 } from "../constants/baseMapOverlayConstants";
 
@@ -26,8 +27,9 @@ const nonInteractiveStyles = (
   />
 );
 
-// Greyed content of the base maps overlaid on the main one (image and / or
-// annotations of the parallel base maps switched on in the base maps list).
+// Content of the base maps overlaid on the main one (image and / or
+// annotations of the parallel base maps switched on in the base maps list),
+// greyed unless `keepOriginalColors` (consultation modules: Viewer, Infos).
 // Rendered by StaticMapContent INSIDE the main base map group — between its
 // image and its annotations — so the coordinates are host pixels.
 // Display-only: selection and move / rotate live in
@@ -38,6 +40,7 @@ export default memo(function OverlayBaseMapsLayer({
   visibleViewBox,
   spriteImage,
   sizeVariant,
+  keepOriginalColors = false,
 }) {
   // data
 
@@ -53,7 +56,14 @@ export default memo(function OverlayBaseMapsLayer({
   if (!overlays?.length) return null;
 
   return (
-    <g {...{ [OVERLAY_WRAPPER_ATTRIBUTE]: "" }} style={OVERLAY_CONTENT_STYLE}>
+    <g
+      {...{ [OVERLAY_WRAPPER_ATTRIBUTE]: "" }}
+      style={
+        keepOriginalColors
+          ? OVERLAY_CONTENT_STYLE_ORIGINAL_COLORS
+          : OVERLAY_CONTENT_STYLE
+      }
+    >
       {nonInteractiveStyles}
       {overlays.map((overlay) => (
         <NodeBaseMapOverlay
