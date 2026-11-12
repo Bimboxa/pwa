@@ -345,6 +345,29 @@ on site: the prompt asks for lines from existing corners, regular, simple.
   prolongement » (`reextendCutLineService`: the same rebuild from the drawn
   points, without a move).
 
+## Revolution shown as a half (« demi-vue »)
+
+A revolution whose axis has the half-view on is built over 180° only
+(`userData.isRevolutionHalfView`); the real object is the full turn, and so
+are its cut lines.
+
+- Creation: `collectSceneTriangles` adds, for every half-view mesh, its copy
+  turned 180° about the axis (`revolutionHalfView.js`, shared with the
+  « Pinceau »), and drops the section caps closing the half of a solid. Every
+  entry point (drawn line, segment, plane, angle, rebuilds) therefore walks /
+  sections the full turn. Nothing is stored on the row.
+- Rendering: `ThreedCutLineAnnotations` splits each segment with
+  `splitCutLineSegmentByHalfView` against `collectHalfViewHosts` (world
+  space). A piece whose middle lies on the hidden side of a boundary plane
+  AND within 1 cm of the hidden surface is dashed
+  (`CUT_LINE_HIDDEN_HALF_DASH_M` / `_GAP_M`); a segment crossing the plane is
+  two `Line2` (`cutLineSegments[i].line` / `.lastLine`). The displayed side
+  follows the camera: the flip rebuilds the annotation objects
+  (`annotationsLoadTick`), which re-runs the split.
+- Dashed pieces stay pickable, selectable and snappable.
+- Limit: « Mailler » / CREATE still read the displayed meshes — mailles are
+  created on the displayed half only.
+
 ## Holes (polygon `cuts`)
 
 A line joining the contour to a hole (or two holes) cuts nothing on its own:
