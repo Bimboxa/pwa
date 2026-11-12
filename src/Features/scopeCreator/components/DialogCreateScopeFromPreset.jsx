@@ -133,11 +133,13 @@ export default function DialogCreateScopeFromPreset({
   // object type) + first "DPGF" listing;
   // carnetDetail: PORTFOLIO module + DIVERS annotation library (skipped when
   // the configuration already provides a DETAIL template);
-  // portfolio: PORTFOLIO module alone.
+  // portfolio: PORTFOLIO module alone;
+  // comments: COMMENTS module + first "Commentaires" listing.
   const [options, setOptions] = useState({
     dpgf: false,
     carnetDetail: false,
     portfolio: false,
+    comments: false,
   });
   // extra baseMap listings added via "+ Ajouter" in the recap modal.
   const [extraBaseMapListings, setExtraBaseMapListings] = useState([]);
@@ -204,7 +206,7 @@ export default function DialogCreateScopeFromPreset({
     // and only those get prechecked (generic scope: both available).
     const optionalModules = configuration
       ? (configuration.optionalModules ?? [])
-      : ["DPGF", "CARNET_DETAIL"];
+      : ["DPGF", "CARNET_DETAIL", "COMMENTS"];
     setOptions({
       dpgf: optionalModules.includes("DPGF") && optionKeywords.includes("DPGF"),
       carnetDetail:
@@ -213,6 +215,9 @@ export default function DialogCreateScopeFromPreset({
       portfolio:
         optionalModules.includes("PORTFOLIO") &&
         optionKeywords.includes("Portfolio"),
+      comments:
+        optionalModules.includes("COMMENTS") &&
+        optionKeywords.includes("Commentaires"),
     });
     setExtraBaseMapListings([]);
     setExcludedLibraryKeys([]);

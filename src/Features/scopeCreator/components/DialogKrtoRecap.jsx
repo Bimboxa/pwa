@@ -113,6 +113,9 @@ export default function DialogKrtoRecap({
   const portfolioS = "Carnet de plans";
   const portfolioCaptionS =
     "Active le module Carnet de plans (portfolio de pages).";
+  const commentsS = "Commentaires";
+  const commentsCaptionS =
+    "Active le module Commentaires avec une première liste — des commentaires qui guident la lecture du Krto partagé.";
   const baseMapsS = "Fonds de plan";
   const addS = "Ajouter un dossier";
   const createdSectionS = "Nouveaux dossiers";
@@ -204,7 +207,7 @@ export default function DialogKrtoRecap({
   // optional (generic scope: both)
   const optionalModules = configuration
     ? (configuration.optionalModules ?? [])
-    : ["DPGF", "CARNET_DETAIL"];
+    : ["DPGF", "CARNET_DETAIL", "COMMENTS"];
 
   // Prompt IA configuration: the base maps / source sections give way to the
   // dropped-zip card (left), the illustration to the request card (right:
@@ -796,6 +799,12 @@ export default function DialogKrtoRecap({
               key: "portfolio",
               label: portfolioS,
               caption: portfolioCaptionS,
+            })}
+          {optionalModules.includes("COMMENTS") &&
+            renderModuleRow({
+              key: "comments",
+              label: commentsS,
+              caption: commentsCaptionS,
             })}
         </Box>
       </Box>

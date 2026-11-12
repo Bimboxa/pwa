@@ -23,6 +23,8 @@ export default function selectEffectiveInteractionMode(state) {
     isThreedFamilyViewerKey(viewerKey) ||
     state.urlParams.viewerMode ||
     viewerKey === "ZONES" ||
+    // Comments module: the legend only sets what the saved view shows.
+    viewerKey === "COMMENTS" ||
     viewerKey === "SCOPE" ||
     selectIsBaseMapsLegendPopper(state)
   )

@@ -76,6 +76,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  // "+ Commentaire localisé" armed (Features/comments).
+  const isLocatingComment = useSelector((s) => s.comments.isLocating);
   const { showDrawingTools, isLocateBusinessObjectMode, locateBusinessObject } =
     useDrawingToolsAvailability();
 
@@ -331,6 +333,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectionEditable,
       readOnly,
       readOnlyReason: READ_ONLY_REASON,
+      // comments module
+      isLocatingComment,
     }),
     [
       viewerKey,
@@ -388,6 +392,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       canEditAnnotation,
       selectionEditable,
       readOnly,
+      isLocatingComment,
     ]
   );
 

@@ -1868,6 +1868,7 @@ export default function PopperMapListings() {
       viewerKey === "MAP" ||
       isBaseMapsLegendAll ||
       viewerKey === "ZONES" ||
+      viewerKey === "COMMENTS" ||
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer ||
@@ -2225,6 +2226,7 @@ export default function PopperMapListings() {
       viewerKey === "MAP" ||
       isBaseMapsLegendAll ||
       viewerKey === "ZONES" ||
+      viewerKey === "COMMENTS" ||
       isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer,

@@ -13,6 +13,8 @@ const moduleDescriptions = {
     "Localisez vos photos sur le fond de plan et retrouvez-les depuis la carte ou la galerie, pour documenter l'existant et l'avancement.",
   ZONES:
     "Découpez le projet en zones (bâtiment, niveau, local…) et rattachez-y les annotations pour ventiler les quantités par zone.",
+  COMMENTS:
+    "Rédigez des commentaires qui guident la lecture du Krto partagé : chacun mémorise sa vue (2D ou 3D) et se retrouve dans le module Viewer.",
   MESHES:
     "Découpez les ouvrages en mailles 3D pour organiser le travail et suivre les quantités maille par maille.",
 };

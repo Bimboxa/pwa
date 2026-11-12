@@ -23,6 +23,8 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
 import PanelPhotos from "Features/photos/components/PanelPhotos";
+import PanelComments from "Features/comments/components/PanelComments";
+import LayerComments from "Features/comments/components/LayerComments";
 import PanelViewer from "Features/panelDrawing/components/PanelViewer";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
@@ -150,6 +152,15 @@ export default function SectionViewer() {
       {viewerKey === "PHOTOS" && (
         <LeftDrawerPanel width={360} viewerKey="PHOTOS">
           <PanelPhotos />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Comments module: comment listing drawer (listing selector, creation
+          commands, comments in reading order). Serves both editors of the
+          module; the guard is load-bearing for the same reason. */}
+      {viewerKey === "COMMENTS" && (
+        <LeftDrawerPanel width={320} viewerKey="COMMENTS">
+          <PanelComments />
         </LeftDrawerPanel>
       )}
 
@@ -320,6 +331,11 @@ export default function SectionViewer() {
           {/* PLANNING module: time planning overlaying the bottom of the editors
           (the editor keeps its size; see PanelPlanningBottom) */}
           {businessObjectTypeKey === "PLANNING" && <PanelPlanningBottom />}
+
+          {/* Comments (Comments + Viewer modules): pills strip, pins of the
+          located comments and floating panel, over the displayed editor
+          (renders nothing in the other modules) */}
+          <LayerComments />
 
           {/* PDF editor: layer sliding up over the displayed editor, under the
           right tools panel (opened by the business objects' document links) */}

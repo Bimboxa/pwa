@@ -240,7 +240,9 @@ export default async function resolveAppConfig(appConfig) {
   //     chipLabel,                  // card category chip (e.g. "Métré")
   //     optionalModules,            // creation options the user may toggle in
   //                                 // the recap ("DPGF" | "CARNET_DETAIL" |
-  //                                 // "PORTFOLIO");
+  //                                 // "PORTFOLIO" | "COMMENTS" — prechecked
+  //                                 // when keywords.options lists its label,
+  //                                 // e.g. "Commentaires");
   //                                 // absent/empty => Modules section hidden
   //     imagePath,                  // card SVG, relative to Data/<orgaCode>/
   //     recapImagePath,             // recap dialog illustration (svg/png/

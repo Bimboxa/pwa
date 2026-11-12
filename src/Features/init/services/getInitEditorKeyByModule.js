@@ -14,6 +14,9 @@ export const DEFAULT_EDITOR_KEY_BY_MODULE = {
   // PHOTOS is a MODULE key only (like ZONES): its single editor is the
   // shared "MAP" instance.
   PHOTOS: "MAP",
+  // COMMENTS is a MODULE key only (like ZONES): shared "MAP" 2D editor,
+  // shared 3D editor.
+  COMMENTS: "MAP",
   // The business-objects modules (one per type of the registry) are MODULE
   // keys only (like ZONES): their 2D editor is the shared "MAP" instance.
   // Load-bearing: without a seeded entry, a restored module would fall back
@@ -32,6 +35,7 @@ const KNOWN_MODULE_KEYS = [
   "POINT_OF_VIEW",
   "ZONES",
   "PHOTOS",
+  "COMMENTS",
   "SCOPE",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];

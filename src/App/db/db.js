@@ -528,6 +528,23 @@ db.version(44).stores({
     "id,projectId,baseMapId,listingId,entityId,annotationTemplateId,relayJobId,blockId,instanceOfBlockId",
 });
 
+// v45 — comments (Features/comments): free comments guiding the reading of a
+// shared Krto. A comment belongs to a COMMENT listing (scope-bound).
+//   COMMENT row: {id, projectId, scopeId, listingId, num, title, sortIndex,
+//     blocks: [{id, type: "TEXT", markdown} | {id, type: "IMAGE", fileName,
+//       imageSize, caption} | {id, type: "LINK", url, label} |
+//       {id, type: "YOUTUBE", url, videoId}],
+//     location: null | {baseMapId, point: {x, y} | null,
+//       worldPosition: {x, y, z} | null} — point INLINE, normalized [0..1] on
+//       the base map image (never a db.points row: the Krto points filter
+//       only keeps points referenced by annotations),
+//     viewContext} — view snapshot restored when the comment is opened (POV
+//       view metadata + extras, see snapshotCommentViewContextService).
+//   Image files live in db.files with the comment listingId.
+db.version(45).stores({
+  comments: "id,projectId,listingId,scopeId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -581,6 +598,7 @@ const AUDIT_TABLES = [
   "relsScopeListing",
   "meshPaints",
   "blocks",
+  "comments",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -628,6 +646,8 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   "meshPaints",
   // Blocks are shared structure: anyone renames a block or moves its origin.
   "blocks",
+  // Comments are a shared guide: anyone reorders, edits or deletes them.
+  "comments",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -888,6 +908,7 @@ const SOFT_DELETE_TABLES = new Set([
   "relsScopeListing",
   "meshPaints",
   "blocks",
+  "comments",
 ]);
 
 let _skipSoftDelete = false;
