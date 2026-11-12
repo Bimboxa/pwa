@@ -101,15 +101,38 @@ test("a curved sheet of more than 64 raw nodes is walked to its top under the si
   assert.ok(Math.abs(top.z - 6) < 1e-6 && Math.abs(top.y - 11) < 1e-6);
 });
 
-test("allowPerpendicularStart: a first step straight up the sheet is taken only with the option", () => {
-  const graph = graphOf(sheet());
+test("first step: a re-entrant perpendicular step is taken when nothing goes forward; with a forward edge, only allowPerpendicularStart prefers it", () => {
   const startKey = quantizeVertex(P(2, 5, 0));
-  assert.ok(graph.nodes.has(startKey));
   const base = { startKey, direction: P(0, 1, 0), faceNormal: UP };
-  nearPoints(walkCutLineTrace(graph, base), []);
+  // Sheet alone: straight up its foot, with or without the option.
+  const alone = () => graphOf(sheet());
+  assert.ok(alone().nodes.has(startKey));
+  nearPoints(walkCutLineTrace(alone(), base), [P(2, 5, 3)]);
   nearPoints(
-    walkCutLineTrace(graph, { ...base, allowPerpendicularStart: true }),
+    walkCutLineTrace(alone(), { ...base, allowPerpendicularStart: true }),
     [P(2, 5, 3)]
+  );
+  // Sheet standing in the middle of a slab: onwards along the slab, the
+  // option ranks the climb first.
+  const onSlab = () => graphOf([...slab(), ...sheet()]);
+  nearPoints(walkCutLineTrace(onSlab(), base), [P(2, 10, 0)]);
+  nearPoints(
+    walkCutLineTrace(onSlab(), { ...base, allowPerpendicularStart: true }),
+    [P(2, 5, 3)]
+  );
+});
+
+test("first step: a salient perpendicular step (over the edge the line ends on) is not taken", () => {
+  const graph = graphOf(wall());
+  const startKey = quantizeVertex(P(2, 5.2, 3));
+  assert.ok(graph.nodes.has(startKey));
+  nearPoints(
+    walkCutLineTrace(graph, {
+      startKey,
+      direction: P(0, 1, 0),
+      faceNormal: UP,
+    }),
+    []
   );
 });
 

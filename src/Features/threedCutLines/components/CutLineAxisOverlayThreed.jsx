@@ -230,12 +230,15 @@ export default function CutLineAxisOverlayThreed() {
       const faceNormal = { x: hit.normal.x, y: hit.normal.y, z: hit.normal.z };
       let chordWorld = null;
       if (result.chord) {
-        const [a, b] = result.chord.map((p) => lift(p, n));
-        chordWorld = [a, b].map((p) => ({
-          ...p,
+        // The committed chord lies ON the face; only the draft is lifted.
+        chordWorld = result.chord.map((p) => ({
+          x: p.x,
+          y: p.y,
+          z: p.z,
           nodeId: hit.nodeId,
           faceNormal,
         }));
+        const [a, b] = result.chord.map((p) => lift(p, n));
         const line = buildSegments(
           [{ a, b }],
           makeLineMaterial({

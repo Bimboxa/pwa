@@ -65,10 +65,14 @@ function nearestUnseen(nodes, node, seen, maxDist) {
 //                onto a face whose air side looks down (the underside of a
 //                solid walked over) is never taken. Without it, a closed
 //                solid is walked all the way round (one loop at most).
-//   allowPerpendicularStart (optional) = accept a first step perpendicular to
-//                `direction` (a walk started on a node found by locateNodeNear:
-//                the drawn line ends at the foot of a sheet, whose section
-//                leaves the end point straight up)
+//   allowPerpendicularStart (optional) = rank the first step's perpendicular
+//                candidates with the forward ones (a walk started on a node
+//                found by locateNodeNear: the drawn line ends at the foot of
+//                a sheet, whose section leaves the end point straight up).
+//                Without it, a perpendicular first step is only taken when
+//                no candidate goes forward and the turn is re-entrant (the
+//                drawn line ends exactly on a corner of the section: down a
+//                wall to its foot, the slab leaving sideways).
 //   visited    (optional) = Set of node keys to treat as already visited; it
 //                is MUTATED with every node the walk goes through, so a second
 //                walk on the same graph can share it.
@@ -138,8 +142,10 @@ export default function walkCutLineTrace(
     return dot(nAir, up) < -0.5;
   };
 
-  // A perpendicular first step has dot(tOut, d0) = 0 up to float noise.
-  const firstStepMin = allowPerpendicularStart ? -1e-6 : 0;
+  // The first step never goes back along the drawn polyline. A step
+  // perpendicular to it is not a way back (a 1 mm lift between two surfaces
+  // tilts it by a fraction of a degree, hence the margin).
+  const FIRST_STEP_MIN = -0.1;
 
   while (chain.length - 1 < maxRawPoints) {
     const node = nodes.get(cur);
@@ -153,7 +159,7 @@ export default function walkCutLineTrace(
       if (!tOut) continue;
       // The first step leaves the drawn polyline, never goes back along it;
       // the step after a gap jump goes on, never back.
-      if (prev === null && dot(tOut, d0) <= firstStepMin) continue;
+      if (prev === null && dot(tOut, d0) < FIRST_STEP_MIN) continue;
       if (jumped && dot(tOut, d0) < -1e-6) continue;
       keysSeen.add(nb.key);
       const rise = dot(tOut, n);
@@ -170,6 +176,18 @@ export default function walkCutLineTrace(
         along: dot(tOut, d0),
         straight: dot(tOut, dir),
       });
+    }
+    // First step from a section edge running along the drawn line: onwards
+    // when the edge goes on; at its very end, only a re-entrant turn is
+    // taken (a line drawn down a wall to its foot turns onto the slab
+    // leaving that foot) — a salient one (over the edge of the face the
+    // line ends on) is not, the free-edge rules below apply.
+    if (prev === null && !allowPerpendicularStart) {
+      const forward = candidates.filter((c) => c.along > 0);
+      const kept = forward.length
+        ? forward
+        : candidates.filter((c) => c.cls === 2);
+      candidates.splice(0, candidates.length, ...kept);
     }
     if (candidates.length === 0) {
       // Free edge: bridge the gap to the nearest node of another surface's

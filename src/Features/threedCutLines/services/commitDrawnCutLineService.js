@@ -11,7 +11,7 @@ import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap"
 import collectSceneTriangles from "../js/collectSceneTriangles";
 import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
-import { findFaceNormalAt } from "../utils/findFacePlanesAt";
+import { findFaceNormalAlong } from "../utils/findFacePlanesAt";
 
 // Orchestrator of the cut line drawn in 3D (Maillage module): ordered world
 // vertices → extension of both ends along the faces of the scene
@@ -22,7 +22,7 @@ import { findFaceNormalAt } from "../utils/findFacePlanesAt";
 //     drawing vertices (toDrawingVertex); `faceNormal` of the first / last
 //     vertex (the face under the cursor when it was placed, facing the
 //     camera) is the face the extension starts on. Without one, the scene
-//     face holding the vertex (findFaceNormalAt, 5 mm) is used; no face at
+//     face holding the vertex (findFaceNormalAlong, 5 mm) is used; no face at
 //     all → that end is not extended.
 //   - encoding (encodeCutLineRefs): annotation.offsetZ = lowest vertex,
 //     per-ref offsetBottom; ONE db.points row per vertex, never shared (a
@@ -72,16 +72,20 @@ export default async function commitDrawnCutLineService({
   // The face under the cursor first; an end placed on the plan (no
   // annotation face under the cursor, e.g. at the foot of a wall) falls back
   // to the scene face holding it, as the rebuild does.
-  const faceOf = (v) =>
-    v?.faceNormal
-      ? { normal: v.faceNormal }
-      : v
-        ? findFaceNormalAt(triangles, v)
-        : null;
+  const last = verticesInOrder.length - 1;
+  const faceOf = (i, j) => {
+    const v = verticesInOrder[i];
+    if (v?.faceNormal) return { normal: v.faceNormal };
+    return findFaceNormalAlong(triangles, drawn[i], {
+      x: drawn[i].x - drawn[j].x,
+      y: drawn[i].y - drawn[j].y,
+      z: drawn[i].z - drawn[j].z,
+    });
+  };
   const extended = extendCutLine({
     drawn,
-    startFace: faceOf(verticesInOrder[0]),
-    endFace: faceOf(verticesInOrder[verticesInOrder.length - 1]),
+    startFace: faceOf(0, 1),
+    endFace: faceOf(last, last - 1),
     triangles,
     // Plan the line is drawn on: an end arriving at the foot of a sheet
     // climbs it in the vertical plane of the segment.

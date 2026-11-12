@@ -22,7 +22,7 @@ export default function ToolbarEditCutLine({ annotation }) {
 
   const recomputeS = "Recalculer le prolongement";
   const doneS = "Prolongement recalculé";
-  const failedS = "Prolongement impossible (aucune face sous les extrémités)";
+  const failedS = "Aucun prolongement trouvé";
 
   // data
 

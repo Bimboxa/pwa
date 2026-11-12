@@ -343,3 +343,48 @@ test("over a solid standing past the slab edge: down its back, never back under 
     P(2, 5.2, 0),
   ]);
 });
+
+// User case 2026-11-12: a cut line drawn down a wall sheet (Z axis tool) to
+// its foot, a slab leaving that foot on the viewer's side only. The only way
+// on is perpendicular to the drawn direction.
+test("line drawn down a sheet to its foot: the start turns onto the slab leaving the foot", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 5, 0), P(2, 5, 3)],
+    startFace: SHEET_FACE,
+    endFace: SHEET_FACE,
+    triangles: [...slab({ size: 5 }), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points, [P(2, 0, 0), P(2, 5, 0), P(2, 5, 3)]);
+  assert.equal(r.derivedStart, 1);
+  assert.equal(r.derivedEnd, 0);
+});
+
+test("line drawn down a sheet to its foot: a slab 1 mm above the foot and a line 2 mm off the sheet still extend", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 4.998, 0), P(2, 4.998, 3)],
+    startFace: SHEET_FACE,
+    endFace: SHEET_FACE,
+    triangles: [...slab({ size: 5, z: 0.001 }), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  // Slab edge above the foot (the 1 mm step), then the slab's far edge.
+  nearPoints(r.points, [
+    P(2, 0, 0.001),
+    P(2, 5, 0.001),
+    P(2, 4.998, 0),
+    P(2, 4.998, 3),
+  ]);
+  assert.equal(r.derivedStart, 2);
+});
+
+test("line drawn down a sheet standing in the middle of a slab: the start takes the viewer's side (re-entrant turn)", () => {
+  const r = extendCutLine({
+    drawn: [P(2, 5, 0), P(2, 5, 3)],
+    startFace: SHEET_FACE,
+    endFace: SHEET_FACE,
+    triangles: [...slab(), ...sheet()],
+    upNormal: P(0, 0, 1),
+  });
+  nearPoints(r.points, [P(2, 0, 0), P(2, 5, 0), P(2, 5, 3)]);
+});

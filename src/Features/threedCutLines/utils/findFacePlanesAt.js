@@ -28,6 +28,29 @@ export function findFaceNormalAt(triangles, p) {
   return planes.length ? { normal: planes[0].normal } : null;
 }
 
+// Face a cut line end starts its extension on when the end direction is
+// known: among the faces holding `p`, the one the end segment LIES on (the
+// smallest |direction · normal|), the nearest on a tie. At the foot of a wall
+// a line drawn down the wall gets the wall, not the slab under its end
+// point. Returns { normal } or null.
+export function findFaceNormalAlong(triangles, p, direction) {
+  const planes = findFacePlanesAt(triangles, p);
+  if (!planes.length) return null;
+  const len = direction ? Math.sqrt(dot(direction, direction)) : 0;
+  if (len < 1e-12) return { normal: planes[0].normal };
+  let best = null;
+  for (const plane of planes) {
+    const across = Math.abs(dot(direction, plane.normal)) / len;
+    if (!best || across < best.across - 1e-6) best = { across, plane };
+  }
+  return { normal: best.plane.normal };
+}
+
+// A point within this distance (m) outside an edge still belongs to the
+// triangle: an end placed on the boundary of a face comes back a few µm off
+// after the round trip through the stored coordinates.
+const EDGE_MARGIN_M = 1e-3;
+
 function pointInTriangle(p, t) {
   const v0 = sub(t.c, t.a);
   const v1 = sub(t.b, t.a);
@@ -41,5 +64,16 @@ function pointInTriangle(p, t) {
   if (Math.abs(denom) < 1e-14) return false;
   const u = (d11 * d20 - d01 * d21) / denom;
   const v = (d00 * d21 - d01 * d20) / denom;
-  return u >= -1e-6 && v >= -1e-6 && u + v <= 1 + 1e-6;
+  // Barycentric coordinate × height over the opposite edge = distance to
+  // that edge (in the triangle's plane).
+  const twiceArea = Math.sqrt(denom);
+  const v2c = sub(t.c, t.b);
+  const hu = twiceArea / Math.sqrt(d11);
+  const hv = twiceArea / Math.sqrt(d00);
+  const hw = twiceArea / Math.sqrt(dot(v2c, v2c));
+  return (
+    u * hu >= -EDGE_MARGIN_M &&
+    v * hv >= -EDGE_MARGIN_M &&
+    (1 - u - v) * hw >= -EDGE_MARGIN_M
+  );
 }
