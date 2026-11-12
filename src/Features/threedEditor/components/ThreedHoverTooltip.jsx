@@ -62,6 +62,7 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
   const isMeshesModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
   );
+  const isDrawing = useSelector((s) => s.threedEditor.drawingMode.active);
   const annotations = useAnnotationsV2({
     caller: "ThreedHoverTooltip",
     enabled: true,
@@ -85,6 +86,11 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
       !selectSelectedPartIds(s)?.length
     );
   });
+
+  // No hover card while a 3D drawing is in progress: it would cover the data
+  // of the drawing itself (segment length, points). Same rule as the 2D
+  // editor, which hides its tooltip while a drawing mode is enabled.
+  if (isDrawing) return null;
 
   if (state.text) {
     return (
