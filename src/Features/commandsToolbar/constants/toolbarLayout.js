@@ -233,7 +233,8 @@ const BASE_MAPS_SECTIONS = [
 
 // « Maillage » module: the user frame group, the meshing tools (the
 // commands taking over from the bottom meshing toolbar — Features/threedMesh)
-// and the cut lines drawn to prepare the mailles (Features/threedCutLines).
+// and the cut lines drawn to prepare the mailles (Features/threedCutLines),
+// with « Déplacer » / « Tourner » carrying a cut line there.
 const MESHES_TOOLS_SECTION = {
   key: "MESHES_TOOLS",
   label: "Mailles",
@@ -242,7 +243,7 @@ const MESHES_TOOLS_SECTION = {
 const CUT_LINES_SECTION = {
   key: "CUT_LINES",
   label: "Lignes de coupe",
-  entries: ["DRAW_CUT_LINE"],
+  entries: ["DRAW_CUT_LINE", "MOVE_ANNOTATION", "ROTATE_ANNOTATION"],
 };
 const MESHES_SECTIONS = [AXES_SECTION, MESHES_TOOLS_SECTION, CUT_LINES_SECTION];
 
@@ -290,12 +291,22 @@ export function getToolbarSections(moduleKey) {
 // Sections listed by the « Commandes » dialog: the default sections, plus the
 // sections that only exist in the current module's layout (Fonds de plan,
 // Maillage) — their commands can then be searched and added to the
-// right-click shortcuts of that module.
+// right-click shortcuts of that module. A command a module section shares
+// with the default ones (« Déplacer » / « Tourner » of the Maillage cut
+// lines) is listed once, in its default section.
 export function getCommandsDialogSections(moduleKey) {
   const defaultKeys = new Set(DEFAULT_SECTIONS.map((section) => section.key));
-  const moduleOnly = getToolbarSections(moduleKey).filter(
-    (section) => !defaultKeys.has(section.key)
+  const defaultCommandKeys = new Set(
+    getLayoutCommandKeys(TOOLBAR_LAYOUTS.DEFAULT)
   );
+  const moduleOnly = getToolbarSections(moduleKey)
+    .filter((section) => !defaultKeys.has(section.key))
+    .map((section) => ({
+      ...section,
+      entries: section.entries.filter(
+        (entry) => typeof entry !== "string" || !defaultCommandKeys.has(entry)
+      ),
+    }));
   return moduleOnly.length > 0
     ? [...DEFAULT_SECTIONS, ...moduleOnly]
     : DEFAULT_SECTIONS;

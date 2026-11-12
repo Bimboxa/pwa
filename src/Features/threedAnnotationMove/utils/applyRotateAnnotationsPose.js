@@ -2,6 +2,7 @@ import {
   getGrabCopyCount,
   poseCopyGhostsRotated,
 } from "../services/moveCopyGhostsThreed";
+import getCarriedAnnotationRoot from "./getCarriedAnnotationRoot";
 
 // Poses the carried annotation roots for a rotation of `phi` (rad) about the
 // base map plane's normal (local +Z) through the pivot. Works in the base
@@ -14,8 +15,6 @@ import {
 // Shared by the overlay (mouse-driven), the keyboard angle buffer and the
 // helper's field — the single entry point of the live pose.
 export default function applyRotateAnnotationsPose(editor, grab, phi) {
-  const annotationsObjectsMap =
-    editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
   grab.currentPhi = phi;
   const copies = getGrabCopyCount(grab) > 0;
   const rootPhi = copies ? 0 : phi;
@@ -23,7 +22,7 @@ export default function applyRotateAnnotationsPose(editor, grab, phi) {
   const sin = Math.sin(rootPhi);
   const pivot = grab.pivotLocal;
   for (const id of grab.annotationIds) {
-    const root = annotationsObjectsMap[id];
+    const root = getCarriedAnnotationRoot(editor, id);
     const start = grab.rootStartPoses.get(id);
     if (!root || !start) continue;
     const dx = start.position.x - pivot.x;

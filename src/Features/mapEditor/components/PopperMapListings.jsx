@@ -2473,11 +2473,12 @@ export default function PopperMapListings() {
 
   // An armed draw, a threedEditor tool armed from « Outils de dessin »
   // (Extruder / Déplacer / Tourner in the Dessin module's 3D editor), or
-  // « Ajouter une maille » in the Maillage module (the other helpers of the
-  // chain stay off there).
+  // « Ajouter une maille » / « Déplacer » / « Tourner » (a cut line) in the
+  // Maillage module (the other helpers of the chain stay off there).
   if (
     (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) ||
-    isMeshCreate
+    isMeshCreate ||
+    (isMeshesModule && activeThreedTool)
   ) {
     return <PopperDrawingHelper />;
   }

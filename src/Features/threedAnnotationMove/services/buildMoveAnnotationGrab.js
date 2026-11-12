@@ -4,6 +4,7 @@ import {
   getRevolutionFollowerSubtrees,
 } from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
 
+import getCarriedAnnotationRoot from "../utils/getCarriedAnnotationRoot";
 import { setMoveAnnotationGrab } from "./moveAnnotationSessionStore";
 
 const ZERO_DELTA = { x: 0, y: 0, z: 0 };
@@ -23,16 +24,15 @@ export default function buildMoveAnnotationGrab({
   group,
   snapPosition,
   isRevolutionAxis = false,
+  isCutLine = false,
   copyBuffer = "",
   annotations,
 }) {
-  const annotationsObjectsMap =
-    editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
   const roots = [];
   const rootStartPoses = new Map();
   const carriedIds = [];
   for (const id of annotationIds) {
-    const root = annotationsObjectsMap[id];
+    const root = getCarriedAnnotationRoot(editor, id);
     if (!root) {
       // Not built in 3D (async load) — can't preview it, leave it out.
       console.warn("[threedAnnotationMove] no 3D object for", id);
@@ -74,6 +74,9 @@ export default function buildMoveAnnotationGrab({
     startWorld: snapPosition.clone(),
     startLocal: { x: startLocal.x, y: startLocal.y, z: startLocal.z },
     isRevolutionAxis,
+    // A cut line (Maillage module): carried alone, committed by its own
+    // rebuild services (Features/threedCutLines).
+    isCutLine,
     followers,
     rootStartPoses,
     targetVerts,
@@ -93,10 +96,8 @@ export default function buildMoveAnnotationGrab({
 // they become drop targets) — the carried roots stay excluded.
 export function refreshMoveAnnotationGrabTargets(editor, grab) {
   if (!grab) return;
-  const annotationsObjectsMap =
-    editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
   const roots = grab.annotationIds
-    .map((id) => annotationsObjectsMap[id])
+    .map((id) => getCarriedAnnotationRoot(editor, id))
     .filter(Boolean);
   const { verts, adjacency } = buildIndex(editor?.sceneManager?.scene, {
     excludeSubtrees: [
