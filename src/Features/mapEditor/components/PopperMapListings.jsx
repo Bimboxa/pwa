@@ -1903,6 +1903,11 @@ export default function PopperMapListings() {
     expandBlockInstances: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
+    // Viewer 2D: the listings deactivated in the drawing modules
+    // (listings.hiddenListingsIds) are out of the legend and its counters,
+    // like in 3D. The legend's own eyes (template eyes) come on top: they
+    // only toggle the visibility.
+    ...(isViewer2d ? { excludeListingsIds: hiddenListingsIds } : {}),
     ...(mirrors3dFilters
       ? {
           extraBaseMapIds,
@@ -2272,6 +2277,7 @@ export default function PopperMapListings() {
     filterBySelectedScope: true,
     keepHiddenTemplates: true,
     annotationTemplates,
+    ...(isViewer2d ? { excludeListingsIds: hiddenListingsIds } : {}),
     ...(mirrors3dFilters
       ? {
           extraBaseMapIds,

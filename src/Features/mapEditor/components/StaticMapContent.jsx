@@ -79,6 +79,9 @@ function StaticMapContent({
   baseMapOverlays,
   // Viewer / Infos modules: the overlaid base maps keep their colors
   keepOverlayColors = false,
+  // ... and their images follow the global image mode ({ hideImage, opacity,
+  // grayScale }, see resolveBaseMapImageDisplay)
+  overlayImageDisplay,
 }) {
   // data
 
@@ -460,6 +463,7 @@ function StaticMapContent({
           spriteImage={spriteImage}
           sizeVariant={sizeVariant}
           keepOriginalColors={keepOverlayColors}
+          imageDisplay={overlayImageDisplay}
         />
 
         {/* --- SOLO GHOSTS ---

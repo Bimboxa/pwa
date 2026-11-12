@@ -29,6 +29,9 @@ export default memo(function NodeBaseMapOverlay({
   matrix,
   matrixStr,
   showImage,
+  // image display (global image mode, consultation modules)
+  imageOpacity,
+  imageGrayScale = false,
   annotations,
   // scale of the host group (basePose.k)
   hostContainerK = 1,
@@ -73,6 +76,8 @@ export default memo(function NodeBaseMapOverlay({
             dataNodeId={imageNodeId}
             width={version.image.imageSize.width}
             height={version.image.imageSize.height}
+            opacity={imageOpacity}
+            grayScale={imageGrayScale}
           />
         </g>
       )}
@@ -82,6 +87,8 @@ export default memo(function NodeBaseMapOverlay({
           dataNodeId={imageNodeId}
           width={imageSize.width}
           height={imageSize.height}
+          opacity={imageOpacity}
+          grayScale={imageGrayScale}
         />
       )}
 

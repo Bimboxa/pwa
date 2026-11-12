@@ -8,6 +8,7 @@ import getOverlayAnnotationNodeAtPoint from "../utils/getOverlayAnnotationNodeAt
 import { OVERLAY_WRAPPER_ATTRIBUTE } from "../constants/baseMapOverlayConstants";
 
 const TOOLTIP_OFFSET_PX = 15;
+const IMAGE_NODE_TYPES = new Set(["BASE_MAP", "BASE_MAP_VERSION", "BG_IMAGE"]);
 
 // Hover tooltip of the annotations of the base maps overlaid on the main one
 // (consultation modules). The overlays are not pointer-interactive, so the
@@ -65,7 +66,10 @@ export default function OverlayAnnotationsTooltip({ overlays }) {
         `[${OVERLAY_WRAPPER_ATTRIBUTE}]`
       )?.ownerSVGElement;
       if (!svg || !target?.closest || !svg.contains(target)) return false;
-      if (target.closest("[data-node-type]")) return false;
+      // The main base map IMAGE is a node too (BASE_MAP, BASE_MAP_VERSION,
+      // BG_IMAGE) and lies under everything: only the other nodes win.
+      const nodeType = target.closest("[data-node-type]")?.dataset.nodeType;
+      if (nodeType && !IMAGE_NODE_TYPES.has(nodeType)) return false;
       if (target.closest('[data-interaction="ui-overlay"]')) return false;
       return true;
     };

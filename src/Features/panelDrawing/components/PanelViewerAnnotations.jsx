@@ -85,6 +85,12 @@ export default function PanelViewerAnnotations({ header }) {
     withQties: true,
     // block instances count as copies of their block's members
     expandBlockInstances: true,
+    // 2D, base map scope: the listings deactivated in the drawing modules
+    // (listings.hiddenListingsIds) are out of the legend and its quantities,
+    // like in 3D and like the popper's legend.
+    ...(!isThreedEditor && !isAllScope
+      ? { excludeListingsIds: hiddenListingsIds }
+      : {}),
     ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,
@@ -102,6 +108,9 @@ export default function PanelViewerAnnotations({ header }) {
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     keepHiddenTemplates: true,
+    ...(!isThreedEditor && !isAllScope
+      ? { excludeListingsIds: hiddenListingsIds }
+      : {}),
     ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,

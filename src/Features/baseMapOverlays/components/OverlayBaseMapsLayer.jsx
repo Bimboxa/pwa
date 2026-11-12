@@ -41,6 +41,9 @@ export default memo(function OverlayBaseMapsLayer({
   spriteImage,
   sizeVariant,
   keepOriginalColors = false,
+  // display of the overlaid IMAGES ({ hideImage, opacity, grayScale }) — the
+  // global image mode in the consultation modules, none otherwise
+  imageDisplay,
 }) {
   // data
 
@@ -71,7 +74,9 @@ export default memo(function OverlayBaseMapsLayer({
           baseMap={overlay.baseMap}
           matrix={overlay.matrix}
           matrixStr={overlay.matrixStr}
-          showImage={overlay.showImage}
+          showImage={overlay.showImage && !imageDisplay?.hideImage}
+          imageOpacity={imageDisplay?.opacity}
+          imageGrayScale={imageDisplay?.grayScale}
           annotations={overlay.annotations}
           hostContainerK={hostContainerK}
           visibleViewBox={
