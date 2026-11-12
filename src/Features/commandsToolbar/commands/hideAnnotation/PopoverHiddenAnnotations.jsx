@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import {
   clearHiddenAnnotations,
+  selectHiddenRegistryCount,
   setShowHidden,
   unhideAnnotations,
   unhideMesh3dFace,
@@ -53,17 +54,22 @@ export default function PopoverHiddenAnnotations({ open, anchorEl, onClose }) {
     (s) => s.hiddenAnnotations.facesByAnnotationId
   );
   const showHidden = useSelector((s) => s.hiddenAnnotations.showHidden);
+  const count = useSelector(selectHiddenRegistryCount);
 
   const rowIds = useMemo(
     () => [...new Set([...annotationIds, ...Object.keys(facesByAnnotationId)])],
     [annotationIds, facesByAnnotationId]
   );
   const rowIdsKey = rowIds.join(",");
-  const annotations = useLiveQuery(async () => {
-    if (!open || !rowIds.length) return [];
+  // the result carries the ids it was loaded for: useLiveQuery keeps the
+  // previous result while a new query runs, and the rows must wait for theirs
+  const loaded = useLiveQuery(async () => {
+    if (!open || !rowIds.length) return { key: rowIdsKey, annotations: [] };
     const rows = await db.annotations.bulkGet(rowIds);
-    return rows.filter(Boolean);
+    return { key: rowIdsKey, annotations: rows.filter(Boolean) };
   }, [open, rowIdsKey]);
+  const isLoaded = loaded?.key === rowIdsKey;
+  const annotations = loaded?.annotations;
   const templates = useAnnotationTemplates({ skip: !open });
 
   // helpers
@@ -79,6 +85,7 @@ export default function PopoverHiddenAnnotations({ open, anchorEl, onClose }) {
 
   // { key, annotationId, faceKey?, label, template }
   const rows = useMemo(() => {
+    if (!isLoaded) return [];
     const describe = (annotationId) => {
       const annotation = annotationsById.get(annotationId);
       const template = templatesById.get(annotation?.annotationTemplateId);
@@ -114,8 +121,13 @@ export default function PopoverHiddenAnnotations({ open, anchorEl, onClose }) {
       }
     );
     return result;
-  }, [annotationIds, facesByAnnotationId, annotationsById, templatesById]);
-  const count = rows.length;
+  }, [
+    isLoaded,
+    annotationIds,
+    facesByAnnotationId,
+    annotationsById,
+    templatesById,
+  ]);
 
   // handlers
 
