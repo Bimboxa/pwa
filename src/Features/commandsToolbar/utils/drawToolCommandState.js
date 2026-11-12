@@ -45,10 +45,33 @@ export function getToolGroupState(ctx, toolType) {
   return { enabled: true };
 }
 
+// « Déplacer » / « Tourner » in the Maillage module's 3D editor: the tools
+// carry a cut line there (Features/threedCutLines), whatever the drawing
+// tools gate says (the module has no « Outils de dessin »). Same guards as
+// the « Ligne de coupe » command.
+function getMeshesTransformToolState(ctx, activeKeys) {
+  if (ctx.viewerMode) return { enabled: false, reason: ctx.readOnlyReason };
+  if (!ctx.selectedScopeId) {
+    return { enabled: false, reason: "Sélectionnez un plan de repérage" };
+  }
+  if (ctx.enabledDrawingMode) {
+    return { enabled: false, reason: DRAW_IN_PROGRESS_REASON };
+  }
+  if (ctx.activeThreedTool) {
+    return activeKeys.includes(ctx.activeThreedTool)
+      ? { enabled: true, active: true }
+      : { enabled: false, reason: TOOL_IN_PROGRESS_REASON };
+  }
+  return { enabled: true };
+}
+
 // State of a threedEditor tool mode command (selectActiveThreedTool keys).
 // `activeKeys`: the mode keys the command stands for (Déplacer covers
 // MOVE_ANNOTATION and VERTEX_OFFSET).
 export function getThreedToolState(ctx, activeKeys) {
+  if (ctx.viewerKey === "MESHES") {
+    return getMeshesTransformToolState(ctx, activeKeys);
+  }
   const gate = getDrawToolsGate(ctx);
   if (gate) return gate;
   if (ctx.enabledDrawingMode) {

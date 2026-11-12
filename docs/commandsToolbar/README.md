@@ -32,7 +32,10 @@ Buttons and hotkeys share this visibility. The layout is per module
 module shows the « Repère » group, its two base map placement commands and
 « Dessiner un trait de coupe » (`DRAW_SECTION_LINE`, 2D editor, horizontal
 plans — `Features/baseMapLinks`) alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
-coupe » command (`DRAW_CUT_LINE`, `Features/threedCutLines`) alone.
+coupe » command (`DRAW_CUT_LINE`, `Features/threedCutLines`), followed by
+« Déplacer » / « Tourner » (`MOVE_ANNOTATION` / `ROTATE_ANNOTATION`, which
+carry a cut line there — `getThreedToolState` has a MESHES branch that skips
+the drawing tools gate) alone.
 `DEFAULT_LAYOUT` is ordered by tool family, from the scene context to
 the quality tools: « Repère » → base map placement → draw (the templateless
 types, then the revolution axis) → lines in a surface → cuts (opening,

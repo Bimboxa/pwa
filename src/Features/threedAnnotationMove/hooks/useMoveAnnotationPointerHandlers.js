@@ -13,6 +13,9 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import commitCutLineTransformService from "Features/threedCutLines/services/commitCutLineTransformService";
+import createCutLineCopiesService from "Features/threedCutLines/services/createCutLineCopiesService";
 import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import { restoreRevolutionFollowers } from "Features/threedEditor/js/utilsAnnotationsManager/revolutionFollowers";
@@ -34,6 +37,7 @@ import commitRevolutionAxisMoveFrom3d from "../services/commitRevolutionAxisMove
 import getCarriedAnnotationIdsFromSelection from "../utils/getCarriedAnnotationIdsFromSelection";
 import pickGrabbedAnnotationId from "../utils/pickGrabbedAnnotationId";
 import { isTransformable3dType } from "../utils/annotationTransformTypes";
+import { restoreCarriedRootPoses } from "../utils/getCarriedAnnotationRoot";
 import applyMoveAnnotationsPose, {
   computeMoveDeltaLocal,
 } from "../utils/applyMoveAnnotationsPose";
@@ -76,15 +80,7 @@ function restoreCarriedAnnotations() {
   if (!grab) return;
   const editor = getActiveThreedEditor();
   disposeCopyGhosts(grab);
-  const annotationsObjectsMap =
-    editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
-  for (const id of grab.annotationIds) {
-    const root = annotationsObjectsMap[id];
-    const start = grab.rootStartPoses.get(id);
-    if (!root || !start) continue;
-    root.position.copy(start.position);
-    root.rotation.z = start.rotZ;
-  }
+  restoreCarriedRootPoses(editor, grab);
   restoreRevolutionFollowers(grab.followers);
   editor?.renderScene?.();
   clearMoveAnnotationGrab();
@@ -100,6 +96,10 @@ function restoreCarriedAnnotations() {
 // annotation alone; 2nd click drops — the new 2D point coordinates are
 // written back to db.points (commitAnnotationsTransformFrom3d). Esc cancels
 // the in-progress move, or exits the mode when nothing is grabbed.
+// Maillage (MESHES) module: the tool carries a cut line, and only that
+// (Features/threedCutLines) — one line at a time, its drop rebuilt on the
+// scene like a segment drag (commitCutLineTransformService), its copies
+// written by createCutLineCopiesService.
 // Typed buffer while carrying (`<distance>[*<copies>]`): digits constrain
 // the distance along the current direction; `*` + digits ("*3") keep the
 // originals in place and preview N copies (moveCopyGhostsThreed), the drop
@@ -124,11 +124,16 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
 
-  // MAP-module-only mode: force-deactivate on module switch (the pointer
-  // effect's cleanup restores the carried poses).
+  // Base map rows — the host of a carried cut line (its rebuild).
+  const baseMaps = useBaseMaps()?.value;
+  const baseMapsRef = useRef(baseMaps);
+  baseMapsRef.current = baseMaps;
+
+  // Dessin (MAP) and Maillage (MESHES) modules only: force-deactivate on
+  // module switch (the pointer effect's cleanup restores the carried poses).
   const moduleKey = useSelector((s) => s.viewers.selectedViewerKey);
   useEffect(() => {
-    if (active && moduleKey !== "MAP") {
+    if (active && moduleKey !== "MAP" && moduleKey !== "MESHES") {
       dispatch(setMoveAnnotationModeActive(false));
     }
   }, [active, moduleKey, dispatch]);
@@ -155,8 +160,28 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) isDragging = true;
     }
 
-    // Types the 3D move carries: point tracings and imported 3D objects.
-    const isCarriableType = (type) => isTransformable3dType("MOVE", type);
+    const isMeshesModule = () =>
+      store.getState().viewers.selectedViewerKey === "MESHES";
+
+    // Types the 3D move carries: point tracings and imported 3D objects —
+    // in the Maillage module, a cut line only.
+    const isCarriableType = (type) =>
+      isMeshesModule()
+        ? type === "CUT_LINE"
+        : isTransformable3dType("MOVE", type);
+
+    const getBaseMapRow = (baseMapId) =>
+      (baseMapsRef.current || []).find((b) => b.id === baseMapId) ?? null;
+
+    function toastCutLineRefused() {
+      dispatch(
+        setToaster({
+          message:
+            "Ligne de coupe non modifiée : un point sort du fond de plan",
+          severity: "warning",
+        })
+      );
+    }
 
     function grabAtSnap(snap) {
       let resolved = resolveAnnotationFromSnap(editor, snap);
@@ -197,7 +222,11 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       // A revolution axis is moved alone: the move re-positions it on its
       // origin base map, altitude included on a real snap
       // (commitRevolutionAxisMoveFrom3d).
-      const isRevolutionAxis = resolved.annotationType === "REVOLUTION_AXIS";
+      const isRevolutionAxis =
+        !isMeshesModule() && resolved.annotationType === "REVOLUTION_AXIS";
+      // A cut line (Maillage module) is carried alone too, with its own
+      // commit (commitCutLineTransformService).
+      const isCutLine = resolved.annotationType === "CUT_LINE";
       if (resolved.annotationType === "REVOLUTION_AXIS_PLACEMENT") {
         // The inverted T is the axis's clone POSING its vertical map: it
         // moves with the map, through the base map tool.
@@ -213,14 +242,16 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       if (!isRevolutionAxis && !isCarriableType(resolved.annotationType)) {
         dispatch(
           setToaster({
-            message: "Ce type d'annotation ne peut pas être déplacé ici",
+            message: isMeshesModule()
+              ? "Dans le module Maillage, seule une ligne de coupe peut être déplacée"
+              : "Ce type d'annotation ne peut pas être déplacé ici",
             severity: "warning",
           })
         );
         return;
       }
 
-      const annotationIds = isRevolutionAxis
+      let annotationIds = isRevolutionAxis
         ? [resolved.annotationId]
         : getCarriedAnnotationIdsFromSelection({
             grabbed: resolved,
@@ -230,6 +261,8 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
             isCarriableType,
           });
       if (!annotationIds.length) return;
+      // One cut line at a time: the grabbed one.
+      if (isCutLine) annotationIds = [resolved.annotationId];
 
       // Ownership: every carried annotation must be editable (the check
       // toasts on refusal).
@@ -253,6 +286,7 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         group: resolved.group,
         snapPosition: snap.position,
         isRevolutionAxis,
+        isCutLine,
         copyBuffer,
         annotations: annotationsRef.current,
       });
@@ -334,31 +368,51 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       const { meterByPx, imageWidth, imageHeight } = metrics;
       let newAnnotationIds = [];
       try {
-        const result = await createTransformedAnnotationCopiesService({
-          annotations: (annotationsRef.current ?? []).filter((a) =>
-            grab.annotationIds.includes(a.id)
-          ),
-          transform: {
-            kind: "MOVE",
-            deltaPx: { x: delta.x / meterByPx, y: -delta.y / meterByPx },
-            deltaZ: delta.z,
-          },
-          count,
-          imageSize: { width: imageWidth, height: imageHeight },
-          projectId: store.getState().projects.selectedProjectId,
-          activeLayerId: store.getState().layers?.activeLayerId,
-          dispatch,
-        });
-        newAnnotationIds = result?.newAnnotationIds ?? [];
+        if (grab.isCutLine) {
+          // Each copy is a new cut line, extended on the scene on its own.
+          const result = await createCutLineCopiesService({
+            editor,
+            annotationId: grab.annotationIds[0],
+            baseMap: getBaseMapRow(grab.baseMapId),
+            transform: { kind: "MOVE", delta },
+            count,
+            dispatch,
+          });
+          newAnnotationIds = result.newAnnotationIds;
+          if (result.skippedCount > 0) toastCutLineRefused();
+        } else {
+          const result = await createTransformedAnnotationCopiesService({
+            annotations: (annotationsRef.current ?? []).filter((a) =>
+              grab.annotationIds.includes(a.id)
+            ),
+            transform: {
+              kind: "MOVE",
+              deltaPx: { x: delta.x / meterByPx, y: -delta.y / meterByPx },
+              deltaZ: delta.z,
+            },
+            count,
+            imageSize: { width: imageWidth, height: imageHeight },
+            projectId: store.getState().projects.selectedProjectId,
+            activeLayerId: store.getState().layers?.activeLayerId,
+            dispatch,
+          });
+          newAnnotationIds = result?.newAnnotationIds ?? [];
+        }
       } catch (err) {
         console.error("[threedAnnotationMove] copies persist failed", err);
       }
-      holdCopyGhostsUntilBuilt(editor, ghostsHolder, newAnnotationIds, () => {
-        // The written copies are built: they become drop targets of the
-        // surviving grab.
-        if (repeat && getMoveAnnotationGrab() === grab)
-          refreshMoveAnnotationGrabTargets(editor, grab);
-      });
+      holdCopyGhostsUntilBuilt(
+        editor,
+        ghostsHolder,
+        newAnnotationIds,
+        () => {
+          // The written copies are built: they become drop targets of the
+          // surviving grab.
+          if (repeat && getMoveAnnotationGrab() === grab)
+            refreshMoveAnnotationGrabTargets(editor, grab);
+        },
+        { cutLines: Boolean(grab.isCutLine) }
+      );
       if (newAnnotationIds.length) dispatch(bumpSnapIndexEpoch());
     }
 
@@ -377,8 +431,9 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         lengthM: getGrabMoveLength(grab),
       });
       // « Recommencer à chaque clic »: the moved annotations are grabbed
-      // again at the destination once rebuilt (the buffer is kept).
-      const rearm = isRepeatOn() && Boolean(delta);
+      // again at the destination once rebuilt (the buffer is kept) — not a
+      // cut line (rebuilt by its own renderer, with new point rows).
+      const rearm = isRepeatOn() && Boolean(delta) && !grab.isCutLine;
       clearMoveAnnotationGrab();
       dispatch(setMoveAnnotationCarriedIds([]));
       if (!rearm) dispatch(setMoveAnnotationCopyBuffer(""));
@@ -392,6 +447,20 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
             deltaLocal: delta,
             dispatch,
           });
+        } else if (grab.isCutLine) {
+          const written = await commitCutLineTransformService({
+            editor,
+            annotationId: grab.annotationIds[0],
+            baseMap: getBaseMapRow(grab.baseMapId),
+            transform: { kind: "MOVE", delta },
+            dispatch,
+          });
+          if (!written) {
+            // Refused drop: the line goes back where it was.
+            restoreCarriedRootPoses(editor, grab);
+            editor?.renderScene?.();
+            toastCutLineRefused();
+          }
         } else {
           await commitAnnotationsTransformFrom3d({
             editor,
@@ -405,6 +474,10 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
         }
       } catch (err) {
         console.error("[threedAnnotationMove] persist failed", err);
+        if (grab.isCutLine) {
+          restoreCarriedRootPoses(editor, grab);
+          editor?.renderScene?.();
+        }
         return;
       }
       if (rearm) {

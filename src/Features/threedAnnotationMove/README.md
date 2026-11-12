@@ -12,7 +12,19 @@ dossier porte le câblage 3D.
 | Tourner  | `threedEditor.rotateAnnotationMode` | `RotateAnnotationOverlayThreed` | `useRotateAnnotationPointerHandlers` |
 
 Les modes sont mutuellement exclusifs avec les autres outils 3D (slice
-`threedEditor`) et forcés à `false` hors du module `MAP`.
+`threedEditor`) et forcés à `false` hors des modules `MAP` et `MESHES`.
+
+**Module Maillage (`MESHES`)** : les deux outils n'emportent qu'une **ligne
+de coupe** (`CUT_LINE`, `Features/threedCutLines`), une à la fois
+(`grab.isCutLine`, sur le modèle de `isRevolutionAxis`). Sa racine 3D n'est
+pas dans `annotationsObjectsMap` : `utils/getCarriedAnnotationRoot` la
+résout par id (objet de l'AnnotationsManager, sinon groupe publié dans
+`cutLineObjectsStore`). Le commit ne passe jamais par
+`commitAnnotationsTransformFrom3d` : `commitCutLineTransformService`
+(déplacement / rotation, prolongement recalculé) et
+`createCutLineCopiesService` (copie multiple), fantômes via
+`buildCutLineGhostObject`. Pas de re-saisie « Recommencer à chaque clic »
+après un déplacement simple d'une ligne de coupe.
 
 ## Déplacer
 

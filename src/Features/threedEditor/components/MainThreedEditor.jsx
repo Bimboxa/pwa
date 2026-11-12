@@ -510,7 +510,8 @@ export default function MainThreedEditor() {
   // drawing mode ends — otherwise the meshing tools would stay inert until
   // the user leaves and re-enters the module. Same for the frame placement
   // and the base map move / rotate commands of the toolbar (3D modes the
-  // slice excludes from meshing too).
+  // slice excludes from meshing too), and for « Déplacer » / « Tourner »
+  // carrying a cut line.
   const axesPlacementModeActive = useSelector(
     (s) => s.threedEditor.axesPlacementMode.active
   );
@@ -519,12 +520,22 @@ export default function MainThreedEditor() {
       s.threedEditor.moveBaseMapMode.active ||
       s.threedEditor.rotateBaseMapMode.active
   );
+  const annotationPoseModeActive = useSelector(
+    (s) =>
+      s.threedEditor.moveAnnotationMode.active ||
+      s.threedEditor.rotateAnnotationMode.active
+  );
   useEffect(() => {
     if (!isMeshesViewer) {
       dispatch(setMeshingModeActive(false));
       return;
     }
-    if (!drawingActive && !axesPlacementModeActive && !baseMapPoseModeActive) {
+    if (
+      !drawingActive &&
+      !axesPlacementModeActive &&
+      !baseMapPoseModeActive &&
+      !annotationPoseModeActive
+    ) {
       dispatch(setMeshingModeActive(true));
     }
   }, [
@@ -532,6 +543,7 @@ export default function MainThreedEditor() {
     drawingActive,
     axesPlacementModeActive,
     baseMapPoseModeActive,
+    annotationPoseModeActive,
     dispatch,
   ]);
 

@@ -9,6 +9,11 @@ import {
   parseCopyCount,
   parseMoveLength,
 } from "Features/annotationTransform/utils/copyBuffer";
+import buildCutLineGhostObject from "Features/threedCutLines/js/buildCutLineGhostObject";
+import {
+  getCutLineObjects,
+  subscribeCutLineObjects,
+} from "Features/threedCutLines/services/cutLineObjectsStore";
 
 // « Copie multiple » ghosts of the 3D « Déplacer » / « Tourner » tools: one
 // fresh 3D object per (copy, carried annotation), built from the resolved
@@ -17,6 +22,9 @@ import {
 // root: Object3D.copy serialises userData, which holds materials and dispose
 // callbacks, and fat lines would leak their constructor defaults). The
 // ghosts own their geometry and materials, so disposeObject is safe.
+// A carried cut line (grab.isCutLine, Maillage module) is no
+// AnnotationsManager object: its ghost is the rendered line's visible run
+// (buildCutLineGhostObject).
 //
 // A ghost is a child of the base map group (local metre frame), posed from
 // the carried root's grab-time pose: + i × delta (poseCopyGhosts, move) or
@@ -71,15 +79,22 @@ export function buildCopyGhosts(editor, grab, annotations) {
       const startPose = grab.rootStartPoses.get(annotationId);
       const start = startPose?.position;
       const annotation = annotations?.find((a) => a.id === annotationId);
-      if (!start || !annotation) continue;
+      if (!start || (!annotation && !grab.isCutLine)) continue;
       let object = null;
       try {
-        object = createAnnotationObject3D(annotation, metrics, {
-          resolution,
-          // Async builders (OBJECT_3D: the GLB is parsed again for the
-          // ghost): draw the ghost as soon as its model lands.
-          onAsyncLoaded: () => editor?.renderScene?.(),
-        });
+        object = grab.isCutLine
+          ? buildCutLineGhostObject({
+              annotationId,
+              parentGroup: group,
+              resolution,
+              color: annotation?.strokeColor,
+            })
+          : createAnnotationObject3D(annotation, metrics, {
+              resolution,
+              // Async builders (OBJECT_3D: the GLB is parsed again for the
+              // ghost): draw the ghost as soon as its model lands.
+              onAsyncLoaded: () => editor?.renderScene?.(),
+            });
       } catch (err) {
         console.warn("[threedAnnotationMove] copy ghost build failed", err);
       }
@@ -138,11 +153,14 @@ export function poseCopyGhostsRotated(grab, phi) {
 // ARRAYS of ids), or the fallback delay. Takes the ghosts over from the grab.
 // onReleased (optional) runs once the ghosts are released — the copies are
 // built (or given up on): a surviving grab refreshes its drop targets.
+// options.cutLines: the copies are cut lines — built by
+// ThreedCutLineAnnotations, awaited on cutLineObjectsStore instead.
 export function holdCopyGhostsUntilBuilt(
   editor,
   grab,
   newAnnotationIds,
-  onReleased
+  onReleased,
+  options = {}
 ) {
   const ghosts = grab?.ghosts ?? [];
   grab.ghosts = [];
@@ -166,13 +184,21 @@ export function holdCopyGhostsUntilBuilt(
     editor?.renderScene?.();
   };
 
-  if (!pending.size || !annotationsManager?.subscribeAnnotationReady) {
+  if (
+    !pending.size ||
+    (!options.cutLines && !annotationsManager?.subscribeAnnotationReady)
+  ) {
     release();
     return;
   }
-  unsubscribe = annotationsManager.subscribeAnnotationReady((ids) => {
+  const onReady = (ids) => {
     for (const id of ids) pending.delete(id);
     if (!pending.size) release();
-  });
+  };
+  unsubscribe = options.cutLines
+    ? subscribeCutLineObjects(() =>
+        onReady(getCutLineObjects().map((entry) => entry.annotationId))
+      )
+    : annotationsManager.subscribeAnnotationReady(onReady);
   timer = setTimeout(release, HOLD_FALLBACK_MS);
 }
