@@ -25,7 +25,7 @@ import {
   PhotoCamera,
   PhotoLibrary,
   AccountTree,
-  Forum,
+  Info,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -171,9 +171,9 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
     },
     {
       key: "COMMENTS",
-      label: "Commentaires",
-      shortLabel: "Commentaires",
-      icon: <Forum />,
+      label: "Infos",
+      shortLabel: "Infos",
+      icon: <Info />,
       bgcolor: theme.palette.viewers.comments,
       // No hotkey: Ctrl+C stays Copy everywhere.
       // Free comments guiding the reading of a shared Krto

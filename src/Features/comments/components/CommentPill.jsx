@@ -45,7 +45,7 @@ const CommentPill = forwardRef(function CommentPill(
           fontVariantNumeric: "tabular-nums",
           border: "1.5px solid",
           borderColor: active
-            ? COMMENT_COLORS.accent
+            ? COMMENT_COLORS.accentText
             : COMMENT_COLORS.borderStrong,
           bgcolor: active ? COMMENT_COLORS.accent : COMMENT_COLORS.surface,
           color: active ? COMMENT_COLORS.accentContrast : COMMENT_COLORS.text,
@@ -53,14 +53,14 @@ const CommentPill = forwardRef(function CommentPill(
           transition:
             "background-color 0.12s, border-color 0.12s, transform 0.12s",
           "&:hover": {
-            borderColor: COMMENT_COLORS.accent,
+            borderColor: COMMENT_COLORS.accentText,
             bgcolor: active
               ? COMMENT_COLORS.accent
               : COMMENT_COLORS.surfaceRaised,
             transform: "scale(1.08)",
           },
           "&:focus-visible": {
-            outline: `2px solid ${COMMENT_COLORS.accent}`,
+            outline: `2px solid ${COMMENT_COLORS.accentText}`,
             outlineOffset: 2,
           },
           ...sx,

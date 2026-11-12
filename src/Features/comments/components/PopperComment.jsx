@@ -87,16 +87,15 @@ function CommentEditorBody({ comment, onDone }) {
 
   return (
     <>
-      <Box sx={{ flex: 1, overflow: "auto", p: 1.5 }}>
-        <CommentBlocksEditor
-          title={title}
-          blocks={blocks}
-          onTitleChange={setTitle}
-          onBlocksChange={setBlocks}
-          projectId={comment.projectId}
-          listingId={comment.listingId}
-        />
-      </Box>
+      {/* flow + composer: the editor owns its scroll area */}
+      <CommentBlocksEditor
+        title={title}
+        blocks={blocks}
+        onTitleChange={setTitle}
+        onBlocksChange={setBlocks}
+        projectId={comment.projectId}
+        listingId={comment.listingId}
+      />
       <Box
         sx={{
           flexShrink: 0,
@@ -104,8 +103,7 @@ function CommentEditorBody({ comment, onDone }) {
           alignItems: "center",
           gap: 0.75,
           px: 1.5,
-          py: 1,
-          borderTop: `1px solid ${COMMENT_COLORS.border}`,
+          pb: 1,
         }}
       >
         <Tooltip title={updateViewTitleS} arrow>
@@ -144,14 +142,14 @@ export default function PopperComment({ comments, canEdit }) {
   // strings
 
   const untitledS = "Sans titre";
-  const emptyS = "Ce commentaire n'a pas encore de contenu.";
-  const prevS = "Commentaire précédent";
-  const nextS = "Commentaire suivant";
+  const emptyS = "Cette info n'a pas encore de contenu.";
+  const prevS = "Info précédente";
+  const nextS = "Info suivante";
   const editS = "Modifier";
-  const deleteS = "Supprimer le commentaire";
-  const deleteConfirmS = "Supprimer ce commentaire ?";
+  const deleteS = "Supprimer l'info";
+  const deleteConfirmS = "Supprimer cette info ?";
   const closeS = "Fermer";
-  const locatedS = "Commentaire localisé";
+  const locatedS = "Info localisée";
 
   // data
 

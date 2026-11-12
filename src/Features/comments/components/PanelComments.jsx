@@ -48,24 +48,24 @@ export default function PanelComments() {
 
   // strings
 
-  const titleS = "Commentaires";
-  const newListingS = "Nouvelle liste de commentaires";
+  const titleS = "Infos";
+  const newListingS = "Nouvelle liste d'infos";
   const noListingS =
-    "Commencez par créer une liste de commentaires : elle regroupe les commentaires qui guideront la lecture du Krto partagé.";
+    "Commencez par créer une liste d'infos : elle regroupe les infos qui guideront la lecture du Krto partagé.";
   const createListingS = "Créer une liste";
-  const addS = "Commentaire";
-  const addLocatedS = "Commentaire localisé";
-  const addTitleS = "Ajoute un commentaire avec la vue affichée";
+  const addS = "Info";
+  const addLocatedS = "Info localisée";
+  const addTitleS = "Ajoute une info avec la vue affichée";
   const addLocatedTitleS =
-    "Ajoute un commentaire épinglé sur un point du plan ou de la vue 3D";
+    "Ajoute une info épinglée sur un point du plan ou de la vue 3D";
   const emptyS =
-    "Aucun commentaire. Cadrez la vue (2D ou 3D), puis ajoutez un commentaire : il mémorise le contexte de visualisation.";
+    "Aucune info. Cadrez la vue (2D ou 3D), puis ajoutez une info : elle mémorise le contexte de visualisation.";
   const untitledS = "Sans titre";
-  const locatedS = "Localisé";
+  const locatedS = "Localisée";
   const moveUpS = "Monter";
   const moveDownS = "Descendre";
   const deleteS = "Supprimer";
-  const deleteConfirmS = "Supprimer ce commentaire ?";
+  const deleteConfirmS = "Supprimer cette info ?";
 
   // data
 

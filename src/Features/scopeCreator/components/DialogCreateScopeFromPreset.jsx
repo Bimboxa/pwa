@@ -134,7 +134,7 @@ export default function DialogCreateScopeFromPreset({
   // carnetDetail: PORTFOLIO module + DIVERS annotation library (skipped when
   // the configuration already provides a DETAIL template);
   // portfolio: PORTFOLIO module alone;
-  // comments: COMMENTS module + first "Commentaires" listing.
+  // comments: COMMENTS module + first "Infos" listing.
   const [options, setOptions] = useState({
     dpgf: false,
     carnetDetail: false,
@@ -217,7 +217,7 @@ export default function DialogCreateScopeFromPreset({
         optionKeywords.includes("Portfolio"),
       comments:
         optionalModules.includes("COMMENTS") &&
-        optionKeywords.includes("Commentaires"),
+        optionKeywords.includes("Infos"),
     });
     setExtraBaseMapListings([]);
     setExcludedLibraryKeys([]);

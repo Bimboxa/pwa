@@ -113,9 +113,9 @@ export default function DialogKrtoRecap({
   const portfolioS = "Carnet de plans";
   const portfolioCaptionS =
     "Active le module Carnet de plans (portfolio de pages).";
-  const commentsS = "Commentaires";
+  const commentsS = "Infos";
   const commentsCaptionS =
-    "Active le module Commentaires avec une première liste — des commentaires qui guident la lecture du Krto partagé.";
+    "Active le module Infos avec une première liste — des infos qui guident la lecture du Krto partagé.";
   const baseMapsS = "Fonds de plan";
   const addS = "Ajouter un dossier";
   const createdSectionS = "Nouveaux dossiers";

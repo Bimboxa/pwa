@@ -24,7 +24,7 @@ function LayerCommentsContent() {
 
   // strings
 
-  const locateHintS = "Cliquez dans la vue pour localiser le commentaire";
+  const locateHintS = "Cliquez dans la vue pour localiser l'info";
   const locateEscS = "Échap pour annuler";
   const locateMissS =
     "Rien à localiser ici : cliquez sur le plan ou sur une surface";
@@ -98,7 +98,7 @@ function LayerCommentsContent() {
                 px: 1.5,
                 py: 0.75,
                 borderRadius: 2,
-                border: `1px solid ${COMMENT_COLORS.accent}`,
+                border: `1px solid ${COMMENT_COLORS.accentText}`,
                 bgcolor: COMMENT_COLORS.background,
                 boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
               }}

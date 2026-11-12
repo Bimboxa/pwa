@@ -242,7 +242,7 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // the recap ("DPGF" | "CARNET_DETAIL" |
   //                                 // "PORTFOLIO" | "COMMENTS" — prechecked
   //                                 // when keywords.options lists its label,
-  //                                 // e.g. "Commentaires");
+  //                                 // e.g. "Infos");
   //                                 // absent/empty => Modules section hidden
   //     imagePath,                  // card SVG, relative to Data/<orgaCode>/
   //     recapImagePath,             // recap dialog illustration (svg/png/

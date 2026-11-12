@@ -254,11 +254,11 @@ const CUT_LINES_SECTION = {
 };
 const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION, MESHES_TOOLS_SECTION];
 
-// « Commentaires » module (Features/comments): the two creation commands.
+// « Infos » module (Features/comments): the two creation commands.
 const COMMENTS_SECTIONS = [
   {
     key: "COMMENTS",
-    label: "Commentaires",
+    label: "Infos",
     entries: ["ADD_LOCATED_COMMENT", "ADD_COMMENT"],
   },
 ];

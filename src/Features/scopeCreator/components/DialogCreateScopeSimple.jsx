@@ -170,7 +170,7 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
               optionKeywords.includes("Portfolio"),
             comments:
               optionalModules.includes("COMMENTS") &&
-              optionKeywords.includes("Commentaires"),
+              optionKeywords.includes("Infos"),
           },
         });
       } else {

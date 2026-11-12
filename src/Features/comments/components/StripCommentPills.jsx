@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedCommentListingId } from "../commentsSlice";
 
 import { Box, MenuItem, Select, Tooltip } from "@mui/material";
-import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import CommentPill from "./CommentPill";
 
@@ -26,7 +26,7 @@ export default function StripCommentPills({
   // strings
 
   const untitledS = "Sans titre";
-  const listingsS = "Listes de commentaires";
+  const listingsS = "Listes d'infos";
 
   // data
 
@@ -72,7 +72,7 @@ export default function StripCommentPills({
               dispatch(setSelectedCommentListingId(e.target.value))
             }
             renderValue={() => (
-              <ForumOutlinedIcon
+              <InfoOutlinedIcon
                 sx={{ fontSize: 18, color: COMMENT_COLORS.textSecondary }}
               />
             )}
