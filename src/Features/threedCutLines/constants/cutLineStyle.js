@@ -1,6 +1,9 @@
 // Rendering + interaction constants of the cut lines (ThreedCutLineAnnotations,
 // useCutLineVertexHandlers).
 
+// Hover tooltip of a cut line (it has no template and no label of its own).
+export const CUT_LINE_LABEL = "Ligne de coupe";
+
 // Screen-space line widths (px).
 export const CUT_LINE_WIDTH_PX = 2;
 export const CUT_LINE_WIDTH_SELECTED_PX = 3;

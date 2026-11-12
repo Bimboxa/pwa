@@ -180,6 +180,7 @@ import ThreedCutLineAnnotations from "Features/threedCutLines/components/ThreedC
 import CutLineAxisOverlayThreed from "Features/threedCutLines/components/CutLineAxisOverlayThreed";
 import CutLineToolbarThreed from "Features/threedCutLines/components/CutLineToolbarThreed";
 import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import useCutLineTranslateHandlers from "Features/threedCutLines/hooks/useCutLineTranslateHandlers";
 import useCutLineVertexHandlers from "Features/threedCutLines/hooks/useCutLineVertexHandlers";
 import {
   handleCutLineClick,
@@ -744,6 +745,10 @@ export default function MainThreedEditor() {
   // Cut line vertices (Features/threedCutLines): hand cursor, click =
   // sub-selection, drag = move (Shift locks).
   useCutLineVertexHandlers({ rendererIsReady });
+  // Cut line segments: hand cursor on the selected line, drag = translate
+  // the whole line (perpendicular of the segment in its face, else a user
+  // axis).
+  useCutLineTranslateHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
 

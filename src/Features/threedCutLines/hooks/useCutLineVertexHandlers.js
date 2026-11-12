@@ -4,7 +4,6 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
-import theme from "Styles/theme";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import {
@@ -22,29 +21,21 @@ import {
   clearPendingDimensionPatch,
   setPendingDimensionPatch,
 } from "Features/threedDimensions/services/dimensionPendingPatchStore";
-import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
-import {
-  buildAxisLockLine,
-  removeAxisLockLine,
-} from "Features/threedDrawing/utils/axisLockLine";
-import {
-  buildSegments,
-  getCanvasResolution,
-  getDashSize,
-  makeLineMaterial,
-} from "Features/threedDrawing/utils/drawingOverlayLines";
+import { removeAxisLockLine } from "Features/threedDrawing/utils/axisLockLine";
 import intersectAnnotationFace from "Features/threedDrawing/utils/intersectAnnotationFace";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 
-import {
-  CUT_LINE_DRAG_THRESHOLD_PX,
-  CUT_LINE_VERTEX_PICK_PX,
-} from "../constants/cutLineStyle";
+import { CUT_LINE_DRAG_THRESHOLD_PX } from "../constants/cutLineStyle";
+import buildCutLineLockLine from "../js/buildCutLineLockLine";
 import collectSceneTriangles from "../js/collectSceneTriangles";
-import { getCutLineEntry } from "../services/cutLineObjectsStore";
+import findCutLineVertexAtClient from "../js/findCutLineVertexAtClient";
+import {
+  setCutLineDragging,
+  setCutLineGrabHover,
+} from "../services/cutLineHoverStore";
 import {
   commitCutLineRebuild,
   computeCutLineRebuild,
@@ -57,7 +48,6 @@ const DROP_VERTEX_SNAP_PX = 12;
 // |axis · face normal| under which a user axis lies in the face (Shift lock).
 const AXIS_IN_PLANE_DOT = 0.1;
 const MARKER_MATCH_EPS = 1e-6;
-const SEGMENT_AXIS_COLOR = theme.palette.secondary.fluo ?? "#ff4d00";
 
 // The vertices of the SELECTED cut line (Features/threedCutLines) in 3D:
 //   - hovering one shows the hand (grab), like the 2D vertices;
@@ -137,69 +127,22 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
 
     // The vertex of the selected cut line under the cursor (CSS px).
     function findVertexAtClient(clientX, clientY) {
-      const selectedId = getSingleSelectedAnnotationId(
-        selectSelectedItems(store.getState())
-      );
-      if (!selectedId) return null;
-      const entry = getCutLineEntry(selectedId);
-      if (!entry?.vertices?.length) return null;
-      if (entry.group?.userData?.annotationType !== "CUT_LINE") return null;
-      const rect = dom.getBoundingClientRect();
-      if (!rect.width || !rect.height) return null;
-      const camera = getCamera();
-      const tmp = new Vector3();
-      let best = null;
-      let bestSq = CUT_LINE_VERTEX_PICK_PX * CUT_LINE_VERTEX_PICK_PX;
-      for (const v of entry.vertices) {
-        // The part beyond a « Stop » is not drawn: not grabbable either.
-        if (v.hidden) continue;
-        tmp.copy(v.world).project(camera);
-        if (tmp.z < -1 || tmp.z > 1) continue;
-        const sx = rect.left + ((tmp.x + 1) / 2) * rect.width;
-        const sy = rect.top + ((1 - tmp.y) / 2) * rect.height;
-        const d2 = (sx - clientX) ** 2 + (sy - clientY) ** 2;
-        if (d2 < bestSq) {
-          bestSq = d2;
-          best = v;
-        }
-      }
-      return best ? { entry, vertex: best } : null;
+      return findCutLineVertexAtClient({
+        selectedItems: selectSelectedItems(store.getState()),
+        dom,
+        camera: getCamera(),
+        clientX,
+        clientY,
+      });
     }
 
     function buildLockLine(drag, axisKey) {
-      const camera = getCamera();
-      const axis = drag.axes.find((a) => a.key === axisKey);
-      if (!axis) return null;
-      if (axis.user) {
-        return buildAxisLockLine({
-          editor,
-          camera,
-          origin: drag.startWorld,
-          dir: axis.dir,
-          axis: axisKey,
-        });
-      }
-      // Connected segment direction: the line's own colour.
-      const distance = camera.position.distanceTo(drag.startWorld);
-      const extent = Math.max(5, distance * 2);
-      const mat = makeLineMaterial({
-        color: SEGMENT_AXIS_COLOR,
-        linewidth: 1.5,
-        dashed: true,
-        dashSize: getDashSize(distance),
-        resolution: getCanvasResolution(editor),
+      return buildCutLineLockLine({
+        editor,
+        camera: getCamera(),
+        origin: drag.startWorld,
+        axis: drag.axes.find((a) => a.key === axisKey),
       });
-      const line = buildSegments(
-        [
-          {
-            a: drag.startWorld.clone().addScaledVector(axis.dir, -extent),
-            b: drag.startWorld.clone().addScaledVector(axis.dir, extent),
-          },
-        ],
-        mat
-      );
-      if (line) line.renderOrder = 1003;
-      return line;
     }
 
     function removeLockLine(drag) {
@@ -360,6 +303,7 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
         const controls = sceneManager.controlsManager?.orbitControls;
         if (controls) controls.enabled = drag.prevControlsEnabled;
         removeLockLine(drag);
+        setCutLineDragging(false);
         dom.style.cursor = "";
         sceneManager.renderScene?.();
       }
@@ -416,6 +360,7 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
         moved: false,
         lastWorld: null,
       };
+      setCutLineDragging(true);
       dom.style.cursor = "grabbing";
 
       window.addEventListener("pointermove", onWindowPointerMove);
@@ -594,14 +539,14 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       if (blockedRef.current) {
         if (hoverRef.current) {
           hoverRef.current = false;
-          dom.style.cursor = "";
+          setCutLineGrabHover("VERTEX", false, dom);
         }
         return;
       }
       const over = Boolean(findVertexAtClient(e.clientX, e.clientY));
       if (over === hoverRef.current) return;
       hoverRef.current = over;
-      dom.style.cursor = over ? "grab" : "";
+      setCutLineGrabHover("VERTEX", over, dom);
     }
 
     dom.addEventListener("pointerdown", onPointerDown, true);
@@ -612,7 +557,7 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       endDrag();
       if (hoverRef.current) {
         hoverRef.current = false;
-        dom.style.cursor = "";
+        setCutLineGrabHover("VERTEX", false, dom);
       }
     };
   }, [rendererIsReady, store, dispatch]);

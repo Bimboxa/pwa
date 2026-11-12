@@ -11,7 +11,14 @@ import {
 import {
   handleCutLineClick,
   pickCutLine,
+  pickVisibleCutLine,
 } from "Features/threedCutLines/js/pickCutLine";
+import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
+import {
+  getCutLineGrabHover,
+  isCutLineDragging,
+} from "Features/threedCutLines/services/cutLineHoverStore";
+import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   appendToMeshingAngleBuffer,
@@ -655,13 +662,44 @@ export default function useMeshingPointerHandlers({
       rafId = null;
       const e = lastEvent;
       if (!e) return;
+      // A vertex / segment of the selected cut line is being dragged
+      // (Features/threedCutLines): that gesture owns the cursor.
+      if (isCutLineDragging()) return;
       const pick = pickScene(e);
+
+      // Cut line under the cursor (SELECT): fat lines are invisible to
+      // pickScene — the raycaster is still set from this event. Hidden
+      // behind the first face hit, it does not answer.
+      const cutLineHover =
+        tool === "SELECT" && pick
+          ? pickVisibleCutLine(raycaster, sceneManager, {
+              clippingPlane: getActiveClippingPlane(sceneManager),
+              occluderDistance: pick.intersect?.distance ?? Infinity,
+            })
+          : null;
 
       // Face highlight: mailles in every tool, annotations in SELECT /
       // CREATE (the piece delimited by the cut lines, with the tooltip).
       const annotationHover =
         (tool === "CREATE" || tool === "SELECT") && pick?.kind === "ANNOTATION";
-      if (pick?.kind === "MESH3D") {
+      if (cutLineHover) {
+        // « Ligne de coupe » tooltip — not on the line selected alone (its
+        // edit toolbar says it, and its segments show the hand instead).
+        clearStipple();
+        const selectedAlone =
+          getSingleSelectedAnnotationId(
+            selectSelectedItems(store.getState())
+          ) === cutLineHover.annotationId;
+        if (selectedAlone) {
+          clearTooltip();
+        } else {
+          tooltipApiRef?.current?.setText(
+            CUT_LINE_LABEL,
+            e.clientX - pick.rect.left + 15,
+            e.clientY - pick.rect.top + 15
+          );
+        }
+      } else if (pick?.kind === "MESH3D") {
         applyStipple(pick.intersect.object, pick.intersect.faceIndex);
         clearTooltip();
       } else if (annotationHover) {
@@ -681,7 +719,13 @@ export default function useMeshingPointerHandlers({
         updateCreateHover(e, pick);
       } else if (tool === "SELECT" || tool === "NUMBER") {
         setMeshingOverlay({ cursor: null });
-        dom.style.cursor = pick?.kind === "MESH3D" ? "pointer" : "default";
+        // The hand over a grabbable part of the selected cut line
+        // (cutLineHoverStore) wins over the pick cursors.
+        dom.style.cursor = getCutLineGrabHover()
+          ? "grab"
+          : cutLineHover || pick?.kind === "MESH3D"
+            ? "pointer"
+            : "default";
       } else {
         cutController.onHover(e, pick);
       }

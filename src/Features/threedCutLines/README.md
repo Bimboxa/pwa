@@ -114,6 +114,25 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   drawn points, derived points are replaced (a Stop on a derived point
   survives when the new trace passes within 1 cm), the line re-encoded; one
   undo step; pending patch via `dimensionPendingPatchStore`.
+- `useCutLineTranslateHandlers` (mounted next to it): on the selected line,
+  hand cursor over a segment (the vertices keep the priority,
+  `js/findCutLineVertexAtClient`); drag = translation of the WHOLE line,
+  always locked on a direction keeping every drawn point on a face
+  (`utils/getCutLineTranslateAxes`): the perpendicular of the grabbed segment
+  in the plane of the face carrying it (`n × t`, one per face on a floor /
+  wall edge), else the user axes doing so, else the user axes not along the
+  segment; several candidates → the closest to the cursor on screen
+  (`computeAxisLockSnap`), dashed guide (`js/buildCutLineLockLine`). A point
+  on no solid face counts as lying on its base map plane (the plan is not in
+  the soup). Preview = the line's group translated; Escape cancels; drop =
+  the same rebuild with every drawn point translated on a fresh row (the
+  derived part is recomputed), one undo step.
+- Hover (Maillage, SELECT tool): `useMeshingPointerHandlers.runHover` runs
+  `pickVisibleCutLine` (a line hidden behind the first face under the cursor
+  does not answer) → text tooltip « Ligne de coupe » (`CUT_LINE_LABEL`), not
+  on the line selected alone. That hover rewrites the canvas cursor on every
+  frame: `services/cutLineHoverStore` tells it to keep the hand over a
+  grabbable vertex / segment and to stand down during the two gestures.
 - `ToolbarEditCutLine` (no sub-selection): points count and « Recalculer le
   prolongement » (`reextendCutLineService`: the same rebuild from the drawn
   points, without a move).
