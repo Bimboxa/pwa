@@ -34,9 +34,13 @@ export default async function createCutPlaneLinesService({
   const result = { newAnnotationIds: [], skippedCount: 0 };
   if (!lines?.length || !baseMaps?.length || !projectId) return result;
 
-  // The draft's `cutPlane` flag arms the command: it is not a line prop.
+  // The draft's `cutPlane` / `cutPlaneKind` flags arm the command: they are
+  // not line props.
   const props = templateProps ? { ...templateProps } : null;
-  if (props) delete props.cutPlane;
+  if (props) {
+    delete props.cutPlane;
+    delete props.cutPlaneKind;
+  }
 
   const now = new Date().toISOString();
   const newPoints = [];
@@ -63,7 +67,7 @@ export default async function createCutPlaneLinesService({
       continue;
     }
 
-    const refs = vertices.map((p) => {
+    const refs = vertices.map((p, index) => {
       const id = nanoid();
       newPoints.push({
         id,
@@ -72,7 +76,14 @@ export default async function createCutPlaneLinesService({
         projectId,
         baseMapId: host.id,
       });
-      return { id, offsetBottom: p.offsetBottom ?? 0 };
+      // « Coupe par angle »: a ray ending on the rotation axis keeps a
+      // « Stop » there (a re-extension never runs past the pivot).
+      const stop = line.stopAtEnd && index === vertices.length - 1;
+      return {
+        id,
+        offsetBottom: p.offsetBottom ?? 0,
+        ...(stop ? { stop: true } : {}),
+      };
     });
 
     newAnnotations.push({

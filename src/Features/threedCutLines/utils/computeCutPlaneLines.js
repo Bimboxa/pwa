@@ -11,6 +11,27 @@ function distanceToPolyline(point, points) {
   return best;
 }
 
+// Chains of the connected component of a section closest to `point` (the
+// « contour le plus proche » option of the cut plane commands).
+export function keepNearestComponent(chains, point) {
+  if (!chains?.length) return chains ?? [];
+  const distances = new Map();
+  for (const chain of chains) {
+    const d = distanceToPolyline(point, chain.points);
+    const known = distances.get(chain.componentIndex);
+    if (known === undefined || d < known) {
+      distances.set(chain.componentIndex, d);
+    }
+  }
+  let nearest = null;
+  for (const [componentIndex, d] of distances) {
+    if (!nearest || d < nearest.d) nearest = { componentIndex, d };
+  }
+  return chains.filter(
+    (chain) => chain.componentIndex === nearest.componentIndex
+  );
+}
+
 // Cut lines of the « Plan de coupe » command: the section of the scene's
 // triangle soup by every station plane, chained into polylines.
 //
@@ -36,23 +57,7 @@ export default function computeCutPlaneLines({
     const segments = sectionTrianglesByPlane(plane, triangles);
     if (!segments.length) return;
     let chains = chainSectionGraph(buildSectionGraph(segments));
-    if (nearestOnly && chains.length) {
-      const distances = new Map();
-      for (const chain of chains) {
-        const d = distanceToPolyline(station.point, chain.points);
-        const known = distances.get(chain.componentIndex);
-        if (known === undefined || d < known) {
-          distances.set(chain.componentIndex, d);
-        }
-      }
-      let nearest = null;
-      for (const [componentIndex, d] of distances) {
-        if (!nearest || d < nearest.d) nearest = { componentIndex, d };
-      }
-      chains = chains.filter(
-        (chain) => chain.componentIndex === nearest.componentIndex
-      );
-    }
+    if (nearestOnly) chains = keepNearestComponent(chains, station.point);
     for (const chain of chains) {
       lines.push({ points: chain.points, closed: chain.closed, stationIndex });
     }

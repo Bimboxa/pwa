@@ -34,6 +34,8 @@ import {
   flushInProgressAsTrait3D,
   pushDrawingVertex,
   setCutLineDrawAxis,
+  setCutPlaneAngleAxis,
+  setCutPlaneBuffer,
   setCutLineDrawOffset,
   setDrawingAxisLock,
   toggleCutLineDrawSide,
@@ -44,12 +46,19 @@ import { getCutLineAxisHover } from "Features/threedCutLines/services/cutLineAxi
 import computeCutPlaneCandidatesService, {
   setCutPlaneBufferService,
 } from "Features/threedCutLines/services/computeCutPlaneCandidatesService";
+import computeCutAngleCandidatesService, {
+  getCutAngleAxisWorld,
+  recomputeCutPlanePendingService,
+} from "Features/threedCutLines/services/computeCutAngleCandidatesService";
 import createCutPlaneLinesService from "Features/threedCutLines/services/createCutPlaneLinesService";
 import {
   clearCutPlanePending,
+  getCutAngleRef,
   getCutPlanePending,
+  setCutAngleRef,
 } from "Features/threedCutLines/services/cutPlaneStore";
 import { appendToCutPlaneBuffer } from "Features/threedCutLines/utils/cutPlaneBuffer";
+import { getCutAngleRadial } from "Features/threedCutLines/utils/getCutAngleStations";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
@@ -500,6 +509,7 @@ export default function useDrawingPointerHandlers() {
       if (!newAnnotationIds.length) return false;
       // The tool stays armed for the next axis.
       clearCutPlanePending();
+      setCutAngleRef(null);
       dispatch(cancelInProgressPolyline());
       setCutPlaneBufferService(dispatch, "");
       return true;
@@ -549,6 +559,104 @@ export default function useDrawingPointerHandlers() {
           dispatch(cancelInProgressPolyline());
         } else if (buffer) {
           setCutPlaneBufferService(dispatch, "");
+        } else {
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // « Coupe par angle » (DRAW_CUT_ANGLE): a cut plane draft of kind
+    // "ANGLE". First click = the pivot P1 of the rotation axis (a regular
+    // drawing vertex: rubber band, snaps, arrow-key axis lock), second
+    // click = the reference direction (kept in cutPlaneStore, no vertex),
+    // every next click = the angle: the candidate cut lines — the section
+    // of the scene by the half-planes turning around the axis — are
+    // published to cutPlaneStore. Space / Enter creates them.
+    function isCutAngleDraw() {
+      return (
+        isCutPlaneDraw() && newAnnotationRef.current?.cutPlaneKind === "ANGLE"
+      );
+    }
+
+    async function onCutAngleClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      if (inProgress.length === 0) {
+        clearCutPlanePending();
+        setCutAngleRef(null);
+        dispatch(pushDrawingVertex(toDrawingVertex(snap)));
+        return;
+      }
+      const toPoint = (p) => ({ x: p.x, y: p.y, z: p.z });
+      const p1 = toPoint(inProgress[0]);
+      const point = toPoint(snap.position);
+      const state = store.getState();
+      // A point on the rotation axis defines no direction.
+      const radial = getCutAngleRadial({
+        origin: p1,
+        axis: getCutAngleAxisWorld(state),
+        point,
+      });
+      if (Math.hypot(radial.x, radial.y, radial.z) < 1e-6) return;
+      const p2 = getCutAngleRef();
+      if (!p2) {
+        setCutAngleRef(point);
+        return;
+      }
+      computeCutAngleCandidatesService({ editor, state, p1, p2, p3: point });
+    }
+
+    // Keys of « Coupe par angle »: digits / separator type the angle (°),
+    // `*N` / `/N` the number of half-planes (repeated every angle / dividing
+    // it), X / Y / Z pick the rotation axis, Space / Enter creates the
+    // candidate lines, Escape drops the candidates, then the reference,
+    // then the pivot, then the typed buffer, then leaves the command.
+    function onCutAngleKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      const buffer = store.getState().threedEditor.cutPlaneDraw.buffer;
+      const refresh = () =>
+        recomputeCutPlanePendingService({ editor, state: store.getState() });
+      if (/^[0-9.,*/]$/.test(e.key)) {
+        e.preventDefault();
+        dispatch(setCutPlaneBuffer(appendToCutPlaneBuffer(buffer, e.key)));
+        refresh();
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        dispatch(setCutPlaneBuffer(buffer.slice(0, -1)));
+        refresh();
+        return true;
+      }
+      const letter = e.key.length === 1 ? e.key.toUpperCase() : "";
+      if (["X", "Y", "Z"].includes(letter)) {
+        e.preventDefault();
+        if (!e.repeat) {
+          dispatch(setCutPlaneAngleAxis(letter));
+          refresh();
+        }
+        return true;
+      }
+      if (e.key === " " || e.code === "Space" || e.key === "Enter") {
+        e.preventDefault();
+        if (document.activeElement?.tagName === "BUTTON") {
+          document.activeElement.blur();
+        }
+        if (!e.repeat) enqueue(commitCutPlane);
+        return true;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (getCutPlanePending()) {
+          clearCutPlanePending();
+        } else if (getCutAngleRef()) {
+          setCutAngleRef(null);
+        } else if (inProgressPolyline.length > 0) {
+          dispatch(cancelInProgressPolyline());
+        } else if (buffer) {
+          dispatch(setCutPlaneBuffer(""));
         } else {
           dispatch(setEnabledDrawingMode(null));
           dispatch(setNewAnnotation({}));
@@ -1847,6 +1955,10 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      if (isCutAngleDraw()) {
+        await enqueue(() => onCutAngleClick(snap));
+        return;
+      }
       if (isCutPlaneDraw()) {
         await enqueue(() => onCutPlaneClick(snap));
         return;
@@ -2120,7 +2232,8 @@ export default function useDrawingPointerHandlers() {
       // nothing else of the polyline flow applies.
       if (isCutPlaneDraw()) {
         if (onAxisLockKey(e)) return;
-        onCutPlaneKey(e);
+        if (isCutAngleDraw()) onCutAngleKey(e);
+        else onCutPlaneKey(e);
         return;
       }
       if (onCutLineAxisLetterKey(e)) return;

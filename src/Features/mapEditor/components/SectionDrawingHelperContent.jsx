@@ -33,6 +33,7 @@ import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/se
 import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintConstants";
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import {
+  selectIsCutAngleDrawActive,
   selectIsCutLineDrawActive,
   selectIsCutPlaneDrawActive,
   selectIsFaceCutDrawActive,
@@ -73,6 +74,7 @@ import SectionThreedToolHelperContent from "Features/threedDrawing/components/Se
 import SectionMeshCreateHelperContent from "Features/threedMesh/components/SectionMeshCreateHelperContent";
 import SectionCutLineDrawHelperContent from "Features/threedCutLines/components/SectionCutLineDrawHelperContent";
 import SectionCutPlaneDrawHelperContent from "Features/threedCutLines/components/SectionCutPlaneDrawHelperContent";
+import SectionCutAngleDrawHelperContent from "Features/threedCutLines/components/SectionCutAngleDrawHelperContent";
 import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 import SectionThreedAxisLockHelper from "Features/threedDrawing/components/SectionThreedAxisLockHelper";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
@@ -395,6 +397,7 @@ export default function SectionDrawingHelperContent() {
   // Cut line (Maillage module): its own helper body.
   const isCutLineDraw = useSelector(selectIsCutLineDrawActive);
   const isCutPlaneDraw = useSelector(selectIsCutPlaneDrawActive);
+  const isCutAngleDraw = useSelector(selectIsCutAngleDrawActive);
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
   // Launched on a selected face: the cut is bound to it.
@@ -526,6 +529,9 @@ export default function SectionDrawingHelperContent() {
   // « Dessiner une ligne de coupe » (Maillage module): the trace mode
   // (Libre / X / Y / Z), the « Décalage » and its shortcuts — not the
   // generic polyline helper.
+  if (isCutAngleDraw) {
+    return <SectionCutAngleDrawHelperContent />;
+  }
   if (isCutPlaneDraw) {
     return <SectionCutPlaneDrawHelperContent />;
   }

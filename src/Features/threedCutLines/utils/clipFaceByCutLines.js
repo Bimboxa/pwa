@@ -77,6 +77,7 @@ export default function clipFaceByCutLines({
     }
   }
   if (!chunks.length) return null;
+  chunks.push(...joinPathsMeetingInside(loops2d, chunks, tolerance));
 
   const pieces2d = cutRegionByPaths(loops2d, chunks, tolerance);
   if (!pieces2d) return null;
@@ -180,6 +181,48 @@ function extendContinuingEnds(loops, path, run, tolerance) {
     if (hit) out[n - 1] = hit;
   }
   return out;
+}
+
+// Lines meeting INSIDE the face (the rays of « Coupe par angle » sharing
+// their pivot): none of them goes from a boundary to another, so none cuts
+// on its own. For every point strictly inside the region where the ends of
+// two or more paths meet, the first two are joined into one path through
+// that point. Once it has split the face, the meeting point sits on the
+// boundary of the pieces and the other paths cut as plain boundary-to-
+// boundary lines (cutRegionByPaths' fixed point). Returns the joined paths.
+function joinPathsMeetingInside(loops, paths, tolerance) {
+  const strictlyInside = (p) =>
+    isInsideRegion(loops, p) && distanceToBoundary(loops, p) > tolerance;
+  // Every path end strictly inside the region, with the path oriented so
+  // that it STARTS on that end.
+  const ends = [];
+  for (const path of paths) {
+    const last = path[path.length - 1];
+    if (strictlyInside(path[0])) ends.push({ point: path[0], path });
+    if (strictlyInside(last)) {
+      ends.push({ point: last, path: [...path].reverse() });
+    }
+  }
+  const joined = [];
+  const used = new Set();
+  for (let i = 0; i < ends.length; i++) {
+    if (used.has(i)) continue;
+    const group = [i];
+    for (let j = i + 1; j < ends.length; j++) {
+      if (used.has(j)) continue;
+      const d = Math.hypot(
+        ends[j].point.x - ends[i].point.x,
+        ends[j].point.y - ends[i].point.y
+      );
+      if (d <= tolerance) group.push(j);
+    }
+    group.forEach((index) => used.add(index));
+    if (group.length < 2) continue;
+    const a = ends[group[0]].path;
+    const b = ends[group[1]].path;
+    joined.push([...[...a].reverse(), ...b.slice(1)]);
+  }
+  return joined;
 }
 
 // First boundary point on the ray from `end` going away from `from`.
