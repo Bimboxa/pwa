@@ -19,6 +19,7 @@ import IconButtonImagesSettingsMenu from "./IconButtonImagesSettingsMenu";
 import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPill";
 import GridImageAnnotations from "./GridImageAnnotations";
 import ImagesLinksOverlay from "./ImagesLinksOverlay";
+import PopperImageAnchorHover from "./PopperImageAnchorHover";
 import DialogImageViewer from "Features/images/components/DialogImageViewer";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
@@ -267,6 +268,15 @@ export default function PopperImages({
         observeEl={paperRef}
         anchorProjector={anchorProjector}
         invalidateKey={invalidateKey}
+      />
+
+      {/* Ex situ: hovering an anchor (dot / numbered badge) in the editor
+          shows its photo. */}
+      <PopperImageAnchorHover
+        active={exSitu && !photosHidden && !fullscreenImage}
+        images={images}
+        indexById={indexById}
+        anchorProjector={anchorProjector}
       />
 
       <DialogImageViewer
