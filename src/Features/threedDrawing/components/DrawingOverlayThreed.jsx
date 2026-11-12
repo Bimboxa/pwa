@@ -148,6 +148,8 @@ const VERTEX_SNAP_THRESHOLD_PX = 12;
 // badge, outside the rectangle (2D InteractionLayer parity).
 const RECT_DIM_BADGE_OFFSET_PX = 22;
 const SNAP_CIRCLE_STROKE_PX = 1.5;
+// Side of the square marking an edge MIDPOINT snap (2D SnappingLayer parity).
+const SNAP_SQUARE_SIZE_PX = 10;
 // A surface under the cursor this close (m) to the locked polygon plane is
 // on it (computeSnapTarget's LOCK_PLANE_EPS_M).
 const DRAFT_PLANE_EPS_M = 5e-3;
@@ -322,6 +324,7 @@ export default function DrawingOverlayThreed() {
   const patternRepeatGhostRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
+  const snapSquareRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
   const alignMarkerRefs = useRef([]);
@@ -998,16 +1001,28 @@ export default function DrawingOverlayThreed() {
 
     function updateSnapCircle(snap, rect, segmentAxis) {
       const circle = snapCircleRef.current;
-      if (!circle) return;
+      const square = snapSquareRef.current;
+      if (!circle || !square) return;
       const screen = snap?.position ? toScreen(snap.position, rect) : null;
       if (!screen) {
         circle.style.display = "none";
+        square.style.display = "none";
         return;
       }
-      circle.setAttribute("cx", screen.sx);
-      circle.setAttribute("cy", screen.sy);
-      circle.style.stroke = colorHex(colorForSnap(snap, segmentAxis));
-      circle.style.display = "block";
+      // The midpoint of an edge reads as a square, any other snap as a circle.
+      const [shown, hidden] = snap.isMidpoint
+        ? [square, circle]
+        : [circle, square];
+      if (snap.isMidpoint) {
+        square.setAttribute("x", screen.sx - SNAP_SQUARE_SIZE_PX / 2);
+        square.setAttribute("y", screen.sy - SNAP_SQUARE_SIZE_PX / 2);
+      } else {
+        circle.setAttribute("cx", screen.sx);
+        circle.setAttribute("cy", screen.sy);
+      }
+      shown.style.stroke = colorHex(colorForSnap(snap, segmentAxis));
+      shown.style.display = "block";
+      hidden.style.display = "none";
     }
 
     // Cross helper of a plane hit: the two dashed lines through the point,
@@ -1328,6 +1343,7 @@ export default function DrawingOverlayThreed() {
       delete next.axisA;
       delete next.axisB;
       delete next.alignFrom;
+      delete next.isMidpoint;
       return next;
     }
 
@@ -1619,6 +1635,7 @@ export default function DrawingOverlayThreed() {
       badgeRef.current?.hide();
       hideRectDimBadges();
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+      if (snapSquareRef.current) snapSquareRef.current.style.display = "none";
       if (crossARef.current) crossARef.current.style.display = "none";
       if (crossBRef.current) crossBRef.current.style.display = "none";
       [...alignMarkerRefs.current, ...alignLeaderRefs.current].forEach((el) => {
@@ -1724,6 +1741,14 @@ export default function DrawingOverlayThreed() {
         <circle
           ref={snapCircleRef}
           r={SNAP_CIRCLE_RADIUS_PX}
+          strokeWidth={SNAP_CIRCLE_STROKE_PX}
+          fill="none"
+          style={{ display: "none" }}
+        />
+        <rect
+          ref={snapSquareRef}
+          width={SNAP_SQUARE_SIZE_PX}
+          height={SNAP_SQUARE_SIZE_PX}
           strokeWidth={SNAP_CIRCLE_STROKE_PX}
           fill="none"
           style={{ display: "none" }}

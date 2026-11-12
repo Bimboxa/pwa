@@ -9,6 +9,10 @@ import lockEdgeSnapToAxes from "./lockEdgeSnapToAxes.js";
 // projected through the last committed vertex.
 const AXIS_THRESHOLD_PX = 20;
 
+// Pixel threshold under which the cursor, on an edge, is pulled to the
+// midpoint of that edge (the 2D editor's MIDPOINT snap threshold).
+const MIDPOINT_THRESHOLD_PX = 12;
+
 // A vertex / edge further than this (m) behind the plane under the cursor is
 // hidden by it — absorbs picking noise and the render-only anti-aliasing
 // offsets (matches inPlaneOrthoSnap's COPLANAR_EPS_M).
@@ -108,7 +112,9 @@ function snapToInProgress(
 //   3. snap to the nearest mesh edge (optional `findNearestEdge` callback),
 //      with the cross helper of the drawing plane (getEdgeSnapFrame) and the
 //      axis snap ALONG the edge (lockEdgeSnapToAxes: ortho from the last
-//      vertex, alignment with another vertex) — kind stays "EDGE"
+//      vertex, alignment with another vertex) — kind stays "EDGE". Close to
+//      the MIDPOINT of the edge (MIDPOINT_THRESHOLD_PX) the point lands on
+//      it instead, tagged `isMidpoint` (no axis snap along the edge then)
 //   3b. a point on a scan base map under the cursor (`planeHit.isScan`,
 //      kind "SCAN") — taken as is, no lock
 //   4. with no last vertex: a base map plane hit (optional `intersectPlane`
@@ -154,7 +160,8 @@ function snapToInProgress(
 // same way once it has 3 points (computeDraftPlane).
 //
 // Returns { position, kind, meshKey?, nodeId?, axis?, lockedAxes?, baseMapId?,
-// axisA?, axisB?, axisKeys?, alignFrom?, faceNormal?, isNatural? } or null
+// axisA?, axisB?, axisKeys?, alignFrom?, faceNormal?, isNatural?,
+// isMidpoint? } or null
 // when no candidate is available.
 export default function computeSnapTarget(args) {
   const snap = computeSnapCandidate(args);
@@ -164,6 +171,15 @@ export default function computeSnapTarget(args) {
     LOCK_PLANE_EPS_M
     ? snap
     : null;
+}
+
+function getEdgeMidpoint(edge) {
+  if (!edge?.[0] || !edge?.[1]) return null;
+  return new Vector3(
+    (edge[0].x + edge[1].x) / 2,
+    (edge[0].y + edge[1].y) / 2,
+    (edge[0].z + edge[1].z) / 2
+  );
 }
 
 function distanceToPlane(position, { point, normal }) {
@@ -286,10 +302,24 @@ function computeSnapCandidate({
 
   const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize, snapFilter);
   if (edgeSnap?.position) {
+    // Midpoint of the snapped edge (the whole edge, not its visible part):
+    // within reach of the cursor it takes the point, ahead of the axis snap
+    // along the edge.
+    const midpoint = getEdgeMidpoint(edgeSnap.edge);
+    const midpointScreen = midpoint
+      ? ndcDistance(midpoint, mouseNdc, camera, canvasSize)
+      : null;
+    const isMidpoint =
+      Boolean(midpointScreen) &&
+      !midpointScreen.behind &&
+      midpointScreen.distance <= MIDPOINT_THRESHOLD_PX &&
+      snapFilter.accept(midpoint);
+    const position = isMidpoint ? midpoint : edgeSnap.position;
     const snap = {
-      position: edgeSnap.position,
+      position,
       kind: "EDGE",
       nodeId: edgeSnap.nodeId,
+      ...(isMidpoint ? { isMidpoint: true } : {}),
     };
     // The cross helper stays visible on the edge (the cursor), and the
     // point stops where an arm runs through the last vertex (ortho) or
@@ -297,22 +327,23 @@ function computeSnapCandidate({
     const frame = getEdgeSnapFrame({
       planeHit: getPlaneHit(),
       edge: edgeSnap.edge,
-      position: edgeSnap.position,
+      position,
       lastVertex,
     });
-    const locked = frame
-      ? lockEdgeSnapToAxes({
-          edge: edgeSnap.edge,
-          position: edgeSnap.position,
-          axisA: frame.axisA,
-          axisB: frame.axisB,
-          lastVertex,
-          adjacency: alignAdjacency,
-          extraPoints: inProgressPolyline,
-          camera,
-          canvasSize,
-        })
-      : null;
+    const locked =
+      frame && !isMidpoint
+        ? lockEdgeSnapToAxes({
+            edge: edgeSnap.edge,
+            position: edgeSnap.position,
+            axisA: frame.axisA,
+            axisB: frame.axisB,
+            lastVertex,
+            adjacency: alignAdjacency,
+            extraPoints: inProgressPolyline,
+            camera,
+            canvasSize,
+          })
+        : null;
     const edgeResult = { ...snap, ...frame, ...locked };
     // An edge snap that slid off the locked plane (along a crossing edge)
     // is no candidate: the cascade goes on to the plane under the cursor

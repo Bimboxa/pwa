@@ -152,6 +152,52 @@ test("a locked plane: an edge snap that left it falls through to the plane", () 
   near(snap.position.y, 0);
 });
 
+// An edge along X at z = 1 (ground level), midpoint (1, 0, 1); the finder
+// returns the point of the edge under the cursor.
+const edgeFinder =
+  (y = 0) =>
+  (ndc) => ({
+    position: new Vector3(ndc.x * 5, y, 1),
+    kind: "EDGE",
+    edge: [new Vector3(0, y, 1), new Vector3(2, y, 1)],
+    nodeId: "a1",
+  });
+
+test("close to the midpoint of an edge, the point lands on it", () => {
+  // 8 px off the midpoint along the edge, 3 px off the edge.
+  const snap = snapAt(ndcOf(1.08, 1.03), {
+    intersectPlane: () => null,
+    findNearestEdge: edgeFinder(),
+  });
+  assert.equal(snap.kind, "EDGE");
+  assert.equal(snap.isMidpoint, true);
+  assert.equal(snap.nodeId, "a1");
+  near(snap.position.x, 1);
+  near(snap.position.y, 0);
+  near(snap.position.z, 1);
+});
+
+test("away from the midpoint, the point slides along the edge", () => {
+  // 30 px off the midpoint.
+  const snap = snapAt(ndcOf(1.3, 1), {
+    intersectPlane: () => null,
+    findNearestEdge: edgeFinder(),
+  });
+  assert.equal(snap.kind, "EDGE");
+  assert.equal(snap.isMidpoint, undefined);
+  near(snap.position.x, 1.3);
+});
+
+test("a midpoint hidden behind the surface under the cursor is no target", () => {
+  // The edge runs 0.5 m under the ground plane the cursor is on.
+  const snap = snapAt(ndcOf(1.05, 1), {
+    intersectPlane: groundHit,
+    findNearestEdge: edgeFinder(-0.5),
+  });
+  assert.equal(snap.isMidpoint, undefined);
+  near(snap.position.x, 1.05);
+});
+
 test("without a fallback nor a surface: the camera-facing FREE plane", () => {
   const snap = snapAt(ndcOf(1, 1), {
     lastVertex: { x: 0, y: 2, z: 0 },

@@ -93,7 +93,8 @@ normale du plan, local +Z — identique pour un plan horizontal ou vertical) :
    annotation, règle de sélection implicite — sauf si des annotations
    emportables sont sélectionnées : elles tournent, le sommet, même partagé
    avec une autre annotation, n'est que le pivot ; `pickGrabbedAnnotationId`),
-   sinon une arête, sinon un point
+   sinon une arête (son milieu quand le curseur en est proche, snap
+   `isMidpoint`), sinon un point
    du plan de fond de plan sous le curseur — ou du plan du fond de plan
    sélectionné en 2D hors de tout plan — **aligné sur les sommets existants**
    le long des axes du plan (marqueurs rouges, bras pleins dans la couleur de
