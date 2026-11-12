@@ -825,6 +825,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       s.viewers.selectedViewerKey === "THREED" ||
       s.viewers.selectedViewerKey === "COMMENTS"
   );
+  // ... and their images follow the global image mode (hidden / light grey /
+  // as is) like the main one. Not the main base map's own eye nor the
+  // editor's opacity / gray scale, which are per base map settings.
+  const overlayImageDisplay = useMemo(
+    () =>
+      keepOverlayColors
+        ? resolveBaseMapImageDisplay({ imageMode: baseMapsImageMode })
+        : null,
+    [keepOverlayColors, baseMapsImageMode]
+  );
   const { isReadOnly: isReadOnlyScope } = useReadOnlyScope();
   const selectedOverlayBaseMapId =
     selectedItems?.[0]?.type === "BASE_MAP" &&
@@ -2969,6 +2979,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     versionCompareId={versionCompareId}
                     baseMapOverlays={baseMapOverlays}
                     keepOverlayColors={keepOverlayColors}
+                    overlayImageDisplay={overlayImageDisplay}
                   />
                 </g>
                 {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
