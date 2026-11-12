@@ -11,8 +11,14 @@ export function getLineWinTolerance(distance) {
   return 2 * Math.max(PICK_MIN_M, PICK_ANGULAR * distance);
 }
 
+// A POINT marker sprite (createPointSprite) is the same kind of thin,
+// deliberate target lying on a face: it wins the same way.
 const isLineObject = (object) =>
-  Boolean(object?.isLine2 || object?.isLineSegments2);
+  Boolean(
+    object?.isLine2 ||
+    object?.isLineSegments2 ||
+    object?.userData?.isAnnotationPointSprite
+  );
 
 // The annotation root (userData.nodeId) an object belongs to, or null.
 function getAnnotationNodeId(object) {
