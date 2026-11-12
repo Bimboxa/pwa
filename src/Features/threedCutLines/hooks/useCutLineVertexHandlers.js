@@ -254,7 +254,10 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
       const { entry, vertex } = drag;
       const local = entry.group.worldToLocal(world.clone());
       const segments = entry.group.userData.cutLineSegments || [];
-      const prev = segments[vertex.index - 1]?.line;
+      // A segment split at a « demi-vue » boundary is two Line2: its end
+      // lives on the last one.
+      const prevSegment = segments[vertex.index - 1];
+      const prev = prevSegment?.lastLine ?? prevSegment?.line;
       const next = segments[vertex.index]?.line;
       if (prev) {
         const pos = prev.geometry.attributes.instanceStart.data.array;

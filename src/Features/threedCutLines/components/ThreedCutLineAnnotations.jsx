@@ -16,6 +16,7 @@ import { setDimensionGroups } from "Features/threedDimensions/services/dimension
 import { applyPendingDimensionPatch } from "Features/threedDimensions/services/dimensionPendingPatchStore";
 import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawingVertexMarkers";
 import attachFatLineRaycast from "Features/threedEditor/js/utilsAnnotationsManager/attachFatLineRaycast";
+import { collectHalfViewHosts } from "Features/threedEditor/js/utilsAnnotationsManager/revolutionHalfView";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
@@ -23,6 +24,8 @@ import {
   CUT_LINE_DASH_M,
   CUT_LINE_END_MARKER_PX,
   CUT_LINE_GAP_M,
+  CUT_LINE_HIDDEN_HALF_DASH_M,
+  CUT_LINE_HIDDEN_HALF_GAP_M,
   CUT_LINE_MARKER_PX,
   CUT_LINE_SELECTED_MARKER_PX,
   CUT_LINE_WIDTH_PX,
@@ -30,6 +33,7 @@ import {
 } from "../constants/cutLineStyle";
 import { setCutLineObjects } from "../services/cutLineObjectsStore";
 import computeCutLineGeometry3d from "../utils/computeCutLineGeometry3d";
+import splitCutLineSegmentByHalfView from "../utils/splitCutLineSegmentByHalfView";
 
 const DEFAULT_COLOR = theme.palette.secondary.fluo ?? "#ff6a00";
 // Former default (red-orange), stored as strokeColor on the cut lines drawn
@@ -55,7 +59,16 @@ function disposeObject(obj) {
   });
 }
 
-function makeCutLineSegment({ a, b, color, linewidth, resolution, dashed }) {
+function makeCutLineSegment({
+  a,
+  b,
+  color,
+  linewidth,
+  resolution,
+  dashed,
+  dashSize = CUT_LINE_DASH_M,
+  gapSize = CUT_LINE_GAP_M,
+}) {
   const mat = new LineMaterial({
     color,
     linewidth,
@@ -69,9 +82,7 @@ function makeCutLineSegment({ a, b, color, linewidth, resolution, dashed }) {
     polygonOffset: true,
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
-    ...(dashed
-      ? { dashed: true, dashSize: CUT_LINE_DASH_M, gapSize: CUT_LINE_GAP_M }
-      : {}),
+    ...(dashed ? { dashed: true, dashSize, gapSize } : {}),
   });
   const geom = new LineGeometry();
   geom.setPositions([a.x, a.y, a.z, b.x, b.y, b.z]);
@@ -116,7 +127,9 @@ function getCutLinesSnapSignature(cutLines) {
 // strokeColor), the part beyond a « Stop » point not drawn (selected or
 // not: the line ends there). Selected: thicker, the segments the extension
 // added dashed, a marker on every visible vertex (bigger at the two ends,
-// the sub-selected vertex in the selection colour).
+// the sub-selected vertex in the selection colour). Selected or not, the
+// part lying on the hidden half of a revolution shown as a display-only half
+// (« demi-vue ») is dashed with its own, shorter dash.
 //
 // Picking: every visible segment is a Line2 with the shared fat-line raycast,
 // published to cutLineObjectsStore for the click pre-passes (pickCutLine);
@@ -182,6 +195,12 @@ export default function ThreedCutLineAnnotations({ annotations }) {
     clear();
 
     const resolution = getCanvasResolution(editor);
+    // Hidden halves of the revolutions shown as a display-only half (world
+    // space). The displayed side follows the camera: a flip rebuilds the
+    // annotation objects, which bumps annotationsLoadTick.
+    const halfViewHosts = cutLines.length
+      ? collectHalfViewHosts(editor.sceneManager.annotationsManager)
+      : [];
     const entries = [];
     const patched = [];
 
@@ -228,6 +247,9 @@ export default function ThreedCutLineAnnotations({ annotations }) {
       };
 
       const lines = [];
+      parentGroup.updateWorldMatrix(true, false);
+      const toParentWorld = (p) =>
+        new Vector3(p.x, p.y, p.z).applyMatrix4(parentGroup.matrixWorld);
       // The part beyond a « Stop » point is never drawn (selected or not):
       // the line simply ends there.
       geom.segments.forEach((seg) => {
@@ -235,25 +257,58 @@ export default function ThreedCutLineAnnotations({ annotations }) {
           group.userData.cutLineSegments.push({ index: seg.index, line: null });
           return;
         }
-        const line = makeCutLineSegment({
-          a: seg.a,
-          b: seg.b,
-          color,
-          linewidth: isSelected
-            ? CUT_LINE_WIDTH_SELECTED_PX
-            : CUT_LINE_WIDTH_PX,
-          resolution,
-          dashed: isSelected && seg.derived,
+        // The part lying on the hidden half of a « demi-vue » revolution is
+        // drawn dashed: one Line2 per piece (a segment crossing the
+        // boundary plane gives two).
+        const pieces = halfViewHosts.length
+          ? splitCutLineSegmentByHalfView(
+              toParentWorld(seg.a),
+              toParentWorld(seg.b),
+              halfViewHosts
+            )
+          : [{ t0: 0, t1: 1, hiddenHalf: false }];
+        const at = (t) => ({
+          x: seg.a.x + (seg.b.x - seg.a.x) * t,
+          y: seg.a.y + (seg.b.y - seg.a.y) * t,
+          z: seg.a.z + (seg.b.z - seg.a.z) * t,
         });
-        line.userData.annotationId = cutLine.id;
-        line.userData.segmentIndex = seg.index;
-        attachFatLineRaycast(line, [
-          new Vector3(seg.a.x, seg.a.y, seg.a.z),
-          new Vector3(seg.b.x, seg.b.y, seg.b.z),
-        ]);
-        lines.push(line);
-        group.add(line);
-        group.userData.cutLineSegments.push({ index: seg.index, line });
+        const pieceLines = pieces.map((piece) => {
+          const a = piece.t0 <= 0 ? seg.a : at(piece.t0);
+          const b = piece.t1 >= 1 ? seg.b : at(piece.t1);
+          const line = makeCutLineSegment({
+            a,
+            b,
+            color,
+            linewidth: isSelected
+              ? CUT_LINE_WIDTH_SELECTED_PX
+              : CUT_LINE_WIDTH_PX,
+            resolution,
+            dashed: piece.hiddenHalf || (isSelected && seg.derived),
+            ...(piece.hiddenHalf
+              ? {
+                  dashSize: CUT_LINE_HIDDEN_HALF_DASH_M,
+                  gapSize: CUT_LINE_HIDDEN_HALF_GAP_M,
+                }
+              : {}),
+          });
+          line.userData.annotationId = cutLine.id;
+          line.userData.segmentIndex = seg.index;
+          line.userData.isOnHiddenHalf = piece.hiddenHalf;
+          attachFatLineRaycast(line, [
+            new Vector3(a.x, a.y, a.z),
+            new Vector3(b.x, b.y, b.z),
+          ]);
+          lines.push(line);
+          group.add(line);
+          return line;
+        });
+        // `line` holds the segment's start, `lastLine` its end (the same
+        // Line2 unless the segment is split).
+        group.userData.cutLineSegments.push({
+          index: seg.index,
+          line: pieceLines[0],
+          lastLine: pieceLines[pieceLines.length - 1],
+        });
       });
 
       // Vertex markers of the selected line (visible run only): the two

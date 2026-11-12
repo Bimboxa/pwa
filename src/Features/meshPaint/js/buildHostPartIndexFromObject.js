@@ -5,6 +5,10 @@ import { getFaceLoops } from "Features/annotationMesh3d/utils/mesh3dTopology";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getTriangleFaceLabels from "Features/threedEditor/js/utilsAnnotationsManager/getTriangleFaceLabels";
 import { hasCarvedSolid } from "Features/threedEditor/js/utilsAnnotationsManager/getSolidMeshFromObject3D";
+import {
+  getHalfViewAxis,
+  turnAboutHalfViewAxis,
+} from "Features/threedEditor/js/utilsAnnotationsManager/revolutionHalfView";
 import buildHostPartIndex from "Features/meshPaint/utils/buildHostPartIndex";
 import hashTriangles from "Features/meshPaint/utils/hashTriangles";
 import { createInsideSoupTester } from "Features/meshPaint/utils/isPointInsideSoup";
@@ -88,15 +92,6 @@ function getMetricsKey(metrics) {
     : "";
 }
 
-// Axis of a display-only half revolution, in the mesh frame (null: the mesh
-// shows its real surface).
-function getHalfViewAxis(mesh) {
-  const axis = mesh?.userData?.isRevolutionHalfView
-    ? mesh.userData.revolutionAxis
-    : null;
-  return axis?.center ? axis : null;
-}
-
 // Pieces of a cut surface host (applySurfaceCuts, userData.surfaceCutPiece)
 // are tagged per triangle in `triGroups` so the part index keeps them apart
 // (-1: the mesh is no piece); null when the host has no piece. Every SOLID
@@ -145,12 +140,9 @@ function collectTriangles(meshes, groupInverse) {
     // Hidden half: the displayed one turned 180° about the axis.
     const axis = getHalfViewAxis(mesh);
     if (!axis) continue;
-    const { center, axisAlongNormal } = axis;
     for (let i = 0; i < usable; i++) {
       v.fromBufferAttribute(position, index ? index.getX(i) : i);
-      if (axisAlongNormal) v.set(2 * center.x - v.x, 2 * center.y - v.y, v.z);
-      else v.set(2 * center.x - v.x, v.y, 2 * center.z - v.z);
-      v.applyMatrix4(toLocal);
+      turnAboutHalfViewAxis(v, axis).applyMatrix4(toLocal);
       out.push(v.x, v.y, v.z);
     }
     for (let t = 0; t < usable / 3; t++) groups.push(piece);

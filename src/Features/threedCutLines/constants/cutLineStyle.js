@@ -17,6 +17,11 @@ export const CUT_LINE_WIDTH_SELECTED_PX = 3;
 export const CUT_LINE_DASH_M = 0.08;
 export const CUT_LINE_GAP_M = 0.05;
 
+// Dash of the part of a line lying on the hidden half of a revolution shown
+// as a display-only half (« demi-vue »), metres.
+export const CUT_LINE_HIDDEN_HALF_DASH_M = 0.04;
+export const CUT_LINE_HIDDEN_HALF_GAP_M = 0.06;
+
 // Vertex markers (screen px): the two ends vs the interior points, and the
 // sub-selected vertex.
 export const CUT_LINE_END_MARKER_PX = 14;
