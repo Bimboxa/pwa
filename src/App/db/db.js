@@ -530,7 +530,8 @@ db.version(44).stores({
 
 // v45 — comments (Features/comments): free comments guiding the reading of a
 // shared Krto. A comment belongs to a COMMENT listing (scope-bound).
-//   COMMENT row: {id, projectId, scopeId, listingId, num, title, sortIndex,
+//   COMMENT row: {id, projectId, scopeId, listingId, title, sortIndex,
+//     (the displayed number is the rank in the sortIndex order, not stored)
 //     blocks: [{id, type: "TEXT", markdown} | {id, type: "IMAGE", fileName,
 //       imageSize, caption} | {id, type: "LINK", url, label} |
 //       {id, type: "YOUTUBE", url, videoId}],
