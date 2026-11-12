@@ -3,7 +3,6 @@ import { useSelector } from "react-redux";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import HeaderPanelPropertiesModule from "Features/viewers/components/HeaderPanelPropertiesModule";
 import SectionModuleDescription from "Features/viewers/components/SectionModuleDescription";
-import SectionBaseMapOverview from "Features/baseMaps/components/SectionBaseMapOverview";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -16,8 +15,8 @@ import SectionMeshes3dSettings from "./SectionMeshes3dSettings";
 
 // ---------------------------------------------------------------------------
 // PanelPropertiesMeshesModule — default properties panel of the Maillage
-// module (empty selection): what the module is for, the main base map
-// overview, and the module settings (display, labels, numbering prefix).
+// module (empty selection): what the module is for and the module settings
+// (display, labels, numbering prefix).
 // ---------------------------------------------------------------------------
 
 export default function PanelPropertiesMeshesModule() {
@@ -44,8 +43,6 @@ export default function PanelPropertiesMeshesModule() {
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
         <SectionModuleDescription moduleKey="MESHES" />
-
-        <SectionBaseMapOverview returnFromViewer="MESHES" />
 
         <SectionMeshes3dSettings
           prefix={prefix}
