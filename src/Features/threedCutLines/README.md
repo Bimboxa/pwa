@@ -421,7 +421,9 @@ the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
   annotation (merged host, or per mesh in plane mode), clipped by the
   lines; one maille per cut group; groups whose cut pieces all have their
   centroid in an existing maille (coplanar face or shell triangle) are
-  skipped; regions no line crosses produce nothing.
+  skipped; regions no line crosses produce nothing. The mailles are built
+  in memory and written in one batch (`createMeshes3dService`: one
+  transaction, one `bulkAdd`), so they all appear at once.
 
 ## Tests
 
