@@ -16,6 +16,8 @@ import encodeCutLineRefs from "./encodeCutLineRefs";
 // lines: [{ points: [{x,y,z}], stopAtEnd? }] world polylines (a closed one
 // repeats its first point; stopAtEnd: « Stop » on the last point). A line
 // that does not project on a base map is skipped.
+// getLabel: () => label of the next created line (createCutLineLabelAllocator)
+// — called once per line actually built, never for a skipped one.
 // Returns { newPoints, newAnnotations, skippedCount }.
 export default function buildCutLineRows({
   lines,
@@ -25,6 +27,7 @@ export default function buildCutLineRows({
   templateProps = null,
   layerId = null,
   preferredBaseMapId = null,
+  getLabel = null,
 }) {
   const now = new Date().toISOString();
   const newPoints = [];
@@ -71,12 +74,14 @@ export default function buildCutLineRows({
       };
     });
 
+    const label = getLabel?.();
     newAnnotations.push({
       id: nanoid(),
       projectId,
       scopeId: scopeId ?? null,
       listingId: null,
       isTemplateless: true,
+      ...(label ? { label } : {}),
       baseMapId: host.id,
       ...(layerId ? { layerId } : {}),
       points: refs,

@@ -5,6 +5,8 @@ import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import getTransformedCutLineDrawn from "../js/getTransformedCutLineDrawn";
+
+import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
 import { getCutLineEntry } from "./cutLineObjectsStore";
 import { computeCutLineRebuild } from "./rebuildCutLineService";
 
@@ -38,6 +40,12 @@ export default async function createCutLineCopiesService({
   delete base.updatedAt;
   delete base.createdByUserIdMaster;
 
+  // Every copy is a line of its own: next "L-xx" label, not the source's.
+  const nextLabel = await createCutLineLabelAllocator({
+    projectId: raw.projectId,
+    scopeId: raw.scopeId,
+  });
+
   const newPoints = [];
   const newAnnotations = [];
   for (let i = 1; i <= count; i++) {
@@ -66,6 +74,7 @@ export default async function createCutLineCopiesService({
     newAnnotations.push({
       ...base,
       id: nanoid(),
+      label: nextLabel(),
       points: rebuilt.patch.points,
       offsetZ: rebuilt.patch.offsetZ,
     });

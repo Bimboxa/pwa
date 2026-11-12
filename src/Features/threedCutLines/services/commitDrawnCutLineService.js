@@ -13,6 +13,8 @@ import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
 import { findFaceNormalAlong } from "../utils/findFacePlanesAt";
 
+import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
+
 // Orchestrator of the cut line drawn in 3D (Maillage module): ordered world
 // vertices → extension of both ends along the faces of the scene
 // (extendCutLine on the visible annotation solids) → host base map → CUT_LINE
@@ -142,12 +144,17 @@ export default async function commitDrawnCutLineService({
     templateProps,
   });
 
+  // Own label "L-01", "L-02", … (useCreateAnnotation leaves the label of a
+  // template-less annotation alone).
+  const nextLabel = await createCutLineLabelAllocator({ projectId, scopeId });
+
   const annotation = {
     id: nanoid(),
     projectId,
     scopeId: scopeId ?? null,
     listingId: null,
     isTemplateless: true,
+    label: nextLabel(),
     baseMapId: host.id,
     ...(layerId ? { layerId } : {}),
     points: pointRefs,

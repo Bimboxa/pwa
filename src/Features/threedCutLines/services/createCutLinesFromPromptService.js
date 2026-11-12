@@ -10,6 +10,8 @@ import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap"
 
 import buildCutLineRows from "../utils/buildCutLineRows";
 
+import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
+
 // Minimum 3D length (metres) of a cote.
 const MIN_COTE_LENGTH_M = 1e-3;
 
@@ -44,6 +46,7 @@ export default async function createCutLinesFromPromptService({
     projectId,
     scopeId,
     preferredBaseMapId,
+    getLabel: await createCutLineLabelAllocator({ projectId, scopeId }),
   });
   result.lineCount = newAnnotations.length;
   result.skippedCount = skippedCount;

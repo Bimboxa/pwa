@@ -4,6 +4,8 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 
 import buildCutLineRows from "../utils/buildCutLineRows";
 
+import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
+
 // « Plan de coupe »: writes the candidate cut lines (computeCutPlaneLines —
 // world polylines, a closed one repeats its first point) as CUT_LINE
 // annotations. Every point is a DRAWN point (no extension: the line already
@@ -43,6 +45,7 @@ export default async function createCutPlaneLinesService({
     templateProps: props,
     layerId,
     preferredBaseMapId,
+    getLabel: await createCutLineLabelAllocator({ projectId, scopeId }),
   });
   result.skippedCount = skippedCount;
   if (!newAnnotations.length) return result;

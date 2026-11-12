@@ -13,7 +13,6 @@ import {
   pickCutLine,
   pickVisibleCutLine,
 } from "Features/threedCutLines/js/pickCutLine";
-import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
 import {
   getCutLineGrabHover,
   isCutLineDragging,
@@ -643,8 +642,14 @@ export default function useMeshingPointerHandlers({
         if (selectedAlone) {
           clearTooltip();
         } else {
-          tooltipApiRef?.current?.setText(
-            CUT_LINE_LABEL,
+          // Same dark card as the annotations (MapTooltip): « Ligne de
+          // coupe » + the line's own label ("L-01").
+          tooltipApiRef?.current?.set(
+            {
+              nodeId: cutLineHover.annotationId,
+              nodeType: "ANNOTATION",
+              annotationType: "CUT_LINE",
+            },
             e.clientX - pick.rect.left + 15,
             e.clientY - pick.rect.top + 15
           );

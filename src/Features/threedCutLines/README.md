@@ -15,6 +15,7 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
 {
   type: "CUT_LINE", isTemplateless: true, scopeId, listingId: null,
   baseMapId, isDrawnIn3d: true, height: 0,
+  label,                                     // "L-01", "L-02", … (see below)
   offsetZ,                                   // lowest vertex (m)
   strokeColor,                               // theme.palette.secondary.fluo
   points: [{ id, offsetBottom, derived?: true, stop?: true }, …],
@@ -25,6 +26,13 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   `encodeCutLineRefs`: `z = offsetZ + offsetBottom`). **One `db.points` row
   per vertex, never shared** — `pointId` identifies a vertex (sub-selection,
   « Stop », drag). The commit mints its own rows (not `insertOrReusePoints`).
+- `label`: numbered at creation, per scope, by every creation path (drawn
+  line, cut plane / angle, AI prompt, « Copie multiple » — a copy gets its
+  own number): `createCutLineLabelAllocator` reads the labels of the scope's
+  lines, `createCutLineLabelSequence` hands out max + 1 (`L-` + 2 digits).
+  Shown in the hover tooltip and the edit toolbar header. Lines created
+  before the numbering carry no label; the number of a deleted line can be
+  handed out again.
 - `derived`: point added by the extension (dashed segments while selected).
   `stop`: the line ends there (`getCutLineVisiblePoints`: a stop in the
   extended head truncates the start, any other truncates the end).
@@ -296,8 +304,9 @@ on site: the prompt asks for lines from existing corners, regular, simple.
   (`MainThreedEditor`).
 - Hover (Maillage, SELECT tool): `useMeshingPointerHandlers.runHover` runs
   `pickVisibleCutLine` (a line hidden behind the first face under the cursor
-  does not answer) → text tooltip « Ligne de coupe » (`CUT_LINE_LABEL`), not
-  on the line selected alone. That hover rewrites the canvas cursor on every
+  does not answer) → the annotations' dark card (`MapTooltip`, through
+  `ThreedHoverTooltip.set`): « Ligne de coupe » (`CUT_LINE_LABEL`) and the
+  line's own label ("L-01"), not on the line selected alone. That hover rewrites the canvas cursor on every
   frame: `services/cutLineHoverStore` tells it to keep the hand over a
   grabbable vertex / segment and to stand down during the two gestures.
 - `ToolbarEditCutLine` (no sub-selection): points count and « Recalculer le
