@@ -205,10 +205,11 @@ on site: the prompt asks for lines from existing corners, regular, simple.
   `utils/buildCutLinesPromptContext` names the vertices (`S1`…, welded at
   1 mm, shared between faces and existing lines) and the faces (`F1`…).
   Frame: the scene's (meters, Y up), never converted.
-- **Two modes** (default: GLB as soon as one region is curved):
+- **Two modes**, a technical choice the dialog never shows (GLB as soon as
+  one visible region is curved, TEXT otherwise):
   - TEXT — planar faces only; one text (instructions
     `docs/threed/CUT_LINES_PROMPT.md` + the context JSON) to copy or
-    download. Curved regions are left out (the dialog says so).
+    download.
   - GLB — a zip: `INSTRUCTIONS.md` (`CUT_LINES_PROMPT_GLB.md`),
     `contexte.json` (same context + `curvedSurfaces`), `scene.glb`
     (`services/buildCutLinesPromptGlb`: one mesh per annotation, named
