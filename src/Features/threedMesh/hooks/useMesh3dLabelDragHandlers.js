@@ -4,8 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
+import {
+  clearAxisLockLine,
+  pickPointOnAxes,
+  updateAxisLockLine,
+} from "Features/threedDrawing/utils/axisLockDrag";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { clearSubSelection } from "Features/threedEditor/threedEditorSlice";
+import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import { setSelectedNode } from "Features/mapEditor/mapEditorSlice";
 import {
   setSelectedItem,
@@ -45,15 +51,20 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
  *   way to select a maille from its card;
  * - dragging the card moves it WITHIN THE MAILLE PLANE (the cursor ray is
  *   projected on the plane of the label anchor), with a live leader line back
- *   to the target;
+ *   to the target. Holding Shift locks the move on the user axis (X / Y / Z
+ *   of the gizmo frame, whatever the maille orientation) closest to the
+ *   cursor — same mechanism as the annotation label drag, the axis is drawn
+ *   in its colour. An axis out of the maille plane takes the card off that
+ *   plane (the `n` component of the offset); a free move then stays in the
+ *   parallel plane through the card;
  * - dragging the round handle at the leader's pointed end moves that target
  *   OVER THE MAILLE SURFACE (handle shown on the selected maille only): the
  *   cursor is raycast against the maille's own faces and the result snapped
  *   to the closest point of the stored geometry, so the target follows a
  *   curved shell and slides along the border once the cursor leaves the
  *   maille — it can never detach;
- * - pointerup persists `mesh3d.labelOffset` for the card (in-plane
- *   displacement in the anchor (u, v) basis, meters) or
+ * - pointerup persists `mesh3d.labelOffset` for the card (displacement
+ *   in the anchor (u, v, n) basis, meters) or
  *   `mesh3d.labelTargetPoint` for the target (world point on the surface) —
  *   the useLiveQuery rebuild then re-renders both at their stored positions.
  */
@@ -76,6 +87,12 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
     extrudeActive ||
     (meshingActive && meshingTool !== "SELECT")
   );
+
+  // Yaw of the displayed axes frame: the Shift axis lock follows the gizmo
+  // axes. Read in the handlers through a ref.
+  const yawDeg = useSelector((s) => s.threedEditor.axesSettings?.yawDeg ?? 0);
+  const yawDegRef = useRef(yawDeg);
+  yawDegRef.current = yawDeg;
 
   const dragRef = useRef(null);
 
@@ -106,6 +123,22 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       if (Math.abs(dir.dot(plane.normal)) < MIN_RAY_PLANE_DOT) return null;
       const hit = new Vector3();
       return raycaster.ray.intersectPlane(plane, hit) ? hit : null;
+    }
+
+    // Cursor snapped on the closest user axis through the grab
+    // point: { position, axis } or null.
+    function pickOnAxes(e, drag) {
+      if (!drag.axes.length || !setRayFromEvent(e)) return null;
+      const rect = dom.getBoundingClientRect();
+      return pickPointOnAxes({
+        ray: raycaster.ray,
+        ndc,
+        camera,
+        canvasSize: { width: rect.width, height: rect.height },
+        origin: drag.startHit,
+        axes: drag.axes,
+        thresholdPx: Infinity,
+      });
     }
 
     // Point of the maille surface under the cursor. Off the maille, the
@@ -139,6 +172,10 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
           drag.dragged.parent?.remove(drag.tempLeader);
           drag.tempLeader.geometry?.dispose();
           drag.tempLeader.material?.dispose();
+        }
+        if (drag.axisLine) {
+          clearAxisLockLine(drag);
+          sceneManager.renderScene?.();
         }
       }
       window.removeEventListener("pointermove", onWindowPointerMove);
@@ -180,9 +217,11 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       // rebuild, which would dispose the very sprite being dragged.
       setMesh3dLabelGestureActive(true);
 
+      const normal = new Vector3(anchor.n.x, anchor.n.y, anchor.n.z);
+      const startWorld = dragged.getWorldPosition(new Vector3());
       const plane = new Plane().setFromNormalAndCoplanarPoint(
-        new Vector3(anchor.n.x, anchor.n.y, anchor.n.z),
-        dragged.getWorldPosition(new Vector3())
+        normal,
+        startWorld
       );
       const startHit = pickOnPlane(e, plane);
 
@@ -213,7 +252,13 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         anchor,
         plane,
         startHit,
-        startOffset: sprite.userData.labelOffset || { u: 0, v: 0 },
+        // Shift axis lock (card only — the target stays on the surface).
+        startWorld,
+        axes:
+          kind === "LABEL" ? getUserAxesWorldDirections(yawDegRef.current) : [],
+        axis: null,
+        axisLine: null,
+        startOffset: sprite.userData.labelOffset || { u: 0, v: 0, n: 0 },
         fixedEnd,
         offset: null,
         leader: sprite.userData.leader || null,
@@ -250,25 +295,47 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         drag.targetPoint = surfacePoint.point;
         position.copy(liftMesh3dSurfacePoint(surfacePoint));
       } else {
-        const hit = pickOnPlane(e, drag.plane);
+        // Shift: locked on the user axis through the grab point closest to
+        // the cursor, else free move in the plane parallel to the maille
+        // through the card.
+        const axisHit = e.shiftKey ? pickOnAxes(e, drag) : null;
+        const hit = axisHit?.position ?? pickOnPlane(e, drag.plane);
         if (!hit) return;
+        updateAxisLockLine(drag, axisHit?.axis ?? null, {
+          editor,
+          camera,
+          scene: sceneManager.scene,
+        });
 
-        // In-plane displacement since pointerdown, in the anchor (u, v)
-        // basis.
+        // Displacement since pointerdown, in the anchor (u, v, n) basis
+        // (n is left untouched by a free move: the hit is in the drag plane).
         const { anchor } = drag;
         const d = hit.sub(drag.startHit);
         const du = d.x * anchor.u.x + d.y * anchor.u.y + d.z * anchor.u.z;
         const dv = d.x * anchor.v.x + d.y * anchor.v.y + d.z * anchor.v.z;
+        const dn = axisHit
+          ? d.x * anchor.n.x + d.y * anchor.n.y + d.z * anchor.n.z
+          : 0;
         const offset = {
           u: drag.startOffset.u + du,
           v: drag.startOffset.v + dv,
+          n: (drag.startOffset.n || 0) + dn,
         };
         drag.offset = offset;
 
         position.set(
-          anchor.base.x + anchor.u.x * offset.u + anchor.v.x * offset.v,
-          anchor.base.y + anchor.u.y * offset.u + anchor.v.y * offset.v,
-          anchor.base.z + anchor.u.z * offset.u + anchor.v.z * offset.v
+          anchor.base.x +
+            anchor.u.x * offset.u +
+            anchor.v.x * offset.v +
+            anchor.n.x * offset.n,
+          anchor.base.y +
+            anchor.u.y * offset.u +
+            anchor.v.y * offset.v +
+            anchor.n.y * offset.n,
+          anchor.base.z +
+            anchor.u.z * offset.u +
+            anchor.v.z * offset.v +
+            anchor.n.z * offset.n
         );
       }
       drag.dragged.position.copy(position);
@@ -308,7 +375,9 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         type: "NODE",
         nodeType: "MESH3D",
       };
-      if (e?.shiftKey) {
+      // Shift toggles on a plain click only: during a drag it is the axis
+      // lock, and must not deselect the maille being moved.
+      if (e?.shiftKey && !drag.moved) {
         dispatch(toggleItemSelection(item));
       } else {
         dispatch(setSelectedItem(item));
@@ -318,7 +387,7 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
 
       if (!drag.moved) return;
       // Target: world point ON the surface (supersedes the legacy in-plane
-      // labelTargetOffset). Card: in-plane offset from the anchor.
+      // labelTargetOffset). Card: (u, v, n) offset from the anchor.
       const changes =
         drag.kind === "TARGET"
           ? drag.targetPoint && {
@@ -333,6 +402,7 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
               labelOffset: {
                 u: round4(drag.offset.u),
                 v: round4(drag.offset.v),
+                n: round4(drag.offset.n),
               },
             };
       if (!changes) return;

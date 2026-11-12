@@ -19,7 +19,8 @@ export const LABEL_LIFT_M = 0.05;
  *   it already lands on the material, so hand-placed `labelOffset`s (persisted
  *   relative to the anchor) only move on the mailles that were broken;
  * - `u` / `v`: orthonormal in-plane axes the user-defined `labelOffset` is
- *   expressed in (meters), `n`: the plane normal.
+ *   expressed in (meters), `n`: the plane normal (third, optional component
+ *   of `labelOffset`).
  *
  * The basis only depends on the plane normal (computePlaneBasis is
  * deterministic), so a persisted offset keeps the same meaning across
@@ -71,24 +72,31 @@ export default function getMesh3dLabelAnchor(mesh3d) {
 }
 
 /**
- * Point of the anchor plane at `offset` = {u, v} in meters from the anchor
- * base. Used for both ends of the label leader: the card (`labelOffset`) and
- * the pointed target (`labelTargetOffset`).
+ * Point at `offset` = {u, v, n} in meters from the anchor base: `u` / `v` in
+ * the anchor plane, `n` (optional) along its normal. Used for both ends of
+ * the label leader: the card (`labelOffset`, which may leave the plane when
+ * dragged along an axis) and the pointed target (`labelTargetOffset`, legacy,
+ * in-plane only).
  */
 export function getMesh3dPlanePoint(anchor, offset) {
   if (!anchor) return null;
   const du = Number(offset?.u) || 0;
   const dv = Number(offset?.v) || 0;
-  if (!du && !dv) return { ...anchor.base };
-  return add(anchor.base, add(scale(anchor.u, du), scale(anchor.v, dv)));
+  const dn = Number(offset?.n) || 0;
+  if (!du && !dv && !dn) return { ...anchor.base };
+  return add(
+    anchor.base,
+    add(add(scale(anchor.u, du), scale(anchor.v, dv)), scale(anchor.n, dn))
+  );
 }
 
 /**
- * Normalized {u, v} offset (never null, meters) as persisted on a maille.
+ * Normalized {u, v, n} offset (never null, meters) as persisted on a maille.
  */
 export function readMesh3dOffset(offset) {
   return {
     u: Number(offset?.u) || 0,
     v: Number(offset?.v) || 0,
+    n: Number(offset?.n) || 0,
   };
 }
