@@ -22,7 +22,8 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 
 import DataExportItem from "./DataExportItem";
 
-// Export section of the mailles drawer: hover-reveal row opening the recap
+// Mailles export card of the Export tool (PanelPrint, Maillage module),
+// rendered inside a WhiteSectionGeneric: hover-reveal row opening the recap
 // datagrid dialog or downloading the Excel export. `rows` are the mailles
 // already decorated with `displayLabel` / `surfaceLabel`.
 export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
@@ -56,7 +57,7 @@ export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
   // render
 
   return (
-    <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 1 }}>
+    <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
         <TableChart fontSize="small" color="action" />
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>

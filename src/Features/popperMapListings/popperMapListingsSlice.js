@@ -1,15 +1,18 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import getInitSelectedModuleKey from "Features/init/services/getInitSelectedModuleKey";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
-// Header toggle of the popper / PanelDrawing: "OBJECTS" (the objects and
-// listings of a business-objects module, popper only) | "CONTENT" (scope
-// content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS" (Viewer module with
-// photos) | "BASE_MAPS" (base maps list). The drawing commands live in the
+// Header toggle of the popper / PanelDrawing: "MESHES" (the mailles list,
+// Maillage module with the mailles drawer closed, popper only) | "OBJECTS"
+// (the objects and listings of a business-objects module, popper only) |
+// "CONTENT" (scope content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS"
+// (Viewer module with photos) | "BASE_MAPS" (base maps list). The drawing commands live in the
 // unified commands toolbar (Features/commandsToolbar). The annotation
 // listings of the Dessin module are managed from the expandable panel under
 // the active listing band (BandActiveListing), not from a toggle side.
 const CONTENT_MODES = [
+  "MESHES",
   "OBJECTS",
   "CONTENT",
   "ANNOTATIONS",
@@ -44,7 +47,10 @@ const popperMapListingsSlice = createSlice({
     // (base maps list). In redux (not local state) because the map editor
     // gates the photo pseudo-annotations on it (photos render only while the
     // Photos tab is active) and both surfaces must agree.
-    viewerContentMode: "ANNOTATIONS",
+    // A page refresh reopening the Maillage module lands on its "Maillage"
+    // side, like entering the module does (extraReducers below).
+    viewerContentMode:
+      getInitSelectedModuleKey() === "MESHES" ? "MESHES" : "ANNOTATIONS",
     // "Fonds de plan" list option (no UI any more, kept for the stored
     // state): relegate the
     // base maps without annotations — except the main one and those whose
@@ -128,6 +134,11 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode === "OBJECTS" &&
         !isBusinessObjectsModuleKey(action.payload)
       )
+        state.viewerContentMode = "ANNOTATIONS";
+      // "Maillage" side (Maillage module only): the popper lands on it when
+      // the module is entered, and leaves it when the module is left.
+      if (action.payload === "MESHES") state.viewerContentMode = "MESHES";
+      else if (state.viewerContentMode === "MESHES")
         state.viewerContentMode = "ANNOTATIONS";
     });
   },

@@ -19,6 +19,8 @@ import { ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 // ---------------------------------------------------------------------------
 
 export default function ToggleContentMode({
+  // "Maillage" side (Maillage module, mailles drawer closed): far left.
+  showMeshes = false,
   showObjects = false,
   objectsLabel = "Objets",
   showContent = false,
@@ -30,6 +32,7 @@ export default function ToggleContentMode({
 
   // strings
 
+  const meshesS = "Maillage";
   const contentS = "Contenu";
   const photosS = "Photos";
   const baseMapsS = "Fonds de plan";
@@ -41,6 +44,7 @@ export default function ToggleContentMode({
   // helpers
 
   const options = [
+    ...(showMeshes ? [{ value: "MESHES", label: meshesS }] : []),
     ...(showObjects ? [{ value: "OBJECTS", label: objectsLabel }] : []),
     ...(showContent ? [{ value: "CONTENT", label: contentS }] : []),
     { value: "ANNOTATIONS", label: annotationsLabel },

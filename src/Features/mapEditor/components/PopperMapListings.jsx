@@ -29,6 +29,7 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import selectActiveMeshHelperTool from "Features/threedMesh/utils/selectActiveMeshHelperTool";
+import SectionPopperMeshes from "Features/threedMesh/components/SectionPopperMeshes";
 
 import {
   Box,
@@ -1741,7 +1742,13 @@ export default function PopperMapListings() {
   const scopeSheetIds = useSelector(
     (s) => s.baseMapsGrid.scopeSheets.baseMapIds
   );
-  const isLegendPopper = isViewerModule || isBaseMapsLegend || isScopeModule;
+  // Maillage module: same bare legend as the Viewer module (every listing
+  // at once, "Annotations | Fonds de plan" header toggle). Its COTE / RULER
+  // templates are drawing entries there (see the forceDrawMode rows), so
+  // they escape the legend filter (coteTemplates below).
+  const isMeshesModule = viewerKey === "MESHES";
+  const isLegendPopper =
+    isViewerModule || isMeshesModule || isBaseMapsLegend || isScopeModule;
   // BaseMaps module legend with the "Afficher les annotations" switch OFF:
   // there is no annotations side — the popper is the base maps list only
   // (plain title, no toggle, attached whatever the detach flag).
@@ -2091,13 +2098,24 @@ export default function PopperMapListings() {
     moduleTypeKey ?? undefined
   );
   const showObjectsToggle = isBusinessObjectsModule && Boolean(moduleTypeKey);
+  // "Maillage" side (Maillage module, far left of the toggle): the mailles
+  // list of the mailles drawer — only while that drawer is closed.
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const showMeshesToggle =
+    isMeshesModule &&
+    !leftPanelDocked &&
+    !isBaseMapsLegend &&
+    !isLocateBusinessObjectMode;
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
     ((!baseMapsListDetached && !showBaseMapsSection) ||
       showPhotosToggle ||
       showObjectsToggle ||
+      showMeshesToggle ||
       isScopeModule);
+  const showMeshesBody =
+    showMeshesToggle && showContentToggle && popperContentMode === "MESHES";
   const showObjectsBody =
     showObjectsToggle && showContentToggle && popperContentMode === "OBJECTS";
   const showScopeContentBody =
@@ -2114,7 +2132,8 @@ export default function PopperMapListings() {
     !collapsed &&
     !showBaseMapsBody &&
     !showScopeContentBody &&
-    !showObjectsBody;
+    !showObjectsBody &&
+    !showMeshesBody;
   // Side title row with the properties button: not in the Viewer / SCOPE
   // modules nor the BaseMaps module (read-only legends, no popper properties
   // there).
@@ -2272,7 +2291,6 @@ export default function PopperMapListings() {
   // Maillage module: COTE / RULER templates are drawing entries there (see
   // the forceDrawMode rows), so they escape the legend filter — their row
   // must be reachable before any cote exists, and so must their listing.
-  const isMeshesModule = viewerKey === "MESHES";
   const coteTemplates = useMemo(
     () =>
       isMeshesModule
@@ -2566,6 +2584,7 @@ export default function PopperMapListings() {
 
         {showContentToggle ? (
           <ToggleContentMode
+            showMeshes={showMeshesToggle}
             showObjects={showObjectsToggle}
             objectsLabel={objectsLabel}
             showContent={isScopeModule}
@@ -2726,6 +2745,10 @@ export default function PopperMapListings() {
         </Box>
       )}
 
+      {/* "Maillage" side (Maillage module, mailles drawer closed): the
+          mailles list replaces the whole body. */}
+      {!collapsed && showMeshesBody && <SectionPopperMeshes />}
+
       {/* "Contenu" side (SCOPE module): the scope content replaces the whole
           body — every listing of the scope, grouped by family. */}
       {!collapsed && showScopeContentBody && (
@@ -2776,8 +2799,7 @@ export default function PopperMapListings() {
               of their data and their own eye. */}
           {isMeshesModule &&
             !isBaseMapsLegend &&
-            !isLocateBusinessObjectMode &&
-            !isLegendPopper && (
+            !isLocateBusinessObjectMode && (
               <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
                 <RowCutLineAnnotations annotations={cutLineAnnotations} />
               </Box>
@@ -3080,7 +3102,8 @@ export default function PopperMapListings() {
       {(soloTemplateId || soloRevolutionAxisId) &&
         !showBaseMapsBody &&
         !showScopeContentBody &&
-        !showObjectsBody && (
+        !showObjectsBody &&
+        !showMeshesBody && (
           <Box
             sx={{
               display: "flex",

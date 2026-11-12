@@ -36,6 +36,8 @@ import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpa
 import SwitchBaseMapGrayScale from "Features/mapEditor/components/SwitchBaseMapGrayScale";
 import SectionDxfExport from "Features/print/components/SectionDxfExport";
 import SectionDownloadThreed from "Features/threedEditor/components/SectionDownloadThreed";
+import SectionMeshes3dExport from "Features/threedMesh/components/SectionMeshes3dExport";
+import useMeshes3dRows from "Features/threedMesh/hooks/useMeshes3dRows";
 import SectionPortfolioPdfExport from "Features/portfolioEditor/components/SectionPortfolioPdfExport";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import createSheetAnnotations from "Features/excel/utils/createSheetAnnotations";
@@ -61,6 +63,11 @@ export default function PanelPrint() {
   const isThreed = isThreedFamilyViewerKey(effectiveViewerKey);
   const showDxfExport = selectedModuleKey === "MAP" && !isThreed;
   const showPortfolioExport = selectedModuleKey === "PORTFOLIO";
+  // Maillage module: the export is about the mailles, not the annotations —
+  // the mailles table replaces the "Annotations" / "Données" cards.
+  const isMeshesModule = selectedModuleKey === "MESHES";
+  const { rows: meshRows, surfaceDecimals: meshSurfaceDecimals } =
+    useMeshes3dRows();
 
   const baseMap = useMainBaseMap();
 
@@ -207,52 +214,67 @@ export default function PanelPrint() {
             portfolio (moved here from the portfolio properties panel) */}
         {showPortfolioExport && <SectionPortfolioPdfExport />}
 
+        {/* Card 1 (Maillage module) — mailles table, in place of the
+            annotations cards */}
+        {isMeshesModule && (
+          <WhiteSectionGeneric>
+            <SectionMeshes3dExport
+              rows={meshRows}
+              surfaceDecimals={meshSurfaceDecimals}
+            />
+          </WhiteSectionGeneric>
+        )}
+
         {/* Card 1 — Annotations count */}
-        <WhiteSectionGeneric>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Annotations
-            </Typography>
-            <Chip label={totalAnnotations} size="small" />
-          </Box>
-        </WhiteSectionGeneric>
+        {!isMeshesModule && (
+          <WhiteSectionGeneric>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                Annotations
+              </Typography>
+              <Chip label={totalAnnotations} size="small" />
+            </Box>
+          </WhiteSectionGeneric>
+        )}
 
         {/* Card 2 — Données */}
-        <WhiteSectionGeneric>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mb: 0.5,
-            }}
-          >
-            <TableChart fontSize="small" color="action" />
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Données
-            </Typography>
-          </Box>
+        {!isMeshesModule && (
+          <WhiteSectionGeneric>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                mb: 0.5,
+              }}
+            >
+              <TableChart fontSize="small" color="action" />
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                Données
+              </Typography>
+            </Box>
 
-          {/* Item: Toutes les annotations */}
-          <DataExportItem
-            label="Toutes les annotations"
-            onOpenDatagrid={() => setOpenDatagridAll(true)}
-            onDownloadExcel={handleDownloadExcelAll}
-          />
+            {/* Item: Toutes les annotations */}
+            <DataExportItem
+              label="Toutes les annotations"
+              onOpenDatagrid={() => setOpenDatagridAll(true)}
+              onDownloadExcel={handleDownloadExcelAll}
+            />
 
-          {/* Item: Données agrégées */}
-          <DataExportItem
-            label="Données agrégées par modèle"
-            onOpenDatagrid={() => setOpenDatagridAggregated(true)}
-            onDownloadExcel={handleDownloadExcelAggregated}
-          />
-        </WhiteSectionGeneric>
+            {/* Item: Données agrégées */}
+            <DataExportItem
+              label="Données agrégées par modèle"
+              onOpenDatagrid={() => setOpenDatagridAggregated(true)}
+              onDownloadExcel={handleDownloadExcelAggregated}
+            />
+          </WhiteSectionGeneric>
+        )}
 
         {/* Card 3 — per-module export: DXF over the 2D map (module Dessin),
             3D scene download while a 3D editor is displayed */}
