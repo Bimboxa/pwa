@@ -104,7 +104,6 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
   const [pasted, setPasted] = useState("");
   const [copied, setCopied] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [built, setBuilt] = useState(null);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const copiedTimerRef = useRef(null);
@@ -196,7 +195,6 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
   function handleMaxAreaChange(record) {
     const value = record?.maxArea ?? null;
     setMaxArea(value);
-    setBuilt(null);
     if (Number.isFinite(value) && value > 0) {
       dispatch(setCutLinesPromptMaxArea(value));
     }
@@ -232,7 +230,6 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
         }),
         context: prompt.context,
       });
-      setBuilt(zip);
       if (!zip)
         dispatch(setToaster({ message: noSolidS, severity: "warning" }));
     } catch (err) {
@@ -322,7 +319,6 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
             onDownload={handleDownloadZip}
             disabled={!canBuildPrompt}
             building={building}
-            built={built}
             followUp={zipFollowUpS}
             startSlot={maxAreaField}
           />
