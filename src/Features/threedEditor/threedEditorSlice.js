@@ -243,11 +243,14 @@ const threedEditorInitialState = {
   // Cut line axis tools (Features/threedCutLines): while a cut line is
   // armed, `axis` = the user axis (X / Y / Z) the trace runs along (null =
   // free click polyline), `offset` (m) = the « Décalage » guide from the
-  // reference corner, `side` = that corner (S toggles it).
+  // reference corner, `side` = that corner (S toggles it), `stopAtFirst` =
+  // the committed line gets a « Stop » on the first edge / cut line its
+  // extension meets (sticky, off by default).
   cutLineDraw: {
     axis: null,
     offset: 2,
     side: "LEFT",
+    stopAtFirst: false,
   },
   // « Plan de coupe » (Features/threedCutLines, DRAW_CUT_PLANE): `buffer` =
   // the typed `<length>[*N | /N]` (cutPlaneBuffer), `nearestOnly` = keep,
@@ -756,6 +759,9 @@ export const threedEditorSlice = createSlice({
     toggleCutLineDrawSide: (state) => {
       state.cutLineDraw.side =
         state.cutLineDraw.side === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    setCutLineDrawStopAtFirst: (state, action) => {
+      state.cutLineDraw.stopAtFirst = Boolean(action.payload);
     },
     // « Plan de coupe » (SectionCutPlaneDrawHelperContent): the typed buffer
     // and the « contour le plus proche » option.
@@ -1513,6 +1519,7 @@ export const {
   setCutLineDrawAxis,
   setCutLineDrawOffset,
   toggleCutLineDrawSide,
+  setCutLineDrawStopAtFirst,
   setCutPlaneBuffer,
   setCutPlaneNearestOnly,
   setCutPlaneAngleAxis,

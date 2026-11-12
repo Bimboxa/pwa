@@ -4,6 +4,7 @@ import { clearConstraintBuffer } from "Features/mapEditor/mapEditorSlice";
 import {
   setCutLineDrawAxis,
   setCutLineDrawOffset,
+  setCutLineDrawStopAtFirst,
   toggleCutLineDrawSide,
 } from "Features/threedEditor/threedEditorSlice";
 
@@ -11,6 +12,7 @@ import {
   Box,
   IconButton,
   Paper,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -58,7 +60,9 @@ const ROW_SX = {
 // parallel to the axis) — the « Décalage » guide (m from the reference: the
 // edge of the face or the neighbouring cut line), which shows the distance
 // being typed in the 3D view while there is one (`constraintBuffer`, it
-// locks the line), the side of the reference edge (S) and the shortcuts.
+// locks the line), the side of the reference edge (S), the « Arrêter à la
+// première arête / ligne » switch (a « Stop » on the first point of each
+// extension, commitDrawnCutLineService) and the shortcuts.
 // Replaces the generic polyline helper body while the cut line is armed.
 // ---------------------------------------------------------------------------
 
@@ -71,6 +75,7 @@ export default function SectionCutLineDrawHelperContent() {
   const freeS = "Libre";
   const offsetS = "Décalage";
   const sideS = "Changer de côté";
+  const stopAtFirstS = "Arrêter à la première arête / ligne";
   const freeHintS =
     "Cliquez les points de la ligne de coupe (plan, face, sommet, arête) — Entrée ou double-clic pour terminer : le trait est prolongé le long des faces";
   const axisHintS =
@@ -81,6 +86,9 @@ export default function SectionCutLineDrawHelperContent() {
 
   const axis = useSelector((s) => s.threedEditor.cutLineDraw.axis);
   const offset = useSelector((s) => s.threedEditor.cutLineDraw.offset);
+  const stopAtFirst = useSelector((s) =>
+    Boolean(s.threedEditor.cutLineDraw.stopAtFirst)
+  );
   const inProgress = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline.length > 0
   );
@@ -112,6 +120,10 @@ export default function SectionCutLineDrawHelperContent() {
 
   function handleToggleSide() {
     dispatch(toggleCutLineDrawSide());
+  }
+
+  function handleStopAtFirstChange(e) {
+    dispatch(setCutLineDrawStopAtFirst(e.target.checked));
   }
 
   // The 3D key handler ignores the keys typed in an input: the tool's
@@ -220,6 +232,16 @@ export default function SectionCutLineDrawHelperContent() {
             </IconButton>
             <KeyChip disabled={!axis}>S</KeyChip>
           </Box>
+        </Box>
+        <Box sx={ROW_SX}>
+          <Typography variant="body2" color="text.secondary">
+            {stopAtFirstS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={stopAtFirst}
+            onChange={handleStopAtFirstChange}
+          />
         </Box>
       </Paper>
     </SectionTransformToolHelper>

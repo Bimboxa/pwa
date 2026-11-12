@@ -12,8 +12,10 @@ import collectSceneTriangles from "../js/collectSceneTriangles";
 import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
 import { findFaceNormalAlong } from "../utils/findFacePlanesAt";
+import insertCutLineCrossings from "../utils/insertCutLineCrossings";
 
 import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
+import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 
 // Orchestrator of the cut line drawn in 3D (Maillage module): ordered world
 // vertices → extension of both ends along the faces of the scene
@@ -30,8 +32,12 @@ import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
 //     per-ref offsetBottom; ONE db.points row per vertex, never shared (a
 //     riser keeps two rows) — pointId identifies a vertex (sub-selection,
 //     « Stop » flag, drag).
-//   - refs: { id, offsetBottom, derived?: true } — `derived` marks the
-//     points the extension added (dashed segments while selected).
+//   - refs: { id, offsetBottom, derived?: true, stop?: true } — `derived`
+//     marks the points the extension added (dashed segments while selected),
+//     the crossings with the existing cut lines included
+//     (insertCutLineCrossings);
+//   - `stopAtFirst` (drawing helper switch): a « Stop » on the first point
+//     of each extension — the line ends on the first edge / cut line met.
 //
 // Template-less by construction (DRAW_CUT_LINE): scope + host base map only,
 // `createAnnotationFn` (useCreateAnnotation) required since
@@ -48,6 +54,7 @@ export default async function commitDrawnCutLineService({
   layerId = null,
   createAnnotationFn = null,
   preferredBaseMapId = null,
+  stopAtFirst = false,
 }) {
   if (!verticesInOrder || verticesInOrder.length < 2) {
     console.warn("[threedCutLines] commit aborted: fewer than 2 vertices");
@@ -93,16 +100,37 @@ export default async function commitDrawnCutLineService({
     // climbs it in the vertical plane of the segment.
     upNormal: getBaseMapNormalWorldFromRow(host),
   });
-  const { points: worldPoints, derivedStart, derivedEnd } = extended;
+  // The extension gets a point where it crosses the existing cut lines.
+  const {
+    points: worldPoints,
+    derivedStart,
+    derivedEnd,
+  } = insertCutLineCrossings({
+    ...extended,
+    otherLines: getCutLinesWorldPolylines().map((l) => l.points),
+  });
   console.log(
     `[threedCutLines] extension: +${derivedStart} point(s) at start, +${derivedEnd} at end (${triangles.length} scene triangles)`
   );
+
+  // « Arrêter à la première arête / ligne »: the first point of each
+  // extension (an edge of the solids, a free edge or a crossed cut line —
+  // the collinear nodes are simplified away) gets a « Stop ».
+  const stopIndexes = new Set();
+  if (stopAtFirst) {
+    if (derivedStart > 0) stopIndexes.add(derivedStart - 1);
+    if (derivedEnd > 0) stopIndexes.add(worldPoints.length - derivedEnd);
+  }
 
   const projected = worldPoints.map((p, i) => {
     const proj = worldToBaseMapNormalized(p, host);
     if (!proj) return null;
     const derived = i < derivedStart || i >= worldPoints.length - derivedEnd;
-    return derived ? { ...proj, derived: true } : proj;
+    return {
+      ...proj,
+      ...(derived ? { derived: true } : {}),
+      ...(stopIndexes.has(i) ? { stop: true } : {}),
+    };
   });
   if (projected.some((p) => !p)) {
     console.warn("[threedCutLines] commit aborted: projection failed");
@@ -134,6 +162,7 @@ export default async function commitDrawnCutLineService({
         id,
         offsetBottom: p.offsetBottom ?? 0,
         ...(p.derived ? { derived: true } : {}),
+        ...(p.stop ? { stop: true } : {}),
       });
     }
   });

@@ -11,6 +11,9 @@ import extendCutLine from "../utils/extendCutLine";
 import findFacePlanesAt, {
   findFaceNormalAlong,
 } from "../utils/findFacePlanesAt";
+import insertCutLineCrossings from "../utils/insertCutLineCrossings";
+
+import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 
 // A « Stop » set on a derived point survives a rebuild when the new
 // extension passes within this distance (m) of it.
@@ -57,12 +60,19 @@ export function computeCutLineRebuild({
       y: drawnPoints[i].y - drawnPoints[j].y,
       z: drawnPoints[i].z - drawnPoints[j].z,
     });
-  const { points, derivedStart, derivedEnd } = extendCutLine({
+  const extended = extendCutLine({
     drawn: drawnPoints,
     startFace: faceAt(0, 1),
     endFace: faceAt(last, last - 1),
     triangles,
     upNormal: getBaseMapNormalWorldFromRow(baseMap),
+  });
+  // As at creation: a point where the extension crosses the other lines.
+  const { points, derivedStart, derivedEnd } = insertCutLineCrossings({
+    ...extended,
+    otherLines: getCutLinesWorldPolylines()
+      .filter((l) => l.id !== raw.id)
+      .map((l) => l.points),
   });
   const isDerived = (i) => i < derivedStart || i >= points.length - derivedEnd;
   const keptStops = oldDerived.filter((p) => p?.stop);
