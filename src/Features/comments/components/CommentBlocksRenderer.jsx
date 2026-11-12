@@ -37,7 +37,7 @@ function BlockText({ block }) {
         "& h3, & h4": { fontSize: 14 },
         "& ul, & ol": { my: 1, pl: 2.5 },
         "& li": { my: 0.25 },
-        "& a": { color: COMMENT_COLORS.accent },
+        "& a": { color: COMMENT_COLORS.accentText },
         "& code": {
           fontSize: 12.5,
           px: 0.5,
@@ -139,7 +139,7 @@ function BlockLink({ block }) {
         border: `1px solid ${COMMENT_COLORS.border}`,
         bgcolor: COMMENT_COLORS.surface,
         color: "text.primary",
-        "&:hover": { borderColor: COMMENT_COLORS.accent },
+        "&:hover": { borderColor: COMMENT_COLORS.accentText },
       }}
     >
       <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -154,7 +154,7 @@ function BlockLink({ block }) {
           {block.label?.trim() ? href : host}
         </Typography>
       </Box>
-      <OpenInNewIcon sx={{ fontSize: 16, color: COMMENT_COLORS.accent }} />
+      <OpenInNewIcon sx={{ fontSize: 16, color: COMMENT_COLORS.accentText }} />
     </Link>
   );
 }

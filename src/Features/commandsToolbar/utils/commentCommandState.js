@@ -3,7 +3,7 @@
 // may run.
 export function getCommentCommandGate(ctx) {
   if (ctx.viewerKey !== "COMMENTS") {
-    return { enabled: false, reason: "Réservé au module Commentaires" };
+    return { enabled: false, reason: "Réservé au module Infos" };
   }
   if (ctx.readOnly) return { enabled: false, reason: ctx.readOnlyReason };
   if (!ctx.selectedScopeId) {

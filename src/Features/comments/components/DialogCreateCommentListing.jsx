@@ -27,11 +27,11 @@ export default function DialogCreateCommentListing() {
 
   // strings
 
-  const titleS = "Nouvelle liste de commentaires";
+  const titleS = "Nouvelle liste d'infos";
   const descriptionS =
-    "Les commentaires d'une liste se lisent dans l'ordre, comme un guide de visite du Krto.";
+    "Les infos d'une liste se lisent dans l'ordre, comme un guide de visite du Krto.";
   const nameS = "Nom de la liste";
-  const namePlaceholderS = "Commentaires";
+  const namePlaceholderS = "Infos";
   const cancelS = "Annuler";
   const createS = "Créer";
 

@@ -1,18 +1,18 @@
-import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import startAddCommentService from "Features/comments/services/startAddCommentService";
 
 import { ALL_EDITORS } from "../../constants/commandEditors";
 import { getCommentCommandGate } from "../../utils/commentCommandState";
 
-// « + Commentaire » (2D + 3D, Commentaires module — Features/comments):
+// « + Info » (2D + 3D, Infos module — Features/comments):
 // creates a comment that is NOT located, with the view context of the
 // displayed editor, and opens it in its editor. Without any comment listing
 // in the scope, the "new listing" dialog opens first.
 export default {
   key: "ADD_COMMENT",
-  label: "Ajouter un commentaire",
-  Icon: AddCommentOutlinedIcon,
+  label: "Ajouter une info",
+  Icon: InfoOutlinedIcon,
   editors: ALL_EDITORS,
   getState(ctx) {
     const gate = getCommentCommandGate(ctx);

@@ -1,4 +1,4 @@
-import { createTheme } from "@mui/material/styles";
+import { createTheme, lighten } from "@mui/material/styles";
 
 import appTheme from "Styles/theme";
 
@@ -14,9 +14,12 @@ export const COMMENT_COLORS = {
   borderStrong: "#3d3d3d",
   text: "#ececec",
   textSecondary: "#9b9b9b",
-  // single accent: the opened comment (pill, pin, links)
-  accent: "#ffb74d",
-  accentContrast: "#171717",
+  // single accent = the app's secondary color: fills (opened comment pill /
+  // pin, main buttons). `accentText` is its light tint, for what must read
+  // as text or thin line on the dark background (links, active icons).
+  accent: appTheme.palette.secondary.main,
+  accentContrast: "#ffffff",
+  accentText: lighten(appTheme.palette.secondary.main, 0.6),
 };
 
 const commentsDarkTheme = createTheme({
@@ -29,8 +32,14 @@ const commentsDarkTheme = createTheme({
   },
   palette: {
     mode: "dark",
-    primary: { main: COMMENT_COLORS.accent },
-    secondary: { main: COMMENT_COLORS.accent },
+    primary: {
+      main: COMMENT_COLORS.accent,
+      contrastText: COMMENT_COLORS.accentContrast,
+    },
+    secondary: {
+      main: COMMENT_COLORS.accent,
+      contrastText: COMMENT_COLORS.accentContrast,
+    },
     background: {
       default: COMMENT_COLORS.background,
       paper: COMMENT_COLORS.background,
