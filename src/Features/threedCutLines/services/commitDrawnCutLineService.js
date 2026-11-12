@@ -12,10 +12,16 @@ import collectSceneTriangles from "../js/collectSceneTriangles";
 import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
 import { findFaceNormalAlong } from "../utils/findFacePlanesAt";
-import insertCutLineCrossings from "../utils/insertCutLineCrossings";
+import insertCutLineCrossings, {
+  isPointOnLines,
+} from "../utils/insertCutLineCrossings";
 
 import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
 import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
+
+// Snaps (computeSnapTarget kinds) that put a drawn vertex on an edge of the
+// scene: a corner, an edge, a vertex / segment of another cut line.
+const EDGE_SNAP_KINDS = ["VERTEX", "EDGE"];
 
 // Orchestrator of the cut line drawn in 3D (Maillage module): ordered world
 // vertices → extension of both ends along the faces of the scene
@@ -36,8 +42,10 @@ import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 //     marks the points the extension added (dashed segments while selected),
 //     the crossings with the existing cut lines included
 //     (insertCutLineCrossings);
-//   - `stopAtFirst` (drawing helper switch): a « Stop » on the first point
-//     of each extension — the line ends on the first edge / cut line met.
+//   - `stopAtFirst` (drawing helper switch): the line ends on the first
+//     edge / cut line met — a « Stop » on the drawn end when it already lies
+//     on one (`snapKind` VERTEX / EDGE, or an existing cut line), else on
+//     the first point of that extension.
 //
 // Template-less by construction (DRAW_CUT_LINE): scope + host base map only,
 // `createAnnotationFn` (useCreateAnnotation) required since
@@ -101,25 +109,33 @@ export default async function commitDrawnCutLineService({
     upNormal: getBaseMapNormalWorldFromRow(host),
   });
   // The extension gets a point where it crosses the existing cut lines.
+  const otherLines = getCutLinesWorldPolylines().map((l) => l.points);
   const {
     points: worldPoints,
     derivedStart,
     derivedEnd,
-  } = insertCutLineCrossings({
-    ...extended,
-    otherLines: getCutLinesWorldPolylines().map((l) => l.points),
-  });
+  } = insertCutLineCrossings({ ...extended, otherLines });
   console.log(
     `[threedCutLines] extension: +${derivedStart} point(s) at start, +${derivedEnd} at end (${triangles.length} scene triangles)`
   );
 
-  // « Arrêter à la première arête / ligne »: the first point of each
-  // extension (an edge of the solids, a free edge or a crossed cut line —
-  // the collinear nodes are simplified away) gets a « Stop ».
+  // « Arrêter à la première arête / ligne »: a « Stop » on the first edge /
+  // cut line of each side. An end drawn ON one (vertex / edge snap, existing
+  // cut line) is that stop: the line is not prolonged beyond it. Otherwise
+  // it is the first point of the extension (an edge of the solids, a free
+  // edge or a crossed cut line — the collinear nodes are simplified away).
   const stopIndexes = new Set();
   if (stopAtFirst) {
-    if (derivedStart > 0) stopIndexes.add(derivedStart - 1);
-    if (derivedEnd > 0) stopIndexes.add(worldPoints.length - derivedEnd);
+    const isOnEdgeOrLine = (i) =>
+      EDGE_SNAP_KINDS.includes(verticesInOrder[i]?.snapKind) ||
+      isPointOnLines(drawn[i], otherLines);
+    if (derivedStart > 0) {
+      stopIndexes.add(isOnEdgeOrLine(0) ? derivedStart : derivedStart - 1);
+    }
+    if (derivedEnd > 0) {
+      const lastDrawn = worldPoints.length - 1 - derivedEnd;
+      stopIndexes.add(isOnEdgeOrLine(last) ? lastDrawn : lastDrawn + 1);
+    }
   }
 
   const projected = worldPoints.map((p, i) => {
@@ -172,6 +188,8 @@ export default async function commitDrawnCutLineService({
     classificationFields: { type: "CUT_LINE", offsetZ, height: 0 },
     templateProps,
   });
+  // Draft-only flag of « Segment de coupe » (DRAW_CUT_SEGMENT).
+  delete annotationFields.cutSegment;
 
   // Own label "L-01", "L-02", … (useCreateAnnotation leaves the label of a
   // template-less annotation alone).

@@ -35,6 +35,31 @@ function closestSegmentPoints(p1, q1, p2, q2) {
   return { s, t, c1: add(p1, scale(d1, s)), c2: lerp(p2, q2, t) };
 }
 
+// Whether `point` lies on one of the world polylines `lines` (within
+// `tolerance`, m): an end drawn on an existing cut line.
+export function isPointOnLines(
+  point,
+  lines,
+  tolerance = CUT_LINE_CROSSING_TOLERANCE_M
+) {
+  if (!point) return false;
+  for (const line of lines || []) {
+    if (!line) continue;
+    for (let j = 0; j < line.length - 1; j++) {
+      const d = sub(line[j + 1], line[j]);
+      const l2 = lengthSq(d);
+      const t =
+        l2 < 1e-12
+          ? 0
+          : Math.min(1, Math.max(0, dot(sub(point, line[j]), d) / l2));
+      if (distance(point, lerp(line[j], line[j + 1], t)) <= tolerance) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Vertices added to the EXTENSION of a cut line where it crosses other cut
 // lines, so that the crossing is a point of the line (« Stop », snap).
 //

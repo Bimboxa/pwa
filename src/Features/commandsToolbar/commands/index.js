@@ -75,6 +75,7 @@ import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
 import toggleGridCommand from "./toggleGrid/toggleGridCommand";
 import resetAxesCommand from "./resetAxes/resetAxesCommand";
 import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
+import drawCutSegmentCommand from "./drawCutSegment/drawCutSegmentCommand";
 import drawCutPlaneCommand from "./drawCutPlane/drawCutPlaneCommand";
 import drawCutAngleCommand from "./drawCutAngle/drawCutAngleCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
@@ -179,6 +180,7 @@ export const COMMANDS = [
   resetAxesCommand,
   // cut lines (3D, Maillage module)
   drawCutLineCommand,
+  drawCutSegmentCommand,
   drawCutPlaneCommand,
   drawCutAngleCommand,
   cutLinesPromptIaCommand,

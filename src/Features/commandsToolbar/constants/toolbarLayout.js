@@ -245,6 +245,7 @@ const CUT_LINES_SECTION = {
   label: "Lignes de coupe",
   entries: [
     "DRAW_CUT_LINE",
+    "DRAW_CUT_SEGMENT",
     "DRAW_CUT_PLANE",
     "DRAW_CUT_ANGLE",
     "CUT_LINES_PROMPT_IA",

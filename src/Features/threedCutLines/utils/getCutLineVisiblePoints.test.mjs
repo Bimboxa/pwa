@@ -47,6 +47,21 @@ test("a stop on a drawn point truncates the end", () => {
   assert.deepEqual(ids(result.points), ["h0", "h1", "d0", "d1"]);
 });
 
+test("a stop on the first drawn point hides the head extension", () => {
+  const result = getCutLineVisiblePoints(makeLine({ d0: true }));
+  assert.equal(result.startIndex, 2);
+  assert.equal(result.endIndex, 6);
+  const both = getCutLineVisiblePoints(makeLine({ d0: true, d2: true }));
+  assert.deepEqual(ids(both.points), ["d0", "d1", "d2"]);
+  // Without a head the stop changes nothing (never a one-point line).
+  const noHead = getCutLineVisiblePoints([
+    pt("a", { stop: true }),
+    pt("b"),
+    pt("c"),
+  ]);
+  assert.deepEqual(ids(noHead.points), ["a", "b", "c"]);
+});
+
 test("stops on both sides combine", () => {
   const result = getCutLineVisiblePoints(makeLine({ h0: true, t1: true }));
   assert.equal(result.startIndex, 0);

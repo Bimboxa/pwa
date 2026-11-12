@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import insertCutLineCrossings from "./insertCutLineCrossings.js";
+import insertCutLineCrossings, {
+  isPointOnLines,
+} from "./insertCutLineCrossings.js";
 
 const v = (x, y, z = 0) => ({ x, y, z });
 
@@ -125,4 +127,13 @@ test("a line ending on the extension adds its end point", () => {
   });
   assert.equal(result.points.length, 6);
   assert.ok(close(result.points[4], v(5, 8)));
+});
+
+test("isPointOnLines: on a segment, on a vertex, off the line", () => {
+  const lines = [[v(0, 8), v(5, 8), v(10, 9)]];
+  assert.equal(isPointOnLines(v(2, 8.003), lines), true);
+  assert.equal(isPointOnLines(v(5, 8), lines), true);
+  assert.equal(isPointOnLines(v(2, 8.02), lines), false);
+  assert.equal(isPointOnLines(v(-1, 8), lines), false);
+  assert.equal(isPointOnLines(v(2, 8), []), false);
 });

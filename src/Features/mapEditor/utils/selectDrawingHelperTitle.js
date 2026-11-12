@@ -31,7 +31,11 @@ export default function selectDrawingHelperTitle(s) {
   if (meshHelperTool === "NUMBER") return "Numéroter";
   if (selectIsCutAngleDrawActive(s)) return "Dessiner des coupes par angle";
   if (selectIsCutPlaneDrawActive(s)) return "Dessiner un plan de coupe";
-  if (selectIsCutLineDrawActive(s)) return "Dessiner une ligne de coupe";
+  if (selectIsCutLineDrawActive(s)) {
+    return s.annotations.newAnnotation?.cutSegment
+      ? "Dessiner un segment de coupe"
+      : "Dessiner une ligne de coupe";
+  }
   if (s.mapEditor.enabledDrawingMode) {
     const draft = s.annotations.newAnnotation;
     if (isBaseMapLinkLocateDraft(draft)) return "Repérage du trait de coupe";

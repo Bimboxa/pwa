@@ -396,7 +396,11 @@ export default function useDrawingPointerHandlers() {
     async function commitCutLineAxisChord() {
       const chord = getCutLineAxisHover()?.chordWorld;
       if (!chord || chord.length < 2) return false;
-      const committed = await commitTemplateless(chord);
+      // The chord runs edge to edge on its face (« Arrêter à la première
+      // arête / ligne » stops it there).
+      const committed = await commitTemplateless(
+        chord.map((p) => ({ ...p, snapKind: "EDGE" }))
+      );
       if (committed) {
         // A typed distance becomes the « Décalage » guide: the next lines
         // chain at the same step from the one just drawn.
@@ -1034,8 +1038,12 @@ export default function useDrawingPointerHandlers() {
             ...common,
             editor,
             verticesInOrder: points,
+            // Each command has its own sticky switch (on by default for
+            // « Segment de coupe »).
             stopAtFirst: Boolean(
-              store.getState().threedEditor.cutLineDraw?.stopAtFirst
+              store.getState().threedEditor.cutLineDraw?.[
+                draft.cutSegment ? "segmentStopAtFirst" : "stopAtFirst"
+              ]
             ),
           });
         } else {
@@ -1276,8 +1284,9 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
-      // "Segment (2 clics)": the segment ends here.
-      if (behavior === "SEGMENT") {
+      // "Segment (2 clics)" / « Segment de coupe » (CUT_LINE draft flagged
+      // `cutSegment`): the segment ends here.
+      if (behavior === "SEGMENT" || getLiveDrawing().draft?.cutSegment) {
         if (!(await commitTemplateless(drawn))) {
           dispatch(cancelInProgressPolyline());
         }

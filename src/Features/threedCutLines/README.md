@@ -35,7 +35,8 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   handed out again.
 - `derived`: point added by the extension (dashed segments while selected).
   `stop`: the line ends there (`getCutLineVisiblePoints`: a stop in the
-  extended head truncates the start, any other truncates the end).
+  extended head, or on the first drawn point, truncates the start, any other
+  truncates the end).
 - Not in 2D (no `NodeAnnotationStatic` case), no quantities, not exported to
   DXF, never a duplicate candidate.
 
@@ -65,10 +66,22 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   follow a drag / M / R / « Recalculer le prolongement ».
 - « Arrêter à la première arête / ligne » (helper switch,
   `cutLineDraw.stopAtFirst`, sticky, off by default): the commit sets a
-  « Stop » on the first point of each extension (an edge of the solids, a
-  free edge or a crossing — collinear nodes are simplified away, so an edge
-  between two coplanar faces is not one). A regular Stop: removable from
-  `ToolbarEditCutLinePoint`, kept by the rebuild (1 cm rule).
+  « Stop » on the first edge / cut line of each side. An end drawn ON one
+  (`snapKind` VERTEX / EDGE — the axis chord's ends count as EDGE — or within
+  5 mm of an existing cut line, `isPointOnLines`) carries the Stop itself:
+  nothing shows beyond the drawn end (`getCutLineVisiblePoints`: a stop on
+  the FIRST drawn point hides the head extension). Otherwise the Stop goes
+  on the first point of that extension (an edge of the solids, a free edge
+  or a crossing — collinear nodes are simplified away, so an edge between
+  two coplanar faces is not one). A regular Stop: removable from
+  `ToolbarEditCutLinePoint`, kept by the rebuild (drawn refs keep their
+  flags, derived ones follow the 1 cm rule).
+- « Segment de coupe » (`DRAW_CUT_SEGMENT`, K, `commandsToolbar/commands/drawCutSegment`):
+  the two-click variant — the same CUT_LINE draft flagged `cutSegment`
+  (`isCutSegmentDraft` in the commands context); the second click commits
+  (the "Segment (2 clics)" branch of `onTemplatelessClick`), the tool stays
+  armed. Same helper body (own title / hint), its own sticky switch
+  `cutLineDraw.segmentStopAtFirst`, ON by default.
 - Existing cut lines are snap targets of every 3D drawing (vertices, derived
   ones included, and segments): each segment `Line2` carries `isSnapLine` +
   `exportLine.positions` (the `buildView3dEdgeLines` convention read by

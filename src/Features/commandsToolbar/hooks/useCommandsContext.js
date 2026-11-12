@@ -284,6 +284,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       newAnnotationType: newAnnotation?.type ?? null,
       // CUT_LINE draft armed by « Plan de coupe » (DRAW_CUT_PLANE).
       isCutPlaneDraft: Boolean(newAnnotation?.cutPlane),
+      // CUT_LINE draft armed by « Segment de coupe » (DRAW_CUT_SEGMENT).
+      isCutSegmentDraft: Boolean(newAnnotation?.cutSegment),
       // … of kind "ANGLE": armed by « Coupe par angle » (DRAW_CUT_ANGLE).
       isCutAngleDraft:
         Boolean(newAnnotation?.cutPlane) &&
