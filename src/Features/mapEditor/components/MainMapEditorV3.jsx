@@ -114,6 +114,7 @@ import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
 import PrintZoneLayer from "./PrintZoneLayer";
 import OverlayBaseMapsTransformLayer from "Features/baseMapOverlays/components/OverlayBaseMapsTransformLayer";
+import OverlayAnnotationsTooltip from "Features/baseMapOverlays/components/OverlayAnnotationsTooltip";
 import useBaseMapOverlays from "Features/baseMapOverlays/hooks/useBaseMapOverlays";
 import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
@@ -817,6 +818,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       !versionCompareEnabled,
     forViewerKey,
   });
+  // Consultation modules (Viewer, Infos) display the other base maps as
+  // content: original colors instead of the greyed drawing context.
+  const keepOverlayColors = useSelector(
+    (s) =>
+      s.viewers.selectedViewerKey === "THREED" ||
+      s.viewers.selectedViewerKey === "COMMENTS"
+  );
   const { isReadOnly: isReadOnlyScope } = useReadOnlyScope();
   const selectedOverlayBaseMapId =
     selectedItems?.[0]?.type === "BASE_MAP" &&
@@ -2960,6 +2968,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     versionCompareEnabled={versionCompareEnabled}
                     versionCompareId={versionCompareId}
                     baseMapOverlays={baseMapOverlays}
+                    keepOverlayColors={keepOverlayColors}
                   />
                 </g>
                 {/* 2. LAYER ÉDITION BASEMAP (Exclusif) */}
@@ -3156,6 +3165,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               legendFormat={legendFormat}
               versions={baseMap?.versions}
             />
+          )}
+
+          {/* Viewer / Infos modules: hover tooltip of the overlaid base maps'
+              annotations (not pointer-interactive, own hit test). */}
+          {keepOverlayColors && isActiveViewer && baseMapOverlays.length > 0 && (
+            <OverlayAnnotationsTooltip overlays={baseMapOverlays} />
           )}
 
           <DialogDeleteSelectedAnnotation />

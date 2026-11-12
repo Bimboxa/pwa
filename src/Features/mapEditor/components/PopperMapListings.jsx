@@ -1710,7 +1710,8 @@ export default function PopperMapListings() {
   // listings + templates only, no editing affordances or warnings.
   const isViewerModule = viewerKey === "THREED";
   // Viewer module displaying its 2D editor: the panel scopes to the CURRENT
-  // baseMap only (the extra-basemap mirroring is a 3D-scene concern).
+  // baseMap plus the base maps overlaid on it with their annotations badge on
+  // (widenToDisplayed) — the extra-basemap mirroring is a 3D-scene concern.
   const isViewer2d = useSelector(
     (s) => viewerKey === "THREED" && selectEffectiveViewerKey(s) === "MAP"
   );
@@ -1772,6 +1773,15 @@ export default function PopperMapListings() {
     (s) =>
       isDessinPopper && !isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Infos module: same widening as Dessin (2D overlays, 3D display modes).
+  // Viewer module in 2D: the overlays only — its 3D legend already mirrors
+  // the scene (mirrors3dFilters).
+  const isCommentsModule = viewerKey === "COMMENTS";
+  const isComments2d = useSelector(
+    (s) =>
+      isCommentsModule && !isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+  const showsOverlays2d = isDessin2d || isComments2d || isViewer2d;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   // Raw popperMapListings.interactionMode overridden by the module / display
   // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
@@ -1850,12 +1860,17 @@ export default function PopperMapListings() {
   const {
     displayedBaseMapIds: displayedAnnotationsBaseMapIds,
     otherDisplayedBaseMapIds,
-  } = useDisplayedAnnotationsBaseMapIds({ baseMap, isDessin2d });
+  } = useDisplayedAnnotationsBaseMapIds({
+    baseMap,
+    isDessin2d: showsOverlays2d,
+  });
   const extraBaseMapIdsIn3d = useExtraBaseMapIdsIn3d();
-  // Dessin module, main base map scope: the counters cover those base maps
-  // on top of the main one (same set as the 3D mirror of the other modules).
+  // Dessin / Infos modules and Viewer 2D, main base map scope: the templates
+  // and counters cover those base maps on top of the main one (same set as
+  // the 3D mirror of the other modules).
   const widenToDisplayed =
-    isDessinPopper && otherDisplayedBaseMapIds.length > 0;
+    (isDessinPopper || isCommentsModule || isViewer2d) &&
+    otherDisplayedBaseMapIds.length > 0;
   const extraBaseMapIds = useMemo(() => {
     if (!isScopeGridOpen) return extraBaseMapIdsIn3d;
     return scopeSheetIds.filter((id) => id !== baseMap?.id);

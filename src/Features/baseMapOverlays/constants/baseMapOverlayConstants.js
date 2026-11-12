@@ -15,3 +15,9 @@ export const OVERLAY_CONTENT_STYLE = {
   opacity: 0.55,
   pointerEvents: "none",
 };
+
+// Consultation modules (Viewer, Infos): the overlaid base maps are content
+// to read, not a drawing context — original colors, still read-only.
+export const OVERLAY_CONTENT_STYLE_ORIGINAL_COLORS = {
+  pointerEvents: "none",
+};

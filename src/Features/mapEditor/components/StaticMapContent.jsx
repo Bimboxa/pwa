@@ -77,6 +77,8 @@ function StaticMapContent({
   versionCompareId,
   // other base maps overlaid (greyed) on this one — see useBaseMapOverlays
   baseMapOverlays,
+  // Viewer / Infos modules: the overlaid base maps keep their colors
+  keepOverlayColors = false,
 }) {
   // data
 
@@ -457,6 +459,7 @@ function StaticMapContent({
           visibleViewBox={visibleViewBox}
           spriteImage={spriteImage}
           sizeVariant={sizeVariant}
+          keepOriginalColors={keepOverlayColors}
         />
 
         {/* --- SOLO GHOSTS ---
