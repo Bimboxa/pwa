@@ -56,6 +56,19 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   past its edges) — among several (the corner wall / slab), the one the end
   segment lies on (`findFaceNormalAlong`) — as « Recalculer le prolongement »
   does.
+- Crossings (`utils/insertCutLineCrossings`, pure, node-tested): where the
+  EXTENSION of the line (never its drawn segments) passes within 5 mm of
+  another cut line (`getCutLinesWorldPolylines`, visible runs), a derived
+  point is inserted on that other line — a vertex to « Stop » on / snap to.
+  Only the new line gets points; the crossed lines are left alone. The
+  rebuild (`computeCutLineRebuild`) runs the same insertion, so the points
+  follow a drag / M / R / « Recalculer le prolongement ».
+- « Arrêter à la première arête / ligne » (helper switch,
+  `cutLineDraw.stopAtFirst`, sticky, off by default): the commit sets a
+  « Stop » on the first point of each extension (an edge of the solids, a
+  free edge or a crossing — collinear nodes are simplified away, so an edge
+  between two coplanar faces is not one). A regular Stop: removable from
+  `ToolbarEditCutLinePoint`, kept by the rebuild (1 cm rule).
 - Existing cut lines are snap targets of every 3D drawing (vertices, derived
   ones included, and segments): each segment `Line2` carries `isSnapLine` +
   `exportLine.positions` (the `buildView3dEdgeLines` convention read by

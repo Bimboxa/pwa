@@ -1034,6 +1034,9 @@ export default function useDrawingPointerHandlers() {
             ...common,
             editor,
             verticesInOrder: points,
+            stopAtFirst: Boolean(
+              store.getState().threedEditor.cutLineDraw?.stopAtFirst
+            ),
           });
         } else {
           if (points.length < 2) return false;
