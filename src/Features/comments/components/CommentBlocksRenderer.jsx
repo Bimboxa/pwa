@@ -1,8 +1,13 @@
+import { useState } from "react";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { Box, Link, Typography } from "@mui/material";
+import { Box, IconButton, Link, Tooltip, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+
+import DialogImageViewer from "Features/images/components/DialogImageViewer";
 
 import { COMMENT_BLOCK_TYPES } from "../constants/commentBlocks";
 import { COMMENT_COLORS } from "../commentsDarkTheme";
@@ -74,8 +79,14 @@ function BlockText({ block }) {
   );
 }
 
-function BlockImage({ block }) {
+// `fullscreen` (reader): a small button over the top-right corner opens the
+// image large, in the zoomable / draggable viewer shared with the photos
+// (DialogImageViewer).
+function BlockImage({ block, fullscreen = true }) {
+  const fullscreenS = "Voir en grand";
+
   const url = usePhotoImageUrl(block.fileName);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const ratio =
     block.imageSize?.width && block.imageSize?.height
       ? block.imageSize.width / block.imageSize.height
@@ -84,6 +95,7 @@ function BlockImage({ block }) {
     <Box component="figure" sx={{ m: 0 }}>
       <Box
         sx={{
+          position: "relative",
           borderRadius: 1.5,
           overflow: "hidden",
           bgcolor: COMMENT_COLORS.surface,
@@ -100,6 +112,26 @@ function BlockImage({ block }) {
             sx={{ display: "block", width: 1, height: "auto" }}
           />
         )}
+        {url && fullscreen && (
+          <Tooltip title={fullscreenS} arrow>
+            <IconButton
+              size="small"
+              onClick={() => setViewerOpen(true)}
+              sx={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                p: 0.25,
+                borderRadius: 1,
+                color: "#fff",
+                bgcolor: "rgba(0,0,0,0.55)",
+                "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+              }}
+            >
+              <FullscreenIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
       {block.caption && (
         <Typography
@@ -109,6 +141,14 @@ function BlockImage({ block }) {
         >
           {block.caption}
         </Typography>
+      )}
+      {fullscreen && (
+        <DialogImageViewer
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          src={url}
+          title={block.caption || ""}
+        />
       )}
     </Box>
   );
@@ -195,8 +235,14 @@ const BLOCK_COMPONENTS = {
 };
 
 // Read-only body of a comment: its blocks in order. Unknown block types
-// (written by a newer version) are skipped.
-export default function CommentBlocksRenderer({ blocks, emptyLabel }) {
+// (written by a newer version) are skipped. `imageFullscreen: false` drops
+// the "view large" button of the images (the editor shows its own block
+// actions in that corner).
+export default function CommentBlocksRenderer({
+  blocks,
+  emptyLabel,
+  imageFullscreen = true,
+}) {
   // helpers
 
   const items = (blocks ?? []).filter((b) => BLOCK_COMPONENTS[b?.type]);
@@ -215,7 +261,9 @@ export default function CommentBlocksRenderer({ blocks, emptyLabel }) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       {items.map((block) => {
         const Block = BLOCK_COMPONENTS[block.type];
-        return <Block key={block.id} block={block} />;
+        return (
+          <Block key={block.id} block={block} fullscreen={imageFullscreen} />
+        );
       })}
     </Box>
   );
