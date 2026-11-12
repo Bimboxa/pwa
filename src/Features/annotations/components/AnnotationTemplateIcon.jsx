@@ -14,8 +14,12 @@ import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 // as makeMaterial: color3D ?? 2Dcolor, opacity3D ?? 2Dopacity.
 // `revolutionAxisVertical` swaps the REVOLUTION_AXIS glyph from the plan view
 // (circle + centre point) to the elevation one (inverted T placement).
+// A missing template (row still loading, deleted annotation) renders the
+// neutral grey glyph.
+const EMPTY_TEMPLATE = {};
+
 export default function AnnotationTemplateIcon({
-  template,
+  template: templateProp,
   size = 20,
   spriteImage,
   use3D,
@@ -23,6 +27,7 @@ export default function AnnotationTemplateIcon({
 }) {
   // helpers
 
+  const template = templateProp ?? EMPTY_TEMPLATE;
   const shape = resolveDrawingShape(template);
   const topViewUrl = useObject3DTopView(template?.object3D);
   const shapeType = resolveShapeCategory(shape);
