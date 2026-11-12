@@ -1,21 +1,11 @@
-import { nanoid } from "@reduxjs/toolkit";
-
 import db from "App/db/db";
 
-import { computeMesh3dSurface } from "../utils/computeFaceArea";
-import getMesh3dCreationColors from "../utils/getMesh3dCreationColors";
-import getMesh3dLoops from "../utils/getMesh3dLoops";
-import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
+import buildMesh3dRecord from "../utils/buildMesh3dRecord";
 
-// Creates a maille. `number` is allocated inside the transaction as
-// 1 + max(number) over ALL rows of the scope INCLUDING soft-deleted ones
-// (rows are never physically removed), so numbers are never reused.
-//
-// Colors: `baseColor` is the source annotation's color — the fill is a
-// lightened shade of it picked to contrast with the ADJACENT mailles (same
-// palette, so touching mailles stay visually distinct) and the edges keep
-// the raw color. Explicit `color` / `edgeColor` win when provided (splits
-// preserve the parent's edge color).
+// Creates ONE maille. The record (number, colors, surface) is built inside
+// the transaction by buildMesh3dRecord against all the rows of the scope.
+// To create several mailles at once, use createMeshes3dService (one
+// transaction, one bulkAdd) instead of looping on this service.
 export default async function createMesh3dService({
   projectId,
   scopeId,
@@ -38,33 +28,21 @@ export default async function createMesh3dService({
       .where("[projectId+scopeId]")
       .equals([projectId, scopeId])
       .toArray();
-    const number = 1 + rows.reduce((max, r) => Math.max(max, r.number || 0), 0);
-
-    const neighbors = findAdjacentMeshes3d(
-      getMesh3dLoops({ faces, shell }),
-      rows.filter((r) => !r.deletedAt)
+    const record = buildMesh3dRecord(
+      {
+        projectId,
+        scopeId,
+        faces,
+        shell,
+        seams,
+        baseColor,
+        color,
+        edgeColor,
+        label,
+        sourceInfo,
+      },
+      rows
     );
-    const colors = getMesh3dCreationColors(
-      baseColor,
-      number,
-      neighbors.map((r) => r.color)
-    );
-
-    const record = {
-      id: nanoid(),
-      projectId,
-      scopeId,
-      number,
-      label,
-      baseColor,
-      color: color || colors.color,
-      edgeColor: edgeColor || colors.edgeColor,
-      surface: shell ? shell.surface : computeMesh3dSurface(faces),
-      faces: faces || [],
-      shell: shell || null,
-      seams: seams || [],
-      sourceInfo,
-    };
     await db.meshes3d.add(record);
     return record;
   });

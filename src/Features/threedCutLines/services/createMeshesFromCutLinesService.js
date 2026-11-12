@@ -1,5 +1,5 @@
 import db from "App/db/db";
-import createMesh3dService from "Features/threedMesh/services/createMesh3dService";
+import createMeshes3dService from "Features/threedMesh/services/createMeshes3dService";
 import computePlaneBasis from "Features/threedMesh/utils/computePlaneBasis";
 import {
   COVER_NORMAL_DOT,
@@ -49,7 +49,9 @@ export default async function createMeshesFromCutLinesService({
     .map((r) => r.shell)
     .filter((shell) => shell?.positions?.length);
 
-  let created = 0;
+  // Built in memory, written in one batch after the loop (a write per maille
+  // would rebuild the 3D scene once per maille).
+  const items = [];
   let skippedCovered = 0;
   let facesCut = 0;
   const colorByAnnotationId = new Map();
@@ -81,22 +83,25 @@ export default async function createMeshesFromCutLinesService({
       }
       const meshData = buildMeshDataFromPieces(pieces);
       if (!meshData) continue;
-      const row = await createMesh3dService({
-        projectId,
-        scopeId,
+      if (!meshData.faces?.length && !meshData.shell?.positions?.length) {
+        continue;
+      }
+      items.push({
         faces: meshData.faces,
         shell: meshData.shell,
         baseColor,
         sourceInfo: { annotationId, fromCutLines: true },
       });
-      if (row) {
-        created += 1;
-        existingFaces.push(...(row.faces || []));
-        if (row.shell?.positions?.length) existingShells.push(row.shell);
+      // Pending mailles count as existing for the next groups of this run.
+      existingFaces.push(...(meshData.faces || []));
+      if (meshData.shell?.positions?.length) {
+        existingShells.push(meshData.shell);
       }
     }
   }
-  return { created, skippedCovered, facesCut };
+
+  const records = await createMeshes3dService({ projectId, scopeId, items });
+  return { created: records.length, skippedCovered, facesCut };
 }
 
 // Every cut piece of the group has its centroid inside an existing maille.
