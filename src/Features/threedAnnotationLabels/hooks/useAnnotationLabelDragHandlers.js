@@ -23,13 +23,10 @@ import {
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
 import {
-  buildAxisLockLine,
-  removeAxisLockLine,
-} from "Features/threedDrawing/utils/axisLockLine";
-import {
-  closestPointOnAxis,
-  ndcDistance,
-} from "Features/threedDrawing/utils/computeSnapTarget";
+  clearAxisLockLine,
+  pickPointOnAxes,
+  updateAxisLockLine,
+} from "Features/threedDrawing/utils/axisLockDrag";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { clearSubSelection } from "Features/threedEditor/threedEditorSlice";
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
@@ -166,50 +163,27 @@ export default function useAnnotationLabelDragHandlers({
     function pickOnAxes(e, drag) {
       if (!drag.axes.length || !setRayFromEvent(e)) return null;
       const rect = dom.getBoundingClientRect();
-      const canvasSize = { width: rect.width, height: rect.height };
-      const { origin, direction } = raycaster.ray;
-      let best = null;
-      let bestDist = drag.isImage ? Infinity : AXIS_THRESHOLD_PX;
-      for (const ax of drag.axes) {
-        const pt = closestPointOnAxis(origin, direction, drag.startHit, ax.dir);
-        if (!pt) continue;
-        const { distance, behind } = ndcDistance(pt, ndc, camera, canvasSize);
-        if (behind || distance >= bestDist) continue;
-        bestDist = distance;
-        best = { position: pt, axis: ax.key };
-      }
-      return best;
+      return pickPointOnAxes({
+        ray: raycaster.ray,
+        ndc,
+        camera,
+        canvasSize: { width: rect.width, height: rect.height },
+        origin: drag.startHit,
+        axes: drag.axes,
+        thresholdPx: drag.isImage ? Infinity : AXIS_THRESHOLD_PX,
+      });
     }
 
-    function removeAxisLine(drag) {
-      if (!drag?.axisLine) return;
-      removeAxisLockLine(drag.axisLine);
-      drag.axisLine = null;
-      drag.axis = null;
-    }
+    const removeAxisLine = clearAxisLockLine;
 
     // Dashed line along the locked axis through the dragged object, in the
     // axis colour (drawing overlay look). Static for a given axis.
     function updateAxisLine(drag, axis) {
-      if (!axis) {
-        removeAxisLine(drag);
-        return;
-      }
-      if (drag.axis === axis && drag.axisLine) return;
-      removeAxisLine(drag);
-      const dir = drag.axes.find((a) => a.key === axis)?.dir;
-      if (!dir) return;
-      const line = buildAxisLockLine({
+      updateAxisLockLine(drag, axis, {
         editor,
         camera,
-        origin: drag.startWorld,
-        dir,
-        axis,
+        scene: sceneManager.scene,
       });
-      if (!line) return;
-      sceneManager.scene.add(line);
-      drag.axisLine = line;
-      drag.axis = axis;
     }
 
     function restoreDrag(drag) {

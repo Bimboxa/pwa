@@ -5,18 +5,9 @@ import {
   SRGBColorSpace,
   LinearFilter,
 } from "three";
-import { lighten } from "@mui/material/styles";
 
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 import sizeSpriteInViewportFraction from "Features/threedAnnotationLabels/services/sizeSpriteInViewportFraction";
-
-function safeLighten(color, amount, fallback) {
-  try {
-    return lighten(color, amount);
-  } catch {
-    return fallback;
-  }
-}
 
 // Same recipe as createDimensionLabelSprite (rounded card, constant on-screen
 // size, clickable) with an optional second line: when the maille is selected
@@ -52,7 +43,9 @@ export default function createMesh3dLabelSprite({
   // readability (light shades would wash out on the white card).
   const borderColor = color;
   const textColor = "#000000";
-  const fillBg = selected ? safeLighten(color, 0.85, "#e3f2fd") : "#ffffff";
+  // Always white, selected or not: the selection shows through the thicker
+  // border only.
+  const fillBg = "#ffffff";
 
   const s = CANVAS_SCALE;
   const titleFontPx = 24 * s;
