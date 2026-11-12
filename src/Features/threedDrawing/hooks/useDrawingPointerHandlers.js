@@ -34,6 +34,7 @@ import {
   flushInProgressAsTrait3D,
   pushDrawingVertex,
   setCutLineDrawAxis,
+  setCutLineDrawOffset,
   setDrawingAxisLock,
   toggleCutLineDrawSide,
   toggleFaceCutSide,
@@ -378,8 +379,32 @@ export default function useDrawingPointerHandlers() {
       const chord = getCutLineAxisHover()?.chordWorld;
       if (!chord || chord.length < 2) return false;
       const committed = await commitTemplateless(chord);
-      if (committed) dispatch(clearConstraintBuffer());
+      if (committed) {
+        // A typed distance becomes the « Décalage » guide: the next lines
+        // chain at the same step from the one just drawn.
+        const typed = parseRectBuffer(
+          store.getState().mapEditor.constraintBuffer
+        );
+        if (typed > 0) dispatch(setCutLineDrawOffset(typed));
+        dispatch(clearConstraintBuffer());
+      }
       return committed;
+    }
+
+    // X / Y / Z on a CUT_LINE draft (free mode included): arms the axis
+    // tool, the same letter again goes back to the free trace. Refused
+    // while a free polyline is in progress (the helper's toggle rule).
+    function onCutLineAxisLetterKey(e) {
+      if (newAnnotationRef.current?.type !== "CUT_LINE") return false;
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      const letter = e.key.length === 1 ? e.key.toUpperCase() : "";
+      if (!["X", "Y", "Z"].includes(letter)) return false;
+      e.preventDefault();
+      if (e.repeat || inProgressPolyline.length > 0) return true;
+      const current = store.getState().threedEditor.cutLineDraw?.axis ?? null;
+      dispatch(clearConstraintBuffer());
+      dispatch(setCutLineDrawAxis(current === letter ? null : letter));
+      return true;
     }
 
     // Keys of the cut line axis tool: digits type the distance from the
@@ -1973,6 +1998,7 @@ export default function useDrawingPointerHandlers() {
 
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+      if (onCutLineAxisLetterKey(e)) return;
       // Cut line axis tool (X / Y / Z armed): its own keys, nothing drawn.
       if (getCutLineAxis()) {
         if (onCutLineAxisKey(e)) return;

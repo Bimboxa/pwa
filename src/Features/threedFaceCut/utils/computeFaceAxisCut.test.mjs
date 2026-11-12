@@ -178,3 +178,81 @@ test("no contour → null", () => {
     null
   );
 });
+
+test("refCoords: the guide chains from the reference nearest behind the cursor", () => {
+  const r = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 1.95),
+    axis: "H",
+    snapToleranceM: 0.1,
+    guideDistances: [1],
+    refCoords: [1],
+  });
+  // The guide at 1 m from the bottom sits on the existing line (skipped);
+  // the one at 1 m from that line snaps.
+  near(r.cut, 2);
+  near(r.distance, 1);
+  near(r.ref2d.y, 1);
+  assert.equal(r.snapped, true);
+});
+
+test("refCoords: a guide landing on an existing reference does not snap", () => {
+  const r = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 1.3),
+    axis: "H",
+    snapToleranceM: 0.1,
+    guideDistances: [1.25],
+    refCoords: [1.25],
+  });
+  near(r.cut, 1.3);
+  assert.equal(r.snapped, false);
+  near(r.distance, 0.05);
+});
+
+test("refCoords: a typed distance is measured from the reference behind the cursor", () => {
+  const beyond = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 1.7),
+    axis: "H",
+    typedDistance: 0.5,
+    refCoords: [1],
+  });
+  near(beyond.cut, 1.5);
+  near(beyond.ref2d.y, 1);
+  near(beyond.distance, 0.5);
+  const before = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 0.6),
+    axis: "H",
+    typedDistance: 0.5,
+    refCoords: [1],
+  });
+  near(before.cut, 0.5);
+  near(before.ref2d.y, 0);
+});
+
+test("refCoords: the free cursor distance follows the nearest reference behind it", () => {
+  const r = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(1, 2.4),
+    axis: "H",
+    refCoords: [2, 1],
+  });
+  near(r.cut, 2.4);
+  near(r.distance, 0.4);
+  near(r.ref2d.y, 2);
+});
+
+test("refCoords: vertical cut from the right corner counts leftwards", () => {
+  const r = computeFaceAxisCut({
+    loops2d: [RECT],
+    cursor2d: p(2.5, 1),
+    axis: "V",
+    side: "RIGHT",
+    typedDistance: 1,
+    refCoords: [3],
+  });
+  near(r.cut, 2);
+  near(r.ref2d.x, 3);
+});

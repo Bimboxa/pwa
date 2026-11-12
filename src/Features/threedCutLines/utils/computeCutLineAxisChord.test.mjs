@@ -101,3 +101,88 @@ test("a rotated axis (45°) gives a diagonal chord; the offset guide snaps", () 
     z: r.ref.z + r.basis.v.z,
   });
 });
+
+test("side: the other side measures from the opposite edge of the face", () => {
+  const args = {
+    face: SLAB,
+    axisDir: { x: 1, y: 0, z: 0 },
+    cursor: { x: 1, y: 0, z: 1.2 },
+  };
+  const left = computeCutLineAxisChord({ ...args, side: "LEFT" });
+  const right = computeCutLineAxisChord({ ...args, side: "RIGHT" });
+  // Same chord under the cursor, references on the two opposite edges.
+  left.chord.forEach((p) => near(p.z, 1.2));
+  right.chord.forEach((p) => near(p.z, 1.2));
+  near(left.distance + right.distance, 3);
+  near(Math.abs(left.ref.z - right.ref.z), 3);
+
+  const typedLeft = computeCutLineAxisChord({
+    ...args,
+    side: "LEFT",
+    typedDistance: 1,
+  });
+  const typedRight = computeCutLineAxisChord({
+    ...args,
+    side: "RIGHT",
+    typedDistance: 1,
+  });
+  typedLeft.chord.forEach((p) => near(Math.abs(p.z - left.ref.z), 1));
+  typedRight.chord.forEach((p) => near(Math.abs(p.z - right.ref.z), 1));
+  near(Math.abs(typedLeft.chord[0].z - typedRight.chord[0].z), 1);
+});
+
+test("cutLines: a parallel line on the face is the reference of the distance", () => {
+  const args = {
+    face: SLAB,
+    axisDir: { x: 1, y: 0, z: 0 },
+    cursor: { x: 1, y: 0, z: 1.2 },
+    typedDistance: 0.5,
+  };
+  const plain = computeCutLineAxisChord(args);
+  const edgeZ = plain.ref.z;
+  const towards = Math.sign(1.2 - edgeZ);
+  // Existing line 1 m from the reference edge, between it and the cursor.
+  const lineZ = edgeZ + towards * 1;
+  const withLine = computeCutLineAxisChord({
+    ...args,
+    cutLines: [
+      {
+        id: "a",
+        points: [
+          { x: 0.5, y: 0.001, z: lineZ },
+          { x: 3.5, y: 0.001, z: lineZ },
+        ],
+      },
+    ],
+  });
+  near(withLine.ref.z, lineZ);
+  near(withLine.distance, 0.5);
+  withLine.chord.forEach((p) => near(p.z, lineZ + towards * 0.5));
+
+  // Off the plane, not parallel, outside the face: ignored.
+  const ignored = computeCutLineAxisChord({
+    ...args,
+    cutLines: [
+      {
+        points: [
+          { x: 0.5, y: 0.5, z: lineZ },
+          { x: 3.5, y: 0.5, z: lineZ },
+        ],
+      },
+      {
+        points: [
+          { x: 0.5, y: 0, z: lineZ },
+          { x: 3.5, y: 0, z: lineZ + 0.5 },
+        ],
+      },
+      {
+        points: [
+          { x: 5, y: 0, z: lineZ },
+          { x: 6, y: 0, z: lineZ },
+        ],
+      },
+    ],
+  });
+  near(ignored.ref.z, edgeZ);
+  ignored.chord.forEach((p) => near(p.z, edgeZ + towards * 0.5));
+});

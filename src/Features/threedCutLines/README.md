@@ -88,9 +88,16 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   « Décalage », side toggle, `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
   face region under the cursor and publishes to `cutLineAxisStore` the chord
   parallel to the user axis (`computeCutLineAxisChord` = `computeFaceAxisCut`
-  in the frame `{u: axis in the face, v: n × u}` — a rotated gizmo frame
-  rotates the trace). Digits type the distance from the reference corner, S
-  flips the corner, the guide at « Décalage » snaps, click / Enter commits
+  in the frame `{u: axis in the face, v: ± n × u}` — a rotated gizmo frame
+  rotates the trace). X / Y / Z arm the axis from the keyboard (free mode
+  included, the same letter again releases it). The reference is the edge of
+  the face (S flips `side`, i.e. `v`: the opposite edge) or the existing cut
+  line of the face parallel to the axis nearest behind the cursor
+  (`cutLineObjectsStore.getCutLinesWorldPolylines` → `refCoords` of
+  `computeFaceAxisCut`), so lines chain at a constant step. Digits type the
+  distance from that reference (shown in the « Décalage » field while typed,
+  kept as the new « Décalage » once the line is committed), the guide at
+  « Décalage » from every reference snaps, click / Enter commits
   the chord as a 2-point line (then extended like a free one; the committed
   points lie ON the face, only the dashed draft is lifted 2 mm). Escape drops
   the typed distance, then releases the axis. `DrawingOverlayThreed` is

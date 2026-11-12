@@ -23,7 +23,12 @@ const MIN_CHORD = 1e-6;
 //     face (contour + holes), or to the middle of an edge it would halve,
 //     closer than this;
 //   - guideDistances: extra snap candidates at these distances (m) from the
-//     reference (the « Décalage » guide of the cut line axis tools).
+//     reference (the « Décalage » guide of the cut line axis tools);
+//   - refCoords: extra references across the line (cut coordinates, e.g. the
+//     cut lines already drawn on the face, parallel to the new one): the
+//     distance — typed, guide and displayed — is measured from the reference
+//     nearest behind the cursor instead of the bottom of the face, so equally
+//     spaced lines chain from one another.
 //
 // The reference is the bottom of the face: the lowest contour vertex nearest
 // the cursor (H), or the lowest-left / lowest-right one (V). The chord is the
@@ -44,6 +49,7 @@ export default function computeFaceAxisCut({
   typedDistance = null,
   snapToleranceM = 0,
   guideDistances = [],
+  refCoords = [],
 }) {
   const contour = loops2d?.[0];
   if (!contour || contour.length < 3 || !cursor2d) return null;
@@ -65,26 +71,52 @@ export default function computeFaceAxisCut({
   }, null);
   const dir = isH ? 1 : side === "LEFT" ? 1 : -1;
 
+  // References the distance can be measured from: the bottom of the face,
+  // then the extra ones lying beyond it.
+  const baseCoord = ref2d[coord];
+  const refs = [
+    baseCoord,
+    ...refCoords.filter(
+      (c) => Number.isFinite(c) && dir * (c - baseCoord) > TIE_TOL
+    ),
+  ];
+  // The reference nearest behind `c` (strictly: a line ON a reference is
+  // measured from the previous one).
+  const refBehind = (c) =>
+    refs.reduce(
+      (best, r) => (dir * (c - r) > TIE_TOL && dir * (r - best) > 0 ? r : best),
+      baseCoord
+    );
+
   // Cut coordinate: typed (locked) or the cursor's, snapped.
   let cut;
+  let refCoord = null;
   let locked = false;
   let snapped = false;
   if (typedDistance != null && Number.isFinite(typedDistance)) {
-    cut = ref2d[coord] + dir * typedDistance;
+    refCoord = refBehind(cursor2d[coord]);
+    cut = refCoord + dir * typedDistance;
     locked = true;
   } else {
     cut = cursor2d[coord];
     let bestDist = snapToleranceM;
-    const consider = (candidate) => {
+    const consider = (candidate, fromRef = null) => {
       const d = Math.abs(candidate - cursor2d[coord]);
       if (d < bestDist) {
         bestDist = d;
         cut = candidate;
+        refCoord = fromRef;
         snapped = true;
       }
     };
     for (const g of guideDistances) {
-      if (Number.isFinite(g) && g > 0) consider(ref2d[coord] + dir * g);
+      if (!Number.isFinite(g) || g <= 0) continue;
+      for (const r of refs) {
+        const candidate = r + dir * g;
+        // A guide landing on another reference would duplicate that line.
+        if (refs.some((o) => Math.abs(o - candidate) <= TIE_TOL)) continue;
+        consider(candidate, r);
+      }
     }
     for (const loop of loops2d) {
       const n = loop.length;
@@ -100,7 +132,9 @@ export default function computeFaceAxisCut({
       }
     }
   }
-  const distance = Math.abs(cut - ref2d[coord]);
+  if (refCoord == null) refCoord = refBehind(cut);
+  const usedRef2d = { ...ref2d, [coord]: refCoord };
+  const distance = Math.abs(cut - refCoord);
   const guide2d = { ...ref2d, [coord]: cut };
 
   // Crossings of the line with every edge of every loop, half-open rule so
@@ -145,7 +179,7 @@ export default function computeFaceAxisCut({
     loopIndexA: run ? run.a.loopIndex : null,
     loopIndexB: run ? run.b.loopIndex : null,
     endsOnHole: Boolean(run && (run.a.loopIndex > 0 || run.b.loopIndex > 0)),
-    ref2d,
+    ref2d: usedRef2d,
     guide2d,
     distance,
     snapped,
