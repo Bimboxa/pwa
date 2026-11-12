@@ -18,7 +18,8 @@ const COPIED_MS = 1500;
 // Zip step of the « Prompt IA » screens: the download button, then what to
 // ask the AI chat. `built` is the last generated zip ({ fileName, sizeBytes });
 // `children` holds the screen's own alerts. `followUp` replaces the closing
-// line for a screen with no result step.
+// line for a screen with no result step. `startSlot` sits on the button's
+// row, before it (an inline setting the zip depends on).
 export default function SectionPromptIaZipDownload({
   onDownload,
   disabled = false,
@@ -26,6 +27,7 @@ export default function SectionPromptIaZipDownload({
   built,
   label,
   followUp,
+  startSlot,
   children,
 }) {
   // strings
@@ -65,6 +67,7 @@ export default function SectionPromptIaZipDownload({
       <Box
         sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}
       >
+        {startSlot}
         <Button
           variant="contained"
           color="secondary"
@@ -140,5 +143,6 @@ SectionPromptIaZipDownload.propTypes = {
   }),
   label: PropTypes.string,
   followUp: PropTypes.string,
+  startSlot: PropTypes.node,
   children: PropTypes.node,
 };

@@ -13,14 +13,11 @@ import {
   Box,
   Button,
   CircularProgress,
-  InputAdornment,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Check, ContentCopy, Download } from "@mui/icons-material";
 
+import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import FieldPromptIaResultJson from "Features/promptIa/components/FieldPromptIaResultJson";
 import SectionPromptIaZipDownload from "Features/promptIa/components/SectionPromptIaZipDownload";
@@ -52,11 +49,12 @@ const plural = (n, word) => `${n} ${word}${n > 1 ? "s" : ""}`;
 const formatArea = (v) => `${v.toFixed(2).replace(".", ",")} m²`;
 
 // Dialog of « Ligne de coupe – prompt IA » (Maillage module):
-// 1. target max surface of a maille;
+// 1. target max surface of a maille (one-liner field, on the row of the
+//    prompt button);
 // 2. the prompt for an external AI chat — TEXT mode (planar faces only: one
 //    text to copy / download) or GLB mode (curved surfaces: a zip with
 //    scene.glb), with the faces of the visible annotations and the cut lines
-//    already drawn;
+//    already drawn. The mode is picked from the scene, never by the user;
 // 3. the pasted answer, parsed live, with a dry run of the resulting pieces;
 // 4. « Créer » writes the cut lines and the set-out cotes in one undo step.
 //
@@ -68,15 +66,11 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
 
   const titleS = "Ligne de coupe – prompt IA";
   const maxAreaS = "Surface max d’une maille";
-  const textModeS = "Texte";
-  const glbModeS = "GLB (courbes)";
   const copyS = "Copier le prompt";
   const copiedS = "Prompt copié";
   const downloadS = "Télécharger";
   const pasteHintS =
     "Collez ce prompt dans un chat IA (ChatGPT, Claude…), puis collez sa réponse ci-dessous.";
-  const curvedIgnoredS =
-    "Les surfaces courbes sont ignorées en mode texte : passez en mode GLB pour les inclure.";
   const noSolidS = "Aucune annotation visible dans l’éditeur 3D.";
   const invalidMaxS = "Saisissez une surface supérieure à 0.";
   const zipFollowUpS =
@@ -105,10 +99,8 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
     collectCutLinesPromptRegions({ editor, angleDeg })
   );
   const [existingCutLines] = useState(() => getCutLinesWorldPolylines());
-  const [mode, setMode] = useState(() =>
-    regions.some((region) => region.shell) ? GLB : TEXT
-  );
-  const [maxAreaText, setMaxAreaText] = useState(String(storedMaxArea ?? 4));
+  // Number, or null while the field is empty.
+  const [maxArea, setMaxArea] = useState(storedMaxArea ?? 4);
   const [pasted, setPasted] = useState("");
   const [copied, setCopied] = useState(false);
   const [building, setBuilding] = useState(false);
@@ -121,8 +113,18 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
 
   // helpers
 
-  const maxArea = Number(String(maxAreaText).replace(",", "."));
+  // The mode is a technical choice, never shown: a zip with the scene as a
+  // GLB as soon as one visible surface is curved, plain text otherwise.
+  const mode = useMemo(
+    () => (regions.some((region) => region.shell) ? GLB : TEXT),
+    [regions]
+  );
   const maxAreaIsValid = Number.isFinite(maxArea) && maxArea > 0;
+  // FieldAnnotationHeight edits one numeric key of a record.
+  const maxAreaRecord = useMemo(
+    () => ({ id: "cutLinesPrompt", maxArea }),
+    [maxArea]
+  );
 
   const prompt = useMemo(
     () =>
@@ -191,19 +193,13 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
 
   // handlers
 
-  function handleMaxAreaChange(e) {
-    const text = e.target.value;
-    setMaxAreaText(text);
-    const value = Number(String(text).replace(",", "."));
+  function handleMaxAreaChange(record) {
+    const value = record?.maxArea ?? null;
+    setMaxArea(value);
+    setBuilt(null);
     if (Number.isFinite(value) && value > 0) {
       dispatch(setCutLinesPromptMaxArea(value));
     }
-  }
-
-  function handleModeChange(e, next) {
-    if (!next) return;
-    setMode(next);
-    setBuilt(null);
   }
 
   async function handleCopy() {
@@ -286,6 +282,15 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
   // render
 
   const warnings = parsed.warnings ?? [];
+  const maxAreaField = (
+    <FieldAnnotationHeight
+      annotation={maxAreaRecord}
+      onChange={handleMaxAreaChange}
+      field="maxArea"
+      label={maxAreaS}
+      unit="m²"
+    />
+  );
 
   return (
     <DialogGeneric
@@ -305,43 +310,12 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
           overflowY: "auto",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, pt: 0.5 }}>
-          <TextField
-            size="small"
-            label={maxAreaS}
-            value={maxAreaText}
-            onChange={handleMaxAreaChange}
-            error={!maxAreaIsValid}
-            sx={{ width: 200 }}
-            slotProps={{
-              htmlInput: { inputMode: "decimal" },
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">m²</InputAdornment>
-                ),
-              },
-            }}
-          />
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={mode}
-            onChange={handleModeChange}
-          >
-            <ToggleButton value={TEXT}>{textModeS}</ToggleButton>
-            <ToggleButton value={GLB}>{glbModeS}</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-
         <Typography variant="caption" color="text.secondary">
           {statsS}
         </Typography>
 
         {!maxAreaIsValid && <Alert severity="warning">{invalidMaxS}</Alert>}
         {!hasInput && <Alert severity="warning">{noSolidS}</Alert>}
-        {!isGlb && stats.curvedCount > 0 && (
-          <Alert severity="info">{curvedIgnoredS}</Alert>
-        )}
 
         {isGlb ? (
           <SectionPromptIaZipDownload
@@ -350,16 +324,19 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
             building={building}
             built={built}
             followUp={zipFollowUpS}
+            startSlot={maxAreaField}
           />
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {maxAreaField}
               <Button
                 variant="contained"
                 color="secondary"
                 onClick={handleCopy}
                 disabled={!canBuildPrompt}
                 startIcon={copied ? <Check /> : <ContentCopy />}
+                sx={{ flexShrink: 0 }}
               >
                 {copied ? copiedS : copyS}
               </Button>
@@ -369,6 +346,7 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
                 onClick={handleDownloadText}
                 disabled={!canBuildPrompt}
                 startIcon={<Download />}
+                sx={{ flexShrink: 0 }}
               >
                 {downloadS}
               </Button>
