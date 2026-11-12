@@ -97,6 +97,9 @@ const threedEditorInitialState = {
   // 0 = strictly coplanar facets only; 25 follows a revolution or swept
   // surface across its facets without crossing a real crease.
   faceSelectionAngleDeg: 25,
+  // « Ligne de coupe – prompt IA » (Maillage module): target max surface of
+  // a maille (m²), remembered between two openings of the dialog.
+  cutLinesPromptMaxArea: 4,
   // "Wireframe" section: black grid-edge lines drawn on annotation meshes
   // (EdgesGeometry overlays). showWireframe toggles them. showTessellation
   // (« Afficher le maillage 3D », off by default) draws every facet seam of
@@ -502,6 +505,9 @@ export const threedEditorSlice = createSlice({
     },
     setFaceSelectionAngleDeg: (state, action) => {
       state.faceSelectionAngleDeg = action.payload;
+    },
+    setCutLinesPromptMaxArea: (state, action) => {
+      state.cutLinesPromptMaxArea = action.payload;
     },
     setShowWireframe: (state, action) => {
       state.showWireframe = action.payload;
@@ -1454,6 +1460,7 @@ export const {
   setAntiAliasingShrink,
   setCameraOrtho,
   setFaceSelectionAngleDeg,
+  setCutLinesPromptMaxArea,
   setShowWireframe,
   setShowTessellation,
   setWireframeAngleDeg,

@@ -2,20 +2,13 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
 
-import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
-
 import buildCoteAnnotationFields from "../utils/buildCoteAnnotationFields";
+import projectCoteEndpoints from "../utils/projectCoteEndpoints";
 import resolveHostBaseMap from "../utils/resolveHostBaseMap";
-import roundForDisplay from "../utils/roundForDisplay";
 import insertOrReusePoints from "./insertOrReusePoints";
 
 // Minimum 3D length (metres) for a committable cote.
 const MIN_COTE_LENGTH_M = 1e-3;
-
-// A cote whose endpoints both lie on the host baseMap plane (within this
-// tolerance, metres) is stored exactly like a 2D-drawn cote: plain {id}
-// point refs, no offsetZ. Matches OFFSET_EPS_M of classifyFaceVsBaseMap.
-const IN_PLANE_EPS_M = 5e-3;
 
 // Orchestrator: 3D two-click cote → host baseMap → 2D COTE annotation.
 //
@@ -71,21 +64,9 @@ export default async function commitDrawnCoteService({
   });
   if (!host) return null;
 
-  const pA = worldToBaseMapNormalized(a, host);
-  const pB = worldToBaseMapNormalized(b, host);
-  if (!pA || !pB) return null;
-
-  const isInPlane =
-    Math.abs(pA.offset) < IN_PLANE_EPS_M &&
-    Math.abs(pB.offset - pA.offset) < IN_PLANE_EPS_M;
-
-  const baseOffset = Math.min(pA.offset, pB.offset);
-  const projectedPoints = [pA, pB].map((p) => ({
-    x: p.x,
-    y: p.y,
-    offsetBottom: isInPlane ? 0 : roundForDisplay(p.offset - baseOffset),
-    offsetTop: 0,
-  }));
+  const projection = projectCoteEndpoints({ a, b, host });
+  if (!projection) return null;
+  const { isInPlane, offsetZ, projectedPoints } = projection;
 
   const rawRefs = await insertOrReusePoints({
     projectedPoints,
@@ -105,7 +86,7 @@ export default async function commitDrawnCoteService({
   const annotationFields = buildCoteAnnotationFields({
     classificationFields: {
       type: "COTE",
-      ...(isInPlane ? {} : { offsetZ: roundForDisplay(baseOffset) }),
+      ...(isInPlane ? {} : { offsetZ }),
     },
     templateProps,
   });

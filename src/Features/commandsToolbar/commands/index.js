@@ -75,6 +75,7 @@ import resetAxesCommand from "./resetAxes/resetAxesCommand";
 import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
 import drawCutPlaneCommand from "./drawCutPlane/drawCutPlaneCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
+import cutLinesPromptIaCommand from "./cutLinesPromptIa/cutLinesPromptIaCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
 import createMeshesCommand from "./createMeshes/createMeshesCommand";
 import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
@@ -176,6 +177,7 @@ export const COMMANDS = [
   // cut lines (3D, Maillage module)
   drawCutLineCommand,
   drawCutPlaneCommand,
+  cutLinesPromptIaCommand,
   drawSectionLineCommand,
   // mailles (3D, Maillage module)
   addMeshCommand,

@@ -246,6 +246,7 @@ const CUT_LINES_SECTION = {
   entries: [
     "DRAW_CUT_LINE",
     "DRAW_CUT_PLANE",
+    "CUT_LINES_PROMPT_IA",
     "MOVE_ANNOTATION",
     "ROTATE_ANNOTATION",
   ],

@@ -140,6 +140,44 @@ go, the cut lines where one or several planes cross the visible annotations.
   cut unless « contour le plus proche » is on); no 2 cm gap bridging between
   surfaces (each one gets its own line); no hotkey arms the command.
 
+## « Ligne de coupe – prompt IA » (CUT_LINES_PROMPT_IA)
+
+Command of the Maillage toolbar (`commandsToolbar/commands/cutLinesPromptIa`):
+a dialog hands an external AI chat the geometry of the visible annotations
+and gets cut lines back, for a target max surface of a maille (m², remembered
+in `threedEditor.cutLinesPromptMaxArea`). The lines are meant to be set out
+on site: the prompt asks for lines from existing corners, regular, simple.
+
+- **Input** — every face region of the visible annotations, whatever their
+  type (`js/collectVisibleFaceRegions`, the walk shared with « Mailler »),
+  turned into planar faces or curved shells
+  (`services/collectCutLinesPromptRegions`), plus the rendered cut lines.
+  `utils/buildCutLinesPromptContext` names the vertices (`S1`…, welded at
+  1 mm, shared between faces and existing lines) and the faces (`F1`…).
+  Frame: the scene's (meters, Y up), never converted.
+- **Two modes** (default: GLB as soon as one region is curved):
+  - TEXT — planar faces only; one text (instructions
+    `docs/threed/CUT_LINES_PROMPT.md` + the context JSON) to copy or
+    download. Curved regions are left out (the dialog says so).
+  - GLB — a zip: `INSTRUCTIONS.md` (`CUT_LINES_PROMPT_GLB.md`),
+    `contexte.json` (same context + `curvedSurfaces`), `scene.glb`
+    (`services/buildCutLinesPromptGlb`: one mesh per annotation, named
+    `getCutLinesPromptMeshName`, baked in world coordinates, whitelist of
+    `collectAnnotationSectionMeshes`).
+- **Answer** (`utils/parseCutLinesPromptResult`) — `cutLines[].points[]`:
+  `{ vertex }`, `{ edge: [from, to], distance }` (meters from `from`), or
+  `[x, y, z]` (GLB mode only). Every `edge` point that is not a corner gets
+  a cote from its reference vertex; `cotes[]` of the answer come on top (GLB
+  mode, free points). An invalid line is dropped with a warning.
+- **Dry run** (`services/computeCutLinesPromptPreview`) — existing +
+  proposed lines clipped over the regions like « Mailler »: number of
+  pieces, largest surface, pieces over the target, points off the scene.
+- **Write** (`services/createCutLinesFromPromptService`) — template-less
+  CUT_LINE rows (`utils/buildCutLineRows`, shared with « Plan de coupe »:
+  drawn points, no extension) and template-less COTE rows
+  (`threedDrawing/utils/projectCoteEndpoints`, own points), one
+  transaction, one undo step.
+
 ## Rendering, selection, vertices
 
 - `ThreedCutLineAnnotations` (sibling of `ThreedRulerAnnotations`): one
