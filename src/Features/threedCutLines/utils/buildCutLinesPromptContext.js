@@ -1,6 +1,9 @@
 import computeFaceArea from "../../threedMesh/utils/computeFaceArea.js";
 import computePlaneBasis from "../../threedMesh/utils/computePlaneBasis.js";
-import { projectPointTo2d } from "../../threedMesh/utils/planeProjection.js";
+import {
+  projectLoopTo2d,
+  projectPointTo2d,
+} from "../../threedMesh/utils/planeProjection.js";
 
 export const CUT_LINES_PROMPT_MODES = { TEXT: "TEXT", GLB: "GLB" };
 
@@ -31,9 +34,12 @@ export function edgeKey(a, b) {
 //   mode: TEXT (planar faces only) | GLB (curved surfaces listed, their
 //         geometry travels in scene.glb).
 //
-// Returns { context, vertexById, edgeKeys, stats } — `context` is the JSON
-// given to the chat; `vertexById` (id → {x,y,z}, unrounded) and `edgeKeys`
-// (Set of edgeKey) resolve the answer (parseCutLinesPromptResult).
+// Returns { context, vertexById, edgeKeys, verticalFaces, stats } —
+// `context` is the JSON given to the chat; `vertexById` (id → {x,y,z},
+// unrounded) and `edgeKeys` (Set of edgeKey) resolve the answer, and
+// `verticalFaces` ([{ origin, u, v, n, contour, holes }], plane basis + 2D
+// loops) lets it refuse diagonals on vertical faces
+// (parseCutLinesPromptResult).
 //
 // Pure, node-tested.
 export default function buildCutLinesPromptContext({
@@ -60,6 +66,7 @@ export default function buildCutLinesPromptContext({
   };
 
   const faces = [];
+  const verticalFaces = [];
   const curvedSurfaces = [];
   let facesToCut = 0;
 
@@ -105,10 +112,21 @@ export default function buildCutLinesPromptContext({
       const holes = (face.holes || []).map(nameLoop);
       const needsCut = area > maxArea;
       if (needsCut) facesToCut += 1;
+      const orientation = getOrientation(basis.n);
+      if (orientation === "vertical") {
+        verticalFaces.push({
+          origin: basis.origin,
+          u: basis.u,
+          v: basis.v,
+          n: basis.n,
+          contour: projectLoopTo2d(face.contour, basis),
+          holes: (face.holes || []).map((hole) => projectLoopTo2d(hole, basis)),
+        });
+      }
       faces.push({
         id: `F${faces.length + 1}`,
         annotation: region.label || "",
-        orientation: getOrientation(basis.n),
+        orientation,
         area: round3(area),
         needsCut,
         contour,
@@ -147,6 +165,7 @@ export default function buildCutLinesPromptContext({
     context,
     vertexById,
     edgeKeys,
+    verticalFaces,
     stats: {
       faceCount: faces.length,
       facesToCut,

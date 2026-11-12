@@ -160,6 +160,134 @@ test("an edge point resolves on the segment and gets a cote", () => {
   assert.deepEqual(parsed.warnings, []);
 });
 
+test("set-out cotes are chained along an edge, never stacked", () => {
+  const built = build();
+  const a = idOf(built, v(0, 0, 0));
+  const b = idOf(built, v(6, 0, 0));
+  const c = idOf(built, v(0, 0, 4));
+  const d = idOf(built, v(6, 0, 4));
+  const parsed = parseCutLinesPromptResult({
+    json: {
+      cutLines: [
+        // Declared out of order, and once from the other corner.
+        {
+          points: [
+            { edge: [a, b], distance: 4 },
+            { edge: [c, d], distance: 4 },
+          ],
+        },
+        {
+          points: [
+            { edge: [a, b], distance: 2 },
+            { edge: [c, d], distance: 2 },
+          ],
+        },
+        {
+          points: [
+            { edge: [b, a], distance: 1 },
+            { edge: [d, c], distance: 1 },
+          ],
+        },
+      ],
+    },
+    vertexById: built.vertexById,
+    edgeKeys: built.edgeKeys,
+  });
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.cotes, [
+    { a: v(0, 0, 0), b: v(2, 0, 0) },
+    { a: v(2, 0, 0), b: v(4, 0, 0) },
+    { a: v(4, 0, 0), b: v(5, 0, 0) },
+    { a: v(0, 0, 4), b: v(2, 0, 4) },
+    { a: v(2, 0, 4), b: v(4, 0, 4) },
+    { a: v(4, 0, 4), b: v(5, 0, 4) },
+  ]);
+});
+
+test("a point can be set out on a line of the answer", () => {
+  const built = build();
+  const a = idOf(built, v(0, 0, 0));
+  const b = idOf(built, v(6, 0, 0));
+  const c = idOf(built, v(0, 0, 4));
+  const d = idOf(built, v(6, 0, 4));
+  const parsed = parseCutLinesPromptResult({
+    json: {
+      cutLines: [
+        // References N1, declared after it.
+        {
+          points: [
+            { line: "N1", distance: 2 },
+            { edge: [b, d], distance: 2 },
+          ],
+        },
+        {
+          id: "N1",
+          points: [
+            { edge: [a, b], distance: 3 },
+            { edge: [c, d], distance: 3 },
+          ],
+        },
+        { points: [{ line: "N9", distance: 1 }, { vertex: a }] },
+        { points: [{ line: "N1", distance: 5 }, { vertex: a }] },
+      ],
+    },
+    vertexById: built.vertexById,
+    edgeKeys: built.edgeKeys,
+  });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.lines.length, 2);
+  assert.deepEqual(parsed.lines[1].points, [v(3, 0, 2), v(6, 0, 2)]);
+  assert.ok(
+    parsed.cotes.some(
+      (cote) =>
+        JSON.stringify(cote) ===
+        JSON.stringify({ a: v(3, 0, 0), b: v(3, 0, 2) })
+    )
+  );
+  assert.equal(parsed.warnings.length, 2);
+  assert.match(parsed.warnings[0], /ligne inconnue « N9 »/);
+  assert.match(parsed.warnings[1], /hors de la ligne N1/);
+});
+
+test("a diagonal on a vertical face is refused", () => {
+  const built = build();
+  const foot0 = idOf(built, v(0, 0, 0));
+  const foot4 = idOf(built, v(0, 0, 4));
+  const top0 = idOf(built, v(0, 3, 0));
+  const top4 = idOf(built, v(0, 3, 4));
+  const far = idOf(built, v(6, 0, 4));
+  const parsed = parseCutLinesPromptResult({
+    json: {
+      cutLines: [
+        // Corner to corner across the wall.
+        { points: [{ vertex: foot0 }, { vertex: top4 }] },
+        // Vertical and horizontal lines on the wall.
+        {
+          points: [
+            { edge: [foot0, foot4], distance: 2 },
+            { edge: [top0, top4], distance: 2 },
+          ],
+        },
+        {
+          points: [
+            { edge: [foot0, top0], distance: 1.5 },
+            { edge: [foot4, top4], distance: 1.5 },
+          ],
+        },
+        // A diagonal on the slab stays allowed.
+        { points: [{ vertex: foot0 }, { vertex: far }] },
+      ],
+    },
+    vertexById: built.vertexById,
+    edgeKeys: built.edgeKeys,
+    verticalFaces: built.verticalFaces,
+  });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.lines.length, 3);
+  assert.equal(parsed.warnings.length, 1);
+  assert.match(parsed.warnings[0], /Ligne 1 ignorée : diagonale/);
+});
+
 test("invalid references drop the line with a warning", () => {
   const built = build();
   const a = idOf(built, v(0, 0, 0));

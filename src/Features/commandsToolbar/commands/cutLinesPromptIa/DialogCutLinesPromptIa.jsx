@@ -149,6 +149,7 @@ export default function DialogCutLinesPromptIa({ open, onClose, editor }) {
       json: extracted.json,
       vertexById: prompt.vertexById,
       edgeKeys: prompt.edgeKeys,
+      verticalFaces: prompt.verticalFaces,
       mode,
     });
   }, [pasted, prompt, mode]);
