@@ -83,8 +83,11 @@ export default function useCutLineVertexHandlers({ rendererIsReady }) {
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const walkActive = useSelector((s) => s.threedEditor.walkMode?.active);
   const extrudeActive = useSelector((s) => s.threedEditor.extrudeMode?.active);
+  // « Déplacer » / « Tourner » carrying the line (Features/threedAnnotationMove).
   const moveAnnotationActive = useSelector(
-    (s) => s.threedEditor.moveAnnotationMode?.active
+    (s) =>
+      s.threedEditor.moveAnnotationMode?.active ||
+      s.threedEditor.rotateAnnotationMode?.active
   );
   const blockedRef = useRef(false);
   blockedRef.current = Boolean(

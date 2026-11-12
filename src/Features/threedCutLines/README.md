@@ -132,6 +132,28 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   the soup). Preview = the line's group translated; Escape cancels; drop =
   the same rebuild with every drawn point translated on a fresh row (the
   derived part is recomputed), one undo step.
+- « Déplacer » (M) / « Tourner » (R): the two commands of the toolbar's
+  « Lignes de coupe » section carry a cut line with the 3D tools of
+  `Features/threedAnnotationMove` (same flows as in the Dessin module: grab
+  on a vertex of the line → drop on a snap / axis / typed distance; pivot →
+  reference → angle, about the host base map's normal). One line at a time;
+  nothing else is carriable in the Maillage module. The live pose moves the
+  line's group (`threedAnnotationMove/utils/getCarriedAnnotationRoot` resolves
+  it from `cutLineObjectsStore`, by id: the group is rebuilt on a selection
+  change). Commit = `services/commitCutLineTransformService`: every vertex
+  transformed in the base map group's local frame
+  (`utils/transformCutLinePoints`, `js/getTransformedCutLineDrawn`), then the
+  rebuild of the segment drag — drawn points on fresh rows as dropped (no
+  re-projection on the faces), extension recomputed, pending patch before
+  the write, one undo step; a refused drop (a point off the base map) puts
+  the line back. « Copie multiple » (`*N`, C) =
+  `services/createCutLineCopiesService`: N new CUT_LINE rows, copy i
+  transformed i times and extended on its own, one undo step; the ghosts
+  are rigid stand-ins of the visible run (`js/buildCutLineGhostObject`).
+  « Recommencer à chaque clic » works with copies only (a plain move ends
+  the carry). The vertex / segment drags stand down while either tool is
+  armed, and the meshing mode is re-armed when it is left
+  (`MainThreedEditor`).
 - Hover (Maillage, SELECT tool): `useMeshingPointerHandlers.runHover` runs
   `pickVisibleCutLine` (a line hidden behind the first face under the cursor
   does not answer) → text tooltip « Ligne de coupe » (`CUT_LINE_LABEL`), not
