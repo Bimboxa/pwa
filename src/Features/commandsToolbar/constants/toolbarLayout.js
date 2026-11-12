@@ -231,10 +231,10 @@ const BASE_MAPS_SECTIONS = [
   SECTION_LINES_SECTION,
 ];
 
-// « Maillage » module: the user frame group, the meshing tools
-// (add a maille, mesh from the cut lines, number — Features/threedMesh)
-// and the cut lines drawn to prepare the mailles (Features/threedCutLines),
-// with « Déplacer » / « Tourner » carrying a cut line there.
+// « Maillage » module: the user frame group, the cut lines drawn to
+// prepare the mailles (Features/threedCutLines), with « Déplacer » /
+// « Tourner » carrying a cut line there, then the meshing tools (add a
+// maille, mesh from the cut lines, number — Features/threedMesh).
 const MESHES_TOOLS_SECTION = {
   key: "MESHES_TOOLS",
   label: "Mailles",
@@ -252,7 +252,7 @@ const CUT_LINES_SECTION = {
     "ROTATE_ANNOTATION",
   ],
 };
-const MESHES_SECTIONS = [AXES_SECTION, MESHES_TOOLS_SECTION, CUT_LINES_SECTION];
+const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION, MESHES_TOOLS_SECTION];
 
 // Flat form rendered by the toolbar: the entries of every section, a
 // { type: "divider" } between two sections.
