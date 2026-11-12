@@ -15,8 +15,8 @@ prepare them are documented in `Features/threedCutLines/README.md`.
   directly any more — the cells are prepared with cut lines.
 - Left drawer (`PanelMeshesViewer`): the mailles list + export, no tabs.
 - Module properties panel (`PanelPropertiesMeshesModule`, empty selection —
-  `selection/utils/getModuleRootPanelType` → `MESHES_MODULE`): description,
-  base map overview and the settings cards (`SectionMeshes3dSettings`).
+  `selection/utils/getModuleRootPanelType` → `MESHES_MODULE`): description
+  and the settings cards (`SectionMeshes3dSettings`).
 
 ## « Numéroter » (command `NUMBER_MESHES`, tool `NUMBER`)
 
