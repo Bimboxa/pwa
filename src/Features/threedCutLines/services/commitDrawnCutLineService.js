@@ -11,6 +11,7 @@ import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap"
 import collectSceneTriangles from "../js/collectSceneTriangles";
 import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
+import { findFaceNormalAt } from "../utils/findFacePlanesAt";
 
 // Orchestrator of the cut line drawn in 3D (Maillage module): ordered world
 // vertices → extension of both ends along the faces of the scene
@@ -20,8 +21,9 @@ import extendCutLine from "../utils/extendCutLine";
 //   - `verticesInOrder`: [{x, y, z, baseMapId?, nodeId?, faceNormal?}] — the
 //     drawing vertices (toDrawingVertex); `faceNormal` of the first / last
 //     vertex (the face under the cursor when it was placed, facing the
-//     camera) is the face the extension starts on. No face → that end is
-//     not extended.
+//     camera) is the face the extension starts on. Without one, the scene
+//     face holding the vertex (findFaceNormalAt, 5 mm) is used; no face at
+//     all → that end is not extended.
 //   - encoding (encodeCutLineRefs): annotation.offsetZ = lowest vertex,
 //     per-ref offsetBottom; ONE db.points row per vertex, never shared (a
 //     riser keeps two rows) — pointId identifies a vertex (sub-selection,
@@ -66,8 +68,16 @@ export default async function commitDrawnCutLineService({
 
   // Extension along the faces of the scene.
   const drawn = verticesInOrder.map((v) => ({ x: v.x, y: v.y, z: v.z }));
-  const faceOf = (v) => (v?.faceNormal ? { normal: v.faceNormal } : null);
   const triangles = collectSceneTriangles(editor?.sceneManager);
+  // The face under the cursor first; an end placed on the plan (no
+  // annotation face under the cursor, e.g. at the foot of a wall) falls back
+  // to the scene face holding it, as the rebuild does.
+  const faceOf = (v) =>
+    v?.faceNormal
+      ? { normal: v.faceNormal }
+      : v
+        ? findFaceNormalAt(triangles, v)
+        : null;
   const extended = extendCutLine({
     drawn,
     startFace: faceOf(verticesInOrder[0]),

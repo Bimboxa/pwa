@@ -42,7 +42,10 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
 - `commitDrawnCutLineService`: `collectSceneTriangles` (visible annotation
   solids, world soup with winding normals) → `extendCutLine` → projection →
   points → annotation. The face under each end vertex is the `faceNormal`
-  the snap carried (face / vertex / edge snaps with a face under the cursor).
+  the snap carried (face / vertex / edge snaps with a face under the cursor);
+  an end without one (a click on the plan at the foot of a wall) falls back
+  to the scene face holding the point (`utils/findFacePlanesAt`, 5 mm), as
+  « Recalculer le prolongement » does.
 - Existing cut lines are snap targets of every 3D drawing (vertices, derived
   ones included, and segments): each segment `Line2` carries `isSnapLine` +
   `exportLine.positions` (the `buildView3dEdgeLines` convention read by
