@@ -140,6 +140,56 @@ go, the cut lines where one or several planes cross the visible annotations.
   cut unless « contour le plus proche » is on); no 2 cm gap bridging between
   surfaces (each one gets its own line); no hotkey arms the command.
 
+## « Coupe par angle » (DRAW_CUT_ANGLE)
+
+Third command of the section: the radial sibling of « Plan de coupe ». The
+cut lines are the section of the visible annotations by HALF-PLANES that all
+start on a rotation axis and turn around it.
+
+- Draft: a cut plane draft (`cutPlane: true`) of kind
+  `cutPlaneKind: "ANGLE"` (`isCutAngleDraft` / `selectIsCutAngleDrawActive`,
+  tested BEFORE the cut plane selectors). Every `cutPlane` guard of the cut
+  line flow applies to it as is.
+- Clicks (`useDrawingPointerHandlers.onCutAngleClick`): the 1st places the
+  pivot P1 (a drawing vertex — the rotation axis goes through it), the 2nd
+  the reference direction (0°, kept in `cutPlaneStore.angleRef`: no vertex,
+  the rubber band keeps starting on the pivot), every next one the angle.
+  Points are made perpendicular to the axis; a click on the axis is ignored.
+- Rotation axis: `threedEditor.cutPlaneDraw.angleAxis`, a user axis of the
+  repère (`getUserAxesWorldDirections`), Z by default and again with every
+  draft; X / Y / Z keys or the helper's toggle.
+- Typed buffer: the shared `cutPlaneDraw.buffer`, read as
+  `<angle°>[*N | /N]` — NOT mirrored in `mapEditor.constraintBuffer`. A typed
+  angle locks the value, the angle point only gives the side
+  (`resolveCutAngleDeg`). `*N` = N half-planes at i × angle; `/N` = N
+  half-planes at i / N × angle, the last one at the angle. The reference
+  (0°) is never a station: `360/12` gives 12 rays, the last one on the
+  reference (`utils/getCutAngleStations`).
+- Candidates (`computeCutAngleCandidatesService` → `cutPlaneStore`, pending
+  of `kind: "ANGLE"`): `utils/computeCutAngleLines` sections the scene by the
+  plane of each half-plane, then clips the segments to the half-plane's side
+  of the axis (a segment crossing the axis is cut ON it) before chaining
+  them. Lines of different half-planes are never joined: they only share
+  their point on the axis. « Contour le plus proche » keeps the component
+  closest to the pivot. `recomputeCutPlanePendingService` recomputes the
+  pending of either command after an option change.
+- A ray ending on the axis is oriented to END there and stored with a
+  « Stop » on that point (`stopAtEnd` → `createCutPlaneLinesService`): a
+  later re-extension (drag, M / R, « Recalculer le prolongement ») never
+  runs past the pivot.
+- Meshing: rays meeting inside a face do not go boundary to boundary.
+  `clipFaceByCutLines.joinPathsMeetingInside` joins the first two paths
+  ending on a same inner point; once they have split the face, the others
+  cut as plain lines. A single ray ending inside a face cuts nothing.
+- `CutPlaneOverlayThreed` (angle branch): the rotation axis through the
+  pivot, the reference ray, one ray per half-plane, the arc of the angle and
+  its badge (`DrawingLengthBadge`, locked look when typed); the candidates
+  blink like the cut plane's. Helper: `SectionCutAngleDrawHelperContent`.
+- Space / Enter and Escape as « Plan de coupe » (Escape: candidates →
+  reference → pivot → typed buffer → leaves the command).
+- Limits: unbounded half-planes, no angular snapping of the mouse (type the
+  angle), no hotkey arms the command.
+
 ## Rendering, selection, vertices
 
 - `ThreedCutLineAnnotations` (sibling of `ThreedRulerAnnotations`): one

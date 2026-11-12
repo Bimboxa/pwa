@@ -156,6 +156,23 @@ export function selectIsCutPlaneDrawActive(s) {
   return isCutPlaneDraft(s) && selectIsCutLineDrawActive(s);
 }
 
+// « Coupe par angle » (DRAW_CUT_ANGLE): a cut plane draft of kind "ANGLE" —
+// three clicks (pivot, reference, angle) define half-planes turning around
+// a user axis. It is a cut plane draft too: UI consumers test the angle
+// BEFORE the plane.
+export const CUT_PLANE_KIND_ANGLE = "ANGLE";
+
+export function isCutAngleDraft(s) {
+  return (
+    isCutPlaneDraft(s) &&
+    s.annotations.newAnnotation?.cutPlaneKind === CUT_PLANE_KIND_ANGLE
+  );
+}
+
+export function selectIsCutAngleDrawActive(s) {
+  return isCutAngleDraft(s) && selectIsCutLineDrawActive(s);
+}
+
 // The arrow-key axis lock (↑ → ↓ force the next point on a user axis, ←
 // releases — useDrawingPointerHandlers / DrawingOverlayThreed) applies to
 // the point-by-point 3D flows anchored on a last vertex: a line / polygon

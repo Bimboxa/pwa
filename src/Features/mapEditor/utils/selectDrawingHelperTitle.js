@@ -3,6 +3,7 @@ import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle
 import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 import {
+  selectIsCutAngleDrawActive,
   selectIsCutLineDrawActive,
   selectIsCutPlaneDrawActive,
 } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
@@ -26,6 +27,7 @@ export default function selectDrawingHelperTitle(s) {
     return "Masquer l'annotation";
   }
   if (selectIsMeshCreateToolActive(s)) return "Ajouter une maille";
+  if (selectIsCutAngleDrawActive(s)) return "Dessiner des coupes par angle";
   if (selectIsCutPlaneDrawActive(s)) return "Dessiner un plan de coupe";
   if (selectIsCutLineDrawActive(s)) return "Dessiner une ligne de coupe";
   if (s.mapEditor.enabledDrawingMode) {

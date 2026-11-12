@@ -249,10 +249,13 @@ const threedEditorInitialState = {
   // « Plan de coupe » (Features/threedCutLines, DRAW_CUT_PLANE): `buffer` =
   // the typed `<length>[*N | /N]` (cutPlaneBuffer), `nearestOnly` = keep,
   // per plane, only the contour closest to the drawn axis (sticky, on by
-  // default).
+  // default). « Coupe par angle » (DRAW_CUT_ANGLE) shares both — its buffer
+  // is `<angle°>[*N | /N]` — and adds `angleAxis`: the user axis (X / Y / Z)
+  // the half-planes turn around, back to Z with every draft.
   cutPlaneDraw: {
     buffer: "",
     nearestOnly: true,
+    angleAxis: "Z",
   },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
@@ -672,6 +675,7 @@ export const threedEditorSlice = createSlice({
         // and side are sticky preferences).
         state.cutLineDraw.axis = null;
         state.cutPlaneDraw.buffer = "";
+        state.cutPlaneDraw.angleAxis = "Z";
       } else {
         // Mutually exclusive with the other 3D modes.
         closeBaseMapsGrid(state);
@@ -771,6 +775,12 @@ export const threedEditorSlice = createSlice({
     },
     setCutPlaneNearestOnly: (state, action) => {
       state.cutPlaneDraw.nearestOnly = Boolean(action.payload);
+    },
+    // « Coupe par angle »: the user axis the half-planes turn around.
+    setCutPlaneAngleAxis: (state, action) => {
+      state.cutPlaneDraw.angleAxis = ["X", "Y", "Z"].includes(action.payload)
+        ? action.payload
+        : "Z";
     },
     flushInProgressAsTrait3D: (state) => {
       const pts = state.drawingMode.inProgressPolyline;
@@ -1541,6 +1551,7 @@ export const {
   toggleCutLineDrawSide,
   setCutPlaneBuffer,
   setCutPlaneNearestOnly,
+  setCutPlaneAngleAxis,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,
   setDrawingArrowAxes,
