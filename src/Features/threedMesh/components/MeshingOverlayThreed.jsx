@@ -9,9 +9,8 @@ import {
   subscribeMeshingOverlay,
 } from "../services/meshingOverlayStore";
 
-// DOM overlay of the 3D meshing mode: cursor helper ("+ nouvelle maille"),
-// dark area chips (would-be piece surfaces under a cut line) and the pink
-// offset chip ("2m" between reference and guide vertices). Driven imperatively
+// DOM overlay of the 3D meshing mode: cursor helper ("+ nouvelle maille")
+// and dark area chips (surface of the would-be maille). Driven imperatively
 // by useMeshingPointerHandlers through meshingOverlayStore; everything is
 // pointer-transparent.
 export default function MeshingOverlayThreed() {
@@ -23,7 +22,7 @@ export default function MeshingOverlayThreed() {
   );
 
   if (!active) return null;
-  const { cursor, areaChips, offsetChip, angleChip } = state;
+  const { cursor, areaChips } = state;
 
   return (
     <Box
@@ -78,48 +77,6 @@ export default function MeshingOverlayThreed() {
           {chip.text}
         </Box>
       ))}
-
-      {offsetChip && (
-        <Box
-          sx={{
-            position: "absolute",
-            left: offsetChip.x,
-            top: offsetChip.y,
-            transform: "translate(-50%, -50%)",
-            bgcolor: "#f8c9c9",
-            color: "#b71c1c",
-            borderRadius: "8px",
-            px: 1,
-            py: 0.25,
-            fontSize: 12,
-            fontWeight: "bold",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {offsetChip.text}
-        </Box>
-      )}
-
-      {angleChip && (
-        <Box
-          sx={{
-            position: "absolute",
-            left: angleChip.x,
-            top: angleChip.y,
-            transform: "translate(-50%, -50%)",
-            bgcolor: angleChip.typed ? "#b71c1c" : "#f8c9c9",
-            color: angleChip.typed ? "#fff" : "#b71c1c",
-            borderRadius: "8px",
-            px: 1,
-            py: 0.25,
-            fontSize: 12,
-            fontWeight: "bold",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {angleChip.text}
-        </Box>
-      )}
     </Box>
   );
 }

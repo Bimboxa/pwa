@@ -19,7 +19,7 @@ import buildMeshDataFromPieces from "../utils/buildMeshDataFromPieces";
 import clipRegionByCutLines from "../utils/clipRegionByCutLines";
 import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 
-// « Créer le maillage » (Maillage module): one maille per GROUP of pieces of
+// « Mailler » (Maillage module, command CREATE_MESHES): one maille per GROUP of pieces of
 // every face region of the visible annotations that the cut lines cross
 // (clipRegionByCutLines: the region — planar or faceted, grown over the
 // whole annotation like the hover, see getAnnotationFaceRegion — cut facet

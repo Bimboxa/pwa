@@ -231,14 +231,14 @@ const BASE_MAPS_SECTIONS = [
   SECTION_LINES_SECTION,
 ];
 
-// « Maillage » module: the user frame group, the meshing tools (the
-// commands taking over from the bottom meshing toolbar — Features/threedMesh)
+// « Maillage » module: the user frame group, the meshing tools
+// (add a maille, mesh from the cut lines, number — Features/threedMesh)
 // and the cut lines drawn to prepare the mailles (Features/threedCutLines),
 // with « Déplacer » / « Tourner » carrying a cut line there.
 const MESHES_TOOLS_SECTION = {
   key: "MESHES_TOOLS",
   label: "Mailles",
-  entries: ["ADD_MESH"],
+  entries: ["ADD_MESH", "CREATE_MESHES", "NUMBER_MESHES"],
 };
 const CUT_LINES_SECTION = {
   key: "CUT_LINES",

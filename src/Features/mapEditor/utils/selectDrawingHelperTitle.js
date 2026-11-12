@@ -1,7 +1,7 @@
 import selectTransformToolTitle from "Features/annotationTransform/utils/selectTransformToolTitle";
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
-import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
+import selectActiveMeshHelperTool from "Features/threedMesh/utils/selectActiveMeshHelperTool";
 import {
   selectIsCutLineDrawActive,
   selectIsCutPlaneDrawActive,
@@ -14,8 +14,8 @@ import {
 // Title of the drawing helper (docked Dessin panel / floating popper) for the
 // modes that are not a plain draw: the Extruder / Déplacer / Tourner tools,
 // the « Changer de style » / « Masquer l'annotation » modes of the commands
-// toolbar, « Ajouter une maille » / « Dessiner une ligne de coupe » (Maillage
-// module) and the section marks of the Fonds de plan
+// toolbar, « Ajouter une maille » / « Numéroter » / « Dessiner une ligne de coupe »
+// (Maillage module) and the section marks of the Fonds de plan
 // module (drawn on a plan / located on a vertical base map) — null otherwise
 // (the helper keeps its "Mode dessin" title).
 export default function selectDrawingHelperTitle(s) {
@@ -25,7 +25,9 @@ export default function selectDrawingHelperTitle(s) {
   if (s.mapEditor.enabledDrawingMode === HIDE_ANNOTATION_MODE) {
     return "Masquer l'annotation";
   }
-  if (selectIsMeshCreateToolActive(s)) return "Ajouter une maille";
+  const meshHelperTool = selectActiveMeshHelperTool(s);
+  if (meshHelperTool === "CREATE") return "Ajouter une maille";
+  if (meshHelperTool === "NUMBER") return "Numéroter";
   if (selectIsCutPlaneDrawActive(s)) return "Dessiner un plan de coupe";
   if (selectIsCutLineDrawActive(s)) return "Dessiner une ligne de coupe";
   if (s.mapEditor.enabledDrawingMode) {

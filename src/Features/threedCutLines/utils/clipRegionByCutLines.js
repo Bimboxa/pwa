@@ -26,7 +26,7 @@ import findCutPieceAt from "./findCutPieceAt.js";
 // form one GROUP — unless a cut line runs along that overlap (a line drawn
 // on a crease separates the two sides). The pieces of ONE facet never join
 // (they only share cut edges). A group is what the hover highlights and what
-// a click or « Créer le maillage » turns into a maille.
+// a click or « Mailler » turns into a maille.
 //
 // positions / tris: world triangle soup of the region (buildWorldSoup).
 // cutLines: [[{x,y,z}]] world polylines.

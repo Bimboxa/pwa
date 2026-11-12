@@ -21,9 +21,9 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
 
-// "Réglages" tab of the mailles drawer: display settings moved from the old
-// rightPanel PanelMesh3d. No "Masquer les mailles" toggle here — mailles are
-// always displayed in the MESHES viewer.
+// Settings cards of the Maillage module properties panel
+// (PanelPropertiesMeshesModule). No "Masquer les mailles" toggle here —
+// mailles are always displayed in the MESHES viewer.
 export default function SectionMeshes3dSettings({
   prefix,
   onPrefixChange,
@@ -48,7 +48,7 @@ export default function SectionMeshes3dSettings({
   // render
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       {/* Card — Affichage */}
       <WhiteSectionGeneric>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

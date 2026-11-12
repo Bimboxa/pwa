@@ -186,7 +186,6 @@ import {
   handleCutLineClick,
   pickCutLine,
 } from "Features/threedCutLines/js/pickCutLine";
-import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
 import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
 import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
@@ -385,8 +384,8 @@ export default function MainThreedEditor() {
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
   // The Maillage module (MESHES viewer) is meshing-only: meshing mode is
-  // forced on so MeshingToolbarThreed is the sole bottom toolbar and its
-  // pointer handlers work right away (see the effect below, which also re-arms
+  // forced on so its pointer handlers work right away — its tools are armed
+  // from the commands toolbar (see the effect below, which also re-arms
   // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
   // BaseMap module in 3D: no drawing listings panel — with the left panel
@@ -3541,8 +3540,6 @@ export default function MainThreedEditor() {
           <RotateBaseMapToolbarThreed />
         ) : axesPlacementActive ? (
           <AxesPlacementToolbarThreed />
-        ) : meshingActive || isMeshesViewer ? (
-          <MeshingToolbarThreed />
         ) : null)}
       {/* Bottom-left stack, mirror of the 2D editors' (UILayerDesktop):
           altimetry under the cursor — the same device preference as in 2D.

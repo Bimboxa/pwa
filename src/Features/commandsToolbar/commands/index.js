@@ -76,6 +76,8 @@ import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
 import drawCutPlaneCommand from "./drawCutPlane/drawCutPlaneCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
+import createMeshesCommand from "./createMeshes/createMeshesCommand";
+import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
 
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
@@ -177,6 +179,8 @@ export const COMMANDS = [
   drawSectionLineCommand,
   // mailles (3D, Maillage module)
   addMeshCommand,
+  createMeshesCommand,
+  numberMeshesCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

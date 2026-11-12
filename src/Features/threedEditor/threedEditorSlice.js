@@ -284,8 +284,8 @@ const threedEditorInitialState = {
   // contour. The ink boundary lines are always shown on partial revolutions;
   // only the fill is optional. Display-only, session-only.
   revolutionSectionFillIn3d: false,
-  // Meshing ("maillage") mode: create mailles from hovered faces and cut
-  // them with vertical / horizontal / free lines. Mutually exclusive with
+  // Meshing ("maillage") mode: create mailles from hovered faces or from
+  // the cut lines, and number them. Mutually exclusive with
   // `drawingMode.active`.
   // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
   // only basemaps + mailles visible (and lasso-selectable).
@@ -297,39 +297,22 @@ const threedEditorInitialState = {
     showNumber: true,
     showQties: false,
   },
-  // "Liste" tab of the Maillage drawer: group the mailles list by orientation
+  // Maillage drawer: group the mailles list by orientation
   // (Mailles horizontales / Mailles verticales). Session-only.
   mesh3dGroupByOrientation: false,
   // Orientations ("HORIZONTAL" | "VERTICAL") whose mailles are hidden in the
-  // 3D scene (group-header eye of the Liste tab). Applies to the scene even
+  // 3D scene (group-header eye of the mailles list). Applies to the scene even
   // when the grouped display is off. Session-only.
   mesh3dHiddenOrientations: [],
   meshingMode: {
     active: false,
-    // "SELECT" | "CREATE" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
-    // | "CUT_POLYLINE" | "CUT_ANGULAR" | "NUMBER"
+    // "SELECT" | "CREATE" | "NUMBER"
     tool: "SELECT",
-    // "Décalage": distance (m) from the reference vertex to the guide vertex
-    // used by the vertical / horizontal cut tools.
-    offset: 2,
-    // Side of the maille the reference vertex is picked on. Default LEFT
-    // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
-    cutSide: "LEFT", // "LEFT" | "RIGHT"
-    // "Multi-mailles": the cut runs through every touching maille the plane
-    // (or the angular wedge) crosses, not only the hovered one — a horizontal
-    // trait across two vertical bands then yields four mailles. Opt-in: an
-    // infinite plane would otherwise reach mailles the user cannot even see.
-    multiCut: false,
     // "Numéroter": next number assigned to the clicked maille (then +1).
     numberingNext: 1,
-    // Angular cut: digits typed on the keyboard to constrain the angle (deg),
-    // exactly like extrudeMode.valueBuffer — no focused field, the pointer
-    // handlers capture the keystrokes. A parsable buffer wins over the mouse,
-    // which then only picks the side the angle opens to.
-    angleBuffer: "",
     // CREATE tool (« Ajouter une maille »): target surface (m²) typed on the
-    // keyboard — S arms the input, the digits feed the buffer (same capture
-    // as angleBuffer). A parsable buffer > 0 pre-draws a maille of that
+    // keyboard — S arms the input, the digits feed the buffer (no focused
+    // field, the pointer handlers capture the keystrokes). A parsable buffer > 0 pre-draws a maille of that
     // surface under the cursor instead of the whole hovered piece. Kept
     // after a click: the user tiles mailles of the same surface.
     surfaceBuffer: "",
@@ -855,7 +838,6 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.active = action.payload;
       if (!action.payload) {
         state.meshingMode.tool = "SELECT";
-        state.meshingMode.cutSide = "LEFT";
         state.meshingMode.surfaceBuffer = "";
         state.meshingMode.surfaceInputArmed = false;
       } else {
@@ -887,36 +869,11 @@ export const threedEditorSlice = createSlice({
     },
     setMeshingTool: (state, action) => {
       state.meshingMode.tool = action.payload;
-      state.meshingMode.cutSide = "LEFT";
-      state.meshingMode.angleBuffer = "";
       state.meshingMode.surfaceBuffer = "";
       state.meshingMode.surfaceInputArmed = false;
     },
-    setMeshingOffset: (state, action) => {
-      state.meshingMode.offset = action.payload;
-    },
     setMeshingNumberingNext: (state, action) => {
       state.meshingMode.numberingNext = action.payload;
-    },
-    setMeshingMultiCut: (state, action) => {
-      state.meshingMode.multiCut = !!action.payload;
-    },
-    toggleMeshingCutSide: (state) => {
-      state.meshingMode.cutSide =
-        state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
-    },
-    // Typed angle buffer of the angular cut (mirrors the extrude buffer).
-    appendToMeshingAngleBuffer: (state, action) => {
-      state.meshingMode.angleBuffer += action.payload;
-    },
-    deleteLastMeshingAngleBuffer: (state) => {
-      state.meshingMode.angleBuffer = state.meshingMode.angleBuffer.slice(
-        0,
-        -1
-      );
-    },
-    clearMeshingAngleBuffer: (state) => {
-      state.meshingMode.angleBuffer = "";
     },
     // Typed target surface of the CREATE tool (« Ajouter une maille »).
     // Arming (S) starts a new value: the buffer is cleared.
@@ -1558,13 +1515,7 @@ export const {
   toggleClippingPlaneEditing,
   setMeshingModeActive,
   setMeshingTool,
-  setMeshingOffset,
   setMeshingNumberingNext,
-  toggleMeshingCutSide,
-  setMeshingMultiCut,
-  appendToMeshingAngleBuffer,
-  deleteLastMeshingAngleBuffer,
-  clearMeshingAngleBuffer,
   armMeshingSurfaceInput,
   appendToMeshingSurfaceBuffer,
   deleteLastMeshingSurfaceBuffer,

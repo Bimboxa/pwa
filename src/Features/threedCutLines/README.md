@@ -4,7 +4,7 @@ Cut lines prepare the mailles of the Maillage module (MESHES): polylines
 drawn in the 3D editor on the faces of the annotations, whose two end
 segments are extended along the faces of the scene at commit. The Maillage
 CREATE tool then highlights and creates the piece of a face delimited by the
-lines, and « Créer le maillage » creates one maille per piece of every face
+lines, and « Mailler » creates one maille per piece of every face
 the lines cross.
 
 ## Model
@@ -262,7 +262,8 @@ the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
   (`buildMeshDataFromPieces` → one planar face when its pieces coalesce
   into one, else a shell whose crease T-junctions are welded first;
   `createMesh3dService`).
-- « Créer le maillage » (`ButtonCreateMeshesFromCutLines`, meshing toolbar):
+- « Mailler » (command `CREATE_MESHES`, `ButtonCreateMeshes`, commands
+  toolbar):
   `createMeshesFromCutLinesService` — every region of every visible
   annotation (merged host, or per mesh in plane mode), clipped by the
   lines; one maille per cut group; groups whose cut pieces all have their

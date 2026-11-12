@@ -36,6 +36,7 @@ import PanelPropertiesGuideline from "Features/annotations/components/PanelPrope
 import PanelPropertiesLayoutLine from "Features/annotations/components/PanelPropertiesLayoutLine";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
+import PanelPropertiesMeshesModule from "Features/threedMesh/components/PanelPropertiesMeshesModule";
 import PanelPhotoProperties from "Features/photos/components/PanelPhotoProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
@@ -325,6 +326,8 @@ export default function PanelSelectionProperties() {
       {type === "DRAWING_MODULE" && <PanelPropertiesDrawing />}
 
       {type === "BASE_MAPS_MODULE" && <PanelPropertiesBaseMapsModule />}
+
+      {type === "MESHES_MODULE" && <PanelPropertiesMeshesModule />}
 
       {type === "MODULE_DEFAULT" && (
         <PanelPropertiesModuleDefault moduleKey={selectedViewerKey} />
