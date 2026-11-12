@@ -248,10 +248,11 @@ const threedEditorInitialState = {
   },
   // « Plan de coupe » (Features/threedCutLines, DRAW_CUT_PLANE): `buffer` =
   // the typed `<length>[*N | /N]` (cutPlaneBuffer), `nearestOnly` = keep,
-  // per plane, only the contour closest to the drawn axis (sticky).
+  // per plane, only the contour closest to the drawn axis (sticky, on by
+  // default).
   cutPlaneDraw: {
     buffer: "",
-    nearestOnly: false,
+    nearestOnly: true,
   },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
