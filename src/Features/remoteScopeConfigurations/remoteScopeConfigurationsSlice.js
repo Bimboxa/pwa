@@ -26,7 +26,9 @@ function getSyncedVersionFromStorage(scopeId) {
   return getNumberFromStorage(SYNCED_VERSION_PREFIX + scopeId);
 }
 
-function setSyncedVersionToStorage(scopeId, version) {
+// exported for scopes installed without being selected (the persist
+// middleware below only writes for the selected scope)
+export function setSyncedVersionToStorage(scopeId, version) {
   if (!scopeId || version == null) return;
   setNumberToStorage(SYNCED_VERSION_PREFIX + scopeId, version);
 }

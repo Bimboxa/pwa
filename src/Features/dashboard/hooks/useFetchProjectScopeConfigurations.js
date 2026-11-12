@@ -5,19 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { setProjectConfigurations } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useScopeConfigurationsByProject from "Features/remoteScopeConfigurations/hooks/useScopeConfigurationsByProject";
-import useSearchScopeConfigurations from "Features/remoteScopeConfigurations/hooks/useSearchScopeConfigurations";
+import useGetProjectScopeConfigurations from "Features/remoteScopeConfigurations/hooks/useGetProjectScopeConfigurations";
 import normalizeProjectIdMaster from "../utils/normalizeProjectIdMaster";
 
 // Fetches the remote scope configurations of the selected dashboard item
 // and stores them in Redux, where useDashboardProjectItems merges them into
 // the project items (right panel rows + Krto counts).
 //
-// Uses the ByProject endpoint when the project has an idMaster (chantier
-// IdObject); falls back to SearchAndFilters with the clientRef (projectNum)
-// when there is no idMaster, or when ByProject fails or returns nothing —
-// configurations pushed from a project without idMaster have no
-// projectObjectId on the server and are only reachable via projectNum.
+// The endpoint strategy (ByProject, then SearchAndFilters by clientRef) lives
+// in useGetProjectScopeConfigurations.
 
 export default function useFetchProjectScopeConfigurations(item) {
   const dispatch = useDispatch();
@@ -26,8 +22,7 @@ export default function useFetchProjectScopeConfigurations(item) {
 
   const appConfig = useAppConfig();
   const jwt = useSelector((s) => s.auth.jwt);
-  const getByProject = useScopeConfigurationsByProject();
-  const searchConfigurations = useSearchScopeConfigurations();
+  const getProjectScopeConfigurations = useGetProjectScopeConfigurations();
 
   const getByProjectConfig =
     appConfig?.features?.remoteScopeConfigurations?.getByProject;
@@ -52,30 +47,11 @@ export default function useFetchProjectScopeConfigurations(item) {
     try {
       setLoading(true);
 
-      let configurations;
-      if (idMaster && getByProjectConfig) {
-        try {
-          configurations = await getByProject({ project: { idMaster } });
-        } catch (error) {
-          console.error("[dashboard] getByProject error", error);
-        }
-      }
-
-      if (!configurations?.length && clientRef && searchConfig) {
-        // no idMaster, or ByProject failed / returned nothing —
-        // search by clientRef (backend matches projectNum)
-        const results = await searchConfigurations({
-          searchValue: clientRef,
-        });
-        // projectIdClient (immutable client project id) is the unambiguous
-        // match; clientRef only covers older configs pushed without it
-        configurations = (results ?? []).filter(
-          (config) =>
-            (config.projectIdClient &&
-              String(config.projectIdClient) === projectId) ||
-            String(config.projectClientRef) === clientRef
-        );
-      }
+      const configurations = await getProjectScopeConfigurations({
+        idMaster,
+        clientRef,
+        projectId,
+      });
 
       dispatch(
         setProjectConfigurations({

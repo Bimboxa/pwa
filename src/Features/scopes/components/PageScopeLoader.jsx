@@ -10,10 +10,7 @@ import {
 } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import resolveUrl from "Features/appConfig/utils/resolveUrl";
-import transformObject from "Features/misc/utils/transformObject";
-import resolveRoute from "Features/remoteScopeConfigurations/utils/resolveRoute";
-import loadKrtoZip from "Features/krtoFile/services/loadKrtoZip";
+import downloadRemoteScopeService from "Features/remoteScopeConfigurations/services/downloadRemoteScopeService";
 import db from "App/db/db";
 
 import { Box, Typography, LinearProgress } from "@mui/material";
@@ -29,12 +26,6 @@ export default function PageScopeLoader() {
 
     const appConfig = useAppConfig();
     const jwt = useSelector((s) => s.auth.jwt);
-
-    // config
-
-    const pullConfig = appConfig?.features?.remoteScopeConfigurations?.pull;
-    const downloadConfig = appConfig?.features?.remoteScopeConfigurations?.download;
-    const mapping = appConfig?.features?.remoteScopeConfigurations?.mapping;
 
     // state
 
@@ -86,124 +77,21 @@ export default function PageScopeLoader() {
                 return;
             }
 
-            // 2. Le scope n'existe pas en local — on fetch les métadonnées
-            setStatus("fetching_metadata");
-            setProgress(20);
+            // 2. Le scope n'existe pas en local — métadonnées, téléchargement
+            // du ZIP et import (service partagé, sans sélection ni navigation)
+            const { configuration, scope: importedScope } =
+                await downloadRemoteScopeService({
+                    scopeId,
+                    appConfig,
+                    jwt,
+                    onProgress: ({ status, progress, fileSize }) => {
+                        setStatus(status);
+                        setProgress(progress);
+                        if (fileSize) setFileSize(fileSize);
+                    },
+                });
 
-            if (!pullConfig) throw new Error("Configuration de synchronisation manquante");
-
-            const fetchParams = pullConfig.fetchParams;
-            if (!fetchParams) throw new Error("fetchParams manquant");
-
-            const urlConfig = {
-                ...fetchParams.url,
-                route: resolveRoute(fetchParams.url.route, { scopeId }),
-            };
-            const resolvedUrl = resolveUrl(urlConfig);
-
-            const response = await fetch(resolvedUrl, {
-                method: fetchParams.method || "GET",
-                headers: {
-                    ...(jwt && { Authorization: `Bearer ${jwt}` }),
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erreur ${response.status} : scope introuvable`);
-            }
-
-            const data = await response.json();
-            const configuration = mapping ? transformObject(data, mapping) : data;
-
-            dispatch(setLastRemoteConfiguration(configuration));
-            setFileSize(configuration.fileSize);
-            setProgress(30);
-
-            // 3. Télécharger le fichier ZIP via la config download
-            if (!downloadConfig) throw new Error("Download config manquante (remoteScopeConfigurations.download)");
-
-            const dlFetchParams = downloadConfig.fetchParams;
-            const dlUrlConfig = {
-                ...dlFetchParams.url,
-                route: resolveRoute(dlFetchParams.url.route, { scopeId }),
-            };
-            const downloadUrl = resolveUrl(dlUrlConfig);
-
-            setStatus("downloading");
-
-            const fileResponse = await fetch(downloadUrl, {
-                method: dlFetchParams.method || "GET",
-                headers: {
-                    ...(jwt && { Authorization: `Bearer ${jwt}` }),
-                },
-            });
-
-            if (!fileResponse.ok) {
-                throw new Error(`Erreur ${fileResponse.status} lors du téléchargement`);
-            }
-
-            // Suivi de la progression du téléchargement
-            const contentLength = fileResponse.headers.get("content-length");
-            const totalBytes = contentLength ? parseInt(contentLength, 10) : configuration.fileSize;
-
-            let receivedBytes = 0;
-            const reader = fileResponse.body.getReader();
-            const chunks = [];
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(value);
-                receivedBytes += value.length;
-                if (totalBytes) {
-                    // 30% → 80% pour le téléchargement
-                    const dlProgress = 30 + (receivedBytes / totalBytes) * 50;
-                    setProgress(Math.min(dlProgress, 80));
-                }
-            }
-
-            const blob = new Blob(chunks);
-            const file = new File([blob], "remote_scope.zip", { type: "application/zip" });
-
-            // 4. Importer le ZIP
-            setStatus("importing");
-            setProgress(85);
-
-            // Rattacher l'import à un projet local existant (créé par ex. depuis
-            // le dashboard) pour éviter un projet dupliqué : le ZIP embarque le
-            // projet avec son propre id, on le remappe via loadDataToProjectId.
-            // Matching par projectIdClient (id projet immuable) d'abord — le
-            // clientRef change quand le projet est renuméroté — puis fallback
-            // clientRef pour les projets créés localement depuis le dashboard.
-            const existingProject =
-                (configuration.projectIdClient
-                    ? await db.projects.get(configuration.projectIdClient)
-                    : null) ??
-                (configuration.projectClientRef
-                    ? await db.projects
-                        .where("clientRef")
-                        .equals(configuration.projectClientRef)
-                        .first()
-                    : null);
-
-            await loadKrtoZip(file, {
-                loadDataToScopeId: scopeId,
-                ...(existingProject && { loadDataToProjectId: existingProject.id }),
-                // Le zip peut embarquer un nom / numéro périmés (projet renommé
-                // après le push) : les métadonnées de la scopeConfiguration
-                // (projectName / projectNum) font référence.
-                projectOverrides: {
-                    name: configuration.projectName,
-                    clientRef: configuration.projectClientRef,
-                    type: configuration.projectType,
-                },
-            });
-
-            setProgress(95);
-
-            // 5. Sélectionner le scope et mettre à jour la synchro
-            const importedScope = await db.scopes.get(scopeId);
+            // 3. Sélectionner le scope et mettre à jour la synchro
             if (importedScope) {
                 dispatch(setSelectedProjectId(importedScope.projectId));
             }

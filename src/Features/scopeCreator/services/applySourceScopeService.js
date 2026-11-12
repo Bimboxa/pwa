@@ -28,20 +28,29 @@ export async function getSourceScopeListings({ sourceScopeId, appConfig }) {
 /**
  * « Krto source » at scope creation: bring the drawing listings of another
  * scope of the project into the freshly created host scope, either LINKED
- * (read-only, rel rows only) or COPIED (new owned rows). Returns the number
- * of listings brought in (0 when nothing to do).
+ * (read-only, rel rows only) or COPIED (new owned rows). `listingIds`
+ * (optional) restricts it to those listings of the source scope; absent =
+ * every drawing listing. Returns the number of listings brought in (0 when
+ * nothing to do).
  */
 export default async function applySourceScopeService({
   hostScope,
   sourceScopeId,
   mode,
+  listingIds,
   appConfig,
   createdBy,
 }) {
   if (!hostScope?.id || !sourceScopeId || sourceScopeId === hostScope.id)
     return 0;
 
-  const listings = await getSourceScopeListings({ sourceScopeId, appConfig });
+  const sourceListings = await getSourceScopeListings({
+    sourceScopeId,
+    appConfig,
+  });
+  const listings = Array.isArray(listingIds)
+    ? sourceListings.filter((l) => listingIds.includes(l.id))
+    : sourceListings;
   if (listings.length === 0) return 0;
 
   if (mode === SOURCE_SCOPE_MODES.COPY) {

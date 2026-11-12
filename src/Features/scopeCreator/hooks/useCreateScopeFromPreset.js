@@ -304,11 +304,17 @@ export default function useCreateScopeFromPreset({ projectId }) {
     const categories = empty ? null : getConfigurationCategories(configuration);
     const sourceScopeId = sourceScope?.scopeId ?? null;
     const sourceScopeMode = sourceScope?.mode ?? SOURCE_SCOPE_MODES.LINK;
+    // null = every drawing listing of the source scope
+    const sourceListingIds = sourceScope?.listingIds ?? null;
     const metaData = {
       ...(categories && { categories }),
       // trace of the « Krto source » choice (informative)
       ...(sourceScopeId && {
-        sourceScope: { scopeId: sourceScopeId, mode: sourceScopeMode },
+        sourceScope: {
+          scopeId: sourceScopeId,
+          mode: sourceScopeMode,
+          ...(sourceListingIds && { listingIds: sourceListingIds }),
+        },
       }),
     };
 
@@ -652,6 +658,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
         hostScope: scope,
         sourceScopeId,
         mode: sourceScopeMode,
+        listingIds: sourceListingIds,
         appConfig,
         createdBy: userEmail,
       });
