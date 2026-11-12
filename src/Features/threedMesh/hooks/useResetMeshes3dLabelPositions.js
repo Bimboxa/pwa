@@ -4,7 +4,9 @@ import db from "App/db/db";
 // offsets are stored relative to the maille anchor, `null` meaning "on the
 // anchor" (see getMesh3dLabelAnchor).
 export function hasMesh3dLabelOffset(mesh3d) {
-  return Boolean(mesh3d?.labelOffset || mesh3d?.labelTargetOffset);
+  return Boolean(
+    mesh3d?.labelOffset || mesh3d?.labelTargetOffset || mesh3d?.labelTargetPoint
+  );
 }
 
 /**
@@ -27,7 +29,11 @@ export default function useResetMeshes3dLabelPositions() {
       await db.meshes3d.bulkUpdate(
         ids.map((key) => ({
           key,
-          changes: { labelOffset: null, labelTargetOffset: null },
+          changes: {
+            labelOffset: null,
+            labelTargetOffset: null,
+            labelTargetPoint: null,
+          },
         }))
       );
     });

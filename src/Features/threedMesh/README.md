@@ -90,3 +90,21 @@ failure), `polygonChord2d` gives the chord of a polygon through a point.
   surface of the created shell may then differ slightly from the target.
 - The atlas keeps the frame of the piece first hovered in a group.
 - Unfolding stops after 1500 pieces (re-rooted on the hovered piece).
+
+## Label card and leader target
+
+- `mesh3d.labelOffset {u, v}` — card position, meters in the label anchor
+  plane (`getMesh3dLabelAnchor`).
+- `mesh3d.labelTargetPoint {x, y, z}` — pointed end of the leader: a world
+  point ON the maille surface. The target drag (`useMesh3dLabelDragHandlers`)
+  raycasts the maille's own faces and snaps to the closest point of the stored
+  geometry (`getMesh3dSurfacePoint`), so the target follows curved shells and
+  slides along the border when the cursor leaves the maille.
+- `mesh3d.labelTargetOffset {u, v}` — legacy in-plane target, read only.
+  `getMesh3dLabelTargetPosition` snaps it (and any stale `labelTargetPoint`)
+  back onto the surface at render time.
+- Annotation labels follow the same rule in 3D
+  (`threedAnnotationLabels/utils/pickAnnotationOwnFace`): the target stays on
+  the faces of its annotation, its height is stored in
+  `annotation.labelTargetZ3d` (basemap-local meters, cleared by a 2D target
+  drag).

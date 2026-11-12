@@ -56,6 +56,21 @@ export function buildFacePlaneHit(
   };
 }
 
+// True for the meshes a face pick may land on. Fat lines extend Mesh and can
+// throw on a stale geometry, hence the explicit collection.
+export function isAnnotationFaceTarget(obj) {
+  if (!obj?.isMesh || obj.isLine2 || obj.isLineSegments2) return false;
+  if (obj.userData?.isBasemap || obj.userData?.isHoverOverlay) return false;
+  // Painted parts (Pinceau): skins over their host's faces, never a target.
+  if (obj.userData?.isPaintOverlay) return false;
+  // GLB scene of a scan base map: no owner annotation — skipped here
+  // rather than raycast for nothing at every pointer move.
+  if (obj.userData?.isScene3dGlb) return false;
+  // Base circle of a plan revolution axis: a decoration, never a face.
+  if (obj.userData?.isRevolutionAxisCircle) return false;
+  return true;
+}
+
 // Raycast the pointer against the annotation solids and return the closest
 // face hit, in the same shape as intersectBaseMapPlane so computeSnapTarget
 // treats a face like a plan: { position, normal, axisA, axisB, isFace: true,
@@ -82,16 +97,7 @@ export default function intersectAnnotationFace(
 
   const targets = [];
   scene.traverse((obj) => {
-    if (!obj.isMesh || obj.isLine2 || obj.isLineSegments2) return;
-    if (obj.userData?.isBasemap || obj.userData?.isHoverOverlay) return;
-    // Painted parts (Pinceau): skins over their host's faces, never a target.
-    if (obj.userData?.isPaintOverlay) return;
-    // GLB scene of a scan base map: no owner annotation — skipped here
-    // rather than raycast for nothing at every pointer move.
-    if (obj.userData?.isScene3dGlb) return;
-    // Base circle of a plan revolution axis: a decoration, never a face.
-    if (obj.userData?.isRevolutionAxisCircle) return;
-    targets.push(obj);
+    if (isAnnotationFaceTarget(obj)) targets.push(obj);
   });
   if (!targets.length) return null;
 

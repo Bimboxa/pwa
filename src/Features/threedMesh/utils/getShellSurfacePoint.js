@@ -49,13 +49,18 @@ function closestPointOnTriangle(p, a, b, c) {
 }
 
 /**
+ * Same as the default export, plus the (winding) unit normal of the triangle
+ * the closest point lies on — the direction the displayed shell is lifted
+ * along (see buildShellGeometry).
+ *
  * @param {ArrayLike<number>} positions - flat triangle soup (9 per triangle)
  * @param {{x,y,z}} p
- * @returns {{x,y,z}|null}
+ * @returns {{point: {x,y,z}, normal: {x,y,z}}|null}
  */
-export default function getShellSurfacePoint(positions, p) {
+export function getClosestSurfacePoint(positions, p) {
   if (!positions?.length || !p) return null;
   let best = null;
+  let bestNormal = null;
   let bestDistSq = Infinity;
   for (let t = 0; t + 8 < positions.length; t += 9) {
     const a = { x: positions[t], y: positions[t + 1], z: positions[t + 2] };
@@ -63,14 +68,25 @@ export default function getShellSurfacePoint(positions, p) {
     const c = { x: positions[t + 6], y: positions[t + 7], z: positions[t + 8] };
     // Degenerate triangles have no interior to project onto.
     const n = cross(sub(b, a), sub(c, a));
-    if (dot(n, n) < 1e-18) continue;
+    const nLenSq = dot(n, n);
+    if (nLenSq < 1e-18) continue;
     const q = closestPointOnTriangle(p, a, b, c);
     const d = sub(q, p);
     const distSq = dot(d, d);
     if (distSq < bestDistSq) {
       bestDistSq = distSq;
       best = q;
+      bestNormal = scale(n, 1 / Math.sqrt(nLenSq));
     }
   }
-  return best;
+  return best ? { point: best, normal: bestNormal } : null;
+}
+
+/**
+ * @param {ArrayLike<number>} positions - flat triangle soup (9 per triangle)
+ * @param {{x,y,z}} p
+ * @returns {{x,y,z}|null}
+ */
+export default function getShellSurfacePoint(positions, p) {
+  return getClosestSurfacePoint(positions, p)?.point ?? null;
 }

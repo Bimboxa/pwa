@@ -26,6 +26,7 @@ import useUpdateMesh3d from "../hooks/useUpdateMesh3d";
 import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
+import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
@@ -79,7 +80,11 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
 
   // Undo the label drag: card + leader target back on the maille centroid.
   function handleResetLabelPosition() {
-    updateMesh3d(mesh3d.id, { labelOffset: null, labelTargetOffset: null });
+    updateMesh3d(mesh3d.id, {
+      labelOffset: null,
+      labelTargetOffset: null,
+      labelTargetPoint: null,
+    });
   }
 
   async function handleDeleteClick() {
@@ -158,7 +163,7 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
         justifyContent="flex-end"
         sx={{ px: 1, py: 0.5 }}
       >
-        {(mesh3d.labelOffset || mesh3d.labelTargetOffset) && (
+        {hasMesh3dLabelOffset(mesh3d) && (
           <Tooltip title="Recentrer l'étiquette">
             <IconButton size="small" onClick={handleResetLabelPosition}>
               <FilterCenterFocusIcon fontSize="small" />

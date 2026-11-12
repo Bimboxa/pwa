@@ -2156,7 +2156,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           elbowSeed: extra?.labelElbowSeed ?? null,
         }
       );
-      await db.annotations.update(annotation.id, { labelDelta });
+      const labelChanges = { labelDelta };
+      // The 3D height of the target (dropped on a face of the solid, see
+      // useAnnotationLabelDragHandlers) no longer matches its new position.
+      if (partType === "TARGET" && annotation.labelTargetZ3d != null) {
+        labelChanges.labelTargetZ3d = null;
+      }
+      await db.annotations.update(annotation.id, labelChanges);
     }
 
     // OTHER ANNOTATIONS

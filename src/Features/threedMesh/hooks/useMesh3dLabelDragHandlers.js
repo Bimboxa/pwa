@@ -16,11 +16,16 @@ import createMesh3dLabelLeader, {
   setMesh3dLabelLeaderEnds,
 } from "../services/createMesh3dLabelLeader";
 import {
+  getMesh3dFaceMeshes,
   getMesh3dLabelTargetHandles,
   getMesh3dSprites,
 } from "../services/mesh3dObjectsStore";
 import { setMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
 import { getMesh3dPlanePoint } from "../utils/getMesh3dLabelAnchor";
+import {
+  getMesh3dSurfacePoint,
+  liftMesh3dSurfacePoint,
+} from "../utils/getMesh3dLabelTargetPosition";
 
 // Pointer movement (CSS px) below which the gesture stays a plain click
 // (selection only) — mirrors useCoteLabelDragHandlers.
@@ -42,11 +47,15 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
  *   projected on the plane of the label anchor), with a live leader line back
  *   to the target;
  * - dragging the round handle at the leader's pointed end moves that target
- *   in the same plane (handle shown on the selected maille only);
- * - pointerup persists the in-plane displacement in the anchor (u, v) basis,
- *   in meters: `mesh3d.labelOffset` for the card, `mesh3d.labelTargetOffset`
- *   for the target — the useLiveQuery rebuild then re-renders both at their
- *   stored positions.
+ *   OVER THE MAILLE SURFACE (handle shown on the selected maille only): the
+ *   cursor is raycast against the maille's own faces and the result snapped
+ *   to the closest point of the stored geometry, so the target follows a
+ *   curved shell and slides along the border once the cursor leaves the
+ *   maille — it can never detach;
+ * - pointerup persists `mesh3d.labelOffset` for the card (in-plane
+ *   displacement in the anchor (u, v) basis, meters) or
+ *   `mesh3d.labelTargetPoint` for the target (world point on the surface) —
+ *   the useLiveQuery rebuild then re-renders both at their stored positions.
  */
 export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
   const dispatch = useDispatch();
@@ -99,6 +108,25 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       return raycaster.ray.intersectPlane(plane, hit) ? hit : null;
     }
 
+    // Point of the maille surface under the cursor. Off the maille, the
+    // cursor is projected on the camera-facing plane through the current
+    // target, then snapped to the closest surface point: the target slides
+    // along the border instead of leaving the maille.
+    function pickOnMailleSurface(e, drag) {
+      if (!setRayFromEvent(e)) return null;
+      let candidate = raycaster.intersectObjects(drag.faceMeshes, false)[0]
+        ?.point;
+      if (!candidate) {
+        const plane = new Plane().setFromNormalAndCoplanarPoint(
+          camera.getWorldDirection(new Vector3()),
+          drag.dragged.position
+        );
+        candidate = raycaster.ray.intersectPlane(plane, new Vector3());
+      }
+      if (!candidate) return null;
+      return getMesh3dSurfacePoint(drag.mesh3d, candidate);
+    }
+
     function endDrag() {
       const drag = dragRef.current;
       dragRef.current = null;
@@ -143,6 +171,8 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       const sprite =
         kind === "LABEL" ? dragged : dragged?.userData?.labelSprite;
       if (!mesh3dId || !anchor || !sprite) return;
+      const mesh3d = kind === "TARGET" ? dragged.userData.mesh3d : null;
+      if (kind === "TARGET" && !mesh3d) return;
 
       // The card owns the gesture from here on (the pointerup pick paths are
       // told to stand down, see mesh3dLabelGestureStore). Selection is
@@ -161,25 +191,29 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       if (controls) controls.enabled = false;
 
       // The end that stays put during this drag — the other leader endpoint.
-      const fixedEnd = getMesh3dPlanePoint(
-        anchor,
+      const fixedEnd =
         kind === "LABEL"
-          ? sprite.userData.labelTargetOffset
-          : sprite.userData.labelOffset
-      );
+          ? sprite.userData.targetPosition
+          : getMesh3dPlanePoint(anchor, sprite.userData.labelOffset);
 
       dragRef.current = {
         kind,
-        field: kind === "LABEL" ? "labelOffset" : "labelTargetOffset",
         mesh3dId,
+        // TARGET drag: the stored geometry + displayed faces of this maille.
+        mesh3d,
+        faceMeshes:
+          kind === "TARGET"
+            ? getMesh3dFaceMeshes().filter(
+                (m) => m.userData?.mesh3dId === mesh3dId
+              )
+            : [],
+        targetPoint: null,
         dragged,
         sprite,
         anchor,
         plane,
         startHit,
-        startOffset: (kind === "LABEL"
-          ? sprite.userData.labelOffset
-          : sprite.userData.labelTargetOffset) || { u: 0, v: 0 },
+        startOffset: sprite.userData.labelOffset || { u: 0, v: 0 },
         fixedEnd,
         offset: null,
         leader: sprite.userData.leader || null,
@@ -198,7 +232,9 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
 
     function onWindowPointerMove(e) {
       const drag = dragRef.current;
-      if (!drag || !drag.startHit) return;
+      // The target drag never relies on the anchor plane (seen edge-on on a
+      // curved shell, it yields no start hit).
+      if (!drag || (drag.kind === "LABEL" && !drag.startHit)) return;
       if (!drag.moved) {
         const dx = Math.abs(e.clientX - drag.startClient.x);
         const dy = Math.abs(e.clientY - drag.startClient.y);
@@ -207,25 +243,34 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         dom.style.cursor = "grabbing";
       }
 
-      const hit = pickOnPlane(e, drag.plane);
-      if (!hit) return;
+      const position = new Vector3();
+      if (drag.kind === "TARGET") {
+        const surfacePoint = pickOnMailleSurface(e, drag);
+        if (!surfacePoint) return;
+        drag.targetPoint = surfacePoint.point;
+        position.copy(liftMesh3dSurfacePoint(surfacePoint));
+      } else {
+        const hit = pickOnPlane(e, drag.plane);
+        if (!hit) return;
 
-      // In-plane displacement since pointerdown, in the anchor (u, v) basis.
-      const { anchor } = drag;
-      const d = hit.sub(drag.startHit);
-      const du = d.x * anchor.u.x + d.y * anchor.u.y + d.z * anchor.u.z;
-      const dv = d.x * anchor.v.x + d.y * anchor.v.y + d.z * anchor.v.z;
-      const offset = {
-        u: drag.startOffset.u + du,
-        v: drag.startOffset.v + dv,
-      };
-      drag.offset = offset;
+        // In-plane displacement since pointerdown, in the anchor (u, v)
+        // basis.
+        const { anchor } = drag;
+        const d = hit.sub(drag.startHit);
+        const du = d.x * anchor.u.x + d.y * anchor.u.y + d.z * anchor.u.z;
+        const dv = d.x * anchor.v.x + d.y * anchor.v.y + d.z * anchor.v.z;
+        const offset = {
+          u: drag.startOffset.u + du,
+          v: drag.startOffset.v + dv,
+        };
+        drag.offset = offset;
 
-      const position = new Vector3(
-        anchor.base.x + anchor.u.x * offset.u + anchor.v.x * offset.v,
-        anchor.base.y + anchor.u.y * offset.u + anchor.v.y * offset.v,
-        anchor.base.z + anchor.u.z * offset.u + anchor.v.z * offset.v
-      );
+        position.set(
+          anchor.base.x + anchor.u.x * offset.u + anchor.v.x * offset.v,
+          anchor.base.y + anchor.u.y * offset.u + anchor.v.y * offset.v,
+          anchor.base.z + anchor.u.z * offset.u + anchor.v.z * offset.v
+        );
+      }
       drag.dragged.position.copy(position);
 
       // Leader line: reuse the one built by ThreedMeshes, or add a temporary
@@ -271,14 +316,28 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
       }
       dispatch(clearSubSelection());
 
-      if (!drag.moved || !drag.offset) return;
+      if (!drag.moved) return;
+      // Target: world point ON the surface (supersedes the legacy in-plane
+      // labelTargetOffset). Card: in-plane offset from the anchor.
+      const changes =
+        drag.kind === "TARGET"
+          ? drag.targetPoint && {
+              labelTargetPoint: {
+                x: round4(drag.targetPoint.x),
+                y: round4(drag.targetPoint.y),
+                z: round4(drag.targetPoint.z),
+              },
+              labelTargetOffset: null,
+            }
+          : drag.offset && {
+              labelOffset: {
+                u: round4(drag.offset.u),
+                v: round4(drag.offset.v),
+              },
+            };
+      if (!changes) return;
       try {
-        await db.meshes3d.update(drag.mesh3dId, {
-          [drag.field]: {
-            u: round4(drag.offset.u),
-            v: round4(drag.offset.v),
-          },
-        });
+        await db.meshes3d.update(drag.mesh3dId, changes);
       } catch (err) {
         console.error("[threedMesh] label offset persist failed", err);
       }

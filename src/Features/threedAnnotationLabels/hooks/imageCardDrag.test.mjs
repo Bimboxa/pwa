@@ -4,7 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import {
+  BoxGeometry,
   Group,
+  Mesh,
+  MeshBasicMaterial,
   OrthographicCamera,
   Scene,
   Sprite,
@@ -258,4 +261,101 @@ test("hidden photo cards do not intercept the pointer", async (t) => {
   await f.down();
   assert.equal(globalThis.__drag.active, false);
   assert.equal(f.controls.enabled, true);
+});
+
+// Target handle of an annotation with a solid (2 m cube, top at z = 2): the
+// drag is constrained to the faces of that annotation.
+function targetFixture(t) {
+  const dom = new Events();
+  const scene = new Scene();
+  const group = new Group();
+  scene.add(group);
+  const camera = new OrthographicCamera(-4, 4, 3, -3, 0.1, 100);
+  camera.position.set(4, 5, 8);
+  camera.lookAt(0, 0, 1);
+  camera.updateMatrixWorld(true);
+
+  const solidRoot = new Group();
+  solidRoot.userData = { nodeType: "ANNOTATION", nodeId: "wall" };
+  const solid = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+  solid.position.set(0, 0, 1);
+  solidRoot.add(solid);
+  scene.add(solidRoot);
+
+  const sprite = new Sprite(new SpriteMaterial());
+  sprite.position.set(0, 0, 3);
+  sprite.userData = {
+    annotationId: "wall",
+    annotationType: "POLYGON",
+    labelLocal: { x: 0, y: 0, z: 3 },
+    targetLocal: { x: 0, y: 0, z: 2 },
+    meterByPx: 0.01,
+    liftM: 1,
+    hasConnector: true,
+  };
+  const handle = new Sprite(new SpriteMaterial());
+  handle.scale.setScalar(0.2);
+  handle.position.set(0, 0, 2);
+  handle.userData = { annotationId: "wall", labelSprite: sprite };
+  group.add(sprite, handle);
+  scene.updateMatrixWorld(true);
+
+  const f = (globalThis.__drag = {
+    editable: true,
+    actions: [],
+    writes: [],
+    active: false,
+    row: { id: "wall", type: "POLYGON" },
+    editor: {
+      sceneManager: {
+        scene,
+        camera,
+        renderer: { domElement: dom },
+        controlsManager: { orbitControls: { enabled: true } },
+        annotationsManager: { annotationsObjectsMap: { wall: solidRoot } },
+        renderScene() {},
+      },
+    },
+    state: {
+      items: [{ type: "NODE", nodeType: "ANNOTATION", nodeId: "wall" }],
+      threedEditor: {
+        meshingMode: { active: false },
+        drawingMode: { active: false },
+        axesSettings: { yawDeg: 0 },
+      },
+    },
+  });
+  globalThis.window = new Events();
+  setAnnotationLabelObjects({ sprites: [sprite], targetHandles: [handle] });
+  useDrag({ rendererIsReady: true, annotations: [f.row] });
+  t.after(() => {
+    f.cleanup();
+    setAnnotationLabelObjects({});
+    delete globalThis.window;
+  });
+  const client = (x, y, z) => {
+    const p = new Vector3(x, y, z).project(camera);
+    return { clientX: (p.x + 1) * 400, clientY: (1 - p.y) * 300 };
+  };
+  return { ...f, dom, handle, client };
+}
+
+test("target of a solid annotation stays on its faces", async (t) => {
+  const f = targetFixture(t);
+  await f.dom.send("pointerdown", f.client(0, 0, 2));
+  assert.equal(globalThis.__drag.active, true);
+
+  // Over the +x side face, half a meter above the plane.
+  await window.send("pointermove", f.client(1, 0, 0.5));
+  const onFace = f.handle.position.clone();
+  assert.ok(onFace.distanceTo(new Vector3(1.01, 0, 0.5)) < 1e-3);
+
+  // Off the annotation: the target keeps its last valid position.
+  await window.send("pointermove", { clientX: 5, clientY: 5 });
+  assert.ok(f.handle.position.distanceTo(onFace) < 1e-9);
+
+  await window.send("pointerup", f.client(1, 0, 0.5));
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.writes[0].labelTargetZ3d, 0.5);
+  assert.deepEqual(f.writes[0].labelDelta.target, { x: 101, y: 0 });
 });

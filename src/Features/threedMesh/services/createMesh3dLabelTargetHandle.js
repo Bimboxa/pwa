@@ -15,8 +15,8 @@ const CANVAS_PX = 64;
 
 /**
  * Grab handle at the pointed end of a maille label leader. Shown on the
- * selected maille only; dragging it moves the leader's target within the
- * maille plane (persisted as `mesh3d.labelTargetOffset`).
+ * selected maille only; dragging it moves the leader's target over the
+ * maille surface (persisted as `mesh3d.labelTargetPoint`).
  */
 export default function createMesh3dLabelTargetHandle({
   mesh3dId,

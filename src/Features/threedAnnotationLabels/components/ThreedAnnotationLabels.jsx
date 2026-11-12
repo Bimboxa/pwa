@@ -206,7 +206,16 @@ export default function ThreedAnnotationLabels({ annotations }) {
         ? getImageCardLift(annotation)
         : getAnnotationLabelLiftM(annotation);
       const labelLocal = { x: label2.x, y: label2.y, z: labelZ + liftM };
-      const targetLocal = { x: target2.x, y: target2.y, z: labelZ };
+      // Target dropped on a face of the solid in 3D (see
+      // useAnnotationLabelDragHandlers): its own height; else the mid band.
+      const targetZ3d = Number(annotation.labelTargetZ3d);
+      const targetZ =
+        !isImage &&
+        annotation.labelTargetZ3d != null &&
+        Number.isFinite(targetZ3d)
+          ? targetZ3d
+          : labelZ;
+      const targetLocal = { x: target2.x, y: target2.y, z: targetZ };
 
       const isSelected = annotation.id === selectedAnnotationId;
       // Visible-color rule shared with the 2D chip (labelProps.fillColor).

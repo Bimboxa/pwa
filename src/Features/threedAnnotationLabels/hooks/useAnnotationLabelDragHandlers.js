@@ -45,6 +45,9 @@ import {
   getAnnotationLabelSprites,
   getAnnotationLabelTargetHandles,
 } from "../services/annotationLabelObjectsStore";
+import pickAnnotationOwnFace, {
+  collectAnnotationFaceMeshes,
+} from "../utils/pickAnnotationOwnFace";
 
 // Pointer movement (CSS px) below which the gesture stays a plain click
 // (selection only) — mirrors useMesh3dLabelDragHandlers.
@@ -58,7 +61,12 @@ const MIN_RAY_PLANE_DOT = 0.05;
 // through the grab point — the drawing's axis lock (computeSnapTarget).
 const AXIS_THRESHOLD_PX = 20;
 
+// Lift (m) of a face-constrained target off the face it sits on, so the
+// anchor marker and the leader end never z-fight the annotation.
+const TARGET_FACE_LIFT_M = 0.01;
+
 const round2 = (v) => Math.round(v * 100) / 100;
+const round3 = (v) => Math.round(v * 1000) / 1000;
 
 /**
  * Click + drag of an annotation label card (and of the pointed end of its
@@ -69,7 +77,13 @@ const round2 = (v) => Math.round(v * 100) / 100;
  *   ALONG A USER AXIS (X / Y / Z of the gizmo frame, drawing parity) when
  *   the cursor is close to one on screen — the axis is drawn in its colour.
  *   The vertical axis lets the card leave the plane (its lift above the
- *   anchor, `labelLift3d`); the target handle stays in the plane;
+ *   anchor, `labelLift3d`);
+ * - the target handle of an annotation with a 3D solid stays ON THE FACES of
+ *   that annotation: the cursor is raycast against the annotation's own
+ *   meshes, and a cursor off the annotation leaves the target at its last
+ *   valid position — it can never detach. Its height goes to
+ *   `labelTargetZ3d` (basemap-local meters, 3D only). Without a solid, the
+ *   target moves in the basemap plane as before;
  * - pointerup converts the in-plane displacement to image-px deltas and
  *   persists it through getAnnotationLabelDeltaFromDeltaPos — the exact 2D
  *   commit path (MainMapEditorV3), so both views share the same labelDelta;
@@ -300,8 +314,19 @@ export default function useAnnotationLabelDragHandlers({
       // Axis locks: the user axes of the gizmo frame. The target handle
       // stays on the annotation — only the axes lying in the basemap plane.
       const userAxes = getUserAxesWorldDirections(yawDegRef.current);
-      const axes =
-        kind === "LABEL"
+      // Target of an annotation with a solid: constrained to its own faces
+      // (no axis lock — the face wins).
+      const faceTargets =
+        kind === "TARGET" && !isImage && !clickOnly
+          ? collectAnnotationFaceMeshes(
+              sceneManager.annotationsManager?.annotationsObjectsMap?.[
+                annotationId
+              ]
+            )
+          : [];
+      const axes = faceTargets.length
+        ? []
+        : kind === "LABEL"
           ? userAxes
           : userAxes.filter((a) => Math.abs(a.dir.dot(planeNormal)) < 1e-3);
 
@@ -334,6 +359,8 @@ export default function useAnnotationLabelDragHandlers({
         startHit,
         startLocal,
         fixedEnd,
+        faceTargets,
+        targetZ: null,
         axes,
         axis: null,
         axisLine: null,
@@ -358,7 +385,11 @@ export default function useAnnotationLabelDragHandlers({
 
     function onWindowPointerMove(e) {
       const drag = dragRef.current;
-      if (!drag || e.pointerId !== drag.pointerId || !drag.startHit) return;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      // The face-constrained target never relies on the basemap plane (seen
+      // edge-on, it yields no start hit).
+      const onFaces = drag.faceTargets.length > 0;
+      if (!onFaces && !drag.startHit) return;
       if (!drag.moved) {
         const dx = Math.abs(e.clientX - drag.startClient.x);
         const dy = Math.abs(e.clientY - drag.startClient.y);
@@ -370,28 +401,52 @@ export default function useAnnotationLabelDragHandlers({
       // orbit started on an unselected card doesn't select it on pointerup.
       if (drag.clickOnly) return;
 
-      // Axis lock first (through the cursor's grab point, so the card keeps
-      // its grab offset), else free move in the basemap plane.
-      const axisHit = !drag.isImage || e.shiftKey ? pickOnAxes(e, drag) : null;
-      const hit = axisHit?.position ?? pickOnPlane(e, drag.plane);
-      if (!hit) return;
-      updateAxisLine(drag, axisHit?.axis ?? null);
+      const position = new Vector3();
+      if (onFaces) {
+        // Point of the annotation's own faces under the cursor. Off the
+        // annotation: the target keeps its last valid position.
+        if (!setRayFromEvent(e)) return;
+        const faceHit = pickAnnotationOwnFace(
+          raycaster,
+          drag.faceTargets,
+          sceneManager
+        );
+        if (!faceHit) return;
+        position
+          .copy(faceHit.position)
+          .addScaledVector(faceHit.normal, TARGET_FACE_LIFT_M);
+        drag.group.worldToLocal(position);
+        drag.deltaLocal = {
+          x: position.x - drag.startLocal.x,
+          y: position.y - drag.startLocal.y,
+          z: position.z - drag.startLocal.z,
+        };
+        drag.targetZ = position.z;
+      } else {
+        // Axis lock first (through the cursor's grab point, so the card
+        // keeps its grab offset), else free move in the basemap plane.
+        const axisHit =
+          !drag.isImage || e.shiftKey ? pickOnAxes(e, drag) : null;
+        const hit = axisHit?.position ?? pickOnPlane(e, drag.plane);
+        if (!hit) return;
+        updateAxisLine(drag, axisHit?.axis ?? null);
 
-      // World displacement since pointerdown → basemap-local (groups are
-      // unscaled, so the length is preserved through the rotation). z is
-      // the lift above the plane (vertical axis lock on a horizontal map).
-      const vWorld = hit.clone().sub(drag.startHit);
-      const len = vWorld.length();
-      const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
-      const vLocal = vWorld.transformDirection(inv).multiplyScalar(len);
-      if (drag.kind === "TARGET") vLocal.z = 0;
-      drag.deltaLocal = { x: vLocal.x, y: vLocal.y, z: vLocal.z };
+        // World displacement since pointerdown → basemap-local (groups are
+        // unscaled, so the length is preserved through the rotation). z is
+        // the lift above the plane (vertical axis lock on a horizontal map).
+        const vWorld = hit.clone().sub(drag.startHit);
+        const len = vWorld.length();
+        const inv = new Matrix4().copy(drag.group.matrixWorld).invert();
+        const vLocal = vWorld.transformDirection(inv).multiplyScalar(len);
+        if (drag.kind === "TARGET") vLocal.z = 0;
+        drag.deltaLocal = { x: vLocal.x, y: vLocal.y, z: vLocal.z };
 
-      const position = new Vector3(
-        drag.startLocal.x + vLocal.x,
-        drag.startLocal.y + vLocal.y,
-        drag.startLocal.z + vLocal.z
-      );
+        position.set(
+          drag.startLocal.x + vLocal.x,
+          drag.startLocal.y + vLocal.y,
+          drag.startLocal.z + vLocal.z
+        );
+      }
       drag.dragged.position.copy(position);
 
       // Dragging the target: keep the fixed-size anchor marker on it.
@@ -510,6 +565,10 @@ export default function useAnnotationLabelDragHandlers({
         // the anchor, 3D only.
         if (drag.kind === "LABEL" && Math.abs(drag.deltaLocal.z) > 1e-4) {
           changes.labelLift3d = round2(drag.liftM + drag.deltaLocal.z);
+        }
+        // Target dropped on a face: its height on the solid, 3D only.
+        if (drag.kind === "TARGET" && drag.targetZ != null) {
+          changes.labelTargetZ3d = round3(drag.targetZ);
         }
         await db.annotations.update(drag.annotationId, changes);
         dispatch(triggerAnnotationsUpdate());

@@ -21,6 +21,7 @@ import getMesh3dLabelAnchor, {
   getMesh3dPlanePoint,
   readMesh3dOffset,
 } from "../utils/getMesh3dLabelAnchor";
+import getMesh3dLabelTargetPosition from "../utils/getMesh3dLabelTargetPosition";
 import getMesh3dOrientation from "../utils/getMesh3dOrientation";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
@@ -199,9 +200,9 @@ export default function ThreedMeshes() {
       const anchor =
         showNumber || showQties ? getMesh3dLabelAnchor(mesh3d) : null;
       const labelOffset = readMesh3dOffset(mesh3d.labelOffset);
-      const targetOffset = readMesh3dOffset(mesh3d.labelTargetOffset);
       const labelPosition = getMesh3dPlanePoint(anchor, labelOffset);
-      const targetPosition = getMesh3dPlanePoint(anchor, targetOffset);
+      // The pointed end always sits ON the maille surface.
+      const targetPosition = getMesh3dLabelTargetPosition(mesh3d, anchor);
       if (labelPosition) {
         const displayLabel = getMesh3dDisplayLabel(mesh3d, prefix);
         const surfaceLabel = formatSurfaceM2(mesh3d.surface, surfaceDecimals);
@@ -219,19 +220,20 @@ export default function ThreedMeshes() {
         if (dimmed) sprite.material.opacity = 0.3;
         // Consumed by useMesh3dLabelDragHandlers: dragging the card moves it
         // in the maille plane (persisted as mesh3d.labelOffset), dragging the
-        // target handle moves the leader's pointed end
-        // (mesh3d.labelTargetOffset).
+        // target handle moves the leader's pointed end over the maille
+        // surface (mesh3d.labelTargetPoint).
         sprite.userData.labelAnchor = anchor;
         sprite.userData.labelOffset = labelOffset;
-        sprite.userData.labelTargetOffset = targetOffset;
+        sprite.userData.targetPosition = targetPosition;
         group.add(sprite);
         sprites.push(sprite);
 
         // Leader: drawn as soon as either end has been moved away from the
         // anchor (otherwise the card sits on its target, nothing to link).
         const leaderLength = Math.hypot(
-          labelOffset.u - targetOffset.u,
-          labelOffset.v - targetOffset.v
+          labelPosition.x - targetPosition.x,
+          labelPosition.y - targetPosition.y,
+          labelPosition.z - targetPosition.z
         );
         if (leaderLength > 1e-4) {
           const leader = createMesh3dLabelLeader({
@@ -255,6 +257,8 @@ export default function ThreedMeshes() {
             targetPosition.z
           );
           handle.userData.labelAnchor = anchor;
+          // Stored geometry the target drag is constrained to.
+          handle.userData.mesh3d = mesh3d;
           handle.userData.color = color;
           handle.userData.labelSprite = sprite;
           group.add(handle);
