@@ -5,6 +5,7 @@ import {
   setCutLineDrawAxis,
   setCutLineDrawOffset,
   setCutLineDrawStopAtFirst,
+  setCutSegmentDrawStopAtFirst,
   toggleCutLineDrawSide,
 } from "Features/threedEditor/threedEditorSlice";
 
@@ -32,6 +33,13 @@ const FREE_SHORTCUTS = [
   { key: "0-9", label: "Longueur du segment" },
   { key: "Entrée", label: "Terminer la ligne de coupe" },
   { key: "Esc", label: "Terminer / Quitter la ligne de coupe" },
+];
+
+// Shortcuts of the two-click trace (« Segment de coupe »).
+const SEGMENT_SHORTCUTS = [
+  { key: "X / Y / Z", label: "Trait parallèle à l'axe" },
+  { key: "0-9", label: "Longueur du segment" },
+  { key: "Esc", label: "Annuler le point / Quitter" },
 ];
 
 // Shortcuts of the axis trace (onCutLineAxisKey, useDrawingPointerHandlers).
@@ -62,7 +70,9 @@ const ROW_SX = {
 // being typed in the 3D view while there is one (`constraintBuffer`, it
 // locks the line), the side of the reference edge (S), the « Arrêter à la
 // première arête / ligne » switch (a « Stop » on the first point of each
-// extension, commitDrawnCutLineService) and the shortcuts.
+// extension, commitDrawnCutLineService) and the shortcuts. Also the body of
+// « Segment de coupe » (DRAW_CUT_SEGMENT, draft flagged `cutSegment`: the
+// second click commits, the switch has its own state, on by default).
 // Replaces the generic polyline helper body while the cut line is armed.
 // ---------------------------------------------------------------------------
 
@@ -78,6 +88,8 @@ export default function SectionCutLineDrawHelperContent() {
   const stopAtFirstS = "Arrêter à la première arête / ligne";
   const freeHintS =
     "Cliquez les points de la ligne de coupe (plan, face, sommet, arête) — Entrée ou double-clic pour terminer : le trait est prolongé le long des faces";
+  const segmentHintS =
+    "Cliquez les deux points du segment de coupe (plan, face, sommet, arête) : le deuxième clic le valide";
   const axisHintS =
     "Survolez une face : le trait est parallèle à l'axe. Cliquez pour le valider";
   const axisBusyS = "Terminez le trait en cours avant de changer de mode";
@@ -86,8 +98,18 @@ export default function SectionCutLineDrawHelperContent() {
 
   const axis = useSelector((s) => s.threedEditor.cutLineDraw.axis);
   const offset = useSelector((s) => s.threedEditor.cutLineDraw.offset);
+  // « Segment de coupe » (DRAW_CUT_SEGMENT): two clicks, its own switch.
+  const isSegment = useSelector((s) =>
+    Boolean(s.annotations.newAnnotation?.cutSegment)
+  );
   const stopAtFirst = useSelector((s) =>
-    Boolean(s.threedEditor.cutLineDraw.stopAtFirst)
+    Boolean(
+      s.threedEditor.cutLineDraw[
+        s.annotations.newAnnotation?.cutSegment
+          ? "segmentStopAtFirst"
+          : "stopAtFirst"
+      ]
+    )
   );
   const inProgress = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline.length > 0
@@ -123,7 +145,10 @@ export default function SectionCutLineDrawHelperContent() {
   }
 
   function handleStopAtFirstChange(e) {
-    dispatch(setCutLineDrawStopAtFirst(e.target.checked));
+    const setStopAtFirst = isSegment
+      ? setCutSegmentDrawStopAtFirst
+      : setCutLineDrawStopAtFirst;
+    dispatch(setStopAtFirst(e.target.checked));
   }
 
   // The 3D key handler ignores the keys typed in an input: the tool's
@@ -153,8 +178,10 @@ export default function SectionCutLineDrawHelperContent() {
 
   return (
     <SectionTransformToolHelper
-      hint={axis ? axisHintS : freeHintS}
-      shortcuts={axis ? AXIS_SHORTCUTS : FREE_SHORTCUTS}
+      hint={axis ? axisHintS : isSegment ? segmentHintS : freeHintS}
+      shortcuts={
+        axis ? AXIS_SHORTCUTS : isSegment ? SEGMENT_SHORTCUTS : FREE_SHORTCUTS
+      }
     >
       <Paper
         variant="outlined"

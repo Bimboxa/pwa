@@ -5,11 +5,13 @@
 // sit at the head and at the tail of the array; the drawn points are in
 // between.
 //
-// A stop point in the extended HEAD (before the first drawn point) truncates
-// the start: the line is kept from that point (included) to the end. Any
-// other stop point (drawn, or in the extended tail) truncates the end: the
-// line is kept from the start to that point (included). With several stops
-// on one side, the one closest to the drawn points wins.
+// A stop point in the extended HEAD (before the first drawn point), or on
+// the FIRST drawn point itself (the line starts where it was drawn: its head
+// extension is hidden), truncates the start: the line is kept from that
+// point (included) to the end. Any other stop point (drawn, or in the
+// extended tail) truncates the end: the line is kept from the start to that
+// point (included). With several stops on one side, the one closest to the
+// drawn points wins.
 //
 // Returns { points, startIndex, endIndex } — indices into the input array,
 // inclusive. An empty input gives { points: [], startIndex: -1, endIndex: -1 }.
@@ -25,7 +27,7 @@ export default function getCutLineVisiblePoints(points) {
   let endIndex = list.length - 1;
   for (let i = 0; i < list.length; i++) {
     if (!list[i]?.stop) continue;
-    if (i < headEnd) {
+    if (i < headEnd || i === firstDrawnIndex) {
       // Head stop: the closest to the drawn points is the last one.
       startIndex = Math.max(startIndex, i);
     } else {
