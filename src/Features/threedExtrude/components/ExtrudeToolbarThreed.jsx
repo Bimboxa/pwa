@@ -20,7 +20,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 
 // Specialized bottom toolbar shown while extrude mode is active (same swap
-// pattern as MeshingToolbarThreed, see MainThreedEditor): it carries the
+// pattern as ClippingToolbarThreed, see MainThreedEditor): it carries the
 // extrusion value.
 //
 // The value shown is the typed buffer when there is one (digits captured from

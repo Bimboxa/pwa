@@ -19,8 +19,7 @@ import {
 //   the mailles.
 // - V on a revolution: the MERIDIAN plane — it holds the revolution axis and
 //   the hovered point, so the cut runs along a generatrix.
-// - V on a shell without axis: the mailles' convention (meshingCutController
-//   getShellCutNormal) — a vertical plane holding the line of sight, a knife
+// - V on a shell without axis: a vertical plane holding the line of sight, a knife
 //   held facing the user.
 // The V normal is turned toward the viewer's right so the LEFT / RIGHT side
 // (S) reads on screen.

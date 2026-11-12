@@ -1,32 +1,32 @@
 import { useState, useSyncExternalStore } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
-
-import { Button, Tooltip } from "@mui/material";
-import GridOnIcon from "@mui/icons-material/GridOn";
+import { useSelector } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
-import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
-import createMeshesFromCutLinesService from "../services/createMeshesFromCutLinesService";
+import createMeshesFromCutLinesService from "Features/threedCutLines/services/createMeshesFromCutLinesService";
 import {
   getCutLinesVersion,
   getCutLinesWorldPolylines,
   subscribeCutLineObjects,
-} from "../services/cutLineObjectsStore";
+} from "Features/threedCutLines/services/cutLineObjectsStore";
 
-// « Créer le maillage » (MeshingToolbarThreed): one maille per piece of the
-// faces the cut lines cross (createMeshesFromCutLinesService). Disabled
-// while no cut line is rendered.
-export default function ButtonCreateMeshesFromCutLines() {
-  const dispatch = useDispatch();
+import CommandButton from "../../components/CommandButton";
 
+// Button of « Mailler »: one maille per piece of the faces the cut lines
+// cross (createMeshesFromCutLinesService). Disabled while no cut line is
+// rendered, and while a creation is running.
+export default function ButtonCreateMeshes({
+  command,
+  deps,
+  state,
+  hotkeyLabel,
+}) {
   // strings
 
-  const label = "Créer le maillage";
-  const tooltip =
-    "Crée une maille par morceau des faces traversées par les lignes de coupe";
   const noneS = "Aucune ligne de coupe visible";
+  const busyS = "Création du maillage en cours";
+  const errorS = "Création du maillage impossible";
 
   // data
 
@@ -41,10 +41,19 @@ export default function ButtonCreateMeshesFromCutLines() {
 
   const [busy, setBusy] = useState(false);
 
+  // helpers
+
+  let buttonState = state;
+  if (state?.enabled && busy) {
+    buttonState = { enabled: false, reason: busyS };
+  } else if (state?.enabled && !hasCutLines) {
+    buttonState = { enabled: false, reason: noneS };
+  }
+
   // handlers
 
   async function handleClick() {
-    const editor = getActiveThreedEditor();
+    const editor = deps.getThreedEditor();
     if (!editor) return;
     setBusy(true);
     try {
@@ -63,7 +72,7 @@ export default function ButtonCreateMeshesFromCutLines() {
           `${skippedCovered} déjà maillée${skippedCovered > 1 ? "s" : ""}`
         );
       if (!facesCut) parts.push("aucune face traversée");
-      dispatch(
+      deps.dispatch(
         setToaster({
           message: parts.join(" · "),
           severity: created ? "success" : "warning",
@@ -71,12 +80,7 @@ export default function ButtonCreateMeshesFromCutLines() {
       );
     } catch (err) {
       console.error("[threedCutLines] create meshes failed", err);
-      dispatch(
-        setToaster({
-          message: "Création du maillage impossible",
-          severity: "error",
-        })
-      );
+      deps.dispatch(setToaster({ message: errorS, severity: "error" }));
     } finally {
       setBusy(false);
     }
@@ -85,19 +89,13 @@ export default function ButtonCreateMeshesFromCutLines() {
   // render
 
   return (
-    <Tooltip title={hasCutLines ? tooltip : noneS}>
-      <span>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<GridOnIcon />}
-          onClick={handleClick}
-          disabled={busy || !hasCutLines}
-          sx={{ textTransform: "none", whiteSpace: "nowrap" }}
-        >
-          {label}
-        </Button>
-      </span>
-    </Tooltip>
+    <CommandButton
+      commandKey={command.key}
+      label={command.label}
+      Icon={command.Icon}
+      hotkeyLabel={hotkeyLabel}
+      state={buttonState}
+      onClick={handleClick}
+    />
   );
 }

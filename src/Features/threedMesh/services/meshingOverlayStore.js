@@ -5,18 +5,12 @@
 // State:
 // - cursor: { x, y, label } | null — helper following the mouse
 //   ("+ nouvelle maille").
-// - areaChips: [{ x, y, text }] — dark chips showing the would-be areas of the
-//   two pieces while a cut line hovers a maille.
-// - offsetChip: { x, y, text } | null — pink "2m" chip between the reference
-//   vertex and the guide vertex.
-// - angleChip: { x, y, text, typed } | null — angle of the angular cut, inside
-//   the V; `typed` while the value comes from the keyboard buffer.
+// - areaChips: [{ x, y, text }] — dark chips next to the cursor (surface of
+//   the would-be maille).
 
 let _state = {
   cursor: null,
   areaChips: [],
-  offsetChip: null,
-  angleChip: null,
 };
 const _listeners = new Set();
 
@@ -26,12 +20,7 @@ export function setMeshingOverlay(partial) {
 }
 
 export function clearMeshingOverlay() {
-  setMeshingOverlay({
-    cursor: null,
-    areaChips: [],
-    offsetChip: null,
-    angleChip: null,
-  });
+  setMeshingOverlay({ cursor: null, areaChips: [] });
 }
 
 export function getMeshingOverlayState() {

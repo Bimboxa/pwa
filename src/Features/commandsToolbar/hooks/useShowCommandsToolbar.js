@@ -5,7 +5,7 @@ import {
   selectEffectiveViewerKey,
 } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import isCommandsToolbarModuleKey from "../utils/isCommandsToolbarModuleKey";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 
@@ -18,14 +18,7 @@ import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSli
 // section). Never in the read-only Viewer module nor in the POV / Krto /
 // Portfolio / Table / Admin modules.
 export function selectShowCommandsToolbar(s) {
-  const moduleKey = s.viewers.selectedViewerKey;
-  const moduleOk =
-    moduleKey === "MAP" ||
-    moduleKey === "ZONES" ||
-    moduleKey === "BASE_MAPS" ||
-    moduleKey === "MESHES" ||
-    isBusinessObjectsModuleKey(moduleKey);
-  if (!moduleOk) return false;
+  if (!isCommandsToolbarModuleKey(s.viewers.selectedViewerKey)) return false;
   const effectiveKey = selectEffectiveViewerKey(s);
   if (
     effectiveKey !== "MAP" &&

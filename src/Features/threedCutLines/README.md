@@ -4,7 +4,7 @@ Cut lines prepare the mailles of the Maillage module (MESHES): polylines
 drawn in the 3D editor on the faces of the annotations, whose two end
 segments are extended along the faces of the scene at commit. The Maillage
 CREATE tool then highlights and creates the piece of a face delimited by the
-lines, and « Créer le maillage » creates one maille per piece of every face
+lines, and « Mailler » creates one maille per piece of every face
 the lines cross.
 
 ## Model
@@ -190,6 +190,44 @@ start on a rotation axis and turn around it.
 - Limits: unbounded half-planes, no angular snapping of the mouse (type the
   angle), no hotkey arms the command.
 
+## « Ligne de coupe – prompt IA » (CUT_LINES_PROMPT_IA)
+
+Command of the Maillage toolbar (`commandsToolbar/commands/cutLinesPromptIa`):
+a dialog hands an external AI chat the geometry of the visible annotations
+and gets cut lines back, for a target max surface of a maille (m², remembered
+in `threedEditor.cutLinesPromptMaxArea`). The lines are meant to be set out
+on site: the prompt asks for lines from existing corners, regular, simple.
+
+- **Input** — every face region of the visible annotations, whatever their
+  type (`js/collectVisibleFaceRegions`, the walk shared with « Mailler »),
+  turned into planar faces or curved shells
+  (`services/collectCutLinesPromptRegions`), plus the rendered cut lines.
+  `utils/buildCutLinesPromptContext` names the vertices (`S1`…, welded at
+  1 mm, shared between faces and existing lines) and the faces (`F1`…).
+  Frame: the scene's (meters, Y up), never converted.
+- **Two modes** (default: GLB as soon as one region is curved):
+  - TEXT — planar faces only; one text (instructions
+    `docs/threed/CUT_LINES_PROMPT.md` + the context JSON) to copy or
+    download. Curved regions are left out (the dialog says so).
+  - GLB — a zip: `INSTRUCTIONS.md` (`CUT_LINES_PROMPT_GLB.md`),
+    `contexte.json` (same context + `curvedSurfaces`), `scene.glb`
+    (`services/buildCutLinesPromptGlb`: one mesh per annotation, named
+    `getCutLinesPromptMeshName`, baked in world coordinates, whitelist of
+    `collectAnnotationSectionMeshes`).
+- **Answer** (`utils/parseCutLinesPromptResult`) — `cutLines[].points[]`:
+  `{ vertex }`, `{ edge: [from, to], distance }` (meters from `from`), or
+  `[x, y, z]` (GLB mode only). Every `edge` point that is not a corner gets
+  a cote from its reference vertex; `cotes[]` of the answer come on top (GLB
+  mode, free points). An invalid line is dropped with a warning.
+- **Dry run** (`services/computeCutLinesPromptPreview`) — existing +
+  proposed lines clipped over the regions like « Mailler »: number of
+  pieces, largest surface, pieces over the target, points off the scene.
+- **Write** (`services/createCutLinesFromPromptService`) — template-less
+  CUT_LINE rows (`utils/buildCutLineRows`, shared with « Plan de coupe »:
+  drawn points, no extension) and template-less COTE rows
+  (`threedDrawing/utils/projectCoteEndpoints`, own points), one
+  transaction, one undo step.
+
 ## Rendering, selection, vertices
 
 - `ThreedCutLineAnnotations` (sibling of `ThreedRulerAnnotations`): one
@@ -312,7 +350,8 @@ the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
   (`buildMeshDataFromPieces` → one planar face when its pieces coalesce
   into one, else a shell whose crease T-junctions are welded first;
   `createMesh3dService`).
-- « Créer le maillage » (`ButtonCreateMeshesFromCutLines`, meshing toolbar):
+- « Mailler » (command `CREATE_MESHES`, `ButtonCreateMeshes`, commands
+  toolbar):
   `createMeshesFromCutLinesService` — every region of every visible
   annotation (merged host, or per mesh in plane mode), clipped by the
   lines; one maille per cut group; groups whose cut pieces all have their

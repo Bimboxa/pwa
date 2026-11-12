@@ -12,8 +12,7 @@ const NEAR_HORIZONTAL_DOT = 0.95;
 /**
  * Orthonormal in-plane basis for a planar face.
  *
- * - `v` is the in-plane "vertical": the projection of world up onto the plane
- *   (what the CUT_VERTICAL tool cuts along).
+ * - `v` is the in-plane "vertical": the projection of world up onto the plane.
  * - `u` is the in-plane "horizontal", perpendicular to `v`, with (u, v, n)
  *   right-handed (u × v = n).
  * - Near-horizontal faces fall back to u = projected world X, v = n × u.

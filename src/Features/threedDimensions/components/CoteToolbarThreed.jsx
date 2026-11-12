@@ -9,10 +9,8 @@ import CloseIcon from "@mui/icons-material/Close";
 
 // Bottom toolbar shown while a cote is armed in the 3D editor (COTE template
 // row, or the "Dessin" tool on its cote type — the cote rides the 3D drawing
-// mode, see useDrawingPointerHandlers). Replaces the meshing / default
-// toolbar (same swap pattern as MeshingToolbarThreed) so the Maillage module
-// doesn't keep displaying cut tools that are inert while
-// `meshingMode.active` is false.
+// mode, see useDrawingPointerHandlers). Replaces the default toolbar (same
+// swap pattern as ExtrudeToolbarThreed, see MainThreedEditor).
 //
 // Closing clears the 2D drawing state — the same dispatch pair as the Esc
 // handler of useDrawingPointerHandlers; useTemplateFaceDrawBridge then

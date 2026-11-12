@@ -1,25 +1,20 @@
 import db from "App/db/db";
-import { getFaceRegion } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import createMesh3dService from "Features/threedMesh/services/createMesh3dService";
-import { buildWorldSoup } from "Features/threedMesh/utils/buildMeshDataFromRegion";
 import computePlaneBasis from "Features/threedMesh/utils/computePlaneBasis";
 import {
   COVER_NORMAL_DOT,
   COVER_PLANE_TOL_M,
 } from "Features/threedMesh/utils/mesh3dConstants";
-import {
-  collectAnnotationSolidMeshes,
-  getAnnotationMergedHost,
-} from "Features/threedMesh/utils/getAnnotationFaceRegion";
 import pointInPolygon2d from "Features/threedMesh/utils/pointInPolygon2d";
 import { projectPointTo2d } from "Features/threedMesh/utils/planeProjection";
 import { cross, dot, sub } from "Features/threedMesh/utils/vec3Utils";
 
+import collectVisibleFaceRegions from "../js/collectVisibleFaceRegions";
 import buildMeshDataFromPieces from "../utils/buildMeshDataFromPieces";
 import clipRegionByCutLines from "../utils/clipRegionByCutLines";
 import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 
-// « Créer le maillage » (Maillage module): one maille per GROUP of pieces of
+// « Mailler » (Maillage module, command CREATE_MESHES): one maille per GROUP of pieces of
 // every face region of the visible annotations that the cut lines cross
 // (clipRegionByCutLines: the region — planar or faceted, grown over the
 // whole annotation like the hover, see getAnnotationFaceRegion — cut facet
@@ -59,100 +54,49 @@ export default async function createMeshesFromCutLinesService({
   let facesCut = 0;
   const colorByAnnotationId = new Map();
 
-  const roots = Object.values(
-    sceneManager.annotationsManager?.annotationsObjectsMap || {}
-  ).filter((root) => root?.visible && root.userData?.nodeId);
+  for (const { annotationId, soup } of collectVisibleFaceRegions(sceneManager, {
+    angleDeg,
+  })) {
+    const clip = clipRegionByCutLines({
+      positions: soup.positions,
+      tris: soup.tris,
+      cutLines,
+    });
+    const groups = (clip?.groups || []).filter((g) => g.cut);
+    if (!groups.length) continue;
+    facesCut += 1;
 
-  for (const root of roots) {
-    const annotationId = root.userData.nodeId;
-    for (const host of collectHosts(root)) {
-      const { geometry, matrixWorld, plane } = host;
-      const index = geometry?.index;
-      const triCount = index
-        ? index.count / 3
-        : (geometry?.attributes?.position?.count ?? 0) / 3;
-      if (!triCount) continue;
+    let baseColor = colorByAnnotationId.get(annotationId);
+    if (baseColor === undefined) {
+      const annotation = await db.annotations.get(annotationId);
+      baseColor = annotation?.fillColor || annotation?.strokeColor || null;
+      colorByAnnotationId.set(annotationId, baseColor);
+    }
 
-      const assigned = new Uint8Array(triCount);
-      for (let t = 0; t < triCount; t++) {
-        if (assigned[t]) continue;
-        const region = getFaceRegion(geometry, t, { plane, angleDeg });
-        if (!region?.tris?.length) {
-          assigned[t] = 1;
-          continue;
-        }
-        region.tris.forEach((i) => {
-          assigned[i] = 1;
-        });
-        const soup = buildWorldSoup(geometry, matrixWorld, region.tris);
-        if (!soup) continue;
-        const clip = clipRegionByCutLines({
-          positions: soup.positions,
-          tris: soup.tris,
-          cutLines,
-        });
-        const groups = (clip?.groups || []).filter((g) => g.cut);
-        if (!groups.length) continue;
-        facesCut += 1;
-
-        let baseColor = colorByAnnotationId.get(annotationId);
-        if (baseColor === undefined) {
-          const annotation = await db.annotations.get(annotationId);
-          baseColor = annotation?.fillColor || annotation?.strokeColor || null;
-          colorByAnnotationId.set(annotationId, baseColor);
-        }
-
-        for (const group of groups) {
-          const pieces = group.pieceIndices.map((i) => clip.pieces[i]);
-          if (isGroupCovered(pieces, existingFaces, existingShells)) {
-            skippedCovered += 1;
-            continue;
-          }
-          const meshData = buildMeshDataFromPieces(pieces);
-          if (!meshData) continue;
-          const row = await createMesh3dService({
-            projectId,
-            scopeId,
-            faces: meshData.faces,
-            shell: meshData.shell,
-            baseColor,
-            sourceInfo: { annotationId, fromCutLines: true },
-          });
-          if (row) {
-            created += 1;
-            existingFaces.push(...(row.faces || []));
-            if (row.shell?.positions?.length) existingShells.push(row.shell);
-          }
-        }
+    for (const group of groups) {
+      const pieces = group.pieceIndices.map((i) => clip.pieces[i]);
+      if (isGroupCovered(pieces, existingFaces, existingShells)) {
+        skippedCovered += 1;
+        continue;
+      }
+      const meshData = buildMeshDataFromPieces(pieces);
+      if (!meshData) continue;
+      const row = await createMesh3dService({
+        projectId,
+        scopeId,
+        faces: meshData.faces,
+        shell: meshData.shell,
+        baseColor,
+        sourceInfo: { annotationId, fromCutLines: true },
+      });
+      if (row) {
+        created += 1;
+        existingFaces.push(...(row.faces || []));
+        if (row.shell?.positions?.length) existingShells.push(row.shell);
       }
     }
   }
   return { created, skippedCovered, facesCut };
-}
-
-// The geometries to walk for one annotation root: its merged host (every
-// solid mesh in the root's frame) when it has several, else each solid mesh
-// on its own (plane mode on a CSG-carved mesh) — the same split as the hover.
-function collectHosts(root) {
-  const merged = getAnnotationMergedHost(root);
-  if (merged) {
-    root.updateWorldMatrix(true, false);
-    return [
-      {
-        geometry: merged.geometry,
-        matrixWorld: root.matrixWorld,
-        plane: false,
-      },
-    ];
-  }
-  return collectAnnotationSolidMeshes(root).map((mesh) => {
-    mesh.updateWorldMatrix(true, false);
-    return {
-      geometry: mesh.geometry,
-      matrixWorld: mesh.matrixWorld,
-      plane: !!mesh.userData?.hasSubtraction,
-    };
-  });
 }
 
 // Every cut piece of the group has its centroid inside an existing maille.

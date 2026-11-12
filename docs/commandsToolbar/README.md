@@ -51,11 +51,11 @@ the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
 « Commandes » dialog lists the commands under the section labels (« Repère »,
 « Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
 « Soustraction / Évidement », « Faces / Extrusion », « Créer / modifier depuis la
-sélection », « Déplacer / Affichage », « Qualité »), followed by the sections
-that only exist in the current module's layout (« Coupes / élévations » in
-Fonds de plan, « Mailles » / « Lignes de coupe » in Maillage —
-`getCommandsDialogSections(moduleKey)`), so their commands can be searched and
-ticked for the right-click menu of that module. The last button of the
+sélection », « Déplacer / Affichage », « Qualité ») of the layout of the module
+selected with its chips (`getToolbarSections(moduleKey)`: « Coupes /
+élévations » in Fonds de plan, « Mailles » / « Lignes de coupe » in
+Maillage), so the commands of every module can be searched and ticked for
+the right-click menu. The last button of the
 toolbar (`ButtonOpenCommandsDialog`, not a command) opens that dialog.
 
 « Dessiner un trait de coupe » (`DRAW_SECTION_LINE`) arms the two-click draw
@@ -126,9 +126,17 @@ The **« Commandes » dialog** (`components/DialogCommands.jsx`, full page,
 « Quitter » + `Q` through the shared `layout/components/HeaderDialogFullPage`
 / `layout/hooks/useDialogQuitHotkey` also used by the Configuration dialog;
 opened by `ButtonOpenCommandsDialog` / the menu footer,
-`commandsToolbar.commandsDialogOpen`) is the reference list of every command
-of the default layout, by section and group (`RowCommand`: checkbox, icon,
+`commandsToolbar.commandsDialogOpen`) is the reference list of the commands
+of one module, by section and group (`RowCommand`: checkbox, icon,
 label, `CommandBadges` = 2D / 3D chip + hotkey letter):
+
+- **module chips** — `ChipsCommandsModule` above the list: one chip per
+  module carrying the toolbar (`useViewers()` filtered by
+  `utils/isCommandsToolbarModuleKey.js`, also used by
+  `selectShowCommandsToolbar`), single choice, reset on every opening to the
+  module the dialog was opened from. The list is exactly the toolbar layout
+  of the selected module (`getToolbarSections`); Dessin, Zones and the
+  business-objects modules share the default layout.
 
 - **search** — a `SearchBar` in the header highlights (`RowCommand.highlighted`:
   `alpha(secondary.main, 0.12)` band + 3px secondary left bar, the selected

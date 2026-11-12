@@ -1,17 +1,8 @@
-import { useState } from "react";
-
 import { useDispatch, useSelector } from "react-redux";
 
 import { setMesh3dGroupByOrientation } from "Features/threedEditor/threedEditorSlice";
 
-import {
-  Box,
-  FormControlLabel,
-  Switch,
-  Tab,
-  Tabs,
-  Typography,
-} from "@mui/material";
+import { Box, FormControlLabel, Switch, Typography } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
@@ -19,18 +10,16 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
-import useResetMeshes3dLabelPositions from "../hooks/useResetMeshes3dLabelPositions";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
 import getMesh3dOrientation from "../utils/getMesh3dOrientation";
 
 import SectionMeshes3dList from "./SectionMeshes3dList";
 import SectionMeshes3dExport from "./SectionMeshes3dExport";
-import SectionMeshes3dSettings from "./SectionMeshes3dSettings";
 
 // Drawer content of the MESHES viewer (left panel next to the 3D editor).
-// Two tabs: "Liste" (mailles list + export footer) and "Réglages" (display
-// settings moved from the old rightPanel Maillage tool).
+// The mailles list + export footer; the module settings live in the module
+// properties panel (PanelPropertiesMeshesModule).
 export default function PanelMeshesViewer() {
   const dispatch = useDispatch();
 
@@ -43,9 +32,8 @@ export default function PanelMeshesViewer() {
   );
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
-  const { prefix, setPrefix } = useMesh3dLabelPrefix();
-  const { surfaceDecimals, setSurfaceDecimals } = useMesh3dSurfaceDecimals();
-  const resetLabelPositions = useResetMeshes3dLabelPositions();
+  const { prefix } = useMesh3dLabelPrefix();
+  const { surfaceDecimals } = useMesh3dSurfaceDecimals();
 
   const sorted = [...(meshes3d || [])].sort(
     (m1, m2) => (m1.number || 0) - (m2.number || 0)
@@ -57,10 +45,6 @@ export default function PanelMeshesViewer() {
     orientation: getMesh3dOrientation(mesh3d),
   }));
 
-  // state
-
-  const [tab, setTab] = useState("LIST");
-
   // render
 
   return (
@@ -68,77 +52,41 @@ export default function PanelMeshesViewer() {
       {/* Header */}
       <LeftDrawerPanelHeader title="Mailles" />
 
-      {/* Tabs */}
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        variant="fullWidth"
-        sx={{
-          minHeight: 36,
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Tab label="Liste" value="LIST" sx={{ minHeight: 36, py: 0.5 }} />
-        <Tab
-          label="Réglages"
-          value="SETTINGS"
-          sx={{ minHeight: 36, py: 0.5 }}
-        />
-      </Tabs>
-
       {/* Content */}
-      {tab === "LIST" && (
-        <BoxFlexVStretch sx={{ minHeight: 0 }}>
-          {rows.length > 0 && (
-            <Box
-              sx={{
-                px: 2,
-                py: 1,
-                borderBottom: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <FormControlLabel
-                sx={{ ml: 0 }}
-                control={
-                  <Switch
-                    size="small"
-                    checked={groupByOrientation}
-                    onChange={(e) =>
-                      dispatch(setMesh3dGroupByOrientation(e.target.checked))
-                    }
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ ml: 0.5 }}>
-                    Grouper par orientation
-                  </Typography>
-                }
-              />
-            </Box>
-          )}
-          <BoxFlexVStretch sx={{ overflow: "auto" }}>
-            <SectionMeshes3dList rows={rows} />
-          </BoxFlexVStretch>
-          <SectionMeshes3dExport
-            rows={rows}
-            surfaceDecimals={surfaceDecimals}
-          />
-        </BoxFlexVStretch>
-      )}
-      {tab === "SETTINGS" && (
+      <BoxFlexVStretch sx={{ minHeight: 0 }}>
+        {rows.length > 0 && (
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={groupByOrientation}
+                  onChange={(e) =>
+                    dispatch(setMesh3dGroupByOrientation(e.target.checked))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ ml: 0.5 }}>
+                  Grouper par orientation
+                </Typography>
+              }
+            />
+          </Box>
+        )}
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
-          <SectionMeshes3dSettings
-            prefix={prefix}
-            onPrefixChange={setPrefix}
-            surfaceDecimals={surfaceDecimals}
-            onSurfaceDecimalsChange={setSurfaceDecimals}
-            meshes3d={sorted}
-            onResetLabelPositions={() => resetLabelPositions(sorted)}
-          />
+          <SectionMeshes3dList rows={rows} />
         </BoxFlexVStretch>
-      )}
+        <SectionMeshes3dExport rows={rows} surfaceDecimals={surfaceDecimals} />
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

@@ -7,10 +7,11 @@ export default function getModuleRootPanelType(moduleKey) {
   if (moduleKey === "SCOPE") return "SCOPE";
   if (moduleKey === "MAP") return "DRAWING_MODULE";
   if (moduleKey === "BASE_MAPS") return "BASE_MAPS_MODULE";
+  if (moduleKey === "MESHES") return "MESHES_MODULE";
   if (moduleKey === "PORTFOLIO") return "PORTFOLIO_HEADER";
   // Module's active listing (also the frame before
   // useDefaultSelectionInBusinessObjectsModule poses the LISTING selection).
   if (isBusinessObjectsModuleKey(moduleKey)) return "BUSINESS_OBJECT_LISTING";
-  // Viewer, Photos, Zones, Maillage: generic module panel.
+  // Viewer, Photos, Zones: generic module panel.
   return "MODULE_DEFAULT";
 }

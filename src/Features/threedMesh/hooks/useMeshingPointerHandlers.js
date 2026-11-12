@@ -21,17 +21,13 @@ import {
 import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSingleSelectedAnnotationId";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
-  appendToMeshingAngleBuffer,
   appendToMeshingSurfaceBuffer,
   armMeshingSurfaceInput,
-  clearMeshingAngleBuffer,
   clearMeshingSurfaceBuffer,
-  deleteLastMeshingAngleBuffer,
   deleteLastMeshingSurfaceBuffer,
   setMeshingModeActive,
   setMeshingNumberingNext,
   setMeshingTool,
-  toggleMeshingCutSide,
 } from "Features/threedEditor/threedEditorSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
@@ -58,7 +54,6 @@ import {
   setMeshingOverlay,
   clearMeshingOverlay,
 } from "../services/meshingOverlayStore";
-import { createMeshingCutController } from "../services/meshingCutController";
 import { isMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
 import buildFixedAreaMaille, {
   prepareFixedAreaAtlas,
@@ -78,9 +73,7 @@ import {
 } from "Features/threedCutLines/services/cutLineObjectsStore";
 import buildMeshDataFromPieces from "Features/threedCutLines/utils/buildMeshDataFromPieces";
 import clipRegionByCutLines from "Features/threedCutLines/utils/clipRegionByCutLines";
-import parseMeshingAngleBuffer, {
-  MESHING_ANGLE_BUFFER_CHAR_RE,
-} from "../utils/parseMeshingAngleBuffer";
+import { MESHING_SURFACE_BUFFER_CHAR_RE } from "../utils/meshingSurfaceBufferCharRe";
 
 // Mirrors useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
@@ -117,10 +110,8 @@ const FIXED_AREA_INSUFFICIENT_STIPPLE = {
 //   lines, existing mailles — openings are spanned and kept as holes, a
 //   curved sheet is unfolded: buildFixedAreaMaille), and the click creates
 //   that maille.
-// - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE / CUT_ANGULAR:
-//   delegated to meshingCutController (red cut line, reference/guide vertices,
-//   area chips, split on click). CUT_ANGULAR also captures typed digits into
-//   meshingMode.angleBuffer to constrain its opening angle.
+// - NUMBER tool: clicking a maille gives it the next number
+//   (meshingMode.numberingNext), then +1. Escape returns to SELECT.
 // `tooltipApiRef`: MainThreedEditor's hover tooltip (ThreedHoverTooltip) —
 // while meshing, this hook owns it: an annotation face hovered with the
 // SELECT / CREATE tools shows the annotation and the surface of the hovered
@@ -137,12 +128,6 @@ export default function useMeshingPointerHandlers({
 
   const active = useSelector((s) => s.threedEditor.meshingMode.active);
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
-  const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
-  const cutSide = useSelector((s) => s.threedEditor.meshingMode.cutSide);
-  const angleBuffer = useSelector(
-    (s) => s.threedEditor.meshingMode.angleBuffer
-  );
-  const multiCut = useSelector((s) => s.threedEditor.meshingMode.multiCut);
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
@@ -163,22 +148,6 @@ export default function useMeshingPointerHandlers({
   const meshes3d = useMeshes3d({ projectId, scopeId });
 
   // Values read inside the (stable-per-activation) listeners.
-  const offsetRef = useRef(offset);
-  useEffect(() => {
-    offsetRef.current = offset;
-  }, [offset]);
-  const cutSideRef = useRef(cutSide);
-  useEffect(() => {
-    cutSideRef.current = cutSide;
-  }, [cutSide]);
-  const angleBufferRef = useRef(angleBuffer);
-  useEffect(() => {
-    angleBufferRef.current = angleBuffer;
-  }, [angleBuffer]);
-  const multiCutRef = useRef(multiCut);
-  useEffect(() => {
-    multiCutRef.current = multiCut;
-  }, [multiCut]);
   // Set by the listeners effect: redraws the hover without a mouse move.
   const refreshHoverRef = useRef(null);
   const numberingNextRef = useRef(numberingNext);
@@ -265,25 +234,7 @@ export default function useMeshingPointerHandlers({
       fixedOverlay: null,
     };
 
-    // Cut tools machinery (draft line, guide vertices, split commit).
-    const cutController = createMeshingCutController({
-      editor,
-      sceneManager,
-      dom,
-      getTool: () => tool,
-      getOffset: () => offsetRef.current,
-      getCutSide: () => cutSideRef.current,
-      getAngleDeg: () => parseMeshingAngleBuffer(angleBufferRef.current),
-      getMultiCut: () => multiCutRef.current,
-      clearAngleBuffer: () => {
-        if (angleBufferRef.current !== "") dispatch(clearMeshingAngleBuffer());
-      },
-      getMesh3dById: (id) => mesh3dByIdRef.current[id],
-      getAllMeshes3d: () => Object.values(mesh3dByIdRef.current),
-    });
-
-    dom.style.cursor =
-      tool === "NUMBER" || tool === "SELECT" ? "default" : "crosshair";
+    dom.style.cursor = tool === "CREATE" ? "crosshair" : "default";
 
     function clearStipple() {
       if (hover.overlay || hover.groupOverlay || hover.fixedOverlay) {
@@ -369,8 +320,7 @@ export default function useMeshingPointerHandlers({
 
     // Stipple the face under the cursor (same overlay as the selection-mode
     // annotation hover). Works on annotation meshes AND maille face meshes —
-    // a hovered maille gets the same highlight, including while a cut tool is
-    // active. On an annotation the region spans every mesh of the annotation
+    // a hovered maille gets the same highlight. On an annotation the region spans every mesh of the annotation
     // (getAnnotationFaceRegion); the overlay then lives under the annotation
     // root, in its local coordinates.
     function applyStipple(object, faceIndex) {
@@ -717,7 +667,7 @@ export default function useMeshingPointerHandlers({
 
       if (tool === "CREATE") {
         updateCreateHover(e, pick);
-      } else if (tool === "SELECT" || tool === "NUMBER") {
+      } else {
         setMeshingOverlay({ cursor: null });
         // The hand over a grabbable part of the selected cut line
         // (cutLineHoverStore) wins over the pick cursors.
@@ -726,8 +676,6 @@ export default function useMeshingPointerHandlers({
           : cutLineHover || pick?.kind === "MESH3D"
             ? "pointer"
             : "default";
-      } else {
-        cutController.onHover(e, pick);
       }
     }
 
@@ -975,8 +923,6 @@ export default function useMeshingPointerHandlers({
         handleCreateClick(e, pick);
       } else if (tool === "NUMBER") {
         handleNumberClick(pick);
-      } else {
-        cutController.onClick(e, pick);
       }
     }
 
@@ -993,7 +939,6 @@ export default function useMeshingPointerHandlers({
       }
       clearStipple();
       clearTooltip();
-      cutController.onLeave();
       clearMeshingOverlay();
     }
 
@@ -1002,59 +947,18 @@ export default function useMeshingPointerHandlers({
         if (tool === "SELECT") {
           // In the Maillage module meshing mode is permanent — nothing to exit.
           if (!isMeshesViewerRef.current) dispatch(setMeshingModeActive(false));
-        } else if (tool === "CREATE" || tool === "NUMBER") {
-          dispatch(setMeshingTool("SELECT"));
         } else {
-          // First Escape cancels an in-progress cut draft; with nothing to
-          // cancel, fall back to the selection tool.
-          const hadDraft = cutController.onEscape();
-          if (!hadDraft) dispatch(setMeshingTool("SELECT"));
+          dispatch(setMeshingTool("SELECT"));
         }
-      }
-      if ((e.key === "s" || e.key === "S") && !e.repeat) {
-        if (
-          tool !== "SELECT" &&
-          tool !== "CREATE" &&
-          tool !== "NUMBER" &&
-          tool !== "CUT_ANGULAR"
-        ) {
-          dispatch(toggleMeshingCutSide());
-          // Redraw the cut line with the flipped side on the next frame.
-          if (lastEvent && rafId == null) {
-            rafId = requestAnimationFrame(runHover);
-          }
-        }
-      }
-    }
-
-    // Typed angle of the angular cut: digits captured straight from the
-    // keyboard into meshingMode.angleBuffer, exactly like the extrude value
-    // buffer. Capture phase so the digits reach the buffer before the
-    // window-scoped shortcuts of the other features see them.
-    function onKeyDownAngle(e) {
-      if (tool !== "CUT_ANGULAR") return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isEditableTarget(e.target)) return;
-
-      if (e.key === "Backspace" || e.key === "Delete") {
-        if (angleBufferRef.current === "") return;
-        e.preventDefault();
-        e.stopPropagation();
-        dispatch(deleteLastMeshingAngleBuffer());
-        return;
-      }
-      if (MESHING_ANGLE_BUFFER_CHAR_RE.test(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
-        dispatch(appendToMeshingAngleBuffer(e.key === "," ? "." : e.key));
       }
     }
 
     // Target surface of the CREATE tool (« Ajouter une maille »): S arms the
     // input, the digits typed then feed meshingMode.surfaceBuffer, Enter
     // validates (the surface stays fixed), Escape drops the surface first
-    // (the next Escape returns to SELECT). Capture phase, like the angle
-    // buffer.
+    // (the next Escape returns to SELECT). Capture phase so the digits reach
+    // the buffer before the window-scoped shortcuts of the other features
+    // see them.
     function onKeyDownSurface(e) {
       if (tool !== "CREATE") return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1088,7 +992,7 @@ export default function useMeshingPointerHandlers({
         dispatch(deleteLastMeshingSurfaceBuffer());
         return;
       }
-      if (MESHING_ANGLE_BUFFER_CHAR_RE.test(e.key)) {
+      if (MESHING_SURFACE_BUFFER_CHAR_RE.test(e.key)) {
         consume();
         dispatch(appendToMeshingSurfaceBuffer(e.key === "," ? "." : e.key));
       }
@@ -1104,7 +1008,6 @@ export default function useMeshingPointerHandlers({
     dom.addEventListener("pointercancel", onPointerCancel);
     dom.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keydown", onKeyDownAngle, true);
     window.addEventListener("keydown", onKeyDownSurface, true);
 
     return () => {
@@ -1114,23 +1017,15 @@ export default function useMeshingPointerHandlers({
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keydown", onKeyDownAngle, true);
       window.removeEventListener("keydown", onKeyDownSurface, true);
       refreshHoverRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       clearStipple();
       clearTooltip();
-      cutController.dispose();
       clearMeshingOverlay();
       dom.style.cursor = "";
     };
   }, [active, tool, rendererIsReady, dispatch, store]);
-
-  // Typed angle → redraw the V cut in place (the mouse has not moved).
-  useEffect(() => {
-    if (!active || tool !== "CUT_ANGULAR") return;
-    refreshHoverRef.current?.();
-  }, [active, tool, angleBuffer]);
 
   // Typed target surface / rotated frame → redraw the pre-drawn maille in
   // place.
@@ -1138,12 +1033,6 @@ export default function useMeshingPointerHandlers({
     if (!active || tool !== "CREATE") return;
     refreshHoverRef.current?.();
   }, [active, tool, surfaceBuffer, yawDeg]);
-
-  // Multi-maille toggle → redraw the preview with (or without) the neighbours.
-  useEffect(() => {
-    if (!active) return;
-    refreshHoverRef.current?.();
-  }, [active, multiCut]);
 }
 
 // Same guard as the other keyboard-buffer features: never swallow keystrokes

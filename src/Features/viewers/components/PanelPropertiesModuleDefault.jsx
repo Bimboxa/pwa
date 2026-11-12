@@ -7,7 +7,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 // ---------------------------------------------------------------------------
 // PanelPropertiesModuleDefault — default properties panel (empty selection)
-// of the modules without a dedicated one (Viewer, Photos, Zones, Maillage):
+// of the modules without a dedicated one (Viewer, Photos, Zones):
 // module header, what the module is for, and the main base map overview.
 // ---------------------------------------------------------------------------
 

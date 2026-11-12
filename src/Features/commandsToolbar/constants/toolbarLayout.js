@@ -231,14 +231,14 @@ const BASE_MAPS_SECTIONS = [
   SECTION_LINES_SECTION,
 ];
 
-// « Maillage » module: the user frame group, the meshing tools (the
-// commands taking over from the bottom meshing toolbar — Features/threedMesh)
+// « Maillage » module: the user frame group, the meshing tools
+// (add a maille, mesh from the cut lines, number — Features/threedMesh)
 // and the cut lines drawn to prepare the mailles (Features/threedCutLines),
 // with « Déplacer » / « Tourner » carrying a cut line there.
 const MESHES_TOOLS_SECTION = {
   key: "MESHES_TOOLS",
   label: "Mailles",
-  entries: ["ADD_MESH"],
+  entries: ["ADD_MESH", "CREATE_MESHES", "NUMBER_MESHES"],
 };
 const CUT_LINES_SECTION = {
   key: "CUT_LINES",
@@ -247,6 +247,7 @@ const CUT_LINES_SECTION = {
     "DRAW_CUT_LINE",
     "DRAW_CUT_PLANE",
     "DRAW_CUT_ANGLE",
+    "CUT_LINES_PROMPT_IA",
     "MOVE_ANNOTATION",
     "ROTATE_ANNOTATION",
   ],
@@ -290,32 +291,10 @@ function getLayoutKey(moduleKey) {
   return "DEFAULT";
 }
 
+// Sections of a module's toolbar — also the list of the « Commandes » dialog
+// for the module selected with its chips.
 export function getToolbarSections(moduleKey) {
   return TOOLBAR_SECTIONS[getLayoutKey(moduleKey)];
-}
-
-// Sections listed by the « Commandes » dialog: the default sections, plus the
-// sections that only exist in the current module's layout (Fonds de plan,
-// Maillage) — their commands can then be searched and added to the
-// right-click shortcuts of that module. A command a module section shares
-// with the default ones (« Déplacer » / « Tourner » of the Maillage cut
-// lines) is listed once, in its default section.
-export function getCommandsDialogSections(moduleKey) {
-  const defaultKeys = new Set(DEFAULT_SECTIONS.map((section) => section.key));
-  const defaultCommandKeys = new Set(
-    getLayoutCommandKeys(TOOLBAR_LAYOUTS.DEFAULT)
-  );
-  const moduleOnly = getToolbarSections(moduleKey)
-    .filter((section) => !defaultKeys.has(section.key))
-    .map((section) => ({
-      ...section,
-      entries: section.entries.filter(
-        (entry) => typeof entry !== "string" || !defaultCommandKeys.has(entry)
-      ),
-    }));
-  return moduleOnly.length > 0
-    ? [...DEFAULT_SECTIONS, ...moduleOnly]
-    : DEFAULT_SECTIONS;
 }
 
 export default function getToolbarLayout(moduleKey) {

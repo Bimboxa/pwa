@@ -5,13 +5,33 @@ Mailles are 3D-only records (`db.meshes3d`: planar `faces` or a curved
 (`threedEditor.meshingMode`, `useMeshingPointerHandlers`). The cut lines that
 prepare them are documented in `Features/threedCutLines/README.md`.
 
+## Module UI
+
+- Tools: commands of the commands toolbar (MESHES layout,
+  `commandsToolbar/constants/toolbarLayout.js`) — « Ajouter une maille »
+  (`ADD_MESH`), « Mailler » (`CREATE_MESHES`: every maille at once from the
+  cut lines, `createMeshesFromCutLinesService`) and « Numéroter »
+  (`NUMBER_MESHES`). There is no bottom meshing toolbar; mailles are not cut
+  directly any more — the cells are prepared with cut lines.
+- Left drawer (`PanelMeshesViewer`): the mailles list + export, no tabs.
+- Module properties panel (`PanelPropertiesMeshesModule`, empty selection —
+  `selection/utils/getModuleRootPanelType` → `MESHES_MODULE`): description,
+  base map overview and the settings cards (`SectionMeshes3dSettings`).
+
+## « Numéroter » (command `NUMBER_MESHES`, tool `NUMBER`)
+
+Arms the `NUMBER` tool: a click on a maille gives it
+`meshingMode.numberingNext` (and clears its label override), then +1. The
+drawing helper (`SectionMeshNumberHelperContent`) carries the « Démarrage »
+field bound to `numberingNext`. `Escape`, or a second click on the command,
+returns to SELECT.
+
 ## « Ajouter une maille » (command `ADD_MESH`, tool `CREATE`)
 
 The command of the commands toolbar (`commandsToolbar/commands/addMesh`,
-MESHES layout) arms the `CREATE` tool — the same tool as the « + » of the
-bottom meshing toolbar, which the toolbar commands are taking over from. The
-drawing helper shows in the popper chain (`selectIsMeshCreateToolActive` →
-`PopperDrawingHelper` → `SectionMeshCreateHelperContent`).
+MESHES layout) arms the `CREATE` tool. The drawing helper shows in the
+popper chain (`selectActiveMeshHelperTool` → `PopperDrawingHelper` →
+`SectionMeshCreateHelperContent`).
 
 - No target surface: a click creates the hovered piece (the region grown
   over the annotation, cut by the cut lines — see the cut lines README).

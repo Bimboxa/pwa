@@ -1,21 +1,14 @@
-import { nanoid } from "@reduxjs/toolkit";
-
 import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
-import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
-import buildCoteAnnotationFields from "Features/threedDrawing/utils/buildCoteAnnotationFields";
-import dedupeAdjacentVertices from "Features/threedDrawing/utils/dedupeAdjacentVertices";
-import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap";
 
-import encodeCutLineRefs from "../utils/encodeCutLineRefs";
+import buildCutLineRows from "../utils/buildCutLineRows";
 
 // « Plan de coupe »: writes the candidate cut lines (computeCutPlaneLines —
 // world polylines, a closed one repeats its first point) as CUT_LINE
 // annotations. Every point is a DRAWN point (no extension: the line already
-// is the whole section of the faces it lies on). Same model as
-// commitDrawnCutLineService: host base map, one db.points row per vertex
-// (never shared), refs { id, offsetBottom }.
+// is the whole section of the faces it lies on) — rows built by
+// buildCutLineRows.
 //
 // One undo step: every row is built in memory, then written in a single
 // transaction, with a single annotations update dispatch. A line that does
@@ -42,69 +35,16 @@ export default async function createCutPlaneLinesService({
     delete props.cutPlaneKind;
   }
 
-  const now = new Date().toISOString();
-  const newPoints = [];
-  const newAnnotations = [];
-
-  for (const line of lines) {
-    const host = resolveHostBaseMap({
-      vertices: line.points,
-      baseMaps,
-      preferredBaseMapId,
-    });
-    const projected = host
-      ? line.points.map((p) => worldToBaseMapNormalized(p, host))
-      : null;
-    if (!projected || projected.some((p) => !p)) {
-      result.skippedCount += 1;
-      continue;
-    }
-    const { offsetZ, points } = encodeCutLineRefs(projected);
-    // Adjacent duplicates only: the closing point of a closed line is kept.
-    const vertices = dedupeAdjacentVertices(points);
-    if (vertices.length < 2) {
-      result.skippedCount += 1;
-      continue;
-    }
-
-    const refs = vertices.map((p, index) => {
-      const id = nanoid();
-      newPoints.push({
-        id,
-        x: p.x,
-        y: p.y,
-        projectId,
-        baseMapId: host.id,
-      });
-      // « Coupe par angle »: a ray ending on the rotation axis keeps a
-      // « Stop » there (a re-extension never runs past the pivot).
-      const stop = line.stopAtEnd && index === vertices.length - 1;
-      return {
-        id,
-        offsetBottom: p.offsetBottom ?? 0,
-        ...(stop ? { stop: true } : {}),
-      };
-    });
-
-    newAnnotations.push({
-      id: nanoid(),
-      projectId,
-      scopeId: scopeId ?? null,
-      listingId: null,
-      isTemplateless: true,
-      baseMapId: host.id,
-      ...(layerId ? { layerId } : {}),
-      points: refs,
-      createdAt: now,
-      updatedAt: now,
-      ...buildCoteAnnotationFields({
-        shape: "CUT_LINE",
-        classificationFields: { type: "CUT_LINE", offsetZ, height: 0 },
-        templateProps: props,
-      }),
-      isDrawnIn3d: true,
-    });
-  }
+  const { newPoints, newAnnotations, skippedCount } = buildCutLineRows({
+    lines,
+    baseMaps,
+    projectId,
+    scopeId,
+    templateProps: props,
+    layerId,
+    preferredBaseMapId,
+  });
+  result.skippedCount = skippedCount;
   if (!newAnnotations.length) return result;
 
   await withUndoGroup(async () => {
