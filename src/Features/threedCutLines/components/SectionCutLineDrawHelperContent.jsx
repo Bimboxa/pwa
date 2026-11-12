@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
+import { clearConstraintBuffer } from "Features/mapEditor/mapEditorSlice";
 import {
   setCutLineDrawAxis,
   setCutLineDrawOffset,
@@ -25,6 +26,7 @@ import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 
 // Shortcuts of the free trace (click polyline, useDrawingPointerHandlers).
 const FREE_SHORTCUTS = [
+  { key: "X / Y / Z", label: "Trait parallèle à l'axe" },
   { key: "0-9", label: "Longueur du segment" },
   { key: "Entrée", label: "Terminer la ligne de coupe" },
   { key: "Esc", label: "Terminer / Quitter la ligne de coupe" },
@@ -32,8 +34,9 @@ const FREE_SHORTCUTS = [
 
 // Shortcuts of the axis trace (onCutLineAxisKey, useDrawingPointerHandlers).
 const AXIS_SHORTCUTS = [
+  { key: "X / Y / Z", label: "Changer d'axe (2e appui : mode libre)" },
   { key: "S", label: "Changer de côté" },
-  { key: "0-9", label: "Distance depuis le bord" },
+  { key: "0-9", label: "Distance depuis le bord / trait voisin" },
   { key: "⌫", label: "Effacer la saisie" },
   { key: "Entrée", label: "Valider le trait" },
   { key: "Esc", label: "Effacer la saisie / Mode libre" },
@@ -52,9 +55,11 @@ const ROW_SX = {
 // ligne de coupe » (DRAW_CUT_LINE, Maillage module): the step hint, the
 // trace mode — « Libre » (click polyline) or along a user axis X / Y / Z of
 // the gizmo frame (CutLineAxisOverlayThreed: the chord of the hovered face
-// parallel to the axis) — the « Décalage » guide (m from the reference
-// corner), the side of that corner (S) and the shortcuts. Replaces the
-// generic polyline helper body while the cut line is armed.
+// parallel to the axis) — the « Décalage » guide (m from the reference: the
+// edge of the face or the neighbouring cut line), which shows the distance
+// being typed in the 3D view while there is one (`constraintBuffer`, it
+// locks the line), the side of the reference edge (S) and the shortcuts.
+// Replaces the generic polyline helper body while the cut line is armed.
 // ---------------------------------------------------------------------------
 
 export default function SectionCutLineDrawHelperContent() {
@@ -79,6 +84,15 @@ export default function SectionCutLineDrawHelperContent() {
   const inProgress = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline.length > 0
   );
+  // Distance being typed in the 3D view (axis mode only: in free mode the
+  // buffer is the segment length).
+  const typedBuffer = useSelector((s) =>
+    s.threedEditor.cutLineDraw.axis ? s.mapEditor.constraintBuffer : ""
+  );
+
+  // helpers
+
+  const isTyping = Boolean(typedBuffer);
 
   // handlers
 
@@ -91,8 +105,36 @@ export default function SectionCutLineDrawHelperContent() {
     dispatch(setCutLineDrawOffset(v));
   }
 
+  // Editing the field takes over from a distance typed in the 3D view.
+  function handleOffsetTextChange() {
+    if (isTyping) dispatch(clearConstraintBuffer());
+  }
+
   function handleToggleSide() {
     dispatch(toggleCutLineDrawSide());
+  }
+
+  // The 3D key handler ignores the keys typed in an input: the tool's
+  // letters still act from the « Décalage » field (instead of landing in it)
+  // and Enter gives the keyboard back to the 3D view.
+  function handleKeyDownCapture(e) {
+    if (e.target?.tagName !== "INPUT") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.target.blur();
+      return;
+    }
+    const letter = e.key.length === 1 ? e.key.toUpperCase() : "";
+    if (letter === "S") {
+      e.preventDefault();
+      if (!e.repeat) dispatch(toggleCutLineDrawSide());
+    } else if (["X", "Y", "Z"].includes(letter)) {
+      e.preventDefault();
+      if (e.repeat || inProgress) return;
+      dispatch(clearConstraintBuffer());
+      dispatch(setCutLineDrawAxis(axis === letter ? null : letter));
+    }
   }
 
   // render
@@ -104,6 +146,7 @@ export default function SectionCutLineDrawHelperContent() {
     >
       <Paper
         variant="outlined"
+        onKeyDownCapture={handleKeyDownCapture}
         sx={{ px: 1, py: 0.5, borderRadius: 1, bgcolor: "background.paper" }}
       >
         <Box sx={ROW_SX}>
@@ -141,11 +184,24 @@ export default function SectionCutLineDrawHelperContent() {
             </ToggleButtonGroup>
           </Tooltip>
         </Box>
-        <Box sx={{ ...ROW_SX, opacity: axis ? 1 : 0.5 }}>
+        <Box
+          sx={{
+            ...ROW_SX,
+            opacity: axis ? 1 : 0.5,
+            // A typed distance locks the line: shown as such.
+            ...(isTyping && {
+              "& .MuiInputBase-input": {
+                color: "secondary.main",
+                fontWeight: 700,
+              },
+            }),
+          }}
+        >
           <FieldNumberCompact
             label={offsetS}
-            value={offset}
+            value={isTyping ? typedBuffer : offset}
             onChange={handleOffsetChange}
+            onChangeText={handleOffsetTextChange}
             unit="m"
             disabled={!axis}
           />

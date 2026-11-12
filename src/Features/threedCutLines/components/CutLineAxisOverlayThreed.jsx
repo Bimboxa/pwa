@@ -27,6 +27,11 @@ import {
   setCutLineAxisHover,
   subscribeCutLineAxisHover,
 } from "../services/cutLineAxisStore";
+import {
+  getCutLinesVersion,
+  getCutLinesWorldPolylines,
+  subscribeCutLineObjects,
+} from "../services/cutLineObjectsStore";
 import computeCutLineAxisChord from "../utils/computeCutLineAxisChord";
 
 const COLOR_LINE = 0x1565c0;
@@ -74,6 +79,13 @@ export default function CutLineAxisOverlayThreed() {
     getCutLineAxisHover
   );
 
+  // The existing cut lines are references of the hovered face: a line just
+  // committed must move the reference without waiting for a pointer move.
+  const cutLinesVersion = useSyncExternalStore(
+    subscribeCutLineObjects,
+    getCutLinesVersion
+  );
+
   // state
 
   const lastNdcRef = useRef(null);
@@ -81,7 +93,7 @@ export default function CutLineAxisOverlayThreed() {
 
   useEffect(() => {
     rerunRef.current?.();
-  }, [yawDeg, side, offset, constraintBuffer, snapIndexEpoch]);
+  }, [yawDeg, side, offset, constraintBuffer, snapIndexEpoch, cutLinesVersion]);
 
   useEffect(() => {
     if (!axis) return undefined;
@@ -219,6 +231,7 @@ export default function CutLineAxisOverlayThreed() {
         typedDistance: parseRectBuffer(s.mapEditor.constraintBuffer),
         offset: s.threedEditor.cutLineDraw.offset,
         snapToleranceM: getSnapToleranceM(cursor, probe.basis.v, rect),
+        cutLines: getCutLinesWorldPolylines(),
       });
       if (!result.usable) {
         showNothing();
