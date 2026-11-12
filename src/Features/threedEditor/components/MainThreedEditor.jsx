@@ -879,9 +879,12 @@ export default function MainThreedEditor() {
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       let intersects = filterIntersectionsByVisibility(
         filterIntersectionsByClipping(
-          raycasterRef.current
-            .intersectObjects(scene.children, true)
-            .filter((i) => i.object?.isMesh),
+          raycasterRef.current.intersectObjects(scene.children, true).filter(
+            (i) =>
+              i.object?.isMesh ||
+              // POINT marker sprite: its own raycast (createPointSprite).
+              i.object?.userData?.isAnnotationPointSprite
+          ),
           clippingPlane
         )
       );
@@ -2910,7 +2913,9 @@ export default function MainThreedEditor() {
     // Fat-line hits (Line2/LineSegments2, e.g. the POINT height trait) have no
     // faces to stipple — they keep the whole-object green recolor fallback.
     const isLineHit = !!(
-      hitIntersect?.object?.isLine2 || hitIntersect?.object?.isLineSegments2
+      hitIntersect?.object?.isLine2 ||
+      hitIntersect?.object?.isLineSegments2 ||
+      hitIntersect?.object?.userData?.isAnnotationPointSprite
     );
     const containerRect = containerRef.current?.getBoundingClientRect();
 

@@ -77,6 +77,11 @@ const HOVER_COLOR = 0x00ff00;
 const DIM_COLOR = 0x888888;
 const SOLO_WIRE_COLOR = SOLO_DIM_WIREFRAME_COLOR_HEX;
 
+// POINT marker sprite states: multiplied tint on hover (the 2D glyph darkens
+// too), faded when dimmed.
+const POINT_SPRITE_HOVER_TINT = 0xb3b3b3;
+const POINT_SPRITE_DIM_OPACITY = 0.25;
+
 export const STATE_NONE = "none";
 export const STATE_HOVER = "hover";
 export const STATE_DIM = "dim";
@@ -218,6 +223,16 @@ export default function applyAnnotationMaterialState(object3D, state) {
     if (child.userData?.isSoloEdge) return;
 
     if (!child.isMesh) {
+      // POINT marker sprite (createPointSprite): it owns its material, so
+      // the state is a tint / opacity instead of a material swap.
+      if (child.userData?.isAnnotationPointSprite) {
+        child.material.color.set(
+          state === STATE_HOVER ? POINT_SPRITE_HOVER_TINT : 0xffffff
+        );
+        child.material.opacity =
+          state === STATE_DIM ? POINT_SPRITE_DIM_OPACITY : 1;
+        return;
+      }
       if (child.isLineSegments && child.userData?.isGridEdge) {
         if (!child.userData.originalMaterial) {
           child.userData.originalMaterial = child.material;

@@ -68,6 +68,7 @@ import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
 import buildDiscObject3D from "./buildDiscObject3D";
 import attachFatLineRaycast from "./attachFatLineRaycast";
+import createPointSprite from "./createPointSprite";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
 import buildInlineExtrusion3dMesh from "./buildInlineExtrusion3dMesh";
 import { hasVerticalGuideOffsets } from "./sweepGeometry3d";
@@ -1217,10 +1218,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "POINT": {
-      // Two fat-line renderings, both using the same screen-space technique as
-      // the 3D drawing trait: a REVOLUTION circle around a referenced axis
-      // (below), else the vertical trait standing up from the basemap plane
-      // (base at offsetZ, top at offsetZ + height) when the POINT has a height.
+      // A REVOLUTION circle around a referenced axis (below), else a marker
+      // sprite on the plan (createPointSprite) plus, when the POINT has a
+      // height, the vertical fat-line trait standing up from the basemap
+      // plane (base at offsetZ, top at offsetZ + height).
       const p = annotation.point;
       if (!p) break;
       // Axis-based revolution: the point sweeps a CIRCLE (a line, not a
@@ -1252,10 +1253,29 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         });
         if (object) break;
       }
-      if (height <= 0) break; // no height → nothing in 3D (unchanged behavior)
       const local = pixelToWorld(p, baseMap); // { x, y } in basemap-local meters
       const z0 = verticalLift; // base at offsetZ
       const z1 = verticalLift + height; // top at offsetZ + height
+      // Every POINT gets a marker on the plan (dot + ring sprite, constant
+      // on-screen size for a PX size) and snap-only anchors read by
+      // useVertexSnap's buildIndex — the point itself, plus the top of the
+      // trait when it has a height.
+      const pointGroup = new Group();
+      const marker = createPointSprite({
+        color: normalizeHex(annotation.fillColor || "#2196f3"),
+        variant: annotation.variant,
+        size: annotation.size,
+        sizeUnit: annotation.sizeUnit,
+      });
+      marker.position.set(local.x, local.y, z0);
+      pointGroup.add(marker);
+      const pointAnchors = new Object3D();
+      pointAnchors.userData.snapAnchors = [[local.x, local.y, z0]];
+      if (height > 0)
+        pointAnchors.userData.snapAnchors.push([local.x, local.y, z1]);
+      pointGroup.add(pointAnchors);
+      object = pointGroup;
+      if (height <= 0) break; // no height → marker only
       const geom = new LineGeometry();
       geom.setPositions([local.x, local.y, z0, local.x, local.y, z1]);
       const lineMat = new LineMaterial({
@@ -1282,7 +1302,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       line.userData.exportLine = {
         positions: [local.x, local.y, z0, local.x, local.y, z1],
       };
-      object = line;
+      pointGroup.add(line);
       break;
     }
     case "REVOLUTION_AXIS": {
