@@ -3,7 +3,6 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import db from "App/db/db";
 
-import getNextCommentNum from "../utils/getNextCommentNum";
 import snapshotCommentViewContextService from "./snapshotCommentViewContextService";
 
 // Creates a comment at the end of a COMMENT listing, with the view context of
@@ -33,7 +32,6 @@ export default async function createCommentService({
     projectId: listing.projectId,
     scopeId: listing.scopeId ?? null,
     listingId,
-    num: getNextCommentNum(comments),
     title: "",
     sortIndex: generateKeyBetween(lastSortIndex ?? null, null),
     blocks: [],

@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 
 import parseYoutubeVideoId from "./parseYoutubeVideoId.js";
-import getNextCommentNum from "./getNextCommentNum.js";
 import normalizeLinkUrl from "./normalizeLinkUrl.js";
 
 // parseYoutubeVideoId
@@ -35,16 +34,6 @@ for (const url of [
 ]) {
   assert.equal(parseYoutubeVideoId(url), null, String(url));
 }
-
-// getNextCommentNum
-assert.equal(getNextCommentNum([]), 1);
-assert.equal(getNextCommentNum(undefined), 1);
-assert.equal(getNextCommentNum([{ num: 1 }, { num: 2 }]), 3);
-assert.equal(getNextCommentNum([{ num: 5 }, { num: 2 }]), 6);
-// a deleted comment frees its number only when it was the last one
-assert.equal(getNextCommentNum([{ num: 1 }, { num: 2, deletedAt: "x" }]), 2);
-assert.equal(getNextCommentNum([{ num: 1, deletedAt: "x" }, { num: 2 }]), 3);
-assert.equal(getNextCommentNum([{ num: "3" }, { title: "no num" }]), 4);
 
 // normalizeLinkUrl
 assert.equal(normalizeLinkUrl("example.com"), "https://example.com/");
