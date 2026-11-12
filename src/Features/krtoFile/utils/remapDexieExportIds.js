@@ -409,20 +409,47 @@ export default function remapDexieExportIds(jsonData, opts) {
 
       // POV view metadata (nested baseMap / version / template refs used to
       // restore the saved view).
-      if (tableName === "povs") {
-        if (Array.isArray(row.hiddenAnnotationTemplateIds)) {
-          row.hiddenAnnotationTemplateIds = row.hiddenAnnotationTemplateIds.map(
-            (id) => remapId("annotationTemplates", id)
-          );
+      // Comments carry the same metadata nested under `viewContext`, plus
+      // their own extras (hidden listings, 2D base maps) and location.
+      const viewHolder =
+        tableName === "povs"
+          ? row
+          : tableName === "comments"
+            ? row.viewContext
+            : null;
+      if (tableName === "comments") {
+        if (row.location?.baseMapId) {
+          row.location = {
+            ...row.location,
+            baseMapId: remapId("baseMaps", row.location.baseMapId),
+          };
         }
-        if (Array.isArray(row.visibleAnnotationTemplateIds)) {
-          row.visibleAnnotationTemplateIds =
-            row.visibleAnnotationTemplateIds.map((id) =>
+        const extras = row.viewContext?.extras;
+        if (extras) {
+          const remapList = (key, table) => {
+            if (Array.isArray(extras[key]))
+              extras[key] = extras[key].map((id) => remapId(table, id));
+          };
+          remapList("hiddenListingsIds", "listings");
+          remapList("visibleBaseMapIdsIn2d", "baseMaps");
+          remapList("annotationsBaseMapIdsIn2d", "baseMaps");
+        }
+      }
+      if (viewHolder) {
+        if (Array.isArray(viewHolder.hiddenAnnotationTemplateIds)) {
+          viewHolder.hiddenAnnotationTemplateIds =
+            viewHolder.hiddenAnnotationTemplateIds.map((id) =>
               remapId("annotationTemplates", id)
             );
         }
-        if (row.baseMaps) {
-          const b = row.baseMaps;
+        if (Array.isArray(viewHolder.visibleAnnotationTemplateIds)) {
+          viewHolder.visibleAnnotationTemplateIds =
+            viewHolder.visibleAnnotationTemplateIds.map((id) =>
+              remapId("annotationTemplates", id)
+            );
+        }
+        if (viewHolder.baseMaps) {
+          const b = viewHolder.baseMaps;
           if (b.mainBaseMapId)
             b.mainBaseMapId = remapId("baseMaps", b.mainBaseMapId);
           if (Array.isArray(b.visibleBaseMapIdsIn3d)) {

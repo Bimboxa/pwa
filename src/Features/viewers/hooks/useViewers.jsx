@@ -25,6 +25,7 @@ import {
   PhotoCamera,
   PhotoLibrary,
   AccountTree,
+  Forum,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -164,6 +165,20 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       // 2D editor = "MAP": the module displays the shared MainMapEditorV3
       // instance (like Dessin / POV / Viewer) so entering the module keeps the
       // camera framing. The zonings tree is mounted beside it in SectionViewer.
+      editors: ["MAP", "THREED"],
+      // Relies on the V3 map editor (the legacy branch renders V2).
+      disabled: legacy,
+    },
+    {
+      key: "COMMENTS",
+      label: "Commentaires",
+      shortLabel: "Commentaires",
+      icon: <Forum />,
+      bgcolor: theme.palette.viewers.comments,
+      // No hotkey: Ctrl+C stays Copy everywhere.
+      // Free comments guiding the reading of a shared Krto
+      // (Features/comments): written here over the shared 2D / 3D editors
+      // (like Zones), read from the Viewer module.
       editors: ["MAP", "THREED"],
       // Relies on the V3 map editor (the legacy branch renders V2).
       disabled: legacy,

@@ -214,10 +214,16 @@ function flyCamera3d({ camera3d, aspectRatio, generation }) {
 //
 // `animate`: "Appliquer la vue" flies the camera from the displayed view to
 // the saved one instead of cutting.
+//
+// `skipFrame`: see applyPovSceneStateService. `previousViewerMode`: editor
+// displayed before the restore, for callers outside the POV module (whose
+// displayed editor is not `pov.viewerMode`, e.g. comments).
 export default async function restorePovViewService({
   pov,
   dispatch,
   animate = false,
+  skipFrame = false,
+  previousViewerMode: previousViewerModeOverride,
 }) {
   if (!pov) return;
 
@@ -225,11 +231,12 @@ export default async function restorePovViewService({
   cancelCameraFlight(); // a pending flight belongs to a superseded restore
 
   const stateBefore = store.getState();
-  const previousViewerMode = stateBefore.pov.viewerMode;
+  const previousViewerMode =
+    previousViewerModeOverride ?? stateBefore.pov.viewerMode;
   const previousBaseMapId = stateBefore.mapEditor.selectedBaseMapId;
 
   const { skipped, viewerMode, mainBaseMapId, mainBaseMapExists } =
-    await applyPovSceneStateService({ pov, dispatch });
+    await applyPovSceneStateService({ pov, dispatch, skipFrame });
   // Keep the selection, skip the view restore (e.g. no 3D editor available).
   if (skipped) return;
 

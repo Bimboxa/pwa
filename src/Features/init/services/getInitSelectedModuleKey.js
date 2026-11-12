@@ -15,6 +15,7 @@ export const RESTORABLE_MODULE_KEYS = [
   "MESHES",
   "ZONES",
   "PHOTOS",
+  "COMMENTS",
   "SCOPE",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];

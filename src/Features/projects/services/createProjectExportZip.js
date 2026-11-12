@@ -73,6 +73,7 @@ const PROJECT_TABLES = new Set([
   "relAnnotationOpenings",
   "meshPaints",
   "blocks",
+  "comments",
   "portfolioPages",
   "portfolioBaseMapContainers",
   "scopeConfigs",

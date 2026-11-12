@@ -33,11 +33,16 @@ import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersi
 // `overrideAspectRatio` keeps one single frame ratio for a whole video: the
 // output dimensions are fixed, so the per-POV ratio must not be re-dispatched.
 //
+// `skipFrame` leaves the capture frame settings (ratio, legend, background,
+// title, logo) untouched: comments reuse the view metadata but must not
+// change the user's capture / print settings.
+//
 // Returns {skipped, viewerMode, mainBaseMapId, mainBaseMapExists}.
 export default async function applyPovSceneStateService({
   pov,
   dispatch,
   overrideAspectRatio,
+  skipFrame = false,
 }) {
   if (!pov) return { skipped: true };
 
@@ -66,16 +71,19 @@ export default async function applyPovSceneStateService({
   );
 
   // 2. frame + legend + background
-  const aspectRatio = overrideAspectRatio ?? pov.aspectRatio;
-  if (aspectRatio) dispatch(setImageModeAspectRatio(aspectRatio));
-  if (pov.legendOverlay) dispatch(setImageModeLegendOverlay(pov.legendOverlay));
-  if (pov.whiteBackground !== undefined)
-    dispatch(setImageModeWhiteBackground(Boolean(pov.whiteBackground)));
-  if (pov.border !== undefined)
-    dispatch(setImageModeBorder(Boolean(pov.border)));
-  if (pov.title !== undefined) dispatch(setImageModeTitle(pov.title));
-  if (pov.showLogo !== undefined)
-    dispatch(setImageModeShowLogo(Boolean(pov.showLogo)));
+  if (!skipFrame) {
+    const aspectRatio = overrideAspectRatio ?? pov.aspectRatio;
+    if (aspectRatio) dispatch(setImageModeAspectRatio(aspectRatio));
+    if (pov.legendOverlay)
+      dispatch(setImageModeLegendOverlay(pov.legendOverlay));
+    if (pov.whiteBackground !== undefined)
+      dispatch(setImageModeWhiteBackground(Boolean(pov.whiteBackground)));
+    if (pov.border !== undefined)
+      dispatch(setImageModeBorder(Boolean(pov.border)));
+    if (pov.title !== undefined) dispatch(setImageModeTitle(pov.title));
+    if (pov.showLogo !== undefined)
+      dispatch(setImageModeShowLogo(Boolean(pov.showLogo)));
+  }
 
   // 3. annotation templates visibility — per-scope LOCAL state
   // (scopeVisibility slice, saved to localStorage), no template write.

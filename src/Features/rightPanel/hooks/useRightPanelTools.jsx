@@ -280,6 +280,7 @@ export default function useRightPanelTools() {
         "MAP",
         "BASE_MAPS",
         "ZONES",
+        "COMMENTS",
         "POINT_OF_VIEW",
         "THREED",
         "MESHES",

@@ -254,6 +254,15 @@ const CUT_LINES_SECTION = {
 };
 const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION, MESHES_TOOLS_SECTION];
 
+// « Commentaires » module (Features/comments): the two creation commands.
+const COMMENTS_SECTIONS = [
+  {
+    key: "COMMENTS",
+    label: "Commentaires",
+    entries: ["ADD_LOCATED_COMMENT", "ADD_COMMENT"],
+  },
+];
+
 // Flat form rendered by the toolbar: the entries of every section, a
 // { type: "divider" } between two sections.
 function flattenSections(sections) {
@@ -276,18 +285,21 @@ export const TOOLBAR_SECTIONS = {
   DEFAULT: DEFAULT_SECTIONS,
   BASE_MAPS: BASE_MAPS_SECTIONS,
   MESHES: MESHES_SECTIONS,
+  COMMENTS: COMMENTS_SECTIONS,
 };
 
 export const TOOLBAR_LAYOUTS = {
   DEFAULT: flattenSections(DEFAULT_SECTIONS),
   BASE_MAPS: flattenSections(BASE_MAPS_SECTIONS),
   MESHES: flattenSections(MESHES_SECTIONS),
+  COMMENTS: flattenSections(COMMENTS_SECTIONS),
 };
 
 // Layout key of a module: the modules with their own sections, else DEFAULT.
 function getLayoutKey(moduleKey) {
   if (moduleKey === "BASE_MAPS") return "BASE_MAPS";
   if (moduleKey === "MESHES") return "MESHES";
+  if (moduleKey === "COMMENTS") return "COMMENTS";
   return "DEFAULT";
 }
 

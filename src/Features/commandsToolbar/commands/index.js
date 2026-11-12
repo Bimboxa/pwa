@@ -1,5 +1,7 @@
 import { TOOLBAR_LAYOUTS } from "../constants/toolbarLayout";
 
+import addCommentCommand from "./addComment/addCommentCommand";
+import addLocatedCommentCommand from "./addLocatedComment/addLocatedCommentCommand";
 import drawPolylineCommand from "./drawPolyline/drawPolylineCommand";
 import drawPolygonCommand from "./drawPolygon/drawPolygonCommand";
 import drawDiscCommand from "./drawDisc/drawDiscCommand";
@@ -185,6 +187,9 @@ export const COMMANDS = [
   addMeshCommand,
   createMeshesCommand,
   numberMeshesCommand,
+  // comments (Commentaires module)
+  addLocatedCommentCommand,
+  addCommentCommand,
 ];
 
 export const COMMANDS_BY_KEY = Object.fromEntries(

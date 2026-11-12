@@ -135,6 +135,7 @@ let theme = createTheme(
         admin: teal[700],
         scope: green[600],
         zones: cyan[700],
+        comments: blueGrey[800],
         businessObjects: brown[600],
       },
       anchor: {

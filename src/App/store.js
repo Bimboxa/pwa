@@ -79,6 +79,7 @@ import editorGridReducer from "Features/editorGrid/editorGridSlice";
 import duplicatesDetectionReducer from "Features/duplicatesDetection/duplicatesDetectionSlice";
 import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
 import photosReducer from "Features/photos/photosSlice";
+import commentsReducer from "Features/comments/commentsSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
@@ -175,6 +176,7 @@ const store = configureStore({
     popperImages: popperImagesReducer,
     panelDrawing: panelDrawingReducer,
     photos: photosReducer,
+    comments: commentsReducer,
     elevation: elevationReducer,
     mesh: meshReducer,
     pov: povReducer,

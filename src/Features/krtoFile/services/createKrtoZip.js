@@ -113,6 +113,10 @@ export default async function createKrtoZip(scopeId, options) {
         // template's listing (scope content); the host is remapped through
         // hostAnnotationId on duplicate (remapDexieExportIds SIMPLE_FK).
         "meshPaints",
+        // Comments (Features/comments): rows carry projectId + listingId
+        // (scope-bound COMMENT listing); their image files carry the same
+        // listingId so the files filter ships them too.
+        "comments",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's

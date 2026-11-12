@@ -41,6 +41,9 @@ export default async function clearScopeDataService(scopeId) {
         // Blocks of this scope (Features/blocks). Their blocks base maps are
         // project-shared, like every base map: kept.
         await db.blocks.where("scopeId").equals(scopeId).delete();
+        // Comments of this scope (Features/comments); their image files go
+        // with the COMMENT listing below (fileListingIds).
+        await db.comments.where("scopeId").equals(scopeId).delete();
 
         // SCOPE-scoped resources (dropped in the panel with "Cette scope"):
         // their main file goes too unless another live resource shares it

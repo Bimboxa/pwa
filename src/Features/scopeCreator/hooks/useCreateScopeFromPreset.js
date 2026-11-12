@@ -51,6 +51,8 @@ import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
 import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import resolveConfigurationScopeConfig from "../utils/resolveConfigurationScopeConfig";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
+import createCommentListingService from "Features/comments/services/createCommentListingService";
+import { COMMENTS_MODULE_KEY } from "Features/comments/constants/commentEntityModel";
 import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "Features/businessObjects/data/businessObjectTypesCatalog";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
@@ -175,6 +177,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     const dpgf = Boolean(options?.dpgf);
     const carnetDetail = Boolean(options?.carnetDetail);
     const portfolio = Boolean(options?.portfolio);
+    const comments = Boolean(options?.comments);
     // the new creator always passes options (even for the generic card); the
     // legacy preset flow passes none — its behavior stays untouched.
     const usesConfigurationFlow = Boolean(
@@ -262,6 +265,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     const optionEnabledModuleKeys = [
       ...(dpgf || promptIaBusinessData ? [getBusinessObjectsModuleKey()] : []),
       ...(carnetDetail || portfolio ? ["PORTFOLIO"] : []),
+      ...(comments ? [COMMENTS_MODULE_KEY] : []),
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
 
@@ -624,6 +628,16 @@ export default function useCreateScopeFromPreset({ projectId }) {
         scopeId: scope.id,
         name: "DPGF",
         typeKey: DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+        appConfig,
+      });
+    }
+
+    // Commentaires option: seed the scope's first comment listing (a comment
+    // always belongs to a listing — Features/comments).
+    if (comments) {
+      await createCommentListingService({
+        projectId,
+        scopeId: scope.id,
         appConfig,
       });
     }
