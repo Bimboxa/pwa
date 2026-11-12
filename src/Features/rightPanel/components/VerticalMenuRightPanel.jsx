@@ -7,7 +7,9 @@ import { Box } from "@mui/material";
 
 import VerticalMenuV2 from "Features/layout/components/VerticalMenuV2";
 
-import useRightPanelTools from "../hooks/useRightPanelTools";
+import useRightPanelTools, {
+  VIEWER_MODE_TOOL_KEYS,
+} from "../hooks/useRightPanelTools";
 
 export default function VerticalMenuRightPanel() {
   const dispatch = useDispatch();
@@ -16,6 +18,7 @@ export default function VerticalMenuRightPanel() {
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
 
   // The tool list (filtered by module + appConfig.features.tools) is built in a
   // shared hook so the keyboard shortcuts (useRightPanelToolHotkeys) bind exactly
@@ -36,10 +39,15 @@ export default function VerticalMenuRightPanel() {
     const viewerMismatch =
       selectedTool?.viewers &&
       !selectedTool.viewers.includes(selectedViewerKey);
-    if (viewerMismatch || selectedToolScopeDisabled) {
+    // Shared viewer link: any panel other than "Capture" / "Export" is
+    // closed, including the ones opened programmatically (e.g. "Propriétés"
+    // on an annotation click).
+    const viewerModeMismatch =
+      viewerMode && selectedKey && !VIEWER_MODE_TOOL_KEYS.has(selectedKey);
+    if (viewerMismatch || selectedToolScopeDisabled || viewerModeMismatch) {
       dispatch(setSelectedMenuItemKey(null));
     }
-  }, [selectedKey, selectedViewerKey, selectedToolScopeDisabled]);
+  }, [selectedKey, selectedViewerKey, selectedToolScopeDisabled, viewerMode]);
 
   // handlers
 

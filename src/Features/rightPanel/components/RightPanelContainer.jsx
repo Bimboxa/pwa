@@ -40,6 +40,7 @@ import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelB
 import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
 import PanelTutorial from "Features/tutorial/components/PanelTutorial";
 
+import { VIEWER_MODE_TOOL_KEYS } from "../hooks/useRightPanelTools";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -49,6 +50,7 @@ export default function RightPanelContainer() {
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const showCreateBaseMapSection = useSelector(
     (s) => s.mapEditor.showCreateBaseMapSection
   );
@@ -132,7 +134,16 @@ export default function RightPanelContainer() {
   // helper - the open panel floats over the viewer, so it would mask the
   // fullscreen create-baseMap section; keep it closed while that section shows.
 
-  const openPanel = Boolean(selectedKey) && !showCreateBaseMapSection;
+  // Shared viewer link: only "Capture" / "Export" panels open. Guarded here
+  // too so a programmatically opened panel never slides in for a frame before
+  // VerticalMenuRightPanel's auto-close effect resets the key.
+  const viewerModeBlocked =
+    viewerMode &&
+    Boolean(selectedKey) &&
+    !VIEWER_MODE_TOOL_KEYS.has(selectedKey);
+
+  const openPanel =
+    Boolean(selectedKey) && !showCreateBaseMapSection && !viewerModeBlocked;
 
   return (
     <Box

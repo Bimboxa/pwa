@@ -65,6 +65,10 @@ export default function useLandingViewerModuleOnScopeOpen() {
   // honor ?viewer=3d deep link: don't reset the viewer to MAP when 3D is requested
   const [searchParams] = useSearchParams();
   const wants3dViewer = searchParams.get("viewer") === "3d";
+  // ?mode=viewer shared link: always the Viewer module (key THREED). Read
+  // from the URL, not from s.urlParams.viewerMode — this effect runs before
+  // the parent's useApplyUrlParams sets the redux flag.
+  const wantsViewerMode = searchParams.get("mode") === "viewer";
 
   // helpers
 
@@ -111,7 +115,15 @@ export default function useLandingViewerModuleOnScopeOpen() {
         ? "MAP"
         : defaultModuleKey;
 
-    if (isNewScopeDrawLanding) {
+    if (wantsViewerMode) {
+      // Shared viewer link: the Viewer module, whatever the scope rights or
+      // the device preference. On a scope open it lands on the module's
+      // default editor; otherwise (refresh, viewer=3d) the editor is kept.
+      // With 3D disabled the module stays selected — the effective editor is
+      // already downgraded to 2D.
+      if (wantsLanding) landOnModule("THREED");
+      else dispatch(setSelectedViewerKey("THREED"));
+    } else if (isNewScopeDrawLanding) {
       // Freshly created scope: straight to drawing.
       landOnModule("MAP");
     } else if (wantsLanding) {
@@ -135,6 +147,7 @@ export default function useLandingViewerModuleOnScopeOpen() {
   }, [
     selectedScopeId,
     wants3dViewer,
+    wantsViewerMode,
     disable3D,
     isNewScopeDrawLanding,
     defaultModuleKey,

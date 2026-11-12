@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+
 import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
@@ -22,6 +24,10 @@ import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLanding
 import useEnsureEnabledModule from "Features/viewers/hooks/useEnsureEnabledModule";
 
 export default function LayoutDesktop() {
+  // Shared viewer link (?mode=viewer): the module band is hidden, the
+  // recipient stays on the Viewer module.
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+
   // hotkeys — switch module (Ctrl+D = Dessin, Ctrl+F = Fonds de plan…).
   // Mounted here (not in VerticalMenuViewers) so they do not depend on the
   // band's rendering.
@@ -56,7 +62,7 @@ export default function LayoutDesktop() {
           position: "relative",
         }}
       >
-        <VerticalMenuViewers />
+        {!viewerMode && <VerticalMenuViewers />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>

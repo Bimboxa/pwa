@@ -60,10 +60,16 @@ export default function useApplyUrlParams() {
       dispatch(setSelectedViewerKey("THREED"));
       // Force the 3D editor too: a persisted editorKeyByModule may have left
       // the Viewer module on its 2D editor.
-      dispatch(setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" }));
+      dispatch(
+        setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" })
+      );
     }
     if (mode === "viewer") {
       dispatch(setViewerMode(true));
+      // A shared viewer link always opens the Viewer module (key THREED) —
+      // the module band is hidden in this mode, so there is no way to reach
+      // it otherwise. The editor (2D/3D) is left alone: viewer=3d forces it.
+      if (viewer !== "3d") dispatch(setSelectedViewerKey("THREED"));
       // Lock the map editor in "Sélection" — no draw/edit entry point in a
       // shared viewer link. The residual-mode reset (useResetInteractionMode)
       // leaves this forced SELECT alone.

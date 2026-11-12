@@ -72,6 +72,8 @@ export default function useViewerSwitchHotkeys() {
       if (!targetViewerKey) return;
 
       const s = store.getState();
+      // Shared viewer link: the module is locked on the Viewer.
+      if (s.urlParams.viewerMode) return;
       // Walk mode owns the keyboard (arrows, Space, letters, P to exit).
       if (s.threedEditor.walkMode.active) return;
       if (s.mapEditor.enabledDrawingMode) return;

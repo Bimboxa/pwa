@@ -40,6 +40,12 @@ import sortToolsByOrder from "../utils/sortToolsByOrder";
 // injection invariant, SETTINGS is the escape hatch to the editor settings.
 export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 
+// The only tools of a shared viewer link (?mode=viewer, s.urlParams.viewerMode):
+// "Capture" and "Export". Every other panel — "Propriétés" and "Réglages"
+// included — is dropped from the band and closed when opened programmatically
+// (see VerticalMenuRightPanel).
+export const VIEWER_MODE_TOOL_KEYS = new Set(["CAPTURE", "PRINT"]);
+
 // Builds the right-panel tool list (the vertical band on the right). MODULE-driven:
 // filtered by appConfig.features.tools, by the current module (selectedViewerKey)
 // and by the per-scope activation (db.scopeConfigs: root + per-module disabled
@@ -98,6 +104,7 @@ function placeTutorialAboveChat(tools) {
 export default function useRightPanelTools() {
   const appConfig = useAppConfig();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
   const toolOrder = useSelector(selectToolOrder);
@@ -410,6 +417,12 @@ export default function useRightPanelTools() {
   // bottom-anchored tools keep their own band section whatever their rank
   // (VerticalMenuV2 splits on `group`).
   menuItems = placeTutorialAboveChat(sortToolsByOrder(menuItems, toolOrder));
+
+  // Shared viewer link: only "Capture" and "Export" remain. Applied last so
+  // it also drops the force-included "Propriétés" and the locked "Réglages".
+  if (viewerMode) {
+    menuItems = menuItems.filter((t) => VIEWER_MODE_TOOL_KEYS.has(t.key));
+  }
 
   // catalog — see the hook doc comment. Mirrors the menu construction rules
   // (org allowlist order, SELECTION_PROPERTIES force-included, `disabled`
