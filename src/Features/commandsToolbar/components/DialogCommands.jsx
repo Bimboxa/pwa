@@ -18,11 +18,14 @@ import useDialogQuitHotkey from "Features/layout/hooks/useDialogQuitHotkey";
 import SearchBar from "Features/search/components/SearchBar";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
+import useViewers from "Features/viewers/hooks/useViewers";
 import RowCommand from "./RowCommand";
 import DialogCommandHelper from "./DialogCommandHelper";
 import ListSortableShortcuts from "./ListSortableShortcuts";
+import ChipsCommandsModule from "./ChipsCommandsModule";
 import { COMMANDS_BY_KEY } from "../commands";
-import { getCommandsDialogSections } from "../constants/toolbarLayout";
+import { getToolbarSections } from "../constants/toolbarLayout";
+import isCommandsToolbarModuleKey from "../utils/isCommandsToolbarModuleKey";
 import { DEFAULT_SHORTCUT_COMMAND_KEYS } from "../constants/defaultShortcuts";
 import useCommandHelpers from "../hooks/useCommandHelpers";
 import matchesCommandSearch, {
@@ -30,8 +33,11 @@ import matchesCommandSearch, {
 } from "../utils/matchesCommandSearch";
 
 // Full-page « Commandes » dialog (opened by the last toolbar button and by
-// the footer of the right-click menu): the reference list of every command
-// of the toolbar, by section and group. A search field (header) highlights
+// the footer of the right-click menu): the reference list of the commands
+// of the toolbar, by section and group, for the module selected with the
+// chips above the list (ChipsCommandsModule — the modules carrying the
+// toolbar; default = the module the dialog was opened from; the list is
+// that module's toolbar layout, getToolbarSections). A search field (header) highlights
 // the rows matching the label or the helper description (the layout stays
 // whole, the sections are the landmarks); a command with a helper
 // (Data/<org>/commands/<KEY>.md: description and / or gif) shows an « i »
@@ -49,7 +55,7 @@ export default function DialogCommands() {
 
   const titleS = "Commandes";
   const introS =
-    "Toutes les commandes des éditeurs 2D et 3D. Cochez celles à proposer au clic droit : le menu les affiche dans l'ordre de la liste de droite ; une commande non applicable à la sélection y reste visible, désactivée.";
+    "Les commandes des éditeurs 2D et 3D disponibles dans le module sélectionné. Cochez celles à proposer au clic droit : le menu les affiche dans l'ordre de la liste de droite ; une commande non applicable à la sélection y reste visible, désactivée.";
   const searchS = "Rechercher une commande…";
   const noMatchS = "Aucune commande ne correspond à";
   const menuTitleS = "Menu clic droit";
@@ -62,18 +68,19 @@ export default function DialogCommands() {
   const open = useSelector(selectCommandsDialogOpen);
   const shortcutKeys = useSelector(selectShortcutCommandKeys);
   const { orgaCode, basePath, byKey: helpersByKey } = useCommandHelpers();
-  // The default sections + the ones of the current module's own layout
-  // (Fonds de plan, Maillage).
-  const moduleKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const sections = useMemo(
-    () => getCommandsDialogSections(moduleKey),
-    [moduleKey]
+  const currentModuleKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const viewers = useViewers();
+  const modules = viewers.filter((viewer) =>
+    isCommandsToolbarModuleKey(viewer.key)
   );
 
   // state
 
   const [search, setSearch] = useState("");
   const [helperCommandKey, setHelperCommandKey] = useState(null);
+  // Module picked with the chips; null = the module the dialog was opened
+  // from (reset on every opening).
+  const [pickedModuleKey, setPickedModuleKey] = useState(null);
 
   // effects
 
@@ -82,10 +89,21 @@ export default function DialogCommands() {
     if (!open) {
       setSearch("");
       setHelperCommandKey(null);
+      setPickedModuleKey(null);
     }
   }, [open]);
 
   // helpers
+
+  // The listed commands = the toolbar sections of the selected module.
+  const candidateKey = pickedModuleKey ?? currentModuleKey;
+  const selectedModuleKey = modules.some((m) => m.key === candidateKey)
+    ? candidateKey
+    : (modules[0]?.key ?? currentModuleKey);
+  const sections = useMemo(
+    () => getToolbarSections(selectedModuleKey),
+    [selectedModuleKey]
+  );
 
   const checked = new Set(shortcutKeys);
   const shortcutCommands = shortcutKeys
@@ -237,6 +255,13 @@ export default function DialogCommands() {
             bgcolor: "background.default",
           }}
         >
+          <Box sx={{ mb: 1.5 }}>
+            <ChipsCommandsModule
+              modules={modules}
+              value={selectedModuleKey}
+              onChange={setPickedModuleKey}
+            />
+          </Box>
           <Typography
             variant="body2"
             color="text.secondary"
