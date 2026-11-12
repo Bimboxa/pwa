@@ -44,8 +44,10 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   points → annotation. The face under each end vertex is the `faceNormal`
   the snap carried (face / vertex / edge snaps with a face under the cursor);
   an end without one (a click on the plan at the foot of a wall) falls back
-  to the scene face holding the point (`utils/findFacePlanesAt`, 5 mm), as
-  « Recalculer le prolongement » does.
+  to the scene face holding the point (`utils/findFacePlanesAt`, 5 mm, 1 mm
+  past its edges) — among several (the corner wall / slab), the one the end
+  segment lies on (`findFaceNormalAlong`) — as « Recalculer le prolongement »
+  does.
 - Existing cut lines are snap targets of every 3D drawing (vertices, derived
   ones included, and segments): each segment `Line2` carries `isSnapLine` +
   `exportLine.positions` (the `buildView3dEdgeLines` convention read by
@@ -67,6 +69,10 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   (the plan is not in the soup) the start is the section node at the end
   point (`locateNodeNear`) and the first step may be perpendicular
   (`allowPerpendicularStart`). The trace then climbs the sheet's profile.
+- First step of the walk: never back along the drawn line; onwards when the
+  section edge under the end goes on, else perpendicular (the line ends
+  exactly on a corner of the section — drawn down a wall to its foot, it
+  turns onto the slab leaving that foot; re-entrant side first).
 - Gap bridging (`CUT_LINE_GAP_TOLERANCE_M` = 2 cm, user decision 2026-11-04):
   the surfaces the line crosses are drawn independently (a slab whose arc
   edge follows a sweep's guide stops a few mm / cm short of the sheet's
@@ -85,7 +91,8 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   in the frame `{u: axis in the face, v: n × u}` — a rotated gizmo frame
   rotates the trace). Digits type the distance from the reference corner, S
   flips the corner, the guide at « Décalage » snaps, click / Enter commits
-  the chord as a 2-point line (then extended like a free one). Escape drops
+  the chord as a 2-point line (then extended like a free one; the committed
+  points lie ON the face, only the dashed draft is lifted 2 mm). Escape drops
   the typed distance, then releases the axis. `DrawingOverlayThreed` is
   inert while an axis is armed.
 

@@ -8,7 +8,9 @@ import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormali
 import collectSceneTriangles from "../js/collectSceneTriangles";
 import encodeCutLineRefs from "../utils/encodeCutLineRefs";
 import extendCutLine from "../utils/extendCutLine";
-import findFacePlanesAt, { findFaceNormalAt } from "../utils/findFacePlanesAt";
+import findFacePlanesAt, {
+  findFaceNormalAlong,
+} from "../utils/findFacePlanesAt";
 
 // A « Stop » set on a derived point survives a rebuild when the new
 // extension passes within this distance (m) of it.
@@ -29,9 +31,9 @@ const STOP_KEEP_TOL_M = 1e-2;
 //   - oldDerived: [{ x, y, z, stop }] the previous derived points (their
 //     stops are re-applied to the new derived points nearby).
 //
-// The faces the drawn ends lie on are re-detected from the scene soup: the
-// nearest triangle holding the end point (within 5 mm), else that end is
-// not extended.
+// The faces the drawn ends lie on are re-detected from the scene soup: among
+// the triangles holding the end point (within 5 mm), the one the end segment
+// lies on (findFaceNormalAlong), else that end is not extended.
 //
 // Returns { pointRows, patch: { points, offsetZ }, derivedStart, derivedEnd }
 // or null (projection failure, fewer than 2 drawn points).
@@ -47,11 +49,18 @@ export function computeCutLineRebuild({
 
   const drawnPoints = drawn.map((d) => ({ x: d.x, y: d.y, z: d.z }));
   const triangles = collectSceneTriangles(editor.sceneManager);
-  const faceAt = (p) => findFaceNormalAt(triangles, p);
+  // Among the faces holding an end, the one its end segment lies on.
+  const last = drawnPoints.length - 1;
+  const faceAt = (i, j) =>
+    findFaceNormalAlong(triangles, drawnPoints[i], {
+      x: drawnPoints[i].x - drawnPoints[j].x,
+      y: drawnPoints[i].y - drawnPoints[j].y,
+      z: drawnPoints[i].z - drawnPoints[j].z,
+    });
   const { points, derivedStart, derivedEnd } = extendCutLine({
     drawn: drawnPoints,
-    startFace: faceAt(drawnPoints[0]),
-    endFace: faceAt(drawnPoints[drawnPoints.length - 1]),
+    startFace: faceAt(0, 1),
+    endFace: faceAt(last, last - 1),
     triangles,
     upNormal: getBaseMapNormalWorldFromRow(baseMap),
   });

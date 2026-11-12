@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import extendCutLine from "./extendCutLine.js";
-import findFacePlanesAt, { findFaceNormalAt } from "./findFacePlanesAt.js";
+import findFacePlanesAt, {
+  findFaceNormalAlong,
+  findFaceNormalAt,
+} from "./findFacePlanesAt.js";
 import { P, nearPoints, sheet, slab, wall } from "./cutLineFixtures.mjs";
 
 test("findFacePlanesAt: one plane on a slab, two at the foot of a wall, none in the air", () => {
@@ -37,4 +40,23 @@ test("end at the foot of a sheet without a cursor face: the soup face extends it
   nearPoints(r.points, [P(2, 1, 0), P(2, 5, 0), P(2, 5, 3)]);
   assert.equal(r.derivedStart, 0);
   assert.equal(r.derivedEnd, 1);
+});
+
+// User case 2026-11-12: the end of a line drawn down a wall sits on the
+// corner wall / slab; the nearest face is the slab, the face the line lies
+// on is the wall.
+test("findFaceNormalAlong: at the foot of a sheet, a vertical line gets the sheet, a line on the slab gets the slab", () => {
+  const scene = [...slab({ size: 5 }), ...sheet()];
+  const foot = P(2, 4.998, 0);
+  assert.ok(Math.abs(findFaceNormalAt(scene, foot).normal.z) > 0.999);
+  const down = findFaceNormalAlong(scene, foot, P(0, 0, -1));
+  assert.ok(Math.abs(down.normal.y) > 0.999);
+  const flat = findFaceNormalAlong(scene, foot, P(0, 1, 0));
+  assert.ok(Math.abs(flat.normal.z) > 0.999);
+  assert.equal(findFaceNormalAlong(scene, P(2, 1, 1), P(0, 0, -1)), null);
+});
+
+test("findFaceNormalAt: an end a few µm past the edge of a face still finds it, 1 cm past does not", () => {
+  assert.ok(findFaceNormalAt(sheet(), P(2, 5, 3.000004)));
+  assert.equal(findFaceNormalAt(sheet(), P(2, 5, 3.01)), null);
 });
