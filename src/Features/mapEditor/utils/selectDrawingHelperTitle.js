@@ -2,6 +2,7 @@ import selectTransformToolTitle from "Features/annotationTransform/utils/selectT
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
+import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import {
   isBaseMapLinkDraft,
   isBaseMapLinkLocateDraft,
@@ -10,7 +11,8 @@ import {
 // Title of the drawing helper (docked Dessin panel / floating popper) for the
 // modes that are not a plain draw: the Extruder / Déplacer / Tourner tools,
 // the « Changer de style » / « Masquer l'annotation » modes of the commands
-// toolbar, « Ajouter une maille » (Maillage module) and the section marks of the Fonds de plan
+// toolbar, « Ajouter une maille » / « Dessiner une ligne de coupe » (Maillage
+// module) and the section marks of the Fonds de plan
 // module (drawn on a plan / located on a vertical base map) — null otherwise
 // (the helper keeps its "Mode dessin" title).
 export default function selectDrawingHelperTitle(s) {
@@ -21,6 +23,7 @@ export default function selectDrawingHelperTitle(s) {
     return "Masquer l'annotation";
   }
   if (selectIsMeshCreateToolActive(s)) return "Ajouter une maille";
+  if (selectIsCutLineDrawActive(s)) return "Dessiner une ligne de coupe";
   if (s.mapEditor.enabledDrawingMode) {
     const draft = s.annotations.newAnnotation;
     if (isBaseMapLinkLocateDraft(draft)) return "Repérage du trait de coupe";

@@ -9,12 +9,14 @@ import {
   TOOL_IN_PROGRESS_REASON,
 } from "../../utils/drawToolCommandState";
 
-// « Ligne de coupe » (3D, Maillage module — Features/threedCutLines): arms a
+// « Ligne de coupe » (C, 3D, Maillage module — Features/threedCutLines): arms a
 // template-less CUT_LINE draft on the click polyline flow; the commit
 // (commitDrawnCutLineService) extends both ends of the drawn line along the
 // faces of the annotations it lies on. A second click on the armed button
 // disarms it. The draft belongs to the scope (no listing), like the
-// « Dessin » annotations.
+// « Dessin » annotations. « C » only arms it (command hotkeys are inert
+// while a draw is armed — Escape disarms); « Coupe face » shares the letter
+// but is disabled in the Maillage module.
 const CUT_LINE_SHAPE = "CUT_LINE";
 
 export default {
@@ -22,6 +24,7 @@ export default {
   label: "Ligne de coupe",
   Icon: IconCutLineTrace,
   editors: [EDITOR_3D],
+  hotkey: { key: "c", editors: [EDITOR_3D] },
   getState(ctx) {
     if (ctx.viewerKey !== "MESHES") {
       return { enabled: false, reason: "Réservé au module Maillage" };

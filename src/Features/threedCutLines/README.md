@@ -73,8 +73,13 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   foot), so their sections never join at the 1 mm graph tolerance. At a free
   edge the walk jumps to the nearest unvisited section node within 2 cm and
   goes on (`gapTolerance`); the start fallback uses the same distance.
-- Axis tools (`CutLineToolbarThreed`: Libre | X | Y | Z, « Décalage »,
-  `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
+- Hotkey « C » arms the command (Maillage module only; Escape disarms).
+  While armed, the drawing helper (popper / docked panel) is titled
+  « Dessiner une ligne de coupe » and shows
+  `SectionCutLineDrawHelperContent` instead of the generic polyline body; no
+  bottom toolbar.
+- Axis tools (`SectionCutLineDrawHelperContent`: Libre | X | Y | Z,
+  « Décalage », side toggle, `threedEditor.cutLineDraw`): `CutLineAxisOverlayThreed` hovers the planar
   face region under the cursor and publishes to `cutLineAxisStore` the chord
   parallel to the user axis (`computeCutLineAxisChord` = `computeFaceAxisCut`
   in the frame `{u: axis in the face, v: n × u}` — a rotated gizmo frame

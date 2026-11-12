@@ -741,7 +741,7 @@ export const threedEditorSlice = createSlice({
       state.drawingMode.faceCutSide =
         state.drawingMode.faceCutSide === "LEFT" ? "RIGHT" : "LEFT";
     },
-    // Cut line axis tools (Features/threedCutLines, CutLineToolbarThreed):
+    // Cut line axis tools (Features/threedCutLines, SectionCutLineDrawHelperContent):
     // the user axis the trace runs along while a cut line is armed (null =
     // free click polyline), the « Décalage » guide and its side.
     setCutLineDrawAxis: (state, action) => {

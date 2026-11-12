@@ -366,7 +366,7 @@ export default function useDrawingPointerHandlers() {
     }
 
     // CUT_LINE draft with an axis tool armed (Features/threedCutLines,
-    // CutLineToolbarThreed X / Y / Z): the click / Enter commits the chord
+    // SectionCutLineDrawHelperContent X / Y / Z): the click / Enter commits the chord
     // hovered by CutLineAxisOverlayThreed (no vertex drawn).
     function getCutLineAxis() {
       const na = newAnnotationRef.current;

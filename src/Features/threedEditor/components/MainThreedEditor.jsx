@@ -178,7 +178,6 @@ import {
 import { getDimensionGroups } from "Features/threedDimensions/services/dimensionObjectsStore";
 import ThreedCutLineAnnotations from "Features/threedCutLines/components/ThreedCutLineAnnotations";
 import CutLineAxisOverlayThreed from "Features/threedCutLines/components/CutLineAxisOverlayThreed";
-import CutLineToolbarThreed from "Features/threedCutLines/components/CutLineToolbarThreed";
 import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import useCutLineTranslateHandlers from "Features/threedCutLines/hooks/useCutLineTranslateHandlers";
 import useCutLineVertexHandlers from "Features/threedCutLines/hooks/useCutLineVertexHandlers";
@@ -3523,9 +3522,7 @@ export default function MainThreedEditor() {
           <ExtrudeToolbarThreed />
         ) : coteDrawActive ? (
           <CoteToolbarThreed />
-        ) : cutLineDrawActive ? (
-          <CutLineToolbarThreed />
-        ) : rulerDrawActive ? null : moveBaseMapActive ? (
+        ) : cutLineDrawActive || rulerDrawActive ? null : moveBaseMapActive ? (
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
           <RotateBaseMapToolbarThreed />

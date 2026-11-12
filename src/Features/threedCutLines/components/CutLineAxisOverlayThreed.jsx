@@ -42,7 +42,7 @@ function formatDistance(m) {
   return `${m.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} m`;
 }
 
-// Hover of the X / Y / Z axis tools of the cut line (CutLineToolbarThreed,
+// Hover of the X / Y / Z axis tools of the cut line (SectionCutLineDrawHelperContent,
 // `threedEditor.cutLineDraw.axis`): the planar face region under the cursor
 // (getFaceRegion + buildMeshDataFromRegion, the Maillage CREATE region) gets
 // its chord parallel to the chosen user axis (computeCutLineAxisChord —
