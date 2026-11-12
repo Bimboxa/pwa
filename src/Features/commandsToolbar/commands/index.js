@@ -73,6 +73,7 @@ import toggleAxesCommand from "./toggleAxes/toggleAxesCommand";
 import toggleGridCommand from "./toggleGrid/toggleGridCommand";
 import resetAxesCommand from "./resetAxes/resetAxesCommand";
 import drawCutLineCommand from "./drawCutLine/drawCutLineCommand";
+import drawCutPlaneCommand from "./drawCutPlane/drawCutPlaneCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
 
@@ -172,6 +173,7 @@ export const COMMANDS = [
   resetAxesCommand,
   // cut lines (3D, Maillage module)
   drawCutLineCommand,
+  drawCutPlaneCommand,
   drawSectionLineCommand,
   // mailles (3D, Maillage module)
   addMeshCommand,

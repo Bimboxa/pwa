@@ -178,6 +178,7 @@ import {
 import { getDimensionGroups } from "Features/threedDimensions/services/dimensionObjectsStore";
 import ThreedCutLineAnnotations from "Features/threedCutLines/components/ThreedCutLineAnnotations";
 import CutLineAxisOverlayThreed from "Features/threedCutLines/components/CutLineAxisOverlayThreed";
+import CutPlaneOverlayThreed from "Features/threedCutLines/components/CutPlaneOverlayThreed";
 import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import useCutLineTranslateHandlers from "Features/threedCutLines/hooks/useCutLineTranslateHandlers";
 import useCutLineVertexHandlers from "Features/threedCutLines/hooks/useCutLineVertexHandlers";
@@ -3598,6 +3599,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <FaceCutAxisOverlayThreed />}
       {isThreedViewer && <CutLineAxisOverlayThreed />}
+      {isThreedViewer && <CutPlaneOverlayThreed />}
       <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
       <SurfacePiecesHighlightThreed
         enabled={isThreedViewer && rendererIsReady}

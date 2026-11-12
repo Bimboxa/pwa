@@ -103,6 +103,43 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
   the typed distance, then releases the axis. `DrawingOverlayThreed` is
   inert while an axis is armed.
 
+## « Plan de coupe » (DRAW_CUT_PLANE)
+
+Second command of the toolbar's « Lignes de coupe » section: creates, in one
+go, the cut lines where one or several planes cross the visible annotations.
+
+- Draft: the CUT_LINE draft flagged `cutPlane` (`isCutPlaneDraft` /
+  `selectIsCutPlaneDrawActive`, tested BEFORE the cut line selectors by the
+  helper and its title). It rides the same 3D drawing flow (snaps, rubber
+  band, arrow-key axis lock); the X / Y / Z axis tools are off.
+- Clicks (`useDrawingPointerHandlers.onCutPlaneClick`): the 1st places P1 (a
+  drawing vertex), every next one sets P2. The planes are normal to P1 → P2.
+- Typed buffer `threedEditor.cutPlaneDraw.buffer` (`utils/cutPlaneBuffer`):
+  `<length>[*N | /N]`. The length holds |P1P2| (mirrored in
+  `mapEditor.constraintBuffer` by `setCutPlaneBufferService`, so the drawing
+  overlay constrains the provisional point). `*N` = N planes at
+  P1 + i × (P2 − P1), repeated beyond P2; `/N` = N planes at
+  P1 + i / N × (P2 − P1), P1 excluded (`utils/getCutPlaneStations`).
+- Candidates (`computeCutPlaneCandidatesService` → `cutPlaneStore`):
+  `collectSceneTriangles` → per plane `sectionTrianglesByPlane` →
+  `buildSectionGraph` → `utils/chainSectionGraph` (a component whose nodes
+  all have 2 neighbors is one CLOSED line, its last point repeating the
+  first; any other is cut into open chains at its ends / junctions).
+  « Contour le plus proche uniquement » (`cutPlaneDraw.nearestOnly`) keeps,
+  per plane, the connected component closest to the plane's point on the
+  axis — drawn from inside a cylinder, only that cylinder is cut.
+- `CutPlaneOverlayThreed`: dots where the planes cross the provisional axis
+  before the 2nd click; then the candidates blink in fluo green (own rAF
+  loop, the scene renders on demand).
+- Space / Enter: `createCutPlaneLinesService` — every candidate becomes a
+  CUT_LINE whose points are all DRAWN (no extension), one transaction, one
+  undo step. Escape: candidates → P1 → typed buffer → leaves the command.
+- A closed line is never extended (`extendCutLine` returns it as is), so
+  « Recalculer le prolongement », the drags and M / R keep it closed.
+- Limits: the planes are unbounded (every visible annotation they cross is
+  cut unless « contour le plus proche » is on); no 2 cm gap bridging between
+  surfaces (each one gets its own line); no hotkey arms the command.
+
 ## Rendering, selection, vertices
 
 - `ThreedCutLineAnnotations` (sibling of `ThreedRulerAnnotations`): one

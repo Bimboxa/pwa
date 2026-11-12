@@ -280,6 +280,8 @@ export default function useCommandsContext({ enabled = true } = {}) {
       // Type of the armed draft (DRAW_CUT_LINE tells its own draft apart
       // from the « Dessin » shapes).
       newAnnotationType: newAnnotation?.type ?? null,
+      // CUT_LINE draft armed by « Plan de coupe » (DRAW_CUT_PLANE).
+      isCutPlaneDraft: Boolean(newAnnotation?.cutPlane),
       selectedToolKeyByTemplateId: selectedToolKeyByTemplateId ?? {},
       templatelessDrawingShape,
       activeThreedTool,

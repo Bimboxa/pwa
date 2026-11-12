@@ -41,6 +41,15 @@ import {
   toggleLastDrawingVertexType,
 } from "Features/threedEditor/threedEditorSlice";
 import { getCutLineAxisHover } from "Features/threedCutLines/services/cutLineAxisStore";
+import computeCutPlaneCandidatesService, {
+  setCutPlaneBufferService,
+} from "Features/threedCutLines/services/computeCutPlaneCandidatesService";
+import createCutPlaneLinesService from "Features/threedCutLines/services/createCutPlaneLinesService";
+import {
+  clearCutPlanePending,
+  getCutPlanePending,
+} from "Features/threedCutLines/services/cutPlaneStore";
+import { appendToCutPlaneBuffer } from "Features/threedCutLines/utils/cutPlaneBuffer";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
@@ -371,7 +380,7 @@ export default function useDrawingPointerHandlers() {
     // hovered by CutLineAxisOverlayThreed (no vertex drawn).
     function getCutLineAxis() {
       const na = newAnnotationRef.current;
-      if (na?.type !== "CUT_LINE") return null;
+      if (na?.type !== "CUT_LINE" || na?.cutPlane) return null;
       return store.getState().threedEditor.cutLineDraw?.axis ?? null;
     }
 
@@ -396,6 +405,7 @@ export default function useDrawingPointerHandlers() {
     // while a free polyline is in progress (the helper's toggle rule).
     function onCutLineAxisLetterKey(e) {
       if (newAnnotationRef.current?.type !== "CUT_LINE") return false;
+      if (newAnnotationRef.current?.cutPlane) return false;
       if (e.ctrlKey || e.metaKey || e.altKey) return false;
       const letter = e.key.length === 1 ? e.key.toUpperCase() : "";
       if (!["X", "Y", "Z"].includes(letter)) return false;
@@ -438,6 +448,110 @@ export default function useDrawingPointerHandlers() {
           dispatch(clearConstraintBuffer());
         } else {
           dispatch(setCutLineDrawAxis(null));
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // « Plan de coupe » (DRAW_CUT_PLANE, Features/threedCutLines): a CUT_LINE
+    // draft flagged `cutPlane`. The first click places P1 (a regular
+    // drawing vertex: rubber band, snaps, arrow-key axis lock, typed
+    // length); every next click sets P2 and publishes the candidate cut
+    // lines — the section of the scene by the planes normal to P1 → P2 —
+    // to cutPlaneStore. Space / Enter creates them; nothing is drawn.
+    function isCutPlaneDraw() {
+      const na = newAnnotationRef.current;
+      return na?.type === "CUT_LINE" && Boolean(na?.cutPlane);
+    }
+
+    async function onCutPlaneClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      if (inProgress.length === 0) {
+        clearCutPlanePending();
+        dispatch(pushDrawingVertex(toDrawingVertex(snap)));
+        return;
+      }
+      const p1 = inProgress[0];
+      const p2 = snap.position;
+      if (isSamePoint(p1, p2)) return;
+      computeCutPlaneCandidatesService({
+        editor,
+        state: store.getState(),
+        p1: { x: p1.x, y: p1.y, z: p1.z },
+        p2: { x: p2.x, y: p2.y, z: p2.z },
+      });
+    }
+
+    async function commitCutPlane() {
+      const candidates = getCutPlanePending()?.candidates;
+      if (!candidates?.length) return false;
+      const draft = getLiveDrawing().draft;
+      const { newAnnotationIds } = await createCutPlaneLinesService({
+        lines: candidates,
+        baseMaps: getHostBaseMaps(),
+        projectId,
+        scopeId,
+        templateProps: draft,
+        layerId: activeLayerIdRef.current ?? null,
+        preferredBaseMapId,
+        dispatch,
+      });
+      if (!newAnnotationIds.length) return false;
+      // The tool stays armed for the next axis.
+      clearCutPlanePending();
+      dispatch(cancelInProgressPolyline());
+      setCutPlaneBufferService(dispatch, "");
+      return true;
+    }
+
+    // Keys of « Plan de coupe »: digits / separator type the axis length,
+    // `*N` / `/N` the number of planes (repeated beyond P2 / dividing
+    // P1 → P2), Space / Enter creates the candidate lines, Escape drops the
+    // candidates, then P1, then the typed buffer, then leaves the command.
+    function onCutPlaneKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      const buffer = store.getState().threedEditor.cutPlaneDraw.buffer;
+      const refresh = () => {
+        if (!getCutPlanePending()) return;
+        computeCutPlaneCandidatesService({ editor, state: store.getState() });
+      };
+      if (/^[0-9.,*/]$/.test(e.key)) {
+        e.preventDefault();
+        setCutPlaneBufferService(
+          dispatch,
+          appendToCutPlaneBuffer(buffer, e.key)
+        );
+        refresh();
+        return true;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        setCutPlaneBufferService(dispatch, buffer.slice(0, -1));
+        refresh();
+        return true;
+      }
+      if (e.key === " " || e.code === "Space" || e.key === "Enter") {
+        e.preventDefault();
+        // A focused button (the toolbar command just clicked) would be
+        // "clicked" by the Space keyup and disarm the tool.
+        if (document.activeElement?.tagName === "BUTTON") {
+          document.activeElement.blur();
+        }
+        if (!e.repeat) enqueue(commitCutPlane);
+        return true;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (getCutPlanePending()) {
+          clearCutPlanePending();
+        } else if (inProgressPolyline.length > 0) {
+          dispatch(cancelInProgressPolyline());
+        } else if (buffer) {
+          setCutPlaneBufferService(dispatch, "");
+        } else {
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
         }
         return true;
       }
@@ -1733,6 +1847,10 @@ export default function useDrawingPointerHandlers() {
         return;
       }
 
+      if (isCutPlaneDraw()) {
+        await enqueue(() => onCutPlaneClick(snap));
+        return;
+      }
       if (isCoteDraw()) {
         await enqueueClick(onCoteClick, snap, clickTime);
         return;
@@ -1998,6 +2116,13 @@ export default function useDrawingPointerHandlers() {
 
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+      // « Plan de coupe »: the arrow-key axis lock, then its own keys —
+      // nothing else of the polyline flow applies.
+      if (isCutPlaneDraw()) {
+        if (onAxisLockKey(e)) return;
+        onCutPlaneKey(e);
+        return;
+      }
       if (onCutLineAxisLetterKey(e)) return;
       // Cut line axis tool (X / Y / Z armed): its own keys, nothing drawn.
       if (getCutLineAxis()) {
