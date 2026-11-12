@@ -35,7 +35,9 @@ export default {
     }
     if (ctx.enabledDrawingMode) {
       const active =
-        ctx.isTemplatelessDraft && ctx.newAnnotationType === CUT_LINE_SHAPE;
+        ctx.isTemplatelessDraft &&
+        ctx.newAnnotationType === CUT_LINE_SHAPE &&
+        !ctx.isCutPlaneDraft;
       return active
         ? { enabled: true, active: true }
         : { enabled: false, reason: DRAW_IN_PROGRESS_REASON };

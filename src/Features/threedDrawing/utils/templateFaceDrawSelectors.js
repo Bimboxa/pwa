@@ -144,6 +144,18 @@ export function selectIsCutLineDrawActive(s) {
   );
 }
 
+// « Plan de coupe » (DRAW_CUT_PLANE): a CUT_LINE draft flagged `cutPlane` —
+// the two clicks define the axis of the cut planes instead of a line. It is
+// a cut line draft too (same bridge, snaps, axis lock): UI consumers test
+// the plane BEFORE the line.
+export function isCutPlaneDraft(s) {
+  return isCutLineDraft(s) && Boolean(s.annotations.newAnnotation?.cutPlane);
+}
+
+export function selectIsCutPlaneDrawActive(s) {
+  return isCutPlaneDraft(s) && selectIsCutLineDrawActive(s);
+}
+
 // The arrow-key axis lock (↑ → ↓ force the next point on a user axis, ←
 // releases — useDrawingPointerHandlers / DrawingOverlayThreed) applies to
 // the point-by-point 3D flows anchored on a last vertex: a line / polygon

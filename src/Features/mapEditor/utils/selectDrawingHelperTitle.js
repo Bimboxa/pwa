@@ -2,7 +2,10 @@ import selectTransformToolTitle from "Features/annotationTransform/utils/selectT
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
-import { selectIsCutLineDrawActive } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import {
+  selectIsCutLineDrawActive,
+  selectIsCutPlaneDrawActive,
+} from "Features/threedDrawing/utils/templateFaceDrawSelectors";
 import {
   isBaseMapLinkDraft,
   isBaseMapLinkLocateDraft,
@@ -23,6 +26,7 @@ export default function selectDrawingHelperTitle(s) {
     return "Masquer l'annotation";
   }
   if (selectIsMeshCreateToolActive(s)) return "Ajouter une maille";
+  if (selectIsCutPlaneDrawActive(s)) return "Dessiner un plan de coupe";
   if (selectIsCutLineDrawActive(s)) return "Dessiner une ligne de coupe";
   if (s.mapEditor.enabledDrawingMode) {
     const draft = s.annotations.newAnnotation;

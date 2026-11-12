@@ -158,6 +158,14 @@ export default function extendCutLine({
   if (!Array.isArray(drawn) || drawn.length < 2) {
     return { points: drawn ?? [], derivedStart: 0, derivedEnd: 0 };
   }
+  // A closed line (« Plan de coupe »: the whole section of a solid, its
+  // last point back on the first) has no end to extend.
+  if (
+    drawn.length > 2 &&
+    distanceSq(drawn[0], drawn[drawn.length - 1]) <= tolerance * tolerance
+  ) {
+    return { points: drawn, derivedStart: 0, derivedEnd: 0 };
+  }
   const polylinePlane = computeNewellPlane(drawn);
   const ends = [
     describeCutLineEnd({

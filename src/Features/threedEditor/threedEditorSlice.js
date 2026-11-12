@@ -246,6 +246,13 @@ const threedEditorInitialState = {
     offset: 2,
     side: "LEFT",
   },
+  // « Plan de coupe » (Features/threedCutLines, DRAW_CUT_PLANE): `buffer` =
+  // the typed `<length>[*N | /N]` (cutPlaneBuffer), `nearestOnly` = keep,
+  // per plane, only the contour closest to the drawn axis (sticky).
+  cutPlaneDraw: {
+    buffer: "",
+    nearestOnly: false,
+  },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
   // The plane geometry itself lives in ClippingManager (three.js side).
@@ -663,6 +670,7 @@ export const threedEditorSlice = createSlice({
         // The cut line axis tool is released with the draft (its offset
         // and side are sticky preferences).
         state.cutLineDraw.axis = null;
+        state.cutPlaneDraw.buffer = "";
       } else {
         // Mutually exclusive with the other 3D modes.
         closeBaseMapsGrid(state);
@@ -754,6 +762,14 @@ export const threedEditorSlice = createSlice({
     toggleCutLineDrawSide: (state) => {
       state.cutLineDraw.side =
         state.cutLineDraw.side === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    // « Plan de coupe » (SectionCutPlaneDrawHelperContent): the typed buffer
+    // and the « contour le plus proche » option.
+    setCutPlaneBuffer: (state, action) => {
+      state.cutPlaneDraw.buffer = action.payload ?? "";
+    },
+    setCutPlaneNearestOnly: (state, action) => {
+      state.cutPlaneDraw.nearestOnly = Boolean(action.payload);
     },
     flushInProgressAsTrait3D: (state) => {
       const pts = state.drawingMode.inProgressPolyline;
@@ -1522,6 +1538,8 @@ export const {
   setCutLineDrawAxis,
   setCutLineDrawOffset,
   toggleCutLineDrawSide,
+  setCutPlaneBuffer,
+  setCutPlaneNearestOnly,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,
   setDrawingArrowAxes,

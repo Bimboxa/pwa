@@ -34,6 +34,7 @@ import { MESH_PAINT_PART_TYPES } from "Features/meshPaint/constants/meshPaintCon
 import { isSurfaceCutDraft } from "Features/surfaceCut/utils/surfaceCutTools";
 import {
   selectIsCutLineDrawActive,
+  selectIsCutPlaneDrawActive,
   selectIsFaceCutDrawActive,
   selectIsThreedAxisLockAvailable,
   isCircleRadiusDraftFor3d,
@@ -71,6 +72,7 @@ import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThr
 import SectionThreedToolHelperContent from "Features/threedDrawing/components/SectionThreedToolHelperContent";
 import SectionMeshCreateHelperContent from "Features/threedMesh/components/SectionMeshCreateHelperContent";
 import SectionCutLineDrawHelperContent from "Features/threedCutLines/components/SectionCutLineDrawHelperContent";
+import SectionCutPlaneDrawHelperContent from "Features/threedCutLines/components/SectionCutPlaneDrawHelperContent";
 import selectIsMeshCreateToolActive from "Features/threedMesh/utils/selectIsMeshCreateToolActive";
 import SectionThreedAxisLockHelper from "Features/threedDrawing/components/SectionThreedAxisLockHelper";
 import SectionTransformToolHelper2d from "Features/annotationTransform/components/SectionTransformToolHelper2d";
@@ -392,6 +394,7 @@ export default function SectionDrawingHelperContent() {
   );
   // Cut line (Maillage module): its own helper body.
   const isCutLineDraw = useSelector(selectIsCutLineDrawActive);
+  const isCutPlaneDraw = useSelector(selectIsCutPlaneDrawActive);
   // "Coupe face" (3D): one message per tool, its own shortcuts.
   const isFaceCut = useSelector(selectIsFaceCutDrawActive);
   // Launched on a selected face: the cut is bound to it.
@@ -523,6 +526,9 @@ export default function SectionDrawingHelperContent() {
   // « Dessiner une ligne de coupe » (Maillage module): the trace mode
   // (Libre / X / Y / Z), the « Décalage » and its shortcuts — not the
   // generic polyline helper.
+  if (isCutPlaneDraw) {
+    return <SectionCutPlaneDrawHelperContent />;
+  }
   if (isCutLineDraw) {
     return <SectionCutLineDrawHelperContent />;
   }
