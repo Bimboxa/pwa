@@ -167,9 +167,12 @@ export default function DialogCreateScopeFromPreset({
   const [hiddenExistingListingIds, setHiddenExistingListingIds] =
     useState(null);
   // « Krto source » section of the recap (configurations with
-  // sourceConfigurationKeys): { scopeId, mode: "LINK" | "COPY" } — null until
-  // the recap preselects the most recent suggested scope.
+  // sourceConfigurationKeys or sourceScope): { scopeId, mode: "LINK" | "COPY",
+  // listingIds } (listingIds null = every listing) — null until the recap
+  // preselects the most recent suggested scope. `sourceReady`: the source is
+  // installed locally with at least one listing ticked.
   const [sourceScope, setSourceScope] = useState(null);
+  const [sourceReady, setSourceReady] = useState(false);
   // « Prompt IA » configuration (kind PROMPT_IA): the parsed output of the
   // zip dropped in the recap — null until loaded, reset on configuration
   // switch and when the recap closes (its section holds the files).
@@ -182,6 +185,9 @@ export default function DialogCreateScopeFromPreset({
       ? null
       : krtoConfigurations?.items?.find((c) => c.key === selectedKey);
   const isPromptIa = selectedConfiguration?.kind === "PROMPT_IA";
+  // configurations whose « Krto source » is mandatory (sourceScope.required)
+  const sourceRequired =
+    !isPromptIa && Boolean(selectedConfiguration?.sourceScope?.required);
 
   // handlers
 
@@ -230,6 +236,7 @@ export default function DialogCreateScopeFromPreset({
     setExtraLibraryKeys([]);
     setHiddenExistingListingIds(null);
     setSourceScope(null);
+    setSourceReady(false);
     setPromptIaOutput(null);
     setRecapOpen(true);
   }
@@ -257,6 +264,7 @@ export default function DialogCreateScopeFromPreset({
   async function handleCreate() {
     if (isCreating || !name.trim() || !projectId) return;
     if (isPromptIa && !promptIaOutput) return;
+    if (sourceRequired && !sourceReady) return;
     const key = selectedKey === GENERIC_KEY ? null : selectedKey;
     try {
       await createScopeFromPreset({
@@ -273,7 +281,9 @@ export default function DialogCreateScopeFromPreset({
         renamedBaseMapListingNames: renamedListingNames,
         baseMapPageTargets,
         hiddenExistingListingIds,
-        sourceScope,
+        // a source not installed locally (or with no listing ticked) brings
+        // nothing in
+        sourceScope: sourceReady ? sourceScope : null,
         promptIa: isPromptIa ? { output: promptIaOutput } : null,
       });
     } catch (error) {
@@ -526,6 +536,7 @@ export default function DialogCreateScopeFromPreset({
                 onHiddenExistingListingIdsChange={setHiddenExistingListingIds}
                 sourceScope={sourceScope}
                 onSourceScopeChange={setSourceScope}
+                onSourceReadyChange={setSourceReady}
                 promptIaOutput={promptIaOutput}
                 onPromptIaOutputChange={handlePromptIaOutputChange}
                 scopeName={name}
@@ -535,7 +546,8 @@ export default function DialogCreateScopeFromPreset({
                 canCreate={
                   Boolean(name.trim()) &&
                   Boolean(projectId) &&
-                  (!isPromptIa || Boolean(promptIaOutput))
+                  (!isPromptIa || Boolean(promptIaOutput)) &&
+                  (!sourceRequired || sourceReady)
                 }
               />
             </Suspense>

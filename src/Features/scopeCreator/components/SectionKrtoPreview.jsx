@@ -15,13 +15,17 @@ import hatchedIllustrationSx from "../utils/hatchedIllustrationSx";
 
 /*
  * Right side of the recap: the annotation templates panel (left, like the
- * app's Dessin panel — libraries removable, empty listings addable) and the
+ * app's Dessin panel — libraries removable, empty listings addable; the
+ * listings brought in from the « Krto source » come first, read-only) and the
  * configuration's illustration (right). The image url is resolved lazily by
  * the parent; while it loads (or when the configuration has none) the slot
  * shows the hatched placeholder with the configuration code.
  */
 export default function SectionKrtoPreview({
   libraries,
+  // listings ticked in the « Krto source » section ({ key, name, templates })
+  sourceLibraries,
+  sourceLabel,
   onRemoveLibrary,
   extraAnnotationListings,
   onExtraAnnotationListingsChange,
@@ -51,6 +55,7 @@ export default function SectionKrtoPreview({
   // helpers
 
   const _extraListings = extraAnnotationListings ?? [];
+  const _sourceLibraries = sourceLibraries ?? [];
 
   // handlers
 
@@ -67,6 +72,104 @@ export default function SectionKrtoPreview({
   }
 
   // render
+
+  function renderLibraryCard(library, isSource) {
+    return (
+      <Box
+        key={library.key}
+        sx={{
+          border: "1px solid",
+          borderColor: isSource ? "listingFromOtherScope.main" : "divider",
+          borderRadius: 2,
+          bgcolor: "background.paper",
+          p: 1.5,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 0.5,
+          }}
+        >
+          <Typography variant="body2" noWrap sx={{ fontWeight: 700 }}>
+            {library.name}
+          </Typography>
+          {isSource
+            ? sourceLabel && (
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    flexShrink: 0,
+                    ml: 1,
+                    px: 0.75,
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    bgcolor: "listingFromOtherScope.main",
+                    color: "listingFromOtherScope.contrastText",
+                  }}
+                >
+                  {sourceLabel}
+                </Typography>
+              )
+            : !readOnly && (
+                <IconButton
+                  size="small"
+                  onClick={() => onRemoveLibrary(library.key)}
+                  sx={{ color: "text.secondary", p: 0.25 }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              )}
+        </Box>
+        {groupAnnotationTemplatesByGroupLabel(library.templates).map(
+          (item, index) => {
+            if (item.isGroupDivider) {
+              return <Divider key={`divider-${index}`} sx={{ my: 0.5 }} />;
+            }
+            if (item.isGroupHeader) {
+              return (
+                <Typography
+                  key={`group-${index}`}
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    pt: index > 0 ? 1 : 0.25,
+                    pb: 0.5,
+                    color: "text.secondary",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    fontSize: "0.7rem",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {item.groupLabel}
+                </Typography>
+              );
+            }
+            return (
+              <Box
+                key={index}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  py: 0.5,
+                }}
+              >
+                <AnnotationTemplateIcon template={item} size={16} />
+                <Typography variant="body2" noWrap>
+                  {item.label}
+                </Typography>
+              </Box>
+            );
+          }
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -113,7 +216,9 @@ export default function SectionKrtoPreview({
             )}
           </Box>
 
-          {(libraries ?? []).length === 0 && _extraListings.length === 0 ? (
+          {(libraries ?? []).length === 0 &&
+          _sourceLibraries.length === 0 &&
+          _extraListings.length === 0 ? (
             <Box
               sx={{
                 border: "1px solid",
@@ -134,85 +239,11 @@ export default function SectionKrtoPreview({
             </Typography>
           )}
 
-          {(libraries ?? []).map((library) => (
-            <Box
-              key={library.key}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 2,
-                bgcolor: "background.paper",
-                p: 1.5,
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  mb: 0.5,
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {library.name}
-                </Typography>
-                {!readOnly && (
-                  <IconButton
-                    size="small"
-                    onClick={() => onRemoveLibrary(library.key)}
-                    sx={{ color: "text.secondary", p: 0.25 }}
-                  >
-                    <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                )}
-              </Box>
-              {groupAnnotationTemplatesByGroupLabel(library.templates).map(
-                (item, index) => {
-                  if (item.isGroupDivider) {
-                    return (
-                      <Divider key={`divider-${index}`} sx={{ my: 0.5 }} />
-                    );
-                  }
-                  if (item.isGroupHeader) {
-                    return (
-                      <Typography
-                        key={`group-${index}`}
-                        variant="caption"
-                        sx={{
-                          display: "block",
-                          pt: index > 0 ? 1 : 0.25,
-                          pb: 0.5,
-                          color: "text.secondary",
-                          textTransform: "uppercase",
-                          fontWeight: 600,
-                          fontSize: "0.7rem",
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        {item.groupLabel}
-                      </Typography>
-                    );
-                  }
-                  return (
-                    <Box
-                      key={index}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        py: 0.5,
-                      }}
-                    >
-                      <AnnotationTemplateIcon template={item} size={16} />
-                      <Typography variant="body2" noWrap>
-                        {item.label}
-                      </Typography>
-                    </Box>
-                  );
-                }
-              )}
-            </Box>
-          ))}
+          {_sourceLibraries.map((library) => renderLibraryCard(library, true))}
+
+          {(libraries ?? []).map((library) =>
+            renderLibraryCard(library, false)
+          )}
 
           {_extraListings.map((listing, index) => (
             <Box

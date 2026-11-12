@@ -299,6 +299,15 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // project are suggested first in the
   //                                 // « Depuis un autre Krto » dialog
   //                                 // (DialogAddListingsFromScope)
+  //     sourceScope: {              // optional « Krto source » settings of
+  //       enabled,                  // the creation recap: `enabled` shows
+  //       required,                 // the section even without
+  //     },                          // sourceConfigurationKeys (every scope of
+  //                                 // the project offered, installed or to
+  //                                 // download); `required` (implies
+  //                                 // enabled) gates the creation until an
+  //                                 // installed source scope has at least
+  //                                 // one listing ticked
   //     prerequisiteConfigurationKey, // optional configurationKey: the Krto
   //                                 // configuration the user must have
   //                                 // created first; shown as a warning

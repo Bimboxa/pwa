@@ -7,12 +7,8 @@ import {
   Chip,
   CircularProgress,
   Dialog,
-  FormControlLabel,
   IconButton,
-  ListSubheader,
   MenuItem,
-  Radio,
-  RadioGroup,
   Select,
   Tooltip,
   Typography,
@@ -30,9 +26,10 @@ import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDataImageUrl from "Features/appConfig/hooks/useDataImageUrl";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
-import useScopes from "Features/scopes/hooks/useScopes";
+import useSourceScopeTemplateLibraries from "../hooks/useSourceScopeTemplateLibraries";
 
 import SectionKrtoPreview from "./SectionKrtoPreview";
+import SectionKrtoSource from "./SectionKrtoSource";
 import SectionPromptIaRequest from "./SectionPromptIaRequest";
 import SectionPromptIaResult from "./SectionPromptIaResult";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
@@ -45,7 +42,6 @@ import resolveBaseMapPages, {
   matchExistingListing,
 } from "../utils/resolveBaseMapPages";
 import { GENERIC_BASE_MAP_LISTING_NAME } from "../utils/genericBaseMapListing";
-import { SOURCE_SCOPE_MODES } from "../services/applySourceScopeService";
 
 /*
  * Recap modal of the Krto about to be created. Left column: the form (name +
@@ -84,6 +80,7 @@ export default function DialogKrtoRecap({
   onHiddenExistingListingIdsChange,
   sourceScope,
   onSourceScopeChange,
+  onSourceReadyChange,
   // Prompt IA configuration (configuration.kind === "PROMPT_IA"): the parsed
   // output of the zip dropped in the recap (null until loaded), the Krto
   // name (zip title) and the import progress while creating.
@@ -125,11 +122,6 @@ export default function DialogKrtoRecap({
   const newListingPlaceholderS = "Nom du dossier";
   const createS = "Créer le Krto";
   const hotkeyTooltipS = "Appuyez sur C pour créer";
-  const sourceNoneS = "Aucun";
-  const sourceSuggestedS = "Suggérés";
-  const sourceOthersS = "Autres";
-  const sourceLinkS = "Annotations en lecture seule (recommandé)";
-  const sourceCopyS = "Copier les annotations";
   const noProjectS = "Sélectionnez d'abord un projet dans le tableau de bord.";
   const promptIaHelperS =
     "Listes et modèles renvoyés par l'IA — ajustables après création.";
@@ -158,41 +150,21 @@ export default function DialogKrtoRecap({
     configuration?.name ??
     appConfig?.strings?.scope?.newEmpty ??
     `${scopeS} vide`;
-  const sourceS = appConfig?.strings?.scope?.source ?? `${scopeS} source`;
-  const sourceHintS = `Les listes de ce ${scopeS} sont ajoutées au nouveau ${scopeS}.`;
-  const sourceLinkCaptionS = `Les listes du ${scopeS} source sont affichées ici sans être copiées : elles restent modifiables uniquement depuis leur ${scopeS}.`;
-  const sourceCopyCaptionS = `Les listes et leurs annotations sont dupliquées dans ce ${scopeS}, dont vous devenez propriétaire.`;
-
-  // helpers — « Krto source »: configurations declaring
-  // sourceConfigurationKeys offer the project's scopes, the ones created from
-  // those configurations first (most recent preselected).
+  // helpers — « Krto source »: shown for configurations declaring
+  // sourceConfigurationKeys (suggested scopes) or `sourceScope.enabled`;
+  // `sourceScope.required` moves it first and gates the creation.
 
   const sourceConfigurationKeys = configuration?.sourceConfigurationKeys ?? [];
-  const hasSourceSection = sourceConfigurationKeys.length > 0;
-  const { value: projectScopes } = useScopes({ filterByProjectId: projectId });
-  const sourceCandidates = hasSourceSection
-    ? (projectScopes ?? []).filter((s) => s && !s.deletedAt && s.id)
-    : [];
-  const byCreatedAtDesc = (a, b) =>
-    String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? ""));
-  const suggestedSourceScopes = sourceCandidates
-    .filter((s) =>
-      sourceConfigurationKeys.includes(s.configurationKey ?? s.presetScopeKey)
-    )
-    .sort(byCreatedAtDesc);
-  const otherSourceScopes = sourceCandidates
-    .filter((s) => !suggestedSourceScopes.includes(s))
-    .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
-
-  // preselect the most recent suggested scope once the scopes are known
-  useEffect(() => {
-    if (!open || !hasSourceSection || sourceScope != null) return;
-    if (projectScopes == null) return;
-    onSourceScopeChange({
-      scopeId: suggestedSourceScopes[0]?.id ?? null,
-      mode: SOURCE_SCOPE_MODES.LINK,
-    });
-  }, [open, hasSourceSection, sourceScope, projectScopes == null]);
+  const sourceRequired = Boolean(configuration?.sourceScope?.required);
+  const hasSourceSection =
+    sourceConfigurationKeys.length > 0 ||
+    Boolean(configuration?.sourceScope?.enabled) ||
+    sourceRequired;
+  // templates of the ticked source listings, previewed in the right panel
+  const sourceLibraries = useSourceScopeTemplateLibraries(
+    hasSourceSection ? sourceScope : null
+  );
+  const sourceS = appConfig?.strings?.scope?.source ?? `${scopeS} source`;
 
   // helpers — configuration tags (ouvrage + usage keyword families)
 
@@ -658,120 +630,20 @@ export default function DialogKrtoRecap({
     </Box>
   );
 
-  // « Krto source » card — scope select (suggested first) + exclusive
-  // link / copy options
-  function renderSourceModeOption({ value, label, caption }) {
-    return (
-      <FormControlLabel
-        value={value}
-        control={<Radio size="small" color="secondary" sx={{ p: 0.5 }} />}
-        disabled={!sourceScope?.scopeId}
-        sx={{ alignItems: "flex-start", ml: 0, mr: 0 }}
-        label={
-          <Box sx={{ pt: 0.5 }}>
-            <Typography variant="body2">{label}</Typography>
-            <Typography
-              variant="caption"
-              sx={{ display: "block", color: "text.secondary" }}
-            >
-              {caption}
-            </Typography>
-          </Box>
-        }
-      />
-    );
-  }
-
+  // « Krto source » card — scope select (installed or to download), its
+  // listings and the exclusive link / copy options
   const sourceSectionNode = hasSourceSection ? (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <Typography variant="body1" sx={{ fontWeight: 700 }}>
-        {sourceS}
-      </Typography>
-      <Box sx={sectionCardSx}>
-        <Select
-          size="small"
-          fullWidth
-          displayEmpty
-          value={sourceScope?.scopeId ?? ""}
-          onChange={(e) =>
-            onSourceScopeChange({
-              scopeId: e.target.value || null,
-              mode: sourceScope?.mode ?? SOURCE_SCOPE_MODES.LINK,
-            })
-          }
-          renderValue={(value) => {
-            const scope = sourceCandidates.find((s) => s.id === value);
-            return (
-              <Typography
-                variant="body2"
-                noWrap
-                sx={{ color: scope ? "text.primary" : "text.secondary" }}
-              >
-                {scope?.name ?? sourceNoneS}
-              </Typography>
-            );
-          }}
-          sx={{ fontSize: 13 }}
-        >
-          <MenuItem value="" dense>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {sourceNoneS}
-            </Typography>
-          </MenuItem>
-          {suggestedSourceScopes.length > 0 && (
-            <ListSubheader disableSticky sx={{ lineHeight: "28px" }}>
-              {sourceSuggestedS}
-            </ListSubheader>
-          )}
-          {suggestedSourceScopes.map((scope) => (
-            <MenuItem key={scope.id} value={scope.id} dense>
-              <Typography variant="body2" noWrap>
-                {scope.name}
-              </Typography>
-            </MenuItem>
-          ))}
-          {suggestedSourceScopes.length > 0 && otherSourceScopes.length > 0 && (
-            <ListSubheader disableSticky sx={{ lineHeight: "28px" }}>
-              {sourceOthersS}
-            </ListSubheader>
-          )}
-          {otherSourceScopes.map((scope) => (
-            <MenuItem key={scope.id} value={scope.id} dense>
-              <Typography variant="body2" noWrap>
-                {scope.name}
-              </Typography>
-            </MenuItem>
-          ))}
-        </Select>
-        <Typography
-          variant="caption"
-          sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
-        >
-          {sourceHintS}
-        </Typography>
-        <RadioGroup
-          value={sourceScope?.mode ?? SOURCE_SCOPE_MODES.LINK}
-          onChange={(e) =>
-            onSourceScopeChange({
-              scopeId: sourceScope?.scopeId ?? null,
-              mode: e.target.value,
-            })
-          }
-          sx={{ mt: 1, gap: 0.5 }}
-        >
-          {renderSourceModeOption({
-            value: SOURCE_SCOPE_MODES.LINK,
-            label: sourceLinkS,
-            caption: sourceLinkCaptionS,
-          })}
-          {renderSourceModeOption({
-            value: SOURCE_SCOPE_MODES.COPY,
-            label: sourceCopyS,
-            caption: sourceCopyCaptionS,
-          })}
-        </RadioGroup>
-      </Box>
-    </Box>
+    <SectionKrtoSource
+      open={open}
+      projectId={projectId}
+      sourceConfigurationKeys={sourceConfigurationKeys}
+      required={sourceRequired}
+      disabled={isCreating}
+      sourceScope={sourceScope}
+      onSourceScopeChange={onSourceScopeChange}
+      onReadyChange={onSourceReadyChange}
+      sectionCardSx={sectionCardSx}
+    />
   ) : null;
 
   // "Modules" card
@@ -1020,6 +892,8 @@ export default function DialogKrtoRecap({
         {/* right — templates panel + configuration illustration */}
         <SectionKrtoPreview
           libraries={previewLibraries}
+          sourceLibraries={hasSourceSection ? sourceLibraries : undefined}
+          sourceLabel={sourceS}
           readOnly={isPromptIa}
           helper={isPromptIa ? promptIaHelperS : undefined}
           emptyLabel={isPromptIa ? promptIaEmptyS : undefined}
