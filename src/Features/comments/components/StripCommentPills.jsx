@@ -10,9 +10,12 @@ import CommentPill from "./CommentPill";
 import { COMMENT_COLORS } from "../commentsDarkTheme";
 import openCommentService from "../services/openCommentService";
 
-const STRIP_WIDTH = 44;
+const STRIP_WIDTH = 34;
+const PILL_SIZE = 24;
+const EDGE_GAP = 8;
 
-// Vertical dark strip of numbered pills at the left of the displayed editor:
+// Vertical dark strip of numbered pills in the top-left corner of the
+// displayed editor:
 // one pill per comment of the displayed listing, in reading order. Clicking a
 // pill opens the comment (panel on the right) and restores its view context.
 // With several comment listings, the icon on top picks the displayed one.
@@ -41,12 +44,13 @@ export default function StripCommentPills({
       data-capture-hide
       sx={{
         position: "absolute",
-        left: 8,
-        top: "50%",
-        transform: "translateY(-50%)",
+        // top-left corner of the editor
+        left: EDGE_GAP,
+        top: EDGE_GAP,
         zIndex: 11,
         width: STRIP_WIDTH,
-        maxHeight: "calc(100% - 140px)",
+        // stops above the bottom-left buttons of the editor
+        maxHeight: `calc(100% - ${EDGE_GAP}px - 100px)`,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -103,8 +107,8 @@ export default function StripCommentPills({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 0.75,
-          py: 1,
+          gap: 0.5,
+          py: 0.625,
           width: 1,
           overflowY: "auto",
           scrollbarWidth: "none",
@@ -117,6 +121,7 @@ export default function StripCommentPills({
             num={comment.num}
             title={comment.title || untitledS}
             active={comment.id === openedCommentId}
+            size={PILL_SIZE}
             onClick={() => openCommentService({ comment, dispatch })}
           />
         ))}
