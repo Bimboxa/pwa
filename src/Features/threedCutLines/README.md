@@ -224,10 +224,16 @@ on site: the prompt asks for lines from existing corners, regular, simple.
     `getCutLinesPromptMeshName`, baked in world coordinates, whitelist of
     `collectAnnotationSectionMeshes`).
 - **Answer** (`utils/parseCutLinesPromptResult`) — `cutLines[].points[]`:
-  `{ vertex }`, `{ edge: [from, to], distance }` (meters from `from`), or
-  `[x, y, z]` (GLB mode only). Every `edge` point that is not a corner gets
-  a cote from its reference vertex; `cotes[]` of the answer come on top (GLB
-  mode, free points). An invalid line is dropped with a warning.
+  `{ vertex }`, `{ edge: [from, to], distance }` (meters from `from`),
+  `{ line: "N1", distance }` (a point of the answer's own line `id: "N1"`,
+  meters along it — a line already set out is a landmark for the next
+  ones), or `[x, y, z]` (GLB mode only). The `edge` / `line` points that
+  are not corners get set-out cotes, **chained, never stacked**: along one
+  edge (or line) each point is dimensioned from the previous one, the first
+  from the corner. `cotes[]` of the answer come on top (GLB mode, free
+  points). An invalid line is dropped with a warning — including a line
+  with a **diagonal segment on a vertical planar face** (`verticalFaces` of
+  the context): on a wall, lines are horizontal or vertical only.
 - **Dry run** (`services/computeCutLinesPromptPreview`) — existing +
   proposed lines clipped over the regions like « Mailler »: number of
   pieces, largest surface, pieces over the target, points off the scene.
