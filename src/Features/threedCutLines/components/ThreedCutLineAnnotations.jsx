@@ -31,7 +31,10 @@ import {
 import { setCutLineObjects } from "../services/cutLineObjectsStore";
 import computeCutLineGeometry3d from "../utils/computeCutLineGeometry3d";
 
-const DEFAULT_COLOR = theme.palette.secondary.fluo ?? "#ff4d00";
+const DEFAULT_COLOR = theme.palette.secondary.fluo ?? "#ff6a00";
+// Former default (red-orange), stored as strokeColor on the cut lines drawn
+// before the switch to neon orange: rendered with the current default.
+const LEGACY_DEFAULT_COLOR = "#ff4d00";
 const SELECTED_VERTEX_COLOR = theme.palette.annotation?.selected ?? "#39FF14";
 
 function getCanvasResolution(editor) {
@@ -201,7 +204,11 @@ export default function ThreedCutLineAnnotations({ annotations }) {
       if (!geom) return;
 
       const isSelected = selectedIds.has(cutLine.id);
-      const color = cutLine.strokeColor || DEFAULT_COLOR;
+      const storedColor = cutLine.strokeColor;
+      const color =
+        !storedColor || storedColor.toLowerCase() === LEGACY_DEFAULT_COLOR
+          ? DEFAULT_COLOR
+          : storedColor;
 
       const group = new Group();
       group.name = `CutLine-${cutLine.id}`;

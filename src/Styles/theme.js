@@ -107,8 +107,9 @@ let theme = createTheme(
       secondary: {
         main: "#423188",
         // Saturated "fluo" variant: the unselected cut lines of the 3D editor
-        // (Features/threedCutLines) — reads on top of any face colour.
-        fluo: "#ff4d00",
+        // (Features/threedCutLines) — neon orange, reads on top of any face
+        // colour.
+        fluo: "#ff6a00",
       },
       background: {
         default: "#F4F4F8",

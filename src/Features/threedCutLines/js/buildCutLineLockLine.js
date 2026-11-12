@@ -8,7 +8,7 @@ import {
   makeLineMaterial,
 } from "Features/threedDrawing/utils/drawingOverlayLines";
 
-const LINE_AXIS_COLOR = theme.palette.secondary.fluo ?? "#ff4d00";
+const LINE_AXIS_COLOR = theme.palette.secondary.fluo ?? "#ff6a00";
 
 // Dashed guide of a locked cut line gesture, through `origin` (world
 // Vector3) along `axis.dir`: a user axis (`axis.user`, key X / Y / Z) takes
