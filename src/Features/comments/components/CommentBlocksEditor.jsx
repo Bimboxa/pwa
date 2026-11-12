@@ -305,7 +305,10 @@ export default function CommentBlocksEditor({
 
             {block.type === COMMENT_BLOCK_TYPES.IMAGE && (
               <>
-                <CommentBlocksRenderer blocks={[{ ...block, caption: "" }]} />
+                <CommentBlocksRenderer
+                  blocks={[{ ...block, caption: "" }]}
+                  imageFullscreen={false}
+                />
                 <InputBase
                   fullWidth
                   placeholder={captionS}
