@@ -20,5 +20,13 @@ export const selectHiddenRevolutionAxisIdSet = createSelector(
   (ids) => new Set(ids)
 );
 
+export const selectHiddenLinkedAnnotationsRevolutionAxisIds = (state) =>
+  state.scopeVisibility?.hiddenLinkedAnnotationsRevolutionAxisIds ?? EMPTY;
+
+export const selectHiddenLinkedAnnotationsRevolutionAxisIdSet = createSelector(
+  [selectHiddenLinkedAnnotationsRevolutionAxisIds],
+  (ids) => new Set(ids)
+);
+
 export const selectHasSavedThreedVisibility = (state) =>
   Boolean(state.scopeVisibility?.hasSavedThreedState);

@@ -6,7 +6,10 @@ import {
   triggerAnnotationsUpdate,
 } from "Features/annotations/annotationsSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { toggleRevolutionAxisHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
+import {
+  toggleRevolutionAxisHidden,
+  toggleRevolutionAxisLinkedHidden,
+} from "Features/scopeVisibility/scopeVisibilitySlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import {
@@ -25,6 +28,7 @@ import {
   ArrowForward,
   Contrast,
   FilterCenterFocus,
+  HorizontalSplit,
   MoreHoriz,
   PlayArrow,
   Visibility,
@@ -35,6 +39,7 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import IconCreateBaseMap from "Features/icons/IconCreateBaseMap";
 import MenuRevolutionAxisBaseMaps from "./MenuRevolutionAxisBaseMaps";
 import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfViewService";
+import setRevolutionAxisHorizontalCutService from "../services/setRevolutionAxisHorizontalCutService";
 import { splitRevolutionAxisProcedures } from "../utils/getRevolutionAxisProcedures";
 
 const MENU_PAPER_SX = {
@@ -51,13 +56,20 @@ const MENU_PAPER_SX = {
 //
 // - row click: selects the axis (plan) / its placement (vertical);
 // - icon click: SOLO of the axis and everything linked to it;
-// - eye (hover): hides / shows the axis — its plan line, its clones on the
-//   vertical base maps and the plan footprints (projection on the axis's
-//   base map) of what is revolved around it; the revolved annotations
-//   themselves and their 3D volumes stay visible (per-scope local state,
-//   like the template eyes);
-// - half-view (hover): "Demi-vue 3D" of the axis (persisted on the axis, but
-//   a view setting anyone may switch — setRevolutionAxisHalfViewService);
+// - eye (left of the icon): hides / shows the axis — its plan line, its
+//   clones on the vertical base maps and the plan footprints (projection on
+//   the axis's base map) of what is revolved around it; the revolved
+//   annotations themselves and their 3D volumes stay visible (per-scope
+//   local state, like the template eyes);
+// - count chip: number of annotations revolved around the axis; a toggle —
+//   off, those annotations are not shown in 3D (whatever the selected base
+//   map) and their plan footprints go in 2D (per-scope local state). On, they
+//   also show in 3D when the axis's plan view is the selected base map;
+// - half-view: "Demi-vue 3D" of the axis (persisted on the axis, but a view
+//   setting anyone may switch — setRevolutionAxisHalfViewService);
+// - horizontal cut: hides what is revolved around the axis above a
+//   horizontal plane, in 3D; the altitude is dragged on the axis in the 3D
+//   view (same contract — setRevolutionAxisHorizontalCutService);
 // - arrow / « + » base map: on the plan, goes to the vertical base map the
 //   profiles are drawn on — or, when the axis is not linked yet, opens
 //   MenuRevolutionAxisBaseMaps (same icon and menu as the axis edit
@@ -92,6 +104,10 @@ export default function RowRevolutionAxis({
   const hideS = "Masquer l'axe et ses projections";
   const halfViewOnS = "Demi-vue 3D (coupe) : activée";
   const halfViewOffS = "Demi-vue 3D (coupe) : désactivée";
+  const horizontalCutOnS = "Coupe horizontale 3D : activée";
+  const horizontalCutOffS = "Coupe horizontale 3D : désactivée";
+  const linkedShownS = "Annotations liées à l'axe : affichées en 3D";
+  const linkedHiddenS = "Annotations liées à l'axe : masquées en 3D";
   const goToProfilesS = "Voir le fond de plan des profils";
   const linkS = "Lier un fond de plan pour dessiner les profils";
   const goToPlanS = "Voir la vue en plan de l'axe";
@@ -104,6 +120,12 @@ export default function RowRevolutionAxis({
   );
   const isHidden = useSelector((s) =>
     (s.scopeVisibility.hiddenRevolutionAxisIds ?? []).includes(axis.id)
+  );
+
+  const isLinkedHidden = useSelector((s) =>
+    (s.scopeVisibility.hiddenLinkedAnnotationsRevolutionAxisIds ?? []).includes(
+      axis.id
+    )
   );
 
   // state
@@ -121,6 +143,7 @@ export default function RowRevolutionAxis({
     procedures
   );
   const isHalfView = axis.halfViewIn3d !== false;
+  const isHorizontalCut = axis.horizontalCutIn3d === true;
   const color = axis.strokeColor ?? "#1976d2";
   const planBaseMap = baseMapById[axis.baseMapId];
   const label = axis.label ?? "Axe";
@@ -180,6 +203,19 @@ export default function RowRevolutionAxis({
     dispatch(triggerAnnotationsUpdate());
   };
 
+  const handleToggleLinkedHidden = (e) => {
+    e.stopPropagation();
+    dispatch(toggleRevolutionAxisLinkedHidden(axis.id));
+  };
+
+  const handleToggleHorizontalCut = async (e) => {
+    e.stopPropagation();
+    await setRevolutionAxisHorizontalCutService(axis.id, {
+      enabled: !isHorizontalCut,
+    });
+    dispatch(triggerAnnotationsUpdate());
+  };
+
   const handleNavigate = (e) => {
     e.stopPropagation();
     if (!isOnPlan) {
@@ -230,6 +266,25 @@ export default function RowRevolutionAxis({
         <Box
           sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}
         >
+          {/* Eye — visibility of the axis and its projections */}
+          <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
+            <IconButton
+              size="small"
+              onClick={handleToggleHidden}
+              sx={{
+                p: 0.5,
+                mr: 0.25,
+                flexShrink: 0,
+                color: isHidden ? "secondary.main" : "panel.iconMuted",
+              }}
+            >
+              {isHidden ? (
+                <VisibilityOff sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
           {/* Icon — click toggles the solo of the axis */}
           <Tooltip title={isSolo ? exitSoloS : soloS} arrow placement="right">
             <Box
@@ -295,7 +350,8 @@ export default function RowRevolutionAxis({
           </Tooltip>
         </Box>
 
-        {/* Right side: count, actions, then the navigation arrow */}
+        {/* Right side: linked-annotations chip, actions, then the
+            navigation arrow */}
         <Box
           sx={{
             display: "flex",
@@ -306,26 +362,52 @@ export default function RowRevolutionAxis({
             flexShrink: 0,
           }}
         >
-          <Typography
-            align="right"
-            noWrap
-            sx={{
-              fontSize: "10px",
-              minWidth: "32px",
-              fontFamily: "monospace",
-              fontWeight: 500,
-              mr: 0.5,
-            }}
-            color={
-              isHidden
-                ? "text.disabled"
-                : linkedCount > 0
-                  ? "secondary.main"
-                  : "panel.countEmpty"
-            }
+          <Tooltip
+            title={isLinkedHidden ? linkedHiddenS : linkedShownS}
+            arrow
+            placement="top"
           >
-            {`${linkedCount} u`}
-          </Typography>
+            <Box
+              onClick={handleToggleLinkedHidden}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 22,
+                height: 18,
+                px: 0.75,
+                mr: 0.5,
+                borderRadius: "9px",
+                border: "1px solid",
+                fontSize: "10px",
+                fontFamily: "monospace",
+                fontWeight: 600,
+                lineHeight: 1,
+                userSelect: "none",
+                cursor: "pointer",
+                ...(isLinkedHidden
+                  ? {
+                      borderColor: "panel.border",
+                      bgcolor: "transparent",
+                      color: "text.disabled",
+                    }
+                  : linkedCount > 0
+                    ? {
+                        borderColor: "secondary.main",
+                        bgcolor: "secondary.main",
+                        color: "white",
+                      }
+                    : {
+                        borderColor: "secondary.main",
+                        bgcolor: "transparent",
+                        color: "secondary.main",
+                      }),
+                "&:hover": { opacity: 0.8 },
+              }}
+            >
+              {linkedCount}
+            </Box>
+          </Tooltip>
           {associatedProcedures.length > 0 && (
             <Tooltip title={moreS} arrow placement="top">
               <IconButton
@@ -353,20 +435,20 @@ export default function RowRevolutionAxis({
               <Contrast sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={isHidden ? showS : hideS} arrow placement="top">
+          <Tooltip
+            title={isHorizontalCut ? horizontalCutOnS : horizontalCutOffS}
+            arrow
+            placement="top"
+          >
             <IconButton
               size="small"
-              onClick={handleToggleHidden}
+              onClick={handleToggleHorizontalCut}
               sx={{
                 p: 0.5,
-                color: isHidden ? "secondary.main" : "panel.iconMuted",
+                color: isHorizontalCut ? "secondary.main" : "panel.iconMuted",
               }}
             >
-              {isHidden ? (
-                <VisibilityOff sx={{ fontSize: 16 }} />
-              ) : (
-                <Visibility sx={{ fontSize: 16 }} />
-              )}
+              <HorizontalSplit sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title={navigateTitle} arrow placement="right">

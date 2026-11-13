@@ -71,6 +71,13 @@ const scopeVisibilityPersistMiddleware = (store) => (next) => (action) => {
     patch.hiddenRevolutionAxisIds =
       state.scopeVisibility?.hiddenRevolutionAxisIds ?? [];
   }
+  if (
+    prev.scopeVisibility?.hiddenLinkedAnnotationsRevolutionAxisIds !==
+    state.scopeVisibility?.hiddenLinkedAnnotationsRevolutionAxisIds
+  ) {
+    patch.hiddenLinkedAnnotationsRevolutionAxisIds =
+      state.scopeVisibility?.hiddenLinkedAnnotationsRevolutionAxisIds ?? [];
+  }
   if (prev.listings?.hiddenListingsIds !== state.listings?.hiddenListingsIds) {
     patch.hiddenListingsIds = state.listings?.hiddenListingsIds ?? [];
   }

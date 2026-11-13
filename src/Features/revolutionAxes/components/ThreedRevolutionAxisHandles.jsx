@@ -1,15 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  CanvasTexture,
-  Group,
-  LinearFilter,
-  Sprite,
-  SpriteMaterial,
-  SRGBColorSpace,
-  Vector3,
-} from "three";
+import { Group, Vector3 } from "three";
 
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
@@ -19,7 +11,6 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
-import sizeSpriteInCssPx from "Features/threedAnnotationLabels/services/sizeSpriteInCssPx";
 import {
   disposeObject,
   getCanvasResolution,
@@ -28,57 +19,14 @@ import {
 } from "Features/threedDrawing/utils/drawingOverlayLines";
 import { setRevolutionAxisHandles } from "Features/revolutionAxes/services/revolutionAxisHandlesStore";
 import getRevolutionAxisCutTheta from "Features/revolutionAxes/utils/getRevolutionAxisCutTheta";
+import createRevolutionAxisHandleSprite from "Features/revolutionAxes/utils/createRevolutionAxisHandleSprite";
 
 // Same blue as the 2D cut axis (NodeRevolutionAxisStatic).
 const BLUE = "#1976d2";
-const HANDLE_CSS_PX = 12;
 const CUT_AXIS_LINEWIDTH_PX = 1;
 // Just above the base circle (1 mm above the plan) so the blue diameter
 // never z-fights it.
 const CUT_AXIS_LIFT_M = 0.002;
-const CANVAS_PX = 64;
-
-// White disc with a blue ring + blue dot: the 3D counterpart of the 2D
-// rotation handle. Screen-constant (sizeSpriteInCssPx), always on top.
-function createHandleSprite() {
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_PX;
-  canvas.height = CANVAS_PX;
-  const ctx = canvas.getContext("2d");
-  const c = CANVAS_PX / 2;
-  ctx.beginPath();
-  ctx.arc(c, c, c - 6, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = BLUE;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(c, c, c / 5, 0, Math.PI * 2);
-  ctx.fillStyle = BLUE;
-  ctx.fill();
-
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.minFilter = LinearFilter;
-  texture.magFilter = LinearFilter;
-  texture.needsUpdate = true;
-  const material = new SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    sizeAttenuation: false,
-  });
-  const sprite = new Sprite(material);
-  sizeSpriteInCssPx(sprite, { cssHeight: HANDLE_CSS_PX });
-  sprite.renderOrder = 1005;
-  sprite.userData.dispose = () => {
-    texture.dispose();
-    material.dispose();
-  };
-  return sprite;
-}
 
 /**
  * Cut-axis rotation handles of the selected plan REVOLUTION_AXIS in the 3D
@@ -192,7 +140,7 @@ export default function ThreedRevolutionAxisHandles({ annotations }) {
     }
 
     const handles = ends.map((p, i) => {
-      const sprite = createHandleSprite();
+      const sprite = createRevolutionAxisHandleSprite();
       sprite.position.copy(p);
       Object.assign(sprite.userData, {
         isRevolutionAxisHandle: true,

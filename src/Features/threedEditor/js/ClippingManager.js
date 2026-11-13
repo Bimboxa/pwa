@@ -20,6 +20,12 @@ export default class ClippingManager {
     // place keeps the array length at 1, so no shader recompile while dragging.
     this.planes = [this.plane];
 
+    // Planes of their own for some annotations only ({ annotationId:
+    // Plane[] }), on top of the global one: the horizontal cut of a
+    // revolution axis (ThreedRevolutionAxisHorizontalCuts). Applied whether
+    // the global plane is enabled or not.
+    this.annotationPlanes = {};
+
     this.enabled = false;
     this.editing = false;
     this.center = new Vector3();
@@ -261,6 +267,14 @@ export default class ClippingManager {
     this.sceneManager.renderScene();
   }
 
+  // Per-annotation planes ({ annotationId: Plane[] }, see the constructor).
+  // The planes may then be mutated in place (drag) without another call.
+  setAnnotationPlanes(planesByAnnotationId) {
+    this.annotationPlanes = planesByAnnotationId || {};
+    this._applyMaterials(this.enabled);
+    this.sceneManager.renderScene();
+  }
+
   // Re-assign the clipping planes to current geometry (after a reload).
   reapply() {
     if (this.enabled) {
@@ -268,6 +282,8 @@ export default class ClippingManager {
       // Annotations may have been recreated —
       // recompute the contour against the new meshes.
       this.sceneManager.sectionContourManager?.update();
+    } else if (Object.keys(this.annotationPlanes).length > 0) {
+      this._applyMaterials(false);
     }
   }
 
@@ -346,14 +362,20 @@ export default class ClippingManager {
   // Set (or clear) material.clippingPlanes on annotation + basemap meshes only.
   _applyMaterials(enabled) {
     const planes = enabled ? this.planes : null;
+    // [root, planes of that root]
     const roots = [];
     const images = this.sceneManager.imagesManager?.imagesMap || {};
-    Object.values(images).forEach((g) => g && roots.push(g));
+    Object.values(images).forEach((g) => g && roots.push([g, planes]));
     const annotations =
       this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
-    Object.values(annotations).forEach((o) => o && roots.push(o));
+    Object.entries(annotations).forEach(([id, o]) => {
+      if (!o) return;
+      const own = this.annotationPlanes[id];
+      roots.push([o, own?.length ? [...(planes || []), ...own] : planes]);
+    });
 
-    roots.forEach((root) => {
+    roots.forEach(([root, rootPlanes]) => {
+      const count = rootPlanes?.length ?? 0;
       root.traverse((child) => {
         // Clip solids (Mesh) AND the black edge outlines / wireframes
         // (Line / LineSegments) — otherwise the cut-away part keeps showing
@@ -366,11 +388,12 @@ export default class ClippingManager {
           ? child.material
           : [child.material];
         mats.forEach((m) => {
-          m.clippingPlanes = planes;
-          // The clipping-plane COUNT changes (0 ↔ 1), which is a shader
-          // #define — force a recompile. Only runs on enable/disable/reload,
-          // never during a gizmo drag (that only mutates the plane in place).
-          m.needsUpdate = true;
+          const prevCount = m.clippingPlanes?.length ?? 0;
+          m.clippingPlanes = rootPlanes;
+          // A change of the clipping-plane COUNT is a shader #define — force
+          // a recompile. Never happens during a drag (that only mutates the
+          // planes in place), nor on a re-apply with the same planes.
+          if (prevCount !== count) m.needsUpdate = true;
         });
       });
     });

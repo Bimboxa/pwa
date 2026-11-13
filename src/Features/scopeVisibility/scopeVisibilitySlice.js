@@ -22,6 +22,13 @@ const scopeVisibilityInitialState = {
   // is revolved around it — not the revolved profiles / circles themselves,
   // their 3D volumes or the paints on them. Same local, per-scope contract.
   hiddenRevolutionAxisIds: initialSaved?.hiddenRevolutionAxisIds ?? [],
+  // Chip of the revolution axis rows (count of the annotations revolved
+  // around the axis): the axes whose linked annotations are hidden — in 3D
+  // (profiles / circles, their volumes) whatever the selected base map, and
+  // their plan footprints in 2D. The profiles stay visible in 2D on their
+  // own (coupe) base map. Same local, per-scope contract.
+  hiddenLinkedAnnotationsRevolutionAxisIds:
+    initialSaved?.hiddenLinkedAnnotationsRevolutionAxisIds ?? [],
   // True when the selected scope had saved 3D base map toggles on this
   // device: the Viewer module then skips its scope-open seeding (images off,
   // every annotated base map's annotations on) and keeps the restored state.
@@ -82,6 +89,22 @@ export const scopeVisibilitySlice = createSlice({
         hidden
       );
     },
+    setHiddenLinkedAnnotationsRevolutionAxisIds: (state, action) => {
+      state.hiddenLinkedAnnotationsRevolutionAxisIds = [
+        ...new Set((action.payload ?? []).filter(Boolean)),
+      ];
+    },
+    toggleRevolutionAxisLinkedHidden: (state, action) => {
+      const id = action.payload;
+      if (!id) return;
+      const hidden =
+        !state.hiddenLinkedAnnotationsRevolutionAxisIds.includes(id);
+      state.hiddenLinkedAnnotationsRevolutionAxisIds = withIds(
+        state.hiddenLinkedAnnotationsRevolutionAxisIds,
+        [id],
+        hidden
+      );
+    },
   },
   extraReducers: (builder) => {
     builder.addCase(setSelectedScopeId, (state, action) => {
@@ -89,6 +112,8 @@ export const scopeVisibilitySlice = createSlice({
       state.hiddenAnnotationTemplateIds =
         saved?.hiddenAnnotationTemplateIds ?? [];
       state.hiddenRevolutionAxisIds = saved?.hiddenRevolutionAxisIds ?? [];
+      state.hiddenLinkedAnnotationsRevolutionAxisIds =
+        saved?.hiddenLinkedAnnotationsRevolutionAxisIds ?? [];
       state.hasSavedThreedState = Boolean(saved?.threed);
     });
   },
@@ -100,6 +125,8 @@ export const {
   toggleAnnotationTemplateHidden,
   setHiddenRevolutionAxisIds,
   toggleRevolutionAxisHidden,
+  setHiddenLinkedAnnotationsRevolutionAxisIds,
+  toggleRevolutionAxisLinkedHidden,
 } = scopeVisibilitySlice.actions;
 
 export default scopeVisibilitySlice.reducer;

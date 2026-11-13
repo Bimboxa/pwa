@@ -59,6 +59,9 @@ export default function getInitScopeVisibility(scopeId) {
         parsed.hiddenAnnotationTemplateIds
       ),
       hiddenRevolutionAxisIds: toIdArray(parsed.hiddenRevolutionAxisIds),
+      hiddenLinkedAnnotationsRevolutionAxisIds: toIdArray(
+        parsed.hiddenLinkedAnnotationsRevolutionAxisIds
+      ),
       hiddenListingsIds: toIdArray(parsed.hiddenListingsIds),
       hiddenLayerIds: toIdArray(parsed.hiddenLayerIds),
       viewer2d: toViewer2d(parsed.viewer2d),
