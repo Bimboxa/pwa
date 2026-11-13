@@ -249,7 +249,8 @@ export default memo(function NodeImageStatic({
   // exactly as the in-situ dot.
   if (exSitu) {
     const anchor = getImageAnchorPoint(imageAnnotation);
-    const selectedStroke = theme.palette.editor?.selected || "#ff9800";
+    // Secondary colour (not the editor's neon selection green).
+    const selectedStroke = theme.palette.secondary.main;
     const asBadge = imagesLinkNumber && showBadge;
     return (
       <g style={{ opacity: (dragged ? 0.7 : (opacity ?? 1)) * veilOpacity }}>
@@ -260,6 +261,7 @@ export default memo(function NodeImageStatic({
                 <ImageIndexBadgeSvg
                   number={imageDisplayIndex}
                   stroke={selected ? selectedStroke : "#fff"}
+                  strokeWidth={selected ? 2.5 : 1.5}
                 />
                 <rect
                   x={-IMAGE_BADGE_WIDTH_PX / 2}

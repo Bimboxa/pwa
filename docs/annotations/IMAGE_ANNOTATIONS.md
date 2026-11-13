@@ -212,7 +212,8 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   keep the plain in-situ rendering). In situ: numbered badge at the bbox
   corner + veil. Any other mode: the anchor only (TARGET interaction kept:
   click selects, drag moves `targetPoint`, pointer cursor) — with "Numéro"
-  the numbered badge alone, centred on the anchor; without, a dot.
+  the numbered badge alone, centred on the anchor; without, a dot. Selected:
+  outlined in the theme `secondary` colour (not the editor's neon green).
 - 3D `ThreedAnnotationLabels`: in situ the card canvas carries the badge and
   the veil (`createImageAnnotationCard({ badgeNumber, veiled })`,
   `applyAnnotationMaterialState` never swaps a card's material); any other
@@ -242,8 +243,10 @@ The bottom bar controls are hidden while framing: the Cadrage tab
 - `EX_SITU`: `CaptureImagesOverlay` draws the tiles (`CaptureImageTileCard`:
   Paper cards in a `foreignObject`, `data-capture-keep`) in a transparent
   zone of the frame (`mapEditor.imageModeImagesOverlay`, legend-like drag /
-  resize with `data-capture-hide` handles, `resolveImagesOverlayGeometry`,
-  `layoutCaptureImageTiles`).
+  resize with `data-capture-hide` handles shown on hover only,
+  `resolveImagesOverlayGeometry`, `layoutCaptureImageTiles`). The number of
+  columns is the editor panel's (`popperImages.panelColumns`, also edited by
+  the "Colonnes" toggle of `SectionCaptureImages`).
 - `PRINT_ZONES`: `CaptureImagePrintZonesOverlay` draws the same cards along
   the 4 edges of the frame (`useImagePrintZonesLayout`), clear of the frame
   elements tagged `data-print-zones-avoid` (cartouche, title banner, logo —

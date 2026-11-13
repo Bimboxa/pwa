@@ -23,7 +23,6 @@ export default function resolveImagesOverlayGeometry(
     x: o.x ?? Math.max(0, rectWidth - width - IMAGES_ZONE_PADDING),
     y: o.y ?? IMAGES_ZONE_PADDING + legendDefaultBottom,
     width,
-    columns: Math.max(1, Math.round(o.columns ?? 2)),
     gap: o.gap ?? 8,
   };
 }

@@ -9,7 +9,7 @@ import {
   IMAGE_BADGE_WIDTH_PX,
 } from "../constants/imageDisplay";
 
-// SVG numbered badge of a photo (rounded rectangle; `stroke` overrides the
+// SVG numbered badge of a photo (rounded rectangle; `stroke` / `strokeWidth` override the
 // white ring, e.g. selected), centred on (0,0) in SCREEN pixels: the
 // caller wraps it in its inverse-zoom group (NodeImageStatic) or draws it in
 // an overlay already in screen pixels (CaptureImagesOverlay).
@@ -17,6 +17,7 @@ export default function ImageIndexBadgeSvg({
   number,
   dimmed = false,
   stroke = "#fff",
+  strokeWidth = 1.5,
 }) {
   if (number == null) return null;
   return (
@@ -29,7 +30,7 @@ export default function ImageIndexBadgeSvg({
         rx={IMAGE_BADGE_CORNER_PX}
         fill={IMAGE_BADGE_BG}
         stroke={stroke}
-        strokeWidth={1.5}
+        strokeWidth={strokeWidth}
       />
       <text
         y={IMAGE_BADGE_FONT_PX * 0.36}
