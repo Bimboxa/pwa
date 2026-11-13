@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -41,7 +41,8 @@ import {
 // pill, the links and the options live in the bottom bar
 // (SectionImagesBottomBarControls). Body: 1 or 2-column grid of numbered
 // tiles; a tile click selects the annotation (editor selection), the
-// selected tile offers "Fullscreen" (DialogImageViewer).
+// selected tile offers "Fullscreen" (DialogImageViewer). A photo selected
+// from the plan scrolls the grid to its tile.
 // ImagesLinksOverlay draws the tile → anchor leaders over the panel: all of
 // them with "Ligne", the one of the selected photo otherwise. Mounted by the editors next to PopperMapListings (same gates — not
 // mounted in capture mode, which renders its own tiles); renders nothing in
@@ -139,6 +140,29 @@ export default function PopperImages({
     () => images?.find((a) => a.id === fullscreenImageId) ?? null,
     [images, fullscreenImageId]
   );
+
+  // effects
+
+  // A photo selected from the plan (click on its badge): bring its tile into
+  // view when the grid is scrolled away from it. Scrolls the grid only.
+  useEffect(() => {
+    const grid = gridRef.current;
+    const tile = selectedImageId
+      ? tileElsRef.current.get(selectedImageId)
+      : null;
+    if (!grid || !tile || !exSitu || collapsed) return;
+    const g = grid.getBoundingClientRect();
+    const t = tile.getBoundingClientRect();
+    const margin = 8;
+    let delta = 0;
+    if (t.top < g.top + margin) delta = t.top - g.top - margin;
+    else if (t.bottom > g.bottom - margin) {
+      // A tile taller than the grid: align its top.
+      delta = Math.min(t.bottom - g.bottom + margin, t.top - g.top - margin);
+    }
+    if (Math.abs(delta) < 1) return;
+    grid.scrollTo({ top: grid.scrollTop + delta, behavior: "smooth" });
+  }, [selectedImageId, exSitu, collapsed, columns]);
 
   // handlers
 

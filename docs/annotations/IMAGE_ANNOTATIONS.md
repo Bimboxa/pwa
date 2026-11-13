@@ -152,7 +152,8 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the title + a 2-button toggle for a 1 or 2-column grid (`panelColumns`).
   Body: grid of numbered tiles; a tile click selects the annotation, the
   selected tile offers "Fullscreen" (`images/components/DialogImageViewer`,
-  wheel zoom + pan + reset).
+  wheel zoom + pan + reset). Selecting a photo from the plan (click on its
+  badge) scrolls the grid to its tile.
 - `ImagesLinksOverlay` — leaders from the tiles (DOM rects) to the anchors:
   all of them with "Ligne", only the selected photo's otherwise
   (`onlySelected`).
