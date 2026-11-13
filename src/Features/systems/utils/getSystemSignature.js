@@ -45,6 +45,8 @@ export default function getSystemSignature({
     }`,
     `pts:${pts.join(";")}`,
     `closed:${source.closeLine ? 1 : 0}`,
+    // band source (STRIP): its points are one edge, the side matters
+    `strip:${source.type === "STRIP" ? (source.stripOrientation ?? 1) : ""}`,
     `z:${num(Number(effective.offsetZ))}`,
     `h:${num(Number(effective.height))}`,
     `w:${num(Number(effective.strokeWidth))}${effective.strokeWidthUnit ?? ""}`,

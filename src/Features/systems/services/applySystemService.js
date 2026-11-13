@@ -5,6 +5,10 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import db from "App/db/db";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getBaseMapRowFrame from "Features/pathArray/utils/getBaseMapRowFrame";
+import {
+  getStripWidthPx,
+  stripEdgeToCenterline,
+} from "Features/annotations/utils/convertStripPolyline";
 
 import collectSystemChildren from "./collectSystemChildren";
 import { deleteSystemChildRowsInTx } from "./deleteSystemChildrenService";
@@ -43,6 +47,21 @@ function diffChanges(existing, next) {
   return changes;
 }
 
+// Vertices of a generated row, ring by ring: the outline (`points`) then its
+// holes (`cuts`, POLYGON only).
+const getRowRings = (row) => [
+  row?.points ?? [],
+  ...(row?.cuts ?? []).map((cut) => cut?.points ?? []),
+];
+const getRowPointIds = (row) =>
+  getRowRings(row)
+    .flat()
+    .map((p) => p?.id)
+    .filter(Boolean);
+const sameRingSizes = (row, ringSizes) =>
+  JSON.stringify(getRowRings(row).map((ring) => ring.length)) ===
+  JSON.stringify(ringSizes);
+
 // The system procedure of a listing, from the registry
 // (appConfig.systemProcedures).
 export function getSystemProcedure(listing, procedures) {
@@ -69,19 +88,28 @@ async function loadGenerate(procedure) {
  * The procedure of the system listing (`generate`, a pure function) returns
  * the elements to build:
  *
- *   generate({ source, points, closeLine, meterByPx, params })
- *     → [{ key, role, type, points, closeLine?, props }]
+ *   generate({ source, points, closeLine, meterByPx, params, guideSide })
+ *     → [{ key, role, type, points, cuts?, closeLine?, props }]
  *
  *   - `source`: the source row with its template-locked fields applied
  *     (height in m, offsetZ in m, strokeWidth + strokeWidthUnit);
- *   - `points`: the source vertices in PIXELS ({ x, y, type }), a copy;
+ *   - `points`: the source vertices in PIXELS ({ x, y, type }), a copy — the
+ *     AXIS of the source: a source drawn as a band (STRIP, whose stored
+ *     points are one edge of the band) is handed over by its centerline;
+ *   - `guideSide`: for a band source, the side of its axis the drawn guide
+ *     line (the stored edge) lies on — +1 = left of the axis (normal
+ *     (−dy, dx) in image space), −1 = right; 0 for a plain line;
  *   - `key`: stable id of the element inside the instance (e.g.
  *     "PLATFORM:3") — existing rows are RECONCILED by key (updated in place,
  *     the others deleted) rather than recreated;
  *   - `role`: `systemRole` of the template of the system listing the element
  *     is built from (an element whose template is missing is skipped);
- *   - `points`: the element vertices in pixels; `props`: annotation fields
- *     (height, offsetZ, strokeWidth, …) laid over the template props.
+ *   - `points`: the element vertices in pixels; `cuts`: optional holes of a
+ *     POLYGON (rings of pixel vertices, stored as `annotation.cuts`); a
+ *     vertex may carry `offsetTop` / `offsetBottom` (m, per-point altitude
+ *     shift of a POLYGON prism — a sloped element), stored on its ref;
+ *     `props`: annotation fields (height, offsetZ, strokeWidth, …) laid over
+ *     the template props.
  *
  * Every element is a regular annotation row with its own db.points rows
  * (normalized — docs/annotations/POINTS_STORAGE.md), tagged
@@ -147,13 +175,28 @@ export default async function applySystemService({
         };
       })
       .filter(Boolean);
+    const effectiveSource = getSystemEffectiveSource(source, sourceTemplate);
+    const axis =
+      source.type === "STRIP" && points.length >= 2
+        ? stripEdgeToCenterline(
+            points,
+            getStripWidthPx(effectiveSource, meterByPx),
+            source.stripOrientation ?? 1
+          ).map((p) => ({ x: p.x, y: p.y, type: "square" }))
+        : points;
     elements =
       generate({
-        source: getSystemEffectiveSource(source, sourceTemplate),
-        points,
+        source: effectiveSource,
+        points: axis,
         closeLine: Boolean(source.closeLine),
         meterByPx,
         params: getSystemParams({ source, listing, procedure }),
+        guideSide:
+          source.type === "STRIP"
+            ? (source.stripOrientation ?? 1) >= 0
+              ? -1
+              : 1
+            : 0,
       }) ?? [];
   }
 
@@ -172,6 +215,8 @@ export default async function applySystemService({
     if (!template || !element.key || seenKeys.has(element.key)) continue;
     if (!element.points?.length) continue;
     seenKeys.add(element.key);
+    const cutRings = (element.cuts ?? []).filter((ring) => ring?.length >= 3);
+    const rings = [element.points, ...cutRings];
     if (!templatePropsById.has(template.id))
       templatePropsById.set(
         template.id,
@@ -195,13 +240,22 @@ export default async function applySystemService({
         systemSourceTemplateId: sourceTemplate.id,
         systemElementKey: element.key,
       },
-      coords: element.points.map((p) => ({
+      // Every ring flattened (outline first): one db.points row per vertex.
+      ringSizes: rings.map((ring) => ring.length),
+      coords: rings.flat().map((p) => ({
         x: p.x / frame.imageSize.width,
         y: p.y / frame.imageSize.height,
       })),
-      pointTypes: element.points.map((p) =>
-        p.type === "circle" ? "circle" : null
-      ),
+      // Extra fields of every point ref (arc flag, per-point offsets).
+      pointTypes: rings.flat().map((p, k) => {
+        const extras = {};
+        if (k < element.points.length && p.type === "circle")
+          extras.type = "circle";
+        for (const key of ["offsetTop", "offsetBottom"]) {
+          if (Number.isFinite(p[key]) && p[key] !== 0) extras[key] = p[key];
+        }
+        return Object.keys(extras).length ? extras : null;
+      }),
     });
   }
 
@@ -215,22 +269,20 @@ export default async function applySystemService({
     else existingByKey.set(child.systemElementKey, child);
   }
   const reused = new Map(); // key → existing row
-  for (const { row, coords, template } of desired) {
+  for (const { row, ringSizes, template } of desired) {
     const current = existingByKey.get(row.systemElementKey);
     if (!current) continue;
     const reusable =
       current.annotationTemplateId === template.id &&
       current.type === row.type &&
-      (current.points?.length ?? 0) === coords.length;
+      sameRingSizes(current, ringSizes);
     if (reusable) reused.set(row.systemElementKey, current);
   }
   for (const [key, child] of existingByKey) {
     if (!reused.has(key)) toDelete.push(child);
   }
 
-  const reusedPointIds = [...reused.values()]
-    .flatMap((c) => (c.points ?? []).map((p) => p?.id))
-    .filter(Boolean);
+  const reusedPointIds = [...reused.values()].flatMap(getRowPointIds);
   const reusedPointRows = reusedPointIds.length
     ? await db.points.bulkGet(reusedPointIds)
     : [];
@@ -244,17 +296,42 @@ export default async function applySystemService({
   const pointUpdates = [];
   const relsToAdd = [];
 
-  for (const { row, coords, pointTypes, template } of desired) {
+  // Splits a flat list of point refs back into `points` + `cuts`.
+  const toRingFields = (refs, ringSizes, previousCuts) => {
+    let offset = 0;
+    const [points, ...cutRings] = ringSizes.map((size) => {
+      const ring = refs.slice(offset, offset + size);
+      offset += size;
+      return ring;
+    });
+    return cutRings.length
+      ? {
+          points,
+          cuts: cutRings.map((ring, i) => ({
+            id: previousCuts?.[i]?.id ?? nanoid(),
+            points: ring,
+          })),
+        }
+      : { points };
+  };
+
+  for (const { row, coords, pointTypes, ringSizes, template } of desired) {
     const current = reused.get(row.systemElementKey);
     if (current) {
-      const nextRefs = current.points.map((ref, k) =>
-        pointTypes[k] ? { id: ref.id, type: pointTypes[k] } : { id: ref.id }
+      const currentIds = getRowRings(current)
+        .flat()
+        .map((ref) => ref?.id);
+      const nextRefs = currentIds.map((id, k) =>
+        pointTypes[k] ? { id, ...pointTypes[k] } : { id }
       );
-      const changes = diffChanges(current, { ...row, points: nextRefs });
+      const changes = diffChanges(current, {
+        ...row,
+        ...toRingFields(nextRefs, ringSizes, current.cuts),
+      });
       if (Object.keys(changes).length)
         annotationUpdates.push({ key: current.id, changes });
       coords.forEach((coord, k) => {
-        const pointId = current.points[k]?.id;
+        const pointId = currentIds[k];
         const stored = pointRowById.get(pointId);
         if (
           stored &&
@@ -272,8 +349,7 @@ export default async function applySystemService({
       continue;
     }
     const id = nanoid();
-    const newRow = { ...row, id };
-    newRow.points = coords.map((coord, k) => {
+    const newRefs = coords.map((coord, k) => {
       const pointId = nanoid();
       pointsToAdd.push({
         id: pointId,
@@ -283,10 +359,10 @@ export default async function applySystemService({
         listingId: row.listingId,
       });
       return pointTypes[k]
-        ? { id: pointId, type: pointTypes[k] }
+        ? { id: pointId, ...pointTypes[k] }
         : { id: pointId };
     });
-    annotationsToAdd.push(newRow);
+    annotationsToAdd.push({ ...row, id, ...toRingFields(newRefs, ringSizes) });
     for (const entry of template.mappingCategories ?? []) {
       const mc = parseMappingCategory(entry);
       if (!mc) continue;

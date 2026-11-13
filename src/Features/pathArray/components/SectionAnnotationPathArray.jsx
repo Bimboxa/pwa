@@ -100,7 +100,12 @@ export default function SectionAnnotationPathArray({ annotation }) {
         : (objectLength ?? DEFAULT_STEP_M);
     await updateAnnotation({
       id: annotationId,
-      pathArray: { ...(pathArray ?? {}), step, annotationTemplateId: id },
+      pathArray: {
+        ...(pathArray ?? {}),
+        step,
+        annotationTemplateId: id,
+        fromTemplate: false, // own settings: stops following the template
+      },
     });
   }
 
@@ -110,14 +115,15 @@ export default function SectionAnnotationPathArray({ annotation }) {
     if (step === Number(pathArray?.step)) return;
     await updateAnnotation({
       id: annotationId,
-      pathArray: { ...(pathArray ?? {}), step },
+      pathArray: { ...(pathArray ?? {}), step, fromTemplate: false },
     });
   }
 
   async function handleRemove() {
     if (!annotationId) return;
-    // undefined drops the key; the sync then deletes the elements.
-    await updateAnnotation({ id: annotationId, pathArray: undefined });
+    // The sync then deletes the elements. null rather than a dropped key: a
+    // removed path array must not be laid again from the template default.
+    await updateAnnotation({ id: annotationId, pathArray: null });
   }
 
   // render

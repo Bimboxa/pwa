@@ -22,6 +22,19 @@ export function hasPathArray(annotation) {
   );
 }
 
+// Template-level settings (`annotationTemplate.pathArray = { step (m),
+// annotationTemplateId }`): the default path array of the POLYLINEs drawn
+// with the template, laid on them by usePathArraySync.
+export function hasTemplatePathArray(template) {
+  const config = template?.pathArray;
+  return (
+    Boolean(template) &&
+    !template.deletedAt &&
+    Boolean(config?.annotationTemplateId) &&
+    Number(config?.step) > 0
+  );
+}
+
 export default function getPathArraySignature({
   source,
   pointRows,

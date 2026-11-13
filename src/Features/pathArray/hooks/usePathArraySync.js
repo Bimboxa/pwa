@@ -12,6 +12,7 @@ import applyPathArrayService from "../services/applyPathArrayService";
 import deletePathArrayChildrenService from "../services/deletePathArrayChildrenService";
 import getPathArraySignature, {
   hasPathArray,
+  hasTemplatePathArray,
 } from "../utils/getPathArraySignature";
 
 // Changes of the sources coalesce this long (a vertex drag = one pass).
@@ -29,6 +30,12 @@ const isLive = (row) => Boolean(row) && !row.deletedAt;
  *     REGENERATED (reconciled in place);
  *   - a child is missing / in excess: same;
  *   - source deleted, or its path array removed: the children are DELETED.
+ *
+ * Template defaults: a POLYLINE whose template carries a path array
+ * (`annotationTemplate.pathArray`) receives it once drawn (`fromTemplate:
+ * true`) and follows the template settings until its own settings are edited
+ * (SectionAnnotationPathArray drops the flag; a removed path array is stored
+ * as `null`, so it is not laid again).
  *
  * Change detection: `pathArray.appliedSignature` / `appliedCount` (what the
  * children were generated from) vs the current signature
@@ -55,15 +62,37 @@ export default function usePathArraySync() {
   // Sources of the project (annotations carrying a path array) and the
   // children count of every referenced source — live or not.
   const state = useLiveQuery(async () => {
-    if (!projectId) return { sources: [], childCounts: {} };
-    const rows = await db.annotations
-      .where("projectId")
-      .equals(projectId)
-      .toArray();
+    if (!projectId) return { sources: [], childCounts: {}, seeds: [] };
+    const [rows, templateRows] = await Promise.all([
+      db.annotations.where("projectId").equals(projectId).toArray(),
+      db.annotationTemplates.where("projectId").equals(projectId).toArray(),
+    ]);
+    const templateConfigById = new Map(
+      templateRows.filter(hasTemplatePathArray).map((t) => [t.id, t.pathArray])
+    );
     const sources = [];
     const childCounts = {};
+    const seeds = [];
     for (const a of rows) {
       if (!isLive(a)) continue;
+      // Template default to lay (never set yet) or to follow (still the
+      // template's own settings).
+      const templateConfig =
+        a.type === "POLYLINE" &&
+        !a.pathArraySourceAnnotationId &&
+        !a.systemSourceAnnotationId
+          ? templateConfigById.get(a.annotationTemplateId)
+          : null;
+      if (templateConfig) {
+        const step = Number(templateConfig.step);
+        const annotationTemplateId = templateConfig.annotationTemplateId;
+        const outdated =
+          a.pathArray === undefined ||
+          (a.pathArray?.fromTemplate === true &&
+            (Number(a.pathArray.step) !== step ||
+              a.pathArray.annotationTemplateId !== annotationTemplateId));
+        if (outdated) seeds.push({ id: a.id, step, annotationTemplateId });
+      }
       if (a.pathArraySourceAnnotationId) {
         childCounts[a.pathArraySourceAnnotationId] =
           (childCounts[a.pathArraySourceAnnotationId] ?? 0) + 1;
@@ -76,7 +105,7 @@ export default function usePathArraySync() {
         });
       }
     }
-    return { sources, childCounts };
+    return { sources, childCounts, seeds };
   }, [projectId]);
 
   const sourceIdsKey = (state?.sources ?? [])
@@ -147,6 +176,45 @@ export default function usePathArraySync() {
     if (!current || !sigs) return;
     const failed = failedRef.current;
     const sourceIds = new Set(current.sources.map((s) => s.id));
+
+    // template defaults: the write re-triggers the queries, the elements are
+    // generated at the next pass.
+    const seeds = (current.seeds ?? []).filter((seed) => {
+      const attempt = `seed:${seed.step}:${seed.annotationTemplateId}`;
+      if (failed.get(`seed:${seed.id}`) === attempt) return false;
+      failed.set(`seed:${seed.id}`, attempt);
+      return true;
+    });
+    if (seeds.length) {
+      try {
+        await db.transaction("rw", db.annotations, async (tx) => {
+          tx.skipUndo = true;
+          const fresh = await db.annotations.bulkGet(seeds.map((s) => s.id));
+          const updates = [];
+          seeds.forEach((seed, i) => {
+            const row = fresh[i];
+            if (!isLive(row)) return;
+            if (row.pathArray !== undefined && !row.pathArray?.fromTemplate)
+              return;
+            updates.push({
+              key: seed.id,
+              changes: {
+                pathArray: {
+                  ...(row.pathArray ?? {}),
+                  step: seed.step,
+                  annotationTemplateId: seed.annotationTemplateId,
+                  fromTemplate: true,
+                },
+              },
+            });
+          });
+          if (updates.length) await db.annotations.bulkUpdate(updates);
+        });
+        seeds.forEach((seed) => failed.delete(`seed:${seed.id}`));
+      } catch (error) {
+        console.warn("[pathArraySync] template defaults skipped", error);
+      }
+    }
 
     // children whose source is gone / no longer carries a path array
     const orphanSourceIds = Object.keys(current.childCounts).filter(
