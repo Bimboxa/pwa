@@ -7,6 +7,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 
 import db from "App/db/db";
@@ -18,9 +19,9 @@ import db from "App/db/db";
 // on the OBSERVER side: the screen-right of the p1 → p2 direction (the side
 // the linked elevation faces once posed — see
 // computeVerticalBaseMapPlacementFromLink). Everything but the line itself is
-// drawn in screen px inside counter-scaled groups. The labels and the arrows
-// are click targets of the mark, like its line (they sit inside the
-// annotation node, whose data attributes the editor reads).
+// drawn in screen px inside counter-scaled groups. The line selects the mark;
+// its labels and arrows open the base map the mark leads to when there is
+// one (they select the mark otherwise).
 //
 // Two flavours share this node:
 //   - the SOURCE mark on a plan (`linkedBaseMapId` → the vertical base map it
@@ -100,6 +101,18 @@ function NodeBaseMapLinkStatic({
 
   const isClone = Boolean(sourceLinkAnnotationId);
   const showNavButtons = selected && !isTransient && !printMode;
+
+  // Base map the mark leads to (the vertical base map of a mark on its plan,
+  // the plan of a located mark): a click on the label / arrows opens it, the
+  // line selects the mark. Checked against the db: a deleted target leaves
+  // the label / arrows as plain selection targets.
+  const navTargetId = getBaseMapLinkNavTargetId(mergedAnnotation);
+  const navTargetExists = useLiveQuery(async () => {
+    if (!navTargetId) return false;
+    const record = await db.baseMaps.get(navTargetId);
+    return Boolean(record && !record.deletedAt);
+  }, [navTargetId]);
+  const canNavigate = Boolean(navTargetExists) && !isTransient && !printMode;
 
   // Linked target (source) / source link (clone) — raw records, read only
   // while the buttons can show, so the map never pays for idle nodes.
@@ -242,6 +255,20 @@ function NodeBaseMapLinkStatic({
   const decorationHitStyle = isTransient
     ? { pointerEvents: "none" }
     : { pointerEvents: "all", cursor: "pointer" };
+  // With a base map to open, they navigate instead of selecting: the
+  // mousedown never reaches the editor's selection (same as the nav button),
+  // and `data-link-nav` makes the hover tooltip preview that base map
+  // (InteractionLayer → MapTooltip).
+  const decorationNavProps = canNavigate
+    ? {
+        "data-link-nav": "1",
+        onMouseDown: (e) => e.stopPropagation(),
+        onClick: (e) => {
+          e.stopPropagation();
+          dispatch(setSelectedMainBaseMapId(navTargetId));
+        },
+      }
+    : {};
 
   // Screen-px decoration at an end point: perpendicular tick + label beyond
   // the end (dir = +1 past p2, -1 past p1).
@@ -278,6 +305,7 @@ function NodeBaseMapLinkStatic({
                 userSelect: "none",
                 ...decorationHitStyle,
               }}
+              {...decorationNavProps}
             >
               {label}
             </text>
@@ -396,6 +424,7 @@ function NodeBaseMapLinkStatic({
               stroke="rgba(0,0,0,0)"
               strokeWidth={8}
               style={decorationHitStyle}
+              {...decorationNavProps}
             />
           </g>
         </g>

@@ -15,6 +15,7 @@ import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotation
 import useAnnotationLinkedBusinessObjectRows from "Features/businessObjects/hooks/useAnnotationLinkedBusinessObjectRows";
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
+import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
 
 // The tooltip always shows the annotation's own totals. The hovered PART (3D
 // editor) is added BELOW them, under a divider:
@@ -77,6 +78,30 @@ const MapTooltip = forwardRef(
       async () => (detailBaseMapId ? db.baseMaps.get(detailBaseMapId) : null),
       [detailBaseMapId]
     );
+
+    // data - section mark hovered on its label / arrows (`hoveredNode.linkNav`,
+    // 2D node and 3D sprites): a click there opens the base map the mark
+    // leads to — the tooltip says so and previews that base map.
+    const isLinkClone = Boolean(annotation?.sourceLinkAnnotationId);
+    const linkNavTargetId = hoveredNode?.linkNav
+      ? getBaseMapLinkNavTargetId(annotation)
+      : null;
+    const linkNavTarget = useLiveQuery(async () => {
+      if (!linkNavTargetId) return null;
+      const record = await db.baseMaps.get(linkNavTargetId);
+      if (!record || record.deletedAt) return null;
+      const activeVersion = await db.baseMapVersions
+        .where("baseMapId")
+        .equals(record.id)
+        .filter((v) => v.isActive && !v.deletedAt)
+        .first();
+      return {
+        id: record.id,
+        name: record.name ?? "",
+        thumbnail:
+          activeVersion?.image?.thumbnail ?? record.image?.thumbnail ?? null,
+      };
+    }, [linkNavTargetId]);
 
     // data - listing name (annotations carry listingId only)
     const listingName = useSelector((s) =>
@@ -190,28 +215,64 @@ const MapTooltip = forwardRef(
     if (!annotation) return null;
     if (annotation.type === "IMAGE") return null;
 
+    const paperSx = {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      // In controlled mode the parent passes x/y as props; otherwise
+      // the parent updates `transform` imperatively via the ref.
+      ...(isControlled && { transform: `translate(${x}px, ${y}px)` }),
+      // Important: pointerEvents: none lets the mouse click "through" the tooltip
+      pointerEvents: "none",
+      zIndex: 9999,
+      padding: 1,
+      maxWidth: 200,
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      color: "white",
+      borderRadius: 1,
+      willChange: "transform",
+    };
+
+    // Label / arrows of a section mark: the base map a click opens.
+    if (linkNavTarget) {
+      return (
+        <Paper ref={ref} elevation={4} sx={paperSx}>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: "grey.500" }}
+          >
+            {isLinkClone
+              ? "Cliquer pour ouvrir le plan"
+              : "Cliquer pour ouvrir le fond de plan"}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, wordBreak: "break-word" }}
+          >
+            {linkNavTarget.name}
+          </Typography>
+          {linkNavTarget.thumbnail && (
+            <Box
+              component="img"
+              src={linkNavTarget.thumbnail}
+              alt={linkNavTarget.name}
+              sx={{
+                display: "block",
+                width: "100%",
+                maxHeight: 140,
+                objectFit: "contain",
+                bgcolor: "white",
+                borderRadius: 0.5,
+                mt: 0.5,
+              }}
+            />
+          )}
+        </Paper>
+      );
+    }
+
     return (
-      <Paper
-        ref={ref}
-        elevation={4}
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          // In controlled mode the parent passes x/y as props; otherwise
-          // the parent updates `transform` imperatively via the ref.
-          ...(isControlled && { transform: `translate(${x}px, ${y}px)` }),
-          // Important: pointerEvents: none lets the mouse click "through" the tooltip
-          pointerEvents: "none",
-          zIndex: 9999,
-          padding: 1,
-          maxWidth: 200,
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          color: "white",
-          borderRadius: 1,
-          willChange: "transform",
-        }}
-      >
+      <Paper ref={ref} elevation={4} sx={paperSx}>
         {/* Photo preview (PHOTO pseudo-annotations, Photos module) */}
         {photoThumbnail && (
           <Box

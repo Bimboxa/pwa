@@ -8243,9 +8243,18 @@ const InteractionLayer = forwardRef(({
         //console.log("hovered node", hit?.dataset);
         setHoveredNode(hit?.dataset);
 
-        // Tooltip Logic
-        if (tooltipData?.nodeId !== hit.dataset.nodeId) {
-          setTooltipData(hit.dataset);
+        // Tooltip Logic. Label / arrows of a section mark
+        // (NodeBaseMapLinkStatic, `data-link-nav`): the tooltip previews the
+        // base map a click opens — refreshed when the cursor moves between
+        // them and the line of the same mark.
+        const linkNav = nativeTarget.closest?.("[data-link-nav]")
+          ? "1"
+          : undefined;
+        if (
+          tooltipData?.nodeId !== hit.dataset.nodeId ||
+          tooltipData?.linkNav !== linkNav
+        ) {
+          setTooltipData(linkNav ? { ...hit.dataset, linkNav } : hit.dataset);
 
           // Force immediate update to avoid jump at (0,0)
           requestAnimationFrame(() => {
