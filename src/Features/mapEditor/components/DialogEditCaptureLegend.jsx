@@ -16,6 +16,7 @@ import { InputManualQty } from "Features/legend/components/SectionLegendManualQt
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getManualQtyDeviationLabel from "Features/legend/utils/getManualQtyDeviationLabel";
@@ -31,6 +32,9 @@ const FIELD_HEIGHT = 40;
 //   icon | legend label (template.labelLegend, committed on blur)
 //        | manual qty (imageModeLegendOverlay.hardCodedQtiesById) | unit
 //        | eye (template.hiddenInLegend)
+// Each listing title carries its own eye: it flags / unflags every template
+// of the listing at once (one batched write). A listing whose templates are
+// all hidden is drawn collapsed — greyed title, no template rows.
 // A switch above the rows toggles the quantities column of the legend
 // (imageModeLegendOverlay.showQty, shared with the condensed toolbar and the
 // "Export rapide" panel): the manual qty cells are dropped while it is off.
@@ -44,6 +48,8 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
 
   const titleS = "Légende";
   const emptyS = "Aucun élément de légende.";
+  const showListingS = "Afficher la liste dans la légende";
+  const hideListingS = "Masquer la liste de la légende";
   const labelPlaceholderS = "Libellé légende";
   const showQtyS = "Afficher les quantités";
 
@@ -55,6 +61,7 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
   const spriteImage = useAnnotationSpriteImage();
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
 
   // helpers
 
@@ -81,6 +88,16 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
     return result;
   }, [rows]);
 
+  // templates of a listing section + whether they are all hidden in the legend
+  function getGroupTemplates(group) {
+    return group.rows.map((row) => templateById[row.id]).filter(Boolean);
+  }
+
+  function getGroupIsHidden(group) {
+    const templates = getGroupTemplates(group);
+    return templates.length > 0 && templates.every((t) => t.hiddenInLegend);
+  }
+
   // handlers
 
   function handleLabelLegendChange(template, labelLegend) {
@@ -92,6 +109,16 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
       ...template,
       hiddenInLegend: !template.hiddenInLegend,
     });
+  }
+
+  // hide every template of the listing, or show them all back once the
+  // listing is fully hidden — only the templates that change are written
+  function handleToggleListingHidden(group) {
+    const hiddenInLegend = !getGroupIsHidden(group);
+    const updates = getGroupTemplates(group)
+      .filter((t) => Boolean(t.hiddenInLegend) !== hiddenInLegend)
+      .map((t) => ({ id: t.id, hiddenInLegend }));
+    updateAnnotationTemplates(updates);
   }
 
   // setImageModeLegendOverlay replaces the whole object: spread the current one
@@ -138,42 +165,73 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
           </Typography>
         )}
 
-        {groups.map((group, groupIdx) => (
-          <Box key={`${group.listingName}-${groupIdx}`} sx={{ mb: 1.5 }}>
-            {Boolean(group.listingName) && (
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: "bold", mb: 0.5 }}
-                noWrap
-              >
-                {group.listingName}
-              </Typography>
-            )}
+        {groups.map((group, groupIdx) => {
+          const groupIsHidden = getGroupIsHidden(group);
+          return (
+            <Box key={`${group.listingName}-${groupIdx}`} sx={{ mb: 1.5 }}>
+              {Boolean(group.listingName) && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mb: 0.5,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      fontWeight: "bold",
+                      color: groupIsHidden ? "text.disabled" : "text.primary",
+                    }}
+                    noWrap
+                  >
+                    {group.listingName}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleToggleListingHidden(group)}
+                    title={groupIsHidden ? showListingS : hideListingS}
+                  >
+                    {groupIsHidden ? (
+                      <VisibilityOff sx={{ fontSize: 16 }} />
+                    ) : (
+                      <Visibility sx={{ fontSize: 16 }} />
+                    )}
+                  </IconButton>
+                </Box>
+              )}
 
-            {group.rows.map((row) => {
-              const template = templateById[row.id];
-              if (!template) return null;
-              return (
-                <RowLegendTemplate
-                  key={row.id}
-                  row={row}
-                  template={template}
-                  spriteImage={spriteImage}
-                  showQty={showQty}
-                  manualQty={hardCodedQtiesById[row.id]}
-                  labelPlaceholder={template.label || labelPlaceholderS}
-                  onLabelLegendChange={(v) =>
-                    handleLabelLegendChange(template, v)
-                  }
-                  onToggleHiddenInLegend={() =>
-                    handleToggleHiddenInLegend(template)
-                  }
-                  onManualQtyChange={(v) => handleHardCodedQtyChange(row.id, v)}
-                />
-              );
-            })}
-          </Box>
-        ))}
+              {(!groupIsHidden || !group.listingName) &&
+                group.rows.map((row) => {
+                  const template = templateById[row.id];
+                  if (!template) return null;
+                  return (
+                    <RowLegendTemplate
+                      key={row.id}
+                      row={row}
+                      template={template}
+                      spriteImage={spriteImage}
+                      showQty={showQty}
+                      manualQty={hardCodedQtiesById[row.id]}
+                      labelPlaceholder={template.label || labelPlaceholderS}
+                      onLabelLegendChange={(v) =>
+                        handleLabelLegendChange(template, v)
+                      }
+                      onToggleHiddenInLegend={() =>
+                        handleToggleHiddenInLegend(template)
+                      }
+                      onManualQtyChange={(v) =>
+                        handleHardCodedQtyChange(row.id, v)
+                      }
+                    />
+                  );
+                })}
+            </Box>
+          );
+        })}
       </Box>
     </DialogGeneric>
   );
