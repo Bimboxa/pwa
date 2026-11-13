@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   resetPrintZonesZones,
   selectPrintZonesTileSizeMode,
+  selectPrintZonesCaptureZones,
   selectPrintZonesTileSizePx,
   selectPrintZonesZones,
   setPrintZonesTileSizeMode,
@@ -52,7 +53,9 @@ export default function DialogImagesDisplayOptions({ open, onClose }) {
   const sizeMode = useSelector(selectPrintZonesTileSizeMode);
   const sizePx = useSelector(selectPrintZonesTileSizePx);
   const zones = useSelector(selectPrintZonesZones);
-  const zonesResized = Object.keys(zones).length > 0;
+  const captureZones = useSelector(selectPrintZonesCaptureZones);
+  const zonesResized =
+    Object.keys(zones).length > 0 || Object.keys(captureZones).length > 0;
 
   // render
 

@@ -192,8 +192,13 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   tile = pin toggle (`printZonesPinnedSideById[id] = side`, session only).
   Hovering an occupied zone (window `mousemove`, the editor keeps the mouse)
   draws its dashed outline and 3 handles: thickness on the inner edge, and
-  the two ends (`setPrintZonesZone`). The capture uses the pins but not the
-  resized zones (its frame is another rect).
+  the two ends (`usePrintZonesResize` → `setPrintZonesZone`).
+- `usePrintZonesResize` — zone hover + handles drag, shared with the capture
+  (`CaptureImagePrintZonesOverlay`, svg `data-capture-hide` outline and
+  handles). The capture frame being another rect, it has its own resized
+  zones (`printZonesCaptureZones`, `setPrintZonesZone({ capture: true })`);
+  it uses the same pins. Its zones avoid the cartouche / title / logo, not
+  the legend.
 
 ### Rendering in the scene
 
@@ -223,9 +228,10 @@ The bottom bar controls are hidden while framing: the Cadrage tab
   resize with `data-capture-hide` handles, `resolveImagesOverlayGeometry`,
   `layoutCaptureImageTiles`).
 - `PRINT_ZONES`: `CaptureImagePrintZonesOverlay` draws the same cards along
-  the 4 edges of the frame (`useImagePrintZonesLayout`), fully automatic,
-  clear of the frame elements tagged `data-print-zones-avoid` (legend,
-  cartouche, title banner, logo).
+  the 4 edges of the frame (`useImagePrintZonesLayout`), clear of the frame
+  elements tagged `data-print-zones-avoid` (cartouche, title banner, logo —
+  not the legend). A hovered zone shows its dashed outline and resize
+  handles (`printZonesCaptureZones`), hidden from the export.
 - Both tie the tiles to the anchors by `<line>`s ("Ligne") and / or badges
   ("Numéro"). The labels margin band excludes the photos
   (`useImageModeLabelsLayout({ imagesCount })`: the overlay zone, or the

@@ -40,8 +40,8 @@ export { IMAGES_DISPLAY_MODES };
 // - printZonesTileSizeMode / printZonesTileSizePx: PRINT_ZONES tile size
 //   ("AUTO" shrinks to fit, "FIXED" keeps the stored size). Persisted.
 // - printZonesZones: the PRINT_ZONES zones the user resized, { [side]:
-//   { thickness, startInset, endInset } } px (missing = automatic).
-//   Persisted.
+//   { thickness, startInset, endInset } } px (missing = automatic), in the
+//   editors; printZonesCaptureZones: same for the capture frame. Persisted.
 // - printZonesPinnedSideById: { [annotationId]: side } — photos the user
 //   pinned to a zone (they never change zone). Session only.
 // - panelColumns: 1 | 2 columns of the overlay panel grid. Persisted.
@@ -64,6 +64,7 @@ const initialState = {
   printZonesTileSizeMode: loadPrintZonesTileSizeMode(),
   printZonesTileSizePx: loadPrintZonesTileSizePx(),
   printZonesZones: loadPrintZonesZones(),
+  printZonesCaptureZones: loadPrintZonesZones(true),
   printZonesPinnedSideById: {},
   panelColumns: loadImagesPanelColumns(),
   photosHidden: false,
@@ -100,19 +101,23 @@ export const popperImagesSlice = createSlice({
       state.printZonesTileSizePx = clampPrintZonesTileSizePx(action.payload);
       savePrintZonesTileSizePx(state.printZonesTileSizePx);
     },
-    // payload: { side, patch: { thickness?, startInset?, endInset? } }
+    // payload: { side, patch: { thickness?, startInset?, endInset? },
+    // capture? } — capture: the zones of the capture frame.
     setPrintZonesZone: (state, action) => {
-      const { side, patch } = action.payload ?? {};
+      const { side, patch, capture = false } = action.payload ?? {};
       if (!PRINT_ZONES_SIDES.includes(side)) return;
-      state.printZonesZones = sanitizePrintZonesZones({
-        ...state.printZonesZones,
-        [side]: { ...state.printZonesZones[side], ...patch },
+      const key = capture ? "printZonesCaptureZones" : "printZonesZones";
+      state[key] = sanitizePrintZonesZones({
+        ...state[key],
+        [side]: { ...state[key][side], ...patch },
       });
-      savePrintZonesZones(state.printZonesZones);
+      savePrintZonesZones(state[key], capture);
     },
     resetPrintZonesZones: (state) => {
       state.printZonesZones = {};
-      savePrintZonesZones(state.printZonesZones);
+      state.printZonesCaptureZones = {};
+      savePrintZonesZones({}, false);
+      savePrintZonesZones({}, true);
     },
     // payload: { id, side } — side null: unpin.
     setPrintZonesImagePinnedSide: (state, action) => {
@@ -175,6 +180,8 @@ export const selectPrintZonesTileSizeMode = (s) =>
 export const selectPrintZonesTileSizePx = (s) =>
   s.popperImages.printZonesTileSizePx;
 export const selectPrintZonesZones = (s) => s.popperImages.printZonesZones;
+export const selectPrintZonesCaptureZones = (s) =>
+  s.popperImages.printZonesCaptureZones;
 export const selectPrintZonesPinnedSideById = (s) =>
   s.popperImages.printZonesPinnedSideById;
 export const selectImagesPanelColumns = (s) => s.popperImages.panelColumns;
