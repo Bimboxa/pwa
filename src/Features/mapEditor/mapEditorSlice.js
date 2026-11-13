@@ -197,7 +197,6 @@ const mapEditorInitialState = {
     x: null,
     y: null,
     width: null,
-    columns: 2,
     gap: 8,
     visible: true,
   },

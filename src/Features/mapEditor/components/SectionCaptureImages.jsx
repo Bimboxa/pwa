@@ -1,7 +1,11 @@
 import { useSelector, useDispatch } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
-import { selectImagesDisplayMode } from "Features/popperImages/popperImagesSlice";
+import {
+  selectImagesDisplayMode,
+  selectImagesPanelColumns,
+  setImagesPanelColumns,
+} from "Features/popperImages/popperImagesSlice";
 
 import {
   Box,
@@ -57,7 +61,8 @@ function RowToggle({ label, value, options, onChange }) {
 
 // "Photos" capture-mode block: the display mode of the photos (same state as
 // the bottom bar selector, hidden while framing) and, in overlay mode, the
-// capture zone of the tiles (visibility, columns). The print zones are laid
+// capture zone of the tiles (visibility, columns — the same setting as the
+// editor's Photos panel, popperImages.panelColumns). The print zones are laid
 // out automatically. The links and the show / hide toggle are the bottom bar
 // settings (also the "Photos" button of the condensed capture band). Capture
 // tool's Cadrage tab, 2D and 3D.
@@ -79,6 +84,7 @@ export default function SectionCaptureImages() {
   const displayMode = useSelector(selectImagesDisplayMode);
   const exSitu = displayMode === "EX_SITU";
   const overlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
+  const columns = useSelector(selectImagesPanelColumns);
 
   // render
 
@@ -128,11 +134,9 @@ export default function SectionCaptureImages() {
           {overlay?.visible && (
             <RowToggle
               label={columnsS}
-              value={overlay?.columns ?? 2}
-              options={[1, 2, 3].map((n) => ({ value: n, label: String(n) }))}
-              onChange={(v) =>
-                dispatch(setImageModeImagesOverlay({ ...overlay, columns: v }))
-              }
+              value={columns}
+              options={[1, 2].map((n) => ({ value: n, label: String(n) }))}
+              onChange={(v) => dispatch(setImagesPanelColumns(v))}
             />
           )}
         </>

@@ -9,6 +9,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
+import { selectImagesPanelColumns } from "Features/popperImages/popperImagesSlice";
 
 import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import CaptureImageTileCard, {
@@ -29,11 +30,13 @@ import getImageAnnotationAspect from "Features/popperImages/utils/getImageAnnota
 // CaptureImagesOverlay — the "overlay" (EX_SITU) photos inside the captured
 // page (the print zones mode has its own CaptureImagePrintZonesOverlay):
 // Paper-style floating tiles (white card, shadow, rounded) laid out in
-// columns in a transparent zone of the capture rect, each tied to its anchor
+// columns (as many as the editor's Photos panel: popperImages.panelColumns)
+// in a transparent zone of the capture rect, each tied to its anchor
 // in the scene by a leader ("Ligne") and / or by its display number
 // ("Numéro", the anchor badge being drawn by the live renderers). Rendered INSIDE the
 // ImageModeOverlay svg, in viewport px: the `data-capture-keep` groups are
-// captured with the plan, the move / resize handles are `data-capture-hide`.
+// captured with the plan, the move / resize handles are `data-capture-hide`
+// and only show while the zone is hovered (or dragged).
 // The zone geometry lives in mapEditor.imageModeImagesOverlay (legend-like
 // drag pattern). Anchors come from the host's anchorProjector (client px →
 // svg px) and follow the camera through its `subscribe`.
@@ -61,6 +64,12 @@ export default function CaptureImagesOverlay({
   // data
 
   const overlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
+  const columns = useSelector(selectImagesPanelColumns);
+
+  // state
+
+  const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const zone = resolveImagesOverlayGeometry(overlay, rect, {
     legendDefaultBottom,
   });
@@ -74,9 +83,9 @@ export default function CaptureImagesOverlay({
     }));
     return layoutCaptureImageTiles({
       items,
-      zone: { width: zone.width, columns: zone.columns, gap: zone.gap },
+      zone: { width: zone.width, columns, gap: zone.gap },
     });
-  }, [images, zone.width, zone.columns, zone.gap]);
+  }, [images, zone.width, columns, zone.gap]);
   const imagesById = useMemo(
     () => Object.fromEntries((images ?? []).map((a) => [a.id, a])),
     [images]
@@ -171,6 +180,7 @@ export default function CaptureImagesOverlay({
       }
     }
     function handleUp() {
+      if (dragRef.current) setDragging(false);
       dragRef.current = null;
       document.body.style.cursor = "";
     }
@@ -193,6 +203,7 @@ export default function CaptureImagesOverlay({
       base: { ...overlayRef.current, x: zone.x, y: zone.y, width: zone.width },
     };
     document.body.style.cursor = type === "MOVE" ? "grabbing" : "ew-resize";
+    setDragging(true);
   }
 
   // render
@@ -210,6 +221,8 @@ export default function CaptureImagesOverlay({
   );
   const visibleHeight = Math.min(zoneHeight, maxHeight);
   const visibleTiles = tiles.filter((t) => t.y < visibleHeight);
+  // Dashed outline + resize handle: on hover only (and while dragging).
+  const showHandles = hovered || dragging;
 
   return (
     <>
@@ -239,7 +252,11 @@ export default function CaptureImagesOverlay({
         </g>
       )}
 
-      <g transform={`translate(${originX}, ${originY})`}>
+      <g
+        transform={`translate(${originX}, ${originY})`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         {/* Move target (whole zone), capture tool only — never captured. */}
         {captureToolActive && (
           <g data-capture-hide>
@@ -249,7 +266,7 @@ export default function CaptureImagesOverlay({
               width={zone.width + 8}
               height={visibleHeight + 8}
               fill="rgba(255,255,255,0.01)"
-              stroke="#2196f3"
+              stroke={showHandles ? "#2196f3" : "none"}
               strokeWidth={1}
               strokeDasharray="4 3"
               rx={6}
@@ -283,8 +300,8 @@ export default function CaptureImagesOverlay({
           ))}
         </g>
 
-        {/* SE resize handle (width), capture tool only. */}
-        {captureToolActive && (
+        {/* SE resize handle (width), capture tool only, on hover. */}
+        {captureToolActive && showHandles && (
           <g data-capture-hide>
             <rect
               x={zone.width - HANDLE_SIZE / 2}
