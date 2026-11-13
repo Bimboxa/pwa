@@ -17,7 +17,6 @@ import {
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setCoplanarPoints3d,
-  setDefaultOffsetOnCommit,
   setJoinMergeIfPossible,
   setMeshBrushCreateAnnotation,
   setMeshBrushPaintAllEdges,
@@ -454,9 +453,6 @@ export default function SectionDrawingHelperContent() {
   const avoidVisibleAnnotationsOnCommit = useSelector(
     (s) => s.mapEditor.avoidVisibleAnnotationsOnCommit
   );
-  const defaultOffsetOnCommit = useSelector(
-    (s) => s.mapEditor.defaultOffsetOnCommit
-  );
   const joinMergeIfPossible = useSelector(
     (s) => s.mapEditor.joinMergeIfPossible
   );
@@ -503,10 +499,9 @@ export default function SectionDrawingHelperContent() {
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK" ||
     enabledDrawingMode === "SURFACE_DROP";
-  // "Offset par défaut" applies to every annotation-drawing mode/type — shown in
-  // the 2D drawing helper, but not in the 3D-toggled placement branch (OBJECT_3D
-  // placement uses drawingOffset) nor the non-annotation segment-select/repair modes.
-  const showDefaultOffset =
+  // Annotation-drawing modes of the 2D drawing helper: not the 3D-toggled
+  // placement branch nor the non-annotation segment-select/repair modes.
+  const isAnnotationDrawing2d =
     !isThreedToggledEditor &&
     !isSegmentSelectMode &&
     !isSurfaceCut &&
@@ -591,7 +586,7 @@ export default function SectionDrawingHelperContent() {
     <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
       {/* « Forme 3D »: revolution around the axis placed on the base map
           (2D, revolving drafts only — null otherwise). */}
-      {showDefaultOffset && <SectionDrawingShape3D />}
+      {isAnnotationDrawing2d && <SectionDrawingShape3D />}
       {!isThreedToggledEditor &&
         !isSegmentSelectMode &&
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
@@ -1050,47 +1045,6 @@ export default function SectionDrawingHelperContent() {
             size="small"
             checked={Boolean(autoOffsetsOnCommit)}
             onChange={(e) => dispatch(setAutoOffsetsOnCommit(e.target.checked))}
-          />
-        </Paper>
-      )}
-      {showDefaultOffset && (
-        <Paper
-          elevation={0}
-          sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            <Typography variant="caption" color="text.secondary">
-              Offset par défaut
-            </Typography>
-            <Box
-              sx={{
-                px: 0.5,
-                py: 0,
-                borderRadius: 0.5,
-                bgcolor: "action.hover",
-                color: "text.secondary",
-                fontSize: "0.65rem",
-                fontWeight: 600,
-                lineHeight: 1.4,
-              }}
-            >
-              Z
-            </Box>
-          </Box>
-          <Switch
-            size="small"
-            checked={Boolean(defaultOffsetOnCommit)}
-            onChange={(e) =>
-              dispatch(setDefaultOffsetOnCommit(e.target.checked))
-            }
           />
         </Paper>
       )}

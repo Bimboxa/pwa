@@ -8,8 +8,8 @@ export const ZOOM_OUT_HOTKEY = "Z";
 // ButtonZoomOutThreed, base maps grid: its "Tout afficher" button). Same
 // guards as the "G" of the base maps grid: plain key only (Ctrl/Cmd+Z stays
 // the undo), never while typing. `enabled` carries the per-editor gates —
-// the in-draw "Z" of the 2D tools ("Offset par défaut") and of the 3D
-// rectangle (dimension key) and the walk mode keyboard must keep the key.
+// the 2D drawing tools, the in-draw "Z" of the 3D rectangle (dimension key)
+// and the walk mode keyboard must keep the key.
 export default function useZoomOutHotkey({ enabled, onZoomOut }) {
   useEffect(() => {
     if (!enabled) return undefined;
