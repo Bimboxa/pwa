@@ -216,6 +216,8 @@ export default function ThreedRevolutionAxisHorizontalCuts({ annotations }) {
 
       const cut = {
         axisId,
+        // Objects of the annotations revolved around the axis (the cut ones).
+        getRoots,
         handle,
         z: 0,
         // Preview: the plane, the handle and the contour follow `z`.

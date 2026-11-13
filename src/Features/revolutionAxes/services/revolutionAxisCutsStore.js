@@ -4,7 +4,8 @@
 // rebuild; useRevolutionAxisCutHandleDragHandlers raycasts their handles
 // (Sprites, invisible to the annotation pick) and drives the preview.
 //
-// Entry: { axisId, handle (Sprite), z, setZ(z) (preview: plane, handle and
+// Entry: { axisId, getRoots() (objects of the annotations being cut),
+// handle (Sprite), z, setZ(z) (preview: plane, handle and
 // contour follow), zOfWorldPoint(Vector3) (altitude of a point along the
 // axis), zOfRay(Ray) (altitude of the point of the axis closest to a ray) }.
 
