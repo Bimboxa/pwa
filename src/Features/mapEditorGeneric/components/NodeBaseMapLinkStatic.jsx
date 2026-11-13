@@ -8,6 +8,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
+import { BASE_MAP_LINK_CLONE_LABEL } from "Features/baseMapLinks/utils/baseMapLinkCloneLabel";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 
 import db from "App/db/db";
@@ -171,10 +172,20 @@ function NodeBaseMapLinkStatic({
   if (labelAngleDeg > 90) labelAngleDeg -= 180;
   else if (labelAngleDeg < -90) labelAngleDeg += 180;
 
-  // A clone displays its source's label; the drawing ghost of a clone (no
-  // read-time stamp yet) falls back to the label carried by its draft.
-  const label =
-    mergedAnnotation.sourceLinkLabel ?? getAnnotationOwnLabel(mergedAnnotation);
+  // A clone (the mark located on its vertical base map) shows no section
+  // name — the viewer is on that section — but « Vue en plan », once, at its
+  // left end: a click on it goes back to the plan. It has no view-direction
+  // arrows either (they tell where the section looks, on the plan).
+  const label = isClone
+    ? BASE_MAP_LINK_CLONE_LABEL
+    : getAnnotationOwnLabel(mergedAnnotation);
+  // Centre of the label beyond an end: clear of the tick whatever its length
+  // (the text is anchored on its middle).
+  const labelOffsetPx = isClone
+    ? 8 + label.length * LABEL_FONT_PX * 0.27
+    : LABEL_OFFSET_PX;
+  // dir of the end carrying the clone's single label (-1 = p1, +1 = p2).
+  const cloneLabelDir = dx >= 0 ? -1 : 1;
 
   // Arrow polygon in screen px around a local origin ON the segment: base on
   // the observer side (offset along n), tip pointing back at the segment.
@@ -284,10 +295,10 @@ function NodeBaseMapLinkStatic({
           strokeOpacity={strokeOpacity}
           strokeWidth={TICK_WIDTH_PX}
         />
-        {label && (
+        {label && (!isClone || dir === cloneLabelDir) && (
           <g
-            transform={`translate(${ux * dir * LABEL_OFFSET_PX}, ${
-              uy * dir * LABEL_OFFSET_PX
+            transform={`translate(${ux * dir * labelOffsetPx}, ${
+              uy * dir * labelOffsetPx
             }) rotate(${labelAngleDeg})`}
           >
             <text
@@ -412,23 +423,27 @@ function NodeBaseMapLinkStatic({
       {renderEnd(p2, 1, "end-2")}
 
       {/* view-direction arrows on the observer side */}
-      {arrowAnchors.map((a, i) => (
-        <g key={`arrow-${i}`} transform={`translate(${a.x}, ${a.y})`}>
-          <g
-            style={{ transform: counterScaleTransform, pointerEvents: "none" }}
-          >
-            <polygon
-              points={arrowPoints}
-              fill={strokeColor}
-              fillOpacity={strokeOpacity}
-              stroke="rgba(0,0,0,0)"
-              strokeWidth={8}
-              style={decorationHitStyle}
-              {...decorationNavProps}
-            />
+      {!isClone &&
+        arrowAnchors.map((a, i) => (
+          <g key={`arrow-${i}`} transform={`translate(${a.x}, ${a.y})`}>
+            <g
+              style={{
+                transform: counterScaleTransform,
+                pointerEvents: "none",
+              }}
+            >
+              <polygon
+                points={arrowPoints}
+                fill={strokeColor}
+                fillOpacity={strokeOpacity}
+                stroke="rgba(0,0,0,0)"
+                strokeWidth={8}
+                style={decorationHitStyle}
+                {...decorationNavProps}
+              />
+            </g>
           </g>
-        </g>
-      ))}
+        ))}
 
       {/* vertices */}
       {selected &&
