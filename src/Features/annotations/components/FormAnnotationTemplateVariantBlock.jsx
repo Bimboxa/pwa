@@ -17,6 +17,7 @@ import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
+import FieldAnnotationTemplateColor2D from "./FieldAnnotationTemplateColor2D";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDescription from "./FieldAnnotationTemplateDescription";
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
@@ -97,6 +98,8 @@ export default function FormAnnotationTemplateVariantBlock({
     material3d,
     color3D,
     opacity3D,
+    color2DEnabled,
+    color2D,
     meterByPx,
     variant,
     size,
@@ -268,6 +271,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleObject3DChange(object3D) {
     onChange({ ...annotationTemplate, object3D });
+  }
+
+  function handleColor2DChange(color2DProps) {
+    onChange({ ...annotationTemplate, ...color2DProps });
   }
 
   function handleMeterByPxChange(meterByPx) {
@@ -577,6 +584,15 @@ export default function FormAnnotationTemplateVariantBlock({
               value={object3D}
               onChange={handleObject3DChange}
               objectName={annotationTemplate?.label}
+            />
+          )}
+
+          {/* OBJECT_3D « Représentation 2D »: flat color over the top view */}
+          {hasObject3D && (
+            <FieldAnnotationTemplateColor2D
+              enabled={color2DEnabled}
+              color={color2D}
+              onChange={handleColor2DChange}
             />
           )}
 

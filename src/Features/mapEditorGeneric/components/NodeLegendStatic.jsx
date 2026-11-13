@@ -3,6 +3,26 @@ import { Remove, Polyline, Pentagon as Polygon, Rectangle, Square, Circle, Textu
 
 import theme from "Styles/theme";
 
+import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
+
+// OBJECT_3D legend glyph: the top view, painted in the template color2D
+// (« Représentation 2D ») when set.
+function Object3DTopViewImage({ topViewDataUrl, color2D }) {
+    const src = useObject3DTopView({ topViewDataUrl }, { color: color2D });
+    return (
+        <img
+            src={src}
+            alt=""
+            style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+            }}
+        />
+    );
+}
+
 export default memo(function NodeLegendStatic({
     id = "legend",
     legendItems = [],
@@ -80,7 +100,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -161,15 +181,9 @@ export default memo(function NodeLegendStatic({
             return (
                 <div style={{ ...commonStyle, background: "white" }}>
                     {topViewDataUrl ? (
-                        <img
-                            src={topViewDataUrl}
-                            alt=""
-                            style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "contain",
-                                display: "block",
-                            }}
+                        <Object3DTopViewImage
+                            topViewDataUrl={topViewDataUrl}
+                            color2D={color2D}
                         />
                     ) : (
                         <Square style={{ ...muiIconStyle }} />
@@ -328,6 +342,7 @@ export default memo(function NodeLegendStatic({
                                             fillType={it.fillType}
                                             closeLine={it.closeLine}
                                             topViewDataUrl={it.topViewDataUrl}
+                                            color2D={it.color2D}
                                         />
                                     </div>
                                     <div

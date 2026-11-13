@@ -29,7 +29,10 @@ export default function AnnotationTemplateIcon({
 
   const template = templateProp ?? EMPTY_TEMPLATE;
   const shape = resolveDrawingShape(template);
-  const topViewUrl = useObject3DTopView(template?.object3D);
+  const topViewUrl = useObject3DTopView(template?.object3D, {
+    color:
+      template?.color2DEnabled && template?.color2D ? template.color2D : null,
+  });
   const shapeType = resolveShapeCategory(shape);
 
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);

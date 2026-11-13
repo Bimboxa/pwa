@@ -85,6 +85,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     color3D: annotationTemplate?.color3D,
     opacity3D: annotationTemplate?.opacity3D,
 
+    // OBJECT_3D « Représentation 2D »: flat color painted over the top view.
+    color2DEnabled: annotationTemplate?.color2DEnabled,
+    color2D: annotationTemplate?.color2D,
+
     material3d: annotationTemplate?.material3d,
 
     isExt: annotationTemplate?.isExt,

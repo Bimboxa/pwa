@@ -26,7 +26,14 @@ export default memo(function NodeObject3DStatic({
 
   // Top-down projection of the GLB (persisted on the template, or lazily
   // generated from db.files for annotations created before it existed).
-  const topViewUrl = useObject3DTopView(annotation.object3D);
+  // Template « Représentation 2D »: the top view is painted in color2D.
+  const color2D =
+    annotation.color2DEnabled && annotation.color2D
+      ? annotation.color2D
+      : null;
+  const topViewUrl = useObject3DTopView(annotation.object3D, {
+    color: color2D,
+  });
 
   // Cut object (path array, « Calepinage » — annotation.object3DCut): the
   // bbox is the footprint of the KEPT part while the top view shows the whole

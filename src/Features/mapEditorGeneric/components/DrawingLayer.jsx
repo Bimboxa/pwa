@@ -35,6 +35,7 @@ import {
 } from "Features/annotations/utils/revolutionAxisGlyph";
 
 import theme from "Styles/theme";
+import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
@@ -350,7 +351,12 @@ const DrawingLayer = forwardRef(
     // and is dropped in a single click.
     const drawObject3D =
       enabledDrawingMode === "ONE_CLICK" && type === "OBJECT_3D";
-    const object3DTopViewUrl = newAnnotation?.object3D?.topViewDataUrl;
+    const object3DTopViewUrl = useObject3DTopView(newAnnotation?.object3D, {
+      color:
+        newAnnotation?.color2DEnabled && newAnnotation?.color2D
+          ? newAnnotation.color2D
+          : null,
+    });
     // Block instance placement (Features/blocks): the block's definition
     // follows the cursor at real size, dropped in a single click.
     const drawBlockInstance =
