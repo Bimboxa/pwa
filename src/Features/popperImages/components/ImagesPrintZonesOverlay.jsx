@@ -16,7 +16,6 @@ import { Box } from "@mui/material";
 
 import TileImageAnnotation from "./TileImageAnnotation";
 import DialogImageViewer from "Features/images/components/DialogImageViewer";
-import { EDITOR_FLOATING_PANELS_HOST_ID } from "Features/layout/constants/editorFloatingPanelsHost";
 
 import useImagePrintZonesLayout from "../hooks/useImagePrintZonesLayout";
 import {
@@ -40,7 +39,7 @@ import { PRINT_ZONES_TILE_SIZE_MIN_PX } from "../services/popperImagesLocalStora
 // ImagesPrintZonesOverlay — "print zones" display mode of the photos in an
 // editor (2D and 3D): each photo is a paper tile in one of 4 bands along the
 // edges of the editor box (useImagePrintZonesLayout: close to its anchor,
-// bands evenly loaded, floating panels and editor controls avoided), tied to
+// bands evenly loaded, editor corner controls avoided), tied to
 // its anchor in the scene by a leader ("Ligne", always drawn for the selected
 // photo) and / or its display number ("Numéro"). The zones are fixed and the
 // tiles centred in them: nothing follows the camera. A tile click selects the
@@ -53,8 +52,8 @@ import { PRINT_ZONES_TILE_SIZE_MIN_PX } from "../services/popperImagesLocalStora
 // captures, which draw their own tiles (CaptureImagePrintZonesOverlay).
 // ---------------------------------------------------------------------------
 
-// Elements of the app the tiles must not cover: the floating panels of the
-// frame (siblings) and the editor controls tagged for it.
+// Elements of the app the tiles must not cover: the editor controls tagged
+// for it (the floating panels are not avoided).
 const AVOID_SELECTOR = "[data-print-zones-avoid]";
 const AVOID_MAX_AREA_RATIO = 0.5;
 const TILE_FRAME_PX = 4;
@@ -165,11 +164,8 @@ export default function ImagesPrintZonesOverlay({
         height: r.height,
       });
     };
-    // Floating panels: the children of every frame of the layout host.
-    document
-      .getElementById(EDITOR_FLOATING_PANELS_HOST_ID)
-      ?.querySelectorAll(":scope > * > *")
-      .forEach(avoid);
+    // The floating panels (PopperMapListings…) are NOT avoided: the zones
+    // keep the full edges and slide under the panels.
     document.querySelectorAll(AVOID_SELECTOR).forEach(avoid);
     return { origin: { left: o.left, top: o.top }, rect, reserved };
   }, [anchorProjector, rightDrawerWidth]);
