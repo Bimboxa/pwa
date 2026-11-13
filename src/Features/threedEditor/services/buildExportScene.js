@@ -75,6 +75,8 @@ export default function buildExportScene(
       obj.userData?.isSectionMarker ||
       // Base circle of a plan revolution axis: a display-only decoration.
       obj.userData?.isRevolutionAxisCircle ||
+      // Ticks / arrows / labels of a section mark (BASE_MAP_LINK).
+      obj.userData?.isSectionMarkDecoration ||
       // 3D base maps grid decorations (sheet outline, label, eye button).
       obj.userData?.isGridPlaceholder ||
       // Hatched fill band / lines: the full surface is exported instead.

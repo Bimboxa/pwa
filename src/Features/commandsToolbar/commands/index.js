@@ -79,6 +79,7 @@ import drawCutSegmentCommand from "./drawCutSegment/drawCutSegmentCommand";
 import drawCutPlaneCommand from "./drawCutPlane/drawCutPlaneCommand";
 import drawCutAngleCommand from "./drawCutAngle/drawCutAngleCommand";
 import drawSectionLineCommand from "./drawSectionLine/drawSectionLineCommand";
+import createSectionBaseMapCommand from "./createSectionBaseMap/createSectionBaseMapCommand";
 import cutLinesPromptIaCommand from "./cutLinesPromptIa/cutLinesPromptIaCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
 import createMeshesCommand from "./createMeshes/createMeshesCommand";
@@ -185,6 +186,7 @@ export const COMMANDS = [
   drawCutAngleCommand,
   cutLinesPromptIaCommand,
   drawSectionLineCommand,
+  createSectionBaseMapCommand,
   // mailles (3D, Maillage module)
   addMeshCommand,
   createMeshesCommand,

@@ -5,13 +5,13 @@ import {
   stopBaseMapLinkTools,
 } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 
-import { EDITOR_2D } from "../../constants/commandEditors";
+import { EDITOR_2D, EDITOR_3D } from "../../constants/commandEditors";
 import {
   DRAW_IN_PROGRESS_REASON,
   TOOL_IN_PROGRESS_REASON,
 } from "../../utils/drawToolCommandState";
 
-// « Dessiner un trait de coupe » (Fonds de plan module, 2D —
+// « Dessiner un trait de coupe » (Fonds de plan module, 2D and 3D —
 // Features/baseMapLinks): arms the two-click draw of a section mark
 // (BASE_MAP_LINK) on the current HORIZONTAL plan. The mark is a template-less
 // helper of the scope, like a revolution axis; it is then located on a
@@ -25,7 +25,7 @@ export default {
   key: "DRAW_SECTION_LINE",
   label: "Dessiner un trait de coupe",
   Icon: IconSectionLine,
-  editors: [EDITOR_2D],
+  editors: [EDITOR_2D, EDITOR_3D],
   getState(ctx) {
     if (ctx.viewerKey !== "BASE_MAPS") {
       return { enabled: false, reason: "Réservé au module Fonds de plan" };

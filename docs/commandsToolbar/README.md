@@ -30,8 +30,9 @@ framing, walk mode, PDF editor, base maps grid, create base map section.
 Buttons and hotkeys share this visibility. The layout is per module
 (`constants/toolbarLayout.js`, `getToolbarLayout(moduleKey)`): the BaseMaps
 module shows the « Repère » group, its two base map placement commands and
-« Dessiner un trait de coupe » (`DRAW_SECTION_LINE`, 2D editor, horizontal
-plans — `Features/baseMapLinks`) alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
+« Dessiner un trait de coupe » (`DRAW_SECTION_LINE`, 2D and 3D editors,
+horizontal plans — `Features/baseMapLinks`) with « + fond de plan »
+(`CREATE_SECTION_BASE_MAP`) alone; the Maillage module (MESHES) shows « Repère » and the « Ligne de
 coupe » command (`DRAW_CUT_LINE`, `Features/threedCutLines`), followed by
 « Déplacer » / « Tourner » (`MOVE_ANNOTATION` / `ROTATE_ANNOTATION`, which
 carry a cut line there — `getThreedToolState` has a MESHES branch that skips
@@ -60,14 +61,29 @@ toolbar (`ButtonOpenCommandsDialog`, not a command) opens that dialog.
 
 « Dessiner un trait de coupe » (`DRAW_SECTION_LINE`) arms the two-click draw
 of a section mark (`BASE_MAP_LINK`): a template-less helper of the scope,
-visible and editable in the Fonds de plan module only, labelled « A-A »,
-« B-B »… It is **not** gated by `getDrawToolsGate` (that module forces the
+labelled « A-A », « B-B »…, drawn in the Fonds de plan module (2D editor, or
+3D editor: two clicks on a horizontal plan, `commitDrawnBaseMapLinkService`)
+and shown / selectable in the Fonds de plan and Dessin modules, 2D and 3D
+(`buildBaseMapLinkObject3D`), while the « Traits de coupe » option at the
+bottom of the base maps list is on (`popperMapListings.showSectionLines`). It is **not** gated by `getDrawToolsGate` (that module forces the
 SELECT interaction mode for its listings popper). The mark is then located
 on a vertical base map from the « Traits de coupe » section of the listings
 popper — the drawing helper is titled « Repérage du trait de coupe » and
 carries the « Adapter l'échelle » switch (off: the base map keeps its scale,
 1st click = anchor, 2nd click = direction) — which poses that base map in 3D
 (`resyncBaseMapLinkPlacementsService`).
+
+« + fond de plan » (`CREATE_SECTION_BASE_MAP`, Fonds de plan and Dessin
+modules, also a button of the mark's edit toolbar) works on the selected
+source mark: it switches the module to its 3D editor when needed and arms
+the placement mode (`sectionBaseMapPlacement` slice). The drawing helper
+(`SectionSectionBaseMapPlacementHelper`) picks a new blank page (name,
+format, size, scale, folder) or an existing vertical base map of the scope;
+the page is previewed inside a fluo green frame in the vertical plane of the
+mark and slid in that plane by drag and drop (`useSectionBaseMapPlacement`).
+Space / Enter create the page, locate the mark on it (keep-scale clone built
+by `computeSectionBaseMapPlacement`, so the resync writes the previewed pose)
+and select the new base map; Escape cancels.
 
 « Grille » (`TOGGLE_GRID`, 2D editor, section « Grille ») is always the
 **first** command of the default and Fonds de plan layouts: it toggles the

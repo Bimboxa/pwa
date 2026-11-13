@@ -51,6 +51,7 @@ const SKIPPED_FLAGS = [
   "isDecor", // scan base maps (no CPU geometry)
   "isHatchFill", // hatched fill band / lines
   "isRevolutionAxisCircle", // axis base circle
+  "isSectionMarkDecoration", // section mark ticks / arrows / labels
   "isSectionMarker", // revolution section markers / poché
   "isShadowCatcher",
   "isGizmo",

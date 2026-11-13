@@ -611,10 +611,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const loadedAnnotations = useAnnotationsV2({
     caller: "MainMapEditorV3",
     enabled: isActiveViewer,
-    // BaseMaps module: the section marks (BASE_MAP_LINK) are always shown;
-    // the "Afficher les annotations" switch of the Fond de plan panel loads
-    // the scope annotations on top of them (OFF = base map + section marks).
-    includeBaseMapLinks: forViewerKey === "BASE_MAPS",
+    // Section marks (BASE_MAP_LINK): shown in the Fonds de plan and Dessin
+    // modules (the hook drops them elsewhere and while the "Traits de coupe"
+    // switch is off). BaseMaps module: the "Afficher les annotations" switch
+    // of the Fond de plan panel loads the scope annotations on top of them
+    // (OFF = base map + section marks).
+    includeBaseMapLinks: true,
     onlyBaseMapLinks: baseMapLinksOnly,
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations,

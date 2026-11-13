@@ -6,6 +6,8 @@ import { Vector3 } from "three";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import commitDrawnRevolutionAxisService from "Features/revolutionAxes/services/commitDrawnRevolutionAxisService";
+import commitDrawnBaseMapLinkService from "Features/baseMapLinks/services/commitDrawnBaseMapLinkService";
+import { isBaseMapLinkDraftFor3d } from "Features/baseMapLinks/utils/baseMapLinkDrawThreedSelectors";
 import {
   appendToConstraintBuffer,
   appendToPatternRepeatBuffer,
@@ -241,6 +243,10 @@ export default function useDrawingPointerHandlers() {
   const faceCutFailedS = "La coupe de la face n'a pas pu être enregistrée.";
   const axisNoScopeS = "Sélectionnez un scope avant de dessiner un axe";
   const axisNotOnPlanS = "Placez le centre de l'axe sur un plan horizontal";
+  const sectionLineNoScopeS =
+    "Sélectionnez un plan de repérage avant de dessiner un trait de coupe";
+  const sectionLineNotOnPlanS =
+    "Dessinez le trait de coupe sur un plan horizontal";
 
   const active = useSelector((s) => s.threedEditor.drawingMode.active);
   const inProgressPolyline = useSelector(
@@ -385,6 +391,13 @@ export default function useDrawingPointerHandlers() {
         enabledDrawingMode === "COTE_TWO_CLICK" &&
         newAnnotationRef.current?.type === "COTE"
       );
+    }
+
+    // BASE_MAP_LINK draft (« Dessiner un trait de coupe », Fonds de plan
+    // module): two clicks on a HORIZONTAL plan, the 2nd one committing the
+    // section mark (commitDrawnBaseMapLinkService) and disarming the tool.
+    function isSectionLineDraw() {
+      return isBaseMapLinkDraftFor3d(newAnnotationRef.current);
     }
 
     // RULER draft (template or "Dessin" on its ruler type): its own N-click
@@ -896,7 +909,8 @@ export default function useDrawingPointerHandlers() {
         !isFaceCutDraw() &&
         !isDiscDraw() &&
         !isAxisDraw() &&
-        !isCoteDraw()
+        !isCoteDraw() &&
+        !isSectionLineDraw()
       );
     }
 
@@ -1150,6 +1164,69 @@ export default function useDrawingPointerHandlers() {
         }
       } catch (err) {
         console.error("[threedDrawing] cote commit failed", err);
+      }
+    }
+
+    // Section mark: 1st click = one end, on a HORIZONTAL plan (the plan
+    // hosting the mark); 2nd click = the other end, projected onto that plan
+    // at commit. One-shot tool, like the 2D one.
+    async function onSectionLineClick(snap) {
+      const { inProgress } = getLiveDrawing();
+      if (inProgress.length === 0) {
+        if (!scopeId) {
+          dispatch(
+            setToaster({ message: sectionLineNoScopeS, severity: "warning" })
+          );
+          return;
+        }
+        const horizontalBaseMaps = getHostBaseMaps().filter(
+          (bm) => bm.orientation !== "VERTICAL" && !bm.isPhoto
+        );
+        const hostId =
+          snap.baseMapId ??
+          resolveBaseMapForPoint(snap.position, horizontalBaseMaps, {
+            preferredBaseMapId,
+          })?.baseMap?.id ??
+          null;
+        if (!hostId || !horizontalBaseMaps.some((bm) => bm.id === hostId)) {
+          dispatch(
+            setToaster({ message: sectionLineNotOnPlanS, severity: "warning" })
+          );
+          return;
+        }
+        dispatch(
+          pushDrawingVertex(toDrawingVertex(snap, { baseMapId: hostId }))
+        );
+        return;
+      }
+      const a = inProgress[0];
+      const b = { x: snap.position.x, y: snap.position.y, z: snap.position.z };
+      if (isSamePoint(a, b)) return; // stay armed
+      // The typed length was applied to this point (preview snap): consumed.
+      releaseLengthConstraint();
+      try {
+        const created = await commitDrawnBaseMapLinkService({
+          a,
+          b,
+          host: (baseMaps || []).find((bm) => bm.id === a.baseMapId),
+          projectId,
+          scopeId,
+          draft: newAnnotationRef.current,
+          createAnnotationFn: createAnnotation,
+        });
+        if (created) {
+          finishCommit();
+          // One-shot tool (2D parity): clearing the 2D drawing state makes
+          // the bridge close the 3D mode.
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
+        } else {
+          console.warn("[threedDrawing] section mark commit refused", {
+            hostId: a.baseMapId,
+          });
+        }
+      } catch (err) {
+        console.error("[threedDrawing] section mark commit failed", err);
       }
     }
 
@@ -1984,6 +2061,10 @@ export default function useDrawingPointerHandlers() {
         await enqueue(() => onCutPlaneClick(snap));
         return;
       }
+      if (isSectionLineDraw()) {
+        await enqueueClick(onSectionLineClick, snap, clickTime);
+        return;
+      }
       if (isCoteDraw()) {
         await enqueueClick(onCoteClick, snap, clickTime);
         return;
@@ -2312,8 +2393,8 @@ export default function useDrawingPointerHandlers() {
       if (onPatternRepeatKey(e)) return;
       if (onLengthKey(e)) return;
       if (onArcToggleKey(e)) return;
-      if (isCoteDraw()) {
-        // Keys never commit a cote (its 2nd click does). Escape drops the
+      if (isCoteDraw() || isSectionLineDraw()) {
+        // Keys never commit a cote / section mark (the 2nd click does). Escape drops the
         // 1st point, then the typed length, then leaves the tool (template
         // or template-less: clearing the 2D drawing state makes the bridge
         // close the 3D mode).

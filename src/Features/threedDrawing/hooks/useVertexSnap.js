@@ -87,6 +87,7 @@ export function buildIndex(scene, options = {}) {
     if (obj.userData?.isDecor) return; // scan base maps (no CPU geometry)
     if (obj.userData?.isHatchFill) return; // hatched fill band / lines
     if (obj.userData?.isRevolutionAxisCircle) return; // axis base circle (decoration)
+    if (obj.userData?.isSectionMarkDecoration) return; // section mark ticks / arrows / labels
     if (annotationsOnly && obj.userData?.isDimensionSnapAnchors) return; // not grabbable
     let isSnappable = false;
     let nodeId = null; // owning annotation, when there is one

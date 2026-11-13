@@ -116,6 +116,10 @@ import {
 } from "Features/contextMenu/contextMenuSlice";
 import DialogHollowOutAnnotationOutlet from "Features/annotations/components/DialogHollowOutAnnotationOutlet";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
+import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
+import useSectionBaseMapPlacement from "Features/baseMapLinks/hooks/useSectionBaseMapPlacement";
+import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
+import { selectIsSectionLineThreedHelperActive } from "Features/baseMapLinks/utils/sectionLineHelperSelectors";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperImages from "Features/popperImages/components/PopperImages";
@@ -614,6 +618,22 @@ export default function MainThreedEditor() {
     moveBaseMapActiveRef.current = moveBaseMapActive;
   }, [moveBaseMapActive]);
 
+  // Same pattern for the « + fond de plan » placement of a section mark —
+  // useSectionBaseMapPlacement owns the clicks while active (a click must
+  // not change the selection nor the main base map under the preview).
+  const sectionBaseMapPlacementActive = useSelector(
+    selectIsSectionBaseMapPlacementActive
+  );
+  const sectionBaseMapPlacementActiveRef = useRef(
+    sectionBaseMapPlacementActive
+  );
+  useEffect(() => {
+    sectionBaseMapPlacementActiveRef.current = sectionBaseMapPlacementActive;
+  }, [sectionBaseMapPlacementActive]);
+  const sectionLineThreedHelperActive = useSelector(
+    selectIsSectionLineThreedHelperActive
+  );
+
   // Same pattern for the base maps grid ("table à plans", G) —
   // useBaseMapsGrid3dPointer owns the hover / click / double-click while the
   // sheets lie on the table.
@@ -764,6 +784,8 @@ export default function MainThreedEditor() {
   useCutLineTranslateHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
+  // « + fond de plan » of a section mark: preview, drag, Space validation.
+  useSectionBaseMapPlacement({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -1228,6 +1250,7 @@ export default function MainThreedEditor() {
       // Move / rotate base-map modes own the pointer; their handler hooks
       // handle it.
       if (moveBaseMapActiveRef.current) return;
+      if (sectionBaseMapPlacementActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
       if (axesPlacementActiveRef.current) return;
       // Same for the annotation move / rotate modes.
@@ -1940,6 +1963,7 @@ export default function MainThreedEditor() {
       if (walkActiveRef.current) return;
       if (placementActiveRef.current) return;
       if (moveBaseMapActiveRef.current) return;
+      if (sectionBaseMapPlacementActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
       if (axesPlacementActiveRef.current) return;
       if (moveAnnotationActiveRef.current) return;
@@ -2495,6 +2519,7 @@ export default function MainThreedEditor() {
       // tracking). Same for the annotation move / rotate modes.
       if (
         moveBaseMapActiveRef.current ||
+        sectionBaseMapPlacementActiveRef.current ||
         rotateBaseMapActiveRef.current ||
         axesPlacementActiveRef.current
       ) {
@@ -2640,6 +2665,7 @@ export default function MainThreedEditor() {
       walkActiveRef.current ||
       placementActiveRef.current ||
       moveBaseMapActiveRef.current ||
+      sectionBaseMapPlacementActiveRef.current ||
       rotateBaseMapActiveRef.current ||
       axesPlacementActiveRef.current ||
       moveAnnotationActiveRef.current ||
@@ -3433,6 +3459,18 @@ export default function MainThreedEditor() {
           inactive={!isThreedViewer}
         />
       )}
+      {/* Fonds de plan module with its docked panel: the listings popper
+          (which hosts the drawing helper) is not mounted, so the helper of a
+          section mark tool (3D draw, « + fond de plan ») shows on its own. */}
+      {isThreedViewer &&
+        isBaseMapsModule &&
+        leftPanelDocked &&
+        !captureFramingActive &&
+        sectionLineThreedHelperActive && (
+          <PortalEditorFloatingPanels hidden={walkActive}>
+            <PopperDrawingHelper />
+          </PortalEditorFloatingPanels>
+        )}
       {/* The helper REPLACES the listings panel while the mode is armed, same
           as the 2D chain in PopperMapListings (which is 2D-only). */}
       {isThreedViewer &&

@@ -71,8 +71,16 @@ const popperMapListingsSlice = createSlice({
     // annotation on it, no listing selector. In redux so it survives the
     // popper remount between the 2D and 3D editors.
     compact: false,
+    // "Traits de coupe" switch at the bottom of the base maps list: the
+    // section marks (BASE_MAP_LINK) are rendered in the Fonds de plan and
+    // Dessin modules, 2D and 3D. Arming the section line tool turns it back
+    // on (startBaseMapLinkTools).
+    showSectionLines: true,
   },
   reducers: {
+    setShowSectionLines(state, action) {
+      state.showSectionLines = Boolean(action.payload);
+    },
     setCompact(state, action) {
       state.compact = Boolean(action.payload);
     },
@@ -156,6 +164,10 @@ export const {
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,
   setCompact,
+  setShowSectionLines,
 } = popperMapListingsSlice.actions;
+
+export const selectShowSectionLines = (state) =>
+  state.popperMapListings.showSectionLines !== false;
 
 export default popperMapListingsSlice.reducer;

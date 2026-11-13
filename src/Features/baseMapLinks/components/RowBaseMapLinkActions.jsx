@@ -5,6 +5,7 @@ import {
 } from "@mui/icons-material";
 
 import ToolbarAnnotationActions from "Features/annotations/components/ToolbarAnnotationActions";
+import IconCreateBaseMap from "Features/icons/IconCreateBaseMap";
 
 // Actions row of the section mark edit toolbar (ToolbarEditBaseMapLink), the
 // counterpart of the « Actions » row of ToolbarEditAnnotation (same shared
@@ -13,7 +14,9 @@ import ToolbarAnnotationActions from "Features/annotations/components/ToolbarAnn
 //
 // Extra actions: « Inverser le sens » (the observer side — written on the
 // source mark, also from its clone) · go to the other end of the link (the
-// vertical base map the mark is located on / the plan of a located mark).
+// vertical base map the mark is located on / the plan of a located mark) ·
+// « + fond de plan » on a source mark (creates / poses its vertical base map
+// from the 3D editor).
 const actionSx = (accentColor) => ({
   color: accentColor,
   "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
@@ -23,6 +26,7 @@ export default function RowBaseMapLinkActions({ actions, accentColor }) {
   // strings
 
   const reverseS = "Inverser le sens (côté observateur)";
+  const createBaseMapS = "+ fond de plan (coupe)";
   const goToS = actions.isClone
     ? "Voir le plan"
     : "Voir le fond de plan de coupe";
@@ -45,6 +49,17 @@ export default function RowBaseMapLinkActions({ actions, accentColor }) {
           <ReverseIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+      {actions.canCreateBaseMap && (
+        <Tooltip title={createBaseMapS}>
+          <IconButton
+            size="small"
+            onClick={actions.createBaseMap}
+            sx={actionSx(accentColor)}
+          >
+            <IconCreateBaseMap fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       {actions.counterpart && (
         <Tooltip title={goToTitle}>
           <IconButton

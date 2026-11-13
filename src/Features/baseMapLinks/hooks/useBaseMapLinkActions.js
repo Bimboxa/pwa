@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
@@ -11,6 +11,9 @@ import db from "App/db/db";
 
 import reverseBaseMapLinkDirectionService from "../services/reverseBaseMapLinkDirectionService";
 import { isBaseMapLinkClone } from "../utils/baseMapLinkPredicates";
+import startSectionBaseMapPlacementTool, {
+  SECTION_BASE_MAP_MODULE_KEYS,
+} from "../utils/startSectionBaseMapPlacementTool";
 
 // Actions of a section mark ("trait de coupe"), shared by its edit toolbar
 // (ToolbarEditBaseMapLink) and its properties section
@@ -24,8 +27,18 @@ import { isBaseMapLinkClone } from "../utils/baseMapLinkPredicates";
 // that locating; deleting a source takes its clones along (delete hook).
 export default function useBaseMapLinkActions(annotation) {
   const dispatch = useDispatch();
+  const store = useStore();
 
   // data
+
+  // « + fond de plan » exists on a source mark, in the Fonds de plan and
+  // Dessin modules, for a scope the user may edit.
+  const canCreateBaseMap = useSelector(
+    (s) =>
+      SECTION_BASE_MAP_MODULE_KEYS.includes(s.viewers.selectedViewerKey) &&
+      !s.urlParams.viewerMode &&
+      Boolean(s.scopes.selectedScopeId)
+  );
 
   const deleteAnnotation = useDeleteAnnotation();
   const annotationsUpdatedAt = useSelector(
@@ -108,8 +121,20 @@ export default function useBaseMapLinkActions(annotation) {
     if (counterpart?.id) dispatch(setSelectedMainBaseMapId(counterpart.id));
   }
 
+  // « + fond de plan »: previews a vertical page in the 3D editor, in the
+  // plane of the mark (see sectionBaseMapPlacementSlice).
+  function createBaseMap() {
+    startSectionBaseMapPlacementTool({
+      dispatch,
+      getState: store.getState,
+      annotation,
+    });
+  }
+
   return {
     isClone,
+    canCreateBaseMap: canCreateBaseMap && !isClone,
+    createBaseMap,
     sourceId,
     label,
     counterpart: counterpart ?? null,

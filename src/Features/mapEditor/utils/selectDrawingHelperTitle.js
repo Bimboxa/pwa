@@ -7,6 +7,7 @@ import {
   selectIsCutLineDrawActive,
   selectIsCutPlaneDrawActive,
 } from "Features/threedDrawing/utils/templateFaceDrawSelectors";
+import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import {
   isBaseMapLinkDraft,
   isBaseMapLinkLocateDraft,
@@ -17,9 +18,13 @@ import {
 // the « Changer de style » / « Masquer l'annotation » modes of the commands
 // toolbar, « Ajouter une maille » / « Numéroter » / « Dessiner une ligne de coupe »
 // (Maillage module) and the section marks of the Fonds de plan
-// module (drawn on a plan / located on a vertical base map) — null otherwise
+// module (drawn on a plan / located on a vertical base map), and their
+// « + fond de plan » placement — null otherwise
 // (the helper keeps its "Mode dessin" title).
 export default function selectDrawingHelperTitle(s) {
+  if (selectIsSectionBaseMapPlacementActive(s)) {
+    return "Fond de plan de coupe";
+  }
   if (s.mapEditor.enabledDrawingMode === CHANGE_STYLE_MODE) {
     return "Changer de style";
   }

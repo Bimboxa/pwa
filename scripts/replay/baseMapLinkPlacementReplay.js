@@ -16,6 +16,7 @@ import {
   getBaseMapLinkWorldLength,
 } from "Features/baseMaps/js/computeBaseMapLinkCloneGeometry";
 import getNextBaseMapLinkLabel from "Features/baseMapLinks/utils/getNextBaseMapLinkLabel";
+import computeSectionBaseMapPlacement from "Features/baseMapLinks/utils/computeSectionBaseMapPlacement";
 
 const near = (a, b, eps = 1e-9) =>
   assert.ok(Math.abs(a - b) < eps, `expected ${a} ≈ ${b}`);
@@ -327,6 +328,123 @@ for (const angle of [0, 37, -120, 200]) {
     .map((l) => `${l}-${l}`);
   assert.equal(getNextBaseMapLinkLabel(alphabet), "AA-AA");
   console.log("labels ok");
+}
+
+// --- « + fond de plan » placement (computeSectionBaseMapPlacement) ---
+//
+// The previewed pose and the keep-scale clone it returns must agree: fed back
+// to the solver (the resync's writer), the clone yields that very pose, for
+// any mark heading, direction, page size and in-plane offsets.
+{
+  const pages = [
+    { size: { width: 2480, height: 1754 }, meterByPx: 50 / (5.9055 * 1000) },
+    { size: { width: 800, height: 400 }, meterByPx: 0.02 },
+  ];
+  const marks = [
+    { p1: { x: 0.5, y: 0.5 }, p2: { x: 0.7, y: 0.5 } },
+    { p1: { x: 0.7, y: 0.5 }, p2: { x: 0.5, y: 0.5 } }, // reversed
+    { p1: { x: 0.2, y: 0.8 }, p2: { x: 0.6, y: 0.3 } }, // oblique
+    { p1: { x: 0.4, y: 0.1 }, p2: { x: 0.4, y: 0.9 } }, // along image y
+  ];
+  const offsets = [
+    { alongM: 0, upM: 0 },
+    { alongM: 1.25, upM: -0.8 },
+    { alongM: -3, upM: 2.5 },
+  ];
+  let count = 0;
+  for (const planAngle of [0, 30, -110]) {
+    const plan = makePlan(planAngle);
+    for (const mark of marks) {
+      const A = baseMapNormalizedToWorld(mark.p1, plan);
+      const B = baseMapNormalizedToWorld(mark.p2, plan);
+      for (const page of pages) {
+        for (const offset of offsets) {
+          const placement = computeSectionBaseMapPlacement({
+            A,
+            B,
+            size: page.size,
+            meterByPx: page.meterByPx,
+            ...offset,
+          });
+          assert.ok(placement);
+          const elevation = {
+            orientation: "VERTICAL",
+            angleDeg: 0,
+            position: { x: 0, y: 0, z: 0 },
+            meterByPx: page.meterByPx,
+            image: { imageSize: page.size },
+          };
+          const solved = computeVerticalBaseMapPlacementFromLink({
+            planBaseMap: plan,
+            elevationBaseMap: elevation,
+            planNorm: mark,
+            cloneNorm: placement.cloneNorm,
+            keepScale: true,
+          });
+          assert.ok(solved);
+          near(solved.position.x, placement.position.x, 1e-7);
+          near(solved.position.y, placement.position.y, 1e-7);
+          near(solved.position.z, placement.position.z, 1e-7);
+          near(
+            Math.cos((solved.angleDeg * Math.PI) / 180),
+            Math.cos((placement.angleDeg * Math.PI) / 180),
+            1e-9
+          );
+          near(
+            Math.sin((solved.angleDeg * Math.PI) / 180),
+            Math.sin((placement.angleDeg * Math.PI) / 180),
+            1e-9
+          );
+          // the clone's ends, through the pose, land on the mark's ends
+          const posed = {
+            ...elevation,
+            angleDeg: placement.angleDeg,
+            position: placement.position,
+          };
+          const a = baseMapNormalizedToWorld(placement.cloneNorm.q1, posed);
+          const b = baseMapNormalizedToWorld(placement.cloneNorm.q2, posed);
+          near(a.x, A.x, 1e-7);
+          near(a.y, A.y, 1e-7);
+          near(a.z, A.z, 1e-7);
+          near(b.x, B.x, 1e-7);
+          near(b.y, B.y, 1e-7);
+          near(b.z, B.z, 1e-7);
+          // the page centre moved by the offsets, inside the mark's plane
+          const mid = { x: (A.x + B.x) / 2, z: (A.z + B.z) / 2 };
+          near(
+            Math.hypot(
+              placement.position.x - mid.x,
+              placement.position.z - mid.z
+            ),
+            Math.abs(offset.alongM),
+            1e-7
+          );
+          near(placement.position.y - A.y, offset.upM, 1e-9);
+          count += 1;
+        }
+      }
+    }
+  }
+  // unusable inputs
+  assert.equal(
+    computeSectionBaseMapPlacement({
+      A: { x: 0, y: 0, z: 0 },
+      B: { x: 0, y: 0, z: 0 },
+      size: pages[0].size,
+      meterByPx: 0.01,
+    }),
+    null
+  );
+  assert.equal(
+    computeSectionBaseMapPlacement({
+      A: { x: 0, y: 0, z: 0 },
+      B: { x: 1, y: 0, z: 0 },
+      size: pages[0].size,
+      meterByPx: null,
+    }),
+    null
+  );
+  console.log(`section base map placement ok (${count} cases)`);
 }
 
 console.log("baseMapLinkPlacementReplay: all checks passed");

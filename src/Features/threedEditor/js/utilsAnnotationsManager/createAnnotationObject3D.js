@@ -67,6 +67,7 @@ import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
 import buildDiscObject3D from "./buildDiscObject3D";
+import buildBaseMapLinkObject3D from "./buildBaseMapLinkObject3D";
 import attachFatLineRaycast from "./attachFatLineRaycast";
 import createPointSprite from "./createPointSprite";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
@@ -1448,6 +1449,17 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         material,
         isDome: shape3DKey === "DISC_DOME",
         gridEdgeThresholdDeg: options?.gridEdgeThresholdDeg,
+      });
+      break;
+    }
+    case "BASE_MAP_LINK": {
+      // Section mark ("trait de coupe"), flat in its base map plane — see
+      // buildBaseMapLinkObject3D.
+      object = buildBaseMapLinkObject3D({
+        annotation,
+        baseMap,
+        verticalLift,
+        resolution: options?.resolution, // Vector2 from AnnotationsManager
       });
       break;
     }

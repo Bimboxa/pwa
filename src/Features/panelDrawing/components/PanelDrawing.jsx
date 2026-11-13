@@ -34,6 +34,7 @@ import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/temp
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
+import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import { selectDuplicatesDetectionActive } from "Features/duplicatesDetection/duplicatesDetectionSlice";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,10 @@ export default function PanelDrawing() {
   // threedEditor tool armed from « Outils de dessin » (3D editor): same
   // helper swap as an armed draw.
   const activeThreedTool = useSelector(selectActiveThreedTool);
+  // « + fond de plan » of a section mark (3D editor): helper in the panel.
+  const sectionBaseMapPlacementActive = useSelector(
+    selectIsSectionBaseMapPlacementActive
+  );
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // « Détection des doublons » run displayed (status !== idle): the panel
   // swaps to the duplicates helper, below the paste / drawing helpers.
@@ -298,7 +303,10 @@ export default function PanelDrawing() {
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelPasteHelper />
         </>
-      ) : (enabledDrawingMode || activeThreedTool) && leftPanelDocked ? (
+      ) : (enabledDrawingMode ||
+          activeThreedTool ||
+          sectionBaseMapPlacementActive) &&
+        leftPanelDocked ? (
         <>
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelDrawingHelper />

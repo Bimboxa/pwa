@@ -40,7 +40,11 @@ import {
   setDisplayedBaseMapListingId,
 } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLeftPanelDocked } from "Features/leftPanel/leftPanelSlice";
-import { setAutoBaseMapVisibility } from "Features/popperMapListings/popperMapListingsSlice";
+import {
+  setAutoBaseMapVisibility,
+  setShowSectionLines,
+  selectShowSectionLines,
+} from "Features/popperMapListings/popperMapListingsSlice";
 
 import {
   Box,
@@ -163,8 +167,13 @@ export default function SectionBaseMapsList({
   const autoVisibilityTooltipS =
     "Au changement de fond de plan : masque l'image et les annotations des autres fonds de plan.";
 
+  const sectionLinesS = "Traits de coupe";
+  const sectionLinesTooltipS =
+    "Affiche les traits de coupe sur les fonds de plan, en 2D et en 3D.";
+
   // data
 
+  const showSectionLines = useSelector(selectShowSectionLines);
   const autoBaseMapVisibility = useSelector(
     (s) => s.popperMapListings.autoBaseMapVisibility
   );
@@ -249,6 +258,8 @@ export default function SectionBaseMapsList({
   // helpers
 
   const isViewerModule = viewerKey === "THREED";
+  const hasSectionLinesOption =
+    viewerKey === "BASE_MAPS" || viewerKey === "MAP";
   // BaseMaps module: the image is edited in its 2D editor (no eye there,
   // same as the top bar — the 3D editor keeps the eyes), and the drawing
   // annotations are loaded only with the panel switch.
@@ -784,6 +795,19 @@ export default function SectionBaseMapsList({
             tooltip={autoVisibilityTooltipS}
             checked={autoBaseMapVisibility}
             onChange={(checked) => dispatch(setAutoBaseMapVisibility(checked))}
+          />
+        </>
+      )}
+      {/* "Traits de coupe" — the section marks exist in the Fonds de plan and
+          Dessin modules only. */}
+      {hasSectionLinesOption && (
+        <>
+          <Divider />
+          <RowPanelOptionCheckbox
+            label={sectionLinesS}
+            tooltip={sectionLinesTooltipS}
+            checked={showSectionLines}
+            onChange={(checked) => dispatch(setShowSectionLines(checked))}
           />
         </>
       )}
