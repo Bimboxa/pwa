@@ -179,6 +179,7 @@ import ThreedRevolutionAxisHandles from "Features/revolutionAxes/components/Thre
 import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisHandleDragHandlers";
 import ThreedRevolutionAxisHorizontalCuts from "Features/revolutionAxes/components/ThreedRevolutionAxisHorizontalCuts";
 import useRevolutionAxisCutHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisCutHandleDragHandlers";
+import RevolutionAxisCutOverlayThreed from "Features/revolutionAxes/components/RevolutionAxisCutOverlayThreed";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import useRulerLabelDragHandlers from "Features/threedDimensions/hooks/useRulerLabelDragHandlers";
 import {
@@ -3747,6 +3748,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && rendererIsReady && <MeshBrushThreed />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}
+      {isThreedViewer && <RevolutionAxisCutOverlayThreed />}
       {isThreedViewer && <VertexOffsetOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}
       {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}

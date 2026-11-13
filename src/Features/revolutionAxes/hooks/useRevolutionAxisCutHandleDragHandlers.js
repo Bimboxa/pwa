@@ -7,7 +7,11 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import findNearestVertexInVerts from "Features/threedBaseMapMove/utils/findNearestVertexInVerts";
-import { getRevolutionAxisCuts } from "Features/revolutionAxes/services/revolutionAxisCutsStore";
+import {
+  clearRevolutionAxisCutOverlay,
+  getRevolutionAxisCuts,
+  setRevolutionAxisCutOverlay,
+} from "Features/revolutionAxes/services/revolutionAxisCutsStore";
 import setRevolutionAxisHorizontalCutService from "Features/revolutionAxes/services/setRevolutionAxisHorizontalCutService";
 
 const DRAG_THRESHOLD_PX = 3;
@@ -22,7 +26,8 @@ const roundMm = (v) => Math.round(v * 1e3) / 1e3;
  * axis under the cursor and the cut plane follows — `horizontalCutZ`, metres
  * above the base of the axis, never below it. A scene vertex near the cursor
  * wins: the cut takes its altitude (same snap as the push / pull of the
- * extrude tool). Live preview = the clipping plane moved in place (no
+ * extrude tool, same pink circle on the vertex —
+ * RevolutionAxisCutOverlayThreed). Live preview = the clipping plane moved in place (no
  * rebuild); release persists the altitude on the axis
  * (setRevolutionAxisHorizontalCutService). Escape cancels.
  *
@@ -92,6 +97,7 @@ export default function useRevolutionAxisCutHandleDragHandlers({
       window.removeEventListener("pointercancel", onWindowPointerCancel);
       window.removeEventListener("keydown", onKeyDown, true);
       setMesh3dLabelGestureActive(false);
+      clearRevolutionAxisCutOverlay();
       return drag;
     }
 
@@ -156,6 +162,26 @@ export default function useRevolutionAxisCutHandleDragHandlers({
       if (z == null || !Number.isFinite(z)) return;
       drag.cut.setZ(roundMm(Math.max(0, z)));
       sceneManager.renderScene?.();
+
+      // Snap circle on the vertex (only while the cut really sits at its
+      // altitude — not when held at the base of the axis) + live altitude.
+      const rect = dom.getBoundingClientRect();
+      let snap = null;
+      if (vertex && Math.abs(drag.cut.z - z) < 1e-3) {
+        const p = vertex.position.clone().project(sceneManager.camera);
+        snap = {
+          x: ((p.x + 1) / 2) * rect.width,
+          y: ((1 - p.y) / 2) * rect.height,
+        };
+      }
+      setRevolutionAxisCutOverlay({
+        snap,
+        cursor: {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          label: `${Math.round(drag.cut.z * 100) / 100} m`,
+        },
+      });
     }
 
     async function onWindowPointerUp() {
