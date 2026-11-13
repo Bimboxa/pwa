@@ -13,7 +13,7 @@ import theme from "Styles/theme";
 // `revolutionAxisRadiusM` / `revolutionAxisHeightM` are resolved upstream by
 // useAnnotationsV2 (they live on the linked plan axis, on another base map).
 const BLACK = "#000000";
-const CENTER_DOT_PX = 3.5;
+const CENTER_DOT_PX = 2.5;
 const HIT_STROKE_PX = 12;
 const FALLBACK_HALF_PX = 60;
 const FALLBACK_HEIGHT_PX = 150;
@@ -70,7 +70,7 @@ export default function NodeRevolutionAxisPlacementStatic({
   );
 
   const orange = strokeColor || theme.palette.secondary.main;
-  const strokeW = selected || hovered ? 3 : 2;
+  const strokeW = selected || hovered ? 2 : 1;
 
   const dataProps = {
     "data-node-id": id,
@@ -83,7 +83,7 @@ export default function NodeRevolutionAxisPlacementStatic({
   return (
     <g
       style={{
-        cursor: dragged ? "grabbing" : "crosshair",
+        cursor: dragged ? "grabbing" : "pointer",
         opacity: dragged ? 0.7 : 1,
         transition: "opacity 0.1s",
       }}
@@ -119,7 +119,7 @@ export default function NodeRevolutionAxisPlacementStatic({
         y2={cy - heightPx}
         stroke={BLACK}
         strokeWidth={strokeW}
-        strokeDasharray="8 5"
+        strokeDasharray="6 4"
         vectorEffect="non-scaling-stroke"
       />
 
@@ -142,10 +142,10 @@ export default function NodeRevolutionAxisPlacementStatic({
             <circle
               cx={0}
               cy={0}
-              r={CENTER_DOT_PX + 4}
+              r={CENTER_DOT_PX + 3.5}
               fill="none"
               stroke={orange}
-              strokeWidth={1.5}
+              strokeWidth={1}
             />
           )}
         </g>

@@ -1,6 +1,7 @@
 import { useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 
 import {
   CircularProgress,
@@ -89,6 +90,8 @@ export default function MenuRevolutionAxisBaseMaps({
   const handleLinkBaseMap = (baseMapId) => {
     onClose?.();
     dispatch(setSelectedMainBaseMapId(baseMapId));
+    // The plan axis is not on that base map: it does not stay selected.
+    dispatch(clearSelection());
     startPlaceAxis(axis);
   };
 

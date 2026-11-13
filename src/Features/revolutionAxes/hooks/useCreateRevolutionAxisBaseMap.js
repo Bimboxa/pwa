@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 
 import db from "App/db/db";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
@@ -20,7 +21,8 @@ import pickVerticalBaseMapListing from "../utils/pickVerticalBaseMapListing";
 // the coupe page on its own — blank A3 vertical base map whose scale and
 // orientation hold the axis (computeRevolutionAxisPageSetup), the axis posed
 // on it at the base point (createRevolutionAxisPlacementService, which also
-// poses the page in 3D), then navigates to it. No click required.
+// poses the page in 3D), then navigates to it and clears the selection. No
+// click required.
 //
 // Returns { createForAxis(axis) → entity | null, creating }.
 export default function useCreateRevolutionAxisBaseMap() {
@@ -82,6 +84,9 @@ export default function useCreateRevolutionAxisBaseMap() {
         dispatch,
       });
       dispatch(setSelectedMainBaseMapId(entity.id));
+      // End of the process: the plan axis it started from is not on the new
+      // page, so it does not stay selected.
+      dispatch(clearSelection());
       return entity;
     } catch (e) {
       console.error("[useCreateRevolutionAxisBaseMap] creation failed", e);
