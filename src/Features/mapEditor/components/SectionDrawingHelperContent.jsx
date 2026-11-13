@@ -45,6 +45,7 @@ import { getFaceCutLockedPart } from "Features/threedFaceCut/utils/resolveFaceCu
 import { selectIsLoupeEnabled } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
+import SectionDrawingShape3D from "Features/revolutionAxes/components/SectionDrawingShape3D";
 import SmartDetectContainer from "Features/smartDetect/components/SmartDetectContainer";
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import CardWallVectorization from "Features/smartDetect/components/CardWallVectorization";
@@ -588,6 +589,9 @@ export default function SectionDrawingHelperContent() {
 
   return (
     <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+      {/* « Forme 3D »: revolution around the axis placed on the base map
+          (2D, revolving drafts only — null otherwise). */}
+      {showDefaultOffset && <SectionDrawingShape3D />}
       {!isThreedToggledEditor &&
         !isSegmentSelectMode &&
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
