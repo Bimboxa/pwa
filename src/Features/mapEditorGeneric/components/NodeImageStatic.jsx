@@ -235,7 +235,7 @@ export default memo(function NodeImageStatic({
     );
   };
 
-  const exSitu = imagesDisplayMode === "EX_SITU" && !isObject2D;
+  const exSitu = imagesDisplayMode !== "IN_SITU" && !isObject2D;
   const showBadge = imageDisplayIndex != null && !printMode;
   const veiled = imageVeiled && !isObject2D;
   const veilOpacity = veiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;

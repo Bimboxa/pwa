@@ -15,9 +15,12 @@ import {
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
+  selectImagesDisplayMode,
   selectImagesPhotosHidden,
+  setImagesDisplayMode,
   setImagesPhotosHidden,
 } from "Features/popperImages/popperImagesSlice";
+import { IMAGES_DISPLAY_MODE_OPTIONS } from "Features/popperImages/constants/imagesDisplayModeOptions";
 
 import {
   Box,
@@ -89,6 +92,10 @@ const EXPORT_MODE_OPTIONS = [
   { value: "clipboard", label: "Presse-papier", icon: <ContentCopy /> },
   { value: "pov", label: "Point de vue", icon: <PhotoCamera /> },
 ];
+
+const IMAGES_MODE_OPTIONS = IMAGES_DISPLAY_MODE_OPTIONS.map(
+  ({ key, label, Icon }) => ({ value: key, label, icon: <Icon /> })
+);
 
 const ITEM_SX = {
   display: "flex",
@@ -233,6 +240,7 @@ export default function ToolbarCaptureCondensed() {
   const legendS = "Légende";
   const qtiesS = "Qtés";
   const photosS = "Photos";
+  const photosModeS = "Mode photos";
   const exportS = "Export";
   const optionsS = "Options";
 
@@ -250,6 +258,7 @@ export default function ToolbarCaptureCondensed() {
   // Photos (IMAGE annotations) shown / hidden — same state as the count
   // pill of PopperImages (in situ / ex situ and the links are set there).
   const photosHidden = useSelector(selectImagesPhotosHidden);
+  const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
 
@@ -392,6 +401,15 @@ export default function ToolbarCaptureCondensed() {
         tooltip={photosHidden ? "Afficher les photos" : "Masquer les photos"}
         active={!photosHidden}
         onClick={() => dispatch(setImagesPhotosHidden(!photosHidden))}
+      />
+      {/* Same display mode as the bottom bar selector, hidden while framing. */}
+      <ToolbarSelect
+        label={photosModeS}
+        tooltip="Affichage des photos : in situ, overlay ou zones"
+        options={IMAGES_MODE_OPTIONS}
+        value={imagesDisplayMode}
+        onChange={(value) => dispatch(setImagesDisplayMode(value))}
+        disabled={photosHidden}
       />
 
       <BandDivider />

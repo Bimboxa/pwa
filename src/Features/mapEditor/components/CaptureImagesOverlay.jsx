@@ -10,7 +10,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
 
-import ImageIndexBadgeSvg from "Features/popperImages/components/ImageIndexBadgeSvg";
+import CaptureImageTileCard, {
+  CAPTURE_TILE_CAPTION_HEIGHT,
+} from "./CaptureImageTileCard";
 import {
   IMAGE_LINK_STROKE,
   IMAGE_LINK_STROKE_WIDTH,
@@ -20,9 +22,11 @@ import resolveImagesOverlayGeometry, {
   IMAGES_ZONE_PADDING,
 } from "../utils/resolveImagesOverlayGeometry";
 import layoutCaptureImageTiles from "../utils/layoutCaptureImageTiles";
+import getImageAnnotationAspect from "Features/popperImages/utils/getImageAnnotationAspect";
 
 // ---------------------------------------------------------------------------
-// CaptureImagesOverlay — the "Ex situ" photos inside the captured page:
+// CaptureImagesOverlay — the "overlay" (EX_SITU) photos inside the captured
+// page (the print zones mode has its own CaptureImagePrintZonesOverlay):
 // Paper-style floating tiles (white card, shadow, rounded) laid out in
 // columns in a transparent zone of the capture rect, each tied to its anchor
 // in the scene by a leader ("Ligne") and / or by its display number
@@ -35,8 +39,6 @@ import layoutCaptureImageTiles from "../utils/layoutCaptureImageTiles";
 // ---------------------------------------------------------------------------
 
 const HANDLE_SIZE = 12;
-const TILE_PADDING = 4;
-const CAPTION_HEIGHT = 16;
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
@@ -64,21 +66,11 @@ export default function CaptureImagesOverlay({
 
   // tiles (zone-local px), in display order
   const { tiles, height: zoneHeight } = useMemo(() => {
-    const items = (images ?? []).map((a) => {
-      const b = a.bbox;
-      const size = a.image?.imageSize;
-      const aspect =
-        b?.width > 0 && b?.height > 0
-          ? b.width / b.height
-          : size?.width > 0 && size?.height > 0
-            ? size.width / size.height
-            : 4 / 3;
-      return {
-        id: a.id,
-        aspect,
-        captionHeight: a.label ? CAPTION_HEIGHT : 0,
-      };
-    });
+    const items = (images ?? []).map((a) => ({
+      id: a.id,
+      aspect: getImageAnnotationAspect(a),
+      captionHeight: a.label ? CAPTURE_TILE_CAPTION_HEIGHT : 0,
+    }));
     return layoutCaptureImageTiles({
       items,
       zone: { width: zone.width, columns: zone.columns, gap: zone.gap },
@@ -279,71 +271,14 @@ export default function CaptureImagesOverlay({
           clipPath={`url(#${clipId})`}
           style={{ pointerEvents: "none" }}
         >
-          {visibleTiles.map((t) => {
-            const a = imagesById[t.id];
-            const src = a?.image?.imageUrlClient ?? a?.image?.thumbnail;
-            return (
-              <g key={t.id} transform={`translate(${t.x}, ${t.y})`}>
-                <foreignObject
-                  width={t.width}
-                  height={t.height}
-                  style={{ overflow: "visible" }}
-                >
-                  <div
-                    xmlns="http://www.w3.org/1999/xhtml"
-                    style={{
-                      width: t.width,
-                      height: t.height,
-                      boxSizing: "border-box",
-                      background: "#fff",
-                      borderRadius: 8,
-                      padding: TILE_PADDING,
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                    }}
-                  >
-                    {src && (
-                      <img
-                        src={src}
-                        alt=""
-                        style={{
-                          flex: 1,
-                          minHeight: 0,
-                          width: "100%",
-                          objectFit: "cover",
-                          borderRadius: 5,
-                          display: "block",
-                          transform: a?.imageFlipY ? "scaleY(-1)" : undefined,
-                        }}
-                      />
-                    )}
-                    {a?.label && (
-                      <div
-                        style={{
-                          font: "600 11px sans-serif",
-                          lineHeight: `${CAPTION_HEIGHT - 2}px`,
-                          height: CAPTION_HEIGHT - 2,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          color: "#222",
-                        }}
-                      >
-                        {a.label}
-                      </div>
-                    )}
-                  </div>
-                </foreignObject>
-                {showNumbers && (
-                  <g transform="translate(2, 2)">
-                    <ImageIndexBadgeSvg number={t.number} />
-                  </g>
-                )}
-              </g>
-            );
-          })}
+          {visibleTiles.map((t) => (
+            <CaptureImageTileCard
+              key={t.id}
+              tile={t}
+              annotation={imagesById[t.id]}
+              showNumber={showNumbers}
+            />
+          ))}
         </g>
 
         {/* SE resize handle (width), capture tool only. */}

@@ -226,7 +226,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const color = labelProps.fillColor || "#2196f3";
       // Photo display (PopperImages): ex situ → no card, no leader, the
       // anchor only (+ number badge in "Numéro" style); veiled → faded.
-      const exSitu = isPhoto && imagesDisplayMode === "EX_SITU";
+      const exSitu = isPhoto && imagesDisplayMode !== "IN_SITU";
       const veiled = isPhoto && selectedIsImage && !isSelected;
       const badgeNumber = isImage
         ? (imageIndexById[annotation.id] ?? null)

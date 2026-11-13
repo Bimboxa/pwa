@@ -224,7 +224,7 @@ function solveMarginBand(items, captureRect, margin, gap) {
  * recentering, then clamp to the band range (even distribution fallback
  * when the band overflows).
  */
-function solveBand1D(
+export function solveBand1D(
   items,
   { getTarget, getSize, rangeStart, rangeEnd, gap, toPoint }
 ) {

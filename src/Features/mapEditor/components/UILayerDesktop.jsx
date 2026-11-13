@@ -76,6 +76,7 @@ export default function UILayerDesktop({
 
             {showEditScale && <Box
                 data-capture-hide
+                data-print-zones-avoid
                 sx={{
                     position: "absolute",
                     left: "16px",
@@ -109,6 +110,7 @@ export default function UILayerDesktop({
 
             <Box
                 data-capture-hide
+                data-print-zones-avoid
                 sx={{
                     position: "absolute",
                     right: panelOpen ? `${panelWidth + 16}px` : "16px",

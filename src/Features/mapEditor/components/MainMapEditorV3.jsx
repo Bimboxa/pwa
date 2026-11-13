@@ -149,6 +149,8 @@ import PopperBaseMapsList from "Features/popperMapListings/components/PopperBase
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperMapListings from "./PopperMapListings";
 import PopperImages from "Features/popperImages/components/PopperImages";
+import ImagesPrintZonesOverlay from "Features/popperImages/components/ImagesPrintZonesOverlay";
+import { setImagesCount } from "Features/popperImages/popperImagesSlice";
 import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
 import useMapEditor2dAnchorProjector from "Features/popperImages/hooks/useMapEditor2dAnchorProjector";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
@@ -691,6 +693,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     interactionLayerRef,
     basePose,
   });
+  // The bottom bar shows the photos controls when the active editor has
+  // photos (the Photos module displays its own photos, not these).
+  const imagesCount = isPhotosModule ? 0 : imageAnnotations.length;
+  useEffect(() => {
+    if (isActiveViewer) dispatch(setImagesCount(imagesCount));
+  }, [dispatch, isActiveViewer, imagesCount]);
 
   // Altimetry under the cursor: have the height map of a scan base map
   // ready before the first pointer move (see InteractionLayer).
@@ -3250,6 +3258,23 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 <PopperBaseMapsList />
                 {/* Photos of the base map (right side). */}
                 <PopperImages
+                  images={imageAnnotations}
+                  indexById={imageDisplayIndexById}
+                  anchorProjector={anchorProjector2d}
+                  hostInvalidateKey={`${basePose?.x}|${basePose?.y}|${basePose?.k}`}
+                />
+              </PortalEditorFloatingPanels>
+            )}
+
+          {/* Photos in "print zones" mode: tiles along the 4 edges of the
+                editor (not tied to the listings popper gates above). */}
+          {isActiveViewer &&
+            !versionCompareEnabled &&
+            !imageModeActive &&
+            !dessinGridOpen &&
+            !isPhotosModule && (
+              <PortalEditorFloatingPanels>
+                <ImagesPrintZonesOverlay
                   images={imageAnnotations}
                   indexById={imageDisplayIndexById}
                   anchorProjector={anchorProjector2d}

@@ -14,7 +14,8 @@ import { IMAGE_VEIL_RGBA } from "../constants/imageDisplay";
 // TileImageAnnotation — one photo of the PopperImages grid: square
 // photo, numbered badge (top-left), optional caption (label). Selected →
 // primary border + "Fullscreen" button (DialogImageViewer). Veiled (another
-// image is selected) → translucent white veil.
+// image is selected) → translucent white veil. `fill`: the tile takes the
+// size of its parent instead of being square (print zones tiles).
 // ---------------------------------------------------------------------------
 
 export default function TileImageAnnotation({
@@ -22,6 +23,8 @@ export default function TileImageAnnotation({
   number,
   selected = false,
   veiled = false,
+  fill = false,
+  showNumber = true,
   onSelect,
   onFullscreen,
   registerEl,
@@ -42,14 +45,14 @@ export default function TileImageAnnotation({
   return (
     <Box
       ref={(el) => registerEl?.(annotation.id, el)}
-      sx={{ position: "relative", minWidth: 0 }}
+      sx={{ position: "relative", minWidth: 0, ...(fill && { height: 1 }) }}
     >
       <ButtonBase
         onClick={() => onSelect?.(annotation)}
         sx={{
           display: "block",
           width: 1,
-          aspectRatio: "1 / 1",
+          ...(fill ? { height: 1 } : { aspectRatio: "1 / 1" }),
           borderRadius: 1,
           overflow: "hidden",
           border: "2px solid",
@@ -104,11 +107,13 @@ export default function TileImageAnnotation({
         )}
       </ButtonBase>
 
-      <ImageIndexBadge
-        number={number}
-        dimmed={veiled}
-        sx={{ position: "absolute", top: 6, left: 6 }}
-      />
+      {showNumber && (
+        <ImageIndexBadge
+          number={number}
+          dimmed={veiled}
+          sx={{ position: "absolute", top: 6, left: 6 }}
+        />
+      )}
 
       {selected && (
         <Tooltip title={fullscreenS} arrow placement="bottom">

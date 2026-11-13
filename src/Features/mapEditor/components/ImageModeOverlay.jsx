@@ -30,6 +30,7 @@ import { Edit } from "@mui/icons-material";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import CaptureTitleBlockOverlay from "./CaptureTitleBlockOverlay";
 import CaptureImagesOverlay from "./CaptureImagesOverlay";
+import CaptureImagePrintZonesOverlay from "./CaptureImagePrintZonesOverlay";
 import {
   selectImagesDisplayMode,
   selectImagesLinkLine,
@@ -412,6 +413,7 @@ export default function ImageModeOverlay({
             <image
               data-capture-keep
               data-capture-decor
+              data-print-zones-avoid
               href={logoUrl}
               x={x}
               y={y}
@@ -453,10 +455,26 @@ export default function ImageModeOverlay({
           />
         )}
 
+      {/* PHOTOS PRINT ZONES (tiles along the 4 edges of the capture rect,
+          clear of the legend / cartouche / title / logo). */}
+      {imagesDisplayMode === "PRINT_ZONES" &&
+        !imagesHidden &&
+        imageAnnotations?.length > 0 && (
+          <CaptureImagePrintZonesOverlay
+            rect={rect}
+            images={imageAnnotations}
+            showLines={imagesLinkLine}
+            showNumbers={imagesLinkNumber}
+            anchorProjector={anchorProjector}
+            svgRef={svgRef}
+          />
+        )}
+
       {/* LEGEND OVERLAY (inside the capture rect) */}
       {overlay.visible !== false && (
         <g
           data-capture-keep
+          data-print-zones-avoid
           transform={`translate(${legendX}, ${legendY})`}
           onMouseDown={startMove}
           style={{ cursor: "grab" }}
@@ -603,6 +621,7 @@ function TitleBanner({ x, y, maxWidth, text, fontSize }) {
     <g
       data-capture-keep
       data-capture-decor
+      data-print-zones-avoid
       transform={`translate(${x}, ${y})`}
       style={{ pointerEvents: "none" }}
     >

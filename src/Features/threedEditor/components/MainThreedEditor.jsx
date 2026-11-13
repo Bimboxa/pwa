@@ -119,6 +119,8 @@ import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperImages from "Features/popperImages/components/PopperImages";
+import ImagesPrintZonesOverlay from "Features/popperImages/components/ImagesPrintZonesOverlay";
+import { setImagesCount } from "Features/popperImages/popperImagesSlice";
 import getImageAnnotationsDisplayIndex from "Features/popperImages/utils/getImageAnnotationsDisplayIndex";
 import useThreedImageAnchorProjector from "Features/threedEditor/hooks/useThreedImageAnchorProjector";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
@@ -1115,6 +1117,11 @@ export default function MainThreedEditor() {
   const { images: imageAnnotations, indexById: imageDisplayIndexById } =
     useMemo(() => getImageAnnotationsDisplayIndex(annotations), [annotations]);
   const anchorProjector3d = useThreedImageAnchorProjector();
+  // The bottom bar shows the photos controls when the editor has photos.
+  const imagesCount = imageAnnotations.length;
+  useEffect(() => {
+    if (isThreedViewer) dispatch(setImagesCount(imagesCount));
+  }, [dispatch, isThreedViewer, imagesCount]);
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 
@@ -3451,6 +3458,17 @@ export default function MainThreedEditor() {
             />
           </PortalEditorFloatingPanels>
         )}
+      {/* Photos in "print zones" mode: tiles along the 4 edges of the editor
+          (not tied to the listings panel gates above). */}
+      {isThreedViewer && !captureFramingActive && (
+        <PortalEditorFloatingPanels hidden={walkActive}>
+          <ImagesPrintZonesOverlay
+            images={imageAnnotations}
+            indexById={imageDisplayIndexById}
+            anchorProjector={anchorProjector3d}
+          />
+        </PortalEditorFloatingPanels>
+      )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && sweepPickActive && (
         <PopperSweepAlongLineHelper targetBaseMapId={sweepTargetBaseMapId} />
@@ -3579,6 +3597,7 @@ export default function MainThreedEditor() {
           side. */}
       {isThreedViewer && !captureFramingActive && (
         <Box
+          data-print-zones-avoid
           sx={{
             position: "absolute",
             right: rightPanelOpen ? `${rightPanelWidth + 16}px` : "16px",
