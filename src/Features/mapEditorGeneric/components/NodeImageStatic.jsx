@@ -8,6 +8,8 @@ import {
   getImageConnectorGeometry,
 } from "Features/imageAnnotations/utils/imageConnector";
 import {
+  IMAGE_BADGE_HEIGHT_PX,
+  IMAGE_BADGE_WIDTH_PX,
   IMAGE_VEIL_ELEMENT_OPACITY,
   IMAGE_VEIL_FILL_OPACITY,
 } from "Features/popperImages/constants/imageDisplay";
@@ -240,30 +242,46 @@ export default memo(function NodeImageStatic({
   const veiled = imageVeiled && !isObject2D;
   const veilOpacity = veiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
 
-  // --- EX SITU: anchor only (dot + optional number) ---
-  // The photo lives in PopperImages; the dot keeps the TARGET interaction
-  // (click = select, drag = move the anchor) exactly as the in-situ dot.
+  // --- EX SITU: anchor only ---
+  // The photo lives in a tile (overlay panel / print zones). With "Numéro":
+  // the numbered badge alone, centred on the anchor; without: a dot. Either
+  // keeps the TARGET interaction (click = select, drag = move the anchor)
+  // exactly as the in-situ dot.
   if (exSitu) {
     const anchor = getImageAnchorPoint(imageAnnotation);
+    const selectedStroke = theme.palette.editor?.selected || "#ff9800";
+    const asBadge = imagesLinkNumber && showBadge;
     return (
       <g style={{ opacity: (dragged ? 0.7 : (opacity ?? 1)) * veilOpacity }}>
         <g transform={`translate(${anchor.x}, ${anchor.y})`}>
           <g style={{ transform: handleScaleTransform }}>
-            <circle
-              r={selected ? 7 : 5}
-              fill="#333"
-              stroke={
-                selected ? theme.palette.editor?.selected || "#ff9800" : "white"
-              }
-              strokeWidth={1.5}
-              {...interactionProps}
-              data-part-type="TARGET"
-              style={{ cursor: "crosshair" }}
-            />
-            {imagesLinkNumber && showBadge && (
-              <g transform="translate(12, -12)">
-                <ImageIndexBadgeSvg number={imageDisplayIndex} />
-              </g>
+            {asBadge ? (
+              <>
+                <ImageIndexBadgeSvg
+                  number={imageDisplayIndex}
+                  stroke={selected ? selectedStroke : "#fff"}
+                />
+                <rect
+                  x={-IMAGE_BADGE_WIDTH_PX / 2}
+                  y={-IMAGE_BADGE_HEIGHT_PX / 2}
+                  width={IMAGE_BADGE_WIDTH_PX}
+                  height={IMAGE_BADGE_HEIGHT_PX}
+                  fill="transparent"
+                  {...interactionProps}
+                  data-part-type="TARGET"
+                  style={{ cursor: "pointer" }}
+                />
+              </>
+            ) : (
+              <circle
+                r={selected ? 7 : 5}
+                fill="#333"
+                stroke={selected ? selectedStroke : "white"}
+                strokeWidth={1.5}
+                {...interactionProps}
+                data-part-type="TARGET"
+                style={{ cursor: "pointer" }}
+              />
             )}
           </g>
         </g>

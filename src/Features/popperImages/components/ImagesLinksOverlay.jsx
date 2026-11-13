@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+
+import { selectImagesLinkNumber } from "../popperImagesSlice";
 
 import {
   IMAGE_LINK_STROKE,
@@ -6,6 +9,7 @@ import {
   IMAGE_LINK_STROKE_WIDTH_SELECTED,
   IMAGE_VEIL_ELEMENT_OPACITY,
 } from "../constants/imageDisplay";
+import getImageLinkEnd from "../utils/getImageLinkEnd";
 import { isImageAnnotationVeiled } from "../utils/imageAnnotationSelection";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +44,7 @@ export default function ImagesLinksOverlay({
   anchorProjector,
   invalidateKey,
 }) {
+  const linkNumber = useSelector(selectImagesLinkNumber);
   const svgRef = useRef(null);
   const [lines, setLines] = useState([]);
   const keyRef = useRef("");
@@ -72,12 +77,13 @@ export default function ImagesLinksOverlay({
       if (!t) continue;
       const cy = t.top + t.height / 2;
       if (grid && (cy < grid.top || cy > grid.bottom)) continue;
+      const end = getImageLinkEnd({ x: t.left, y: cy }, p, linkNumber);
       next.push({
         id: a.id,
         x1: t.left - o.left,
         y1: cy - o.top,
-        x2: p.x - o.left,
-        y2: p.y - o.top,
+        x2: end.x - o.left,
+        y2: end.y - o.top,
         veiled: isImageAnnotationVeiled(a.id, selectedImageId),
         selected: a.id === selectedImageId,
       });
@@ -93,6 +99,7 @@ export default function ImagesLinksOverlay({
     images,
     selectedImageId,
     onlySelected,
+    linkNumber,
     getTileRect,
     getGridRect,
   ]);

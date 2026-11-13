@@ -169,11 +169,13 @@ export default function createImageAnnotationCard(
       ctx.fill();
     }
     if (badgeNumber != null) {
-      const r = 11;
-      const bx = shadow + width + 2 * frame - r - 6;
-      const by = shadow + r + 6;
+      // Rounded rectangle, like the 2D badge (the comments use discs).
+      const bw = 28;
+      const bh = 22;
+      const bx = shadow + width + 2 * frame - bw / 2 - 6;
+      const by = shadow + bh / 2 + 6;
       ctx.beginPath();
-      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 6);
       ctx.fillStyle = veiled ? "rgba(51,51,51,0.35)" : "#333333";
       ctx.fill();
       ctx.lineWidth = 2;

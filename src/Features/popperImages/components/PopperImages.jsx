@@ -60,6 +60,7 @@ export default function PopperImages({
   indexById,
   anchorProjector,
   hostInvalidateKey,
+  anchorClickSelects = false,
 }) {
   const dispatch = useDispatch();
 
@@ -314,6 +315,7 @@ export default function PopperImages({
         images={images}
         indexById={indexById}
         anchorProjector={anchorProjector}
+        selectOnClick={anchorClickSelects}
       />
 
       <DialogImageViewer

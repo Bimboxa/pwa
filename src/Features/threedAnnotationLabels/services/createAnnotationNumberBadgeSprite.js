@@ -8,13 +8,15 @@ import {
 
 import sizeSpriteInCssPx from "./sizeSpriteInCssPx";
 
-// Numbered badge of a photo anchor in ex situ + "Numéro" link style (the 3D
-// counterpart of ImageIndexBadgeSvg): dark disc, white ring, bold number,
-// constant CSS size, always on top, never raycast. Sits just above the
-// anchor dot (sprite center shifted down).
+// Numbered badge of a photo anchor off in situ + "Numéro" (the 3D
+// counterpart of ImageIndexBadgeSvg): dark rounded rectangle, white ring,
+// bold number, constant CSS size, always on top, never raycast. Centred on
+// the anchor: it replaces the anchor dot.
 
-const BADGE_CSS_PX = 20;
-const CANVAS_PX = 128;
+const BADGE_CSS_HEIGHT_PX = 20;
+const BADGE_ASPECT = 1.3;
+const CANVAS_H = 128;
+const CANVAS_W = Math.round(CANVAS_H * BADGE_ASPECT);
 
 export default function createAnnotationNumberBadgeSprite({
   annotationId,
@@ -22,23 +24,31 @@ export default function createAnnotationNumberBadgeSprite({
   dimmed = false,
 }) {
   const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_PX;
-  canvas.height = CANVAS_PX;
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d");
-  const c = CANVAS_PX / 2;
+  const inset = 8;
+  const w = CANVAS_W - 2 * inset;
+  const h = CANVAS_H - 2 * inset;
+  const r = h * 0.3;
 
   ctx.beginPath();
-  ctx.arc(c, c, c - 8, 0, Math.PI * 2);
+  ctx.moveTo(inset + r, inset);
+  ctx.arcTo(inset + w, inset, inset + w, inset + h, r);
+  ctx.arcTo(inset + w, inset + h, inset, inset + h, r);
+  ctx.arcTo(inset, inset + h, inset, inset, r);
+  ctx.arcTo(inset, inset, inset + w, inset, r);
+  ctx.closePath();
   ctx.fillStyle = "#333333";
   ctx.fill();
   ctx.lineWidth = 9;
   ctx.strokeStyle = "#ffffff";
   ctx.stroke();
   ctx.fillStyle = "#ffffff";
-  ctx.font = `600 ${Math.round(CANVAS_PX * 0.5)}px sans-serif`;
+  ctx.font = `600 ${Math.round(CANVAS_H * 0.5)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(number ?? ""), c, c + 4);
+  ctx.fillText(String(number ?? ""), CANVAS_W / 2, CANVAS_H / 2 + 4);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -57,9 +67,10 @@ export default function createAnnotationNumberBadgeSprite({
   });
 
   const sprite = new Sprite(material);
-  sizeSpriteInCssPx(sprite, { cssHeight: BADGE_CSS_PX, aspect: 1 });
-  // Above the anchor dot: the sprite's center is pushed below its bottom edge.
-  sprite.center.set(0.5, -0.35);
+  sizeSpriteInCssPx(sprite, {
+    cssHeight: BADGE_CSS_HEIGHT_PX,
+    aspect: BADGE_ASPECT,
+  });
   sprite.renderOrder = 1004;
   sprite.raycast = () => {};
   sprite.userData = {

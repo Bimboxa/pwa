@@ -209,15 +209,28 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   imageDisplayIndex / imageVeiled` through `NodeAnnotationStatic` from
   `StaticMapContent` / `EditedObjectLayer` only (portfolio, grids, elevation
   keep the plain in-situ rendering). In situ: numbered badge at the bbox
-  corner + veil. Any other mode: the anchor dot only (TARGET interaction
-  kept: click selects, drag moves `targetPoint`) + badge with "Numéro".
+  corner + veil. Any other mode: the anchor only (TARGET interaction kept:
+  click selects, drag moves `targetPoint`, pointer cursor) — with "Numéro"
+  the numbered badge alone, centred on the anchor; without, a dot.
 - 3D `ThreedAnnotationLabels`: in situ the card canvas carries the badge and
   the veil (`createImageAnnotationCard({ badgeNumber, veiled })`,
   `applyAnnotationMaterialState` never swaps a card's material); any other
-  mode no card / leader, the anchor dot always, a
-  `createAnnotationNumberBadgeSprite` with "Numéro", and an invisible proxy
-  as the target handle's `labelSprite` so the TARGET drag still writes
-  `targetPoint`.
+  mode no card / leader, one anchor marker — the
+  `createAnnotationNumberBadgeSprite` centred on the anchor with "Numéro",
+  the anchor dot otherwise (either is `userData.anchorDot` and the
+  `imageAnchorsById` entry) — and an invisible proxy as the target handle's
+  `labelSprite` so the TARGET drag still writes `targetPoint`.
+- The numbered badge of a photo is a **rounded rectangle** everywhere
+  (`IMAGE_BADGE_WIDTH_PX / HEIGHT_PX / CORNER_PX`: `ImageIndexBadge`,
+  `ImageIndexBadgeSvg`, the 3D sprite, the 3D card canvas) — discs are the
+  comments' pills. The leaders stop on the badge border
+  (`getImageLinkEnd`).
+- `PopperImageAnchorHover` — off in situ (mounted by `PopperImages` and
+  `ImagesPrintZonesOverlay`), hovering an anchor shows a popper with the
+  photo, its label and `labelDescription`, and a pointer cursor (hit test in
+  client px on the anchor projector, so it works on the 3D sprites that are
+  never raycast). In 3D (`anchorClickSelects`) a click on the hovered anchor
+  selects the photo; in 2D the TARGET interaction already does.
 
 ### Capture (`ImageModeOverlay`)
 

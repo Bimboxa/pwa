@@ -21,6 +21,7 @@ import {
   IMAGE_LINK_STROKE,
   IMAGE_LINK_STROKE_WIDTH,
 } from "Features/popperImages/constants/imageDisplay";
+import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutImagePrintZones";
 
 // ---------------------------------------------------------------------------
@@ -159,13 +160,14 @@ export default function CaptureImagePrintZonesOverlay({
             const a = anchorsById[t.id];
             if (!a?.inside) return null;
             const p = getPrintZoneTileLinkPoint(t, a);
+            const end = getImageLinkEnd(p, a, showNumbers);
             return (
               <g key={t.id}>
                 <line
                   x1={p.x}
                   y1={p.y}
-                  x2={a.x}
-                  y2={a.y}
+                  x2={end.x}
+                  y2={end.y}
                   stroke={IMAGE_LINK_STROKE}
                   strokeWidth={IMAGE_LINK_STROKE_WIDTH}
                 />

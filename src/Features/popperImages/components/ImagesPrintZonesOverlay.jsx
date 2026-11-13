@@ -14,6 +14,7 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box } from "@mui/material";
 
+import PopperImageAnchorHover from "./PopperImageAnchorHover";
 import TileImageAnnotation from "./TileImageAnnotation";
 import DialogImageViewer from "Features/images/components/DialogImageViewer";
 
@@ -30,6 +31,7 @@ import {
   selectSelectedImageAnnotationId,
 } from "../utils/imageAnnotationSelection";
 import usePrintZonesResize from "../hooks/usePrintZonesResize";
+import getImageLinkEnd from "../utils/getImageLinkEnd";
 import { getPrintZoneTileLinkPoint } from "../utils/layoutImagePrintZones";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,7 @@ export default function ImagesPrintZonesOverlay({
   indexById,
   anchorProjector,
   hostInvalidateKey,
+  anchorClickSelects = false,
 }) {
   const dispatch = useDispatch();
 
@@ -199,6 +202,7 @@ export default function ImagesPrintZonesOverlay({
               // "Ligne" off: the leader of the selected photo only.
               if (!a?.inside || !(linkLine || selected)) return null;
               const p = getPrintZoneTileLinkPoint(t, a);
+              const end = getImageLinkEnd(p, a, linkNumber);
               return (
                 <g
                   key={t.id}
@@ -211,8 +215,8 @@ export default function ImagesPrintZonesOverlay({
                   <line
                     x1={p.x}
                     y1={p.y}
-                    x2={a.x}
-                    y2={a.y}
+                    x2={end.x}
+                    y2={end.y}
                     stroke={IMAGE_LINK_STROKE}
                     strokeWidth={
                       selected
@@ -307,6 +311,16 @@ export default function ImagesPrintZonesOverlay({
           />
         ))}
       </Box>
+
+      {/* Hovering an anchor (numbered badge / dot) in the editor shows its
+          photo. */}
+      <PopperImageAnchorHover
+        active={!fullscreenImage}
+        images={images}
+        indexById={indexById}
+        anchorProjector={anchorProjector}
+        selectOnClick={anchorClickSelects}
+      />
 
       <DialogImageViewer
         open={Boolean(fullscreenImage)}

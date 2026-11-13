@@ -319,25 +319,24 @@ export default function ThreedAnnotationLabels({ annotations }) {
       // never raycast — the drag grip is the selected-only target handle).
       // Ex situ photos always get it: the anchor is their only in-scene
       // trace, and the tile → anchor leaders of PopperImages aim at it.
+      // Off in situ + "Numéro": the numbered badge, centred on the anchor,
+      // IS the anchor marker (no dot under it).
       if (sprite.userData.hasConnector || exSitu) {
-        const anchorDot = createAnnotationLabelAnchorSprite({
-          annotationId: annotation.id,
-          dimmed: veiled,
-        });
+        const anchorDot =
+          exSitu && imagesLinkNumber && badgeNumber != null
+            ? createAnnotationNumberBadgeSprite({
+                annotationId: annotation.id,
+                number: badgeNumber,
+                dimmed: veiled,
+              })
+            : createAnnotationLabelAnchorSprite({
+                annotationId: annotation.id,
+                dimmed: veiled,
+              });
         anchorDot.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
         sprite.userData.anchorDot = anchorDot;
         group.add(anchorDot);
         if (isImage) imageAnchorsById[annotation.id] = anchorDot;
-
-        if (exSitu && imagesLinkNumber && badgeNumber != null) {
-          const badge = createAnnotationNumberBadgeSprite({
-            annotationId: annotation.id,
-            number: badgeNumber,
-            dimmed: veiled,
-          });
-          badge.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
-          group.add(badge);
-        }
 
         // Target handle on the selected annotation only. Not for MARKER: in 2D
         // a TARGET drag moves the marker's point itself — out of scope in 3D.

@@ -3,21 +3,32 @@ import theme from "Styles/theme";
 import {
   IMAGE_BADGE_BG,
   IMAGE_BADGE_FG,
+  IMAGE_BADGE_CORNER_PX,
   IMAGE_BADGE_FONT_PX,
-  IMAGE_BADGE_RADIUS_PX,
+  IMAGE_BADGE_HEIGHT_PX,
+  IMAGE_BADGE_WIDTH_PX,
 } from "../constants/imageDisplay";
 
-// SVG numbered badge of a photo, centred on (0,0) in SCREEN pixels: the
+// SVG numbered badge of a photo (rounded rectangle; `stroke` overrides the
+// white ring, e.g. selected), centred on (0,0) in SCREEN pixels: the
 // caller wraps it in its inverse-zoom group (NodeImageStatic) or draws it in
 // an overlay already in screen pixels (CaptureImagesOverlay).
-export default function ImageIndexBadgeSvg({ number, dimmed = false }) {
+export default function ImageIndexBadgeSvg({
+  number,
+  dimmed = false,
+  stroke = "#fff",
+}) {
   if (number == null) return null;
   return (
     <g style={{ pointerEvents: "none", opacity: dimmed ? 0.3 : 1 }}>
-      <circle
-        r={IMAGE_BADGE_RADIUS_PX}
+      <rect
+        x={-IMAGE_BADGE_WIDTH_PX / 2}
+        y={-IMAGE_BADGE_HEIGHT_PX / 2}
+        width={IMAGE_BADGE_WIDTH_PX}
+        height={IMAGE_BADGE_HEIGHT_PX}
+        rx={IMAGE_BADGE_CORNER_PX}
         fill={IMAGE_BADGE_BG}
-        stroke="#fff"
+        stroke={stroke}
         strokeWidth={1.5}
       />
       <text
