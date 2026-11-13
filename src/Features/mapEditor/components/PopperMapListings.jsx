@@ -123,6 +123,7 @@ import {
 import SectionRevolutionAxes from "Features/revolutionAxes/components/SectionRevolutionAxes";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
+import { selectIsSectionLineThreedHelperActive } from "Features/baseMapLinks/utils/sectionLineHelperSelectors";
 import {
   TEMPLATELESS_LABEL,
   isCutLineAnnotation,
@@ -1674,6 +1675,11 @@ export default function PopperMapListings() {
   // meshing mode): its drawing helper (target surface) shows here too.
   const meshHelperTool = useSelector(selectActiveMeshHelperTool);
   const activeThreedTool = useSelector(selectActiveThreedTool);
+  // Section mark drawn in 3D / « + fond de plan » placement: their helper
+  // shows even where the chain below is off (Fonds de plan module in 3D).
+  const sectionLineThreedHelperActive = useSelector(
+    selectIsSectionLineThreedHelperActive
+  );
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   // « Détection des doublons » run displayed (floating helper in drawer mode)
   const duplicatesActive = useSelector(selectDuplicatesDetectionActive);
@@ -2524,7 +2530,8 @@ export default function PopperMapListings() {
   if (
     (helpersEnabled && (Boolean(enabledDrawingMode) || activeThreedTool)) ||
     Boolean(meshHelperTool) ||
-    (isMeshesModule && activeThreedTool)
+    (isMeshesModule && activeThreedTool) ||
+    sectionLineThreedHelperActive
   ) {
     return <PopperDrawingHelper />;
   }

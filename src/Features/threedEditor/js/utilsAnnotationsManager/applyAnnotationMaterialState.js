@@ -255,6 +255,9 @@ export default function applyAnnotationMaterialState(object3D, state) {
     // Base circle of a plan revolution axis: keeps its look through hover /
     // dim (the dashed axis line carries the state).
     if (child.userData?.isRevolutionAxisCircle) return;
+    // Ticks / arrows / labels of a section mark: the cut line carries the
+    // state.
+    if (child.userData?.isSectionMarkDecoration) return;
     if (!child.userData) child.userData = {};
     if (!child.userData.originalMaterial) {
       child.userData.originalMaterial = child.material;

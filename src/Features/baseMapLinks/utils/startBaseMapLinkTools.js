@@ -4,6 +4,7 @@ import {
   setEnabledDrawingMode,
   setSmartDetectEnabled,
 } from "Features/mapEditor/mapEditorSlice";
+import { setShowSectionLines } from "Features/popperMapListings/popperMapListingsSlice";
 
 import DRAWING_SHAPE_CONFIG from "Features/annotations/constants/drawingShapeConfig";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
@@ -73,6 +74,9 @@ export function isBaseMapLinkLocateDraft(newAnnotation) {
 function arm(dispatch, draft) {
   const drawingMode = getDrawingMode();
   if (!drawingMode) return;
+  // A mark drawn while the "Traits de coupe" switch is off would vanish at
+  // commit: the tool turns the switch back on.
+  dispatch(setShowSectionLines(true));
   dispatch(setNewAnnotation(draft));
   dispatch(setEnabledDrawingMode(drawingMode));
   // The segment-snap detection would glue the mark on a wall: never here.

@@ -68,6 +68,8 @@ export function isAnnotationFaceTarget(obj) {
   if (obj.userData?.isScene3dGlb) return false;
   // Base circle of a plan revolution axis: a decoration, never a face.
   if (obj.userData?.isRevolutionAxisCircle) return false;
+  // Ticks / arrows / labels of a section mark: decorations too.
+  if (obj.userData?.isSectionMarkDecoration) return false;
   return true;
 }
 

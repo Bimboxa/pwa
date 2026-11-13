@@ -73,6 +73,7 @@ import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
+import sectionBaseMapPlacementReducer from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import popperImagesReducer from "Features/popperImages/popperImagesSlice";
 import commandsToolbarReducer from "Features/commandsToolbar/commandsToolbarSlice";
 import editorGridReducer from "Features/editorGrid/editorGridSlice";
@@ -173,6 +174,7 @@ const store = configureStore({
     //
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
+    sectionBaseMapPlacement: sectionBaseMapPlacementReducer,
     popperImages: popperImagesReducer,
     panelDrawing: panelDrawingReducer,
     photos: photosReducer,

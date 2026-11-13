@@ -75,6 +75,8 @@ import SectionMeshCreateHelperContent from "Features/threedMesh/components/Secti
 import SectionMeshNumberHelperContent from "Features/threedMesh/components/SectionMeshNumberHelperContent";
 import SectionCutLineDrawHelperContent from "Features/threedCutLines/components/SectionCutLineDrawHelperContent";
 import SectionCutPlaneDrawHelperContent from "Features/threedCutLines/components/SectionCutPlaneDrawHelperContent";
+import SectionSectionBaseMapPlacementHelper from "Features/baseMapLinks/components/SectionSectionBaseMapPlacementHelper";
+import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import SectionCutAngleDrawHelperContent from "Features/threedCutLines/components/SectionCutAngleDrawHelperContent";
 import selectActiveMeshHelperTool from "Features/threedMesh/utils/selectActiveMeshHelperTool";
 import SectionThreedAxisLockHelper from "Features/threedDrawing/components/SectionThreedAxisLockHelper";
@@ -313,6 +315,10 @@ export default function SectionDrawingHelperContent() {
   const activeThreedTool = useSelector(selectActiveThreedTool);
   // « Ajouter une maille » (Maillage module, CREATE tool of the meshing mode).
   const meshHelperTool = useSelector(selectActiveMeshHelperTool);
+  // « + fond de plan » of a section mark (3D editor): its own helper body.
+  const sectionBaseMapPlacementActive = useSelector(
+    selectIsSectionBaseMapPlacementActive
+  );
   const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   // Configuration > Dessin > Loupe: false hides the loupe card (2D only).
   const loupeEnabled = useSelector(selectIsLoupeEnabled);
@@ -522,6 +528,10 @@ export default function SectionDrawingHelperContent() {
   void effectiveDetection;
 
   // render
+
+  if (sectionBaseMapPlacementActive) {
+    return <SectionSectionBaseMapPlacementHelper />;
+  }
 
   if (meshHelperTool === "CREATE") {
     return <SectionMeshCreateHelperContent />;
@@ -931,9 +941,12 @@ export default function SectionDrawingHelperContent() {
           {"Dessinez un rectangle autour de la zone à réparer (2 clics)"}
         </Box>
       )}
-      {isSectionMarkDraw && !isThreedToggledEditor && (
-        <SectionBaseMapLinkDrawingHelper />
-      )}
+      {/* The locate flow (clone on a vertical base map) is 2D only; a new
+          mark is drawn in 3D too. */}
+      {isSectionMarkDraw &&
+        (!isThreedToggledEditor || !isSectionMarkLocate) && (
+          <SectionBaseMapLinkDrawingHelper />
+        )}
       {/* Typed length / dimension constraints of the armed mode (rectangle
           sides, segment length, radius, cut distance) — null otherwise. */}
       {!isSectionMarkLocate && <SectionDrawingConstraints />}

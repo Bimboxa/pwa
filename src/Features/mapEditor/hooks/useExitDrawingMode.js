@@ -20,6 +20,10 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 import selectActiveThreedTool from "Features/threedDrawing/utils/selectActiveThreedTool";
 import selectActiveMeshHelperTool from "Features/threedMesh/utils/selectActiveMeshHelperTool";
+import {
+  selectIsSectionBaseMapPlacementActive,
+  stopSectionBaseMapPlacement,
+} from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 
 // "Quitter le dessin" (X of the drawing helper): leaves the armed draw / tool
 // and DROPS the annotation in progress — unlike Escape, whose first press
@@ -49,6 +53,10 @@ export default function useExitDrawingMode() {
     // « Ajouter une maille » / « Numéroter » (Maillage module): back to the
     // selection tool.
     if (selectActiveMeshHelperTool(state)) dispatch(setMeshingTool("SELECT"));
+    // « + fond de plan » of a section mark: drops the previewed page.
+    if (selectIsSectionBaseMapPlacementActive(state)) {
+      dispatch(stopSectionBaseMapPlacement());
+    }
     // 3D template-less polyline: not covered by the bridge's deactivation.
     dispatch(cancelInProgressPolyline());
     dispatch(clearConstraintBuffer());

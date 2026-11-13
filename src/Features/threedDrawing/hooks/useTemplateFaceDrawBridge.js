@@ -16,6 +16,7 @@ import { isFaceCutDrawingMode } from "Features/threedFaceCut/utils/faceCutTools"
 import { isMeshBrushDrawingMode } from "Features/meshPaint/utils/meshBrushTools";
 import { selectIsMeshBrushActive } from "Features/meshPaint/utils/meshBrushSelectors";
 import { selectIsRevolutionAxisDrawThreedActive } from "Features/revolutionAxes/utils/revolutionAxisDrawThreedSelectors";
+import { selectIsBaseMapLinkDrawThreedActive } from "Features/baseMapLinks/utils/baseMapLinkDrawThreedSelectors";
 
 import { selectIsTemplateCoteDrawActive } from "../utils/templateCoteDrawSelectors";
 import { selectIsTemplateRulerDrawActive } from "../utils/templateRulerDrawSelectors";
@@ -75,6 +76,9 @@ export default function useTemplateFaceDrawBridge() {
       selectIsFaceCutDrawActive(s) ||
       selectIsMeshBrushActive(s) ||
       selectIsRevolutionAxisDrawThreedActive(s) ||
+      // section mark of the Fonds de plan module (Features/baseMapLinks):
+      // two clicks on a horizontal plan, its own commit
+      selectIsBaseMapLinkDrawThreedActive(s) ||
       selectIsTemplateCoteDrawActive(s) ||
       selectIsTemplateRulerDrawActive(s) ||
       // cut line of the Maillage module (Features/threedCutLines): the

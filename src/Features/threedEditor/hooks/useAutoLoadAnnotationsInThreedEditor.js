@@ -171,8 +171,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
-    enabled:
-      isActiveViewer && !(isBaseMapsModule && !showAnnotationsInBaseMaps),
+    enabled: isActiveViewer,
+    // Section marks (BASE_MAP_LINK): Fonds de plan and Dessin modules (the
+    // hook drops them elsewhere). In the Fonds de plan module with its
+    // "Afficher les annotations" switch off, they are the only rows loaded
+    // (bare base maps + section marks, like the 2D editor).
+    includeBaseMapLinks: true,
+    onlyBaseMapLinks: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeListingsIds: gridDessin ? undefined : hiddenListingsIds,
     keepHiddenTemplates: gridDessin,
     ignoreSolo: gridDessin,

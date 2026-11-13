@@ -407,6 +407,7 @@ import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelector
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { getLayersAsync } from "Features/layers/utils/layersMode";
 import selectSoloWorkPackageId from "Features/businessObjects/utils/selectSoloWorkPackageId";
+import { selectShowSectionLines } from "Features/popperMapListings/popperMapListingsSlice";
 import useWorkPackageSoloAnnotationIdSet from "Features/businessObjects/hooks/useWorkPackageSoloAnnotationIdSet";
 import useWorkPackagePlayStatus from "Features/planning/hooks/useWorkPackagePlayStatus";
 import { PLAY_STATUS } from "Features/planning/utils/getWorkPackagePlayStatusById";
@@ -775,8 +776,9 @@ export default function useAnnotationsV2(options) {
     // listings) unless the caller opts in.
     const includeCutLines = Boolean(options?.includeCutLines);
     // Section marks (BASE_MAP_LINK, Features/baseMapLinks) exist for the
-    // Fonds de plan module only: dropped from every consumer unless the
-    // caller opts in AND that module is the active one. There they are
+    // Fonds de plan and Dessin modules only: dropped from every consumer
+    // unless the caller opts in AND one of those modules is the active one
+    // AND the "Traits de coupe" switch is on. There they are
     // always visible (no layer / listing / eye / solo filter applies).
     // `onlyBaseMapLinks` keeps nothing else (Fonds de plan editor with its
     // "Afficher les annotations" switch off).
@@ -932,11 +934,17 @@ export default function useAnnotationsV2(options) {
     const isMeshesModule = useSelector(
       (s) => s.viewers.selectedViewerKey === "MESHES"
     );
-    // Fonds de plan module: the only one that renders the section marks.
-    const isBaseMapsModule = useSelector(
-      (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+    // Fonds de plan and Dessin modules: the only ones that render the
+    // section marks, while the "Traits de coupe" switch of the base maps
+    // list is on.
+    const isSectionLinesModule = useSelector(
+      (s) =>
+        s.viewers.selectedViewerKey === "BASE_MAPS" ||
+        s.viewers.selectedViewerKey === "MAP"
     );
-    const showBaseMapLinks = includeBaseMapLinks && isBaseMapsModule;
+    const showSectionLines = useSelector(selectShowSectionLines);
+    const showBaseMapLinks =
+      includeBaseMapLinks && isSectionLinesModule && showSectionLines;
     // eye of the orphan annotations (« Annot. sans modèle » row)
     const hideOrphans = useSelector((s) =>
       selectHiddenAnnotationTemplateIdSet(s).has(ORPHAN_TEMPLATE_ID)
@@ -1307,7 +1315,8 @@ export default function useAnnotationsV2(options) {
           )
       );
 
-      // Section marks: Fonds de plan module only (see includeBaseMapLinks).
+      // Section marks: Fonds de plan / Dessin modules only (see
+      // includeBaseMapLinks).
       if (!showBaseMapLinks) {
         _annotations = _annotations.filter((a) => !isBaseMapLinkAnnotation(a));
       }
@@ -3020,7 +3029,8 @@ export default function useAnnotationsV2(options) {
       // skip post-processing when disabled
       if (!enabled || !annotations || annotations.length === 0) return [];
 
-      // Section marks (Fonds de plan module) skip the whole pipeline below:
+      // Section marks (Fonds de plan / Dessin modules) skip the whole pipeline
+      // below:
       // no eye, solo, orphan or play filter may hide them. They are appended
       // back at the end, with their template's style for the legacy rows.
       const baseMapLinkRows = [];

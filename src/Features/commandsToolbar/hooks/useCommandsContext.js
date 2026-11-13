@@ -8,6 +8,7 @@ import {
   selectSelectedPointIds,
 } from "Features/selection/selectionSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { selectSweepPickAnnotationId } from "Features/mapEditor/utils/sweepPickMode";
@@ -117,6 +118,10 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const moveAnnotationModeActive = useSelector(
     (s) => s.threedEditor.moveAnnotationMode.active
   );
+  // « + fond de plan » of a section mark armed (Features/baseMapLinks).
+  const sectionBaseMapPlacementActive = useSelector(
+    selectIsSectionBaseMapPlacementActive
+  );
   const moveBaseMapModeActive = useSelector(
     (s) => s.threedEditor.moveBaseMapMode.active
   );
@@ -156,7 +161,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
     caller: "CommandsToolbar",
     withForeignFootprints: true,
     withRevolutionFootprints: true,
-    // Section marks (Fonds de plan module only — dropped elsewhere).
+    // Section marks (Fonds de plan / Dessin modules — dropped elsewhere).
     includeBaseMapLinks: true,
     enabled,
   });
@@ -296,6 +301,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       meshingTool,
       moveAnnotationModeActive,
       moveBaseMapModeActive,
+      sectionBaseMapPlacementActive,
       rotateBaseMapModeActive,
       axesPlacementModeActive,
       showSceneAxes,
@@ -360,6 +366,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       meshingTool,
       moveAnnotationModeActive,
       moveBaseMapModeActive,
+      sectionBaseMapPlacementActive,
       rotateBaseMapModeActive,
       axesPlacementModeActive,
       showSceneAxes,
