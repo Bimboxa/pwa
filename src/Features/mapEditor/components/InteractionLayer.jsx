@@ -9206,9 +9206,13 @@ const InteractionLayer = forwardRef(({
       // Elevation axis placement (inverted T): draggable only once selected —
       // an unselected grab only selects. The whole-move drag preview rides the
       // SELECTED annotation, so an unselected drag would move it invisibly.
+      // IMAGE body: same rule — an unselected photo must not slide under a
+      // stray drag; the first gesture selects it, the next one moves it (its
+      // TARGET dot is already covered by `isLabelPart`).
       const isUnselectedPlacement =
-        draggableGroup.dataset?.annotationType ===
-          "REVOLUTION_AXIS_PLACEMENT" &&
+        ["REVOLUTION_AXIS_PLACEMENT", "IMAGE"].includes(
+          draggableGroup.dataset?.annotationType
+        ) &&
         !partType &&
         selectedNode?.nodeId !== nodeId &&
         !selectedItems?.some((it) => it.nodeId === nodeId);

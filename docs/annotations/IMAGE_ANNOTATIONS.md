@@ -38,7 +38,18 @@ bbox centre. No `db.points` row is involved (geometry kind `BBOX`, like
   dragover; other files keep the browser default. A single dropped image is
   selected right away. The dnd-kit `DropZoneLayer` (internal `EXTERNAL_IMAGE`
   drags → MARKER) is a separate path.
-- **Selection** (`NodeImageStatic`): drag = move, round handle = rotate (angle
+- **Rendering** (`NodeImageStatic`): floating paper — white frame around the
+  photo (margin proportional to the print, rounded corners, photo clipped by
+  a per-instance `useId` clipPath) and a two-layer CSS `drop-shadow` of
+  constant screen size on a group wrapping the rotated one (so the offset
+  never turns with the image). No shadow in `printMode` nor while dragged.
+  The frame belongs to the draggable group, so it is grabbable; hover /
+  selection outlines and the veil follow the frame, the resize handles stay
+  on the bbox.
+- **Selection** (`NodeImageStatic`): the photo is draggable **only once
+  selected** — a mousedown + move on an unselected image only selects it
+  (`InteractionLayer` `clickOnly`, same rule as labels and revolution axes).
+  Then drag = move, round handle = rotate (angle
   badge), corner handles = homothetic resize. The overlay toolbar
   (`NodeImageToolbarOverlay`, rendered outside the rotate group) offers:
   - **Mettre à l'échelle**: arms the `IMAGE_SCALE` drawing mode (2-click
@@ -56,14 +67,17 @@ bbox centre. No `db.points` row is involved (geometry kind `BBOX`, like
 ## 3D viewer
 
 `createImageAnnotation3D` creates a managed root. `ThreedAnnotationLabels`
-attaches a camera-facing black photo card below it, preserving visibility
-filters and disposal. The card contains the image, label and `labelDescription`.
+attaches a camera-facing white "paper" photo card below it (white frame,
+rounded corners, canvas-drawn drop shadow in a transparent margin),
+preserving visibility filters and disposal. The card contains the image, label and `labelDescription`.
 `imageOrientation3d` selects `VERTICAL` (default, camera-facing sprite with a
 fixed world size) or `HORIZONTAL` (double-sided plane parallel to the base
 map, following its rotation). In both modes the photo's width and height match
 the 2D bbox converted to metres; perspective distance and zoom change its screen
-size. The photo touches the card edges, with padding only inside the caption
-containing the label and description. Position comes from the bbox centre and `imageLift3d` (metres
+size. The photo is inset in the white frame (`frame` + `shadow` margins of
+`createImageAnnotationCard`), with padding only inside the caption
+containing the label and description; the card's physical size is the photo
+size scaled up by those margins so the photo itself keeps its metric size. Position comes from the bbox centre and `imageLift3d` (metres
 above `offsetZ` + 1 cm, default 1 m for vertical cards, 0 for horizontal cards).
 Image bytes come from `db.files`, with `imageUrlClient` as fallback.
 
