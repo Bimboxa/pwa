@@ -301,6 +301,19 @@ export default function remapDexieExportIds(jsonData, opts) {
           ),
         };
       }
+      // Template-level path array default: same template ref.
+      if (
+        tableName === "annotationTemplates" &&
+        row.pathArray?.annotationTemplateId
+      ) {
+        row.pathArray = {
+          ...row.pathArray,
+          annotationTemplateId: remapId(
+            "annotationTemplates",
+            row.pathArray.annotationTemplateId
+          ),
+        };
+      }
       if (tableName === "annotations" && row.pathArraySourceAnnotationId) {
         row.pathArraySourceAnnotationId = remapId(
           "annotations",

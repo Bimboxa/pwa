@@ -3,12 +3,17 @@ import db from "App/db/db";
 import collectPathArrayChildren from "./collectPathArrayChildren";
 
 // Rows to drop along with path array children: their own points (never
-// shared, see applyPathArrayService) and their template mapping relations.
+// shared, see applyPathArrayService — the holes `cuts` of the generated
+// system rows included) and their template mapping relations.
 export async function deletePathArrayChildRowsInTx(children) {
   if (!children?.length) return;
   const ids = children.map((c) => c.id);
   const pointIds = children
-    .flatMap((c) => (c.points ?? []).map((p) => p?.id))
+    .flatMap((c) => [
+      ...(c.points ?? []),
+      ...(c.cuts ?? []).flatMap((cut) => cut?.points ?? []),
+    ])
+    .map((p) => p?.id)
     .filter(Boolean);
   const relIds = (
     await db.relAnnotationMappingCategory
