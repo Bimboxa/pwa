@@ -29,6 +29,7 @@ import {
 // export) and `isSectionBaseMapPreview`.
 const FRAME_COLOR = 0x39ff14;
 const FRAME_WIDTH_PX = 3;
+const BLINK_PERIOD_MS = 800;
 
 export default function createSectionBaseMapPreview({ scene, domElement }) {
   const group = new Group();
@@ -68,6 +69,7 @@ export default function createSectionBaseMapPreview({ scene, domElement }) {
 
   scene.add(group);
 
+  let blinkRafId = null;
   let lastWidth = null;
   let lastHeight = null;
 
@@ -115,7 +117,24 @@ export default function createSectionBaseMapPreview({ scene, domElement }) {
       group.rotation.set(euler.x, euler.y, euler.z);
       group.updateMatrixWorld(true);
     },
+    // The frame blinks like the candidates waiting for Space (cut planes,
+    // automatic detection): same period and opacity range as
+    // CutPlaneOverlayThreed. The scene renders on demand, so the blink owns
+    // a rAF loop — `render` is the editor's renderScene.
+    startBlink(render) {
+      if (blinkRafId) return;
+      const tick = (now) => {
+        const phase =
+          0.5 + 0.5 * Math.sin((2 * Math.PI * now) / BLINK_PERIOD_MS);
+        outlineMaterial.opacity = 0.25 + 0.75 * phase;
+        render?.();
+        blinkRafId = requestAnimationFrame(tick);
+      };
+      blinkRafId = requestAnimationFrame(tick);
+    },
     dispose() {
+      if (blinkRafId) cancelAnimationFrame(blinkRafId);
+      blinkRafId = null;
       scene.remove(group);
       fill.geometry.dispose();
       fillMaterial.dispose();
