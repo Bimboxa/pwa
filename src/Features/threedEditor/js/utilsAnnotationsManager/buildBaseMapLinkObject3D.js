@@ -45,13 +45,13 @@ import attachFatLineRaycast, {
 // (line) or ignored (sprites, no depth test).
 
 const DEFAULT_COLOR = "#9c27b0";
-const LINEWIDTH_PX = 1.5;
+const LINEWIDTH_PX = 1;
 // On-screen sizes (CSS px), same values as NodeBaseMapLinkStatic.
 const TICK_LENGTH_PX = 16;
-const TICK_THICKNESS_PX = 2;
+const TICK_THICKNESS_PX = 1.5;
 const ARROW_PX = 10;
 const ARROW_GAP_PX = 5;
-const LABEL_HEIGHT_PX = 15;
+const LABEL_HEIGHT_PX = 14;
 const LABEL_GAP_PX = 6;
 // Canvas resolution of the label text (px), downscaled on screen.
 const LABEL_FONT_PX = 64;
@@ -100,7 +100,7 @@ function getGlyphTexture(kind, color) {
 }
 
 function makeLabelTexture(text, color) {
-  const font = `600 ${LABEL_FONT_PX}px sans-serif`;
+  const font = `400 ${LABEL_FONT_PX}px sans-serif`;
   const measureCtx = document.createElement("canvas").getContext("2d");
   measureCtx.font = font;
   const canvas = document.createElement("canvas");
@@ -124,17 +124,45 @@ const _q = new Vector3();
 // sprite anchor, within a distance-scaled tolerance (same model as the fat
 // lines and the POINT sprites — three's own sprite raycast is quad-exact and
 // throws when raycaster.camera is unset).
+//
+// A sprite is drawn AWAY from its anchor (a label sits beyond the end of the
+// mark, an arrow beside the line): the pick targets the disc last rendered —
+// `userData.pick = { center (world), radius (m) }`, refreshed before each
+// render by updateSpritePick — and falls back on the anchor before the first
+// render.
 function attachSpriteRaycast(sprite) {
   sprite.raycast = function (raycaster, intersects) {
-    this.getWorldPosition(_anchor);
+    const pick = this.userData.pick;
+    if (pick) _anchor.copy(pick.center);
+    else this.getWorldPosition(_anchor);
     const ray = raycaster.ray;
     ray.closestPointToPoint(_anchor, _onRay);
     const distance = ray.origin.distanceTo(_onRay);
-    const threshold =
-      PICK_TOLERANCES * Math.max(PICK_MIN_M, PICK_ANGULAR * distance);
+    const tolerance = Math.max(PICK_MIN_M, PICK_ANGULAR * distance);
+    const threshold = pick
+      ? Math.max(pick.radius, tolerance)
+      : PICK_TOLERANCES * tolerance;
     if (_onRay.distanceToSquared(_anchor) > threshold * threshold) return;
     intersects.push({ distance, point: _anchor.clone(), object: this });
   };
+}
+
+// World-space pick disc of a sprite drawn `offsetPx` (screen px, y up) away
+// from its anchor, over `radiusPx`: the on-screen disc is unprojected at the
+// anchor's depth.
+function updateSpritePick(sprite, renderer, camera, offsetPx, radiusPx) {
+  const dom = renderer?.domElement;
+  const w = dom?.clientWidth;
+  const h = dom?.clientHeight;
+  if (!w || !h) return;
+  sprite.getWorldPosition(_p).project(camera);
+  if (!Number.isFinite(_p.x) || !Number.isFinite(_p.y)) return;
+  const cx = _p.x + (2 * offsetPx.x) / w;
+  const cy = _p.y + (2 * offsetPx.y) / h;
+  const pick = (sprite.userData.pick ??= { center: new Vector3(), radius: 0 });
+  pick.center.set(cx, cy, _p.z).unproject(camera);
+  _q.set(cx + (2 * radiusPx) / w, cy, _p.z).unproject(camera);
+  pick.radius = pick.center.distanceTo(_q);
 }
 
 // On-screen direction (unit, y up) of a LOCAL direction of the parent group
@@ -247,7 +275,11 @@ export default function buildBaseMapLinkObject3D({
     const sizeHook = sprite.onBeforeRender;
     sprite.onBeforeRender = (renderer, scene, camera) => {
       sizeHook(renderer, scene, camera);
-      orient(sprite, renderer, camera);
+      // { x, y, radiusPx }: where the sprite is drawn from its anchor.
+      const drawn = orient(sprite, renderer, camera);
+      if (drawn) {
+        updateSpritePick(sprite, renderer, camera, drawn, drawn.radiusPx);
+      }
     };
     group.add(sprite);
     return sprite;
@@ -264,6 +296,7 @@ export default function buildBaseMapLinkObject3D({
       orient: (sprite, renderer, camera) => {
         const dir = getScreenDirection(sprite, n, probeM, renderer, camera);
         if (dir) sprite.material.rotation = Math.atan2(dir.y, dir.x);
+        return { x: 0, y: 0, radiusPx: TICK_LENGTH_PX / 2 };
       },
     })
   );
@@ -278,7 +311,14 @@ export default function buildBaseMapLinkObject3D({
       aspect: 1,
       orient: (s, renderer, camera) => {
         const dir = getScreenDirection(s, n, probeM, renderer, camera);
-        if (dir) s.material.rotation = Math.atan2(dir.y, dir.x);
+        if (!dir) return null;
+        s.material.rotation = Math.atan2(dir.y, dir.x);
+        const offsetPx = ARROW_GAP_PX + ARROW_PX / 2;
+        return {
+          x: dir.x * offsetPx,
+          y: dir.y * offsetPx,
+          radiusPx: ARROW_PX,
+        };
       },
     });
     // The quad starts ARROW_GAP_PX away from the anchor, along its own +x
@@ -312,7 +352,7 @@ export default function buildBaseMapLinkObject3D({
             renderer,
             camera
           );
-          if (!dir) return;
+          if (!dir) return null;
           const offsetPx =
             LABEL_GAP_PX +
             TICK_THICKNESS_PX +
@@ -321,6 +361,11 @@ export default function buildBaseMapLinkObject3D({
             0.5 - (dir.x * offsetPx) / widthPx,
             0.5 - (dir.y * offsetPx) / LABEL_HEIGHT_PX
           );
+          return {
+            x: dir.x * offsetPx,
+            y: dir.y * offsetPx,
+            radiusPx: Math.max(widthPx, LABEL_HEIGHT_PX) / 2 + 2,
+          };
         },
       });
     });
