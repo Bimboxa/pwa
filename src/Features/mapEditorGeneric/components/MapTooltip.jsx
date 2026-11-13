@@ -16,6 +16,7 @@ import useAnnotationLinkedBusinessObjectRows from "Features/businessObjects/hook
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
 import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
+import getRevolutionAxisPlacementNavTargetId from "Features/revolutionAxes/utils/getRevolutionAxisPlacementNavTargetId";
 
 // The tooltip always shows the annotation's own totals. The hovered PART (3D
 // editor) is added BELOW them, under a divider:
@@ -82,9 +83,13 @@ const MapTooltip = forwardRef(
     // data - section mark hovered on its label / arrows (`hoveredNode.linkNav`,
     // 2D node and 3D sprites): a click there opens the base map the mark
     // leads to — the tooltip says so and previews that base map.
-    const isLinkClone = Boolean(annotation?.sourceLinkAnnotationId);
+    // Same for the « Vue en plan » label of a placed revolution axis.
+    const isLinkClone =
+      Boolean(annotation?.sourceLinkAnnotationId) ||
+      annotation?.type === "REVOLUTION_AXIS_PLACEMENT";
     const linkNavTargetId = hoveredNode?.linkNav
-      ? getBaseMapLinkNavTargetId(annotation)
+      ? (getBaseMapLinkNavTargetId(annotation) ??
+        getRevolutionAxisPlacementNavTargetId(annotation))
       : null;
     const linkNavTarget = useLiveQuery(async () => {
       if (!linkNavTargetId) return null;
