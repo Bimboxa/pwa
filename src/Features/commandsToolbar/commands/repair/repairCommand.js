@@ -7,6 +7,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // (self-intersections, duplicated points…).
 export default {
   key: "REPAIR",
+  usesSelection: true,
   label: "Réparer la géométrie",
   Icon: Healing,
   getState: (ctx) =>

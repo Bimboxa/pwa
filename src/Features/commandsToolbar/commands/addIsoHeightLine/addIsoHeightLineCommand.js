@@ -6,6 +6,7 @@ import createPolygonLineCommand from "../../utils/createPolygonLineCommand";
 // selected POLYGON.
 export default createPolygonLineCommand({
   key: "ADD_ISO_HEIGHT_LINE",
+  usesSelection: true,
   label: "Ajouter une courbe de niveau",
   Icon: SsidChart,
   drawingMode: "ADD_ISO_HEIGHT_LINE",

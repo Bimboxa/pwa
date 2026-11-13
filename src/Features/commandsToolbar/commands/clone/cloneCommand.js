@@ -17,6 +17,7 @@ import {
 // MenuCloneAnnotations (target type + template, whole selection).
 export default {
   key: "CLONE",
+  usesSelection: true,
   label: "Dupliquer",
   Icon: ContentCopy,
   Button: ButtonClone,

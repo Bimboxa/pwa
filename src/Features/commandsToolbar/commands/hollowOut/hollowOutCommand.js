@@ -20,6 +20,7 @@ import {
 // The letter is « Extruder » in the 3D editor, so the hotkey is 2D only.
 export default {
   key: "HOLLOW_OUT",
+  usesSelection: true,
   label: "Évider (découper par les annotations qui recoupent)",
   Icon: IconHollowOut,
   hotkey: { key: "e", editors: [EDITOR_2D] },

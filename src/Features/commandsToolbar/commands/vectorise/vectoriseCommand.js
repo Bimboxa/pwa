@@ -11,6 +11,7 @@ export const VECTORISE_TYPES = ["POLYGON"];
 // useVectoriseWallsAsPolylines, useTraceInteriorContours). Needs the scale.
 export default {
   key: "VECTORISE",
+  usesSelection: true,
   label: "Vectoriser les murs",
   Icon: IconVectorisation,
   Button: ButtonVectorise,

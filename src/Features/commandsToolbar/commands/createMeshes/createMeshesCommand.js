@@ -10,6 +10,7 @@ import { getMeshingCommandDisabledState } from "../../utils/meshingCommandState"
 // and the "no cut line" guard (ButtonCreateMeshes).
 export default {
   key: "CREATE_MESHES",
+  usesSelection: false,
   label: "Mailler",
   Icon: GridOnIcon,
   Button: ButtonCreateMeshes,

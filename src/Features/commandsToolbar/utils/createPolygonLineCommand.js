@@ -13,6 +13,7 @@ import { getSingleAnnotationState } from "./selectionCommandState";
 // « Ajouter un profil » menu) is passed through; `run` stays the plain toggle.
 export default function createPolygonLineCommand({
   key,
+  usesSelection,
   label,
   Icon,
   drawingMode,
@@ -23,6 +24,7 @@ export default function createPolygonLineCommand({
 }) {
   return {
     key,
+    usesSelection,
     label,
     Icon,
     ...(Button ? { Button } : {}),

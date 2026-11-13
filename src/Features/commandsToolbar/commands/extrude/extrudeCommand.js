@@ -10,6 +10,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 // panel (useRightPanelToolHotkeys yields through the hotkey claims).
 export default {
   key: "EXTRUDE",
+  usesSelection: false,
   label: "Extruder",
   Icon: IconExtrudeFace,
   editors: [EDITOR_3D],

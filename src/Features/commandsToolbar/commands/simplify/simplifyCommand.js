@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // out), options kept in smartDetectSlice.
 export default {
   key: "SIMPLIFY",
+  usesSelection: true,
   label: "Simplifier la géométrie",
   Icon: IconSimplify,
   Button: ButtonSimplify,

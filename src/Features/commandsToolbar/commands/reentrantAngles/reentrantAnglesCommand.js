@@ -11,6 +11,7 @@ import {
 // (useCreateReentrantAngleAnnotations).
 export default {
   key: "REENTRANT_ANGLES",
+  usesSelection: true,
   label: "Angles rentrants",
   Icon: IconReentrantAngle,
   Button: ButtonReentrantAngles,

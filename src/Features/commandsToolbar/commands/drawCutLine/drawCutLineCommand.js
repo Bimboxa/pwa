@@ -21,6 +21,7 @@ const CUT_LINE_SHAPE = "CUT_LINE";
 
 export default {
   key: "DRAW_CUT_LINE",
+  usesSelection: false,
   label: "Ligne de coupe",
   Icon: IconCutLineTrace,
   editors: [EDITOR_3D],

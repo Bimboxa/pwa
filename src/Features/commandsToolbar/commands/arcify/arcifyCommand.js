@@ -60,6 +60,7 @@ export function getArcifyPointsTarget(ctx) {
 // selected, « Simplifier en arc » on that run.
 export default {
   key: "ARCIFY",
+  usesSelection: true,
   label: "Détecter les arcs",
   Icon: IconCurvature,
   Button: ButtonArcify,

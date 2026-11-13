@@ -7,6 +7,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // (useApplyAutoSlope).
 export default {
   key: "AUTO_SLOPE",
+  usesSelection: true,
   label: "Pente auto (raccorder les deux surfaces voisines)",
   Icon: IconAutoSlope,
   Button: ButtonAutoSlope,

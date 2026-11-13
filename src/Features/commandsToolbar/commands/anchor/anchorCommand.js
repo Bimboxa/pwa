@@ -11,6 +11,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // while armed on this annotation — clicking again cancels.
 export default {
   key: "ANCHOR",
+  usesSelection: true,
   label: "Ancrer sur un voisin",
   Icon: IconAnchorSnap,
   editors: [EDITOR_2D],

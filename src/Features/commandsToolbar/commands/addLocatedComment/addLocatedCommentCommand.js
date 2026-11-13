@@ -14,6 +14,7 @@ import { getCommentCommandGate } from "../../utils/commentCommandState";
 // click on the armed button (or Escape) disarms it.
 export default {
   key: "ADD_LOCATED_COMMENT",
+  usesSelection: false,
   label: "Ajouter une info localisée",
   Icon: AddLocationAltOutlinedIcon,
   editors: ALL_EDITORS,

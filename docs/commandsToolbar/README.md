@@ -1,8 +1,18 @@
 # Commands toolbar (`src/Features/commandsToolbar`)
 
 The single toolbar gathering every annotation command of the 2D map editor
-and the 3D editor: one button + tooltip per command, irrelevant commands
-**disabled, never hidden** (the order stays stable), one folder per command.
+and the 3D editor: one button + tooltip per command, one folder per command.
+A command irrelevant in the current context (selection, 2D vs 3D editor) is
+**hidden from the toolbar** by default (`commandsToolbar.hideDisabledCommands`,
+the « Masquer les commandes désactivées » checkbox of the « Commandes » dialog,
+persisted per device; an armed command stays visible, orphan dividers and
+empty groups are dropped); with the option off it stays **disabled** with a
+reason and the order is stable. Buttons and group / right-click menus never
+hide a command themselves — only `CommandsToolbar` filters.
+With that option on, the toolbar is also **selection-aware**: while at least
+one annotation is selected it only keeps the commands tagged
+`usesSelection: true` (see « Selection filter » below). Option off = every
+command is shown, whatever the selection.
 It replaced three launch points (the « Commandes » side of
 `PopperMapListings` / `PopperDrawingTools` / the docked Dessin panel, the
 tool buttons of `ToolbarEditAnnotation(s)`, and the quick-action row above the
@@ -118,6 +128,48 @@ the per-segment flags are remapped, the hosted openings reflow and the whole
 write is one undo step. Cuts / guide lines are not crossed, and
 `meshLinesBySegment` is not remapped (like the other insertion paths).
 
+## Selection filter (`usesSelection`)
+
+Every command definition carries a required boolean tag, written in its own
+`commands/<name>/<name>Command.js` (factories only forward it), so
+`grep -rn "usesSelection:" src/Features/commandsToolbar/commands` lists the
+whole classification:
+
+- `usesSelection: true` — the command acts on the selected annotations or
+  reads them: a target (« Dupliquer », « Fusionner », « Simplifier »…), the
+  host of a line drawn inside it (« Ajouter une ligne guide »…), a pivot /
+  seed of a pick mode (« Soustraire », « Ancrer », « Extruder le long d'une
+  ligne », « Fusionner des faces »), the set a tool carries (« Déplacer » /
+  « Tourner »), the face locking « Coupe face », or a view toggle of the
+  selected annotation (cotes, segment drag, angles padlock). The whole
+  « Coupes » section is tagged true as well (« Ouverture », « Couper /
+  Retirer / Isoler un segment », « Couper une surface »): these tools cut
+  the clicked annotation, not the selection, but they are the natural next
+  step on a selected annotation;
+- `usesSelection: false` — the command ignores the selection: the draws
+  (« Dessiner — … », axes, cut lines, section mark), the other tools whose
+  target is the clicked annotation / face (« Joindre », « Extruder »,
+  « Isoler une face »), the scene / base map / frame / grid commands, the
+  scope-wide ones (« Nettoyer », « Détection des doublons »), the Maillage
+  and Infos module commands.
+
+Rule (`utils/isCommandShown.js`, called by `CommandsToolbar` only): one
+switch, « Masquer les commandes désactivées » (`hideDisabledCommands`).
+Off, the toolbar shows every command, selection or not. On, it follows the
+context: a command is shown only when it is available, and — while
+`ctx.selectedAnnotationIds` is not empty (the shared selection slice, same
+source in the 2D and the 3D editor) — only when `usesSelection` is true. An
+armed command (`state.active`) is always shown so it can be toggled off.
+Groups keep their visible commands only (an empty group disappears), orphan
+dividers are dropped.
+
+Not filtered: the right-click shortcuts menu (the user's own list), the group
+menus content beyond the rule above, the hotkeys (« D » still draws with a
+selection) and the « Commandes » dialog, which lists every command of the
+module and marks the `usesSelection` ones with a dashed-frame icon
+(`CommandBadges`, tooltip « Agit sur la sélection »). A dev assertion of
+`commands/index.js` reports a command without the tag.
+
 ## Right-click shortcuts and the « Commandes » dialog
 
 A right click in the 2D editor (`InteractionLayer.handleContextMenu`) or the
@@ -145,7 +197,7 @@ The **« Commandes » dialog** (`components/DialogCommands.jsx`, full page,
 opened by `ButtonOpenCommandsDialog` / the menu footer,
 `commandsToolbar.commandsDialogOpen`) is the reference list of the commands
 of one module, by section and group (`RowCommand`: checkbox, icon,
-label, `CommandBadges` = 2D / 3D chip + hotkey letter):
+label, `CommandBadges` = selection mark + 2D / 3D chip + hotkey letter):
 
 - **module chips** — `ChipsCommandsModule` above the list: one chip per
   module carrying the toolbar (`useViewers()` filtered by
@@ -317,6 +369,7 @@ Details and limits: `src/Features/threedMergeFaces/README.md`.
 ```js
 export default {
   key: "HOLLOW_OUT",
+  usesSelection: true,            // REQUIRED — kept by the context filter on a selection
   label: "Évider (…)",            // tooltip + menu text
   Icon: IconHollowOut,            // component (or `icon` element on variants)
   editors: ["2D", "3D"],          // default both; elsewhere disabled with a reason
@@ -331,7 +384,7 @@ export default {
 
 Rules (asserted in dev by `commands/index.js`):
 
-- unique keys; every command appears in at least one layout of
+- unique keys; a boolean `usesSelection` on every command; every command appears in at least one layout of
   `constants/toolbarLayout.js`, at most once per layout;
 - a command with a `hotkey` has a pure `run` (the window listener calls it
   outside React); a popup-owning command exposes `Button` (`{ command, ctx,
@@ -405,6 +458,7 @@ not the one to fire and badges the letter only then (`showBadgeWhen`) — the
 ## Adding a command
 
 1. `commands/<name>/<name>Command.js` (+ `Button<Name>.jsx` if it owns a
-   popup or needs hooks) following the contract above.
+   popup or needs hooks) following the contract above — tag it
+   `usesSelection: true | false` (see « Selection filter »).
 2. Register it in `commands/index.js` (order = hotkey resolution order).
 3. Place it in `constants/toolbarLayout.js` (alone, or in a group).

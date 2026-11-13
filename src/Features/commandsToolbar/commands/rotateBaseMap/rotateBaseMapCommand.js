@@ -7,6 +7,7 @@ import createBaseMapPlacementCommand from "../../utils/createBaseMapPlacementCom
 // « Tourner le fond de plan » (3D): rotate base map mode toggle.
 export default createBaseMapPlacementCommand({
   key: "ROTATE_BASE_MAP",
+  usesSelection: false,
   label: "Tourner le fond de plan",
   Icon: IconRotateBaseMap,
   getActive: (ctx) => ctx.rotateBaseMapModeActive,

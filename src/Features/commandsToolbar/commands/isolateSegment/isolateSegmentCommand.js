@@ -12,6 +12,9 @@ import createToolGroupCommand from "../../utils/createToolGroupCommand";
 // own "s" handler): the hotkey yields to it.
 export default createToolGroupCommand({
   key: "ISOLATE_SEGMENT",
+  // The cut targets the clicked annotation, but cutting is a natural next
+  // step on a selected one: kept in the toolbar on a selection.
+  usesSelection: true,
   label: "Isoler un segment",
   Icon: IconIsolateSegment,
   editors: [EDITOR_2D],

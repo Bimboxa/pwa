@@ -13,6 +13,7 @@ const ALREADY_DEFAULT_REASON = "Repère déjà à l'origine, sans rotation";
 // for them. Disabled while the frame already is at its default.
 export default {
   key: "RESET_AXES",
+  usesSelection: false,
   label: "Réinitialiser le repère",
   Icon: RestartAltIcon,
   editors: [EDITOR_3D],

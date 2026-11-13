@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // (removeWallFootprint), popover with the thickness field.
 export default {
   key: "CLOSE_WALL_FOOTPRINT",
+  usesSelection: true,
   label: "Retirer l'empreinte des murs",
   Icon: IconCloseWallFootprint,
   Button: ButtonCloseWallFootprint,

@@ -4,4 +4,7 @@ import createTemplatelessDrawCommand from "../../utils/createTemplatelessDrawCom
 
 // « Dessiner — POLYGON » (templateless draft, hotkey D when last used). The
 // toolbar shows a pentagon (the shape's rounded square reads as a rectangle).
-export default createTemplatelessDrawCommand("POLYGON", { Icon: PentagonIcon });
+export default createTemplatelessDrawCommand("POLYGON", {
+  Icon: PentagonIcon,
+  usesSelection: false,
+});

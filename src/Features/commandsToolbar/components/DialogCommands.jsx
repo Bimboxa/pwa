@@ -3,13 +3,23 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   selectCommandsDialogOpen,
+  selectHideDisabledCommands,
   selectShortcutCommandKeys,
   setCommandsDialogOpen,
+  setHideDisabledCommands,
   setShortcutCommandKeys,
   toggleShortcutCommand,
 } from "../commandsToolbarSlice";
 
-import { Box, Button, Dialog, List, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Dialog,
+  FormControlLabel,
+  List,
+  Typography,
+} from "@mui/material";
 import RestartAlt from "@mui/icons-material/RestartAlt";
 import IconRightClickShortcut from "Features/icons/IconRightClickShortcut";
 
@@ -44,7 +54,10 @@ import matchesCommandSearch, {
 // opening DialogCommandHelper. The checkbox of a row = offered in the
 // right-click menu of the editors; on the right the ordered recap of the
 // menu, reorderable by drag & drop. Per-device preference
-// (commandsToolbar.shortcutCommandKeys, localStorage). Closes on Q
+// (commandsToolbar.shortcutCommandKeys, localStorage). Next to the chips, the
+// « Masquer les commandes désactivées » option (hideDisabledCommands, on by
+// default): the toolbar only shows the commands available in the current
+// context. Closes on Q
 // (useDialogQuitHotkey) like the Configuration dialog — the letter yields
 // while typing in the search field; the focus stays trapped in the dialog,
 // so the editor hotkeys are off while it is open.
@@ -62,11 +75,13 @@ export default function DialogCommands() {
   const menuHelperS = "Glissez les poignées pour changer l'ordre d'affichage.";
   const emptyS = "Aucun raccourci : cochez des commandes à gauche.";
   const resetS = "Réinitialiser";
+  const hideDisabledS = "Masquer les commandes désactivées";
 
   // data
 
   const open = useSelector(selectCommandsDialogOpen);
   const shortcutKeys = useSelector(selectShortcutCommandKeys);
+  const hideDisabledCommands = useSelector(selectHideDisabledCommands);
   const { orgaCode, basePath, byKey: helpersByKey } = useCommandHelpers();
   const currentModuleKey = useSelector((s) => s.viewers.selectedViewerKey);
   const viewers = useViewers();
@@ -167,6 +182,10 @@ export default function DialogCommands() {
     dispatch(setShortcutCommandKeys(DEFAULT_SHORTCUT_COMMAND_KEYS));
   }
 
+  function handleHideDisabledChange(event) {
+    dispatch(setHideDisabledCommands(event.target.checked));
+  }
+
   function handleInfo(key) {
     setHelperCommandKey(key);
   }
@@ -255,11 +274,34 @@ export default function DialogCommands() {
             bgcolor: "background.default",
           }}
         >
-          <Box sx={{ mb: 1.5 }}>
-            <ChipsCommandsModule
-              modules={modules}
-              value={selectedModuleKey}
-              onChange={setPickedModuleKey}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              columnGap: 2,
+              rowGap: 0.5,
+              mb: 1.5,
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <ChipsCommandsModule
+                modules={modules}
+                value={selectedModuleKey}
+                onChange={setPickedModuleKey}
+              />
+            </Box>
+            <FormControlLabel
+              sx={{ m: 0 }}
+              control={
+                <Checkbox
+                  size="small"
+                  checked={hideDisabledCommands}
+                  onChange={handleHideDisabledChange}
+                  sx={{ p: 0.5 }}
+                />
+              }
+              label={<Typography variant="body2">{hideDisabledS}</Typography>}
             />
           </Box>
           <Typography

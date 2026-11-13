@@ -12,6 +12,7 @@ import getDuplicateCandidates from "Features/duplicatesDetection/utils/getDuplic
 // row per duplicate, click = select, « Relancer »).
 export default {
   key: "DETECT_DUPLICATES",
+  usesSelection: false,
   label: "Détection des doublons",
   Icon: JoinInner,
   Button: ButtonDetectDuplicates,

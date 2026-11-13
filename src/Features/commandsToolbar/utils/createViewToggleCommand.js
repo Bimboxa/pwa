@@ -7,6 +7,7 @@ import { getSelectionGate } from "./selectionCommandState";
 // flag; `extraCheck(ctx)` adds a condition (scale…).
 export default function createViewToggleCommand({
   key,
+  usesSelection,
   label,
   Icon,
   getValue,
@@ -15,6 +16,7 @@ export default function createViewToggleCommand({
 }) {
   return {
     key,
+    usesSelection,
     label,
     Icon,
     editors: [EDITOR_2D],

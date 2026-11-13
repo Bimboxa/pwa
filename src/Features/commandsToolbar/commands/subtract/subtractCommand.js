@@ -17,6 +17,7 @@ export const SUBTRACT_TYPES_REASON =
 // 3D carve reads its faces as they are.
 export default {
   key: "SUBTRACT",
+  usesSelection: true,
   label: "Soustraire une annotation",
   Icon: IconSubtract,
   getState(ctx) {

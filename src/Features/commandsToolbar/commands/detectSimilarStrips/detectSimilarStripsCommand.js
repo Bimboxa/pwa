@@ -9,6 +9,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // proposes them (Space validates).
 export default {
   key: "DETECT_SIMILAR_STRIPS",
+  usesSelection: true,
   label: "Détection similaire",
   Icon: AutoFixHigh,
   Button: ButtonDetectSimilarStrips,

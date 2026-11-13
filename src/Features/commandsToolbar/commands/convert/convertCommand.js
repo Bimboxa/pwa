@@ -10,6 +10,7 @@ export const CONVERT_TYPES = ["POLYGON"];
 // keep-openings / explode-segments options and the target layer.
 export default {
   key: "CONVERT",
+  usesSelection: true,
   label: "Transformer (surface → ligne)",
   Icon: IconConvertAnnotation,
   Button: ButtonConvert,

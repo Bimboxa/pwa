@@ -9,6 +9,7 @@ import createToolGroupCommand from "../../utils/createToolGroupCommand";
 // yields.
 export default createToolGroupCommand({
   key: "FACE_CUT",
+  usesSelection: true,
   label: "Coupe face",
   Icon: IconFaceCut,
   editors: [EDITOR_3D],

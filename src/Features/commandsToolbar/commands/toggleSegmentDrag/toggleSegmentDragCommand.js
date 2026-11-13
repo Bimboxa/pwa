@@ -8,6 +8,7 @@ import createViewToggleCommand from "../../utils/createViewToggleCommand";
 // segment lets you add a point on it.
 export default createViewToggleCommand({
   key: "TOGGLE_SEGMENT_DRAG",
+  usesSelection: true,
   label: "Déplacement de segment (sinon : ajout d'un point au survol)",
   Icon: IconSegmentDrag,
   getValue: (ctx) => ctx.segmentDragEnabled,

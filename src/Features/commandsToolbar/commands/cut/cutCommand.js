@@ -8,6 +8,9 @@ import createToolGroupCommand from "../../utils/createToolGroupCommand";
 // 2D editor only: the opening tools are not wired in the 3D editor yet.
 export default createToolGroupCommand({
   key: "CUT",
+  // The cut targets the clicked annotation, but cutting is a natural next
+  // step on a selected one: kept in the toolbar on a selection.
+  usesSelection: true,
   label: "Ouverture",
   Icon: IconOpeningRectangle,
   editors: [EDITOR_2D],

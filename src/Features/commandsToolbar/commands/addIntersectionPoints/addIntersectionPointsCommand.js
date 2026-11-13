@@ -14,6 +14,7 @@ const TYPES_REASON = "Sélectionnez exactement deux lignes ou surfaces";
 // contours (addIntersectionPointsService).
 export default {
   key: "ADD_INTERSECTION_POINTS",
+  usesSelection: true,
   label: "Ajouter les points d'intersection",
   Icon: IconIntersectionPoint,
   getState(ctx) {

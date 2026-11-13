@@ -11,6 +11,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 // Toggles off when armed.
 export default {
   key: "MERGE_FACES",
+  usesSelection: true,
   label: "Fusionner des faces",
   Icon: IconMergeFaces,
   editors: [EDITOR_3D],

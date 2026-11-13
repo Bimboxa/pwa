@@ -26,6 +26,7 @@ const CUT_LINE_SHAPE = "CUT_LINE";
 
 export default {
   key: "DRAW_CUT_ANGLE",
+  usesSelection: false,
   label: "Coupe par angle",
   Icon: IconCutAngle,
   editors: [EDITOR_3D],

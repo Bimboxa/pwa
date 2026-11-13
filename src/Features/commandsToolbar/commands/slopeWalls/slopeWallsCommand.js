@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // line.
 export default {
   key: "SLOPE_WALLS",
+  usesSelection: true,
   label: "Parois de la pente",
   Icon: IconSlopeWall,
   Button: ButtonSlopeWalls,

@@ -7,6 +7,7 @@ import createPolygonLineCommand from "../../utils/createPolygonLineCommand";
 // (template.hasLayoutLines, read from ctx.selectedAnnotation.annotationTemplate).
 export default createPolygonLineCommand({
   key: "ADD_LAYOUT_LINE",
+  usesSelection: true,
   label: "Ajouter une ligne de calepinage",
   Icon: ViewWeek,
   drawingMode: "ADD_LAYOUT_LINE",

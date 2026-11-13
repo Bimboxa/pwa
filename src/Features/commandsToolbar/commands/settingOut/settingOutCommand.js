@@ -10,6 +10,7 @@ export const SETTING_OUT_TYPES = ["POLYLINE"];
 // POINT template picker.
 export default {
   key: "SETTING_OUT",
+  usesSelection: true,
   label: "Calepiner",
   Icon: IconSettingOut,
   Button: ButtonSettingOut,

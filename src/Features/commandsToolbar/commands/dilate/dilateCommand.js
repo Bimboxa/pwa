@@ -17,6 +17,7 @@ export function getDilateTargets(ctx) {
 // (offsetPolygon), popover with the two buttons.
 export default {
   key: "DILATE",
+  usesSelection: true,
   label: "Dilater / Contracter",
   Icon: IconDilate,
   Button: ButtonDilate,

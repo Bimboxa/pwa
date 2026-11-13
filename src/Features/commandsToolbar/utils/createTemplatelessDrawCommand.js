@@ -43,13 +43,17 @@ export function getRememberedTemplatelessShapeKey(ctx) {
 // fires (the others yield) and carries the badge, so « D » keeps drawing the
 // last-used type as before. `Icon` (a component) replaces the shape's icon
 // element in the toolbar only (the shape pickers keep their own icon).
-export default function createTemplatelessDrawCommand(shapeKey, { Icon } = {}) {
+export default function createTemplatelessDrawCommand(
+  shapeKey,
+  { Icon, usesSelection } = {}
+) {
   const shape = TEMPLATELESS_DRAWING_SHAPES.find((s) => s.key === shapeKey);
   if (!shape) throw new Error(`Unknown templateless shape ${shapeKey}`);
   const isRemembered = (ctx) =>
     getRememberedTemplatelessShapeKey(ctx) === shapeKey;
   return {
     key: `DRAW_${shapeKey}`,
+    usesSelection,
     label: `Dessiner — ${shape.label}`,
     Icon,
     icon: Icon ? undefined : shape.icon,

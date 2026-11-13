@@ -20,6 +20,7 @@ const CUT_LINE_SHAPE = "CUT_LINE";
 
 export default {
   key: "DRAW_CUT_PLANE",
+  usesSelection: false,
   label: "Plan de coupe",
   Icon: IconCutPlane,
   editors: [EDITOR_3D],

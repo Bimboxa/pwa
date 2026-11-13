@@ -6,6 +6,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // POLYGON / POLYLINE to its adjacent surfaces (DialogAutoWalls).
 export default {
   key: "AUTO_WALLS",
+  usesSelection: true,
   label: "Parois auto",
   Icon: IconAutoWalls,
   Button: ButtonAutoWalls,

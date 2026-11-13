@@ -11,6 +11,7 @@ import { getMeshingCommandDisabledState } from "../../utils/meshingCommandState"
 // the points that are not corners) from the pasted answer.
 export default {
   key: "CUT_LINES_PROMPT_IA",
+  usesSelection: false,
   label: "Ligne de coupe – prompt IA",
   Icon: AutoAwesomeIcon,
   Button: ButtonCutLinesPromptIa,

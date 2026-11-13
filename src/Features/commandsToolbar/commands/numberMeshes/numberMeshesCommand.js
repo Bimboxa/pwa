@@ -13,6 +13,7 @@ import { getMeshingToolCommandState } from "../../utils/meshingCommandState";
 // tool.
 export default {
   key: "NUMBER_MESHES",
+  usesSelection: false,
   label: "Numéroter",
   Icon: FormatListNumberedIcon,
   editors: [EDITOR_3D],

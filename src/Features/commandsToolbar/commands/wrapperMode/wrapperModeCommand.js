@@ -11,6 +11,7 @@ import { getSelectionGate } from "../../utils/selectionCommandState";
 // wrapperMode). Point-based annotations only: openings have no wrapper.
 export default {
   key: "WRAPPER_MODE",
+  usesSelection: true,
   label: "Déplacer / Redimensionner",
   Icon: IconResizeFrame,
   editors: [EDITOR_2D],
