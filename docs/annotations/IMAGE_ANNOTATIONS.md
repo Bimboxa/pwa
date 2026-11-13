@@ -185,8 +185,9 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
 - `ImagesPrintZonesOverlay` — the tiles in the editors (2D and 3D), rendered
   in the floating panels frame (`PortalEditorFloatingPanels`), under the
   panels. Rect = editor viewport minus the open right drawer. Reserved =
-  the floating panels of the layout host + every element tagged
-  `data-print-zones-avoid` (editor corner controls). Tile click = select,
+  every element tagged `data-print-zones-avoid` (editor corner controls);
+  the floating panels (`PopperMapListings`…) are not avoided, the zones
+  slide under them. Tile click = select,
   selected tile = "Fullscreen" and its leader even with "Ligne" off, hovered
   tile = pin toggle (`printZonesPinnedSideById[id] = side`, session only).
   Hovering an occupied zone (window `mousemove`, the editor keeps the mouse)
