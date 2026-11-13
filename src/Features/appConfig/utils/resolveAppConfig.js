@@ -516,7 +516,26 @@ export default async function resolveAppConfig(appConfig) {
     if (loader) {
       try {
         const module = await loader();
-        newAppConfig.automatedAnnotationsProcedures = module.default;
+        // The registry also holds the SYSTEM_GENERATOR entries: the
+        // generation procedures of the system listings
+        // (`listing.system.procedureKey`, Features/systems). Never launched
+        // by the user, they are kept apart from the launchable procedures:
+        //   { key, type: "SYSTEM_GENERATOR", label, version,
+        //     roles: [{ key, label }],          // template.systemRole values
+        //     defaultParams, paramsDefinition: [{ key, label, unit, min }],
+        //     generate: () => import(...) }     // pure generator, see
+        //                                       // applySystemService
+        // Library side: `system: { procedureKey, params? }` on the library
+        // that defines the system, `systemRole` on its templates ("SOURCE" or
+        // a role key), and `drawingShape: "SYSTEM"` + `systemListingKey` on
+        // the template of another library that draws it.
+        const allProcedures = module.default ?? [];
+        newAppConfig.automatedAnnotationsProcedures = allProcedures.filter(
+          (p) => p?.type !== "SYSTEM_GENERATOR"
+        );
+        newAppConfig.systemProcedures = allProcedures.filter(
+          (p) => p?.type === "SYSTEM_GENERATOR"
+        );
       } catch (error) {
         console.error(
           `[resolveAppConfig] Error loading automatedAnnotationsProcedures for "${orgaCode}":`,

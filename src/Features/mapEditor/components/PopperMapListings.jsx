@@ -2165,9 +2165,13 @@ export default function PopperMapListings() {
   const hasActiveObjectHeader =
     isBusinessObjectsModule && Boolean(activeBusinessObject);
 
+  // System listings (Features/systems) are drawn through a SYSTEM template
+  // of another listing: hidden from the drawing lists, kept in the read-only
+  // legends (Viewer / SCOPE modules).
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
+    excludeSystemListings: !isViewerModule && !isScopeModule,
   });
 
   // state

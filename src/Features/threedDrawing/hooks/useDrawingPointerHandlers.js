@@ -250,7 +250,16 @@ export default function useDrawingPointerHandlers() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const listingId = useSelector((s) => s.listings.selectedListingId);
+  // Source of a system instance (armed from a SYSTEM template,
+  // Features/systems): stored in the system listing its template belongs to
+  // (carried by the draft), not in the selected listing.
+  const listingId = useSelector((s) => {
+    const draft = s.annotations.newAnnotation;
+    return (
+      (draft?.systemTemplateId && draft?.listingId) ||
+      s.listings.selectedListingId
+    );
+  });
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMapId = useMainBaseMap()?.id;

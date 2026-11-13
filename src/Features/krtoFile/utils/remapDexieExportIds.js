@@ -64,6 +64,13 @@ export default function remapDexieExportIds(jsonData, opts) {
     templateId: "annotationTemplates",
     sourceAnnotationId: "annotations",
     targetAnnotationId: "annotations",
+    // Systems (Features/systems): SYSTEM template -> system listing, source
+    // annotation -> SYSTEM template that armed it, generated annotation ->
+    // its source annotation / source template.
+    systemListingId: "listings",
+    systemTemplateId: "annotationTemplates",
+    systemSourceAnnotationId: "annotations",
+    systemSourceTemplateId: "annotationTemplates",
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
     // Painted mesh parts (meshPaints) -> host annotation; also the host /

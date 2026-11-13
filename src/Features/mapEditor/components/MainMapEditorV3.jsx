@@ -224,6 +224,8 @@ import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useSyncBusinessObjectDrawDraft from "Features/businessObjects/hooks/useSyncBusinessObjectDrawDraft";
 import useAnnotationTransformTool from "Features/annotationTransform/hooks/useAnnotationTransformTool";
+import applySystemDisplay from "Features/systems/utils/applySystemDisplay";
+import { SYSTEM_DISPLAY_EDITOR_2D } from "Features/systems/constants/systemConstants";
 
 const contextDimmedStyle = {
   //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -636,8 +638,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // ghosts, print, hover / click, lasso and snapping. Display only: the
   // quantities and the listings read their own useAnnotationsV2.
   const { hiddenIdSet: userHiddenIdSet } = useUserHiddenAnnotations();
+  // System instances (Features/systems): each one shows either its source
+  // annotation or its generated detail (per instance, 2D mode).
   const rawAnnotations = useMemo(
-    () => filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+    () =>
+      applySystemDisplay(
+        filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+        SYSTEM_DISPLAY_EDITOR_2D
+      ),
     [loadedAnnotations, userHiddenIdSet]
   );
 

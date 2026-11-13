@@ -20,7 +20,44 @@ export default function useCreateListings() {
   const createAnnotationTemplatesFromLibrary =
     useCreateAnnotationTemplatesFromLibrary();
 
-  const create = async ({ listings, scope }, options) => {
+  const create = async ({ listings: listingsProp, scope }, options) => {
+    // SYSTEM templates (Features/systems) point to a system listing by key
+    // (`systemListingKey`): a preset system listing neither in this batch nor
+    // in the scope yet is created along (before the templates, which resolve
+    // the key to its id).
+    const listings = [...listingsProp];
+    const scopeIdForSystems = scope?.id ?? listingsProp[0]?.scopeId;
+    const systemKeys = [
+      ...new Set(
+        listings.flatMap((l) =>
+          (l?.annotationTemplatesLibrary ?? [])
+            .map((t) => t?.systemListingKey)
+            .filter(Boolean)
+        )
+      ),
+    ].filter((key) => !listings.some((l) => l?.key === key));
+    for (const key of systemKeys) {
+      const preset = appConfig?.presetListingsObject?.[key];
+      if (!preset) continue;
+      const existing = scopeIdForSystems
+        ? await db.listings
+            .where("key")
+            .equals(key)
+            .filter((l) => !l.deletedAt && l.scopeId === scopeIdForSystems)
+            .first()
+        : null;
+      if (!existing)
+        listings.push({
+          ...preset,
+          ...(scope
+            ? {}
+            : {
+                scopeId: scopeIdForSystems,
+                projectId: listingsProp[0]?.projectId,
+              }),
+        });
+    }
+
     // process each listing: generate id, set scope/project, handle metadata
     const listingsClean = [];
     for (const listing of listings) {

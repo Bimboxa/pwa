@@ -361,6 +361,14 @@ export default async function duplicateScopeService({
     ...prepareCopy(t, createdBy),
     id: templateIdMap[t.id],
     listingId: listingIdMap[t.listingId],
+    // SYSTEM template (Features/systems): follows the copy of its system
+    // listing.
+    ...(t.systemListingId
+      ? {
+          systemListingId:
+            listingIdMap[t.systemListingId] ?? t.systemListingId,
+        }
+      : {}),
   }));
 
   const newLayers = layersToCopy.map((l) => ({
@@ -418,6 +426,18 @@ export default async function duplicateScopeService({
     if (a.instanceOfBlockId)
       newAnn.instanceOfBlockId =
         blockIdMap[a.instanceOfBlockId] ?? a.instanceOfBlockId;
+    // System instances (Features/systems): source -> SYSTEM template,
+    // generated annotation -> source annotation / source template.
+    if (a.systemTemplateId)
+      newAnn.systemTemplateId =
+        templateIdMap[a.systemTemplateId] ?? a.systemTemplateId;
+    if (a.systemSourceTemplateId)
+      newAnn.systemSourceTemplateId =
+        templateIdMap[a.systemSourceTemplateId] ?? a.systemSourceTemplateId;
+    if (a.systemSourceAnnotationId)
+      newAnn.systemSourceAnnotationId =
+        annotationIdMap[a.systemSourceAnnotationId] ??
+        a.systemSourceAnnotationId;
     remapPointIds(newAnn, pointIdMap);
     remapAnnotationIds(newAnn, annotationIdMap);
     return newAnn;

@@ -151,9 +151,12 @@ export default function PanelDrawing() {
     [annotations, selectedScopeId]
   );
 
+  // System listings (Features/systems) are drawn through a SYSTEM template
+  // of another listing: not listed here.
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
+    excludeSystemListings: true,
   });
 
   // helpers - listings (rank order from the selector)
