@@ -108,7 +108,7 @@ const STRIP_DEFAULT_WIDTH = 20; // px, same as getStripePolygons default
 // Revolution axis placement ghost — mirrors NodeRevolutionAxisPlacementStatic
 // (same fallbacks when the base map has no scale or the axis no scalars).
 const REV_PLACEMENT_BLACK = "#000000";
-const REV_PLACEMENT_CENTER_DOT_PX = 3.5;
+const REV_PLACEMENT_CENTER_DOT_PX = 2.5;
 const REV_PLACEMENT_FALLBACK_HALF_PX = 60;
 const REV_PLACEMENT_FALLBACK_HEIGHT_PX = 150;
 
@@ -1363,8 +1363,8 @@ const DrawingLayer = forwardRef(
             <line
               ref={previewRevPlacementStemRef}
               stroke={REV_PLACEMENT_BLACK}
-              strokeWidth={2}
-              strokeDasharray="8 5"
+              strokeWidth={1}
+              strokeDasharray="6 4"
               vectorEffect="non-scaling-stroke"
             />
             <line
@@ -1373,7 +1373,7 @@ const DrawingLayer = forwardRef(
                 revolutionPlacementGhostSource?.strokeColor ||
                 theme.palette.secondary.main
               }
-              strokeWidth={2}
+              strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
             <g ref={previewRevPlacementDotRef}>
