@@ -45,6 +45,8 @@ import getOpeningStrokeFromHost from "Features/mapEditor/utils/getOpeningStrokeF
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
+import useDrawingRevolutionAxis from "Features/revolutionAxes/hooks/useDrawingRevolutionAxis";
+import { getShape3DKey, TYPES_SUPPORTING_REVOLUTION } from "Features/annotations/constants/shape3DConfig";
 import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
@@ -119,6 +121,10 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
     const defaultOffsetOnCommit = useSelector(s => s.mapEditor.defaultOffsetOnCommit);
+    // « Révolution » switch of the drawing helper: the axis placed on the
+    // base map, when the switch is on (null otherwise).
+    const { axis: drawingRevolutionAxis, enabled: revolutionOnCommit } = useDrawingRevolutionAxis();
+    const revolutionOnCommitAxisId = revolutionOnCommit ? (drawingRevolutionAxis?.id ?? null) : null;
     // Section mark located on a vertical base map: « Adapter l'échelle ».
     const baseMapLinkAdaptScale = useSelector(s => s.mapEditor.baseMapLinkAdaptScale);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
@@ -1080,6 +1086,22 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             if (isSectionMarkDraft) {
                 delete _newAnnotation.offsetZ;
                 delete _newAnnotation.height;
+            }
+
+            // « Révolution » switch of the drawing helper (on by default on a
+            // base map carrying the clone of a revolution axis): the drawn
+            // profile / point is revolved around that axis. A draft already
+            // revolved (its template) keeps its own shape3D.
+            if (
+                revolutionOnCommitAxisId &&
+                TYPES_SUPPORTING_REVOLUTION.includes(_newAnnotation.type) &&
+                !_newAnnotation.isOpening &&
+                getShape3DKey(_newAnnotation.shape3D) !== "REVOLUTION"
+            ) {
+                _newAnnotation.shape3D = {
+                    key: "REVOLUTION",
+                    axisAnnotationId: revolutionOnCommitAxisId,
+                };
             }
         }
 

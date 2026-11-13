@@ -54,6 +54,7 @@ const mapEditorInitialState = {
   heightCutDelta: 0.2,
   heightCutSide: "TOP",
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
+  revolutionOnCommit: true, // « Révolution » switch of the 2D drawing helper (hotkey R): a profile / point drawn on a base map carrying the clone of a revolution axis is revolved around it (shape3D REVOLUTION stamped at commit — useDrawingRevolutionAxis)
   defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
   joinMergeIfPossible: true, // JOIN_ANNOTATIONS (Joindre): when true, two ends of walls sharing the same template and width are merged into one polyline (junction vertex at the intersection) instead of being joined as a corner
   // « Points coplanaires » (drawing helper, line drawn in the 3D editor):
@@ -472,6 +473,9 @@ export const mapEditorSlice = createSlice({
     },
     setAvoidVisibleAnnotationsOnCommit: (state, action) => {
       state.avoidVisibleAnnotationsOnCommit = action.payload;
+    },
+    setRevolutionOnCommit: (state, action) => {
+      state.revolutionOnCommit = Boolean(action.payload);
     },
     setDefaultOffsetOnCommit: (state, action) => {
       state.defaultOffsetOnCommit = action.payload;
@@ -1131,6 +1135,7 @@ export const {
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,
+  setRevolutionOnCommit,
   setRampWidthM,
   setRampDeltaHM,
   setOpeningStrokeWidth,

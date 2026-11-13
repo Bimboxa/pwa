@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
 import {
@@ -10,6 +10,7 @@ import {
   clearRectDims,
   clearConstraintBuffer,
   setRectHasFirstPoint,
+  setRevolutionOnCommit,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
@@ -36,6 +37,7 @@ import {
   isFaceCutDrawingMode,
 } from "Features/threedFaceCut/utils/faceCutTools";
 import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlice";
+import useDrawingRevolutionAxis from "Features/revolutionAxes/hooks/useDrawingRevolutionAxis";
 
 // Keyboard shortcuts to switch the active drawing tool without leaving the
 // drawing flow:
@@ -44,6 +46,10 @@ import { cancelInProgressPolyline } from "Features/threedEditor/threedEditorSlic
 //   - R / L / C / G / P : direct-access to a tool by behavior, but ONLY while
 //     no first point has been placed yet (so the in-drawing letter shortcuts
 //     keep priority once the object has started). P is the 3D-only « Pinceau ».
+//   - R toggles the « Révolution » switch of the drawing helper instead
+//     (before AND after the first point) while the base map carries the
+//     clone of a revolution axis and the draft revolves
+//     (useDrawingRevolutionAxis) — the rectangle tool keeps Tab / its button.
 //   - "Coupe face" (FACE_CUT, 3D editor): Tab cycles its tools, K / L / R /
 //     H / V jump to one (FACE_CUT_TOOL_HOTKEYS) before the first point.
 //
@@ -54,6 +60,9 @@ export default function useDrawingToolHotkeys() {
   const dispatch = useDispatch();
   const store = useStore();
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const { axis: revolutionAxis } = useDrawingRevolutionAxis();
+  const hasRevolutionAxisRef = useRef(false);
+  hasRevolutionAxisRef.current = Boolean(revolutionAxis);
 
   useEffect(() => {
     if (!enabledDrawingMode) return undefined;
@@ -236,6 +245,14 @@ export default function useDrawingToolHotkeys() {
         if (faceCutTool.key !== currentKey) {
           switchTool(faceCutTool, { groupType: FACE_CUT_TOOL_TYPE });
         }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // R — « Révolution » switch of the drawing helper, when offered.
+      if (e.key.toLowerCase() === "r" && hasRevolutionAxisRef.current) {
+        dispatch(setRevolutionOnCommit(!s.mapEditor.revolutionOnCommit));
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
