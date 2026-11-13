@@ -340,6 +340,9 @@ export default function MainThreedEditor() {
   const lastPointerEventRef = useRef(null);
   const prevHoveredObjectRef = useRef(null);
   const lastHoveredIdRef = useRef(null);
+  // Pointer cursor shown over a section mark (BASE_MAP_LINK): a thin target,
+  // the cursor tells it is clickable.
+  const sectionMarkCursorRef = useRef(false);
   // Mesh annotations: the hover addresses one face / edge ("F3", "E2_7").
   const lastHoveredPartKeyRef = useRef(null);
   // Quantities of the hovered face of a regular annotation, computed once per
@@ -909,7 +912,10 @@ export default function MainThreedEditor() {
             (i) =>
               i.object?.isMesh ||
               // POINT marker sprite: its own raycast (createPointSprite).
-              i.object?.userData?.isAnnotationPointSprite
+              i.object?.userData?.isAnnotationPointSprite ||
+              // Tick / arrow / label sprite of a section mark
+              // (buildBaseMapLinkObject3D): addresses the mark like its line.
+              i.object?.userData?.isSectionMarkSprite
           ),
           clippingPlane
         )
@@ -2685,6 +2691,11 @@ export default function MainThreedEditor() {
         threedEditorRef.current?.renderScene?.();
       }
       lastHoveredIdRef.current = null;
+      if (sectionMarkCursorRef.current) {
+        sectionMarkCursorRef.current = false;
+        const dom = threedEditorRef.current?.sceneManager?.renderer?.domElement;
+        if (dom) dom.style.cursor = "";
+      }
       // While meshing, useMeshingPointerHandlers owns the tooltip (the
       // hovered face piece and its surface).
       if (!meshingActiveRef.current) tooltipApiRef.current?.clear();
@@ -2899,6 +2910,13 @@ export default function MainThreedEditor() {
 
     const hitId = hit?.userData?.nodeId ?? null;
 
+    // Section mark under the cursor: pointer cursor (line or decorations).
+    const overSectionMark = hit?.userData?.annotationType === "BASE_MAP_LINK";
+    if (overSectionMark !== sectionMarkCursorRef.current) {
+      sectionMarkCursorRef.current = overSectionMark;
+      domElement.style.cursor = overSectionMark ? "pointer" : "";
+    }
+
     // Mesh annotation: the hover addresses ONE face or edge of it — the
     // tooltip shows that part's own measures and a click selects it.
     let meshPart = null; // { key, qties, edge? }
@@ -2950,7 +2968,8 @@ export default function MainThreedEditor() {
     const isLineHit = !!(
       hitIntersect?.object?.isLine2 ||
       hitIntersect?.object?.isLineSegments2 ||
-      hitIntersect?.object?.userData?.isAnnotationPointSprite
+      hitIntersect?.object?.userData?.isAnnotationPointSprite ||
+      hitIntersect?.object?.userData?.isSectionMarkSprite
     );
     const containerRect = containerRef.current?.getBoundingClientRect();
 

@@ -1,12 +1,7 @@
 import {
-  BufferGeometry,
   CanvasTexture,
-  DoubleSide,
-  Float32BufferAttribute,
   Group,
   LinearFilter,
-  Mesh,
-  MeshBasicMaterial,
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
@@ -17,74 +12,150 @@ import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import sizeSpriteInCssPx from "Features/threedAnnotationLabels/services/sizeSpriteInCssPx";
 
 import pixelToWorld from "./pixelToWorld";
-import attachFatLineRaycast from "./attachFatLineRaycast";
+import attachFatLineRaycast, {
+  PICK_ANGULAR,
+  PICK_MIN_M,
+} from "./attachFatLineRaycast";
 
 // 3D twin of NodeBaseMapLinkStatic: the BASE_MAP_LINK section mark ("trait de
-// coupe"), flat in its base map plane.
+// coupe"), on its base map plane.
 //
-// - the cut line: a screen-space fat line between the 2 stored points,
+// - the cut line: a thin screen-space fat line between the 2 stored points,
 //   pickable (attachFatLineRaycast), snappable at both ends (isSnapLine) and
 //   exported as a plain line (exportLine);
-// - decorations (`userData.isSectionMarkDecoration`: never exported, snapped
-//   on, drawn on, collided with or restyled): a perpendicular tick at each
-//   end, two view-direction triangles on the OBSERVER side (screen-right of
-//   p1 → p2 in the y-down image frame) and the label beyond each end.
+// - decorations, all SPRITES of a constant on-screen size (CSS px, like the
+//   2D node — sizeSpriteInCssPx, perspective and orthographic cameras): a
+//   perpendicular tick at each end, two view-direction arrows on the
+//   OBSERVER side (screen-right of p1 → p2 in the y-down image frame) and
+//   the label beyond each end. A billboard cannot lie in the plan: before
+//   each render the ticks / arrows are turned to the ON-SCREEN direction of
+//   the observer normal, and the labels are pushed along the on-screen
+//   direction of the mark, beyond its ends.
 //
-// The 2D node sizes its decorations in screen px; here they are sized in
-// metres from the mark length, clamped.
+// The sprites are tagged `isSectionMarkDecoration` (never exported, snapped
+// on, drawn on, collided with or restyled) and `isSectionMarkSprite`
+// (pickable: hovering / clicking one addresses the mark, like its line).
 //
 // Everything is built in basemap-LOCAL metres (x right, y up, z out of the
 // plane) and parented to the base map group by the caller. The stored points
-// are never offset: the coplanar image is beaten in depth with polygonOffset.
+// are never offset: the coplanar image is beaten in depth with polygonOffset
+// (line) or ignored (sprites, no depth test).
 
 const DEFAULT_COLOR = "#9c27b0";
-const LINEWIDTH_PX = 2;
-const GLYPH_RATIO = 0.04;
-const GLYPH_MIN_M = 0.08;
-const GLYPH_MAX_M = 0.5;
-const LABEL_FONT_PX = 96;
+const LINEWIDTH_PX = 1.5;
+// On-screen sizes (CSS px), same values as NodeBaseMapLinkStatic.
+const TICK_LENGTH_PX = 16;
+const TICK_THICKNESS_PX = 2;
+const ARROW_PX = 10;
+const ARROW_GAP_PX = 5;
+const LABEL_HEIGHT_PX = 15;
+const LABEL_GAP_PX = 6;
+// Canvas resolution of the label text (px), downscaled on screen.
+const LABEL_FONT_PX = 64;
+const SPRITE_RENDER_ORDER = 1000;
+// Picking radius around a sprite anchor, in fat-line tolerances (a sprite
+// sits up to ~20 px away from its anchor).
+const PICK_TOLERANCES = 2.5;
 
-function createLabelSprite(text, color) {
+const textureCache = new Map();
+
+function makeTexture(canvas) {
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.minFilter = LinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+// Shared textures (per colour): a plain bar, and a triangle whose TIP is on
+// the left edge of the canvas (it points at -x, towards the line).
+function getGlyphTexture(kind, color) {
+  const key = `${kind}|${color}`;
+  if (textureCache.has(key)) return textureCache.get(key);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (kind === "TICK") {
+    canvas.width = 64;
+    canvas.height = 8;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    canvas.width = 64;
+    canvas.height = 64;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 32);
+    ctx.lineTo(64, 6);
+    ctx.lineTo(64, 58);
+    ctx.closePath();
+    ctx.fill();
+  }
+  const texture = makeTexture(canvas);
+  textureCache.set(key, texture);
+  return texture;
+}
+
+function makeLabelTexture(text, color) {
   const font = `600 ${LABEL_FONT_PX}px sans-serif`;
   const measureCtx = document.createElement("canvas").getContext("2d");
   measureCtx.font = font;
-  const pad = LABEL_FONT_PX * 0.2;
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(
-    2,
-    Math.ceil(measureCtx.measureText(text).width + pad * 2)
-  );
-  canvas.height = Math.max(2, Math.ceil(LABEL_FONT_PX * 1.3));
+  canvas.width = Math.max(2, Math.ceil(measureCtx.measureText(text).width));
+  canvas.height = Math.max(2, Math.ceil(LABEL_FONT_PX * 1.2));
   const ctx = canvas.getContext("2d");
   ctx.font = font;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = color;
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  return makeTexture(canvas);
+}
 
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.minFilter = LinearFilter;
-  texture.magFilter = LinearFilter;
-  texture.needsUpdate = true;
+const _anchor = new Vector3();
+const _onRay = new Vector3();
+const _p = new Vector3();
+const _q = new Vector3();
 
-  const material = new SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    sizeAttenuation: true,
-    toneMapped: false,
-  });
-  const sprite = new Sprite(material);
-  // No picking: clicking the label must not select through the sprite quad.
-  sprite.raycast = () => {};
-  sprite.userData.isSectionMarkDecoration = true;
-  // AnnotationsManager cleanup hook (the texture is not reachable otherwise).
-  sprite.userData.dispose = () => texture.dispose();
-  return { sprite, aspect: canvas.width / canvas.height };
+// Hover / click picking of a decoration sprite: distance from the ray to the
+// sprite anchor, within a distance-scaled tolerance (same model as the fat
+// lines and the POINT sprites — three's own sprite raycast is quad-exact and
+// throws when raycaster.camera is unset).
+function attachSpriteRaycast(sprite) {
+  sprite.raycast = function (raycaster, intersects) {
+    this.getWorldPosition(_anchor);
+    const ray = raycaster.ray;
+    ray.closestPointToPoint(_anchor, _onRay);
+    const distance = ray.origin.distanceTo(_onRay);
+    const threshold =
+      PICK_TOLERANCES * Math.max(PICK_MIN_M, PICK_ANGULAR * distance);
+    if (_onRay.distanceToSquared(_anchor) > threshold * threshold) return;
+    intersects.push({ distance, point: _anchor.clone(), object: this });
+  };
+}
+
+// On-screen direction (unit, y up) of a LOCAL direction of the parent group
+// at the sprite anchor, or null when it degenerates (seen end-on).
+function getScreenDirection(sprite, direction, probeM, renderer, camera) {
+  const parent = sprite.parent;
+  const dom = renderer?.domElement;
+  if (!parent || !dom) return null;
+  _p.copy(sprite.position);
+  _q.set(
+    sprite.position.x + direction.x * probeM,
+    sprite.position.y + direction.y * probeM,
+    sprite.position.z
+  );
+  parent.localToWorld(_p).project(camera);
+  parent.localToWorld(_q).project(camera);
+  const dx = (_q.x - _p.x) * (dom.clientWidth || 1);
+  const dy = (_q.y - _p.y) * (dom.clientHeight || 1);
+  const norm = Math.hypot(dx, dy);
+  if (!(norm > 1e-6) || !Number.isFinite(norm)) return null;
+  return { x: dx / norm, y: dy / norm };
 }
 
 export default function buildBaseMapLinkObject3D({
@@ -105,21 +176,21 @@ export default function buildBaseMapLinkObject3D({
   const color = annotation.strokeColor || DEFAULT_COLOR;
   // Unit direction and observer normal, in the local frame (y up): the
   // screen-right of p1 → p2 in the y-down image frame.
-  const ux = (b.x - a.x) / length;
-  const uy = (b.y - a.y) / length;
-  const nx = uy;
-  const ny = -ux;
-  const glyph = Math.min(
-    GLYPH_MAX_M,
-    Math.max(GLYPH_MIN_M, length * GLYPH_RATIO)
-  );
+  const u = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+  const n = { x: u.y, y: -u.x };
+  // Probe step used to read an on-screen direction.
+  const probeM = Math.max(length * 0.02, 0.01);
 
   const group = new Group();
 
-  const addLine = (positions, { decoration }) => {
-    const geom = new LineGeometry();
-    geom.setPositions(positions);
-    const mat = new LineMaterial({
+  // --- cut line ---
+
+  const positions = [a.x, a.y, z, b.x, b.y, z];
+  const geom = new LineGeometry();
+  geom.setPositions(positions);
+  const line = new Line2(
+    geom,
+    new LineMaterial({
       color,
       linewidth: LINEWIDTH_PX,
       resolution,
@@ -131,101 +202,127 @@ export default function buildBaseMapLinkObject3D({
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
-    });
-    const line = new Line2(geom, mat);
-    line.computeLineDistances();
-    if (decoration) {
-      line.raycast = () => {};
-      line.userData.isSectionMarkDecoration = true;
-    } else {
-      attachFatLineRaycast(line, [
-        new Vector3(positions[0], positions[1], positions[2]),
-        new Vector3(positions[3], positions[4], positions[5]),
-      ]);
-      line.userData.exportLine = { positions };
-      line.userData.isSnapLine = true;
-    }
-    group.add(line);
-  };
-
-  // cut line
-  addLine([a.x, a.y, z, b.x, b.y, z], { decoration: false });
-
-  // end ticks
-  const tick = glyph * 0.7;
-  [a, b].forEach((p) =>
-    addLine(
-      [
-        p.x - nx * tick,
-        p.y - ny * tick,
-        z,
-        p.x + nx * tick,
-        p.y + ny * tick,
-        z,
-      ],
-      { decoration: true }
-    )
-  );
-
-  // view-direction triangles: tip towards the line, base on the observer side
-  const gap = glyph * 0.5;
-  const triangleVertices = [];
-  [0.15, 0.85].forEach((t) => {
-    const cx = a.x + (b.x - a.x) * t;
-    const cy = a.y + (b.y - a.y) * t;
-    const tipX = cx + nx * gap;
-    const tipY = cy + ny * gap;
-    const baseX = cx + nx * (gap + glyph * 1.4);
-    const baseY = cy + ny * (gap + glyph * 1.4);
-    triangleVertices.push(
-      tipX,
-      tipY,
-      z,
-      baseX + ux * glyph * 0.7,
-      baseY + uy * glyph * 0.7,
-      z,
-      baseX - ux * glyph * 0.7,
-      baseY - uy * glyph * 0.7,
-      z
-    );
-  });
-  const triangleGeom = new BufferGeometry();
-  triangleGeom.setAttribute(
-    "position",
-    new Float32BufferAttribute(triangleVertices, 3)
-  );
-  const triangles = new Mesh(
-    triangleGeom,
-    new MeshBasicMaterial({
-      color,
-      side: DoubleSide,
-      toneMapped: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1,
     })
   );
-  triangles.raycast = () => {};
-  triangles.userData.isSectionMarkDecoration = true;
-  group.add(triangles);
+  line.computeLineDistances();
+  attachFatLineRaycast(line, [
+    new Vector3(a.x, a.y, z),
+    new Vector3(b.x, b.y, z),
+  ]);
+  line.userData.exportLine = { positions };
+  line.userData.isSnapLine = true;
+  group.add(line);
+
+  // --- decorations ---
+
+  if (typeof document === "undefined") return group;
+
+  // One material per sprite: its rotation is per sprite.
+  const addSprite = ({
+    texture,
+    ownsTexture,
+    at,
+    cssHeight,
+    aspect,
+    orient,
+  }) => {
+    const material = new SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      sizeAttenuation: false,
+      toneMapped: false,
+    });
+    const sprite = new Sprite(material);
+    sprite.position.set(at.x, at.y, z);
+    sprite.renderOrder = SPRITE_RENDER_ORDER;
+    sprite.userData.isSectionMarkDecoration = true;
+    sprite.userData.isSectionMarkSprite = true;
+    // AnnotationsManager cleanup hook: the material is disposed by the
+    // regular traverse, a label texture is owned by its sprite.
+    if (ownsTexture) sprite.userData.dispose = () => texture.dispose();
+    attachSpriteRaycast(sprite);
+    sizeSpriteInCssPx(sprite, { cssHeight, aspect });
+    const sizeHook = sprite.onBeforeRender;
+    sprite.onBeforeRender = (renderer, scene, camera) => {
+      sizeHook(renderer, scene, camera);
+      orient(sprite, renderer, camera);
+    };
+    group.add(sprite);
+    return sprite;
+  };
+
+  // end ticks: a bar along the on-screen observer normal
+  const tickTexture = getGlyphTexture("TICK", color);
+  [a, b].forEach((p) =>
+    addSprite({
+      texture: tickTexture,
+      at: p,
+      cssHeight: TICK_THICKNESS_PX,
+      aspect: TICK_LENGTH_PX / TICK_THICKNESS_PX,
+      orient: (sprite, renderer, camera) => {
+        const dir = getScreenDirection(sprite, n, probeM, renderer, camera);
+        if (dir) sprite.material.rotation = Math.atan2(dir.y, dir.x);
+      },
+    })
+  );
+
+  // view-direction arrows: on the observer side, tip towards the line
+  const arrowTexture = getGlyphTexture("ARROW", color);
+  [0.15, 0.85].forEach((t) => {
+    const sprite = addSprite({
+      texture: arrowTexture,
+      at: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t },
+      cssHeight: ARROW_PX,
+      aspect: 1,
+      orient: (s, renderer, camera) => {
+        const dir = getScreenDirection(s, n, probeM, renderer, camera);
+        if (dir) s.material.rotation = Math.atan2(dir.y, dir.x);
+      },
+    });
+    // The quad starts ARROW_GAP_PX away from the anchor, along its own +x
+    // (rotated with the sprite).
+    sprite.center.set(-ARROW_GAP_PX / ARROW_PX, 0.5);
+  });
 
   // labels beyond each end (a clone shows its source's label)
   const label = annotation.sourceLinkLabel ?? getAnnotationOwnLabel(annotation);
-  if (label && typeof document !== "undefined") {
-    const labelHeight = glyph * 2;
+  if (label) {
     [
-      { p: a, sign: -1 },
-      { p: b, sign: 1 },
-    ].forEach(({ p, sign }) => {
-      const { sprite, aspect } = createLabelSprite(String(label), color);
-      sprite.scale.set(labelHeight * aspect, labelHeight, 1);
-      const offset = glyph * 1.2 + (labelHeight * aspect) / 2;
-      sprite.position.set(
-        p.x + sign * ux * offset,
-        p.y + sign * uy * offset,
-        z
-      );
-      group.add(sprite);
+      { p: a, outward: { x: -u.x, y: -u.y } },
+      { p: b, outward: u },
+    ].forEach(({ p, outward }) => {
+      const texture = makeLabelTexture(String(label), color);
+      const aspect = texture.image.width / texture.image.height;
+      const widthPx = LABEL_HEIGHT_PX * aspect;
+      addSprite({
+        texture,
+        ownsTexture: true,
+        at: p,
+        cssHeight: LABEL_HEIGHT_PX,
+        aspect,
+        // The text stays upright: the sprite is shifted (not turned) along
+        // the on-screen outward direction, clear of the end tick.
+        orient: (sprite, renderer, camera) => {
+          const dir = getScreenDirection(
+            sprite,
+            outward,
+            probeM,
+            renderer,
+            camera
+          );
+          if (!dir) return;
+          const offsetPx =
+            LABEL_GAP_PX +
+            TICK_THICKNESS_PX +
+            (Math.abs(dir.x) * widthPx + Math.abs(dir.y) * LABEL_HEIGHT_PX) / 2;
+          sprite.center.set(
+            0.5 - (dir.x * offsetPx) / widthPx,
+            0.5 - (dir.y * offsetPx) / LABEL_HEIGHT_PX
+          );
+        },
+      });
     });
   }
 
