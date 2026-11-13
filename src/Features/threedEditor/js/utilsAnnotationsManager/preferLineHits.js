@@ -12,12 +12,15 @@ export function getLineWinTolerance(distance) {
 }
 
 // A POINT marker sprite (createPointSprite) is the same kind of thin,
-// deliberate target lying on a face: it wins the same way.
+// deliberate target lying on a face: it wins the same way. Same again for
+// the tick / arrow / label sprites of a section mark
+// (buildBaseMapLinkObject3D).
 const isLineObject = (object) =>
   Boolean(
     object?.isLine2 ||
     object?.isLineSegments2 ||
-    object?.userData?.isAnnotationPointSprite
+    object?.userData?.isAnnotationPointSprite ||
+    object?.userData?.isSectionMarkSprite
   );
 
 // The annotation root (userData.nodeId) an object belongs to, or null.
