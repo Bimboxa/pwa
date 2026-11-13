@@ -189,7 +189,9 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the floating panels (`PopperMapListings`…) are not avoided, the zones
   slide under them. Tile click = select,
   selected tile = "Fullscreen" and its leader even with "Ligne" off, hovered
-  tile = pin toggle (`printZonesPinnedSideById[id] = side`, session only).
+  tile = 4 small toggles at its bottom (`SelectorPrintZoneSide`): the edge
+  the photo snaps to (`printZonesPinnedSideById[id] = side`, session only;
+  none checked = automatic zone).
   Hovering an occupied zone (window `mousemove`, the editor keeps the mouse)
   draws its dashed outline and 3 handles: thickness on the inner edge, and
   the two ends (`usePrintZonesResize` → `setPrintZonesZone`).
@@ -197,7 +199,8 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   (`CaptureImagePrintZonesOverlay`, svg `data-capture-hide` outline and
   handles). The capture frame being another rect, it has its own resized
   zones (`printZonesCaptureZones`, `setPrintZonesZone({ capture: true })`);
-  it uses the same pins. Its zones avoid the cartouche / title / logo, not
+  it uses the same pins, with the same toggles on its hovered tile
+  (`useHoveredPrintZoneTileId`, `data-capture-hide`). Its zones avoid the cartouche / title / logo, not
   the legend.
 
 ### Rendering in the scene

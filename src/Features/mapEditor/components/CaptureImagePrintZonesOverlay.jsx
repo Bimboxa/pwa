@@ -4,12 +4,18 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   selectPrintZonesCaptureZones,
   setPrintZonesCaptureInsets,
+  setPrintZonesImagePinnedSide,
   setPrintZonesZone,
 } from "Features/popperImages/popperImagesSlice";
 
 import CaptureImageTileCard from "./CaptureImageTileCard";
+import SelectorPrintZoneSide, {
+  SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX,
+  SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX,
+} from "Features/popperImages/components/SelectorPrintZoneSide";
 
 import useImagePrintZonesLayout from "Features/popperImages/hooks/useImagePrintZonesLayout";
+import useHoveredPrintZoneTileId from "Features/popperImages/hooks/useHoveredPrintZoneTileId";
 import usePrintZonesResize from "Features/popperImages/hooks/usePrintZonesResize";
 import {
   IMAGE_LINK_STROKE,
@@ -28,7 +34,9 @@ import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutIma
 // INSIDE the ImageModeOverlay svg, in svg px, as `data-capture-keep` groups.
 // A hovered zone shows its dashed outline and 3 resize handles
 // (usePrintZonesResize → popperImages.printZonesCaptureZones), as
-// `data-capture-hide`: never in the exported image. The thickness
+// `data-capture-hide`: never in the exported image. Same for the 4 small
+// toggles of the hovered tile (SelectorPrintZoneSide): the edge the photo
+// snaps to. The thickness
 // taken on each side is published (popperImages.printZonesCaptureInsets) for
 // the labels margin band.
 // ---------------------------------------------------------------------------
@@ -98,6 +106,14 @@ export default function CaptureImagePrintZonesOverlay({
     () => svgRef?.current?.getBoundingClientRect() ?? null,
     [svgRef]
   );
+  const hoveredTileId = useHoveredPrintZoneTileId({
+    active: tiles.length > 0,
+    tiles,
+    getOriginRect,
+  });
+  const hoveredTile = hoveredTileId
+    ? tiles.find((t) => t.id === hoveredTileId)
+    : null;
   const zoneResize = usePrintZonesResize({
     active: tiles.length > 0,
     zones,
@@ -170,6 +186,36 @@ export default function CaptureImagePrintZonesOverlay({
           />
         ))}
       </g>
+
+      {/* Hovered tile: the edge it snaps to (never in the exported image). */}
+      {hoveredTile && !zoneResize.resizing && (
+        <g data-capture-hide>
+          <foreignObject
+            x={
+              hoveredTile.x +
+              (hoveredTile.width - SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX) / 2
+            }
+            y={
+              hoveredTile.y +
+              hoveredTile.height -
+              SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX -
+              8
+            }
+            width={SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX}
+            height={SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX}
+            style={{ overflow: "visible", pointerEvents: "auto" }}
+          >
+            <SelectorPrintZoneSide
+              value={hoveredTile.pinned ? hoveredTile.side : null}
+              onChange={(side) =>
+                dispatch(
+                  setPrintZonesImagePinnedSide({ id: hoveredTile.id, side })
+                )
+              }
+            />
+          </foreignObject>
+        </g>
+      )}
 
       {/* Hovered zone: dashed outline + thickness / ends handles (never in
           the exported image). */}

@@ -40,9 +40,9 @@ import { getPrintZoneTileLinkPoint } from "../utils/layoutImagePrintZones";
 // its anchor in the scene by a leader ("Ligne", always drawn for the selected
 // photo) and / or its display number ("Numéro"). The zones are fixed and the
 // tiles centred in them: nothing follows the camera. A tile click selects the
-// annotation, the selected tile offers "Fullscreen", a hovered tile a pin
-// toggle that keeps the photo in its zone. A hovered zone shows its dashed
-// outline and 3 handles: thickness (inner edge) and the two ends
+// annotation, the selected tile offers "Fullscreen", a hovered tile 4 small
+// toggles for the edge the photo snaps to (none = automatic). A hovered zone
+// shows its dashed outline and 3 handles: thickness (inner edge) and the two ends
 // (popperImages.printZonesZones). Rendered in the editor's floating panels
 // frame (PortalEditorFloatingPanels); only the tiles and the handles take
 // the mouse (the zone hover is read from window mousemove). Excluded from
@@ -151,15 +151,8 @@ export default function ImagesPrintZonesOverlay({
 
   // handlers
 
-  function handleTogglePin(annotation) {
-    const tile = tiles.find((t) => t.id === annotation.id);
-    if (!tile) return;
-    dispatch(
-      setPrintZonesImagePinnedSide({
-        id: annotation.id,
-        side: tile.pinned ? null : tile.side,
-      })
-    );
+  function handleSnapSideChange(annotation, side) {
+    dispatch(setPrintZonesImagePinnedSide({ id: annotation.id, side }));
   }
 
   function handleSelect(annotation) {
@@ -265,8 +258,8 @@ export default function ImagesPrintZonesOverlay({
                 veiled={isImageAnnotationVeiled(t.id, selectedImageId)}
                 fill
                 showNumber={linkNumber}
-                pinned={Boolean(t.pinned)}
-                onTogglePin={handleTogglePin}
+                snapSide={t.pinned ? t.side : null}
+                onSnapSideChange={handleSnapSideChange}
                 onSelect={handleSelect}
                 onFullscreen={(a) => setFullscreenImageId(a.id)}
               />
