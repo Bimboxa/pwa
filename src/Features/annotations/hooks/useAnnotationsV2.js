@@ -2272,6 +2272,8 @@ export default function useAnnotationsV2(options) {
             a.revolutionAxisRadiusM = axis.radiusM;
             a.revolutionAxisHeightM = axis.height;
             a.revolutionAxisLabel = axis.label;
+            // Plan hosting the axis: target of the « Vue en plan » label.
+            a.revolutionAxisBaseMapId = axis.baseMapId ?? null;
 
             // The anchors seen edge-on: the centre, both ends of the orange
             // bar (the plan diameter laid flat on the elevation) and the TOP of
