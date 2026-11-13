@@ -232,6 +232,12 @@ const BASE_MAPS_SECTIONS = [
   AXES_SECTION,
   BASE_MAP_SECTION,
   SECTION_LINES_SECTION,
+  // « Déplacer » carries the selected section mark there (2D editor)
+  {
+    key: "SECTION_LINES_MOVE",
+    label: "Déplacer",
+    entries: ["MOVE_ANNOTATION"],
+  },
 ];
 
 // « Maillage » module: the user frame group, the cut lines drawn to

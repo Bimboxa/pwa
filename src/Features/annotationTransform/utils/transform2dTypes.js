@@ -14,12 +14,19 @@ import {
 //   - OBJECT_3D (imported GLB): bbox + rotation rewritten by a dedicated
 //     write (getObject3DTransformUpdates), moved AND turned — in 3D too.
 //   - BLOCK_INSTANCE (Features/blocks): same bbox-placed model as OBJECT_3D.
+//   - BASE_MAP_LINK (section mark, Features/baseMapLinks — the mark on its
+//     plan, or its clone located on a vertical base map): two db.points,
+//     moved through the point pipeline; the commit then re-poses the
+//     vertical base map the mark drives (resyncBaseMapLinksForAnnotationIds).
+//     Moved only: the located clone is horizontal by construction, and the
+//     direction of a mark is set by its own vertices.
 export const MOVE_2D_EXTRA_TYPES = [
   "COTE",
   "RULER",
   "FREE_TEXT",
   "OBJECT_3D",
   "BLOCK_INSTANCE",
+  "BASE_MAP_LINK",
 ];
 export const ROTATE_2D_EXTRA_TYPES = [
   "COTE",
@@ -40,7 +47,10 @@ export function isTransformable2dType(kind, type) {
 // commitWrapperTransform).
 export function isPointHolderType(type) {
   return (
-    isPointBasedAnnotationType(type) || type === "COTE" || type === "RULER"
+    isPointBasedAnnotationType(type) ||
+    type === "COTE" ||
+    type === "RULER" ||
+    type === "BASE_MAP_LINK"
   );
 }
 
