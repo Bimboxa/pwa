@@ -147,13 +147,19 @@ export function sanitizePrintZonesZones(value) {
   return zones;
 }
 
-export function loadPrintZonesZones() {
-  return sanitizePrintZonesZones(readStore().printZonesZones);
+// `capture`: the zones of the capture frame, kept apart from the editors'
+// (another rect).
+function getZonesKey(capture) {
+  return capture ? "printZonesCaptureZones" : "printZonesZones";
 }
 
-export function savePrintZonesZones(zones) {
+export function loadPrintZonesZones(capture = false) {
+  return sanitizePrintZonesZones(readStore()[getZonesKey(capture)]);
+}
+
+export function savePrintZonesZones(zones, capture = false) {
   const store = readStore();
-  store.printZonesZones = sanitizePrintZonesZones(zones);
+  store[getZonesKey(capture)] = sanitizePrintZonesZones(zones);
   writeStore(store);
 }
 

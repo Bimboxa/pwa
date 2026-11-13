@@ -3547,6 +3547,7 @@ export default function MainThreedEditor() {
               images={imageAnnotations}
               indexById={imageDisplayIndexById}
               anchorProjector={anchorProjector3d}
+              anchorClickSelects
             />
           </PortalEditorFloatingPanels>
         )}
@@ -3558,6 +3559,7 @@ export default function MainThreedEditor() {
             images={imageAnnotations}
             indexById={imageDisplayIndexById}
             anchorProjector={anchorProjector3d}
+            anchorClickSelects
           />
         </PortalEditorFloatingPanels>
       )}

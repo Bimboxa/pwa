@@ -1,7 +1,10 @@
 // Shared look of the photos display (PopperImages tiles, 2D SVG, 3D card
 // canvas, capture overlay). Screen pixels.
 
-export const IMAGE_BADGE_RADIUS_PX = 10;
+// Numbered badge of a photo: a rounded rectangle (the comments use discs).
+export const IMAGE_BADGE_WIDTH_PX = 26;
+export const IMAGE_BADGE_HEIGHT_PX = 20;
+export const IMAGE_BADGE_CORNER_PX = 6;
 export const IMAGE_BADGE_BG = "#333333";
 export const IMAGE_BADGE_FG = "#ffffff";
 export const IMAGE_BADGE_FONT_PX = 11;

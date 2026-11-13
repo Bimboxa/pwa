@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
 
+import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import CaptureImageTileCard, {
   CAPTURE_TILE_CAPTION_HEIGHT,
 } from "./CaptureImageTileCard";
@@ -222,13 +223,14 @@ export default function CaptureImagesOverlay({
             const left = originX + t.x;
             const midY = originY + t.y + t.height / 2;
             const x1 = a.x < left + t.width / 2 ? left : left + t.width;
+            const end = getImageLinkEnd({ x: x1, y: midY }, a, showNumbers);
             return (
               <line
                 key={t.id}
                 x1={x1}
                 y1={midY}
-                x2={a.x}
-                y2={a.y}
+                x2={end.x}
+                y2={end.y}
                 stroke={IMAGE_LINK_STROKE}
                 strokeWidth={IMAGE_LINK_STROKE_WIDTH}
               />

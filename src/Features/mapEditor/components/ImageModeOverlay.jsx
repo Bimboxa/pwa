@@ -456,7 +456,7 @@ export default function ImageModeOverlay({
         )}
 
       {/* PHOTOS PRINT ZONES (tiles along the 4 edges of the capture rect,
-          clear of the legend / cartouche / title / logo). */}
+          clear of the cartouche / title / logo; the legend is not avoided). */}
       {imagesDisplayMode === "PRINT_ZONES" &&
         !imagesHidden &&
         imageAnnotations?.length > 0 && (
@@ -474,7 +474,6 @@ export default function ImageModeOverlay({
       {overlay.visible !== false && (
         <g
           data-capture-keep
-          data-print-zones-avoid
           transform={`translate(${legendX}, ${legendY})`}
           onMouseDown={startMove}
           style={{ cursor: "grab" }}

@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import { setPrintZonesCaptureInsets } from "Features/popperImages/popperImagesSlice";
+import {
+  selectPrintZonesCaptureZones,
+  setPrintZonesCaptureInsets,
+  setPrintZonesImagePinnedSide,
+  setPrintZonesZone,
+} from "Features/popperImages/popperImagesSlice";
 
 import CaptureImageTileCard from "./CaptureImageTileCard";
+import SelectorPrintZoneSide, {
+  SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX,
+  SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX,
+} from "Features/popperImages/components/SelectorPrintZoneSide";
 
 import useImagePrintZonesLayout from "Features/popperImages/hooks/useImagePrintZonesLayout";
+import useHoveredPrintZoneTileId from "Features/popperImages/hooks/useHoveredPrintZoneTileId";
+import usePrintZonesResize from "Features/popperImages/hooks/usePrintZonesResize";
 import {
   IMAGE_LINK_STROKE,
   IMAGE_LINK_STROKE_WIDTH,
 } from "Features/popperImages/constants/imageDisplay";
+import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutImagePrintZones";
 
 // ---------------------------------------------------------------------------
@@ -18,14 +30,21 @@ import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutIma
 // capture rect (same layout as ImagesPrintZonesOverlay in the editors:
 // useImagePrintZonesLayout), each tied to its anchor by a leader ("Ligne")
 // and / or its display number ("Numéro"). The bands keep clear of the
-// elements of the frame tagged `data-print-zones-avoid` (legend, cartouche,
-// title banner, logo). Rendered INSIDE the ImageModeOverlay svg, in svg px,
-// as `data-capture-keep` groups. Fully automatic: no handle. The thickness
+// elements of the frame tagged `data-print-zones-avoid` (cartouche, title
+// banner, logo — not the legend, which the user moves freely). Rendered
+// INSIDE the ImageModeOverlay svg, in svg px, as `data-capture-keep` groups.
+// A hovered zone shows its dashed outline and 3 resize handles
+// (usePrintZonesResize → popperImages.printZonesCaptureZones), as
+// `data-capture-hide`: never in the exported image. Same for the 4 small
+// toggles of the hovered tile (SelectorPrintZoneSide): the edge the photo
+// snaps to. The thickness
 // taken on each side is published (popperImages.printZonesCaptureInsets) for
 // the labels margin band.
 // ---------------------------------------------------------------------------
 
 const AVOID_SELECTOR = "[data-print-zones-avoid]";
+// Same grey as the editors' zone outline (theme primary).
+const ZONE_UI_COLOR = "#424242";
 
 export default function CaptureImagePrintZonesOverlay({
   rect,
@@ -36,6 +55,10 @@ export default function CaptureImagePrintZonesOverlay({
   svgRef,
 }) {
   const dispatch = useDispatch();
+
+  // data
+
+  const zonesSettings = useSelector(selectPrintZonesCaptureZones);
 
   // helpers
 
@@ -66,11 +89,39 @@ export default function CaptureImagePrintZonesOverlay({
     };
   }, [svgRef, rect.left, rect.top, rect.width, rect.height]);
 
-  const { tiles, insets, anchorsById } = useImagePrintZonesLayout({
+  const {
+    tiles,
+    zones,
+    rect: layoutRect,
+    insets,
+    anchorsById,
+  } = useImagePrintZonesLayout({
     active: true,
     images,
     anchorProjector,
     getFrame,
+    zones: zonesSettings,
+  });
+
+  const getOriginRect = useCallback(
+    () => svgRef?.current?.getBoundingClientRect() ?? null,
+    [svgRef]
+  );
+  const hoveredTileId = useHoveredPrintZoneTileId({
+    active: tiles.length > 0,
+    tiles,
+    getOriginRect,
+  });
+  const hoveredTile = hoveredTileId
+    ? tiles.find((t) => t.id === hoveredTileId)
+    : null;
+  const zoneResize = usePrintZonesResize({
+    active: tiles.length > 0,
+    zones,
+    rect: layoutRect,
+    getOriginRect,
+    onPatch: (side, patch) =>
+      dispatch(setPrintZonesZone({ side, patch, capture: true })),
   });
 
   const imagesById = useMemo(
@@ -109,13 +160,14 @@ export default function CaptureImagePrintZonesOverlay({
             const a = anchorsById[t.id];
             if (!a?.inside) return null;
             const p = getPrintZoneTileLinkPoint(t, a);
+            const end = getImageLinkEnd(p, a, showNumbers);
             return (
               <g key={t.id}>
                 <line
                   x1={p.x}
                   y1={p.y}
-                  x2={a.x}
-                  y2={a.y}
+                  x2={end.x}
+                  y2={end.y}
                   stroke={IMAGE_LINK_STROKE}
                   strokeWidth={IMAGE_LINK_STROKE_WIDTH}
                 />
@@ -136,6 +188,74 @@ export default function CaptureImagePrintZonesOverlay({
           />
         ))}
       </g>
+
+      {/* Hovered tile: the edge it snaps to (never in the exported image). */}
+      {hoveredTile && !zoneResize.resizing && (
+        <g data-capture-hide>
+          <foreignObject
+            x={
+              hoveredTile.x +
+              (hoveredTile.width - SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX) / 2
+            }
+            y={
+              hoveredTile.y +
+              hoveredTile.height -
+              SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX -
+              8
+            }
+            width={SELECTOR_PRINT_ZONE_SIDE_WIDTH_PX}
+            height={SELECTOR_PRINT_ZONE_SIDE_HEIGHT_PX}
+            style={{ overflow: "visible", pointerEvents: "auto" }}
+          >
+            <SelectorPrintZoneSide
+              value={hoveredTile.pinned ? hoveredTile.side : null}
+              onChange={(side) =>
+                dispatch(
+                  setPrintZonesImagePinnedSide({ id: hoveredTile.id, side })
+                )
+              }
+            />
+          </foreignObject>
+        </g>
+      )}
+
+      {/* Hovered zone: dashed outline + thickness / ends handles (never in
+          the exported image). */}
+      {zoneResize.outline && (
+        <g data-capture-hide>
+          <rect
+            x={zoneResize.outline.x}
+            y={zoneResize.outline.y}
+            width={zoneResize.outline.width}
+            height={zoneResize.outline.height}
+            rx={8}
+            fill="none"
+            stroke={ZONE_UI_COLOR}
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            style={{ pointerEvents: "none" }}
+          />
+          {zoneResize.handles.map((h) => (
+            <rect
+              key={h.kind}
+              {...zoneResize.getHandleProps(h.kind)}
+              x={h.x}
+              y={h.y}
+              width={h.width}
+              height={h.height}
+              rx={4}
+              fill="#ffffff"
+              stroke={ZONE_UI_COLOR}
+              strokeWidth={1.5}
+              style={{
+                cursor: h.cursor,
+                pointerEvents: "auto",
+                touchAction: "none",
+              }}
+            />
+          ))}
+        </g>
+      )}
     </>
   );
 }

@@ -152,7 +152,8 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the title + a 2-button toggle for a 1 or 2-column grid (`panelColumns`).
   Body: grid of numbered tiles; a tile click selects the annotation, the
   selected tile offers "Fullscreen" (`images/components/DialogImageViewer`,
-  wheel zoom + pan + reset).
+  wheel zoom + pan + reset). Selecting a photo from the plan (click on its
+  badge) scrolls the grid to its tile.
 - `ImagesLinksOverlay` — leaders from the tiles (DOM rects) to the anchors:
   all of them with "Ligne", only the selected photo's otherwise
   (`onlySelected`).
@@ -189,11 +190,19 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the floating panels (`PopperMapListings`…) are not avoided, the zones
   slide under them. Tile click = select,
   selected tile = "Fullscreen" and its leader even with "Ligne" off, hovered
-  tile = pin toggle (`printZonesPinnedSideById[id] = side`, session only).
+  tile = 4 small toggles at its bottom (`SelectorPrintZoneSide`): the edge
+  the photo snaps to (`printZonesPinnedSideById[id] = side`, session only;
+  none checked = automatic zone).
   Hovering an occupied zone (window `mousemove`, the editor keeps the mouse)
   draws its dashed outline and 3 handles: thickness on the inner edge, and
-  the two ends (`setPrintZonesZone`). The capture uses the pins but not the
-  resized zones (its frame is another rect).
+  the two ends (`usePrintZonesResize` → `setPrintZonesZone`).
+- `usePrintZonesResize` — zone hover + handles drag, shared with the capture
+  (`CaptureImagePrintZonesOverlay`, svg `data-capture-hide` outline and
+  handles). The capture frame being another rect, it has its own resized
+  zones (`printZonesCaptureZones`, `setPrintZonesZone({ capture: true })`);
+  it uses the same pins, with the same toggles on its hovered tile
+  (`useHoveredPrintZoneTileId`, `data-capture-hide`). Its zones avoid the cartouche / title / logo, not
+  the legend.
 
 ### Rendering in the scene
 
@@ -201,15 +210,28 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   imageDisplayIndex / imageVeiled` through `NodeAnnotationStatic` from
   `StaticMapContent` / `EditedObjectLayer` only (portfolio, grids, elevation
   keep the plain in-situ rendering). In situ: numbered badge at the bbox
-  corner + veil. Any other mode: the anchor dot only (TARGET interaction
-  kept: click selects, drag moves `targetPoint`) + badge with "Numéro".
+  corner + veil. Any other mode: the anchor only (TARGET interaction kept:
+  click selects, drag moves `targetPoint`, pointer cursor) — with "Numéro"
+  the numbered badge alone, centred on the anchor; without, a dot.
 - 3D `ThreedAnnotationLabels`: in situ the card canvas carries the badge and
   the veil (`createImageAnnotationCard({ badgeNumber, veiled })`,
   `applyAnnotationMaterialState` never swaps a card's material); any other
-  mode no card / leader, the anchor dot always, a
-  `createAnnotationNumberBadgeSprite` with "Numéro", and an invisible proxy
-  as the target handle's `labelSprite` so the TARGET drag still writes
-  `targetPoint`.
+  mode no card / leader, one anchor marker — the
+  `createAnnotationNumberBadgeSprite` centred on the anchor with "Numéro",
+  the anchor dot otherwise (either is `userData.anchorDot` and the
+  `imageAnchorsById` entry) — and an invisible proxy as the target handle's
+  `labelSprite` so the TARGET drag still writes `targetPoint`.
+- The numbered badge of a photo is a **rounded rectangle** everywhere
+  (`IMAGE_BADGE_WIDTH_PX / HEIGHT_PX / CORNER_PX`: `ImageIndexBadge`,
+  `ImageIndexBadgeSvg`, the 3D sprite, the 3D card canvas) — discs are the
+  comments' pills. The leaders stop on the badge border
+  (`getImageLinkEnd`).
+- `PopperImageAnchorHover` — off in situ (mounted by `PopperImages` and
+  `ImagesPrintZonesOverlay`), hovering an anchor shows a popper with the
+  photo, its label and `labelDescription`, and a pointer cursor (hit test in
+  client px on the anchor projector, so it works on the 3D sprites that are
+  never raycast). In 3D (`anchorClickSelects`) a click on the hovered anchor
+  selects the photo; in 2D the TARGET interaction already does.
 
 ### Capture (`ImageModeOverlay`)
 
@@ -223,9 +245,10 @@ The bottom bar controls are hidden while framing: the Cadrage tab
   resize with `data-capture-hide` handles, `resolveImagesOverlayGeometry`,
   `layoutCaptureImageTiles`).
 - `PRINT_ZONES`: `CaptureImagePrintZonesOverlay` draws the same cards along
-  the 4 edges of the frame (`useImagePrintZonesLayout`), fully automatic,
-  clear of the frame elements tagged `data-print-zones-avoid` (legend,
-  cartouche, title banner, logo).
+  the 4 edges of the frame (`useImagePrintZonesLayout`), clear of the frame
+  elements tagged `data-print-zones-avoid` (cartouche, title banner, logo —
+  not the legend). A hovered zone shows its dashed outline and resize
+  handles (`printZonesCaptureZones`), hidden from the export.
 - Both tie the tiles to the anchors by `<line>`s ("Ligne") and / or badges
   ("Numéro"). The labels margin band excludes the photos
   (`useImageModeLabelsLayout({ imagesCount })`: the overlay zone, or the
