@@ -21,6 +21,9 @@ import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHi
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import useSceneExtraBaseMapIdsIn3d from "./useSceneExtraBaseMapIdsIn3d";
+import useRevolutionAxisLinkedBaseMapIdsIn3d from "Features/revolutionAxes/hooks/useRevolutionAxisLinkedBaseMapIdsIn3d";
+import getRevolutionAxisIdOfAnnotation from "Features/revolutionAxes/utils/getRevolutionAxisIdOfAnnotation";
+import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
 import { selectBaseMapsGridDessinOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridDessin";
@@ -173,7 +176,25 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const soloDimStyle = useSelector((s) => s.viewers.soloDimStyle);
   // Chips + sheets of the displayed grid (shared with the multi-selection
   // popper / panel, which must resolve whatever the scene lets one pick).
-  const extraBaseMapIds = useSceneExtraBaseMapIdsIn3d();
+  const sceneExtraBaseMapIds = useSceneExtraBaseMapIdsIn3d();
+  // Main base map = plan view of revolution axes: the base maps (coupes)
+  // their profiles are drawn on join the query, so what is revolved around
+  // the axes shows on the plan (unless the axis's linked-annotations chip is
+  // off). A base map loaded for this only (`axisOnlyBaseMapIdSet`) brings
+  // nothing else: its other annotations are dropped below (its image
+  // follows its own eye — useApplyBaseMapVisibilityIn3d).
+  const { baseMapIds: axisLinkedBaseMapIds, axisIdSet: planAxisIdSet } =
+    useRevolutionAxisLinkedBaseMapIdsIn3d();
+  const extraBaseMapIds = useMemo(() => {
+    if (!axisLinkedBaseMapIds.length) return sceneExtraBaseMapIds;
+    return [...new Set([...sceneExtraBaseMapIds, ...axisLinkedBaseMapIds])];
+  }, [sceneExtraBaseMapIds, axisLinkedBaseMapIds]);
+  const axisOnlyBaseMapIdSet = useMemo(() => {
+    if (!axisLinkedBaseMapIds.length) return null;
+    const sceneIdSet = new Set(sceneExtraBaseMapIds);
+    const ids = axisLinkedBaseMapIds.filter((id) => !sceneIdSet.has(id));
+    return ids.length ? new Set(ids) : null;
+  }, [sceneExtraBaseMapIds, axisLinkedBaseMapIds]);
   const scopeAnnotationIdSet = gridPinned ? scopeFilter.annotationIdSet : null;
   // badge of the "Fonds de plan" rows: annotations of a sheet switched off
   const hiddenSheetIds = useSelector(
@@ -206,6 +227,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     extraBaseMapIds,
     filterByListingId: gridPinned ? scopeFilter.filterByListingId : undefined,
     filterBySelectedScope: true,
+    // linked-annotations chip of the revolution axis rows, off: what is
+    // revolved around the axis is not built
+    hideRevolutionAxisLinkedAnnotations: true,
     sortByOrderIndex: true,
     excludeProfileTemplates: true,
     // COTE / RULER only when template.showIn3d or row.isDrawnIn3d.
@@ -299,6 +323,15 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
     let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
     result = dropDoubledBaseMapLinks(result, selectedLinkCloneId);
+    // Coupe base map loaded only for the axes of the plan view: only what is
+    // revolved around one of those axes is built.
+    if (axisOnlyBaseMapIdSet) {
+      result = result.filter((a) => {
+        if (!axisOnlyBaseMapIdSet.has(a.baseMapId)) return true;
+        if (isRevolutionHelperType(a.type)) return false;
+        return planAxisIdSet.has(getRevolutionAxisIdOfAnnotation(a));
+      });
+    }
     // System instances (Features/systems): each one builds either its source
     // annotation or its generated detail (per instance, 3D mode).
     result = applySystemDisplay(result, SYSTEM_DISPLAY_EDITOR_3D, {
@@ -322,6 +355,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     hiddenSheetIdSet,
     userHiddenIdSet,
     selectedLinkCloneId,
+    axisOnlyBaseMapIdSet,
+    planAxisIdSet,
   ]);
 
   // What the scene is built from: the shrink-exempt hosts and the mesh
@@ -553,7 +588,12 @@ export default function useAutoLoadAnnotationsInThreedEditor({
         }
         // Pinned grid: every sheet gets its group / registry entry (the
         // annotations are built in it), image or not.
-        if (bm.image?.imageUrlClient || (gridPinned && bm)) {
+        // (a coupe loaded for the axes of the plan view alike)
+        if (
+          bm.image?.imageUrlClient ||
+          gridPinned ||
+          axisOnlyBaseMapIdSet?.has(id)
+        ) {
           threedEditor.ensureBaseMapLoaded(bm);
         }
       });
@@ -604,6 +644,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     revolutionSectionFill,
     circleSegmentationKey,
     extraBaseMapIds,
+    axisOnlyBaseMapIdSet,
     chipExtraBaseMapIds,
     baseMaps,
     mainBaseMap,

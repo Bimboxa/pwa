@@ -14,23 +14,33 @@ export default function collectAnnotationSectionMeshes(
   const meshes = [];
   const map = annotationsManager?.annotationsObjectsMap || {};
   Object.values(map).forEach((object) => {
-    if (visibleOnly && object && !object.visible) return;
-    object?.traverse?.((child) => {
-      // Fat lines (LineSegments2) ARE isMesh but hold instanced segment
-      // geometry, not solid triangles — sectioning them yields garbage
-      // (aquarelle ink edges, revolution section markers).
-      if (child.isLine2 || child.isLineSegments2) return;
-      if (child.userData?.isSectionMarker) return;
-      // scan base maps: their geometry lives on the GPU only.
-      if (child.userData?.isDecor) return;
-      // Face stipples (hover, selected faces): copies of a face's triangles.
-      if (child.userData?.isHoverOverlay) return;
-      // Painted parts (Pinceau): skins over a face, not a solid.
-      if (child.userData?.isPaintOverlay) return;
-      if (!child.isMesh || !child.geometry) return;
-      if (visibleOnly && !isChainVisible(child, object)) return;
-      meshes.push(child);
-    });
+    collectObjectSectionMeshes(object, { visibleOnly }, meshes);
+  });
+  return meshes;
+}
+
+// Same, for ONE annotation object (pushed into `meshes`, returned).
+export function collectObjectSectionMeshes(
+  object,
+  { visibleOnly = false } = {},
+  meshes = []
+) {
+  if (visibleOnly && object && !object.visible) return meshes;
+  object?.traverse?.((child) => {
+    // Fat lines (LineSegments2) ARE isMesh but hold instanced segment
+    // geometry, not solid triangles — sectioning them yields garbage
+    // (aquarelle ink edges, revolution section markers).
+    if (child.isLine2 || child.isLineSegments2) return;
+    if (child.userData?.isSectionMarker) return;
+    // scan base maps: their geometry lives on the GPU only.
+    if (child.userData?.isDecor) return;
+    // Face stipples (hover, selected faces): copies of a face's triangles.
+    if (child.userData?.isHoverOverlay) return;
+    // Painted parts (Pinceau): skins over a face, not a solid.
+    if (child.userData?.isPaintOverlay) return;
+    if (!child.isMesh || !child.geometry) return;
+    if (visibleOnly && !isChainVisible(child, object)) return;
+    meshes.push(child);
   });
   return meshes;
 }

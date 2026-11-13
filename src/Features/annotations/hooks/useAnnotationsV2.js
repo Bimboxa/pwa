@@ -388,6 +388,7 @@ import {
 import { ORPHAN_TEMPLATE_ID } from "Features/annotations/utils/orphanAnnotations";
 import {
   selectHiddenAnnotationTemplateIdSet,
+  selectHiddenLinkedAnnotationsRevolutionAxisIdSet,
   selectHiddenRevolutionAxisIdSet,
 } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import getRevolutionAxisIdOfAnnotation from "Features/revolutionAxes/utils/getRevolutionAxisIdOfAnnotation";
@@ -796,6 +797,11 @@ export default function useAnnotationsV2(options) {
     // callers can re-filter locally). Used by the listings panel to keep
     // eye-hidden template rows in the tree so they can be re-enabled.
     const keepHiddenTemplates = options?.keepHiddenTemplates;
+    // 3D scene only: also drop the annotations revolved around an axis whose
+    // linked-annotations chip is off (SectionRevolutionAxes rows). Without
+    // it, only their plan footprints are dropped (2D).
+    const hideRevolutionAxisLinkedAnnotations =
+      options?.hideRevolutionAxisLinkedAnnotations;
 
     // data
 
@@ -968,6 +974,9 @@ export default function useAnnotationsV2(options) {
     // template eye and solo.
     const hiddenRevolutionAxisIdSet = useSelector(
       selectHiddenRevolutionAxisIdSet
+    );
+    const hiddenLinkedRevolutionAxisIdSet = useSelector(
+      selectHiddenLinkedAnnotationsRevolutionAxisIdSet
     );
     const soloRevolutionAxisId = useSelector(
       (s) => s.annotations?.soloRevolutionAxisId ?? null
@@ -3340,6 +3349,22 @@ export default function useAnnotationsV2(options) {
         });
       }
 
+      // linked-annotations chip of the revolution axis rows, off: the plan
+      // footprints of what is revolved around the axis go everywhere, and —
+      // in the 3D scene only (hideRevolutionAxisLinkedAnnotations) — the
+      // revolved annotations themselves (profiles, circles, their volumes).
+      // The axis and its placements keep following their own eye.
+      if (!keepHiddenTemplates && hiddenLinkedRevolutionAxisIdSet.size > 0) {
+        result = result.filter((a) => {
+          if (isRevolutionHelperType(a.type)) return true;
+          if (a.isRevolutionFootprint)
+            return !hiddenLinkedRevolutionAxisIdSet.has(a.revolutionAxisId);
+          if (!hideRevolutionAxisLinkedAnnotations) return true;
+          const axisId = getRevolutionAxisIdOfAnnotation(a);
+          return !axisId || !hiddenLinkedRevolutionAxisIdSet.has(axisId);
+        });
+      }
+
       // Planning "Play" mode (PLANNING module): every annotation is styled by
       // the status of its work package at the play step — done = light grey,
       // in progress = its colours (drawn last, on top), to do / no package =
@@ -3720,6 +3745,8 @@ export default function useAnnotationsV2(options) {
       soloAnnotationId,
       soloRevolutionAxisId,
       hiddenRevolutionAxisIdSet,
+      hiddenLinkedRevolutionAxisIdSet,
+      hideRevolutionAxisLinkedAnnotations,
       keepSoloDimmed,
       ignoreSolo,
       keepHiddenTemplates,

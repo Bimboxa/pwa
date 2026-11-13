@@ -177,6 +177,8 @@ import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/T
 import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
 import ThreedRevolutionAxisHandles from "Features/revolutionAxes/components/ThreedRevolutionAxisHandles";
 import useRevolutionAxisHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisHandleDragHandlers";
+import ThreedRevolutionAxisHorizontalCuts from "Features/revolutionAxes/components/ThreedRevolutionAxisHorizontalCuts";
+import useRevolutionAxisCutHandleDragHandlers from "Features/revolutionAxes/hooks/useRevolutionAxisCutHandleDragHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import useRulerLabelDragHandlers from "Features/threedDimensions/hooks/useRulerLabelDragHandlers";
 import {
@@ -791,6 +793,7 @@ export default function MainThreedEditor() {
   useCutLineTranslateHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
   useRevolutionAxisHandleDragHandlers({ rendererIsReady });
+  useRevolutionAxisCutHandleDragHandlers({ rendererIsReady });
   // « + fond de plan » of a section mark: preview, drag, Space validation.
   useSectionBaseMapPlacement({ rendererIsReady });
 
@@ -3726,7 +3729,10 @@ export default function MainThreedEditor() {
         <ThreedAnnotationLabels annotations={annotations} />
       )}
       {isThreedViewer && rendererIsReady && (
-        <ThreedRevolutionAxisHandles annotations={annotations} />
+        <>
+          <ThreedRevolutionAxisHandles annotations={annotations} />
+          <ThreedRevolutionAxisHorizontalCuts annotations={annotations} />
+        </>
       )}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && <RotateBaseMapOverlayThreed />}

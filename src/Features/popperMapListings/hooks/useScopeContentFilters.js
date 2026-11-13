@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import {
   setHiddenAnnotationTemplateIds,
+  setHiddenLinkedAnnotationsRevolutionAxisIds,
   setHiddenRevolutionAxisIds,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
 import {
@@ -15,6 +16,7 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import {
   selectHiddenAnnotationTemplateIds,
+  selectHiddenLinkedAnnotationsRevolutionAxisIds,
   selectHiddenRevolutionAxisIds,
 } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 
@@ -46,6 +48,9 @@ export default function useScopeContentFilters() {
 
   const hiddenTemplateIds = useSelector(selectHiddenAnnotationTemplateIds);
   const hiddenAxisIds = useSelector(selectHiddenRevolutionAxisIds);
+  const hiddenLinkedAxisIds = useSelector(
+    selectHiddenLinkedAnnotationsRevolutionAxisIds
+  );
   const soloTemplateId = useSelector(
     (s) => s.annotations.soloAnnotationTemplateId
   );
@@ -79,6 +84,7 @@ export default function useScopeContentFilters() {
   const hasFilters =
     Boolean(hasLiveHiddenTemplate) ||
     hiddenAxisIds.length > 0 ||
+    hiddenLinkedAxisIds.length > 0 ||
     Boolean(soloTemplateId) ||
     Boolean(soloAxisId) ||
     hasHiddenSheet;
@@ -92,6 +98,7 @@ export default function useScopeContentFilters() {
 
     dispatch(setHiddenAnnotationTemplateIds([]));
     dispatch(setHiddenRevolutionAxisIds([]));
+    dispatch(setHiddenLinkedAnnotationsRevolutionAxisIds([]));
     dispatch(setSoloAnnotationTemplateId(null));
     dispatch(setSoloRevolutionAxisId(null));
     dispatch(resetBaseMapsGridSheetFilters());

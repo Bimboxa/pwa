@@ -6,6 +6,7 @@ import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMod
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useRevolutionAxisLinkedBaseMapIdsIn3d from "Features/revolutionAxes/hooks/useRevolutionAxisLinkedBaseMapIdsIn3d";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideBaseMapImagesIn3d";
 
@@ -75,6 +76,12 @@ export default function useApplyBaseMapVisibilityIn3d({
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
   const { disabledIds, disabledKey } = useDisabledBaseMapIds();
+  // Main base map = plan view of revolution axes: the base maps their
+  // profiles are drawn on participate for those annotations alone (see
+  // useAutoLoadAnnotationsInThreedEditor) — group shown, image as its eye
+  // says.
+  const { baseMapIds: axisLinkedBaseMapIds } =
+    useRevolutionAxisLinkedBaseMapIdsIn3d();
 
   const visibleKey = (visibleIds || []).join(",");
   const hiddenScanKey = (hiddenScanIds || []).join(",");
@@ -92,6 +99,7 @@ export default function useApplyBaseMapVisibilityIn3d({
     const visible = new Set(visibleIds || []);
     const annoModes = annotationsModeByBaseMapId || {};
     const hiddenScan = new Set(hiddenScanIds || []);
+    const axisLinked = new Set(axisLinkedBaseMapIds);
 
     // Single batch: the desired states are recorded in one pass (even for
     // groups not created yet — ImagesManager applies them at creation, so a
@@ -102,7 +110,9 @@ export default function useApplyBaseMapVisibilityIn3d({
     baseMaps.forEach((bm) => {
       const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
-        bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
+        bm.id === mainId ||
+        (annoModes[bm.id] && annoModes[bm.id] !== "NONE") ||
+        axisLinked.has(bm.id);
       const isDisabled = disabledIds.has(bm.id);
       const localScanOn =
         localScansShown && Boolean(bm.localScan) && !hiddenScan.has(bm.id);
@@ -131,6 +141,7 @@ export default function useApplyBaseMapVisibilityIn3d({
     visibleKey,
     hiddenScanKey,
     annotationsModeKey,
+    axisLinkedBaseMapIds,
     disabledKey,
     mainBaseMap?.id,
     baseMapsKey,
