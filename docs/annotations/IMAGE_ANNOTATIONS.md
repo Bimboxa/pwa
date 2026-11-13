@@ -100,13 +100,33 @@ description, orientation and lift and transform the target with the image during
 IMAGE annotation keeps its identity between liveQuery runs (otherwise the 3D
 diff would rebuild the card on every emission).
 
-## Display modes: PopperImages, in situ / ex situ, capture
+## Display modes: in situ / overlay / print zones, bottom bar, capture
 
 `src/Features/popperImages/` owns how the photos of an editor are displayed.
+Three modes (`popperImagesSlice.displayMode`):
 
-- `popperImagesSlice` — `displayMode` (`IN_SITU` | `EX_SITU`) and the two
-  independent ex-situ links `linkLine` / `linkNumber`, all persisted per device in localStorage
-  (`popperImagesSettings`); `collapsed` (panel folded).
+| Key           | UI name | Photos are…                                                        |
+| ------------- | ------- | ------------------------------------------------------------------ |
+| `IN_SITU`     | In situ | drawn on the base map / in the scene                               |
+| `EX_SITU`     | Overlay | tiles of the floating `PopperImages` panel                         |
+| `PRINT_ZONES` | Zones   | tiles dispatched in 4 bands along the edges of the editor / frame |
+
+Off in situ, only the anchor of each photo stays in the scene. `PRINT_ZONES`
+is unrelated to `baseMap.printZone` (the print sheet of a base map).
+
+- `popperImagesSlice` — `displayMode`, the two independent tile ↔ anchor
+  links `linkLine` / `linkNumber`, the print zones tile size
+  (`printZonesTileSizeMode` `AUTO` | `FIXED`, `printZonesTileSizePx`), all
+  persisted per device in localStorage (`popperImagesSettings`). Session
+  only: `photosHidden`, `collapsed` (panel folded), `imagesCount` (photos of
+  the active editor, published by `MainMapEditorV3` / `MainThreedEditor`)
+  and `printZonesCaptureInsets`.
+- `SectionImagesBottomBarControls` (in `BottomBarDesktop`, left of the base
+  maps controls) — the only place of the controls: "Photos" + count pill
+  (toggles `photosHidden`), `SelectorImagesDisplayMode` (3 icon buttons),
+  the "Ligne" / "Numéro" toggle buttons (disabled in situ) and "…"
+  (`DialogImagesDisplayOptions`: tile size). Shown for the 2D / 3D editors
+  when `imagesCount > 0`, hidden under a capture framing.
 - `getImageAnnotationsDisplayIndex(annotations)` — display numbering 1..N of
   the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
   order `orderIndex` → `createdAt` → `id`: moving a photo never renumbers.
@@ -114,43 +134,85 @@ diff would rebuild the card on every emission).
 - `imageAnnotationSelection` — the veil rule: when the selected item is an
   IMAGE, every other image (photo, leader, anchor dot, badge, tile) gets a
   translucent white veil (`IMAGE_VEIL_*` constants).
-- `PopperImages` — floating panel anchored at the RIGHT of the editor box
-  (`usePanelResize({ anchor: "right" })`, bottom-left handle), mounted by
-  `MainMapEditorV3` / `MainThreedEditor` next to `PopperMapListings` (same
-  gates, so never in capture mode). Header: "In situ | Ex situ" toggle +
-  "…" menu (link style). Body: 2-column grid of numbered tiles; a tile click
-  selects the annotation, the selected tile offers "Fullscreen"
-  (`images/components/DialogImageViewer`, wheel zoom + pan + reset).
-- `ImagesLinksOverlay` — ex situ + `LINE`: leaders from the tiles (DOM
-  rects) to the anchors, via an **anchor projector**
+- **Anchor projector** — the contract every tile ↔ anchor link relies on:
   `{ project(a) → client px | null, getViewportRect(), subscribe(cb) }`:
   `useMapEditor2dAnchorProjector` (camera matrix + base pose,
   `subscribeMapEditorCamera`) and `threedEditor/hooks/useThreedImageAnchorProjector`
   (anchor-dot sprite published in `annotationLabelObjectsStore.imageAnchorsById`,
   `SceneManager.addRenderListener`).
 
-Rendering:
+### Overlay (`EX_SITU`)
+
+- `PopperImages` — floating panel anchored at the RIGHT of the editor box
+  (`usePanelResize({ anchor: "right" })`, bottom-left handle), mounted by
+  `MainMapEditorV3` / `MainThreedEditor` next to `PopperMapListings` (same
+  gates, so never in capture mode). Renders in this mode only; its header is
+  the title alone. Body: 2-column grid of numbered tiles; a tile click
+  selects the annotation, the selected tile offers "Fullscreen"
+  (`images/components/DialogImageViewer`, wheel zoom + pan + reset).
+- `ImagesLinksOverlay` — "Ligne": leaders from the tiles (DOM rects) to the
+  anchors.
+
+### Print zones (`PRINT_ZONES`)
+
+- `layoutImagePrintZones` (pure, tested) — 4 bands along the edges of a rect
+  (TOP / BOTTOM own the corners), one tile thick; a tile keeps the clamped
+  aspect ratio of its photo along the band.
+  1. `reserved` rects cut the bands (each keeps its longest free segment).
+  2. Assignment by decreasing regret: the cheapest band with room left,
+     cost = distance anchor → edge + load penalty (`BALANCE_WEIGHT`), so the
+     photos stay close to their anchors **and** spread over the 4 edges.
+     `AUTO` size shrinks the tiles until every photo fits (down to
+     `PRINT_ZONES_TILE_SIZE_MIN_PX`); past that, or in `FIXED` size, the
+     least loaded band takes the overflow and its tiles overlap evenly.
+  3. Along a band: sorted by anchor (leaders never cross), centred on the
+     anchors (`solveBand1D` of `getImageModeLabelsLayout`).
+- `useImagePrintZonesLayout` — live driver shared by the editors and the
+  capture: the anchors follow the camera frame by frame (the leaders stick),
+  the tiles are only laid out again once the camera has been still for
+  250 ms (no jump from an edge to another during a pan / zoom). A photo
+  whose anchor is outside the rect gets no tile.
+- `ImagesPrintZonesOverlay` — the tiles in the editors (2D and 3D), rendered
+  in the floating panels frame (`PortalEditorFloatingPanels`), under the
+  panels. Rect = editor viewport minus the open right drawer. Reserved =
+  the floating panels of the layout host + every element tagged
+  `data-print-zones-avoid` (editor corner controls). Tile click = select,
+  selected tile = "Fullscreen".
+
+### Rendering in the scene
 
 - 2D `NodeImageStatic` receives `imagesDisplayMode / imagesLinkNumber /
   imageDisplayIndex / imageVeiled` through `NodeAnnotationStatic` from
   `StaticMapContent` / `EditedObjectLayer` only (portfolio, grids, elevation
   keep the plain in-situ rendering). In situ: numbered badge at the bbox
-  corner + veil. Ex situ: the anchor dot only (TARGET interaction kept:
-  click selects, drag moves `targetPoint`) + badge in `NUMBER` style.
+  corner + veil. Any other mode: the anchor dot only (TARGET interaction
+  kept: click selects, drag moves `targetPoint`) + badge with "Numéro".
 - 3D `ThreedAnnotationLabels`: in situ the card canvas carries the badge and
   the veil (`createImageAnnotationCard({ badgeNumber, veiled })`,
-  `applyAnnotationMaterialState` never swaps a card's material); ex situ no
-  card / leader, the anchor dot always, a `createAnnotationNumberBadgeSprite`
-  in `NUMBER` style, and an invisible proxy as the target handle's
-  `labelSprite` so the TARGET drag still writes `targetPoint`.
+  `applyAnnotationMaterialState` never swaps a card's material); any other
+  mode no card / leader, the anchor dot always, a
+  `createAnnotationNumberBadgeSprite` with "Numéro", and an invisible proxy
+  as the target handle's `labelSprite` so the TARGET drag still writes
+  `targetPoint`.
 
-Capture (`ImageModeOverlay`): with `EX_SITU`, `CaptureImagesOverlay` draws
-the tiles as floating Paper cards (`foreignObject`, `data-capture-keep`) in
-a transparent zone of the frame (`mapEditor.imageModeImagesOverlay`, legend-
-like drag / resize with `data-capture-hide` handles,
-`resolveImagesOverlayGeometry`, `layoutCaptureImageTiles`), tied to the
-anchors by `<line>`s (`LINE`) or by the badges (`NUMBER`). The labels margin
-band excludes the zone (`useImageModeLabelsLayout({ imagesCount })`). The
-condensed toolbar has a "Photos" select and the Cadrage tab a "Photos"
-section (`SectionCaptureImages`). `ButtonSaveCapture` clears an annotation
-selection before capturing so no veil / handle reaches the image.
+### Capture (`ImageModeOverlay`)
+
+The bottom bar controls are hidden while framing: the Cadrage tab
+(`SectionCaptureImages`) and the condensed toolbar ("Mode photos" select,
+"Photos" show / hide button) carry the display mode.
+
+- `EX_SITU`: `CaptureImagesOverlay` draws the tiles (`CaptureImageTileCard`:
+  Paper cards in a `foreignObject`, `data-capture-keep`) in a transparent
+  zone of the frame (`mapEditor.imageModeImagesOverlay`, legend-like drag /
+  resize with `data-capture-hide` handles, `resolveImagesOverlayGeometry`,
+  `layoutCaptureImageTiles`).
+- `PRINT_ZONES`: `CaptureImagePrintZonesOverlay` draws the same cards along
+  the 4 edges of the frame (`useImagePrintZonesLayout`), fully automatic,
+  clear of the frame elements tagged `data-print-zones-avoid` (legend,
+  cartouche, title banner, logo).
+- Both tie the tiles to the anchors by `<line>`s ("Ligne") and / or badges
+  ("Numéro"). The labels margin band excludes the photos
+  (`useImageModeLabelsLayout({ imagesCount })`: the overlay zone, or the
+  occupied bands published in `printZonesCaptureInsets`).
+- `ButtonSaveCapture` clears an annotation selection before capturing so no
+  veil / handle reaches the image.

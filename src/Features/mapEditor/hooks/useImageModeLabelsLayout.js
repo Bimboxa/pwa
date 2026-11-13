@@ -7,7 +7,11 @@ import getImageModeLabelsLayout from "Features/annotations/utils/getImageModeLab
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
 import { selectCaptureRightInset } from "Features/mapEditor/utils/captureRightInset";
 import resolveImagesOverlayGeometry from "Features/mapEditor/utils/resolveImagesOverlayGeometry";
-import { selectImagesExSitu } from "Features/popperImages/popperImagesSlice";
+import {
+  selectImagesExSitu,
+  selectImagesPrintZones,
+  selectPrintZonesCaptureInsets,
+} from "Features/popperImages/popperImagesSlice";
 import useCaptureAspectRatio from "./useCaptureAspectRatio";
 
 // Screen-px layout constants (converted to image px at compute time).
@@ -35,9 +39,11 @@ export default function useImageModeLabelsLayout({
   getCameraMatrix,
   viewportBounds,
   hostKey = "MAP",
-  // Number of photos displayed by the host: with PopperImages in "Ex situ",
-  // their capture zone (imageModeImagesOverlay) is excluded from the layout
-  // rect so the margin band never puts a label under a tile.
+  // Number of photos displayed by the host: off in situ, the part of the
+  // frame taken by their tiles is excluded from the layout rect so the
+  // margin band never puts a label under a tile — the capture zone
+  // (imageModeImagesOverlay) in overlay mode, the occupied bands
+  // (printZonesCaptureInsets) in print zones mode.
   imagesCount = 0,
 }) {
   const autoLayout = useSelector((s) => s.mapEditor.imageModeLabelsAutoLayout);
@@ -47,6 +53,14 @@ export default function useImageModeLabelsLayout({
   const imagesOverlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
   const excludeImagesZone =
     imagesCount > 0 && imagesExSitu && Boolean(imagesOverlay?.visible);
+  const imagesPrintZones = useSelector(selectImagesPrintZones);
+  const printZonesInsets = useSelector(selectPrintZonesCaptureInsets);
+  const zoneInsets =
+    imagesCount > 0 && imagesPrintZones ? printZonesInsets : null;
+  const insetTop = zoneInsets?.top ?? 0;
+  const insetRight = zoneInsets?.right ?? 0;
+  const insetBottom = zoneInsets?.bottom ?? 0;
+  const insetLeft = zoneInsets?.left ?? 0;
 
   // Same inset as ImageModeOverlay (selectCaptureRightInset owns the rule):
   // the capture rect is centered within the zone left visible by the open
@@ -190,10 +204,11 @@ export default function useImageModeLabelsLayout({
             rect.width - resolveImagesOverlayGeometry(imagesOverlay, rect).x
           )
         : 0;
-      const p0 = toImage(rect.left, rect.top);
+      const p0 = toImage(rect.left + insetLeft, rect.top + insetTop);
       const p1 = toImage(
-        rect.left + Math.max(0, rect.width - rightExcludePx),
-        rect.top + rect.height
+        rect.left +
+          Math.max(insetLeft, rect.width - rightExcludePx - insetRight),
+        rect.top + Math.max(insetTop, rect.height - insetBottom)
       );
       const captureRect = { x0: p0.x, y0: p0.y, x1: p1.x, y1: p1.y };
 
@@ -262,6 +277,10 @@ export default function useImageModeLabelsLayout({
     hostKey,
     excludeImagesZone,
     imagesOverlay,
+    insetTop,
+    insetRight,
+    insetBottom,
+    insetLeft,
   ]);
 
   return {

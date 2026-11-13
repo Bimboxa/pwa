@@ -7,9 +7,12 @@
 // capture overlay) calls it on its own displayed list; the numbers agree
 // because the sort is internal.
 
+// « Objet 2D » images (template flag isObject2D) are scaled symbols, not
+// photos: never listed, numbered nor driven by the Photos panel.
 export function isDisplayableImageAnnotation(a) {
   return (
     a?.type === "IMAGE" &&
+    !a.isObject2D &&
     Boolean(a.image?.imageUrlClient || a.image?.thumbnail)
   );
 }

@@ -292,6 +292,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, isProfile });
   }
 
+  // IMAGE: « Objet 2D » — a scaled symbol rather than a photo (fixed size,
+  // no scale / change-image buttons, ignored by the Photos panel).
+  function handleIsObject2DChange(isObject2D) {
+    onChange({ ...annotationTemplate, isObject2D });
+  }
+
   // POLYGON: enables the "Calepinage" feature (layout lines on the drawn
   // polygons + the "C" main quantity). Off = nothing layout-related shown.
   function handleDeltaOffsetZ3dChange(deltaOffsetZ3d) {
@@ -529,6 +535,12 @@ export default function FormAnnotationTemplateVariantBlock({
                 label="Image par défaut (optionnel)"
                 value={image}
                 onChange={handleImageChange}
+              />
+              <FieldCheck
+                label="Objet 2D"
+                value={Boolean(annotationTemplate?.isObject2D)}
+                onChange={handleIsObject2DChange}
+                options={{ type: "switch", showAsField: true }}
               />
             </Box>
           )}

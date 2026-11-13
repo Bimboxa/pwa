@@ -209,7 +209,11 @@ export default function FieldWrapperDimensions({ annotation, inline }) {
     dispatch(triggerAnnotationsUpdate());
   }
 
+  // « Objet 2D » IMAGE (template flag): fixed size, dimensions read-only.
+  const sizeLocked = annotation?.type === "IMAGE" && annotation?.isObject2D;
+
   async function handleChange(newValue) {
+    if (sizeLocked) return;
     // --- Unit change: persist immediately, no resize ---
     const newUnit = newValue.sizeUnit ?? sizeUnit;
     if (newUnit !== sizeUnit) {
@@ -239,6 +243,7 @@ export default function FieldWrapperDimensions({ annotation, inline }) {
       onChange={handleChange}
       unitOptions={UNIT_OPTIONS}
       inline={inline}
+      disabled={sizeLocked}
     />
   );
 }

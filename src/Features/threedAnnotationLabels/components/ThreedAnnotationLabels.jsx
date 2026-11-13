@@ -148,7 +148,8 @@ export default function ThreedAnnotationLabels({ annotations }) {
     () =>
       Boolean(selectedAnnotationId) &&
       labelAnnotations.some(
-        (a) => a.id === selectedAnnotationId && a.type === "IMAGE"
+        (a) =>
+          a.id === selectedAnnotationId && a.type === "IMAGE" && !a.isObject2D
       ),
     [labelAnnotations, selectedAnnotationId]
   );
@@ -184,8 +185,11 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const isImage = annotation.type === "IMAGE";
       const b = annotation.bbox;
       if (isImage && (!b || !annotation.image)) return;
+      // « Objet 2D » images are not photos: the Photos panel rules (hidden,
+      // ex situ, veil) do not apply to them.
+      const isPhoto = isImage && !annotation.isObject2D;
       // PopperImages count pill off: no card, no anchor, no leader.
-      if (isImage && imagesHidden) return;
+      if (isPhoto && imagesHidden) return;
       const labelProps = isImage
         ? {
             labelPoint: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
@@ -222,8 +226,8 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const color = labelProps.fillColor || "#2196f3";
       // Photo display (PopperImages): ex situ → no card, no leader, the
       // anchor only (+ number badge in "Numéro" style); veiled → faded.
-      const exSitu = isImage && imagesDisplayMode === "EX_SITU";
-      const veiled = isImage && selectedIsImage && !isSelected;
+      const exSitu = isPhoto && imagesDisplayMode !== "IN_SITU";
+      const veiled = isPhoto && selectedIsImage && !isSelected;
       const badgeNumber = isImage
         ? (imageIndexById[annotation.id] ?? null)
         : null;

@@ -12,7 +12,7 @@ import { Refresh, ArrowDropDown as Down } from "@mui/icons-material";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
 // --- COMPOSANT INTERNE : AutoResizeInput (Inchangé) ---
-function AutoResizeInput({ value, onChange, placeholder }) {
+function AutoResizeInput({ value, onChange, placeholder, disabled }) {
   const [localValue, setLocalValue] = useState(value ?? "");
   const [width, setWidth] = useState(30);
   const spanRef = useRef(null);
@@ -74,6 +74,7 @@ function AutoResizeInput({ value, onChange, placeholder }) {
         placeholder={placeholder}
         onChange={handleChange}
         onBlur={handleBlur}
+        disabled={disabled}
         sx={{
           width: width,
           fontSize: "0.875rem",
@@ -103,6 +104,8 @@ export default function FieldSizeAndUnit({
   unitOptions = DEFAULT_UNIT_OPTIONS,
   label = "Dimensions",
   inline = false,
+  // Read-only size (e.g. an « Objet 2D » IMAGE): inputs disabled, no reset.
+  disabled = false,
 }) {
   // On extrait les valeurs actuelles pour les préserver lors des updates
   const size = value?.size ?? { width: null, height: null };
@@ -149,6 +152,7 @@ export default function FieldSizeAndUnit({
           // On ne met à jour que width, handleUpdate préserve le reste
           onChange={(v) => handleUpdate({ width: v })}
           placeholder="0"
+          disabled={disabled}
         />
         <Typography
           sx={{
@@ -164,6 +168,7 @@ export default function FieldSizeAndUnit({
           // On ne met à jour que height, handleUpdate préserve le reste
           onChange={(v) => handleUpdate({ height: v })}
           placeholder="0"
+          disabled={disabled}
         />
       </Box>
 
@@ -190,7 +195,7 @@ export default function FieldSizeAndUnit({
     </Box>
   );
 
-  const resetButton = (
+  const resetButton = disabled ? null : (
     <IconButton
       size="small"
       onClick={() => onChange({ ...value, size: null })}

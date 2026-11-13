@@ -10,6 +10,7 @@ import useHelperMessageInBottomBar from "Features/mapEditor/hooks/useHelperMessa
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
+import SectionImagesBottomBarControls from "Features/popperImages/components/SectionImagesBottomBarControls";
 import SectionBaseMapsBottomBarControls from "Features/baseMaps/components/SectionBaseMapsBottomBarControls";
 
 // The typed length / dimension constraints of the drawing modes (rectangle
@@ -61,6 +62,8 @@ export default function BottomBarDesktop() {
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <HelperClickInBgPosition />
+        {/* Photos (IMAGE annotations) display of the displayed editor */}
+        <SectionImagesBottomBarControls />
         {/* Base map image mode + base maps grid of the displayed editor */}
         <SectionBaseMapsBottomBarControls />
         <SwitchCoupledNavigation />

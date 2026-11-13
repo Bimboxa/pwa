@@ -4,12 +4,21 @@
 
 const STORAGE_KEY = "popperImagesSettings";
 
-export const IMAGES_DISPLAY_MODES = ["IN_SITU", "EX_SITU"];
+// IN_SITU: photos drawn in the scene. EX_SITU ("overlay"): photos listed in
+// the floating PopperImages panel. PRINT_ZONES: photos dispatched as tiles in
+// 4 bands along the edges of the editor (or of the capture frame).
+export const IMAGES_DISPLAY_MODES = ["IN_SITU", "EX_SITU", "PRINT_ZONES"];
 const DEFAULT_DISPLAY_MODE = "IN_SITU";
 // Ex situ tile ↔ anchor links: a leader line and / or a number badge, each
 // on or off independently.
 const DEFAULT_LINK_LINE = true;
 const DEFAULT_LINK_NUMBER = false;
+// PRINT_ZONES tiles: "AUTO" (target size, shrunk when the photos do not fit
+// along the 4 edges) or "FIXED" (the stored size, never shrunk).
+export const PRINT_ZONES_TILE_SIZE_MODES = ["AUTO", "FIXED"];
+export const PRINT_ZONES_TILE_SIZE_DEFAULT_PX = 160;
+export const PRINT_ZONES_TILE_SIZE_MIN_PX = 64;
+export const PRINT_ZONES_TILE_SIZE_MAX_PX = 320;
 
 function readStore() {
   try {
@@ -70,5 +79,39 @@ export function loadImagesLinkNumber() {
 export function saveImagesLinkNumber(enabled) {
   const store = readStore();
   store.linkNumber = Boolean(enabled);
+  writeStore(store);
+}
+
+export function loadPrintZonesTileSizeMode() {
+  const value = readStore().printZonesTileSizeMode;
+  return PRINT_ZONES_TILE_SIZE_MODES.includes(value) ? value : "AUTO";
+}
+
+export function savePrintZonesTileSizeMode(mode) {
+  const store = readStore();
+  store.printZonesTileSizeMode = PRINT_ZONES_TILE_SIZE_MODES.includes(mode)
+    ? mode
+    : "AUTO";
+  writeStore(store);
+}
+
+export function clampPrintZonesTileSizePx(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return PRINT_ZONES_TILE_SIZE_DEFAULT_PX;
+  return Math.round(
+    Math.min(
+      PRINT_ZONES_TILE_SIZE_MAX_PX,
+      Math.max(PRINT_ZONES_TILE_SIZE_MIN_PX, n)
+    )
+  );
+}
+
+export function loadPrintZonesTileSizePx() {
+  return clampPrintZonesTileSizePx(readStore().printZonesTileSizePx);
+}
+
+export function savePrintZonesTileSizePx(value) {
+  const store = readStore();
+  store.printZonesTileSizePx = clampPrintZonesTileSizePx(value);
   writeStore(store);
 }

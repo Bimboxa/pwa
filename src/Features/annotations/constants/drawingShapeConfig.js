@@ -134,7 +134,9 @@ const DRAWING_SHAPE_CONFIG = {
     label: "Image",
     annotationType: "IMAGE",
     tools: ["ONE_CLICK"],
-    configurableProps: ["image", "meterByPx"],
+    // isObject2D: « Objet 2D » — a scaled symbol (not a photo): fixed size,
+    // no scale / change-image buttons, ignored by the Photos panel.
+    configurableProps: ["image", "meterByPx", "isObject2D"],
     defaults: {},
     shapeCategory: "circle",
   },

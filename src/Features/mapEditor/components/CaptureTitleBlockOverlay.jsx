@@ -94,6 +94,7 @@ export default function CaptureTitleBlockOverlay({ rect }) {
   return (
     <g data-capture-keep data-capture-decor>
       <g
+        data-print-zones-avoid
         transform={`translate(${rect.left}, ${rect.top}) scale(${k})`}
         onDoubleClick={handleDoubleClick}
         style={{ pointerEvents: "auto", cursor: "pointer" }}

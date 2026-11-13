@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d" || key === "colorChannel") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "isObject2D" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d" || key === "colorChannel") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -109,6 +109,11 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // switch stays the stored value).
     if (annotationTemplateProps.isProfile === true) {
         result.isProfile = true;
+    }
+
+    // isObject2D (« Objet 2D » IMAGE template): same effective-flag rule.
+    if (annotationTemplateProps.isObject2D === true) {
+        result.isObject2D = true;
     }
 
     // slopeFontSize (« Pente » text size) follows the same template-level rule.
