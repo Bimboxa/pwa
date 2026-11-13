@@ -31,6 +31,7 @@ const UNAVAILABLE_REASONS = {
 // template-less shape absorbed by a templated one takes its template.
 export default {
   key: "MERGE",
+  usesSelection: true,
   label: "Fusionner les annotations",
   Icon: CallMerge,
   Button: ButtonMerge,

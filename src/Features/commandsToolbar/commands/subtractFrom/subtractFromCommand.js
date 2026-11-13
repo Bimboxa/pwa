@@ -15,6 +15,7 @@ import {
 // same opening to 3D meshes (a closed mesh cuts like any solid).
 export default {
   key: "SUBTRACT_FROM",
+  usesSelection: true,
   label: "À soustraire de…",
   Icon: IconSubtractFrom,
   getState(ctx) {

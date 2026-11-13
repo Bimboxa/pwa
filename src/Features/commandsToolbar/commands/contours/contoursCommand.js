@@ -10,6 +10,7 @@ export const CONTOURS_TYPES = ["POLYLINE", "STRIP", "POLYGON"];
 // usePolygonContours) with a chosen polyline template.
 export default {
   key: "CONTOURS",
+  usesSelection: true,
   label: "Contours",
   Icon: IconContours,
   Button: ButtonContours,

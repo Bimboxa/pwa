@@ -21,6 +21,7 @@ export { HIDE_ANNOTATION_MODE };
 // Display only: offered in a read-only scope too.
 export default {
   key: "HIDE_ANNOTATION",
+  usesSelection: true,
   label: "Masquer l'annotation",
   Icon: VisibilityOffOutlinedIcon,
   Button: ButtonHideAnnotation,

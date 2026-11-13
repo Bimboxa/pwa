@@ -11,6 +11,7 @@ import { DRAW_IN_PROGRESS_REASON } from "./drawToolCommandState";
 // modules.
 export default function createBaseMapPlacementCommand({
   key,
+  usesSelection,
   label,
   Icon,
   getActive,
@@ -18,6 +19,7 @@ export default function createBaseMapPlacementCommand({
 }) {
   return {
     key,
+    usesSelection,
     label,
     Icon,
     editors: [EDITOR_3D],

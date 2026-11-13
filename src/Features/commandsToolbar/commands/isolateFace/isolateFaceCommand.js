@@ -9,6 +9,7 @@ import { getThreedToolState } from "../../utils/drawToolCommandState";
 // button also disarm it.
 export default {
   key: "ISOLATE_FACE",
+  usesSelection: false,
   label: "Isoler une face",
   Icon: IconIsolateFace,
   editors: [EDITOR_3D],

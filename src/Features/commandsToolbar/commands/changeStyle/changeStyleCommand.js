@@ -20,6 +20,7 @@ export { CHANGE_STYLE_MODE };
 //   picks the template from the panel.
 export default {
   key: "CHANGE_STYLE",
+  usesSelection: true,
   label: "Changer de style",
   Icon: PaletteOutlinedIcon,
   Button: ButtonChangeStyle,

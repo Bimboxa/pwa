@@ -23,6 +23,7 @@ export const HORIZONTAL_BASE_MAP_ONLY_REASON =
 // only).
 export default {
   key: "REVOLUTION_AXIS",
+  usesSelection: false,
   label: "Axe de révolution",
   Icon: Adjust,
   hotkey: {

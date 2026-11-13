@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // (useAssignBusinessObjectToAnnotations).
 export default {
   key: "ASSIGN_BUSINESS_OBJECT",
+  usesSelection: true,
   label: "Affecter les annotations à l'intérieur",
   Icon: SelectAll,
   Button: ButtonAssignBusinessObject,

@@ -10,6 +10,7 @@ export const CLOSE_ENVELOPE_TYPES = ["POLYLINE", "STRIP"];
 // template; bands are closed on their centerline then re-derived.
 export default {
   key: "CLOSE_ENVELOPE",
+  usesSelection: true,
   label: "Fermer l'enveloppe",
   Icon: IconCloseEnvelope,
   Button: ButtonCloseEnvelope,

@@ -9,6 +9,7 @@ import ButtonClean from "./ButtonClean";
 // confirmation dialog announcing the counts first (hard delete, not undoable).
 export default {
   key: "CLEAN",
+  usesSelection: false,
   label: "Nettoyer",
   Icon: CleaningServices,
   Button: ButtonClean,

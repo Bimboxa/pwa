@@ -7,6 +7,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import {
   selectCommandsToolbarLastUsedByGroup,
   selectCommandsToolbarPosition,
+  selectHideDisabledCommands,
   setCommandsToolbarLastUsed,
 } from "../commandsToolbarSlice";
 
@@ -22,6 +23,7 @@ import getToolbarLayout, {
 import useCommandsContext from "../hooks/useCommandsContext";
 import useCommandsHotkeys from "../hooks/useCommandsHotkeys";
 import useToolbarDockDrag from "../hooks/useToolbarDockDrag";
+import isCommandShown from "../utils/isCommandShown";
 import toSlotItem from "../utils/toSlotItem";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
@@ -31,7 +33,11 @@ const FLOATING_MAX_WIDTH = 640;
 // ---------------------------------------------------------------------------
 // CommandsToolbar — the single toolbar gathering every annotation command of
 // the 2D map editor and the 3D editor (one button + tooltip per command,
-// irrelevant commands disabled, never hidden). Rendered once by SectionViewer
+// irrelevant commands hidden — `hideDisabledCommands`, the default — or kept
+// disabled when that option of the « Commandes » dialog is off; with the
+// option on and annotations selected, only the commands tagged
+// `usesSelection`).
+// Rendered once by SectionViewer
 // over / beside the editors area:
 // - docked (TOP / BOTTOM / LEFT): in-flow strip reserving its space, the
 //   editors shrink (SketchUp-like); LEFT is a column wrapping into columns;
@@ -57,6 +63,7 @@ export default function CommandsToolbar({
 
   const position = useSelector(selectCommandsToolbarPosition);
   const lastUsedByGroup = useSelector(selectCommandsToolbarLastUsedByGroup);
+  const hideDisabledCommands = useSelector(selectHideDisabledCommands);
   const { ctx, ctxRef } = useCommandsContext({ enabled: true });
 
   // state
@@ -88,6 +95,14 @@ export default function CommandsToolbar({
   const isVertical = dock === "LEFT";
   const isFloating = dock === "FLOATING";
 
+  // « Masquer les commandes désactivées » on: only the commands available in
+  // the context, and only the `usesSelection` ones while annotations are
+  // selected; off: everything. An armed command stays visible so it can be
+  // toggled off (utils/isCommandShown).
+  function isVisible(item) {
+    return isCommandShown(item, ctx, { hideDisabledCommands });
+  }
+
   // render
 
   function renderDivider(key) {
@@ -108,7 +123,8 @@ export default function CommandsToolbar({
       const items = entry.commandKeys
         .map((key) => COMMANDS_BY_KEY[key])
         .filter(Boolean)
-        .map((command) => toSlotItem(command, ctx, deps));
+        .map((command) => toSlotItem(command, ctx, deps))
+        .filter(isVisible);
       if (items.length === 0) return null;
       const lastUsedKey = lastUsedByGroup[entry.key];
       const primaryItem =
@@ -129,6 +145,7 @@ export default function CommandsToolbar({
     const command = COMMANDS_BY_KEY[entry];
     if (!command) return null;
     const item = toSlotItem(command, ctx, deps);
+    if (!isVisible(item)) return null;
 
     if (command.variants) {
       const activeVariant = command.getActiveVariant?.(ctx) ?? null;
@@ -167,6 +184,28 @@ export default function CommandsToolbar({
 
     return <CommandSlot key={command.key} item={item} ctx={ctx} deps={deps} />;
   }
+
+  // Layout entries, without the dividers left orphan by the hidden commands
+  // (leading, doubled or trailing — the « Commandes » button brings its own).
+  function renderEntries() {
+    const layout = getToolbarLayout(ctx.viewerKey, { smallScreen });
+    const nodes = [];
+    let pendingDivider = null;
+    layout.forEach((entry, index) => {
+      const node = renderEntry(entry, index);
+      if (!node) return;
+      if (entry?.type === "divider") {
+        if (nodes.length > 0) pendingDivider = node;
+        return;
+      }
+      if (pendingDivider) nodes.push(pendingDivider);
+      pendingDivider = null;
+      nodes.push(node);
+    });
+    return nodes;
+  }
+
+  const entryNodes = renderEntries();
 
   const grip = (
     <Box
@@ -248,8 +287,10 @@ export default function CommandsToolbar({
         }}
       >
         {grip}
-        {getToolbarLayout(ctx.viewerKey, { smallScreen }).map(renderEntry)}
-        {!smallScreen && renderDivider("divider-shortcuts")}
+        {entryNodes}
+        {!smallScreen &&
+          entryNodes.length > 0 &&
+          renderDivider("divider-shortcuts")}
         {!smallScreen && <ButtonOpenCommandsDialog />}
       </Paper>
       {!smallScreen && <MenuCommandShortcuts ctx={ctx} deps={deps} />}

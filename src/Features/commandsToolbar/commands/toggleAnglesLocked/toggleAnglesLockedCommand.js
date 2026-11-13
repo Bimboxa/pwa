@@ -8,6 +8,7 @@ import createViewToggleCommand from "../../utils/createViewToggleCommand";
 // every joint angle (a rectangle stays a rectangle).
 export default createViewToggleCommand({
   key: "TOGGLE_ANGLES_LOCKED",
+  usesSelection: true,
   label: "Angles verrouillés (conserver les angles lors des déplacements)",
   Icon: Lock,
   getValue: (ctx) => ctx.anglesLocked,

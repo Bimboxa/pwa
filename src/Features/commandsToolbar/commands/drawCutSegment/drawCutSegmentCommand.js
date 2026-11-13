@@ -20,6 +20,7 @@ const CUT_LINE_SHAPE = "CUT_LINE";
 
 export default {
   key: "DRAW_CUT_SEGMENT",
+  usesSelection: false,
   label: "Segment de coupe",
   Icon: IconCutLineSegment,
   editors: [EDITOR_3D],

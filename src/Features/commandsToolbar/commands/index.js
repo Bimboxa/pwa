@@ -88,8 +88,9 @@ import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
 // ---------------------------------------------------------------------------
 // Registry of the commands of the unified toolbar — one folder per command
 // under commands/<name>/:
-//   <name>Command.js   { key, label, Icon, editors?, hotkey?, variants?,
-//                        getActiveVariant?, getState(ctx), run?, Button? }
+//   <name>Command.js   { key, usesSelection, label, Icon, editors?, hotkey?,
+//                        variants?, getActiveVariant?, getState(ctx), run?,
+//                        Button? }
 //   Button<Name>.jsx   only when the command owns a popup / needs hooks
 // Contract:
 // - getState(ctx) → { enabled, reason?, active? } is PURE (no hook): the
@@ -97,6 +98,11 @@ import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
 // - a command with a `hotkey` has a pure `run(ctx, deps, variantKey?)` (the
 //   listener calls it outside React); a popup-owning command exposes `Button`
 //   ({ command, ctx, deps, state, hotkeyLabel }) and never returns null;
+// - `usesSelection` (boolean, REQUIRED, written in every command file — grep
+//   `usesSelection:`): true when the command acts on the selected annotations
+//   or reads them (pivot, seed, carried set…). With « Masquer les commandes
+//   désactivées » on, the toolbar only shows these commands while at least
+//   one annotation is selected (utils/isCommandShown);
 // - registry order = hotkey resolution order (first enabled match wins).
 // ---------------------------------------------------------------------------
 export const COMMANDS = [
@@ -200,7 +206,8 @@ export const COMMANDS_BY_KEY = Object.fromEntries(
   COMMANDS.map((command) => [command.key, command])
 );
 
-// dev assertions — unique keys, hotkey ⇒ run, layout covers every command once
+// dev assertions — unique keys, hotkey ⇒ run, usesSelection tagged, layout
+// covers every command once
 if (import.meta.env.DEV) {
   const keys = COMMANDS.map((c) => c.key);
   const duplicates = keys.filter((k, i) => keys.indexOf(k) !== i);
@@ -211,6 +218,11 @@ if (import.meta.env.DEV) {
     if (c.hotkey && typeof c.run !== "function") {
       console.error(
         `[commandsToolbar] ${c.key} declares a hotkey but no pure run()`
+      );
+    }
+    if (typeof c.usesSelection !== "boolean") {
+      console.error(
+        `[commandsToolbar] ${c.key} has no usesSelection tag (true / false)`
       );
     }
     if (typeof c.getState !== "function") {

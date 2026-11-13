@@ -19,6 +19,9 @@ import { DEFAULT_SHORTCUT_COMMAND_KEYS } from "./constants/defaultShortcuts";
 // - shortcutCommandKeys: ordered command keys of the right-click shortcuts
 //   menu of the editors (MenuCommandShortcuts), chosen in the « Commandes »
 //   dialog (commandsDialogOpen — not persisted).
+// - hideDisabledCommands: the toolbar only shows the commands available in
+//   the current context (selection, 2D vs 3D editor) instead of greying the
+//   others. Default true; option of the « Commandes » dialog.
 const persisted = loadCommandsToolbarLayout();
 
 const initialState = {
@@ -27,6 +30,7 @@ const initialState = {
   lastUsedByGroup: persisted.lastUsedByGroup ?? {},
   shortcutCommandKeys:
     persisted.shortcutCommandKeys ?? DEFAULT_SHORTCUT_COMMAND_KEYS,
+  hideDisabledCommands: persisted.hideDisabledCommands ?? true,
   commandsDialogOpen: false,
 };
 
@@ -72,6 +76,12 @@ const commandsToolbarSlice = createSlice({
         shortcutCommandKeys: state.shortcutCommandKeys,
       });
     },
+    setHideDisabledCommands: (state, action) => {
+      state.hideDisabledCommands = Boolean(action.payload);
+      saveCommandsToolbarLayout({
+        hideDisabledCommands: state.hideDisabledCommands,
+      });
+    },
     setCommandsDialogOpen: (state, action) => {
       state.commandsDialogOpen = Boolean(action.payload);
     },
@@ -84,6 +94,7 @@ export const {
   setCommandsToolbarLastUsed,
   setShortcutCommandKeys,
   toggleShortcutCommand,
+  setHideDisabledCommands,
   setCommandsDialogOpen,
 } = commandsToolbarSlice.actions;
 
@@ -93,6 +104,8 @@ export const selectCommandsToolbarLastUsedByGroup = (s) =>
   s.commandsToolbar.lastUsedByGroup;
 export const selectShortcutCommandKeys = (s) =>
   s.commandsToolbar.shortcutCommandKeys;
+export const selectHideDisabledCommands = (s) =>
+  s.commandsToolbar.hideDisabledCommands;
 export const selectCommandsDialogOpen = (s) =>
   s.commandsToolbar.commandsDialogOpen;
 

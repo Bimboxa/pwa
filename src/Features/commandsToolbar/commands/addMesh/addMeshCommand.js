@@ -15,6 +15,7 @@ import { getMeshingToolCommandState } from "../../utils/meshingCommandState";
 // surface input while the tool is armed.
 export default {
   key: "ADD_MESH",
+  usesSelection: false,
   label: "Ajouter une maille",
   Icon: AddBoxOutlinedIcon,
   editors: [EDITOR_3D],

@@ -20,6 +20,7 @@ import {
 // quick point editing toggle (plainOnly).
 export default {
   key: "MOVE_ANNOTATION",
+  usesSelection: true,
   label: "Déplacer",
   Icon: OpenWith,
   hotkey: { key: "m", plainOnly: true },

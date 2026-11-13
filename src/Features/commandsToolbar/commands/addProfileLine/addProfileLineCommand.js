@@ -24,6 +24,7 @@ const TYPES_3D_REASON = "Réservé aux lignes";
 // shortcuts, the plain drawing-mode toggle in 2D) is a no-op.
 export default {
   key: "ADD_PROFILE_LINE",
+  usesSelection: true,
   label: "Ajouter un profil",
   Icon: ShowChart,
   Button: ButtonAddProfileLine,

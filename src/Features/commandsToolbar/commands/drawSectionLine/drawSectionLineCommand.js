@@ -24,6 +24,7 @@ import {
 // interaction mode for its listings popper (legend), which that gate reads.
 export default {
   key: "DRAW_SECTION_LINE",
+  usesSelection: false,
   label: "Dessiner un trait de coupe",
   Icon: IconSectionLine,
   editors: [EDITOR_2D, EDITOR_3D],

@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // (useAddSlopeGuideLine).
 export default {
   key: "ADD_SLOPE",
+  usesSelection: true,
   label: "Ajouter une pente",
   Icon: TrendingUp,
   Button: ButtonAddSlope,

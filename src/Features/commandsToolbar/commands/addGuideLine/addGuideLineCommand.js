@@ -6,6 +6,7 @@ import createPolygonLineCommand from "../../utils/createPolygonLineCommand";
 // POLYGON — the guide line carries the slope of the surface.
 export default createPolygonLineCommand({
   key: "ADD_GUIDE_LINE",
+  usesSelection: true,
   label: "Ajouter une ligne guide",
   Icon: Timeline,
   drawingMode: "ADD_GUIDE_LINE",

@@ -8,6 +8,7 @@ import createViewToggleCommand from "../../utils/createViewToggleCommand";
 // (no-mode toggle; EDIT mode always shows them). Needs the base map scale.
 export default createViewToggleCommand({
   key: "TOGGLE_SEGMENT_COTES",
+  usesSelection: true,
   label: "Afficher / Masquer les cotes",
   Icon: Straighten,
   getValue: (ctx) => ctx.showSegmentCotes,

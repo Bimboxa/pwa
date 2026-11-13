@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // STRIP (the band / stroke closes on its first point).
 export default {
   key: "TOGGLE_CLOSE_LINE",
+  usesSelection: true,
   label: "Fermer / Ouvrir la ligne",
   Icon: CloseFullscreen,
   getState(ctx) {

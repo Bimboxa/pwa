@@ -3,7 +3,9 @@ import CommandButton from "./CommandButton";
 // One slot of the toolbar (or of a group menu): a command that owns a popup /
 // hooks renders its own `Button` component (receives ctx + state), every other
 // command renders the generic CommandButton calling its pure `run`.
-// Both forms never return null: a non-relevant command is disabled.
+// Both forms never return null: a non-relevant command is disabled (the
+// toolbar itself drops it when `hideDisabledCommands` is on — also when it
+// is not a `usesSelection` command while annotations are selected).
 export default function CommandSlot({ item, ctx, deps }) {
   if (item.Button) {
     const Button = item.Button;

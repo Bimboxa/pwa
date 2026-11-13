@@ -11,6 +11,7 @@ import { EDITOR_3D } from "../../constants/commandEditors";
 // own switch. Its origin is a snappable point while shown.
 export default {
   key: "TOGGLE_AXES",
+  usesSelection: false,
   label: "Afficher le repère",
   Icon: IconAxesFrame,
   editors: [EDITOR_3D],

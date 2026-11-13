@@ -1,10 +1,19 @@
-import { Box, Chip } from "@mui/material";
+import { Box, Chip, Tooltip } from "@mui/material";
+import HighlightAltIcon from "@mui/icons-material/HighlightAlt";
 
-// Badges of a command: the editor it is restricted to (2D / 3D) when it is
-// not available in both, and its hotkey letter. Shared by the rows of the
+// Badges of a command: the selection mark of a `usesSelection` command (kept
+// in the context-filtered toolbar while annotations are selected), the editor it is
+// restricted to (2D / 3D) when it is not available in both, and its hotkey
+// letter. Shared by the rows of the
 // « Commandes » dialog and the title of the helper dialog.
 export default function CommandBadges({ command }) {
+  // strings
+
+  const selectionS = "Agit sur la sélection";
+
   // helpers
+
+  const usesSelection = Boolean(command.usesSelection);
 
   const hotkey = command.hotkey?.key ? command.hotkey.key.toUpperCase() : null;
   const editor =
@@ -12,10 +21,18 @@ export default function CommandBadges({ command }) {
 
   // render
 
-  if (!editor && !hotkey) return null;
+  if (!usesSelection && !editor && !hotkey) return null;
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {usesSelection && (
+        <Tooltip title={selectionS} enterDelay={400}>
+          <HighlightAltIcon
+            aria-label={selectionS}
+            sx={{ fontSize: 14, color: "text.secondary" }}
+          />
+        </Tooltip>
+      )}
       {editor && (
         <Chip
           label={editor}

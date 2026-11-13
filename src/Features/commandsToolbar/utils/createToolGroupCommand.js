@@ -9,6 +9,7 @@ import { getToolGroupState } from "./drawToolCommandState";
 // the toolbar. `extra` overrides / completes the command (hotkey yields…).
 export default function createToolGroupCommand({
   key,
+  usesSelection,
   toolType = key,
   label,
   Icon,
@@ -19,6 +20,7 @@ export default function createToolGroupCommand({
   const tools = getDrawingToolsByType(toolType);
   const command = {
     key,
+    usesSelection,
     label,
     Icon,
     editors,

@@ -17,6 +17,7 @@ const PICK_IN_PROGRESS_REASON = "Un mode de sélection est déjà actif";
 // annotation toolbar (« Actualiser la 3D »).
 export default {
   key: "EXTRUDE_ALONG_LINE",
+  usesSelection: true,
   label: "Extruder le long d'une ligne",
   Icon: IconExtrudeAlongLine,
   getState(ctx) {

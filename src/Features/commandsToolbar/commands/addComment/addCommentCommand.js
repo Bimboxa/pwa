@@ -11,6 +11,7 @@ import { getCommentCommandGate } from "../../utils/commentCommandState";
 // in the scope, the "new listing" dialog opens first.
 export default {
   key: "ADD_COMMENT",
+  usesSelection: false,
   label: "Ajouter une info",
   Icon: InfoOutlinedIcon,
   editors: ALL_EDITORS,

@@ -24,6 +24,7 @@ const SECTION_LINE_ONLY_REASON = "Sélectionnez un trait de coupe";
 // click on the armed button cancels.
 export default {
   key: "CREATE_SECTION_BASE_MAP",
+  usesSelection: true,
   label: "+ fond de plan (coupe)",
   Icon: IconCreateBaseMap,
   editors: [EDITOR_2D, EDITOR_3D],

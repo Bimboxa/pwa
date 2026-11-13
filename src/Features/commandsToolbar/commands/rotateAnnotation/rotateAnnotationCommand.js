@@ -13,6 +13,7 @@ import {
 // while that mode is active: the hotkey yields.
 export default {
   key: "ROTATE_ANNOTATION",
+  usesSelection: true,
   label: "Tourner",
   Icon: RotateRight,
   hotkey: {

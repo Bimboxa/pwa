@@ -14,6 +14,7 @@ import { DRAW_IN_PROGRESS_REASON } from "../../utils/drawToolCommandState";
 // gating.
 export default {
   key: "PLACE_AXES",
+  usesSelection: false,
   label: "Orienter le repère",
   Icon: IconPlaceAxesFrame,
   editors: [EDITOR_3D],

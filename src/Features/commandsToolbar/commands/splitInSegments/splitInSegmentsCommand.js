@@ -10,6 +10,7 @@ export const SPLIT_IN_SEGMENTS_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 // useSplitAnnotationsInSegments), then deletes the sources.
 export default {
   key: "SPLIT_IN_SEGMENTS",
+  usesSelection: true,
   label: "Découper en segments",
   Icon: IconSplitInSegments,
   Button: ButtonSplitInSegments,

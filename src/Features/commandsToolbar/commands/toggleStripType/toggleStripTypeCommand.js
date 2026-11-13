@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // the thick band visually fixed (useToggleAnnotationStripType).
 export default {
   key: "TOGGLE_STRIP_TYPE",
+  usesSelection: true,
   label: "Basculer ligne ↔ bande (mur)",
   Icon: Cached,
   Button: ButtonToggleStripType,

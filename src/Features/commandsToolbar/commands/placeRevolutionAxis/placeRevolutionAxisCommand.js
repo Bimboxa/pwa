@@ -20,6 +20,7 @@ export const VERTICAL_BASE_MAP_ONLY_REASON =
 // is the « Axe de révolution » command, on a horizontal plan.
 export default {
   key: "PLACE_REVOLUTION_AXIS",
+  usesSelection: false,
   label: "Axe sur plan de coupe",
   Icon: IconPlaceRevolutionAxis,
   editors: [EDITOR_2D],

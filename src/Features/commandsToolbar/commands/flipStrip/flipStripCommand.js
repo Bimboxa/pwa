@@ -8,6 +8,7 @@ import { getSingleAnnotationState } from "../../utils/selectionCommandState";
 // glued on the band's median line follow the side flip.
 export default {
   key: "FLIP_STRIP",
+  usesSelection: true,
   label: "Inverser le sens",
   Icon: Flip,
   Button: ButtonFlipStrip,

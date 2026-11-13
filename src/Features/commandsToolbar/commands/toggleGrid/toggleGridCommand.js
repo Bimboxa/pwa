@@ -11,6 +11,7 @@ import ButtonToggleGrid from "./ButtonToggleGrid";
 // resolved by the button (editorGrid slice).
 export default {
   key: "TOGGLE_GRID",
+  usesSelection: false,
   label: "Grille",
   Icon: Grid4x4Icon,
   editors: [EDITOR_2D],
