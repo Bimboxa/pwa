@@ -25,7 +25,8 @@ const roundMm = (v) => Math.round(v * 1e3) / 1e3;
  * (built by ThreedRevolutionAxisHorizontalCuts): the handle slides along the
  * axis under the cursor and the cut plane follows — `horizontalCutZ`, metres
  * above the base of the axis, never below it. A scene vertex near the cursor
- * wins: the cut takes its altitude (same snap as the push / pull of the
+ * (not one of the annotations revolved around the axis, which are the ones
+ * being cut) wins: the cut takes its altitude (same snap as the push / pull of the
  * extrude tool, same pink circle on the vertex —
  * RevolutionAxisCutOverlayThreed). Live preview = the clipping plane moved in place (no
  * rebuild); release persists the altitude on the axis
@@ -121,8 +122,13 @@ export default function useRevolutionAxisCutHandleDragHandlers({
       dragRef.current = {
         cut,
         z0: cut.z,
-        // Snap targets: every scene vertex, read once at grab time.
-        snapVerts: buildIndex(sceneManager.scene).verts,
+        // Snap targets, read once at grab time: every scene vertex but
+        // those of the annotations being cut — a lathe has a ring of
+        // vertices at each of its levels, the cut would jump from one to the
+        // next (staircase) instead of sliding along it.
+        snapVerts: buildIndex(sceneManager.scene, {
+          excludeSubtrees: cut.getRoots(),
+        }).verts,
         prevControlsEnabled,
         startClient: { x: e.clientX, y: e.clientY },
         moved: false,
