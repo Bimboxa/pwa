@@ -19,6 +19,11 @@ import { setHollowOutDialogAnnotationId } from 'Features/mapEditor/mapEditorSlic
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
 import { selectPdfEditorOpen } from 'Features/pdfEditor/pdfEditorSlice';
 import {
+  dataTransferMayHoldImage,
+  collectImageDropData,
+  resolveImageDropData,
+} from 'Features/imageAnnotations/utils/getImageFilesFromDataTransfer';
+import {
   setPasteClipboard,
   clearPasteClipboard,
   rotatePasteClipboard,
@@ -377,6 +382,7 @@ const InteractionLayer = forwardRef(({
   onTemplateBrushClick,
   onCommitImageDrop,
   onCommitImageFileDrop,
+  onImageFileDropError,
   onMapClickInSelectMode,
   basePose,
   onBaseMapPoseChange,
@@ -9345,35 +9351,32 @@ const InteractionLayer = forwardRef(({
     if (onCommitImageDrop) onCommitImageDrop({ imageUrl, x, y, idMaster });
   };
 
-  // Native HTML5 drop of image files (Finder / another window) → IMAGE
-  // annotations centred on the drop point. Only image files are claimed:
-  // during dragover only `items` (kinds + types) are readable, and a drag
+  // Native HTML5 drop of images → IMAGE annotations centred on the drop
+  // point. Accepts image files (Finder / another window) and images dragged
+  // from another web page (text/uri-list / text/html, fetched into Files;
+  // the source site must allow CORS, otherwise onImageFileDropError fires).
+  // During dragover only `types` / `items` kinds are readable, so a drag
   // without an image keeps the browser default (a dropped PDF is not
   // intercepted). The dnd-kit DropZoneLayer (pointer events, internal drags)
   // is untouched. Nothing while editing the base map image.
-  const hasImageFileItem = (dataTransfer) =>
-    Array.from(dataTransfer?.items ?? []).some(
-      (item) => item.kind === "file" && item.type?.startsWith("image/")
-    );
-
   const handleNativeDragOver = (e) => {
     if (imageModeEnabledRef.current) return;
     if (!onCommitImageFileDrop) return;
-    if (!hasImageFileItem(e.dataTransfer)) return;
+    if (!dataTransferMayHoldImage(e.dataTransfer)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
   };
 
-  const handleNativeDrop = (e) => {
+  const handleNativeDrop = async (e) => {
     if (imageModeEnabledRef.current) return;
     if (!onCommitImageFileDrop) return;
-    const files = Array.from(e.dataTransfer?.files ?? []).filter((f) =>
-      f.type?.startsWith("image/")
-    );
-    if (files.length === 0) return;
+    if (!dataTransferMayHoldImage(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
 
+    // Everything read from the event happens before the first await: the
+    // DataTransfer payload is cleared once the handler returns.
+    const dropData = collectImageDropData(e.dataTransfer);
     const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
     if (!worldPos) return;
     const localPos = toLocalCoords(worldPos);
@@ -9382,6 +9385,12 @@ const InteractionLayer = forwardRef(({
     // Several files land in a cascade: 24 screen px per image, in image px.
     const zoom = viewportRef.current?.getZoom() || 1;
     const cascadeStepPx = 24 / (zoom * getTargetScale());
+
+    const { files, failedUrls } = await resolveImageDropData(dropData);
+    if (files.length === 0) {
+      if (failedUrls.length > 0) onImageFileDropError?.(failedUrls);
+      return;
+    }
 
     onCommitImageFileDrop({
       files,
