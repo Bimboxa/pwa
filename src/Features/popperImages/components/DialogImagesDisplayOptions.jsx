@@ -1,8 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  resetPrintZonesZones,
   selectPrintZonesTileSizeMode,
   selectPrintZonesTileSizePx,
+  selectPrintZonesZones,
   setPrintZonesTileSizeMode,
   setPrintZonesTileSizePx,
 } from "../popperImagesSlice";
@@ -29,7 +31,7 @@ import {
 // DialogImagesDisplayOptions — "…" of the photos controls in the bottom bar:
 // the display options that do not deserve a button of their own. Today: the
 // size of the "print zones" tiles — automatic (shrunk until every photo fits
-// along the 4 edges) or fixed.
+// in its zone) or fixed — and the reset of the zones resized by hand.
 // ---------------------------------------------------------------------------
 
 export default function DialogImagesDisplayOptions({ open, onClose }) {
@@ -40,7 +42,8 @@ export default function DialogImagesDisplayOptions({ open, onClose }) {
   const titleS = "Options d'affichage des photos";
   const sizeS = "Taille des vignettes (mode zones)";
   const autoS = "Automatique";
-  const autoHintS = "Réduite si les photos ne tiennent pas sur les 4 bords";
+  const autoHintS = "Réduite si les photos ne tiennent pas dans leur zone";
+  const resetZonesS = "Réinitialiser les zones";
   const fixedS = "Fixe";
   const closeS = "Fermer";
 
@@ -48,6 +51,8 @@ export default function DialogImagesDisplayOptions({ open, onClose }) {
 
   const sizeMode = useSelector(selectPrintZonesTileSizeMode);
   const sizePx = useSelector(selectPrintZonesTileSizePx);
+  const zones = useSelector(selectPrintZonesZones);
+  const zonesResized = Object.keys(zones).length > 0;
 
   // render
 
@@ -106,6 +111,13 @@ export default function DialogImagesDisplayOptions({ open, onClose }) {
         </Box>
       </Box>
       <DialogActions>
+        <Button
+          disabled={!zonesResized}
+          onClick={() => dispatch(resetPrintZonesZones())}
+          sx={{ mr: "auto" }}
+        >
+          {resetZonesS}
+        </Button>
         <Button onClick={onClose}>{closeS}</Button>
       </DialogActions>
     </DialogGeneric>

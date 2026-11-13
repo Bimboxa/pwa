@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
+  selectPrintZonesPinnedSideById,
   selectPrintZonesTileSizeMode,
   selectPrintZonesTileSizePx,
 } from "../popperImagesSlice";
@@ -23,21 +24,42 @@ import layoutImagePrintZones from "../utils/layoutImagePrintZones";
 // where the 4 bands run, `reserved` the areas to keep free, `origin` the
 // top-left corner the returned coordinates are relative to.
 //
-// Returns { tiles, anchorsById, insets }:
+// `zones`: the zones the user resized (popperImages.printZonesZones) or
+// null for fully automatic zones. `keepOutside`: a photo whose anchor is
+// outside the rect (or cannot be projected) keeps its tile — the editors; a
+// capture only shows the photos of its frame.
+//
+// Returns { tiles, zones, rect, anchorsById, insets }:
 // - anchorsById[id] = { x, y, inside } follows the camera frame by frame
 //   (anchorProjector.subscribe), so the leaders stick to their anchors;
-// - tiles (layoutImagePrintZones, + origin offset) only move once the camera
-//   has been still for SETTLE_MS: the photos never jump from an edge to
-//   another during a pan / zoom. A photo whose anchor is outside the rect
-//   gets no tile.
+// - tiles / zones / rect (layoutImagePrintZones, + origin offset): the zones
+//   are fixed and the tiles centred in them, so nothing follows the camera.
+//   Only the zone of an unpinned photo may change, once the camera has been
+//   still for SETTLE_MS and another edge is clearly nearer (the layout is
+//   fed its previous result); a pinned photo
+//   (popperImages.printZonesPinnedSideById) never changes zone.
 // ---------------------------------------------------------------------------
 
 const SETTLE_MS = 250;
-const EMPTY = { tiles: [], insets: { top: 0, right: 0, bottom: 0, left: 0 } };
+const EMPTY = {
+  tiles: [],
+  zones: {},
+  rect: null,
+  insets: { top: 0, right: 0, bottom: 0, left: 0 },
+};
 
 function tilesKey(tiles) {
   return tiles
-    .map((t) => `${t.id}:${t.side},${t.x},${t.y},${t.width},${t.height}`)
+    .map(
+      (t) =>
+        `${t.id}:${t.side},${t.pinned ? 1 : 0},${t.x},${t.y},${t.width},${t.height}`
+    )
+    .join("|");
+}
+
+function zonesKey(zones) {
+  return Object.entries(zones)
+    .map(([side, z]) => `${side}:${z.x},${z.y},${z.width},${z.height}`)
     .join("|");
 }
 
@@ -47,11 +69,14 @@ export default function useImagePrintZonesLayout({
   anchorProjector,
   getFrame,
   invalidateKey,
+  zones = null,
+  keepOutside = false,
 }) {
   // data
 
   const tileSizeMode = useSelector(selectPrintZonesTileSizeMode);
   const tileSizePx = useSelector(selectPrintZonesTileSizePx);
+  const pinnedSideById = useSelector(selectPrintZonesPinnedSideById);
 
   // state
 
@@ -59,6 +84,7 @@ export default function useImagePrintZonesLayout({
   const [anchorsById, setAnchorsById] = useState({});
   const layoutKeyRef = useRef("");
   const anchorsKeyRef = useRef("");
+  const previousSideByIdRef = useRef({});
   const rafRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -90,6 +116,7 @@ export default function useImagePrintZonesLayout({
   const relayout = useCallback(() => {
     const m = measure();
     if (!m) {
+      previousSideByIdRef.current = {};
       if (layoutKeyRef.current !== "") {
         layoutKeyRef.current = "";
         setLayout(EMPTY);
@@ -100,10 +127,12 @@ export default function useImagePrintZonesLayout({
     const dx = rect.left - origin.left;
     const dy = rect.top - origin.top;
     const items = (images ?? [])
-      .filter((a) => m.anchors[a.id]?.inside)
+      .filter((a) => keepOutside || m.anchors[a.id]?.inside)
       .map((a) => ({
         id: a.id,
-        anchor: { x: m.anchors[a.id].x - dx, y: m.anchors[a.id].y - dy },
+        anchor: m.anchors[a.id]
+          ? { x: m.anchors[a.id].x - dx, y: m.anchors[a.id].y - dy }
+          : null,
         aspect: getImageAnnotationAspect(a),
       }));
     const fixed = tileSizeMode === "FIXED";
@@ -119,14 +148,40 @@ export default function useImagePrintZonesLayout({
         width: r.width,
         height: r.height,
       })),
+      zones,
+      pinnedSideById,
+      previousSideById: previousSideByIdRef.current,
     });
+    previousSideByIdRef.current = Object.fromEntries(
+      result.tiles.map((t) => [t.id, t.side])
+    );
     const tiles = result.tiles.map((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
-    const key = tilesKey(tiles);
+    const zoneRects = Object.fromEntries(
+      Object.entries(result.zones).map(([side, z]) => [
+        side,
+        { ...z, x: z.x + dx, y: z.y + dy },
+      ])
+    );
+    const layoutRect = { x: dx, y: dy, width: rect.width, height: rect.height };
+    const key = `${tilesKey(tiles)}#${zonesKey(zoneRects)}#${zonesKey({ rect: layoutRect })}`;
     if (key !== layoutKeyRef.current) {
       layoutKeyRef.current = key;
-      setLayout({ tiles, insets: result.insets });
+      setLayout({
+        tiles,
+        zones: zoneRects,
+        rect: layoutRect,
+        insets: result.insets,
+      });
     }
-  }, [measure, images, tileSizeMode, tileSizePx]);
+  }, [
+    measure,
+    images,
+    tileSizeMode,
+    tileSizePx,
+    zones,
+    pinnedSideById,
+    keepOutside,
+  ]);
 
   const settle = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -183,5 +238,11 @@ export default function useImagePrintZonesLayout({
     []
   );
 
-  return { tiles: layout.tiles, insets: layout.insets, anchorsById };
+  return {
+    tiles: layout.tiles,
+    zones: layout.zones,
+    rect: layout.rect,
+    insets: layout.insets,
+    anchorsById,
+  };
 }

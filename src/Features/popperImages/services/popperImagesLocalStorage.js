@@ -115,3 +115,61 @@ export function savePrintZonesTileSizePx(value) {
   store.printZonesTileSizePx = clampPrintZonesTileSizePx(value);
   writeStore(store);
 }
+
+// PRINT_ZONES zones the user resized: { [side]: { thickness, startInset,
+// endInset } } in px (insets from the borders of the layout rect), a missing
+// side / key = automatic.
+export const PRINT_ZONES_SIDES = ["TOP", "RIGHT", "BOTTOM", "LEFT"];
+export const PRINT_ZONES_ZONE_THICKNESS_MAX_PX = 480;
+const ZONE_KEYS = ["thickness", "startInset", "endInset"];
+
+export function sanitizePrintZonesZones(value) {
+  const zones = {};
+  if (!value || typeof value !== "object") return zones;
+  PRINT_ZONES_SIDES.forEach((side) => {
+    const zone = {};
+    ZONE_KEYS.forEach((key) => {
+      const raw = value[side]?.[key];
+      const n = Number(raw);
+      if (raw == null || !Number.isFinite(n)) return;
+      zone[key] =
+        key === "thickness"
+          ? Math.round(
+              Math.min(
+                PRINT_ZONES_ZONE_THICKNESS_MAX_PX,
+                Math.max(PRINT_ZONES_TILE_SIZE_MIN_PX, n)
+              )
+            )
+          : Math.max(0, Math.round(n));
+    });
+    if (Object.keys(zone).length) zones[side] = zone;
+  });
+  return zones;
+}
+
+export function loadPrintZonesZones() {
+  return sanitizePrintZonesZones(readStore().printZonesZones);
+}
+
+export function savePrintZonesZones(zones) {
+  const store = readStore();
+  store.printZonesZones = sanitizePrintZonesZones(zones);
+  writeStore(store);
+}
+
+// Overlay panel (EX_SITU): number of columns of the photos grid.
+export const PANEL_COLUMNS_OPTIONS = [1, 2];
+const DEFAULT_PANEL_COLUMNS = 2;
+
+export function loadImagesPanelColumns() {
+  const value = readStore().panelColumns;
+  return PANEL_COLUMNS_OPTIONS.includes(value) ? value : DEFAULT_PANEL_COLUMNS;
+}
+
+export function saveImagesPanelColumns(columns) {
+  const store = readStore();
+  store.panelColumns = PANEL_COLUMNS_OPTIONS.includes(columns)
+    ? columns
+    : DEFAULT_PANEL_COLUMNS;
+  writeStore(store);
+}

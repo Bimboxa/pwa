@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import TileImageAnnotation from "./TileImageAnnotation";
 import { isImageAnnotationVeiled } from "../utils/imageAnnotationSelection";
 
-// 2-column grid of the photos (GridPhotos pattern).
+// Grid of the photos, `columns` wide (GridPhotos pattern).
 export default function GridImageAnnotations({
   images,
   indexById,

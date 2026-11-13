@@ -4,14 +4,18 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   selectImagesExSitu,
   selectImagesLinkLine,
+  selectImagesPanelColumns,
   selectImagesPhotosHidden,
   selectPopperImagesCollapsed,
+  setImagesPanelColumns,
   setPopperImagesCollapsed,
 } from "../popperImagesSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import GridViewOutlined from "@mui/icons-material/GridViewOutlined";
+import ViewAgendaOutlined from "@mui/icons-material/ViewAgendaOutlined";
 
 import GridImageAnnotations from "./GridImageAnnotations";
 import ImagesLinksOverlay from "./ImagesLinksOverlay";
@@ -33,18 +37,23 @@ import {
 // editor box (left of the tools band, shifted when a right drawer is open).
 // Same shell as the other poppers (draggable header, PanelFooter with the
 // "auto" button, collapse and a bottom-LEFT resize handle). Header: "Photos"
-// title only — the display mode, the count pill, the links and the options
-// live in the bottom bar (SectionImagesBottomBarControls). Body: 2-column
-// grid of numbered tiles; a tile click selects the annotation (editor
-// selection), the selected tile offers "Fullscreen" (DialogImageViewer).
-// "Ligne": ImagesLinksOverlay draws the tile → anchor leaders over the
-// panel. Mounted by the editors next to PopperMapListings (same gates — not
+// title + the 1 / 2 columns toggle of the grid — the display mode, the count
+// pill, the links and the options live in the bottom bar
+// (SectionImagesBottomBarControls). Body: 1 or 2-column grid of numbered
+// tiles; a tile click selects the annotation (editor selection), the
+// selected tile offers "Fullscreen" (DialogImageViewer).
+// ImagesLinksOverlay draws the tile → anchor leaders over the panel: all of
+// them with "Ligne", the one of the selected photo otherwise. Mounted by the editors next to PopperMapListings (same gates — not
 // mounted in capture mode, which renders its own tiles); renders nothing in
 // the other display modes or when the editor shows no photo.
 // ---------------------------------------------------------------------------
 
 const POPPER_WIDTH = 260;
 const RIGHT_GAP = 12;
+const COLUMNS_OPTIONS = [
+  { columns: 1, tooltip: "1 colonne", Icon: ViewAgendaOutlined },
+  { columns: 2, tooltip: "2 colonnes", Icon: GridViewOutlined },
+];
 
 export default function PopperImages({
   images,
@@ -63,6 +72,7 @@ export default function PopperImages({
   const exSitu = useSelector(selectImagesExSitu);
   const linkLine = useSelector(selectImagesLinkLine);
   const collapsed = useSelector(selectPopperImagesCollapsed);
+  const columns = useSelector(selectImagesPanelColumns);
   const photosHidden = useSelector(selectImagesPhotosHidden);
   const rawSelectedImageId = useSelector(selectSelectedImageAnnotationId);
   // Only a listed photo drives the tiles (a selected « Objet 2D » image is
@@ -106,7 +116,9 @@ export default function PopperImages({
   );
 
   const bodyOpen = !collapsed;
-  const linksActive = linkLine && !collapsed && !photosHidden;
+  // "Ligne" off: the leader of the selected photo is still drawn.
+  const linksActive =
+    (linkLine || Boolean(selectedImageId)) && !collapsed && !photosHidden;
   const invalidateKey = useMemo(
     () =>
       [
@@ -115,10 +127,11 @@ export default function PopperImages({
         size?.width,
         size?.height,
         collapsed,
+        columns,
         rightDrawerWidth,
         hostInvalidateKey,
       ].join("|"),
-    [position, size, collapsed, rightDrawerWidth, hostInvalidateKey]
+    [position, size, collapsed, columns, rightDrawerWidth, hostInvalidateKey]
   );
 
   const fullscreenImage = useMemo(
@@ -203,6 +216,44 @@ export default function PopperImages({
           >
             {titleS}
           </Typography>
+          {bodyOpen && (
+            <Box
+              onMouseDown={(e) => e.stopPropagation()}
+              sx={{
+                display: "flex",
+                borderRadius: 1,
+                overflow: "hidden",
+                border: "1px solid",
+                borderColor: "panel.border",
+                cursor: "default",
+              }}
+            >
+              {COLUMNS_OPTIONS.map(({ columns: value, tooltip, Icon }) => {
+                const selected = value === columns;
+                return (
+                  <Tooltip key={value} title={tooltip}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        ...(selected && {
+                          bgcolor: "action.active",
+                          color: "common.white",
+                        }),
+                      }}
+                    >
+                      <IconButton
+                        color={selected ? "inherit" : "default"}
+                        onClick={() => dispatch(setImagesPanelColumns(value))}
+                        sx={{ p: "2px", borderRadius: 0 }}
+                      >
+                        <Icon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  </Tooltip>
+                );
+              })}
+            </Box>
+          )}
         </Box>
 
         {bodyOpen && (
@@ -219,6 +270,7 @@ export default function PopperImages({
               images={images}
               indexById={indexById}
               selectedImageId={selectedImageId}
+              columns={columns}
               onSelect={handleSelect}
               onFullscreen={(a) => setFullscreenImageId(a.id)}
               registerEl={registerEl}
@@ -246,6 +298,7 @@ export default function PopperImages({
         active={linksActive}
         images={images}
         selectedImageId={selectedImageId}
+        onlySelected={!linkLine}
         getTileRect={getTileRect}
         getGridRect={getGridRect}
         scrollEl={gridRef}
