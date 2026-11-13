@@ -43,6 +43,9 @@ vite.config.local.js
 temp
 tmp/
 
+# Generated deliverables (local only)
+/output/
+
 # Data
 Data
 !src/Data/
