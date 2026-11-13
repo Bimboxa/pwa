@@ -81,7 +81,12 @@ export default memo(function NodeImageStatic({
     return { x: ax, y: minY };
   }, [x, y, displayWidth, displayHeight, imageAnnotation.rotation]);
 
-  if (!src || imagesHidden) return null;
+  // « Objet 2D » (template flag): a scaled symbol, not a photo — fixed size
+  // (no resize handles, no scale / change-image overlay) and independent
+  // from the Photos panel (never hidden, ex situ nor veiled by it).
+  const isObject2D = Boolean(imageAnnotation.isObject2D);
+
+  if (!src || (imagesHidden && !isObject2D)) return null;
 
   // Props pour le drag global (déplacement)
   const interactionProps = {
@@ -230,9 +235,10 @@ export default memo(function NodeImageStatic({
     );
   };
 
-  const exSitu = imagesDisplayMode === "EX_SITU";
+  const exSitu = imagesDisplayMode === "EX_SITU" && !isObject2D;
   const showBadge = imageDisplayIndex != null && !printMode;
-  const veilOpacity = imageVeiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
+  const veiled = imageVeiled && !isObject2D;
+  const veilOpacity = veiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
 
   // --- EX SITU: anchor only (dot + optional number) ---
   // The photo lives in PopperImages; the dot keeps the TARGET interaction
@@ -344,7 +350,7 @@ export default memo(function NodeImageStatic({
             </g>
 
             {/* White veil: another photo is selected */}
-            {imageVeiled && (
+            {veiled && (
               <rect
                 {...frameRect}
                 fill="#fff"
@@ -376,10 +382,10 @@ export default memo(function NodeImageStatic({
           {/* Elles sont rendues après l'image pour être au-dessus */}
           {selected && !dragged && (
             <g>
-              {renderHandle("NW", 0, 0)}
-              {renderHandle("NE", displayWidth, 0)}
-              {renderHandle("SW", 0, displayHeight)}
-              {renderHandle("SE", displayWidth, displayHeight)}
+              {!isObject2D && renderHandle("NW", 0, 0)}
+              {!isObject2D && renderHandle("NE", displayWidth, 0)}
+              {!isObject2D && renderHandle("SW", 0, displayHeight)}
+              {!isObject2D && renderHandle("SE", displayWidth, displayHeight)}
               {renderRotationHandle()}
             </g>
           )}
@@ -396,7 +402,7 @@ export default memo(function NodeImageStatic({
               <g style={{ transform: handleScaleTransform }}>
                 <ImageIndexBadgeSvg
                   number={imageDisplayIndex}
-                  dimmed={imageVeiled}
+                  dimmed={veiled}
                 />
               </g>
             </g>
@@ -422,7 +428,7 @@ export default memo(function NodeImageStatic({
           </g>
         </g>
       )}
-      {selected && !dragged && !printMode && (
+      {selected && !dragged && !printMode && !isObject2D && (
         <NodeImageToolbarOverlay
           annotation={imageAnnotation}
           anchor={overlayAnchor}

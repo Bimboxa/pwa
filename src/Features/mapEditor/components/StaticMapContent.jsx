@@ -110,7 +110,13 @@ function StaticMapContent({
   const imagesDisplayMode = useSelector(selectImagesDisplayMode);
   const imagesLinkNumber = useSelector(selectImagesLinkNumber);
   const imagesHidden = useSelector(selectImagesPhotosHidden);
-  const selectedImageId = useSelector(selectSelectedImageAnnotationId);
+  const rawSelectedImageId = useSelector(selectSelectedImageAnnotationId);
+  // A selected « Objet 2D » image is not a photo: it veils nothing.
+  const selectedImageId = useMemo(() => {
+    if (rawSelectedImageId == null) return null;
+    const selected = annotations?.find((a) => a.id === rawSelectedImageId);
+    return selected?.isObject2D ? null : rawSelectedImageId;
+  }, [rawSelectedImageId, annotations]);
 
   // clipping plane (2D-defined cut plane)
   const dispatch = useDispatch();

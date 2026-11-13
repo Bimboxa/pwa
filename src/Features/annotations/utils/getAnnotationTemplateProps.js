@@ -73,6 +73,11 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // (annotation.isProfile || template.isProfile), never written back.
     isProfile: annotationTemplate?.isProfile,
 
+    // « Objet 2D » IMAGE template: its annotations are scaled symbols, not
+    // photos (fixed size, no overlay buttons, ignored by the Photos panel).
+    // Effective flag derived from the template, never written back.
+    isObject2D: annotationTemplate?.isObject2D,
+
     // 3D-only vertical delta added to offsetZ at render time (POLYGON);
     // template-owned, never copied onto the annotation's offsetZ.
     deltaOffsetZ3d: annotationTemplate?.deltaOffsetZ3d,

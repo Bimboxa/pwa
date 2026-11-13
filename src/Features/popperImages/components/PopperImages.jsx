@@ -70,7 +70,12 @@ export default function PopperImages({
   const linkLine = useSelector(selectImagesLinkLine);
   const collapsed = useSelector(selectPopperImagesCollapsed);
   const photosHidden = useSelector(selectImagesPhotosHidden);
-  const selectedImageId = useSelector(selectSelectedImageAnnotationId);
+  const rawSelectedImageId = useSelector(selectSelectedImageAnnotationId);
+  // Only a listed photo drives the tiles (a selected « Objet 2D » image is
+  // not in `images` and must veil / highlight nothing).
+  const selectedImageId = images?.some((a) => a.id === rawSelectedImageId)
+    ? rawSelectedImageId
+    : null;
   // The open right tool drawer slides over the editor: step aside.
   const rightDrawerWidth = useSelector((s) =>
     s.rightPanel.selectedMenuItemKey ? s.rightPanel.width : 0

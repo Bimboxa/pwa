@@ -47,6 +47,9 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
 
         else if (partType && partType.startsWith("RESIZE_")) {
+            // « Objet 2D » (template flag): fixed size, never resized.
+            if (_annotation.isObject2D) return _annotation;
+
             const handle = partType.replace("RESIZE_", "");
             const aspectRatio = currentBBox.width / currentBBox.height;
 

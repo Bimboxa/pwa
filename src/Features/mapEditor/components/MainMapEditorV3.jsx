@@ -2380,6 +2380,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           if (newRotation < 0) newRotation += 360;
           updates.rotation = newRotation;
         } else if (partType && partType.startsWith("RESIZE_")) {
+          // « Objet 2D » (template flag): fixed size, the commit is dropped
+          // (the node renders no resize handle, this is a safety net).
+          if (annotation.isObject2D) return;
+
           const handle = partType.replace("RESIZE_", "");
 
           // A. COINS (Fixe le coin opposé, aspect ratio contraint)
