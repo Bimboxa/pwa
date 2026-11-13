@@ -17,3 +17,29 @@ export function setRevolutionAxisCuts(cuts) {
 export function getRevolutionAxisCuts() {
   return _cuts;
 }
+
+// DOM overlay of the handle drag (RevolutionAxisCutOverlayThreed), px
+// relative to the 3D canvas:
+// - snap: { x, y } | null — the scene vertex the cut takes its altitude from;
+// - cursor: { x, y, label } | null — the live altitude next to the mouse.
+let _overlay = { snap: null, cursor: null };
+const _overlayListeners = new Set();
+
+export function setRevolutionAxisCutOverlay(partial) {
+  _overlay = { ..._overlay, ...partial };
+  _overlayListeners.forEach((listener) => listener());
+}
+
+export function clearRevolutionAxisCutOverlay() {
+  if (!_overlay.snap && !_overlay.cursor) return;
+  setRevolutionAxisCutOverlay({ snap: null, cursor: null });
+}
+
+export function getRevolutionAxisCutOverlayState() {
+  return _overlay;
+}
+
+export function subscribeRevolutionAxisCutOverlay(listener) {
+  _overlayListeners.add(listener);
+  return () => _overlayListeners.delete(listener);
+}
