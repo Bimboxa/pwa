@@ -453,6 +453,7 @@ import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttach
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
 import getRevolutionPhi from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
 import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
+import { getImageEffectiveBbox } from "Features/imageAnnotations/utils/imageConnector";
 import getRevolutionHandleSnapPoints from "Features/annotations/utils/getRevolutionHandleSnapPoints";
 
 // Length of the synthesized lathe-axis segment, in reference-frame pixels. The
@@ -3101,6 +3102,17 @@ export default function useAnnotationsV2(options) {
           }
           return merged;
         }
+      });
+
+      // Photos: the numbered badge (anchor) positions the photo. Unless it
+      // was dragged away from it (`hasConnector`), the photo is drawn with
+      // its top-left corner on the anchor, whatever the stored bbox origin
+      // says (no migration of the rows stored before this rule). Done after
+      // the template override: « Objet 2D » is a template flag.
+      result = result.map((annotation) => {
+        if (annotation?.type !== "IMAGE" || !annotation.bbox) return annotation;
+        const bbox = getImageEffectiveBbox(annotation);
+        return bbox === annotation.bbox ? annotation : { ...annotation, bbox };
       });
 
       // Main annotations of located business objects: the object's label

@@ -81,17 +81,44 @@ size scaled up by those margins so the photo itself keeps its metric size. Posit
 above `offsetZ` + 1 cm, default 1 m for vertical cards, 0 for horizontal cards).
 Image bytes come from `db.files`, with `imageUrlClient` as fallback.
 
-The properties panel exposes `hasConnector` and `labelDescription`. The
-connector's `targetPoint` is an inline normalized coordinate, independent of
-the bbox and unrelated to `db.points`. Creation seeds it at the image centre;
-legacy rows fall back to their current centre until the first move. Moving,
-resizing or rotating the photo leaves this anchor fixed. In 2D, the leader
-ends at the rotated image border and the selected target can be dragged.
+### Position: the numbered badge is the anchor
+
+`targetPoint` (inline normalized coordinate, unrelated to `db.points`) is the
+photo **anchor**: the numbered badge is drawn on it in every display mode.
+The photo itself is in one of two states (`imageConnector.js`):
+
+| State    | `hasConnector` | Where the photo is drawn                                                    |
+| -------- | -------------- | --------------------------------------------------------------------------- |
+| Pinned   | falsy          | its **visual top-left corner** on the anchor; the stored `bbox.x/y` is ignored |
+| Detached | `true`         | at its stored `bbox`; a link line joins the badge to the photo border        |
+
+- `getImageEffectiveBbox` applies the rule; `useAnnotationsV2` runs it after
+  the template override (« Objet 2D » is a template flag, never pinned), so
+  every consumer of resolved annotations (2D, 3D card, capture, exports)
+  reads the effective bbox. Rows stored before this rule were NOT migrated:
+  they are pinned on their former anchor (the old default was the image
+  centre) at read time, and their bbox becomes consistent at the next write.
+- "Visual top-left" = top-left corner of the axis-aligned box around the
+  rotated photo (`getImagePinnedBbox` / `getImagePinnedAnchor`).
+- 2D drag parts (`NodeImageStatic` → `applyDeltaPosToAnnotation`, shared by
+  the preview and the `MainMapEditorV3` commit):
+  - `BADGE` (the badge, in situ and off in situ): anchor + photo move;
+  - body (no part type): the photo moves alone and becomes detached;
+  - `RESIZE_*` / `ROTATE` of a pinned photo: re-pinned on the anchor. There
+    is no NW resize handle (that corner is the badge);
+  - `TARGET`: the plain connector dot, only where no badge is drawn (print,
+    « Objet 2D »).
+- The properties panel (`FieldImageAnnotationDetails`) shows « Réinitialiser
+  la position de la photo » on a detached photo: it clears `hasConnector`.
+  There is no « Connecteur » switch any more.
+- Creation seeds the anchor at the bbox top-left; paste / import derive it
+  from the pasted placement unless the source is detached.
 
 Click the 3D card to select the IMAGE annotation, then drag to move it in the
 camera-facing plane (base map plane for horizontal cards). Hold Shift to constrain movement to the closest displayed
 X/Y/Z axis. Moving the target stays in the base map plane. Card movement writes
-the normalized bbox XY and `imageLift3d`; the anchor remains fixed. Escape or
+the normalized bbox XY and `imageLift3d`; the anchor follows a pinned photo and
+remains fixed for a detached one (`getImageCardMoveUpdates`). Escape or
 pointer cancellation restores the original position without saving. The same
 permission checks as 2D apply. Inline IMAGE imports preserve connector, label,
 description, orientation and lift and transform the target with the image during placement.

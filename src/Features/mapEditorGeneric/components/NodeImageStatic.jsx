@@ -239,14 +239,21 @@ export default memo(function NodeImageStatic({
 
   const exSitu = imagesDisplayMode !== "IN_SITU" && !isObject2D;
   const showBadge = imageDisplayIndex != null && !printMode;
+  // In situ the numbered badge IS the photo position: the photo is drawn
+  // with its top-left corner on it (see getImageEffectiveBbox) and the badge
+  // is the grip moving both. A photo dragged away from it (`hasConnector`)
+  // is joined to it by the link line; the plain connector dot only remains
+  // where no badge is drawn (print, « Objet 2D »).
+  const badgeGrip = showBadge && !isObject2D;
+  const badgeAnchor = badgeGrip ? getImageAnchorPoint(imageAnnotation) : null;
   const veiled = imageVeiled && !isObject2D;
   const veilOpacity = veiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
 
   // --- EX SITU: anchor only ---
   // The photo lives in a tile (overlay panel / print zones). With "Numéro":
   // the numbered badge alone, centred on the anchor; without: a dot. Either
-  // keeps the TARGET interaction (click = select, drag = move the anchor)
-  // exactly as the in-situ dot.
+  // carries the BADGE interaction (click = select, drag = move the anchor
+  // AND the photo), exactly as the in-situ badge.
   if (exSitu) {
     const anchor = getImageAnchorPoint(imageAnnotation);
     // Secondary colour (not the editor's neon selection green).
@@ -270,7 +277,7 @@ export default memo(function NodeImageStatic({
                   height={IMAGE_BADGE_HEIGHT_PX}
                   fill="transparent"
                   {...interactionProps}
-                  data-part-type="TARGET"
+                  data-part-type="BADGE"
                   style={{ cursor: "pointer" }}
                 />
               </>
@@ -281,7 +288,7 @@ export default memo(function NodeImageStatic({
                 stroke={selected ? selectedStroke : "white"}
                 strokeWidth={1.5}
                 {...interactionProps}
-                data-part-type="TARGET"
+                data-part-type="BADGE"
                 style={{ cursor: "pointer" }}
               />
             )}
@@ -308,21 +315,23 @@ export default memo(function NodeImageStatic({
               pointerEvents="none"
             />
           )}
-          <g
-            transform={`translate(${connector.target.x}, ${connector.target.y})`}
-          >
-            <g style={{ transform: handleScaleTransform }}>
-              <circle
-                r={selected ? 6 : 4}
-                fill="#333"
-                stroke="white"
-                strokeWidth={1.5}
-                {...interactionProps}
-                data-part-type="TARGET"
-                style={{ cursor: "crosshair" }}
-              />
+          {!badgeGrip && (
+            <g
+              transform={`translate(${connector.target.x}, ${connector.target.y})`}
+            >
+              <g style={{ transform: handleScaleTransform }}>
+                <circle
+                  r={selected ? 6 : 4}
+                  fill="#333"
+                  stroke="white"
+                  strokeWidth={1.5}
+                  {...interactionProps}
+                  data-part-type="TARGET"
+                  style={{ cursor: "crosshair" }}
+                />
+              </g>
             </g>
-          </g>
+          )}
         </g>
       )}
       <g style={{ filter: paperShadow }}>
@@ -402,7 +411,8 @@ export default memo(function NodeImageStatic({
           {/* Elles sont rendues après l'image pour être au-dessus */}
           {selected && !dragged && (
             <g>
-              {!isObject2D && renderHandle("NW", 0, 0)}
+              {/* No NW handle on photos: that corner belongs to the badge
+                (its drag moves the photo, it must not resize it). */}
               {!isObject2D && renderHandle("NE", displayWidth, 0)}
               {!isObject2D && renderHandle("SW", 0, displayHeight)}
               {!isObject2D && renderHandle("SE", displayWidth, displayHeight)}
@@ -412,26 +422,36 @@ export default memo(function NodeImageStatic({
 
           {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
 
-          {/* Display number (PopperImages tile) — top-left corner, constant
-            screen size, counter-rotated to stay readable. */}
-          {showBadge && (
-            <g
-              transform={`rotate(${-rotation})`}
-              style={{ pointerEvents: "none" }}
-            >
-              <g style={{ transform: handleScaleTransform }}>
-                <ImageIndexBadgeSvg
-                  number={imageDisplayIndex}
-                  dimmed={veiled}
-                />
-              </g>
-            </g>
-          )}
         </g>
       </g>
 
+      {/* Display number (PopperImages tile) on the anchor — the visual
+        top-left corner of a pinned photo, rotated or not —, constant screen
+        size, never rotated.
+        Grip: dragging it moves the badge AND the photo. */}
+      {badgeGrip && (
+        <g transform={`translate(${badgeAnchor.x}, ${badgeAnchor.y})`}>
+          <g style={{ transform: handleScaleTransform }}>
+            <ImageIndexBadgeSvg number={imageDisplayIndex} dimmed={veiled} />
+            <rect
+              x={-IMAGE_BADGE_WIDTH_PX / 2}
+              y={-IMAGE_BADGE_HEIGHT_PX / 2}
+              width={IMAGE_BADGE_WIDTH_PX}
+              height={IMAGE_BADGE_HEIGHT_PX}
+              fill="transparent"
+              {...interactionProps}
+              data-part-type="BADGE"
+              style={{
+                cursor: selected ? "move" : "pointer",
+                pointerEvents: dragged ? "none" : "auto",
+              }}
+            />
+          </g>
+        </g>
+      )}
+
       {/* Overlay toolbar (scale / change image) — outside the rotate group */}
-      {connector?.inside && selected && !dragged && (
+      {connector?.inside && selected && !dragged && !badgeGrip && (
         <g
           transform={`translate(${connector.target.x}, ${connector.target.y})`}
         >

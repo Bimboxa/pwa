@@ -365,6 +365,8 @@ function pickSegmentAdjustAxis(candidates, preferred) {
 
 const InteractionLayer = forwardRef(({
   children,
+  // Photos: display numbers (badge of the drag preview).
+  imageDisplayIndexById,
   isActiveViewer = true,
   enabledDrawingMode,
   newAnnotation,
@@ -9189,7 +9191,7 @@ const InteractionLayer = forwardRef(({
       // annotation) is selected — an unselected label click only selects.
       const isLabelPart =
         nodeId?.startsWith("label::") ||
-        ["LABEL_BOX", "TARGET", "LINK"].includes(partType);
+        ["LABEL_BOX", "TARGET", "LINK", "BADGE"].includes(partType);
       const labelBaseId = nodeId?.replace("label::", "");
       const labelNodeSelected =
         selectedNode?.nodeId === nodeId ||
@@ -9203,7 +9205,8 @@ const InteractionLayer = forwardRef(({
       // SELECTED annotation, so an unselected drag would move it invisibly.
       // IMAGE body: same rule — an unselected photo must not slide under a
       // stray drag; the first gesture selects it, the next one moves it (its
-      // TARGET dot is already covered by `isLabelPart`).
+      // TARGET dot and its numbered BADGE are already covered by
+      // `isLabelPart`).
       // OBJECT_3D footprint: same rule as the IMAGE body.
       const isUnselectedPlacement =
         ["REVOLUTION_AXIS_PLACEMENT", "IMAGE", "OBJECT_3D"].includes(
@@ -9835,6 +9838,7 @@ const InteractionLayer = forwardRef(({
                       wrapperBbox={wrapperBbox}
                       basePose={targetPose}
                       baseMapMeterByPx={baseMapMeterByPx}
+                      imageDisplayIndex={imageDisplayIndexById?.[annId]}
                     />
                   );
                 })}
@@ -9873,6 +9877,7 @@ const InteractionLayer = forwardRef(({
                 partType={singlePartType}
                 basePose={targetPose}
                 baseMapMeterByPx={baseMapMeterByPx}
+                imageDisplayIndex={imageDisplayIndexById?.[singleAnnotation?.id]}
               />
             </g>
           );

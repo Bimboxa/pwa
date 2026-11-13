@@ -1,3 +1,4 @@
+import { getImagePinnedAnchor } from "Features/imageAnnotations/utils/imageConnector";
 import {
   imagePlacement,
   imageFileRecord,
@@ -530,14 +531,19 @@ export default async function pasteAnnotationService({
         clonedAnnotation,
         imagePlacement(corners, { width, height })
       );
-      if (item.baseTargetPoint) {
+      // Detached photo (`hasConnector`): its anchor is pasted with it.
+      // Otherwise the photo is pinned on its anchor: the anchor is the
+      // visual top-left corner of the pasted placement.
+      if (item.baseTargetPoint && clonedAnnotation.hasConnector) {
         const [anchor] = applyPasteTransformToPoints(
           [item.baseTargetPoint], sourceCenter, targetCenter, transform
         );
         clonedAnnotation.targetPoint = { x: anchor.x / width, y: anchor.y / height };
       } else {
-        const b = clonedAnnotation.bbox;
-        clonedAnnotation.targetPoint = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        clonedAnnotation.targetPoint = getImagePinnedAnchor(clonedAnnotation, {
+          width,
+          height,
+        });
       }
       const record = imageFileRecord(item.imageAsset, clonedAnnotation);
       clonedAnnotation.image = record.image;

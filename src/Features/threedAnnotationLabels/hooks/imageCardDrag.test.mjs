@@ -142,6 +142,7 @@ function fixture(
       id: "photo",
       bbox: { x: 0.2, y: 0.3, width: 0.2, height: 0.2 },
       targetPoint: { x: 0.15, y: 0.2 },
+      hasConnector: connector,
     },
     editor: {
       sceneManager: {
