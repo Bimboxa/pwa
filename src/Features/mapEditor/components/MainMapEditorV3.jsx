@@ -2364,119 +2364,36 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       }
 
       // --- IMAGE : resize avec aspect ratio contraint ---
+      // Same maths as the drag preview (applyDeltaPosToAnnotation, pixel
+      // space): badge drag = photo + anchor, body drag = the photo detaches
+      // from its anchor, resize / rotate keep a pinned photo on its anchor.
       else if (annotation.type === "IMAGE") {
         const bgW = imageSize.width;
         const bgH = imageSize.height;
 
-        const currentBBox = annotation.bbox;
-        const currentRotation = annotation.rotation ?? 0;
+        // « Objet 2D » (template flag): fixed size, the commit is dropped
+        // (the node renders no resize handle, this is a safety net).
+        if (partType?.startsWith("RESIZE_") && annotation.isObject2D) return;
 
-        const cx = currentBBox.x;
-        const cy = currentBBox.y;
-        const cw = currentBBox.width;
-        const ch = currentBBox.height;
-
-        const aspectRatio = cw / ch;
-
-        let nx = cx;
-        let ny = cy;
-        let nw = cw;
-        let nh = ch;
-
-        // IMAGE's attachment stays at its creation point when the photo moves.
-        const anchor = annotation.targetPoint ?? {
-          x: cx + cw / 2, y: cy + ch / 2,
+        const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
+        const updates = {
+          // Always stored: freezes the anchor of the rows saved without one.
+          targetPoint: {
+            x: next.targetPoint.x / bgW,
+            y: next.targetPoint.y / bgH,
+          },
+          bbox: {
+            x: next.bbox.x / bgW,
+            y: next.bbox.y / bgH,
+            width: next.bbox.width / bgW,
+            height: next.bbox.height / bgH,
+          },
         };
-        const updates = { targetPoint: { x: anchor.x / bgW, y: anchor.y / bgH } };
+        if (partType === "ROTATE")
+          updates.rotation = ((next.rotation % 360) + 360) % 360;
+        if (Boolean(next.hasConnector) !== Boolean(annotation.hasConnector))
+          updates.hasConnector = Boolean(next.hasConnector);
 
-        if (partType === "TARGET") {
-          updates.targetPoint = {
-            x: (anchor.x + deltaPos.x) / bgW,
-            y: (anchor.y + deltaPos.y) / bgH,
-          };
-        } else if (partType === "ROTATE") {
-          const sensitivity = 1;
-          let newRotation = (currentRotation + deltaPos.x * sensitivity) % 360;
-          if (newRotation < 0) newRotation += 360;
-          updates.rotation = newRotation;
-        } else if (partType && partType.startsWith("RESIZE_")) {
-          // « Objet 2D » (template flag): fixed size, the commit is dropped
-          // (the node renders no resize handle, this is a safety net).
-          if (annotation.isObject2D) return;
-
-          const handle = partType.replace("RESIZE_", "");
-
-          // A. COINS (Fixe le coin opposé, aspect ratio contraint)
-          if (handle === "SE") {
-            nw = cw + deltaPos.x;
-            nh = nw / aspectRatio;
-          } else if (handle === "SW") {
-            nw = cw - deltaPos.x;
-            nh = nw / aspectRatio;
-            nx = cx + (cw - nw);
-          } else if (handle === "NE") {
-            nw = cw + deltaPos.x;
-            nh = nw / aspectRatio;
-            ny = cy + (ch - nh);
-          } else if (handle === "NW") {
-            nw = cw - deltaPos.x;
-            nh = nw / aspectRatio;
-            nx = cx + (cw - nw);
-            ny = cy + (ch - nh);
-          }
-
-          // B. BORDS
-          else if (handle === "E") {
-            nw = cw + deltaPos.x;
-            nh = nw / aspectRatio;
-            ny = cy + (ch - nh) / 2;
-          } else if (handle === "W") {
-            nw = cw - deltaPos.x;
-            nh = nw / aspectRatio;
-            nx = cx + (cw - nw);
-            ny = cy + (ch - nh) / 2;
-          } else if (handle === "S") {
-            nh = ch + deltaPos.y;
-            nw = nh * aspectRatio;
-            nx = cx + (cw - nw) / 2;
-          } else if (handle === "N") {
-            nh = ch - deltaPos.y;
-            nw = nh * aspectRatio;
-            ny = cy + (ch - nh);
-            nx = cx + (cw - nw) / 2;
-          }
-
-          // Sécurité min 20px
-          if (nw < 20) {
-            nw = 20;
-            nh = nw / aspectRatio;
-            if (handle.includes("W")) nx = cx + (cw - nw);
-            if (handle.includes("N")) ny = cy + (ch - nh);
-            if (handle === "N" || handle === "S") nx = cx + (cw - nw) / 2;
-            if (handle === "E" || handle === "W") ny = cy + (ch - nh) / 2;
-          }
-
-          updates.bbox = {
-            x: nx / bgW,
-            y: ny / bgH,
-            width: nw / bgW,
-            height: nh / bgH,
-          };
-        }
-
-        // DÉPLACEMENT (MOVE)
-        else {
-          nx = cx + deltaPos.x;
-          ny = cy + deltaPos.y;
-          updates.bbox = {
-            x: nx / bgW,
-            y: ny / bgH,
-            width: nw / bgW,
-            height: nh / bgH,
-          };
-        }
-
-        console.log("save_image (bbox)", annotation.id, updates);
         await db.annotations.update(annotation.id, updates);
       }
 
@@ -2812,6 +2729,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           <InteractionProvider>
             <InteractionLayer
               isActiveViewer={isActiveViewer}
+              imageDisplayIndexById={imageDisplayIndexById}
               enabledDrawingMode={enabledDrawingMode}
               selectedNode={selectedNode}
               selectedNodes={selectedNodes}

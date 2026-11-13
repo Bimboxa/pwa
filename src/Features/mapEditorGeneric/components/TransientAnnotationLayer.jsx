@@ -1,5 +1,12 @@
 import React, { useMemo } from 'react';
 
+import { useSelector } from 'react-redux';
+
+import {
+    selectImagesDisplayMode,
+    selectImagesLinkNumber,
+} from 'Features/popperImages/popperImagesSlice';
+
 import NodeAnnotationStatic from './NodeAnnotationStatic';
 import applyDeltaPosToAnnotation from '../utils/applyDeltaPosToAnnotation';
 
@@ -11,7 +18,11 @@ export default function TransientAnnotationLayer({
     baseMapMeterByPx,
     baseMapImageScale = 1,
     basePose,
+    // Photos: display number, so the badge follows the drag preview.
+    imageDisplayIndex,
 }) {
+    const imagesDisplayMode = useSelector(selectImagesDisplayMode);
+    const imagesLinkNumber = useSelector(selectImagesLinkNumber);
 
     const modifiedAnnotation = useMemo(() => {
         return applyDeltaPosToAnnotation(annotation, deltaPos, partType, wrapperBbox);
@@ -39,6 +50,9 @@ export default function TransientAnnotationLayer({
                 draggedPartType={partType}
                 sizeVariant="FIXED_IN_SCREEN"
                 containerK={basePose.k}
+                imagesDisplayMode={imagesDisplayMode}
+                imagesLinkNumber={imagesLinkNumber}
+                imageDisplayIndex={imageDisplayIndex}
             />
         </g>
     );

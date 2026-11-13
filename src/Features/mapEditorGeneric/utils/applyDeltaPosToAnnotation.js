@@ -1,6 +1,10 @@
 import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
 import { CUT_AXIS_OVERSHOOT } from "Features/annotations/utils/revolutionAxisGlyph";
-import { getImageAnchorPoint } from "Features/imageAnnotations/utils/imageConnector";
+import {
+    getImageAnchorPoint,
+    getImagePinnedBbox,
+    isImageDetached,
+} from "Features/imageAnnotations/utils/imageConnector";
 
 // Fold an angle into (-180, 180].
 const normalizeDeg = (deg) => {
@@ -35,8 +39,24 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
         const currentRotation = _annotation.rotation || 0;
         _annotation.targetPoint = getImageAnchorPoint(annotation);
+        // Pinned photo (not dragged away from its numbered badge): its
+        // top-left corner follows the anchor through every edit.
+        const pinned = !isImageDetached(annotation);
 
-        if (partType === "TARGET") {
+        // BADGE (the numbered badge): the anchor AND the photo move.
+        if (partType === "BADGE") {
+            _annotation.targetPoint = {
+                x: _annotation.targetPoint.x + deltaPos.x,
+                y: _annotation.targetPoint.y + deltaPos.y,
+            };
+            _annotation.bbox = {
+                ...currentBBox,
+                x: currentBBox.x + deltaPos.x,
+                y: currentBBox.y + deltaPos.y,
+            };
+        }
+        // TARGET (connector dot, shown where no badge is): the anchor alone.
+        else if (partType === "TARGET") {
             _annotation.targetPoint = {
                 x: _annotation.targetPoint.x + deltaPos.x,
                 y: _annotation.targetPoint.y + deltaPos.y,
@@ -89,12 +109,20 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
             _annotation.bbox = { x: nx, y: ny, width: nw, height: nh };
         }
 
+        // MOVE (photo body): the photo leaves its badge, which stays put —
+        // a link line then joins them (`hasConnector`).
         else {
             _annotation.bbox = {
                 ...currentBBox,
                 x: currentBBox.x + deltaPos.x,
                 y: currentBBox.y + deltaPos.y
             };
+            if (!_annotation.isObject2D) _annotation.hasConnector = true;
+        }
+
+        // Resize / rotation of a pinned photo: the corner stays on the badge.
+        if (pinned && (partType === "ROTATE" || partType?.startsWith("RESIZE_"))) {
+            _annotation.bbox = getImagePinnedBbox(_annotation);
         }
     }
 
