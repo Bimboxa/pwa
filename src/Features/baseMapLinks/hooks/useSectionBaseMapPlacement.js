@@ -268,6 +268,7 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
       editor.renderScene?.();
     }
     refresh();
+    preview.startBlink(() => editor.renderScene?.());
 
     // --- drag in the section plane ---
 
