@@ -42,6 +42,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldProcedureKeys from "Features/annotationsAuto/components/FieldProcedureKeys";
 import SectionListingPromptIa from "Features/promptIa/components/SectionListingPromptIa";
 import SectionListingProceduresLinks from "Features/annotationsAuto/components/SectionListingProceduresLinks";
+import SectionListingSystem from "Features/systems/components/SectionListingSystem";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
@@ -547,6 +548,14 @@ export default function PanelPropertiesListingV2({ listing }) {
               onChange={(procedureKeys) =>
                 updateListing({ id: listing.id, procedureKeys })
               }
+            />
+          )}
+
+          {/* System definition (Features/systems): annotation listings only */}
+          {!isLinked && listing?.entityModel?.type === "LOCATED_ENTITY" && (
+            <SectionListingSystem
+              listing={listing}
+              annotationTemplates={annotationTemplates}
             />
           )}
 

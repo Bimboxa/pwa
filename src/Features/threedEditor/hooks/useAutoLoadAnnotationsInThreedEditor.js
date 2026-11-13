@@ -28,6 +28,8 @@ import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
+import applySystemDisplay from "Features/systems/utils/applySystemDisplay";
+import { SYSTEM_DISPLAY_EDITOR_3D } from "Features/systems/constants/systemConstants";
 
 // Annotations built WITHOUT the anti-aliasing shrink (« Pinceau »): copies
 // tagged `_noAntiAliasingShrink`, memoized per source row so the copy keeps
@@ -255,6 +257,11 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // Hidden for the session with « Masquer l'annotation »: not built at all
     // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
     let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
+    // System instances (Features/systems): each one builds either its source
+    // annotation or its generated detail (per instance, 3D mode).
+    result = applySystemDisplay(result, SYSTEM_DISPLAY_EDITOR_3D, {
+      dropHiddenSources: true,
+    });
     if (scopeAnnotationIdSet) {
       result = result.filter((a) => scopeAnnotationIdSet.has(a.id));
     }

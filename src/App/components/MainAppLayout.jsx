@@ -39,6 +39,7 @@ import DialogReloadScene3dBaseMap from "Features/scene3d/components/DialogReload
 import SyncDialogsContainer from "Features/remoteScopeConfigurations/components/SyncDialogsContainer";
 import ProfileLinesSourceSync from "Features/elevation/components/ProfileLinesSourceSync";
 import PathArraySync from "Features/pathArray/components/PathArraySync";
+import SystemsSync from "Features/systems/components/SystemsSync";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -136,6 +137,7 @@ export default function MainAppLayout() {
       <SyncDialogsContainer />
       <ProfileLinesSourceSync />
       <PathArraySync />
+      <SystemsSync />
     </DndContext>
   );
 }

@@ -113,6 +113,34 @@ export default function AnnotationTemplateIcon({
     );
   }
 
+  // render — SYSTEM template with an illustration: show it
+  if (shape === "SYSTEM" && template.image?.imageUrlClient) {
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          borderRadius: 0.5,
+          overflow: "hidden",
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box
+          component="img"
+          src={template.image.imageUrlClient}
+          sx={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      </Box>
+    );
+  }
+
   // render — IMAGE template: show image preview or image icon
   if (shape === "IMAGE") {
     const imgUrl = template.image?.imageUrlClient;

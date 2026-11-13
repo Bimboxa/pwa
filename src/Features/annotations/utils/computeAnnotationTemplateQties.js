@@ -23,7 +23,11 @@ export default function computeAnnotationTemplateQties(
   if (!annotations) return {};
 
   const qtiesById = annotations.reduce((acc, annotation) => {
-    const templateId = annotation?.annotationTemplateId;
+    // Source of a system instance (Features/systems): counted on the SYSTEM
+    // template that armed it (one instance = one unit there); its generated
+    // annotations count on their own templates.
+    const templateId =
+      annotation?.systemTemplateId ?? annotation?.annotationTemplateId;
     if (!templateId) return acc;
     // Mesh cells are children of a parent annotation that is already counted;
     // skip them so the parent + its cells don't double-count quantities.

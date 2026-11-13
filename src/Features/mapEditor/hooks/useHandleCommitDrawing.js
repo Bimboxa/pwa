@@ -197,7 +197,11 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             ? (templatelessListingId ?? undefined)
             : isScopeBoundRevolutionHelper || isScopeBoundSectionMark
                 ? undefined
-                : selectedListingId;
+                // Source of a system instance (armed from a SYSTEM template,
+                // Features/systems): stored in the system listing its
+                // template belongs to, not in the selected listing.
+                : (newAnnotation?.systemTemplateId && newAnnotation?.listingId)
+                    || selectedListingId;
 
         // Section mark: its two points are its own — no vertex shared with
         // (or inserted into) another annotation, so moving the mark can

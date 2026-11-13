@@ -68,6 +68,7 @@ export const makeGetListingsByOptions = (options) =>
       const relsZoneEntityListings = options?.relsZoneEntityListings;
       const baseMapsOnly = options?.baseMapsOnly;
       const includeDisabledListings = options?.includeDisabledListings;
+      const excludeSystemListings = options?.excludeSystemListings;
 
       // edge case
 
@@ -159,6 +160,14 @@ export const makeGetListingsByOptions = (options) =>
         listings = listings.filter(
           (l) => l?.entityModel?.type === filterByEntityModelType
         );
+      }
+
+      // System listings (listing.system, Features/systems) are drawn through
+      // a SYSTEM template of another listing: the drawing lists opt out of
+      // them. Everything else (quantities, properties, annotations) keeps
+      // them.
+      if (excludeSystemListings) {
+        listings = listings.filter((l) => !l?.system);
       }
 
       // filter

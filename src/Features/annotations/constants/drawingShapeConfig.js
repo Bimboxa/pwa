@@ -421,6 +421,18 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
+  // SYSTEM (Features/systems): not a geometry — a pointer to a system
+  // listing (`template.systemListingId`). Arming it arms the SOURCE template
+  // of that listing (resolveSystemDrawTarget), hence no tool and no
+  // annotation type of its own; `template.image` is its illustration.
+  SYSTEM: {
+    label: "Système",
+    annotationType: null,
+    tools: [],
+    configurableProps: [],
+    defaults: {},
+    shapeCategory: "rectangle",
+  },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
   // (REVOLUTION). NOT template shapes (absent from DRAWING_SHAPES): an axis
   // belongs to its base map + scope and is drawn from the "Axe de révolution"

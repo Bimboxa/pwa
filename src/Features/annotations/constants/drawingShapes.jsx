@@ -415,6 +415,41 @@ const DRAWING_SHAPES = [
       </SvgIcon>
     ),
   },
+  // SYSTEM (Features/systems): a pointer to a system listing.
+  {
+    key: "SYSTEM",
+    label: "Système",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <rect
+          x="2.5"
+          y="2.5"
+          width="6"
+          height="6"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <rect
+          x="11.5"
+          y="11.5"
+          width="6"
+          height="6"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M8.5 5.5 H14.5 V11.5 M5.5 8.5 V14.5 H11.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+      </SvgIcon>
+    ),
+  },
 ];
 
 export function resolveShapeCategory(shape) {

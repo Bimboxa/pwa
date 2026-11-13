@@ -22,6 +22,9 @@ export default function resolvePresetListingsAndScopesObjectFromAnnotationTempla
             ...(library.procedureKeys?.length && { procedureKeys: library.procedureKeys }),
             // Prompt IA enabled by default on the created listing (listing.promptIaEnabled)
             ...(library.promptIaEnabled && { promptIaEnabled: true }),
+            // the listing DEFINES a system (listing.system = { procedureKey,
+            // params? } — Features/systems); its templates carry `systemRole`
+            ...(library.system && { system: library.system }),
         }
 
         return listing;

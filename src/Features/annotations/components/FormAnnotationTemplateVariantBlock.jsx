@@ -9,6 +9,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldObject3D from "Features/object3D/components/FieldObject3D";
+import FieldSystemListing from "Features/systems/components/FieldSystemListing";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
@@ -201,6 +202,10 @@ export default function FormAnnotationTemplateVariantBlock({
       drawingShape: newDrawingShape,
       ...defaults,
     });
+  }
+
+  function handleSystemListingChange(systemListingId) {
+    onChange({ ...annotationTemplate, systemListingId });
   }
 
   function handleFillColorChange(fillColor) {
@@ -541,6 +546,22 @@ export default function FormAnnotationTemplateVariantBlock({
                 value={Boolean(annotationTemplate?.isObject2D)}
                 onChange={handleIsObject2DChange}
                 options={{ type: "switch", showAsField: true }}
+              />
+            </Box>
+          )}
+
+          {/* System fields (SYSTEM): the system listing + an illustration */}
+          {drawingShape === "SYSTEM" && (
+            <Box sx={{ width: 1 }}>
+              <FieldSystemListing
+                value={annotationTemplate?.systemListingId}
+                onChange={handleSystemListingChange}
+                hostListingId={annotationTemplate?.listingId}
+              />
+              <FieldImageV2
+                label="Illustration (optionnel)"
+                value={image}
+                onChange={handleImageChange}
               />
             </Box>
           )}

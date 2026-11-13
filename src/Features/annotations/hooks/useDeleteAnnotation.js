@@ -5,6 +5,7 @@ import { triggerAnnotationsUpdate } from "../annotationsSlice";
 import db from "App/db/db";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
 import collectPathArrayChildren from "Features/pathArray/services/collectPathArrayChildren";
+import collectSystemChildren from "Features/systems/services/collectSystemChildren";
 
 export default function useDeleteAnnotation() {
   const dispatch = useDispatch();
@@ -93,6 +94,15 @@ export default function useDeleteAnnotation() {
       // Path array source (« Calepinage »): its generated elements go with it.
       if (annotation?.pathArray) {
         const children = await collectPathArrayChildren({
+          sourceIds: [annotationId],
+          projectId: annotation.projectId,
+        });
+        if (children.length > 0)
+          await db.annotations.bulkDelete(children.map((c) => c.id));
+      }
+      // System source (Features/systems): its generated annotations go with it.
+      if (annotation?.systemApplied) {
+        const children = await collectSystemChildren({
           sourceIds: [annotationId],
           projectId: annotation.projectId,
         });

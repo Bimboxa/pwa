@@ -37,6 +37,7 @@ import OverlayBaseMapsLayer from "Features/baseMapOverlays/components/OverlayBas
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import LayerEditorGrid from "Features/editorGrid/components/LayerEditorGrid";
+import getSystemNodeAnnotation from "Features/systems/utils/getSystemNodeAnnotation";
 
 function StaticMapContent({
   bgImageUrl,
@@ -527,6 +528,19 @@ function StaticMapContent({
             return null;
           }
 
+          // System instance shown as its DETAIL (Features/systems): the source
+          // stays in the list (hit resolution, edit layer once selected) but
+          // is not drawn here.
+          if (annotation.systemSourceHidden) return null;
+          // A generated annotation stands for its source: hovered / marked
+          // along with it.
+          const systemSourceId = annotation.systemSourceAnnotationId;
+          const isSystemSourceActive =
+            Boolean(systemSourceId) &&
+            (hoveredNode?.nodeId === systemSourceId ||
+              selectedNode?.nodeId === systemSourceId ||
+              Boolean(selectedNodes?.some((n) => n.nodeId === systemSourceId)));
+
           // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
           const hasPendingMove = !!getPendingMove(annotation.id);
 
@@ -539,11 +553,12 @@ function StaticMapContent({
               }}
             >
               <NodeAnnotationStatic
-                annotation={annotation}
+                annotation={getSystemNodeAnnotation(annotation)}
                 annotationOverride={labelOverridesById?.[annotation.id]}
                 spriteImage={spriteImage}
                 hovered={
-                  !isAnchorSource && annotation.id === hoveredNode?.nodeId
+                  isSystemSourceActive ||
+                  (!isAnchorSource && annotation.id === hoveredNode?.nodeId)
                 }
                 selected={Boolean(
                   annotation.isPhoto && annotation.photoId === selectedPhotoId

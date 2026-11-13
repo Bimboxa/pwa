@@ -1612,12 +1612,16 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   // callbacks) survive.
   object.userData = {
     ...(object.userData ?? {}),
-    nodeId: annotation.id,
+    // A system GENERATED annotation (Features/systems) stands for its
+    // SOURCE: a pick on the detail selects the source annotation (the
+    // instance as a whole) and exposes no vertex of its own.
+    nodeId: annotation.systemSourceAnnotationId ?? annotation.id,
     nodeType: "ANNOTATION",
     annotationType: annotation.type,
     listingId: annotation.listingId,
-    annotationTemplateId: annotation.annotationTemplateId,
-    vertexRefs,
+    annotationTemplateId:
+      annotation.systemSourceTemplateId ?? annotation.annotationTemplateId,
+    vertexRefs: annotation.systemSourceAnnotationId ? [] : vertexRefs,
   };
 
   // Hatched fill: planar sheets only (no height) — see applyHatchFill, run by

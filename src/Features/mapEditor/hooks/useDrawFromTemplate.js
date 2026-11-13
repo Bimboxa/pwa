@@ -21,6 +21,7 @@ import getLinkBusinessObjectDraftProps from "Features/businessObjects/utils/getL
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 import { isLocationTemplateForListing } from "Features/businessObjects/utils/getLocationTemplateListingIds";
+import useSystemDrawTarget from "Features/systems/hooks/useSystemDrawTarget";
 
 // Drawing shapes allowed to start a draw while the Dessin module is toggled to
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
@@ -49,13 +50,22 @@ const THREED_TOGGLED_DRAWABLE_SHAPES = [
 // ---------------------------------------------------------------------------
 
 export default function useDrawFromTemplate(
-  annotationTemplate,
+  rowAnnotationTemplate,
   listingId,
   { locateListing = null } = {}
 ) {
   const dispatch = useDispatch();
 
   // data
+
+  // A SYSTEM template (Features/systems) arms the SOURCE template of the
+  // system listing it points to: everything below (shape, tools, draft props,
+  // per-template session state) is resolved on that template. The draft
+  // carries the system listing (template.listingId) and `systemTemplateId`;
+  // the commits store the annotation in the system listing while the
+  // selected listing stays the row's one.
+  const { template: annotationTemplate, systemTemplateId } =
+    useSystemDrawTarget(rowAnnotationTemplate, listingId);
 
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
@@ -140,6 +150,7 @@ export default function useDrawFromTemplate(
       ...nextDraftProps,
       ...getLocateBusinessObjectDraftProps(locatingBusinessObjectId),
       ...getLinkBusinessObjectDraftProps(linkDrawBusinessObjectId),
+      ...(systemTemplateId ? { systemTemplateId } : {}),
     };
     Object.assign(baseProps, getImagePickDraftProps(drawingShape, baseProps));
     if (tool.annotationType) {
