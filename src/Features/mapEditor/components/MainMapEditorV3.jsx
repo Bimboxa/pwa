@@ -1290,6 +1290,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // the regular IMAGE commit path). Direct _handleCommitDrawing call with the
   // draft as option: the armed tool / newAnnotation in the store are left
   // untouched. Sequential so the commits do not interleave their writes.
+  // Images dragged from another web page that could not be downloaded
+  // (CORS, network, non-image url): nothing is created.
+  const handleImageFileDropError = () => {
+    dispatch(
+      setToaster({
+        message:
+          "Impossible de récupérer l'image depuis cette page (le site source bloque le téléchargement).",
+        isError: true,
+      })
+    );
+  };
+
   const handleCommitImageFileDrop = async ({ files, x, y, cascadeStepPx }) => {
     if (!baseMap) {
       dispatch(
@@ -2866,6 +2878,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
               onCommitSplitAtVertex={handlePolylineSplitAtVertex}
               onCommitImageDrop={handleCommitImageDrop}
               onCommitImageFileDrop={handleCommitImageFileDrop}
+              onImageFileDropError={handleImageFileDropError}
               onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
               onCommitSimilarStrips={handleCommitSimilarStrips}
               onCommitDetectedFeatures={handleCommitDetectedFeatures}
