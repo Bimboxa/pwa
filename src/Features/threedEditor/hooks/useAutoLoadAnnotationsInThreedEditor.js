@@ -1,3 +1,4 @@
+import { isBaseMapLinkClone } from "Features/baseMapLinks/utils/baseMapLinkPredicates";
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -60,6 +61,25 @@ function getHiddenFacesCopy(annotation, signatures) {
     hiddenFacesCopies.set(annotation, entry);
   }
   return entry.copy;
+}
+
+// Keeps one of { section mark, its clone } when both are in the list (see
+// the call): the clone when it is the selected one, the mark otherwise.
+// Element references are kept, so the 3D diff rebuilds nothing else.
+function dropDoubledBaseMapLinks(annotations, selectedCloneId) {
+  const clones = annotations.filter(isBaseMapLinkClone);
+  if (!clones.length) return annotations;
+  const idSet = new Set(annotations.map((a) => a.id));
+  const dropped = new Set();
+  clones.forEach((clone) => {
+    if (!idSet.has(clone.sourceLinkAnnotationId)) return;
+    dropped.add(
+      clone.id === selectedCloneId ? clone.sourceLinkAnnotationId : clone.id
+    );
+  });
+  return dropped.size
+    ? annotations.filter((a) => !dropped.has(a.id))
+    : annotations;
 }
 
 export default function useAutoLoadAnnotationsInThreedEditor({
@@ -257,11 +277,28 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // linked to its objects (the listing owns none — a post-filter, after the
   // stale-result guard above; element references are kept, so the 3D diff
   // rebuilds nothing for the kept ones).
+  // Section mark located on a vertical base map: its clone lands exactly on
+  // the mark once that base map is posed, so with both base maps in the
+  // scene only ONE of the two is built — the mark on its plan, unless the
+  // clone is the selected annotation (selected in 2D, then shown in 3D).
+  // Only the id of a selected CLONE is tracked: any other selection change
+  // leaves the list untouched.
+  const selectedNodeId = useSelector((s) => {
+    const items = s.selection.selectedItems;
+    return items?.length === 1 ? (items[0].nodeId ?? items[0].id) : null;
+  });
+  const selectedLinkCloneId = useMemo(() => {
+    if (!selectedNodeId || !annotations) return null;
+    const selected = annotations.find((a) => a.id === selectedNodeId);
+    return isBaseMapLinkClone(selected) ? selected.id : null;
+  }, [annotations, selectedNodeId]);
+
   const annotationsForThreed = useMemo(() => {
     if (!annotations) return annotations;
     // Hidden for the session with « Masquer l'annotation »: not built at all
     // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
     let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
+    result = dropDoubledBaseMapLinks(result, selectedLinkCloneId);
     // System instances (Features/systems): each one builds either its source
     // annotation or its generated detail (per instance, 3D mode).
     result = applySystemDisplay(result, SYSTEM_DISPLAY_EDITOR_3D, {
@@ -284,6 +321,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     scopeAnnotationIdSet,
     hiddenSheetIdSet,
     userHiddenIdSet,
+    selectedLinkCloneId,
   ]);
 
   // What the scene is built from: the shrink-exempt hosts and the mesh

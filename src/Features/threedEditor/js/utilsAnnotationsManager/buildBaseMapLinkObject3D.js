@@ -14,6 +14,8 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import sizeSpriteInCssPx from "Features/threedAnnotationLabels/services/sizeSpriteInCssPx";
 
+import { BASE_MAP_LINK_CLONE_LABEL } from "Features/baseMapLinks/utils/baseMapLinkCloneLabel";
+
 import pixelToWorld from "./pixelToWorld";
 import attachFatLineRaycast, {
   PICK_ANGULAR,
@@ -305,9 +307,14 @@ export default function buildBaseMapLinkObject3D({
     })
   );
 
+  // A clone (the mark located on its vertical base map) has no
+  // view-direction arrow and no section name: « Vue en plan », once, at its
+  // left end — a click on it goes back to the plan (2D parity).
+  const isClone = Boolean(annotation.sourceLinkAnnotationId);
+
   // view-direction arrows: on the observer side, tip towards the line
   const arrowTexture = getGlyphTexture("ARROW", color);
-  [0.15, 0.85].forEach((t) => {
+  (isClone ? [] : [0.15, 0.85]).forEach((t) => {
     const sprite = addSprite({
       texture: arrowTexture,
       at: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t },
@@ -331,50 +338,57 @@ export default function buildBaseMapLinkObject3D({
     sprite.center.set(-ARROW_GAP_PX / ARROW_PX, 0.5);
   });
 
-  // labels beyond each end (a clone shows its source's label)
-  const label = annotation.sourceLinkLabel ?? getAnnotationOwnLabel(annotation);
+  // labels beyond each end
+  const label = isClone
+    ? BASE_MAP_LINK_CLONE_LABEL
+    : getAnnotationOwnLabel(annotation);
   if (label) {
-    [
+    const ends = [
       { p: a, outward: { x: -u.x, y: -u.y } },
       { p: b, outward: u },
-    ].forEach(({ p, outward }) => {
-      const texture = makeLabelTexture(String(label), color);
-      const aspect = texture.image.width / texture.image.height;
-      const widthPx = LABEL_HEIGHT_PX * aspect;
-      addSprite({
-        texture,
-        ownsTexture: true,
-        at: p,
-        cssHeight: LABEL_HEIGHT_PX,
-        isNav: true,
-        aspect,
-        // The text stays upright: the sprite is shifted (not turned) along
-        // the on-screen outward direction, clear of the end tick.
-        orient: (sprite, renderer, camera) => {
-          const dir = getScreenDirection(
-            sprite,
-            outward,
-            probeM,
-            renderer,
-            camera
-          );
-          if (!dir) return null;
-          const offsetPx =
-            LABEL_GAP_PX +
-            TICK_THICKNESS_PX +
-            (Math.abs(dir.x) * widthPx + Math.abs(dir.y) * LABEL_HEIGHT_PX) / 2;
-          sprite.center.set(
-            0.5 - (dir.x * offsetPx) / widthPx,
-            0.5 - (dir.y * offsetPx) / LABEL_HEIGHT_PX
-          );
-          return {
-            x: dir.x * offsetPx,
-            y: dir.y * offsetPx,
-            radiusPx: Math.max(widthPx, LABEL_HEIGHT_PX) / 2 + 2,
-          };
-        },
-      });
-    });
+    ];
+    // local x grows to the right of the elevation: its left end
+    (isClone ? [a.x <= b.x ? ends[0] : ends[1]] : ends).forEach(
+      ({ p, outward }) => {
+        const texture = makeLabelTexture(String(label), color);
+        const aspect = texture.image.width / texture.image.height;
+        const widthPx = LABEL_HEIGHT_PX * aspect;
+        addSprite({
+          texture,
+          ownsTexture: true,
+          at: p,
+          cssHeight: LABEL_HEIGHT_PX,
+          isNav: true,
+          aspect,
+          // The text stays upright: the sprite is shifted (not turned) along
+          // the on-screen outward direction, clear of the end tick.
+          orient: (sprite, renderer, camera) => {
+            const dir = getScreenDirection(
+              sprite,
+              outward,
+              probeM,
+              renderer,
+              camera
+            );
+            if (!dir) return null;
+            const offsetPx =
+              LABEL_GAP_PX +
+              TICK_THICKNESS_PX +
+              (Math.abs(dir.x) * widthPx + Math.abs(dir.y) * LABEL_HEIGHT_PX) /
+                2;
+            sprite.center.set(
+              0.5 - (dir.x * offsetPx) / widthPx,
+              0.5 - (dir.y * offsetPx) / LABEL_HEIGHT_PX
+            );
+            return {
+              x: dir.x * offsetPx,
+              y: dir.y * offsetPx,
+              radiusPx: Math.max(widthPx, LABEL_HEIGHT_PX) / 2 + 2,
+            };
+          },
+        });
+      }
+    );
   }
 
   return group;
