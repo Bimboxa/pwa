@@ -138,6 +138,8 @@ export default class ThreedEditor {
       group.position.set(t.position.x, t.position.y, t.position.z);
       group.rotation.set(euler.x, euler.y, euler.z);
     }
+    // white page tint follows the orientation (the mesh is not rebuilt)
+    imagesManager.setBaseMapOrientation(baseMap.id, euler);
 
     // Scale change (e.g. 2-target Recaler, or set-scale after a scale-less
     // creation): rebuild the plane geometry from the pixel-space placement

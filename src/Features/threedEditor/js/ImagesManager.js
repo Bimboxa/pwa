@@ -1,3 +1,5 @@
+import { SRGBColorSpace } from "three";
+
 import createImageObject, {
   attachBaseMapMesh,
   attachBaseMapPreviewMesh,
@@ -6,6 +8,12 @@ import createImageObject, {
   removeBaseMapPreviewMesh,
 } from "./utilsImagesManager/createImageObject";
 import getEditorImageFromBaseMap from "./utilsImagesManager/getEditorImageFromBaseMap";
+import getWhitePageTint from "./utilsImagesManager/getWhitePageTint";
+import {
+  ensureBaseMapBorder,
+  refitBaseMapBorder,
+  disposeBaseMapBorder,
+} from "./utilsImagesManager/baseMapBorder";
 import getPreviewTextureAsync from "./utilsImagesManager/getPreviewTextureAsync";
 import { FADED_IMAGE_OPACITY } from "Features/baseMaps/constants/baseMapsImageMode";
 import attachScene3dToBaseMapGroup, {
@@ -102,12 +110,16 @@ export default class ImagesManager {
   // opacity change (texture still in flight, active version switch, late blob
   // url repair) never keeps a stale value. A faded base map (grid) is
   // capped at the faded opacity and desaturated (createBaseMapMaterial).
+  // Also pushes the white page look (orientation tint + thin border, see
+  // getWhitePageTint / baseMapBorder), for the same "mesh born late" reason.
   applyBaseMapOpacity(baseMapId) {
     const group = this.imagesMap[baseMapId];
     if (!group) return;
     const faded = this.fadedBaseMapIds.has(baseMapId);
     const desired = getBaseMapOpacityIn3d(this.opacityState, baseMapId);
     const opacity = faded ? Math.min(desired, FADED_IMAGE_OPACITY) : desired;
+    const isWhitePage = Boolean(group.userData.isWhitePage);
+    const tint = isWhitePage ? (group.userData.whitePageTint ?? 1) : 1;
     group.traverse?.((child) => {
       // The scan of a scan base map follows the base map opacity too.
       // (a GLB scene keeps its model's own transparency underneath:
@@ -136,8 +148,27 @@ export default class ImagesManager {
         child.material.depthWrite = opacity >= 1;
         const desaturate = child.material.userData?.uDesaturate;
         if (desaturate) desaturate.value = faded ? 1 : 0;
+        // The tint is a display-space grey multiplied with the texture.
+        child.material.color.setRGB(tint, tint, tint, SRGBColorSpace);
+        // Border on the full mesh only: a preview is a sheet of the base
+        // maps grid, which draws its own outline.
+        if (isWhitePage && !child.userData.isBasemapPreview) {
+          ensureBaseMapBorder(child).material.opacity = opacity;
+        } else {
+          disposeBaseMapBorder(child);
+        }
       }
     });
+  }
+
+  // Orientation of a loaded base map changed in place (no mesh rebuild):
+  // refresh the white page tint. `euler` is the base map's own orientation
+  // (getBaseMapEuler), also when the group lies on the base maps grid.
+  setBaseMapOrientation(baseMapId, euler) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return;
+    group.userData.whitePageTint = getWhitePageTint(euler);
+    this.applyBaseMapOpacity(baseMapId);
   }
 
   // Batch mirror from redux — one call per opacity pass. Records the desired
@@ -535,6 +566,7 @@ export default class ImagesManager {
       .filter((c) => c.userData?.isBasemap)
       .forEach((mesh) => {
         meshWrap.remove(mesh);
+        disposeBaseMapBorder(mesh);
         mesh.geometry?.dispose?.();
         mesh.material?.map?.dispose?.();
         mesh.material?.dispose?.();
@@ -682,6 +714,7 @@ export default class ImagesManager {
       if (child.userData?.isBasemap) {
         child.geometry?.dispose?.();
         child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
+        refitBaseMapBorder(child);
       }
     });
   }
@@ -700,6 +733,7 @@ export default class ImagesManager {
       if (child.userData?.isBasemap) {
         child.geometry?.dispose?.();
         child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
+        refitBaseMapBorder(child);
       }
     });
   }
@@ -720,7 +754,7 @@ export default class ImagesManager {
         group.userData.localScan?.dispose();
         this.scene.remove(group);
         group.traverse?.((child) => {
-          if (child.userData?.isBasemap) {
+          if (child.userData?.isBasemap || child.userData?.isBasemapBorder) {
             child.geometry?.dispose?.();
             child.material?.dispose?.();
           }

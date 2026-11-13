@@ -7,6 +7,7 @@ import {
 } from "three";
 
 import getTextureAsync from "./getTextureAsync";
+import getWhitePageTint from "./getWhitePageTint";
 
 // Geometry of the basemap plane, expressed in the basemap group's LOCAL meter
 // frame. That local frame is the REFERENCE frame (annotations are projected
@@ -72,6 +73,7 @@ export function createBaseMapGroup(image) {
     versionSizePx: image.versionSizePx,
     versionTransform: image.versionTransform,
   };
+  stashWhitePageLook(group, image);
 
   // Inner mesh wrapper used for the live "drawingOffset" visualisation: the
   // mesh slides along the basemap's local +Z (which becomes the plane normal
@@ -84,6 +86,16 @@ export function createBaseMapGroup(image) {
   group.userData.meshWrap = meshWrap;
 
   return group;
+}
+
+// White page look (thin border + orientation tint), stashed on the group and
+// applied to the mesh by ImagesManager.applyBaseMapOpacity. The tint comes
+// from the base map's own orientation, not from the group's current pose.
+function stashWhitePageLook(group, image) {
+  group.userData.isWhitePage = Boolean(image.isWhitePage);
+  if (image.rotation) {
+    group.userData.whitePageTint = getWhitePageTint(image.rotation);
+  }
 }
 
 // Create the basemap Group synchronously (so AnnotationsManager can immediately
@@ -248,6 +260,7 @@ export async function attachBaseMapMesh(group, image) {
     versionSizePx: image.versionSizePx,
     versionTransform: image.versionTransform,
   };
+  stashWhitePageLook(group, image);
   // Prefer the scale stashed on the group: applyBaseMapPlacement may have
   // updated it (scale set after creation) while the texture was still
   // loading, and the mesh must come in at the current scale.
