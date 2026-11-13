@@ -22,6 +22,7 @@ import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToo
 import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
 import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLandingViewerModuleOnScopeOpen";
 import useEnsureEnabledModule from "Features/viewers/hooks/useEnsureEnabledModule";
+import useAutoCompactLayout from "../hooks/useAutoCompactLayout";
 
 export default function LayoutDesktop() {
   // Shared viewer link (?mode=viewer): the module band is hidden, the
@@ -50,6 +51,10 @@ export default function LayoutDesktop() {
   // Falls back to an enabled module when the selected one gets disabled from
   // the Configuration dialog (or was restored disabled at boot).
   useEnsureEnabledModule();
+  // Narrow window: only the editor is displayed (no modules band, no side
+  // panels; the floating panels are hidden and the commands toolbar is reduced
+  // to its small screen mode from the same flag).
+  const compactLayout = useAutoCompactLayout();
   return (
     <BoxFlexV sx={{ position: "relative" }}>
       <TopBarDesktop />
@@ -62,13 +67,13 @@ export default function LayoutDesktop() {
           position: "relative",
         }}
       >
-        {!viewerMode && <VerticalMenuViewers />}
+        {!viewerMode && !compactLayout && <VerticalMenuViewers />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
-          <LeftPanel />
+          {!compactLayout && <LeftPanel />}
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
             <SectionViewer />
           </Box>
-          <RightPanelContainer />
+          {!compactLayout && <RightPanelContainer />}
         </Box>
       </Box>
       <BottomBarDesktop />

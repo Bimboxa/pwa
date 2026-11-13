@@ -603,6 +603,8 @@ export default function MainThreedEditor() {
   // keyboard; clicks are the pointer-lock re-acquire fallback, and hover
   // raycasts would read frozen client coords while the pointer is locked.
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
+  // Narrow window: editor only, the floating panels are hidden.
+  const compactLayout = useSelector((s) => s.layout.compactLayout);
   const walkActiveRef = useRef(walkActive);
   useEffect(() => {
     walkActiveRef.current = walkActive;
@@ -3484,7 +3486,7 @@ export default function MainThreedEditor() {
           /* Rendered in the layout-level host (over the top bar, under the
              editors' panels). Hidden (not unmounted) in walk mode, so the
              poppers keep their state. */
-          <PortalEditorFloatingPanels hidden={walkActive}>
+          <PortalEditorFloatingPanels hidden={walkActive || compactLayout}>
             <PopperMapListings />
             {/* Base maps list detached from the popper above. */}
             <PopperBaseMapsList />

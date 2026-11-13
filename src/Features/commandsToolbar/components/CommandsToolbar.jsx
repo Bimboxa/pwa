@@ -16,7 +16,9 @@ import CommandSlot from "./CommandSlot";
 import DialogCommands from "./DialogCommands";
 import MenuCommandShortcuts from "./MenuCommandShortcuts";
 import { COMMANDS_BY_KEY } from "../commands";
-import getToolbarLayout from "../constants/toolbarLayout";
+import getToolbarLayout, {
+  SMALL_SCREEN_LAYOUT,
+} from "../constants/toolbarLayout";
 import useCommandsContext from "../hooks/useCommandsContext";
 import useCommandsHotkeys from "../hooks/useCommandsHotkeys";
 import useToolbarDockDrag from "../hooks/useToolbarDockDrag";
@@ -39,8 +41,15 @@ const FLOATING_MAX_WIDTH = 640;
 // split buttons (CommandGroupButton). The last button opens the « Commandes »
 // dialog; the toolbar also renders the right-click shortcuts menu of the
 // editors (MenuCommandShortcuts), the only place owning ctx / deps.
+// `smallScreen` (compact layout of a narrow window): only the move / rotate /
+// hide commands, buttons AND hotkeys — no « Commandes » dialog, no right-click
+// shortcuts menu.
 // ---------------------------------------------------------------------------
-export default function CommandsToolbar({ dock, containerRef }) {
+export default function CommandsToolbar({
+  dock,
+  containerRef,
+  smallScreen = false,
+}) {
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -63,7 +72,12 @@ export default function CommandsToolbar({ dock, containerRef }) {
     [dispatch, store]
   );
 
-  useCommandsHotkeys({ ctxRef, deps, enabled: true });
+  useCommandsHotkeys({
+    ctxRef,
+    deps,
+    enabled: true,
+    commandKeys: smallScreen ? SMALL_SCREEN_LAYOUT : undefined,
+  });
 
   const handleGroupItemClick = useCallback(
     (groupKey) => (commandKey) =>
@@ -234,12 +248,12 @@ export default function CommandsToolbar({ dock, containerRef }) {
         }}
       >
         {grip}
-        {getToolbarLayout(ctx.viewerKey).map(renderEntry)}
-        {renderDivider("divider-shortcuts")}
-        <ButtonOpenCommandsDialog />
+        {getToolbarLayout(ctx.viewerKey, { smallScreen }).map(renderEntry)}
+        {!smallScreen && renderDivider("divider-shortcuts")}
+        {!smallScreen && <ButtonOpenCommandsDialog />}
       </Paper>
-      <MenuCommandShortcuts ctx={ctx} deps={deps} />
-      <DialogCommands />
+      {!smallScreen && <MenuCommandShortcuts ctx={ctx} deps={deps} />}
+      {!smallScreen && <DialogCommands />}
       {/* Dock preview while dragging near an edge */}
       {isDragging && snapDock && (
         <Box

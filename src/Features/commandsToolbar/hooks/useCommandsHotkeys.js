@@ -29,8 +29,16 @@ export function commandHotkeyAppliesTo(command, editor) {
 // Every render publishes the letters currently claimed by an enabled command
 // (utils/hotkeyClaims) so useRightPanelToolHotkeys yields on them without
 // hardcoding « E » for Évider / Extruder.
+//
+// `commandKeys` (optional) restricts the hotkeys to these commands — the
+// small screen toolbar only fires the commands it displays.
 // ---------------------------------------------------------------------------
-export default function useCommandsHotkeys({ ctxRef, deps, enabled }) {
+export default function useCommandsHotkeys({
+  ctxRef,
+  deps,
+  enabled,
+  commandKeys,
+}) {
   const store = useStore();
   const ctx = ctxRef.current;
 
@@ -38,6 +46,7 @@ export default function useCommandsHotkeys({ ctxRef, deps, enabled }) {
   const claimed = new Set();
   if (enabled && ctx) {
     COMMANDS.forEach((command) => {
+      if (commandKeys && !commandKeys.includes(command.key)) return;
       if (!commandHotkeyAppliesTo(command, ctx.editor)) return;
       if (!getCommandState(command, ctx).enabled) return;
       claimed.add(command.hotkey.key.toLowerCase());
@@ -59,6 +68,7 @@ export default function useCommandsHotkeys({ ctxRef, deps, enabled }) {
       const state = store.getState();
 
       for (const command of COMMANDS) {
+        if (commandKeys && !commandKeys.includes(command.key)) continue;
         const hotkey = command.hotkey;
         if (!hotkey?.key || hotkey.key.toLowerCase() !== letter) continue;
         if (!commandHotkeyAppliesTo(command, currentCtx.editor)) continue;
@@ -79,5 +89,5 @@ export default function useCommandsHotkeys({ ctxRef, deps, enabled }) {
       window.removeEventListener("keydown", handleKeyDown, true);
       setClaimedLetters([]);
     };
-  }, [enabled, ctxRef, deps, store]);
+  }, [enabled, ctxRef, deps, store, commandKeys]);
 }
