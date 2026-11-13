@@ -35,7 +35,7 @@ export default function ButtonAppVersion() {
   // render
 
   return (
-    <Tooltip title={title}>
+    <Tooltip title={title} placement="right">
       <Badge
         color="warning"
         variant="dot"
