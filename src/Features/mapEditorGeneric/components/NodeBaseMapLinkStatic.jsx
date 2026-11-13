@@ -18,7 +18,9 @@ import db from "App/db/db";
 // on the OBSERVER side: the screen-right of the p1 → p2 direction (the side
 // the linked elevation faces once posed — see
 // computeVerticalBaseMapPlacementFromLink). Everything but the line itself is
-// drawn in screen px inside counter-scaled groups.
+// drawn in screen px inside counter-scaled groups. The labels and the arrows
+// are click targets of the mark, like its line (they sit inside the
+// annotation node, whose data attributes the editor reads).
 //
 // Two flavours share this node:
 //   - the SOURCE mark on a plan (`linkedBaseMapId` → the vertical base map it
@@ -29,11 +31,16 @@ import db from "App/db/db";
 // The label and the direction are edited from the mark's toolbar
 // (ToolbarEditBaseMapLink).
 
-const TICK_HALF_PX = 8;
-const ARROW_PX = 12;
-const ARROW_GAP_PX = 6;
-const LABEL_OFFSET_PX = 14;
-const LABEL_FONT_PX = 12;
+// Discreet on purpose (same sizes as the 3D twin,
+// buildBaseMapLinkObject3D): a 1 px line whatever the stored stroke width.
+const LINE_WIDTH_PX = 1;
+const LINE_WIDTH_SELECTED_PX = 2;
+const TICK_HALF_PX = 6;
+const TICK_WIDTH_PX = 1.5;
+const ARROW_PX = 8;
+const ARROW_GAP_PX = 4;
+const LABEL_OFFSET_PX = 13;
+const LABEL_FONT_PX = 11;
 const ACCENT_COLOR = "#2196f3";
 
 const fontStyles = {
@@ -85,7 +92,6 @@ function NodeBaseMapLinkStatic({
     points = [],
     strokeColor = theme.palette.secondary.main,
     strokeOpacity = 1,
-    strokeWidth = 2,
     linkedBaseMapId,
     sourceLinkAnnotationId,
   } = mergedAnnotation || {};
@@ -230,6 +236,13 @@ function NodeBaseMapLinkStatic({
     );
   };
 
+  // Labels and arrows select the mark on click (white halo of the text and a
+  // transparent stroke around the arrow widen the target) — not the ghost of
+  // a mark being drawn.
+  const decorationHitStyle = isTransient
+    ? { pointerEvents: "none" }
+    : { pointerEvents: "all", cursor: "pointer" };
+
   // Screen-px decoration at an end point: perpendicular tick + label beyond
   // the end (dir = +1 past p2, -1 past p1).
   const renderEnd = (pt, dir, key) => (
@@ -242,7 +255,7 @@ function NodeBaseMapLinkStatic({
           y2={-ny * TICK_HALF_PX}
           stroke={strokeColor}
           strokeOpacity={strokeOpacity}
-          strokeWidth={2}
+          strokeWidth={TICK_WIDTH_PX}
         />
         {label && (
           <g
@@ -254,13 +267,17 @@ function NodeBaseMapLinkStatic({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={LABEL_FONT_PX}
-              fontWeight={700}
+              fontWeight={400}
               fill={strokeColor}
               fillOpacity={strokeOpacity}
               stroke="#ffffff"
               strokeWidth={3}
               paintOrder="stroke"
-              style={{ ...fontStyles, userSelect: "none" }}
+              style={{
+                ...fontStyles,
+                userSelect: "none",
+                ...decorationHitStyle,
+              }}
             >
               {label}
             </text>
@@ -354,7 +371,7 @@ function NodeBaseMapLinkStatic({
           x2={p2.x}
           y2={p2.y}
           stroke={lineStroke}
-          strokeWidth={selected ? Math.max(strokeWidth, 2) + 1 : strokeWidth}
+          strokeWidth={selected ? LINE_WIDTH_SELECTED_PX : LINE_WIDTH_PX}
           strokeOpacity={strokeOpacity}
           strokeDasharray={isClone ? "10 6" : undefined}
           vectorEffect="non-scaling-stroke"
@@ -376,6 +393,9 @@ function NodeBaseMapLinkStatic({
               points={arrowPoints}
               fill={strokeColor}
               fillOpacity={strokeOpacity}
+              stroke="rgba(0,0,0,0)"
+              strokeWidth={8}
+              style={decorationHitStyle}
             />
           </g>
         </g>
