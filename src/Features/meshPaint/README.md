@@ -11,7 +11,7 @@ Le Pinceau colore les facettes et les arêtes des objets 3D d'annotations avec u
 Même outil, même clé `MESH_BRUSH`, même icône, même raccourci **P** : dans l'éditeur 2D du module Dessin, le Pinceau est proposé en fin de liste des outils des modèles Surface / Ligne. Armé, **chaque clic sur une annotation** :
 
 - **la convertit** vers le modèle armé (`annotations/hooks/useChangeAnnotationTemplate` : patch diff-only, le type reste dans sa shape — une Bande reste une Bande sous un modèle Ligne, devient une Surface sous un modèle Surface) ;
-- **ou la duplique** avec le modèle armé quand le switch « **Dupliquer l'annotation cible** » du DrawingHelper est actif (raccourci **D**, état `mapEditor.templateBrushDuplicateTarget`, persistant comme « Offset par défaut ») : la cible garde son modèle, la copie est indépendante (nouveaux `db.points`, `useCloneAnnotationAndEntity` avec un brouillon explicite construit depuis le modèle comme le menu « Dupliquer » ; peintures 3D et ouvertures collées non copiées).
+- **ou la duplique** avec le modèle armé quand le switch « **Dupliquer l'annotation cible** » du DrawingHelper est actif (raccourci **D**, état `mapEditor.templateBrushDuplicateTarget`, persistant) : la cible garde son modèle, la copie est indépendante (nouveaux `db.points`, `useCloneAnnotationAndEntity` avec un brouillon explicite construit depuis le modèle comme le menu « Dupliquer » ; peintures 3D et ouvertures collées non copiées).
 
 Règles (`utils/getTemplateBrushRefusal.js`, toaster en cas de refus) :
 
@@ -19,7 +19,7 @@ Règles (`utils/getTemplateBrushRefusal.js`, toaster en cas de refus) :
 - cibles acceptées : POLYGON / POLYLINE / STRIP (une COTE, une règle, un calepinage, un point, une étiquette, un rectangle-bbox sont refusés : « Modèle incompatible avec cette annotation ») ; une annotation `isMesh3d` n'accepte qu'un modèle Surface ;
 - les pseudo-lignes en lecture seule (empreintes `foreign::` / `revolution::`, mailles) sont ignorées sans message ; convertir demande le droit d'édition sur la cible (`useAnnotationPermissions`), dupliquer non (les gardes Dexie de scope remontent en toaster).
 
-Code : branche `MESH_BRUSH` de `handleWorldClick` dans `mapEditor/components/InteractionLayer.jsx` (curseur pointeur, pas de loupe ni de snap : `POINTER_CLICK_MODES` / `NO_SMART_DETECT_MODES`), action dans `hooks/useTemplateBrushClick.js` (câblé par `MainMapEditorV3`, prop `onTemplateBrushClick`), bloc 2D de `SectionDrawingHelperContent.jsx` (bandeau, switch D, raccourcis). La touche **D** du pinceau passe avant la loupe (`case 'd'`), la touche **Z** (« Offset par défaut ») est inactive dans ce mode.
+Code : branche `MESH_BRUSH` de `handleWorldClick` dans `mapEditor/components/InteractionLayer.jsx` (curseur pointeur, pas de loupe ni de snap : `POINTER_CLICK_MODES` / `NO_SMART_DETECT_MODES`), action dans `hooks/useTemplateBrushClick.js` (câblé par `MainMapEditorV3`, prop `onTemplateBrushClick`), bloc 2D de `SectionDrawingHelperContent.jsx` (bandeau, switch D, raccourcis). La touche **D** du pinceau passe avant la loupe (`case 'd'`).
 
 Conséquences de la clé commune : l'outil mémorisé par modèle (`selectedToolKeyByTemplateId`) est repris d'un éditeur à l'autre (un pinceau mémorisé en 3D arme le pinceau 2D au clic de ligne) ; la bascule **T** garde le pinceau armé (peinture en 3D, conversion en 2D) ; il n'est jamais « Outil par défaut » d'un modèle (`neverDefaultTool`) ; **P** cède à la loupe quand la détection auto est active (comme A).
 

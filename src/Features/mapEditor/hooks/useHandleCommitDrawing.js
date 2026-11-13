@@ -44,7 +44,6 @@ import addAnnotationOpening from "Features/annotations/services/addAnnotationOpe
 import getOpeningStrokeFromHost from "Features/mapEditor/utils/getOpeningStrokeFromHost";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
-import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
 import useDrawingRevolutionAxis from "Features/revolutionAxes/hooks/useDrawingRevolutionAxis";
 import { getShape3DKey, TYPES_SUPPORTING_REVOLUTION } from "Features/annotations/constants/shape3DConfig";
 import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
@@ -120,7 +119,6 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const heightCutSide = useSelector(s => s.mapEditor.heightCutSide);
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
-    const defaultOffsetOnCommit = useSelector(s => s.mapEditor.defaultOffsetOnCommit);
     // « Révolution » switch of the drawing helper: the axis placed on the
     // base map, when the switch is on (null otherwise).
     const { axis: drawingRevolutionAxis, enabled: revolutionOnCommit } = useDrawingRevolutionAxis();
@@ -1050,34 +1048,9 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 _newAnnotation.label = "X";
             }
 
-            // "Offset par défaut" auto-stacking: lift the new annotation so it sits
-            // just above every existing extruded annotation it was drawn over
-            // (footprint overlap). Measured on the FULL drawn footprint, before any
-            // avoid-visible carve below — stacking (Z) and avoid-visible (XY carve)
-            // are orthogonal.
-            let _stackOffsetZ = null;
-            if (defaultOffsetOnCommit) {
-                _stackOffsetZ = getDefaultStackOffsetZ({
-                    drawn: {
-                        id: _newAnnotation.id,
-                        type: newAnnotation.type,
-                        points: rawPoints,
-                        cuts: (detectedCuts ?? []).map((ring) => ({ points: ring })),
-                        strokeWidth: newAnnotation.strokeWidth,
-                        strokeWidthUnit: newAnnotation.strokeWidthUnit,
-                        closeLine,
-                        point: rawPoints[0],
-                    },
-                    candidates: annotationsRef.current ?? [],
-                    meterByPx: baseMap?.getMeterByPx?.(),
-                });
-            }
-
             if (_autoOffsets) {
                 _newAnnotation.offsetZ = _autoOffsets.offsetZ;
                 _newAnnotation.height = _autoOffsets.height;
-            } else if (_stackOffsetZ != null) {
-                _newAnnotation.offsetZ = _stackOffsetZ;
             } else if (drawingOffset !== 0) {
                 _newAnnotation.offsetZ = drawingOffset;
             }

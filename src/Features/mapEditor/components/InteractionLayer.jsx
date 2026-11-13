@@ -42,7 +42,6 @@ import {
   setSmartDetectMode,
   setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
-  setDefaultOffsetOnCommit,
   setTemplateBrushDuplicateTarget,
   setRepairMode,
   setSegmentSnapDirection,
@@ -614,7 +613,6 @@ const InteractionLayer = forwardRef(({
   const globalDetectionRunning = useSelector((s) => s.mapEditor.globalDetectionRunning);
   const repairMode = useSelector((s) => s.mapEditor.repairMode);
   const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
-  const defaultOffsetOnCommit = useSelector((s) => s.mapEditor.defaultOffsetOnCommit);
   // « Pinceau » 2D: D toggles « Dupliquer l'annotation cible ».
   const templateBrushDuplicateTarget = useSelector((s) => s.mapEditor.templateBrushDuplicateTarget);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
@@ -3228,11 +3226,6 @@ const InteractionLayer = forwardRef(({
     autoOffsetsOnCommitRef.current = autoOffsetsOnCommit;
   }, [autoOffsetsOnCommit]);
 
-  const defaultOffsetOnCommitRef = useRef(defaultOffsetOnCommit);
-  useEffect(() => {
-    defaultOffsetOnCommitRef.current = defaultOffsetOnCommit;
-  }, [defaultOffsetOnCommit]);
-
   const templateBrushDuplicateTargetRef = useRef(templateBrushDuplicateTarget);
   useEffect(() => {
     templateBrushDuplicateTargetRef.current = templateBrushDuplicateTarget;
@@ -4908,18 +4901,6 @@ const InteractionLayer = forwardRef(({
           if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
             e.preventDefault();
             dispatch(setAutoOffsetsOnCommit(!autoOffsetsOnCommitRef.current));
-          }
-          break;
-
-        case 'z':
-        case 'Z':
-          // "Offset par défaut" toggle — any active drawing mode. Ctrl/Cmd+Z
-          // (undo / pop last point) is handled earlier, before this switch.
-          if (e.ctrlKey || e.metaKey || e.altKey) break;
-          // Not for the 2D « Pinceau »: its helper hides the switch.
-          if (enabledDrawingModeRef.current && enabledDrawingModeRef.current !== "MESH_BRUSH") {
-            e.preventDefault();
-            dispatch(setDefaultOffsetOnCommit(!defaultOffsetOnCommitRef.current));
           }
           break;
 
