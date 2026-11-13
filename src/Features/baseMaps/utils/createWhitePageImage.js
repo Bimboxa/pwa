@@ -6,7 +6,8 @@ import ImageObject from "Features/images/js/ImageObject";
 // texture, print, portfolio…) keeps working.
 // See docs/baseMaps/WHITE_PAGE_BASE_MAPS.md.
 
-const BORDER_COLOR = "#aebccb";
+// Also the border of the white page planes in 3D (baseMapBorder).
+export const WHITE_PAGE_BORDER_COLOR = "#aebccb";
 
 const SVG_DATA_URL_PREFIX = "data:image/svg+xml";
 
@@ -39,7 +40,7 @@ export function getWhitePageThumbnail({ width, height }) {
   const strokeWidth = Math.round(Math.max(width, height)) / 100;
   return toSvgDataUrl(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">` +
-      `<rect width="${width}" height="${height}" fill="#ffffff" stroke="${BORDER_COLOR}" stroke-width="${strokeWidth}"/>` +
+      `<rect width="${width}" height="${height}" fill="#ffffff" stroke="${WHITE_PAGE_BORDER_COLOR}" stroke-width="${strokeWidth}"/>` +
       "</svg>"
   );
 }

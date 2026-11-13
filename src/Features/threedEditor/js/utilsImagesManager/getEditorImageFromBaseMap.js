@@ -35,6 +35,8 @@ export default function getEditorImageFromBaseMap(map) {
     refSizePx,
     versionSizePx,
     versionTransform,
+    // white page: thin border + orientation tint in 3D (ImagesManager)
+    isWhitePage: Boolean(map.isWhitePage?.()),
     position: t.position,
     rotation,
     rotationOrder: BASE_MAP_ROTATION_ORDER,
