@@ -11,6 +11,10 @@ const layoutInitialState = {
   deviceType: null, // "MOBILE" | "DESKTOP"
   //
   windowHeight: null,
+  // Narrow window (see useAutoCompactLayout): the desktop layout only shows
+  // the editor — no modules band, side panels nor floating panels, a
+  // commands toolbar reduced to its small screen mode — and a bottom bar reduced to the display options.
+  compactLayout: false,
   //
   topBarHeight: 48,
   bottomBarHeight: 56,
@@ -32,6 +36,9 @@ export const layoutSlice = createSlice({
   reducers: {
     setWindowHeight: (state, action) => {
       state.windowHeight = action.payload;
+    },
+    setCompactLayout: (state, action) => {
+      state.compactLayout = Boolean(action.payload);
     },
     setBottomBarHeight: (state, action) => {
       state.bottomBarHeight = action.payload;
@@ -66,6 +73,7 @@ export const layoutSlice = createSlice({
 
 export const {
   setWindowHeight,
+  setCompactLayout,
   //
   setBottomBarHeight,
   //

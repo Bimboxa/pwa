@@ -25,6 +25,8 @@ export default function BottomBarDesktop() {
 
   const height = useSelector((s) => s.layout.bottomBarHeightDesktop);
   const helperMessage = useHelperMessageInBottomBar();
+  // Narrow window: only the display options (right group) are kept.
+  const compactLayout = useSelector((s) => s.layout.compactLayout);
 
   // render
 
@@ -37,22 +39,24 @@ export default function BottomBarDesktop() {
         minHeight: height,
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: compactLayout ? "flex-end" : "space-between",
         zIndex: 400,
         pr: 0.5,
         position: "relative",
       }}
     >
-      <Box sx={{ display: "flex", gap: 1, alignItems: "center", pl: 1 }}>
-        <ButtonSigninV2 />
-        <ButtonAppVersion />
-        <ButtonDialogAppConfig />
-        <ButtonDocumentation />
-      </Box>
+      {!compactLayout && (
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", pl: 1 }}>
+          <ButtonSigninV2 />
+          <ButtonAppVersion />
+          <ButtonDialogAppConfig />
+          <ButtonDocumentation />
+        </Box>
+      )}
 
-      <SectionReadOnlyScopeInBottomBar />
+      {!compactLayout && <SectionReadOnlyScopeInBottomBar />}
 
-      {helperMessage && (
+      {!compactLayout && helperMessage && (
         <Box sx={{ bgcolor: "warning.main", borderRadius: "0px", px: 1 }}>
           <Typography color="white" variant="caption">
             {helperMessage}

@@ -264,6 +264,16 @@ const COMMENTS_SECTIONS = [
   },
 ];
 
+// Small screen mode of the toolbar (compact layout of a narrow window, see
+// Features/layout/hooks/useAutoCompactLayout): whatever the module, only the
+// move / rotate / hide commands of one annotation. Not a module layout — its
+// commands all belong to the module layouts above.
+export const SMALL_SCREEN_LAYOUT = [
+  "MOVE_ANNOTATION",
+  "ROTATE_ANNOTATION",
+  "HIDE_ANNOTATION",
+];
+
 // Flat form rendered by the toolbar: the entries of every section, a
 // { type: "divider" } between two sections.
 function flattenSections(sections) {
@@ -310,6 +320,7 @@ export function getToolbarSections(moduleKey) {
   return TOOLBAR_SECTIONS[getLayoutKey(moduleKey)];
 }
 
-export default function getToolbarLayout(moduleKey) {
+export default function getToolbarLayout(moduleKey, { smallScreen } = {}) {
+  if (smallScreen) return SMALL_SCREEN_LAYOUT;
   return TOOLBAR_LAYOUTS[getLayoutKey(moduleKey)];
 }

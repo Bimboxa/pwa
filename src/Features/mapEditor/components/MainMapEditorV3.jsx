@@ -396,6 +396,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     (s) => s.popperMapListings.viewerContentMode === "PHOTOS"
   );
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  // Narrow window: editor only, the floating panels are hidden.
+  const compactLayout = useSelector((s) => s.layout.compactLayout);
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const viewerPanelDocked = isViewerModule && leftPanelDocked;
   // BaseMaps module: with the left panel (PanelBaseMaps) hidden, the popper
@@ -3260,7 +3262,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             (forViewerKey !== "BASE_MAPS" || !leftPanelDocked) && (
               /* Rendered in the layout-level host (over the top bar,
                        under the editors' panels). */
-              <PortalEditorFloatingPanels>
+              <PortalEditorFloatingPanels hidden={compactLayout}>
                 <PopperMapListings />
                 {/* Base maps list detached from the popper above. */}
                 <PopperBaseMapsList />

@@ -107,6 +107,8 @@ export default function SectionViewer() {
   // measures to clamp / dock, hence the ref).
   const showCommandsToolbar = useShowCommandsToolbar();
   const commandsToolbarDock = useSelector(selectCommandsToolbarDock);
+  // Narrow window: the toolbar is reduced to its small screen commands.
+  const compactLayout = useSelector((s) => s.layout.compactLayout);
   const editorsAreaRef = useRef(null);
   const toolbarBefore =
     showCommandsToolbar &&
@@ -223,6 +225,7 @@ export default function SectionViewer() {
           <CommandsToolbar
             dock={commandsToolbarDock}
             containerRef={editorsAreaRef}
+            smallScreen={compactLayout}
           />
         )}
         <Box
@@ -349,6 +352,7 @@ export default function SectionViewer() {
             <CommandsToolbar
               dock={commandsToolbarDock}
               containerRef={editorsAreaRef}
+              smallScreen={compactLayout}
             />
           )}
         </Box>
@@ -356,6 +360,7 @@ export default function SectionViewer() {
           <CommandsToolbar
             dock={commandsToolbarDock}
             containerRef={editorsAreaRef}
+            smallScreen={compactLayout}
           />
         )}
       </Box>
