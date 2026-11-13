@@ -16,6 +16,8 @@ const DERIVED_FIELDS = new Set([
   "color3D",
   "opacity3D",
   "material3d",
+  "color2DEnabled",
+  "color2D",
 ]);
 
 // The DB patch to apply when `annotation` switches to `template`.

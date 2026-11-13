@@ -68,6 +68,10 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           topViewDataUrl:
             template?.object3D?.topViewDataUrl ??
             annotation.object3D?.topViewDataUrl,
+          color2D:
+            template?.color2DEnabled && template?.color2D
+              ? template.color2D
+              : null,
           label: (() => {
             const base = template?.labelLegend || (template?.label ?? "A définir");
             // height may have been persisted as a string by older builds

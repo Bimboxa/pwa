@@ -6,11 +6,16 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import db from "App/db/db";
 
 import renderGlbTopViewDataUrl from "Features/object3D/utils/renderGlbTopViewDataUrl";
+import tintImageDataUrl from "Features/object3D/utils/tintImageDataUrl";
 
 // Module-level cache shared by every node: fileName -> dataUrl | Promise
 // Annotations created before topViewDataUrl existed only carry a fileName
 // reference; the top view is regenerated once per GLB from db.files.
 const topViewCache = new Map();
+
+// Flat-colored top views (template color2D): `${fileName}|${color}` ->
+// dataUrl | Promise. Tinted once per (GLB, color) pair.
+const tintedTopViewCache = new Map();
 
 async function generateTopViewFromDb(fileName) {
   const fileRecord = await db.files.get(fileName);
@@ -38,8 +43,13 @@ async function generateTopViewFromDb(fileName) {
  * Top-down projection PNG (data URL) for an annotation's object3D field.
  * Returns the persisted topViewDataUrl when present, otherwise lazily
  * generates it from the GLB stored in db.files (cached per fileName).
+ *
+ * `options.color` (template « Représentation 2D » fill): returns the top view
+ * with every opaque pixel painted in that color. The plain top view is
+ * returned while the tinted one is being computed.
  */
-export default function useObject3DTopView(object3D) {
+export default function useObject3DTopView(object3D, options) {
+  const color = options?.color || null;
   const persisted = object3D?.topViewDataUrl ?? null;
   const fileName = object3D?.fileName;
 
@@ -83,5 +93,39 @@ export default function useObject3DTopView(object3D) {
     };
   }, [persisted, fileName]);
 
-  return persisted ?? generated;
+  const topViewUrl = persisted ?? generated;
+
+  const tintKey =
+    color && topViewUrl ? `${fileName ?? topViewUrl}|${color}` : null;
+  const [, setTintVersion] = useState(0);
+
+  useEffect(() => {
+    if (!tintKey) return undefined;
+
+    let cancelled = false;
+    let entry = tintedTopViewCache.get(tintKey);
+    if (typeof entry === "string") return undefined;
+
+    if (!entry) {
+      entry = tintImageDataUrl(topViewUrl, color).then((dataUrl) => {
+        if (dataUrl) tintedTopViewCache.set(tintKey, dataUrl);
+        else tintedTopViewCache.delete(tintKey);
+        return dataUrl;
+      });
+      tintedTopViewCache.set(tintKey, entry);
+    }
+
+    entry.then((dataUrl) => {
+      if (!cancelled && dataUrl) setTintVersion((v) => v + 1);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tintKey, topViewUrl, color]);
+
+  const tinted = tintKey ? tintedTopViewCache.get(tintKey) : null;
+  if (typeof tinted === "string") return tinted;
+
+  return topViewUrl;
 }

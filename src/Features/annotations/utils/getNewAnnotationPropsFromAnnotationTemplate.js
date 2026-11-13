@@ -43,6 +43,11 @@ const ALWAYS_COPY_KEYS = [
   // Location templates of a business-objects listing (Ouvrages module): the
   // drawn annotation is the object's main annotation, no entity behind it.
   "isBusinessObjectAnnotation",
+  // OBJECT_3D « Représentation 2D » flat fill: carried by the draft so the
+  // placement ghost is tinted. Template-owned at read time (the resolver
+  // always re-derives them), so the copy on the row is never authoritative.
+  "color2DEnabled",
+  "color2D",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(

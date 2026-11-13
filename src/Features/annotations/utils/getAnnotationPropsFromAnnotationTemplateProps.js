@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "isObject2D" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "deltaOffsetZ3d" || key === "colorChannel") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "isObject2D" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "color2DEnabled" || key === "color2D" || key === "deltaOffsetZ3d" || key === "colorChannel") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -129,7 +129,9 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // the template wins, and an unset (null/undefined) template value CLEARS
     // any stale copy the row may carry (older template switches used to stamp
     // them on the row), so the 3D really falls back to the 2D color/opacity.
-    for (const key of ["material3d", "color3D", "opacity3D", "deltaOffsetZ3d"]) {
+    // color2DEnabled / color2D (OBJECT_3D « Représentation 2D » flat fill) follow
+    // the same template-owned rule.
+    for (const key of ["material3d", "color3D", "opacity3D", "deltaOffsetZ3d", "color2DEnabled", "color2D"]) {
         const value = annotationTemplateProps[key];
         if (value !== null && value !== undefined) {
             result[key] = value;
