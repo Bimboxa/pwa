@@ -30,8 +30,17 @@ export default function createImageAnnotationCard(
 ) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
+  // Floating paper: the photo (logical width 260) sits inside a white frame
+  // (`frame`), itself surrounded by a transparent margin (`shadow`) that
+  // holds the drop shadow. Canvas pixels only set texture resolution; the
+  // PHOTO keeps the placed 2D size in metres, the frame and shadow add to it.
   const width = 260,
-    padding = 12;
+    padding = 12,
+    frame = 10,
+    shadow = 24,
+    radius = 8;
+  const inset = frame + shadow;
+  const canvasWidth = width + 2 * inset;
   const size = annotation.image?.imageSize;
   const sourceAspect =
     size?.width > 0 && size?.height > 0 ? size.width / size.height : 1;
@@ -66,11 +75,14 @@ export default function createImageAnnotationCard(
   }
   if (title) wrap(title, true);
   if (description) wrap(description, false);
-  // The photo touches the card edges. Padding belongs only to the caption.
-  const height =
-    imageHeight + (lines.length ? padding * 2 + lines.length * 18 : 0);
-  canvas.width = width * 2;
-  canvas.height = Math.ceil(height * 2);
+  // Padding belongs only to the caption (under the photo, inside the frame).
+  const cardHeight =
+    imageHeight +
+    2 * frame +
+    (lines.length ? padding * 2 + lines.length * 18 : 0);
+  const canvasHeight = cardHeight + 2 * shadow;
+  canvas.width = canvasWidth * 2;
+  canvas.height = Math.ceil(canvasHeight * 2);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.minFilter = texture.magFilter = LinearFilter;
@@ -86,8 +98,11 @@ export default function createImageAnnotationCard(
   const material = horizontal
     ? new MeshBasicMaterial({ ...materialOptions, side: DoubleSide })
     : new SpriteMaterial({ ...materialOptions, sizeAttenuation: true });
-  const physicalWidth = (bbox?.width > 0 ? bbox.width : width) * meterByPx;
-  const physicalHeight = (physicalWidth * height) / width;
+  // The photo spans `width` logical px for `bbox.width` base-map px: the
+  // whole canvas (frame + shadow included) scales by the same ratio.
+  const physicalWidth =
+    ((bbox?.width > 0 ? bbox.width : width) * meterByPx * canvasWidth) / width;
+  const physicalHeight = (physicalWidth * canvasHeight) / canvasWidth;
   const sprite = horizontal
     ? new Mesh(new PlaneGeometry(physicalWidth, physicalHeight), material)
     : new Sprite(material);
@@ -97,35 +112,55 @@ export default function createImageAnnotationCard(
   sprite.renderOrder = 1003;
   let disposed = false;
 
+  function cardPath() {
+    ctx.beginPath();
+    ctx.roundRect(shadow, shadow, width + 2 * frame, cardHeight, radius);
+  }
+
   function draw(image) {
     ctx.setTransform(2, 0, 0, 2, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#171717";
-    ctx.beginPath();
-    ctx.roundRect(1, 1, width - 2, height - 2, 8);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    // White paper with a soft drop shadow (elevation).
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = "#ffffff";
+    cardPath();
     ctx.fill();
+    ctx.restore();
+    // Photo, inset in the frame, rounded corners.
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(inset, inset, width, imageHeight, Math.max(0, radius - 3));
+    ctx.clip();
     if (image) {
-      ctx.save();
       if (annotation.imageFlipY) {
-        ctx.translate(0, imageHeight);
+        ctx.translate(0, 2 * inset + imageHeight);
         ctx.scale(1, -1);
       }
-      ctx.drawImage(image, 0, 0, width, imageHeight);
-      ctx.restore();
+      ctx.drawImage(image, inset, inset, width, imageHeight);
     } else {
-      ctx.fillStyle = "#333333";
-      ctx.fillRect(0, 0, width, imageHeight);
-      ctx.fillStyle = "#eeeeee";
+      ctx.fillStyle = "#e0e0e0";
+      ctx.fillRect(inset, inset, width, imageHeight);
+      ctx.fillStyle = "#555555";
       ctx.font = "13px sans-serif";
-      ctx.fillText("Image", padding + 8, padding + 22);
+      ctx.fillText("Image", inset + padding + 8, inset + padding + 22);
     }
+    ctx.restore();
     ctx.textBaseline = "top";
     lines.forEach((line, i) => {
-      ctx.fillStyle = line.bold ? "#ffffff" : "#dddddd";
+      ctx.fillStyle = line.bold ? "#222222" : "#555555";
       ctx.font = `${line.bold ? "600 " : ""}13px sans-serif`;
-      ctx.fillText(line.text, padding, padding + imageHeight + i * 18);
+      ctx.fillText(
+        line.text,
+        inset + padding,
+        inset + imageHeight + padding + i * 18
+      );
     });
-    ctx.strokeStyle = selected ? "#ff9800" : "#555555";
+    cardPath();
+    ctx.strokeStyle = selected ? "#ff9800" : "rgba(0,0,0,0.12)";
     ctx.lineWidth = selected ? 3 : 1;
     ctx.stroke();
     if (veiled) {
@@ -135,8 +170,8 @@ export default function createImageAnnotationCard(
     }
     if (badgeNumber != null) {
       const r = 11;
-      const bx = width - r - 6;
-      const by = r + 6;
+      const bx = shadow + width + 2 * frame - r - 6;
+      const by = shadow + r + 6;
       ctx.beginPath();
       ctx.arc(bx, by, r, 0, Math.PI * 2);
       ctx.fillStyle = veiled ? "rgba(51,51,51,0.35)" : "#333333";

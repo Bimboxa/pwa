@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useId, useMemo } from "react";
 import theme from "Styles/theme";
 
 import NodeImageToolbarOverlay from "./NodeImageToolbarOverlay";
@@ -48,6 +48,10 @@ export default memo(function NodeImageStatic({
 
   // --- 1. CALCUL DE L'ÉCHELLE INVERSE (Même logique que NodePolyline) ---
   // Cela permet de contrer le zoom de la caméra (var(--map-zoom)) et l'échelle du conteneur (containerK)
+  // One clipPath per rendered instance: the same annotation may be drawn
+  // twice (static layer + transient drag preview) with different sizes.
+  const clipId = useId();
+
   const handleScaleTransform = useMemo(() => {
     const k = containerK || 1;
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
@@ -88,6 +92,33 @@ export default memo(function NodeImageStatic({
     "data-annotation-type": "IMAGE",
     "data-interaction": "draggable",
   };
+
+  // Floating paper: a white frame around the photo (margin proportional to
+  // the print, like a real photo border — an SVG rect cannot follow the
+  // screen zoom) and a drop shadow of constant SCREEN size, applied on a
+  // group wrapping the rotated one so the shadow offset never turns with the
+  // image. No shadow in print / export nor during a drag (the transient
+  // preview is translucent anyway).
+  const framePad = Math.min(
+    24,
+    Math.max(2, Math.min(displayWidth, displayHeight) * 0.03)
+  );
+  const frameRadius = framePad;
+  const frameRect = {
+    x: -framePad,
+    y: -framePad,
+    width: displayWidth + 2 * framePad,
+    height: displayHeight + 2 * framePad,
+    rx: frameRadius,
+  };
+  const screenPx = (px) =>
+    `calc(${px}px / (var(--map-zoom, 1) * ${containerK || 1}))`;
+  const paperShadow =
+    printMode || dragged
+      ? "none"
+      : hovered && !selected
+        ? `drop-shadow(0 ${screenPx(2)} ${screenPx(3)} rgba(0,0,0,0.3)) drop-shadow(0 ${screenPx(10)} ${screenPx(20)} rgba(0,0,0,0.28))`
+        : `drop-shadow(0 ${screenPx(1)} ${screenPx(2)} rgba(0,0,0,0.25)) drop-shadow(0 ${screenPx(6)} ${screenPx(14)} rgba(0,0,0,0.22))`;
 
   // Style de bordure
   const borderStyle = {
@@ -268,91 +299,109 @@ export default memo(function NodeImageStatic({
           </g>
         </g>
       )}
-      <g
-        transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
-      >
-        {/* Conteneur principal draggable */}
-        <g {...interactionProps}>
-          <image
-            href={src}
-            x={0}
-            y={0}
-            width={displayWidth}
-            height={displayHeight}
-            preserveAspectRatio="none"
-            transform={
-              imageAnnotation.imageFlipY
-                ? `translate(0, ${displayHeight}) scale(1, -1)`
-                : undefined
-            }
+      <g style={{ filter: paperShadow }}>
+        <g
+          transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
+        >
+          {/* Conteneur principal draggable (frame included: grabbable) */}
+          <g
+            {...interactionProps}
             style={{
-              imageRendering: "optimizeSpeed",
-              filter: grayScale ? "grayscale(100%)" : "none",
               cursor: selected ? "move" : hovered ? "pointer" : "default",
             }}
-          />
-
-          {/* White veil: another photo is selected */}
-          {imageVeiled && (
-            <rect
-              width={displayWidth}
-              height={displayHeight}
-              fill="#fff"
-              fillOpacity={IMAGE_VEIL_FILL_OPACITY}
-              pointerEvents="none"
-            />
-          )}
-
-          {/* Bordure Hover */}
-          {hovered && !selected && !dragged && (
-            <rect
-              width={displayWidth}
-              height={displayHeight}
-              {...borderStyle}
-              stroke={theme.palette.baseMap.hovered || "#2196f3"}
-            />
-          )}
-
-          {/* Bordure Sélection */}
-          {selected && (
-            <rect
-              width={displayWidth}
-              height={displayHeight}
-              {...borderStyle}
-              stroke={theme.palette.baseMap.selected || "#ff9800"}
-            />
-          )}
-        </g>
-
-        {/* Poignées de redimensionnement */}
-        {/* Elles sont rendues après l'image pour être au-dessus */}
-        {selected && !dragged && (
-          <g>
-            {renderHandle("NW", 0, 0)}
-            {renderHandle("NE", displayWidth, 0)}
-            {renderHandle("SW", 0, displayHeight)}
-            {renderHandle("SE", displayWidth, displayHeight)}
-            {renderRotationHandle()}
-          </g>
-        )}
-
-        {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
-
-        {/* Display number (PopperImages tile) — top-left corner, constant
-            screen size, counter-rotated to stay readable. */}
-        {showBadge && (
-          <g
-            transform={`rotate(${-rotation})`}
-            style={{ pointerEvents: "none" }}
           >
-            <g style={{ transform: handleScaleTransform }}>
-              <ImageIndexBadgeSvg
-                number={imageDisplayIndex}
-                dimmed={imageVeiled}
+            <defs>
+              <clipPath id={clipId}>
+                <rect
+                  width={displayWidth}
+                  height={displayHeight}
+                  rx={Math.max(0, frameRadius - framePad / 2)}
+                />
+              </clipPath>
+            </defs>
+
+            {/* Paper frame */}
+            <rect {...frameRect} fill="#fff" />
+
+            <g clipPath={`url("#${clipId}")`}>
+              <image
+                href={src}
+                x={0}
+                y={0}
+                width={displayWidth}
+                height={displayHeight}
+                preserveAspectRatio="none"
+                transform={
+                  imageAnnotation.imageFlipY
+                    ? `translate(0, ${displayHeight}) scale(1, -1)`
+                    : undefined
+                }
+                style={{
+                  imageRendering: "optimizeSpeed",
+                  filter: grayScale ? "grayscale(100%)" : "none",
+                }}
               />
             </g>
+
+            {/* White veil: another photo is selected */}
+            {imageVeiled && (
+              <rect
+                {...frameRect}
+                fill="#fff"
+                fillOpacity={IMAGE_VEIL_FILL_OPACITY}
+                pointerEvents="none"
+              />
+            )}
+
+            {/* Bordure Hover */}
+            {hovered && !selected && !dragged && (
+              <rect
+                {...frameRect}
+                {...borderStyle}
+                stroke={theme.palette.baseMap.hovered || "#2196f3"}
+              />
+            )}
+
+            {/* Bordure Sélection */}
+            {selected && (
+              <rect
+                {...frameRect}
+                {...borderStyle}
+                stroke={theme.palette.baseMap.selected || "#ff9800"}
+              />
+            )}
           </g>
-        )}
+
+          {/* Poignées de redimensionnement */}
+          {/* Elles sont rendues après l'image pour être au-dessus */}
+          {selected && !dragged && (
+            <g>
+              {renderHandle("NW", 0, 0)}
+              {renderHandle("NE", displayWidth, 0)}
+              {renderHandle("SW", 0, displayHeight)}
+              {renderHandle("SE", displayWidth, displayHeight)}
+              {renderRotationHandle()}
+            </g>
+          )}
+
+          {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
+
+          {/* Display number (PopperImages tile) — top-left corner, constant
+            screen size, counter-rotated to stay readable. */}
+          {showBadge && (
+            <g
+              transform={`rotate(${-rotation})`}
+              style={{ pointerEvents: "none" }}
+            >
+              <g style={{ transform: handleScaleTransform }}>
+                <ImageIndexBadgeSvg
+                  number={imageDisplayIndex}
+                  dimmed={imageVeiled}
+                />
+              </g>
+            </g>
+          )}
+        </g>
       </g>
 
       {/* Overlay toolbar (scale / change image) — outside the rotate group */}
