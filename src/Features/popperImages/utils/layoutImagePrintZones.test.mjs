@@ -44,20 +44,20 @@ test("empty or degenerate input is safe", () => {
     }).tiles,
     []
   );
-  assert.deepEqual(
-    layoutImagePrintZones({
-      items: [{ id: "a", anchor: { x: NaN, y: 1 }, aspect: 1 }],
-      rect: RECT,
-    }).tiles,
-    []
-  );
+  // A photo that cannot be projected still gets a tile.
+  const { tiles } = layoutImagePrintZones({
+    items: [{ id: "a", anchor: { x: NaN, y: 1 }, aspect: 1 }],
+    rect: RECT,
+  });
+  assert.equal(tiles.length, 1);
+  assert.ok(tiles[0].side);
 });
 
-test("each photo goes to the edge nearest to its anchor", () => {
-  const { tiles, tileSize, insets } = layoutImagePrintZones({
+test("each photo goes to the edge nearest to its anchor, centred in the zone", () => {
+  const { tiles, tileSize, insets, zones } = layoutImagePrintZones({
     items: [
-      { id: "top", anchor: { x: 600, y: 100 }, aspect: 1 },
-      { id: "right", anchor: { x: 1100, y: 400 }, aspect: 1 },
+      { id: "top", anchor: { x: 300, y: 100 }, aspect: 1 },
+      { id: "right", anchor: { x: 1100, y: 250 }, aspect: 1 },
       { id: "bottom", anchor: { x: 600, y: 700 }, aspect: 1 },
       { id: "left", anchor: { x: 100, y: 400 }, aspect: 1 },
     ],
@@ -74,7 +74,7 @@ test("each photo goes to the edge nearest to its anchor", () => {
       ["left", "LEFT"],
     ]
   );
-  // Centred on the anchor along the band, glued to the edge across it.
+  // Centred in the zone (not on the anchor), glued to the edge across it.
   const top = tiles[0];
   assert.equal(top.x + top.width / 2, 600);
   assert.equal(top.y, 12);
@@ -82,30 +82,116 @@ test("each photo goes to the edge nearest to its anchor", () => {
   assert.equal(right.y + right.height / 2, 400);
   assert.equal(right.x + right.width, RECT.width - 12);
   assert.deepEqual(insets, { top: 180, right: 180, bottom: 180, left: 180 });
+  assert.deepEqual(zones.TOP, {
+    x: 12,
+    y: 12,
+    width: 1176,
+    height: 160,
+    count: 1,
+  });
+  assert.deepEqual(zones.RIGHT, {
+    x: 1028,
+    y: 180,
+    width: 160,
+    height: 440,
+    count: 1,
+  });
   assertInside(tiles, RECT);
 });
 
-test("a crowded edge hands photos over to the other bands", () => {
+test("the tiles do not move when the anchors move with the camera", () => {
+  const layout = (dx, dy, previousSideById) =>
+    layoutImagePrintZones({
+      items: [
+        { id: "a", anchor: { x: 1000 + dx, y: 300 + dy }, aspect: 1 },
+        { id: "b", anchor: { x: 1050 + dx, y: 500 + dy }, aspect: 1.5 },
+      ],
+      rect: RECT,
+      previousSideById,
+    }).tiles;
+  const first = layout(0, 0, null);
+  const previous = Object.fromEntries(first.map((t) => [t.id, t.side]));
+  assert.deepEqual(layout(-60, 40, previous), first);
+  assert.deepEqual(layout(30, -80, previous), first);
+});
+
+test("a photo keeps its zone until another one is clearly better", () => {
+  const run = (x, previousSideById) =>
+    layoutImagePrintZones({
+      items: [{ id: "a", anchor: { x, y: 400 }, aspect: 1 }],
+      rect: RECT,
+      previousSideById,
+    }).tiles[0].side;
+  assert.equal(run(250, null), "LEFT");
+  assert.equal(run(250, { a: "TOP" }), "TOP");
+  assert.equal(run(50, { a: "TOP" }), "LEFT");
+});
+
+test("a pinned photo stays in its zone whatever its anchor", () => {
+  const { tiles } = layoutImagePrintZones({
+    items: [
+      { id: "a", anchor: { x: 1100, y: 400 }, aspect: 1 },
+      { id: "b", anchor: { x: 1100, y: 420 }, aspect: 1 },
+    ],
+    rect: RECT,
+    pinnedSideById: { a: "LEFT" },
+  });
+  assert.deepEqual(
+    tiles.map((t) => [t.side, t.pinned]),
+    [
+      ["LEFT", true],
+      ["RIGHT", false],
+    ]
+  );
+});
+
+test("a zone override sets the thickness and the ends of the zone", () => {
+  const { tiles, zones } = layoutImagePrintZones({
+    items: [{ id: "a", anchor: { x: 1100, y: 400 }, aspect: 1 }],
+    rect: RECT,
+    zones: { RIGHT: { thickness: 200, startInset: 100, endInset: 300 } },
+  });
+  assert.deepEqual(zones.RIGHT, {
+    x: 988,
+    y: 100,
+    width: 200,
+    height: 400,
+    count: 1,
+  });
+  assert.deepEqual(
+    { ...tiles[0] },
+    {
+      id: "a",
+      side: "RIGHT",
+      pinned: false,
+      x: 988,
+      y: 200,
+      width: 200,
+      height: 200,
+    }
+  );
+});
+
+test("a crowded edge hands photos over to the other zones", () => {
   const items = Array.from({ length: 8 }, (_, i) => ({
     id: `p${i}`,
     anchor: { x: 1100, y: 150 + i * 70 },
     aspect: 1,
   }));
-  const { tiles, tileSize } = layoutImagePrintZones({
+  const { tiles } = layoutImagePrintZones({
     items,
     rect: RECT,
     tileSize: 160,
   });
-  assert.equal(tileSize, 160);
   assert.equal(tiles.length, 8);
   const sides = new Set(tiles.map((t) => t.side));
   assert.ok(sides.has("RIGHT"));
-  assert.ok(sides.size >= 3, "the load is spread over several bands");
+  assert.ok(sides.size >= 3, "the load is spread over several zones");
   assertNoOverlap(tiles);
   assertInside(tiles, RECT);
 });
 
-test("tiles follow the order of their anchors along a band (no crossing)", () => {
+test("tiles follow the order of their anchors along a zone (no crossing)", () => {
   const { tiles } = layoutImagePrintZones({
     items: [
       { id: "c", anchor: { x: 620, y: 20 }, aspect: 1 },
@@ -121,7 +207,7 @@ test("tiles follow the order of their anchors along a band (no crossing)", () =>
   assertNoOverlap(tiles);
 });
 
-test("auto size shrinks the tiles until every photo fits", () => {
+test("auto size shrinks the tiles of a crowded zone until they fit", () => {
   const items = Array.from({ length: 40 }, (_, i) => ({
     id: `p${i}`,
     anchor: { x: 100 + ((i * 137) % 1000), y: 100 + ((i * 59) % 600) },
@@ -147,6 +233,7 @@ test("auto size shrinks the tiles until every photo fits", () => {
   });
   assert.equal(fixed.tileSize, 160);
   assert.equal(fixed.tiles.length, 40);
+  assert.ok(fixed.tiles.every((t) => Math.min(t.width, t.height) >= 120));
   assertInside(fixed.tiles, RECT);
 });
 

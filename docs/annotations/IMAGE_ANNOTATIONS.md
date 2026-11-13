@@ -116,16 +116,18 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
 
 - `popperImagesSlice` — `displayMode`, the two independent tile ↔ anchor
   links `linkLine` / `linkNumber`, the print zones tile size
-  (`printZonesTileSizeMode` `AUTO` | `FIXED`, `printZonesTileSizePx`), all
-  persisted per device in localStorage (`popperImagesSettings`). Session
-  only: `photosHidden`, `collapsed` (panel folded), `imagesCount` (photos of
-  the active editor, published by `MainMapEditorV3` / `MainThreedEditor`)
-  and `printZonesCaptureInsets`.
+  (`printZonesTileSizeMode` `AUTO` | `FIXED`, `printZonesTileSizePx`), the
+  print zones resized by hand (`printZonesZones`) and the overlay panel
+  columns (`panelColumns` 1 | 2), all persisted per device in localStorage
+  (`popperImagesSettings`). Session only: `photosHidden`, `collapsed` (panel
+  folded), `imagesCount` (photos of the active editor, published by
+  `MainMapEditorV3` / `MainThreedEditor`), `printZonesCaptureInsets` and
+  `printZonesPinnedSideById` (photos pinned to a zone).
 - `SectionImagesBottomBarControls` (in `BottomBarDesktop`, left of the base
   maps controls) — the only place of the controls: "Photos" + count pill
   (toggles `photosHidden`), `SelectorImagesDisplayMode` (3 icon buttons),
   the "Ligne" / "Numéro" toggle buttons (disabled in situ) and "…"
-  (`DialogImagesDisplayOptions`: tile size). Shown for the 2D / 3D editors
+  (`DialogImagesDisplayOptions`: tile size, reset of the resized zones). Shown for the 2D / 3D editors
   when `imagesCount > 0`, hidden under a capture framing.
 - `getImageAnnotationsDisplayIndex(annotations)` — display numbering 1..N of
   the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
@@ -147,37 +149,50 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   (`usePanelResize({ anchor: "right" })`, bottom-left handle), mounted by
   `MainMapEditorV3` / `MainThreedEditor` next to `PopperMapListings` (same
   gates, so never in capture mode). Renders in this mode only; its header is
-  the title alone. Body: 2-column grid of numbered tiles; a tile click
-  selects the annotation, the selected tile offers "Fullscreen"
-  (`images/components/DialogImageViewer`, wheel zoom + pan + reset).
-- `ImagesLinksOverlay` — "Ligne": leaders from the tiles (DOM rects) to the
-  anchors.
+  the title + a 2-button toggle for a 1 or 2-column grid (`panelColumns`).
+  Body: grid of numbered tiles; a tile click selects the annotation, the
+  selected tile offers "Fullscreen" (`images/components/DialogImageViewer`,
+  wheel zoom + pan + reset).
+- `ImagesLinksOverlay` — leaders from the tiles (DOM rects) to the anchors:
+  all of them with "Ligne", only the selected photo's otherwise
+  (`onlySelected`).
 
 ### Print zones (`PRINT_ZONES`)
 
-- `layoutImagePrintZones` (pure, tested) — 4 bands along the edges of a rect
-  (TOP / BOTTOM own the corners), one tile thick; a tile keeps the clamped
-  aspect ratio of its photo along the band.
-  1. `reserved` rects cut the bands (each keeps its longest free segment).
-  2. Assignment by decreasing regret: the cheapest band with room left,
-     cost = distance anchor → edge + load penalty (`BALANCE_WEIGHT`), so the
-     photos stay close to their anchors **and** spread over the 4 edges.
-     `AUTO` size shrinks the tiles until every photo fits (down to
-     `PRINT_ZONES_TILE_SIZE_MIN_PX`); past that, or in `FIXED` size, the
-     least loaded band takes the overflow and its tiles overlap evenly.
-  3. Along a band: sorted by anchor (leaders never cross), centred on the
-     anchors (`solveBand1D` of `getImageModeLabelsLayout`).
+- `layoutImagePrintZones` (pure, tested) — 4 **fixed** zones along the edges
+  of a rect (TOP / BOTTOM own the corners), one tile thick by default; a
+  tile keeps the clamped aspect ratio of its photo along the zone.
+  1. `reserved` rects cut the zones (each keeps its longest free segment);
+     `zones[side] = { thickness, startInset, endInset }` (px, insets from the
+     rect borders) overrides what the user resized. A zone never depends on
+     the anchors.
+  2. Assignment: a photo of `pinnedSideById` goes to its zone. The others,
+     by decreasing regret, take the cheapest zone: cost = distance anchor →
+     edge + load penalty (`BALANCE_WEIGHT`, `OVERFLOW_WEIGHT`) − a bonus for
+     the zone the photo is already in (`previousSideById`,
+     `STICKY_WEIGHT`): a photo only changes zone on a clear win.
+  3. Inside a zone: sorted by anchor (leaders do not cross), packed as one
+     group **centred in the zone** — the tiles do not follow the anchors.
+     When the group does not fit, the tiles of that zone shrink (`AUTO`,
+     down to `PRINT_ZONES_TILE_SIZE_MIN_PX`); past that, or in `FIXED` size,
+     they overlap evenly.
 - `useImagePrintZonesLayout` — live driver shared by the editors and the
   capture: the anchors follow the camera frame by frame (the leaders stick),
-  the tiles are only laid out again once the camera has been still for
-  250 ms (no jump from an edge to another during a pan / zoom). A photo
-  whose anchor is outside the rect gets no tile.
+  the layout runs again once the camera has been still for 250 ms, fed with
+  its previous result (so only a zone change can move a tile). Returns the
+  tiles, the zone rects and the layout rect. `keepOutside` (editors): a photo
+  whose anchor is off-rect keeps its tile; in a capture it gets none.
 - `ImagesPrintZonesOverlay` — the tiles in the editors (2D and 3D), rendered
   in the floating panels frame (`PortalEditorFloatingPanels`), under the
   panels. Rect = editor viewport minus the open right drawer. Reserved =
   the floating panels of the layout host + every element tagged
   `data-print-zones-avoid` (editor corner controls). Tile click = select,
-  selected tile = "Fullscreen".
+  selected tile = "Fullscreen" and its leader even with "Ligne" off, hovered
+  tile = pin toggle (`printZonesPinnedSideById[id] = side`, session only).
+  Hovering an occupied zone (window `mousemove`, the editor keeps the mouse)
+  draws its dashed outline and 3 handles: thickness on the inner edge, and
+  the two ends (`setPrintZonesZone`). The capture uses the pins but not the
+  resized zones (its frame is another rect).
 
 ### Rendering in the scene
 

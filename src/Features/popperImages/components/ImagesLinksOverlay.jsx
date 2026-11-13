@@ -9,7 +9,8 @@ import {
 import { isImageAnnotationVeiled } from "../utils/imageAnnotationSelection";
 
 // ---------------------------------------------------------------------------
-// ImagesLinksOverlay — ex situ + "Ligne": one leader per photo from its tile
+// ImagesLinksOverlay — ex situ: one leader per photo ("Ligne"), or only the
+// leader of the selected photo (`onlySelected`, "Ligne" off), from its tile
 // in PopperImages (DOM rect) to its anchor in the scene (anchorProjector,
 // client px: 2D camera matrix or 3D projection). Absolute SVG over the editor
 // box, ABOVE the panel (the leader must visibly reach its tile), never takes
@@ -31,6 +32,7 @@ export default function ImagesLinksOverlay({
   active,
   images,
   selectedImageId,
+  onlySelected = false,
   getTileRect,
   getGridRect,
   scrollEl,
@@ -57,6 +59,7 @@ export default function ImagesLinksOverlay({
     const grid = getGridRect?.();
     const next = [];
     for (const a of images || []) {
+      if (onlySelected && a.id !== selectedImageId) continue;
       const p = anchorProjector.project(a);
       if (!p) continue;
       if (
@@ -89,6 +92,7 @@ export default function ImagesLinksOverlay({
     anchorProjector,
     images,
     selectedImageId,
+    onlySelected,
     getTileRect,
     getGridRect,
   ]);

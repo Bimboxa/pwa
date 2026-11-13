@@ -2,6 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import {
   IMAGES_DISPLAY_MODES,
+  PANEL_COLUMNS_OPTIONS,
+  PRINT_ZONES_SIDES,
   PRINT_ZONES_TILE_SIZE_MODES,
   clampPrintZonesTileSizePx,
   loadImagesDisplayMode,
@@ -11,6 +13,11 @@ import {
   savePrintZonesTileSizePx,
   loadImagesLinkLine,
   loadImagesLinkNumber,
+  loadImagesPanelColumns,
+  loadPrintZonesZones,
+  sanitizePrintZonesZones,
+  saveImagesPanelColumns,
+  savePrintZonesZones,
   saveImagesDisplayMode,
   saveImagesLinkLine,
   saveImagesLinkNumber,
@@ -32,6 +39,12 @@ export { IMAGES_DISPLAY_MODES };
 //   Independent toggles, both persisted.
 // - printZonesTileSizeMode / printZonesTileSizePx: PRINT_ZONES tile size
 //   ("AUTO" shrinks to fit, "FIXED" keeps the stored size). Persisted.
+// - printZonesZones: the PRINT_ZONES zones the user resized, { [side]:
+//   { thickness, startInset, endInset } } px (missing = automatic).
+//   Persisted.
+// - printZonesPinnedSideById: { [annotationId]: side } — photos the user
+//   pinned to a zone (they never change zone). Session only.
+// - panelColumns: 1 | 2 columns of the overlay panel grid. Persisted.
 // - photosHidden: the count pill toggles the photos off — nothing of them
 //   in the scene (no card, no anchor, no leader) and greyed tiles.
 //   Session only.
@@ -50,6 +63,9 @@ const initialState = {
   linkNumber: loadImagesLinkNumber(),
   printZonesTileSizeMode: loadPrintZonesTileSizeMode(),
   printZonesTileSizePx: loadPrintZonesTileSizePx(),
+  printZonesZones: loadPrintZonesZones(),
+  printZonesPinnedSideById: {},
+  panelColumns: loadImagesPanelColumns(),
   photosHidden: false,
   collapsed: false,
   imagesCount: 0,
@@ -84,6 +100,35 @@ export const popperImagesSlice = createSlice({
       state.printZonesTileSizePx = clampPrintZonesTileSizePx(action.payload);
       savePrintZonesTileSizePx(state.printZonesTileSizePx);
     },
+    // payload: { side, patch: { thickness?, startInset?, endInset? } }
+    setPrintZonesZone: (state, action) => {
+      const { side, patch } = action.payload ?? {};
+      if (!PRINT_ZONES_SIDES.includes(side)) return;
+      state.printZonesZones = sanitizePrintZonesZones({
+        ...state.printZonesZones,
+        [side]: { ...state.printZonesZones[side], ...patch },
+      });
+      savePrintZonesZones(state.printZonesZones);
+    },
+    resetPrintZonesZones: (state) => {
+      state.printZonesZones = {};
+      savePrintZonesZones(state.printZonesZones);
+    },
+    // payload: { id, side } — side null: unpin.
+    setPrintZonesImagePinnedSide: (state, action) => {
+      const { id, side } = action.payload ?? {};
+      if (id == null) return;
+      if (PRINT_ZONES_SIDES.includes(side)) {
+        state.printZonesPinnedSideById[id] = side;
+      } else {
+        delete state.printZonesPinnedSideById[id];
+      }
+    },
+    setImagesPanelColumns: (state, action) => {
+      if (!PANEL_COLUMNS_OPTIONS.includes(action.payload)) return;
+      state.panelColumns = action.payload;
+      saveImagesPanelColumns(state.panelColumns);
+    },
     setImagesCount: (state, action) => {
       state.imagesCount = Math.max(0, Number(action.payload) || 0);
     },
@@ -105,6 +150,10 @@ export const {
   setImagesLinkNumber,
   setPrintZonesTileSizeMode,
   setPrintZonesTileSizePx,
+  setPrintZonesZone,
+  resetPrintZonesZones,
+  setPrintZonesImagePinnedSide,
+  setImagesPanelColumns,
   setImagesCount,
   setPrintZonesCaptureInsets,
   setImagesPhotosHidden,
@@ -125,6 +174,10 @@ export const selectPrintZonesTileSizeMode = (s) =>
   s.popperImages.printZonesTileSizeMode;
 export const selectPrintZonesTileSizePx = (s) =>
   s.popperImages.printZonesTileSizePx;
+export const selectPrintZonesZones = (s) => s.popperImages.printZonesZones;
+export const selectPrintZonesPinnedSideById = (s) =>
+  s.popperImages.printZonesPinnedSideById;
+export const selectImagesPanelColumns = (s) => s.popperImages.panelColumns;
 export const selectPrintZonesCaptureInsets = (s) =>
   s.popperImages.printZonesCaptureInsets;
 export const selectImagesCount = (s) => s.popperImages.imagesCount;

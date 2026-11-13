@@ -6,6 +6,8 @@ import {
   Typography,
 } from "@mui/material";
 import Fullscreen from "@mui/icons-material/Fullscreen";
+import PushPin from "@mui/icons-material/PushPin";
+import PushPinOutlined from "@mui/icons-material/PushPinOutlined";
 
 import ImageIndexBadge from "./ImageIndexBadge";
 import { IMAGE_VEIL_RGBA } from "../constants/imageDisplay";
@@ -16,7 +18,15 @@ import { IMAGE_VEIL_RGBA } from "../constants/imageDisplay";
 // primary border + "Fullscreen" button (DialogImageViewer). Veiled (another
 // image is selected) → translucent white veil. `fill`: the tile takes the
 // size of its parent instead of being square (print zones tiles).
+// `onTogglePin` (print zones): a pin toggle shows while the tile is hovered.
 // ---------------------------------------------------------------------------
+
+const ACTION_SX = {
+  p: 0.25,
+  bgcolor: "rgba(0,0,0,0.5)",
+  color: "#fff",
+  "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
+};
 
 export default function TileImageAnnotation({
   annotation,
@@ -25,6 +35,8 @@ export default function TileImageAnnotation({
   veiled = false,
   fill = false,
   showNumber = true,
+  pinned = false,
+  onTogglePin,
   onSelect,
   onFullscreen,
   registerEl,
@@ -32,6 +44,8 @@ export default function TileImageAnnotation({
   // strings
 
   const fullscreenS = "Afficher en grand";
+  const pinS = "Ancrer la photo dans cette zone";
+  const unpinS = "Libérer la photo (zone automatique)";
 
   // data
 
@@ -45,7 +59,12 @@ export default function TileImageAnnotation({
   return (
     <Box
       ref={(el) => registerEl?.(annotation.id, el)}
-      sx={{ position: "relative", minWidth: 0, ...(fill && { height: 1 }) }}
+      sx={{
+        position: "relative",
+        minWidth: 0,
+        ...(fill && { height: 1 }),
+        "&:hover .tileImagePin": { opacity: 1 },
+      }}
     >
       <ButtonBase
         onClick={() => onSelect?.(annotation)}
@@ -115,28 +134,57 @@ export default function TileImageAnnotation({
         />
       )}
 
-      {selected && (
-        <Tooltip title={fullscreenS} arrow placement="bottom">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onFullscreen?.(annotation);
-            }}
-            sx={{
-              position: "absolute",
-              top: 4,
-              right: 4,
-              p: 0.25,
-              bgcolor: "rgba(0,0,0,0.5)",
-              color: "#fff",
-              "&:hover": { bgcolor: "rgba(0,0,0,0.7)" },
-            }}
-          >
-            <Fullscreen sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      )}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 4,
+          right: 4,
+          display: "flex",
+          gap: 0.5,
+        }}
+      >
+        {onTogglePin && (
+          <Tooltip title={pinned ? unpinS : pinS} arrow placement="bottom">
+            <IconButton
+              className="tileImagePin"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin(annotation);
+              }}
+              sx={{
+                ...ACTION_SX,
+                opacity: 0,
+                transition: "opacity 0.1s ease",
+                ...(pinned && {
+                  bgcolor: "primary.main",
+                  "&:hover": { bgcolor: "primary.dark" },
+                }),
+              }}
+            >
+              {pinned ? (
+                <PushPin sx={{ fontSize: 16 }} />
+              ) : (
+                <PushPinOutlined sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
+        {selected && (
+          <Tooltip title={fullscreenS} arrow placement="bottom">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFullscreen?.(annotation);
+              }}
+              sx={ACTION_SX}
+            >
+              <Fullscreen sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
     </Box>
   );
 }
