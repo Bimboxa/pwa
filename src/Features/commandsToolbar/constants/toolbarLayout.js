@@ -49,15 +49,24 @@ const BASE_MAP_SECTION = {
   entries: ["MOVE_BASE_MAP", "ROTATE_BASE_MAP"],
 };
 
+// Section marks ("traits de coupe", Features/baseMapLinks): drawn on a
+// horizontal plan of the « Fonds de plan » and « Dessin » modules (2D and 3D
+// editors), then « + fond de plan » creates / poses the vertical base map of
+// the selected mark.
+const SECTION_LINES_SECTION = {
+  key: "SECTION_LINES",
+  label: "Coupes / élévations",
+  entries: ["DRAW_SECTION_LINE", "CREATE_SECTION_BASE_MAP"],
+};
+
 const DEFAULT_SECTIONS = [
   GRID_SECTION,
   AXES_SECTION,
   BASE_MAP_SECTION,
+  SECTION_LINES_SECTION,
   // « Dessin » — the templateless annotation types (the point-like types and
   // the measures packed as split buttons, point / cote as default slot),
-  // then the revolution axis and its placement on a cut base map, and
-  // « + fond de plan » on a selected section mark (the marks are shown and
-  // selectable in the Dessin module, drawn in the Fonds de plan one)
+  // then the revolution axis and its placement on a cut base map
   {
     key: "DRAW",
     label: "Dessin",
@@ -82,7 +91,6 @@ const DEFAULT_SECTIONS = [
       },
       "REVOLUTION_AXIS",
       "PLACE_REVOLUTION_AXIS",
-      "CREATE_SECTION_BASE_MAP",
     ],
   },
   // lines added inside the selected surface (the guide line, the layout
@@ -216,15 +224,6 @@ const DEFAULT_SECTIONS = [
     ],
   },
 ];
-
-// Section marks ("traits de coupe", Features/baseMapLinks): drawn on a plan
-// of the « Fonds de plan » module (2D and 3D editors), then « + fond de
-// plan » creates / poses the vertical base map of the selected mark.
-const SECTION_LINES_SECTION = {
-  key: "SECTION_LINES",
-  label: "Coupes / élévations",
-  entries: ["DRAW_SECTION_LINE", "CREATE_SECTION_BASE_MAP"],
-};
 
 // « Fonds de plan » module: the user frame group, the base map placement
 // commands (same order as the default sections) and the section marks.

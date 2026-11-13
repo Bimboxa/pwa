@@ -61,7 +61,8 @@ toolbar (`ButtonOpenCommandsDialog`, not a command) opens that dialog.
 
 « Dessiner un trait de coupe » (`DRAW_SECTION_LINE`) arms the two-click draw
 of a section mark (`BASE_MAP_LINK`): a template-less helper of the scope,
-labelled « A-A », « B-B »…, drawn in the Fonds de plan module (2D editor, or
+labelled « A-A », « B-B »…, drawn in the Fonds de plan and Dessin modules
+(section « Coupes / élévations » of both layouts — 2D editor, or
 3D editor: two clicks on a horizontal plan, `commitDrawnBaseMapLinkService`)
 and shown / selectable in the Fonds de plan and Dessin modules, 2D and 3D
 (`buildBaseMapLinkObject3D`), while the « Traits de coupe » option at the
