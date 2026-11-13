@@ -30,6 +30,7 @@ import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds
 import getBaseMapPlaneFrame from "../js/utilsImagesManager/getBaseMapPlaneFrame";
 import {
   setSelectedNode,
+  setSelectedMainBaseMapId,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
@@ -120,6 +121,7 @@ import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelp
 import useSectionBaseMapPlacement from "Features/baseMapLinks/hooks/useSectionBaseMapPlacement";
 import { selectIsSectionBaseMapPlacementActive } from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import { selectIsSectionLineThreedHelperActive } from "Features/baseMapLinks/utils/sectionLineHelperSelectors";
+import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
 import PopperBaseMapsList from "Features/popperMapListings/components/PopperBaseMapsList";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
 import PopperImages from "Features/popperImages/components/PopperImages";
@@ -1639,6 +1641,25 @@ export default function MainThreedEditor() {
               annotationTemplateId,
             } = object.userData;
 
+            // Label / arrow sprite of a section mark: a plain click opens
+            // the base map the mark leads to (the vertical base map of a
+            // mark on its plan, the plan of a located one) — the line
+            // selects the mark, as do the sprites of a mark leading nowhere.
+            if (
+              intersect.object.userData?.isSectionMarkNav &&
+              !isPickMode &&
+              !isRightClick &&
+              !event.shiftKey
+            ) {
+              const navTargetId = getBaseMapLinkNavTargetId(
+                sceneManager.annotationsManager?.getAnnotationSource?.(nodeId)
+              );
+              if (navTargetId) {
+                dispatch(setSelectedMainBaseMapId(navTargetId));
+                return;
+              }
+            }
+
             // « Extruder le long d'une ligne » pick mode: the nearest
             // annotation along the ray is the guide; the swept annotation is
             // created, selected, and the mode exits (one shot). A wrong
@@ -3005,7 +3026,13 @@ export default function MainThreedEditor() {
         if (qties) facePart = { key, qties };
       }
     }
-    const partKey = meshPart?.key ?? facePart?.key ?? null;
+    // Label / arrow sprite of a section mark: its own tooltip (the base map
+    // a click opens, MapTooltip `linkNav`).
+    const linkNav = hitIntersect?.object?.userData?.isSectionMarkNav
+      ? "1"
+      : undefined;
+    const partKey =
+      meshPart?.key ?? facePart?.key ?? (linkNav ? "LINK_NAV" : null);
 
     if (hitId !== lastHoveredIdRef.current) {
       // Restore previous (no longer hovered). Selected → original; otherwise
@@ -3044,6 +3071,7 @@ export default function MainThreedEditor() {
             partQties: meshPart?.qties ?? null,
             partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
             faceQties: facePart?.qties ?? null,
+            linkNav,
           },
           event.clientX - containerRect.left + 15,
           event.clientY - containerRect.top + 15
@@ -3067,6 +3095,7 @@ export default function MainThreedEditor() {
           partQties: meshPart?.qties ?? null,
           partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
           faceQties: facePart?.qties ?? null,
+          linkNav,
         },
         event.clientX - containerRect.left + 15,
         event.clientY - containerRect.top + 15

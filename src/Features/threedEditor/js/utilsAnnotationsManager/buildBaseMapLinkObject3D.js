@@ -253,6 +253,7 @@ export default function buildBaseMapLinkObject3D({
     cssHeight,
     aspect,
     orient,
+    isNav = false,
   }) => {
     const material = new SpriteMaterial({
       map: texture,
@@ -267,6 +268,9 @@ export default function buildBaseMapLinkObject3D({
     sprite.renderOrder = SPRITE_RENDER_ORDER;
     sprite.userData.isSectionMarkDecoration = true;
     sprite.userData.isSectionMarkSprite = true;
+    // Label / arrows: a click opens the base map the mark leads to
+    // (MainThreedEditor), the hover tooltip previews it.
+    if (isNav) sprite.userData.isSectionMarkNav = true;
     // AnnotationsManager cleanup hook: the material is disposed by the
     // regular traverse, a label texture is owned by its sprite.
     if (ownsTexture) sprite.userData.dispose = () => texture.dispose();
@@ -308,6 +312,7 @@ export default function buildBaseMapLinkObject3D({
       texture: arrowTexture,
       at: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t },
       cssHeight: ARROW_PX,
+      isNav: true,
       aspect: 1,
       orient: (s, renderer, camera) => {
         const dir = getScreenDirection(s, n, probeM, renderer, camera);
@@ -341,6 +346,7 @@ export default function buildBaseMapLinkObject3D({
         ownsTexture: true,
         at: p,
         cssHeight: LABEL_HEIGHT_PX,
+        isNav: true,
         aspect,
         // The text stays upright: the sprite is shifted (not turned) along
         // the on-screen outward direction, clear of the end tick.

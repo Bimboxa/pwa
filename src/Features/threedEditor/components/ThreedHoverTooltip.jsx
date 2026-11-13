@@ -69,6 +69,9 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
     filterByMainBaseMap: !isMeshesModule,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
+    // Section marks (Fonds de plan / Dessin modules): their tooltip, and the
+    // preview of the base map their label / arrows open.
+    includeBaseMapLinks: true,
   });
   // Painted parts only: the templates are not queried until one is hovered.
   const templates = useAnnotationTemplates({ skip: !state.paint });
@@ -129,7 +132,9 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
     );
   }
 
-  if (!state.node || isHoveringSelection) return null;
+  // The label / arrows of a section mark keep their tooltip on the selected
+  // mark too: it tells what a click on them opens.
+  if (!state.node || (isHoveringSelection && !state.node.linkNav)) return null;
 
   // node.partQties: the hover addresses ONE face / edge of a mesh annotation
   // node.faceQties: the hovered face of a regular annotation with several
