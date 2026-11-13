@@ -9214,8 +9214,9 @@ const InteractionLayer = forwardRef(({
       // IMAGE body: same rule — an unselected photo must not slide under a
       // stray drag; the first gesture selects it, the next one moves it (its
       // TARGET dot is already covered by `isLabelPart`).
+      // OBJECT_3D footprint: same rule as the IMAGE body.
       const isUnselectedPlacement =
-        ["REVOLUTION_AXIS_PLACEMENT", "IMAGE"].includes(
+        ["REVOLUTION_AXIS_PLACEMENT", "IMAGE", "OBJECT_3D"].includes(
           draggableGroup.dataset?.annotationType
         ) &&
         !partType &&
