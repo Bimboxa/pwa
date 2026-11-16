@@ -35,7 +35,7 @@ import resyncRevolutionAxisPlacementsService from "Features/elevation/services/r
 // the axis — château d'eau GO, réservoir — and per listing procedure bound
 // to it — château d'eau étanchéité; nothing while the axis is bound to none)
 // and, last, the actions row (RowRevolutionAxisActions: invert halves,
-// partial / total, 3D half-view, coupe base map, delete) — the counterpart
+// partial / total, 3D half-view, 3D horizontal cut, coupe base map, delete) — the counterpart
 // of the « Actions » row of the standard toolbar.
 //
 // `offsetZ` changes the pose of every vertical base map this axis places, so

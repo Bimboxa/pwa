@@ -6,6 +6,7 @@ import {
   Contrast as HalfViewIcon,
   DonutLarge as PartialIcon,
   Flip as FlipIcon,
+  HorizontalSplit as HorizontalCutIcon,
   Lens as TotalIcon,
 } from "@mui/icons-material";
 
@@ -24,7 +25,7 @@ import useRevolutionAxisLinkedBaseMaps from "../hooks/useRevolutionAxisLinkedBas
 // right).
 //
 // Extra actions: invert the half-revolutions · partial / total revolution ·
-// 3D half-view · coupe base map — same icon and menu as the axis row of
+// 3D half-view · 3D horizontal cut · coupe base map — same icon and menu as the axis row of
 // PopperMapListings (MenuRevolutionAxisBaseMaps): when no base map is linked
 // yet, the menu links an existing vertical base map or creates the A3 page
 // + poses the axis; one linked base map navigates to it; several open the
@@ -43,6 +44,8 @@ export default function RowRevolutionAxisActions({ axis, accentColor }) {
   const totalS = "Révolution totale";
   const halfViewOnS = "Demi-vue 3D (coupe) : activée";
   const halfViewOffS = "Demi-vue 3D (coupe) : désactivée";
+  const horizontalCutOnS = "Coupe horizontale 3D : activée";
+  const horizontalCutOffS = "Coupe horizontale 3D : désactivée";
   const linkS = "Lier un fond de plan pour dessiner les profils";
   const goToS = "Voir le fond de plan des profils";
 
@@ -109,6 +112,18 @@ export default function RowRevolutionAxisActions({ axis, accentColor }) {
           sx={toggleSx(accentColor, actions.isHalfView)}
         >
           <HalfViewIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip
+        title={actions.isHorizontalCut ? horizontalCutOnS : horizontalCutOffS}
+      >
+        <IconButton
+          size="small"
+          onClick={actions.toggleHorizontalCut}
+          sx={toggleSx(accentColor, actions.isHorizontalCut)}
+        >
+          <HorizontalCutIcon fontSize="small" />
         </IconButton>
       </Tooltip>
 
