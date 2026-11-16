@@ -38,7 +38,15 @@ function getRemoteKey({ idMaster, clientRef, name }) {
   return `remote_${idMaster ?? clientRef ?? name}`;
 }
 
-function createRemoteItem({ key, idMaster, name, clientRef, type, city }) {
+function createRemoteItem({
+  key,
+  idMaster,
+  name,
+  clientRef,
+  type,
+  city,
+  linkedIdMasters,
+}) {
   return {
     key,
     isLocal: false,
@@ -49,6 +57,7 @@ function createRemoteItem({ key, idMaster, name, clientRef, type, city }) {
     clientRef,
     type,
     city: city ?? null,
+    linkedIdMasters: linkedIdMasters ?? null,
     scopes: [],
     remoteConfigs: [],
     povPreviews: [],
@@ -215,6 +224,10 @@ export default function useDashboardProjectItems({
         clientRef: project.clientRef,
         type: project.type ?? masterProject?.type,
         city: masterProject?.address?.city,
+        // the référentiel is the reference; the project row keeps the link
+        // when the master project is not loaded (see handleSelectItem)
+        linkedIdMasters:
+          masterProject?.linkedIdMasters ?? project.linkedIdMasters ?? null,
         scopes: scopesByProjectId[project.id] ?? [],
         remoteConfigs: [],
         povPreviews: [],
@@ -296,6 +309,7 @@ export default function useDashboardProjectItems({
           clientRef: mp.clientRef,
           type: mp.type,
           city: mp.address?.city,
+          linkedIdMasters: mp.linkedIdMasters,
         });
         cloudItems.push(item);
         cloudIndex.add(item);

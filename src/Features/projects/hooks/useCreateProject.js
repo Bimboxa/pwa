@@ -16,7 +16,10 @@ export default function useCreateProject() {
 
   // main
 
-  const create = async ({ id, name, clientRef, type, idMaster }, options) => {
+  const create = async (
+    { id, name, clientRef, type, idMaster, linkedIdMasters },
+    options
+  ) => {
     try {
       // options
 
@@ -47,6 +50,9 @@ export default function useCreateProject() {
 
       if (idMaster) project.idMaster = idMaster;
       if (type) project.type = type;
+      // idMasters of the linked référentiel projects, by project type
+      // (see appConfig features.masterProjects.linkedProjectScopes)
+      if (linkedIdMasters) project.linkedIdMasters = linkedIdMasters;
 
       await db.projects.add(project);
 

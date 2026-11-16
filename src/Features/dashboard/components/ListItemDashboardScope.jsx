@@ -20,12 +20,14 @@ import ChipsScopeStats from "./ChipsScopeStats";
 // Local rows are sortable (dnd-kit, parent DndContext / SortableContext):
 // the drag handle, shown on hover, is the only drag source so the click /
 // star / trash keep working. A remote row has no scope record to rank.
+// `readOnly`: no reorder, no delete (Krtos of a linked project).
 // `row` = { scopeId, name, subText, isLocal, isFavorite, povPreviews,
 //           annotationsCount, baseMapsCount }
 // `subText` = "author trigram, last configuration date".
 
 export default function ListItemDashboardScope({
   row,
+  readOnly = false,
   onToggleFavorite,
   onOpen,
   onDelete,
@@ -43,7 +45,7 @@ export default function ListItemDashboardScope({
 
   // data - sortable
 
-  const sortable = Boolean(row.isLocal);
+  const sortable = Boolean(row.isLocal) && !readOnly;
 
   const {
     attributes,
@@ -162,7 +164,7 @@ export default function ListItemDashboardScope({
         annotationsCount={row.annotationsCount}
       />
 
-      {row.isLocal && (
+      {row.isLocal && !readOnly && (
         <Tooltip title="Supprimer">
           <IconButton
             size="small"
