@@ -27,6 +27,14 @@ export default async function loadKrtoZip(file, options) {
   // Duplicate: regenerate every id and re-own to the importer so the copy is
   // fully independent and editable (see remapDexieExportIds).
   const duplicate = options?.duplicate;
+  // Duplicate INTO an existing local project (instead of a new one): the
+  // copied scope and its content (base maps included) are attached to that
+  // project, whose own row is left untouched. `scopeName` renames the copy.
+  const duplicateIntoProjectId = duplicate
+    ? (options?.duplicateIntoProjectId ?? null)
+    : null;
+  const duplicateScopeName = options?.scopeName;
+  let duplicatedScopeId = null;
   // Merge: keep local data — drop the zip's identity rows (projects/scopes)
   // and only import rows that are new locally or more recently modified than
   // the local row (per-row updatedAt ?? createdAt).
@@ -108,8 +116,9 @@ export default async function loadKrtoZip(file, options) {
             (t) => t.tableName !== "syncFiles"
           );
 
-          const newProjectId = nanoid();
+          const newProjectId = duplicateIntoProjectId ?? nanoid();
           const newScopeId = nanoid();
+          duplicatedScopeId = newScopeId;
 
           // Identity of the copy (same rule as loadProjectExportZip): detach
           // the new project from the référentiel — the dashboard attaches
@@ -128,6 +137,24 @@ export default async function loadKrtoZip(file, options) {
               scopes: originalScopeId ? { [originalScopeId]: newScopeId } : {},
             },
           });
+
+          if (duplicateIntoProjectId) {
+            // The target project row is the reference: importing the zip's
+            // one (remapped onto the same id) would overwrite its name /
+            // number / référentiel link under overwriteValues:true.
+            // relsScopeListing: links to listings of other scopes are
+            // same-project only — the linked content stays in the source
+            // project.
+            jsonData.data.data = jsonData.data.data.filter(
+              (t) =>
+                t.tableName !== "projects" && t.tableName !== "relsScopeListing"
+            );
+            if (duplicateScopeName) {
+              for (const row of scopesTableData?.rows ?? []) {
+                if (row) row.name = duplicateScopeName;
+              }
+            }
+          }
 
           // Re-key the image buffers by the new file names so the transform
           // below injects the right binary for each remapped `files` row.
@@ -333,6 +360,17 @@ export default async function loadKrtoZip(file, options) {
             ? { ...localProject, ...projectOverrides }
             : null,
           scope: localScope,
+        };
+      }
+
+      // 6bis. Duplicate into an existing project: no imported project row
+      // to find by tag — the target project and the new scope are known.
+      if (duplicateIntoProjectId) {
+        return {
+          project: await db.projects.get(duplicateIntoProjectId),
+          scope: duplicatedScopeId
+            ? await db.scopes.get(duplicatedScopeId)
+            : null,
         };
       }
 

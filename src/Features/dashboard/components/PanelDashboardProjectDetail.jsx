@@ -49,6 +49,7 @@ import {
 
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
+import SectionDashboardLinkedProjectScopes from "./SectionDashboardLinkedProjectScopes";
 import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
@@ -397,6 +398,8 @@ export default function PanelDashboardProjectDetail({ item }) {
             </DndContext>
           </Box>
         )}
+
+        <SectionDashboardLinkedProjectScopes item={item} />
       </Box>
 
       <DialogDeleteScope

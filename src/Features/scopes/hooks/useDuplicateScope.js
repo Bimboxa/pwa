@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedScopeId } from "../scopesSlice";
+import { setSelectedScopeId, setScopeOpeningSource } from "../scopesSlice";
+import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import {
   setSelectedListingId,
   triggerListingsUpdate,
@@ -11,6 +12,10 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 
 import duplicateScopeService from "../services/duplicateScopeService";
+import duplicateScopeToProjectService from "../services/duplicateScopeToProjectService";
+
+// `targetProjectId` (another project than the scope's own): full copy of the
+// scope into that project, base maps included — the filters do not apply.
 
 export default function useDuplicateScope() {
   const dispatch = useDispatch();
@@ -23,7 +28,27 @@ export default function useDuplicateScope() {
     disabledBaseMapIds,
     disabledLayerIds,
     disabledTemplateKeys,
+    targetProjectId,
   }) => {
+    if (targetProjectId && targetProjectId !== scope.projectId) {
+      const { newScopeId } = await duplicateScopeToProjectService({
+        scope,
+        name,
+        targetProjectId,
+      });
+
+      // the copy belongs to the target project: no opening source anymore
+      dispatch(setScopeOpeningSource(null));
+      dispatch(setSelectedProjectId(targetProjectId));
+      dispatch(setSelectedScopeId(newScopeId));
+      dispatch(setSelectedListingId(null));
+      dispatch(triggerListingsUpdate());
+      dispatch(triggerLayersUpdate());
+      dispatch(triggerAnnotationsUpdate());
+
+      return { newScopeId, firstListingId: null };
+    }
+
     const { newScopeId, firstListingId } = await duplicateScopeService({
       scope,
       name,

@@ -9,6 +9,8 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import useDuplicateScopeSourceData from "../hooks/useDuplicateScopeSourceData";
 import useDuplicateScope from "../hooks/useDuplicateScope";
+import useScopeOpeningSourceProject from "../hooks/useScopeOpeningSourceProject";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 
 import SectionDuplicateBaseMaps from "./SectionDuplicateBaseMaps";
@@ -23,8 +25,22 @@ export default function DialogDuplicateScope({ open, onClose, scope }) {
   const annotationsS = "Annotations";
   const noAnnotationsS = "Aucune annotation à copier";
   const duplicateS = "Dupliquer";
+  const targetProjectS = "La copie sera rattachée à :";
+  const fullCopyS = "Copie complète, fonds de plan inclus.";
 
   // data
+
+  const appConfig = useAppConfig();
+  // scope opened from another project (Krto of a linked project): the copy
+  // goes to that project, as a full copy
+  const targetProject = useScopeOpeningSourceProject(open ? scope : null);
+  const targetTypeLabel =
+    appConfig?.strings?.project?.typeLabels?.[targetProject?.type];
+  const targetProjectLabel = targetProject
+    ? [targetProject.name, targetTypeLabel && `(${targetTypeLabel})`]
+        .filter(Boolean)
+        .join(" ")
+    : null;
 
   const { value: sourceData, loading: sourceLoading } =
     useDuplicateScopeSourceData(open ? scope : null);
@@ -77,6 +93,7 @@ export default function DialogDuplicateScope({ open, onClose, scope }) {
         disabledBaseMapIds,
         disabledLayerIds,
         disabledTemplateKeys,
+        targetProjectId: targetProject?.id,
       });
       onClose();
     } catch (error) {
@@ -123,17 +140,30 @@ export default function DialogDuplicateScope({ open, onClose, scope }) {
             />
           </Box>
 
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {annotationsS}
-          </Typography>
+          {targetProject && (
+            <Box>
+              <Typography variant="body2">
+                {targetProjectS} <b>{targetProjectLabel}</b>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {fullCopyS}
+              </Typography>
+            </Box>
+          )}
 
-          {sourceData?.annotationsCount === 0 && (
+          {!targetProject && (
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {annotationsS}
+            </Typography>
+          )}
+
+          {!targetProject && sourceData?.annotationsCount === 0 && (
             <Typography variant="caption" color="text.secondary">
               {noAnnotationsS}
             </Typography>
           )}
 
-          {sourceData && sourceData.annotationsCount > 0 && (
+          {!targetProject && sourceData && sourceData.annotationsCount > 0 && (
             <>
               <SectionDuplicateBaseMaps
                 baseMaps={sourceData.baseMaps}

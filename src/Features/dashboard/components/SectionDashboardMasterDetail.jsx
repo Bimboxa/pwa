@@ -3,7 +3,10 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+import {
+  setSelectedScopeId,
+  setScopeOpeningSource,
+} from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 
@@ -114,6 +117,7 @@ export default function SectionDashboardMasterDetail() {
           clientRef: item.clientRef,
           type: item.type,
           idMaster: item.idMaster,
+          linkedIdMasters: item.linkedIdMasters,
         });
       }
 
@@ -143,6 +147,8 @@ export default function SectionDashboardMasterDetail() {
   // opens the krto directly from the favorite vignette (mirrors the
   // project-detail scope row click)
   function handleOpenKrto(favorite) {
+    // opened from its own project: no opening source (see scopesSlice)
+    dispatch(setScopeOpeningSource(null));
     if (favorite.isLocal) {
       dispatch(setSelectedScopeId(favorite.scopeId));
       if (favorite.projectId != null) {

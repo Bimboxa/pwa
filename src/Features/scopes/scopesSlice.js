@@ -1,6 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 import setInitScopeId from "Features/init/services/setInitScopeId";
+import getInitScopeOpeningSource from "Features/init/services/getInitScopeOpeningSource";
+import setInitScopeOpeningSource from "Features/init/services/setInitScopeOpeningSource";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const scopesInitialState = {
@@ -8,6 +10,12 @@ const scopesInitialState = {
   scopesUpdatedAt: null,
   //
   selectedScopeId: null,
+  // { scopeId, projectId } | null — project the scope was opened from when
+  // it is not its own project (Krto of a linked project opened from the
+  // dashboard panel of another project). Persisted across reloads. Only
+  // meaningful while scopeId is the selected scope: read it through
+  // useScopeOpeningSourceProject.
+  openingSource: getInitScopeOpeningSource(),
   //
   newScope: null,
   editedScope: null,
@@ -45,6 +53,10 @@ export const scopesSlice = createSlice({
       state.selectedScopeId = action.payload;
       setInitScopeId(action.payload);
     },
+    setScopeOpeningSource: (state, action) => {
+      state.openingSource = action.payload ?? null;
+      setInitScopeOpeningSource(state.openingSource);
+    },
     //
     setNewScope: (state, action) => {
       state.newScope = action.payload;
@@ -66,6 +78,7 @@ export const {
   setScopesById,
   //
   setSelectedScopeId,
+  setScopeOpeningSource,
   //
   setNewScope,
   setEditedScope,
