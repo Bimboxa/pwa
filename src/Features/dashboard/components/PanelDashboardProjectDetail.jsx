@@ -29,6 +29,7 @@ import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectT
 import useDeleteProject from "Features/projects/hooks/useDeleteProject";
 import useDownloadProjectExportZip from "Features/projects/hooks/useDownloadProjectExportZip";
 import useOpenDashboardScope from "../hooks/useOpenDashboardScope";
+import useLinkedProjectScopes from "../hooks/useLinkedProjectScopes";
 import getDashboardScopeRows from "../utils/getDashboardScopeRows";
 
 import {
@@ -80,6 +81,8 @@ export default function PanelDashboardProjectDetail({ item }) {
   const { download: downloadProjectData, loading: downloadingProjectData } =
     useDownloadProjectExportZip();
   const openScope = useOpenDashboardScope();
+  // Krtos of the linked project (edx: the opportunité of a chantier)
+  const linkedScopes = useLinkedProjectScopes(item);
 
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -154,6 +157,12 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   function handleOpen(row) {
     openScope({ row, projectId: item.projectId });
+  }
+
+  // the refresh covers the Krtos of the project AND of its linked project
+  function handleRefresh() {
+    refreshRemoteScopes();
+    linkedScopes.refresh();
   }
 
   function handleNewKrto() {
@@ -303,7 +312,7 @@ export default function PanelDashboardProjectDetail({ item }) {
               <span>
                 <IconButton
                   size="small"
-                  onClick={refreshRemoteScopes}
+                  onClick={handleRefresh}
                   disabled={!canFetchRemoteScopes}
                 >
                   <Refresh sx={{ fontSize: "1.1rem" }} />
@@ -399,7 +408,10 @@ export default function PanelDashboardProjectDetail({ item }) {
           </Box>
         )}
 
-        <SectionDashboardLinkedProjectScopes item={item} />
+        <SectionDashboardLinkedProjectScopes
+          item={item}
+          linkedScopes={linkedScopes}
+        />
       </Box>
 
       <DialogDeleteScope
