@@ -7,6 +7,7 @@ import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation"
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfViewService";
+import setRevolutionAxisHorizontalCutService from "../services/setRevolutionAxisHorizontalCutService";
 
 const DEFAULT_ANGLE_START_DEG = 0;
 const DEFAULT_ANGLE_END_DEG = 180;
@@ -15,8 +16,9 @@ const DEFAULT_ANGLE_END_DEG = 180;
 // toolbar (RowRevolutionAxisActions).
 //
 // `invertHalf` changes the pose of every vertical base map this axis places,
-// so it runs the resync service after writing. The 3D half-view is a view
-// setting open to anyone (not gated by the axis ownership).
+// so it runs the resync service after writing. The 3D half-view and the 3D
+// horizontal cut are view settings open to anyone (not gated by the axis
+// ownership).
 export default function useRevolutionAxisActions(axis) {
   const dispatch = useDispatch();
 
@@ -30,6 +32,8 @@ export default function useRevolutionAxisActions(axis) {
   const isPartial = Boolean(axis?.partialRevolution);
   // Display-only, on unless explicitly switched off.
   const isHalfView = axis?.halfViewIn3d !== false;
+  // Display-only, off unless explicitly switched on.
+  const isHorizontalCut = axis?.horizontalCutIn3d === true;
 
   // handlers
 
@@ -56,6 +60,14 @@ export default function useRevolutionAxisActions(axis) {
     dispatch(triggerAnnotationsUpdate());
   }
 
+  async function toggleHorizontalCut() {
+    if (!axis?.id) return;
+    await setRevolutionAxisHorizontalCutService(axis.id, {
+      enabled: !isHorizontalCut,
+    });
+    dispatch(triggerAnnotationsUpdate());
+  }
+
   async function deleteAxis() {
     if (!axis?.id) return;
     await deleteAnnotation(axis.id);
@@ -65,9 +77,11 @@ export default function useRevolutionAxisActions(axis) {
   return {
     isPartial,
     isHalfView,
+    isHorizontalCut,
     toggleInvertHalf,
     togglePartial,
     toggleHalfView,
+    toggleHorizontalCut,
     deleteAxis,
   };
 }
