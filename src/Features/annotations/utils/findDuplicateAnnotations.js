@@ -72,6 +72,9 @@ export default function findDuplicateAnnotations(
   const groups = new Map();
 
   for (const annotation of annotations ?? []) {
+    // generated elements of a system instance are owned by their source
+    // (rebuilt by useSystemsSync): never reported as duplicates.
+    if (annotation?.systemSourceAnnotationId) continue;
     const geometryKey = getGeometryKey(annotation, tolerance);
     if (!geometryKey) continue;
 
