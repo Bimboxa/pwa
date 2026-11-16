@@ -16,6 +16,9 @@ export default function getDuplicateCandidates(
     // « même type » = same template: templateless / orphan lines have none.
     if (!a.annotationTemplateId || a._isOrphan) return false;
     if (baseMapId && a.baseMapId !== baseMapId) return false;
+    // generated elements of a system instance (treads, posts, ...) overlap by
+    // construction and are rebuilt by useSystemsSync: only the source counts.
+    if (a.systemSourceAnnotationId) return false;
     if (
       a.isBaseMapAnnotation ||
       a.isMeshCell ||
