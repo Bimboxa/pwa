@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useGetProjectScopeConfigurations from "Features/remoteScopeConfigurations/hooks/useGetProjectScopeConfigurations";
+import useFetchMasterProjects from "Features/masterProjects/hooks/useFetchMasterProjects";
 
 import db, { withSystemWrite } from "App/db/db";
 
@@ -22,11 +23,20 @@ import normalizeProjectIdMaster from "../utils/normalizeProjectIdMaster";
 // The linked project may also be installed locally: its local scopes come
 // first, as in the main list.
 //
+// Link not known yet (project installed locally, its master project not in
+// memory): the project is looked up in the référentiel by its number — once
+// per project when the panel opens, and on every refresh. The fetch feeds
+// the masterProjects store, which resolves the item link; the effect below
+// then persists it on the project row.
+//
 // Returns { rule, rows, loading, refresh, linkedProjectId, linkedProject } —
 // rule is null when the item has no linked project (nothing to render).
 // linkedProject = { name, clientRef } as known locally or from the configs.
 
 const EMPTY = [];
+
+// project ids whose link was already looked up in the référentiel (session)
+const lookedUpProjectIds = new Set();
 
 export default function useLinkedProjectScopes(item) {
   // data
@@ -37,12 +47,23 @@ export default function useLinkedProjectScopes(item) {
     (s) => s.remoteScopeConfigurations.userConfigurations
   );
   const { isFavorite } = useScopeFavorites();
+  const userProfile = useSelector((s) => s.auth.userProfile);
   const getProjectScopeConfigurations = useGetProjectScopeConfigurations();
+  const fetchMasterProjects = useFetchMasterProjects();
 
   const linked = getLinkedProjectScopesConfig(appConfig, item);
-  const rule = linked?.rule ?? null;
   const linkedIdMaster = linked?.linkedIdMaster ?? null;
+  // the rule is only exposed once the linked project is known
+  const rule = linkedIdMaster ? linked.rule : null;
   const linkedProjectType = rule?.linkedProjectType ?? null;
+
+  // link lookup: only for a référentiel project whose type has a rule
+  const lookupClientRef =
+    linked && !linkedIdMaster && item?.idMaster && item?.clientRef
+      ? String(item.clientRef)
+      : null;
+  const lookupOriginKey = linked?.rule?.originKey ?? null;
+  const lookupProjectId = item?.projectId ?? null;
 
   // state
 
@@ -92,6 +113,45 @@ export default function useLinkedProjectScopes(item) {
   useEffect(() => {
     fetchConfigs();
   }, [fetchConfigs]);
+
+  // fetch - link lookup in the référentiel
+
+  const lookingUpRef = useRef(false);
+
+  const lookupLink = useCallback(async () => {
+    if (!lookupClientRef || !jwt || !userProfile || lookingUpRef.current)
+      return;
+    try {
+      lookingUpRef.current = true;
+      setLoading(true);
+      await fetchMasterProjects({
+        jwt,
+        userProfile,
+        searchValue: lookupClientRef,
+        ...(lookupOriginKey && { filterByOriginKey: lookupOriginKey }),
+      });
+    } catch (error) {
+      console.error("[dashboard] linked project lookup error", error);
+    } finally {
+      lookingUpRef.current = false;
+      setLoading(false);
+    }
+  }, [lookupClientRef, lookupOriginKey, jwt, userProfile]);
+
+  useEffect(() => {
+    if (!lookupClientRef || !lookupProjectId || !jwt || !userProfile) return;
+    if (lookedUpProjectIds.has(lookupProjectId)) return;
+    lookedUpProjectIds.add(lookupProjectId);
+    lookupLink();
+  }, [lookupClientRef, lookupProjectId, jwt, userProfile, lookupLink]);
+
+  // refresh: the linked Krtos, or the link itself while unknown (the Krtos
+  // are then fetched by the effect above once the link resolves)
+
+  const refresh = useCallback(async () => {
+    if (linkedIdMaster) await fetchConfigs();
+    else await lookupLink();
+  }, [linkedIdMaster, fetchConfigs, lookupLink]);
 
   // effect - keep the link on the local project row: the master project is
   // only in memory when the référentiel fetch returned it
@@ -158,7 +218,7 @@ export default function useLinkedProjectScopes(item) {
     rule,
     rows,
     loading,
-    refresh: fetchConfigs,
+    refresh,
     linkedProjectId,
     linkedProject,
   };

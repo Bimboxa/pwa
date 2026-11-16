@@ -1,7 +1,6 @@
 import { DndContext } from "@dnd-kit/core";
 
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
-import useLinkedProjectScopes from "../hooks/useLinkedProjectScopes";
 import useOpenDashboardScope from "../hooks/useOpenDashboardScope";
 
 import {
@@ -20,13 +19,18 @@ import ListItemDashboardScope from "./ListItemDashboardScope";
 // appConfig features.masterProjects.linkedProjectScopes).
 // Read-only list (no reorder, no delete). Opening a Krto from here records
 // `item` as its opening source, so its duplication targets `item`'s project.
+// `linkedScopes` = useLinkedProjectScopes(item), owned by the panel so its
+// own refresh button reloads this list too.
 // Renders nothing when the item has no linked project.
 
-export default function SectionDashboardLinkedProjectScopes({ item }) {
+export default function SectionDashboardLinkedProjectScopes({
+  item,
+  linkedScopes,
+}) {
   // data
 
   const { rule, rows, loading, refresh, linkedProjectId, linkedProject } =
-    useLinkedProjectScopes(item);
+    linkedScopes;
   const { toggleFavorite } = useScopeFavorites();
   const openScope = useOpenDashboardScope();
 
