@@ -3035,8 +3035,13 @@ export default function MainThreedEditor() {
     const linkNav = hitIntersect?.object?.userData?.isSectionMarkNav
       ? "1"
       : undefined;
+    // Child of a component: same node id as its siblings (the component),
+    // its own id refreshes the tooltip from one child to the next.
+    const elementAnnotationId = hit?.userData?.elementAnnotationId;
     const partKey =
-      meshPart?.key ?? facePart?.key ?? (linkNav ? "LINK_NAV" : null);
+      meshPart?.key ??
+      facePart?.key ??
+      (linkNav ? "LINK_NAV" : (elementAnnotationId ?? null));
 
     if (hitId !== lastHoveredIdRef.current) {
       // Restore previous (no longer hovered). Selected → original; otherwise
@@ -3072,6 +3077,7 @@ export default function MainThreedEditor() {
             nodeType,
             annotationType,
             listingId,
+            elementAnnotationId,
             partQties: meshPart?.qties ?? null,
             partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
             faceQties: facePart?.qties ?? null,
@@ -3096,6 +3102,7 @@ export default function MainThreedEditor() {
           nodeType,
           annotationType,
           listingId,
+          elementAnnotationId,
           partQties: meshPart?.qties ?? null,
           partType: meshPart ? (meshPart.edge ? "EDGE" : "FACE") : null,
           faceQties: facePart?.qties ?? null,

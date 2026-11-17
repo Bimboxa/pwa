@@ -1634,6 +1634,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     annotationTemplateId:
       annotation.systemSourceTemplateId ?? annotation.annotationTemplateId,
     vertexRefs: annotation.systemSourceAnnotationId ? [] : vertexRefs,
+    // Child of a component (Features/annotationComponents): its own id, for
+    // the hover tooltip (the pick itself resolves to the component).
+    ...(annotation.componentSourceAnnotationId
+      ? { elementAnnotationId: annotation.id }
+      : {}),
   };
 
   // Hatched fill: planar sheets only (no height) — see applyHatchFill, run by

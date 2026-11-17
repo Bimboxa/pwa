@@ -8233,11 +8233,21 @@ const InteractionLayer = forwardRef(({
         const linkNav = nativeTarget.closest?.("[data-link-nav]")
           ? "1"
           : undefined;
+        // Child of a component: the node carries the id of the component,
+        // the tooltip shows the hovered child (StaticMapContent wrapper).
+        const elementAnnotationId =
+          nativeTarget.closest?.("[data-element-annotation-id]")?.dataset
+            ?.elementAnnotationId;
         if (
           tooltipData?.nodeId !== hit.dataset.nodeId ||
-          tooltipData?.linkNav !== linkNav
+          tooltipData?.linkNav !== linkNav ||
+          tooltipData?.elementAnnotationId !== elementAnnotationId
         ) {
-          setTooltipData(linkNav ? { ...hit.dataset, linkNav } : hit.dataset);
+          setTooltipData(
+            linkNav || elementAnnotationId
+              ? { ...hit.dataset, linkNav, elementAnnotationId }
+              : hit.dataset
+          );
 
           // Force immediate update to avoid jump at (0,0)
           requestAnimationFrame(() => {
