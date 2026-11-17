@@ -24,6 +24,7 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
 import RowSweepSourcesRefresh from "./RowSweepSourcesRefresh";
 import RowProfileLines from "./RowProfileLines";
+import RowComponentItems from "Features/annotationComponents/components/RowComponentItems";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
 import useChangeAnnotationTemplate from "../hooks/useChangeAnnotationTemplate";
@@ -803,6 +804,10 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             accentColor={accentColor}
           />
         )}
+
+        {/* Row 2e: « Composant » — the templates it generates, to enable /
+            disable for this annotation. */}
+        {!hasPart && <RowComponentItems annotation={selectedAnnotation} />}
 
         {/* Row 3 - Measurements (right-aligned) — hidden in MIXED (group rows
             carry per-kind qties) and for a single segment (its row has the length) */}

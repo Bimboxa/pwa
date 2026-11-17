@@ -50,6 +50,8 @@ export default function AnnotationTemplateIcon({
   const color = is3D && template.color3D ? template.color3D : twoDColor;
   const opacity = is3D ? (template.opacity3D ?? twoDOpacity) : twoDOpacity;
   const fillType = template.fillType;
+  // COMPONENT: the line sits higher, the « c » badge takes the bottom right.
+  const lineY = shape === "COMPONENT" ? 7 : 10;
 
   // helpers - light color detection
 
@@ -503,9 +505,9 @@ export default function AnnotationTemplateIcon({
         {shapeType === "polyline" && isLightColor && (
           <line
             x1="2"
-            y1="10"
+            y1={lineY}
             x2="18"
-            y2="10"
+            y2={lineY}
             stroke="#bbb"
             strokeWidth="5.5"
             strokeLinecap="round"
@@ -514,9 +516,9 @@ export default function AnnotationTemplateIcon({
         {shapeType === "polyline" && (
           <line
             x1="2"
-            y1="10"
+            y1={lineY}
             x2="18"
-            y2="10"
+            y2={lineY}
             stroke={color}
             strokeWidth="4"
             strokeLinecap="round"
@@ -556,6 +558,30 @@ export default function AnnotationTemplateIcon({
               stroke={color}
               strokeWidth="1"
             />
+          </g>
+        )}
+        {/* « Composant » badge: a small disc with a "c", bottom right */}
+        {shape === "COMPONENT" && (
+          <g>
+            <circle
+              cx="14.5"
+              cy="14.5"
+              r="5"
+              fill={isLightColor ? "#888" : color}
+              stroke="#fff"
+              strokeWidth="1"
+            />
+            <text
+              x="14.5"
+              y="17"
+              textAnchor="middle"
+              fontSize="7.5"
+              fontWeight="bold"
+              fill="#fff"
+              fontFamily="sans-serif"
+            >
+              c
+            </text>
           </g>
         )}
       </svg>

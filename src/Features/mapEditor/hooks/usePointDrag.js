@@ -276,10 +276,16 @@ export default function usePointDrag({
         // Permission check : vérifier que l'annotation cible est à moi
         if (!permissions.canEditAnnotation(snap.previewAnnotationId)) return false;
 
-        // No vertex insertion on a geometry-locked isMesh3d annotation.
+        // No vertex insertion on a geometry-locked isMesh3d annotation, nor
+        // on a generated annotation (child of a component / of a system
+        // instance): its geometry is edited through its source only.
+        const insertionTarget = annotationsRef.current?.find(
+          (a) => a.id === snap.previewAnnotationId
+        );
         if (
-          annotationsRef.current?.find((a) => a.id === snap.previewAnnotationId)
-            ?.isMesh3d
+          insertionTarget?.isMesh3d ||
+          insertionTarget?.componentSourceAnnotationId ||
+          insertionTarget?.systemSourceAnnotationId
         ) {
           return false;
         }

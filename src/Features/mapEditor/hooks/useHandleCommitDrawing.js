@@ -740,11 +740,30 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     return null;
                 };
 
+                // A child of a component (Features/annotationComponents)
+                // carries the point refs of its source: the insertion goes to
+                // the SOURCE, the sync then realigns every child on it.
+                const insertionTargetIdCache = new Map();
+                const resolveInsertionTargetId = async (annotationId) => {
+                    if (!insertionTargetIdCache.has(annotationId)) {
+                        const row = await db.annotations.get(annotationId);
+                        insertionTargetIdCache.set(
+                            annotationId,
+                            row?.componentSourceAnnotationId ?? annotationId
+                        );
+                    }
+                    return insertionTargetIdCache.get(annotationId);
+                };
+
                 // Group insertions by annotation to avoid conflicting updates
                 const byAnnotation = {};
                 for (const ins of snapInsertions) {
-                    if (!byAnnotation[ins.annotationId]) byAnnotation[ins.annotationId] = [];
-                    byAnnotation[ins.annotationId].push(ins);
+                    const targetId = await resolveInsertionTargetId(ins.annotationId);
+                    if (!byAnnotation[targetId]) byAnnotation[targetId] = [];
+                    // the same snapped point reaches a source once, whatever
+                    // the number of its children under the cursor
+                    if (byAnnotation[targetId].some((i) => i.pointId === ins.pointId)) continue;
+                    byAnnotation[targetId].push(ins);
                 }
 
                 for (const [annId, insertions] of Object.entries(byAnnotation)) {

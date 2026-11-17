@@ -130,7 +130,10 @@ import {
   isTemplatelessAnnotationInScope,
   isTemplatelessTemplateKey,
 } from "Features/annotations/utils/templatelessAnnotations";
-import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  isPolylineLikeShape,
+  resolveDrawingShape,
+} from "Features/annotations/constants/drawingShapeConfig";
 import { RULER_DRAWING_MODES } from "Features/threedDrawing/utils/templateRulerDrawSelectors";
 
 import useListings from "Features/listings/hooks/useListings";
@@ -304,7 +307,9 @@ function AnnotationTemplateRow({
   const ActiveToolIcon = activeTool?.Icon;
   // POLYLINE: thickness of the next drawn stroke, shown under the icon line.
   const strokeWidthLabel =
-    drawingShape === "POLYLINE" ? getStrokeWidthLabel(nextDraftProps) : null;
+    isPolylineLikeShape(drawingShape)
+      ? getStrokeWidthLabel(nextDraftProps)
+      : null;
 
   // handlers
 

@@ -580,6 +580,32 @@ const DRAWING_SHAPE_CONFIG = {
   },
 };
 
+// COMPONENT (Features/annotationComponents): a template drawn like a
+// POLYLINE (line or band) that generates one annotation per template of
+// `template.componentItems`. Same style props and tools as POLYLINE — minus
+// the « Pinceau », which converts existing geometry. The drawn annotation is
+// a plain POLYLINE / STRIP row: only the TEMPLATE carries this shape
+// (getNewAnnotationPropsFromAnnotationTemplate hands "POLYLINE" to the
+// draft), so the annotation-level code never meets it.
+DRAWING_SHAPE_CONFIG.COMPONENT = {
+  ...DRAWING_SHAPE_CONFIG.POLYLINE,
+  label: "Composant",
+  tools: DRAWING_SHAPE_CONFIG.POLYLINE.tools.filter(
+    (key) => key !== MESH_BRUSH_TOOL_KEY
+  ),
+};
+
+// drawingShape carried by the ANNOTATIONS drawn with a template of the given
+// shape: the shape itself, except for COMPONENT (see above).
+export function getAnnotationDrawingShape(drawingShape) {
+  return drawingShape === "COMPONENT" ? "POLYLINE" : drawingShape;
+}
+
+// A template shape drawn and styled as a line (POLYLINE, COMPONENT).
+export function isPolylineLikeShape(drawingShape) {
+  return drawingShape === "POLYLINE" || drawingShape === "COMPONENT";
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

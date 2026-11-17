@@ -1,3 +1,4 @@
+import { remapComponentAnnotationRefs, remapComponentTemplateRefs } from "Features/annotationComponents/utils/remapComponentRefs";
 import { nanoid } from "@reduxjs/toolkit";
 
 import db, { withSystemWrite } from "App/db/db";
@@ -369,6 +370,9 @@ export default async function duplicateScopeService({
             listingIdMap[t.systemListingId] ?? t.systemListingId,
         }
       : {}),
+    // COMPONENT template (Features/annotationComponents): follows the copies
+    // of the templates it generates.
+    ...remapComponentTemplateRefs(t, templateIdMap),
   }));
 
   const newLayers = layersToCopy.map((l) => ({
@@ -438,6 +442,12 @@ export default async function duplicateScopeService({
       newAnn.systemSourceAnnotationId =
         annotationIdMap[a.systemSourceAnnotationId] ??
         a.systemSourceAnnotationId;
+    // Components (Features/annotationComponents): child -> source
+    // annotation / template, source -> per-template enabled map.
+    Object.assign(
+      newAnn,
+      remapComponentAnnotationRefs(a, { templateIdMap, annotationIdMap })
+    );
     remapPointIds(newAnn, pointIdMap);
     remapAnnotationIds(newAnn, annotationIdMap);
     return newAnn;

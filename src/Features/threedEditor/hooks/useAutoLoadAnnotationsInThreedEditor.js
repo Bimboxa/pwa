@@ -33,6 +33,7 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import applySystemDisplay from "Features/systems/utils/applySystemDisplay";
+import applyComponentDisplay from "Features/annotationComponents/utils/applyComponentDisplay";
 import { SYSTEM_DISPLAY_EDITOR_3D } from "Features/systems/constants/systemConstants";
 
 // Annotations built WITHOUT the anti-aliasing shrink (« Pinceau »): copies
@@ -317,6 +318,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     return isBaseMapLinkClone(selected) ? selected.id : null;
   }, [annotations, selectedNodeId]);
 
+  // Same for a selected COMPONENT: only the id of a selected component
+  // source is tracked, any other selection change leaves the list untouched.
+  const selectedComponentSourceId = useMemo(() => {
+    if (!selectedNodeId || !annotations) return null;
+    return annotations.some(
+      (a) => a.componentSourceAnnotationId === selectedNodeId
+    )
+      ? selectedNodeId
+      : null;
+  }, [annotations, selectedNodeId]);
+
   const annotationsForThreed = useMemo(() => {
     if (!annotations) return annotations;
     // Hidden for the session with « Masquer l'annotation »: not built at all
@@ -337,6 +349,14 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     result = applySystemDisplay(result, SYSTEM_DISPLAY_EDITOR_3D, {
       dropHiddenSources: true,
     });
+    // Components (Features/annotationComponents): the children are built
+    // and stand for the component — unless it is the selected annotation,
+    // then its own line is built in their place.
+    result = applyComponentDisplay(result, {
+      selectedIds: selectedComponentSourceId ? [selectedComponentSourceId] : [],
+      hiddenSourceIdSet: userHiddenIdSet,
+      dropHiddenSources: true,
+    });
     if (scopeAnnotationIdSet) {
       result = result.filter((a) => scopeAnnotationIdSet.has(a.id));
     }
@@ -355,6 +375,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     hiddenSheetIdSet,
     userHiddenIdSet,
     selectedLinkCloneId,
+    selectedComponentSourceId,
     axisOnlyBaseMapIdSet,
     planAxisIdSet,
   ]);

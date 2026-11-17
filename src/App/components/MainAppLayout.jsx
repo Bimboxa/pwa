@@ -40,6 +40,7 @@ import SyncDialogsContainer from "Features/remoteScopeConfigurations/components/
 import ProfileLinesSourceSync from "Features/elevation/components/ProfileLinesSourceSync";
 import PathArraySync from "Features/pathArray/components/PathArraySync";
 import SystemsSync from "Features/systems/components/SystemsSync";
+import ComponentsSync from "Features/annotationComponents/components/ComponentsSync";
 
 export default function MainAppLayout() {
   const dispatch = useDispatch();
@@ -138,6 +139,7 @@ export default function MainAppLayout() {
       <ProfileLinesSourceSync />
       <PathArraySync />
       <SystemsSync />
+      <ComponentsSync />
     </DndContext>
   );
 }

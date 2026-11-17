@@ -2,6 +2,7 @@ import {
   getConfigurableProps,
   getDefaultsForShape,
   getAnnotationType,
+  getAnnotationDrawingShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
 import getImageRefFromEntityImage from "Features/imageAnnotations/utils/getImageRefFromEntityImage";
@@ -99,9 +100,9 @@ export default function getNewAnnotationPropsFromAnnotationTemplate(
   // Link back to template
   props.annotationTemplateId = annotationTemplate.id;
 
-  // Carry forward drawingShape
+  // Carry forward drawingShape (a COMPONENT template draws POLYLINE rows)
   if (drawingShape) {
-    props.drawingShape = drawingShape;
+    props.drawingShape = getAnnotationDrawingShape(drawingShape);
   }
 
   // Overlay the user's last toolbar edits for this template (dimensions +

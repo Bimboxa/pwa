@@ -10,6 +10,7 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldObject3D from "Features/object3D/components/FieldObject3D";
 import FieldSystemListing from "Features/systems/components/FieldSystemListing";
+import FieldAnnotationTemplateComponentItems from "Features/annotationComponents/components/FieldAnnotationTemplateComponentItems";
 import FieldAnnotationTemplatePathArray from "Features/pathArray/components/FieldAnnotationTemplatePathArray";
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
@@ -44,6 +45,7 @@ import getImageAnnotationPropsFromFileName from "../utils/getImageAnnotationProp
 import {
   getConfigurableProps,
   getDefaultsForShape,
+  isPolylineLikeShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
 import { MATERIAL3D_NONE_KEY } from "Features/photorealRender/utils/material3dPresets";
@@ -211,6 +213,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleSystemListingChange(systemListingId) {
     onChange({ ...annotationTemplate, systemListingId });
+  }
+
+  function handleComponentItemsChange(componentItems) {
+    onChange({ ...annotationTemplate, componentItems });
   }
 
   function handlePathArrayChange(pathArray) {
@@ -469,7 +475,7 @@ export default function FormAnnotationTemplateVariantBlock({
               onChange={handleStrokeChange}
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
-              withDashOptions={drawingShape === "POLYLINE"}
+              withDashOptions={isPolylineLikeShape(drawingShape)}
             />
           )}
 
@@ -575,6 +581,18 @@ export default function FormAnnotationTemplateVariantBlock({
                 label="Illustration (optionnel)"
                 value={image}
                 onChange={handleImageChange}
+              />
+            </Box>
+          )}
+
+          {/* Component items (COMPONENT): the templates it generates */}
+          {drawingShape === "COMPONENT" && (
+            <Box sx={{ width: 1 }}>
+              <FieldAnnotationTemplateComponentItems
+                value={annotationTemplate?.componentItems}
+                onChange={handleComponentItemsChange}
+                annotationTemplateId={annotationTemplate?.id}
+                listingId={annotationTemplate?.listingId}
               />
             </Box>
           )}

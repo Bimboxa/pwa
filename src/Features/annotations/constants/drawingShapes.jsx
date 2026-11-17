@@ -450,6 +450,37 @@ const DRAWING_SHAPES = [
       </SvgIcon>
     ),
   },
+  // COMPONENT (Features/annotationComponents): one drawn line, several
+  // annotations — a line carrying the « c » badge.
+  {
+    key: "COMPONENT",
+    label: "Composant",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <line
+          x1="2"
+          y1="8"
+          x2="18"
+          y2="8"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle cx="14" cy="14" r="5" fill="currentColor" />
+        <text
+          x="14"
+          y="16.6"
+          textAnchor="middle"
+          fontSize="7.5"
+          fontWeight="bold"
+          fill="#fff"
+          fontFamily="sans-serif"
+        >
+          c
+        </text>
+      </SvgIcon>
+    ),
+  },
 ];
 
 export function resolveShapeCategory(shape) {
