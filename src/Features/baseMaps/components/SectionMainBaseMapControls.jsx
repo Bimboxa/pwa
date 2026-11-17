@@ -43,6 +43,9 @@ export default function SectionMainBaseMapControls() {
   // helpers
 
   const isBaseMapsModule = viewerKey === "BASE_MAPS";
+  // Infos is a consultation module: switching the base map only, no version
+  // / altitude edition.
+  const isCommentsModule = viewerKey === "COMMENTS";
 
   // handlers
 
@@ -112,8 +115,8 @@ export default function SectionMainBaseMapControls() {
         // The BaseMaps module edits the image itself: no eye there.
         showImageToggle={!isBaseMapsModule}
       />
-      <BaseMapVersionSelectorInTopBar />
-      <FieldBaseMapZInTopBar />
+      {!isCommentsModule && <BaseMapVersionSelectorInTopBar />}
+      {!isCommentsModule && <FieldBaseMapZInTopBar />}
       {isBaseMapsModule && isCalibrating && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
           <Button

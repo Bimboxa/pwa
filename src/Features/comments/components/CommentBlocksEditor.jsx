@@ -480,7 +480,8 @@ export default function CommentBlocksEditor({
             >
               {error ?? hintS}
             </Typography>
-            <Tooltip title={sendS} arrow>
+            {/* On the right: below, it would cover the Enregistrer button. */}
+            <Tooltip title={sendS} arrow placement="right">
               <span>
                 <IconButton
                   size="small"
