@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setIsLocatingComment } from "../commentsSlice";
@@ -8,6 +8,7 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import StripCommentPills from "./StripCommentPills";
 import LayerCommentPins from "./LayerCommentPins";
+import CommentLocateCursor from "./CommentLocateCursor";
 import PopperComment from "./PopperComment";
 import DialogCreateCommentListing from "./DialogCreateCommentListing";
 import PortalEditorFloatingPanels from "Features/layout/components/PortalEditorFloatingPanels";
@@ -43,8 +44,13 @@ function LayerCommentsContent() {
   // helpers
 
   const locating = Boolean(isLocating && canEdit);
+  const locateCursorRef = useRef(null);
   const handleMiss = useCallback(() => setMissed(true), []);
-  useCommentLocateCapture({ active: locating, onMiss: handleMiss });
+  useCommentLocateCapture({
+    active: locating,
+    onMiss: handleMiss,
+    cursorRef: locateCursorRef,
+  });
 
   // effects
 
@@ -84,6 +90,7 @@ function LayerCommentsContent() {
             commentListings={commentListings}
             selectedListing={selectedListing}
           />
+          {locating && <CommentLocateCursor ref={locateCursorRef} />}
           {locating && (
             <Box
               sx={{
