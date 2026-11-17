@@ -19,7 +19,8 @@ export function getComponentItemType(item, template) {
 /**
  * Items of a component template, resolved against the template rows:
  *
- *   [{ annotationTemplateId, template, type, enabledByDefault, enabled }]
+ *   [{ annotationTemplateId, template, type, stripOrientation,
+ *      enabledByDefault, enabled }]
  *
  * `enabledMap` = `componentItemsEnabled` of a source annotation (or of the
  * draft being drawn): its entries win over the defaults of the template.
@@ -46,6 +47,8 @@ export default function getComponentItems(
       annotationTemplateId: id,
       template,
       type: getComponentItemType(item, template),
+      // side of a band item relative to the band of the component
+      stripOrientation: item.stripOrientation === -1 ? -1 : 1,
       enabledByDefault,
       enabled: typeof override === "boolean" ? override : enabledByDefault,
     });

@@ -23,7 +23,7 @@ export default function getComponentSignature({ source, items }) {
     .filter((item) => item.enabled)
     .map(
       (item) =>
-        `${item.annotationTemplateId}:${item.type}@${
+        `${item.annotationTemplateId}:${item.type}${item.stripOrientation ?? 1}@${
           item.template?.updatedAt ?? ""
         }`
     )

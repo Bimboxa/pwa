@@ -90,7 +90,7 @@ export default async function applyComponentService({ sourceId, dispatch }) {
 
   const refs = (source.points ?? []).filter((ref) => ref?.id);
   const enabledItems = refs.length >= 2 ? items.filter((i) => i.enabled) : [];
-  const desired = enabledItems.map(({ template, type }) => ({
+  const desired = enabledItems.map(({ template, type, stripOrientation }) => ({
     template,
     row: {
       ...getNewAnnotationPropsFromAnnotationTemplate(template),
@@ -102,7 +102,11 @@ export default async function applyComponentService({ sourceId, dispatch }) {
       type,
       closeLine: Boolean(source.closeLine),
       ...(type === COMPONENT_ITEM_TYPE_STRIP
-        ? { stripOrientation: source.stripOrientation ?? 1 }
+        ? {
+            // side of the component's band, flipped for an "opposite" item
+            stripOrientation:
+              (source.stripOrientation ?? 1) * (stripOrientation ?? 1),
+          }
         : {}),
       points: refs.map((ref) => ({ ...ref })),
       componentSourceAnnotationId: sourceId,
