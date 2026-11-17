@@ -156,6 +156,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // with FREE_TEXT / COTE). Same read-time model as the stub.
     isFixedSize: annotationTemplate?.isFixedSize,
 
+    // "Ligne de déport" (getAnnotationOffsetLineConfig): read-time default,
+    // forced onto every annotation when listed in overrideFields (padlock).
+    offsetLine: annotationTemplate?.offsetLine,
+
     overrideFields: annotationTemplate?.overrideFields,
 
     // Read-time only (never gated by overrideFields, never copied onto rows).
