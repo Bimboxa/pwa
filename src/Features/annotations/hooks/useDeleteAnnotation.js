@@ -6,6 +6,7 @@ import db from "App/db/db";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
 import collectPathArrayChildren from "Features/pathArray/services/collectPathArrayChildren";
 import collectSystemChildren from "Features/systems/services/collectSystemChildren";
+import collectComponentChildren from "Features/annotationComponents/services/collectComponentChildren";
 
 export default function useDeleteAnnotation() {
   const dispatch = useDispatch();
@@ -103,6 +104,16 @@ export default function useDeleteAnnotation() {
       // System source (Features/systems): its generated annotations go with it.
       if (annotation?.systemApplied) {
         const children = await collectSystemChildren({
+          sourceIds: [annotationId],
+          projectId: annotation.projectId,
+        });
+        if (children.length > 0)
+          await db.annotations.bulkDelete(children.map((c) => c.id));
+      }
+      // Component source (Features/annotationComponents): its children go
+      // with it (their points are those of the source, deleted below).
+      if (annotation?.componentApplied) {
+        const children = await collectComponentChildren({
           sourceIds: [annotationId],
           projectId: annotation.projectId,
         });

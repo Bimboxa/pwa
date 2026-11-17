@@ -85,6 +85,7 @@ import { isTransformToolMode } from "Features/annotationTransform/utils/transfor
 import SectionChangeStyleHelper from "Features/commandsToolbar/commands/changeStyle/SectionChangeStyleHelper";
 import SectionHideAnnotationHelper from "Features/commandsToolbar/commands/hideAnnotation/SectionHideAnnotationHelper";
 import SectionProcedureSourceDrawingHelper from "Features/annotationsAuto/components/SectionProcedureSourceDrawingHelper";
+import SectionComponentDrawingHelper from "Features/annotationComponents/components/SectionComponentDrawingHelper";
 import { CHANGE_STYLE_MODE } from "Features/commandsToolbar/commands/changeStyle/changeStyleMode";
 import { HIDE_ANNOTATION_MODE } from "Features/commandsToolbar/commands/hideAnnotation/hideAnnotationMode";
 
@@ -599,6 +600,8 @@ export default function SectionDrawingHelperContent() {
       {/* Source annotation of a procedure being drawn (2D): the procedure's
           own schematic — null otherwise. */}
       {!isThreedToggledEditor && <SectionProcedureSourceDrawingHelper />}
+      {/* « Composant » template: the templates it generates, to check */}
+      <SectionComponentDrawingHelper />
       {isThreedToggledEditor && (
         <Box
           sx={{

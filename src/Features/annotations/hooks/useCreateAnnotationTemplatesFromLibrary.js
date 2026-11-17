@@ -67,6 +67,21 @@ export default function useCreateAnnotationTemplatesFromLibrary() {
     const resolveLibraryRefs = (template) => {
       const next = { ...template };
       delete next.templateKey;
+      // COMPONENT template (Features/annotationComponents): `componentItems:
+      // [{ templateKey, enabled, type }]` → `[{ annotationTemplateId, … }]`.
+      // Items whose template is left out of the batch are dropped.
+      if (Array.isArray(next.componentItems)) {
+        next.componentItems = next.componentItems
+          .map((item) => {
+            const { templateKey, ...rest } = item ?? {};
+            const annotationTemplateId =
+              rest.annotationTemplateId ?? idByTemplateKey.get(templateKey);
+            return annotationTemplateId
+              ? { ...rest, annotationTemplateId }
+              : null;
+          })
+          .filter(Boolean);
+      }
       const key = next.pathArray?.annotationTemplateKey;
       if (!key) return next;
       const annotationTemplateId = idByTemplateKey.get(key);

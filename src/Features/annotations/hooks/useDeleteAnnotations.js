@@ -10,6 +10,7 @@ import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBa
 import { getLiveMeshPaintIdsByHostIds } from "Features/meshPaint/services/deleteMeshPaintsService";
 import collectPathArrayChildren from "Features/pathArray/services/collectPathArrayChildren";
 import collectSystemChildren from "Features/systems/services/collectSystemChildren";
+import collectComponentChildren from "Features/annotationComponents/services/collectComponentChildren";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -96,6 +97,23 @@ export default function useDeleteAnnotations() {
       })
     ).filter((a) => !idsToDeleteSet.has(a.id));
     for (const c of systemChildren) {
+      validAnnotations.push(c);
+      idsToDelete.push(c.id);
+      idsToDeleteSet.add(c.id);
+    }
+
+    // 1a-sexies. Cascade to the children of a component
+    // (`componentSourceAnnotationId`, Features/annotationComponents): same
+    // rule, same undo group. They share the points of their source — the
+    // orphan-point cleanup below only drops points nothing references.
+    const componentChildren = (
+      await collectComponentChildren({
+        sourceIds: validAnnotations
+          .filter((a) => a.componentApplied)
+          .map((a) => a.id),
+      })
+    ).filter((a) => !idsToDeleteSet.has(a.id));
+    for (const c of componentChildren) {
       validAnnotations.push(c);
       idsToDelete.push(c.id);
       idsToDeleteSet.add(c.id);

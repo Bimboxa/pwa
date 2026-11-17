@@ -1,3 +1,7 @@
+import {
+  remapComponentAnnotationRefs,
+  remapComponentTemplateRefs,
+} from "Features/annotationComponents/utils/remapComponentRefs";
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 
@@ -183,6 +187,9 @@ export default async function copyListingsToScopeService({
     ...prepareCopy(t, createdBy),
     id: templateIdMap[t.id],
     listingId: listingIdMap[t.listingId],
+    // COMPONENT template (Features/annotationComponents): follows the copies
+    // of the templates it generates.
+    ...remapComponentTemplateRefs(t, templateIdMap),
   }));
 
   const newPoints = sourcePoints.map((p) => ({
@@ -218,6 +225,10 @@ export default async function copyListingsToScopeService({
       layerId: null,
     };
     remapPointIds(newAnn, pointIdMap);
+    Object.assign(
+      newAnn,
+      remapComponentAnnotationRefs(a, { templateIdMap, annotationIdMap })
+    );
     remapAnnotationIds(newAnn, annotationIdMap);
     return newAnn;
   });

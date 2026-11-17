@@ -71,6 +71,10 @@ export default function remapDexieExportIds(jsonData, opts) {
     systemTemplateId: "annotationTemplates",
     systemSourceAnnotationId: "annotations",
     systemSourceTemplateId: "annotationTemplates",
+    // Components (Features/annotationComponents): child annotation -> its
+    // source annotation / the template it was generated from.
+    componentSourceAnnotationId: "annotations",
+    componentElementKey: "annotationTemplates",
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
     // Painted mesh parts (meshPaints) -> host annotation; also the host /
@@ -313,6 +317,32 @@ export default function remapDexieExportIds(jsonData, opts) {
             row.pathArray.annotationTemplateId
           ),
         };
+      }
+      // Component template: the templates it generates. Component source:
+      // its per-template enabled map (keyed by template id).
+      if (
+        tableName === "annotationTemplates" &&
+        Array.isArray(row.componentItems)
+      ) {
+        row.componentItems = row.componentItems.map((item) =>
+          item?.annotationTemplateId
+            ? {
+                ...item,
+                annotationTemplateId: remapId(
+                  "annotationTemplates",
+                  item.annotationTemplateId
+                ),
+              }
+            : item
+        );
+      }
+      if (tableName === "annotations" && row.componentItemsEnabled) {
+        row.componentItemsEnabled = Object.fromEntries(
+          Object.entries(row.componentItemsEnabled).map(([id, enabled]) => [
+            remapId("annotationTemplates", id),
+            enabled,
+          ])
+        );
       }
       if (tableName === "annotations" && row.pathArraySourceAnnotationId) {
         row.pathArraySourceAnnotationId = remapId(

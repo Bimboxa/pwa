@@ -225,6 +225,7 @@ import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useSyncBusinessObjectDrawDraft from "Features/businessObjects/hooks/useSyncBusinessObjectDrawDraft";
 import useAnnotationTransformTool from "Features/annotationTransform/hooks/useAnnotationTransformTool";
 import applySystemDisplay from "Features/systems/utils/applySystemDisplay";
+import applyComponentDisplay from "Features/annotationComponents/utils/applyComponentDisplay";
 import { SYSTEM_DISPLAY_EDITOR_2D } from "Features/systems/constants/systemConstants";
 
 const contextDimmedStyle = {
@@ -644,13 +645,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const { hiddenIdSet: userHiddenIdSet } = useUserHiddenAnnotations();
   // System instances (Features/systems): each one shows either its source
   // annotation or its generated detail (per instance, 2D mode).
+  // Components (Features/annotationComponents): the children stand for the
+  // component; once it is selected, only its own line is shown. Keyed on the
+  // selected ids so a selection change that holds the same ids keeps the list.
+  const selectedIdsKey = (selectedItems ?? [])
+    .map((item) => item?.nodeId ?? item?.id)
+    .filter(Boolean)
+    .join("|");
   const rawAnnotations = useMemo(
     () =>
-      applySystemDisplay(
-        filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
-        SYSTEM_DISPLAY_EDITOR_2D
+      applyComponentDisplay(
+        applySystemDisplay(
+          filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+          SYSTEM_DISPLAY_EDITOR_2D
+        ),
+        {
+          selectedIds: selectedIdsKey ? selectedIdsKey.split("|") : [],
+          hiddenSourceIdSet: userHiddenIdSet,
+        }
       ),
-    [loadedAnnotations, userHiddenIdSet]
+    [loadedAnnotations, userHiddenIdSet, selectedIdsKey]
   );
 
   // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
