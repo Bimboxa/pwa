@@ -15,7 +15,7 @@
 // packed on screen.
 //
 // Sections, from the scene context to the quality tools: frame → base map →
-// draw → lines in a surface → cuts → topological cuts → faces → create /
+// draw → line / strip / walls → lines in a surface → cuts → topological cuts → faces → create /
 // modify from the selection → move / view of one annotation → quality.
 // The registry order (commands/index.js) drives the hotkey resolution and is
 // independent from this display order.
@@ -93,6 +93,43 @@ const DEFAULT_SECTIONS = [
       "PLACE_REVOLUTION_AXIS",
     ],
   },
+  // line / strip edition and walls — right after the draw commands, before
+  // every selection-dependent section: with the irrelevant commands hidden,
+  // the buttons before a slot come and go with the selected annotation type,
+  // so placing these first keeps « ligne ↔ bande » at a stable position
+  {
+    key: "LINES_WALLS",
+    label: "Ligne / bande / Murs",
+    entries: [
+      // « Inverser le sens » stands alone, always visible next to the group
+      {
+        type: "group",
+        key: "LINE_EDIT",
+        label: "Ligne / bande",
+        commandKeys: [
+          "TOGGLE_STRIP_TYPE",
+          "TOGGLE_CLOSE_LINE",
+          "ANCHOR",
+          "DETECT_SIMILAR_STRIPS",
+        ],
+      },
+      "FLIP_STRIP",
+      // « Contours » stands alone, always visible next to the walls group
+      "CONTOURS",
+      {
+        type: "group",
+        key: "WALLS",
+        label: "Murs",
+        commandKeys: [
+          "VECTORISE",
+          "CLOSE_ENVELOPE",
+          "CLOSE_WALL_FOOTPRINT",
+          "AUTO_WALLS",
+          "SLOPE_WALLS",
+        ],
+      },
+    ],
+  },
   // lines added inside the selected surface (the guide line, the layout
   // line and the profile stand alone, outside the group)
   {
@@ -160,33 +197,6 @@ const DEFAULT_SECTIONS = [
       "SETTING_OUT",
       "CONVERT",
       "REENTRANT_ANGLES",
-      // « Inverser le sens » stands alone, always visible next to the group
-      {
-        type: "group",
-        key: "LINE_EDIT",
-        label: "Ligne / bande",
-        commandKeys: [
-          "TOGGLE_STRIP_TYPE",
-          "TOGGLE_CLOSE_LINE",
-          "ANCHOR",
-          "DETECT_SIMILAR_STRIPS",
-        ],
-      },
-      "FLIP_STRIP",
-      // « Contours » stands alone, always visible next to the walls group
-      "CONTOURS",
-      {
-        type: "group",
-        key: "WALLS",
-        label: "Murs",
-        commandKeys: [
-          "VECTORISE",
-          "CLOSE_ENVELOPE",
-          "CLOSE_WALL_FOOTPRINT",
-          "AUTO_WALLS",
-          "SLOPE_WALLS",
-        ],
-      },
       "ASSIGN_BUSINESS_OBJECT",
     ],
   },

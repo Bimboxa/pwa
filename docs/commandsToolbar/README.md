@@ -60,7 +60,9 @@ The layout is written as **named sections** (`{ key, label, entries }`,
 `TOOLBAR_SECTIONS` / `getToolbarSections(moduleKey)`): the toolbar renders
 the flat form (`TOOLBAR_LAYOUTS`, a divider between two sections), the
 « Commandes » dialog lists the commands under the section labels (« Repère »,
-« Fond de plan », « Dessin », « Lignes dans une surface », « Coupes »,
+« Fond de plan », « Dessin », « Ligne / bande / Murs » (right after the draw
+commands so « ligne ↔ bande » keeps a stable position whatever the selected
+type), « Lignes dans une surface », « Coupes »,
 « Soustraction / Évidement », « Faces / Extrusion », « Créer / modifier depuis la
 sélection », « Déplacer / Affichage », « Qualité ») of the layout of the module
 selected with its chips (`getToolbarSections(moduleKey)`: « Coupes /
