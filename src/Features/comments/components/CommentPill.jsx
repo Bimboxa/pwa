@@ -4,7 +4,7 @@ import { Box, Tooltip } from "@mui/material";
 
 import { COMMENT_COLORS } from "../commentsDarkTheme";
 
-// Round numbered pill of a comment — same look in the left strip and in the
+// Round numbered pill of a comment — same look in the top bar and in the
 // scene (LayerCommentPins). `active` = the comment opened in the panel.
 const CommentPill = forwardRef(function CommentPill(
   {

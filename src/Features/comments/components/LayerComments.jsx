@@ -88,7 +88,8 @@ function LayerCommentsContent() {
             <Box
               sx={{
                 position: "absolute",
-                top: 12,
+                // below the top-centered comments bar (StripCommentPills)
+                top: 52,
                 left: "50%",
                 transform: "translateX(-50%)",
                 zIndex: 11,

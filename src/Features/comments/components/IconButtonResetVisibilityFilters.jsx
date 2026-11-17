@@ -12,7 +12,10 @@ import { COMMENT_COLORS } from "../commentsDarkTheme";
 // opening an info restores its view context, which hides listings and
 // annotation templates — this button shows them all again. Dimmed when
 // nothing is hidden.
-export default function IconButtonResetVisibilityFilters({ size = 28 }) {
+export default function IconButtonResetVisibilityFilters({
+  size = 28,
+  tooltipPlacement = "right",
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -42,7 +45,7 @@ export default function IconButtonResetVisibilityFilters({ size = 28 }) {
   // render
 
   return (
-    <Tooltip title={tooltipS} arrow placement="right">
+    <Tooltip title={tooltipS} arrow placement={tooltipPlacement}>
       {/* span: the tooltip still shows on the disabled button */}
       <Box component="span" sx={{ display: "flex", pointerEvents: "auto" }}>
         <Box
@@ -62,7 +65,6 @@ export default function IconButtonResetVisibilityFilters({ size = 28 }) {
             border: `1px solid ${COMMENT_COLORS.borderStrong}`,
             bgcolor: COMMENT_COLORS.background,
             color: COMMENT_COLORS.text,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
             cursor: "pointer",
             "&:hover": { bgcolor: COMMENT_COLORS.surfaceRaised },
             "&:disabled": {
