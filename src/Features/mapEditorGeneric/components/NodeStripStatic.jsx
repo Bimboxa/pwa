@@ -5,6 +5,7 @@ import theme from "Styles/theme";
 
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
+import useMapZoom from "../hooks/useMapZoom";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getStripePolygons, {
     getStripChunks,
@@ -17,6 +18,10 @@ import { typeOf, circleFromThreePoints, expandArcsInPath } from "Features/geomet
 
 // Colored dash blocks occupy this fraction of the band width (centered).
 const DASH_BAND_RATIO = 0.6;
+
+// Default STRIP width when the annotation has none (same default as
+// getAnnotationStrokeWidthPx).
+const STRIP_DEFAULT_WIDTH_PX = 20;
 
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
@@ -96,6 +101,25 @@ function NodeStripStatic({
         "data-annotation-type": "STRIP",
     };
 
+    // --- PX WIDTH: CONSTANT ON SCREEN ---
+    // The band is a filled polygon, so its width is baked into the geometry and
+    // cannot be compensated with `non-scaling-stroke` (POLYLINE) or a CSS
+    // scale (POINT). In PX the width is therefore divided by the same factor
+    // those nodes cancel in CSS: camera zoom (JS mirror of --map-zoom) times
+    // containerK. CM strips keep their physical width and do not subscribe.
+    const isPxUnit = !(
+        mergedAnnotation.strokeWidthUnit === "CM" && baseMapMeterByPx > 0
+    );
+    const mapZoom = useMapZoom(isPxUnit);
+    const pxScale = isPxUnit ? 1 / ((mapZoom || 1) * (containerK || 1)) : 1;
+    const geomAnnotation = isPxUnit
+        ? {
+            ...mergedAnnotation,
+            strokeWidth:
+                (mergedAnnotation.strokeWidth ?? STRIP_DEFAULT_WIDTH_PX) * pxScale,
+        }
+        : mergedAnnotation;
+
     // --- 1. CALCUL GEOMETRIE : PATHS DES CUTS (Mode Édition / Stroke) ---
     const cutPaths = useMemo(() => {
         if (!cuts || cuts.length === 0) return [];
@@ -111,7 +135,7 @@ function NodeStripStatic({
     const stripPolygonsData = useMemo(() => {
         // SI !selected : On calcule l'intersection réelle (Vue propre)
         // SI selected : On garde la forme brute + cuts originaux (pour édition cohérente)
-        const polygons = getStripePolygons(mergedAnnotation, baseMapMeterByPx, !selected);
+        const polygons = getStripePolygons(geomAnnotation, baseMapMeterByPx, !selected);
 
         // Transformation en SVG Path (d)
         return polygons.map((shape, i) => {
@@ -128,7 +152,7 @@ function NodeStripStatic({
             };
         });
 
-    }, [mergedAnnotation, baseMapMeterByPx, selected]);
+    }, [geomAnnotation, baseMapMeterByPx, selected]);
 
 
     // --- 3. CALCUL GEOMETRIE : STROKE (LES SEGMENTS DIRECTEURS) ---
@@ -208,12 +232,13 @@ function NodeStripStatic({
     const useHatching = strokeType === "DASHED";
     const dashLinesData = useMemo(() => {
         if (!useHatching || !points || points.length < 2) return null;
-        const distancePx = getStripDistancePx(mergedAnnotation, baseMapMeterByPx);
+        const distancePx = getStripDistancePx(geomAnnotation, baseMapMeterByPx);
         if (!distancePx) return null;
         const isCm = mergedAnnotation.strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
         const toPx = (v) => (isCm ? (v * 0.01) / baseMapMeterByPx : v);
-        const dashPx = Math.max(1, toPx(Number(mergedAnnotation.dashLength) || STRIP_DASH_DEFAULTS.dashLength));
-        const gapPx = Math.max(1, toPx(Number(mergedAnnotation.dashGap) || STRIP_DASH_DEFAULTS.dashGap));
+        // pxScale (1 in CM) keeps the PX dash pattern constant on screen too.
+        const dashPx = Math.max(1, toPx(Number(mergedAnnotation.dashLength) || STRIP_DASH_DEFAULTS.dashLength)) * pxScale;
+        const gapPx = Math.max(1, toPx(Number(mergedAnnotation.dashGap) || STRIP_DASH_DEFAULTS.dashGap)) * pxScale;
         const { chunks } = getStripChunks(mergedAnnotation);
         const paths = chunks
             .map((chunk) => offsetPolyline(expandArcsInPath(chunk, ARC_SAMPLES, false), distancePx / 2))
@@ -223,7 +248,7 @@ function NodeStripStatic({
                 d: pts.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" "),
             }));
         return { paths, dashPx, gapPx, bandWidthPx: Math.abs(distancePx) };
-    }, [useHatching, mergedAnnotation, baseMapMeterByPx, points]);
+    }, [useHatching, geomAnnotation, baseMapMeterByPx, points, pxScale]);
 
     // --- HELPERS STYLE ---
     const getFillStyle = () => {
