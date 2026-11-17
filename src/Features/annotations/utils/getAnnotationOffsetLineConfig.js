@@ -14,6 +14,8 @@ import {
 // - offset: signed distance to the main line, in PAGE POINTS of the base
 //   map's print zone (see getCotePageScale). The sign is the side: positive =
 //   right of the drawing direction.
+// - strokeWidth: line thickness, in page points.
+// - dashed: boolean — dashed line instead of a solid one.
 // - fontSize: label text size, in page points.
 // - showLabel: boolean — draw the label along the line, one per segment.
 // - showLength: boolean — add the segment length to that text, formatted
@@ -33,6 +35,8 @@ export const OFFSET_LINE_ANNOTATION_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export const DEFAULT_OFFSET_LINE_ENABLED = false;
 export const DEFAULT_OFFSET_LINE_OFFSET_PT = 12;
+export const DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT = 1;
+export const DEFAULT_OFFSET_LINE_DASHED = false;
 export const DEFAULT_OFFSET_LINE_FONT_SIZE_PT = 10;
 export const DEFAULT_OFFSET_LINE_SHOW_LABEL = true;
 export const DEFAULT_OFFSET_LINE_SHOW_LENGTH = false;
@@ -50,7 +54,7 @@ function parseOffset(raw) {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function parseFontSize(raw) {
+function parsePositive(raw) {
   if (raw === null || raw === undefined || raw === "") return undefined;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : undefined;
@@ -72,7 +76,9 @@ function parseOffsetLine(raw) {
   return {
     enabled: parseBoolean(raw?.enabled),
     offset: parseOffset(raw?.offset),
-    fontSize: parseFontSize(raw?.fontSize),
+    strokeWidth: parsePositive(raw?.strokeWidth),
+    dashed: parseBoolean(raw?.dashed),
+    fontSize: parsePositive(raw?.fontSize),
     showLabel: parseBoolean(raw?.showLabel),
     showLength: parseBoolean(raw?.showLength),
     lengthUnit: parseUnit(raw?.lengthUnit),
@@ -101,6 +107,11 @@ export default function getAnnotationOffsetLineConfig(annotation) {
   return {
     enabled: own.enabled ?? fromTemplate.enabled ?? DEFAULT_OFFSET_LINE_ENABLED,
     offset: own.offset ?? fromTemplate.offset ?? DEFAULT_OFFSET_LINE_OFFSET_PT,
+    strokeWidth:
+      own.strokeWidth ??
+      fromTemplate.strokeWidth ??
+      DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT,
+    dashed: own.dashed ?? fromTemplate.dashed ?? DEFAULT_OFFSET_LINE_DASHED,
     fontSize:
       own.fontSize ?? fromTemplate.fontSize ?? DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
     showLabel:

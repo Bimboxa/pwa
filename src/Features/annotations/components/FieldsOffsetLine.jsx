@@ -12,12 +12,15 @@ import { SwapVert as SwapIcon } from "@mui/icons-material";
 import {
   DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
   DEFAULT_OFFSET_LINE_OFFSET_PT,
+  DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT,
 } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 
 // strings
 
 const offsetS = "Déport";
 const flipS = "Inverser le côté";
+const strokeWidthS = "Épaisseur";
+const dashedS = "Pointillé";
 const fontSizeS = "Taille du texte";
 const showLabelS = "Libellé le long de la ligne";
 const showLengthS = "Longueur du segment";
@@ -25,7 +28,7 @@ const unitS = "Unité";
 const decimalsS = "Décimales";
 const showLengthUnitS = "Afficher l'unité";
 const hintS =
-  "Déport et taille du texte en points de la zone d'impression du fond de plan.";
+  "Déport, épaisseur et taille du texte en points de la zone d'impression du fond de plan.";
 
 const numberInputSx = {
   width: 64,
@@ -60,7 +63,8 @@ const toggleGroupSx = {
 const rowSx = { display: "flex", alignItems: "center", gap: 1 };
 
 // Rows of the "Ligne de déport" section shared by the annotation and the
-// annotation template panels: offset (absolute value + side flip), text
+// annotation template panels: offset (absolute value + side flip), line
+// style (thickness, dashed), text
 // content (label and / or segment length, formatted like a cote) and text
 // size. `config` is the resolved offset line
 // (getAnnotationOffsetLineConfig), `onChange` receives the changed keys only.
@@ -69,6 +73,8 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
 
   const {
     offset,
+    strokeWidth,
+    dashed,
     fontSize,
     showLabel,
     showLength,
@@ -92,6 +98,21 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
 
   function handleFlip() {
     onChange({ offset: -offset });
+  }
+
+  function handleStrokeWidthChange(raw) {
+    const parsed =
+      raw === "" ? DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT : Number(raw);
+    onChange({
+      strokeWidth:
+        Number.isFinite(parsed) && parsed > 0
+          ? parsed
+          : DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT,
+    });
+  }
+
+  function handleDashedChange(e) {
+    onChange({ dashed: e.target.checked });
   }
 
   function handleFontSizeChange(raw) {
@@ -159,6 +180,31 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
           }
           sx={numberInputSx}
         />
+      </Box>
+
+      <Box sx={rowSx}>
+        <Typography variant="body2" sx={{ flex: 1 }}>
+          {strokeWidthS}
+        </Typography>
+        <InputBase
+          type="number"
+          value={strokeWidth}
+          onChange={(e) => handleStrokeWidthChange(e.target.value)}
+          inputProps={{ min: 0.25, step: 0.25 }}
+          endAdornment={
+            <Typography variant="caption" color="text.secondary">
+              pt
+            </Typography>
+          }
+          sx={numberInputSx}
+        />
+      </Box>
+
+      <Box sx={rowSx}>
+        <Typography variant="body2" sx={{ flex: 1 }}>
+          {dashedS}
+        </Typography>
+        <Switch size="small" checked={dashed} onChange={handleDashedChange} />
       </Box>
 
       <Box sx={rowSx}>
