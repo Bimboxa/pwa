@@ -68,7 +68,11 @@ const MapTooltip = forwardRef(
 
     // helper - annotations
 
-    const annotation = annotations.find((a) => a.id === hoveredNode?.nodeId);
+    // `elementAnnotationId`: the hovered child of a component (its node id
+    // is the component's) — the tooltip describes the child itself.
+    const hoveredAnnotationId =
+      hoveredNode?.elementAnnotationId ?? hoveredNode?.nodeId;
+    const annotation = annotations.find((a) => a.id === hoveredAnnotationId);
 
     // data - detail baseMap (DETAIL annotations link a detail baseMap whose
     // record carries the inline page thumbnail)

@@ -547,6 +547,12 @@ function StaticMapContent({
           return (
             <g
               key={annotation.id}
+              // Child of a component (Features/annotationComponents): its
+              // nodes carry the id of the component (click = the component),
+              // the hover tooltip reads the child's own id here.
+              data-element-annotation-id={
+                annotation.componentSourceAnnotationId ? annotation.id : undefined
+              }
               style={{
                 ...(hasPendingMove && { opacity: 0 }),
                 ...(isAnchorSource && { opacity: 0.3, filter: "grayscale(1)" }),
