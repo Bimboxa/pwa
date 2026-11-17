@@ -29,6 +29,7 @@ import FieldAnnotationHiddenIn3d from "./FieldAnnotationHiddenIn3d";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLabelSize from "./FieldAnnotationLabelSize";
+import FieldAnnotationOffsetLine from "./FieldAnnotationOffsetLine";
 import FieldAnnotationDetailSize from "./FieldAnnotationDetailSize";
 import FieldsAnnotationDisc from "./FieldsAnnotationDisc";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
@@ -39,6 +40,9 @@ import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 import FieldAnnotationImage from "./FieldAnnotationImage";
 import FieldImageAnnotationDetails from "Features/imageAnnotations/components/FieldImageAnnotationDetails";
 import FieldAnnotationOpacity from "./FieldAnnotationOpacity";
+
+import { OFFSET_LINE_ANNOTATION_TYPES } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
+import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 import SectionAnnotationPathArray from "Features/pathArray/components/SectionAnnotationPathArray";
 import SectionAnnotationSystem from "Features/systems/components/SectionAnnotationSystem";
 
@@ -77,6 +81,9 @@ export default function SectionAnnotationPropertiesContent({
       configurableProps.includes("fillOpacity"));
   const showStroke = configurableProps.includes("strokeColor");
   const showStrokeWidth = configurableProps.includes("strokeWidth");
+  const showOffsetLine =
+    OFFSET_LINE_ANNOTATION_TYPES.includes(type) &&
+    !isOpeningAnnotation(annotation);
 
   // handlers
 
@@ -204,6 +211,13 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {showStrokeWidth && (
           <FieldAnnotationStrokeWidth
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {/* "Ligne de déport": line drawn parallel to the main line. */}
+        {showOffsetLine && (
+          <FieldAnnotationOffsetLine
             annotation={annotation}
             overrideFields={overrideFields}
           />

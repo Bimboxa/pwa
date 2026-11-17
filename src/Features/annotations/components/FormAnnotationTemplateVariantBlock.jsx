@@ -23,6 +23,7 @@ import FieldAnnotationTemplateDescription from "./FieldAnnotationTemplateDescrip
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
 import FieldAnnotationTemplateSlope from "./FieldAnnotationTemplateSlope";
 import FieldAnnotationTemplateLabelSize from "./FieldAnnotationTemplateLabelSize";
+import FieldAnnotationTemplateOffsetLine from "./FieldAnnotationTemplateOffsetLine";
 import FieldAnnotationTemplateDetailSize from "./FieldAnnotationTemplateDetailSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
@@ -796,6 +797,17 @@ export default function FormAnnotationTemplateVariantBlock({
               // Standalone LABEL: size mode owned by
               // FieldAnnotationTemplateLabelSize (isFixedSize).
               showFixedSize={drawingShape !== "LABEL"}
+            />
+          )}
+
+          {/* "Ligne de déport": line drawn parallel to the annotation's main
+              line. Read-time template default, not seeded at creation. */}
+          {["POLYLINE", "POLYGON"].includes(drawingShape) && (
+            <FieldAnnotationTemplateOffsetLine
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
             />
           )}
 

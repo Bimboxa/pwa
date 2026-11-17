@@ -13,7 +13,8 @@ export default function FieldAnnotationPreview({ annotation, padding = 16, image
             points: cut.points?.filter(isValidPoint) || []
         })).filter(cut => cut.points.length > 0) || [];
 
-        const sanitized = { ...annotation, points: validMainPoints, cuts: validCuts };
+        // No offset line in the thumbnail (it lies outside the fitted bbox).
+        const sanitized = { ...annotation, points: validMainPoints, cuts: validCuts, offsetLine: { enabled: false } };
 
         const allValidPoints = [...validMainPoints, ...validCuts.flatMap(cut => cut.points)];
 

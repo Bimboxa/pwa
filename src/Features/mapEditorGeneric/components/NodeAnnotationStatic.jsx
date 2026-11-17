@@ -20,11 +20,13 @@ import NodePhotoStatic from "./NodePhotoStatic";
 import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
 import NodeDiscStatic from "./NodeDiscStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
+import NodeOffsetLineStatic from "./NodeOffsetLineStatic";
 
 import NodeBlockInstanceStatic from "Features/blocks/components/NodeBlockInstanceStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
+import getAnnotationOffsetLineConfig from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 
 // Memoized with the default shallow compare. Callers must keep props
 // id-derived or referentially stable — in particular pass
@@ -114,6 +116,13 @@ function NodeAnnotationStatic({
   // is metadata used only for wrapper bbox computation — no SVG rotation
   // should be applied here (it would cause double rotation).
 
+  // "Ligne de déport": drawn next to the node of the line-based types, only
+  // mounted when enabled (no extra component for the other annotations).
+  const offsetLineNode = getAnnotationOffsetLineConfig(resolvedAnnotation)
+    .enabled ? (
+    <NodeOffsetLineStatic annotation={resolvedAnnotation} printMode={printMode} />
+  ) : null;
+
   switch (resolvedAnnotation.type) {
     case "MARKER":
       return <NodeMarkerStatic {...props} marker={resolvedAnnotation} />;
@@ -122,7 +131,12 @@ function NodeAnnotationStatic({
       return <NodePointStatic {...props} annotation={resolvedAnnotation} />;
 
     case "POLYGON":
-      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
+      return (
+        <>
+          <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          {offsetLineNode}
+        </>
+      );
 
     case "POLYLINE":
       // OPENING: template-driven wall opening (2-point POLYLINE glued on a
@@ -130,10 +144,20 @@ function NodeAnnotationStatic({
       if (isOpeningAnnotation(resolvedAnnotation)) {
         return <NodeOpeningStatic {...props} annotation={resolvedAnnotation} />;
       }
-      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
+      return (
+        <>
+          <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          {offsetLineNode}
+        </>
+      );
 
     case "STRIP":
-      return <NodeStripStatic {...props} annotation={resolvedAnnotation} />;
+      return (
+        <>
+          <NodeStripStatic {...props} annotation={resolvedAnnotation} />
+          {offsetLineNode}
+        </>
+      );
 
     // LINEAR_LAYOUT: calepinage linéaire — band + axis + bar ticks from a
     // 2-point segment (the bottom edge of the band).
