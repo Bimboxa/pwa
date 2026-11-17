@@ -1,4 +1,8 @@
-import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
+import {
+  circleFromThreePoints,
+  expandArcsInPath,
+  typeOf,
+} from "Features/geometry/utils/arcSampling";
 
 // Geometry of an annotation's "ligne de déport" (offset line), in the same
 // space as `points` (image px).
@@ -9,7 +13,8 @@ import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
 // - `segments`: the main-line segments the chain was built from, with their
 //   unit normal — used to map a drag back to a signed offset.
 // - `labels`: one anchor per ORIGINAL segment (an S-C-S arc counts as one),
-//   on the offset line: position, direction angle and available length.
+//   on the offset line: position, direction angle and length of the main-line
+//   segment (true arc length for an arc).
 //
 // Dependency free apart from the arc sampling (plain {x, y} objects).
 
@@ -78,6 +83,17 @@ function getOffsetPoints(path, segments, offset, closed) {
     .slice(0, n);
 }
 
+// Length of the S-C-S arc: each half spans 2·asin(chord / 2r). Falls back to
+// the two chords on a degenerate (collinear) triplet.
+function getArcLength(p0, p1, p2) {
+  const c1 = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+  const c2 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  const r = circleFromThreePoints(p0, p1, p2)?.r;
+  if (!Number.isFinite(r) || r <= 0) return c1 + c2;
+  const halfSpan = (c) => 2 * Math.asin(Math.min(c / (2 * r), 1));
+  return r * (halfSpan(c1) + halfSpan(c2));
+}
+
 function getLabels(points, offset, closed) {
   const n = points.length;
   const labels = [];
@@ -102,8 +118,7 @@ function getLabels(points, offset, closed) {
     const to = isArc ? p2 : p1;
     const mid = isArc ? p1 : { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
     const length = isArc
-      ? Math.hypot(p1.x - p0.x, p1.y - p0.y) +
-        Math.hypot(p2.x - p1.x, p2.y - p1.y)
+      ? getArcLength(p0, p1, p2)
       : Math.hypot(p1.x - p0.x, p1.y - p0.y);
     const dx = to.x - from.x;
     const dy = to.y - from.y;

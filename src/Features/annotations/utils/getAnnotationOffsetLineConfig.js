@@ -1,3 +1,9 @@
+import {
+  DEFAULT_COTE_DECIMALS,
+  DEFAULT_COTE_UNIT,
+  UNIT_FACTORS_FROM_METERS,
+} from "Features/annotations/constants/coteDisplayDefaults";
+
 // "Ligne de déport" (offset line) of a POLYLINE / POLYGON / STRIP annotation:
 // a thin line drawn parallel to the annotation's main line, optionally
 // carrying the annotation label along each segment.
@@ -10,6 +16,9 @@
 //   right of the drawing direction.
 // - fontSize: label text size, in page points.
 // - showLabel: boolean — draw the label along the line, one per segment.
+// - showLength: boolean — add the segment length to that text, formatted
+//   like a cote: lengthUnit ("CM" | "M"), lengthDecimals, showLengthUnit
+//   (unit suffix).
 //
 // Resolution, per key: annotation own value ?? template value ?? app default
 // — the same READ-TIME model as the LABEL size (getAnnotationLabelSizeConfig):
@@ -26,6 +35,10 @@ export const DEFAULT_OFFSET_LINE_ENABLED = false;
 export const DEFAULT_OFFSET_LINE_OFFSET_PT = 12;
 export const DEFAULT_OFFSET_LINE_FONT_SIZE_PT = 10;
 export const DEFAULT_OFFSET_LINE_SHOW_LABEL = true;
+export const DEFAULT_OFFSET_LINE_SHOW_LENGTH = false;
+export const DEFAULT_OFFSET_LINE_LENGTH_UNIT = DEFAULT_COTE_UNIT;
+export const DEFAULT_OFFSET_LINE_LENGTH_DECIMALS = DEFAULT_COTE_DECIMALS;
+export const DEFAULT_OFFSET_LINE_SHOW_LENGTH_UNIT = true;
 
 function parseBoolean(raw) {
   return typeof raw === "boolean" ? raw : undefined;
@@ -43,12 +56,28 @@ function parseFontSize(raw) {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
+function parseUnit(raw) {
+  return typeof raw === "string" && raw in UNIT_FACTORS_FROM_METERS
+    ? raw
+    : undefined;
+}
+
+function parseDecimals(raw) {
+  if (raw === null || raw === undefined || raw === "") return undefined;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
 function parseOffsetLine(raw) {
   return {
     enabled: parseBoolean(raw?.enabled),
     offset: parseOffset(raw?.offset),
     fontSize: parseFontSize(raw?.fontSize),
     showLabel: parseBoolean(raw?.showLabel),
+    showLength: parseBoolean(raw?.showLength),
+    lengthUnit: parseUnit(raw?.lengthUnit),
+    lengthDecimals: parseDecimals(raw?.lengthDecimals),
+    showLengthUnit: parseBoolean(raw?.showLengthUnit),
   };
 }
 
@@ -76,5 +105,21 @@ export default function getAnnotationOffsetLineConfig(annotation) {
       own.fontSize ?? fromTemplate.fontSize ?? DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
     showLabel:
       own.showLabel ?? fromTemplate.showLabel ?? DEFAULT_OFFSET_LINE_SHOW_LABEL,
+    showLength:
+      own.showLength ??
+      fromTemplate.showLength ??
+      DEFAULT_OFFSET_LINE_SHOW_LENGTH,
+    lengthUnit:
+      own.lengthUnit ??
+      fromTemplate.lengthUnit ??
+      DEFAULT_OFFSET_LINE_LENGTH_UNIT,
+    lengthDecimals:
+      own.lengthDecimals ??
+      fromTemplate.lengthDecimals ??
+      DEFAULT_OFFSET_LINE_LENGTH_DECIMALS,
+    showLengthUnit:
+      own.showLengthUnit ??
+      fromTemplate.showLengthUnit ??
+      DEFAULT_OFFSET_LINE_SHOW_LENGTH_UNIT,
   };
 }

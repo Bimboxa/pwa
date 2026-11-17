@@ -7,12 +7,15 @@ import getAnnotationOffsetLineConfig, {
 } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 import getOffsetLineGeometry from "Features/annotations/utils/getOffsetLineGeometry";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
+import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 
 // Offset line ink, in page pt of the base map's print zone (see
 // getCotePageScale): FIXED relative to the plan, like the cotes.
 const STROKE_WIDTH_PT = 1;
 const TEXT_GAP_PT = 3;
 const TEXT_HALO_PT = 2;
+// Between the label and the segment length when both are shown.
+const TEXT_SEPARATOR = " · ";
 // Rough advance of one glyph, as a ratio of the font size — only used to drop
 // the label of a segment too short to carry it.
 const GLYPH_WIDTH_RATIO = 0.55;
@@ -34,7 +37,8 @@ function getUprightAngle(angle) {
 
 // "Ligne de déport" of a POLYLINE / POLYGON / STRIP: a thin line parallel to
 // the annotation's main line (see getAnnotationOffsetLineConfig), optionally
-// carrying the annotation label along each segment. Rendered next to the
+// carrying the annotation label and / or the segment length (formatted like a
+// cote, measured on the main line) along each segment. Rendered next to the
 // annotation's own node by NodeAnnotationStatic.
 //
 // Like NodeCoteStatic, this node owns its drag: the line is a grab handle
@@ -43,7 +47,7 @@ function getUprightAngle(angle) {
 // make InteractionLayer absorb the gesture (no pan, no whole-annotation move)
 // and select the annotation on a plain click. The label is a plain selection
 // target through the `data-node-*` attributes of the root group.
-function NodeOffsetLineStatic({ annotation, printMode }) {
+function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
@@ -61,8 +65,16 @@ function NodeOffsetLineStatic({ annotation, printMode }) {
   const points = annotation?.points;
   const closeLine = type === "POLYGON" || Boolean(annotation?.closeLine);
 
-  const { enabled, offset, fontSize, showLabel } =
-    getAnnotationOffsetLineConfig(annotation);
+  const {
+    enabled,
+    offset,
+    fontSize,
+    showLabel,
+    showLength,
+    lengthUnit,
+    lengthDecimals,
+    showLengthUnit,
+  } = getAnnotationOffsetLineConfig(annotation);
   const locked = isOffsetLineLocked(
     annotation?.annotationTemplateProps?.overrideFields
   );
@@ -216,11 +228,30 @@ function NodeOffsetLineStatic({ annotation, printMode }) {
   const LineTag = geometry.closed ? "polygon" : "polyline";
   const side = offsetPx < 0 ? -1 : 1;
   const textShiftPx = side * (TEXT_GAP_PT + fontSize / 2) * pageScale;
-  const textWidthPx =
-    labelText.length * fontSize * GLYPH_WIDTH_RATIO * pageScale;
-  const labels = labelText
-    ? geometry.labels.filter((label) => label.length >= textWidthPx)
-    : [];
+  // No length without a scale on the base map (getCoteDisplayValue's "—").
+  const hasScale = Number.isFinite(baseMapMeterByPx) && baseMapMeterByPx > 0;
+  const labels = geometry.labels
+    .map((label) => {
+      const lengthText =
+        showLength && hasScale
+          ? getCoteDisplayValue({
+              p1: { x: 0, y: 0 },
+              p2: { x: label.length, y: 0 },
+              meterByPx: baseMapMeterByPx,
+              unit: lengthUnit,
+              decimals: lengthDecimals,
+              showUnitLabel: showLengthUnit,
+            })
+          : "";
+      const text = [labelText, lengthText].filter(Boolean).join(TEXT_SEPARATOR);
+      return { ...label, text };
+    })
+    .filter(
+      (label) =>
+        label.text &&
+        label.length >=
+          label.text.length * fontSize * GLYPH_WIDTH_RATIO * pageScale
+    );
 
   return (
     <g
@@ -263,7 +294,7 @@ function NodeOffsetLineStatic({ annotation, printMode }) {
               strokeLinejoin: "round",
             }}
           >
-            {labelText}
+            {label.text}
           </text>
         </g>
       ))}

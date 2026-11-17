@@ -120,7 +120,11 @@ function NodeAnnotationStatic({
   // mounted when enabled (no extra component for the other annotations).
   const offsetLineNode = getAnnotationOffsetLineConfig(resolvedAnnotation)
     .enabled ? (
-    <NodeOffsetLineStatic annotation={resolvedAnnotation} printMode={printMode} />
+    <NodeOffsetLineStatic
+      annotation={resolvedAnnotation}
+      printMode={printMode}
+      baseMapMeterByPx={baseMapMeterByPx}
+    />
   ) : null;
 
   switch (resolvedAnnotation.type) {
