@@ -8,10 +8,10 @@ import getAnnotationOffsetLineConfig, {
 import getOffsetLineGeometry from "Features/annotations/utils/getOffsetLineGeometry";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 
 // Offset line ink, in page pt of the base map's print zone (see
 // getCotePageScale): FIXED relative to the plan, like the cotes.
-const STROKE_WIDTH_PT = 1;
 const TEXT_GAP_PT = 3;
 const TEXT_HALO_PT = 2;
 // Between the label and the segment length when both are shown.
@@ -68,6 +68,8 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   const {
     enabled,
     offset,
+    strokeWidth,
+    dashed,
     fontSize,
     showLabel,
     showLength,
@@ -226,6 +228,13 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
 
   const pointsAttr = geometry.points.map((p) => `${p.x},${p.y}`).join(" ");
   const LineTag = geometry.closed ? "polygon" : "polyline";
+  // Dash pattern in page pt, like the stroke: fixed relative to the plan.
+  const dashArray = dashed
+    ? getStrokeDasharray(strokeWidth)
+        .split(" ")
+        .map((v) => Number(v) * pageScale)
+        .join(" ")
+    : undefined;
   const side = offsetPx < 0 ? -1 : 1;
   const textShiftPx = side * (TEXT_GAP_PT + fontSize / 2) * pageScale;
   // No length without a scale on the base map (getCoteDisplayValue's "—").
@@ -266,7 +275,8 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
         points={pointsAttr}
         fill="none"
         stroke={color}
-        strokeWidth={STROKE_WIDTH_PT * pageScale}
+        strokeWidth={strokeWidth * pageScale}
+        strokeDasharray={dashArray}
         strokeLinejoin="miter"
         pointerEvents="none"
       />
