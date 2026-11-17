@@ -13,6 +13,9 @@ import {
   DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
   DEFAULT_OFFSET_LINE_OFFSET_PT,
   DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT,
+  OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
+  OFFSET_LINE_LABEL_SOURCE_NONE,
+  OFFSET_LINE_LABEL_SOURCE_TEMPLATE,
 } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 
 // strings
@@ -22,7 +25,7 @@ const flipS = "Inverser le côté";
 const strokeWidthS = "Épaisseur";
 const dashedS = "Pointillé";
 const fontSizeS = "Taille du texte";
-const showLabelS = "Libellé le long de la ligne";
+const labelSourceS = "Libellé le long de la ligne";
 const showLengthS = "Longueur du segment";
 const unitS = "Unité";
 const decimalsS = "Décimales";
@@ -44,6 +47,11 @@ const numberInputSx = {
 const UNIT_OPTIONS = [
   { value: "CM", label: "cm" },
   { value: "M", label: "m" },
+];
+
+const LABEL_SOURCE_OPTIONS = [
+  { value: OFFSET_LINE_LABEL_SOURCE_TEMPLATE, label: "Modèle" },
+  { value: OFFSET_LINE_LABEL_SOURCE_ANNOTATION, label: "Annotation" },
 ];
 
 const DECIMALS_OPTIONS = [0, 1, 2];
@@ -76,13 +84,13 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
     strokeWidth,
     dashed,
     fontSize,
-    showLabel,
+    labelSource,
     showLength,
     lengthUnit,
     lengthDecimals,
     showLengthUnit,
   } = config;
-  const hasText = showLabel || showLength;
+  const hasText = labelSource !== OFFSET_LINE_LABEL_SOURCE_NONE || showLength;
   const side = offset < 0 ? -1 : 1;
 
   // handlers
@@ -125,8 +133,13 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
     });
   }
 
-  function handleShowLabelChange(e) {
-    onChange({ showLabel: e.target.checked });
+  // One source or none: clicking the active button again (null) turns the
+  // label off. `showLabel` is the legacy switch, dropped on the first edit.
+  function handleLabelSourceChange(e, value) {
+    onChange({
+      labelSource: value ?? OFFSET_LINE_LABEL_SOURCE_NONE,
+      showLabel: undefined,
+    });
   }
 
   function handleShowLengthChange(e) {
@@ -209,13 +222,21 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
 
       <Box sx={rowSx}>
         <Typography variant="body2" sx={{ flex: 1 }}>
-          {showLabelS}
+          {labelSourceS}
         </Typography>
-        <Switch
+        <ToggleButtonGroup
+          value={labelSource}
+          exclusive
+          onChange={handleLabelSourceChange}
           size="small"
-          checked={showLabel}
-          onChange={handleShowLabelChange}
-        />
+          sx={toggleGroupSx}
+        >
+          {LABEL_SOURCE_OPTIONS.map((o) => (
+            <ToggleButton key={o.value} value={o.value}>
+              {o.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
       </Box>
 
       <Box sx={rowSx}>

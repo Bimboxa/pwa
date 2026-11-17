@@ -17,7 +17,10 @@ import {
 // - strokeWidth: line thickness, in page points.
 // - dashed: boolean — dashed line instead of a solid one.
 // - fontSize: label text size, in page points.
-// - showLabel: boolean — draw the label along the line, one per segment.
+// - labelSource: "TEMPLATE" | "ANNOTATION" | "NONE" — the label drawn along
+//   the line, one per segment: the template's, the annotation's own, or
+//   none. Replaces the first version's `showLabel` boolean (only its `false`
+//   is still read, as "NONE").
 // - showLength: boolean — add the segment length to that text, formatted
 //   like a cote: lengthUnit ("CM" | "M"), lengthDecimals, showLengthUnit
 //   (unit suffix).
@@ -38,7 +41,16 @@ export const DEFAULT_OFFSET_LINE_OFFSET_PT = 12;
 export const DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT = 1;
 export const DEFAULT_OFFSET_LINE_DASHED = false;
 export const DEFAULT_OFFSET_LINE_FONT_SIZE_PT = 10;
-export const DEFAULT_OFFSET_LINE_SHOW_LABEL = true;
+export const OFFSET_LINE_LABEL_SOURCE_TEMPLATE = "TEMPLATE";
+export const OFFSET_LINE_LABEL_SOURCE_ANNOTATION = "ANNOTATION";
+export const OFFSET_LINE_LABEL_SOURCE_NONE = "NONE";
+const LABEL_SOURCES = [
+  OFFSET_LINE_LABEL_SOURCE_TEMPLATE,
+  OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
+  OFFSET_LINE_LABEL_SOURCE_NONE,
+];
+export const DEFAULT_OFFSET_LINE_LABEL_SOURCE =
+  OFFSET_LINE_LABEL_SOURCE_TEMPLATE;
 export const DEFAULT_OFFSET_LINE_SHOW_LENGTH = false;
 export const DEFAULT_OFFSET_LINE_LENGTH_UNIT = DEFAULT_COTE_UNIT;
 export const DEFAULT_OFFSET_LINE_LENGTH_DECIMALS = DEFAULT_COTE_DECIMALS;
@@ -72,6 +84,13 @@ function parseDecimals(raw) {
   return Number.isInteger(n) && n >= 0 ? n : undefined;
 }
 
+function parseLabelSource(raw) {
+  if (LABEL_SOURCES.includes(raw?.labelSource)) return raw.labelSource;
+  // Legacy switch turned off.
+  if (raw?.showLabel === false) return OFFSET_LINE_LABEL_SOURCE_NONE;
+  return undefined;
+}
+
 function parseOffsetLine(raw) {
   return {
     enabled: parseBoolean(raw?.enabled),
@@ -79,7 +98,7 @@ function parseOffsetLine(raw) {
     strokeWidth: parsePositive(raw?.strokeWidth),
     dashed: parseBoolean(raw?.dashed),
     fontSize: parsePositive(raw?.fontSize),
-    showLabel: parseBoolean(raw?.showLabel),
+    labelSource: parseLabelSource(raw),
     showLength: parseBoolean(raw?.showLength),
     lengthUnit: parseUnit(raw?.lengthUnit),
     lengthDecimals: parseDecimals(raw?.lengthDecimals),
@@ -114,8 +133,10 @@ export default function getAnnotationOffsetLineConfig(annotation) {
     dashed: own.dashed ?? fromTemplate.dashed ?? DEFAULT_OFFSET_LINE_DASHED,
     fontSize:
       own.fontSize ?? fromTemplate.fontSize ?? DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
-    showLabel:
-      own.showLabel ?? fromTemplate.showLabel ?? DEFAULT_OFFSET_LINE_SHOW_LABEL,
+    labelSource:
+      own.labelSource ??
+      fromTemplate.labelSource ??
+      DEFAULT_OFFSET_LINE_LABEL_SOURCE,
     showLength:
       own.showLength ??
       fromTemplate.showLength ??
