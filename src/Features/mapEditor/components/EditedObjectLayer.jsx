@@ -256,6 +256,9 @@ export default function EditedObjectLayer({
               }
               sizeVariant="FIXED_IN_SCREEN"
               containerK={finalPose.k}
+              // Offset line "hideMainLine": the selected annotation shows its
+              // main shape so it can be edited.
+              showHiddenMainLine
               // Le point rouge s'affichera sur toutes les annotations qui le contiennent
               // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
               selectedPointId={selectedPointId}

@@ -65,6 +65,10 @@ function NodeAnnotationStatic({
   imageDisplayIndex,
   imageVeiled,
   imagesHidden,
+  // Offset line with "hideMainLine": draw the main shape anyway (the layer
+  // of the selected / edited annotations passes it, so the shape can be
+  // edited).
+  showHiddenMainLine,
 }) {
   // Apply the override + shape-based defaults ONCE per (annotation,
   // annotationOverride) pair. The memo keeps the resolved object
@@ -118,14 +122,20 @@ function NodeAnnotationStatic({
 
   // "Ligne de déport": drawn next to the node of the line-based types, only
   // mounted when enabled (no extra component for the other annotations).
-  const offsetLineNode = getAnnotationOffsetLineConfig(resolvedAnnotation)
-    .enabled ? (
+  const offsetLineConfig = getAnnotationOffsetLineConfig(resolvedAnnotation);
+  const offsetLineNode = offsetLineConfig.enabled ? (
     <NodeOffsetLineStatic
       annotation={resolvedAnnotation}
       printMode={printMode}
       baseMapMeterByPx={baseMapMeterByPx}
     />
   ) : null;
+  // "Only the offset line": the main shape is not drawn (nor hit-testable),
+  // the offset line is then the only way to select the annotation.
+  const hideMainLine =
+    offsetLineConfig.enabled &&
+    offsetLineConfig.hideMainLine &&
+    !showHiddenMainLine;
 
   switch (resolvedAnnotation.type) {
     case "MARKER":
@@ -137,7 +147,9 @@ function NodeAnnotationStatic({
     case "POLYGON":
       return (
         <>
-          <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          {!hideMainLine && (
+            <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          )}
           {offsetLineNode}
         </>
       );
@@ -150,7 +162,9 @@ function NodeAnnotationStatic({
       }
       return (
         <>
-          <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          {!hideMainLine && (
+            <NodePolylineStatic {...props} annotation={resolvedAnnotation} />
+          )}
           {offsetLineNode}
         </>
       );
@@ -158,7 +172,9 @@ function NodeAnnotationStatic({
     case "STRIP":
       return (
         <>
-          <NodeStripStatic {...props} annotation={resolvedAnnotation} />
+          {!hideMainLine && (
+            <NodeStripStatic {...props} annotation={resolvedAnnotation} />
+          )}
           {offsetLineNode}
         </>
       );
