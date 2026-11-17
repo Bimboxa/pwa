@@ -13,7 +13,8 @@ import {
 // - enabled: boolean — draw the offset line.
 // - offset: signed distance to the main line, in PAGE POINTS of the base
 //   map's print zone (see getCotePageScale). The sign is the side: positive =
-//   right of the drawing direction.
+//   right of the drawing direction; for a STRIP, positive = the side opposite
+//   the band (follows stripOrientation, see NodeOffsetLineStatic).
 // - strokeWidth: line thickness, in page points.
 // - dashed: boolean — dashed line instead of a solid one.
 // - fontSize: label text size, in page points.

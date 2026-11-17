@@ -86,8 +86,16 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   const draggable = !printMode && Boolean(annotationId) && !locked;
 
   const pageScale = getCotePageScale(annotation);
+  // STRIP: the stored points are one EDGE of the band, which extends toward
+  // the left normal × stripOrientation (getStripDistancePx). A positive
+  // offset is the side OPPOSITE the band, so the offset line follows the
+  // band when it is flipped. Other types: positive = right of the drawing
+  // direction.
+  const sideSign =
+    type === "STRIP" && (annotation?.stripOrientation ?? 1) < 0 ? -1 : 1;
   const offsetPt = dragOffsetPt ?? offset;
-  const offsetPx = offsetPt * pageScale;
+  // Signed along the right-of-direction normal of getOffsetLineGeometry.
+  const offsetPx = offsetPt * pageScale * sideSign;
 
   const geometry = useMemo(
     () =>
@@ -195,10 +203,12 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
       const deltaPerp =
         (imgPt.x - drag.initialImgPt.x) * drag.nx +
         (imgPt.y - drag.initialImgPt.y) * drag.ny;
-      setDragOffsetPt((drag.initialOffsetPx + deltaPerp) / pageScale);
+      setDragOffsetPt(
+        ((drag.initialOffsetPx + deltaPerp) / pageScale) * sideSign
+      );
       e.stopPropagation();
     },
-    [getImagePoint, pageScale]
+    [getImagePoint, pageScale, sideSign]
   );
 
   const handlePointerUp = useCallback(
