@@ -4,8 +4,11 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 
 import getAnnotationOffsetLineConfig, {
   isOffsetLineLocked,
+  OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
+  OFFSET_LINE_LABEL_SOURCE_TEMPLATE,
 } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 import getOffsetLineGeometry from "Features/annotations/utils/getOffsetLineGeometry";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
@@ -71,7 +74,7 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
     strokeWidth,
     dashed,
     fontSize,
-    showLabel,
+    labelSource,
     showLength,
     lengthUnit,
     lengthDecimals,
@@ -83,8 +86,16 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   const draggable = !printMode && Boolean(annotationId) && !locked;
 
   const pageScale = getCotePageScale(annotation);
+  // STRIP: the stored points are one EDGE of the band, which extends toward
+  // the left normal × stripOrientation (getStripDistancePx). A positive
+  // offset is the side OPPOSITE the band, so the offset line follows the
+  // band when it is flipped. Other types: positive = right of the drawing
+  // direction.
+  const sideSign =
+    type === "STRIP" && (annotation?.stripOrientation ?? 1) < 0 ? -1 : 1;
   const offsetPt = dragOffsetPt ?? offset;
-  const offsetPx = offsetPt * pageScale;
+  // Signed along the right-of-direction normal of getOffsetLineGeometry.
+  const offsetPx = offsetPt * pageScale * sideSign;
 
   const geometry = useMemo(
     () =>
@@ -97,9 +108,14 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   const color =
     (type === "POLYGON" ? annotation?.fillColor : annotation?.strokeColor) ??
     "#000000";
-  const labelText = showLabel
-    ? (annotation?.label ?? annotation?.annotationTemplateProps?.label ?? "")
-    : "";
+  // The template's label, the annotation's own one (not the entity /
+  // template fallback carried by `annotation.label`), or none.
+  let labelText = "";
+  if (labelSource === OFFSET_LINE_LABEL_SOURCE_TEMPLATE) {
+    labelText = annotation?.annotationTemplateProps?.label ?? "";
+  } else if (labelSource === OFFSET_LINE_LABEL_SOURCE_ANNOTATION) {
+    labelText = getAnnotationOwnLabel(annotation) ?? "";
+  }
 
   // helpers - pointer position in image px
 
@@ -187,10 +203,12 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
       const deltaPerp =
         (imgPt.x - drag.initialImgPt.x) * drag.nx +
         (imgPt.y - drag.initialImgPt.y) * drag.ny;
-      setDragOffsetPt((drag.initialOffsetPx + deltaPerp) / pageScale);
+      setDragOffsetPt(
+        ((drag.initialOffsetPx + deltaPerp) / pageScale) * sideSign
+      );
       e.stopPropagation();
     },
-    [getImagePoint, pageScale]
+    [getImagePoint, pageScale, sideSign]
   );
 
   const handlePointerUp = useCallback(
