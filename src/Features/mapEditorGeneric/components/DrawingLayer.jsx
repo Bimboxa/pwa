@@ -38,6 +38,7 @@ import theme from "Styles/theme";
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
+import useMapZoom from "Features/mapEditorGeneric/hooks/useMapZoom";
 import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
 import { getBlockInstanceTransform } from "Features/blocks/utils/blockInstanceGeometry";
 
@@ -202,6 +203,11 @@ const DrawingLayer = forwardRef(
 
     const meterByPxRef = useRef(meterByPx);
     meterByPxRef.current = meterByPx;
+    // Screen-px → local-units factor for the STRIP band preview in PX (same
+    // factor as NodeStripStatic: camera zoom × containerK).
+    const mapZoom = useMapZoom();
+    const pxScaleRef = useRef(1);
+    pxScaleRef.current = 1 / ((mapZoom || 1) * (containerK || 1));
     const revolutionPlacementGhostSourceRef = useRef(
       revolutionPlacementGhostSource
     );
@@ -924,7 +930,7 @@ const DrawingLayer = forwardRef(
           const isCm = na?.strokeWidthUnit === "CM" && meterByPxRef.current > 0;
           const stripWidth = isCm
             ? (rawWidth * 0.01) / meterByPxRef.current
-            : rawWidth;
+            : rawWidth * pxScaleRef.current; // PX: constant on screen
           const centerline = expandArcsInPath(allPts, ARC_SAMPLES, false);
           const d = computeStripPath(centerline, stripWidth * stripOrientation);
           previewStripRef.current.setAttribute("d", d);
