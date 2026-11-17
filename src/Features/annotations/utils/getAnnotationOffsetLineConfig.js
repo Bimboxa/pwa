@@ -25,6 +25,9 @@ import {
 // - showLength: boolean — add the segment length to that text, formatted
 //   like a cote: lengthUnit ("CM" | "M"), lengthDecimals, showLengthUnit
 //   (unit suffix).
+// - hideMainLine: boolean — draw ONLY the offset line: the annotation's own
+//   shape is hidden on the plan, and shown again while the annotation is
+//   selected so it can be edited (see NodeAnnotationStatic).
 //
 // Resolution, per key: annotation own value ?? template value ?? app default
 // — the same READ-TIME model as the LABEL size (getAnnotationLabelSizeConfig):
@@ -56,6 +59,7 @@ export const DEFAULT_OFFSET_LINE_SHOW_LENGTH = false;
 export const DEFAULT_OFFSET_LINE_LENGTH_UNIT = DEFAULT_COTE_UNIT;
 export const DEFAULT_OFFSET_LINE_LENGTH_DECIMALS = DEFAULT_COTE_DECIMALS;
 export const DEFAULT_OFFSET_LINE_SHOW_LENGTH_UNIT = true;
+export const DEFAULT_OFFSET_LINE_HIDE_MAIN_LINE = false;
 
 function parseBoolean(raw) {
   return typeof raw === "boolean" ? raw : undefined;
@@ -104,6 +108,7 @@ function parseOffsetLine(raw) {
     lengthUnit: parseUnit(raw?.lengthUnit),
     lengthDecimals: parseDecimals(raw?.lengthDecimals),
     showLengthUnit: parseBoolean(raw?.showLengthUnit),
+    hideMainLine: parseBoolean(raw?.hideMainLine),
   };
 }
 
@@ -154,5 +159,9 @@ export default function getAnnotationOffsetLineConfig(annotation) {
       own.showLengthUnit ??
       fromTemplate.showLengthUnit ??
       DEFAULT_OFFSET_LINE_SHOW_LENGTH_UNIT,
+    hideMainLine:
+      own.hideMainLine ??
+      fromTemplate.hideMainLine ??
+      DEFAULT_OFFSET_LINE_HIDE_MAIN_LINE,
   };
 }

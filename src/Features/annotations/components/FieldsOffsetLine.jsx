@@ -24,6 +24,9 @@ const offsetS = "Déport";
 const flipS = "Inverser le côté";
 const strokeWidthS = "Épaisseur";
 const dashedS = "Pointillé";
+const hideMainLineS = "Masquer l'annotation principale";
+const hideMainLineHintS =
+  "Seule la ligne de déport est affichée ; l'annotation réapparaît quand elle est sélectionnée.";
 const fontSizeS = "Taille du texte";
 const labelSourceS = "Libellé le long de la ligne";
 const showLengthS = "Longueur du segment";
@@ -72,7 +75,7 @@ const rowSx = { display: "flex", alignItems: "center", gap: 1 };
 
 // Rows of the "Ligne de déport" section shared by the annotation and the
 // annotation template panels: offset (absolute value + side flip), line
-// style (thickness, dashed), text
+// style (thickness, dashed), main shape hidden or not, text
 // content (label and / or segment length, formatted like a cote) and text
 // size. `config` is the resolved offset line
 // (getAnnotationOffsetLineConfig), `onChange` receives the changed keys only.
@@ -89,6 +92,7 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
     lengthUnit,
     lengthDecimals,
     showLengthUnit,
+    hideMainLine,
   } = config;
   const hasText = labelSource !== OFFSET_LINE_LABEL_SOURCE_NONE || showLength;
   const side = offset < 0 ? -1 : 1;
@@ -121,6 +125,10 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
 
   function handleDashedChange(e) {
     onChange({ dashed: e.target.checked });
+  }
+
+  function handleHideMainLineChange(e) {
+    onChange({ hideMainLine: e.target.checked });
   }
 
   function handleFontSizeChange(raw) {
@@ -218,6 +226,17 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
           {dashedS}
         </Typography>
         <Switch size="small" checked={dashed} onChange={handleDashedChange} />
+      </Box>
+
+      <Box sx={rowSx}>
+        <Typography variant="body2" sx={{ flex: 1 }} title={hideMainLineHintS}>
+          {hideMainLineS}
+        </Typography>
+        <Switch
+          size="small"
+          checked={hideMainLine}
+          onChange={handleHideMainLineChange}
+        />
       </Box>
 
       <Box sx={rowSx}>
