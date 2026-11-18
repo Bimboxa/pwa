@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+
 import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
@@ -28,6 +30,9 @@ export default function LayoutDesktop() {
   // Shared viewer link (?mode=viewer): the module band is hidden, the
   // recipient stays on the Viewer module.
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  // The PDF editor covers the editors: their floating panels (stacked above
+  // it) are hidden while it is open.
+  const pdfEditorOpen = useSelector(selectPdfEditorOpen);
 
   // hotkeys — switch module (Ctrl+D = Dessin, Ctrl+F = Fonds de plan…).
   // Mounted here (not in VerticalMenuViewers) so they do not depend on the
@@ -85,6 +90,7 @@ export default function LayoutDesktop() {
           position: "absolute",
           inset: 0,
           zIndex: EDITOR_FLOATING_PANELS_Z_INDEX,
+          display: pdfEditorOpen ? "none" : "block",
           pointerEvents: "none",
         }}
       />
