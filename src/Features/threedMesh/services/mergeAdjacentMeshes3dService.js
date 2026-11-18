@@ -11,6 +11,11 @@ import mergeMesh3dGeometries from "../utils/mergeMesh3dGeometries";
 // are soft-deleted, and the seams are dropped.
 //
 // `cutLines`: world polylines of the visible cut lines ([[{x, y, z}]]).
+// `meshIds` / `annotationIds` (optional): scope of a run on a selection —
+// only the mailles with one of these ids, or created from one of these
+// annotations (`sourceInfo.annotationId`), are candidates; the others are
+// neither merged nor used as a bridge between two candidates. Without any,
+// the whole scope.
 //
 // Returns { groups, removedIds } — the number of merged groups and the ids
 // of the mailles they absorbed.
@@ -18,8 +23,13 @@ export default async function mergeAdjacentMeshes3dService({
   projectId,
   scopeId,
   cutLines,
+  meshIds,
+  annotationIds,
 }) {
   if (!projectId || !scopeId) return { groups: 0, removedIds: [] };
+  const scoped = meshIds?.length > 0 || annotationIds?.length > 0;
+  const meshIdSet = new Set(meshIds || []);
+  const annotationIdSet = new Set(annotationIds || []);
 
   return db.transaction("rw", db.meshes3d, async () => {
     const rows = (
@@ -27,7 +37,13 @@ export default async function mergeAdjacentMeshes3dService({
         .where("[projectId+scopeId]")
         .equals([projectId, scopeId])
         .toArray()
-    ).filter((r) => !r.deletedAt);
+    ).filter(
+      (r) =>
+        !r.deletedAt &&
+        (!scoped ||
+          meshIdSet.has(r.id) ||
+          annotationIdSet.has(r.sourceInfo?.annotationId))
+    );
 
     const updates = [];
     const removedIds = [];

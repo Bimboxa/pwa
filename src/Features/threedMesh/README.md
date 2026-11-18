@@ -35,7 +35,9 @@ returns to SELECT.
 
 ## « Fusionner les mailles adjacentes » (command `MERGE_ADJACENT_MESHES`)
 
-One click, whole scope (`mergeAdjacentMeshes3dService`): the mailles
+One click (`mergeAdjacentMeshes3dService`) — on the whole scope, or, with a
+selection, only on the selected mailles / the mailles created from the
+selected annotations (`sourceInfo.annotationId`): the mailles
 touching along a stretch that no cut line separates become ONE maille —
 typically the mailles « Mailler » created on several annotations (floor,
 walls, a box standing on the floor) on the same side of the cut lines.
