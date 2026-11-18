@@ -97,3 +97,44 @@ test("quantities of a « Fosse »: bottom + sides, the top is not counted", () =
     openSloped.surfaceDeveloped
   );
 });
+
+test("openBottom: the prism without its bottom face", () => {
+  const closed = triangulateAnnotationGeometry({ contour, height: 1 });
+  const open = triangulateAnnotationGeometry({
+    contour,
+    height: 1,
+    openBottom: true,
+    // the two short ends hidden: an inverted U swept along y
+    sideSegments: { contour: { hidden: new Set([0, 2]), labels: [] } },
+  });
+
+  assert.equal(open.bottomRange[1], 0);
+  assert.equal(open.areaBottom, 0);
+  assert.ok(near(open.areaTop, 6));
+  assert.ok(near(open.areaSides, 6));
+  assert.ok(near(open.volume, closed.volume));
+});
+
+test("« U inversé » quantities: two side faces + the top face", () => {
+  const line = {
+    type: "POLYLINE",
+    points: [
+      { x: 0, y: 0 },
+      { x: 7.2, y: 0 },
+    ],
+    height: 0.2,
+    strokeWidth: 20,
+    strokeWidthUnit: "CM",
+  };
+  const args = { meterByPx: 1 };
+  const wall = getAnnotationQties({ annotation: line, ...args });
+  assert.ok(near(wall.surface, 7.2 * 0.2), wall.surface);
+  for (const type of ["POLYLINE", "STRIP"]) {
+    const invertedU = getAnnotationQties({
+      annotation: { ...line, type, shape3D: { key: "INVERTED_U" } },
+      ...args,
+    });
+    assert.ok(near(invertedU.length, 7.2), invertedU.length);
+    assert.ok(near(invertedU.surface, 7.2 * 0.6), invertedU.surface);
+  }
+});

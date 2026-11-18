@@ -7,7 +7,7 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 import getIntersectingAnnotationsAsync from "Features/threedEditor/js/utilsAnnotationsManager/getIntersectingAnnotationsAsync";
 
 import { isForeignFootprintId } from "../constants/foreignFootprint";
-import { isOpenTopPrism } from "../constants/shape3DConfig";
+import { isInvertedUWall, isOpenTopPrism } from "../constants/shape3DConfig";
 import isHollowSubtractionHost from "../utils/isHollowSubtractionHost";
 
 // What can carve: the annotation types that build a volume in 3D.
@@ -29,7 +29,9 @@ const getSubtractionTargetIds = (annotation) =>
 // An open sheet bounds no volume: it cannot carve. A « Fosse » is carved as
 // its closed prism (asClosedSolidOperand), so it stays a valid cutter.
 const isVolumeCutter = (annotation) =>
-  isOpenTopPrism(annotation) || !isHollowSubtractionHost(annotation);
+  isOpenTopPrism(annotation) ||
+  isInvertedUWall(annotation) ||
+  !isHollowSubtractionHost(annotation);
 
 /**
  * Data of the « Évider » dialog of the 3D editor, computed ONCE when the

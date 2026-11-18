@@ -119,6 +119,11 @@ export default function triangulateAnnotationGeometry({
   // the bottom, the walls and the volume are unchanged. No effect without a
   // height.
   openTop = false,
+  // « U inversé » (shape3DConfig.isInvertedUWall): an extruded prism WITHOUT
+  // its bottom face — no bottom triangle is emitted (`bottomRange` empty,
+  // `areaBottom` 0). No effect without a height, nor on the height-faces
+  // build.
+  openBottom = false,
   // Height cuts (heightCuts/utils/computeHeightFaces): the partition of the
   // polygon in faces [{ points, holes, delta, side }] sitting at their own
   // level (delta in the units of `height`). FLAT polygons only (with or
@@ -435,8 +440,10 @@ export default function triangulateAnnotationGeometry({
       positions.push(p.x, p.y, z);
     }
     const bottomStart = indices.length;
-    for (const [a, b, c] of tris) {
-      indices.push(bottomBase + a, bottomBase + c, bottomBase + b);
+    if (!openBottom) {
+      for (const [a, b, c] of tris) {
+        indices.push(bottomBase + a, bottomBase + c, bottomBase + b);
+      }
     }
     bottomRange = [bottomStart, indices.length - bottomStart];
 
