@@ -8,7 +8,8 @@ import resolveHostBaseMap from "Features/threedDrawing/utils/resolveHostBaseMap"
 
 // « Plan de coupe » + « Afficher les cotes »: rows of the template-less
 // RULER (« Règle ») running along the drawn axis, one vertex per cut plane —
-// its segments read the distance between two planes. Same model as
+// its segments read the distance between two planes, its dimension line
+// lying on the axis itself (`extensionOffset: 0`). Same model as
 // commitDrawnRulerService (host base map, offsetZ + per-point offsetBottom
 // off the base map plane), but the ruler owns its points: a batch write,
 // added by the caller in its own transaction (createCutPlaneLinesService).
@@ -60,6 +61,8 @@ export default function buildCutPlaneRulerRows({
       shape: "RULER",
       classificationFields: {
         type: "RULER",
+        // The dimension line sits ON the drawn axis (no parallel offset).
+        extensionOffset: 0,
         ...(isInPlane ? {} : { offsetZ }),
       },
       templateProps: { ...getTemplatelessDraft("RULER"), type: "RULER" },
