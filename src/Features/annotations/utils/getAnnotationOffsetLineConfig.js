@@ -11,10 +11,14 @@ import {
 // Stored as ONE object field, `offsetLine`, on the annotation and on the
 // annotation template:
 // - enabled: boolean — draw the offset line.
-// - offset: signed distance to the main line, in PAGE POINTS of the base
-//   map's print zone (see getCotePageScale). The sign is the side: positive =
-//   right of the drawing direction; for a STRIP, positive = the side opposite
-//   the band (follows stripOrientation, see NodeOffsetLineStatic).
+// - offset: signed distance to the main line, in `offsetUnit`. The sign is
+//   the side: positive = right of the drawing direction; for a STRIP,
+//   positive = the side opposite the band (follows stripOrientation, see
+//   NodeOffsetLineStatic).
+// - offsetUnit: "PT" | "CM" — unit of `offset`. "PT" = page points of the
+//   base map's print zone (see getCotePageScale): fixed on paper. "CM" =
+//   real-world centimetres, through the base map scale (falls back to page
+//   points when the base map has no scale, see getOffsetLinePxPerUnit).
 // - strokeWidth: line thickness, in page points.
 // - dashed: boolean — dashed line instead of a solid one.
 // - fontSize: label text size, in page points.
@@ -42,6 +46,10 @@ export const OFFSET_LINE_ANNOTATION_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export const DEFAULT_OFFSET_LINE_ENABLED = false;
 export const DEFAULT_OFFSET_LINE_OFFSET_PT = 12;
+export const OFFSET_LINE_OFFSET_UNIT_PT = "PT";
+export const OFFSET_LINE_OFFSET_UNIT_CM = "CM";
+const OFFSET_UNITS = [OFFSET_LINE_OFFSET_UNIT_PT, OFFSET_LINE_OFFSET_UNIT_CM];
+export const DEFAULT_OFFSET_LINE_OFFSET_UNIT = OFFSET_LINE_OFFSET_UNIT_PT;
 export const DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT = 1;
 export const DEFAULT_OFFSET_LINE_DASHED = false;
 export const DEFAULT_OFFSET_LINE_FONT_SIZE_PT = 10;
@@ -69,6 +77,10 @@ function parseOffset(raw) {
   if (raw === null || raw === undefined || raw === "") return undefined;
   const n = Number(raw);
   return Number.isFinite(n) ? n : undefined;
+}
+
+function parseOffsetUnit(raw) {
+  return OFFSET_UNITS.includes(raw) ? raw : undefined;
 }
 
 function parsePositive(raw) {
@@ -100,6 +112,7 @@ function parseOffsetLine(raw) {
   return {
     enabled: parseBoolean(raw?.enabled),
     offset: parseOffset(raw?.offset),
+    offsetUnit: parseOffsetUnit(raw?.offsetUnit),
     strokeWidth: parsePositive(raw?.strokeWidth),
     dashed: parseBoolean(raw?.dashed),
     fontSize: parsePositive(raw?.fontSize),
@@ -124,6 +137,19 @@ export function isOffsetLineLocked(overrideFields) {
   );
 }
 
+// Image px per unit of `offset`. "CM" needs the base map scale (m / px);
+// without one the value is read as page points, like "PT".
+export function getOffsetLinePxPerUnit({ offsetUnit, pageScale, meterByPx }) {
+  if (
+    offsetUnit === OFFSET_LINE_OFFSET_UNIT_CM &&
+    Number.isFinite(meterByPx) &&
+    meterByPx > 0
+  ) {
+    return 0.01 / meterByPx;
+  }
+  return pageScale;
+}
+
 export default function getAnnotationOffsetLineConfig(annotation) {
   const templateProps =
     annotation?.annotationTemplateProps ?? annotation?.annotationTemplate;
@@ -132,6 +158,10 @@ export default function getAnnotationOffsetLineConfig(annotation) {
   return {
     enabled: own.enabled ?? fromTemplate.enabled ?? DEFAULT_OFFSET_LINE_ENABLED,
     offset: own.offset ?? fromTemplate.offset ?? DEFAULT_OFFSET_LINE_OFFSET_PT,
+    offsetUnit:
+      own.offsetUnit ??
+      fromTemplate.offsetUnit ??
+      DEFAULT_OFFSET_LINE_OFFSET_UNIT,
     strokeWidth:
       own.strokeWidth ??
       fromTemplate.strokeWidth ??

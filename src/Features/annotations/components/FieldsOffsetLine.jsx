@@ -2,17 +2,20 @@ import {
   Box,
   Typography,
   IconButton,
-  InputBase,
   Switch,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
 import { SwapVert as SwapIcon } from "@mui/icons-material";
 
+import InputNumberOnBlur from "./InputNumberOnBlur";
+
 import {
   DEFAULT_OFFSET_LINE_FONT_SIZE_PT,
   DEFAULT_OFFSET_LINE_OFFSET_PT,
   DEFAULT_OFFSET_LINE_STROKE_WIDTH_PT,
+  OFFSET_LINE_OFFSET_UNIT_CM,
+  OFFSET_LINE_OFFSET_UNIT_PT,
   OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
   OFFSET_LINE_LABEL_SOURCE_NONE,
   OFFSET_LINE_LABEL_SOURCE_TEMPLATE,
@@ -33,8 +36,10 @@ const showLengthS = "Longueur du segment";
 const unitS = "Unité";
 const decimalsS = "Décimales";
 const showLengthUnitS = "Afficher l'unité";
+const offsetUnitHintS =
+  "pt : points de la zone d'impression (fixe sur le papier) ; cm : distance réelle, à l'échelle du fond de plan.";
 const hintS =
-  "Déport, épaisseur et taille du texte en points de la zone d'impression du fond de plan.";
+  "Épaisseur et taille du texte en points de la zone d'impression du fond de plan ; déport en points ou en cm réels.";
 
 const numberInputSx = {
   width: 64,
@@ -50,6 +55,11 @@ const numberInputSx = {
 const UNIT_OPTIONS = [
   { value: "CM", label: "cm" },
   { value: "M", label: "m" },
+];
+
+const OFFSET_UNIT_OPTIONS = [
+  { value: OFFSET_LINE_OFFSET_UNIT_PT, label: "pt" },
+  { value: OFFSET_LINE_OFFSET_UNIT_CM, label: "cm" },
 ];
 
 const LABEL_SOURCE_OPTIONS = [
@@ -74,7 +84,7 @@ const toggleGroupSx = {
 const rowSx = { display: "flex", alignItems: "center", gap: 1 };
 
 // Rows of the "Ligne de déport" section shared by the annotation and the
-// annotation template panels: offset (absolute value + side flip), line
+// annotation template panels: offset (absolute value + side flip + unit), line
 // style (thickness, dashed), main shape hidden or not, text
 // content (label and / or segment length, formatted like a cote) and text
 // size. `config` is the resolved offset line
@@ -84,6 +94,7 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
 
   const {
     offset,
+    offsetUnit,
     strokeWidth,
     dashed,
     fontSize,
@@ -105,11 +116,17 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
       Number.isFinite(parsed) && parsed >= 0
         ? parsed
         : DEFAULT_OFFSET_LINE_OFFSET_PT;
-    onChange({ offset: side * value });
+    onChange({ offset: side * value, offsetUnit });
   }
 
   function handleFlip() {
-    onChange({ offset: -offset });
+    onChange({ offset: -offset, offsetUnit });
+  }
+
+  // The value and its unit are always written together, so an own offset
+  // never gets requalified by the template's unit (and vice versa).
+  function handleOffsetUnitChange(e, value) {
+    if (value) onChange({ offset, offsetUnit: value });
   }
 
   function handleStrokeWidthChange(raw) {
@@ -189,28 +206,35 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
         <IconButton size="small" onClick={handleFlip} title={flipS}>
           <SwapIcon fontSize="small" />
         </IconButton>
-        <InputBase
-          type="number"
+        <InputNumberOnBlur
           value={Math.abs(offset)}
-          onChange={(e) => handleOffsetChange(e.target.value)}
+          onCommit={handleOffsetChange}
           inputProps={{ min: 0, step: 1 }}
-          endAdornment={
-            <Typography variant="caption" color="text.secondary">
-              pt
-            </Typography>
-          }
           sx={numberInputSx}
         />
+        <ToggleButtonGroup
+          value={offsetUnit}
+          exclusive
+          onChange={handleOffsetUnitChange}
+          size="small"
+          title={offsetUnitHintS}
+          sx={toggleGroupSx}
+        >
+          {OFFSET_UNIT_OPTIONS.map((u) => (
+            <ToggleButton key={u.value} value={u.value}>
+              {u.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
       </Box>
 
       <Box sx={rowSx}>
         <Typography variant="body2" sx={{ flex: 1 }}>
           {strokeWidthS}
         </Typography>
-        <InputBase
-          type="number"
+        <InputNumberOnBlur
           value={strokeWidth}
-          onChange={(e) => handleStrokeWidthChange(e.target.value)}
+          onCommit={handleStrokeWidthChange}
           inputProps={{ min: 0.25, step: 0.25 }}
           endAdornment={
             <Typography variant="caption" color="text.secondary">
@@ -327,10 +351,9 @@ export default function FieldsOffsetLine({ config, onChange, disabled }) {
           <Typography variant="body2" sx={{ flex: 1 }}>
             {fontSizeS}
           </Typography>
-          <InputBase
-            type="number"
+          <InputNumberOnBlur
             value={fontSize}
-            onChange={(e) => handleFontSizeChange(e.target.value)}
+            onCommit={handleFontSizeChange}
             inputProps={{ min: 1, step: 1 }}
             endAdornment={
               <Typography variant="caption" color="text.secondary">

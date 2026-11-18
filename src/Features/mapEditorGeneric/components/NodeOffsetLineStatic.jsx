@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import getAnnotationOffsetLineConfig, {
+  getOffsetLinePxPerUnit,
   isOffsetLineLocked,
   OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
   OFFSET_LINE_LABEL_SOURCE_TEMPLATE,
@@ -59,7 +60,8 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
 
   const rootGRef = useRef(null);
   const dragRef = useRef(null);
-  const [dragOffsetPt, setDragOffsetPt] = useState(null);
+  // In the unit of the stored offset (`offsetUnit`).
+  const [dragOffset, setDragOffset] = useState(null);
 
   // helpers
 
@@ -71,6 +73,7 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   const {
     enabled,
     offset,
+    offsetUnit,
     strokeWidth,
     dashed,
     fontSize,
@@ -93,9 +96,14 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
   // direction.
   const sideSign =
     type === "STRIP" && (annotation?.stripOrientation ?? 1) < 0 ? -1 : 1;
-  const offsetPt = dragOffsetPt ?? offset;
+  // Image px per offset unit: page pt, or real-world cm (base map scale).
+  const pxPerUnit = getOffsetLinePxPerUnit({
+    offsetUnit,
+    pageScale,
+    meterByPx: baseMapMeterByPx,
+  });
   // Signed along the right-of-direction normal of getOffsetLineGeometry.
-  const offsetPx = offsetPt * pageScale * sideSign;
+  const offsetPx = (dragOffset ?? offset) * pxPerUnit * sideSign;
 
   const geometry = useMemo(
     () =>
@@ -203,12 +211,12 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
       const deltaPerp =
         (imgPt.x - drag.initialImgPt.x) * drag.nx +
         (imgPt.y - drag.initialImgPt.y) * drag.ny;
-      setDragOffsetPt(
-        ((drag.initialOffsetPx + deltaPerp) / pageScale) * sideSign
+      setDragOffset(
+        ((drag.initialOffsetPx + deltaPerp) / pxPerUnit) * sideSign
       );
       e.stopPropagation();
     },
-    [getImagePoint, pageScale, sideSign]
+    [getImagePoint, pxPerUnit, sideSign]
   );
 
   const handlePointerUp = useCallback(
@@ -223,21 +231,29 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
       }
       e.stopPropagation();
       // Plain click: nothing to persist, InteractionLayer selects.
-      if (dragOffsetPt === null) return;
+      if (dragOffset === null) return;
       try {
-        // Own values only: the other keys keep following the template.
+        // Own values only: the other keys keep following the template. The
+        // unit is stored with the value it qualifies.
         await updateAnnotation({
           id: annotationId,
           offsetLine: {
             ...(annotation?.offsetLine ?? {}),
-            offset: Math.round(dragOffsetPt * 10) / 10,
+            offset: Math.round(dragOffset * 10) / 10,
+            offsetUnit,
           },
         });
       } finally {
-        setDragOffsetPt(null);
+        setDragOffset(null);
       }
     },
-    [annotationId, annotation?.offsetLine, dragOffsetPt, updateAnnotation]
+    [
+      annotationId,
+      annotation?.offsetLine,
+      dragOffset,
+      offsetUnit,
+      updateAnnotation,
+    ]
   );
 
   // render
