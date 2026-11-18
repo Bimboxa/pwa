@@ -37,8 +37,8 @@ mailles are created _from_ get built.
   lines** (`Features/threedCutLines`, see its README), then created with
   « Mailler » (all at once) or « Ajouter une maille » (one piece).
 - The module tools are **commands of the commands toolbar** (MESHES layout):
-  `ADD_MESH`, `CREATE_MESHES`, `NUMBER_MESHES`. There is no bottom meshing
-  toolbar any more.
+  `ADD_MESH`, `CREATE_MESHES`, `MERGE_ADJACENT_MESHES`, `NUMBER_MESHES`.
+  There is no bottom meshing toolbar any more.
 
 ---
 
@@ -181,6 +181,12 @@ converts both ways: `projectPointTo2d` / `projectLoopTo2d` (world → plane
   `faces` is an array). The survivor is the maille with the **lowest
   number** (keeps id / number / label / color); the others are soft-deleted;
   `surface` = sum of all face areas.
+- **Fusionner les mailles adjacentes** (command `MERGE_ADJACENT_MESHES`,
+  [`mergeAdjacentMeshes3dService.js`](../../src/Features/threedMesh/services/mergeAdjacentMeshes3dService.js)):
+  over the whole scope, every group of mailles touching along a stretch no
+  cut line separates becomes one maille (same survivor rule). Curved
+  mailles are supported (the group becomes one shell). See
+  `Features/threedMesh/README.md`.
 - Rename / recolor: [`useUpdateMesh3d.js`](../../src/Features/threedMesh/hooks/useUpdateMesh3d.js)
   (batch color in `ToolbarEditMeshes3d`).
 - Delete: [`useDeleteMeshes3d.js`](../../src/Features/threedMesh/hooks/useDeleteMeshes3d.js)

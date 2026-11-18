@@ -10,7 +10,8 @@ prepare them are documented in `Features/threedCutLines/README.md`.
 - Tools: commands of the commands toolbar (MESHES layout,
   `commandsToolbar/constants/toolbarLayout.js`) — « Ajouter une maille »
   (`ADD_MESH`), « Mailler » (`CREATE_MESHES`: every maille at once from the
-  cut lines, `createMeshesFromCutLinesService`) and « Numéroter »
+  cut lines, `createMeshesFromCutLinesService`), « Fusionner les mailles
+  adjacentes » (`MERGE_ADJACENT_MESHES`) and « Numéroter »
   (`NUMBER_MESHES`). There is no bottom meshing toolbar; mailles are not cut
   directly any more — the cells are prepared with cut lines.
 - Left drawer (`PanelMeshesViewer`): the mailles list + export, no tabs.
@@ -25,6 +26,35 @@ Arms the `NUMBER` tool: a click on a maille gives it
 drawing helper (`SectionMeshNumberHelperContent`) carries the « Démarrage »
 field bound to `numberingNext`. `Escape`, or a second click on the command,
 returns to SELECT.
+
+## « Fusionner les mailles adjacentes » (command `MERGE_ADJACENT_MESHES`)
+
+One click, whole scope (`mergeAdjacentMeshes3dService`): the mailles
+touching along a stretch that no cut line separates become ONE maille —
+typically the mailles « Mailler » created on several annotations (floor,
+walls, a box standing on the floor) on the same side of the cut lines.
+
+- **Contact** (`groupAdjacentMeshes3d`, pure, node-tested): a border edge of
+  a maille runs on another maille — along one of its borders, or across one
+  of its planar faces (a wall standing in the middle of a floor) — within
+  20 mm (the annotations are displayed shrunk by up to 15 mm, so the
+  mailles of two touching annotations do not exactly meet), over at least
+  5 cm. A corner contact is not enough.
+- **Separation**: the part of the contact lying on a rendered cut line (the
+  visible run, « Stop » applied) does not count; neither does the part on
+  the prolongation of a line leaving the face plane (the line climbs a
+  wall: `clipFaceByCutLines` cuts the face up to its boundary). A line
+  covering only a part of the shared border does not separate.
+- **Result** (`mergeMesh3dGeometries`): the maille with the lowest number
+  survives (id / number / label / color), the others are soft-deleted,
+  seams dropped. Planar mailles → faces, coplanar touching ones unioned;
+  with a curved maille in the group → one shell (planar faces
+  triangulated, the loops of the merged mailles kept as its boundaries).
+
+Limits: the interior of a curved maille is not tested (a shell touches by
+its borders only); the prolongation of a line is an unbounded ray in the
+face plane (the original face is unknown) and is not applied to shell
+borders.
 
 ## « Ajouter une maille » (command `ADD_MESH`, tool `CREATE`)
 

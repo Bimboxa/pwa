@@ -84,6 +84,7 @@ import createSectionBaseMapCommand from "./createSectionBaseMap/createSectionBas
 import cutLinesPromptIaCommand from "./cutLinesPromptIa/cutLinesPromptIaCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
 import createMeshesCommand from "./createMeshes/createMeshesCommand";
+import mergeAdjacentMeshesCommand from "./mergeAdjacentMeshes/mergeAdjacentMeshesCommand";
 import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
 
 // ---------------------------------------------------------------------------
@@ -198,6 +199,7 @@ export const COMMANDS = [
   // mailles (3D, Maillage module)
   addMeshCommand,
   createMeshesCommand,
+  mergeAdjacentMeshesCommand,
   numberMeshesCommand,
   // comments (Commentaires module)
   addLocatedCommentCommand,
