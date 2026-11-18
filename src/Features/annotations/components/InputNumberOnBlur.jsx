@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { InputBase } from "@mui/material";
 
@@ -17,6 +17,8 @@ export default function InputNumberOnBlur({
 
   // null = not being edited.
   const [draft, setDraft] = useState(null);
+  // Set by Escape: the next blur drops the draft instead of committing it.
+  const cancelRef = useRef(false);
 
   // handlers
 
@@ -25,15 +27,18 @@ export default function InputNumberOnBlur({
   }
 
   function handleBlur() {
+    const cancelled = cancelRef.current;
+    cancelRef.current = false;
     if (draft === null) return;
-    if (draft !== String(value)) onCommit(draft);
+    if (!cancelled && draft !== String(value)) onCommit(draft);
     setDraft(null);
   }
 
   function handleKeyDown(e) {
     if (e.key === "Enter") e.target.blur();
     if (e.key === "Escape") {
-      setDraft(null);
+      // blur() runs handleBlur synchronously, with the draft still set.
+      cancelRef.current = true;
       e.target.blur();
     }
   }
