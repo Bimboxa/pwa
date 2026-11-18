@@ -8,6 +8,8 @@
 //   stations,     // [{ point, normal }] the cut planes (getCutPlaneStations)
 //   candidates,   // [{ points, closed, stationIndex }] world cut lines
 //                 // waiting for Space / Enter (computeCutPlaneLines)
+//   axisPoints,   // world points of the axis' dimension chain: P1, every
+//                 // plane, the axis end (« Afficher les cotes »)
 // }
 //
 // « Coupe par angle » (DRAW_CUT_ANGLE) shares the store. Its pending is

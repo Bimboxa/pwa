@@ -2,7 +2,12 @@ import { useSyncExternalStore } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setCutPlaneNearestOnly } from "Features/threedEditor/threedEditorSlice";
+import {
+  setCutPlaneIncludeEnds,
+  setCutPlaneNearestOnly,
+  setCutPlaneShowCotes,
+  setCutPlaneStep,
+} from "Features/threedEditor/threedEditorSlice";
 
 import {
   Box,
@@ -26,6 +31,8 @@ import {
   getCutPlaneCountPart,
   getCutPlaneMode,
   getCutPlaneValuePart,
+  parseCutPlaneStep,
+  sanitizeCutPlaneStep,
 } from "../utils/cutPlaneBuffer";
 
 // Keys of onCutPlaneKey (useDrawingPointerHandlers).
@@ -51,8 +58,11 @@ const ROW_SX = {
 // SectionCutPlaneDrawHelperContent — drawing-helper body of « Plan de coupe »
 // (DRAW_CUT_PLANE, Maillage module): the step hint, the typed buffer split
 // in its fields (axis length, number of planes, « Répéter » `*` / « Diviser »
-// `/`), the « contour le plus proche » option, the number of candidate cut
-// lines waiting for Space, and the shortcuts.
+// `/`), the « distance entre plans » (one plane every step along the axis —
+// replaces the count) and its « plans au début et à la fin de l'axe » option,
+// the « contour le plus proche » option, « afficher les cotes » (a ruler
+// along the axis, created with the lines), the number of candidate cut lines
+// waiting for Space, and the shortcuts.
 // ---------------------------------------------------------------------------
 
 export default function SectionCutPlaneDrawHelperContent() {
@@ -72,7 +82,10 @@ export default function SectionCutPlaneDrawHelperContent() {
   const countS = "Nombre de plans";
   const repeatS = "Répéter";
   const divideS = "Diviser";
+  const stepS = "Distance entre plans";
+  const includeEndsS = "Plans au début et à la fin de l'axe";
   const nearestS = "Contour le plus proche uniquement";
+  const showCotesS = "Afficher les cotes";
   const candidatesS = "Lignes candidates";
 
   // data
@@ -81,6 +94,11 @@ export default function SectionCutPlaneDrawHelperContent() {
   const nearestOnly = useSelector(
     (s) => s.threedEditor.cutPlaneDraw.nearestOnly
   );
+  const stepText = useSelector((s) => s.threedEditor.cutPlaneDraw.step);
+  const includeEnds = useSelector(
+    (s) => s.threedEditor.cutPlaneDraw.includeEnds
+  );
+  const showCotes = useSelector((s) => s.threedEditor.cutPlaneDraw.showCotes);
   const hasFirstPoint = useSelector(
     (s) => s.threedEditor.drawingMode.inProgressPolyline.length > 0
   );
@@ -94,6 +112,7 @@ export default function SectionCutPlaneDrawHelperContent() {
   const valueText = getCutPlaneValuePart(buffer);
   const countText = getCutPlaneCountPart(buffer);
   const mode = getCutPlaneMode(buffer);
+  const hasStep = parseCutPlaneStep(stepText) !== null;
   const candidatesCount = pending?.candidates?.length ?? 0;
   const hint = pending
     ? candidatesCount
@@ -115,6 +134,26 @@ export default function SectionCutPlaneDrawHelperContent() {
 
   function handleCountText(text) {
     setBuffer({ valueText, countText: text, mode });
+  }
+
+  // The step replaces the count (a typed count clears the step:
+  // setCutPlaneBufferService).
+  function handleStepText(text) {
+    const next = sanitizeCutPlaneStep(text);
+    if (next !== "" && countText !== "") {
+      setBuffer({ valueText, countText: "", mode });
+    }
+    dispatch(setCutPlaneStep(next));
+  }
+
+  function handleIncludeEndsChange(e) {
+    dispatch(setCutPlaneIncludeEnds(e.target.checked));
+    e.target.blur();
+  }
+
+  function handleShowCotesChange(e) {
+    dispatch(setCutPlaneShowCotes(e.target.checked));
+    e.target.blur();
   }
 
   function handleModeChange(e, value) {
@@ -165,6 +204,7 @@ export default function SectionCutPlaneDrawHelperContent() {
           <ToggleButtonGroup
             size="small"
             exclusive
+            disabled={hasStep}
             value={mode}
             onChange={handleModeChange}
           >
@@ -183,6 +223,28 @@ export default function SectionCutPlaneDrawHelperContent() {
           </ToggleButtonGroup>
         </Box>
         <Box sx={ROW_SX}>
+          <FieldNumberCompact
+            label={stepS}
+            value={stepText}
+            onChangeText={handleStepText}
+            unit="m"
+          />
+        </Box>
+        <Box sx={ROW_SX}>
+          <Typography
+            variant="body2"
+            color={hasStep ? "text.secondary" : "text.disabled"}
+          >
+            {includeEndsS}
+          </Typography>
+          <Switch
+            size="small"
+            disabled={!hasStep}
+            checked={includeEnds}
+            onChange={handleIncludeEndsChange}
+          />
+        </Box>
+        <Box sx={ROW_SX}>
           <Typography variant="body2" color="text.secondary">
             {nearestS}
           </Typography>
@@ -190,6 +252,16 @@ export default function SectionCutPlaneDrawHelperContent() {
             size="small"
             checked={nearestOnly}
             onChange={handleNearestChange}
+          />
+        </Box>
+        <Box sx={ROW_SX}>
+          <Typography variant="body2" color="text.secondary">
+            {showCotesS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={showCotes}
+            onChange={handleShowCotesChange}
           />
         </Box>
         {pending && (

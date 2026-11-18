@@ -10,7 +10,9 @@ import {
   parseCutPlaneBuffer,
 } from "./cutPlaneBuffer.js";
 import extendCutLine from "./extendCutLine.js";
-import getCutPlaneStations from "./getCutPlaneStations.js";
+import getCutPlaneStations, {
+  getCutPlaneAxisPoints,
+} from "./getCutPlaneStations.js";
 import { P, box, near, nearPoint, slab, wall } from "./cutLineFixtures.mjs";
 
 const type = (keys) =>
@@ -70,6 +72,47 @@ test("stations: REPEAT goes beyond P2, DIVIDE splits P1 → P2 (P1 excluded)", (
   near(divide[1].point.x, 2);
   near(divide[2].point.x, 3);
   assert.equal(getCutPlaneStations({ p1, p2: p1, count: 2 }).length, 0);
+});
+
+test("stations: a step cuts every stepM, ends optional, shorter last interval", () => {
+  const p1 = P(0, 0, 0);
+  const p2 = P(3.5, 0, 0);
+  const xs = (stations) => stations.map((s) => +s.point.x.toFixed(6));
+  // The step wins over count / mode.
+  const withEnds = getCutPlaneStations({ p1, p2, count: 4, stepM: 1 });
+  assert.deepEqual(xs(withEnds), [0, 1, 2, 3, 3.5]);
+  const inner = getCutPlaneStations({ p1, p2, stepM: 1, includeEnds: false });
+  assert.deepEqual(xs(inner), [1, 2, 3]);
+  // Exact multiple: no duplicate plane on P2.
+  const exact = getCutPlaneStations({ p1, p2: P(3, 0, 0), stepM: 1 });
+  assert.deepEqual(xs(exact), [0, 1, 2, 3]);
+  // Step longer than the axis: only the ends.
+  assert.deepEqual(xs(getCutPlaneStations({ p1, p2, stepM: 10 })), [0, 3.5]);
+  assert.equal(
+    getCutPlaneStations({ p1, p2, stepM: 10, includeEnds: false }).length,
+    0
+  );
+});
+
+test("axis points: P1, every plane, the axis end — ordered, merged", () => {
+  const p1 = P(0, 0, 0);
+  const p2 = P(3.5, 0, 0);
+  const xs = (points) => points.map((p) => +p.x.toFixed(6));
+  const inner = getCutPlaneStations({ p1, p2, stepM: 1, includeEnds: false });
+  assert.deepEqual(
+    xs(getCutPlaneAxisPoints({ p1, p2, stations: inner })),
+    [0, 1, 2, 3, 3.5]
+  );
+  const withEnds = getCutPlaneStations({ p1, p2, stepM: 1 });
+  assert.deepEqual(
+    xs(getCutPlaneAxisPoints({ p1, p2, stations: withEnds })),
+    [0, 1, 2, 3, 3.5]
+  );
+  const repeat = getCutPlaneStations({ p1, p2, count: 2, mode: "REPEAT" });
+  assert.deepEqual(
+    xs(getCutPlaneAxisPoints({ p1, p2, stations: repeat })),
+    [0, 3.5, 7]
+  );
 });
 
 test("closed box: one closed 4-corner loop per plane", () => {

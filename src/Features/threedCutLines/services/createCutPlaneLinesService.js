@@ -3,6 +3,7 @@ import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import buildCutLineRows from "../utils/buildCutLineRows";
+import buildCutPlaneRulerRows from "../utils/buildCutPlaneRulerRows";
 
 import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
 
@@ -11,6 +12,10 @@ import createCutLineLabelAllocator from "./createCutLineLabelAllocator";
 // annotations. Every point is a DRAWN point (no extension: the line already
 // is the whole section of the faces it lies on) — rows built by
 // buildCutLineRows.
+//
+// rulerPoints (« Afficher les cotes »): world points of the axis' dimension
+// chain — a template-less RULER is written with the lines
+// (buildCutPlaneRulerRows); its id is not part of newAnnotationIds.
 //
 // One undo step: every row is built in memory, then written in a single
 // transaction, with a single annotations update dispatch. A line that does
@@ -24,6 +29,7 @@ export default async function createCutPlaneLinesService({
   templateProps = null,
   layerId = null,
   preferredBaseMapId = null,
+  rulerPoints = null,
   dispatch,
 }) {
   const result = { newAnnotationIds: [], skippedCount: 0 };
@@ -49,6 +55,18 @@ export default async function createCutPlaneLinesService({
   });
   result.skippedCount = skippedCount;
   if (!newAnnotations.length) return result;
+  const lineIds = newAnnotations.map((a) => a.id);
+
+  const ruler = buildCutPlaneRulerRows({
+    axisPoints: rulerPoints,
+    baseMaps,
+    projectId,
+    scopeId,
+    layerId,
+    preferredBaseMapId,
+  });
+  newPoints.push(...ruler.newPoints);
+  newAnnotations.push(...ruler.newAnnotations);
 
   await withUndoGroup(async () => {
     await db.transaction("rw", db.points, db.annotations, async () => {
@@ -56,10 +74,10 @@ export default async function createCutPlaneLinesService({
       await db.annotations.bulkAdd(newAnnotations);
     });
   });
-  result.newAnnotationIds = newAnnotations.map((a) => a.id);
+  result.newAnnotationIds = lineIds;
   dispatch?.(triggerAnnotationsUpdate());
   console.log(
-    `[threedCutLines] cut plane: ${newAnnotations.length} cut line(s) created, ${result.skippedCount} skipped`
+    `[threedCutLines] cut plane: ${lineIds.length} cut line(s) and ${ruler.newAnnotations.length} ruler(s) created, ${result.skippedCount} skipped`
   );
   return result;
 }

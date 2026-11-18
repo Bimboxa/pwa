@@ -1,13 +1,20 @@
 import { setConstraintBuffer } from "Features/mapEditor/mapEditorSlice";
-import { setCutPlaneBuffer } from "Features/threedEditor/threedEditorSlice";
+import {
+  setCutPlaneBuffer,
+  setCutPlaneStep,
+} from "Features/threedEditor/threedEditorSlice";
 
 import collectSceneTriangles from "../js/collectSceneTriangles";
 import computeCutPlaneLines from "../utils/computeCutPlaneLines";
 import {
+  getCutPlaneCountPart,
   getCutPlaneValuePart,
   parseCutPlaneBuffer,
+  parseCutPlaneStep,
 } from "../utils/cutPlaneBuffer";
-import getCutPlaneStations from "../utils/getCutPlaneStations";
+import getCutPlaneStations, {
+  getCutPlaneAxisPoints,
+} from "../utils/getCutPlaneStations";
 import { getCutPlanePending, setCutPlanePending } from "./cutPlaneStore";
 
 // Axis end actually used: P2 as clicked, or — with a typed length — the
@@ -22,14 +29,18 @@ export function resolveCutPlaneAxisEnd(p1, p2, lengthM) {
   return { x: p1.x + d.x * k, y: p1.y + d.y * k, z: p1.z + d.z * k };
 }
 
-// Stations of the cut planes for the axis P1 → P2 and the typed buffer.
-export function getCutPlaneStationsForBuffer(p1, p2, buffer) {
-  const { lengthM, count, mode } = parseCutPlaneBuffer(buffer);
+// Stations of the cut planes for the axis P1 → P2 and the command's options
+// (`cutPlaneDraw`: the typed buffer, the « distance entre plans » and its
+// « plans au début et à la fin » option).
+export function getCutPlaneStationsForDraw(p1, p2, cutPlaneDraw) {
+  const { lengthM, count, mode } = parseCutPlaneBuffer(cutPlaneDraw?.buffer);
   return getCutPlaneStations({
     p1,
     p2: resolveCutPlaneAxisEnd(p1, p2, lengthM),
     count,
     mode,
+    stepM: parseCutPlaneStep(cutPlaneDraw?.step),
+    includeEnds: cutPlaneDraw?.includeEnds !== false,
   });
 }
 
@@ -45,21 +56,35 @@ export default function computeCutPlaneCandidatesService({
   p2 = getCutPlanePending()?.p2,
 }) {
   if (!editor?.sceneManager || !p1 || !p2) return [];
-  const { buffer, nearestOnly } = state.threedEditor.cutPlaneDraw;
-  const stations = getCutPlaneStationsForBuffer(p1, p2, buffer);
+  const cutPlaneDraw = state.threedEditor.cutPlaneDraw;
+  const { nearestOnly } = cutPlaneDraw;
+  const stations = getCutPlaneStationsForDraw(p1, p2, cutPlaneDraw);
+  const axisEnd = resolveCutPlaneAxisEnd(
+    p1,
+    p2,
+    parseCutPlaneBuffer(cutPlaneDraw.buffer).lengthM
+  );
   const candidates = computeCutPlaneLines({
     stations,
     triangles: collectSceneTriangles(editor.sceneManager),
     nearestOnly,
   });
-  setCutPlanePending({ p1, p2, stations, candidates });
+  setCutPlanePending({
+    p1,
+    p2,
+    stations,
+    candidates,
+    axisPoints: getCutPlaneAxisPoints({ p1, p2: axisEnd, stations }),
+  });
   return candidates;
 }
 
 // Single entry of the typed buffer (keyboard + helper fields): its length
 // part is mirrored in the drawing's constraint buffer, so the provisional
-// point of the 3D drawing overlay is held at that length.
+// point of the 3D drawing overlay is held at that length. A typed count
+// (`*N` / `/N`) replaces the « distance entre plans ».
 export function setCutPlaneBufferService(dispatch, buffer) {
   dispatch(setCutPlaneBuffer(buffer));
+  if (getCutPlaneCountPart(buffer) !== "") dispatch(setCutPlaneStep(""));
   dispatch(setConstraintBuffer(getCutPlaneValuePart(buffer)));
 }
