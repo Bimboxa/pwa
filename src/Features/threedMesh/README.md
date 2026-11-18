@@ -11,10 +11,15 @@ prepare them are documented in `Features/threedCutLines/README.md`.
   `commandsToolbar/constants/toolbarLayout.js`) — « Ajouter une maille »
   (`ADD_MESH`), « Mailler » (`CREATE_MESHES`: every maille at once from the
   cut lines, `createMeshesFromCutLinesService`), « Fusionner les mailles
-  adjacentes » (`MERGE_ADJACENT_MESHES`) and « Numéroter »
-  (`NUMBER_MESHES`). There is no bottom meshing toolbar; mailles are not cut
+  adjacentes » (`MERGE_ADJACENT_MESHES`), « Numéroter » (`NUMBER_MESHES`)
+  and « Supprimer toutes les mailles » (`DELETE_ALL_MESHES`: every maille
+  of the scope, after a confirmation — `deleteAllMeshes3dService`). There is no bottom meshing toolbar; mailles are not cut
   directly any more — the cells are prepared with cut lines.
 - Left drawer (`PanelMeshesViewer`): the mailles list + export, no tabs.
+  Above the list, like on the « Maillage » side of the annotations popper
+  (`SectionPopperMeshes`): the « Masquer les mailles » switch
+  (`threedEditor.hideMeshes3d`: `ThreedMeshes` renders no maille while on,
+  so they are not pickable either) and « Grouper par orientation ».
 - Module properties panel (`PanelPropertiesMeshesModule`, empty selection —
   `selection/utils/getModuleRootPanelType` → `MESHES_MODULE`): description
   and the settings cards (`SectionMeshes3dSettings`).

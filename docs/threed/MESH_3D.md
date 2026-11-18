@@ -37,7 +37,8 @@ mailles are created _from_ get built.
   lines** (`Features/threedCutLines`, see its README), then created with
   « Mailler » (all at once) or « Ajouter une maille » (one piece).
 - The module tools are **commands of the commands toolbar** (MESHES layout):
-  `ADD_MESH`, `CREATE_MESHES`, `MERGE_ADJACENT_MESHES`, `NUMBER_MESHES`.
+  `ADD_MESH`, `CREATE_MESHES`, `MERGE_ADJACENT_MESHES`, `NUMBER_MESHES`,
+  `DELETE_ALL_MESHES`.
   There is no bottom meshing toolbar any more.
 
 ---

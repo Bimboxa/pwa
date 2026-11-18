@@ -84,6 +84,7 @@ import createSectionBaseMapCommand from "./createSectionBaseMap/createSectionBas
 import cutLinesPromptIaCommand from "./cutLinesPromptIa/cutLinesPromptIaCommand";
 import addMeshCommand from "./addMesh/addMeshCommand";
 import createMeshesCommand from "./createMeshes/createMeshesCommand";
+import deleteAllMeshesCommand from "./deleteAllMeshes/deleteAllMeshesCommand";
 import mergeAdjacentMeshesCommand from "./mergeAdjacentMeshes/mergeAdjacentMeshesCommand";
 import numberMeshesCommand from "./numberMeshes/numberMeshesCommand";
 
@@ -201,6 +202,7 @@ export const COMMANDS = [
   createMeshesCommand,
   mergeAdjacentMeshesCommand,
   numberMeshesCommand,
+  deleteAllMeshesCommand,
   // comments (Commentaires module)
   addLocatedCommentCommand,
   addCommentCommand,

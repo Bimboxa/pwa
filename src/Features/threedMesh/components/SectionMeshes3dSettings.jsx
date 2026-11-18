@@ -22,8 +22,8 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
 
 // Settings cards of the Maillage module properties panel
-// (PanelPropertiesMeshesModule). No "Masquer les mailles" toggle here —
-// mailles are always displayed in the MESHES viewer.
+// (PanelPropertiesMeshesModule). The "Masquer les mailles" toggle lives
+// above the mailles list (SwitchMesh3dHideMeshes).
 export default function SectionMeshes3dSettings({
   prefix,
   onPrefixChange,
