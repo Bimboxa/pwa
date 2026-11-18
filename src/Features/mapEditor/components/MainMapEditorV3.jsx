@@ -56,7 +56,6 @@ import syncRevolutionAxesFromVerticalBaseMapService from "Features/revolutionAxe
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
-import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
 import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
@@ -77,8 +76,6 @@ import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
-import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
-import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
@@ -138,8 +135,6 @@ import DialogChangeAnnotationImage from "Features/imageAnnotations/components/Di
 import { isBaseMapLinkDraft } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 import PopperDrawingHelper from "./PopperDrawingHelper";
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
-import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
-import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
 import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
@@ -330,7 +325,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     (state) => state.mapEditor.imageScaleDraft
   );
   track("enabledDrawingMode", enabledDrawingMode);
-  const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
   const orthoSnapAngleOffset = useSelector(
     (state) => state.mapEditor.orthoSnapAngleOffset
   );
@@ -924,9 +918,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id, {
     includeHiddenInLegend: true,
   });
-  const imageModeLegendSelected = useSelector(
-    (s) => s.mapEditor.imageModeLegendSelected
-  );
 
   // display-only label auto-layout while imageMode is active
   const { labelOverridesById, notifyCameraChange } = useImageModeLabelsLayout({
@@ -1074,7 +1065,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   const deleteProfileLine = useDeleteProfileLine();
   const deleteLayoutLine = useDeleteLayoutLine();
   const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation();
-  const saveTempAnnotations = useSaveTempAnnotations();
   const createAnnotationsFromDetectedStrips =
     useCreateAnnotationsFromDetectedStrips();
   const createAnnotationsFromDetectedFeatures =
@@ -1391,7 +1381,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
   // handlers - rectangle
 
-  const handleCommitDrawingFromRectangle = (points, event) => {
+  const handleCommitDrawingFromRectangle = (points) => {
     if (["POLYGON", "POLYLINE", "CUT"].includes(type) && points.length === 2) {
       points = getPolylinePointsFromRectangle(points, orthoSnapAngleOffset);
     }
@@ -2708,7 +2698,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
   const isSnappingEnabled =
     enabledDrawingMode ||
-    !Boolean(selectedNode) ||
+    !selectedNode ||
     (Boolean(selectedNode) && selectedNode.nodeType === "ANNOTATION");
 
   // helper - sizeVariant

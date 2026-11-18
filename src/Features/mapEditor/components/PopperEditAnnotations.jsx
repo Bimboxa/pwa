@@ -19,10 +19,6 @@ export default function PopperEditAnnotations({
 }) {
   // data
 
-  const anchorPosition = useSelector(
-    (s) => s.mapEditor.annotationsToolbarPosition
-  );
-
   const selectedItems = useSelector(selectSelectedItems);
   // Mailles (MESH3D) are not annotations: a mailles-only selection belongs
   // to PopperEditMeshes3d. In a mixed selection they get their own section

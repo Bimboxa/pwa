@@ -16,7 +16,6 @@ import {
   clearSelectedPointIds,
   setSelectedItem,
   setSelectedPartIds,
-  setSelectedPointIds,
   setSubSelection,
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
@@ -331,6 +330,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     const stripOffsets = (ring) =>
       (ring || []).map((ref) => {
         if (!ref) return ref;
+        // eslint-disable-next-line no-unused-vars
         const { offsetTop, offsetBottom, ...rest } = ref;
         return rest;
       });
