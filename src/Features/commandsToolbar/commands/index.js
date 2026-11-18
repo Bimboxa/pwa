@@ -36,6 +36,7 @@ import mergeCommand from "./merge/mergeCommand";
 import addIntersectionPointsCommand from "./addIntersectionPoints/addIntersectionPointsCommand";
 import dilateCommand from "./dilate/dilateCommand";
 import splitInSegmentsCommand from "./splitInSegments/splitInSegmentsCommand";
+import explodeComponentCommand from "./explodeComponent/explodeComponentCommand";
 import settingOutCommand from "./settingOut/settingOutCommand";
 import convertCommand from "./convert/convertCommand";
 import reentrantAnglesCommand from "./reentrantAngles/reentrantAnglesCommand";
@@ -142,6 +143,7 @@ export const COMMANDS = [
   addIntersectionPointsCommand,
   dilateCommand,
   splitInSegmentsCommand,
+  explodeComponentCommand,
   settingOutCommand,
   convertCommand,
   reentrantAnglesCommand,

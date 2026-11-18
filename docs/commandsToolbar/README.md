@@ -130,6 +130,16 @@ the per-segment flags are remapped, the hosted openings reflow and the whole
 write is one undo step. Cuts / guide lines are not crossed, and
 `meshLinesBySegment` is not remapped (like the other insertion paths).
 
+« Éclater le composant » (`EXPLODE_COMPONENT`, section « Créer / modifier
+depuis la sélection », 2D + 3D): replaces the selected components
+(`Features/annotationComponents`) by their generated annotations, turned into
+regular annotations — component tags removed, and each one gets its own
+`db.points` rows (the first keeps those of the component), so they no longer
+move together (`explodeComponentService`). The component itself is deleted,
+the freed annotations are selected, the whole is one undo step. Only enabled
+on a component with at least one generated annotation, so with « Masquer les
+commandes désactivées » on it only shows while a component is selected.
+
 ## Selection filter (`usesSelection`)
 
 Every command definition carries a required boolean tag, written in its own
