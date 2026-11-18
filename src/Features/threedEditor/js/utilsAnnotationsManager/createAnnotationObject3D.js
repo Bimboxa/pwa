@@ -56,6 +56,7 @@ import {
   getShape3DOptionsForType,
   getEffectiveShellMode,
   isOpenTopPrism,
+  isInvertedUWall,
 } from "Features/annotations/constants/shape3DConfig";
 
 import { isStairsGuideLine } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -732,6 +733,9 @@ function extrudeWallPolygon(
     halfWidth * SHRINK_MIN_HALF_WIDTH_RATIO
   );
   const applyShrink = shrinkPx > 0;
+  // « U inversé »: the two side faces + the top face only (no bottom face,
+  // no end faces) — an open sheet swept along the line.
+  const invertedU = isInvertedUWall(annotation);
   // Same idea vertically: lower the top face by a few mm (bottom unchanged).
   const effHeight = getShrunkHeight(height, options, annotation);
 
@@ -753,6 +757,7 @@ function extrudeWallPolygon(
       [],
       {
         wallEdges: true,
+        openBottom: invertedU,
         view3d: annotation._view3d,
         resolution: options?.resolution,
       }
@@ -802,6 +807,11 @@ function extrudeWallPolygon(
       wallEdges: true,
       // Break points: edge + face split on both facings.
       prismSides: true,
+      // « U inversé »: the two end faces of the footprint (ring segments
+      // left[n-1] → right[n-1] and right[0] → left[0]) are not built.
+      ...(invertedU
+        ? { openBottom: true, hiddenSegmentsIdx: [n - 1, 2 * n - 1] }
+        : {}),
       view3d: annotation._view3d,
       resolution: options?.resolution,
     }

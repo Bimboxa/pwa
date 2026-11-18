@@ -388,6 +388,8 @@ export default function extrudeClosedShape(
   // « Fosse » (options.openTop): the prism without its top face. Built by
   // the shared triangulation too — ExtrudeGeometry cannot leave a cap out.
   const isOpenTop = Boolean(isExtruded && options.openTop);
+  // « U inversé » (options.openBottom): the prism without its bottom face.
+  const isOpenBottom = Boolean(isExtruded && options.openBottom);
 
   // Height cuts (options.heightFaces): faces of a FLAT polygon at their own
   // level — stepped build of the shared triangulation (ignored on the
@@ -397,7 +399,13 @@ export default function extrudeClosedShape(
 
   let geometry;
   let heightFacesApplied = false;
-  if (!isPerVertexZPath && !isSegmentedPrism && !isOpenTop && !hasHeightFaces) {
+  if (
+    !isPerVertexZPath &&
+    !isSegmentedPrism &&
+    !isOpenTop &&
+    !isOpenBottom &&
+    !hasHeightFaces
+  ) {
     const shape = new Shape();
     tracePath(shape, points);
     if (holes && holes.length) {
@@ -436,7 +444,9 @@ export default function extrudeClosedShape(
       // Prism sides: hidden side faces skipped, coplanar ones labelled.
       sideSegments,
       openTop: isOpenTop,
-      heightFaces: hasHeightFaces ? options.heightFaces : null,
+      openBottom: isOpenBottom,
+      // The stepped build has no open bottom: not combined with it.
+      heightFaces: hasHeightFaces && !isOpenBottom ? options.heightFaces : null,
     });
     heightFacesApplied = Boolean(tri.heightFacesApplied);
     geometry = new BufferGeometry();

@@ -23,6 +23,7 @@ import applySurfaceCuts from "./utilsAnnotationsManager/applySurfaceCuts";
 import {
   getShape3DKey,
   isOpenTopPrism,
+  isInvertedUWall,
   isRevolutionSolid,
 } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
@@ -483,6 +484,8 @@ export default class AnnotationsManager {
                 isPolylineSheetWall(annotation) ||
                 // « Fosse »: a prism without its top face, an open surface.
                 isOpenTopPrism(annotation) ||
+                // « U inversé »: no bottom face, no end faces.
+                isInvertedUWall(annotation) ||
                 // A prism without one of its side faces (hidden segment).
                 isOpenSidePrism(annotation) ||
                 (sourceShapeKey === "REVOLUTION" &&

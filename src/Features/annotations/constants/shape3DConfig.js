@@ -27,9 +27,24 @@
 const hasShellProfiles = (annotation) =>
   !!annotation?.profileLines?.some((l) => (l?.points?.length ?? 0) >= 2);
 
+// « U inversé »: a thick line (CM width) with a height, built as the three
+// faces of an inverted U swept along the line — the two side faces and the
+// top face, WITHOUT the bottom face nor the two end faces.
+const isThickLineWithHeight = (annotation) =>
+  annotation?.strokeWidthUnit === "CM" &&
+  Number(annotation?.strokeWidth) > 0 &&
+  Number(annotation?.height) > 0 &&
+  !hasShellProfiles(annotation);
+
+const INVERTED_U_OPTION = {
+  key: "INVERTED_U",
+  label: "U inversé",
+  isAvailable: isThickLineWithHeight,
+};
+
 const SHAPE_3D_CONFIG = {
-  POLYLINE: [],
-  STRIP: [],
+  POLYLINE: [INVERTED_U_OPTION],
+  STRIP: [INVERTED_U_OPTION],
   // DISC: default = the extruded disc / sector; « Coupole » = a solid of
   // revolution of a quarter ellipse (vertical tangent at the rim, horizontal
   // at the apex, height = annotation.height) — see buildDiscObject3D.
@@ -67,6 +82,7 @@ export const SHAPE_3D_KEYS = {
   SHELL_TENT: "SHELL_TENT",
   DISC_DOME: "DISC_DOME",
   FOSSE: "FOSSE",
+  INVERTED_U: "INVERTED_U",
 };
 
 export function getShape3DOptionsForType(annotationType) {
@@ -136,12 +152,39 @@ export function isOpenTopPrism(annotation) {
   );
 }
 
-// The annotation as a subtraction OPERAND: a « Fosse » cuts as the CLOSED
-// prism it is drawn from — its removed top face must exist for the boolean
-// (an open brush bounds no volume) and to cut the coplanar face of a host
-// glued to it (clipCoplanarSheetTriangles reads real cutter triangles).
+// « U inversé »: a thick POLYLINE / STRIP (CM width) with a height, displayed
+// and metered as an inverted U swept along the line (two side faces + top
+// face, no bottom face, no end faces). Without a CM width or a height the
+// key has no effect: the default build applies. A STRIP with openings
+// (cuts) keeps its footprint build too.
+export function isInvertedUWall(annotation) {
+  if (annotation?.type !== "POLYLINE" && annotation?.type !== "STRIP") {
+    return false;
+  }
+  if (annotation.isMesh3d) return false;
+  if (getShape3DKey(annotation.shape3D) !== SHAPE_3D_KEYS.INVERTED_U) {
+    return false;
+  }
+  if (!isThickLineWithHeight(annotation)) return false;
+  if (annotation.type === "STRIP") {
+    const hasCuts = (annotation.cuts ?? []).some(
+      (c) => (c?.points?.length ?? 0) >= 3
+    );
+    const hasElevation = (annotation.points ?? []).some(
+      (p) => (p?.offsetTop ?? 0) !== 0
+    );
+    if (hasCuts || hasElevation) return false;
+  }
+  return true;
+}
+
+// The annotation as a subtraction OPERAND: a « Fosse » (or a « U inversé »)
+// cuts as the CLOSED prism it is drawn from — its removed faces must exist
+// for the boolean (an open brush bounds no volume) and to cut the coplanar
+// face of a host glued to it (clipCoplanarSheetTriangles reads real cutter
+// triangles).
 export function asClosedSolidOperand(annotation) {
-  return isOpenTopPrism(annotation)
+  return isOpenTopPrism(annotation) || isInvertedUWall(annotation)
     ? { ...annotation, shape3D: null }
     : annotation;
 }

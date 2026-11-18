@@ -52,6 +52,7 @@ import {
   getEffectiveShellMode,
   getShape3DKey,
   isOpenTopPrism,
+  isInvertedUWall,
 } from "Features/annotations/constants/shape3DConfig";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
@@ -540,6 +541,13 @@ export default function getAnnotationQties(args) {
   return { ...qties, surface: Math.max(0, qties.surface - removedM2) };
 }
 
+// « U inversé » (shape3DConfig.isInvertedUWall): developed width of the
+// section swept along the line, in meters — the two side faces + the top
+// face (no bottom face). `sideHeightM` is the height of ONE side face.
+function getInvertedUSectionLength(annotation, sideHeightM) {
+  return 2 * sideHeightM + (Number(annotation.strokeWidth) || 0) / 100;
+}
+
 function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
   try {
     if (!annotation) return null;
@@ -644,10 +652,14 @@ function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
       // ribbon footprint drawn on the plan.
       const heightM = parseFloat(annotation.height);
       if (Number.isFinite(heightM) && heightM > 0) {
+        // « U inversé »: both side faces + the top face.
+        const sectionM = isInvertedUWall(annotation)
+          ? getInvertedUSectionLength(annotation, heightM)
+          : heightM;
         return {
           enabled: true,
           length,
-          surface: heightM * length,
+          surface: sectionM * length,
         };
       }
 
@@ -903,18 +915,27 @@ function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
           wallHidden,
           parseFloat(annotation.height) || 0
         );
+        // « U inversé »: both side faces (each ≈ the centerline wall) + the
+        // top face (width × length).
+        const wallSurface = isInvertedUWall(annotation)
+          ? 2 * wall.surface +
+            getInvertedUSectionLength(annotation, 0) * wall.length
+          : wall.surface;
         return {
           enabled: true,
           length: wall.length,
-          surface: wall.surface,
+          surface: wallSurface,
           lengthDeveloped: wall.length,
-          surfaceDeveloped: wall.surface,
+          surfaceDeveloped: wallSurface,
         };
       }
 
       if (annotation.height) {
-        totalSurfacePx =
-          mainMetrics.lengthPx * (parseFloat(annotation.height) / meterByPx);
+        // « U inversé »: both side faces + the top face.
+        const sectionM = isInvertedUWall(annotation)
+          ? getInvertedUSectionLength(annotation, parseFloat(annotation.height))
+          : parseFloat(annotation.height);
+        totalSurfacePx = mainMetrics.lengthPx * (sectionM / meterByPx);
       }
     }
 
