@@ -7,6 +7,8 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import getUserAxesWorldDirections from "Features/threedEditor/utils/getUserAxesWorldDirections";
 import { AXIS_COLORS } from "Features/threedEditor/constants/axesDisplay";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
+import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
+import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 
 import computeAxesYawFromPoints from "../utils/computeAxesYawFromPoints";
@@ -16,6 +18,7 @@ import {
 } from "../services/axesPlacementSessionStore";
 
 const COLOR_VERTEX = "#ff2d8d";
+const COLOR_EDGE = "#2e7d32";
 const COLOR_PLANE = "#1565c0";
 const COLOR_CROSS = "#90a4ae";
 const COLOR_FREE = "#000000";
@@ -28,14 +31,14 @@ const ORIGIN_CIRCLE_RADIUS_PX = 4;
 
 // Live overlay of the « Orienter le repère » tool — 2 clicks:
 // 1. origin phase: snap marker under the cursor (vertex snap on every
-//    snappable object, else a direct hit on a base map image plane with the
-//    cross helper, else a free point on the horizontal plane of the current
-//    frame origin);
+//    snappable object, else the closest point on an edge / segment, else a
+//    direct hit on a base map image plane with the cross helper, else a
+//    free point on the horizontal plane of the current frame origin);
 // 2. direction phase: the direction point lives IN THE HORIZONTAL PLANE OF
 //    THE ORIGIN — the free hit is the ray ∩ that plane (so the X axis passes
-//    under the cursor on screen, whatever the camera), a vertex snap at
-//    another height is projected on it (dotted vertical drop line between
-//    the two, the snap circle on the real vertex); no base map plane hit
+//    under the cursor on screen, whatever the camera), a vertex / edge snap
+//    at another height is projected on it (dotted vertical drop line between
+//    the two, the snap circle on the real snap point); no base map plane hit
 //    here, a plan at another height would pull the point off the plane.
 //    Dashed red (X colour) helper from the origin to the direction point,
 //    the in-scene axes helper rotates live around its vertical axis so its
@@ -141,9 +144,11 @@ export default function AxesPlacementOverlayThreed() {
     function colorForKind(kind) {
       return kind === "VERTEX"
         ? COLOR_VERTEX
-        : kind === "PLANE"
-          ? COLOR_PLANE
-          : COLOR_FREE;
+        : kind === "EDGE"
+          ? COLOR_EDGE
+          : kind === "PLANE"
+            ? COLOR_PLANE
+            : COLOR_FREE;
     }
 
     // Cross helper of a PLANE hit: the two dashed lines through the point,
@@ -170,9 +175,9 @@ export default function AxesPlacementOverlayThreed() {
       });
     }
 
-    // Point under the cursor: vertex snap → base map image plane (cross,
-    // origin phase only) → free point on the horizontal plane through
-    // `anchor`.
+    // Point under the cursor: vertex snap → closest point on an edge →
+    // base map image plane (cross, origin phase only) → free point on the
+    // horizontal plane through `anchor`.
     function computeTarget(canvasSize, anchor, { withPlaneHit }) {
       const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
       if (vertexSnap) {
@@ -180,6 +185,20 @@ export default function AxesPlacementOverlayThreed() {
           position: vertexSnap.position,
           kind: "VERTEX",
           meshKey: vertexSnap.meshKey,
+        };
+      }
+      const edgeSnap = findNearestEdgeSnap(
+        getMeshAdjacency(),
+        ndc,
+        camera,
+        canvasSize,
+        12
+      );
+      if (edgeSnap) {
+        return {
+          position: edgeSnap.position,
+          kind: "EDGE",
+          nodeId: edgeSnap.nodeId,
         };
       }
       const planeHitTarget = withPlaneHit
@@ -252,7 +271,7 @@ export default function AxesPlacementOverlayThreed() {
 
       // Direction point = the target projected in the origin's horizontal
       // plane: the dashed helper then runs along the X axis on screen. A
-      // vertex at another height shows its drop line.
+      // vertex / edge snap at another height shows its drop line.
       const directionPoint = target
         ? new Vector3(target.position.x, grab.origin.y, target.position.z)
         : null;
