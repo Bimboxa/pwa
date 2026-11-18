@@ -125,6 +125,9 @@ export default function createMesh3dLabelSprite({
     depthTest: false,
     depthWrite: false,
     sizeAttenuation: false,
+    // The realistic render modes use ACES tone mapping, which would grey the
+    // white card.
+    toneMapped: false,
   });
 
   const sprite = new Sprite(material);
