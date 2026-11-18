@@ -10,7 +10,8 @@ prepare them are documented in `Features/threedCutLines/README.md`.
 - Tools: commands of the commands toolbar (MESHES layout,
   `commandsToolbar/constants/toolbarLayout.js`) — « Ajouter une maille »
   (`ADD_MESH`), « Mailler » (`CREATE_MESHES`: every maille at once from the
-  cut lines, `createMeshesFromCutLinesService`), « Fusionner les mailles
+  cut lines, or every face of the selected annotations — cut lines optional
+  —, `createMeshesFromCutLinesService`), « Fusionner les mailles
   adjacentes » (`MERGE_ADJACENT_MESHES`), « Numéroter » (`NUMBER_MESHES`)
   and « Supprimer toutes les mailles » (`DELETE_ALL_MESHES`: every maille
   of the scope, after a confirmation — `deleteAllMeshes3dService`). There is no bottom meshing toolbar; mailles are not cut

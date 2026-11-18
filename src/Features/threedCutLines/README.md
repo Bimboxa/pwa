@@ -434,7 +434,11 @@ the scope services (Krto zip, duplicate, purge) read Dexie and keep them.
   annotation (merged host, or per mesh in plane mode), clipped by the
   lines; one maille per cut group; groups whose cut pieces all have their
   centroid in an existing maille (coplanar face or shell triangle) are
-  skipped; regions no line crosses produce nothing. The mailles are built
+  skipped; regions no line crosses produce nothing. With annotations
+  selected (cut lines aside), the run is scoped to them (`annotationIds`)
+  and meshes EVERY region of theirs — cut by all the rendered lines
+  crossing it, selected or not, whole otherwise — so it also works without
+  any cut line. The mailles are built
   in memory and written in one batch (`createMeshes3dService`: one
   transaction, one `bulkAdd`), so they all appear at once.
 
