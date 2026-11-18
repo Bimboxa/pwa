@@ -24,19 +24,30 @@ import { getCutLinesWorldPolylines } from "./cutLineObjectsStore";
 // (user decisions 2026-11-03). Each maille takes its source annotation's
 // hue, like the CREATE tool.
 //
-// Returns { created, skippedCovered, facesCut }.
+// `annotationIds` (optional, non-empty) scopes the run to these annotations
+// (« Mailler » on a selection): EVERY face region of theirs is meshed — cut
+// by every rendered cut line crossing it (selected or not), whole otherwise
+// — so the command also works without any cut line. The covered groups are
+// still skipped.
+//
+// Returns { created, skippedCovered, facesCut } (facesCut: the regions that
+// produced at least one candidate group).
 export default async function createMeshesFromCutLinesService({
   editor,
   projectId,
   scopeId,
   angleDeg,
+  annotationIds,
 }) {
   const sceneManager = editor?.sceneManager;
   if (!sceneManager || !projectId || !scopeId) {
     return { created: 0, skippedCovered: 0, facesCut: 0 };
   }
+  const scoped = annotationIds?.length > 0;
   const cutLines = getCutLinesWorldPolylines().map((l) => l.points);
-  if (!cutLines.length) return { created: 0, skippedCovered: 0, facesCut: 0 };
+  if (!scoped && !cutLines.length) {
+    return { created: 0, skippedCovered: 0, facesCut: 0 };
+  }
 
   const existing = (
     await db.meshes3d
@@ -58,13 +69,14 @@ export default async function createMeshesFromCutLinesService({
 
   for (const { annotationId, soup } of collectVisibleFaceRegions(sceneManager, {
     angleDeg,
+    annotationIds: scoped ? annotationIds : null,
   })) {
     const clip = clipRegionByCutLines({
       positions: soup.positions,
       tris: soup.tris,
       cutLines,
     });
-    const groups = (clip?.groups || []).filter((g) => g.cut);
+    const groups = (clip?.groups || []).filter((g) => scoped || g.cut);
     if (!groups.length) continue;
     facesCut += 1;
 
@@ -104,9 +116,12 @@ export default async function createMeshesFromCutLinesService({
   return { created: records.length, skippedCovered, facesCut };
 }
 
-// Every cut piece of the group has its centroid inside an existing maille.
+// Every cut piece of the group (every piece, for a group no line bounds —
+// scoped run) has its centroid inside an existing maille.
 function isGroupCovered(pieces, faces, shells) {
-  const cut = pieces.filter((p) => p.cut && p.centroid);
+  const located = pieces.filter((p) => p.centroid);
+  const cutPieces = located.filter((p) => p.cut);
+  const cut = cutPieces.length ? cutPieces : located;
   if (!cut.length) return false;
   return cut.every(
     (piece) =>

@@ -6,11 +6,14 @@ import { getMeshingCommandDisabledState } from "../../utils/meshingCommandState"
 
 // « Mailler » (3D, Maillage module — Features/threedCutLines): creates every
 // maille at once from the cut lines — one maille per piece of the faces they
-// cross (createMeshesFromCutLinesService). The button owns the busy state
-// and the "no cut line" guard (ButtonCreateMeshes).
+// cross (createMeshesFromCutLinesService). With annotations selected, the
+// run is scoped to them: every face of the selection is meshed, cut by the
+// cut lines crossing it (all of them, selected or not) — no cut line needed.
+// The button owns the busy state and the "no cut line" guard
+// (ButtonCreateMeshes).
 export default {
   key: "CREATE_MESHES",
-  usesSelection: false,
+  usesSelection: true,
   label: "Mailler",
   Icon: GridOnIcon,
   Button: ButtonCreateMeshes,

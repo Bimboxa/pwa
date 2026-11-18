@@ -14,10 +14,13 @@ import {
 import CommandButton from "../../components/CommandButton";
 
 // Button of « Mailler »: one maille per piece of the faces the cut lines
-// cross (createMeshesFromCutLinesService). Disabled while no cut line is
-// rendered, and while a creation is running.
+// cross (createMeshesFromCutLinesService). With annotations selected (cut
+// lines aside), the run is scoped to them and meshes every face of theirs,
+// cut lines or not. Disabled while a creation is running and, without a
+// selection, while no cut line is rendered.
 export default function ButtonCreateMeshes({
   command,
+  ctx,
   deps,
   state,
   hotkeyLabel,
@@ -36,6 +39,15 @@ export default function ButtonCreateMeshes({
   // Re-render when the rendered cut lines change (store version).
   useSyncExternalStore(subscribeCutLineObjects, getCutLinesVersion);
   const hasCutLines = getCutLinesWorldPolylines().length > 0;
+  // Selection scope: the selected annotations, the cut lines left out (they
+  // cut, they are not meshed). Falls back on the ids while the annotations
+  // query has not resolved them.
+  const scopeAnnotationIds = ctx.annotationsLoading
+    ? ctx.selectedAnnotationIds
+    : ctx.selectedAnnotations
+        .filter((a) => a.type !== "CUT_LINE")
+        .map((a) => a.id);
+  const scoped = scopeAnnotationIds.length > 0;
 
   // state
 
@@ -46,7 +58,7 @@ export default function ButtonCreateMeshes({
   let buttonState = state;
   if (state?.enabled && busy) {
     buttonState = { enabled: false, reason: busyS };
-  } else if (state?.enabled && !hasCutLines) {
+  } else if (state?.enabled && !scoped && !hasCutLines) {
     buttonState = { enabled: false, reason: noneS };
   }
 
@@ -63,6 +75,7 @@ export default function ButtonCreateMeshes({
           projectId,
           scopeId,
           angleDeg,
+          annotationIds: scoped ? scopeAnnotationIds : null,
         });
       const parts = [
         `${created} maille${created > 1 ? "s" : ""} créée${created > 1 ? "s" : ""}`,
@@ -71,7 +84,8 @@ export default function ButtonCreateMeshes({
         parts.push(
           `${skippedCovered} déjà maillée${skippedCovered > 1 ? "s" : ""}`
         );
-      if (!facesCut) parts.push("aucune face traversée");
+      if (!facesCut)
+        parts.push(scoped ? "aucune face à mailler" : "aucune face traversée");
       deps.dispatch(
         setToaster({
           message: parts.join(" · "),

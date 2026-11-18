@@ -13,14 +13,24 @@ import {
 //
 // Shared by « Mailler » (createMeshesFromCutLinesService) and the cut lines
 // AI prompt (collectCutLinesPromptRegions). A generator: the caller may
-// await between two regions.
+// await between two regions. `annotationIds` (optional) restricts the walk
+// to these annotations (« Mailler » on a selection).
 //
 // Yields { annotationId, soup: { positions, tris } }.
-export default function* collectVisibleFaceRegions(sceneManager, { angleDeg }) {
+export default function* collectVisibleFaceRegions(
+  sceneManager,
+  { angleDeg, annotationIds }
+) {
   const annotationsManager = sceneManager?.annotationsManager;
+  const scope = annotationIds ? new Set(annotationIds) : null;
   const roots = Object.values(
     annotationsManager?.annotationsObjectsMap || {}
-  ).filter((root) => root?.visible && root.userData?.nodeId);
+  ).filter(
+    (root) =>
+      root?.visible &&
+      root.userData?.nodeId &&
+      (!scope || scope.has(root.userData.nodeId))
+  );
 
   for (const root of roots) {
     const annotationId = root.userData.nodeId;
