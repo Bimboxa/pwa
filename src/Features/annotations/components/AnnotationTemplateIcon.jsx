@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -27,6 +27,7 @@ export default function AnnotationTemplateIcon({
 }) {
   // helpers
 
+  const theme = useTheme();
   const template = templateProp ?? EMPTY_TEMPLATE;
   const shape = resolveDrawingShape(template);
   const topViewUrl = useObject3DTopView(template?.object3D, {
@@ -50,8 +51,9 @@ export default function AnnotationTemplateIcon({
   const color = is3D && template.color3D ? template.color3D : twoDColor;
   const opacity = is3D ? (template.opacity3D ?? twoDOpacity) : twoDOpacity;
   const fillType = template.fillType;
-  // COMPONENT: the line sits higher, the « c » badge takes the bottom right.
-  const lineY = shape === "COMPONENT" ? 7 : 10;
+  const isDashedStroke = template.strokeType === "DASHED";
+  // COMPONENT: the line sits lower, the « C » badge takes the top right.
+  const lineY = shape === "COMPONENT" ? 12 : 10;
 
   // helpers - light color detection
 
@@ -510,7 +512,8 @@ export default function AnnotationTemplateIcon({
             y2={lineY}
             stroke="#bbb"
             strokeWidth="5.5"
-            strokeLinecap="round"
+            strokeLinecap={isDashedStroke ? "butt" : "round"}
+            strokeDasharray={isDashedStroke ? "4 2" : undefined}
           />
         )}
         {shapeType === "polyline" && (
@@ -521,7 +524,9 @@ export default function AnnotationTemplateIcon({
             y2={lineY}
             stroke={color}
             strokeWidth="4"
-            strokeLinecap="round"
+            // DASHED stroke: three dashes instead of the plain line
+            strokeLinecap={isDashedStroke ? "butt" : "round"}
+            strokeDasharray={isDashedStroke ? "4 2" : undefined}
             opacity={opacity}
           />
         )}
@@ -560,27 +565,27 @@ export default function AnnotationTemplateIcon({
             />
           </g>
         )}
-        {/* « Composant » badge: a small disc with a "c", bottom right */}
+        {/* « Composant » badge: a small secondary disc with a "C", top right */}
         {shape === "COMPONENT" && (
           <g>
             <circle
-              cx="14.5"
-              cy="14.5"
-              r="5"
-              fill={isLightColor ? "#888" : color}
+              cx="15"
+              cy="5"
+              r="4.5"
+              fill={theme.palette.secondary.main}
               stroke="#fff"
               strokeWidth="1"
             />
             <text
-              x="14.5"
-              y="17"
+              x="15"
+              y="7.4"
               textAnchor="middle"
-              fontSize="7.5"
+              fontSize="6.5"
               fontWeight="bold"
               fill="#fff"
               fontFamily="sans-serif"
             >
-              c
+              C
             </text>
           </g>
         )}

@@ -18,6 +18,7 @@ import useDndSensors from "App/hooks/useDndSensors";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 
 // ---------------------------------------------------------------------------
@@ -105,7 +106,16 @@ function SortableTemplateRow({ template, spriteImage, qtyLabel, onSelect }) {
         <Typography
           variant="body2"
           noWrap
-          sx={{ flex: 1, minWidth: 0, lineHeight: 1.3, userSelect: "none" }}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            lineHeight: 1.3,
+            userSelect: "none",
+            // a « Composant » template reads in italic
+            ...(resolveDrawingShape(template) === "COMPONENT" && {
+              fontStyle: "italic",
+            }),
+          }}
         >
           {template.label}
           {template.height != null && (

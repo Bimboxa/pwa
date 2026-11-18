@@ -620,6 +620,9 @@ function AnnotationTemplateRow({
                 sx={{
                   lineHeight: 1.3,
                   userSelect: "none",
+                  // a « Composant » template reads in italic
+                  ...(resolveDrawingShape(annotationTemplate) ===
+                    "COMPONENT" && { fontStyle: "italic" }),
                   ...(wrapLabel
                     ? {
                         whiteSpace: "normal",

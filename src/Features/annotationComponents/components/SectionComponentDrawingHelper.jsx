@@ -1,10 +1,15 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { patchNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Box, Typography } from "@mui/material";
 
 import ListComponentItemsToggles from "./ListComponentItemsToggles";
+import SvgComponentPreview from "./SvgComponentPreview";
+
+import db from "App/db/db";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import useComponentItems from "../hooks/useComponentItems";
 
@@ -12,7 +17,9 @@ import useComponentItems from "../hooks/useComponentItems";
 // templates the component generates, each one checked / unchecked for the
 // next drawings. The choice rides the draft (`componentItemsEnabled`) and is
 // stored on the drawn annotation at commit; the children are then generated
-// by useComponentsSync. Renders nothing for any other template.
+// by useComponentsSync. On the right half, a schematic preview: the source
+// annotation, then the annotations the checked templates generate (see
+// SvgComponentPreview). Renders nothing for any other template.
 export default function SectionComponentDrawingHelper() {
   // strings
 
@@ -28,6 +35,18 @@ export default function SectionComponentDrawingHelper() {
     (s) => s.annotations.newAnnotation?.componentItemsEnabled
   );
   const items = useComponentItems(annotationTemplateId, enabledMap);
+
+  // data - preview: the draft (source annotation), its template, the base map
+
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const componentTemplate = useLiveQuery(
+    () =>
+      annotationTemplateId
+        ? db.annotationTemplates.get(annotationTemplateId)
+        : null,
+    [annotationTemplateId]
+  );
+  const baseMap = useMainBaseMap();
 
   // handlers
 
@@ -51,7 +70,19 @@ export default function SectionComponentDrawingHelper() {
       >
         {titleS}
       </Typography>
-      <ListComponentItemsToggles items={items} onToggle={handleToggle} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <ListComponentItemsToggles items={items} onToggle={handleToggle} />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <SvgComponentPreview
+            source={newAnnotation}
+            componentTemplate={componentTemplate}
+            items={items}
+            baseMap={baseMap}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }
