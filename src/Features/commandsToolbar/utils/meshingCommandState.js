@@ -4,7 +4,7 @@ import {
 } from "./drawToolCommandState";
 
 // Shared `getState` guards of the meshing commands (3D, Maillage module —
-// ADD_MESH, CREATE_MESHES, NUMBER_MESHES): returns the disabled state, or
+// ADD_MESH, CREATE_MESHES, MERGE_ADJACENT_MESHES, NUMBER_MESHES): returns the disabled state, or
 // null when the command is available.
 export function getMeshingCommandDisabledState(ctx) {
   if (ctx.viewerKey !== "MESHES") {

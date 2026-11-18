@@ -258,7 +258,12 @@ const BASE_MAPS_SECTIONS = [
 const MESHES_TOOLS_SECTION = {
   key: "MESHES_TOOLS",
   label: "Mailles",
-  entries: ["ADD_MESH", "CREATE_MESHES", "NUMBER_MESHES"],
+  entries: [
+    "ADD_MESH",
+    "CREATE_MESHES",
+    "MERGE_ADJACENT_MESHES",
+    "NUMBER_MESHES",
+  ],
 };
 const CUT_LINES_SECTION = {
   key: "CUT_LINES",
