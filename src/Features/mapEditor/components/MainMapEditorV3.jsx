@@ -3165,11 +3165,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           {/* MAP instance only: the BASE_MAPS viewer mounts this editor too,
                 and the redux-driven dialog must not render twice */}
           {isMapViewer && <ProcedureAutoLaunchDialogOutlet />}
-          <PopperEditAnnotation viewerKey={forViewerKey} />
-          <PopperEditAnnotations
-            viewerKey={forViewerKey}
-            allAnnotations={annotations}
-          />
+          {/* Edit toolbars: in the layout-level host too, so they can be
+              dragged over the top bar and the commands toolbar. */}
+          <PortalEditorFloatingPanels>
+            <PopperEditAnnotation viewerKey={forViewerKey} />
+            <PopperEditAnnotations
+              viewerKey={forViewerKey}
+              allAnnotations={annotations}
+            />
+          </PortalEditorFloatingPanels>
           <PopperEditScale viewerKey={forViewerKey} />
           <PopperImageScale viewerKey={forViewerKey} />
           <DialogChangeAnnotationImage />

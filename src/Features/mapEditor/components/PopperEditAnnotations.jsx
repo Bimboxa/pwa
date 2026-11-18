@@ -15,6 +15,7 @@ import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys"
 export default function PopperEditAnnotations({
   viewerKey = null,
   allAnnotations,
+  renderExtraSection = null,
 }) {
   // data
 
@@ -23,10 +24,12 @@ export default function PopperEditAnnotations({
   );
 
   const selectedItems = useSelector(selectSelectedItems);
-  const selectedNodes = selectedItems.map((i) => ({
-    nodeId: i.nodeId,
-    nodeType: i.type,
-  }));
+  // Mailles (MESH3D) are not annotations: a mailles-only selection belongs
+  // to PopperEditMeshes3d. In a mixed selection they get their own section
+  // below the annotations one (renderExtraSection).
+  const hasAnnotationItems = selectedItems.some(
+    (i) => !(i?.type === "NODE" && i?.nodeType === "MESH3D")
+  );
 
   // Effective key, not the raw module key: the toolbar follows the editor
   // actually displayed (e.g. the Dessin module toggled to its 3D editor).
@@ -47,7 +50,8 @@ export default function PopperEditAnnotations({
     shouldShow &&
     isWidest &&
     !captureFramingActive &&
-    selectedNodes?.length > 1;
+    hasAnnotationItems &&
+    selectedItems.length > 1;
 
   // drag
 
@@ -76,6 +80,8 @@ export default function PopperEditAnnotations({
         sx={{
           pointerEvents: "auto",
           display: "flex",
+          flexDirection: "column",
+          gap: 1,
           minHeight: 0,
           maxHeight: "100%",
         }}
@@ -84,6 +90,7 @@ export default function PopperEditAnnotations({
           allAnnotations={allAnnotations}
           onDragStart={handleDragStart}
         />
+        {renderExtraSection?.({ onDragStart: handleDragStart })}
       </Box>
     </Box>
   );

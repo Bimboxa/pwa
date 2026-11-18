@@ -15,6 +15,9 @@ export default function FieldColorV2({
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const showAsSection = options?.showAsSection;
+  // Section variant: the round swatch right after the label instead of at
+  // the right end (the right side then only holds action / endAction).
+  const swatchNextToLabel = options?.swatchNextToLabel;
 
   // Handlers pour le Popover
   const handleClick = (event) => {
@@ -34,6 +37,25 @@ export default function FieldColorV2({
   const id = open ? "color-popover" : undefined;
 
   if (showAsSection) {
+    // Le rond de couleur cliquable
+    const swatch = (
+      <Box
+        onClick={handleClick}
+        sx={{
+          width: 24,
+          height: 24,
+          flexShrink: 0,
+          borderRadius: "50%",
+          bgcolor: value || "#fff",
+          cursor: "pointer",
+          border: "2px solid",
+          borderColor: "divider",
+          "&:hover": { transform: "scale(1.1)" },
+          transition: "transform 0.2s",
+        }}
+      />
+    );
+
     return (
       <>
         <WhiteSectionGeneric>
@@ -45,28 +67,17 @@ export default function FieldColorV2({
               width: 1,
             }}
           >
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              {label}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                {label}
+              </Typography>
+              {swatchNextToLabel && swatch}
+            </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               {action}
 
-              {/* Le rond de couleur cliquable */}
-              <Box
-                onClick={handleClick}
-                sx={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  bgcolor: value || "#fff",
-                  cursor: "pointer",
-                  border: "2px solid",
-                  borderColor: "divider",
-                  "&:hover": { transform: "scale(1.1)" },
-                  transition: "transform 0.2s",
-                }}
-              />
+              {!swatchNextToLabel && swatch}
 
               {endAction}
             </Box>

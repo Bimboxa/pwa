@@ -14,6 +14,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 // handle, the width grows with +dx. "right" (a panel positioned with CSS
 // `right:`, e.g. PopperImages) → bottom-left handle, the width grows with
 // -dx: the panel extends leftwards.
+//
+// `widthFactor`: 2 for a panel centred on its anchor (the edit toolbars,
+// `left: 50%` + `translateX(-50%)`): the width grows on both sides, so the
+// handle only follows the cursor when the width takes twice the drag.
 // ---------------------------------------------------------------------------
 
 export default function usePanelResize({
@@ -21,12 +25,13 @@ export default function usePanelResize({
   minWidth = 240,
   minHeight = 120,
   anchor = "left",
+  widthFactor = 1,
 } = {}) {
   const [size, setSize] = useState(null);
   const isResizing = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const startSize = useRef({ width: 0, height: 0 });
-  const widthSign = anchor === "right" ? -1 : 1;
+  const widthSign = (anchor === "right" ? -1 : 1) * widthFactor;
 
   const handleMouseMove = useCallback(
     (e) => {

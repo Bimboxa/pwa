@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   selectSelectedItems,
   removeSelectedItem,
-  clearSelection,
+  setSelectedItems,
 } from "Features/selection/selectionSlice";
 
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
@@ -51,6 +51,8 @@ import ChipBlockLink from "Features/blocks/components/ChipBlockLink";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
+import usePanelResize from "Features/layout/hooks/usePanelResize";
+import PanelFooter from "Features/layout/components/PanelFooter";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
@@ -92,6 +94,17 @@ export default function ToolbarEditAnnotations({
   // state
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
+
+  // Resize (bottom band, same mechanics as PopperMapListings). The toolbar
+  // is centred in its popper: widthFactor 2 keeps the handle under the cursor.
+  const paperRef = useRef(null);
+  const {
+    size,
+    isAutoHeight,
+    handleResizeMouseDown,
+    fitContent,
+    reset: resetSize,
+  } = usePanelResize({ paperRef, widthFactor: 2 });
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [pendingHeight, setPendingHeight] = useState(null);
   const [pendingOffsetZ, setPendingOffsetZ] = useState(null);
@@ -313,10 +326,27 @@ export default function ToolbarEditAnnotations({
     handleTemplateDropdownClose();
   }
 
-  async function handleDeleteClick() {
-    await deleteAnnotations(annotations.map((a) => a.id));
-    dispatch(clearSelection());
+  // The selected items this toolbar does not list (mailles, cut lines of a
+  // mixed selection — their own sections, below): they survive its actions.
+  function getOtherItems() {
+    const ids = new Set(annotations.map((a) => a.id));
+    return selectedItems.filter((item) => !ids.has(item.nodeId));
   }
+
+  // Empties the annotations side of the selection.
+  function handleClearAnnotationsSelection() {
+    dispatch(setSelectedItems(getOtherItems()));
+  }
+
+  async function handleDeleteClick() {
+    const otherItems = getOtherItems();
+    await deleteAnnotations(annotations.map((a) => a.id));
+    dispatch(setSelectedItems(otherItems));
+  }
+
+  // Nothing of this toolbar's kind in the selection (e.g. cut lines + mailles
+  // only): the other sections of the popper stand alone.
+  if (count === 0) return null;
 
   return (
     <Box
@@ -329,11 +359,14 @@ export default function ToolbarEditAnnotations({
       }}
     >
       <Paper
+        ref={paperRef}
         elevation={6}
         sx={{
           borderRadius: 3,
           overflow: "hidden",
           minWidth: 250,
+          // Explicit size once resized (the template list takes the slack).
+          ...(size && { width: size.width, height: size.height }),
           // The header and the bottom tools stay pinned: only the template
           // group list scrolls, so a large selection never pushes the actions
           // row off screen.
@@ -373,43 +406,56 @@ export default function ToolbarEditAnnotations({
               {countLabel}
             </Typography>
           </Box>
-          <Tooltip title="Copy annotations data">
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => {
-                if (annotations?.length > 0) {
-                  // imageSize + meterByPx make the export self-contained for
-                  // the AI meshing prompt (docs/annotations/MESH_IMPORT_PROMPT.md)
-                  const data = stringifyAnnotationData({
-                    imageSize: baseMap?.getImageSize?.() ?? null,
-                    meterByPx:
-                      baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx ?? null,
-                    annotations,
-                  });
-                  navigator.clipboard.writeText(data);
-                }
-              }}
-              sx={{
-                flexShrink: 0,
-                color: "text.disabled",
-                opacity: 0.4,
-                "&:hover": { opacity: 1, bgcolor: "action.hover" },
-              }}
-            >
-              <BugReportIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Voir les données">
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => setOpenDatagrid(true)}
-              sx={{ flexShrink: 0 }}
-            >
-              <TableChartIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          {/* Right group: debug copy, data grid, clear (kept side by side) */}
+          <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <Tooltip title="Copy annotations data">
+              <IconButton
+                size="small"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  if (annotations?.length > 0) {
+                    // imageSize + meterByPx make the export self-contained for
+                    // the AI meshing prompt (docs/annotations/MESH_IMPORT_PROMPT.md)
+                    const data = stringifyAnnotationData({
+                      imageSize: baseMap?.getImageSize?.() ?? null,
+                      meterByPx:
+                        baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx ?? null,
+                      annotations,
+                    });
+                    navigator.clipboard.writeText(data);
+                  }
+                }}
+                sx={{
+                  flexShrink: 0,
+                  color: "text.disabled",
+                  opacity: 0.4,
+                  "&:hover": { opacity: 1, bgcolor: "action.hover" },
+                }}
+              >
+                <BugReportIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Voir les données">
+              <IconButton
+                size="small"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => setOpenDatagrid(true)}
+                sx={{ flexShrink: 0 }}
+              >
+                <TableChartIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Vider la sélection d'annotations">
+              <IconButton
+                size="small"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={handleClearAnnotationsSelection}
+                sx={{ flexShrink: 0 }}
+              >
+                <RemoveIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         {/* Template group rows - the only scrollable area of the toolbar */}
@@ -546,6 +592,14 @@ export default function ToolbarEditAnnotations({
               object to link it to */}
           <SectionLinkedBusinessObjectsInToolbar annotations={annotations} />
         </Box>
+
+        {/* Bottom band: "auto" height + resize handle */}
+        <PanelFooter
+          onResizeMouseDown={handleResizeMouseDown}
+          onResetSize={resetSize}
+          onFitContent={fitContent}
+          isAutoHeight={isAutoHeight}
+        />
 
         {/* Template change menu (same type) */}
         <Menu

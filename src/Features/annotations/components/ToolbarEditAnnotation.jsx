@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDispatch } from "react-redux";
 
 import db from "App/db/db";
 
+import usePanelResize from "Features/layout/hooks/usePanelResize";
+import PanelFooter from "Features/layout/components/PanelFooter";
 import {
   setCanTransformNode,
   setWrapperMode,
@@ -95,6 +97,16 @@ import getAnnotationAnglesCount from "../utils/getAnnotationAnglesCount";
 // (Dupliquer, Évider, Découper, Simplifier…) live in the unified commands
 // toolbar (Features/commandsToolbar).
 export default function ToolbarEditAnnotation({ onDragStart }) {
+  // Resize (bottom band, same mechanics as PopperMapListings). The toolbar
+  // is centred in its popper: widthFactor 2 keeps the handle under the cursor.
+  const paperRef = useRef(null);
+  const {
+    size,
+    isAutoHeight,
+    handleResizeMouseDown,
+    fitContent,
+    reset: resetSize,
+  } = usePanelResize({ paperRef, widthFactor: 2 });
   const dispatch = useDispatch();
 
   // data
@@ -379,11 +391,22 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
     >
       <Paper
+        ref={paperRef}
         elevation={6}
         sx={{
           borderRadius: 3,
           overflow: "hidden",
           minWidth: 230,
+          // Explicit size once resized: the content scrolls, the bottom band
+          // stays pinned (sticky).
+          ...(size && {
+            width: size.width,
+            height: size.height,
+            maxHeight: "100%",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+          }),
         }}
       >
         {/* Row 1 - Template selector (draggable) */}
@@ -881,6 +904,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             annotations={[selectedAnnotation]}
           />
         )}
+
+        {/* Bottom band: "auto" height + resize handle */}
+        <Box sx={{ position: "sticky", bottom: 0, mt: "auto", zIndex: 1 }}>
+          <PanelFooter
+            onResizeMouseDown={handleResizeMouseDown}
+            onResetSize={resetSize}
+            onFitContent={fitContent}
+            isAutoHeight={isAutoHeight}
+          />
+        </Box>
 
         {/* Template selector menu (same type) */}
         <Menu
