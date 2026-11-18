@@ -68,6 +68,22 @@ export function parseCutPlaneBuffer(buffer) {
   return { lengthM, count, mode };
 }
 
+// « Distance entre plans » as typed in the helper ("1,5" → "1.5": digits and
+// one decimal separator).
+export function sanitizeCutPlaneStep(text) {
+  const [head, ...rest] = (text ?? "")
+    .replace(/,/g, ".")
+    .replace(/[^0-9.]/g, "")
+    .split(".");
+  return rest.length ? `${head}.${rest.join("")}` : head;
+}
+
+// The step in metres (> 0), else null.
+export function parseCutPlaneStep(text) {
+  const value = text ? Number(text) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
 // Raw parts for the helper's fields: the length as typed and the count
 // digits ("" when none).
 export function getCutPlaneValuePart(buffer) {

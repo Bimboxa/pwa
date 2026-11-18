@@ -519,9 +519,13 @@ export default function useDrawingPointerHandlers() {
     }
 
     async function commitCutPlane() {
-      const candidates = getCutPlanePending()?.candidates;
+      const pending = getCutPlanePending();
+      const candidates = pending?.candidates;
       if (!candidates?.length) return false;
       const draft = getLiveDrawing().draft;
+      // « Afficher les cotes » (« Plan de coupe » only): a ruler along the
+      // axis, one vertex per plane.
+      const showCotes = store.getState().threedEditor.cutPlaneDraw.showCotes;
       const { newAnnotationIds } = await createCutPlaneLinesService({
         lines: candidates,
         baseMaps: getHostBaseMaps(),
@@ -530,6 +534,7 @@ export default function useDrawingPointerHandlers() {
         templateProps: draft,
         layerId: activeLayerIdRef.current ?? null,
         preferredBaseMapId,
+        rulerPoints: showCotes ? (pending.axisPoints ?? null) : null,
         dispatch,
       });
       if (!newAnnotationIds.length) return false;

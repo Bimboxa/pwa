@@ -154,6 +154,19 @@ go, the cut lines where one or several planes cross the visible annotations.
   overlay constrains the provisional point). `*N` = N planes at
   P1 + i × (P2 − P1), repeated beyond P2; `/N` = N planes at
   P1 + i / N × (P2 − P1), P1 excluded (`utils/getCutPlaneStations`).
+- « Distance entre plans » (`cutPlaneDraw.step`, helper field only, cleared
+  with every draft): one plane every step from P1, strictly between P1 and
+  P2. It replaces the count — typing one clears the other
+  (`setCutPlaneBufferService`). « Plans au début et à la fin de l'axe »
+  (`cutPlaneDraw.includeEnds`, sticky, on by default, step only) adds a plane
+  through P1 and one through P2: the last interval is shorter when |P1P2| is
+  not a multiple of the step. At most 99 stepped planes.
+- « Afficher les cotes » (`cutPlaneDraw.showCotes`, sticky, off by default):
+  Space / Enter also writes a template-less RULER along the axis
+  (`utils/buildCutPlaneRulerRows`, same transaction / undo step), its
+  vertices being P1, every plane and the axis end (`pending.axisPoints`,
+  `getCutPlaneAxisPoints`) — each segment reads the distance between two
+  planes. Nothing is previewed before the creation.
 - Candidates (`computeCutPlaneCandidatesService` → `cutPlaneStore`):
   `collectSceneTriangles` → per plane `sectionTrianglesByPlane` →
   `buildSectionGraph` → `utils/chainSectionGraph` (a component whose nodes

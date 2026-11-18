@@ -23,7 +23,7 @@ import {
   getCutAngleStationsForBuffer,
   recomputeCutPlanePendingService,
 } from "../services/computeCutAngleCandidatesService";
-import { getCutPlaneStationsForBuffer } from "../services/computeCutPlaneCandidatesService";
+import { getCutPlaneStationsForDraw } from "../services/computeCutPlaneCandidatesService";
 import {
   clearCutPlanePending,
   getCutAngleRef,
@@ -79,6 +79,10 @@ export default function CutPlaneOverlayThreed() {
   );
   const buffer = useSelector((s) => s.threedEditor.cutPlaneDraw.buffer);
   const angleAxis = useSelector((s) => s.threedEditor.cutPlaneDraw.angleAxis);
+  const step = useSelector((s) => s.threedEditor.cutPlaneDraw.step);
+  const includeEnds = useSelector(
+    (s) => s.threedEditor.cutPlaneDraw.includeEnds
+  );
 
   // Angle badge of « Coupe par angle » (same pill as the « Tourner » tool).
   const badgeRef = useRef(null);
@@ -93,7 +97,7 @@ export default function CutPlaneOverlayThreed() {
       editor: getActiveThreedEditor(),
       state: store.getState(),
     });
-  }, [active, nearestOnly, buffer, angleAxis, store]);
+  }, [active, nearestOnly, buffer, angleAxis, step, includeEnds, store]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -325,19 +329,22 @@ export default function CutPlaneOverlayThreed() {
         return;
       }
       if (!p1 || !snapPosition) return;
-      const stations = getCutPlaneStationsForBuffer(
+      const stations = getCutPlaneStationsForDraw(
         p1,
         snapPosition,
-        typedBuffer
+        store.getState().threedEditor.cutPlaneDraw
       );
-      // A single plane sits on the snapped cursor itself: nothing to add.
-      if (stations.length > 1) addAxis(p1, stations, resolution);
+      // A single plane on the snapped cursor itself: nothing to add.
+      const single =
+        stations.length === 1 && key3(stations[0].point) === key3(snapPosition);
+      if (stations.length && !single) addAxis(p1, stations, resolution);
     }
 
     function tick(now) {
       const s = store.getState();
       const p1 = s.threedEditor.drawingMode.inProgressPolyline[0] ?? null;
-      const typedBuffer = s.threedEditor.cutPlaneDraw.buffer;
+      const cutPlaneDraw = s.threedEditor.cutPlaneDraw;
+      const typedBuffer = cutPlaneDraw.buffer;
       const pending = getCutPlanePending();
       const snapPosition = getLastSnap()?.position ?? null;
       const angle = isCutAngleDraft(s)
@@ -350,7 +357,7 @@ export default function CutPlaneOverlayThreed() {
       let next = pending
         ? "PENDING"
         : p1 && snapPosition
-          ? `${key3(p1)}|${key3(snapPosition)}|${typedBuffer}`
+          ? `${key3(p1)}|${key3(snapPosition)}|${typedBuffer}|${cutPlaneDraw.step}|${cutPlaneDraw.includeEnds}`
           : "";
       if (angle) {
         next += `|ANGLE|${key3(angle.axis)}|${angle.ref ? key3(angle.ref) : ""}`;

@@ -260,10 +260,18 @@ const threedEditorInitialState = {
   // default). « Coupe par angle » (DRAW_CUT_ANGLE) shares both — its buffer
   // is `<angle°>[*N | /N]` — and adds `angleAxis`: the user axis (X / Y / Z)
   // the half-planes turn around, back to Z with every draft.
+  // « Plan de coupe » only: `step` = the typed « distance entre plans »
+  // (metres, "" = none; wins over the count, cleared with every draft),
+  // `includeEnds` = with a step, also cut at both ends of the axis,
+  // `showCotes` = create a RULER along the axis with the cut lines (both
+  // sticky).
   cutPlaneDraw: {
     buffer: "",
     nearestOnly: true,
     angleAxis: "Z",
+    step: "",
+    includeEnds: true,
+    showCotes: false,
   },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
@@ -672,6 +680,7 @@ export const threedEditorSlice = createSlice({
         // and side are sticky preferences).
         state.cutLineDraw.axis = null;
         state.cutPlaneDraw.buffer = "";
+        state.cutPlaneDraw.step = "";
         state.cutPlaneDraw.angleAxis = "Z";
       } else {
         // Mutually exclusive with the other 3D modes.
@@ -778,6 +787,15 @@ export const threedEditorSlice = createSlice({
     },
     setCutPlaneNearestOnly: (state, action) => {
       state.cutPlaneDraw.nearestOnly = Boolean(action.payload);
+    },
+    setCutPlaneStep: (state, action) => {
+      state.cutPlaneDraw.step = action.payload ?? "";
+    },
+    setCutPlaneIncludeEnds: (state, action) => {
+      state.cutPlaneDraw.includeEnds = Boolean(action.payload);
+    },
+    setCutPlaneShowCotes: (state, action) => {
+      state.cutPlaneDraw.showCotes = Boolean(action.payload);
     },
     // « Coupe par angle »: the user axis the half-planes turn around.
     setCutPlaneAngleAxis: (state, action) => {
@@ -1534,6 +1552,9 @@ export const {
   setCutSegmentDrawStopAtFirst,
   setCutPlaneBuffer,
   setCutPlaneNearestOnly,
+  setCutPlaneStep,
+  setCutPlaneIncludeEnds,
+  setCutPlaneShowCotes,
   setCutPlaneAngleAxis,
   flushInProgressAsTrait3D,
   setDrawingAxisLock,
