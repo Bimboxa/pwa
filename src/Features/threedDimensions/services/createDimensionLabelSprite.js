@@ -29,6 +29,14 @@ const REFERENCE_FONT_SIZE_PT = 18;
 // Supersampling factor for crisp canvas text at high DPI.
 const CANVAS_SCALE = 4;
 
+// Plain card: white background, discreet light grey outline (the value text
+// alone carries the cote colour).
+const CARD_BORDER_COLOR = "#c8c8c8";
+// Medium weight (falls back to regular where the face has no 500).
+const LABEL_FONT_WEIGHT = 500;
+const LABEL_FONT_FAMILY =
+  '"Helvetica Neue", "Roboto", "Helvetica", "Arial", sans-serif';
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -44,7 +52,8 @@ function roundRect(ctx, x, y, w, h, r) {
 // MainThreedEditor click handler can pick it for selection. `userData.coteId`
 // carries the dimension id; `userData.dispose` frees the texture/material.
 //
-// `color` is the cote's display color (border + text). `card` (the
+// `color` is the cote's display color (text; the border too once the card is
+// selected / emphasized — a plain card keeps a light grey outline). `card` (the
 // `showValueCard` setting of COTE / RULER): true draws the value in a
 // rounded card; false draws the bare value with a white halo around the
 // coloured text, so it stays legible on a dark face (same reading as the
@@ -69,7 +78,7 @@ export default function createDimensionLabelSprite({
   const padX = 14 * s;
   const padY = 10 * s;
   const radius = 9 * s;
-  const borderWidth = (selected || emphasis ? 5 : 3) * s;
+  const borderWidth = (selected || emphasis ? 5 : 2) * s;
   // Halo of the bare value: thick enough to isolate the glyphs from any
   // background, drawn under the fill (stroke first).
   const haloWidth = 6 * s;
@@ -77,7 +86,7 @@ export default function createDimensionLabelSprite({
 
   const measureCanvas = document.createElement("canvas");
   const mctx = measureCanvas.getContext("2d");
-  const font = `bold ${titleFontPx}px sans-serif`;
+  const font = `${LABEL_FONT_WEIGHT} ${titleFontPx}px ${LABEL_FONT_FAMILY}`;
   mctx.font = font;
   const textW = mctx.measureText(label).width;
 
@@ -111,7 +120,7 @@ export default function createDimensionLabelSprite({
     ctx.fillStyle = fillBg;
     ctx.fill();
     ctx.lineWidth = borderWidth;
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = selected || emphasis ? color : CARD_BORDER_COLOR;
     ctx.stroke();
   }
 
@@ -140,6 +149,9 @@ export default function createDimensionLabelSprite({
     depthTest: false,
     depthWrite: false,
     sizeAttenuation: false,
+    // The realistic render modes use ACES tone mapping, which would grey the
+    // white card.
+    toneMapped: false,
   });
 
   const sprite = new Sprite(material);
